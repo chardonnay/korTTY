@@ -1100,8 +1100,64 @@ class GlobalSettingsManagerTest {
 
             assertThat(reloadedElegant.getSettings().getAppDesign()).isEqualTo(AppDesign.ELEGANT_DARK);
 
+            reloadedElegant.getSettings().setAppDesign(AppDesign.ATLANTAFX_PRIMER_DARK);
+            reloadedElegant.save();
+
+            GlobalSettingsManager reloadedAtlantaFx = new GlobalSettingsManager(dir);
+            reloadedAtlantaFx.load();
+
+            assertThat(reloadedAtlantaFx.getSettings().getAppDesign())
+                    .isEqualTo(AppDesign.ATLANTAFX_PRIMER_DARK);
+
             reloaded.getSettings().setAppDesign(null);
             assertThat(reloaded.getSettings().getAppDesign()).isEqualTo(AppDesign.NORMAL);
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void saveAndLoadPreservesNamedWindowGeometries() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-named-window-geometries");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            manager.getSettings().setWindowGeometry(
+                "de.kortty.ui.TerminalEffectPluginManagerDialog",
+                new WindowGeometry(210.0, 95.0, 1180.0, 760.0));
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            WindowGeometry geometry = reloaded.getSettings().getWindowGeometry(
+                "de.kortty.ui.TerminalEffectPluginManagerDialog");
+            assertThat(geometry).isNotNull();
+            assertThat(geometry.getX()).isEqualTo(210.0);
+            assertThat(geometry.getY()).isEqualTo(95.0);
+            assertThat(geometry.getWidth()).isEqualTo(1180.0);
+            assertThat(geometry.getHeight()).isEqualTo(760.0);
+
+            reloaded.getSettings().setWindowGeometry(
+                "de.kortty.ui.TerminalEffectPluginManagerDialog", null);
+            assertThat(reloaded.getSettings().getWindowGeometry(
+                "de.kortty.ui.TerminalEffectPluginManagerDialog")).isNull();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void freshInstallDefaultsToAtlantaFxPrimerDarkWithoutChangingLegacyConstructorDefault() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-fresh-app-design");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertThat(manager.getSettings().getAppDesign()).isEqualTo(AppDesign.NORMAL);
+
+            manager.load();
+
+            assertThat(manager.getSettings().getAppDesign())
+                    .isEqualTo(AppDesign.ATLANTAFX_PRIMER_DARK);
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);

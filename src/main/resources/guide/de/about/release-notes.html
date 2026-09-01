@@ -2251,6 +2251,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#aussehen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aussehen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#snippets" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2410,6 +2421,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#aussehen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aussehen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#snippets" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2478,6 +2500,12 @@
 <h1 id="versionshinweise">Versionshinweise<a class="headerlink" href="#versionshinweise" title="Permanent link">&para;</a></h1>
 <p>Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anleitung erstellt wurde, wird in der Fußzeile angezeigt.</p>
 <h2 id="v2140">v2.14.0<a class="headerlink" href="#v2140" title="Permanent link">&para;</a></h2>
+<h3 id="aussehen">Aussehen<a class="headerlink" href="#aussehen" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Jedes vom Benutzer in der Größe veränderbare Anwendungsfenster merkt sich jetzt seine Geometrie</strong> – Hauptfenster und benannte Dialoge behalten ihre Position und Größe getrennt bei, Werkzeugregisterkarten folgen weiterhin ihrem Hauptfenster und ein auf einen nicht angeschlossenen Monitor verschobener Dialog wird auf einem verfügbaren Bildschirm wiederhergestellt.</li>
+<li><strong>Die deutsche JobScheduler-Schnittstelle ist jetzt vollständig lokalisiert</strong> – ihre Registerkarten, Felder, Aktions- und Statusnamen, Ziel- und Remote-Datenselektoren, Sicherheitsaufforderungen, Journalkontrollen, Validierungsmeldungen und Fehler vermischen nicht mehr deutsche Menüs mit englischen Dialoginhalten.</li>
+<li><strong>Alle sieben AtlantaFX-Anwendungsdesigns</strong> – Auf der Registerkarte „Erscheinungsbild“ stehen jetzt die Themen Primer Dark, Primer Light, Nord Dark, Nord Light, Cupertino Dark, Cupertino Light und Dracula von AtlantaFX 2.1.0 ganz oben auf der Designliste. Neue Installationen beginnen mit Primer Dark, bestehende Auswahlen werden nicht migriert, der Wechsel zu einem Nicht-AtlantaFX-Design stellt Modena explizit wieder her und geöffnete Fenster, Dialoge und Popups werden sofort aktualisiert, während Terminal-, Monaco-, Journal- und Chat-Farben unabhängig bleiben.</li>
+</ul>
 <h3 id="snippets">Snippets<a class="headerlink" href="#snippets" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Vier neue KI-Diagrammtypen</strong> – neben dem Flussdiagramm mit logischer Struktur kann der Snippet-Editor jetzt <strong>Sequenz</strong>-, <strong>Zustands</strong>-, <strong>Klassen</strong>- und <strong>ER</strong>-Diagramme generieren. Jede Familie verwendet ihren eigenen kompakten, sicherheitsbeschränkten Mermaid-Dialekt und ihre eigene integrierte Qualitätsfähigkeit und rendert wie zuvor im gebündelten Offline-Mermaid-Renderer. Siehe <a href="../features/snippets.html#mermaid-diagramme">Mermaid-Diagramme</a>.</li>
@@ -2496,11 +2524,13 @@
 </ul>
 <h3 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Öffnen im Snippet-Editor löst nach einem Benutzerwechsel nicht mehr den falschen Pfad auf</strong> – nach einem Identitätswechsel innerhalb einer Sitzung, beispielsweise mit <code>su - root</code> oder einem in eine lokale Shell eingegebenen <code>ssh</code>, löste der Kontextmenüeintrag einen ausgewählten Dateinamen anhand der Verzeichnisse des ursprünglichen Logins auf und lud nichts oder eine falsche gleichnamige Datei. Der Eintrag ist jetzt ausgegraut, während die Sitzung unter einer anderen Identität ausgeführt wird, und wird von selbst wieder aktiviert, sobald in der Eingabeaufforderung wieder der ursprüngliche Benutzer angezeigt wird. Siehe <a href="../features/terminal.html#lokale-shell-registerkarten">Lokale Shell-Registerkarten</a>.</li>
+<li><strong>Die Größe des Fensters „Terminal Effects Manager“ kann jetzt geändert werden</strong> – durch Erweitern des Fensters erhalten die Plugin-Namen und -Beschreibungen mehr Platz, während die Live-Vorschau erhalten bleibt; Installationen, die Toolfenster als Registerkarten öffnen, nutzen weiterhin den verfügbaren Hauptfensterbereich.</li>
+<li><strong>Öffnen im Snippet-Editor löst nach einem Benutzerwechsel nicht mehr den falschen Pfad auf</strong> – nach einem Identitätswechsel innerhalb einer Sitzung, beispielsweise mit <code>su - root</code> oder einem <code>ssh</code>, der in eine lokale Shell eingegeben wurde, löste der Kontextmenüeintrag einen ausgewählten Dateinamen anhand der Verzeichnisse der ursprünglichen Anmeldung auf und lud nichts oder eine falsche gleichnamige Datei. Der Eintrag ist jetzt ausgegraut, während die Sitzung unter einer anderen Identität ausgeführt wird, und wird von selbst wieder aktiviert, sobald in der Eingabeaufforderung wieder der ursprüngliche Benutzer angezeigt wird. Siehe <a href="../features/terminal.html#lokale-shell-registerkarten">Lokale Shell-Registerkarten</a>.</li>
 <li><strong>Ein Split fragt nicht mehr erneut nach dem Grund der Verbindung</strong> – wenn ein Server einen Grund für den Vorgang wünscht, wie es ein Jump-Host im CyberArk-Stil tut, öffnete jeder Split eines Tabs diesen Dialog erneut, obwohl der Grund beim Öffnen des Tabs angegeben wurde. korTTY sendet nun die bereits in diesem Tab angegebene Antwort. Es wird trotzdem gesendet und nicht übersprungen, da ein Server, der nach einem Grund fragt, eine Sitzung schließt, die mit nichts antwortet. Bei einer Aufteilung auf einen anderen Server oder bei einem Server, der etwas anderes fragt, wird ebenfalls einmal gefragt, und ein neuer Tab beginnt immer mit der Frage. Verweigert der Server die Begründung, weil beispielsweise eine Ticketnummer inzwischen abgelaufen ist, verwirft korTTY diese und fragt erneut nach. Siehe <a href="../features/terminal.html#vorgange-aufteilen">Split-Screen mit Broadcast</a>.</li>
 </ul>
 <h3 id="verpackung">Verpackung<a class="headerlink" href="#verpackung" title="Permanent link">&para;</a></h3>
 <ul>
+<li><strong>Windows ARM öffnet unter x64-Emulation keine leeren Fenster mehr</strong> – korTTY erkennt jetzt eine x64-JavaFX-Laufzeitumgebung, die unter ARM64-Windows ausgeführt wird, und wählt den zuverlässigen Software-Renderer aus, bevor JavaFX startet. Native Windows x64-Installationen behalten das Hardware-Rendering bei.</li>
 <li><strong>Native Flatpak-Bundles für Intel/AMD und ARM Linux</strong> – GitHub-Versionen bieten jetzt <code>.flatpak</code>-Bundles für <code>x86_64</code> und <code>aarch64</code>. Eine Flatpak-Installation bleibt auf dem Flatpak-Updatepfad, überprüft das heruntergeladene GitHub-Asset und zeigt den Host-Terminal-Installationsbefehl an, anstatt ein inkompatibles Distributionspaket anzubieten. Lokale Shells und ihre AI-Agent-Befehle werden über <code>flatpak-spawn</code> auf dem Host ausgeführt.</li>
 <li><strong>Pacman-Pakete für Arch Linux und Arch Linux ARM</strong> – Release-Builds packen und überprüfen jetzt sowohl die Anwendungsimages <code>x86_64</code> als auch <code>aarch64</code>. Ein geschützter Pacman-Backfill kann zunächst Inspektionsartefakte erzeugen und später kollisionsfreie signierte Pakete veröffentlichen, ohne ältere Release-Assets zu ersetzen.</li>
 <li><strong>Jedes korTTY-Paket identifiziert jetzt die Anwendungslizenz als MIT</strong> – das Arch-Paket wurde zuvor als Apache-2.0 deklariert, obwohl die Repository-Lizenz von korTTY MIT ist. Arch- und RPM-Metadaten deklarieren jetzt MIT, und jedes Java-, Native- und Flatpak-Artefakt enthält die kanonische Lizenzdatei; Lizenzen Dritter bleiben unverändert.</li>

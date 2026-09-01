@@ -406,6 +406,7 @@ jobs:
 
       - name: Build macOS .dmg
         if: matrix.platform == 'macos'
+        timeout-minutes: 10
         shell: bash
         run: ${{ steps.gradle.outputs.cmd }} -Pkortty.macos.sign=true -Pkortty.macos.signingIdentity="${{ secrets.APPLE_SIGNING_IDENTITY }}" -Pkortty.macos.signingKeychain="$KORTTY_MAC_SIGNING_KEYCHAIN" jpackageDmg
 

@@ -2618,8 +2618,8 @@
 <tr>
 <td>App Design</td>
 <td>dropdown</td>
-<td>Default, Matrix Terminal, Holographic Interface, Klingon Tactical, Elegant Dark, Amber CRT, Synthwave '84, Gruvbox Retro, Nord Arctic, Dracula</td>
-<td>Default</td>
+<td>AtlantaFX Primer Dark, AtlantaFX Primer Light, AtlantaFX Nord Dark, AtlantaFX Nord Light, AtlantaFX Cupertino Dark, AtlantaFX Cupertino Light, AtlantaFX Dracula, Default, Matrix Terminal, Holographic Interface, Klingon Tactical, Elegant Dark, Amber CRT, Synthwave '84, Gruvbox Retro, Nord Arctic, Dracula</td>
+<td>AtlantaFX Primer Dark (new installations)</td>
 <td><code>appDesign</code></td>
 </tr>
 <tr>
@@ -2654,10 +2654,11 @@
 </table>
 <p>The <code>◀</code> and <code>▶</code> buttons next to the dropdown step backward and forward through the designs (wrapping around at the ends). When a design other than <strong>Default</strong> is selected, a preview image of that design is shown below the controls; the <strong>Default</strong> design has no preview and shows a short note in its place.</p>
 <p><strong>Enable design animations</strong> doubles as a reduce-motion switch: turning it off stops the animated design effects while leaving the colors in place.</p>
+<p>The seven AtlantaFX entries apply AtlantaFX 2.1.0's <strong>Primer Dark</strong>, <strong>Primer Light</strong>, <strong>Nord Dark</strong>, <strong>Nord Light</strong>, <strong>Cupertino Dark</strong>, <strong>Cupertino Light</strong>, or <strong>Dracula</strong> user-agent theme to native JavaFX controls, with a small korTTY overlay for the main window chrome and korTTY-specific controls. They are grouped at the top of the dropdown, and a new installation starts with <strong>AtlantaFX Primer Dark</strong>. Existing settings are not migrated: an existing <strong>Default</strong> selection stays Default. Changing to Default or any older korTTY design restores JavaFX Modena before that design's stylesheet is applied. The change is live across open windows, dialogs, menus, tooltips, and completion popups.</p>
 <p><strong>Chat color profile</strong> themes the AI chat and swarm surfaces. The default <strong>Automatic (theme)</strong> derives its palette from the active terminal theme's agent-panel colors; the other profiles are fixed palettes.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>App Design applies only to korTTY's application windows and dialogs. Terminal sessions and the file editor retain their own independent color settings (configured via the Colors or Themes tabs).</p>
+<p>App Design applies only to korTTY's application windows and dialogs. Terminal sessions, the Monaco file editor, session-journal pages, and AI chat content retain their own independent color settings (configured via the Colors or Themes tabs or their own appearance controls).</p>
 </div>
 <h3 id="ui-font-size">UI font size<a class="headerlink" href="#ui-font-size" title="Permanent link">&para;</a></h3>
 <p><strong>UI font size</strong> scales korTTY's own interface — the menu bar and its dropdowns, dialogs, form labels, buttons, tab titles, the dashboard, the file browser and the status bar. It takes effect the moment you save; no restart is needed, and windows that are already open resize with it. The main window's first-launch size grows along with it, and dialogs that remember their size are re-measured after a change rather than reopening at a size that no longer fits their text.</p>

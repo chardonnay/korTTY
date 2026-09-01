@@ -90,4 +90,10 @@ class DialogGeometrySupportTest {
         assertThat(DialogGeometrySupport.sanitize(stored, List.of())).isSameInstanceAs(stored);
         assertThat(DialogGeometrySupport.sanitize(stored, null)).isSameInstanceAs(stored);
     }
+
+    @Test
+    void usesTheDialogClassNameAsStableAutomaticPersistenceKey() {
+        assertThat(DialogGeometrySupport.automaticKey(TerminalEffectPluginManagerDialog.class))
+            .isEqualTo("de.kortty.ui.TerminalEffectPluginManagerDialog");
+    }
 }

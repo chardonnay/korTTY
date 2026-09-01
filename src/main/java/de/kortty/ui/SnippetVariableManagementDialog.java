@@ -209,6 +209,7 @@ public class SnippetVariableManagementDialog extends ThemeAwareDialog<Void> {
                 ? I18n.get("snippets.variables.addTitle")
                 : I18n.get("snippets.variables.editTitle"));
         dialog.setResizable(true);
+        DialogGeometrySupport.installAutomatic(dialog, "snippets.variableEditor");
         dialog.initOwner(getDialogPane().getScene().getWindow());
 
         TextField nameField = new TextField();

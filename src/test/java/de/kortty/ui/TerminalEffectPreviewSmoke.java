@@ -167,6 +167,9 @@ public final class TerminalEffectPreviewSmoke {
             try {
                 TerminalEffectPluginManagerDialog dialog =
                         new TerminalEffectPluginManagerDialog(null, manager);
+                if (!dialog.isResizable()) {
+                    throw new IllegalStateException("terminal-effect manager dialog must be resizable");
+                }
                 StackPane root = new StackPane(dialog.getDialogPane());
                 new Scene(root);
                 root.applyCss();

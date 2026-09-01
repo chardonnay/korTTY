@@ -14,24 +14,26 @@ Passen Sie den visuellen Stil des Anwendungsfensters und des Dialogs an.
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| App-Design | Dropdown-Liste | Standard, Matrix-Terminal, holografische Schnittstelle, Klingon Tactical, Elegant Dark, Amber CRT, Synthwave '84, Gruvbox Retro, Nord Arctic, Dracula | Standard | `appDesign` |
+| App Design | Dropdown | AtlantaFX Primer Dark, AtlantaFX Primer Light, AtlantaFX Nord Dark, AtlantaFX Nord Light, AtlantaFX Cupertino Dark, AtlantaFX Cupertino Light, AtlantaFX Dracula, Default, Matrix Terminal, Holographic Interface, Klingon Tactical, Elegant Dark, Amber CRT, Synthwave '84, Gruvbox Retro, Nord Arctic, Dracula | AtlantaFX Primer Dark (Neuinstallationen) | `appDesign` |
 | Designanimationen aktivieren | umschalten | Ein, Aus | Ein | `appDesignAnimationsEnabled` |
-| UI font size | number | 80–160 % in steps of 5 | 100 % | `uiFontScalePercent` |
+| UI-Schriftgröße | Zahl | 80–160 % in 5er-Schritten | 100 % | `uiFontScalePercent` |
 | An Bildschirmauflösung anpassen | umschalten | Ein, Aus | Ein (Neuinstallation) | `uiFontScaleAuto` |
 | Chat-Farbprofil | Dropdown-Liste | Automatisch (Thema), Original, Papier, Mitternacht, Cyberpunk, Retrowave, Wald, Ozean, Terminal, GPT, Niedlich | Automatisch (Thema) | `chatColorProfileId` |
 
-The `◀` and `▶` buttons next to the dropdown step backward and forward through the designs (wrapping around at the ends). When a design other than **Default** is selected, a preview image of that design is shown below the controls; the **Default** design has no preview and shows a short note in its place.
+Mit den Schaltflächen `◀` und `▶` neben dem Dropdown-Menü können Sie durch die Designs vor- und zurückblättern (an den Enden umlaufend). Wenn ein anderes Design als **Standard** ausgewählt wird, wird unterhalb der Steuerelemente ein Vorschaubild dieses Designs angezeigt. Das **Standarddesign** hat keine Vorschau und zeigt stattdessen eine kurze Notiz an.
 
 **Designanimationen aktivieren** fungiert gleichzeitig als Schalter zur Bewegungsreduzierung: Wenn Sie ihn ausschalten, werden die animierten Designeffekte gestoppt, während die Farben an Ort und Stelle bleiben.
+
+Die sieben AtlantaFX-Einträge wenden das User-Agent-Design **Primer Dark**, **Primer Light**, **Nord Dark**, **Nord Light**, **Cupertino Dark**, **Cupertino Light** oder **Dracula** von AtlantaFX 2.1.0 auf native JavaFX-Steuerelemente an, mit einem kleinen korTTY-Overlay für das Hauptfenster-Chrome und korTTY-spezifischen Steuerelementen. Sie werden oben im Dropdown-Menü gruppiert und eine Neuinstallation beginnt mit **AtlantaFX Primer Dark**. Vorhandene Einstellungen werden nicht migriert: Eine vorhandene **Standardauswahl** bleibt Standard. Wenn Sie auf „Standard“ oder ein älteres korTTY-Design wechseln, wird JavaFX Modena wiederhergestellt, bevor das Stylesheet dieses Designs angewendet wird. Die Änderung ist in allen geöffneten Fenstern, Dialogen, Menüs, Tooltips und Abschluss-Popups wirksam.
 
 **Chat-Farbprofil** thematisiert die KI-Chat- und Schwarmoberflächen. Das standardmäßige **Automatic (Theme)** leitet seine Palette von den Agent-Panel-Farben des aktiven Terminal-Themes ab; Die anderen Profile sind feste Paletten.
 
 !!! note
-    App Design gilt nur für die Anwendungsfenster und Dialoge von korTTY. Terminalsitzungen und der Dateieditor behalten ihre eigenen unabhängigen Farbeinstellungen (konfiguriert über die Registerkarten „Farben“ oder „Themen“).
+    App Design gilt nur für die Anwendungsfenster und Dialoge von korTTY. Terminalsitzungen, der Monaco-Dateieditor, Sitzungsjournalseiten und KI-Chatinhalte behalten ihre eigenen unabhängigen Farbeinstellungen (konfiguriert über die Registerkarten „Farben“ oder „Themen“ oder ihre eigenen Steuerelemente für das Erscheinungsbild).
 
 ### UI-Schriftgröße
 
-**UI font size** scales korTTY's own interface — the menu bar and its dropdowns, dialogs, form labels, buttons, tab titles, the dashboard, the file browser and the status bar. It takes effect the moment you save; no restart is needed, and windows that are already open resize with it. The main window's first-launch size grows along with it, and dialogs that remember their size are re-measured after a change rather than reopening at a size that no longer fits their text.
+**UI-Schriftgröße** skaliert die eigene Benutzeroberfläche von korTTY – die Menüleiste und ihre Dropdowns, Dialoge, Formularbeschriftungen, Schaltflächen, Registerkartentitel, das Dashboard, den Dateibrowser und die Statusleiste. Es wird in dem Moment wirksam, in dem Sie speichern. Es ist kein Neustart erforderlich und die Größe bereits geöffneter Fenster ändert sich damit. Die Größe des Hauptfensters beim ersten Start wächst mit, und Dialoge, die sich ihre Größe merken, werden nach einer Änderung neu gemessen, anstatt in einer Größe erneut geöffnet zu werden, die nicht mehr zu ihrem Text passt.
 
 Es berührt bewusst **keine** Oberflächen, die bereits über eine eigene Größenkontrolle verfügen, sodass die beiden nie gegeneinander antreten:
 
@@ -45,7 +47,7 @@ Es berührt bewusst **keine** Oberflächen, die bereits über eine eigene Größ
 
 Zwei weitere Teile der Benutzeroberfläche behalten bei jeder Einstellung ihre Größe: das macOS-Anwendungsmenü (das in der Systemmenüleiste), da macOS es anstelle von korTTY zeichnet, und der KI-Schwarm-Statusstreifen, dessen Beschriftungen zusammen mit handberechneten Positionen auf einen Canvas gezeichnet werden.
 
-**Match display resolution** derives the size from the primary display instead, and disables the number field while it is on. A new installation starts with it **on**, so korTTY fits itself to the screen before anyone visits this tab; updating an existing installation never changes it — whatever you had stays. The value comes from the display's *logical* height — the resolution the operating system reports after its own scaling:
+**An Bildschirmauflösung anpassen** leitet die Größe stattdessen von der primären Anzeige ab und deaktiviert das Zahlenfeld, solange es aktiviert ist. Eine Neuinstallation beginnt damit, dass es **eingeschaltet** ist, sodass sich korTTY an den Bildschirm anpasst, bevor jemand diese Registerkarte besucht; Das Aktualisieren einer vorhandenen Installation ändert nie etwas daran – alles, was Sie hatten, bleibt bestehen. Der Wert ergibt sich aus der *logischen* Höhe der Anzeige – der Auflösung, die das Betriebssystem nach seiner eigenen Skalierung meldet:
 
 | Logische Bildschirmhöhe | UI-Schriftgröße |
 | --- | --- |
@@ -57,7 +59,7 @@ Zwei weitere Teile der Benutzeroberfläche behalten bei jeder Einstellung ihre G
 Aus diesem Grund bleibt ein Retina MacBook bei 100 %: macOS skaliert es bereits, sodass es etwa 1100 logische Pixel meldet und keine Hilfe benötigt. Die Option besteht für einen 4K- oder 5K-Bildschirm mit 100 % Betriebssystemskalierung, wobei korTTY tatsächlich die vollen 2160 oder 2880 Pixel zum Zeichnen erhält.
 
 !!! note
-    Automatic is a suggestion, not a measurement. JavaFX cannot report a display's physical size, so korTTY cannot tell a 27-inch 4K panel from a 32-inch one at the same resolution, even though they need different sizes. If the result does not suit you, turn the option off and set the percentage yourself — your manual value is remembered while automatic is on.
+    „Automatisch“ ist ein Vorschlag, keine Messung. JavaFX kann die physische Größe eines Displays nicht melden, daher kann korTTY ein 27-Zoll-4K-Panel nicht von einem 32-Zoll-Panel mit derselben Auflösung unterscheiden, obwohl sie unterschiedliche Größen benötigen. Wenn Ihnen das Ergebnis nicht zusagt, schalten Sie die Option aus und legen Sie den Prozentsatz selbst fest – Ihr manueller Wert wird gespeichert, während die automatische Einstellung aktiviert ist.
 
 Die Automatik erreicht die Höchstgrenze bei 140 %, die manuelle Einstellung bei 160 %. Die Obergrenze ist absichtlich festgelegt: Eine Handvoll Dialoge richten sich nach festen Pixelbreiten, und jenseits dieses Punktes beginnt der Text zu drängen. korTTY liest die Anzeige erneut, wenn Sie die Einstellungen speichern. Öffnen Sie also nach dem Ändern Ihrer Monitoreinstellungen die Einstellungen und speichern Sie sie erneut (oder starten Sie neu), um die neue Auflösung zu übernehmen.
 

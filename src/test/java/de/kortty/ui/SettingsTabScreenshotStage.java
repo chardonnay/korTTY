@@ -1,5 +1,6 @@
 package de.kortty.ui;
 
+import de.kortty.JavaFxPlatformSupport;
 import de.kortty.core.ConfigurationManager;
 import de.kortty.core.CredentialManager;
 import de.kortty.core.GPGKeyManager;
@@ -63,6 +64,7 @@ public final class SettingsTabScreenshotStage {
     }
 
     public static void main(String[] args) throws Exception {
+        JavaFxPlatformSupport.configureRenderer();
         Path doneFlag = args.length > 0 && !args[0].isBlank() ? Path.of(args[0]) : null;
         String tabKey = System.getProperty("kortty.screenshotTabKey", DEFAULT_TAB_KEY);
         // Settings that display a path (the log directory) put the home in the picture, so allow a

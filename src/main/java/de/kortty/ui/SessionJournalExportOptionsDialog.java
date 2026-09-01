@@ -148,6 +148,7 @@ public final class SessionJournalExportOptionsDialog {
             dialog.setTitle(I18n.get("journal.export.title"));
             dialog.setHeaderText(headerText());
             dialog.setResizable(true);
+            DialogGeometrySupport.installAutomatic(dialog, "sessionJournal.exportOptions");
             dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
             // The content grows with every added time window, so it scrolls inside a bounded
             // viewport instead of pushing the button bar off the bottom of the dialog.

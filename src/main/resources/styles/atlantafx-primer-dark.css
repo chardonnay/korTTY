@@ -1,0 +1,256 @@
+/*
+ * korTTY overlay for AtlantaFX 2.1.0 themes.
+ *
+ * Only korTTY-owned surfaces are styled here. Standard JavaFX controls remain under AtlantaFX's
+ * user-agent stylesheet, while terminal, Monaco, journal and chat palettes remain independent.
+ * All colors below are public functional looked-up colors defined by AtlantaFX's .root rule.
+ */
+
+/* Application chrome */
+.kortty-main-root,
+.master-password-root {
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-muted;
+    -fx-border-width: 1;
+}
+
+.main-content {
+    -fx-background-color: -color-bg-default;
+}
+
+.status-bar {
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-muted transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+}
+
+.status-label,
+.field-label,
+.version-label,
+.footer-text {
+    -fx-text-fill: -color-fg-muted;
+}
+
+.footer-bar {
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-muted transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+}
+
+.logo-panel,
+.logo-area {
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-muted;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+/* Borderless transparent-window chrome */
+.transparent-window-titlebar {
+    -fx-background-color: -color-bg-overlay;
+    -fx-border-color: transparent transparent -color-border-muted transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.transparent-window-title,
+.transparent-window-button {
+    -fx-text-fill: -color-fg-default;
+}
+
+.transparent-window-button:hover {
+    -fx-background-color: -color-neutral-muted;
+    -fx-background-radius: 4;
+}
+
+/* The compact design marker in the main status bar. */
+.app-design-cursor {
+    -fx-min-width: 10;
+    -fx-pref-width: 10;
+    -fx-max-width: 10;
+    -fx-min-height: 10;
+    -fx-pref-height: 10;
+    -fx-max-height: 10;
+    -fx-background-radius: 5;
+    -fx-background-color: -color-accent-emphasis;
+    -fx-effect: dropshadow(gaussian, -color-accent-fg, 8, 0.35, 0, 0);
+}
+
+/* Dashboard tokens consumed by atlantafx-kortty-components.css. */
+.dashboard-view {
+    -kortty-dash-bg: -color-bg-default;
+    -kortty-dash-fg: -color-fg-default;
+    -kortty-dash-dim: -color-fg-muted;
+    -kortty-dash-accent: -color-accent-emphasis;
+    -kortty-dash-ok: -color-success-fg;
+    -kortty-dash-error: -color-danger-fg;
+    -kortty-dash-border: -color-border-muted;
+    -kortty-dash-hover: -color-neutral-subtle;
+    -kortty-dash-selected: -color-accent-subtle;
+}
+
+.dashboard-menu-icon {
+    -fx-fill: -color-fg-muted;
+}
+
+/* File-browser tokens consumed by filebrowser.css. */
+.file-browser-panel {
+    -kortty-fb-bg: -color-bg-default;
+    -kortty-fb-fg: -color-fg-default;
+    -kortty-fb-dim: -color-fg-muted;
+    -kortty-fb-accent: -color-accent-emphasis;
+    -kortty-fb-border: -color-border-muted;
+    -kortty-fb-hover: -color-neutral-subtle;
+    -kortty-fb-selected: -color-accent-subtle;
+    -kortty-fb-selected-fg: -color-fg-default;
+    -kortty-fb-status-bg: -color-bg-inset;
+}
+
+.file-browser-tree .tree-disclosure-node .arrow {
+    -fx-background-color: -color-fg-muted;
+}
+
+.file-browser-loading {
+    -fx-background-color: -color-bg-overlay;
+}
+
+/* AI agent and profile-wizard controls owned by korTTY. */
+.ai-agent-activity-panel {
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-muted;
+}
+
+.ai-agent-activity-title,
+.ai-agent-prompt-label,
+.ai-agent-command-line,
+.terminal-agent-busy-text {
+    -fx-text-fill: -color-fg-default;
+}
+
+.ai-agent-prompt-viewer,
+.ai-agent-command-preview {
+    -fx-background-color: -color-bg-inset;
+    -fx-border-color: -color-border-muted;
+    -fx-text-fill: -color-fg-default;
+    -fx-prompt-text-fill: -color-fg-muted;
+}
+
+.ai-agent-header-busy-dot,
+.ai-agent-dot-action,
+.ai-agent-option-check:selected .mark {
+    -fx-background-color: -color-success-emphasis;
+}
+
+.ai-agent-header-busy-dot,
+.ai-agent-dot-running {
+    -fx-effect: dropshadow(gaussian, -color-success-fg, 8, 0.35, 0, 0);
+}
+
+.ai-agent-header-busy-label,
+.terminal-agent-busy-robot {
+    -fx-text-fill: -color-success-fg;
+}
+
+.ai-agent-activity-meta,
+.ai-agent-activity-text,
+.ai-agent-detail,
+.ai-agent-toggle-button,
+.ai-agent-font-button,
+.ai-agent-collapse-button,
+.ai-agent-option-check,
+.ai-agent-close-button,
+.ai-agent-export-format .list-cell {
+    -fx-text-fill: -color-fg-muted;
+}
+
+.ai-agent-resize-handle,
+.ai-agent-activity-scroll,
+.ai-agent-toggle-button,
+.ai-agent-font-button,
+.ai-agent-export-format,
+.ai-agent-collapse-button,
+.ai-agent-option-check .box,
+.ai-agent-prompt-box,
+.terminal-agent-busy-overlay {
+    -fx-border-color: -color-border-muted;
+}
+
+.ai-agent-resize-handle:hover,
+.ai-agent-toggle-button:hover,
+.ai-agent-font-button:hover,
+.ai-agent-collapse-button:hover,
+.ai-agent-close-button:hover {
+    -fx-background-color: -color-neutral-subtle;
+    -fx-text-fill: -color-fg-default;
+}
+
+.ai-agent-prompt-box,
+.terminal-agent-busy-overlay {
+    -fx-background-color: -color-bg-overlay;
+}
+
+.ai-agent-dot-message {
+    -fx-background-color: -color-fg-default;
+}
+
+.ai-agent-dot-error {
+    -fx-background-color: -color-danger-emphasis;
+}
+
+.ai-workflow-error,
+.ai-agent-spinner {
+    -fx-text-fill: -color-danger-fg;
+}
+
+.ai-agent-cancel-button {
+    -fx-background-color: -color-danger-emphasis;
+    -fx-border-color: -color-danger-muted;
+    -fx-text-fill: -color-fg-emphasis;
+}
+
+.ai-agent-cancel-button:hover {
+    -fx-background-color: -color-danger-fg;
+    -fx-border-color: -color-danger-fg;
+    -fx-text-fill: -color-fg-emphasis;
+}
+
+.ai-agent-cancel-button:disabled {
+    -fx-background-color: -color-danger-subtle;
+    -fx-border-color: -color-danger-muted;
+}
+
+.ai-wizard-card {
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-muted;
+}
+
+.ai-wizard-card:hover {
+    -fx-border-color: -color-accent-emphasis;
+}
+
+.ai-wizard-card:selected {
+    -fx-background-color: -color-accent-subtle;
+    -fx-border-color: -color-accent-emphasis;
+}
+
+.ai-wizard-card .ai-wizard-card-title {
+    -fx-text-fill: -color-fg-default;
+}
+
+.ai-wizard-card .ai-wizard-card-desc,
+.ai-wizard-flow-arrow {
+    -fx-text-fill: -color-fg-muted;
+}
+
+.ai-wizard-flow-chip {
+    -fx-background-color: -color-neutral-muted;
+    -fx-text-fill: -color-fg-default;
+}
+
+/* Settings navigation remains subtle while Primer styles the actual buttons. */
+.settings-section-nav-bar {
+    -fx-border-color: transparent transparent -color-border-muted transparent;
+}
+
+.settings-section-nav-label {
+    -fx-text-fill: -color-fg-muted;
+}

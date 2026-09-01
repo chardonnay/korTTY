@@ -2325,10 +2325,10 @@
 </thead>
 <tbody>
 <tr>
-<td>Remember window geometry</td>
-<td>toggle</td>
+<td>Fenstergeometrie merken</td>
+<td>umschalten</td>
 <td>—</td>
-<td>On</td>
+<td>Ein</td>
 <td><code>rememberWindowGeometry</code></td>
 </tr>
 <tr>
@@ -2382,9 +2382,10 @@
 </tr>
 </tbody>
 </table>
+<p>Wenn <strong>Fenstergeometrie merken</strong> aktiviert ist, speichert KorTTY die Position und Größe jedes vom Benutzer veränderbaren Anwendungsfensters und benannten Dialogs separat. Beim erneuten Öffnen eines Fensters wird die für diesen Fenstertyp ausgewählte Geometrie wiederhergestellt. Wenn der vorherige Monitor nicht mehr angeschlossen ist, verschiebt KorTTY ihn zurück auf einen verfügbaren Bildschirm. Bei einem geänderten Schriftgrad der Benutzeroberfläche bleibt die gespeicherte Position erhalten, das Fenster berechnet jedoch eine neue Größe, sodass übersetzte oder vergrößerte Beschriftungen weiterhin passen. Kurzlebige Bestätigungen und Fortschrittsmeldungen behalten ihre vom Inhalt abgeleitete Größe.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Wenn <strong>Feste Fenstergeometrie verwenden</strong> aktiviert ist, hat sie Vorrang vor <strong>Fenstergeometrie speichern</strong>. Das Fenster wird immer an der angegebenen Position und Größe geöffnet und ignoriert alle zuvor gespeicherten Geometrien.</p>
+<p>Wenn <strong>Feste Fenstergeometrie verwenden</strong> aktiviert ist, hat sie Vorrang vor <strong>Fenstergeometrie speichern</strong> für Hauptfenster des Terminals. Dialoge verwenden weiterhin ihre eigene gespeicherte Geometrie.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -2393,6 +2394,7 @@
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Wenn <strong>Toolfenster als Registerkarten öffnen</strong> aktiviert ist, werden Verwaltungstools (Snippets, JobScheduler, KI-Manager, gespeicherte Chats, Verwaltung von Anmeldeinformationen/GPG/SSH-Schlüsseln, Videomanager, Teamwork-Einstellungen, Terminaleffekte) als Registerkarten im Hauptfenster und nicht in separaten Fenstern geöffnet. Die Registerkarte wird in dem Fenster geöffnet, dessen Menü Sie verwendet haben. Wenn also mehrere Hauptfenster geöffnet sind, verfügt jedes Fenster über eigene Werkzeugregisterkarten. Beim erneuten Öffnen eines Tools wird die vorhandene Registerkarte fokussiert. Der Snippet-Editor und die AI-Code-Analyse öffnen jedes Mal einen neuen Tab. Die Einstellung wird beim nächsten Öffnen eines Tools wirksam.</p>
+<p>Ein als Registerkarte gehostetes Werkzeug verfügt über keine separate Fenstergeometrie. Seine verfügbare Größe richtet sich nach dem Hauptfenster und seiner gespeicherten Hauptfenstergeometrie.</p>
 </div>
 
 

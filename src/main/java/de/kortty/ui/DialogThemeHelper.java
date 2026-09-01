@@ -3,15 +3,11 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Applies the active KorTTY theme to JavaFX dialogs.
  */
 public final class DialogThemeHelper {
-
-    private static final Logger logger = LoggerFactory.getLogger(DialogThemeHelper.class);
 
     private DialogThemeHelper() {
     }
@@ -22,6 +18,7 @@ public final class DialogThemeHelper {
         }
         applyTheme(dialog.getDialogPane());
         WindowCloseShortcutSupport.installForDialog(dialog);
+        DialogGeometrySupport.installAutomatic(dialog);
     }
 
     public static void applyTheme(DialogPane dialogPane) {
@@ -29,15 +26,7 @@ public final class DialogThemeHelper {
             return;
         }
 
-        var baseCssResource = DialogThemeHelper.class.getResource("/styles/terminal.css");
-        if (baseCssResource != null) {
-            String baseCss = baseCssResource.toExternalForm();
-            if (!dialogPane.getStylesheets().contains(baseCss)) {
-                dialogPane.getStylesheets().add(baseCss);
-            }
-        } else {
-            logger.debug("Could not resolve terminal.css for dialog theming");
-        }
+        AppDesignStyleSupport.registerApplicationBaseStyles(dialogPane);
 
         // A custom app design fully owns the chrome, so the terminal-theme dynamic stylesheet (which
         // would override the design's menu/button/label colours) is suppressed at the source:

@@ -121,7 +121,7 @@ Global application preferences and defaults.
 
 #### Window, menus and panels
 
-- Window geometry and state (position, size, maximized status)
+- Main-window geometry and state (position, size, maximized status), plus a named geometry entry for every user-resizable application dialog
 - Menu bar visibility preference
 - Dashboard visibility state
 - "Open tool windows as tabs" flag

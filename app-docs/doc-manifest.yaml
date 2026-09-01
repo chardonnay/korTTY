@@ -57,7 +57,7 @@ pages:
     last_synced_ref: "031ad3c0"
   - path: app-docs/site/docs/en/getting-started/installation.md
     owns_i18n: []
-    owns_code: [build.gradle.kts, .github/workflows/build-release.yml, .github/workflows/llama-runtime.yml]
+    owns_code: [build.gradle.kts, src/main/java/de/kortty/JavaFxPlatformSupport.java, src/main/java/de/kortty/KorTTYApplication.java, src/main/java/de/kortty/Launcher.java, .github/workflows/build-release.yml, .github/workflows/llama-runtime.yml]
     diagrams: []
     screenshots: []
     last_synced_ref: "38bcd2b4"
@@ -112,7 +112,7 @@ pages:
       - settings/appearance.png
       - settings/themes.png
       - settings/font.png
-    last_synced_ref: "659b3bd9"
+    last_synced_ref: "38bcd2b4"
   - path: app-docs/site/docs/en/reference/settings/colors.md
     owns_i18n: [settings.colors.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java]
@@ -127,10 +127,10 @@ pages:
     last_synced_ref: "659b3bd9"
   - path: app-docs/site/docs/en/reference/settings/window.md
     owns_i18n: [settings.window.]
-    owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java]
+    owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/ui/DialogGeometrySupport.java, src/main/java/de/kortty/ui/DialogThemeHelper.java, src/main/java/de/kortty/model/NamedWindowGeometry.java]
     screenshots:
       - settings/window.png
-    last_synced_ref: "659b3bd9"
+    last_synced_ref: "38bcd2b4"
   - path: app-docs/site/docs/en/reference/settings/resources.md
     owns_i18n: [settings.resources.]
     owns_code: [src/main/java/de/kortty/model/JvmResourceProfile.java, src/main/java/de/kortty/JvmRelauncher.java]
@@ -257,10 +257,10 @@ pages:
     screenshots: [tools/full-code-analysis.png]
     last_synced_ref: "a48a0946"
   - path: app-docs/site/docs/en/features/jobscheduler.md
-    owns_i18n: []
-    owns_code: [src/main/java/de/kortty/jobscheduler]
+    owns_i18n: [jobscheduler.dialog., jobscheduler.menu., jobscheduler.quit.]
+    owns_code: [src/main/java/de/kortty/jobscheduler, src/main/java/de/kortty/ui/JobSchedulerDialog.java, src/main/java/de/kortty/ui/JobSchedulerTargetSelectionDialog.java, src/main/java/de/kortty/ui/JobSchedulerRemoteDirectoryDialog.java]
     diagrams: [jobscheduler-execution.svg]
-    last_synced_ref: "031ad3c0"
+    last_synced_ref: "38bcd2b4"
   - path: app-docs/site/docs/en/features/projects.md
     owns_i18n: [project.]
     owns_code: [src/main/java/de/kortty/model/Project.java, src/main/java/de/kortty/model/WindowState.java, src/main/java/de/kortty/model/SessionState.java, src/main/java/de/kortty/model/SplitPaneState.java, src/main/java/de/kortty/core/ProjectManager.java, src/main/java/de/kortty/ui/ProjectSettingsDialog.java, src/main/java/de/kortty/ui/ProjectPreviewDialog.java, src/main/java/de/kortty/ui/MainWindow.java]
@@ -408,10 +408,10 @@ pages:
     last_synced_ref: "031ad3c0"
   - path: app-docs/site/docs/en/features/terminal-effect-plugins.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/plugin]
+    owns_code: [src/main/java/de/kortty/plugin, src/main/java/de/kortty/ui/TerminalEffectPluginManagerDialog.java]
     diagrams: [terminal-effect-plugin-flow.svg]
     screenshots: [plugins/terminal-effects.png]
-    last_synced_ref: "031ad3c0"
+    last_synced_ref: "38bcd2b4"
   - path: app-docs/site/docs/en/features/i18n.md
     owns_i18n: []
     # TranslationService is owned here as well: the provider table on this page states which API
@@ -426,17 +426,17 @@ pages:
     # package will not flag the module table.
     owns_code: [build.gradle.kts, src/mermaid]
     diagrams: [architecture.svg, modules-overview.svg, app-startup-manager-init.svg]
-    last_synced_ref: "caa6da16"
+    last_synced_ref: "38bcd2b4"
   - path: app-docs/site/docs/en/reference/config-files.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/persistence, src/main/java/de/kortty/model/ServerConnection.java, src/main/java/de/kortty/model/SnippetDiagram.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ai/llama/LlamaModelRegistry.java, src/main/java/de/kortty/rag/RagConfigurationManager.java]
-    last_synced_ref: "a48a0946"
+    last_synced_ref: "38bcd2b4"
   - path: app-docs/site/docs/en/reference/enterprise-policy.md
     owns_i18n: [policy.]
     owns_code: [src/main/java/de/kortty/policy, package/policy]
     diagrams: []
     screenshots: []
-    last_synced_ref: "f56db94e"
+    last_synced_ref: "38bcd2b4"
   - path: app-docs/site/docs/en/reference/hardening-options.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/WorkflowScriptSupport.java, src/main/java/de/kortty/ui/HardeningOptionsSelector.java, src/main/java/de/kortty/ui/WorkflowScriptDialog.java, src/main/java/de/kortty/ui/SwarmWorkflowScriptDialog.java, src/main/java/de/kortty/ui/SnippetEditDialog.java, src/main/java/de/kortty/ui/SnippetCodeAnalysisDialog.java]

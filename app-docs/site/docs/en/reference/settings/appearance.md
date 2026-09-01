@@ -14,7 +14,7 @@ Customize the application window and dialog visual style.
 
 | Setting | Type | Values | Default | Stored as |
 | --- | --- | --- | --- | --- |
-| App Design | dropdown | Default, Matrix Terminal, Holographic Interface, Klingon Tactical, Elegant Dark, Amber CRT, Synthwave '84, Gruvbox Retro, Nord Arctic, Dracula | Default | `appDesign` |
+| App Design | dropdown | AtlantaFX Primer Dark, AtlantaFX Primer Light, AtlantaFX Nord Dark, AtlantaFX Nord Light, AtlantaFX Cupertino Dark, AtlantaFX Cupertino Light, AtlantaFX Dracula, Default, Matrix Terminal, Holographic Interface, Klingon Tactical, Elegant Dark, Amber CRT, Synthwave '84, Gruvbox Retro, Nord Arctic, Dracula | AtlantaFX Primer Dark (new installations) | `appDesign` |
 | Enable design animations | toggle | On, Off | On | `appDesignAnimationsEnabled` |
 | UI font size | number | 80–160 % in steps of 5 | 100 % | `uiFontScalePercent` |
 | Match display resolution | toggle | On, Off | On (new installations) | `uiFontScaleAuto` |
@@ -24,10 +24,12 @@ The `◀` and `▶` buttons next to the dropdown step backward and forward throu
 
 **Enable design animations** doubles as a reduce-motion switch: turning it off stops the animated design effects while leaving the colors in place.
 
+The seven AtlantaFX entries apply AtlantaFX 2.1.0's **Primer Dark**, **Primer Light**, **Nord Dark**, **Nord Light**, **Cupertino Dark**, **Cupertino Light**, or **Dracula** user-agent theme to native JavaFX controls, with a small korTTY overlay for the main window chrome and korTTY-specific controls. They are grouped at the top of the dropdown, and a new installation starts with **AtlantaFX Primer Dark**. Existing settings are not migrated: an existing **Default** selection stays Default. Changing to Default or any older korTTY design restores JavaFX Modena before that design's stylesheet is applied. The change is live across open windows, dialogs, menus, tooltips, and completion popups.
+
 **Chat color profile** themes the AI chat and swarm surfaces. The default **Automatic (theme)** derives its palette from the active terminal theme's agent-panel colors; the other profiles are fixed palettes.
 
 !!! note
-    App Design applies only to korTTY's application windows and dialogs. Terminal sessions and the file editor retain their own independent color settings (configured via the Colors or Themes tabs).
+    App Design applies only to korTTY's application windows and dialogs. Terminal sessions, the Monaco file editor, session-journal pages, and AI chat content retain their own independent color settings (configured via the Colors or Themes tabs or their own appearance controls).
 
 ### UI font size
 

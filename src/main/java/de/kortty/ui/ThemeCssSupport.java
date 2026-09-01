@@ -2,9 +2,11 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.ThemeManager;
+import de.kortty.model.AppDesign;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.Theme;
+import javafx.collections.ObservableList;
 import javafx.scene.paint.Color;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,6 +87,38 @@ final class ThemeCssSupport {
                 return null;
             }
         });
+    }
+
+    /**
+     * Removes stale terminal-theme chrome CSS from a marked application surface and restores the
+     * current dynamic stylesheet only for the Normal design. AtlantaFX and the other app designs
+     * own the chrome themselves, while chat and terminal content keep their separate stylesheets.
+     */
+    static void reconcileDynamicStylesheets(
+            ObservableList<String> stylesheets, AppDesign appDesign) {
+        reconcileDynamicStylesheets(
+                stylesheets,
+                appDesign,
+                resolveThemeColors(KorTTYApplication.getInstance()));
+    }
+
+    static void reconcileDynamicStylesheets(
+            ObservableList<String> stylesheets, AppDesign appDesign, ThemeColors themeColors) {
+        if (stylesheets == null) {
+            return;
+        }
+        stylesheets.removeIf(ThemeCssSupport::isDynamicStylesheetUrl);
+        if (appDesign != AppDesign.NORMAL) {
+            return;
+        }
+        String active = getDynamicStylesheetUrl(themeColors);
+        if (active != null && !stylesheets.contains(active)) {
+            stylesheets.add(active);
+        }
+    }
+
+    static boolean isDynamicStylesheetUrl(String stylesheetUrl) {
+        return stylesheetUrl != null && DYNAMIC_STYLESHEET_CACHE.containsValue(stylesheetUrl);
     }
 
     static String buildCss(String backgroundColor, String foregroundColor) {

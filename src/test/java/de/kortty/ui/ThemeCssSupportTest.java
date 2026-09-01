@@ -1,6 +1,8 @@
 package de.kortty.ui;
 
+import de.kortty.model.AppDesign;
 import de.kortty.model.Theme;
+import javafx.collections.FXCollections;
 import org.testng.annotations.Test;
 import static com.google.common.truth.Truth.assertThat;
 
@@ -65,5 +67,21 @@ class ThemeCssSupportTest {
         assertThat(theme.getAgentPanelAccentColor()).isNotNull();
         assertThat(theme.getAgentPanelErrorColor()).isNotNull();
         assertThat(theme.getAgentPanelBackgroundColor()).isNotEqualTo(theme.getBackgroundColor());
+    }
+
+    @Test
+    void dynamicChromeStylesheetIsRemovedForAtlantaFxAndRestoredForNormal() {
+        ThemeCssSupport.ThemeColors colors =
+                new ThemeCssSupport.ThemeColors("#101820", "#f3f4f6");
+        String dynamic = ThemeCssSupport.getDynamicStylesheetUrl(colors);
+        var stylesheets = FXCollections.observableArrayList("base.css", dynamic, dynamic);
+
+        ThemeCssSupport.reconcileDynamicStylesheets(
+                stylesheets, AppDesign.ATLANTAFX_PRIMER_DARK, colors);
+        assertThat(stylesheets).containsExactly("base.css");
+
+        ThemeCssSupport.reconcileDynamicStylesheets(stylesheets, AppDesign.NORMAL, colors);
+        ThemeCssSupport.reconcileDynamicStylesheets(stylesheets, AppDesign.NORMAL, colors);
+        assertThat(stylesheets).containsExactly("base.css", dynamic).inOrder();
     }
 }

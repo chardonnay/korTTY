@@ -12,7 +12,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.TextArea;
@@ -33,7 +32,7 @@ import java.util.Locale;
  * count, and the "Run" button validates (variable resolution, supported language) before closing —
  * blocking problems appear inline and keep the dialog open.
  */
-final class SwarmSnippetRunDialog extends Dialog<SwarmSnippetRunSupport.PreparedRun> {
+final class SwarmSnippetRunDialog extends ThemeAwareDialog<SwarmSnippetRunSupport.PreparedRun> {
 
     private record SnippetChoice(String id, String label) {
         @Override

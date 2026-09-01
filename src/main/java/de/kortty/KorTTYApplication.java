@@ -33,6 +33,7 @@ import de.kortty.security.MasterPasswordManager;
 import de.kortty.power.PowerManagementCoordinator;
 import de.kortty.ui.MainWindow;
 import de.kortty.ui.MasterPasswordDialog;
+import de.kortty.ui.AppDesignStyleSupport;
 import java.awt.Desktop;
 import java.awt.desktop.AppForegroundListener;
 import java.awt.desktop.AppReopenedListener;
@@ -108,6 +109,7 @@ public class KorTTYApplication extends Application {
     private de.kortty.policy.PolicyManager policyManager;
     
     public static void main(String[] args) {
+        JavaFxPlatformSupport.configureRenderer();
         // Admin console mode: encrypt a sensitive policy-file value (e.g. an AI-profile API key)
         // into the kortty-enc:v1: envelope, without starting JavaFX.
         if (args.length > 0 && "--encrypt-policy-value".equals(args[0])) {
@@ -115,6 +117,9 @@ public class KorTTYApplication extends Application {
             return;
         }
         logger.info("Starting {} v{}", APP_NAME, APP_VERSION);
+        if ("sw".equalsIgnoreCase(System.getProperty("prism.order", ""))) {
+            logger.info("JavaFX software renderer enabled for Windows ARM x64 emulation");
+        }
         launch(args);
     }
 
@@ -255,6 +260,8 @@ public class KorTTYApplication extends Application {
             // Load global settings first (they are not encrypted) to check if master password is required
             try {
                 globalSettingsManager.load();
+                AppDesignStyleSupport.initializeGlobalStyling(
+                    globalSettingsManager.getSettings().getAppDesign());
                 themeManager.load();
                 
                 // Initialize language manager EARLY with settings, before any UI is created
@@ -264,6 +271,10 @@ public class KorTTYApplication extends Application {
             } catch (Exception e) {
                 logger.warn("Failed to load global settings, using defaults", e);
             }
+            // The fallback also makes the startup order explicit when loading failed: Modena is
+            // selected and the global Window listener is installed before any password UI exists.
+            AppDesignStyleSupport.initializeGlobalStyling(
+                globalSettingsManager.getSettings().getAppDesign());
             
             // Check if master password needs to be set up or verified
             // Always show dialog if password is not set (first time setup)
@@ -336,6 +347,8 @@ public class KorTTYApplication extends Application {
                 // Reload global settings to ensure we have the latest version
                 // Note: This reload should preserve the language setting from the file
                 globalSettingsManager.load();
+                AppDesignStyleSupport.initializeGlobalStyling(
+                    globalSettingsManager.getSettings().getAppDesign());
                 themeManager.load();
                 
                 // Re-initialize language manager with the loaded settings

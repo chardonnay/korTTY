@@ -57,6 +57,8 @@ Externe Plugins werden jeweils aus einem JAR geladen, wobei der Anwendungsklasse
 
 Benutzer verwalten Terminal-Effekt-Plugins über **Plugins > Terminal-Effekte**.
 
+Die Größe des Fensters des Terminal Effects Managers lässt sich ändern, sodass Sie die Plugin-Tabelle und Beschreibungen erweitern können, während die Live-Vorschau sichtbar bleibt. Wenn Toolfenster so konfiguriert sind, dass sie als Registerkarten geöffnet werden, verwendet der Manager stattdessen den verfügbaren Registerkartenbereich im Hauptfenster.
+
 ![Terminal Effects manager](../assets/screenshots/plugins/terminal-effects.png)
 
 Der Dialog zeigt die geladene Plugin-Liste mit:

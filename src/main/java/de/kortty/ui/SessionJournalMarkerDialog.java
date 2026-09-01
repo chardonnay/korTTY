@@ -100,6 +100,7 @@ public final class SessionJournalMarkerDialog {
         }
         dialog.setTitle(I18n.get("journal.marker.manage.title"));
         dialog.setResizable(true);
+        DialogGeometrySupport.installAutomatic(dialog, "sessionJournal.markers");
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
 
         SplitPane split = new SplitPane(buildDefinitionsPane(), buildRulesPane(applyNow));

@@ -5,6 +5,7 @@ plugins {
 }
 
 import org.gradle.jvm.toolchain.JvmVendorSpec
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import java.io.StringReader
 import java.net.URI
 import java.nio.file.Files
@@ -259,6 +260,7 @@ val jpackageExecutable = packagingJavaLauncher.map { launcher ->
 // runs as part of `test` on macOS, and verifyJpackageStaging re-checks the staged jars at packaging.
 val javaFxVersion = "21.0.12"
 val javaFxJsObjectVersion = "25.0.2"
+val atlantaFxVersion = "2.1.0"
 val javaFxPlatform = when {
     isWindows -> "win"
     isMac && System.getProperty("os.arch", "").lowercase() in setOf("aarch64", "arm64") -> "mac-aarch64"
@@ -342,6 +344,12 @@ tasks.named<ProcessResources>("processResources") {
 }
 
 dependencies {
+    // AtlantaFX supplies Java/CSS only. Its published POM targets OpenJFX 23, so exclude every
+    // transitive OpenJFX module and keep korTTY's independently verified JavaFX 21.0.12 runtime.
+    implementation("io.github.mkpaz:atlantafx-base:$atlantaFxVersion") {
+        exclude(group = "org.openjfx")
+    }
+
     // SSH
     implementation("org.apache.sshd:sshd-core:2.19.0")
     implementation("org.apache.sshd:sshd-common:2.19.0")
@@ -448,7 +456,9 @@ val googleJavaFormatJvmArgs = listOf(
 )
 
 application {
-    mainClass.set("de.kortty.KorTTYApplication")
+    // Keep the process entry point free of JavaFX types. Windows ARM needs to select the
+    // software Prism pipeline before Application is loaded when this x64 build runs emulated.
+    mainClass.set("de.kortty.Launcher")
     applicationDefaultJvmArgs = googleJavaFormatJvmArgs
 }
 
@@ -636,8 +646,70 @@ tasks.register<Exec>("installSithtermfxLocal") {
     }
 }
 
-tasks.named("compileJava") {
+val javaFxAlignmentConfigurationNames = listOf(
+    "compileClasspath",
+    "runtimeClasspath",
+    "testCompileClasspath",
+    "testRuntimeClasspath",
+    "javaFxJsObject"
+)
+val javaFxRuntimeConfigurationNames = setOf("runtimeClasspath", "testRuntimeClasspath")
+
+val verifyJavaFxDependencyAlignment = tasks.register("verifyJavaFxDependencyAlignment") {
+    group = "verification"
+    description = "Fails when resolved OpenJFX modules drift from korTTY's pinned JavaFX versions."
+    // The classpaths contain locally built SithTermFX artifacts, so make the standalone gate usable
+    // on a clean checkout as well as through compileJava.
     dependsOn("installSithtermfxLocal")
+    inputs.property("javaFxVersion", javaFxVersion)
+    inputs.property("javaFxJsObjectVersion", javaFxJsObjectVersion)
+
+    doLast {
+        val violations = mutableListOf<String>()
+
+        javaFxAlignmentConfigurationNames.forEach { configurationName ->
+            val openJfxModules = configurations.getByName(configurationName)
+                .incoming.resolutionResult.allComponents
+                .mapNotNull { component -> component.id as? ModuleComponentIdentifier }
+                .filter { component -> component.group == "org.openjfx" }
+                .distinctBy { component ->
+                    "${component.group}:${component.module}:${component.version}"
+                }
+
+            openJfxModules.forEach { component ->
+                val expectedVersion = if (component.module == "jdk-jsobject") {
+                    javaFxJsObjectVersion
+                } else {
+                    javaFxVersion
+                }
+                if (component.version != expectedVersion) {
+                    violations += "$configurationName: ${component.group}:${component.module}:${component.version} " +
+                        "(expected $expectedVersion)"
+                }
+                if (configurationName in javaFxRuntimeConfigurationNames &&
+                    component.module == "jdk-jsobject"
+                ) {
+                    violations += "$configurationName must not package org.openjfx:jdk-jsobject"
+                }
+            }
+
+            if (configurationName in setOf("compileClasspath", "runtimeClasspath") &&
+                openJfxModules.none { component -> component.module.startsWith("javafx-") }
+            ) {
+                violations += "$configurationName resolved no standard JavaFX modules"
+            }
+        }
+
+        if (violations.isNotEmpty()) {
+            throw GradleException(
+                "Mixed JavaFX dependency versions:\n" + violations.joinToString("\n")
+            )
+        }
+    }
+}
+
+tasks.named("compileJava") {
+    dependsOn("installSithtermfxLocal", verifyJavaFxDependencyAlignment)
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -1764,6 +1836,124 @@ fun verifyBundledJavaFxNativeSignatures(libsDir: File) {
     delete(workDir)
 }
 
+fun terminateProcessTree(process: Process) {
+    val descendants = process.descendants().toList().asReversed()
+    descendants.forEach { handle -> if (handle.isAlive) handle.destroy() }
+    process.destroy()
+    if (!process.waitFor(5, TimeUnit.SECONDS)) {
+        descendants.forEach { handle -> if (handle.isAlive) handle.destroyForcibly() }
+        process.destroyForcibly()
+        process.waitFor(5, TimeUnit.SECONDS)
+    }
+}
+
+/** Runs a native helper without ever blocking Gradle indefinitely. A null exit code means timeout. */
+fun runBoundedProcess(
+    command: List<String>,
+    timeoutSeconds: Long,
+    logFile: File,
+    standardInput: String? = null
+): Int? {
+    logFile.parentFile.mkdirs()
+    Files.deleteIfExists(logFile.toPath())
+    val process = ProcessBuilder(command)
+        .directory(project.rootDir)
+        .redirectErrorStream(true)
+        .redirectOutput(logFile)
+        .start()
+    runCatching {
+        process.outputStream.bufferedWriter().use { writer ->
+            if (standardInput != null) {
+                writer.write(standardInput)
+                writer.flush()
+            }
+        }
+    }
+    if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
+        terminateProcessTree(process)
+        return null
+    }
+    return process.exitValue()
+}
+
+fun processLog(logFile: File): String = runCatching {
+    if (logFile.isFile) logFile.readText().trim() else ""
+}.getOrElse { error -> "Could not read ${logFile.name}: ${error.message}" }
+
+fun deleteEmptyMountPoint(mountPoint: File): Boolean {
+    if (!mountPoint.exists()) {
+        return true
+    }
+    val entries = mountPoint.list() ?: return false
+    if (entries.isNotEmpty()) {
+        return false
+    }
+    return runCatching { Files.deleteIfExists(mountPoint.toPath()); true }.getOrDefault(false)
+}
+
+fun detachDmgMount(mountPoint: File, force: Boolean, logFile: File): Pair<Int?, String> {
+    val command = mutableListOf("hdiutil", "detach", mountPoint.absolutePath, "-quiet")
+    if (force) {
+        command += "-force"
+    }
+    val exitCode = runBoundedProcess(command, 30, logFile)
+    return exitCode to processLog(logFile)
+}
+
+fun attachDmgForVerification(dmgFile: File): File {
+    val verificationDir = layout.buildDirectory.get().asFile.resolve("verification")
+    verificationDir.mkdirs()
+    val diagnostics = mutableListOf<String>()
+
+    for (attempt in 1..2) {
+        val mountPoint = Files.createTempDirectory(verificationDir.toPath(), "dmg-mount-").toFile()
+        val attachLog = verificationDir.resolve("dmg-attach-attempt-$attempt.log")
+        println("Mounting ${dmgFile.name} for verification (attempt $attempt of 2).")
+        val exitCode = runBoundedProcess(
+            // jpackage embeds LICENSE in the DMG. CI has no terminal, so send the affirmative
+            // response to that known project-license prompt through hdiutil's dedicated stdin.
+            listOf(
+                "hdiutil", "attach", dmgFile.absolutePath,
+                "-readonly", "-nobrowse", "-noautoopen", "-noautofsck", "-owners", "off",
+                "-verify", "-mountpoint", mountPoint.absolutePath
+            ),
+            90,
+            attachLog,
+            standardInput = "Y\n"
+        )
+        val attachOutput = processLog(attachLog)
+        if (exitCode == 0) {
+            println("DMG attach succeeded on attempt $attempt at ${mountPoint.absolutePath}.")
+            return mountPoint
+        }
+
+        diagnostics += buildString {
+            append("Attempt $attempt ")
+            append(if (exitCode == null) "timed out after 90 seconds" else "exited with $exitCode")
+            if (attachOutput.isNotEmpty()) append(":\n$attachOutput")
+        }
+
+        val cleanupLog = verificationDir.resolve("dmg-attach-cleanup-attempt-$attempt.log")
+        val (_, cleanupOutput) = detachDmgMount(mountPoint, true, cleanupLog)
+        if (!deleteEmptyMountPoint(mountPoint)) {
+            throw GradleException(
+                "Could not safely clean up ${mountPoint.absolutePath} after a failed DMG attach. " +
+                    "The path is still mounted or non-empty, so no retry will run.\n" +
+                    diagnostics.joinToString("\n\n") +
+                    (if (cleanupOutput.isEmpty()) "" else "\n\nDetach output:\n$cleanupOutput")
+            )
+        }
+        if (attempt == 1) {
+            Thread.sleep(2_000)
+        }
+    }
+
+    throw GradleException(
+        "Could not mount ${dmgFile.name} for verification after two bounded attempts:\n" +
+            diagnostics.joinToString("\n\n")
+    )
+}
+
 /**
  * Proves the app inside a built DMG is the very image that was verified outside it — the gap that
  * let a broken signature reach Apple's notary as the last step of a release (issue #245).
@@ -1774,18 +1964,7 @@ fun verifyBundledJavaFxNativeSignatures(libsDir: File) {
  * survives: the ticket is not part of the seal.</p>
  */
 fun verifyDmgAppImage(dmgFile: File, sourceAppImage: File) {
-    val mountPoint = layout.buildDirectory.get().asFile.resolve("verification/dmg-mount")
-    delete(mountPoint)
-    mountPoint.mkdirs()
-
-    val attach = ProcessBuilder(
-        "hdiutil", "attach", dmgFile.absolutePath,
-        "-nobrowse", "-readonly", "-mountpoint", mountPoint.absolutePath
-    ).redirectErrorStream(true).start()
-    val attachOutput = attach.inputStream.bufferedReader().use { it.readText() }
-    if (attach.waitFor() != 0) {
-        throw GradleException("Could not mount ${dmgFile.name} for verification:\n$attachOutput")
-    }
+    val mountPoint = attachDmgForVerification(dmgFile)
 
     try {
         val app = mountPoint.resolve(sourceAppImage.name)
@@ -1836,9 +2015,23 @@ fun verifyDmgAppImage(dmgFile: File, sourceAppImage: File) {
             "the built image ($shippedPayload), signed by ${shippedAuthority ?: "ad-hoc"}" +
             (if (stapled) ", notarization ticket stapled." else "."))
     } finally {
-        ProcessBuilder("hdiutil", "detach", mountPoint.absolutePath, "-quiet")
-            .redirectErrorStream(true).start().waitFor()
-        delete(mountPoint)
+        val verificationDir = layout.buildDirectory.get().asFile.resolve("verification")
+        val normalLog = verificationDir.resolve("dmg-detach-${mountPoint.name}.log")
+        var (exitCode, output) = detachDmgMount(mountPoint, false, normalLog)
+        if (exitCode != 0) {
+            val forceLog = verificationDir.resolve("dmg-detach-force-${mountPoint.name}.log")
+            val forced = detachDmgMount(mountPoint, true, forceLog)
+            exitCode = forced.first
+            output = listOf(output, forced.second).filter { it.isNotEmpty() }.joinToString("\n")
+        }
+        if (exitCode != 0 || !deleteEmptyMountPoint(mountPoint)) {
+            val state = if (exitCode == null) "timed out after 30 seconds" else "exited with $exitCode"
+            throw GradleException(
+                "Could not safely detach ${mountPoint.absolutePath}: hdiutil $state. " +
+                    "The mount point was left intact to avoid deleting through a mounted DMG." +
+                    (if (output.isEmpty()) "" else "\n$output")
+            )
+        }
     }
 }
 
@@ -1946,7 +2139,7 @@ tasks.named("prepareJpackage") {
 val verifyJpackageStaging = tasks.register("verifyJpackageStaging") {
     group = "verification"
     description = "Verifies that jpackage staging removes stale files and carries only target natives."
-    dependsOn(seedStaleJpackageInput, "prepareJpackage")
+    dependsOn(seedStaleJpackageInput, "prepareJpackage", verifyJavaFxDependencyAlignment)
     doLast {
         val libs = jpackageInput.get().asFile.resolve("libs")
         val forbidden = libs.walkTopDown().filter { file ->
@@ -2403,9 +2596,33 @@ if (isMac) {
                     "codesign", "--force", "--sign", macSigningIdentity!!, "--timestamp"
                 ) + (if (!macSigningKeychain.isNullOrEmpty()) listOf("--keychain", macSigningKeychain) else emptyList()) +
                     listOf(dmgFile.absolutePath)
-                val signProcess = ProcessBuilder(codesignCommand).inheritIO().start()
-                if (signProcess.waitFor() != 0) {
-                    throw GradleException("codesign failed for ${dmgFile.absolutePath}")
+                val signDiagnostics = mutableListOf<String>()
+                var signed = false
+                for (attempt in 1..2) {
+                    val signLog = layout.buildDirectory.get().asFile
+                        .resolve("verification/dmg-codesign-attempt-$attempt.log")
+                    println("Signing the converted DMG (attempt $attempt of 2).")
+                    val exitCode = runBoundedProcess(codesignCommand, 90, signLog)
+                    val output = processLog(signLog)
+                    if (exitCode == 0) {
+                        signed = true
+                        println("DMG container signature applied.")
+                        break
+                    }
+                    signDiagnostics += buildString {
+                        append("Attempt $attempt ")
+                        append(if (exitCode == null) "timed out after 90 seconds" else "exited with $exitCode")
+                        if (output.isNotEmpty()) append(":\n$output")
+                    }
+                    if (attempt == 1) {
+                        Thread.sleep(2_000)
+                    }
+                }
+                if (!signed) {
+                    throw GradleException(
+                        "codesign failed for ${dmgFile.absolutePath} after two bounded attempts:\n" +
+                            signDiagnostics.joinToString("\n\n")
+                    )
                 }
             }
 
@@ -3073,7 +3290,7 @@ val pacmanWorkflowContractTest = tasks.register<Exec>("pacmanWorkflowContractTes
 tasks.named("check") {
     dependsOn(verifyJpackageStaging, "slimNativeRuntimeSmoke", packageSizeReportTest,
         guideSegmentExtractorTest, translateDocsMaskingTest, backfillI18nKeysTest,
-        pacmanWorkflowContractTest)
+        pacmanWorkflowContractTest, verifyJavaFxDependencyAlignment)
 }
 
 tasks.register<JavaExec>("slimNativeRuntimeSmoke") {
@@ -3136,6 +3353,16 @@ tasks.register<JavaExec>("uiFontScaleSmoke") {
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.UiFontScaleSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("atlantaFxDesignSmoke") {
+    group = "verification"
+    description = "Renders AtlantaFX Primer Dark across main, dialog and popup surfaces, " +
+        "checks live Modena restore and writes build/smoke/atlantafx-*.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AtlantaFxDesignSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+    jvmArgs("-Dprism.order=sw")
 }
 
 tasks.register<JavaExec>("settingsTabScreenshotStage") {

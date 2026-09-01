@@ -218,6 +218,17 @@
     -fx-text-fill: #cccccc;
 }
 
+/* Opaque chrome for the borderless transparent-window mode. Colors live in CSS so app designs can
+   replace them; inline values would outrank both korTTY overlays and AtlantaFX looked-up colors. */
+.transparent-window-titlebar {
+    -fx-background-color: #2b2b2b;
+}
+
+.transparent-window-title,
+.transparent-window-button {
+    -fx-text-fill: #dddddd;
+}
+
 /* AI agent inline activity feed */
 .ai-agent-activity-panel {
     -fx-background-color: #052f35;

@@ -1,0 +1,566 @@
+/*
+ * korTTY-specific component geometry and behaviour used with AtlantaFX.
+ *
+ * This sheet deliberately contains no broad JavaFX control selectors. Primer Dark remains in
+ * charge of standard controls while the AtlantaFX overlay supplies semantic component colors.
+ */
+
+/* The AI Manager's primary section stays identifiable after focus moves into its content. */
+.ai-manager-primary-tab:selected {
+    -fx-border-color: -fx-focus-color;
+    -fx-border-width: 0 0 3 0;
+}
+
+.ai-manager-primary-tab:selected .tab-label {
+    -fx-font-weight: bold;
+}
+
+/* Empty area around the centered korTTY window in terminal-only fullscreen. */
+.terminal-only-fullscreen-backdrop {
+    -fx-background-color: #000000;
+}
+
+/* AI agent inline activity feed */
+.ai-agent-activity-panel {
+    -fx-background-color: #052f35;
+    -fx-border-color: #1f5961;
+    -fx-border-width: 1 0 0 0;
+    -fx-font-family: "Noto Sans Mono", "Monospaced";
+}
+
+.ai-agent-activity-title {
+    -fx-text-fill: #e8f3f2;
+    -fx-font-size: 1em;
+    -fx-font-weight: bold;
+}
+
+.ai-agent-header {
+    -fx-min-height: 48px;
+}
+
+.ai-agent-prompt-viewer {
+    -fx-background-color: rgba(255, 255, 255, 0.04);
+    -fx-background-radius: 4;
+    -fx-border-color: #19525a;
+    -fx-border-radius: 4;
+    -fx-text-fill: #e8f3f2;
+    -fx-prompt-text-fill: #8fb0b4;
+    -fx-padding: 2 4 2 4;
+}
+
+.ai-agent-prompt-viewer .content {
+    -fx-background-color: transparent;
+}
+
+.ai-agent-prompt-viewer .scroll-pane,
+.ai-agent-prompt-viewer .scroll-pane .viewport {
+    -fx-background-color: transparent;
+}
+
+.ai-agent-header-status {
+    -fx-alignment: center;
+}
+
+.ai-agent-header-actions {
+    -fx-alignment: center-right;
+}
+
+.ai-agent-header-busy-dot {
+    -fx-background-color: #18c26e;
+    -fx-background-radius: 5;
+    -fx-effect: dropshadow(gaussian, #18c26e, 10, 0.55, 0, 0);
+}
+
+.ai-agent-header-busy-label {
+    -fx-text-fill: #b8ded6;
+    -fx-font-size: 0.9231em;
+    -fx-font-weight: bold;
+}
+
+.ai-agent-activity-meta {
+    -fx-text-fill: #8fb0b4;
+    -fx-font-size: 0.9231em;
+}
+
+.ai-agent-control-row {
+    -fx-padding: 0 0 2 0;
+}
+
+.ai-agent-resize-handle {
+    -fx-background-color: transparent;
+    -fx-border-color: #2f6870;
+    -fx-border-width: 1 0 0 0;
+}
+
+.ai-agent-resize-handle:hover {
+    -fx-background-color: #12464d;
+}
+
+.ai-agent-activity-scroll {
+    -fx-background: transparent;
+    -fx-border-color: #19525a;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+}
+
+.ai-agent-activity-scroll .viewport {
+    -fx-background-color: transparent;
+}
+
+.ai-agent-activity-row {
+    -fx-padding: 2 0 2 0;
+}
+
+.ai-agent-activity-text {
+    -fx-text-fill: #b8ced0;
+    -fx-font-size: 1em;
+}
+
+.ai-agent-detail {
+    -fx-text-fill: #78999f;
+    -fx-font-size: 0.9231em;
+}
+
+.ai-agent-dot {
+    -fx-background-radius: 5;
+}
+
+.ai-agent-dot-message {
+    -fx-background-color: #f5f7f7;
+}
+
+.ai-agent-dot-action {
+    -fx-background-color: #18c26e;
+}
+
+.ai-agent-dot-error {
+    -fx-background-color: #e36a4d;
+}
+
+.ai-workflow-error {
+    -fx-text-fill: #e36a4d;
+}
+
+.ai-agent-dot-running {
+    -fx-effect: dropshadow(gaussian, #18c26e, 8, 0.45, 0, 0);
+}
+
+.ai-agent-spinner {
+    -fx-text-fill: #e36a4d;
+    -fx-font-size: 1.3077em;
+    -fx-font-weight: bold;
+}
+
+/* AI profile setup wizard */
+.ai-wizard-scroll,
+.ai-wizard-scroll .viewport {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+}
+
+.ai-wizard-card {
+    -fx-background-color: #252b33;
+    -fx-border-color: #3a424d;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 12 14 12 14;
+}
+
+.ai-wizard-card:hover {
+    -fx-border-color: #4a90d9;
+}
+
+.ai-wizard-card:selected {
+    -fx-background-color: #2c3a4a;
+    -fx-border-color: #4a90d9;
+}
+
+.ai-wizard-card .ai-wizard-card-title {
+    -fx-font-weight: bold;
+    -fx-text-fill: #e6e6e6;
+    -fx-font-size: 1em;
+}
+
+.ai-wizard-card .ai-wizard-card-desc {
+    -fx-text-fill: #a8b0ba;
+    -fx-font-size: 0.9231em;
+}
+
+.ai-wizard-flow-chip {
+    -fx-background-color: #2c3a4a;
+    -fx-background-radius: 10;
+    -fx-padding: 3 9 3 9;
+    -fx-text-fill: #cfd6df;
+    -fx-font-size: 0.8462em;
+}
+
+.ai-wizard-flow-arrow {
+    -fx-text-fill: #6b7682;
+    -fx-font-size: 0.9231em;
+}
+
+.ai-agent-toggle-button {
+    -fx-background-color: transparent;
+    -fx-border-color: #2f6870;
+    -fx-border-radius: 2;
+    -fx-background-radius: 2;
+    -fx-padding: 0 5 0 5;
+    -fx-text-fill: #91b4b9;
+    -fx-font-size: 0.8462em;
+}
+
+.ai-agent-toggle-button:hover {
+    -fx-background-color: #12464d;
+}
+
+.ai-agent-font-button {
+    -fx-background-color: transparent;
+    -fx-border-color: #2f6870;
+    -fx-border-radius: 2;
+    -fx-background-radius: 2;
+    -fx-padding: 0 6 0 6;
+    -fx-text-fill: #91b4b9;
+    -fx-font-size: 0.8462em;
+}
+
+.ai-agent-font-button:hover {
+    -fx-background-color: #12464d;
+    -fx-text-fill: #e8f3f2;
+}
+
+.ai-agent-font-button:disabled {
+    -fx-opacity: 0.35;
+}
+
+.ai-agent-export-format {
+    -fx-background-color: transparent;
+    -fx-border-color: #2f6870;
+    -fx-border-radius: 2;
+    -fx-background-radius: 2;
+    -fx-padding: 0 2 0 2;
+    -fx-font-size: 0.8462em;
+}
+
+.ai-agent-export-format .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: #91b4b9;
+}
+
+.ai-agent-export-format:disabled {
+    -fx-opacity: 0.35;
+}
+
+.ai-agent-cancel-button {
+    -fx-background-color: #8f211d;
+    -fx-border-color: #e65a4f;
+    -fx-text-fill: #fff0ed;
+    -fx-font-weight: bold;
+    -fx-padding: 1 10 1 10;
+}
+
+.ai-agent-cancel-button:hover {
+    -fx-background-color: #b52b24;
+    -fx-border-color: #ff7669;
+    -fx-text-fill: #ffffff;
+}
+
+.ai-agent-cancel-button:disabled {
+    -fx-background-color: #692522;
+    -fx-border-color: #8c4039;
+    -fx-opacity: 0.55;
+}
+
+.ai-agent-collapse-button {
+    -fx-border-color: #2f6870;
+    -fx-text-fill: #b8ced0;
+    -fx-font-weight: bold;
+    -fx-padding: 0 8 0 8;
+}
+
+.ai-agent-collapse-button:hover {
+    -fx-background-color: #12464d;
+    -fx-text-fill: #e8f3f2;
+}
+
+.ai-agent-option-check {
+    -fx-text-fill: #91b4b9;
+    -fx-font-size: 0.8462em;
+}
+
+.ai-agent-option-check .box {
+    -fx-background-color: transparent;
+    -fx-border-color: #2f6870;
+    -fx-border-radius: 2;
+    -fx-background-radius: 2;
+}
+
+.ai-agent-option-check:selected .mark {
+    -fx-background-color: #18c26e;
+}
+
+.ai-agent-close-button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-background-radius: 2;
+    -fx-border-radius: 2;
+    -fx-padding: 0 6 0 6;
+    -fx-text-fill: #91b4b9;
+    -fx-font-size: 0.9231em;
+}
+
+.ai-agent-close-button:hover {
+    -fx-background-color: #12464d;
+    -fx-text-fill: #e8f3f2;
+}
+
+.ai-agent-close-button:disabled {
+    -fx-opacity: 0.35;
+}
+
+.ai-agent-prompt-box {
+    -fx-padding: 8;
+    -fx-background-color: #073941;
+    -fx-border-color: #2f6870;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+}
+
+.ai-agent-prompt-label {
+    -fx-text-fill: #e8f3f2;
+    -fx-font-size: 1em;
+}
+
+.ai-agent-command-preview {
+    -fx-padding: 6;
+    -fx-background-color: #03272d;
+    -fx-border-color: #19525a;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+}
+
+.ai-agent-command-line {
+    -fx-text-fill: #d7e7e8;
+    -fx-font-size: 0.9231em;
+}
+
+.ai-agent-password-field {
+    -fx-max-width: 320px;
+}
+
+.terminal-agent-busy-overlay {
+    -fx-padding: 5 9 5 9;
+    -fx-spacing: 8;
+    -fx-background-color: #073941;
+    -fx-border-color: #2f6870;
+    -fx-border-width: 1;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-effect: dropshadow(gaussian, #000000, 8, 0.25, 0, 2);
+}
+
+.terminal-agent-busy-robot {
+    -fx-text-fill: #18c26e;
+    -fx-font-family: "Noto Sans Mono", "Monospaced";
+    -fx-font-size: 0.9231em;
+    -fx-font-weight: bold;
+}
+
+.terminal-agent-busy-text {
+    -fx-text-fill: #e8f3f2;
+    -fx-font-family: "Noto Sans Mono", "Monospaced";
+    -fx-font-size: 0.9231em;
+    -fx-font-weight: bold;
+}
+
+/* Dashboard panel */
+.dashboard-view {
+    -kortty-dash-bg: #252526;
+    -kortty-dash-fg: #cccccc;
+    -kortty-dash-dim: #8a8a8a;
+    -kortty-dash-accent: #18c26e;
+    -kortty-dash-ok: #18c26e;
+    -kortty-dash-error: #d9534f;
+    -kortty-dash-border: #3d3d3d;
+    -kortty-dash-hover: #313132;
+    -kortty-dash-selected: #3a3a3c;
+    -fx-background-color: -kortty-dash-bg;
+    -fx-border-color: transparent -kortty-dash-border transparent transparent;
+    -fx-border-width: 0 1 0 0;
+    -fx-padding: 0;
+    -fx-spacing: 0;
+}
+
+.dashboard-title {
+    -fx-padding: 6 8 6 12;
+    -fx-alignment: center-left;
+    -fx-border-color: transparent transparent -kortty-dash-border transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.dashboard-title-label {
+    -fx-text-fill: -kortty-dash-fg;
+    -fx-font-size: 1em;
+    -fx-font-weight: bold;
+}
+
+.dashboard-icon-button {
+    -fx-background-color: transparent;
+    -fx-padding: 4;
+    -fx-background-radius: 4;
+    -fx-cursor: hand;
+}
+
+.dashboard-icon-button:hover {
+    -fx-background-color: -kortty-dash-hover;
+}
+
+.dashboard-button-icon {
+    -fx-fill: -kortty-dash-dim;
+}
+
+.dashboard-icon-button:hover .dashboard-button-icon {
+    -fx-fill: -kortty-dash-fg;
+}
+
+.dashboard-empty {
+    -fx-padding: 20;
+}
+
+.dashboard-empty-icon {
+    -fx-fill: -kortty-dash-dim;
+    -fx-opacity: 0.5;
+}
+
+.dashboard-empty-label {
+    -fx-text-fill: -kortty-dash-dim;
+    -fx-font-size: 0.9231em;
+    -fx-text-alignment: center;
+}
+
+.dashboard-footer {
+    -fx-text-fill: -kortty-dash-dim;
+    -fx-font-size: 0.8462em;
+    -fx-padding: 5 12 5 12;
+    -fx-border-color: -kortty-dash-border transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+}
+
+.dashboard-tree {
+    -fx-background-color: transparent;
+    -fx-padding: 4 0 4 0;
+}
+
+.dashboard-tree .tree-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -kortty-dash-fg;
+    -fx-cell-size: 28px;
+    -fx-padding: 0 8 0 6;
+    -fx-border-color: transparent;
+    -fx-border-width: 0 0 0 3;
+}
+
+.dashboard-tree .tree-cell .tree-disclosure-node .arrow,
+.dashboard-tree .tree-cell:expanded .tree-disclosure-node .arrow {
+    -fx-background-color: -kortty-dash-dim;
+}
+
+.dashboard-tree .tree-cell:hover {
+    -fx-background-color: -kortty-dash-hover;
+}
+
+.dashboard-tree .tree-cell:selected {
+    -fx-background-color: -kortty-dash-selected;
+    -fx-border-color: transparent transparent transparent -kortty-dash-accent;
+}
+
+/* Empty filler rows must never paint hover/selection. */
+.dashboard-tree .tree-cell:empty,
+.dashboard-tree .tree-cell:empty:hover,
+.dashboard-tree .tree-cell:empty:selected {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.dashboard-node-icon {
+    -fx-fill: -kortty-dash-dim;
+}
+
+.dashboard-tree .tree-cell:selected .dashboard-node-icon {
+    -fx-fill: -kortty-dash-fg;
+}
+
+.dashboard-node-name {
+    -fx-text-fill: -kortty-dash-fg;
+}
+
+.dashboard-node-header .dashboard-node-name {
+    -fx-font-weight: bold;
+}
+
+.dashboard-node-header .dashboard-node-icon {
+    -fx-fill: -kortty-dash-fg;
+}
+
+.dashboard-node-count {
+    -fx-text-fill: -kortty-dash-dim;
+    -fx-font-size: 0.8462em;
+}
+
+.dashboard-protocol-badge {
+    -fx-text-fill: -kortty-dash-dim;
+    -fx-font-size: 0.7692em;
+    -fx-border-color: -kortty-dash-border;
+    -fx-border-radius: 3;
+    -fx-padding: 0 4 0 4;
+}
+
+.dashboard-status-dot-connected {
+    -fx-fill: -kortty-dash-ok;
+    -fx-stroke: transparent;
+}
+
+.dashboard-status-dot-error {
+    -fx-fill: -kortty-dash-error;
+    -fx-stroke: transparent;
+}
+
+.dashboard-status-dot-ended {
+    -fx-fill: transparent;
+    -fx-stroke: -kortty-dash-dim;
+    -fx-stroke-width: 1.5;
+}
+
+.dashboard-agent-badge {
+    -fx-font-size: 0.9231em;
+}
+
+/* Context-menu icons live in a popup outside the dashboard's scene-graph branch. */
+.dashboard-menu-icon {
+    -fx-fill: #8a8a8a;
+}
+
+/* Settings dialog section navigation. */
+.settings-section-nav-bar {
+    -fx-border-color: transparent transparent rgba(255, 255, 255, 0.08) transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.settings-section-nav-button {
+    -fx-min-width: 32;
+    -fx-padding: 3 12 3 12;
+    -fx-font-size: 1em;
+}
+
+.settings-section-nav-label {
+    -fx-text-fill: #aaaaaa;
+    -fx-font-size: 0.9231em;
+}
+
+/* Muted AI-skill list entries preserve the active theme's colors. */
+.list-cell.ai-skill-muted {
+    -fx-opacity: 0.5;
+}
+
+.list-cell.ai-skill-muted:selected {
+    -fx-opacity: 0.75;
+}

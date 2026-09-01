@@ -1,8 +1,10 @@
 package de.kortty.ui;
 
+import de.kortty.JavaFxPlatformSupport;
 import de.kortty.core.LanguageManager;
 import de.kortty.model.GlobalSettings;
 import de.kortty.security.MasterPasswordManager;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.Node;
@@ -11,6 +13,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.CheckBox;
 import javafx.scene.image.WritableImage;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -19,7 +22,9 @@ import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -39,6 +44,7 @@ public final class FirstRunSetupDialogSmoke {
     }
 
     public static void main(String[] args) throws Exception {
+        JavaFxPlatformSupport.configureRenderer();
         CountDownLatch done = new CountDownLatch(1);
         AtomicReference<String> failure = new AtomicReference<>();
         Thread.setDefaultUncaughtExceptionHandler((t, e) ->
@@ -47,10 +53,9 @@ public final class FirstRunSetupDialogSmoke {
         Platform.startup(() -> {
             try {
                 LanguageManager.getInstance().initialize(new GlobalSettings());
-                render();
+                render(failure, done);
             } catch (Throwable e) {
                 failure.compareAndSet(null, "Smoke failed: " + e);
-            } finally {
                 done.countDown();
             }
         });
@@ -68,7 +73,7 @@ public final class FirstRunSetupDialogSmoke {
         System.out.println("firstRunSetupDialogSmoke OK");
     }
 
-    private static void render() throws Exception {
+    private static void render(AtomicReference<String> failure, CountDownLatch done) throws Exception {
         Path configDir = Files.createTempDirectory("kortty-first-run-smoke");
         MasterPasswordManager passwordManager = new MasterPasswordManager(configDir);
         if (passwordManager.isPasswordSet()) {
@@ -76,7 +81,8 @@ public final class FirstRunSetupDialogSmoke {
         }
 
         MasterPasswordDialog dialog = new MasterPasswordDialog(null, passwordManager);
-        Scene scene = scene(dialog);
+        Stage stage = stage(dialog);
+        Scene scene = stage != null ? stage.getScene() : null;
         if (scene == null) {
             throw new AssertionError("The setup dialog has no scene");
         }
@@ -101,18 +107,44 @@ public final class FirstRunSetupDialogSmoke {
             throw new AssertionError("The consent box must stay changeable without a policy");
         }
 
-        scene.getRoot().applyCss();
-        scene.getRoot().layout();
-        snapshot(scene, "first-run-setup-dialog.png");
-        Files.deleteIfExists(configDir);
+        stage.show();
+        PauseTransition settle = new PauseTransition(Duration.millis(300));
+        settle.setOnFinished(ignored -> {
+            try {
+                scene.getRoot().applyCss();
+                scene.getRoot().layout();
+                assertRenderedInsideScene(scene, consent);
+                snapshot(scene, "first-run-setup-dialog.png");
+            } catch (Throwable e) {
+                failure.compareAndSet(null, "Smoke failed after first render pulse: " + e);
+            } finally {
+                stage.close();
+                try {
+                    Files.deleteIfExists(configDir);
+                } catch (Exception e) {
+                    failure.compareAndSet(null, "Could not clean smoke config: " + e);
+                }
+                done.countDown();
+            }
+        });
+        settle.play();
     }
 
-    /** The dialog owns its Stage privately; the smoke only needs its scene. */
-    private static Scene scene(MasterPasswordDialog dialog) throws Exception {
+    /** The dialog owns its Stage privately; the smoke shows it to exercise the real window layout. */
+    private static Stage stage(MasterPasswordDialog dialog) throws Exception {
         Field field = MasterPasswordDialog.class.getDeclaredField("dialog");
         field.setAccessible(true);
-        Stage stage = (Stage) field.get(dialog);
-        return stage != null ? stage.getScene() : null;
+        return (Stage) field.get(dialog);
+    }
+
+    private static void assertRenderedInsideScene(Scene scene, Node node) {
+        var bounds = node.localToScene(node.getBoundsInLocal());
+        if (!node.isVisible() || node.getOpacity() <= 0
+            || bounds.getMaxX() <= 0 || bounds.getMinX() >= scene.getWidth()
+            || bounds.getMaxY() <= 0 || bounds.getMinY() >= scene.getHeight()) {
+            throw new AssertionError("Consent control is outside the visible scene: " + bounds
+                + ", scene=" + scene.getWidth() + "x" + scene.getHeight());
+        }
     }
 
     /** Depth-first collect of every node under {@code root} (inclusive). */
@@ -131,6 +163,16 @@ public final class FirstRunSetupDialogSmoke {
     private static void snapshot(Scene scene, String fileName) throws Exception {
         WritableImage image = scene.snapshot(null);
         BufferedImage buffered = SwingFXUtils.fromFXImage(image, null);
+        Set<Integer> colors = new HashSet<>();
+        for (int y = 0; y < buffered.getHeight() && colors.size() < 16; y += 4) {
+            for (int x = 0; x < buffered.getWidth() && colors.size() < 16; x += 4) {
+                colors.add(buffered.getRGB(x, y));
+            }
+        }
+        if (colors.size() < 16) {
+            throw new AssertionError("Rendered setup dialog is blank (only " + colors.size()
+                + " sampled colors)");
+        }
         File out = new File("build/smoke/" + fileName);
         out.getParentFile().mkdirs();
         ImageIO.write(buffered, "png", out);

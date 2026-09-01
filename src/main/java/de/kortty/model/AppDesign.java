@@ -5,6 +5,13 @@ package de.kortty.model;
  * XML values can remain compatible if enum constants are renamed later.
  */
 public enum AppDesign {
+    ATLANTAFX_PRIMER_DARK("atlantafx-primer-dark"),
+    ATLANTAFX_PRIMER_LIGHT("atlantafx-primer-light"),
+    ATLANTAFX_NORD_DARK("atlantafx-nord-dark"),
+    ATLANTAFX_NORD_LIGHT("atlantafx-nord-light"),
+    ATLANTAFX_CUPERTINO_DARK("atlantafx-cupertino-dark"),
+    ATLANTAFX_CUPERTINO_LIGHT("atlantafx-cupertino-light"),
+    ATLANTAFX_DRACULA("atlantafx-dracula"),
     NORMAL("normal"),
     MATRIX_TERMINAL("matrix-terminal"),
     HOLOGRAPHIC_INTERFACE("holographic-interface"),
@@ -24,6 +31,10 @@ public enum AppDesign {
 
     public String getId() {
         return id;
+    }
+
+    public boolean isAtlantaFx() {
+        return id.startsWith("atlantafx-");
     }
 
     public static AppDesign fromId(String id) {

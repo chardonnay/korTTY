@@ -47,6 +47,7 @@ final class AiTableRowViewerDialog {
             dialog.initOwner(owner);
         }
         dialog.setResizable(true);
+        DialogGeometrySupport.installAutomatic(dialog, "ai.tableRowViewer");
         String firstValue = values != null && !values.isEmpty() && values.get(0) != null
             ? decodeCellText(values.get(0)).strip()
             : "";
