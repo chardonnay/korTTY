@@ -138,6 +138,29 @@ class AiChatExportServiceTest {
         }
     }
 
+    @Test
+    void pdfExportPreservesSymbolsAndEmojiInsteadOfReplacingThemWithQuestionMarks() throws Exception {
+        AiChatExportService service = new AiChatExportService();
+        String unicodeText = "Sonderzeichen: ✓ → ★ © € | Emojis: 😀 🚀 🔒";
+        List<SavedAiChatMessage> messages = List.of(
+            message(SavedAiChatMessage.ROLE_ASSISTANT, unicodeText, "Unicode Test"));
+
+        Path exportFile = Files.createTempFile("ai-chat-export-unicode-", ".pdf");
+        try {
+            service.exportChat(exportFile, AiChatExportService.Format.PDF, messages, 13);
+
+            try (PDDocument document = Loader.loadPDF(exportFile.toFile())) {
+                String extractedText = new PDFTextStripper().getText(document);
+
+                assertThat(extractedText).contains("✓ → ★ © €");
+                assertThat(extractedText).contains("😀 🚀 🔒");
+                assertThat(extractedText).doesNotContain("Emojis: ? ? ?");
+            }
+        } finally {
+            Files.deleteIfExists(exportFile);
+        }
+    }
+
     private int countChildren(PDOutlineItem root) {
         int count = 0;
         for (var child = root.getFirstChild(); child != null; child = child.getNextSibling()) {
