@@ -57,6 +57,9 @@ public class AiChatExportService {
     private static final String SANS_FONT_RESOURCE = "/fonts/noto/NotoSans-Regular.ttf";
     private static final String SANS_BOLD_FONT_RESOURCE = "/fonts/noto/NotoSans-Bold.ttf";
     private static final String MONO_FONT_RESOURCE = "/fonts/noto/NotoSansMono-Regular.ttf";
+    private static final String SYMBOLS_FONT_RESOURCE = "/fonts/noto/NotoSansSymbols-Variable.ttf";
+    private static final String SYMBOLS2_FONT_RESOURCE = "/fonts/noto/NotoSansSymbols2-Regular.ttf";
+    private static final String EMOJI_FONT_RESOURCE = "/fonts/noto/NotoEmoji-Variable.ttf";
     private static final float PAGE_MARGIN = 48f;
     private static final float CONTENT_BOTTOM_Y = 62f;
     private static final float CONTENT_TOP_Y = PDRectangle.A4.getHeight() - 72f;
@@ -215,10 +218,13 @@ public class AiChatExportService {
     }
 
     private PdfFonts loadFonts(PDDocument document) throws IOException {
+        PDFont symbols = loadFont(document, SYMBOLS_FONT_RESOURCE);
+        PDFont symbols2 = loadFont(document, SYMBOLS2_FONT_RESOURCE);
+        PDFont emoji = loadFont(document, EMOJI_FONT_RESOURCE);
         return new PdfFonts(
-            loadFont(document, SANS_FONT_RESOURCE),
-            loadFont(document, SANS_BOLD_FONT_RESOURCE),
-            loadFont(document, MONO_FONT_RESOURCE));
+            new FontFamily(loadFont(document, SANS_FONT_RESOURCE), symbols, symbols2, emoji),
+            new FontFamily(loadFont(document, SANS_BOLD_FONT_RESOURCE), symbols, symbols2, emoji),
+            new FontFamily(loadFont(document, MONO_FONT_RESOURCE), symbols, symbols2, emoji));
     }
 
     private PDType0Font loadFont(PDDocument document, String resourcePath) throws IOException {
@@ -559,7 +565,7 @@ public class AiChatExportService {
         float paddingX,
         float paddingY,
         float leading,
-        PDFont font,
+        FontFamily font,
         boolean header) throws IOException {
 
         List<List<String>> cellLines = new ArrayList<>(columnWidths.length);
@@ -635,11 +641,11 @@ public class AiChatExportService {
             }
             ExportBranding branding = state.branding;
             if (branding.watermarkEnabled()) {
-                PdfWatermarkSupport.draw(state.document, page, state.fonts.sansBold(),
-                    state.fonts.sans(), branding);
+                PdfWatermarkSupport.draw(state.document, page, state.fonts.sansBold().primary(),
+                    state.fonts.sans().primary(), branding);
             }
             if (branding.footerEnabled() && branding.footerUsesDefaultText()) {
-                PdfWatermarkSupport.addFooterRepositoryLink(page, state.fonts.sans(), 8.6f,
+                PdfWatermarkSupport.addFooterRepositoryLink(page, state.fonts.sans().primary(), 8.6f,
                     PAGE_MARGIN, branding.footerText() + "  ·  ");
             }
         }
@@ -754,7 +760,7 @@ public class AiChatExportService {
         return I18n.get("ai.result.assistantWithProfile", profileName.trim());
     }
 
-    private List<String> wrapParagraphText(String text, PDFont font, float fontSize, float maxWidth) throws IOException {
+    private List<String> wrapParagraphText(String text, FontFamily font, float fontSize, float maxWidth) throws IOException {
         List<String> wrappedLines = new ArrayList<>();
         String normalized = normalizeForPdf(text);
         for (String rawLine : normalized.split("\\R", -1)) {
@@ -774,7 +780,7 @@ public class AiChatExportService {
     private void wrapWordsIntoLines(
         List<String> wrappedLines,
         String line,
-        PDFont font,
+        FontFamily font,
         float fontSize,
         float maxWidth) throws IOException {
 
@@ -803,7 +809,7 @@ public class AiChatExportService {
         }
     }
 
-    private List<String> wrapCodeText(String text, PDFont font, float fontSize, float maxWidth) throws IOException {
+    private List<String> wrapCodeText(String text, FontFamily font, float fontSize, float maxWidth) throws IOException {
         List<String> wrappedLines = new ArrayList<>();
         String normalized = normalizeForPdf(text).replace("\t", "    ");
         for (String rawLine : normalized.split("\\R", -1)) {
@@ -824,7 +830,7 @@ public class AiChatExportService {
         return wrappedLines;
     }
 
-    private List<String> breakLongToken(String token, PDFont font, float fontSize, float maxWidth) throws IOException {
+    private List<String> breakLongToken(String token, FontFamily font, float fontSize, float maxWidth) throws IOException {
         List<String> parts = new ArrayList<>();
         String remaining = token;
         while (!remaining.isEmpty()) {
@@ -835,15 +841,17 @@ public class AiChatExportService {
         return parts;
     }
 
-    private int findLongestFittingLength(String text, PDFont font, float fontSize, float maxWidth) throws IOException {
+    private int findLongestFittingLength(String text, FontFamily font, float fontSize, float maxWidth) throws IOException {
+        int codePointCount = text.codePointCount(0, text.length());
         int low = 1;
-        int high = text.length();
+        int high = codePointCount;
         int best = 1;
         while (low <= high) {
             int mid = (low + high) / 2;
-            String candidate = text.substring(0, mid);
+            int endIndex = text.offsetByCodePoints(0, mid);
+            String candidate = text.substring(0, endIndex);
             if (textWidth(font, fontSize, candidate) <= maxWidth) {
-                best = mid;
+                best = endIndex;
                 low = mid + 1;
             } else {
                 high = mid - 1;
@@ -869,15 +877,18 @@ public class AiChatExportService {
         return builder.toString();
     }
 
-    private String prepareText(PDFont font, String text) throws IOException {
+    private String prepareText(FontFamily font, String text) throws IOException {
         StringBuilder builder = new StringBuilder();
         String safeText = text != null ? text : "";
         for (int index = 0; index < safeText.length(); ) {
             int codePoint = safeText.codePointAt(index);
             String glyph = new String(Character.toChars(codePoint));
-            if (Character.isWhitespace(codePoint)) {
+            if (isEmojiFormattingCodePoint(codePoint)) {
+                // PDFBox does not perform the OpenType shaping required for emoji variation
+                // selectors and ZWJ sequences. The visible emoji code points are still retained.
+            } else if (Character.isWhitespace(codePoint)) {
                 builder.append(glyph);
-            } else if (fontWillRender(font, glyph)) {
+            } else if (fontForGlyph(font, glyph) != null) {
                 builder.append(glyph);
             } else {
                 builder.append('?');
@@ -885,6 +896,26 @@ public class AiChatExportService {
             index += Character.charCount(codePoint);
         }
         return builder.toString();
+    }
+
+    private boolean isEmojiFormattingCodePoint(int codePoint) {
+        return codePoint == 0x200D || codePoint == 0xFE0E || codePoint == 0xFE0F;
+    }
+
+    private PDFont fontForGlyph(FontFamily family, String glyph) throws IOException {
+        if (fontWillRender(family.primary(), glyph)) {
+            return family.primary();
+        }
+        if (fontWillRender(family.symbols(), glyph)) {
+            return family.symbols();
+        }
+        if (fontWillRender(family.symbols2(), glyph)) {
+            return family.symbols2();
+        }
+        if (fontWillRender(family.emoji(), glyph)) {
+            return family.emoji();
+        }
+        return null;
     }
 
     private boolean fontWillRender(PDFont font, String glyph) throws IOException {
@@ -896,12 +927,16 @@ public class AiChatExportService {
         }
     }
 
-    private float textWidth(PDFont font, float fontSize, String text) throws IOException {
+    private float textWidth(FontFamily font, float fontSize, String text) throws IOException {
         String safeText = prepareText(font, text);
-        return font.getStringWidth(safeText) / 1000f * fontSize;
+        float width = 0f;
+        for (TextRun run : splitFontRuns(font, safeText)) {
+            width += run.font().getStringWidth(run.text()) / 1000f * fontSize;
+        }
+        return width;
     }
 
-    private String fitTextToWidth(String text, PDFont font, float fontSize, float maxWidth) throws IOException {
+    private String fitTextToWidth(String text, FontFamily font, float fontSize, float maxWidth) throws IOException {
         String safeText = prepareText(font, text);
         if (textWidth(font, fontSize, safeText) <= maxWidth) {
             return safeText;
@@ -922,14 +957,42 @@ public class AiChatExportService {
         return page.getMediaBox().getWidth() - (PAGE_MARGIN * 2f);
     }
 
-    private void drawText(PDPageContentStream stream, PDFont font, float fontSize, Color color, float x, float y, String text) throws IOException {
+    private void drawText(PDPageContentStream stream, FontFamily font, float fontSize, Color color, float x, float y, String text) throws IOException {
         String safeText = prepareText(font, text);
         stream.beginText();
-        stream.setFont(font, fontSize);
         stream.setNonStrokingColor(color);
         stream.newLineAtOffset(x, y);
-        stream.showText(safeText);
+        for (TextRun run : splitFontRuns(font, safeText)) {
+            stream.setFont(run.font(), fontSize);
+            stream.showText(run.text());
+        }
         stream.endText();
+    }
+
+    private List<TextRun> splitFontRuns(FontFamily family, String text) throws IOException {
+        List<TextRun> runs = new ArrayList<>();
+        StringBuilder currentText = new StringBuilder();
+        PDFont currentFont = null;
+        for (int index = 0; index < text.length(); ) {
+            int codePoint = text.codePointAt(index);
+            String glyph = new String(Character.toChars(codePoint));
+            PDFont glyphFont = fontForGlyph(family, glyph);
+            if (glyphFont == null) {
+                glyph = "?";
+                glyphFont = family.primary();
+            }
+            if (currentFont != glyphFont && !currentText.isEmpty()) {
+                runs.add(new TextRun(currentFont, currentText.toString()));
+                currentText.setLength(0);
+            }
+            currentFont = glyphFont;
+            currentText.append(glyph);
+            index += Character.charCount(codePoint);
+        }
+        if (!currentText.isEmpty()) {
+            runs.add(new TextRun(currentFont, currentText.toString()));
+        }
+        return runs;
     }
 
     private void drawFilledRect(PDPageContentStream stream, float x, float y, float width, float height, Color fillColor) throws IOException {
@@ -986,7 +1049,13 @@ public class AiChatExportService {
         }
     }
 
-    private record PdfFonts(PDFont sans, PDFont sansBold, PDFont mono) {
+    private record FontFamily(PDFont primary, PDFont symbols, PDFont symbols2, PDFont emoji) {
+    }
+
+    private record TextRun(PDFont font, String text) {
+    }
+
+    private record PdfFonts(FontFamily sans, FontFamily sansBold, FontFamily mono) {
     }
 
     private record BookmarkTarget(String label, PDPage page, float topY) {

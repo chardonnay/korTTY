@@ -6,6 +6,8 @@ title: Export
 
 Watermark and footer of the documents korTTY exports — [session journals](../../features/session-journal.md#exporting) and [AI chats](../../features/ai-assistant.md) alike. Open via **Configuration → Global Settings → Export**; stored in `~/.kortty/global-settings.xml`.
 
+AI chat PDFs embed fallback fonts for Unicode symbols and emoji, so characters such as `✓`, `★`, `😀`, and `🚀` remain visible and searchable in the exported document instead of being replaced with question marks.
+
 | Setting | Type | Values | Default | Stored as |
 | --- | --- | --- | --- | --- |
 | Add a watermark to exported PDFs | boolean | on/off | off | `pdfWatermarkEnabled` |
