@@ -13,7 +13,7 @@ Jeder native Asset-Name enthält seine Prozessorarchitektur. Verwenden Sie `aarc
     Verwenden Sie die `x86_64`-Assets auf Intel/AMD-PCs und unter Windows auf ARM, wo Windows sie durch x64-Emulation ausführt. korTTY veröffentlicht derzeit kein natives Windows-ARM-Paket, da die angeheftete OpenJFX-Zeile keine nativen Windows-ARM-Pakete enthält. Das MSI ist das Installationsprogramm; Die ZIP-Datei enthält das vollständige tragbare Anwendungsverzeichnis, einschließlich `korTTY.exe` und seiner Laufzeit. Die ausführbare Datei in diesem Verzeichnis ist keine eigenständige Einzeldateianwendung.
 
 === "Linux"
-    Verwenden Sie das Paket für Ihre Architektur und Distribution: DEB für Debian/Ubuntu, RPM für RPM-basierte Distributionen oder das ZIP/TAR-Archiv für eine tragbare Installation. Das Archiv enthält ein vollständiges `jpackage`-Anwendungsbildverzeichnis; Es handelt sich nicht um eine Linux-`.AppImage`-Datei.
+    Verwenden Sie das Paket für Ihre Architektur und Distribution: DEB für Debian/Ubuntu, RPM für RPM-basierte Distributionen, Pacman `x86_64` für Arch Linux, Pacman `aarch64` für Arch Linux ARM oder das ZIP/TAR-Archiv für eine tragbare Installation. Das Archiv enthält ein vollständiges `jpackage`-Anwendungsbildverzeichnis; Es handelt sich nicht um eine Linux-`.AppImage`-Datei.
 
 ## Optionale Systemtools
 

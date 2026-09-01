@@ -60,13 +60,13 @@ pages:
     owns_code: [build.gradle.kts, .github/workflows/build-release.yml, .github/workflows/llama-runtime.yml]
     diagrams: []
     screenshots: []
-    last_synced_ref: "67bd930c"
+    last_synced_ref: "38bcd2b4"
   - path: app-docs/site/docs/en/getting-started/building-packages.md
     owns_i18n: []
-    owns_code: [build.gradle.kts, settings.gradle.kts, gradle/wrapper/gradle-wrapper.properties, .github/workflows/build-release.yml, .github/workflows/llama-runtime.yml, .github/workflows/ai-catalog-release.yml, ai-catalog/model-prompt-catalog-v1.json, scripts/package-size-report.py, scripts/check-release-licenses.py, package/size-baselines.json, package/arch, package/flatpak]
+    owns_code: [build.gradle.kts, settings.gradle.kts, gradle/wrapper/gradle-wrapper.properties, .github/workflows/build-release.yml, .github/workflows/llama-runtime.yml, .github/workflows/ai-catalog-release.yml, ai-catalog/model-prompt-catalog-v1.json, scripts/package-size-report.py, scripts/check-release-licenses.py, scripts/package-pacman.sh, scripts/verify-pacman-package.sh, scripts/update_release_download_guide.py, package/size-baselines.json, package/arch, package/flatpak]
     diagrams: []
     screenshots: []
-    last_synced_ref: "67bd930c"
+    last_synced_ref: "38bcd2b4"
   - path: app-docs/site/docs/en/getting-started/first-launch.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/security/MasterPasswordManager.java]
