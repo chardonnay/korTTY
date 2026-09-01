@@ -2382,9 +2382,10 @@
 </tr>
 </tbody>
 </table>
+<p>With <strong>Remember window geometry</strong> enabled, KorTTY stores the position and size of every user-resizable application window and named dialog separately. Reopening a window restores the geometry chosen for that window type; if its previous monitor is no longer connected, KorTTY moves it back onto an available screen. A changed UI font scale keeps the remembered position but lets the window calculate a fresh size so translated or enlarged labels still fit. Short-lived confirmations and progress notices keep their content-derived size.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>When <strong>Use fixed window geometry</strong> is enabled, it takes precedence over <strong>Remember window geometry</strong>. The window will always open at the specified position and size, ignoring any previously saved geometry.</p>
+<p>When <strong>Use fixed window geometry</strong> is enabled, it takes precedence over <strong>Remember window geometry</strong> for main terminal windows. Dialogs continue to use their own remembered geometry.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -2393,6 +2394,7 @@
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>With <strong>Open tool windows as tabs</strong> enabled, management tools (Snippets, JobScheduler, AI Manager, Saved Chats, Session Journals, Credential/GPG/SSH key management, Video Manager, Teamwork settings, Terminal Effects) open as tabs in the main window instead of separate windows. The tab opens in the window whose menu you used, so with several main windows open each window collects its own tool tabs. Reopening a tool focuses its existing tab; the snippet editor, the AI code analysis and the session journal viewer open a new tab each time. The setting takes effect the next time a tool is opened.</p>
+<p>A tool hosted as a tab has no separate window geometry. Its available size follows the main window and its saved main-window geometry.</p>
 </div>
 
 
