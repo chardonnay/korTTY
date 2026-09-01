@@ -109,6 +109,7 @@ public class KorTTYApplication extends Application {
     private de.kortty.policy.PolicyManager policyManager;
     
     public static void main(String[] args) {
+        JavaFxPlatformSupport.configureRenderer();
         // Admin console mode: encrypt a sensitive policy-file value (e.g. an AI-profile API key)
         // into the kortty-enc:v1: envelope, without starting JavaFX.
         if (args.length > 0 && "--encrypt-policy-value".equals(args[0])) {
@@ -116,6 +117,9 @@ public class KorTTYApplication extends Application {
             return;
         }
         logger.info("Starting {} v{}", APP_NAME, APP_VERSION);
+        if ("sw".equalsIgnoreCase(System.getProperty("prism.order", ""))) {
+            logger.info("JavaFX software renderer enabled for Windows ARM x64 emulation");
+        }
         launch(args);
     }
 

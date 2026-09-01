@@ -74,6 +74,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.Duration;
+import javafx.util.StringConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,14 +111,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter JOURNAL_TIMESTAMP_FORMAT =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.ROOT);
-    private static final String PERMISSIONS_HELP = """
-        Valid permission values:
-
-        Octal: 644, 755, 0640
-        Symbolic chmod clauses: u+rw,o-w, g=rx, a+rX, u+s
-
-        Separate multiple symbolic clauses with commas.
-        """;
+    private static final String I18N_PREFIX = "jobscheduler.dialog.";
 
     private final KorTTYApplication app;
     private final JobSchedulerService schedulerService;
@@ -133,11 +127,11 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private final CheckBox menuBarStatusCheck = new CheckBox(I18n.get("jobscheduler.menu.statusVisible"));
     private final Label hostKeyLabel = new Label();
     private final Label hostKeyVerificationWarningLabel = new Label(
-        "Warning: unattended SSH/SFTP for this job will trust any host key.");
+        text("hostKey.warningUnsafe"));
 
     private final TextField nameField = new TextField();
-    private final CheckBox enabledCheck = new CheckBox("Enabled");
-    private final CheckBox hostKeyVerificationDisabledCheck = new CheckBox("Disable host-key verification for this job (unsafe)");
+    private final CheckBox enabledCheck = new CheckBox(text("enabled"));
+    private final CheckBox hostKeyVerificationDisabledCheck = new CheckBox(text("hostKey.disableUnsafe"));
     private final TextField connectionSummaryField = new TextField();
     private final TextField workingDirectoryField = new TextField();
     private final ComboBox<JobActionType> actionTypeCombo = new ComboBox<>();
@@ -150,9 +144,9 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private final ObservableList<String> fixedTimes = FXCollections.observableArrayList();
     private final ListView<String> fixedTimesList = new ListView<>(fixedTimes);
     private final Spinner<Integer> intervalSpinner = new Spinner<>(0, 10080, 0, 5);
-    private final CheckBox allWeekdaysCheck = new CheckBox("All");
+    private final CheckBox allWeekdaysCheck = new CheckBox(text("weekday.all"));
     private final CheckBox[] weekdayChecks = Arrays.stream(DayOfWeek.values())
-        .map(day -> new CheckBox(day.name().substring(0, 3)))
+        .map(day -> new CheckBox(text("weekday." + day.name().toLowerCase(Locale.ROOT))))
         .toArray(CheckBox[]::new);
 
     private final TextArea commandArea = new TextArea();
@@ -162,10 +156,10 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private final TextArea aiPromptArea = new TextArea();
     private final ComboBox<String> aiProfileCombo = new ComboBox<>();
     private final CheckBox aiAutoApproveCheck =
-        new CheckBox("AI agent may change the server without runtime confirmation");
+        new CheckBox(text("ai.autoApprove"));
     private final Spinner<Integer> swarmParallelismSpinner = new Spinner<>(1, 16, 4);
     private final CheckBox swarmReadOnlyCheck =
-        new CheckBox("Read-only: agents must not run server-changing commands");
+        new CheckBox(text("ai.swarmReadOnly"));
     private final TextField localPathField = new TextField();
     private final TextField remotePathField = new TextField();
     private final TextField remoteSourceField = new TextField();
@@ -174,14 +168,14 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private final TextField ownerField = new TextField();
     private final TextField groupField = new TextField();
     private final ComboBox<SftpSyncDirection> syncDirectionCombo = new ComboBox<>();
-    private final CheckBox sudoCheck = new CheckBox("Use sudo");
-    private final CheckBox sudoStagingCheck = new CheckBox("Use sudo staging for SFTP paths");
+    private final CheckBox sudoCheck = new CheckBox(text("sudo.use"));
+    private final CheckBox sudoStagingCheck = new CheckBox(text("sudo.staging"));
     private final TextArea archiveSourcesArea = new TextArea();
     private final TextArea archiveExcludesArea = new TextArea();
     private final TextField archivePathField = new TextField();
     private final ComboBox<JobArchiveFormat> archiveFormatCombo = new ComboBox<>();
     private final Spinner<Integer> archiveCompressionSpinner = new Spinner<>(0, 9, 6, 1);
-    private final CheckBox archiveDownloadCheck = new CheckBox("Download archive after creation");
+    private final CheckBox archiveDownloadCheck = new CheckBox(text("archive.downloadAfterCreate"));
     private final TextField archiveDownloadPathField = new TextField();
     private final PasswordField archivePasswordField = new PasswordField();
     private final Label archivePasswordStatusLabel = new Label();
@@ -194,11 +188,11 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private final ComboBox<RsyncDirection> rsyncDirectionCombo = new ComboBox<>();
     private final TextArea rsyncSourcesArea = new TextArea();
     private final TextField rsyncTargetRootField = new TextField();
-    private final CheckBox rsyncDeleteCheck = new CheckBox("Delete missing files");
+    private final CheckBox rsyncDeleteCheck = new CheckBox(text("rsync.deleteMissing"));
     private final Map<ActionField, List<javafx.scene.Node>> actionFieldRows = new EnumMap<>(ActionField.class);
     private final TextField journalSearchField = new TextField();
     private final ComboBox<JournalSearchMode> journalSearchModeCombo = new ComboBox<>();
-    private final MenuButton journalSearchColumnButton = new MenuButton("Columns");
+    private final MenuButton journalSearchColumnButton = new MenuButton(text("journal.columns"));
     private final Map<JournalSearchColumn, CheckMenuItem> journalSearchColumnItems = new EnumMap<>(JournalSearchColumn.class);
     private FilteredList<JobJournalEntry> filteredJournal;
     private final List<String> selectedConnectionIds = new ArrayList<>();
@@ -248,39 +242,39 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     }
 
     private enum JournalSearchMode {
-        ALL_FIELDS("All fields"),
-        SELECTED_COLUMNS("Selected columns");
+        ALL_FIELDS("journal.searchMode.allFields"),
+        SELECTED_COLUMNS("journal.searchMode.selectedColumns");
 
-        private final String label;
+        private final String key;
 
-        JournalSearchMode(String label) {
-            this.label = label;
+        JournalSearchMode(String key) {
+            this.key = key;
         }
 
         @Override
         public String toString() {
-            return label;
+            return text(key);
         }
     }
 
     private enum JournalSearchColumn {
-        STARTED("Started", true),
-        FINISHED("Finished", false),
-        STATUS("Status", true),
-        JOB("Job", true),
-        SUMMARY("Summary", true),
-        STDOUT("stdout", false),
-        STDERR("stderr", false),
-        DETAIL("detail", false),
-        TRIGGER("Trigger", false),
-        RUN_ID("Run ID", false),
-        EXIT_CODE("Exit code", false);
+        STARTED("journal.column.started", true),
+        FINISHED("journal.column.finished", false),
+        STATUS("journal.column.status", true),
+        JOB("journal.column.job", true),
+        SUMMARY("journal.column.summary", true),
+        STDOUT("journal.column.stdout", false),
+        STDERR("journal.column.stderr", false),
+        DETAIL("journal.column.detail", false),
+        TRIGGER("journal.column.trigger", false),
+        RUN_ID("journal.column.runId", false),
+        EXIT_CODE("journal.column.exitCode", false);
 
-        private final String label;
+        private final String key;
         private final boolean defaultSelected;
 
-        JournalSearchColumn(String label, boolean defaultSelected) {
-            this.label = label;
+        JournalSearchColumn(String key, boolean defaultSelected) {
+            this.key = key;
             this.defaultSelected = defaultSelected;
         }
 
@@ -290,7 +284,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
 
         @Override
         public String toString() {
-            return label;
+            return text(key);
         }
     }
 
@@ -299,8 +293,8 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         this.schedulerService = app.getJobSchedulerService();
         initOwner(owner);
         initModality(Modality.NONE);
-        setTitle("JobScheduler");
-        setHeaderText("Scheduled background automation");
+        setTitle(text("title"));
+        setHeaderText(text("header"));
         setResizable(true);
         getDialogPane().setPrefSize(DEFAULT_DIALOG_WIDTH, DEFAULT_DIALOG_HEIGHT);
         getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
@@ -329,11 +323,11 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private VBox buildJobList() {
         jobsTable.setItems(jobs);
         jobsTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        TableColumn<ScheduledJob, String> nameColumn = new TableColumn<>("Job");
+        TableColumn<ScheduledJob, String> nameColumn = new TableColumn<>(text("job.column.job"));
         nameColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(cell.getValue().getName()));
-        TableColumn<ScheduledJob, Boolean> enabledColumn = new TableColumn<>("Enabled");
+        TableColumn<ScheduledJob, Boolean> enabledColumn = new TableColumn<>(text("job.column.enabled"));
         enabledColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().isEnabled()));
-        TableColumn<ScheduledJob, String> nextRunColumn = new TableColumn<>("Next run");
+        TableColumn<ScheduledJob, String> nextRunColumn = new TableColumn<>(text("job.column.nextRun"));
         nextRunColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(nonBlank(cell.getValue().getNextRunAt(), "")));
         jobsTable.getColumns().add(nameColumn);
         jobsTable.getColumns().add(enabledColumn);
@@ -344,16 +338,16 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             }
         });
 
-        Button newButton = new Button("New");
+        Button newButton = new Button(text("button.new"));
         newButton.setGraphic(iconLabel("\u2795", 18));
         newButton.setOnAction(event -> createNewJob());
-        Button saveButton = new Button("Save");
+        Button saveButton = new Button(text("button.save"));
         saveButton.setGraphic(iconLabel("\u2713", 18));
         saveButton.setOnAction(event -> saveSelectedJob());
-        Button deleteButton = new Button("Delete");
+        Button deleteButton = new Button(text("button.delete"));
         deleteButton.setGraphic(iconLabel("\u2715", 18));
         deleteButton.setOnAction(event -> deleteSelectedJob());
-        Button runButton = new Button("Run now");
+        Button runButton = new Button(text("button.runNow"));
         runButton.setGraphic(iconLabel("\u25B6", 18));
         runButton.setOnAction(event -> runSelectedJob());
         HBox buttons = new HBox(8, newButton, saveButton, deleteButton, runButton);
@@ -368,9 +362,9 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
 
     private TabPane buildDetails() {
         TabPane tabs = new TabPane();
-        tabs.getTabs().add(new Tab("Job", buildJobEditor()));
-        tabs.getTabs().add(new Tab("Action", buildActionEditor()));
-        tabs.getTabs().add(new Tab("Journal", buildJournalView()));
+        tabs.getTabs().add(new Tab(text("tab.job"), buildJobEditor()));
+        tabs.getTabs().add(new Tab(text("tab.action"), buildActionEditor()));
+        tabs.getTabs().add(new Tab(text("tab.journal"), buildJournalView()));
         for (Tab tab : tabs.getTabs()) {
             tab.setClosable(false);
         }
@@ -392,26 +386,27 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         fixedTimesList.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
         configureWeekdaySelectionControls();
         connectionSummaryField.setEditable(false);
-        connectionSummaryField.setPromptText("No server or server group selected");
+        connectionSummaryField.setPromptText(text("target.noneSelected"));
         journalModeCombo.getItems().setAll(JournalDetailMode.values());
+        journalModeCombo.setConverter(localizedEnumConverter("journalMode."));
         journalModeCombo.getSelectionModel().select(JournalDetailMode.LIMITED_REDACTED);
         hostKeyVerificationWarningLabel.setWrapText(true);
         hostKeyVerificationWarningLabel.visibleProperty().bind(hostKeyVerificationDisabledCheck.selectedProperty());
         hostKeyVerificationWarningLabel.managedProperty().bind(hostKeyVerificationWarningLabel.visibleProperty());
         hostKeyVerificationDisabledCheck.selectedProperty().addListener((obs, oldValue, newValue) -> updateHostKeyLabel());
-        Button selectTargetsButton = new Button("Select...");
+        Button selectTargetsButton = new Button(text("button.select"));
         selectTargetsButton.setGraphic(iconLabel("\uD83D\uDD0C", 16));
         selectTargetsButton.setOnAction(event -> selectTargets());
         HBox connectionBox = new HBox(8, connectionSummaryField, selectTargetsButton);
         HBox.setHgrow(connectionSummaryField, Priority.ALWAYS);
-        Button workingDirectoryButton = new Button("Browse...");
+        Button workingDirectoryButton = new Button(text("button.browse"));
         workingDirectoryButton.setGraphic(iconLabel("\uD83D\uDCC1", 16));
         workingDirectoryButton.setOnAction(event -> selectRemoteDirectory(workingDirectoryField, true));
         HBox workingDirectoryBox = fieldButtonBox(workingDirectoryField, workingDirectoryButton);
-        Button addFixedTimeButton = new Button("Add");
+        Button addFixedTimeButton = new Button(text("button.add"));
         addFixedTimeButton.setGraphic(iconLabel("\u2795", 16));
         addFixedTimeButton.setOnAction(event -> addFixedTime());
-        Button removeFixedTimeButton = new Button("Remove");
+        Button removeFixedTimeButton = new Button(text("button.remove"));
         removeFixedTimeButton.setGraphic(iconLabel("\u2715", 16));
         removeFixedTimeButton.setOnAction(event -> removeFixedTime());
         HBox fixedTimeControls = new HBox(8, fixedTimeCombo, addFixedTimeButton, removeFixedTimeButton);
@@ -420,29 +415,29 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
 
         GridPane grid = formGrid();
         int row = 0;
-        addRow(grid, row++, "Name", nameField);
-        addRow(grid, row++, "Connection", connectionBox);
-        addRow(grid, row++, "Working directory", workingDirectoryBox);
-        addRow(grid, row++, "Journal", journalModeCombo);
-        addRow(grid, row++, "Active from", activeFromPicker);
-        addRow(grid, row++, "Active until", activeUntilPicker);
-        addRow(grid, row++, "Window start", windowStartCombo);
-        addRow(grid, row++, "Window end", windowEndCombo);
-        addRow(grid, row++, "Interval minutes", intervalSpinner);
-        addRow(grid, row++, "Fixed times", fixedTimesBox);
+        addRow(grid, row++, text("job.name"), nameField);
+        addRow(grid, row++, text("job.connection"), connectionBox);
+        addRow(grid, row++, text("job.workingDirectory"), workingDirectoryBox);
+        addRow(grid, row++, text("job.journal"), journalModeCombo);
+        addRow(grid, row++, text("job.activeFrom"), activeFromPicker);
+        addRow(grid, row++, text("job.activeUntil"), activeUntilPicker);
+        addRow(grid, row++, text("job.windowStart"), windowStartCombo);
+        addRow(grid, row++, text("job.windowEnd"), windowEndCombo);
+        addRow(grid, row++, text("job.intervalMinutes"), intervalSpinner);
+        addRow(grid, row++, text("job.fixedTimes"), fixedTimesBox);
 
         HBox weekdays = new HBox(6, allWeekdaysCheck);
         weekdays.getChildren().addAll(weekdayChecks);
         weekdays.setAlignment(Pos.CENTER_LEFT);
-        addRow(grid, row++, "Weekdays", weekdays);
+        addRow(grid, row++, text("job.weekdays"), weekdays);
 
-        Button pinButton = new Button("Confirm host key");
+        Button pinButton = new Button(text("hostKey.confirm"));
         pinButton.setGraphic(iconLabel("\uD83D\uDD12", 16));
         pinButton.setOnAction(event -> pinHostKey());
-        Button serverSudoButton = new Button("Set server sudo");
+        Button serverSudoButton = new Button(text("sudo.setServer"));
         serverSudoButton.setGraphic(iconLabel("\uD83D\uDD11", 16));
         serverSudoButton.setOnAction(event -> setServerSudoPassword());
-        Button groupSudoButton = new Button("Set group sudo");
+        Button groupSudoButton = new Button(text("sudo.setGroup"));
         groupSudoButton.setGraphic(iconLabel("\uD83D\uDD11", 16));
         groupSudoButton.setOnAction(event -> setGroupSudoPassword());
         HBox securityButtons = new HBox(8, pinButton, serverSudoButton, groupSudoButton);
@@ -459,10 +454,14 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
 
     private VBox buildActionEditor() {
         actionTypeCombo.getItems().setAll(JobActionType.values());
+        actionTypeCombo.setConverter(localizedEnumConverter("actionType."));
         actionTypeCombo.setVisibleRowCount(JobActionType.values().length);
         syncDirectionCombo.getItems().setAll(SftpSyncDirection.values());
+        syncDirectionCombo.setConverter(localizedEnumConverter("direction."));
         archiveFormatCombo.getItems().setAll(JobArchiveFormat.values());
+        archiveFormatCombo.setConverter(localizedEnumConverter("archiveFormat."));
         rsyncDirectionCombo.getItems().setAll(RsyncDirection.values());
+        rsyncDirectionCombo.setConverter(localizedEnumConverter("direction."));
         actionTypeCombo.getSelectionModel().select(JobActionType.COMMAND);
         syncDirectionCombo.getSelectionModel().select(SftpSyncDirection.UPLOAD);
         archiveFormatCombo.getSelectionModel().select(JobArchiveFormat.ZIP);
@@ -487,91 +486,91 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         archiveCompressionSpinner.setEditable(true);
         commandArea.setPrefRowCount(4);
         snippetCombo.setItems(filteredSnippetChoices);
-        snippetSearchField.setPromptText("Search scripts by name, category, language, or ID");
+        snippetSearchField.setPromptText(text("snippet.searchPrompt"));
         snippetSearchField.textProperty().addListener((obs, oldValue, newValue) -> updateSnippetFilter());
         snippetCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> updateSnippetFilter());
-        snippetCombo.setPromptText("Select SnippetManager script");
+        snippetCombo.setPromptText(text("snippet.selectPrompt"));
         snippetCombo.setMaxWidth(Double.MAX_VALUE);
         refreshSnippetChoices();
         snippetArgumentsArea.setPrefRowCount(3);
-        snippetArgumentsArea.setPromptText("One argument per line");
+        snippetArgumentsArea.setPromptText(text("snippet.argumentsPrompt"));
         aiPromptArea.setPrefRowCount(4);
         archiveSourcesArea.setPrefRowCount(4);
         archiveExcludesArea.setPrefRowCount(3);
         rsyncSourcesArea.setPrefRowCount(4);
-        permissionsField.setTooltip(new Tooltip(PERMISSIONS_HELP));
-        permissionsField.setPromptText("e.g. 755 or u+rw,o-w");
-        archivePasswordField.setPromptText("ZIP password");
+        permissionsField.setTooltip(new Tooltip(text("permissions.help")));
+        permissionsField.setPromptText(text("permissions.prompt"));
+        archivePasswordField.setPromptText(text("archive.passwordPrompt"));
         aiProfileCombo.getItems().setAll(app.getGlobalSettingsManager().getSettings().getAiProfiles().stream()
             .filter(profile -> profile != null)
             .map(profile -> profile.getId() + " - " + nonBlank(profile.getName(), profile.getModel()))
             .toList());
 
-        Button localPathButton = new Button("Browse...");
+        Button localPathButton = new Button(text("button.browse"));
         localPathButton.setGraphic(iconLabel("\uD83D\uDCC1", 16));
         localPathButton.setOnAction(event -> selectLocalDirectory(localPathField));
-        Button remotePathButton = new Button("Browse...");
+        Button remotePathButton = new Button(text("button.browse"));
         remotePathButton.setGraphic(iconLabel("\uD83D\uDCC1", 16));
         remotePathButton.setOnAction(event -> selectRemoteDirectory(remotePathField, false));
-        Button remoteSourceButton = new Button("Browse...");
+        Button remoteSourceButton = new Button(text("button.browse"));
         remoteSourceButton.setGraphic(iconLabel("\uD83D\uDCC1", 16));
         remoteSourceButton.setOnAction(event -> selectRemoteDirectory(remoteSourceField, false));
-        Button remoteDestinationButton = new Button("Browse...");
+        Button remoteDestinationButton = new Button(text("button.browse"));
         remoteDestinationButton.setGraphic(iconLabel("\uD83D\uDCC1", 16));
         remoteDestinationButton.setOnAction(event -> selectRemoteDirectory(remoteDestinationField, false));
         Button permissionsHelpButton = new Button("?");
-        permissionsHelpButton.setOnAction(event -> showInfo("Permissions", PERMISSIONS_HELP));
-        Button ownerButton = new Button("Select...");
+        permissionsHelpButton.setOnAction(event -> showInfo(text("permissions.title"), text("permissions.help")));
+        Button ownerButton = new Button(text("button.select"));
         ownerButton.setGraphic(iconLabel("\uD83D\uDC64", 16));
         ownerButton.setOnAction(event -> selectRemoteOwner());
-        Button groupButton = new Button("Select...");
+        Button groupButton = new Button(text("button.select"));
         groupButton.setGraphic(iconLabel("\uD83D\uDC65", 16));
         groupButton.setOnAction(event -> selectRemoteGroup());
-        Button archivePathButton = new Button("Browse...");
+        Button archivePathButton = new Button(text("button.browse"));
         archivePathButton.setGraphic(iconLabel("\uD83D\uDCC1", 16));
         archivePathButton.setOnAction(event -> selectRemoteDirectory(archivePathField, false));
-        Button rsyncSourceButton = new Button("Add...");
+        Button rsyncSourceButton = new Button(text("button.addEllipsis"));
         rsyncSourceButton.setGraphic(iconLabel("\uD83D\uDCC1", 16));
         rsyncSourceButton.setOnAction(event -> selectRsyncSourcePath());
-        Button rsyncTargetRootButton = new Button("Browse...");
+        Button rsyncTargetRootButton = new Button(text("button.browse"));
         rsyncTargetRootButton.setGraphic(iconLabel("\uD83D\uDCC1", 16));
         rsyncTargetRootButton.setOnAction(event -> selectRsyncTargetRoot());
 
         GridPane grid = formGrid();
         actionFieldRows.clear();
         int row = 0;
-        addActionRow(grid, row++, ActionField.ACTION, "Action", actionTypeCombo);
-        addActionRow(grid, row++, ActionField.COMMAND, "Command", commandArea);
-        addActionRow(grid, row++, ActionField.SNIPPET_SEARCH, "Snippet search", snippetSearchField);
-        addActionRow(grid, row++, ActionField.SNIPPET_SCRIPT, "Snippet script", snippetCombo);
-        addActionRow(grid, row++, ActionField.SNIPPET_PARAMETERS, "Snippet parameters", snippetArgumentsArea);
-        addActionRow(grid, row++, ActionField.AI_PROFILE, "AI profile", aiProfileCombo);
-        addActionRow(grid, row++, ActionField.AI_PROMPT, "AI prompt", aiPromptArea);
-        addActionRow(grid, row++, ActionField.AI_AUTO_APPROVE, "AI server changes", aiAutoApproveCheck);
-        addActionRow(grid, row++, ActionField.AI_SWARM_PARALLELISM, "Swarm parallelism", swarmParallelismSpinner);
-        addActionRow(grid, row++, ActionField.AI_SWARM_READ_ONLY, "Swarm read-only", swarmReadOnlyCheck);
-        addActionRow(grid, row++, ActionField.LOCAL_PATH, "Local path", fieldButtonBox(localPathField, localPathButton));
-        addActionRow(grid, row++, ActionField.REMOTE_PATH, "Remote path", fieldButtonBox(remotePathField, remotePathButton));
-        addActionRow(grid, row++, ActionField.REMOTE_SOURCE, "Remote source", fieldButtonBox(remoteSourceField, remoteSourceButton));
-        addActionRow(grid, row++, ActionField.REMOTE_DESTINATION, "Remote destination", fieldButtonBox(remoteDestinationField, remoteDestinationButton));
-        addActionRow(grid, row++, ActionField.PERMISSIONS, "Permissions", fieldButtonBox(permissionsField, permissionsHelpButton));
-        addActionRow(grid, row++, ActionField.OWNER, "Owner", fieldButtonBox(ownerField, ownerButton));
-        addActionRow(grid, row++, ActionField.GROUP, "Group", fieldButtonBox(groupField, groupButton));
-        addActionRow(grid, row++, ActionField.SYNC_DIRECTION, "Sync direction", syncDirectionCombo);
-        addActionRow(grid, row++, ActionField.SUDO, "Sudo", sudoCheck);
-        addActionRow(grid, row++, ActionField.SUDO_STAGING, "SFTP sudo staging", sudoStagingCheck);
-        addActionRow(grid, row++, ActionField.ARCHIVE_SOURCES, "Archive sources", archiveSourcesArea);
-        addActionRow(grid, row++, ActionField.ARCHIVE_EXCLUDES, "Archive excludes", archiveExcludesArea);
-        addActionRow(grid, row++, ActionField.ARCHIVE_PATH, "Archive path", fieldButtonBox(archivePathField, archivePathButton));
-        addActionRow(grid, row++, ActionField.ARCHIVE_FORMAT, "Archive format", archiveFormatCombo);
-        addActionRow(grid, row++, ActionField.ARCHIVE_PASSWORD, "Archive password", new VBox(4, archivePasswordField, archivePasswordStatusLabel));
-        addActionRow(grid, row++, ActionField.ARCHIVE_COMPRESSION, "Compression", archiveCompressionSpinner);
-        addActionRow(grid, row++, ActionField.ARCHIVE_DOWNLOAD, "Archive download", archiveDownloadCheck);
-        addActionRow(grid, row++, ActionField.ARCHIVE_DOWNLOAD_PATH, "Archive download path", archiveDownloadPathField);
-        addActionRow(grid, row++, ActionField.RSYNC_DIRECTION, "Rsync direction", rsyncDirectionCombo);
-        addActionRow(grid, row++, ActionField.RSYNC_SOURCES, "Rsync sources", fieldButtonBox(rsyncSourcesArea, rsyncSourceButton));
-        addActionRow(grid, row++, ActionField.RSYNC_TARGET_ROOT, "Rsync target root", fieldButtonBox(rsyncTargetRootField, rsyncTargetRootButton));
-        addActionRow(grid, row++, ActionField.RSYNC_DELETE, "Rsync", rsyncDeleteCheck);
+        addActionRow(grid, row++, ActionField.ACTION, text("action.type"), actionTypeCombo);
+        addActionRow(grid, row++, ActionField.COMMAND, text("action.command"), commandArea);
+        addActionRow(grid, row++, ActionField.SNIPPET_SEARCH, text("action.snippetSearch"), snippetSearchField);
+        addActionRow(grid, row++, ActionField.SNIPPET_SCRIPT, text("action.snippetScript"), snippetCombo);
+        addActionRow(grid, row++, ActionField.SNIPPET_PARAMETERS, text("action.snippetParameters"), snippetArgumentsArea);
+        addActionRow(grid, row++, ActionField.AI_PROFILE, text("action.aiProfile"), aiProfileCombo);
+        addActionRow(grid, row++, ActionField.AI_PROMPT, text("action.aiPrompt"), aiPromptArea);
+        addActionRow(grid, row++, ActionField.AI_AUTO_APPROVE, text("action.aiServerChanges"), aiAutoApproveCheck);
+        addActionRow(grid, row++, ActionField.AI_SWARM_PARALLELISM, text("action.swarmParallelism"), swarmParallelismSpinner);
+        addActionRow(grid, row++, ActionField.AI_SWARM_READ_ONLY, text("action.swarmReadOnly"), swarmReadOnlyCheck);
+        addActionRow(grid, row++, ActionField.LOCAL_PATH, text("action.localPath"), fieldButtonBox(localPathField, localPathButton));
+        addActionRow(grid, row++, ActionField.REMOTE_PATH, text("action.remotePath"), fieldButtonBox(remotePathField, remotePathButton));
+        addActionRow(grid, row++, ActionField.REMOTE_SOURCE, text("action.remoteSource"), fieldButtonBox(remoteSourceField, remoteSourceButton));
+        addActionRow(grid, row++, ActionField.REMOTE_DESTINATION, text("action.remoteDestination"), fieldButtonBox(remoteDestinationField, remoteDestinationButton));
+        addActionRow(grid, row++, ActionField.PERMISSIONS, text("action.permissions"), fieldButtonBox(permissionsField, permissionsHelpButton));
+        addActionRow(grid, row++, ActionField.OWNER, text("action.owner"), fieldButtonBox(ownerField, ownerButton));
+        addActionRow(grid, row++, ActionField.GROUP, text("action.group"), fieldButtonBox(groupField, groupButton));
+        addActionRow(grid, row++, ActionField.SYNC_DIRECTION, text("action.syncDirection"), syncDirectionCombo);
+        addActionRow(grid, row++, ActionField.SUDO, text("action.sudo"), sudoCheck);
+        addActionRow(grid, row++, ActionField.SUDO_STAGING, text("action.sudoStaging"), sudoStagingCheck);
+        addActionRow(grid, row++, ActionField.ARCHIVE_SOURCES, text("action.archiveSources"), archiveSourcesArea);
+        addActionRow(grid, row++, ActionField.ARCHIVE_EXCLUDES, text("action.archiveExcludes"), archiveExcludesArea);
+        addActionRow(grid, row++, ActionField.ARCHIVE_PATH, text("action.archivePath"), fieldButtonBox(archivePathField, archivePathButton));
+        addActionRow(grid, row++, ActionField.ARCHIVE_FORMAT, text("action.archiveFormat"), archiveFormatCombo);
+        addActionRow(grid, row++, ActionField.ARCHIVE_PASSWORD, text("action.archivePassword"), new VBox(4, archivePasswordField, archivePasswordStatusLabel));
+        addActionRow(grid, row++, ActionField.ARCHIVE_COMPRESSION, text("action.compression"), archiveCompressionSpinner);
+        addActionRow(grid, row++, ActionField.ARCHIVE_DOWNLOAD, text("action.archiveDownload"), archiveDownloadCheck);
+        addActionRow(grid, row++, ActionField.ARCHIVE_DOWNLOAD_PATH, text("action.archiveDownloadPath"), archiveDownloadPathField);
+        addActionRow(grid, row++, ActionField.RSYNC_DIRECTION, text("action.rsyncDirection"), rsyncDirectionCombo);
+        addActionRow(grid, row++, ActionField.RSYNC_SOURCES, text("action.rsyncSources"), fieldButtonBox(rsyncSourcesArea, rsyncSourceButton));
+        addActionRow(grid, row++, ActionField.RSYNC_TARGET_ROOT, text("action.rsyncTargetRoot"), fieldButtonBox(rsyncTargetRootField, rsyncTargetRootButton));
+        addActionRow(grid, row++, ActionField.RSYNC_DELETE, text("action.rsync"), rsyncDeleteCheck);
 
         updateArchivePasswordState();
         updateActionFieldVisibility();
@@ -588,16 +587,16 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         journalTable.setItems(sortedJournal);
         journalTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         journalTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-        TableColumn<JobJournalEntry, String> startedColumn = new TableColumn<>("Started");
+        TableColumn<JobJournalEntry, String> startedColumn = new TableColumn<>(text("journal.column.started"));
         startedColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(formatJournalTimestamp(cell.getValue().getStartedAt())));
         startedColumn.setComparator(Comparator.nullsLast(Comparator.<String>naturalOrder()));
-        TableColumn<JobJournalEntry, String> statusColumn = new TableColumn<>("Status");
-        statusColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(cell.getValue().getStatus().name()));
+        TableColumn<JobJournalEntry, String> statusColumn = new TableColumn<>(text("journal.column.status"));
+        statusColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(localizedStatus(cell.getValue())));
         statusColumn.setComparator(Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
-        TableColumn<JobJournalEntry, String> jobColumn = new TableColumn<>("Job");
+        TableColumn<JobJournalEntry, String> jobColumn = new TableColumn<>(text("journal.column.job"));
         jobColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(nonBlank(cell.getValue().getJobName(), "")));
         jobColumn.setComparator(Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
-        TableColumn<JobJournalEntry, String> summaryColumn = new TableColumn<>("Summary");
+        TableColumn<JobJournalEntry, String> summaryColumn = new TableColumn<>(text("journal.column.summary"));
         summaryColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(nonBlank(cell.getValue().getSummary(), "")));
         summaryColumn.setComparator(Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
         journalTable.getColumns().add(startedColumn);
@@ -621,10 +620,10 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
                     + "\n\ndetail:\n" + nonBlank(entry.getDetailText(), ""));
             }
         });
-        Button refreshButton = new Button("Refresh");
+        Button refreshButton = new Button(text("button.refresh"));
         refreshButton.setGraphic(iconLabel("\u21BB", 16));
         refreshButton.setOnAction(event -> refresh());
-        Button deleteButton = new Button("Delete selected");
+        Button deleteButton = new Button(text("button.deleteSelected"));
         deleteButton.setGraphic(iconLabel("\u2715", 18));
         deleteButton.disableProperty().bind(journalTable.getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelectedJournalEntries(detailArea));
@@ -644,7 +643,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     }
 
     private HBox buildJournalSearchControls() {
-        journalSearchField.setPromptText("Search terms; use * as wildcard");
+        journalSearchField.setPromptText(text("journal.searchPrompt"));
         journalSearchField.textProperty().addListener((obs, oldValue, newValue) -> updateJournalFilter());
         journalSearchModeCombo.getItems().setAll(JournalSearchMode.values());
         journalSearchModeCombo.getSelectionModel().select(JournalSearchMode.ALL_FIELDS);
@@ -663,7 +662,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
 
         HBox controls = new HBox(
             8,
-            new Label("Search"),
+            new Label(text("journal.search")),
             journalSearchField,
             journalSearchModeCombo,
             journalSearchColumnButton);
@@ -692,8 +691,8 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             .filter(CheckMenuItem::isSelected)
             .count();
         journalSearchColumnButton.setText(selectedColumnsMode
-            ? selectedCount + " column(s)"
-            : "All fields");
+            ? text("journal.selectedColumns", selectedCount)
+            : text("journal.searchMode.allFields"));
     }
 
     private boolean matchesJournalSearch(JobJournalEntry entry) {
@@ -770,15 +769,15 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
                 commitJournalRetentionEditorValue();
             }
         });
-        Label label = new Label("Auto-delete journal entries older than");
-        Label suffix = new Label("days (default: 14, 0 = never)");
+        Label label = new Label(text("journal.retentionBefore"));
+        Label suffix = new Label(text("journal.retentionAfter"));
         HBox controls = new HBox(8, label, journalRetentionDaysSpinner, suffix);
         controls.setAlignment(Pos.CENTER_LEFT);
         return controls;
     }
 
     private void installJournalDetailContextMenu(TextArea detailArea) {
-        MenuItem copySelected = new MenuItem("Copy selected text");
+        MenuItem copySelected = new MenuItem(text("journal.copySelected"));
         copySelected.setOnAction(event -> copySelectedJournalDetailText(detailArea));
         ContextMenu contextMenu = new ContextMenu(copySelected);
         contextMenu.setOnShowing(event -> copySelected.setDisable(detailArea.getSelectedText() == null
@@ -827,7 +826,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
                 journal.setAll(schedulerService.getJournal());
             }
         } catch (Exception e) {
-            showError("Could not save journal retention setting", e.getMessage());
+            showError(text("error.saveJournalRetention"), e.getMessage());
         }
     }
 
@@ -869,8 +868,8 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         journal.setAll(schedulerService.getJournal());
         List<ActiveJobSummary> active = schedulerService.getActiveJobSummaries();
         statusLabel.setText(active.isEmpty()
-            ? "No background jobs running."
-            : active.size() + " background job(s) running: " + active.stream().map(ActiveJobSummary::jobName).toList());
+            ? text("status.noJobsRunning")
+            : text("status.jobsRunning", active.size(), active.stream().map(ActiveJobSummary::jobName).toList()));
         updateHostKeyLabel();
     }
 
@@ -905,7 +904,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             app.getGlobalSettingsManager().save();
         } catch (Exception e) {
             menuBarStatusCheck.setSelected(!selected);
-            showError("Could not save JobScheduler setting", e.getMessage());
+            showError(text("error.saveSetting"), e.getMessage());
         }
     }
 
@@ -1026,7 +1025,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             schedulerService.saveJob(selectedJob);
             refresh();
         } catch (Exception e) {
-            showError("Could not save job", e.getMessage());
+            showError(text("error.saveJob"), e.getMessage());
         }
     }
 
@@ -1063,7 +1062,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         action.setRemoteDestinationPath(remoteDestinationField.getText());
         String permissions = permissionsField.getText();
         if (permissions != null && !permissions.isBlank() && !isValidPermissions(permissions.trim())) {
-            throw new IllegalArgumentException("Permissions must be octal like 755 or symbolic like u+rw,o-w.");
+            throw new IllegalArgumentException(text("permissions.invalid"));
         }
         action.setPermissions(permissions);
         action.setOwner(ownerField.getText());
@@ -1097,7 +1096,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             selectedJob = null;
             refresh();
         } catch (Exception e) {
-            showError("Could not delete job", e.getMessage());
+            showError(text("error.deleteJob"), e.getMessage());
         }
     }
 
@@ -1108,17 +1107,17 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             .filter(id -> id != null && !id.isBlank())
             .toList();
         if (entryIds.isEmpty()) {
-            showInfo("Delete journal entries", "Select at least one journal entry first.");
+            showInfo(text("journal.delete.title"), text("journal.delete.noneSelected"));
             return;
         }
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
         DialogThemeHelper.applyTheme(confirm);
         confirm.initOwner(getDialogPane().getScene().getWindow());
-        confirm.setTitle("Delete journal entries");
+        confirm.setTitle(text("journal.delete.title"));
         confirm.setHeaderText(null);
         confirm.setContentText(entryIds.size() == 1
-            ? "Delete the selected journal entry?"
-            : "Delete " + entryIds.size() + " selected journal entries?");
+            ? text("journal.delete.confirmOne")
+            : text("journal.delete.confirmMany", entryIds.size()));
         boolean confirmed = confirm.showAndWait()
             .filter(ButtonType.OK::equals)
             .isPresent();
@@ -1131,7 +1130,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             detailArea.clear();
             refresh();
         } catch (Exception e) {
-            showError("Could not delete journal entries", e.getMessage());
+            showError(text("error.deleteJournal"), e.getMessage());
         }
     }
 
@@ -1146,14 +1145,14 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private void pinHostKey() {
         List<ServerConnection> targets = resolveSelectedTargetConnections();
         if (targets.isEmpty()) {
-            showError("No connection selected", "Select at least one server or server group first.");
+            showError(text("target.noneTitle"), text("target.selectAtLeastOne"));
             return;
         }
         ProgressIndicator progress = new ProgressIndicator();
         Alert progressAlert = new Alert(Alert.AlertType.INFORMATION);
         DialogThemeHelper.applyTheme(progressAlert);
-        progressAlert.setTitle("Confirm host key");
-        progressAlert.setHeaderText("Reading host key fingerprint...");
+        progressAlert.setTitle(text("hostKey.confirm"));
+        progressAlert.setHeaderText(text("hostKey.reading"));
         progressAlert.getDialogPane().setContent(progress);
         progressAlert.getDialogPane().getButtonTypes().setAll(ButtonType.CANCEL);
         Thread worker = new Thread(() -> {
@@ -1174,16 +1173,16 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
                     progressAlert.close();
                     refresh();
                     if (failures.isEmpty()) {
-                        hostKeyLabel.setText("Pinned host keys for " + pinnedCount + " target(s).");
+                        hostKeyLabel.setText(text("hostKey.pinnedCount", pinnedCount));
                     } else {
-                        showError("Host key confirmation failed", String.join("\n", failures));
+                        showError(text("hostKey.failed"), String.join("\n", failures));
                     }
                 });
             } catch (Exception e) {
                 logger.warn("JobScheduler host key confirmation failed", e);
                 Platform.runLater(() -> {
                     progressAlert.close();
-                    showError("Host key confirmation failed", safeThrowableMessage(e));
+                    showError(text("hostKey.failed"), safeThrowableMessage(e));
                 });
             }
         }, "JobScheduler-HostKey-Probe");
@@ -1195,18 +1194,18 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private void setServerSudoPassword() {
         List<ServerConnection> targets = resolveSelectedTargetConnections();
         if (targets.size() != 1) {
-            showError("Select one server", "Select exactly one server target before saving a server-specific sudo password.");
+            showError(text("target.selectOneTitle"), text("target.selectOneForSudo"));
             return;
         }
         ServerConnection connection = targets.get(0);
-        promptPassword("Set server sudo password", connection.getDisplayName()).ifPresent(password -> {
+        promptPassword(text("sudo.setServerPassword"), connection.getDisplayName()).ifPresent(password -> {
             try {
                 char[] master = requireMasterPassword();
                 new JobSchedulerSudoService(schedulerService.getRepository())
                     .setServerSudoPassword(connection.getId(), password, master);
                 schedulerService.getRepository().save();
             } catch (Exception e) {
-                showError("Could not save sudo password", e.getMessage());
+                showError(text("error.saveSudoPassword"), e.getMessage());
             }
         });
     }
@@ -1218,20 +1217,20 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             : targets.size() == 1 ? targets.get(0).getGroup() : "";
         TextInputDialog groupDialog = new TextInputDialog(nonBlank(initialGroup, ""));
         DialogThemeHelper.applyTheme(groupDialog);
-        groupDialog.setTitle("Set group sudo password");
-        groupDialog.setHeaderText("Server group");
+        groupDialog.setTitle(text("sudo.setGroupPassword"));
+        groupDialog.setHeaderText(text("sudo.serverGroup"));
         Optional<String> group = groupDialog.showAndWait().map(String::trim).filter(value -> !value.isEmpty());
         if (group.isEmpty()) {
             return;
         }
-        promptPassword("Set group sudo password", group.get()).ifPresent(password -> {
+        promptPassword(text("sudo.setGroupPassword"), group.get()).ifPresent(password -> {
             try {
                 char[] master = requireMasterPassword();
                 new JobSchedulerSudoService(schedulerService.getRepository())
                     .setGroupSudoPassword(group.get(), password, master);
                 schedulerService.getRepository().save();
             } catch (Exception e) {
-                showError("Could not save sudo password", e.getMessage());
+                showError(text("error.saveSudoPassword"), e.getMessage());
             }
         });
     }
@@ -1242,9 +1241,9 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         dialog.setTitle(title);
         dialog.setHeaderText(header);
         PasswordField passwordField = new PasswordField();
-        passwordField.setPromptText("SUDO password");
-        dialog.getDialogPane().setContent(new VBox(8, new Label("Password"), passwordField));
-        ButtonType save = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+        passwordField.setPromptText(text("sudo.passwordPrompt"));
+        dialog.getDialogPane().setContent(new VBox(8, new Label(text("sudo.password")), passwordField));
+        ButtonType save = new ButtonType(text("button.save"), ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(save, ButtonType.CANCEL);
         dialog.setResultConverter(buttonType -> buttonType == save ? passwordField.getText() : null);
         return dialog.showAndWait().filter(value -> !value.isBlank());
@@ -1253,7 +1252,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private char[] requireMasterPassword() {
         char[] master = app.getMasterPasswordManager().getMasterPassword();
         if (master == null) {
-            throw new IllegalStateException("Master password is locked.");
+            throw new IllegalStateException(text("error.masterPasswordLocked"));
         }
         return master;
     }
@@ -1261,25 +1260,25 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private void updateHostKeyLabel() {
         List<ServerConnection> targets = resolveSelectedTargetConnections();
         if (hostKeyVerificationDisabledCheck.isSelected()) {
-            hostKeyLabel.setText("Host-key verification is disabled for this job.");
+            hostKeyLabel.setText(text("hostKey.disabled"));
             return;
         }
         if (targets.isEmpty()) {
-            hostKeyLabel.setText("No server target selected.");
+            hostKeyLabel.setText(text("hostKey.noTarget"));
             return;
         }
         long pinned = targets.stream()
             .filter(connection -> schedulerService.findPinnedHostKey(connection.getId()).isPresent())
             .count();
         if (pinned == targets.size()) {
-            hostKeyLabel.setText("Pinned host keys for all selected target(s).");
+            hostKeyLabel.setText(text("hostKey.allPinned"));
         } else {
-            hostKeyLabel.setText("Host key missing for " + (targets.size() - pinned) + " of " + targets.size() + " selected target(s).");
+            hostKeyLabel.setText(text("hostKey.missing", targets.size() - pinned, targets.size()));
         }
     }
 
     private void selectLocalDirectory(TextField targetField) {
-        selectLocalDirectoryPath("Select local directory", targetField.getText())
+        selectLocalDirectoryPath(text("chooser.localDirectory"), targetField.getText())
             .ifPresent(targetField::setText);
     }
 
@@ -1328,13 +1327,13 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             selectRemoteDirectoryValue("", false).ifPresent(path -> appendLine(rsyncSourcesArea, path));
             return;
         }
-        selectLocalDirectoryPath("Select Rsync source directory", "")
+        selectLocalDirectoryPath(text("chooser.rsyncSource"), "")
             .ifPresent(path -> appendLine(rsyncSourcesArea, path));
     }
 
     private void selectRsyncTargetRoot() {
         if (rsyncDirectionCombo.getSelectionModel().getSelectedItem() == RsyncDirection.DOWNLOAD) {
-            selectLocalDirectoryPath("Select Rsync target directory", rsyncTargetRootField.getText())
+            selectLocalDirectoryPath(text("chooser.rsyncTarget"), rsyncTargetRootField.getText())
                 .ifPresent(rsyncTargetRootField::setText);
             return;
         }
@@ -1356,12 +1355,12 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
 
     private void selectRemoteOwner() {
         selectRemoteAccountValue(
-            "Remote owners",
-            "Select a remote owner",
-            "Owners",
-            "owners",
-            "No users were returned by the remote server.",
-            "Remote users could not be loaded.",
+            text("remoteOwners.title"),
+            text("remoteOwners.header"),
+            text("remoteOwners.listLabel"),
+            text("remoteOwners.loadingNoun"),
+            text("remoteOwners.empty"),
+            text("remoteOwners.failed"),
             "if command -v getent >/dev/null 2>&1; then getent passwd | cut -d: -f1; else cut -d: -f1 /etc/passwd; fi",
             ownerField,
             "JobScheduler-RemoteOwners");
@@ -1369,12 +1368,12 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
 
     private void selectRemoteGroup() {
         selectRemoteAccountValue(
-            "Remote groups",
-            "Select a remote group",
-            "Groups",
-            "groups",
-            "No groups were returned by the remote server.",
-            "Remote groups could not be loaded.",
+            text("remoteGroups.title"),
+            text("remoteGroups.header"),
+            text("remoteGroups.listLabel"),
+            text("remoteGroups.loadingNoun"),
+            text("remoteGroups.empty"),
+            text("remoteGroups.failed"),
             "if command -v getent >/dev/null 2>&1; then getent group | cut -d: -f1; else cut -d: -f1 /etc/group; fi",
             groupField,
             "JobScheduler-RemoteGroups");
@@ -1397,7 +1396,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         }
         ProgressIndicator progress = new ProgressIndicator();
         progress.setPrefSize(42, 42);
-        Label loadingLabel = new Label("Loading " + loadingNoun + " from " + target.getDisplayName() + "...");
+        Label loadingLabel = new Label(text("remote.loadingFrom", loadingNoun, target.getDisplayName()));
         loadingLabel.setWrapText(true);
         VBox progressContent = new VBox(10, loadingLabel, progress);
         progressContent.setPadding(new Insets(10));
@@ -1405,7 +1404,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         DialogThemeHelper.applyTheme(progressAlert);
         progressAlert.initOwner(getDialogPane().getScene().getWindow());
         progressAlert.setTitle(title);
-        progressAlert.setHeaderText("Loading remote " + loadingNoun + "...");
+        progressAlert.setHeaderText(text("remote.loading", loadingNoun));
         progressAlert.getDialogPane().setContent(progressContent);
         progressAlert.getDialogPane().setPrefSize(420, 160);
         progressAlert.getDialogPane().getButtonTypes().setAll(ButtonType.CANCEL);
@@ -1419,7 +1418,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
                     if (!result.isSuccess()) {
                         throw new IllegalStateException(result.stderr() != null && !result.stderr().isBlank()
                             ? result.stderr().trim()
-                            : title + " list command failed.");
+                            : text("remote.listCommandFailed", title));
                     }
                     return Arrays.stream(result.stdout().split("\\R"))
                         .map(String::trim)
@@ -1463,6 +1462,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         dialog.setTitle(title);
         dialog.setHeaderText(header);
         dialog.setResizable(true);
+        DialogGeometrySupport.installAutomatic(dialog, "jobscheduler.remoteAccountSelection");
 
         String initialValue = initialSelectedRemoteValue(values, targetField.getText());
         ComboBox<String> valueCombo = new ComboBox<>(FXCollections.observableArrayList(values));
@@ -1472,9 +1472,9 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         valueCombo.getSelectionModel().select(initialValue);
         Label selectedLabel = new Label();
         selectedLabel.setWrapText(true);
-        selectedLabel.setText("Selected: " + nonBlank(initialValue, ""));
+        selectedLabel.setText(text("remote.selected", nonBlank(initialValue, "")));
         valueCombo.valueProperty().addListener((obs, oldValue, newValue) ->
-            selectedLabel.setText("Selected: " + nonBlank(newValue, "")));
+            selectedLabel.setText(text("remote.selected", nonBlank(newValue, ""))));
 
         Label listTitleLabel = new Label(listLabel);
         VBox content = new VBox(8, listTitleLabel, valueCombo, selectedLabel);
@@ -1482,7 +1482,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         dialog.getDialogPane().setContent(content);
         dialog.getDialogPane().setPrefSize(540, 220);
 
-        ButtonType selectType = new ButtonType("Select", ButtonBar.ButtonData.OK_DONE);
+        ButtonType selectType = new ButtonType(text("button.selectPlain"), ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().setAll(selectType, ButtonType.CANCEL);
         Button selectButton = (Button) dialog.getDialogPane().lookupButton(selectType);
         selectButton.disableProperty().bind(valueCombo.getSelectionModel().selectedItemProperty().isNull());
@@ -1504,7 +1504,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private ServerConnection requireSingleRemoteTarget() {
         List<ServerConnection> targets = resolveSelectedTargetConnections();
         if (targets.size() != 1) {
-            showError("Select one server", "Select exactly one server target before browsing remote data.");
+            showError(text("target.selectOneTitle"), text("target.selectOneForBrowse"));
             return null;
         }
         return targets.get(0);
@@ -1515,7 +1515,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         Optional<PinnedHostKey> pinnedHostKey = schedulerService.findPinnedHostKey(connection.getId());
         boolean hostKeyVerificationDisabled = hostKeyVerificationDisabledCheck.isSelected();
         if (!hostKeyVerificationDisabled && pinnedHostKey.isEmpty()) {
-            throw new IllegalStateException("Host key is not pinned for this server. Confirm the host key first.");
+            throw new IllegalStateException(text("hostKey.notPinned"));
         }
         char[] masterPassword = app.getMasterPasswordManager() != null
             ? app.getMasterPasswordManager().getMasterPassword()
@@ -1570,12 +1570,12 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
                     .map(ServerConnection::getDisplayName)
                     .orElse(id))
                 .toList();
-            parts.add(names.size() == 1 ? names.get(0) : names.size() + " servers");
+            parts.add(names.size() == 1 ? names.get(0) : text("target.servers", names.size()));
         }
         if (!selectedGroupNames.isEmpty()) {
             parts.add(selectedGroupNames.size() == 1
-                ? "Group: " + selectedGroupNames.get(0)
-                : selectedGroupNames.size() + " groups");
+                ? text("target.group", selectedGroupNames.get(0))
+                : text("target.groups", selectedGroupNames.size()));
         }
         return parts.isEmpty() ? null : String.join(", ", parts);
     }
@@ -1697,7 +1697,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         if (loadedEncryptedArchivePassword != null && !loadedEncryptedArchivePassword.isBlank()) {
             return loadedEncryptedArchivePassword;
         }
-        throw new IllegalArgumentException("Archive password is required for password-protected ZIP jobs.");
+        throw new IllegalArgumentException(text("archive.passwordRequired"));
     }
 
     private void updateArchivePasswordState() {
@@ -1710,8 +1710,8 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             return;
         }
         archivePasswordStatusLabel.setText(loadedEncryptedArchivePassword != null && !loadedEncryptedArchivePassword.isBlank()
-            ? "Stored password exists. Leave empty to keep it."
-            : "Password is required for this archive format.");
+            ? text("archive.passwordStored")
+            : text("archive.passwordNeeded"));
     }
 
     private void configureWeekdaySelectionControls() {
@@ -1809,7 +1809,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
                 return;
             }
         }
-        SnippetChoice missing = new SnippetChoice(snippetId, "Missing snippet: " + snippetId);
+        SnippetChoice missing = new SnippetChoice(snippetId, text("snippet.missing", snippetId));
         snippetChoices.add(missing);
         snippetSearchField.clear();
         updateSnippetFilter();
@@ -2163,12 +2163,36 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         }
     }
 
+    private static <T extends Enum<T>> StringConverter<T> localizedEnumConverter(String keyPrefix) {
+        return new StringConverter<>() {
+            @Override
+            public String toString(T value) {
+                return value == null ? "" : text(keyPrefix + value.name().toLowerCase(Locale.ROOT));
+            }
+
+            @Override
+            public T fromString(String value) {
+                return null;
+            }
+        };
+    }
+
+    private static String localizedStatus(JobJournalEntry entry) {
+        return entry == null || entry.getStatus() == null
+            ? ""
+            : text("status." + entry.getStatus().name().toLowerCase(Locale.ROOT));
+    }
+
+    private static String text(String suffix, Object... args) {
+        return I18n.get(I18N_PREFIX + suffix, args);
+    }
+
     private void showError(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
         DialogThemeHelper.applyTheme(alert);
         alert.setTitle(title);
         alert.setHeaderText(null);
-        alert.setContentText(message != null && !message.isBlank() ? message : "Unknown error.");
+        alert.setContentText(message != null && !message.isBlank() ? message : text("error.unknown"));
         alert.showAndWait();
     }
 
@@ -2183,7 +2207,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
 
     private String safeThrowableMessage(Throwable error) {
         if (error == null) {
-            return "Unknown error.";
+            return text("error.unknown");
         }
         if (error.getMessage() != null && !error.getMessage().isBlank()) {
             return error.getMessage().trim();

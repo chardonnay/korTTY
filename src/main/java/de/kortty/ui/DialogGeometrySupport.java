@@ -52,6 +52,12 @@ public final class DialogGeometrySupport {
     /** Where the live-tracked geometry is parked; the dialog pane owns it, so nothing leaks. */
     private static final String TRACKED_KEY = "kortty.dialogGeometry.tracked";
 
+    /** Explicit per-dialog geometry fields take precedence over automatic named persistence. */
+    private static final String EXPLICIT_KEY = "kortty.dialogGeometry.explicit";
+
+    /** Prevents repeated theme application from installing duplicate event handlers. */
+    private static final String AUTOMATIC_INSTALLED_KEY = "kortty.dialogGeometry.automaticInstalled";
+
     private DialogGeometrySupport() {
     }
 
@@ -61,6 +67,7 @@ public final class DialogGeometrySupport {
      * so the first close of a never-positioned dialog still records something.
      */
     public static void restore(Dialog<?> dialog, WindowGeometry geometry) {
+        dialog.getDialogPane().getProperties().put(EXPLICIT_KEY, Boolean.TRUE);
         WindowGeometry usable = sanitize(geometry, visualScreenBounds());
         // A remembered size was measured against the UI font scale in effect at the time. After a
         // scale change it is the wrong size — too tight for larger text, needlessly roomy for
@@ -107,8 +114,86 @@ public final class DialogGeometrySupport {
      * designed size.
      */
     public static void restore(Dialog<?> dialog, Function<GlobalSettings, WindowGeometry> getter) {
+        dialog.getDialogPane().getProperties().put(EXPLICIT_KEY, Boolean.TRUE);
         GlobalSettings settings = settings();
         restore(dialog, settings != null ? getter.apply(settings) : null);
+    }
+
+    /**
+     * Adds automatic named persistence to a real application dialog class. Generic JavaFX
+     * {@link Dialog} instances are intentionally skipped: many unrelated confirmation prompts use
+     * that same runtime class and must not overwrite one another's geometry.
+     */
+    public static void installAutomatic(Dialog<?> dialog) {
+        if (dialog == null || dialog.getClass().getName().startsWith("javafx.")) {
+            return;
+        }
+        installAutomatic(dialog, automaticKey(dialog.getClass()));
+    }
+
+    /** Adds automatic persistence to an ad-hoc JavaFX dialog under an explicit stable key. */
+    public static void installAutomatic(Dialog<?> dialog, String key) {
+        if (dialog == null || key == null || key.isBlank()) {
+            return;
+        }
+        var properties = dialog.getDialogPane().getProperties();
+        if (Boolean.TRUE.equals(properties.put(AUTOMATIC_INSTALLED_KEY, Boolean.TRUE))) {
+            return;
+        }
+        dialog.addEventHandler(DialogEvent.DIALOG_SHOWN, event -> {
+            if (isExplicit(dialog) || isHostedInTab(dialog)) {
+                return;
+            }
+            GlobalSettings currentSettings = settings();
+            WindowGeometry stored = currentSettings != null && currentSettings.isRememberWindowGeometry()
+                ? currentSettings.getWindowGeometry(key)
+                : null;
+            WindowGeometry usable = sanitize(stored, visualScreenBounds());
+            Window window = dialog.getDialogPane().getScene() != null
+                ? dialog.getDialogPane().getScene().getWindow() : null;
+            if (!(window instanceof Stage stage)) {
+                return;
+            }
+            if (usable != null) {
+                if (uiFontScaleMatchesStoredGeometry()) {
+                    stage.setWidth(usable.getWidth());
+                    stage.setHeight(usable.getHeight());
+                }
+                stage.setX(usable.getX());
+                stage.setY(usable.getY());
+            }
+            track(dialog, stage);
+        });
+        dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
+            if (isExplicit(dialog) || isHostedInTab(dialog)) {
+                return;
+            }
+            GlobalSettingsManager manager = settingsManager();
+            GlobalSettings currentSettings = manager != null ? manager.getSettings() : null;
+            WindowGeometry captured = capture(dialog);
+            if (currentSettings == null || !currentSettings.isRememberWindowGeometry() || captured == null) {
+                return;
+            }
+            currentSettings.setWindowGeometry(key, captured);
+            currentSettings.setUiFontScalePercentAtGeometrySave(UiFontScaleSupport.effectivePercent());
+            try {
+                manager.save();
+            } catch (Exception e) {
+                logger.warn("Could not save the geometry of {}: {}", key, e.getMessage());
+            }
+        });
+    }
+
+    static String automaticKey(Class<?> dialogClass) {
+        return dialogClass != null ? dialogClass.getName() : "";
+    }
+
+    private static boolean isExplicit(Dialog<?> dialog) {
+        return Boolean.TRUE.equals(dialog.getDialogPane().getProperties().get(EXPLICIT_KEY));
+    }
+
+    private static boolean isHostedInTab(Dialog<?> dialog) {
+        return dialog instanceof ThemeAwareDialog<?> themed && themed.isHostedInTab();
     }
 
     /**

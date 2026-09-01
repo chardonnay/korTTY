@@ -14,7 +14,7 @@ Passen Sie den visuellen Stil des Anwendungsfensters und des Dialogs an.
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| App-Design | Dropdown-Liste | Standard, Matrix-Terminal, holografische Schnittstelle, Klingon Tactical, Elegant Dark, Amber CRT, Synthwave '84, Gruvbox Retro, Nord Arctic, Dracula, AtlantaFX Primer Dark | Standard | `appDesign` |
+| App Design | Dropdown | AtlantaFX Primer Dark, AtlantaFX Primer Light, AtlantaFX Nord Dark, AtlantaFX Nord Light, AtlantaFX Cupertino Dark, AtlantaFX Cupertino Light, AtlantaFX Dracula, Default, Matrix Terminal, Holographic Interface, Klingon Tactical, Elegant Dark, Amber CRT, Synthwave '84, Gruvbox Retro, Nord Arctic, Dracula | AtlantaFX Primer Dark (Neuinstallationen) | `appDesign` |
 | Designanimationen aktivieren | umschalten | Ein, Aus | Ein | `appDesignAnimationsEnabled` |
 | UI-Schriftgröße | Zahl | 80–160 % in 5er-Schritten | 100 % | `uiFontScalePercent` |
 | An Bildschirmauflösung anpassen | umschalten | Ein, Aus | Ein (Neuinstallation) | `uiFontScaleAuto` |
@@ -24,7 +24,7 @@ Mit den Schaltflächen `◀` und `▶` neben dem Dropdown-Menü können Sie durc
 
 **Designanimationen aktivieren** fungiert gleichzeitig als Schalter zur Bewegungsreduzierung: Wenn Sie ihn ausschalten, werden die animierten Designeffekte gestoppt, während die Farben an Ort und Stelle bleiben.
 
-**AtlantaFX Primer Dark** wendet das AtlantaFX 2.1.0 Primer Dark User-Agent-Design auf native JavaFX-Steuerelemente an, mit einem kleinen korTTY-Overlay für das Hauptfenster-Chrome und korTTY-spezifische Steuerelemente. Es ist optional: **Standard** bleibt das ursprüngliche Design, vorhandene Einstellungen werden nicht migriert und beim Wechsel zu Standard oder einem älteren korTTY-Design wird JavaFX Modena wiederhergestellt, bevor das Stylesheet dieses Designs angewendet wird. Die Änderung ist in allen geöffneten Fenstern, Dialogen, Menüs, Tooltips und Abschluss-Popups wirksam.
+Die sieben AtlantaFX-Einträge wenden das User-Agent-Design **Primer Dark**, **Primer Light**, **Nord Dark**, **Nord Light**, **Cupertino Dark**, **Cupertino Light** oder **Dracula** von AtlantaFX 2.1.0 auf native JavaFX-Steuerelemente an, mit einem kleinen korTTY-Overlay für das Hauptfenster-Chrome und korTTY-spezifischen Steuerelementen. Sie werden oben im Dropdown-Menü gruppiert und eine Neuinstallation beginnt mit **AtlantaFX Primer Dark**. Vorhandene Einstellungen werden nicht migriert: Eine vorhandene **Standardauswahl** bleibt Standard. Wenn Sie auf „Standard“ oder ein älteres korTTY-Design wechseln, wird JavaFX Modena wiederhergestellt, bevor das Stylesheet dieses Designs angewendet wird. Die Änderung ist in allen geöffneten Fenstern, Dialogen, Menüs, Tooltips und Abschluss-Popups wirksam.
 
 **Chat-Farbprofil** thematisiert die KI-Chat- und Schwarmoberflächen. Das standardmäßige **Automatic (Theme)** leitet seine Palette von den Agent-Panel-Farben des aktiven Terminal-Themes ab; Die anderen Profile sind feste Paletten.
 

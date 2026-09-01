@@ -1,6 +1,12 @@
 package de.kortty.ui;
 
+import atlantafx.base.theme.CupertinoDark;
+import atlantafx.base.theme.CupertinoLight;
+import atlantafx.base.theme.Dracula;
+import atlantafx.base.theme.NordDark;
+import atlantafx.base.theme.NordLight;
 import atlantafx.base.theme.PrimerDark;
+import atlantafx.base.theme.PrimerLight;
 import de.kortty.KorTTYApplication;
 import de.kortty.model.AppDesign;
 import de.kortty.model.GlobalSettings;
@@ -65,8 +71,8 @@ public final class AppDesignStyleSupport {
             "/styles/atlantafx-kortty-components.css";
     private static final String APPLICATION_BASE_STYLES_MARKER =
             AppDesignStyleSupport.class.getName() + ".applicationBaseStyles";
-    private static final String ATLANTAFX_PRIMER_DARK_USER_AGENT_STYLESHEET =
-            new PrimerDark().getUserAgentStylesheet();
+    private static final Map<AppDesign, String> ATLANTAFX_USER_AGENT_STYLESHEETS =
+            createAtlantaFxUserAgentStylesheets();
 
     /**
      * Everything that distinguishes one app design: its stylesheet, the colours used by
@@ -133,20 +139,50 @@ public final class AppDesignStyleSupport {
         specs.put(AppDesign.ATLANTAFX_PRIMER_DARK, new DesignSpec(AppDesign.ATLANTAFX_PRIMER_DARK,
                 "/styles/atlantafx-primer-dark.css", "#0d1117", "#c9d1d9", "#8b949e", "#58a6ff",
                 "/previews/atlantafx-primer-dark-preview.png", "#30363d"));
+        specs.put(AppDesign.ATLANTAFX_PRIMER_LIGHT, new DesignSpec(AppDesign.ATLANTAFX_PRIMER_LIGHT,
+                "/styles/atlantafx-primer-dark.css", "#ffffff", "#24292f", "#57606a", "#0969da",
+                "/previews/atlantafx-primer-light-preview.png", "#d0d7de"));
+        specs.put(AppDesign.ATLANTAFX_NORD_DARK, new DesignSpec(AppDesign.ATLANTAFX_NORD_DARK,
+                "/styles/atlantafx-primer-dark.css", "#2e3440", "#d8dee9", "#7b88a1", "#88c0d0",
+                "/previews/atlantafx-nord-dark-preview.png", "#4c566a"));
+        specs.put(AppDesign.ATLANTAFX_NORD_LIGHT, new DesignSpec(AppDesign.ATLANTAFX_NORD_LIGHT,
+                "/styles/atlantafx-primer-dark.css", "#eceff4", "#2e3440", "#4c566a", "#5e81ac",
+                "/previews/atlantafx-nord-light-preview.png", "#d8dee9"));
+        specs.put(AppDesign.ATLANTAFX_CUPERTINO_DARK, new DesignSpec(AppDesign.ATLANTAFX_CUPERTINO_DARK,
+                "/styles/atlantafx-primer-dark.css", "#1c1c1e", "#f2f2f7", "#8e8e93", "#0a84ff",
+                "/previews/atlantafx-cupertino-dark-preview.png", "#38383a"));
+        specs.put(AppDesign.ATLANTAFX_CUPERTINO_LIGHT, new DesignSpec(AppDesign.ATLANTAFX_CUPERTINO_LIGHT,
+                "/styles/atlantafx-primer-dark.css", "#f2f2f7", "#1c1c1e", "#8e8e93", "#007aff",
+                "/previews/atlantafx-cupertino-light-preview.png", "#d1d1d6"));
+        specs.put(AppDesign.ATLANTAFX_DRACULA, new DesignSpec(AppDesign.ATLANTAFX_DRACULA,
+                "/styles/atlantafx-primer-dark.css", "#282a36", "#f8f8f2", "#6272a4", "#bd93f9",
+                "/previews/atlantafx-dracula-preview.png", "#44475a"));
         return specs;
+    }
+
+    private static Map<AppDesign, String> createAtlantaFxUserAgentStylesheets() {
+        Map<AppDesign, String> stylesheets = new EnumMap<>(AppDesign.class);
+        stylesheets.put(AppDesign.ATLANTAFX_PRIMER_DARK, new PrimerDark().getUserAgentStylesheet());
+        stylesheets.put(AppDesign.ATLANTAFX_PRIMER_LIGHT, new PrimerLight().getUserAgentStylesheet());
+        stylesheets.put(AppDesign.ATLANTAFX_NORD_DARK, new NordDark().getUserAgentStylesheet());
+        stylesheets.put(AppDesign.ATLANTAFX_NORD_LIGHT, new NordLight().getUserAgentStylesheet());
+        stylesheets.put(AppDesign.ATLANTAFX_CUPERTINO_DARK, new CupertinoDark().getUserAgentStylesheet());
+        stylesheets.put(AppDesign.ATLANTAFX_CUPERTINO_LIGHT, new CupertinoLight().getUserAgentStylesheet());
+        stylesheets.put(AppDesign.ATLANTAFX_DRACULA, new Dracula().getUserAgentStylesheet());
+        return Map.copyOf(stylesheets);
     }
 
     /**
      * Selects the global JavaFX base theme before any window is created and installs the listener
-     * that styles dialogs and popup windows created later. AtlantaFX is deliberately opt-in; every
-     * other korTTY design explicitly returns to Modena before its author stylesheet is applied.
+     * that styles dialogs and popup windows created later. Every non-AtlantaFX design explicitly
+     * returns to Modena before its author stylesheet is applied.
      */
     public static void initializeGlobalStyling(AppDesign design) {
         applyUserAgentStylesheet(design);
         installGlobalWindowStyler();
     }
 
-    /** Applies Primer Dark only for the AtlantaFX design and Modena for every other design. */
+    /** Applies the selected AtlantaFX theme or Modena for every non-AtlantaFX design. */
     public static void applyUserAgentStylesheet(AppDesign design) {
         if (!Platform.isFxApplicationThread()) {
             Platform.runLater(() -> applyUserAgentStylesheet(design));
@@ -159,9 +195,8 @@ public final class AppDesignStyleSupport {
     }
 
     static String desiredUserAgentStylesheet(AppDesign design) {
-        return design == AppDesign.ATLANTAFX_PRIMER_DARK
-                ? ATLANTAFX_PRIMER_DARK_USER_AGENT_STYLESHEET
-                : Application.STYLESHEET_MODENA;
+        return ATLANTAFX_USER_AGENT_STYLESHEETS.getOrDefault(
+                design, Application.STYLESHEET_MODENA);
     }
 
     static boolean updateUserAgentStylesheet(
@@ -444,7 +479,7 @@ public final class AppDesignStyleSupport {
             stylesheets.removeIf(components::equals);
         }
 
-        String required = design == AppDesign.ATLANTAFX_PRIMER_DARK ? components : base;
+        String required = design != null && design.isAtlantaFx() ? components : base;
         if (required != null) {
             stylesheets.add(Math.min(insertionIndex, stylesheets.size()), required);
         }

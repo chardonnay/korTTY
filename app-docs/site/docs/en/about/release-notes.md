@@ -6,7 +6,9 @@ What changed in the current release. The version this guide was built for is sho
 
 ### Appearance
 
-- **Optional AtlantaFX Primer Dark application design** — the Appearance tab now offers AtlantaFX 2.1.0's Primer Dark theme for native JavaFX controls, plus a korTTY overlay for application chrome and custom controls. Default remains unchanged, switching back restores Modena explicitly, and open windows, dialogs and popups update immediately while terminal, Monaco, journal and chat colors remain independent.
+- **Every user-resizable application window now remembers its geometry** — main windows and named dialogs persist their position and size separately, tool tabs continue to follow their main window, and a dialog moved onto a disconnected monitor is recovered onto an available screen.
+- **The German JobScheduler interface is now fully localized** — its tabs, fields, action and status names, target and remote-data selectors, security prompts, journal controls, validation messages and errors no longer mix German menus with English dialog content.
+- **All seven AtlantaFX application designs** — the Appearance tab now places AtlantaFX 2.1.0's Primer Dark, Primer Light, Nord Dark, Nord Light, Cupertino Dark, Cupertino Light and Dracula themes at the top of the design list. New installations start with Primer Dark, existing selections are not migrated, switching to a non-AtlantaFX design restores Modena explicitly, and open windows, dialogs and popups update immediately while terminal, Monaco, journal and chat colors remain independent.
 
 ### Snippets
 
@@ -26,11 +28,13 @@ What changed in the current release. The version this guide was built for is sho
 
 ### Terminal
 
+- **The Terminal Effects manager window can now be resized** — expanding the window gives the plugin names and descriptions more room while preserving the live preview; installations that open tool windows as tabs continue to use the available main-window area.
 - **Open in Snippet Editor no longer resolves the wrong path after a user switch** — after switching identity inside a session, with `su - root` for example, or an `ssh` typed into a local shell, the context-menu entry resolved a selected file name against the original login's directories and loaded nothing, or a wrong same-named file. The entry is now greyed out while the session runs as a different identity and re-enables on its own once the prompt shows the original user again. See [Local shell tabs](../features/terminal.md#local-shell-tabs).
 - **A split no longer asks again for the reason of the connection** — when a server wants a reason for the operation, as a CyberArk-style jump host does, every split of a tab opened that dialog again although the reason had been given when the tab was opened. korTTY now sends the answer already given in that tab. It is still sent rather than skipped, because a server that asks for a reason closes a session that answers with nothing. A split to a different server, or a server asking something else, is asked once as well, and a new tab always starts by asking. If the server refuses the reason, because a ticket number has expired in the meantime for example, korTTY drops it and asks again. See [Split-screen with broadcast](../features/terminal.md#split-operations).
 
 ### Packaging
 
+- **Windows ARM no longer opens blank windows under x64 emulation** — korTTY now detects an x64 JavaFX runtime running on ARM64 Windows and selects the reliable software renderer before JavaFX starts. Native Windows x64 installations retain hardware rendering.
 - **Native Flatpak bundles for Intel/AMD and ARM Linux** — GitHub releases now provide `.flatpak` bundles for `x86_64` and `aarch64`. A Flatpak installation stays on the Flatpak update path, verifies the downloaded GitHub asset and shows the host-terminal installation command instead of offering an incompatible distro package. Local shells and their AI-agent commands run on the host through `flatpak-spawn`.
 - **Pacman packages for Arch Linux and Arch Linux ARM** — release builds now package and verify both `x86_64` and `aarch64` application images. A guarded Pacman-only backfill can first produce inspection artifacts and later publish collision-free signed packages without replacing older release assets.
 - **Every korTTY package now identifies the application licence as MIT** — the Arch package previously declared Apache-2.0 even though korTTY's repository licence is MIT. Arch and RPM metadata now declare MIT, and every Java, native and Flatpak artifact contains the canonical licence file; third-party licences remain unchanged.

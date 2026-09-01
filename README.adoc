@@ -20,7 +20,7 @@ image::app-docs/diagrams/architecture.svg[KorTTY architecture,align=center]
 * *SSH Key Management*: Centralized management of private SSH keys with encrypted passphrases
 * *Customizable Display*: Font size, colors, terminal color-sequence handling, and terminal scrollbars (global or per connection where applicable)
 * *Theme Profiles*: Multiple built-in color profiles (including IntelliJ-inspired themes) with live preview, one-click apply in Global Settings, editable built-in/custom themes, new theme creation, and dedicated Terminal AI agent panel colors
-* *App Designs*: Choose *Default*, *Matrix Terminal*, *Holographic Interface*, *Klingon Tactical*, or *Elegant Dark* in *Settings → Appearance* for JavaFX windows and dialogs without changing terminal-session or editor-content colors
+* *App Designs*: Choose among all seven AtlantaFX 2.1.0 themes or korTTY's built-in designs in *Settings → Appearance* for JavaFX windows and dialogs without changing terminal-session or editor-content colors; new installations start with *AtlantaFX Primer Dark*
 * *Theme Font Control*: Themes apply colors by default; font family/size are applied only when explicitly enabled in settings
 * *Terminal Effect Plugins*: Load, enable, disable, import, and export Java terminal-effect plugins from *Plugins → Terminal Effects*; effects can adjust terminal appearance, overlays, and output animation speed per session or saved connection
 * *Project Management*: Save and load connection sets with history

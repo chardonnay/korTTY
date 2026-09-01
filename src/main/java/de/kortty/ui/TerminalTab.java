@@ -674,6 +674,7 @@ public class TerminalTab extends Tab {
         dialog.setTitle(I18n.get("terminal.journal.note.title"));
         dialog.setHeaderText(I18n.get("terminal.journal.note.header"));
         dialog.setResizable(true);
+        DialogGeometrySupport.installAutomatic(dialog, "terminal.journalNote");
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
         SessionJournalNoteEditor editor = new SessionJournalNoteEditor();
         editor.setPrefWidth(560);

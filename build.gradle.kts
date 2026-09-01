@@ -456,7 +456,9 @@ val googleJavaFormatJvmArgs = listOf(
 )
 
 application {
-    mainClass.set("de.kortty.KorTTYApplication")
+    // Keep the process entry point free of JavaFX types. Windows ARM needs to select the
+    // software Prism pipeline before Application is loaded when this x64 build runs emulated.
+    mainClass.set("de.kortty.Launcher")
     applicationDefaultJvmArgs = googleJavaFormatJvmArgs
 }
 

@@ -12,6 +12,7 @@ import de.kortty.core.WebViewJitSmoke;
 public class Launcher {
     
     public static void main(String[] args) {
+        JavaFxPlatformSupport.configureRenderer();
         // Release-verification mode: boot a WebView, run JIT-hot JavaScript and exit. Must be the
         // very first thing here — it runs against the signed bundle in CI, so it must not relaunch
         // the JVM, read ~/.kortty or start the UI. See WebViewJitSmoke for the signing trap.

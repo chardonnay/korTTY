@@ -2,7 +2,7 @@
  * korTTY-specific component geometry and behaviour used with AtlantaFX.
  *
  * This sheet deliberately contains no broad JavaFX control selectors. Primer Dark remains in
- * charge of standard controls while atlantafx-primer-dark.css supplies semantic component colors.
+ * charge of standard controls while the AtlantaFX overlay supplies semantic component colors.
  */
 
 /* The AI Manager's primary section stays identifiable after focus moves into its content. */

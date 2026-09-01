@@ -1,5 +1,6 @@
 package de.kortty.policy;
 
+import de.kortty.ui.DialogGeometrySupport;
 import de.kortty.ui.I18n;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Control;
@@ -88,6 +89,7 @@ public final class PolicyUiSupport {
         alert.setContentText(I18n.get("policy.startup.malformed.message", result.source(), details)
             + "\n\n" + I18n.get("policy.startup.lockdownHint"));
         alert.setResizable(true);
+        DialogGeometrySupport.installAutomatic(alert, "policy.malformedPolicy");
         alert.showAndWait();
     }
 }

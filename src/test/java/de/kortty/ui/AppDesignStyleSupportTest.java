@@ -14,6 +14,22 @@ import static com.google.common.truth.Truth.assertThat;
 class AppDesignStyleSupportTest {
 
     @Test
+    void allAtlantaFxProfilesAppearFirstInTheSettingsOrder() {
+        boolean reachedKorTTYDesigns = false;
+        int atlantaFxProfiles = 0;
+        for (AppDesign design : AppDesign.values()) {
+            if (design.isAtlantaFx()) {
+                assertThat(reachedKorTTYDesigns).isFalse();
+                atlantaFxProfiles++;
+            } else {
+                reachedKorTTYDesigns = true;
+            }
+        }
+        assertThat(atlantaFxProfiles).isEqualTo(7);
+        assertThat(AppDesign.values()[0]).isEqualTo(AppDesign.ATLANTAFX_PRIMER_DARK);
+    }
+
+    @Test
     void matrixStylesheetResourceIsAvailable() {
         assertThat(AppDesignStyleSupport.getMatrixStylesheetUrl()).isNotNull();
     }
@@ -160,13 +176,23 @@ class AppDesignStyleSupportTest {
     }
 
     @Test
-    void desiredUserAgentStylesheetUsesPrimerOnlyForAtlantaFx() {
-        String primer = AppDesignStyleSupport.desiredUserAgentStylesheet(
-                AppDesign.ATLANTAFX_PRIMER_DARK);
-
-        assertThat(primer).contains("primer-dark");
+    void desiredUserAgentStylesheetUsesEveryAtlantaFxThemeAndModenaOtherwise() {
+        assertThat(AppDesignStyleSupport.desiredUserAgentStylesheet(
+                AppDesign.ATLANTAFX_PRIMER_DARK)).contains("primer-dark");
+        assertThat(AppDesignStyleSupport.desiredUserAgentStylesheet(
+                AppDesign.ATLANTAFX_PRIMER_LIGHT)).contains("primer-light");
+        assertThat(AppDesignStyleSupport.desiredUserAgentStylesheet(
+                AppDesign.ATLANTAFX_NORD_DARK)).contains("nord-dark");
+        assertThat(AppDesignStyleSupport.desiredUserAgentStylesheet(
+                AppDesign.ATLANTAFX_NORD_LIGHT)).contains("nord-light");
+        assertThat(AppDesignStyleSupport.desiredUserAgentStylesheet(
+                AppDesign.ATLANTAFX_CUPERTINO_DARK)).contains("cupertino-dark");
+        assertThat(AppDesignStyleSupport.desiredUserAgentStylesheet(
+                AppDesign.ATLANTAFX_CUPERTINO_LIGHT)).contains("cupertino-light");
+        assertThat(AppDesignStyleSupport.desiredUserAgentStylesheet(
+                AppDesign.ATLANTAFX_DRACULA)).contains("dracula");
         for (AppDesign design : AppDesign.values()) {
-            if (design != AppDesign.ATLANTAFX_PRIMER_DARK) {
+            if (!design.isAtlantaFx()) {
                 assertThat(AppDesignStyleSupport.desiredUserAgentStylesheet(design))
                         .isEqualTo(Application.STYLESHEET_MODENA);
             }
@@ -204,9 +230,9 @@ class AppDesignStyleSupportTest {
         stylesheets.add(terminal);
 
         AppDesignStyleSupport.syncApplicationBaseStylesheets(
-                stylesheets, AppDesign.ATLANTAFX_PRIMER_DARK);
+                stylesheets, AppDesign.ATLANTAFX_CUPERTINO_LIGHT);
         AppDesignStyleSupport.syncApplicationBaseStylesheets(
-                stylesheets, AppDesign.ATLANTAFX_PRIMER_DARK);
+                stylesheets, AppDesign.ATLANTAFX_CUPERTINO_LIGHT);
         assertThat(stylesheets).containsExactly("other.css", components).inOrder();
 
         AppDesignStyleSupport.syncApplicationBaseStylesheets(stylesheets, AppDesign.NORMAL);

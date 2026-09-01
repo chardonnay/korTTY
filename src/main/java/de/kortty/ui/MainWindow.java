@@ -8893,6 +8893,7 @@ public class MainWindow {
         dialog.setHeaderText(I18n.get("sftp.tempKeyRequiredMessage"));
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
         dialog.setResizable(true);
+        DialogGeometrySupport.installAutomatic(dialog, "sftp.temporarySshKey");
         
         // Create content
         VBox content = new VBox(10);

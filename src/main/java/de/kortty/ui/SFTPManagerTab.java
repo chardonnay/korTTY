@@ -1866,6 +1866,7 @@ public class SFTPManagerTab extends Tab {
         dialog.setTitle(I18n.get("sftp.archive"));
         dialog.setHeaderText(I18n.get("sftp.archive.dialogHeader", filesToArchive.size()));
         dialog.setResizable(true);
+        DialogGeometrySupport.installAutomatic(dialog, "sftp.remoteArchive");
         applyDarkTheme(dialog);
         
         GridPane grid = new GridPane();
@@ -2752,6 +2753,7 @@ public class SFTPManagerTab extends Tab {
         dialog.setTitle(I18n.get("sftp.archive"));
         dialog.setHeaderText(I18n.get("sftp.archive.dialogHeader", filesToArchive.size()));
         dialog.setResizable(true);
+        DialogGeometrySupport.installAutomatic(dialog, "sftp.localArchive");
         applyDarkTheme(dialog);
         
         GridPane grid = new GridPane();

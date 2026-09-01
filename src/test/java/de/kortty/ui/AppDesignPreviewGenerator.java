@@ -1,5 +1,6 @@
 package de.kortty.ui;
 
+import de.kortty.JavaFxPlatformSupport;
 import de.kortty.model.AppDesign;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
@@ -54,12 +55,16 @@ public final class AppDesignPreviewGenerator {
     private static final Set<AppDesign> GENERATED = EnumSet.of(
             AppDesign.AMBER_CRT, AppDesign.SYNTHWAVE_84,
             AppDesign.GRUVBOX_RETRO, AppDesign.NORD_ARCTIC, AppDesign.DRACULA,
-            AppDesign.ATLANTAFX_PRIMER_DARK);
+            AppDesign.ATLANTAFX_PRIMER_DARK, AppDesign.ATLANTAFX_PRIMER_LIGHT,
+            AppDesign.ATLANTAFX_NORD_DARK, AppDesign.ATLANTAFX_NORD_LIGHT,
+            AppDesign.ATLANTAFX_CUPERTINO_DARK, AppDesign.ATLANTAFX_CUPERTINO_LIGHT,
+            AppDesign.ATLANTAFX_DRACULA);
 
     private AppDesignPreviewGenerator() {
     }
 
     public static void main(String[] args) throws Exception {
+        JavaFxPlatformSupport.configureRenderer();
         CountDownLatch done = new CountDownLatch(1);
         AtomicReference<String> failure = new AtomicReference<>();
 
@@ -223,11 +228,15 @@ public final class AppDesignPreviewGenerator {
         if (requested == null || requested.isBlank()) {
             return GENERATED;
         }
-        AppDesign design = AppDesign.fromId(requested);
-        if (design == AppDesign.NORMAL || !GENERATED.contains(design)) {
-            throw new IllegalArgumentException("Unsupported generated design: " + requested);
+        Set<AppDesign> designs = EnumSet.noneOf(AppDesign.class);
+        for (String id : requested.split(",")) {
+            AppDesign design = AppDesign.fromId(id.trim());
+            if (design == AppDesign.NORMAL || !GENERATED.contains(design)) {
+                throw new IllegalArgumentException("Unsupported generated design: " + id.trim());
+            }
+            designs.add(design);
         }
-        return EnumSet.of(design);
+        return designs;
     }
 
     private static String stack(Throwable t) {

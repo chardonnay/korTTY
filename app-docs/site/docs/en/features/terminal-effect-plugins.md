@@ -57,6 +57,8 @@ External plugins are loaded from one JAR at a time with KorTTY's application cla
 
 Users manage terminal-effect plugins from **Plugins > Terminal Effects**.
 
+The Terminal Effects manager window is resizable, so you can expand the plugin table and descriptions while keeping the live preview visible. If tool windows are configured to open as tabs, the manager instead uses the available main-window tab area.
+
 ![Terminal Effects manager](../assets/screenshots/plugins/terminal-effects.png)
 
 The dialog shows the loaded plugin list with:

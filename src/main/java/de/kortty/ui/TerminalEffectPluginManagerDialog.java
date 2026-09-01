@@ -53,6 +53,7 @@ final class TerminalEffectPluginManagerDialog extends ThemeAwareDialog<Void> {
         initModality(Modality.APPLICATION_MODAL);
         setTitle(I18n.get("plugin.terminalEffects.title"));
         setHeaderText(null);
+        setResizable(true);
         getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
         getDialogPane().setContent(createContent());
         loadRows();

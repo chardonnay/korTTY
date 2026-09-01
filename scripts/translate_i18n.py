@@ -2,7 +2,8 @@
 """
 Translate all keys in messages_XX.properties that still have English values
 into the target language. Uses messages.properties (full English default) as reference.
-Placeholders {0}, {1}, ${var} are preserved.
+Placeholders {0}, {1}, ${var} are preserved. Pass --prefix=KEY_PREFIX to limit
+translation to a section of each selected bundle.
 """
 from pathlib import Path
 import re
@@ -83,10 +84,15 @@ def unmask_placeholders(text, placeholders):
 
 
 def main():
-    import sys
     only = None
-    if len(sys.argv) > 1:
-        only = set(sys.argv[1:])
+    prefix = None
+    for argument in sys.argv[1:]:
+        if argument.startswith("--prefix="):
+            prefix = argument.removeprefix("--prefix=")
+        else:
+            if only is None:
+                only = set()
+            only.add(argument)
     en = parse(BASE / "messages.properties")
     for fname, target in LANG_MAP.items():
         if only and fname not in only:
@@ -99,7 +105,8 @@ def main():
                 continue
             k, v = line.split("=", 1)
             ev = en.get(k)
-            if ev is None or v != ev or not v.strip() or v in PROTECTED_VALUES:
+            if (ev is None or v != ev or not v.strip() or v in PROTECTED_VALUES
+                    or (prefix is not None and not k.startswith(prefix))):
                 continue
             masked, ph = mask_placeholders(v)
             to_translate.append((idx, k, v, masked, ph))

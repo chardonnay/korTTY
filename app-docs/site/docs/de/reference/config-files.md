@@ -121,7 +121,7 @@ Globale Anwendungseinstellungen und Standardeinstellungen.
 
 #### Fenster, Menüs und Panels
 
-- Fenstergeometrie und -status (Position, Größe, maximierter Status)
+- Geometrie und Status des Hauptfensters (Position, Größe, maximierter Status) sowie ein benannter Geometrieeintrag für jeden Anwendungsdialog, dessen Größe vom Benutzer geändert werden kann
 - Präferenz für die Sichtbarkeit der Menüleiste
 - Dashboard-Sichtbarkeitsstatus
 - Flag „Toolfenster als Registerkarten öffnen“

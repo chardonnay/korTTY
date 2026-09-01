@@ -4710,6 +4710,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             dialog.setHeaderText(header);
         }
         dialog.setResizable(true);
+        if (!withInstruction) {
+            DialogGeometrySupport.installAutomatic(dialog, "snippets.improvementOptions");
+        }
         if (getDialogPane().getScene() != null) {
             dialog.initOwner(getDialogPane().getScene().getWindow());
         }
@@ -5194,6 +5197,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         dialog.setTitle(I18n.get("snippets.ai.assistant.title"));
         dialog.setHeaderText(I18n.get("snippets.ai.assistant.header"));
         dialog.setResizable(true);
+        DialogGeometrySupport.installAutomatic(dialog, "snippets.codeAssistantInstruction");
         if (getDialogPane().getScene() != null) {
             dialog.initOwner(getDialogPane().getScene().getWindow());
         }

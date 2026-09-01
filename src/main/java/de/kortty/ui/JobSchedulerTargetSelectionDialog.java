@@ -39,8 +39,8 @@ public class JobSchedulerTargetSelectionDialog extends ThemeAwareDialog<JobSched
         this.initialConnectionIds = normalize(selectedConnectionIds);
         this.initialGroupNames = normalize(selectedGroupNames);
 
-        setTitle("JobScheduler targets");
-        setHeaderText("Select servers or server groups from the Connection Manager.");
+        setTitle(I18n.get("jobscheduler.dialog.targets.title"));
+        setHeaderText(I18n.get("jobscheduler.dialog.targets.header"));
         if (owner != null) {
             initOwner(owner);
         }
@@ -64,7 +64,8 @@ public class JobSchedulerTargetSelectionDialog extends ThemeAwareDialog<JobSched
         getDialogPane().setContent(content);
         getDialogPane().setPrefSize(720, 560);
 
-        ButtonType selectButtonType = new ButtonType("Select", ButtonBar.ButtonData.OK_DONE);
+        ButtonType selectButtonType = new ButtonType(
+            I18n.get("jobscheduler.dialog.button.selectPlain"), ButtonBar.ButtonData.OK_DONE);
         getDialogPane().getButtonTypes().addAll(selectButtonType, ButtonType.CANCEL);
         Button selectButton = (Button) getDialogPane().lookupButton(selectButtonType);
         selectButton.setDisable(true);

@@ -107,6 +107,11 @@ public class GlobalSettings {
     
     @XmlElement
     private WindowGeometry lastWindowGeometry; // Last saved window geometry
+
+    /** Geometry of application dialogs that do not need a dedicated settings field. */
+    @XmlElementWrapper(name = "windowGeometries")
+    @XmlElement(name = "window")
+    private java.util.List<NamedWindowGeometry> windowGeometries = new java.util.ArrayList<>();
     
     @XmlElement
     private boolean rememberDashboardState = true; // Remember dashboard visibility
@@ -963,6 +968,7 @@ public class GlobalSettings {
      */
     public static GlobalSettings forFreshInstall() {
         GlobalSettings settings = new GlobalSettings();
+        settings.setAppDesign(AppDesign.ATLANTAFX_PRIMER_DARK);
         // Fresh installs adapt the UI font size to the display; an existing installation keeps
         // whatever it had (which, for files written before this setting existed, is off).
         settings.setUiFontScaleAuto(true);
@@ -1185,6 +1191,38 @@ public class GlobalSettings {
     
     public void setLastWindowGeometry(WindowGeometry lastWindowGeometry) {
         this.lastWindowGeometry = lastWindowGeometry;
+    }
+
+    public WindowGeometry getWindowGeometry(String key) {
+        if (key == null || key.isBlank() || windowGeometries == null) {
+            return null;
+        }
+        return windowGeometries.stream()
+            .filter(entry -> entry != null && key.equals(entry.getKey()))
+            .map(NamedWindowGeometry::getGeometry)
+            .filter(java.util.Objects::nonNull)
+            .findFirst()
+            .orElse(null);
+    }
+
+    public void setWindowGeometry(String key, WindowGeometry geometry) {
+        if (key == null || key.isBlank()) {
+            return;
+        }
+        if (windowGeometries == null) {
+            windowGeometries = new java.util.ArrayList<>();
+        }
+        windowGeometries.removeIf(entry -> entry == null || key.equals(entry.getKey()));
+        if (geometry != null) {
+            windowGeometries.add(new NamedWindowGeometry(key, geometry));
+        }
+    }
+
+    public java.util.List<NamedWindowGeometry> getWindowGeometries() {
+        if (windowGeometries == null) {
+            windowGeometries = new java.util.ArrayList<>();
+        }
+        return windowGeometries;
     }
     
     public boolean isRememberDashboardState() {

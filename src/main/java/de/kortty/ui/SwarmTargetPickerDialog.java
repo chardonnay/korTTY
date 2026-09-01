@@ -5,7 +5,6 @@ import de.kortty.model.GroupPath;
 import de.kortty.model.ServerConnection;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
-import javafx.scene.control.Dialog;
 import javafx.scene.layout.VBox;
 
 import java.util.ArrayList;
@@ -18,7 +17,7 @@ import java.util.Map;
  * are expanded to all member connections. Returns the resolved connection list plus the chosen group
  * paths (kept for persistence/resume) and whether local shells should be included.
  */
-public final class SwarmTargetPickerDialog extends Dialog<SwarmTargetPickerDialog.Selection> {
+public final class SwarmTargetPickerDialog extends ThemeAwareDialog<SwarmTargetPickerDialog.Selection> {
 
     public record Selection(
         List<ServerConnection> connections,

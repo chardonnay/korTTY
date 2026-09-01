@@ -248,7 +248,7 @@ KorTTY relies on carefully curated, production-tested dependencies:
 | | Tukaani xz | 1.12 | XZ compression |
 | | zstd-jni | 1.5.7-15 | zstd compression for rotated session-journal parts |
 | **UI** | JavaFX | 21.0.12 | Application framework |
-| | AtlantaFX Base | 2.1.0 | Optional Primer Dark JavaFX user-agent theme; its transitive OpenJFX dependency is excluded |
+| | AtlantaFX Base | 2.1.0 | Seven selectable Primer, Nord, Cupertino and Dracula JavaFX user-agent themes; its transitive OpenJFX dependency is excluded |
 | | Monaco Editor | 0.56.0 | Code editor component |
 | | Mermaid | 11.17.0 | Local diagram parsing, SVG rendering, and PNG rasterization |
 | | MathJax | 3.2.2 | Local AI-chat formula rendering |

@@ -76,6 +76,7 @@ public final class SwarmWorkflowScriptDialog {
         Dialog<Void> dialog = new Dialog<>();
         dialog.setTitle(I18n.get("ai.workflow.swarm.title"));
         dialog.setResizable(true);
+        DialogGeometrySupport.installAutomatic(dialog, "ai.swarmWorkflowScript");
         if (owner != null) {
             dialog.initOwner(owner);
         }
