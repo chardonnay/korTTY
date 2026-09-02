@@ -17,6 +17,10 @@ It syncs `KorTTYApplication.APP_VERSION`, the README badge, and the release-note
 heading. The docs site reads the version from the `KORTTY_VERSION` env var at
 build time — no version literals appear in any Markdown page.
 
+## Release notes
+
+Every published GitHub release must include a clear **Downloads** section grouped by operating system and architecture, with links to every published package. `build-release.yml` generates and appends this section between the `kortty-download-guide` markers; do not remove or bypass that step when preparing a release.
+
 ## Documentation system
 
 The user-facing guide is a **MkDocs Material** site under `app-docs/site/`,
