@@ -11,7 +11,7 @@
     },
     "macos-x86_64-dmg": {
       "baseline_exempt": true,
-      "verified_bytes": 144012584,
+      "verified_bytes": 147019858,
       "budget_bytes": 152043520
     },
     "windows-x86_64-msi": {
@@ -41,5 +41,5 @@
     }
   },
   "verified_release": "2.15.0",
-  "verified_source_run": "33679835383"
+  "verified_source_run": "33681395021"
 }
