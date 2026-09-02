@@ -6,6 +6,8 @@ title: Export
 
 Wasserzeichen und Fußzeile der von korTTY exportierten Dokumente — für [Sitzungsjournale](../../features/session-journal.md#exportieren) ebenso wie für [KI-Chats](../../features/ai-assistant.md). Öffnen über **Konfiguration → Globale Einstellungen → Export**; in `~/.kortty/global-settings.xml` gespeichert.
 
+AI-Chat-PDFs betten Fallback-Schriftarten für Unicode-Symbole und Emojis ein, sodass Zeichen wie `✓`, `★`, `😀` und `🚀` im exportierten Dokument sichtbar und durchsuchbar bleiben, anstatt durch Fragezeichen ersetzt zu werden.
+
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
 | Ein Wasserzeichen zu exportierten PDFs hinzufügen | boolean | ein/aus | aus | `pdfWatermarkEnabled` |

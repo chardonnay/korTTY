@@ -54,7 +54,7 @@ pages:
     owns_code: []
     diagrams: []
     screenshots: []
-    last_synced_ref: "031ad3c0"
+    last_synced_ref: "e2db4641"
   - path: app-docs/site/docs/en/getting-started/installation.md
     owns_i18n: []
     owns_code: [build.gradle.kts, src/main/java/de/kortty/JavaFxPlatformSupport.java, src/main/java/de/kortty/KorTTYApplication.java, src/main/java/de/kortty/Launcher.java, .github/workflows/build-release.yml, .github/workflows/llama-runtime.yml]
