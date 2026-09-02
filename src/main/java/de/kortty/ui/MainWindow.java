@@ -2121,18 +2121,22 @@ public class MainWindow {
             geoToUse = globalSettings.getLastWindowGeometry();
         }
         
-        if (geoToUse != null) {
-            stage.setX(geoToUse.getX());
-            stage.setY(geoToUse.getY());
-            stage.setWidth(geoToUse.getWidth());
-            stage.setHeight(geoToUse.getHeight());
-            if (geoToUse.isMaximized()) {
-                stage.setMaximized(true);
-            }
-        }
+        MainWindowGeometrySupport.RestorePlan geometryRestore =
+            MainWindowGeometrySupport.plan(geoToUse, unifiedTitleBarEnabled);
+        MainWindowGeometrySupport.apply(stage, geometryRestore.geometry(), true);
         
         stage.show();
         installWindowGeometryPersistence();
+
+        if (geometryRestore.reapplyAfterShow()) {
+            // On macOS, attaching the native unified title bar during show() can move the stage
+            // after the pre-show bounds were accepted. Reapply them once that native pass settled.
+            Platform.runLater(() -> {
+                if (stage.isShowing() && !stage.isMaximized() && !stage.isFullScreen()) {
+                    MainWindowGeometrySupport.apply(stage, geometryRestore.geometry(), false);
+                }
+            });
+        }
 
         // Restore the persisted AI-agent panel placement (bottom/left/right) once the window is shown.
         applyPersistedAiAgentPlacement();
