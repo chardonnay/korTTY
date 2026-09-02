@@ -16,7 +16,7 @@
   <url type="homepage">https://github.com/chardonnay/korTTY</url>
   <url type="bugtracker">https://github.com/chardonnay/korTTY/issues</url>
   <releases>
-    <release version="2.14.0" date="2026-08-31"/>
+    <release version="2.15.0" date="2026-09-02"/>
   </releases>
   <content_rating type="oars-1.1"/>
 </component>

@@ -2,7 +2,7 @@
 
 What changed in the current release. The version this guide was built for is shown in the footer.
 
-## v2.14.0
+## v2.15.0
 
 ### Appearance
 
