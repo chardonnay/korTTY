@@ -6,6 +6,7 @@ What changed in the current release. The version this guide was built for is sho
 
 ### Appearance
 
+- **Main windows now reopen at their remembered position on macOS** — the native unified title bar could move a window after korTTY restored its saved bounds, making every restart appear lower even though the new position had been stored. korTTY now reapplies normal bounds after the native window is ready and also recovers main-window positions left on a disconnected monitor.
 - **Every user-resizable application window now remembers its geometry** — main windows and named dialogs persist their position and size separately, tool tabs continue to follow their main window, and a dialog moved onto a disconnected monitor is recovered onto an available screen.
 - **The German JobScheduler interface is now fully localized** — its tabs, fields, action and status names, target and remote-data selectors, security prompts, journal controls, validation messages and errors no longer mix German menus with English dialog content.
 - **All seven AtlantaFX application designs** — the Appearance tab now places AtlantaFX 2.1.0's Primer Dark, Primer Light, Nord Dark, Nord Light, Cupertino Dark, Cupertino Light and Dracula themes at the top of the design list. New installations start with Primer Dark, existing selections are not migrated, switching to a non-AtlantaFX design restores Modena explicitly, and open windows, dialogs and popups update immediately while terminal, Monaco, journal and chat colors remain independent.

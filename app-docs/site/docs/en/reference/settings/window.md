@@ -19,7 +19,7 @@ This tab configures window geometry behavior, dashboard state retention, and men
 | X Position: | number | 0–5000 | — | `fixedWindowGeometry.x` |
 | Y Position: | number | 0–3000 | — | `fixedWindowGeometry.y` |
 
-With **Remember window geometry** enabled, KorTTY stores the position and size of every user-resizable application window and named dialog separately. Reopening a window restores the geometry chosen for that window type; if its previous monitor is no longer connected, KorTTY moves it back onto an available screen. A changed UI font scale keeps the remembered position but lets the window calculate a fresh size so translated or enlarged labels still fit. Short-lived confirmations and progress notices keep their content-derived size.
+With **Remember window geometry** enabled, KorTTY stores the position and size of every user-resizable application window and named dialog separately. Reopening a window restores the geometry chosen for that window type; if its previous monitor is no longer connected, KorTTY moves it back onto an available screen. On macOS, a main window's saved bounds are reapplied after its native unified title bar is ready so the system cannot shift the restored position while opening it. A changed UI font scale keeps the remembered position but lets the window calculate a fresh size so translated or enlarged labels still fit. Short-lived confirmations and progress notices keep their content-derived size.
 
 !!! note
     When **Use fixed window geometry** is enabled, it takes precedence over **Remember window geometry** for main terminal windows. Dialogs continue to use their own remembered geometry.

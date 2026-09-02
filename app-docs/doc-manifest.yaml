@@ -127,10 +127,10 @@ pages:
     last_synced_ref: "659b3bd9"
   - path: app-docs/site/docs/en/reference/settings/window.md
     owns_i18n: [settings.window.]
-    owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/ui/DialogGeometrySupport.java, src/main/java/de/kortty/ui/DialogThemeHelper.java, src/main/java/de/kortty/model/NamedWindowGeometry.java]
+    owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/ui/DialogGeometrySupport.java, src/main/java/de/kortty/ui/MainWindowGeometrySupport.java, src/main/java/de/kortty/ui/DialogThemeHelper.java, src/main/java/de/kortty/model/NamedWindowGeometry.java]
     screenshots:
       - settings/window.png
-    last_synced_ref: "38bcd2b4"
+    last_synced_ref: "e2db4641"
   - path: app-docs/site/docs/en/reference/settings/resources.md
     owns_i18n: [settings.resources.]
     owns_code: [src/main/java/de/kortty/model/JvmResourceProfile.java, src/main/java/de/kortty/JvmRelauncher.java]
