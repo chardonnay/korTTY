@@ -2382,7 +2382,7 @@
 </tr>
 </tbody>
 </table>
-<p>With <strong>Remember window geometry</strong> enabled, KorTTY stores the position and size of every user-resizable application window and named dialog separately. Reopening a window restores the geometry chosen for that window type; if its previous monitor is no longer connected, KorTTY moves it back onto an available screen. A changed UI font scale keeps the remembered position but lets the window calculate a fresh size so translated or enlarged labels still fit. Short-lived confirmations and progress notices keep their content-derived size.</p>
+<p>With <strong>Remember window geometry</strong> enabled, KorTTY stores the position and size of every user-resizable application window and named dialog separately. Reopening a window restores the geometry chosen for that window type; if its previous monitor is no longer connected, KorTTY moves it back onto an available screen. On macOS, a main window's saved bounds are reapplied after its native unified title bar is ready so the system cannot shift the restored position while opening it. A changed UI font scale keeps the remembered position but lets the window calculate a fresh size so translated or enlarged labels still fit. Short-lived confirmations and progress notices keep their content-derived size.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>When <strong>Use fixed window geometry</strong> is enabled, it takes precedence over <strong>Remember window geometry</strong> for main terminal windows. Dialogs continue to use their own remembered geometry.</p>
