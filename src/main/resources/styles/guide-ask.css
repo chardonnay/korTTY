@@ -142,3 +142,54 @@
     -fx-font-weight: bold;
     -fx-text-fill: #b9c8da;
 }
+
+/* Scroll bars. The guide scene loads only this stylesheet, so without these rules every scroll
+   bar — the WebView's own (JavaFX renders it with a regular ScrollBar node, so scene CSS reaches
+   it), the ask panel's result pane and the history popup — falls back to Modena's light grey, which
+   glares next to the dark page. Track and buttons sink into the surface colour; the thumb is a
+   muted slab that picks up the accent on hover, like the site's own hover states. */
+.guide-root .scroll-bar,
+.guide-root .scroll-bar .track,
+.guide-root .scroll-bar .track-background,
+.guide-root .scroll-bar .increment-button,
+.guide-root .scroll-bar .decrement-button {
+    -fx-background-color: #0d1b2a;
+    -fx-background-insets: 0;
+    -fx-background-radius: 0;
+    -fx-border-color: transparent;
+}
+
+.guide-root .scroll-bar:vertical {
+    -fx-border-color: transparent transparent transparent rgba(103, 232, 249, 0.18);
+    -fx-border-width: 0 0 0 1;
+}
+
+.guide-root .scroll-bar:horizontal {
+    -fx-border-color: rgba(103, 232, 249, 0.18) transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+}
+
+.guide-root .scroll-bar .thumb {
+    -fx-background-color: rgba(185, 200, 218, 0.32);
+    -fx-background-insets: 2;
+    -fx-background-radius: 6;
+}
+
+.guide-root .scroll-bar .thumb:hover,
+.guide-root .scroll-bar .thumb:pressed {
+    -fx-background-color: rgba(103, 232, 249, 0.6);
+}
+
+.guide-root .scroll-bar .increment-arrow,
+.guide-root .scroll-bar .decrement-arrow {
+    -fx-background-color: rgba(185, 200, 218, 0.55);
+}
+
+.guide-root .scroll-bar .increment-button:hover .increment-arrow,
+.guide-root .scroll-bar .decrement-button:hover .decrement-arrow {
+    -fx-background-color: #67e8f9;
+}
+
+.guide-root .corner {
+    -fx-background-color: #0d1b2a;
+}
