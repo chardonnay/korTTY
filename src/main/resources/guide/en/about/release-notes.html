@@ -2239,15 +2239,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#v2140" class="md-nav__link">
+  <a href="#v2150" class="md-nav__link">
     <span class="md-ellipsis">
       
-        v2.14.0
+        v2.15.0
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="v2.14.0">
+    <nav class="md-nav" aria-label="v2.15.0">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2409,15 +2409,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#v2140" class="md-nav__link">
+  <a href="#v2150" class="md-nav__link">
     <span class="md-ellipsis">
       
-        v2.14.0
+        v2.15.0
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="v2.14.0">
+    <nav class="md-nav" aria-label="v2.15.0">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2499,7 +2499,7 @@
 
 <h1 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h1>
 <p>What changed in the current release. The version this guide was built for is shown in the footer.</p>
-<h2 id="v2140">v2.14.0<a class="headerlink" href="#v2140" title="Permanent link">&para;</a></h2>
+<h2 id="v2150">v2.15.0<a class="headerlink" href="#v2150" title="Permanent link">&para;</a></h2>
 <h3 id="appearance">Appearance<a class="headerlink" href="#appearance" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Main windows now reopen at their remembered position on macOS</strong> — the native unified title bar could move a window after korTTY restored its saved bounds, making every restart appear lower even though the new position had been stored. korTTY now reapplies normal bounds after the native window is ready and also recovers main-window positions left on a disconnected monitor.</li>
@@ -2516,6 +2516,7 @@
 </ul>
 <h3 id="ai-assistant">AI assistant<a class="headerlink" href="#ai-assistant" title="Permanent link">&para;</a></h3>
 <ul>
+<li><strong>AI chat answers now display formatted Markdown</strong> — headings, emphasis, lists, quotations, and inline code appear as a readable preview alongside the existing tables and code blocks. Long text wraps without a fixed-height inner scrollbar. The conversation follows new messages and delayed layout changes, pauses when you scroll up, and resumes when you return to the bottom.</li>
 <li><strong>AI chat PDF exports preserve symbols and emoji</strong> — Unicode characters such as check marks, stars, smileys and icons are now rendered with embedded fallback fonts instead of being replaced with question marks, and remain searchable text in the PDF.</li>
 <li><strong>AI code actions no longer translate your script's comments</strong> — every action that rewrites code used to force the snippet's comments, messages, log lines and help text into the configured <strong>Text language</strong>, which defaults to korTTY's own interface language. Running korTTY in German and applying a <a href="../features/snippets.html#ai-code-actions">Full code analysis</a> result to an English script therefore translated the whole file's prose, without asking. korTTY now keeps the language the script is already written in and only writes new text to match. Translating is still available — select a language under <strong>Text language</strong> — but it is now something you ask for. Where korTTY cannot tell which language a script uses, because there is too little text or the comments mix languages, it asks once per snippet instead of guessing. This applies to Full code analysis, security fixes, the improve and assist actions, alternatives, one-liners and code completion.</li>
 <li><strong>The <a href="../features/snippets.html#ai-code-actions">Full code analysis</a> review preview no longer freezes korTTY</strong> — while the preview of a finished run was open, no terminal session accepted input and the processing window beside it could not even be scrolled, because the preview blocked the whole application. It no longer does: your sessions keep running and you can read what the run did while you review its result. Since the snippet can now be edited during the review, korTTY checks before applying that the editor still holds the text the result came from, and refuses rather than overwriting newer edits.</li>
@@ -2581,7 +2582,7 @@
 <div class="md-copyright">
   <div class="md-copyright__highlight">MIT-licensed · Developed by Daniel Mengel</div>
   <div class="md-copyright__highlight">
-    korTTY <strong>v2.14.0</strong>
+    korTTY <strong>v2.15.0</strong>
   </div>
 </div>
       
