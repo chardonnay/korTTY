@@ -160,6 +160,7 @@ public class AiResultTab extends Tab {
     // Every rendered Monaco/WebView node registers its dispose here; rebuilds and tab close
     // release the native WebKit engines instead of orphaning them (each holds tens of MB).
     private final ChatRenderDisposables renderDisposables = new ChatRenderDisposables();
+    private final ChatAutoScrollSupport autoScroll;
     private HBox searchBar;
     private TextField searchField;
     private Label searchCountLabel;
@@ -209,6 +210,7 @@ public class AiResultTab extends Tab {
         messagesScrollPane.getStyleClass().add("ai-chat-scroll");
         messagesBox.getStyleClass().add("ai-chat-messages");
         messagesBox.setPadding(new Insets(14, 16, 14, 16));
+        autoScroll = new ChatAutoScrollSupport(messagesScrollPane, messagesBox);
 
         profileComboBox = new ComboBox<>();
         profileComboBox.setPrefWidth(240);
@@ -726,7 +728,7 @@ public class AiResultTab extends Tab {
         renderMessage(message);
         persistBoundChatQuietly();
         if (scrollToEnd) {
-            Platform.runLater(() -> messagesScrollPane.setVvalue(1.0));
+            autoScroll.requestScroll();
         }
         updateSendAvailability();
     }
@@ -1115,7 +1117,7 @@ public class AiResultTab extends Tab {
         if (reasoning == null || reasoning.isBlank()) {
             return;
         }
-        TextArea body = createSelectableTextBlock(reasoning.trim());
+        Node body = createSelectableTextBlock(reasoning.trim());
         VBox bodyBox = new VBox(body);
         bodyBox.getStyleClass().add("ai-chat-reasoning");
         bodyBox.setVisible(false);
@@ -1375,6 +1377,7 @@ public class AiResultTab extends Tab {
     }
 
     private void scrollNodeIntoView(Node node) {
+        autoScroll.pause();
         Platform.runLater(() -> {
             double contentHeight = messagesBox.getHeight();
             double viewportHeight = messagesScrollPane.getViewportBounds().getHeight();
@@ -1798,7 +1801,7 @@ public class AiResultTab extends Tab {
             if (block.type() == AiChatContentSupport.StructuredTextBlock.Type.TABLE) {
                 parent.getChildren().add(createMarkdownTable(block.tableRows()));
             } else {
-                parent.getChildren().add(createSelectableTextBlock(block.text()));
+                parent.getChildren().add(ChatMarkdownView.markdown(block.text(), currentFontSize));
             }
         }
     }
@@ -1927,36 +1930,8 @@ public class AiResultTab extends Tab {
         statusLabel.setText(I18n.get("ai.table.copyCell.success"));
     }
 
-    private TextArea createSelectableTextBlock(String text) {
-        TextArea textArea = new TextArea(text != null ? text : "");
-        textArea.getStyleClass().add("ai-chat-text");
-        textArea.setEditable(false);
-        textArea.setWrapText(true);
-        textArea.setFocusTraversable(false);
-        textArea.setPrefRowCount(estimateTextRows(text));
-        double preferredHeight = 16 + (estimateTextRows(text) * (currentFontSize + 7.0));
-        textArea.setMinHeight(Region.USE_PREF_SIZE);
-        textArea.setPrefHeight(preferredHeight);
-        textArea.setMaxHeight(preferredHeight);
-        textArea.setStyle("-fx-font-size: " + currentFontSize + "px;"
-            + " -fx-background-color: transparent;"
-            + " -fx-control-inner-background: transparent;"
-            + " -fx-background-insets: 0;"
-            + " -fx-border-color: transparent;"
-            + " -fx-padding: 0;");
-        return textArea;
-    }
-
-    private int estimateTextRows(String text) {
-        if (text == null || text.isEmpty()) {
-            return 1;
-        }
-        int rows = 0;
-        for (String line : text.split("\\R", -1)) {
-            int visualRows = Math.max(1, (line.length() / 90) + 1);
-            rows += visualRows;
-        }
-        return Math.max(1, Math.min(18, rows));
+    private Node createSelectableTextBlock(String text) {
+        return ChatMarkdownView.plainText(text, currentFontSize);
     }
 
     private void copyContent() {

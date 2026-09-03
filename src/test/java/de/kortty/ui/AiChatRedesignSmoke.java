@@ -37,7 +37,7 @@ public final class AiChatRedesignSmoke {
 
     private static final int FONT = 13;
     private static final String ASSISTANT_MD =
-        "Eine pipeline läuft jedes Element unabhängig durch alle Stufen — kein Barrier dazwischen. "
+        "### Pipeline mit Vorschau\n\nEine **pipeline** läuft jedes Element *unabhängig* durch alle Stufen — kein Barrier dazwischen. "
             + "Ein Minimalbeispiel:\n\n"
             + "```javascript\nconst out = await pipeline(items,\n"
             + "  d => agent(d.prompt, {schema: S}),\n"
@@ -46,8 +46,8 @@ public final class AiChatRedesignSmoke {
     private static final String USER_MD =
         "Und wie finde ich die langsamste Stufe im ganzen Verlauf wieder?";
     private static final String ASSISTANT_MD_2 =
-        "Öffne die Suche oben rechts (Cmd/Strg+F), tippe „pipeline\" und jede Fundstelle wird "
-            + "hervorgehoben und ins Bild gescrollt.";
+        "### Die nächste Stufe\n\nÖffne die **Suche** oben rechts (Cmd/Strg+F), tippe `pipeline` und jede Fundstelle wird "
+            + "hervorgehoben und ins Bild gescrollt.\n\n- **Prüfen:** Ergebnis lesen\n- *Fortsetzen:* nächste Stufe starten";
     private static final String REASONING_MD =
         "Der Nutzer fragt nach der Pipeline-Semantik. Ich erkläre zuerst das Fehlen des Barriers "
             + "und zeige dann ein knappes Codebeispiel, das genau eine Stufe pro Element durchläuft.";

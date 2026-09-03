@@ -157,6 +157,8 @@ When an AI Agent run uses one or more skills, the terminal-agent activity panel 
 ### AI result tab features
 
 * The conversation transcript is read-only and not included in saved project/session state.
+* Assistant answers display Markdown as a formatted preview: headings, bold and italic text, strikethrough, lists, quotations, and highlighted inline code. Text wraps to the available width and can be selected and copied; user messages keep their literal text.
+* The conversation automatically scrolls to the newest user message or assistant answer, including content that grows after rendering. Scroll up with the mouse wheel, keyboard, or scrollbar to pause this behavior while reading earlier messages. Scrolling back to the bottom automatically resumes it.
 * `<think> ... </think>` blocks are removed from the visible output.
 * The toolbar lets you copy the conversation, save or rename the chat, share/export it to PDF/Markdown/plain text, retry the last request, close the tab, cancel running requests, and change the font size.
 * The response language defaults to the current GUI language. You can change the response language and the active AI profile per chat before sending a follow-up prompt.

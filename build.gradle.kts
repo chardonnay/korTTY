@@ -399,6 +399,8 @@ dependencies {
 
     // JSON parsing for translation API responses
     implementation("com.google.code.gson:gson:2.14.0")
+    implementation("org.commonmark:commonmark:0.29.0")
+    implementation("org.commonmark:commonmark-ext-gfm-strikethrough:0.29.0")
     implementation("com.knuddels:jtokkit:1.1.0")
     implementation("org.apache.pdfbox:pdfbox:3.0.8")
     implementation("com.google.googlejavaformat:google-java-format:1.36.1")
@@ -3609,6 +3611,15 @@ tasks.register<JavaExec>("aiChatRedesignSmoke") {
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.AiChatRedesignSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("aiChatPreviewSmoke") {
+    group = "verification"
+    description = "Checks AI chat Markdown previews and user-controlled auto-scrolling on JavaFX."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AiChatPreviewSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+    jvmArgs("-Dprism.order=sw")
 }
 
 tasks.register<JavaExec>("resourcesTabSmoke") {

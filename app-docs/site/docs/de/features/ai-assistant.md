@@ -157,6 +157,8 @@ Wenn eine AI-Agent-Ausführung einen oder mehrere Skills verwendet, protokollier
 ### Funktionen der AI-Ergebnisregisterkarte
 
 * Das Gesprächsprotokoll ist schreibgeschützt und nicht im gespeicherten Projekt-/Sitzungsstatus enthalten.
+* Assistant-Antworten zeigen Markdown als formatierte Vorschau an: Überschriften, fetter und kursiver Text, durchgestrichen, Listen, Zitate und hervorgehobener Inline-Code. Der Text wird auf die verfügbare Breite umbrochen und kann ausgewählt und kopiert werden. Benutzernachrichten behalten ihren wörtlichen Text.
+* Die Konversation scrollt automatisch zur neuesten Benutzernachricht oder Assistentenantwort, einschließlich Inhalten, die nach dem Rendern größer werden. Scrollen Sie mit dem Mausrad, der Tastatur oder der Bildlaufleiste nach oben, um dieses Verhalten beim Lesen früherer Nachrichten anzuhalten. Wenn Sie nach unten scrollen, wird der Vorgang automatisch fortgesetzt.
 * `<think> ... </think>`-Blöcke werden aus der sichtbaren Ausgabe entfernt.
 * Mit der Symbolleiste können Sie die Konversation kopieren, den Chat speichern oder umbenennen, ihn als PDF/Markdown/Nur-Text teilen/exportieren, die letzte Anfrage erneut versuchen, die Registerkarte schließen, laufende Anfragen abbrechen und die Schriftgröße ändern.
 * Die Antwortsprache ist standardmäßig die aktuelle GUI-Sprache. Sie können die Antwortsprache und das aktive KI-Profil pro Chat ändern, bevor Sie eine Folgeaufforderung senden.
