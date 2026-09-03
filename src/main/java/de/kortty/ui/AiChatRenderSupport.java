@@ -45,7 +45,7 @@ public final class AiChatRenderSupport {
                     if (block.type() == AiChatContentSupport.StructuredTextBlock.Type.TABLE) {
                         parent.getChildren().add(markdownTable(block.tableRows(), fontSize));
                     } else if (block.text() != null && !block.text().isBlank()) {
-                        parent.getChildren().add(selectableText(block.text(), fontSize));
+                        parent.getChildren().add(ChatMarkdownView.markdown(block.text(), fontSize));
                     }
                 }
             }
@@ -53,12 +53,7 @@ public final class AiChatRenderSupport {
     }
 
     private static Node selectableText(String text, int fontSize) {
-        Label label = new Label(text != null ? text.trim() : "");
-        label.getStyleClass().add("ai-chat-text");
-        label.setWrapText(true);
-        label.setMaxWidth(Double.MAX_VALUE);
-        label.setFont(Font.font(fontSize));
-        return label;
+        return ChatMarkdownView.plainText(text != null ? text.trim() : "", fontSize);
     }
 
     private static Node codeBlock(String code, int fontSize) {

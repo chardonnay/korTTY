@@ -2516,6 +2516,7 @@
 </ul>
 <h3 id="ai-assistent">AI-Assistent<a class="headerlink" href="#ai-assistent" title="Permanent link">&para;</a></h3>
 <ul>
+<li><strong>KI-Chat-Antworten zeigen jetzt formatiertes Markdown an</strong> – Überschriften, Hervorhebungen, Listen, Zitate und Inline-Code werden als lesbare Vorschau neben den vorhandenen Tabellen und Codeblöcken angezeigt. Langer Text wird ohne innere Bildlaufleiste mit fester Höhe umbrochen. Die Konversation folgt neuen Nachrichten und verzögerten Layoutänderungen, pausiert, wenn Sie nach oben scrollen, und wird fortgesetzt, wenn Sie nach unten zurückkehren.</li>
 <li><strong>AI-Chat-PDF-Exporte behalten Symbole und Emojis</strong> – Unicode-Zeichen wie Häkchen, Sterne, Smileys und Symbole werden jetzt mit eingebetteten Fallback-Schriftarten gerendert, anstatt durch Fragezeichen ersetzt zu werden, und bleiben durchsuchbarer Text im PDF.</li>
 <li><strong>AI-Codeaktionen übersetzen nicht mehr die Kommentare Ihres Skripts</strong> – jede Aktion, die Code umschreibt, wird verwendet, um die Kommentare, Nachrichten, Protokollzeilen und Hilfetexte des Snippets in die konfigurierte <strong>Text-Sprache</strong> zu erzwingen, die standardmäßig die eigene Schnittstellensprache von korTTY ist. Das Ausführen von korTTY auf Deutsch und das Anwenden eines <a href="../features/snippets.html#ai-codeaktionen">Vollständige Codeanalyse</a>-Ergebnisses auf ein englisches Skript übersetzte daher die Prosa der gesamten Datei, ohne zu fragen. korTTY behält jetzt die Sprache bei, in der das Skript bereits geschrieben ist, und schreibt nur passenden neuen Text. Die Übersetzung ist immer noch verfügbar – wählen Sie unter <strong>Text-Sprache</strong> eine Sprache aus – aber Sie fragen jetzt danach. Wo korTTY nicht erkennen kann, welche Sprache ein Skript verwendet, weil zu wenig Text vorhanden ist oder die Kommentare verschiedene Sprachen enthalten, fragt es einmal pro Snippet, anstatt zu raten. Dies gilt für die vollständige Codeanalyse, Sicherheitskorrekturen, Verbesserungs- und Hilfsmaßnahmen, Alternativen, Einzeiler und Codevervollständigung.</li>
 <li><strong>Die <a href="../features/snippets.html#ai-codeaktionen">Vollständige Codeanalyse</a>-Überprüfungsvorschau friert korTTY nicht mehr ein</strong> – während die Vorschau eines abgeschlossenen Laufs geöffnet war, akzeptierte keine Terminalsitzung Eingaben und das Verarbeitungsfenster daneben konnte nicht einmal gescrollt werden, da die Vorschau die gesamte Anwendung blockierte. Das ist nicht mehr der Fall: Ihre Sitzungen laufen weiter und Sie können lesen, was der Lauf bewirkt hat, während Sie das Ergebnis überprüfen. Da das Snippet nun während der Überprüfung bearbeitet werden kann, prüft korTTY vor der Anwendung, ob der Editor noch über den Text verfügt, aus dem das Ergebnis stammt, und lehnt neuere Änderungen ab, anstatt sie zu überschreiben.</li>
@@ -2581,7 +2582,7 @@
 <div class="md-copyright">
   <div class="md-copyright__highlight">MIT-lizenziert · Entwickelt von Daniel Mengel</div>
   <div class="md-copyright__highlight">
-    korTTY <strong>v2.14.0</strong>
+    korTTY <strong>v2.15.0</strong>
   </div>
 </div>
       
