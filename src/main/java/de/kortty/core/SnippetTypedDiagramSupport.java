@@ -87,6 +87,9 @@ public final class SnippetTypedDiagramSupport {
         "^(?:[\\s\"\\\\,\\]\\[}{]*|\"[A-Za-z][A-Za-z0-9_]{0,63}\"\\s*:.*)$");
     private static final Pattern DOUBLE_ESCAPED_SHAPE_QUOTE = Pattern.compile(
         "(\\[|\\{|\\(\\[)\\\\\"|\\\\\"(]|}|]\\))");
+    /** A stray backslash left at a shape edge after unescaping ({@code [\"Label"\]}): removed. */
+    private static final Pattern STRAY_BACKSLASH_AT_SHAPE_EDGE = Pattern.compile(
+        "(?<=[\\[{(])\\\\(?=\")|\\\\(?=[\\]})])");
     /** Where the envelope resumes after the diagram string: {@code ","codeReferences":} — impossible inside a label. */
     private static final Pattern JSON_NEXT_FIELD = Pattern.compile(
         "\"\\s*,\\s*\"[A-Za-z][A-Za-z0-9_]{0,63}\"\\s*:");
@@ -137,6 +140,7 @@ public final class SnippetTypedDiagramSupport {
         // A single node written with doubled escapes (`[\\"Label\\"]` beside `[\"Label\"]`) leaves a
         // stray backslash at the shape boundary after unescaping; the grammar wants the bare quote.
         candidate = DOUBLE_ESCAPED_SHAPE_QUOTE.matcher(candidate).replaceAll("$1\"$2");
+        candidate = STRAY_BACKSLASH_AT_SHAPE_EDGE.matcher(candidate).replaceAll("");
         candidate = SnippetDiagramSupport.stripPresentationStatements(candidate);
         List<String> lines = new ArrayList<>();
         for (String line : candidate.split("\\R")) {

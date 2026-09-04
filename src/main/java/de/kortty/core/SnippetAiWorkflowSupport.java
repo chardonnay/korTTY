@@ -1633,6 +1633,16 @@ public final class SnippetAiWorkflowSupport {
             SnippetDiagramSupport.FlowchartStatistics kept = SnippetDiagramSupport.flowchartStatistics(canonical);
             int droppedNodes = Math.max(0, drawn.nonterminalNodes() - kept.nonterminalNodes());
             int droppedEdges = Math.max(0, drawn.edges() - kept.edges());
+            // The repairs may trim a diagram, never hollow it out: a start-to-stop stub, or a
+            // diagram that lost more than half of what the model drew, is a rejection with a
+            // reason — the generic fallback says the same thing honestly.
+            if (kept.nonterminalNodes() == 0
+                || (drawn.nonterminalNodes() > 0 && kept.nonterminalNodes() * 2 < drawn.nonterminalNodes())) {
+                String reason = "The diagram's repairs would drop " + droppedNodes + " of " + drawn.nonterminalNodes()
+                    + " nodes (parallel branches or unreachable nodes the dialect cannot show); not enough remains.";
+                logger.warn("AI diagram rejected: {} [type={}, snippet lines={}, {}]", reason, type, snippetLines, summary);
+                return SnippetAiResponseSupport.MermaidDiagram.rejected(type, reason);
+            }
             if (droppedNodes > 0 || droppedEdges > 0) {
                 logger.warn("AI diagram reduced to a single path: {} nodes and {} edges kept, {} nodes and {} edges "
                         + "dropped; the model drew parallel branches or unreachable nodes the dialect cannot show",

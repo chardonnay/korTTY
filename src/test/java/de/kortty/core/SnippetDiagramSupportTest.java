@@ -697,6 +697,10 @@ class SnippetDiagramSupportTest {
         assertThat(kept).doesNotContain("short");
         assertThat(SnippetDiagramSupport.normalizeShapeShorthand("x --> check{\"\"Ready?\"\"}"))
             .isEqualTo("x --> check{\"Ready?\"}");
+        assertThat(SnippetDiagramSupport.normalizeShapeShorthand("start_1([\"Start\"]) --> h[/\"Print header\"\"/]"))
+            .isEqualTo("start_1([\"Start\"]) --> h[\"Print header\"]");
+        assertThat(SnippetDiagramSupport.normalizeShapeShorthand("a[\"\"Doubled open\"]"))
+            .isEqualTo("a[\"Doubled open\"]");
     }
 
     @Test
@@ -713,6 +717,81 @@ class SnippetDiagramSupportTest {
         assertThat(canonical).contains("start_1 --> print_header");
         assertThat(canonical).contains("main_call[\"End\"]");
         assertThat(canonical).contains("main_call --> stop_1");
+    }
+
+    @Test
+    void theRealEntryIsChosenForStartSynthesisBesideAnOrphan() {
+        // The model named its terminals itself, listed start_1/stop_1 only in a class line the
+        // grammar cannot read, and left a mistyped orphan beside the real entry.
+        String orphaned = """
+            flowchart TD
+            class start_1 stop_1 setup
+            begin(["Start"]) --> collect["Collect loads"]
+            collect --> parse["Parse history"]
+            parse_histroy["Parse history (typo)"] --> finish
+            parse --> finish["Print rows"]
+            finish --> done(["Stop"])
+            """;
+
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(orphaned).valid()).isTrue();
+        String canonical = SnippetDiagramSupport.canonicalizeGeneratedFlowchart(orphaned);
+        assertThat(canonical).contains("start_1 --> begin");
+        assertThat(canonical).contains("done --> stop_1");
+        assertThat(canonical).doesNotContain("parse_histroy");
+        assertThat(SnippetDiagramSupport.normalizeShapeShorthand("hist_check -->|no hist_fail[\"Use zeros\"]"))
+            .isEqualTo("hist_check -->|no| hist_fail[\"Use zeros\"]");
+    }
+
+    @Test
+    void aDeclaredButUnconnectedStartIsWiredToTheRealEntryInsteadOfHollowingTheDiagram() {
+        // MiniMax-M3 declared start_1, never connected it, and left stop_1 out entirely.
+        String unconnected = """
+            flowchart TD
+            start_1(["Start"]):::setup
+            print_header["Print banner"]:::setup
+            print_header --> fetch_current
+            fetch_current["Read load"]:::work
+            fetch_current --> check{"Can open /proc/loadavg?"}
+            check -->|yes| print_now
+            check -->|no| fallback
+            fallback["Use zeros"]:::failure
+            fallback --> print_now
+            print_now["Print row"]:::work
+            """;
+
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(unconnected).valid()).isTrue();
+        String canonical = SnippetDiagramSupport.canonicalizeGeneratedFlowchart(unconnected);
+        assertThat(canonical).contains("start_1 --> print_header");
+        assertThat(canonical).contains("print_now --> stop_1");
+        assertThat(SnippetDiagramSupport.flowchartStatistics(canonical).nonterminalNodes()).isEqualTo(5);
+    }
+
+    @Test
+    void statementsWrittenWithAClassPrefixAreStillRead() {
+        // Every line of one answer began with "class ", declarations and edges alike.
+        String prefixed = """
+            flowchart TD
+            class start_1 stop_1 setup
+            class parse_loadavg work
+            class open_logdir ok
+            class start_1 --> print_header
+            class print_header --> read_loadavg
+            class read_loadavg -->|yes| parse_loadavg
+            class read_loadavg -->|no| stop_1
+            class parse_loadavg --> stop_1
+            class read_loadavg{"Load average readable?"}
+            class start_1(["Start"])
+            class stop_1(["Stop"])
+            class print_header["Print header"]
+            class parse_loadavg["Parse load"]
+            """;
+
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(prefixed).valid()).isTrue();
+        String canonical = SnippetDiagramSupport.canonicalizeGeneratedFlowchart(prefixed);
+        assertThat(canonical).contains("read_loadavg{\"Load average readable?\"}");
+        assertThat(canonical).contains("read_loadavg -->|yes| parse_loadavg");
+        assertThat(canonical.lines().anyMatch(line -> line.contains("parse_loadavg") && line.endsWith(" work"))).isTrue();
+        assertThat(SnippetDiagramSupport.flowchartStatistics(canonical).nonterminalNodes()).isEqualTo(3);
     }
 
     @Test

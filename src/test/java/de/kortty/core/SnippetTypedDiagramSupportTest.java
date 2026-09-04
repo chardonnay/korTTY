@@ -221,6 +221,19 @@ class SnippetTypedDiagramSupportTest {
     }
 
     @Test
+    void recoveryRemovesAStrayBackslashAtAShapeEdge() {
+        // One node written as [\\"Label\"\\] beside correctly escaped ones broke the envelope.
+        String answer = "{\"title\":\"T\",\"mermaid\":\"flowchart TD\\nstart_1([\\\"Start\\\"]) --> a[\\\"Use load\\\"]\\n"
+            + "a --> b[\\\\\"Fallback to zero\\\"\\\\]:::failure\\nb --> stop_1([\\\"Stop\\\"])\",\"codeReferences\":[]}";
+
+        String recovered = SnippetTypedDiagramSupport.extractDiagramSource(
+            SnippetDiagramType.LOGICAL_STRUCTURE, answer);
+
+        assertThat(recovered).contains("b[\"Fallback to zero\"]:::failure");
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(recovered).valid()).isTrue();
+    }
+
+    @Test
     void recoveryNeverTrimsRealStatementsIntoAStub() {
         // An invalid line in the middle must fail the recovery, not yield the valid prefix.
         String answer = """

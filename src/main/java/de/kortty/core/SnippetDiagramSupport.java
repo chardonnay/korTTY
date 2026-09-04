@@ -97,14 +97,20 @@ public final class SnippetDiagramSupport {
         .collect(java.util.stream.Collectors.joining("|"));
     /** {@code -->|yes| --> target}: a labelled arrow followed by a second, bare one. */
     private static final Pattern DOUBLED_ARROW_AFTER_LABEL = Pattern.compile("(-->\\s*\\|[^|]*\\|)\\s*-->\\s*");
+    /** {@code -->|no target}: the closing pipe left out, when the word is an outcome. */
+    private static final Pattern UNCLOSED_LABEL_PIPE = Pattern.compile(
+        "(?i)-->\\s*\\|\\s*(" + OUTCOME_WORDS + ")\\s+(?=[A-Za-z])");
     /** {@code -->|no]}: the closing pipe typed as a bracket. */
-    private static final Pattern MISCLOSED_LABEL_PIPE = Pattern.compile("-->\\s*\\|([^|\\]]*?)]\\s*");
+    private static final Pattern MISCLOSED_LABEL_PIPE = Pattern.compile("-->\\s*\\|([^|\\]\\[\"\\s]*?)]\\s*");
     /** {@code n{"Ready?" --> x}: a shape whose closing bracket was dropped before the arrow. */
     private static final Pattern UNCLOSED_SHAPE_BEFORE_ARROW = Pattern.compile(
         "(\\(\\[|\\[|\\{)\\s*(\"(?:\\\\.|[^\"\\\\])*\")\\s*(?=--)");
     /** {@code a --> yes|b} and {@code a --> yes --> b}: a label that lost its pipes, when the word is an outcome. */
     private static final Pattern MISPLACED_OUTCOME_LABEL = Pattern.compile(
         "(?i)-->\\s*\"?(" + OUTCOME_WORDS + ")\"?\\s*(?:\\||-->)\\s*");
+    /** A doubled quote right at a shape opener or closer ({@code [/"text""/]}), collapsed to one. */
+    private static final Pattern DOUBLED_QUOTE_AT_SHAPE_EDGE = Pattern.compile(
+        "(\\(\\[|\\[[/\\\\]?|\\{\\{?|\\(\\(|>)\\s*\"\"(?!\")|\"\"(?=\\s*(?:[/\\\\]?]\\)?|}}?|\\)\\)|]))");
     /** {@code {""Ready?""}}: a label quoted twice. */
     private static final Pattern DOUBLED_LABEL_QUOTES = Pattern.compile("(\\(\\[|\\[|\\{)\"\"([^\"]*)\"\"(]\\)|]|})");
     /** MiniMax-M3's recurring slip on the stadium shape: {@code (["Start")]} for {@code (["Start"])}. */
@@ -846,6 +852,16 @@ public final class SnippetDiagramSupport {
         for (int index = headerIndex + 1; index < lines.length; index++) {
             String rawLine = lines[index].trim();
             String line = normalizeShapeShorthand(rawLine);
+            // A model that prefixes every statement with "class " (seen: `class a --> b`,
+            // `class n["Label"]`) still wrote the statement; it is read once the prefix is gone.
+            if (line.startsWith("class ") && !CLASS_PATTERN.matcher(line).matches()) {
+                String stripped = normalizeShapeShorthand(line.substring(6).trim());
+                if (NODE_PATTERN.matcher(stripped).matches()
+                    || BARE_INLINE_CLASS_PATTERN.matcher(stripped).matches()
+                    || parseEdgeStatement(stripped) != null) {
+                    line = stripped;
+                }
+            }
             // Plain comments render nothing and models write them despite the contract; the
             // %%{...}%% directive form was already refused by the security screen.
             if (line.isBlank() || line.startsWith("%%")) {
@@ -954,17 +970,43 @@ public final class SnippetDiagramSupport {
         }
         // A flow without the stable ids still has an entry and exits. When exactly one node has
         // no incoming edge, start_1 leads to it; when nodes dead-end, stop_1 collects them.
-        if (!nodes.containsKey("start_1")) {
+        // A start_1 that is missing, or declared and never connected — both leave the flow's real
+        // entry without a source. Among the nodes nothing leads to, the one that reaches most of
+        // the diagram is the entry (a model's own "Start" first of all); a mistyped orphan beside
+        // it is pruned below.
+        boolean startNeedsEntry = !nodes.containsKey("start_1")
+            || edges.stream().noneMatch(edge -> edge.from().equals("start_1"));
+        if (startNeedsEntry) {
             Set<String> withIncoming = new LinkedHashSet<>();
             edges.forEach(edge -> withIncoming.add(edge.to()));
-            List<String> entries = nodes.keySet().stream().filter(id -> !withIncoming.contains(id)).toList();
-            if (entries.size() == 1) {
-                Map<String, NodeDefinition> reordered = new LinkedHashMap<>();
-                reordered.put("start_1", new NodeDefinition("start_1", "Start", NodeType.TERMINAL, ""));
-                reordered.putAll(nodes);
-                nodes.clear();
-                nodes.putAll(reordered);
-                edges.add(0, new EdgeDefinition("start_1", "", entries.get(0)));
+            List<String> candidates = nodes.keySet().stream()
+                .filter(id -> !withIncoming.contains(id) && !"start_1".equals(id) && !"stop_1".equals(id))
+                .toList();
+            String entry = null;
+            if (candidates.size() == 1) {
+                entry = candidates.get(0);
+            } else if (candidates.size() > 1) {
+                Map<String, List<String>> forwardEdges = new LinkedHashMap<>();
+                edges.forEach(edge -> forwardEdges.computeIfAbsent(edge.from(), key -> new ArrayList<>()).add(edge.to()));
+                long bestScore = -1;
+                for (String candidate : candidates) {
+                    long score = reachableNodes(candidate, forwardEdges).size() * 2L
+                        + (nodes.get(candidate).label().equalsIgnoreCase("start") ? 1 : 0);
+                    if (score > bestScore) {
+                        entry = candidate;
+                        bestScore = score;
+                    }
+                }
+            }
+            if (entry != null) {
+                if (!nodes.containsKey("start_1")) {
+                    Map<String, NodeDefinition> reordered = new LinkedHashMap<>();
+                    reordered.put("start_1", new NodeDefinition("start_1", "Start", NodeType.TERMINAL, ""));
+                    reordered.putAll(nodes);
+                    nodes.clear();
+                    nodes.putAll(reordered);
+                }
+                edges.add(0, new EdgeDefinition("start_1", "", entry));
             }
         }
         if (!nodes.containsKey("stop_1")) {
@@ -1051,8 +1093,14 @@ public final class SnippetDiagramSupport {
             }
         }
         if (!isTerminalNode(nodes.get("start_1")) || !isTerminalNode(nodes.get("stop_1"))) {
+            Set<String> incomingIds = new LinkedHashSet<>();
+            edges.forEach(edge -> incomingIds.add(edge.to()));
             return ParsedDiagram.failure(
-                "Snippet flowcharts must declare stable start_1 and stop_1 terminal nodes.");
+                "Snippet flowcharts must declare stable start_1 and stop_1 terminal nodes (missing: "
+                    + (isTerminalNode(nodes.get("start_1")) ? "" : "start_1 ")
+                    + (isTerminalNode(nodes.get("stop_1")) ? "" : "stop_1")
+                    + "; entry nodes: " + nodes.keySet().stream().filter(id -> !incomingIds.contains(id)).toList()
+                    + "; nodes: " + nodes.size() + ", edges: " + edges.size() + ").");
         }
         for (EdgeDefinition edge : edges) {
             if (!nodes.containsKey(edge.from()) || !nodes.containsKey(edge.to())) {
@@ -1281,8 +1329,10 @@ public final class SnippetDiagramSupport {
      */
     static String normalizeShapeShorthand(String line) {
         String value = DOUBLED_LABEL_QUOTES.matcher(line).replaceAll("$1\"$2\"$3");
+        value = DOUBLED_QUOTE_AT_SHAPE_EDGE.matcher(value).replaceAll("$1\"");
         value = MISPLACED_STADIUM_CLOSE.matcher(value).replaceAll("([\"$1\"])");
         value = MISPLACED_OUTCOME_LABEL.matcher(value).replaceAll("-->|$1| ");
+        value = UNCLOSED_LABEL_PIPE.matcher(value).replaceAll("-->|$1| ");
         value = MISCLOSED_LABEL_PIPE.matcher(value).replaceAll("-->|$1| ");
         value = DOUBLED_ARROW_AFTER_LABEL.matcher(value).replaceAll("$1 ");
         Matcher unclosed = UNCLOSED_SHAPE_BEFORE_ARROW.matcher(value);
