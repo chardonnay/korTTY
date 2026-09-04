@@ -4402,12 +4402,20 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
         WindowDockGroup dockGroup = improvementApplyDockGroup;
         if (dockGroup != null) {
+            double dockWidth = storedDockWidth(GlobalSettings::getAiDiffDialogDockedWidth, 720);
+            // The dialog sizes itself to its pane when shown, and that size arrives from the platform
+            // after the dock has placed the window; opening it at the docked size to begin with keeps
+            // the two from disagreeing.
+            Window anchorWindow = analysisDialog != null ? analysisDialog.displayWindow() : null;
+            diffDialog.getDialogPane().setPrefWidth(dockWidth);
+            if (anchorWindow != null && anchorWindow.getHeight() > 0) {
+                diffDialog.getDialogPane().setPrefHeight(anchorWindow.getHeight());
+            }
             diffDialog.setDockedWidthOnly(true);
             diffDialog.addEventHandler(DialogEvent.DIALOG_SHOWN, shown -> {
                 if (diffDialog.getDialogPane().getScene() != null
                         && diffDialog.getDialogPane().getScene().getWindow() instanceof javafx.stage.Stage stage) {
-                    dockGroup.dock(stage, WindowDockGroup.Side.LEFT,
-                        storedDockWidth(GlobalSettings::getAiDiffDialogDockedWidth, 720));
+                    dockGroup.dock(stage, WindowDockGroup.Side.LEFT, dockWidth);
                 }
             });
         }
