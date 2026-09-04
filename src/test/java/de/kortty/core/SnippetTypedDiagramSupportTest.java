@@ -99,6 +99,75 @@ class SnippetTypedDiagramSupportTest {
     }
 
     @Test
+    void diagramSourceIsRecoveredFromAnAnswerWhoseJsonEscapingBroke() {
+        // The grammar demands quoted labels, so every quote must survive as \" inside the JSON
+        // string. A model that forgets produces an object that parses in no mode at all — the
+        // diagram itself is still perfectly good.
+        String brokenJson = """
+            {
+              "title": "Ablauf",
+              "mermaid": "flowchart TD
+                start_1(["Start"])
+                work_1["Read config"]
+                stop_1(["Stop"])
+                start_1 --> work_1
+                work_1 --> stop_1
+                class start_1,stop_1 setup
+                class work_1 work
+            ",
+              "codeReferences": []
+            }
+            """;
+
+        String recovered = SnippetTypedDiagramSupport.extractDiagramSource(
+            SnippetDiagramType.LOGICAL_STRUCTURE, brokenJson);
+
+        assertThat(recovered).startsWith("flowchart TD");
+        assertThat(recovered).contains("work_1[\"Read config\"]");
+        assertThat(recovered).doesNotContain("codeReferences");
+        assertThat(SnippetDiagramSupport.validateMermaid(recovered).valid()).isTrue();
+    }
+
+    @Test
+    void diagramSourceIsRecoveredFromEscapedJsonAndFromAFencedBlock() {
+        String escaped = "{\"mermaid\": \"flowchart TD\\n    start_1([\\\"Start\\\"])\\n    "
+            + "work_1[\\\"Run\\\"]\\n    stop_1([\\\"Stop\\\"])\\n    start_1 --> work_1\\n    "
+            + "work_1 --> stop_1\\n    class start_1,stop_1 setup\\n    class work_1 work\"}";
+        String fenced = """
+            Here is the diagram:
+            ```mermaid
+            sequenceDiagram
+            participant script as Script
+            participant server as Server
+            script ->> server: Upload
+            ```
+            Let me know if you need changes.
+            """;
+
+        String fromEscaped = SnippetTypedDiagramSupport.extractDiagramSource(
+            SnippetDiagramType.LOGICAL_STRUCTURE, escaped);
+        String fromFence = SnippetTypedDiagramSupport.extractDiagramSource(
+            SnippetDiagramType.SEQUENCE, fenced);
+
+        assertThat(SnippetDiagramSupport.validateMermaid(fromEscaped).valid()).isTrue();
+        assertThat(fromEscaped).contains("work_1[\"Run\"]");
+        assertThat(fromFence).startsWith("sequenceDiagram");
+        assertThat(fromFence).contains("script ->> server: Upload");
+        assertThat(fromFence).doesNotContain("Let me know");
+    }
+
+    @Test
+    void recoveryReturnsNothingForAnAnswerWithoutADiagram() {
+        assertThat(SnippetTypedDiagramSupport.extractDiagramSource(
+            SnippetDiagramType.LOGICAL_STRUCTURE, "I cannot draw this script.")).isEmpty();
+        assertThat(SnippetTypedDiagramSupport.extractDiagramSource(
+            SnippetDiagramType.LOGICAL_STRUCTURE, null)).isEmpty();
+        // A different family's diagram is not silently accepted for the requested one.
+        assertThat(SnippetTypedDiagramSupport.extractDiagramSource(
+            SnippetDiagramType.STATE, "flowchart TD\n    start_1([\"Start\"])")).isEmpty();
+    }
+
+    @Test
     void logicalStructureDelegatesToTheFlowchartDialect() {
         String flowchart = SnippetDiagramSupport.buildFallbackLogicalStructureMermaid("echo ok", "bash");
         assertThat(SnippetTypedDiagramSupport.validate(SnippetDiagramType.LOGICAL_STRUCTURE, flowchart).valid())

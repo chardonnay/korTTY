@@ -1532,12 +1532,25 @@ public final class SnippetAiWorkflowSupport {
         int snippetLines = SnippetDiagramSupport.countLines(scopedContent);
         SnippetAiResponseSupport.MermaidDiagram diagram =
             SnippetAiResponseSupport.parseMermaidDiagram(type, answer, scopedContent);
+        boolean salvaged = false;
+        if (!diagram.isUsable()) {
+            SnippetAiResponseSupport.MermaidDiagram recovered = recoverDiagramFromText(type, answer, scopedContent);
+            if (recovered != null) {
+                salvaged = recovered.isUsable();
+                diagram = recovered;
+            }
+        }
         if (!diagram.isUsable()) {
             // This used to be silent: the generic local fallback replaced the diagram and nobody
             // could tell an AI diagram from the fallback, let alone why the answer was thrown away.
-            logger.warn("AI diagram rejected: {} [type={}, snippet lines={}, answer chars={}]",
-                diagram.rejectionReason(), type, snippetLines, answer != null ? answer.length() : 0);
+            logger.warn("AI diagram rejected: {} [type={}, snippet lines={}, answer chars={}, {}]",
+                diagram.rejectionReason(), type, snippetLines, answer != null ? answer.length() : 0,
+                describeAnswer(type, answer));
             return diagram;
+        }
+        if (salvaged) {
+            logger.info("AI diagram recovered from an answer whose JSON envelope was unusable "
+                + "[type={}, snippet lines={}]", type, snippetLines);
         }
         SnippetDiagramSupport.MermaidValidation validation = SnippetTypedDiagramSupport.validateForSnippet(
             type, diagram.mermaid(), scopedContent, diagram.codeReferences(), fallbackLanguageCode);
@@ -1560,6 +1573,53 @@ public final class SnippetAiWorkflowSupport {
         logger.info("AI diagram accepted [type={}, snippet lines={}, node cap={}, {}]",
             type, snippetLines, SnippetDiagramSupport.maxGeneratedNonterminalNodes(scopedContent), summary);
         return diagram;
+    }
+
+    /**
+     * Rebuilds a diagram from an answer the JSON parser could not use. Returns {@code null} when
+     * the answer holds no diagram at all, so the caller keeps the original parse failure; when a
+     * diagram was found but breaks a generation rule, the returned result names that rule instead
+     * of the JSON complaint, because that is the reason a reader has to act on. Never sends a
+     * second request.
+     */
+    private static SnippetAiResponseSupport.MermaidDiagram recoverDiagramFromText(
+        de.kortty.model.SnippetDiagramType type, String answer, String scopedContent) {
+
+        String recoveredSource = SnippetTypedDiagramSupport.extractDiagramSource(type, answer);
+        if (recoveredSource.isBlank()) {
+            return null;
+        }
+        SnippetAiResponseSupport.MermaidDiagram recovered =
+            new SnippetAiResponseSupport.MermaidDiagram("", recoveredSource, java.util.List.of(), type);
+        if (!recovered.isUsable()) {
+            return null;
+        }
+        SnippetDiagramSupport.MermaidValidation generated =
+            SnippetTypedDiagramSupport.validateGenerated(type, recovered.mermaid(), scopedContent);
+        return generated.valid()
+            ? recovered
+            : SnippetAiResponseSupport.MermaidDiagram.rejected(type, generated.message());
+    }
+
+    /**
+     * A short, structural description of a rejected answer for the log. Without it the only way to
+     * tell "the model wrote prose", "the model wrote a diagram korTTY could not read" and "the
+     * model answered something else entirely" apart was to reproduce the run.
+     */
+    private static String describeAnswer(de.kortty.model.SnippetDiagramType type, String answer) {
+        if (answer == null || answer.isBlank()) {
+            return "answer empty";
+        }
+        String header = SnippetTypedDiagramSupport.header(type);
+        boolean carriesHeader = answer.toLowerCase(java.util.Locale.ROOT)
+            .contains(header.toLowerCase(java.util.Locale.ROOT));
+        String excerpt = answer.strip().replaceAll("\\s+", " ");
+        if (excerpt.length() > 160) {
+            excerpt = excerpt.substring(0, 160) + "…";
+        }
+        return "'" + header + "' present=" + carriesHeader
+            + ", fenced=" + answer.contains("```")
+            + ", starts with: " + excerpt;
     }
 
     /**
@@ -2171,11 +2231,25 @@ public final class SnippetAiWorkflowSupport {
 
     private static String buildMermaidContext(String fullContent, String snippetLanguage, String fallbackLanguageCode) {
         // The line-numbered block is the request's only source copy; AiPromptBuilder intentionally
-        // suppresses its generic raw-script block for this action.
-        return "Snippet language: " + snippetLanguage + "\n"
-            + "Diagram label language: " + fallbackLanguageCode + "\n"
-            + "Line-numbered snippet:\n"
-            + lineNumberedTextBlock(fullContent);
+        // suppresses its generic raw-script block for this action. A long script is condensed to
+        // its structure first — sending every line of a four-thousand-line file made models
+        // transcribe it rather than summarize it.
+        SnippetDiagramOutline.Outline outline = SnippetDiagramOutline.of(fullContent);
+        StringBuilder context = new StringBuilder("Snippet language: ").append(snippetLanguage).append('\n')
+            .append("Diagram label language: ").append(fallbackLanguageCode).append('\n');
+        if (outline.condensed()) {
+            context.append("The snippet is ").append(outline.totalLines())
+                .append(" lines long and is shown below as a condensed structural outline: only its ")
+                .append("definitions and top-level flow are listed, elided runs are marked with '… n lines ")
+                .append("omitted …', and every number is the original 1-based line number of the complete ")
+                .append("snippet. Diagram the overall flow at the level of these phases, and use original ")
+                .append("line numbers in codeReferences.\n");
+        }
+        // The literal heading also tells AiPromptBuilder that this request already carries its
+        // source copy; renaming it would append the whole raw script a second time.
+        return context.append("Line-numbered snippet:\n")
+            .append("```text\n").append(outline.text()).append("```")
+            .toString();
     }
 
     private static String buildOneLinerContext(

@@ -5,6 +5,7 @@ import de.kortty.model.SnippetDiagramType;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -76,7 +77,110 @@ public final class SnippetTypedDiagramSupport {
         "^[A-Za-z_][A-Za-z0-9_()\\[\\]]{0,63}\\s+[A-Za-z_][A-Za-z0-9_]{0,63}"
             + "(?:\\s+(?:PK|FK|UK)(?:\\s*,\\s*(?:PK|FK|UK))*)?(?:\\s+\"" + LABEL_TEXT + "\")?$");
 
+    /** Scan window for {@link #extractDiagramSource}; a runaway answer must not cost O(n²). */
+    private static final int MAX_SALVAGE_CHARS = 256 * 1024;
+    /** How many trailing lines of JSON debris the salvage may strip before giving up. */
+    private static final int MAX_SALVAGE_TRIM_LINES = 60;
+    private static final Pattern JSON_KEY_LINE = Pattern.compile("^\"[A-Za-z][A-Za-z0-9_]{0,63}\"\\s*:");
+
     private SnippetTypedDiagramSupport() {
+    }
+
+    /**
+     * Recovers the diagram from an answer whose JSON could not be parsed, without asking the model
+     * again.
+     *
+     * <p>The JSON envelope is the fragile part of the contract, not the diagram: korTTY's own
+     * grammar requires quoted labels ({@code node_1["Read config"]}), so every one of those quotes
+     * has to survive as {@code \"} inside a JSON string, and over a few thousand characters models
+     * routinely lose that escaping — the object then parses in neither strict nor lenient mode and
+     * a complete, perfectly good diagram is thrown away. The diagram itself is self-delimiting: it
+     * starts at the family's header line and every following line must match the restricted
+     * grammar. So the header is located, JSON string escapes are undone when the answer used them,
+     * and trailing debris is stripped until the family grammar accepts the block — which is also
+     * what keeps this safe, because nothing reaches a renderer that the normal validation would
+     * have rejected.</p>
+     *
+     * @return the recovered diagram source, or an empty string when nothing usable was found
+     */
+    public static String extractDiagramSource(SnippetDiagramType type, String answer) {
+        SnippetDiagramType safeType = type != null ? type : SnippetDiagramType.LOGICAL_STRUCTURE;
+        if (answer == null || answer.isBlank()) {
+            return "";
+        }
+        String text = answer.length() > MAX_SALVAGE_CHARS ? answer.substring(0, MAX_SALVAGE_CHARS) : answer;
+        int start = indexOfIgnoreCase(text, header(safeType));
+        if (start < 0) {
+            return "";
+        }
+        String candidate = text.substring(start);
+        if (candidate.contains("\\n")) {
+            candidate = unescapeJsonStringBody(candidate);
+        }
+        List<String> lines = new ArrayList<>();
+        for (String line : candidate.split("\\R")) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("```") || JSON_KEY_LINE.matcher(trimmed).find()) {
+                break;
+            }
+            lines.add(line);
+        }
+        for (int attempt = 0; attempt <= MAX_SALVAGE_TRIM_LINES && !lines.isEmpty(); attempt++) {
+            String accepted = firstAcceptedVariant(safeType, lines);
+            if (accepted != null) {
+                return accepted;
+            }
+            lines.remove(lines.size() - 1);
+        }
+        return "";
+    }
+
+    /**
+     * Tries the block as it stands and, failing that, with the JSON envelope stripped from its last
+     * line — {@code class work_1 work"}} is one valid statement plus two characters of envelope.
+     * That is only a second attempt because an ER attribute comment legitimately ends in a quote.
+     */
+    private static String firstAcceptedVariant(SnippetDiagramType type, List<String> lines) {
+        String source = String.join("\n", lines).strip();
+        if (!source.isBlank() && validate(type, source).valid()) {
+            return source;
+        }
+        String lastLine = lines.get(lines.size() - 1);
+        String stripped = lastLine.replaceAll("\\\\?\"\\s*[,\\}\\]]*\\s*$", "");
+        if (stripped.equals(lastLine)) {
+            return null;
+        }
+        List<String> variant = new ArrayList<>(lines.subList(0, lines.size() - 1));
+        variant.add(stripped);
+        String variantSource = String.join("\n", variant).strip();
+        return !variantSource.isBlank() && validate(type, variantSource).valid() ? variantSource : null;
+    }
+
+    private static int indexOfIgnoreCase(String text, String needle) {
+        return text.toLowerCase(Locale.ROOT).indexOf(needle.toLowerCase(Locale.ROOT));
+    }
+
+    /** Undoes the JSON string escapes of a diagram that was emitted as a (broken) JSON value. */
+    private static String unescapeJsonStringBody(String value) {
+        StringBuilder builder = new StringBuilder(value.length());
+        for (int index = 0; index < value.length(); index++) {
+            char character = value.charAt(index);
+            if (character != '\\' || index + 1 >= value.length()) {
+                builder.append(character);
+                continue;
+            }
+            char escaped = value.charAt(++index);
+            switch (escaped) {
+                case 'n' -> builder.append('\n');
+                case 't' -> builder.append('\t');
+                case 'r' -> { }
+                case '"' -> builder.append('"');
+                case '\\' -> builder.append('\\');
+                case '/' -> builder.append('/');
+                default -> builder.append('\\').append(escaped);
+            }
+        }
+        return builder.toString();
     }
 
     /** The exact Mermaid header line the family must start with; used by prompts and messages. */

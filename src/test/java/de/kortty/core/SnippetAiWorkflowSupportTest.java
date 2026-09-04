@@ -1496,6 +1496,113 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void mermaidRequestRecoversADiagramWhoseJsonEscapingBrokeWithoutRetry() throws Exception {
+        // Observed with MiniMax-M3: the model writes the quoted labels korTTY's own grammar
+        // requires straight into the JSON string without escaping them, so the object parses in
+        // neither strict nor lenient mode. The diagram is still complete and must not be lost.
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "title": "Ablauf",
+              "mermaid": "flowchart TD
+                start_1(["Start"])
+                work_1["Run snippet"]
+                stop_1(["Stop"])
+                start_1 --> work_1
+                work_1 --> stop_1
+                class start_1,stop_1 setup
+                class work_1 work
+            ",
+              "codeReferences": []
+            }
+            """);
+
+        SnippetAiResponseSupport.MermaidDiagram diagram =
+            SnippetAiWorkflowSupport.generateSnippetMermaid(
+                aiService,
+                null,
+                "echo ok",
+                "bash",
+                null,
+                "en",
+                null);
+
+        assertThat(diagram.isUsable()).isTrue();
+        assertThat(diagram.mermaid()).startsWith("flowchart TD");
+        assertThat(diagram.mermaid()).contains("work_1[\"Run snippet\"]");
+        assertThat(diagram.rejectionReason()).isNull();
+        assertThat(aiService.executionCount).isEqualTo(1);
+    }
+
+    @Test
+    void mermaidRequestReportsTheGenerationRuleWhenARecoveredDiagramBreaksIt() throws Exception {
+        StringBuilder mermaid = new StringBuilder("flowchart TD\n    start_1([\"Start\"])\n");
+        for (int index = 1; index <= 13; index++) {
+            mermaid.append("    work_").append(index).append("[\"Step ").append(index).append("\"]\n");
+        }
+        mermaid.append("    stop_1([\"Stop\"])\n    start_1 --> work_1\n");
+        for (int index = 1; index < 13; index++) {
+            mermaid.append("    work_").append(index).append(" --> work_").append(index + 1).append('\n');
+        }
+        mermaid.append("    work_13 --> stop_1\n    class start_1,stop_1 setup\n");
+        for (int index = 1; index <= 13; index++) {
+            mermaid.append("    class work_").append(index).append(" work\n");
+        }
+        CapturingAiService aiService = new CapturingAiService(
+            "{\n  \"title\": \"Broken envelope\",\n  \"mermaid\": \"" + mermaid + "\"\n}");
+
+        SnippetAiResponseSupport.MermaidDiagram diagram =
+            SnippetAiWorkflowSupport.generateSnippetMermaid(
+                aiService,
+                null,
+                "line\n".repeat(13),
+                "plain",
+                null,
+                "en",
+                null);
+
+        // The recovered diagram is a modelling problem, and the reason names that rather than the
+        // JSON complaint the reader cannot act on.
+        assertThat(diagram.isUsable()).isFalse();
+        assertThat(diagram.rejectionReason()).contains("at most 12 non-terminal nodes");
+        assertThat(aiService.executionCount).isEqualTo(1);
+    }
+
+    @Test
+    void longScriptsAreSentAsACondensedOutlineWithOriginalLineNumbers() throws Exception {
+        StringBuilder script = new StringBuilder("#!/usr/bin/env bash\n");
+        for (int index = 1; index <= 40; index++) {
+            script.append("phase_").append(index).append("() {\n");
+            for (int body = 0; body < 20; body++) {
+                script.append("  local value_").append(body).append("=").append(body).append('\n');
+            }
+            script.append("}\n");
+        }
+        script.append("phase_1\necho finished\n");
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "title": "Flow",
+              "mermaid": "flowchart TD\\n    start_1([\\\"Start\\\"])\\n    work_1[\\\"Run\\\"]\\n    stop_1([\\\"Stop\\\"])\\n    start_1 --> work_1\\n    work_1 --> stop_1\\n    class start_1,stop_1 setup\\n    class work_1 work"
+            }
+            """);
+
+        SnippetAiWorkflowSupport.generateSnippetMermaid(
+            aiService, null, script.toString(), "bash", null, "en", null);
+
+        String context = aiService.lastRequest.conversationContext();
+        assertThat(context).contains("condensed structural outline");
+        assertThat(context).contains("lines omitted …");
+        assertThat(context).contains("| phase_40() {");
+        assertThat(context).contains("| echo finished");
+        assertThat(context).doesNotContain("local value_7=7");
+        // The heading stays literal: it is what tells AiPromptBuilder the request already carries
+        // its source copy, and losing it would append the whole raw script a second time.
+        assertThat(context).contains("Line-numbered snippet:");
+        assertThat(AiPromptBuilder.buildUserPrompt(aiService.lastRequest))
+            .doesNotContain("Script content for context only:");
+        assertThat(context.length()).isLessThan(script.length() / 2);
+    }
+
+    @Test
     void mermaidRequestNamesTheReasonWhenTheAnswerCarriesNoDiagram() throws Exception {
         CapturingAiService aiService = new CapturingAiService("Sorry, I cannot draw this script.");
 
