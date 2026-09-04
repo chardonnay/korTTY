@@ -518,6 +518,29 @@ class SnippetAiResponseSupportTest {
     }
 
     @Test
+    void analysisWithRawQuotesInProseIsRepairedAndRead() {
+        // Shape of a live MiniMax-M3 analysis: one raw quote pair in a suggestion broke all of it.
+        String broken = """
+            {"summary":"A client.","dependencies":[{"id":"D11","name":"api.github.com","kind":"service",
+              "purpose":"Release download.","suggestion":"Verify the script before install -m 700 "$TEMP_UPGRADE_FILE" \\"$0\\"; pin releases."}],
+             "improvements":[{"id":"SEC-1","category":"security","severity":"high","title":"Say "hello" safely",
+              "detail":"Quote "$x" here.","recommendation":"Use printf '%s'.","line":3}]}
+            """;
+        SnippetAiResponseSupport.ScriptAnalysis analysis = SnippetAiResponseSupport.parseScriptAnalysis(broken);
+
+        assertThat(analysis.isUsable()).isTrue();
+        assertThat(analysis.improvements()).hasSize(1);
+        assertThat(analysis.improvements().get(0).title()).isEqualTo("Say \"hello\" safely");
+        assertThat(analysis.dependencies().get(0).suggestion())
+            .isEqualTo("Verify the script before install -m 700 \"$TEMP_UPGRADE_FILE\" \"$0\"; pin releases.");
+        // Valid JSON is never touched.
+        assertThat(SnippetAiResponseSupport.repairRawQuotesInStrings("{\"summary\":\"ok\",\"improvements\":[]}")).isNull();
+        // Escaped quotes stay escaped; a quote before a comma still closes the string.
+        assertThat(SnippetAiResponseSupport.repairRawQuotesInStrings("{\"a\":\"x \\\"y\\\" \"z\" w\",\"b\":1}"))
+            .isEqualTo("{\"a\":\"x \\\"y\\\" \\\"z\\\" w\",\"b\":1}");
+    }
+
+    @Test
     void hollowEditsAreDroppedWithTheirReason() {
         String original = "a\nb\nc\nd\ne\nf\n";
         SnippetAiResponseSupport.AppliedEdits applied = SnippetAiResponseSupport.applySnippetEditsLeniently(original, List.of(
