@@ -55,6 +55,18 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
      * Appended when retrying a structured-output action on an endpoint that ignored
      * {@code response_format}: it restates, in the prompt, the constraint the schema could not.
      */
+    /**
+     * Sent with the FIRST attempt to endpoints that accept response_format and ignore it
+     * (MiniMax): the retry's instruction, minus the accusation. The escaping rule is already in the
+     * contract; this repeats it as the last thing the model reads, where the retry's success
+     * suggests it counts. Costs ~70 tokens; a retry it prevents costs a whole request.
+     */
+    private static final String JSON_ONLY_FIRST_ATTEMPT_INSTRUCTION =
+        "Reply with the single JSON object described above and nothing else: no prose, no explanation, "
+            + "no markdown code fences. Every string value must be valid JSON — escape every double quote "
+            + "inside code as \\\" and every backslash as \\\\, and never break a string across lines. "
+            + "The first character of your reply must be { and the last must be }.";
+
     private static final String JSON_ONLY_RETRY_INSTRUCTION =
         "Your previous answer was not valid JSON. Reply with the single JSON object described above "
             + "and nothing else: no prose, no explanation, no markdown code fences, no leading or "
@@ -500,13 +512,33 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
      * Records why a structured-output request is being retried. The content itself goes to DEBUG
      * only and capped: it embeds the user's snippet, which must not land in the default log.
      */
+    /**
+     * Which way an unusable structured answer failed — the retry statistics were useless without
+     * it: an object that is there but does not parse (almost always a quote in a code line that
+     * was not escaped) is a different problem from prose or a fenced block.
+     */
+    static String unusableAnswerClass(String content) {
+        String trimmed = content != null ? content.strip() : "";
+        if (trimmed.isEmpty()) {
+            return "empty";
+        }
+        if (trimmed.startsWith("```")) {
+            return "fenced";
+        }
+        if (trimmed.startsWith("{")) {
+            return trimmed.endsWith("}") ? "json-shaped but unparsable (likely an unescaped quote)" : "json-shaped and cut off";
+        }
+        return "prose";
+    }
+
     private void logUnusableStructuredResponse(AiRequest request, AiExecutionResult result) {
         String content = result.content() != null ? result.content() : "";
         logger.warn(
             "AI endpoint accepted response_format for action={} but answered without usable JSON "
-                + "({} chars); retrying once without the schema. Enable debug logging for the response prefix.",
+                + "({} chars, {}); retrying once without the schema. Enable debug logging for the response prefix.",
             request.action(),
-            content.length());
+            content.length(),
+            unusableAnswerClass(content));
         if (logger.isDebugEnabled()) {
             logger.debug(
                 "Unusable structured response for action={}: {}",
@@ -1189,6 +1221,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         long promptTokens = 0L;
         long completionTokens = 0L;
         long totalTokens = 0L;
+        long cachedPromptTokens = 0L;
         for (AiTokenUsage usage : usageEntries) {
             if (usage == null) {
                 continue;
@@ -1196,8 +1229,9 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             promptTokens += usage.promptTokens();
             completionTokens += usage.completionTokens();
             totalTokens += usage.totalTokens();
+            cachedPromptTokens += usage.cachedPromptTokens();
         }
-        return new AiTokenUsage(promptTokens, completionTokens, totalTokens);
+        return new AiTokenUsage(promptTokens, completionTokens, totalTokens, cachedPromptTokens);
     }
 
     private String resolveModelForRequest(HttpClient client) throws IOException, InterruptedException {
@@ -1383,6 +1417,11 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             instruction.addProperty("role", "user");
             instruction.addProperty("content", JSON_ONLY_RETRY_INSTRUCTION);
             messages.add(instruction);
+        } else if (usesStructuredJsonSchema(request) && usesMiniMaxThinkingParameter(effectiveModel)) {
+            JsonObject reminder = new JsonObject();
+            reminder.addProperty("role", "user");
+            reminder.addProperty("content", JSON_ONLY_FIRST_ATTEMPT_INSTRUCTION);
+            messages.add(reminder);
         }
         String body = buildMessagesRequestBody(
             messages,
@@ -2366,7 +2405,17 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         if (promptTokens <= 0L && completionTokens <= 0L && totalTokens <= 0L) {
             return null;
         }
-        return new AiTokenUsage(promptTokens, completionTokens, totalTokens);
+        // OpenAI and MiniMax report the prefix-cached share of the prompt here; it decides whether
+        // a cache-friendly request layout is worth anything on an endpoint, so it is surfaced.
+        long cachedTokens = 0L;
+        if (usage.has("prompt_tokens_details") && usage.get("prompt_tokens_details").isJsonObject()) {
+            JsonElement cached = usage.getAsJsonObject("prompt_tokens_details").get("cached_tokens");
+            // Proxies serialise absent detail counters as null; a usage line never fails an answer.
+            if (cached != null && cached.isJsonPrimitive() && cached.getAsJsonPrimitive().isNumber()) {
+                cachedTokens = cached.getAsLong();
+            }
+        }
+        return new AiTokenUsage(promptTokens, completionTokens, totalTokens, cachedTokens);
     }
 
     private String extractErrorMessage(String body) {

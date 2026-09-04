@@ -4162,7 +4162,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 selection.dependencies(),
                 classicHardeningInstructions,
                 inputHardeningInstructions,
-                selection.migration());
+                selection.migration(),
+                originalContent);
         if (improvementApplyProgressWindow != null) {
             improvementApplyProgressWindow.close();
         }

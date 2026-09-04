@@ -277,7 +277,9 @@ final class LoggingAiService implements AiPromptService, AiSkillUsageTracker {
             return "tokens=n/a";
         }
         return "tokens=" + usage.totalTokens()
-            + " (prompt " + usage.promptTokens() + ", completion " + usage.completionTokens() + ")";
+            + " (prompt " + usage.promptTokens()
+            + (usage.cachedPromptTokens() > 0L ? ", cached " + usage.cachedPromptTokens() : "")
+            + ", completion " + usage.completionTokens() + ")";
     }
 
     private static String reasoningFlag(AiExecutionResult result) {

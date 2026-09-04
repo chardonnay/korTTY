@@ -448,7 +448,16 @@ public final class SnippetAiResponseSupport {
         List<SnippetEdit> edits,
         String summary,
         List<SecurityChange> changes,
-        List<String> implementedRequirements) {
+        List<String> implementedRequirements,
+        boolean recoveredFromBrokenJson) {
+
+        public SnippetEdits(
+            List<SnippetEdit> edits,
+            String summary,
+            List<SecurityChange> changes,
+            List<String> implementedRequirements) {
+            this(edits, summary, changes, implementedRequirements, false);
+        }
 
         public SnippetEdits {
             edits = edits != null ? List.copyOf(edits) : List.of();
@@ -464,6 +473,14 @@ public final class SnippetAiResponseSupport {
 
     public static SnippetEdits parseSnippetEdits(String responseText) {
         JsonObject object = parseJsonObject(responseText);
+        if (object == null || !object.has("edits")) {
+            // A quote in a code line that the model did not escape breaks the whole object; the
+            // edits are still there, one string per line, and are read back without a second request.
+            SnippetEdits recovered = recoverEditsFromBrokenJson(responseText);
+            if (recovered != null) {
+                return recovered;
+            }
+        }
         if (object == null) {
             return new SnippetEdits(List.of(), "", List.of(), List.of());
         }
@@ -480,10 +497,15 @@ public final class SnippetAiResponseSupport {
                 if (startLine == null) {
                     continue;
                 }
-                edits.add(new SnippetEdit(
-                    startLine,
-                    endLine != null ? endLine : startLine,
-                    parseStringArray(firstArray(edit, "replacementLines", "lines", "replacement", "newLines"))));
+                // Source lines, not identifiers: indentation, blank lines and a repeated `fi` or `}`
+                // are the code. An entry that is not a string makes the region untrustworthy; it is
+                // left to the repair round rather than guessed.
+                List<String> replacementLines = verbatimStringArray(
+                    firstArray(edit, "replacementLines", "lines", "replacement", "newLines"));
+                if (replacementLines == null) {
+                    continue;
+                }
+                edits.add(new SnippetEdit(startLine, endLine != null ? endLine : startLine, replacementLines));
             }
         }
         return new SnippetEdits(
@@ -491,6 +513,130 @@ public final class SnippetAiResponseSupport {
             firstString(object, "summary", "description"),
             parseSecurityChanges(object),
             parseStringArray(object, "implementedRequirements"));
+    }
+
+    private static final Pattern EDIT_START_LINE = Pattern.compile("\"startLine\"\\s*:\\s*(\\d+)");
+    private static final Pattern EDIT_END_LINE = Pattern.compile("\"endLine\"\\s*:\\s*(\\d+)");
+    private static final Pattern EDIT_LINES_OPEN = Pattern.compile("\"replacementLines\"\\s*:\\s*\\[");
+    private static final Pattern EDIT_FINDING = Pattern.compile("\"finding\"\\s*:\\s*\"([^\"]{1,64})\"");
+
+    /**
+     * Reads the edits out of an answer whose JSON does not parse. Only the newline-anchored form
+     * is read — every entry of {@code replacementLines} on its own line — because there the
+     * boundary of a string is the line end and an unescaped inner quote cannot mislead it; a
+     * compact single-line array would need a guess, and a guess in code is worse than the retry.
+     * All or nothing: the number of recovered edits must equal the number of {@code "startLine"}
+     * keys in the answer, so a partly readable answer still goes the retry route instead of
+     * silently applying half of what the model meant.
+     *
+     * @return the recovered edits, or {@code null} when the answer cannot be read this way
+     */
+    static SnippetEdits recoverEditsFromBrokenJson(String responseText) {
+        if (responseText == null || responseText.isBlank()) {
+            return null;
+        }
+        String text = AiResponseSanitizer.sanitizeForDisplay(responseText);
+        Matcher starts = EDIT_START_LINE.matcher(text);
+        List<Integer> startOffsets = new ArrayList<>();
+        List<Integer> startLines = new ArrayList<>();
+        while (starts.find()) {
+            startOffsets.add(starts.start());
+            startLines.add(Integer.parseInt(starts.group(1)));
+        }
+        if (startOffsets.isEmpty()) {
+            return null;
+        }
+        List<SnippetEdit> edits = new ArrayList<>();
+        for (int index = 0; index < startOffsets.size(); index++) {
+            int from = startOffsets.get(index);
+            int to = index + 1 < startOffsets.size() ? startOffsets.get(index + 1) : text.length();
+            String block = text.substring(from, to);
+            Matcher open = EDIT_LINES_OPEN.matcher(block);
+            if (!open.find()) {
+                return null;
+            }
+            List<String> lines = readNewlineAnchoredStringArray(block, open.end());
+            if (lines == null) {
+                return null;
+            }
+            // endLine may sit before or after startLine (nothing enforces key order on an endpoint
+            // that ignores the schema), so it is looked for from this object's own brace up to the
+            // next object's — and there must be exactly one, or the range is not trusted.
+            int objectStart = Math.max(0, text.lastIndexOf('{', from));
+            int nextBrace = index + 1 < startOffsets.size() ? text.lastIndexOf('{', startOffsets.get(index + 1)) : -1;
+            int objectEnd = nextBrace > from ? nextBrace : to;
+            Matcher end = EDIT_END_LINE.matcher(text.substring(objectStart, objectEnd));
+            if (!end.find()) {
+                return null;
+            }
+            int endLine = Integer.parseInt(end.group(1));
+            if (end.find()) {
+                return null;
+            }
+            edits.add(new SnippetEdit(startLines.get(index), endLine, lines));
+        }
+        List<SecurityChange> changes = new ArrayList<>();
+        Matcher finding = EDIT_FINDING.matcher(text);
+        while (finding.find()) {
+            String anchor = extractLenientJsonStringField(text.substring(finding.end()), "anchor");
+            String reason = extractLenientJsonStringField(text.substring(finding.end()), "reason");
+            changes.add(new SecurityChange(finding.group(1), anchor != null ? anchor : "", reason != null ? reason : ""));
+        }
+        String summary = extractLenientJsonStringField(text, "summary");
+        return new SnippetEdits(
+            edits, summary != null ? summary : "", changes,
+            parseLenientStringArrayField(text, "implementedRequirements"), true);
+    }
+
+    /**
+     * Reads {@code ["…", "…"]} where every entry sits on its own line, tolerating an unescaped
+     * quote inside an entry. Returns {@code null} for a compact array or one that never closes.
+     */
+    private static List<String> readNewlineAnchoredStringArray(String block, int offset) {
+        String rest = block.substring(offset);
+        String[] lines = rest.split("\\R", -1);
+        if (lines.length < 2 || !lines[0].isBlank()) {
+            return null;
+        }
+        List<String> values = new ArrayList<>();
+        for (int index = 1; index < lines.length; index++) {
+            String line = lines[index].strip();
+            if (line.equals("]") || line.equals("],") || line.startsWith("]")) {
+                return values;
+            }
+            if (line.isEmpty()) {
+                continue;
+            }
+            if (!line.startsWith("\"")) {
+                return null;
+            }
+            String core = line.endsWith(",") ? line.substring(0, line.length() - 1) : line;
+            if (core.length() < 2 || !core.endsWith("\"")) {
+                // A lone quote: a string the model broke across lines. Fail closed into the retry.
+                return null;
+            }
+            String body = core.substring(1, core.length() - 1);
+            StringBuilder value = new StringBuilder(body.length());
+            for (int i = 0; i < body.length(); i++) {
+                char c = body.charAt(i);
+                if (c == '\\' && i + 1 < body.length()) {
+                    if (body.charAt(i + 1) == 'u' && i + 5 < body.length()) {
+                        try {
+                            value.append((char) Integer.parseInt(body.substring(i + 2, i + 6), 16));
+                            i += 5;
+                            continue;
+                        } catch (NumberFormatException notUnicode) {
+                            // Not a JSON unicode escape: kept literally below, like any other token.
+                        }
+                    }
+                    appendJsonEscaped(value, body.charAt(++i));
+                } else {
+                    value.append(c);
+                }
+            }
+            values.add(value.toString());
+        }
+        return null;
     }
 
     /**
@@ -748,6 +894,24 @@ public final class SnippetAiResponseSupport {
         return parsed != null && parsed.isJsonArray()
             ? parseStringArray(parsed.getAsJsonArray())
             : List.of();
+    }
+
+    /**
+     * Source lines exactly as returned — no trim, no blank filter, no de-duplication — or
+     * {@code null} when an entry is not a string. A missing array is an empty list: a deletion.
+     */
+    private static List<String> verbatimStringArray(JsonArray array) {
+        if (array == null) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>(array.size());
+        for (JsonElement element : array) {
+            if (element == null || !element.isJsonPrimitive() || !element.getAsJsonPrimitive().isString()) {
+                return null;
+            }
+            values.add(element.getAsString());
+        }
+        return List.copyOf(values);
     }
 
     private static List<String> parseStringArray(JsonArray array) {
