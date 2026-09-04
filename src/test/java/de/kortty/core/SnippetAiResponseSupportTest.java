@@ -290,19 +290,19 @@ class SnippetAiResponseSupportTest {
         assertThat(recovered.changes()).hasSize(1);
         assertThat(recovered.changes().get(0).finding()).isEqualTo("SEC-1");
 
-        // A compact array would need a guess about where a string ends: not recovered, retried.
+        // A compact array is trusted only without raw quotes: this one goes to the retry.
         assertThat(SnippetAiResponseSupport.parseSnippetEdits(
             "{\"edits\":[{\"startLine\":2,\"endLine\":2,\"replacementLines\":[\"echo \"a\" b\"]}],\"summary\":\"x\"}")
             .isUsable()).isFalse();
-        // All or nothing: one edit readable line by line and one not is still a retry, never a
-        // stage that silently applies half of what the model meant.
+        // All or nothing: one edit readable and one not is still a retry, never a stage that
+        // silently applies half of what the model meant.
         assertThat(SnippetAiResponseSupport.parseSnippetEdits("""
             {
               "edits": [
                 {"startLine": 2, "endLine": 2, "replacementLines": [
                   "echo "a""
                 ]},
-                {"startLine": 4, "endLine": 4, "replacementLines": ["echo "b""]}
+                {"startLine": 4, "endLine": 4, "replacementLines": ["echo "b]}
               ]
             }
             """).isUsable()).isFalse();
@@ -331,12 +331,207 @@ class SnippetAiResponseSupportTest {
         assertThat(SnippetAiResponseSupport.parseSnippetEdits(
             "{\"edits\":[{\"startLine\":2,\"endLine\":2,\"replacementLines\":[\n\"echo \"a\" b\",\n\",\n]}]}")
             .isUsable()).isFalse();
+        // A code line starting with } after a raw line break inside an entry is not the closer.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits("""
+            {"edits":[{"startLine":2,"endLine":2,"replacementLines":[
+              "echo "a"",
+              "if x; then foo"
+              } fi",
+              "done"
+            ]}]}
+            """).isUsable()).isFalse();
         // Unicode escapes decode the way Gson would have decoded them.
         assertThat(SnippetAiResponseSupport.parseSnippetEdits("""
             {"edits":[{"startLine":2,"endLine":2,"replacementLines":[
               "echo "gr\\u00fc\\u00dfe""
             ]}]}
             """).edits().get(0).replacementLines()).containsExactly("echo \"grüße\"");
+    }
+
+    @Test
+    void compactEditAnswersAreRecoveredFromTheSlipsModelsActuallyMake() {
+        // Shapes taken from live MiniMax-M3 answers: everything on one line, and one slip each.
+        // A missing ] before the closing brace of an edit.
+        SnippetAiResponseSupport.SnippetEdits missingBracket = SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":5,\"endLine\":6,\"replacementLines\":[\"  a=1\",\"  b=\\\"$a\\\"\"},"
+                + "{\"startLine\":9,\"endLine\":9,\"replacementLines\":[\"exit 0\"]}],\"summary\":\"s\","
+                + "\"changes\":[{\"finding\":\"SEC-1\",\"anchor\":\"  a=1\",\"reason\":\"r\"}],\"implementedRequirements\":[\"H-1\"]}");
+        assertThat(missingBracket.recoveredFromBrokenJson()).isTrue();
+        assertThat(missingBracket.edits()).hasSize(2);
+        assertThat(missingBracket.edits().get(0).replacementLines()).containsExactly("  a=1", "  b=\"$a\"").inOrder();
+        assertThat(missingBracket.edits().get(1).replacementLines()).containsExactly("exit 0");
+        assertThat(missingBracket.summary()).isEqualTo("s");
+        assertThat(missingBracket.implementedRequirements()).containsExactly("H-1");
+        assertThat(missingBracket.changes().get(0).finding()).isEqualTo("SEC-1");
+
+        // An escape JSON does not know, and a newline inside an entry.
+        SnippetAiResponseSupport.SnippetEdits badEscape = SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\": [{\"startLine\": 5, \"endLine\": 5, \"replacementLines\": "
+                + "[\"sed -e\\\"s|/x\\$|/y|\\\" <<<\\\"$C\\\"\\nnext\"]}], \"summary\": \"t\"}");
+        assertThat(badEscape.recoveredFromBrokenJson()).isTrue();
+        assertThat(badEscape.edits().get(0).replacementLines())
+            .containsExactly("sed -e\"s|/x\\$|/y|\" <<<\"$C\"", "next").inOrder();
+
+        // The summary written as a nested object after the edits.
+        SnippetAiResponseSupport.SnippetEdits nestedSummary = SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\": [{\"startLine\": 5, \"endLine\": 5, \"replacementLines\": [\"a\", \"b\"]}], "
+                + "{\"summary\": \"nested\", \"changes\": [], \"implementedRequirements\": []}}");
+        assertThat(nestedSummary.recoveredFromBrokenJson()).isTrue();
+        assertThat(nestedSummary.edits().get(0).replacementLines()).containsExactly("a", "b").inOrder();
+        assertThat(nestedSummary.summary()).isEqualTo("nested");
+
+        // An unescaped quote inside a compact entry: the answer's own delimiter style decides
+        // which quote-comma is a seam. A raw quote pair in the OTHER style inside an entry —
+        // awk -F"," in a spaced answer, echo "a", "b" in a compact one — could as well be an
+        // answer whose items use another style than its keys, which would glue every entry of
+        // the array into one line; both fail closed.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\": [{\"startLine\": 5, \"endLine\": 5, \"replacementLines\": "
+                + "[\"awk -F\",\" '{print $1}'\", \"echo \"done\"\"]}], \"summary\": \"u\"}").isUsable()).isFalse();
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":"
+                + "[\"echo \"a\", \"b\"\",\"echo \"done\"\"]}],\"summary\":\"v\"}").isUsable()).isFalse();
+        // Items in another style than the keys would otherwise read as one glued line.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\": [{\"startLine\": 5, \"endLine\": 5, \"replacementLines\": [\"a\",\"b\",\"c\"]}], \"summary\": \"u\"}")
+            .edits().get(0).replacementLines()).containsExactly("a", "b", "c").inOrder();
+        // A compact entry with any raw quote is not trusted, whatever its style.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":"
+                + "[\"echo \"a b\" done\",\"echo \"done\"\"]}],\"summary\":\"v\"}").isUsable()).isFalse();
+        // Escaped closers inside code are plain content; raw ones are refused with their quotes.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":"
+                + "[\"echo \\\"},\\\"\",\"echo \\\"]}\\\"\",\"echo done\"]}],\"summary\":\"w\"}")
+            .edits().get(0).replacementLines()).containsExactly("echo \"},\"", "echo \"]}\"", "echo done").inOrder();
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":[\"echo \"},\"\",\"echo done\"]}],\"summary\":\"w\"}")
+            .isUsable()).isFalse();
+        // A line number beyond int range is a glitch, not a range.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":99999999999,\"endLine\":5,\"replacementLines\":[\"a \"b\" c\"]}],\"summary\":\"v\"}")
+            .isUsable()).isFalse();
+        // A split that lands inside a quoted pair leaves an odd quote count: not recovered.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":"
+                + "[\"echo \"a\",\"b\"\",\"x\"]}],\"summary\":\"w\"}").isUsable()).isFalse();
+        // Code that contains the answer's own delimiter with raw quotes cannot be told from two
+        // entries locally; the snippet says it was one line, and the read fails closed.
+        String awkAnswer = "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":"
+            + "[\"awk -F\",\" '{print $1}'\",\"echo done\"}],\"summary\":\"v\"}";
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(awkAnswer, "a\nawk -F\",\" '{print $1}'\nc\n").isUsable())
+            .isFalse();
+        // Without the snippet there is no signal: the split is what Gson returns for the same text.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(awkAnswer, "a\nb\nc\n").edits().get(0).replacementLines())
+            .containsExactly("awk -F", " '{print $1}'", "echo done").inOrder();
+        // A quote followed by ] inside code does not close the array (code, not structure,
+        // follows that ]); with its raw quotes the entry is refused all the same.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":"
+                + "[\"arr=(\"]\")\",\"x\"]}],\"summary\":\"w\"}").isUsable()).isFalse();
+        // An edit's closing brace forgotten between two edits is read like the missing bracket.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":[\"a\"],"
+                + "{\"startLine\":7,\"endLine\":7,\"replacementLines\":[\"b\"]}],\"summary\":\"w\"}").edits())
+            .hasSize(2);
+        // Whitespace and then a quote is not a forgotten comma: seen live, that shape was a
+        // closing quote the model had shifted into the next entry. Not recovered.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":[\"a=1\"      \"b=2\",\"c=3\"]}],\"summary\":\"w\"}")
+            .isUsable()).isFalse();
+        // The same shape from a raw quote pair in code is indistinguishable: also not recovered.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":[\"x=(\"a\" \"b\")\",\"c=3\"]}],\"summary\":\"w\"}")
+            .isUsable()).isFalse();
+        // An array that never closes: the scan for an entry's closing quote must not run into
+        // the answer's own keys and hand back key text as code.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\": [{\"startLine\": 5, \"endLine\": 5, \"replacementLines\": [\"a\", \"b\", \"summary\": \"the \"x\" thing\"}")
+            .isUsable()).isFalse();
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\": [{\"startLine\": 5, \"endLine\": 5, \"replacementLines\": [\"a\", \"b\"]], \"summary\": \"s\"}")
+            .isUsable()).isFalse();
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":[\"echo \"a\", \"summary\":\"s\",\"changes\":[]}")
+            .isUsable()).isFalse();
+        // The model changed the seam-bearing line ($1 -> $2): its left half plus the delimiter
+        // is still part of the original line, so this was one code line, not two entries.
+        String changedAwk = "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":"
+            + "[\"awk -F\",\" '{print $2}'\",\"echo done\"}],\"summary\":\"v\"}";
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(changedAwk, "a\nb\nc\nd\nawk -F\",\" '{print $1}'\n").isUsable())
+            .isFalse();
+        // A blank entry next to an unrelated seam elsewhere in the script is still read.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":2,\"endLine\":2,\"replacementLines\":[\"foo\",\"\",\"bar\"]}],\"summary\":\"v\"}",
+            "awk -F\",\" x\ny\nz\n").edits().get(0).replacementLines()).containsExactly("foo", "", "bar").inOrder();
+        // One entry per line: a wrapped line holding several entries is refused, a raw quote pair
+        // whose seam-shaped quote closes a pair is one entry, and a bare } line inside an entry
+        // that a raw line break split is not the array's end.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits("""
+            {"edits": [{"startLine": 5, "endLine": 5, "replacementLines": [
+              "echo "hi" there", "echo done"
+            ]}], "summary": "s"}
+            """).isUsable()).isFalse();
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits("""
+            {"edits": [{"startLine": 5, "endLine": 5, "replacementLines": [
+              "printf "%s %s", "$a" "$b"",
+              "echo \\$x"
+            ]}], "summary": "s"}
+            """).edits().get(0).replacementLines()).containsExactly("printf \"%s %s\", \"$a\" \"$b\"", "echo \\$x").inOrder();
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits("""
+            {"edits": [{"startLine": 2, "endLine": 4, "replacementLines": [
+              "log() {",
+              "  echo "done
+            }
+            main "$@"",
+              "exit 0"
+            ]}], "summary": "s"}
+            """).isUsable()).isFalse();
+        // A trailing comma before the close is tolerated.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":[\"a\",\"b\",]}],\"summary\":\"w\"}")
+            .edits().get(0).replacementLines()).containsExactly("a", "b").inOrder();
+        // The array closing "," between entries of a spaced answer stays an entry boundary even
+        // when the object carries more keys after the array.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\": [{\"replacementLines\": [\"a\", \"b\"], \"startLine\": 5, \"endLine\": 5}], \"summary\": \"w\"}")
+            .edits().get(0).replacementLines()).containsExactly("a", "b").inOrder();
+    }
+
+    @Test
+    void jsonFailuresAreDescribedWithPathAndSurroundingText() {
+        String broken = """
+            {"edits":[{"startLine":2,"endLine":2,"replacementLines":[
+              "echo ok",
+              "echo "quoted" done"
+            ]}],"summary":"s"}
+            """;
+        String description = SnippetAiResponseSupport.describeJsonFailure(broken);
+
+        assertThat(description).contains("$.edits[0].replacementLines[");
+        assertThat(description).doesNotContain("github.com/google/gson");
+        assertThat(description).contains("near:");
+        assertThat(description).contains("quoted");
+        assertThat(SnippetAiResponseSupport.describeJsonFailure("{\"edits\":[]}")).isNull();
+        assertThat(SnippetAiResponseSupport.describeJsonFailure("Sure, here you go.")).isEqualTo("no JSON object in the answer");
+        assertThat(SnippetAiResponseSupport.describeJsonFailure("  ")).isEqualTo("empty answer");
+    }
+
+    @Test
+    void hollowEditsAreDroppedWithTheirReason() {
+        String original = "a\nb\nc\nd\ne\nf\n";
+        SnippetAiResponseSupport.AppliedEdits applied = SnippetAiResponseSupport.applySnippetEditsLeniently(original, List.of(
+            new SnippetAiResponseSupport.SnippetEdit(2, 5, List.of("b")),
+            new SnippetAiResponseSupport.SnippetEdit(6, 6, List.of("F"))));
+        assertThat(applied.dropped()).containsExactly("2-5 returns only the first 1 of its 4 lines unchanged");
+        assertThat(applied.replacement()).isEqualTo("a\nb\nc\nd\ne\nF\n");
+        // A two-line range shrunk to its first line, a changed first line, and a deletion are edits.
+        assertThat(SnippetAiResponseSupport.applySnippetEditsLeniently(original, List.of(
+            new SnippetAiResponseSupport.SnippetEdit(2, 3, List.of("b")))).dropped()).isEmpty();
+        assertThat(SnippetAiResponseSupport.applySnippetEditsLeniently(original, List.of(
+            new SnippetAiResponseSupport.SnippetEdit(2, 5, List.of("B")))).dropped()).isEmpty();
+        assertThat(SnippetAiResponseSupport.applySnippetEditsLeniently(original, List.of(
+            new SnippetAiResponseSupport.SnippetEdit(2, 5, List.of()))).replacement()).isEqualTo("a\nf\n");
     }
 
     @Test

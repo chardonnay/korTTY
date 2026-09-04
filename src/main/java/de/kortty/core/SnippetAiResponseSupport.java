@@ -472,11 +472,20 @@ public final class SnippetAiResponseSupport {
     }
 
     public static SnippetEdits parseSnippetEdits(String responseText) {
+        return parseSnippetEdits(responseText, null);
+    }
+
+    /**
+     * @param originalSnippet the snippet the edits are for, when known: it lets the recovery of a
+     *     broken answer recognise a code line it split in two (the two halves joined with the
+     *     array's delimiter are an original line) and fail closed instead of applying the split
+     */
+    public static SnippetEdits parseSnippetEdits(String responseText, String originalSnippet) {
         JsonObject object = parseJsonObject(responseText);
         if (object == null || !object.has("edits")) {
-            // A quote in a code line that the model did not escape breaks the whole object; the
-            // edits are still there, one string per line, and are read back without a second request.
-            SnippetEdits recovered = recoverEditsFromBrokenJson(responseText);
+            // The slips models make inside code break the whole object; the edits are still
+            // there and are read back tolerantly without a second request.
+            SnippetEdits recovered = recoverEditsFromBrokenJson(responseText, originalSnippet);
             if (recovered != null) {
                 return recovered;
             }
@@ -532,20 +541,35 @@ public final class SnippetAiResponseSupport {
      * @return the recovered edits, or {@code null} when the answer cannot be read this way
      */
     static SnippetEdits recoverEditsFromBrokenJson(String responseText) {
+        return recoverEditsFromBrokenJson(responseText, null);
+    }
+
+    static SnippetEdits recoverEditsFromBrokenJson(String responseText, String originalSnippet) {
         if (responseText == null || responseText.isBlank()) {
             return null;
+        }
+        java.util.Set<String> originalLines = new java.util.HashSet<>();
+        if (originalSnippet != null) {
+            for (String line : originalSnippet.split("\\R", -1)) {
+                originalLines.add(line);
+            }
         }
         String text = AiResponseSanitizer.sanitizeForDisplay(responseText);
         Matcher starts = EDIT_START_LINE.matcher(text);
         List<Integer> startOffsets = new ArrayList<>();
         List<Integer> startLines = new ArrayList<>();
         while (starts.find()) {
+            if (starts.group(1).length() > 9) {
+                return null;
+            }
             startOffsets.add(starts.start());
             startLines.add(Integer.parseInt(starts.group(1)));
         }
         if (startOffsets.isEmpty()) {
             return null;
         }
+        // The serializer's whitespace style, read off a key: it decides which "," is a boundary.
+        boolean spacedStyle = text.contains("\"startLine\": ");
         List<SnippetEdit> edits = new ArrayList<>();
         for (int index = 0; index < startOffsets.size(); index++) {
             int from = startOffsets.get(index);
@@ -555,7 +579,7 @@ public final class SnippetAiResponseSupport {
             if (!open.find()) {
                 return null;
             }
-            List<String> lines = readNewlineAnchoredStringArray(block, open.end());
+            List<String> lines = readStringArrayTolerantly(block, open.end(), spacedStyle, originalLines);
             if (lines == null) {
                 return null;
             }
@@ -567,6 +591,9 @@ public final class SnippetAiResponseSupport {
             int objectEnd = nextBrace > from ? nextBrace : to;
             Matcher end = EDIT_END_LINE.matcher(text.substring(objectStart, objectEnd));
             if (!end.find()) {
+                return null;
+            }
+            if (end.group(1).length() > 9) {
                 return null;
             }
             int endLine = Integer.parseInt(end.group(1));
@@ -589,11 +616,53 @@ public final class SnippetAiResponseSupport {
     }
 
     /**
-     * Reads {@code ["…", "…"]} where every entry sits on its own line, tolerating an unescaped
-     * quote inside an entry. Returns {@code null} for a compact array or one that never closes.
+     * Reads the strings of {@code ["…", "…"]} from an answer whose JSON does not parse, tolerating
+     * the slips models make inside code: an unescaped quote, an escape JSON does not know
+     * ({@code \\$}, {@code \\s}), a newline inside an entry, and a missing {@code ]} before the
+     * closing brace. Two layouts are read. When every entry sits on its own line the line end is
+     * the boundary and nothing can mislead it. In a compact array the boundary is the answer's own
+     * delimiter — {@code ","} or {@code ", "}, whichever style the serializer used for its keys —
+     * so a quote followed by a comma in the other style stays inside the entry; and an entry with
+     * an odd number of raw quotes means the split fell inside a quoted pair, which fails the read.
+     * Returns {@code null} whenever the array cannot be read with certainty.
      */
-    private static List<String> readNewlineAnchoredStringArray(String block, int offset) {
+    static List<String> readStringArrayTolerantly(String block, int offset, boolean spacedStyle) {
+        return readStringArrayTolerantly(block, offset, spacedStyle, java.util.Set.of());
+    }
+
+    static List<String> readStringArrayTolerantly(
+        String block, int offset, boolean spacedStyle, java.util.Set<String> originalLines) {
         String rest = block.substring(offset);
+        int firstBreak = rest.indexOf('\n');
+        int firstQuote = rest.indexOf('"');
+        boolean onePerLine = firstBreak >= 0 && (firstQuote < 0 || firstBreak < firstQuote);
+        List<String> values = onePerLine ? readNewlineAnchoredStringArray(rest) : readCompactStringArray(rest, spacedStyle);
+        if (values == null || onePerLine) {
+            return values;
+        }
+        // The one split a compact read cannot see locally: code that contains the delimiter
+        // itself (awk -F"," or IFS=", " with the quotes left raw) reads as two entries. When a
+        // half plus the delimiter is part of a line of the snippet, the model changed a line that
+        // carries the seam — a code line, not two entries. A blank half proves nothing.
+        String delimiter = spacedStyle ? "\", \"" : "\",\"";
+        List<String> seamLines = originalLines.stream().filter(line -> line.contains(delimiter)).toList();
+        if (seamLines.isEmpty()) {
+            return values;
+        }
+        for (int i = 0; i + 1 < values.size(); i++) {
+            String left = values.get(i);
+            String right = values.get(i + 1);
+            for (String line : seamLines) {
+                if ((!left.isBlank() && line.contains(left + delimiter))
+                    || (!right.isBlank() && line.contains(delimiter + right))) {
+                    return null;
+                }
+            }
+        }
+        return values;
+    }
+
+    private static List<String> readNewlineAnchoredStringArray(String rest) {
         String[] lines = rest.split("\\R", -1);
         if (lines.length < 2 || !lines[0].isBlank()) {
             return null;
@@ -601,8 +670,15 @@ public final class SnippetAiResponseSupport {
         List<String> values = new ArrayList<>();
         for (int index = 1; index < lines.length; index++) {
             String line = lines[index].strip();
-            if (line.equals("]") || line.equals("],") || line.startsWith("]")) {
-                return values;
+            if (line.startsWith("]") || line.startsWith("}")) {
+                // The array has ended only when nothing but structure follows the closer: the
+                // object's end, the next edit's brace, or the answer's next key. A code line after
+                // a raw line break inside an entry — a bare } as well — is not the array's end.
+                String after = String.join("\n", java.util.Arrays.asList(lines).subList(index, lines.length))
+                    .replaceFirst("^[\\]}\\s,]*", "");
+                boolean nextEdit = after.startsWith("{")
+                    && (skipSpaces(after, 1) == after.length() || keyFollows(after, skipSpaces(after, 1)));
+                return after.isEmpty() || nextEdit || keyFollows(after, 0) ? values : null;
             }
             if (line.isEmpty()) {
                 continue;
@@ -616,27 +692,261 @@ public final class SnippetAiResponseSupport {
                 return null;
             }
             String body = core.substring(1, core.length() - 1);
-            StringBuilder value = new StringBuilder(body.length());
-            for (int i = 0; i < body.length(); i++) {
-                char c = body.charAt(i);
-                if (c == '\\' && i + 1 < body.length()) {
-                    if (body.charAt(i + 1) == 'u' && i + 5 < body.length()) {
-                        try {
-                            value.append((char) Integer.parseInt(body.substring(i + 2, i + 6), 16));
-                            i += 5;
-                            continue;
-                        } catch (NumberFormatException notUnicode) {
-                            // Not a JSON unicode escape: kept literally below, like any other token.
-                        }
-                    }
-                    appendJsonEscaped(value, body.charAt(++i));
-                } else {
-                    value.append(c);
-                }
+            if (holdsSeveralEntries(body) || !appendDecodedLines(values, body)) {
+                return null;
             }
-            values.add(value.toString());
         }
         return null;
+    }
+
+    /**
+     * A wrapped line that holds more than one entry: a raw quote outside any quoted pair (an even
+     * number of raw quotes before it), a comma, optional whitespace and a quote. Code of the same
+     * shape (IFS=", " with raw quotes) cannot be told apart from it here, so both fail closed.
+     */
+    private static boolean holdsSeveralEntries(String body) {
+        int quotes = 0;
+        for (int i = 0; i < body.length(); i++) {
+            char c = body.charAt(i);
+            if (c == '\\') {
+                i++;
+                continue;
+            }
+            if (c != '"') {
+                continue;
+            }
+            if (quotes % 2 == 0 && i + 1 < body.length() && body.charAt(i + 1) == ',') {
+                int quoteAt = skipSpaces(body, i + 2);
+                if (quoteAt < body.length() && body.charAt(quoteAt) == '"') {
+                    return true;
+                }
+            }
+            quotes++;
+        }
+        return false;
+    }
+
+    private static List<String> readCompactStringArray(String rest, boolean spacedStyle) {
+        List<String> values = new ArrayList<>();
+        int i = skipSpaces(rest, 0);
+        if (i < rest.length() && rest.charAt(i) == ']') {
+            return values;
+        }
+        while (i < rest.length()) {
+            if (rest.charAt(i) != '"' || keyFollows(rest, i)) {
+                // Not an entry: the array was never closed and this is the answer's next key.
+                return null;
+            }
+            int end = compactStringEnd(rest, i + 1, spacedStyle);
+            if (end < 0) {
+                return null;
+            }
+            String body = rest.substring(i + 1, end);
+            // A compact array is trusted only while no entry holds a raw quote: every seam-shaped
+            // ambiguity there comes from raw quotes, and the structural slips seen live keep the
+            // quotes escaped. An answer that left a quote raw goes to the retry.
+            if (rawQuoteCount(body) != 0 || containsOtherStyleSeam(body, spacedStyle)
+                || !appendDecodedLines(values, body)) {
+                return null;
+            }
+            i = skipSpaces(rest, end + 1);
+            if (i >= rest.length()) {
+                return null;
+            }
+            char next = rest.charAt(i);
+            if (next == ',') {
+                i = skipSpaces(rest, i + 1);
+                if (i >= rest.length()) {
+                    return null;
+                }
+                next = rest.charAt(i);
+                if (next == '"') {
+                    continue;
+                }
+                // A trailing comma before the close is read like no comma at all.
+            }
+            if ((next == ']' || next == '}') && structureFollowsArrayEnd(rest, i)) {
+                return values;
+            }
+            return null;
+        }
+        return null;
+    }
+
+    /**
+     * After the token that closed the array only structure may follow — the object's end, or a
+     * comma and the next key — or, after a brace that stood in for a missing bracket, the next
+     * edit. A quote followed by ] inside code (arr=("]")) would otherwise close the array early,
+     * and what follows it then is code, not structure.
+     */
+    private static boolean structureFollowsArrayEnd(String text, int closeAt) {
+        int i = skipSpaces(text, closeAt + 1);
+        if (i >= text.length()) {
+            return true;
+        }
+        if (text.charAt(closeAt) == ']') {
+            char c = text.charAt(i);
+            if (c == ',') {
+                return nextEditOrKeyFollows(text, i);
+            }
+            if (c != '}') {
+                return false;
+            }
+            i++;
+        }
+        // Past the edit's closing brace only closers may stack (the edits array's ], the root's })
+        // before the answer ends or a comma leads to the next edit or key. A closer inside code
+        // (echo "]}", echo "},", printf "},\n") is followed by the code's own closing quote instead.
+        while (i < text.length()
+            && (text.charAt(i) == ']' || text.charAt(i) == '}' || Character.isWhitespace(text.charAt(i)))) {
+            i++;
+        }
+        if (i >= text.length()) {
+            return true;
+        }
+        return text.charAt(i) == ',' && nextEditOrKeyFollows(text, i);
+    }
+
+    /** The next key of this object, or — the edit's closing brace forgotten — the next edit. */
+    private static boolean nextEditOrKeyFollows(String text, int commaAt) {
+        int afterComma = skipSpaces(text, commaAt + 1);
+        return keyFollows(text, afterComma) || (afterComma < text.length() && text.charAt(afterComma) == '{');
+    }
+
+    private static boolean keyFollows(String text, int at) {
+        if (at >= text.length() || text.charAt(at) != '"') {
+            return false;
+        }
+        int end = text.indexOf('"', at + 1);
+        if (end < 0 || end == at + 1) {
+            return false;
+        }
+        for (int i = at + 1; i < end; i++) {
+            if (!Character.isLetterOrDigit(text.charAt(i)) && text.charAt(i) != '_') {
+                return false;
+            }
+        }
+        int colon = skipSpaces(text, end + 1);
+        return colon < text.length() && text.charAt(colon) == ':';
+    }
+
+    /**
+     * The closing quote of the entry starting at {@code from}: the first unescaped quote that is
+     * followed by the array's delimiter in the answer's whitespace style, or by {@code ]} or
+     * {@code }} — a quote followed by anything else is code.
+     */
+    private static int compactStringEnd(String text, int from, boolean spacedStyle) {
+        for (int i = from; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '\\') {
+                i++;
+                continue;
+            }
+            if (c != '"') {
+                continue;
+            }
+            if (keyFollows(text, i)) {
+                // The scan ran past the array into the answer's own keys: no closing quote.
+                return -1;
+            }
+            int next = i + 1;
+            if (next >= text.length()) {
+                return i;
+            }
+            int closing = skipSpaces(text, next);
+            if (closing < text.length() && text.charAt(closing) == ',') {
+                int quoteAt = skipSpaces(text, closing + 1);
+                boolean spaceFollows = quoteAt > closing + 1;
+                boolean quoteFollows = quoteAt < text.length() && text.charAt(quoteAt) == '"';
+                if (quoteFollows && spaceFollows == spacedStyle) {
+                    return i;
+                }
+                // A trailing comma right before the close.
+                closing = quoteAt;
+            } else if (closing > next && closing < text.length() && text.charAt(closing) == '"') {
+                // A quote, whitespace, a quote: a forgotten comma, or a closing quote the model
+                // shifted into the next entry (seen live), or a quoted pair in code. Reading on
+                // would glue two entries, reading a boundary would leave a stray quote in one
+                // of them, and nothing here tells the three apart. Refuse, and let the retry run.
+                return -1;
+            }
+            if (closing < text.length() && (text.charAt(closing) == ']' || text.charAt(closing) == '}')
+                && structureFollowsArrayEnd(text, closing)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * A raw quote, a comma and a quote in the whitespace style the answer does not use for its
+     * seams: either code that happens to look like a seam, or an answer whose items are written
+     * in another style than its keys — in which case the entries of the whole array would have
+     * been glued into one line. Neither is told apart here, so the read fails closed.
+     */
+    private static boolean containsOtherStyleSeam(String body, boolean spacedStyle) {
+        for (int i = 0; i < body.length(); i++) {
+            char c = body.charAt(i);
+            if (c == '\\') {
+                i++;
+                continue;
+            }
+            if (c != '"' || i + 1 >= body.length() || body.charAt(i + 1) != ',') {
+                continue;
+            }
+            int quoteAt = skipSpaces(body, i + 2);
+            if (quoteAt < body.length() && body.charAt(quoteAt) == '"' && (quoteAt > i + 2) != spacedStyle) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static int skipSpaces(String text, int from) {
+        int i = from;
+        while (i < text.length() && Character.isWhitespace(text.charAt(i))) {
+            i++;
+        }
+        return i;
+    }
+
+    private static int rawQuoteCount(String body) {
+        int count = 0;
+        for (int i = 0; i < body.length(); i++) {
+            char c = body.charAt(i);
+            if (c == '\\') {
+                i++;
+            } else if (c == '"') {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /** Decodes one JSON-ish string body into source lines (a newline inside an entry splits it). */
+    private static boolean appendDecodedLines(List<String> values, String body) {
+        StringBuilder value = new StringBuilder(body.length());
+        for (int i = 0; i < body.length(); i++) {
+            char c = body.charAt(i);
+            if (c == '\\' && i + 1 < body.length()) {
+                if (body.charAt(i + 1) == 'u' && i + 5 < body.length()) {
+                    try {
+                        value.append((char) Integer.parseInt(body.substring(i + 2, i + 6), 16));
+                        i += 5;
+                        continue;
+                    } catch (NumberFormatException notUnicode) {
+                        // Not a JSON unicode escape: kept literally below, like any other token.
+                    }
+                }
+                appendJsonEscaped(value, body.charAt(++i));
+            } else {
+                value.append(c);
+            }
+        }
+        for (String line : value.toString().split("\\R", -1)) {
+            values.add(line);
+        }
+        return true;
     }
 
     /**
@@ -668,6 +978,24 @@ public final class SnippetAiResponseSupport {
      * repair round that follows can ask for what a dropped edit meant to do. Returns {@code null}
      * when nothing at all could be applied.
      */
+    /**
+     * A range of three or more lines whose replacement is a shorter, unchanged prefix of it: the
+     * model emitted the first line(s) and stopped. A deletion (no lines) is a legitimate edit and
+     * is not this; nor is a shortened block, which keeps its closing line and so is no prefix.
+     */
+    private static boolean isHollowEdit(List<String> lines, int start, int end, List<String> replacement) {
+        int rangeLength = end - start + 1;
+        if (rangeLength < 3 || replacement.isEmpty() || replacement.size() >= rangeLength) {
+            return false;
+        }
+        for (int i = 0; i < replacement.size(); i++) {
+            if (!replacement.get(i).equals(lines.get(start - 1 + i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static AppliedEdits applySnippetEditsLeniently(String original, List<SnippetEdit> edits) {
         if (original == null || edits == null || edits.isEmpty()) {
             return null;
@@ -684,7 +1012,15 @@ public final class SnippetAiResponseSupport {
                 dropped.add(start + "-" + end + " lies outside the " + lines.size() + "-line snippet");
                 continue;
             }
-            ordered.add(new SnippetEdit(start, Math.min(end, lines.size()), edit.replacementLines()));
+            int clampedEnd = Math.min(end, lines.size());
+            if (isHollowEdit(lines, start, clampedEnd, edit.replacementLines())) {
+                // Seen live: a range of nineteen lines "replaced" by its own first line — the model
+                // stopped after one entry. Applying it would gut the function.
+                dropped.add(start + "-" + clampedEnd + " returns only the first " + edit.replacementLines().size()
+                    + " of its " + (clampedEnd - start + 1) + " lines unchanged");
+                continue;
+            }
+            ordered.add(new SnippetEdit(start, clampedEnd, edit.replacementLines()));
         }
         ordered.sort(java.util.Comparator.comparingInt(SnippetEdit::startLine));
         List<SnippetEdit> accepted = new ArrayList<>();
@@ -905,7 +1241,12 @@ public final class SnippetAiResponseSupport {
             return List.of();
         }
         List<String> values = new ArrayList<>(array.size());
-        for (JsonElement element : array) {
+        for (int index = 0; index < array.size(); index++) {
+            JsonElement element = array.get(index);
+            if (index == array.size() - 1 && (element == null || element.isJsonNull())) {
+                // Gson's lenient reader turns a trailing comma into a trailing null.
+                break;
+            }
             if (element == null || !element.isJsonPrimitive() || !element.getAsJsonPrimitive().isString()) {
                 return null;
             }
@@ -1376,6 +1717,61 @@ public final class SnippetAiResponseSupport {
             }
         }
         return null;
+    }
+
+    private static final Pattern JSON_FAILURE_POSITION = Pattern.compile("line (\\d+) column (\\d+)");
+
+    /**
+     * Where and why an answer's JSON fails, for a log line: Gson's message carries the line,
+     * column and path (e.g. {@code $.edits[3].replacementLines[7]}), and the text around that
+     * spot shows what the model wrote there. {@code null} when the JSON parses.
+     */
+    public static String describeJsonFailure(String responseText) {
+        if (responseText == null || responseText.isBlank()) {
+            return "empty answer";
+        }
+        // Judged from the answer's first brace to its end: the payload extraction would hand back
+        // the first inner object that happens to parse, and the question here is why the root
+        // object did not.
+        String sanitized = AiResponseSanitizer.sanitizeForDisplay(responseText);
+        int brace = sanitized.indexOf('{');
+        if (brace < 0) {
+            return "no JSON object in the answer";
+        }
+        String candidate = sanitized.substring(brace).strip();
+        try {
+            JsonParser.parseString(candidate);
+            return null;
+        } catch (RuntimeException failure) {
+            String message = failure.getMessage() != null ? failure.getMessage() : failure.toString();
+            message = message
+                .replace("Use JsonReader.setStrictness(Strictness.LENIENT) to accept malformed JSON", "")
+                .replaceAll("\\s*See https://github\\.com/google/gson/\\S+", "")
+                .strip();
+            Matcher position = JSON_FAILURE_POSITION.matcher(message);
+            if (!position.find()) {
+                return message;
+            }
+            int offset = offsetOf(candidate, Integer.parseInt(position.group(1)), Integer.parseInt(position.group(2)));
+            if (offset < 0) {
+                return message;
+            }
+            String around = candidate.substring(Math.max(0, offset - 80), Math.min(candidate.length(), offset + 40))
+                .replace("\r", "").replace("\n", "\u23CE");
+            return message + " — near: " + around;
+        }
+    }
+
+    private static int offsetOf(String text, int line, int column) {
+        int offset = 0;
+        for (int current = 1; current < line; current++) {
+            offset = text.indexOf('\n', offset);
+            if (offset < 0) {
+                return -1;
+            }
+            offset++;
+        }
+        return Math.min(text.length(), offset + Math.max(0, column - 1));
     }
 
     private static JsonElement parseJsonElement(String jsonCandidate) {

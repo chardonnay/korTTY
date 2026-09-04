@@ -157,6 +157,8 @@ public class KorTTYApplication extends Application {
     
     @Override
     public void init() throws Exception {
+        // Unusable AI answers are archived beside the log only inside the running application.
+        de.kortty.core.AiAnswerArchive.enableForApplication();
         instance = this;
 
         // Load the enterprise policy FIRST — the settings managers constructed below must see the
