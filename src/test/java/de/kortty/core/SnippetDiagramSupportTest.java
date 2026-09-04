@@ -406,15 +406,15 @@ class SnippetDiagramSupportTest {
     @Test
     void generatedValidationRejectsOverDetailedStatementChain() {
         StringBuilder mermaid = new StringBuilder("flowchart TD\n    start_1([\"Start\"])\n");
-        for (int index = 1; index <= 25; index++) {
+        for (int index = 1; index <= 40; index++) {
             mermaid.append("    work_").append(index).append("[\"Step ").append(index).append("\"]\n");
         }
         mermaid.append("    stop_1([\"Stop\"])\n    start_1 --> work_1\n");
-        for (int index = 1; index < 25; index++) {
+        for (int index = 1; index < 40; index++) {
             mermaid.append("    work_").append(index).append(" --> work_").append(index + 1).append('\n');
         }
-        mermaid.append("    work_25 --> stop_1\n    class start_1,stop_1 setup\n");
-        for (int index = 1; index <= 25; index++) {
+        mermaid.append("    work_40 --> stop_1\n    class start_1,stop_1 setup\n");
+        for (int index = 1; index <= 40; index++) {
             mermaid.append("    class work_").append(index).append(" work\n");
         }
 
@@ -936,17 +936,21 @@ class SnippetDiagramSupportTest {
         String twenty = linearChain(25);
         String longSnippet = "line\n".repeat(1_200);
 
-        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(twenty).message())
-            .contains("at most 12 non-terminal nodes for this snippet (24 tolerated), but 25 were declared");
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(linearChain(40)).message())
+            .contains("at most 12 non-terminal nodes for this snippet (36 tolerated), but 40 were declared");
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(twenty).valid()).isTrue();
         assertThat(SnippetDiagramSupport.validateGeneratedMermaid(twenty, 24).valid()).isTrue();
         assertThat(SnippetDiagramSupport.validateGeneratedMermaid(linearChain(20)).valid()).isTrue();
         assertThat(SnippetDiagramSupport.validateMermaidForSnippet(twenty, longSnippet, List.of(), "en").valid())
             .isTrue();
         assertThat(SnippetDiagramSupport.validateMermaidForSnippet(
             linearChain(30), longSnippet, List.of(), "en").valid()).isTrue();
+        // Seen live: 49 nodes for a 4,000-line script, one over twice the cap, was thrown away.
         assertThat(SnippetDiagramSupport.validateMermaidForSnippet(
-            linearChain(49), longSnippet, List.of(), "en").message())
-            .contains("at most 24 non-terminal nodes for this snippet (48 tolerated), but 49 were declared");
+            linearChain(49), longSnippet, List.of(), "en").valid()).isTrue();
+        assertThat(SnippetDiagramSupport.validateMermaidForSnippet(
+            linearChain(80), longSnippet, List.of(), "en").message())
+            .contains("at most 24 non-terminal nodes for this snippet (72 tolerated), but 80 were declared");
 
         SnippetDiagramSupport.FlowchartStatistics statistics =
             SnippetDiagramSupport.flowchartStatistics(linearChain(25));

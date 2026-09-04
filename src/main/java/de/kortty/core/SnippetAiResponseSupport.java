@@ -636,7 +636,9 @@ public final class SnippetAiResponseSupport {
         int firstBreak = rest.indexOf('\n');
         int firstQuote = rest.indexOf('"');
         boolean onePerLine = firstBreak >= 0 && (firstQuote < 0 || firstBreak < firstQuote);
-        List<String> values = onePerLine ? readNewlineAnchoredStringArray(rest) : readCompactStringArray(rest, spacedStyle);
+        List<String> values = onePerLine
+            ? readNewlineAnchoredStringArray(rest)
+            : readCompactStringArray(rest, spacedStyle, originalLines);
         if (values == null || onePerLine) {
             return values;
         }
@@ -727,6 +729,11 @@ public final class SnippetAiResponseSupport {
     }
 
     private static List<String> readCompactStringArray(String rest, boolean spacedStyle) {
+        return readCompactStringArray(rest, spacedStyle, java.util.Set.of());
+    }
+
+    private static List<String> readCompactStringArray(
+        String rest, boolean spacedStyle, java.util.Set<String> originalLines) {
         List<String> values = new ArrayList<>();
         int i = skipSpaces(rest, 0);
         if (i < rest.length() && rest.charAt(i) == ']') {
@@ -742,11 +749,19 @@ public final class SnippetAiResponseSupport {
                 return null;
             }
             String body = rest.substring(i + 1, end);
-            // A compact array is trusted only while no entry holds a raw quote: every seam-shaped
-            // ambiguity there comes from raw quotes, and the structural slips seen live keep the
-            // quotes escaped. An answer that left a quote raw goes to the retry.
-            if (rawQuoteCount(body) != 0 || containsOtherStyleSeam(body, spacedStyle)
-                || !appendDecodedLines(values, body)) {
+            // Raw quotes inside an entry are fine in pairs (res="", echo "x"): a seam-shaped raw
+            // quote has already ended the entry above, so what is left is either balanced code or
+            // a split that fell inside a quoted pair — and that one has an odd count. One odd case
+            // is certain all the same: a line that ends in a quote whose closing quote the model
+            // swallowed (res="" written as res=") — when the entry plus a quote is a line of the
+            // snippet, that line it is.
+            if (rawQuoteCount(body) % 2 != 0) {
+                if (!originalLines.contains(body + "\"")) {
+                    return null;
+                }
+                body = body + "\"";
+            }
+            if (containsOtherStyleSeam(body, spacedStyle) || !appendDecodedLines(values, body)) {
                 return null;
             }
             i = skipSpaces(rest, end + 1);
