@@ -375,6 +375,8 @@ public final class WorkflowScriptGenerator {
                     service, null, scriptContent, language.snippetLanguage(), "", "",
                     instructions != null ? instructions : "");
             if (generated == null || !generated.isUsable()) {
+                logger.warn("Workflow AI diagram was rejected ({}); using the local Mermaid fallback",
+                    generated != null ? generated.rejectionReason() : "no diagram returned");
                 return buildFallbackDiagram(scriptContent, language, instructions, existing);
             }
             return buildPersistedDiagram(generated, scriptContent, instructions, existing);

@@ -1388,7 +1388,7 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
-    void mermaidRequestRejectsIncompleteCodeReferencesWithoutRetry() throws Exception {
+    void mermaidRequestKeepsADiagramWithIncompleteCodeReferencesWithoutRetry() throws Exception {
         CapturingAiService aiService = new CapturingAiService("""
             {
               "title": "Flat flow",
@@ -1407,7 +1407,11 @@ class SnippetAiWorkflowSupportTest {
                 "en",
                 null);
 
-        assertThat(diagram.isUsable()).isFalse();
+        // Missing references used to discard the whole diagram in favour of the generic local
+        // fallback; now the diagram is kept and only the hover references are missing.
+        assertThat(diagram.isUsable()).isTrue();
+        assertThat(diagram.codeReferences()).isEmpty();
+        assertThat(diagram.rejectionReason()).isNull();
         assertThat(aiService.executionCount).isEqualTo(1);
     }
 
@@ -1449,6 +1453,64 @@ class SnippetAiWorkflowSupportTest {
                 null);
 
         assertThat(diagram.isUsable()).isFalse();
+        assertThat(diagram.rejectionReason())
+            .contains("at most 12 non-terminal nodes for this snippet, but 13 were declared");
+        assertThat(aiService.executionCount).isEqualTo(1);
+    }
+
+    @Test
+    void mermaidRequestAcceptsAWiderFlowchartForALongScript() throws Exception {
+        StringBuilder mermaid = new StringBuilder("flowchart TD\n    start_1([\"Start\"])\n");
+        for (int index = 1; index <= 20; index++) {
+            mermaid.append("    work_").append(index).append("[\"Phase ").append(index).append("\"]\n");
+        }
+        mermaid.append("    stop_1([\"Stop\"])\n    start_1 --> work_1\n");
+        for (int index = 1; index < 20; index++) {
+            mermaid.append("    work_").append(index).append(" --> work_").append(index + 1).append('\n');
+        }
+        mermaid.append("    work_20 --> stop_1\n    class start_1,stop_1 setup\n");
+        for (int index = 1; index <= 20; index++) {
+            mermaid.append("    class work_").append(index).append(" work\n");
+        }
+        JsonObject response = new JsonObject();
+        response.addProperty("title", "Long script");
+        response.addProperty("mermaid", mermaid.toString());
+        CapturingAiService aiService = new CapturingAiService(response.toString());
+
+        SnippetAiResponseSupport.MermaidDiagram diagram =
+            SnippetAiWorkflowSupport.generateSnippetMermaid(
+                aiService,
+                null,
+                "line\n".repeat(1_200),
+                "bash",
+                null,
+                "en",
+                null);
+
+        // 1,200 lines raise the cap to 24 nodes, and the prompt tells the model that number.
+        assertThat(diagram.isUsable()).isTrue();
+        assertThat(diagram.rejectionReason()).isNull();
+        assertThat(AiPromptBuilder.buildSystemPrompt(aiService.lastRequest))
+            .contains("Use at most 24 action and decision nodes in total");
+        assertThat(aiService.executionCount).isEqualTo(1);
+    }
+
+    @Test
+    void mermaidRequestNamesTheReasonWhenTheAnswerCarriesNoDiagram() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("Sorry, I cannot draw this script.");
+
+        SnippetAiResponseSupport.MermaidDiagram diagram =
+            SnippetAiWorkflowSupport.generateSnippetMermaid(
+                aiService,
+                null,
+                "echo ok",
+                "bash",
+                null,
+                "en",
+                null);
+
+        assertThat(diagram.isUsable()).isFalse();
+        assertThat(diagram.rejectionReason()).contains("no JSON object");
         assertThat(aiService.executionCount).isEqualTo(1);
     }
 

@@ -273,10 +273,13 @@ class SnippetAiResponseSupportTest {
         SnippetAiResponseSupport.MermaidDiagram malformed =
             SnippetAiResponseSupport.parseMermaidDiagram("{ \"title\": \"Broken\", \"mermaid\": \"\" }");
         assertThat(malformed.isUsable()).isFalse();
+        assertThat(malformed.rejectionReason()).contains("no 'mermaid' value");
 
         SnippetAiResponseSupport.MermaidDiagram legacy =
             SnippetAiResponseSupport.parseMermaidDiagram("{ \"title\": \"Legacy\", \"plantUml\": \"@startuml\\n@enduml\" }");
         assertThat(legacy.isUsable()).isFalse();
+        assertThat(legacy.rejectionReason()).contains("no 'mermaid' value");
+        assertThat(diagram.rejectionReason()).isNull();
     }
 
     @Test
@@ -586,8 +589,11 @@ class SnippetAiResponseSupportTest {
                 """.formatted(new com.google.gson.Gson().toJson(tooLargeMermaid)));
 
         assertThat(missingDiagram.isUsable()).isFalse();
+        assertThat(missingDiagram.rejectionReason()).contains("no 'mermaid' value");
         assertThat(unsafeDiagram.isUsable()).isFalse();
+        assertThat(unsafeDiagram.rejectionReason()).contains("directives, callbacks and custom styles");
         assertThat(tooLargeDiagram.isUsable()).isFalse();
+        assertThat(tooLargeDiagram.rejectionReason()).contains("32 KiB limit");
     }
 
     @Test

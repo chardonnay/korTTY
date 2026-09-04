@@ -410,7 +410,7 @@ class SnippetDiagramSupportTest {
     }
 
     @Test
-    void freshSnippetDiagramRequiresCompleteBoundedSourceMapping() {
+    void freshSnippetDiagramKeepsAnIncompleteSourceMappingAndReportsTheGaps() {
         String linear = """
             flowchart TD
                 start_1(["Start"])
@@ -428,10 +428,69 @@ class SnippetDiagramSupportTest {
 
         assertThat(SnippetDiagramSupport.validateMermaidForSnippet(
             linear, "run\n", complete, "en").valid()).isTrue();
+        // A missing or unusable mapping no longer discards the whole diagram in favour of the
+        // generic fallback: the affected node just loses its hover reference.
         assertThat(SnippetDiagramSupport.validateMermaidForSnippet(
-            linear, "run\n", List.of(), "en").message()).contains("one valid source reference");
+            linear, "run\n", List.of(), "en").valid()).isTrue();
         assertThat(SnippetDiagramSupport.validateMermaidForSnippet(
-            linear, "run\n", outOfBounds, "en").message()).contains("one valid source reference");
+            linear, "run\n", outOfBounds, "en").valid()).isTrue();
+        assertThat(SnippetDiagramSupport.reportSourceMapping(linear, "run\n", complete).complete()).isTrue();
+        SnippetDiagramSupport.SourceMappingReport gaps =
+            SnippetDiagramSupport.reportSourceMapping(linear, "run\n", outOfBounds);
+        assertThat(gaps.expectedNodes()).isEqualTo(1);
+        assertThat(gaps.mappedNodes()).isEqualTo(0);
+        assertThat(gaps.unmappedNodeIds()).containsExactly("work_1");
+    }
+
+    @Test
+    void generatedNodeCapGrowsLinearlyWithTheSnippetLength() {
+        assertThat(SnippetDiagramSupport.maxGeneratedNonterminalNodes("")).isEqualTo(12);
+        assertThat(SnippetDiagramSupport.maxGeneratedNonterminalNodes((String) null)).isEqualTo(12);
+        assertThat(SnippetDiagramSupport.maxGeneratedNonterminalNodes(200)).isEqualTo(12);
+        assertThat(SnippetDiagramSupport.maxGeneratedNonterminalNodes(600)).isEqualTo(18);
+        assertThat(SnippetDiagramSupport.maxGeneratedNonterminalNodes(1_000)).isEqualTo(24);
+        assertThat(SnippetDiagramSupport.maxGeneratedNonterminalNodes(4_008)).isEqualTo(24);
+        assertThat(SnippetDiagramSupport.maxGeneratedNonterminalNodes("a\nb\nc")).isEqualTo(12);
+        assertThat(SnippetDiagramSupport.countLines("a\nb\nc")).isEqualTo(3);
+        assertThat(SnippetDiagramSupport.countLines(null)).isEqualTo(0);
+    }
+
+    @Test
+    void longSnippetsAcceptMoreNodesThanTheBaseCap() {
+        String twenty = linearChain(20);
+        String longSnippet = "line\n".repeat(1_200);
+
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(twenty).message())
+            .contains("at most 12 non-terminal nodes for this snippet, but 20 were declared");
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(twenty, 24).valid()).isTrue();
+        assertThat(SnippetDiagramSupport.validateMermaidForSnippet(twenty, longSnippet, List.of(), "en").valid())
+            .isTrue();
+        assertThat(SnippetDiagramSupport.validateMermaidForSnippet(
+            linearChain(25), longSnippet, List.of(), "en").message())
+            .contains("at most 24 non-terminal nodes for this snippet, but 25 were declared");
+
+        SnippetDiagramSupport.FlowchartStatistics statistics =
+            SnippetDiagramSupport.flowchartStatistics(linearChain(25));
+        assertThat(statistics.nonterminalNodes()).isEqualTo(25);
+        assertThat(statistics.decisionNodes()).isEqualTo(0);
+        assertThat(statistics.edges()).isEqualTo(26);
+        assertThat(statistics.toString()).isEqualTo("nodes=25 (decisions=0), edges=26");
+    }
+
+    private static String linearChain(int steps) {
+        StringBuilder mermaid = new StringBuilder("flowchart TD\n    start_1([\"Start\"])\n");
+        for (int index = 1; index <= steps; index++) {
+            mermaid.append("    work_").append(index).append("[\"Step ").append(index).append("\"]\n");
+        }
+        mermaid.append("    stop_1([\"Stop\"])\n    start_1 --> work_1\n");
+        for (int index = 1; index < steps; index++) {
+            mermaid.append("    work_").append(index).append(" --> work_").append(index + 1).append('\n');
+        }
+        mermaid.append("    work_").append(steps).append(" --> stop_1\n    class start_1,stop_1 setup\n");
+        for (int index = 1; index <= steps; index++) {
+            mermaid.append("    class work_").append(index).append(" work\n");
+        }
+        return mermaid.toString();
     }
 
     @Test

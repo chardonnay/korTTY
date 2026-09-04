@@ -26,7 +26,7 @@ class AiActionSkillPromptSupportTest {
         String prompt = AiPromptBuilder.buildSystemPrompt(request);
 
         assertThat(prompt).contains("<kortty_required_action_skill id=\"builtin.action.snippet-mermaid\"");
-        assertThat(prompt).contains("keep at most 12 nonterminal nodes");
+        assertThat(prompt).contains("never exceed the node limit stated in the fixed contract");
         assertThat(prompt).contains("Never create one node per variable, command, print statement");
         assertThat(prompt).contains("Every declared node must be reachable from `start_1`");
         assertThat(prompt).contains("`stop_1` has no outgoing edge");

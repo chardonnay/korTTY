@@ -653,18 +653,24 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
      * @param outputLimitReached the model used its whole completion budget (typically on hidden
      *                           reasoning) and returned no complete diagram
      */
+    /**
+     * {@code fallbackReason} is set when {@code diagram} is the deterministic local fallback and
+     * names why the AI diagram was not used; {@code null} for a genuine AI diagram or a failure.
+     */
     private record DiagramGenerationResult(
         SnippetAiResponseSupport.MermaidDiagram diagram,
         MermaidRenderService.SyntaxCheckResult syntaxCheck,
         MermaidRenderService.RenderResult renderCheck,
-        boolean outputLimitReached) {
+        boolean outputLimitReached,
+        String fallbackReason) {
 
         private DiagramGenerationResult(
             SnippetAiResponseSupport.MermaidDiagram diagram,
             MermaidRenderService.SyntaxCheckResult syntaxCheck,
-            MermaidRenderService.RenderResult renderCheck) {
+            MermaidRenderService.RenderResult renderCheck,
+            boolean outputLimitReached) {
 
-            this(diagram, syntaxCheck, renderCheck, false);
+            this(diagram, syntaxCheck, renderCheck, outputLimitReached, null);
         }
     }
 
@@ -4021,6 +4027,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             @Override
             protected SnippetDiagramView.DiagramSource call() throws Exception {
                 SnippetAiResponseSupport.MermaidDiagram diagram = null;
+                String failure = null;
                 try {
                     diagram = aiAssist.diagramProvider() != null
                         ? aiAssist.diagramProvider().generate(
@@ -4030,6 +4037,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     if (isCancelled()) {
                         return null;
                     }
+                    failure = isOutputTokenLimitFailure(e)
+                        ? I18n.get("snippets.ai.diagram.outputLimitReached")
+                        : shortenStatusMessage(String.valueOf(e.getMessage()));
                     logger.warn("AI diagram generation failed; using the local Mermaid fallback", e);
                 }
                 if (isCancelled()) {
@@ -4038,8 +4048,20 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 if (diagram != null && diagram.isUsable()) {
                     return new SnippetDiagramView.DiagramSource(diagram.mermaid(), fullContent, diagram.codeReferences());
                 }
+                // The fallback looks like a real diagram, so it is labelled: without the notice a
+                // discarded AI answer was indistinguishable from a merely poor one.
+                String reason = failure != null
+                    ? failure
+                    : diagram != null ? diagram.rejectionReason() : null;
+                if (failure == null && reason != null) {
+                    logger.warn("AI diagram was rejected ({}); using the local Mermaid fallback", reason);
+                }
+                String notice = reason != null
+                    ? I18n.get("snippets.ai.analysis.diagram.fallback", reason)
+                    : I18n.get("snippets.ai.analysis.diagram.fallback.generic");
                 String mermaid = SnippetDiagramSupport.buildFallbackLogicalStructureMermaid(fullContent, language);
-                return new SnippetDiagramView.DiagramSource(mermaid, fullContent, List.of());
+                return new SnippetDiagramView.DiagramSource(
+                    mermaid, fullContent, List.of(), SnippetDiagramType.LOGICAL_STRUCTURE, notice);
             }
         };
         task.setOnSucceeded(event -> future.complete(task.getValue()));
@@ -5569,6 +5591,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             protected DiagramGenerationResult call() throws Exception {
                 SnippetAiResponseSupport.MermaidDiagram diagram = null;
                 boolean outputLimitReached = false;
+                String failureMessage = null;
                 try {
                     diagram = aiAssist.diagramProvider().generate(new DiagramRequest(
                         fullContent,
@@ -5582,6 +5605,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                         scope != null ? scope.endLine() : 0));
                 } catch (Exception e) {
                     outputLimitReached = isOutputTokenLimitFailure(e);
+                    failureMessage = outputLimitReached
+                        ? I18n.get("snippets.ai.diagram.outputLimitReached")
+                        : shortenStatusMessage(String.valueOf(e.getMessage()));
                     logger.warn("AI diagram generation failed", e);
                 }
                 MermaidRenderService.SyntaxCheckResult syntaxCheck = null;
@@ -5595,6 +5621,18 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 }
                 if (allowFallback
                     && (diagram == null || !diagram.isUsable() || renderCheck == null || !renderCheck.success())) {
+                    String fallbackReason = failureMessage != null
+                        ? failureMessage
+                        : diagram == null
+                            ? null
+                            : !diagram.isUsable()
+                                ? diagram.rejectionReason()
+                                : renderCheck != null && !renderCheck.success()
+                                    ? shortenStatusMessage(renderCheck.message())
+                                    : null;
+                    if (failureMessage == null && fallbackReason != null) {
+                        logger.warn("AI diagram was rejected ({}); using the local Mermaid fallback", fallbackReason);
+                    }
                     String fallbackSource = SnippetDiagramSupport.buildFallbackLogicalStructureMermaid(fullContent, snippetLanguage);
                     String fallbackTitle = diagram != null && diagram.title() != null && !diagram.title().isBlank()
                         ? diagram.title()
@@ -5609,7 +5647,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                                 fallbackDiagram.mermaid(), MermaidRenderService.Theme.LIGHT, "#FFFFFF", false))
                             .get(31, java.util.concurrent.TimeUnit.SECONDS);
                     if (fallbackRenderCheck.success()) {
-                        return new DiagramGenerationResult(fallbackDiagram, fallbackSyntaxCheck, fallbackRenderCheck);
+                        return new DiagramGenerationResult(
+                            fallbackDiagram, fallbackSyntaxCheck, fallbackRenderCheck, false, fallbackReason);
                     }
                 }
                 return new DiagramGenerationResult(diagram, syntaxCheck, renderCheck, outputLimitReached);
@@ -5628,7 +5667,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             if (generated == null || !generated.isUsable()) {
                 setStatus(result != null && result.outputLimitReached()
                     ? I18n.get("snippets.ai.diagram.outputLimitReached")
-                    : I18n.get("snippets.ai.diagram.failed"));
+                    : generated != null && generated.rejectionReason() != null
+                        ? I18n.get("snippets.ai.diagram.rejected", generated.rejectionReason())
+                        : I18n.get("snippets.ai.diagram.failed"));
                 return;
             }
             MermaidRenderService.SyntaxCheckResult syntaxCheck = result.syntaxCheck();
@@ -5654,7 +5695,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             diagram.setUpdatedAt(System.currentTimeMillis());
             upsertDiagram(diagram);
             updateSaveButtonState();
-            setStatus(I18n.get("snippets.ai.diagram.ready"));
+            setStatus(result.fallbackReason() != null
+                ? I18n.get("snippets.ai.diagram.fallbackSaved", result.fallbackReason())
+                : I18n.get("snippets.ai.diagram.ready"));
             openOrCreateDiagram();
         });
         task.setOnFailed(event ->
