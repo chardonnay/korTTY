@@ -494,31 +494,72 @@ public final class SnippetAiResponseSupport {
     }
 
     /**
-     * Applies edit-mode regions to the snippet they were written against. Returns {@code null}
-     * when a range lies outside the snippet, ranges overlap, or they are not in ascending order —
-     * a stage result that cannot be trusted is refused, exactly like an incomplete whole-file one.
+     * The outcome of applying edit regions: the text, the edits that went in, and a note for
+     * every edit that could not be trusted and was left out.
+     */
+    public record AppliedEdits(String replacement, List<SnippetEdit> applied, List<String> dropped) {
+        public AppliedEdits {
+            applied = applied != null ? List.copyOf(applied) : List.of();
+            dropped = dropped != null ? List.copyOf(dropped) : List.of();
+        }
+    }
+
+    /**
+     * Applies edit-mode regions to the snippet they were written against, strictly: {@code null}
+     * as soon as one range cannot be trusted. Kept for callers that want all or nothing; the apply
+     * stage uses {@link #applySnippetEditsLeniently}.
      */
     public static String applySnippetEdits(String original, List<SnippetEdit> edits) {
+        AppliedEdits applied = applySnippetEditsLeniently(original, edits);
+        return applied != null && applied.dropped().isEmpty() ? applied.replacement() : null;
+    }
+
+    /**
+     * Applies what can be trusted and reports the rest. A reversed range is read the right way
+     * round and an end one line past the last (the off-by-one of a trailing newline) is clamped;
+     * an edit that starts outside the snippet, reaches further past its end, or overlaps an
+     * earlier one is dropped with a note — one bad range used to fail the whole stage, and the
+     * repair round that follows can ask for what a dropped edit meant to do. Returns {@code null}
+     * when nothing at all could be applied.
+     */
+    public static AppliedEdits applySnippetEditsLeniently(String original, List<SnippetEdit> edits) {
         if (original == null || edits == null || edits.isEmpty()) {
             return null;
         }
         List<String> lines = new ArrayList<>(List.of(original.split("\\R", -1)));
-        List<SnippetEdit> ordered = new ArrayList<>(edits);
+        List<SnippetEdit> ordered = new ArrayList<>();
+        List<String> dropped = new ArrayList<>();
+        // The same edit listed twice is a stutter, not a conflict (seen live: identical ranges
+        // and lines repeated within one answer).
+        for (SnippetEdit edit : new java.util.LinkedHashSet<>(edits)) {
+            int start = Math.min(edit.startLine(), edit.endLine());
+            int end = Math.max(edit.startLine(), edit.endLine());
+            if (start < 1 || start > lines.size() || end > lines.size() + 1) {
+                dropped.add(start + "-" + end + " lies outside the " + lines.size() + "-line snippet");
+                continue;
+            }
+            ordered.add(new SnippetEdit(start, Math.min(end, lines.size()), edit.replacementLines()));
+        }
         ordered.sort(java.util.Comparator.comparingInt(SnippetEdit::startLine));
+        List<SnippetEdit> accepted = new ArrayList<>();
         int previousEnd = 0;
         for (SnippetEdit edit : ordered) {
-            if (edit.startLine() < 1 || edit.endLine() < edit.startLine() || edit.endLine() > lines.size()
-                || edit.startLine() <= previousEnd) {
-                return null;
+            if (edit.startLine() <= previousEnd) {
+                dropped.add(edit.startLine() + "-" + edit.endLine() + " overlaps an earlier edit");
+                continue;
             }
+            accepted.add(edit);
             previousEnd = edit.endLine();
         }
-        for (int index = ordered.size() - 1; index >= 0; index--) {
-            SnippetEdit edit = ordered.get(index);
+        if (accepted.isEmpty()) {
+            return null;
+        }
+        for (int index = accepted.size() - 1; index >= 0; index--) {
+            SnippetEdit edit = accepted.get(index);
             lines.subList(edit.startLine() - 1, edit.endLine()).clear();
             lines.addAll(edit.startLine() - 1, edit.replacementLines());
         }
-        return String.join("\n", lines);
+        return new AppliedEdits(String.join("\n", lines), accepted, dropped);
     }
 
     public static SnippetSecurityFix parseSecurityFix(String responseText) {

@@ -1178,17 +1178,24 @@ public final class SnippetAiWorkflowSupport {
                 answer.length(), answer.strip().replaceAll("\\s+", " ").substring(0, Math.min(160, answer.strip().length())));
             return null;
         }
-        String replacement = SnippetAiResponseSupport.applySnippetEdits(content, edits.edits());
-        if (replacement == null) {
-            logger.warn("AI apply stage edits rejected: a range lies outside the {}-line snippet, overlaps another, "
-                + "or is out of order [{} edit(s)]", SnippetDiagramSupport.countLines(content), edits.edits().size());
+        SnippetAiResponseSupport.AppliedEdits applied =
+            SnippetAiResponseSupport.applySnippetEditsLeniently(content, edits.edits());
+        if (applied == null) {
+            logger.warn("AI apply stage edits rejected: none of the {} edit(s) has a usable range in the {}-line "
+                + "snippet [answer chars={}]", edits.edits().size(), SnippetDiagramSupport.countLines(content), answer.length());
             return null;
         }
-        int editedLines = edits.edits().stream().mapToInt(edit -> edit.endLine() - edit.startLine() + 1).sum();
+        if (!applied.dropped().isEmpty()) {
+            // The stage goes on with what could be applied; the repair round below asks for the
+            // items the dropped edits were meant to cover, instead of the whole stage failing.
+            logger.warn("AI apply stage left {} of {} edit(s) out: {}", applied.dropped().size(),
+                edits.edits().size(), applied.dropped());
+        }
+        int editedLines = applied.applied().stream().mapToInt(edit -> edit.endLine() - edit.startLine() + 1).sum();
         logger.info("AI apply stage applied {} edit(s) covering {} original line(s) of {} [answer chars={}]",
-            edits.edits().size(), editedLines, SnippetDiagramSupport.countLines(content), answer.length());
+            applied.applied().size(), editedLines, SnippetDiagramSupport.countLines(content), answer.length());
         return new SnippetAiResponseSupport.SnippetSecurityFix(
-            replacement, edits.summary(), edits.changes(), edits.implementedRequirements());
+            applied.replacement(), edits.summary(), edits.changes(), edits.implementedRequirements());
     }
 
     private static boolean isIncompleteStagedReplacement(String original, String replacement) {
