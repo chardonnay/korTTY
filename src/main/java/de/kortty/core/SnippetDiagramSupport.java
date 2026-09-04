@@ -67,6 +67,12 @@ public final class SnippetDiagramSupport {
         "(?i)^class\\s+([A-Za-z][A-Za-z0-9_-]{0,63}(?:\\s*,\\s*[A-Za-z][A-Za-z0-9_-]{0,63})*)\\s+(setup|work|success|failure)\\s*;?$");
     private static final Pattern CONDITIONAL_FLOW_PATTERN = Pattern.compile(
         "(?im)^\\s*(?:}\\s*)?(?:if|unless|elif|elsif|else(?:\\s+if)?|case|switch|when)\\b");
+    /** Pure presentation statements a model adds to "define" the semantic classes it was told to assign. */
+    private static final Pattern PRESENTATION_STATEMENT_PATTERN = Pattern.compile(
+        "(?i)^\\s*(?:classDef|style|linkStyle)\\b");
+    /** The same statements inside a raw answer, whose line breaks may still be JSON-escaped. */
+    private static final Pattern PRESENTATION_STATEMENT_IN_ANSWER_PATTERN = Pattern.compile(
+        "(?i)(?:^|\\n|\\\\n)\\s*(?:classDef|style|linkStyle)\\b");
     private static final Pattern FORBIDDEN_DIRECTIVE_PATTERN = Pattern.compile(
         "(?im)^\\s*(?:---\\s*$|%%\\{|click\\b|href\\b|style\\b|classDef\\b|linkStyle\\b)");
     private static final Pattern FORBIDDEN_URL_PATTERN = Pattern.compile(
@@ -231,6 +237,45 @@ public final class SnippetDiagramSupport {
             }
         }
         return new FlowchartStatistics(actionNodes, decisionNodes, edges);
+    }
+
+    /**
+     * Drops {@code classDef}, {@code style} and {@code linkStyle} lines from a freshly generated
+     * diagram. The contract tells the model to assign four semantic classes and korTTY styles
+     * those itself, but a model that reads "class" reaches for "classDef" and defines them with
+     * colors — and the security screen then rejected a complete, correct diagram for its
+     * decoration. Removing the lines cannot add capability; everything that remains still passes
+     * the same screen, and the theme-aware class styling applies as designed. Only this
+     * generation path strips; a persisted diagram is validated unchanged.
+     */
+    public static String stripPresentationStatements(String source) {
+        if (source == null || source.isBlank()) {
+            return source != null ? source : "";
+        }
+        StringBuilder kept = new StringBuilder(source.length());
+        for (String line : source.split("\\R", -1)) {
+            if (PRESENTATION_STATEMENT_PATTERN.matcher(line).find()) {
+                continue;
+            }
+            if (kept.length() > 0) {
+                kept.append('\n');
+            }
+            kept.append(line);
+        }
+        return kept.toString();
+    }
+
+    /** How many presentation statements {@link #stripPresentationStatements} would remove from an answer. */
+    public static int countPresentationStatements(String answer) {
+        if (answer == null || answer.isBlank()) {
+            return 0;
+        }
+        Matcher matcher = PRESENTATION_STATEMENT_IN_ANSWER_PATTERN.matcher(answer);
+        int count = 0;
+        while (matcher.find()) {
+            count++;
+        }
+        return count;
     }
 
     public static String contentHash(String content) {

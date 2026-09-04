@@ -121,6 +121,7 @@ public final class SnippetTypedDiagramSupport {
         if (candidate.contains("\\n")) {
             candidate = unescapeJsonStringBody(candidate);
         }
+        candidate = SnippetDiagramSupport.stripPresentationStatements(candidate);
         List<String> lines = new ArrayList<>();
         for (String line : candidate.split("\\R")) {
             String trimmed = line.trim();
