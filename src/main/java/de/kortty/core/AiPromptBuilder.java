@@ -323,6 +323,8 @@ public final class AiPromptBuilder {
                 + "mermaid must start with exactly 'flowchart TD', declare stable terminal node ids start_1 and stop_1 using the ([\"...\"]) terminal shape, "
                 + "and use only separately declared quoted action nodes node_id[\"Action label\"], quoted decision nodes node_id{\"Decision?\"}, "
                 + "--> edges, with exactly two distinctly labeled outgoing edges for every decision: use only the localized equivalents of 'yes' and 'no' in language code " + languageCode + ", "
+                + "written exactly as decision_id -->|yes| target_id with the label between pipes (a plain edge is a_id --> b_id), "
+                + "exactly one outgoing edge for every other node except stop_1 (never parallel branches: order them), "
                 + "and class statements. "
                 + "Use at most " + nodeCap + " action and decision nodes in total; start_1 and stop_1 do not count. "
                 + "The limit is an upper bound: summarize a long snippet by its main phases, "

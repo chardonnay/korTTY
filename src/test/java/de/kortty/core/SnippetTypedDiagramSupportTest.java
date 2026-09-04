@@ -208,6 +208,34 @@ class SnippetTypedDiagramSupportTest {
     }
 
     @Test
+    void recoveryRepairsASingleDoubleEscapedNodeInsideAnOtherwiseEscapedAnswer() {
+        // One node written as [\\"Print footer notes\\"] beside correctly escaped [\"…\"] nodes.
+        String answer = "{\"title\":\"T\",\"mermaid\":\"flowchart TD\\nstart_1([\\\"Start\\\"]) --> a[\\\"Emit row\\\"]\\n"
+            + "a --> b[\\\\\"Print footer notes\\\\\"]\\nb --> stop_1([\\\"Stop\\\"])\",\"codeReferences\":[]}";
+
+        String recovered = SnippetTypedDiagramSupport.extractDiagramSource(
+            SnippetDiagramType.LOGICAL_STRUCTURE, answer);
+
+        assertThat(recovered).contains("b[\"Print footer notes\"]");
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(recovered).valid()).isTrue();
+    }
+
+    @Test
+    void recoveryNeverTrimsRealStatementsIntoAStub() {
+        // An invalid line in the middle must fail the recovery, not yield the valid prefix.
+        String answer = """
+            {"mermaid": "flowchart TD
+            start_1(["Start"]) --> a["A"]
+            a --> b{""Broken?"" extra junk here
+            b --> stop_1(["Stop"])
+            "}
+            """;
+
+        assertThat(SnippetTypedDiagramSupport.extractDiagramSource(
+            SnippetDiagramType.LOGICAL_STRUCTURE, answer)).isEmpty();
+    }
+
+    @Test
     void recoveryReturnsNothingForAnAnswerWithoutADiagram() {
         assertThat(SnippetTypedDiagramSupport.extractDiagramSource(
             SnippetDiagramType.LOGICAL_STRUCTURE, "I cannot draw this script.")).isEmpty();

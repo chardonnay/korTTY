@@ -37,7 +37,9 @@ class AiActionSkillPromptSupportTest {
         assertThat(countOccurrences(prompt, AiActionSkillPromptSupport.MERMAID_SKILL_ID)).isEqualTo(1);
         assertThat(prompt.indexOf("Return exactly one JSON object"))
             .isLessThan(prompt.indexOf("<kortty_required_action_skill"));
-        assertThat(prompt.length()).isLessThan(5_000);
+        // The fixed contract grew by the rules a real model kept breaking (node cap, JSON escaping,
+        // class definitions, single path); each one is there because its absence cost a diagram.
+        assertThat(prompt.length()).isLessThan(5_300);
     }
 
     @Test

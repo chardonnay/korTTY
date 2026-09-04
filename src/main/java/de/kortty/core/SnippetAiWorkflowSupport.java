@@ -1583,6 +1583,20 @@ public final class SnippetAiWorkflowSupport {
         logger.info("AI diagram accepted [type={}, snippet lines={}, node cap={}, {}, answer chars={}]",
             type, snippetLines, SnippetDiagramSupport.maxGeneratedNonterminalNodes(scopedContent), summary,
             answerChars);
+        if (type == de.kortty.model.SnippetDiagramType.LOGICAL_STRUCTURE) {
+            // Rendered and saved in the strict dialect, whatever shorthand the model used.
+            String canonical = SnippetDiagramSupport.canonicalizeGeneratedFlowchart(diagram.mermaid(), fallbackLanguageCode);
+            SnippetDiagramSupport.FlowchartStatistics drawn = SnippetDiagramSupport.flowchartStatistics(diagram.mermaid());
+            SnippetDiagramSupport.FlowchartStatistics kept = SnippetDiagramSupport.flowchartStatistics(canonical);
+            int droppedNodes = Math.max(0, drawn.nonterminalNodes() - kept.nonterminalNodes());
+            int droppedEdges = Math.max(0, drawn.edges() - kept.edges());
+            if (droppedNodes > 0 || droppedEdges > 0) {
+                logger.warn("AI diagram reduced to a single path: {} nodes and {} edges kept, {} nodes and {} edges "
+                        + "dropped; the model drew parallel branches or unreachable nodes the dialect cannot show",
+                    kept.nonterminalNodes(), kept.edges(), droppedNodes, droppedEdges);
+            }
+            return new SnippetAiResponseSupport.MermaidDiagram(diagram.title(), canonical, diagram.codeReferences(), type);
+        }
         return diagram;
     }
 
