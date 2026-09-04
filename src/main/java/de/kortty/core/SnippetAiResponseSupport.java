@@ -994,21 +994,15 @@ public final class SnippetAiResponseSupport {
      * when nothing at all could be applied.
      */
     /**
-     * A range of three or more lines whose replacement is a shorter, unchanged prefix of it: the
-     * model emitted the first line(s) and stopped. A deletion (no lines) is a legitimate edit and
-     * is not this; nor is a shortened block, which keeps its closing line and so is no prefix.
+     * A range of three or more lines whose replacement is nothing but its own unchanged first
+     * line: the model emitted one entry and stopped. Every hollow edit seen live had exactly that
+     * shape (1 of 19, 1 of 50, 1 of 15 lines), while a range shortened by its last lines — a
+     * comment block losing two lines, 15 of 17 kept — is a deletion the model meant. A deletion
+     * (no lines) is a legitimate edit as well.
      */
     private static boolean isHollowEdit(List<String> lines, int start, int end, List<String> replacement) {
         int rangeLength = end - start + 1;
-        if (rangeLength < 3 || replacement.isEmpty() || replacement.size() >= rangeLength) {
-            return false;
-        }
-        for (int i = 0; i < replacement.size(); i++) {
-            if (!replacement.get(i).equals(lines.get(start - 1 + i))) {
-                return false;
-            }
-        }
-        return true;
+        return rangeLength >= 3 && replacement.size() == 1 && replacement.get(0).equals(lines.get(start - 1));
     }
 
     public static AppliedEdits applySnippetEditsLeniently(String original, List<SnippetEdit> edits) {
@@ -1031,8 +1025,8 @@ public final class SnippetAiResponseSupport {
             if (isHollowEdit(lines, start, clampedEnd, edit.replacementLines())) {
                 // Seen live: a range of nineteen lines "replaced" by its own first line — the model
                 // stopped after one entry. Applying it would gut the function.
-                dropped.add(start + "-" + clampedEnd + " returns only the first " + edit.replacementLines().size()
-                    + " of its " + (clampedEnd - start + 1) + " lines unchanged");
+                dropped.add(start + "-" + clampedEnd + " returns only its unchanged first line for "
+                    + (clampedEnd - start + 1) + " lines");
                 continue;
             }
             ordered.add(new SnippetEdit(start, clampedEnd, edit.replacementLines()));
