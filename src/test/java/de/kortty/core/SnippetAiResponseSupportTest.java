@@ -439,6 +439,17 @@ class SnippetAiResponseSupportTest {
         assertThat(SnippetAiResponseSupport.parseSnippetEdits(
             "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":[\"x=(\"a\" \"b\")\",\"c=3\"]}],\"summary\":\"w\"}")
             .isUsable()).isFalse();
+        // An array that never closes: the scan for an entry's closing quote must not run into
+        // the answer's own keys and hand back key text as code.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\": [{\"startLine\": 5, \"endLine\": 5, \"replacementLines\": [\"a\", \"b\", \"summary\": \"the \"x\" thing\"}")
+            .isUsable()).isFalse();
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\": [{\"startLine\": 5, \"endLine\": 5, \"replacementLines\": [\"a\", \"b\"]], \"summary\": \"s\"}")
+            .isUsable()).isFalse();
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":[\"echo \"a\", \"summary\":\"s\",\"changes\":[]}")
+            .isUsable()).isFalse();
         // A trailing comma before the close is tolerated.
         assertThat(SnippetAiResponseSupport.parseSnippetEdits(
             "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":[\"a\",\"b\",]}],\"summary\":\"w\"}")

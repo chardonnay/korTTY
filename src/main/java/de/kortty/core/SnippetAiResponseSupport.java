@@ -691,7 +691,8 @@ public final class SnippetAiResponseSupport {
             return values;
         }
         while (i < rest.length()) {
-            if (rest.charAt(i) != '"') {
+            if (rest.charAt(i) != '"' || keyFollows(rest, i)) {
+                // Not an entry: the array was never closed and this is the answer's next key.
                 return null;
             }
             int end = compactStringEnd(rest, i + 1, spacedStyle);
@@ -784,6 +785,10 @@ public final class SnippetAiResponseSupport {
             }
             if (c != '"') {
                 continue;
+            }
+            if (keyFollows(text, i)) {
+                // The scan ran past the array into the answer's own keys: no closing quote.
+                return -1;
             }
             int next = i + 1;
             if (next >= text.length()) {
