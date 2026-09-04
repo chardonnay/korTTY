@@ -279,6 +279,25 @@ class SnippetAiResponseSupportTest {
             new SnippetAiResponseSupport.SnippetEdit(5, 9, List.of("x")));
         assertThat(SnippetAiResponseSupport.applySnippetEdits(original, overlapping)).isNull();
         assertThat(SnippetAiResponseSupport.applySnippetEdits(original, outside)).isNull();
+        // Leniently: the trustworthy part goes in, the rest is named; a reversed range is read
+        // the right way round and an end past the last line is clamped.
+        SnippetAiResponseSupport.AppliedEdits partial = SnippetAiResponseSupport.applySnippetEditsLeniently(
+            original, List.of(
+                new SnippetAiResponseSupport.SnippetEdit(3, 2, List.of("two-three")),
+                new SnippetAiResponseSupport.SnippetEdit(3, 2, List.of("two-three")),
+                new SnippetAiResponseSupport.SnippetEdit(3, 4, List.of("clash")),
+                new SnippetAiResponseSupport.SnippetEdit(5, 40, List.of("tail")),
+                new SnippetAiResponseSupport.SnippetEdit(70, 71, List.of("nowhere"))));
+        assertThat(partial.replacement()).isEqualTo("line1\ntwo-three\nline4\nline5\n");
+        assertThat(partial.applied()).hasSize(1);
+        assertThat(partial.dropped()).containsExactly(
+            "5-40 lies outside the 6-line snippet", "70-71 lies outside the 6-line snippet",
+            "3-4 overlaps an earlier edit");
+        // An end one past the last line is the trailing-newline off-by-one and is clamped.
+        assertThat(SnippetAiResponseSupport.applySnippetEditsLeniently(original,
+            List.of(new SnippetAiResponseSupport.SnippetEdit(6, 7, List.of("end")))).replacement())
+            .isEqualTo("line1\nline2\nline3\nline4\nline5\nend");
+        assertThat(SnippetAiResponseSupport.applySnippetEditsLeniently(original, outside)).isNull();
         assertThat(SnippetAiResponseSupport.parseSnippetEdits("no json here").isUsable()).isFalse();
     }
 

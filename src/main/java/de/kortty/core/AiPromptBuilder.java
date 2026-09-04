@@ -36,7 +36,9 @@ public final class AiPromptBuilder {
         + "(exactly one source line per string entry, no newline characters inside an entry; an empty array deletes "
         + "the range). To insert lines, include one neighboring original line in the range and repeat it in "
         + "replacementLines. Ranges must not overlap and must be listed in ascending order. Return only the regions "
-        + "that change and never the whole script: every line outside an edit is kept verbatim by the editor.";
+        + "that change and never the whole script: every line outside an edit is kept verbatim by the editor. "
+        + "Every entry of replacementLines is one JSON string: escape every double quote in the code as \\\" and "
+        + "every backslash as \\\\\\, and never emit a raw line break inside a string.";
 
     private static final String COMPLETE_FULL_REPLACEMENT_RULE =
         "replacementLines must be an array containing the complete updated snippet with exactly one source "

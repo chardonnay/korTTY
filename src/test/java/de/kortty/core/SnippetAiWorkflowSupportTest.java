@@ -1296,6 +1296,28 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void longSnippetApplyStageKeepsTheTrustworthyEditsAndDropsTheRest() throws Exception {
+        String content = "echo x\n".repeat(500);
+        CapturingAiService aiService = new CapturingAiService("""
+            { "edits": [
+                { "startLine": 10, "endLine": 10, "replacementLines": ["echo hardened"] },
+                { "startLine": 10, "endLine": 12, "replacementLines": ["clash"] },
+                { "startLine": 900, "endLine": 901, "replacementLines": ["nowhere"] } ],
+              "summary": "", "changes": [ { "finding": "SEC-1", "anchor": "echo hardened", "reason": "r" } ],
+              "implementedRequirements": [] }
+            """);
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix = SnippetAiWorkflowSupport.applySnippetImprovements(
+            aiService, null, content, "bash", null, "en",
+            List.of(new SnippetAiResponseSupport.ScriptImprovement("SEC-1", "security", "high", "t", "d", "r", 1)),
+            List.of(), "", null, null, null);
+
+        assertThat(fix.replacement()).contains("echo x\necho hardened\necho x\n");
+        assertThat(fix.replacement()).doesNotContain("clash");
+        assertThat(fix.replacement().split("\n").length).isEqualTo(500);
+    }
+
+    @Test
     void longSnippetApplyStageRefusesUntrustworthyEditRanges() {
         String content = "echo x\n".repeat(500);
         CapturingAiService aiService = new CapturingAiService("""
