@@ -796,6 +796,13 @@ public final class SnippetAiWorkflowSupport {
         SnippetAiResponseSupport.ScriptAnalysis analysis =
             SnippetAiResponseSupport.parseScriptAnalysis(result != null ? result.content() : null);
         if (!analysis.isUsable()) {
+            String answer = result != null && result.content() != null ? result.content() : "";
+            String failure = SnippetAiResponseSupport.describeJsonFailure(answer);
+            java.nio.file.Path archived = AiAnswerArchive.save(AiAction.ANALYZE_SNIPPET_CODE, "no-usable-analysis", answer);
+            logger.warn("AI code analysis returned no usable analysis [answer chars={}, {}] Full answer: {}",
+                answer.length(),
+                failure != null ? failure : "JSON parses but holds no improvement",
+                archived != null ? archived : "not archived");
             throw new IllegalStateException("AI code analysis returned no usable analysis.");
         }
         return analysis;

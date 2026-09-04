@@ -1843,12 +1843,70 @@ public final class SnippetAiResponseSupport {
      * missing ids (fallback ids) and empty arrays, mirroring the other parsers here.
      */
     public static ScriptAnalysis parseScriptAnalysis(String responseText) {
-        JsonObject object = parseJsonObject(responseText);
+        ScriptAnalysis analysis = parseScriptAnalysisObject(parseJsonObject(responseText));
+        if (analysis.isUsable()) {
+            return analysis;
+        }
+        // Seen live: one raw quote pair in a prose field ("$TEMP_UPGRADE_FILE" inside a suggestion)
+        // broke a 24,000-character analysis. The fields here are prose, where a quote that is not
+        // followed by a JSON terminator is content — so it is escaped and the object read again.
+        String repaired = repairRawQuotesInStrings(responseText);
+        if (repaired == null) {
+            return analysis;
+        }
+        ScriptAnalysis repairedAnalysis = parseScriptAnalysisObject(parseJsonObject(repaired));
+        return repairedAnalysis.isUsable() ? repairedAnalysis : analysis;
+    }
+
+    private static ScriptAnalysis parseScriptAnalysisObject(JsonObject object) {
         if (object == null) {
             return new ScriptAnalysis("", List.of(), List.of());
         }
         String summary = firstString(object, "summary", "explanation", "description", "overview");
         return new ScriptAnalysis(summary, parseScriptDependencies(object), parseScriptImprovements(object));
+    }
+
+    /**
+     * Escapes the raw quotes inside the string values of a JSON text: inside a string, a quote
+     * followed (after whitespace) by {@code , } ] :} or the end closes it, any other quote is
+     * content. Meant for prose fields only — in code a quote before a comma is ambiguous — and
+     * returns {@code null} when there was nothing to repair.
+     */
+    static String repairRawQuotesInStrings(String text) {
+        if (text == null || text.isEmpty()) {
+            return null;
+        }
+        StringBuilder out = new StringBuilder(text.length() + 16);
+        boolean inString = false;
+        boolean repaired = false;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (!inString) {
+                out.append(c);
+                if (c == '"') {
+                    inString = true;
+                }
+                continue;
+            }
+            if (c == '\\' && i + 1 < text.length()) {
+                out.append(c).append(text.charAt(++i));
+                continue;
+            }
+            if (c != '"') {
+                out.append(c);
+                continue;
+            }
+            int next = skipSpaces(text, i + 1);
+            char after = next < text.length() ? text.charAt(next) : ',';
+            if (after == ',' || after == '}' || after == ']' || after == ':') {
+                out.append(c);
+                inString = false;
+            } else {
+                out.append("\\\"");
+                repaired = true;
+            }
+        }
+        return repaired ? out.toString() : null;
     }
 
     private static List<ScriptImprovement> parseScriptImprovements(JsonObject object) {
