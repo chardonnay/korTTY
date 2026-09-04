@@ -468,6 +468,28 @@ class SnippetDiagramSupportTest {
     }
 
     @Test
+    void presentationStatementsAreStrippedOnlyFromFreshAnswersNotFromPersistedDiagrams() {
+        String decorated = """
+            flowchart TD
+                classDef setup fill:#ffffff,stroke:#000000;
+                start_1(["Start"])
+                stop_1(["Stop"])
+                start_1 --> stop_1
+                linkStyle 0 stroke:#ff0000
+                class start_1,stop_1 setup
+            """;
+
+        String stripped = SnippetDiagramSupport.stripPresentationStatements(decorated);
+
+        assertThat(stripped).doesNotContain("classDef");
+        assertThat(stripped).doesNotContain("linkStyle");
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(stripped).valid()).isTrue();
+        // The security screen itself is unchanged: a saved diagram carrying styling is still refused.
+        assertThat(SnippetDiagramSupport.validateMermaid(decorated).message())
+            .contains("directives, callbacks and custom styles");
+    }
+
+    @Test
     void unsupportedSyntaxErrorsQuoteTheOffendingLine() {
         String subgraph = """
             flowchart TD

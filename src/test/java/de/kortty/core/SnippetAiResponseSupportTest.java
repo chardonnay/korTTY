@@ -283,6 +283,25 @@ class SnippetAiResponseSupportTest {
     }
 
     @Test
+    void parseMermaidDiagramDropsClassDefinitionsInsteadOfRejectingTheDiagram() {
+        // Told to assign four semantic classes, MiniMax-M3 "defined" them with colors as well.
+        SnippetAiResponseSupport.MermaidDiagram diagram =
+            SnippetAiResponseSupport.parseMermaidDiagram("""
+            {
+              "title": "Styled",
+              "mermaid": "flowchart TD\\n classDef setup fill:#ffffff,stroke:#000000;\\n classDef work fill:#ff0000;\\n    start_1([\\"Start\\"])\\n    work_1[\\"Run\\"]\\n    stop_1([\\"Stop\\"])\\n    start_1 --> work_1\\n    work_1 --> stop_1\\n    class start_1,stop_1 setup\\n    class work_1 work\\n style work_1 fill:#00ff00"
+            }
+            """);
+
+        assertThat(diagram.isUsable()).isTrue();
+        assertThat(diagram.mermaid()).doesNotContain("classDef");
+        assertThat(diagram.mermaid()).doesNotContain("style ");
+        assertThat(diagram.mermaid()).contains("class work_1 work");
+        assertThat(SnippetDiagramSupport.countPresentationStatements(
+            "flowchart TD\\n classDef a fill:#fff\\n style b fill:#000\\n  linkStyle 0 stroke:#f00")).isEqualTo(3);
+    }
+
+    @Test
     void parseMermaidDiagramRejectsNodesOutsideTheStartToStopFlow() {
         SnippetAiResponseSupport.MermaidDiagram diagram =
             SnippetAiResponseSupport.parseMermaidDiagram("""

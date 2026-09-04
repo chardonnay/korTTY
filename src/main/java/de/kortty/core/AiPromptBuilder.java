@@ -312,7 +312,7 @@ public final class AiPromptBuilder {
         // \" inside the JSON string. Models that lose that escaping produce an object that parses
         // in no mode at all, and a complete diagram is thrown away.
         String jsonEscapingRule = "mermaid is one JSON string: escape every double quote inside it as \\\" "
-            + "and every line break as \\\\n, and never emit a raw line break inside a JSON string. ";
+            + "and every line break as \\\\n; never emit a raw line break in a JSON string. ";
         String jsonTail = jsonEscapingRule + DIRECT_JSON_REPLY_RULE
             + " Do not include Markdown or explanations outside the JSON object.";
         return switch (type) {
@@ -325,10 +325,11 @@ public final class AiPromptBuilder {
                 + "--> edges, with exactly two distinctly labeled outgoing edges for every decision: use only the localized equivalents of 'yes' and 'no' in language code " + languageCode + ", "
                 + "and class statements. "
                 + "Use at most " + nodeCap + " action and decision nodes in total; start_1 and stop_1 do not count. "
-                + "That limit is an upper bound, not a target: summarize a long snippet at the level of its main phases, "
-                + "group related behavior instead of transcribing statements, and keep the JSON answer small. "
+                + "The limit is an upper bound: summarize a long snippet by its main phases, "
+                + "group related behavior instead of transcribing statements, and keep the JSON small. "
                 + "Use stable descriptive node ids containing only letters, digits, underscores, or hyphens. "
                 + "Every node must have exactly one semantic class: setup, work, success, or failure. "
+                + "korTTY styles these classes itself; never define them with classDef or style. "
                 + "codeReferences must be an array of objects with nodeId, label, startLine, and endLine. "
                 + "Each nodeId must exactly match a declared Mermaid node and each label must exactly match that node's visible label. "
                 + "Create one codeReferences entry for every action and decision node, but never for start_1 or stop_1. "

@@ -699,7 +699,7 @@ public final class SnippetAiResponseSupport {
             return MermaidDiagram.rejected(type, "The AI answer contained no JSON object ("
                 + (responseText != null ? responseText.length() : 0) + " characters).");
         }
-        String rawMermaid = firstString(object, "mermaid");
+        String rawMermaid = SnippetDiagramSupport.stripPresentationStatements(firstString(object, "mermaid"));
         if (rawMermaid == null || rawMermaid.isBlank()) {
             return MermaidDiagram.rejected(type, "The AI answer JSON has no 'mermaid' value.");
         }

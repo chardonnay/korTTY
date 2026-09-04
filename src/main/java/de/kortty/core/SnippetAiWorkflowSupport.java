@@ -1532,6 +1532,12 @@ public final class SnippetAiWorkflowSupport {
         int snippetLines = SnippetDiagramSupport.countLines(scopedContent);
         SnippetAiResponseSupport.MermaidDiagram diagram =
             SnippetAiResponseSupport.parseMermaidDiagram(type, answer, scopedContent);
+        int strippedStatements = SnippetDiagramSupport.countPresentationStatements(answer);
+        if (strippedStatements > 0) {
+            logger.info("AI diagram styling ignored: {} classDef/style/linkStyle statement(s) removed; "
+                + "korTTY styles the semantic classes itself [type={}, snippet lines={}]",
+                strippedStatements, type, snippetLines);
+        }
         boolean salvaged = false;
         if (!diagram.isUsable()) {
             SnippetAiResponseSupport.MermaidDiagram recovered = recoverDiagramFromText(type, answer, scopedContent);
