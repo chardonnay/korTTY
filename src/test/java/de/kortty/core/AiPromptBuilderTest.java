@@ -291,7 +291,11 @@ class AiPromptBuilderTest {
         assertThat(systemPrompt).contains("startLine");
         assertThat(systemPrompt).contains("endLine");
         assertThat(systemPrompt).contains("for every action and decision node");
-        assertThat(systemPrompt).contains("every material condition, branch, error path, early exit, and loop outcome");
+        assertThat(systemPrompt).contains("loop outcomes that shape the overall flow");
+        // The validator's node cap is spelled out in both prompt layers so the model and the
+        // validator agree on the number.
+        assertThat(systemPrompt).contains("Use at most 12 action and decision nodes in total");
+        assertThat(userPrompt).contains("The snippet has 1 lines; use at most 12 action and decision nodes.");
         assertThat(systemPrompt).contains("smallest relevant source range");
         assertThat(systemPrompt).contains("builtin.action.snippet-mermaid");
         assertThat(systemPrompt).contains("runtime behavior, not its declaration order");
@@ -307,6 +311,22 @@ class AiPromptBuilderTest {
         assertThat(userPrompt).doesNotContain("every visible action and decision node");
         assertThat(countOccurrences(systemPrompt + "\n" + userPrompt, "frontmatter")).isEqualTo(1);
         assertThat(userPrompt).doesNotContain("start_1([\\\"Start\\\"])");
+    }
+
+    @Test
+    void mermaidPromptScalesTheNodeCapWithTheSnippetLength() {
+        AiRequest request = new AiRequest(
+            AiAction.GENERATE_SNIPPET_MERMAID,
+            "echo line\n".repeat(1_200),
+            null,
+            "en",
+            null,
+            "Snippet language: bash");
+
+        assertThat(AiPromptBuilder.buildSystemPrompt(request))
+            .contains("Use at most 24 action and decision nodes in total");
+        assertThat(AiPromptBuilder.buildUserPrompt(request))
+            .contains("The snippet has 1201 lines; use at most 24 action and decision nodes.");
     }
 
     @Test

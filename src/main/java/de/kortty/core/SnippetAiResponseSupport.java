@@ -166,14 +166,20 @@ public final class SnippetAiResponseSupport {
         }
     }
 
+    /**
+     * One generated diagram. {@code rejectionReason} is set on an unusable result and names why
+     * the AI answer was thrown away — for the log and for the notice shown next to the local
+     * fallback diagram; it is {@code null} on a usable diagram.
+     */
     public record MermaidDiagram(
         String title,
         String mermaid,
         List<SnippetDiagramSupport.SourceCodeReference> codeReferences,
-        SnippetDiagramType diagramType) {
+        SnippetDiagramType diagramType,
+        String rejectionReason) {
 
         public MermaidDiagram(String title, String mermaid) {
-            this(title, mermaid, List.of(), SnippetDiagramType.LOGICAL_STRUCTURE);
+            this(title, mermaid, List.of(), SnippetDiagramType.LOGICAL_STRUCTURE, null);
         }
 
         public MermaidDiagram(
@@ -181,11 +187,27 @@ public final class SnippetAiResponseSupport {
             String mermaid,
             List<SnippetDiagramSupport.SourceCodeReference> codeReferences) {
 
-            this(title, mermaid, codeReferences, SnippetDiagramType.LOGICAL_STRUCTURE);
+            this(title, mermaid, codeReferences, SnippetDiagramType.LOGICAL_STRUCTURE, null);
+        }
+
+        public MermaidDiagram(
+            String title,
+            String mermaid,
+            List<SnippetDiagramSupport.SourceCodeReference> codeReferences,
+            SnippetDiagramType diagramType) {
+
+            this(title, mermaid, codeReferences, diagramType, null);
+        }
+
+        /** An unusable result that carries the reason the AI answer was rejected. */
+        public static MermaidDiagram rejected(SnippetDiagramType diagramType, String reason) {
+            return new MermaidDiagram("", "", List.of(), diagramType,
+                reason != null && !reason.isBlank() ? reason : "The AI answer contained no usable diagram.");
         }
 
         public MermaidDiagram {
             diagramType = diagramType != null ? diagramType : SnippetDiagramType.LOGICAL_STRUCTURE;
+            rejectionReason = rejectionReason != null && !rejectionReason.isBlank() ? rejectionReason.trim() : null;
             title = title != null && !title.isBlank() ? title.trim() : "Snippet structure";
             String rawMermaid = mermaid != null ? mermaid : "";
             mermaid = rawMermaid.getBytes(java.nio.charset.StandardCharsets.UTF_8).length
@@ -645,20 +667,40 @@ public final class SnippetAiResponseSupport {
     }
 
     public static MermaidDiagram parseMermaidDiagram(SnippetDiagramType diagramType, String responseText) {
+        return parseMermaidDiagram(diagramType, responseText, null);
+    }
+
+    /**
+     * Parses one diagram answer. {@code snippetContent} sizes the flowchart's node cap; without
+     * it the base cap of a short snippet applies. An unusable result names its rejection reason.
+     */
+    public static MermaidDiagram parseMermaidDiagram(
+        SnippetDiagramType diagramType, String responseText, String snippetContent) {
+
         SnippetDiagramType type = diagramType != null ? diagramType : SnippetDiagramType.LOGICAL_STRUCTURE;
         JsonObject object = parseJsonObject(responseText);
         if (object == null) {
-            return new MermaidDiagram("", "", List.of(), type);
+            return MermaidDiagram.rejected(type, "The AI answer contained no JSON object ("
+                + (responseText != null ? responseText.length() : 0) + " characters).");
+        }
+        String rawMermaid = firstString(object, "mermaid");
+        if (rawMermaid == null || rawMermaid.isBlank()) {
+            return MermaidDiagram.rejected(type, "The AI answer JSON has no 'mermaid' value.");
         }
         MermaidDiagram diagram = new MermaidDiagram(
             firstString(object, "title", "name"),
-            firstString(object, "mermaid"),
+            rawMermaid,
             parseDiagramCodeReferences(object),
             type);
-        return diagram.isUsable()
-            && SnippetTypedDiagramSupport.validateGenerated(type, diagram.mermaid()).valid()
-                ? diagram
-                : new MermaidDiagram("", "", List.of(), type);
+        if (!diagram.isUsable()) {
+            // The constructor blanks an oversized source, so the reason comes from the raw value.
+            SnippetDiagramSupport.MermaidValidation basic = SnippetTypedDiagramSupport.validate(type, rawMermaid);
+            return MermaidDiagram.rejected(type,
+                basic.valid() ? "The AI answer contained no usable diagram." : basic.message());
+        }
+        SnippetDiagramSupport.MermaidValidation generated =
+            SnippetTypedDiagramSupport.validateGenerated(type, diagram.mermaid(), snippetContent);
+        return generated.valid() ? diagram : MermaidDiagram.rejected(type, generated.message());
     }
 
     private static List<SnippetDiagramSupport.SourceCodeReference> parseDiagramCodeReferences(JsonObject object) {

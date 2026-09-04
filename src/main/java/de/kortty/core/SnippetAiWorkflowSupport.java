@@ -15,10 +15,15 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Shared request/response workflow helpers for snippet-editor AI actions.
  */
 public final class SnippetAiWorkflowSupport {
+
+    private static final Logger logger = LoggerFactory.getLogger(SnippetAiWorkflowSupport.class);
     /**
      * Work items per apply request. Smaller batches mean more round trips, but they bound how much
      * a model has to think about in one answer: reasoning models that bill hidden thinking as
@@ -1523,13 +1528,37 @@ public final class SnippetAiWorkflowSupport {
             }
             throw new OutputTokenLimitReachedException();
         }
+        String answer = result != null ? result.content() : null;
+        int snippetLines = SnippetDiagramSupport.countLines(scopedContent);
         SnippetAiResponseSupport.MermaidDiagram diagram =
-            SnippetAiResponseSupport.parseMermaidDiagram(type, result != null ? result.content() : null);
-        if (diagram.isUsable()
-            && !SnippetTypedDiagramSupport.validateForSnippet(
-                type, diagram.mermaid(), scopedContent, diagram.codeReferences(), fallbackLanguageCode).valid()) {
-            return new SnippetAiResponseSupport.MermaidDiagram("", "", java.util.List.of(), type);
+            SnippetAiResponseSupport.parseMermaidDiagram(type, answer, scopedContent);
+        if (!diagram.isUsable()) {
+            // This used to be silent: the generic local fallback replaced the diagram and nobody
+            // could tell an AI diagram from the fallback, let alone why the answer was thrown away.
+            logger.warn("AI diagram rejected: {} [type={}, snippet lines={}, answer chars={}]",
+                diagram.rejectionReason(), type, snippetLines, answer != null ? answer.length() : 0);
+            return diagram;
         }
+        SnippetDiagramSupport.MermaidValidation validation = SnippetTypedDiagramSupport.validateForSnippet(
+            type, diagram.mermaid(), scopedContent, diagram.codeReferences(), fallbackLanguageCode);
+        String summary = SnippetTypedDiagramSupport.summarize(type, diagram.mermaid());
+        if (!validation.valid()) {
+            logger.warn("AI diagram rejected: {} [type={}, snippet lines={}, {}]",
+                validation.message(), type, snippetLines, summary);
+            return SnippetAiResponseSupport.MermaidDiagram.rejected(type, validation.message());
+        }
+        if (type == de.kortty.model.SnippetDiagramType.LOGICAL_STRUCTURE) {
+            SnippetDiagramSupport.SourceMappingReport mapping = SnippetDiagramSupport.reportSourceMapping(
+                diagram.mermaid(), scopedContent, diagram.codeReferences());
+            if (!mapping.complete()) {
+                logger.warn("AI diagram accepted with an incomplete source mapping: {} of {} nodes have no "
+                        + "valid reference and lose their hover link: {} [snippet lines={}, {}]",
+                    mapping.unmappedNodeIds().size(), mapping.expectedNodes(), mapping.unmappedNodeIds(),
+                    snippetLines, summary);
+            }
+        }
+        logger.info("AI diagram accepted [type={}, snippet lines={}, node cap={}, {}]",
+            type, snippetLines, SnippetDiagramSupport.maxGeneratedNonterminalNodes(scopedContent), summary);
         return diagram;
     }
 

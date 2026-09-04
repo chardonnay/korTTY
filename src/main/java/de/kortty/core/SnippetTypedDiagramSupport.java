@@ -112,13 +112,25 @@ public final class SnippetTypedDiagramSupport {
         return parse(safeType, SnippetDiagramSupport.normalizeMermaid(source)).validation();
     }
 
-    /** Validates a freshly AI-generated diagram, applying the family's compactness caps. */
+    /** Validates a freshly AI-generated diagram with the compactness caps of a short snippet. */
     public static SnippetDiagramSupport.MermaidValidation validateGenerated(
         SnippetDiagramType type, String source) {
+        return validateGenerated(type, source, null);
+    }
+
+    /**
+     * Validates a freshly AI-generated diagram, applying the family's compactness caps. The
+     * flowchart's node cap follows the length of {@code snippetContent}
+     * ({@link SnippetDiagramSupport#maxGeneratedNonterminalNodes(String)}); the other families
+     * keep their fixed caps.
+     */
+    public static SnippetDiagramSupport.MermaidValidation validateGenerated(
+        SnippetDiagramType type, String source, String snippetContent) {
 
         SnippetDiagramType safeType = type != null ? type : SnippetDiagramType.LOGICAL_STRUCTURE;
         if (safeType == SnippetDiagramType.LOGICAL_STRUCTURE) {
-            return SnippetDiagramSupport.validateGeneratedMermaid(source);
+            return SnippetDiagramSupport.validateGeneratedMermaid(
+                source, SnippetDiagramSupport.maxGeneratedNonterminalNodes(snippetContent));
         }
         SnippetDiagramSupport.MermaidValidation validation = validate(safeType, source);
         if (!validation.valid()) {
@@ -129,11 +141,21 @@ public final class SnippetTypedDiagramSupport {
         return capError != null ? failure(capError) : validation;
     }
 
+    /** A one-line size summary of a generated diagram for the log. */
+    public static String summarize(SnippetDiagramType type, String source) {
+        SnippetDiagramType safeType = type != null ? type : SnippetDiagramType.LOGICAL_STRUCTURE;
+        if (safeType == SnippetDiagramType.LOGICAL_STRUCTURE) {
+            return SnippetDiagramSupport.flowchartStatistics(source).toString();
+        }
+        Parsed parsed = parse(safeType, SnippetDiagramSupport.normalizeMermaid(source));
+        return "elements=" + parsed.elementIds().size() + ", edges=" + parsed.edgeCount();
+    }
+
     /**
-     * Validates a fresh AI diagram together with its snippet mapping. The logical-structure
-     * flowchart keeps its mandatory 1:1 mapping; the other families treat {@code codeReferences}
-     * as optional (they were already reduced to declared elements by
-     * {@link #filterValidSourceReferences}), so only the diagram itself is checked.
+     * Validates a fresh AI diagram for its snippet. Every family treats {@code codeReferences} as
+     * optional: the flowchart reports mapping gaps through
+     * {@link SnippetDiagramSupport#reportSourceMapping} instead of failing, and the other families
+     * were already reduced to declared elements by {@link #filterValidSourceReferences}.
      */
     public static SnippetDiagramSupport.MermaidValidation validateForSnippet(
         SnippetDiagramType type,

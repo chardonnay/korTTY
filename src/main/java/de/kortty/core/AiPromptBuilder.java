@@ -298,6 +298,9 @@ public final class AiPromptBuilder {
         SnippetDiagramType type = request.diagramType() != null
             ? request.diagramType()
             : SnippetDiagramType.LOGICAL_STRUCTURE;
+        // The validator applies exactly this cap, so the model must be told the number: without it
+        // a long script came back transcribed into hundreds of nodes and was rejected as a whole.
+        int nodeCap = SnippetDiagramSupport.maxGeneratedNonterminalNodes(request.selectedText());
         String safetyRule = "Do not include frontmatter, Mermaid directives, comments, classDef, style, "
             + "linkStyle, click, href, URLs, images, icons, HTML, custom colors, subgraphs, or any other "
             + "Mermaid syntax. ";
@@ -315,6 +318,9 @@ public final class AiPromptBuilder {
                 + "and use only separately declared quoted action nodes node_id[\"Action label\"], quoted decision nodes node_id{\"Decision?\"}, "
                 + "--> edges, with exactly two distinctly labeled outgoing edges for every decision: use only the localized equivalents of 'yes' and 'no' in language code " + languageCode + ", "
                 + "and class statements. "
+                + "Use at most " + nodeCap + " action and decision nodes in total; start_1 and stop_1 do not count. "
+                + "That limit is an upper bound, not a target: summarize a long snippet at the level of its main phases, "
+                + "group related behavior instead of transcribing statements, and keep the JSON answer small. "
                 + "Use stable descriptive node ids containing only letters, digits, underscores, or hyphens. "
                 + "Every node must have exactly one semantic class: setup, work, success, or failure. "
                 + "codeReferences must be an array of objects with nodeId, label, startLine, and endLine. "
@@ -386,10 +392,15 @@ public final class AiPromptBuilder {
         };
     }
 
-    private static String snippetDiagramUserPromptIntro(SnippetDiagramType diagramType) {
-        SnippetDiagramType type = diagramType != null ? diagramType : SnippetDiagramType.LOGICAL_STRUCTURE;
+    private static String snippetDiagramUserPromptIntro(AiRequest request) {
+        SnippetDiagramType type = request.diagramType() != null
+            ? request.diagramType()
+            : SnippetDiagramType.LOGICAL_STRUCTURE;
         return switch (type) {
-            case LOGICAL_STRUCTURE -> "Generate a compact Mermaid logical-structure flowchart for the snippet.\n";
+            case LOGICAL_STRUCTURE -> "Generate a compact Mermaid logical-structure flowchart for the snippet.\n"
+                + "The snippet has " + SnippetDiagramSupport.countLines(request.selectedText())
+                + " lines; use at most " + SnippetDiagramSupport.maxGeneratedNonterminalNodes(request.selectedText())
+                + " action and decision nodes.\n";
             case SEQUENCE -> "Generate a compact Mermaid sequence diagram for the snippet's runtime interactions.\n";
             case STATE -> "Generate a compact Mermaid state diagram for the snippet's observable states.\n";
             case CLASS -> "Generate a compact Mermaid class diagram for the types declared in the snippet.\n";
@@ -537,7 +548,7 @@ public final class AiPromptBuilder {
                     + "Do not invent files, endpoints, placeholders, or network locations.\n"
                     + "Prefer readable shell separators, interpreter -e/-c flags, and safe quoting.\n");
             case GENERATE_SNIPPET_MERMAID -> prompt.append(
-                snippetDiagramUserPromptIntro(request.diagramType())
+                snippetDiagramUserPromptIntro(request)
                     + "Follow the complete syntax and safety contract from the system message.\n"
                     + "Build every response value from the line-numbered snippet.\n");
             case GENERATE_ASCII_ART -> prompt.append(

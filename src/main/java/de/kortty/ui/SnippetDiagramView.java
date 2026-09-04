@@ -55,22 +55,38 @@ import java.util.regex.Pattern;
  */
 final class SnippetDiagramView extends VBox {
 
+    /**
+     * One diagram to display. {@code notice} is an optional, already localized message shown above
+     * the rendered diagram — used to say that this is the local fallback and why the AI diagram
+     * was rejected, so a fallback is never mistaken for an AI result.
+     */
     public record DiagramSource(
         String mermaid,
         String content,
         List<SnippetDiagramSupport.SourceCodeReference> codeReferences,
-        SnippetDiagramType diagramType) {
+        SnippetDiagramType diagramType,
+        String notice) {
 
         public DiagramSource(
             String mermaid,
             String content,
             List<SnippetDiagramSupport.SourceCodeReference> codeReferences) {
 
-            this(mermaid, content, codeReferences, SnippetDiagramType.LOGICAL_STRUCTURE);
+            this(mermaid, content, codeReferences, SnippetDiagramType.LOGICAL_STRUCTURE, null);
+        }
+
+        public DiagramSource(
+            String mermaid,
+            String content,
+            List<SnippetDiagramSupport.SourceCodeReference> codeReferences,
+            SnippetDiagramType diagramType) {
+
+            this(mermaid, content, codeReferences, diagramType, null);
         }
 
         public DiagramSource {
             diagramType = diagramType != null ? diagramType : SnippetDiagramType.LOGICAL_STRUCTURE;
+            notice = notice != null && !notice.isBlank() ? notice.trim() : null;
         }
     }
 
@@ -100,6 +116,7 @@ final class SnippetDiagramView extends VBox {
     private final VBox spinnerBox;
     private final Label statusLabel = new Label();
     private final Label zoomLabel = new Label("100%");
+    private final Label noticeLabel = new Label();
     private final ColorPicker backgroundPicker;
     private final MenuButton darkModeButton = new MenuButton();
 
@@ -157,7 +174,27 @@ final class SnippetDiagramView extends VBox {
         spinnerBox = buildSpinnerBox();
         diagramStack.getChildren().addAll(diagramScroll, spinnerBox);
         VBox.setVgrow(diagramStack, Priority.ALWAYS);
-        getChildren().addAll(buildToolbar(showRegenerate), diagramStack);
+        noticeLabel.setWrapText(true);
+        noticeLabel.setStyle("-fx-text-fill: #c2410c; -fx-font-size: 0.9231em;");
+        noticeLabel.setMaxWidth(Double.MAX_VALUE);
+        // The diagram area below is height-constrained, so the VBox would otherwise shrink the
+        // notice to a single ellipsized line instead of letting the reason wrap.
+        noticeLabel.setMinHeight(Region.USE_PREF_SIZE);
+        setNotice(null);
+        getChildren().addAll(buildToolbar(showRegenerate), noticeLabel, diagramStack);
+    }
+
+    /** Shows (or, for {@code null}, hides) the notice above the diagram area. */
+    private void setNotice(String notice) {
+        boolean visible = notice != null && !notice.isBlank();
+        noticeLabel.setText(visible ? notice : "");
+        noticeLabel.setVisible(visible);
+        noticeLabel.setManaged(visible);
+    }
+
+    /** The notice currently shown above the diagram, or {@code null}. */
+    String currentNotice() {
+        return noticeLabel.isVisible() ? noticeLabel.getText() : null;
     }
 
     void reload() {
@@ -171,6 +208,7 @@ final class SnippetDiagramView extends VBox {
         renderedSvg = null;
         renderedPng = null;
         currentHotspots = List.of();
+        setNotice(null);
         diagramScroll.setVisible(false);
         diagramScroll.setManaged(false);
         showSpinner(I18n.get("snippets.ai.analysis.diagram.loading"));
@@ -212,6 +250,7 @@ final class SnippetDiagramView extends VBox {
         currentHotspots = List.of();
         renderedSvg = null;
         renderedPng = null;
+        setNotice(null);
         diagramScroll.setVisible(false);
         diagramScroll.setManaged(false);
         spinnerBox.setVisible(false);
@@ -250,6 +289,7 @@ final class SnippetDiagramView extends VBox {
         currentContent = source.content() != null ? source.content() : "";
         currentDiagramType = source.diagramType();
         currentSourceReferences = source.codeReferences() != null ? List.copyOf(source.codeReferences()) : List.of();
+        setNotice(source.notice());
         renderAsync(true);
     }
 

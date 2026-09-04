@@ -30,7 +30,19 @@ import java.util.regex.Pattern;
 public final class SnippetDiagramSupport {
     public static final int MAX_MERMAID_SOURCE_BYTES = 32 * 1024;
     public static final int MAX_MERMAID_EDGES = 300;
+    /**
+     * Compactness cap for a generated flowchart of a short snippet: the number of action and
+     * decision nodes it may declare. The cap grows with the snippet (see
+     * {@link #maxGeneratedNonterminalNodes(String)}); this base value applies up to
+     * {@link #NODE_CAP_BASE_LINES} lines and to every content-free validation.
+     */
     public static final int MAX_GENERATED_NONTERMINAL_NODES = 12;
+    /** Cap for a long script — reached at {@link #NODE_CAP_MAX_LINES} lines and never exceeded. */
+    public static final int MAX_GENERATED_NONTERMINAL_NODES_LONG_SNIPPET = 24;
+    /** Snippets up to this many lines keep the base cap. */
+    public static final int NODE_CAP_BASE_LINES = 200;
+    /** Snippets of at least this many lines get the long-snippet cap; in between it grows linearly. */
+    public static final int NODE_CAP_MAX_LINES = 1_000;
     public static final String DARK_BACKGROUND_COLOR = "#1E1E1E";
 
     private static final Set<String> SEMANTIC_CLASSES = Set.of("setup", "work", "success", "failure");
@@ -99,6 +111,122 @@ public final class SnippetDiagramSupport {
         private static MermaidValidation failure(String message) {
             return new MermaidValidation(false, "", message != null ? message : "Invalid Mermaid diagram.");
         }
+    }
+
+    /**
+     * The number of action and decision nodes a freshly generated flowchart may declare for
+     * {@code content}. Twelve nodes describe a typical snippet, but a 4,000-line script squeezed
+     * into twelve nodes is either generic or — far more often — rejected outright because the
+     * model transcribed the script instead. The cap therefore grows linearly from
+     * {@link #MAX_GENERATED_NONTERMINAL_NODES} at {@link #NODE_CAP_BASE_LINES} lines to
+     * {@link #MAX_GENERATED_NONTERMINAL_NODES_LONG_SNIPPET} at {@link #NODE_CAP_MAX_LINES} lines.
+     * The diagram prompt states the same number, so the model and the validator always agree.
+     */
+    public static int maxGeneratedNonterminalNodes(String content) {
+        return maxGeneratedNonterminalNodes(countLines(content));
+    }
+
+    /** See {@link #maxGeneratedNonterminalNodes(String)}; {@code lineCount} is the snippet's line count. */
+    public static int maxGeneratedNonterminalNodes(int lineCount) {
+        if (lineCount <= NODE_CAP_BASE_LINES) {
+            return MAX_GENERATED_NONTERMINAL_NODES;
+        }
+        if (lineCount >= NODE_CAP_MAX_LINES) {
+            return MAX_GENERATED_NONTERMINAL_NODES_LONG_SNIPPET;
+        }
+        double progress = (lineCount - NODE_CAP_BASE_LINES)
+            / (double) (NODE_CAP_MAX_LINES - NODE_CAP_BASE_LINES);
+        int range = MAX_GENERATED_NONTERMINAL_NODES_LONG_SNIPPET - MAX_GENERATED_NONTERMINAL_NODES;
+        return MAX_GENERATED_NONTERMINAL_NODES + (int) Math.round(range * progress);
+    }
+
+    /** Counts the lines of a snippet the way the line-numbered prompt numbers them; blank content has none. */
+    public static int countLines(String content) {
+        if (content == null || content.isBlank()) {
+            return 0;
+        }
+        return content.split("\\R", -1).length;
+    }
+
+    /**
+     * Which action and decision nodes of a generated flowchart carry a valid source reference.
+     * An incomplete mapping no longer rejects a diagram — the affected nodes merely lose their
+     * hover reference — but it is worth a log line, because it is the model ignoring the contract.
+     */
+    public record SourceMappingReport(int expectedNodes, List<String> unmappedNodeIds) {
+        public SourceMappingReport {
+            unmappedNodeIds = unmappedNodeIds != null ? List.copyOf(unmappedNodeIds) : List.of();
+        }
+
+        public int mappedNodes() {
+            return expectedNodes - unmappedNodeIds.size();
+        }
+
+        public boolean complete() {
+            return unmappedNodeIds.isEmpty();
+        }
+    }
+
+    public static SourceMappingReport reportSourceMapping(
+        String mermaidSource,
+        String snippetContent,
+        List<SourceCodeReference> sourceReferences) {
+
+        ParsedDiagram parsed = parseRestrictedFlowchart(normalizeMermaid(mermaidSource));
+        if (!parsed.validation().valid()) {
+            return new SourceMappingReport(0, List.of());
+        }
+        Set<String> mappedNodeIds = new LinkedHashSet<>();
+        buildValidatedCodeReferences(mermaidSource, snippetContent, sourceReferences)
+            .forEach(reference -> mappedNodeIds.add(reference.nodeId()));
+        int expectedNodes = 0;
+        List<String> unmappedNodeIds = new ArrayList<>();
+        for (NodeDefinition node : parsed.nodes().values()) {
+            if (node.type() == NodeType.TERMINAL) {
+                continue;
+            }
+            expectedNodes++;
+            if (!mappedNodeIds.contains(node.id())) {
+                unmappedNodeIds.add(node.id());
+            }
+        }
+        return new SourceMappingReport(expectedNodes, unmappedNodeIds);
+    }
+
+    /**
+     * The size of a generated flowchart, for the log lines that explain why it was accepted or
+     * rejected. Counted line by line so that an oversized answer — the usual reason for a
+     * rejection — is still measured after the strict parser has given up on it.
+     */
+    public record FlowchartStatistics(int actionNodes, int decisionNodes, int edges) {
+        public int nonterminalNodes() {
+            return actionNodes + decisionNodes;
+        }
+
+        @Override
+        public String toString() {
+            return "nodes=" + nonterminalNodes() + " (decisions=" + decisionNodes + "), edges=" + edges;
+        }
+    }
+
+    public static FlowchartStatistics flowchartStatistics(String mermaidSource) {
+        int actionNodes = 0;
+        int decisionNodes = 0;
+        int edges = 0;
+        for (String rawLine : normalizeMermaid(mermaidSource).split("\\R")) {
+            String line = rawLine.trim();
+            Matcher nodeMatcher = NODE_PATTERN.matcher(line);
+            if (nodeMatcher.matches()) {
+                if (nodeMatcher.group(3) != null) {
+                    decisionNodes++;
+                } else if (nodeMatcher.group(4) == null) {
+                    actionNodes++;
+                }
+            } else if (EDGE_PATTERN.matcher(line).matches()) {
+                edges++;
+            }
+        }
+        return new FlowchartStatistics(actionNodes, decisionNodes, edges);
     }
 
     public static String contentHash(String content) {
@@ -178,11 +306,22 @@ public final class SnippetDiagramSupport {
     }
 
     /**
-     * Applies strict topology and compactness rules to a newly generated AI diagram. The general
-     * renderer deliberately uses {@link #validateMermaid(String)} so diagrams saved by older korTTY
-     * versions remain renderable when they are still safe restricted Mermaid.
+     * Applies strict topology and compactness rules to a newly generated AI diagram, with the base
+     * node cap of a short snippet. The general renderer deliberately uses
+     * {@link #validateMermaid(String)} so diagrams saved by older korTTY versions remain
+     * renderable when they are still safe restricted Mermaid.
      */
     public static MermaidValidation validateGeneratedMermaid(String source) {
+        return validateGeneratedMermaid(source, MAX_GENERATED_NONTERMINAL_NODES);
+    }
+
+    /**
+     * Applies strict topology and compactness rules to a newly generated AI diagram.
+     *
+     * @param maxNonterminalNodes the cap for action and decision nodes, normally
+     *     {@link #maxGeneratedNonterminalNodes(String)} of the snippet the diagram describes
+     */
+    public static MermaidValidation validateGeneratedMermaid(String source, int maxNonterminalNodes) {
         MermaidValidation validation = validateMermaid(source);
         if (!validation.valid()) {
             return validation;
@@ -195,18 +334,24 @@ public final class SnippetDiagramSupport {
         long nonterminalNodes = parsed.nodes().values().stream()
             .filter(node -> node.type() != NodeType.TERMINAL)
             .count();
-        if (nonterminalNodes > MAX_GENERATED_NONTERMINAL_NODES) {
+        if (nonterminalNodes > maxNonterminalNodes) {
             return MermaidValidation.failure(
-                "Generated Mermaid flowcharts may use at most " + MAX_GENERATED_NONTERMINAL_NODES
-                    + " non-terminal nodes; related behavior must be grouped.");
+                "Generated Mermaid flowcharts may use at most " + maxNonterminalNodes
+                    + " non-terminal nodes for this snippet, but " + nonterminalNodes
+                    + " were declared; related behavior must be grouped.");
         }
         return validation;
     }
 
     /**
-     * Validates a fresh AI diagram together with its exact, bounded source mapping. This intentionally
-     * avoids guessing source-language semantics; behavior grouping remains the mandatory action skill's
-     * responsibility, while topology, compactness and mapping completeness are enforced locally.
+     * Validates a fresh AI diagram for the snippet it describes: topology, the snippet-sized node
+     * cap and the localized decision labels. This intentionally avoids guessing source-language
+     * semantics; behavior grouping remains the mandatory action skill's responsibility.
+     *
+     * <p>The source mapping is deliberately not a pass/fail criterion any more. A diagram whose
+     * nodes lack a valid reference used to be discarded as a whole and silently replaced by the
+     * generic local fallback; now the diagram is kept and only the unmapped nodes lose their
+     * hover reference — {@link #reportSourceMapping} tells the caller which ones.</p>
      */
     public static MermaidValidation validateMermaidForSnippet(
         String source,
@@ -214,7 +359,8 @@ public final class SnippetDiagramSupport {
         List<SourceCodeReference> sourceReferences,
         String responseLanguageCode) {
 
-        MermaidValidation validation = validateGeneratedMermaid(source);
+        MermaidValidation validation = validateGeneratedMermaid(
+            source, maxGeneratedNonterminalNodes(snippetContent));
         if (!validation.valid()) {
             return validation;
         }
@@ -236,18 +382,6 @@ public final class SnippetDiagramSupport {
                             + normalizeLanguageCode(responseLanguageCode) + ".");
                 }
             }
-        }
-        Set<String> expectedNodeIds = new LinkedHashSet<>();
-        parsed.nodes().values().stream()
-            .filter(node -> node.type() != NodeType.TERMINAL)
-            .forEach(node -> expectedNodeIds.add(node.id()));
-        List<CodeReference> validatedReferences = buildValidatedCodeReferences(
-            source, snippetContent, sourceReferences);
-        Set<String> mappedNodeIds = new LinkedHashSet<>();
-        validatedReferences.forEach(reference -> mappedNodeIds.add(reference.nodeId()));
-        if (!mappedNodeIds.equals(expectedNodeIds)) {
-            return MermaidValidation.failure(
-                "Every generated Mermaid action and decision node must have one valid source reference.");
         }
         return validation;
     }
