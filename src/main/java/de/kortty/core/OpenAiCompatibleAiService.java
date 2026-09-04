@@ -1970,12 +1970,17 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
      * <p>{@code disabled} rather than {@code adaptive}: adaptive was tried first and still
      * thought up to the ceiling on hard work items — 65 536 of 65 536 tokens on a taint-mode
      * rewrite, after 24 lighter items had passed — because M3 scales its thinking to whatever
-     * budget it is handed. Only a disabled profile is mapped: an explicit effort level is the
-     * user asking for reasoning, and overriding that with a weaker mode would silently ignore
-     * them too.
+     * budget it is handed. Both "off" values are mapped — a disabled profile and an explicit
+     * {@code none}. The latter used to slip through because it carries an API value
+     * ({@code reasoning_effort: none}), which MiniMax ignores, so the diagram request that korTTY
+     * itself pins to {@code none} arrived with no thinking object and M3 thought anyway: a
+     * 130-line script came back as 4 853 completion tokens opening with {@code <think>}. An
+     * explicit effort level is different — that is the user asking for reasoning, and overriding
+     * it with a weaker mode would silently ignore them too.
      */
     private void appendThinkingMode(JsonObject root, String effectiveModel) {
-        if (reasoningEffort.isApiEnabled() || !usesMiniMaxThinkingParameter(effectiveModel)) {
+        boolean reasoningOff = !reasoningEffort.isApiEnabled() || reasoningEffort == AiReasoningEffort.NONE;
+        if (!reasoningOff || !usesMiniMaxThinkingParameter(effectiveModel)) {
             return;
         }
         JsonObject thinking = new JsonObject();

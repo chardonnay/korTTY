@@ -157,6 +157,31 @@ class SnippetTypedDiagramSupportTest {
     }
 
     @Test
+    void recoverySkipsInlineReasoningThatMentionsTheHeader() {
+        // MiniMax-M3 thinks inline: the header appears in the reasoning before the diagram.
+        String answer = """
+            <think>Let me plan the flowchart TD carefully: start, read config, stop.</think>
+            ```mermaid
+            flowchart TD
+                start_1(["Start"])
+                work_1["Read config"]
+                stop_1(["Stop"])
+                start_1 --> work_1
+                work_1 --> stop_1
+                class start_1,stop_1 setup
+                class work_1 work
+            ```
+            """;
+
+        String recovered = SnippetTypedDiagramSupport.extractDiagramSource(
+            SnippetDiagramType.LOGICAL_STRUCTURE, answer);
+
+        assertThat(recovered).startsWith("flowchart TD");
+        assertThat(recovered).doesNotContain("carefully");
+        assertThat(SnippetDiagramSupport.validateMermaid(recovered).valid()).isTrue();
+    }
+
+    @Test
     void recoveryReturnsNothingForAnAnswerWithoutADiagram() {
         assertThat(SnippetTypedDiagramSupport.extractDiagramSource(
             SnippetDiagramType.LOGICAL_STRUCTURE, "I cannot draw this script.")).isEmpty();

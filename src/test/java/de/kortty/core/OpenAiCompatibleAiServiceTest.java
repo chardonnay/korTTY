@@ -711,6 +711,23 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void explicitNoneReasoningAlsoSwitchesMiniMaxThinkingOff() {
+        // korTTY pins the diagram request to `none`. That value carries reasoning_effort, which
+        // MiniMax ignores, so it used to arrive without the thinking object and M3 thought anyway:
+        // a 130-line script came back as 4 853 completion tokens opening with <think>.
+        OpenAiCompatibleAiService miniMax = new OpenAiCompatibleAiService(
+            "https://api.minimax.io/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token",
+            AiReasoningEffort.NONE);
+
+        JsonObject body = JsonParser.parseString(miniMax.buildRequestBody(
+            new AiRequest(AiAction.GENERATE_SNIPPET_MERMAID, "echo ok", null, "en"))).getAsJsonObject();
+
+        assertThat(body.getAsJsonObject("thinking").get("type").getAsString()).isEqualTo("disabled");
+    }
+
+    @Test
     void thinkingParameterIsWithheldFromOtherEndpointsAndFromExplicitEffortLevels() {
         OpenAiCompatibleAiService openAi = new OpenAiCompatibleAiService(
             "https://api.openai.com/v1/chat/completions",

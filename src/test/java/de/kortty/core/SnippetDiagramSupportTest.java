@@ -443,6 +443,46 @@ class SnippetDiagramSupportTest {
     }
 
     @Test
+    void chainedEdgesAndPlainCommentsAreAcceptedAsShorthand() {
+        String chained = """
+            flowchart TD
+                %% phases
+                start_1(["Start"])
+                work_1["Read config"]
+                check_1{"Config valid?"}
+                work_2["Run"]
+                fail_1["Abort"]
+                stop_1(["Stop"])
+                start_1 --> work_1 --> check_1
+                check_1 -->|yes| work_2 --> stop_1
+                check_1 -->|no| fail_1 --> stop_1
+                class start_1,stop_1 setup
+                class work_1,check_1,work_2 work
+                class fail_1 failure
+            """;
+
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(chained).valid()).isTrue();
+        SnippetDiagramSupport.FlowchartStatistics statistics = SnippetDiagramSupport.flowchartStatistics(chained);
+        assertThat(statistics.edges()).isEqualTo(6);
+        assertThat(statistics.decisionNodes()).isEqualTo(1);
+    }
+
+    @Test
+    void unsupportedSyntaxErrorsQuoteTheOffendingLine() {
+        String subgraph = """
+            flowchart TD
+                start_1(["Start"])
+                subgraph setup_phase [Setup]
+                stop_1(["Stop"])
+                start_1 --> stop_1
+                class start_1,stop_1 setup
+            """;
+
+        assertThat(SnippetDiagramSupport.validateMermaid(subgraph).message())
+            .isEqualTo("Unsupported Mermaid syntax on line 3: 'subgraph setup_phase [Setup]'.");
+    }
+
+    @Test
     void generatedNodeCapGrowsLinearlyWithTheSnippetLength() {
         assertThat(SnippetDiagramSupport.maxGeneratedNonterminalNodes("")).isEqualTo(12);
         assertThat(SnippetDiagramSupport.maxGeneratedNonterminalNodes((String) null)).isEqualTo(12);

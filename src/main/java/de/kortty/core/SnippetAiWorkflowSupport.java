@@ -1548,9 +1548,10 @@ public final class SnippetAiWorkflowSupport {
                 describeAnswer(type, answer));
             return diagram;
         }
+        int answerChars = answer != null ? answer.length() : 0;
         if (salvaged) {
             logger.info("AI diagram recovered from an answer whose JSON envelope was unusable "
-                + "[type={}, snippet lines={}]", type, snippetLines);
+                + "[type={}, snippet lines={}, answer chars={}]", type, snippetLines, answerChars);
         }
         SnippetDiagramSupport.MermaidValidation validation = SnippetTypedDiagramSupport.validateForSnippet(
             type, diagram.mermaid(), scopedContent, diagram.codeReferences(), fallbackLanguageCode);
@@ -1570,8 +1571,12 @@ public final class SnippetAiWorkflowSupport {
                     snippetLines, summary);
             }
         }
-        logger.info("AI diagram accepted [type={}, snippet lines={}, node cap={}, {}]",
-            type, snippetLines, SnippetDiagramSupport.maxGeneratedNonterminalNodes(scopedContent), summary);
+        // The answer length beside the token count tells hidden reasoning (billed, never returned)
+        // from a verbose reply: a compact diagram JSON is a few thousand characters, whatever the
+        // completion count says.
+        logger.info("AI diagram accepted [type={}, snippet lines={}, node cap={}, {}, answer chars={}]",
+            type, snippetLines, SnippetDiagramSupport.maxGeneratedNonterminalNodes(scopedContent), summary,
+            answerChars);
         return diagram;
     }
 

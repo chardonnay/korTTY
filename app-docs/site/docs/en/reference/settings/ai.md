@@ -148,6 +148,8 @@ For a binary `off`/`on` model, an explicit `none` request switches this feature 
 
 A detected list belongs to the endpoint and model it was read for. Changing either discards it, and where korTTY cannot read the new combination's metadata — a CLI profile, a cloud endpoint — the profile falls back to the conservative defaults for its model name until you press **Refresh reasoning options**. A level that is no longer offered is dropped from the request with a log line naming the level actually used. Fields that a profile's own connection mode does not use, such as the CLI provider of an HTTP profile, never invalidate a detected list. Profiles using an integrated model keep their detected levels.
 
+For MiniMax endpoints (directly or through an aggregator whose model name contains `minimax`), both **Disabled** and an explicit `none` are sent as MiniMax's own `thinking: disabled` parameter, because those models ignore `reasoning_effort` and otherwise think by default — billing the hidden reasoning as completion tokens and, for MiniMax-M3, opening the reply with an inline `<think>` block. An explicit effort level is passed through unchanged.
+
 For the native Anthropic (Claude) endpoint, an enabled reasoning level requests **extended thinking** with a level-dependent thinking budget; models that do not support extended thinking are retried once without it. The model's reasoning is shown in the Terminal AI Agent's 💭 thinking rows.
 
 ### Image input (vision)
