@@ -22,6 +22,8 @@ public final class AiOutputTokenLimitSupport {
      */
     static final int MERMAID_MAX_COMPLETION_TOKENS = 32_768;
     static final int FULL_REPLACEMENT_MAX_COMPLETION_TOKENS = 65_536;
+    /** Edit mode returns changed regions only; a model that transcribes the file anyway is stopped here. */
+    static final int EDIT_MODE_MAX_COMPLETION_TOKENS = 32_768;
     /**
      * Head-room for everything a model emits before the replacement itself, and therefore also the
      * floor of the full-replacement budget. Sized for models that bill hidden thinking as
@@ -49,8 +51,10 @@ public final class AiOutputTokenLimitSupport {
         }
         return switch (request.action()) {
             case GENERATE_SNIPPET_MERMAID -> MERMAID_MAX_COMPLETION_TOKENS;
-            case APPLY_SNIPPET_IMPROVEMENTS, APPLY_SNIPPET_SECURITY_FIXES,
-                 IMPROVE_SNIPPET_CODE, ASSIST_SNIPPET_CODE ->
+            case APPLY_SNIPPET_IMPROVEMENTS -> AiPromptBuilder.isEditModeApply(request)
+                ? EDIT_MODE_MAX_COMPLETION_TOKENS
+                : fullReplacementLimit(request.selectedText());
+            case APPLY_SNIPPET_SECURITY_FIXES, IMPROVE_SNIPPET_CODE, ASSIST_SNIPPET_CODE ->
                 fullReplacementLimit(request.selectedText());
             default -> null;
         };

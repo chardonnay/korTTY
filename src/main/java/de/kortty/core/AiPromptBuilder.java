@@ -25,6 +25,19 @@ public final class AiPromptBuilder {
         + "safe; less fails.";
 
     /** Mandatory contract for actions whose replacement overwrites the complete snippet. */
+    /**
+     * Edit mode for a long snippet: the changed regions instead of the whole script. A
+     * 4,009-line script returned as a JSON array of every line is ~60,000 output tokens — at the
+     * completion cap, twelve minutes per stage, and one lost quote loses all of it.
+     */
+    private static final String EDIT_REGIONS_RULE =
+        "edits is an array of objects with keys startLine, endLine and replacementLines. Each edit replaces the "
+        + "inclusive 1-based range startLine..endLine of the provided line-numbered snippet with replacementLines "
+        + "(exactly one source line per string entry, no newline characters inside an entry; an empty array deletes "
+        + "the range). To insert lines, include one neighboring original line in the range and repeat it in "
+        + "replacementLines. Ranges must not overlap and must be listed in ascending order. Return only the regions "
+        + "that change and never the whole script: every line outside an edit is kept verbatim by the editor.";
+
     private static final String COMPLETE_FULL_REPLACEMENT_RULE =
         "replacementLines must be an array containing the complete updated snippet with exactly one source "
         + "line per string entry and no newline characters inside an entry. Preserve a trailing newline with "
@@ -232,17 +245,22 @@ public final class AiPromptBuilder {
                 + DIRECT_JSON_REPLY_RULE + " Do not rewrite code and do not include Markdown outside the JSON object.";
         }
         if (request != null && request.action() == AiAction.APPLY_SNIPPET_IMPROVEMENTS) {
+            boolean editMode = isEditModeApply(request);
             return "You apply only the selected improvements, dependency suggestions, and mandatory hardening requirements to the provided snippet. "
-                + "Return exactly one JSON object with keys replacementLines, summary, changes and implementedRequirements. "
-                + COMPLETE_FULL_REPLACEMENT_RULE + " "
+                + "Return exactly one JSON object with keys " + (editMode ? "edits" : "replacementLines")
+                + ", summary, changes and implementedRequirements. "
+                + (editMode ? EDIT_REGIONS_RULE : COMPLETE_FULL_REPLACEMENT_RULE) + " "
                 + "changes is an array that covers edited regions for selected analysis items. Each entry has keys finding (the exact id "
-                + "of the selected analysis item it addresses), anchor (a single line copied verbatim from replacementLines "
-                + "that locates the edited region) and reason (one short sentence explaining why this region changed). "
+                + "of the selected analysis item it addresses), anchor (a single line copied verbatim from "
+                + (editMode ? "an edit's replacementLines" : "replacementLines")
+                + " that locates the edited region) and reason (one short sentence explaining why this region changed). "
                 + "implementedRequirements is a compact array containing every mandatory hardening requirement id exactly once after the reconstructed script implements it. "
                 + "Never list a requirement as implemented unless the reconstructed script actually implements it. "
                 + "Do not add a changes entry solely for required natural-language normalization. "
                 + "Implement every mandatory hardening requirement supplied in this stage even when no analysis item is selected; do not omit flags, checks, cleanup, logging, summaries, or help because they were absent from the original script. "
-                + "Do not refuse or abbreviate replacementLines merely because this stage contains multiple requirements; the output limit is sized for complete code. "
+                + (editMode
+                    ? "Do not refuse merely because this stage contains multiple requirements; return one edit per changed region. "
+                    : "Do not refuse or abbreviate replacementLines merely because this stage contains multiple requirements; the output limit is sized for complete code. ")
                 + "For a selected dependency, implement its reduce/replace suggestion. "
                 + "Preserve unrelated behavior and formatting where possible. "
                 + "Write summary and every reason in language code " + languageCode + ". "
@@ -528,8 +546,14 @@ public final class AiPromptBuilder {
                     + "summary explains what the script does. Each dependency lists an external script/program/service and a suggestion to reduce or replace it.\n"
                     + "Use category values security, optimization or design for improvements. Return empty arrays when nothing applies.\n"
                     + "Use only 1-based line numbers from the line-numbered snippet context.\n");
-            case APPLY_SNIPPET_IMPROVEMENTS -> prompt.append(
-                "Apply the selected analysis items and every mandatory hardening requirement to the full snippet.\n"
+            case APPLY_SNIPPET_IMPROVEMENTS -> prompt.append(isEditModeApply(request)
+                ? "Apply the selected analysis items and every mandatory hardening requirement to the line-numbered snippet.\n"
+                    + "Return exactly one JSON object with this shape:\n"
+                    + "{ \"edits\": [ { \"startLine\": 12, \"endLine\": 14, \"replacementLines\": [\"new line\", \"next line\"] } ], \"summary\": \"...\", "
+                    + "\"changes\": [ { \"finding\": \"SEC-1\", \"anchor\": \"<verbatim entry from an edit's replacementLines>\", \"reason\": \"...\" } ], "
+                    + "\"implementedRequirements\": [\"HARDENING-01\"] }\n"
+                    + EDIT_REGIONS_RULE + " For a selected dependency, implement its reduce/replace suggestion.\n"
+                : "Apply the selected analysis items and every mandatory hardening requirement to the full snippet.\n"
                     + "Return exactly one JSON object with this shape:\n"
                     + "{ \"replacementLines\": [\"#!/usr/bin/env ...\", \"next source line\", \"\"], \"summary\": \"...\", "
                     + "\"changes\": [ { \"finding\": \"SEC-1\", \"anchor\": \"<verbatim entry from replacementLines>\", \"reason\": \"...\" } ], "
@@ -538,7 +562,9 @@ public final class AiPromptBuilder {
                     + "The mandatory-requirements block is authoritative even when no analysis item is selected. "
                     + "Do not refuse merely because it contains multiple entries. "
                     + "Put every implemented mandatory requirement id in the compact implementedRequirements array and use changes only for selected analysis items; "
-                    + "each changes anchor must be a line copied verbatim from replacementLines. "
+                    + (isEditModeApply(request)
+                        ? "each changes anchor must be a line copied verbatim from an edit's replacementLines. "
+                        : "each changes anchor must be a line copied verbatim from replacementLines. ")
                     + "Do not add entries for language-only normalization.\n");
             case MIGRATE_SNIPPET_LANGUAGE -> prompt.append(
                 "Migrate the snippet as described by the migration scope in the context.\n"
@@ -683,14 +709,26 @@ public final class AiPromptBuilder {
         return prompt.toString();
     }
 
-    /** Analysis and Mermaid contexts already contain the complete line-numbered snippet. */
+    /** Analysis, Mermaid and edit-mode apply contexts already contain the complete line-numbered snippet. */
     private static boolean sourceIsLineNumberedInContext(AiRequest request) {
         return request != null
             && request.conversationContext() != null
             && !request.conversationContext().isBlank()
             && request.conversationContext().contains("Line-numbered snippet:")
             && (request.action() == AiAction.ANALYZE_SNIPPET_CODE
-                || request.action() == AiAction.GENERATE_SNIPPET_MERMAID);
+                || request.action() == AiAction.GENERATE_SNIPPET_MERMAID
+                || request.action() == AiAction.APPLY_SNIPPET_IMPROVEMENTS);
+    }
+
+    /**
+     * Whether an apply request asks for edit regions instead of the whole script — the workflow
+     * decides by snippet length and marks the request by carrying the line-numbered snippet.
+     */
+    public static boolean isEditModeApply(AiRequest request) {
+        return request != null
+            && request.action() == AiAction.APPLY_SNIPPET_IMPROVEMENTS
+            && request.conversationContext() != null
+            && request.conversationContext().contains("Line-numbered snippet:");
     }
 
     private static boolean isConversationFollowUp(AiRequest request) {

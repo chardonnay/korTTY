@@ -1260,6 +1260,58 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void longSnippetApplyStageUsesEditRegionsAndAppliesThemLocally() throws Exception {
+        StringBuilder script = new StringBuilder("#!/usr/bin/env bash\n");
+        for (int index = 1; index <= 500; index++) {
+            script.append("echo step ").append(index).append('\n');
+        }
+        String content = script.toString();
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "edits": [
+                { "startLine": 1, "endLine": 1, "replacementLines": ["#!/usr/bin/env bash", "set -euo pipefail"] },
+                { "startLine": 251, "endLine": 251, "replacementLines": ["echo step 250 hardened"] }
+              ],
+              "summary": "Strict mode and one hardened step.",
+              "changes": [ { "finding": "SEC-1", "anchor": "set -euo pipefail", "reason": "fail fast" } ],
+              "implementedRequirements": []
+            }
+            """);
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix = SnippetAiWorkflowSupport.applySnippetImprovements(
+            aiService, null, content, "bash", null, "en",
+            List.of(new SnippetAiResponseSupport.ScriptImprovement(
+                "SEC-1", "security", "high", "Fail fast", "No strict mode.", "Add set -euo pipefail.", 1)),
+            List.of(), "", null, null, null);
+
+        assertThat(aiService.executionCount).isEqualTo(1);
+        assertThat(aiService.lastRequest.conversationContext()).contains("Line-numbered snippet:");
+        assertThat(aiService.lastRequest.conversationContext()).contains("251 | echo step 250");
+        assertThat(AiPromptBuilder.buildUserPrompt(aiService.lastRequest)).doesNotContain("Full script content to update:");
+        assertThat(AiOutputTokenLimitSupport.resolve(aiService.lastRequest, null)).isEqualTo(32_768);
+        assertThat(fix.replacement()).startsWith("#!/usr/bin/env bash\nset -euo pipefail\necho step 1\n");
+        assertThat(fix.replacement()).contains("echo step 249\necho step 250 hardened\necho step 251\n");
+        assertThat(fix.replacement().split("\n").length).isEqualTo(502);
+        assertThat(fix.summary()).isEqualTo("Strict mode and one hardened step.");
+    }
+
+    @Test
+    void longSnippetApplyStageRefusesUntrustworthyEditRanges() {
+        String content = "echo x\n".repeat(500);
+        CapturingAiService aiService = new CapturingAiService("""
+            { "edits": [ { "startLine": 400, "endLine": 900, "replacementLines": ["nope"] } ], "summary": "", "changes": [], "implementedRequirements": [] }
+            """);
+
+        expectThrows(
+            SnippetAiWorkflowSupport.FullReplacementRejectedException.class,
+            () -> SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService, null, content, "bash", null, "en",
+                List.of(new SnippetAiResponseSupport.ScriptImprovement("SEC-1", "security", "high", "t", "d", "r", 1)),
+                List.of(), "", null, null, null));
+        assertThat(aiService.executionCount).isEqualTo(1);
+    }
+
+    @Test
     void mermaidRequestAsksForNodeCodeReferencesWithLineNumberedSnippet() throws Exception {
         CapturingAiService aiService = new CapturingAiService("""
             {

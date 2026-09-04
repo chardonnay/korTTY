@@ -452,6 +452,9 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             // a well-formed answer.
             return SnippetAiResponseSupport.carriesDiagramJson(content);
         }
+        if (AiPromptBuilder.isEditModeApply(request)) {
+            return SnippetAiResponseSupport.parseSnippetEdits(content).isUsable();
+        }
         if (request.action() == AiAction.MIGRATE_SNIPPET_LANGUAGE) {
             return SnippetAiResponseSupport.parseLanguageMigration(content).isUsable();
         }
@@ -1457,6 +1460,9 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         if (request != null && request.action() == AiAction.GENERATE_SNIPPET_MERMAID) {
             return buildSnippetDiagramResponseFormat();
         }
+        if (AiPromptBuilder.isEditModeApply(request)) {
+            return buildSnippetEditsResponseFormat();
+        }
         if (request != null && request.action() == AiAction.MIGRATE_SNIPPET_LANGUAGE) {
             return buildLanguageMigrationResponseFormat(request);
         }
@@ -1592,6 +1598,43 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         jsonSchema.addProperty("name", "snippet_diagram_response");
         jsonSchema.addProperty("strict", true);
         jsonSchema.add("schema", strictObjectSchema(properties, "title", "mermaid", "codeReferences"));
+
+        JsonObject responseFormat = new JsonObject();
+        responseFormat.addProperty("type", "json_schema");
+        responseFormat.add("json_schema", jsonSchema);
+        return responseFormat;
+    }
+
+    /** Edit mode: changed regions instead of the whole script; see {@link AiPromptBuilder#isEditModeApply}. */
+    private static JsonObject buildSnippetEditsResponseFormat() {
+        JsonObject stringType = new JsonObject();
+        stringType.addProperty("type", "string");
+        JsonObject lineType = new JsonObject();
+        lineType.addProperty("type", "integer");
+        lineType.addProperty("minimum", 1);
+
+        JsonObject editProperties = new JsonObject();
+        editProperties.add("startLine", lineType.deepCopy());
+        editProperties.add("endLine", lineType.deepCopy());
+        editProperties.add("replacementLines", arraySchema(stringType.deepCopy()));
+        JsonObject edits = arraySchema(strictObjectSchema(editProperties, "startLine", "endLine", "replacementLines"));
+
+        JsonObject changeProperties = new JsonObject();
+        changeProperties.add("finding", stringType.deepCopy());
+        changeProperties.add("anchor", stringType.deepCopy());
+        changeProperties.add("reason", stringType.deepCopy());
+        JsonObject changes = arraySchema(strictObjectSchema(changeProperties, "finding", "anchor", "reason"));
+
+        JsonObject properties = new JsonObject();
+        properties.add("edits", edits);
+        properties.add("summary", stringType.deepCopy());
+        properties.add("changes", changes);
+        properties.add("implementedRequirements", arraySchema(stringType.deepCopy()));
+
+        JsonObject jsonSchema = new JsonObject();
+        jsonSchema.addProperty("name", "snippet_edits_response");
+        jsonSchema.addProperty("strict", true);
+        jsonSchema.add("schema", strictObjectSchema(properties, "edits", "summary", "changes", "implementedRequirements"));
 
         JsonObject responseFormat = new JsonObject();
         responseFormat.addProperty("type", "json_schema");
