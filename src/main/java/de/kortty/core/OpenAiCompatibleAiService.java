@@ -533,12 +533,16 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
 
     private void logUnusableStructuredResponse(AiRequest request, AiExecutionResult result) {
         String content = result.content() != null ? result.content() : "";
+        String failure = SnippetAiResponseSupport.describeJsonFailure(content);
+        java.nio.file.Path archived = AiAnswerArchive.save(request.action(), "unusable-first-attempt", content);
         logger.warn(
             "AI endpoint accepted response_format for action={} but answered without usable JSON "
-                + "({} chars, {}); retrying once without the schema. Enable debug logging for the response prefix.",
+                + "({} chars, {}; {}); retrying once without the schema. Full answer: {}",
             request.action(),
             content.length(),
-            unusableAnswerClass(content));
+            unusableAnswerClass(content),
+            failure != null ? failure : "JSON parses but lacks the required content",
+            archived != null ? archived : "not archived");
         if (logger.isDebugEnabled()) {
             logger.debug(
                 "Unusable structured response for action={}: {}",

@@ -1126,6 +1126,13 @@ public final class SnippetAiWorkflowSupport {
                     repairReason = StageRepairReason.COLLAPSED_REPLACEMENT;
                     continue;
                 }
+                // An edit-mode answer with nothing to apply gets the same single second chance a
+                // collapsed whole-file answer gets: the stage input is unchanged, the request
+                // says what was wrong with the first answer.
+                if (!repairAttempt && editMode && fix == null) {
+                    repairReason = StageRepairReason.UNUSABLE_EDITS;
+                    continue;
+                }
                 if (echoOnlyRepairFallback != null) {
                     return echoOnlyRepairFallback;
                 }
@@ -1181,14 +1188,19 @@ public final class SnippetAiWorkflowSupport {
      */
     private static SnippetAiResponseSupport.SnippetSecurityFix fixFromEdits(String content, AiExecutionResult result) {
         String answer = result != null && result.content() != null ? result.content() : "";
-        SnippetAiResponseSupport.SnippetEdits edits = SnippetAiResponseSupport.parseSnippetEdits(answer);
+        SnippetAiResponseSupport.SnippetEdits edits = SnippetAiResponseSupport.parseSnippetEdits(answer, content);
         if (edits.recoveredFromBrokenJson()) {
             logger.info("AI apply stage edits read from an answer whose JSON did not parse: {} edit(s) "
                 + "recovered line by line, no retry needed [answer chars={}]", edits.edits().size(), answer.length());
         }
         if (!edits.isUsable()) {
-            logger.warn("AI apply stage returned no usable edits [answer chars={}, starts with: {}]",
-                answer.length(), answer.strip().replaceAll("\\s+", " ").substring(0, Math.min(160, answer.strip().length())));
+            String failure = SnippetAiResponseSupport.describeJsonFailure(answer);
+            java.nio.file.Path archived = AiAnswerArchive.save(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "no-usable-edits", answer);
+            logger.warn("AI apply stage returned no usable edits [answer chars={}, {}; starts with: {}] Full answer: {}",
+                answer.length(),
+                failure != null ? failure : "JSON parses but holds no edit with a range",
+                answer.strip().replaceAll("\\s+", " ").substring(0, Math.min(160, answer.strip().length())),
+                archived != null ? archived : "not archived");
             return null;
         }
         SnippetAiResponseSupport.AppliedEdits applied =
@@ -1198,9 +1210,33 @@ public final class SnippetAiWorkflowSupport {
                 + "snippet [answer chars={}]", edits.edits().size(), SnippetDiagramSupport.countLines(content), answer.length());
             return null;
         }
+        List<SnippetAiResponseSupport.SecurityChange> changes = edits.changes();
         if (!applied.dropped().isEmpty()) {
             // The stage goes on with what could be applied; the repair round below asks for the
             // items the dropped edits were meant to cover, instead of the whole stage failing.
+            // For that the echo of such an item must go: a change anchored in a dropped edit's
+            // lines — and in no applied edit's — would otherwise hide that the item was not applied.
+            java.util.Set<String> appliedLines = new java.util.HashSet<>();
+            java.util.Set<String> droppedLines = new java.util.HashSet<>();
+            for (SnippetAiResponseSupport.SnippetEdit edit : edits.edits()) {
+                (applied.applied().contains(edit) ? appliedLines : droppedLines)
+                    .addAll(edit.replacementLines().stream().map(String::strip).toList());
+            }
+            List<SnippetAiResponseSupport.SecurityChange> anchored = new ArrayList<>();
+            List<String> unanchored = new ArrayList<>();
+            for (SnippetAiResponseSupport.SecurityChange change : changes) {
+                String anchor = change.anchor() != null ? change.anchor().strip() : "";
+                if (!anchor.isEmpty() && droppedLines.contains(anchor) && !appliedLines.contains(anchor)) {
+                    unanchored.add(change.finding());
+                } else {
+                    anchored.add(change);
+                }
+            }
+            if (!unanchored.isEmpty()) {
+                logger.warn("AI apply stage ignores the echo of {}: anchored in a dropped edit; the repair round asks for them",
+                    unanchored);
+                changes = anchored;
+            }
             logger.warn("AI apply stage left {} of {} edit(s) out: {}", applied.dropped().size(),
                 edits.edits().size(), applied.dropped());
         }
@@ -1208,7 +1244,7 @@ public final class SnippetAiWorkflowSupport {
         logger.info("AI apply stage applied {} edit(s) covering {} original line(s) of {} [answer chars={}]",
             applied.applied().size(), editedLines, SnippetDiagramSupport.countLines(content), answer.length());
         return new SnippetAiResponseSupport.SnippetSecurityFix(
-            applied.replacement(), edits.summary(), edits.changes(), edits.implementedRequirements());
+            applied.replacement(), edits.summary(), changes, edits.implementedRequirements());
     }
 
     private static boolean isIncompleteStagedReplacement(String original, String replacement) {
@@ -2059,6 +2095,13 @@ public final class SnippetAiWorkflowSupport {
             .append(preservePriorStageWork
                 ? "This is a later stage of one atomic rewrite. The provided snippet already contains completed work from earlier stages. Preserve every existing behavior and hardening measure unless the current requirements strictly require an adjustment; never revert, remove, or abbreviate earlier work.\n"
                 : "")
+            .append(repairReason == StageRepairReason.UNUSABLE_EDITS
+                ? "The preceding attempt for this same stage was discarded because it contained no edit that could be applied: "
+                    + "its JSON was unreadable, its ranges lay outside the snippet, or its replacementLines held only the first "
+                    + "line of the range instead of the range's complete new content. This is the single repair attempt. "
+                    + "Return every changed region as one edit whose replacementLines contain the entire new text of "
+                    + "startLine..endLine, and make the JSON valid: escape every double quote inside code.\n"
+                : "")
             .append(repairReason == StageRepairReason.COLLAPSED_REPLACEMENT
                 ? "The preceding attempt for this same stage was discarded because it returned an empty or severely collapsed script. This is the single repair attempt: copy the complete input into replacementLines, one source line per array entry, then make only the current requested change. Do not close the JSON object after the header or a partial function.\n"
                 : "")
@@ -2333,6 +2376,8 @@ public final class SnippetAiWorkflowSupport {
     private enum StageRepairReason {
         NONE,
         COLLAPSED_REPLACEMENT,
+        /** Edit mode: the answer held no edit korTTY could apply (unreadable, out of range, hollow). */
+        UNUSABLE_EDITS,
         MISSING_REQUIREMENTS
     }
 

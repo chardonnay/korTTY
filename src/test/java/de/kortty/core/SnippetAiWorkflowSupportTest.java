@@ -1302,6 +1302,73 @@ class SnippetAiWorkflowSupportTest {
             .contains("corrected plain text in language code en");
     }
 
+    private static String fiveHundredSteps() {
+        StringBuilder script = new StringBuilder("#!/usr/bin/env bash\n");
+        for (int index = 1; index <= 500; index++) {
+            script.append("echo step ").append(index).append('\n');
+        }
+        return script.toString();
+    }
+
+    @Test
+    void editModeStageWithNoUsableEditGetsOneSecondAttempt() throws Exception {
+        // Seen live: an answer that reads as JSON but holds no edit korTTY can apply. The stage
+        // input is unchanged and the second request says what was wrong.
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            "{\"edits\":[{\"startLine\":9000,\"endLine\":9000,\"replacementLines\":[\"x\"]}],\"summary\":\"s\",\"changes\":[],\"implementedRequirements\":[]}",
+            """
+            {"edits":[{"startLine":2,"endLine":2,"replacementLines":["echo step 1 hardened"]}],
+             "summary":"ok","changes":[{"finding":"SEC-1","anchor":"echo step 1 hardened","reason":"r"}],"implementedRequirements":[]}
+            """);
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix = SnippetAiWorkflowSupport.applySnippetImprovements(
+            aiService, null, fiveHundredSteps(), "bash", null, "en",
+            List.of(new SnippetAiResponseSupport.ScriptImprovement(
+                "SEC-1", "security", "high", "Harden", "Detail", "Harden step 1.", 2)),
+            List.of(), "", null, null, null);
+
+        assertThat(aiService.requests).hasSize(2);
+        assertThat(aiService.requests.get(1).conversationContext()).contains("contained no edit that could be applied");
+        assertThat(aiService.requests.get(1).conversationContext()).contains("| echo step 1\n");
+        assertThat(fix.replacement()).contains("echo step 1 hardened");
+        assertThat(fix.replacement()).contains("echo step 500");
+    }
+
+    @Test
+    void hollowEditIsDroppedAndItsEchoDoesNotHideTheMissingItem() throws Exception {
+        // Seen live: a range of five lines "replaced" by its own first line, with the item's id
+        // echoed in changes anyway. The hollow edit is dropped, the echo is ignored, and the
+        // repair round asks for the item; the good edit of the same answer stays applied.
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            """
+            {"edits":[{"startLine":10,"endLine":14,"replacementLines":["echo step 9"]},
+                      {"startLine":30,"endLine":30,"replacementLines":["echo step 29 # SEC-2"]}],
+             "summary":"s",
+             "changes":[{"finding":"SEC-1","anchor":"echo step 9","reason":"r"},{"finding":"SEC-2","anchor":"echo step 29 # SEC-2","reason":"r"}],
+             "implementedRequirements":[]}
+            """,
+            """
+            {"edits":[{"startLine":10,"endLine":14,"replacementLines":["echo step 9 # SEC-1","echo step 10","echo step 11","echo step 12","echo step 13"]}],
+             "summary":"repaired","changes":[{"finding":"SEC-1","anchor":"echo step 9 # SEC-1","reason":"r"}],"implementedRequirements":[]}
+            """);
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix = SnippetAiWorkflowSupport.applySnippetImprovements(
+            aiService, null, fiveHundredSteps(), "bash", null, "en",
+            List.of(
+                new SnippetAiResponseSupport.ScriptImprovement("SEC-1", "security", "high", "One", "D", "Fix one.", 10),
+                new SnippetAiResponseSupport.ScriptImprovement("SEC-2", "security", "high", "Two", "D", "Fix two.", 30)),
+            List.of(), "", null, null, null);
+
+        assertThat(aiService.requests).hasSize(2);
+        assertThat(aiService.requests.get(1).conversationContext()).contains("ids were missing from changes[].finding: SEC-1");
+        // The repair request carries the first answer's good edit, not the hollowed script.
+        assertThat(aiService.requests.get(1).conversationContext()).contains("echo step 29 # SEC-2");
+        assertThat(aiService.requests.get(1).conversationContext()).contains("echo step 13");
+        assertThat(fix.replacement()).contains("echo step 9 # SEC-1\necho step 10\necho step 11\necho step 12\necho step 13\n");
+        assertThat(fix.replacement()).contains("echo step 29 # SEC-2");
+        assertThat(fix.replacement().split("\n")).hasLength(501);
+    }
+
     @Test
     void longSnippetApplyStageUsesEditRegionsAndAppliesThemLocally() throws Exception {
         StringBuilder script = new StringBuilder("#!/usr/bin/env bash\n");
@@ -1373,7 +1440,9 @@ class SnippetAiWorkflowSupportTest {
                 aiService, null, content, "bash", null, "en",
                 List.of(new SnippetAiResponseSupport.ScriptImprovement("SEC-1", "security", "high", "t", "d", "r", 1)),
                 List.of(), "", null, null, null));
-        assertThat(aiService.executionCount).isEqualTo(1);
+        // One second attempt that names the problem, then the stage is refused.
+        assertThat(aiService.executionCount).isEqualTo(2);
+        assertThat(aiService.lastRequest.conversationContext()).contains("contained no edit that could be applied");
     }
 
     @Test

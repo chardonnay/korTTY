@@ -182,6 +182,11 @@ public final class LoggingConfiguration {
                 }
             }
         }
+        // The archived AI answers hold the user's script regions in plain text; they live under
+        // the same retention rule as the rotated logs beside them.
+        if (normalizedRetentionDays > 0) {
+            AiAnswerArchive.deleteOlderThan(logDirectory.resolve(AiAnswerArchive.DIRECTORY_NAME), retentionCutoff);
+        }
     }
 
     static PersistedLogSettings readPersistedLogSettings(Path configDir) {

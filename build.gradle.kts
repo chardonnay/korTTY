@@ -3212,6 +3212,8 @@ tasks.test {
     useTestNG()
     jvmArgs("--enable-native-access=ALL-UNNAMED")
     systemProperty("kortty.mosh4j.testDir", bundledMosh4jDir.get().asFile.absolutePath)
+    // Unit tests feed stub answers through the AI parsers; none of them may land in the user's log directory.
+    systemProperty("kortty.ai.answerArchive", "off")
 }
 
 val packageSizeReportTest = tasks.register<Exec>("packageSizeReportTest") {
