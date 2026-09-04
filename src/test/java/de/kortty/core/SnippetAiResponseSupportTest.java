@@ -555,11 +555,14 @@ class SnippetAiResponseSupportTest {
         SnippetAiResponseSupport.AppliedEdits applied = SnippetAiResponseSupport.applySnippetEditsLeniently(original, List.of(
             new SnippetAiResponseSupport.SnippetEdit(2, 5, List.of("b")),
             new SnippetAiResponseSupport.SnippetEdit(6, 6, List.of("F"))));
-        assertThat(applied.dropped()).containsExactly("2-5 returns only the first 1 of its 4 lines unchanged");
+        assertThat(applied.dropped()).containsExactly("2-5 returns only its unchanged first line for 4 lines");
         assertThat(applied.replacement()).isEqualTo("a\nb\nc\nd\ne\nF\n");
-        // A two-line range shrunk to its first line, a changed first line, and a deletion are edits.
+        // A two-line range shrunk to its first line, a changed first line, a range shortened by its
+        // last lines (seen live: 15 of 17 kept), and a deletion are edits.
         assertThat(SnippetAiResponseSupport.applySnippetEditsLeniently(original, List.of(
             new SnippetAiResponseSupport.SnippetEdit(2, 3, List.of("b")))).dropped()).isEmpty();
+        assertThat(SnippetAiResponseSupport.applySnippetEditsLeniently(original, List.of(
+            new SnippetAiResponseSupport.SnippetEdit(2, 5, List.of("b", "c")))).replacement()).isEqualTo("a\nb\nc\nf\n");
         assertThat(SnippetAiResponseSupport.applySnippetEditsLeniently(original, List.of(
             new SnippetAiResponseSupport.SnippetEdit(2, 5, List.of("B")))).dropped()).isEmpty();
         assertThat(SnippetAiResponseSupport.applySnippetEditsLeniently(original, List.of(
