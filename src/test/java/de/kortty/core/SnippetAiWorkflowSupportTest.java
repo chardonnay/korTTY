@@ -94,6 +94,49 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void editModePlansSixAnalysisItemsPerStageAndLeavesHardeningBatchesAlone() {
+        // Every stage sends the whole script, so the stage count is the cost; an edit-mode stage
+        // answers with changed regions only, so the three-item limit of whole-script answers
+        // does not apply to it.
+        List<SnippetAiResponseSupport.ScriptImprovement> thirteen = new ArrayList<>();
+        for (int index = 1; index <= 13; index++) {
+            thirteen.add(new SnippetAiResponseSupport.ScriptImprovement(
+                "SEC-" + index, "security", "high", "Item " + index, "Detail", "Fix it", index));
+        }
+        String shortScript = "echo line\n".repeat(50);
+        String longScript = "echo line\n".repeat(500);
+
+        List<SnippetAiWorkflowSupport.ImprovementApplyProgress> wholeFile =
+            SnippetAiWorkflowSupport.planSnippetImprovements(
+                thirteen, List.of(), numberedRules("Classic", 4), null, null, shortScript);
+        List<SnippetAiWorkflowSupport.ImprovementApplyProgress> editMode =
+            SnippetAiWorkflowSupport.planSnippetImprovements(
+                thirteen, List.of(), numberedRules("Classic", 4), null, null, longScript);
+
+        assertThat(analysisStageSizes(wholeFile)).containsExactly(3, 3, 3, 3, 1).inOrder();
+        assertThat(analysisStageSizes(editMode)).containsExactly(6, 6, 1).inOrder();
+        assertThat(wholeFile.stream().filter(item ->
+            item.phase() == SnippetAiWorkflowSupport.ImprovementApplyPhase.HARDENING).count()).isEqualTo(2);
+        assertThat(editMode.stream().filter(item ->
+            item.phase() == SnippetAiWorkflowSupport.ImprovementApplyPhase.HARDENING).count()).isEqualTo(2);
+        // The preview without a script keeps the whole-file layout.
+        assertThat(analysisStageSizes(SnippetAiWorkflowSupport.planSnippetImprovements(
+            thirteen, List.of(), null, null))).containsExactly(3, 3, 3, 3, 1).inOrder();
+        // A migration rewrites the file first, so its stages cannot count on edit mode.
+        SnippetAiWorkflowSupport.MigrationPlan migration = new SnippetAiWorkflowSupport.MigrationPlan(
+            new de.kortty.core.ScriptLanguageMixSupport.LanguageMix(de.kortty.core.ScriptLanguageMixSupport.HostFormat.NONE, "bash", List.of()), de.kortty.core.WorkflowScriptSupport.ScriptLanguage.PYTHON, null);
+        assertThat(analysisStageSizes(SnippetAiWorkflowSupport.planSnippetImprovements(
+            thirteen, List.of(), null, null, migration, longScript))).containsExactly(3, 3, 3, 3, 1).inOrder();
+    }
+
+    private static List<Integer> analysisStageSizes(List<SnippetAiWorkflowSupport.ImprovementApplyProgress> plan) {
+        return plan.stream()
+            .filter(item -> item.phase() == SnippetAiWorkflowSupport.ImprovementApplyPhase.ANALYSIS_ITEMS)
+            .map(item -> item.workItems().size())
+            .toList();
+    }
+
+    @Test
     void improvementPlanListsAnalysisItemsBeforeEveryHardeningRequirement() {
         List<SnippetAiWorkflowSupport.ImprovementApplyProgress> plan =
             SnippetAiWorkflowSupport.planSnippetImprovements(

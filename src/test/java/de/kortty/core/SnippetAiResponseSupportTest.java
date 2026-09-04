@@ -250,6 +250,116 @@ class SnippetAiResponseSupportTest {
     }
 
     @Test
+    void brokenEditJsonIsRecoveredLineByLineOrNotAtAll() {
+        // An unescaped quote inside a code line breaks the whole object; with every replacement
+        // line on its own line the boundaries are still unambiguous, so no second request is needed.
+        SnippetAiResponseSupport.SnippetEdits recovered = SnippetAiResponseSupport.parseSnippetEdits("""
+            {
+              "edits": [
+                {
+                  "startLine": 2,
+                  "endLine": 2,
+                  "replacementLines": [
+                    "echo "quoted" done",
+                    "printf '%s\\\\n' \\"$1\\""
+                  ]
+                },
+                {
+                  "startLine": 4,
+                  "endLine": 4,
+                  "replacementLines": [
+                    "exit 0"
+                  ]
+                }
+              ],
+              "summary": "Two edits.",
+              "changes": [{"finding": "SEC-1", "anchor": "echo "quoted" done", "reason": "quote"}],
+              "implementedRequirements": ["M1"]
+            }
+            """);
+
+        assertThat(recovered.recoveredFromBrokenJson()).isTrue();
+        assertThat(recovered.isUsable()).isTrue();
+        assertThat(recovered.edits()).hasSize(2);
+        assertThat(recovered.edits().get(0).startLine()).isEqualTo(2);
+        assertThat(recovered.edits().get(0).replacementLines())
+            .containsExactly("echo \"quoted\" done", "printf '%s\\n' \"$1\"").inOrder();
+        assertThat(recovered.edits().get(1).replacementLines()).containsExactly("exit 0");
+        assertThat(recovered.summary()).isEqualTo("Two edits.");
+        assertThat(recovered.implementedRequirements()).containsExactly("M1");
+        assertThat(recovered.changes()).hasSize(1);
+        assertThat(recovered.changes().get(0).finding()).isEqualTo("SEC-1");
+
+        // A compact array would need a guess about where a string ends: not recovered, retried.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":2,\"endLine\":2,\"replacementLines\":[\"echo \"a\" b\"]}],\"summary\":\"x\"}")
+            .isUsable()).isFalse();
+        // All or nothing: one edit readable line by line and one not is still a retry, never a
+        // stage that silently applies half of what the model meant.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits("""
+            {
+              "edits": [
+                {"startLine": 2, "endLine": 2, "replacementLines": [
+                  "echo "a""
+                ]},
+                {"startLine": 4, "endLine": 4, "replacementLines": ["echo "b""]}
+              ]
+            }
+            """).isUsable()).isFalse();
+        // Valid JSON never goes through the recovery.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits("""
+            {"edits":[{"startLine":1,"endLine":1,"replacementLines":["ok"]}],"summary":"s"}
+            """).recoveredFromBrokenJson()).isFalse();
+        // endLine written before startLine belongs to its own object, never to the next edit's.
+        SnippetAiResponseSupport.SnippetEdits endFirst = SnippetAiResponseSupport.parseSnippetEdits("""
+            {"edits":[
+              {"endLine": 2, "startLine": 2, "replacementLines": [
+                "echo "a" b"
+              ]},
+              {"endLine": 40, "startLine": 40, "replacementLines": [
+                "exit 0"
+              ]}
+            ]}
+            """);
+        assertThat(endFirst.recoveredFromBrokenJson()).isTrue();
+        assertThat(endFirst.edits().get(0).endLine()).isEqualTo(2);
+        assertThat(endFirst.edits().get(1).endLine()).isEqualTo(40);
+        // A string broken across lines leaves a lone quote on a line: not recovered, never thrown.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":2,\"endLine\":2,\"replacementLines\":[\n\"echo \"a\" b\",\n\"\nfoo\"\n]}]}")
+            .isUsable()).isFalse();
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":2,\"endLine\":2,\"replacementLines\":[\n\"echo \"a\" b\",\n\",\n]}]}")
+            .isUsable()).isFalse();
+        // Unicode escapes decode the way Gson would have decoded them.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits("""
+            {"edits":[{"startLine":2,"endLine":2,"replacementLines":[
+              "echo "gr\\u00fc\\u00dfe""
+            ]}]}
+            """).edits().get(0).replacementLines()).containsExactly("echo \"grüße\"");
+    }
+
+    @Test
+    void editReplacementLinesAreAppliedVerbatim() {
+        // Indentation, an empty line and a repeated closing keyword are source, not noise.
+        SnippetAiResponseSupport.SnippetEdits edits = SnippetAiResponseSupport.parseSnippetEdits("""
+            {"edits":[{"startLine":2,"endLine":2,"replacementLines":[
+              "    if x; then","        echo a","    fi","","    if y; then","        echo b","    fi"]}],"summary":"s"}
+            """);
+
+        assertThat(edits.recoveredFromBrokenJson()).isFalse();
+        assertThat(edits.edits().get(0).replacementLines()).containsExactly(
+            "    if x; then", "        echo a", "    fi", "", "    if y; then", "        echo b", "    fi").inOrder();
+        assertThat(SnippetAiResponseSupport.applySnippetEdits("a\nb\nc\n", edits.edits()))
+            .isEqualTo("a\n    if x; then\n        echo a\n    fi\n\n    if y; then\n        echo b\n    fi\nc\n");
+        // An entry that is not a string makes that edit untrustworthy; the others stay.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits("""
+            {"edits":[{"startLine":2,"endLine":2,"replacementLines":[1]},
+                      {"startLine":3,"endLine":3,"replacementLines":["ok"]}],"summary":"s"}
+            """).edits()).hasSize(1);
+    }
+
+    @Test
     void snippetEditsAreParsedAndAppliedAgainstOriginalLineNumbers() {
         String original = "line1\nline2\nline3\nline4\nline5\n";
         SnippetAiResponseSupport.SnippetEdits edits = SnippetAiResponseSupport.parseSnippetEdits("""

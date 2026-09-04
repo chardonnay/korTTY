@@ -35,6 +35,14 @@ public final class SnippetAiWorkflowSupport {
     private static final int MAX_MANDATORY_REQUIREMENTS_PER_APPLY_STAGE = 3;
     private static final int MAX_ANALYSIS_ITEMS_PER_APPLY_STAGE = 3;
     /**
+     * Edit-mode stages answer with the changed regions, not the whole script, so the reason for
+     * three items per stage — a whole-file answer that a thinking model could not finish — does not
+     * apply; every stage fewer saves one copy of the script in the prompt (~64k tokens on getssl).
+     * Six rather than more: each extra item is more replacement lines in one answer, and one
+     * unescaped quote costs the whole answer.
+     */
+    static final int MAX_ANALYSIS_ITEMS_PER_EDIT_MODE_STAGE = 6;
+    /**
      * Above this length an apply stage asks for edit regions instead of the whole script. A
      * 4,009-line bash script returned complete is ~60,000 output tokens: at the completion cap,
      * twelve minutes per stage, and a single lost quote in the JSON loses all of it (observed with
@@ -918,7 +926,8 @@ public final class SnippetAiWorkflowSupport {
         allRequirements.addAll(inputRequirements);
 
         List<ImprovementApplyStagePlan> stagePlans = buildImprovementApplyStagePlans(
-            improvements, dependencies, classicRequirements, inputRequirements, migrationPlan);
+            improvements, dependencies, classicRequirements, inputRequirements, migrationPlan,
+            usesEditMode(fullContent));
         int completedStageCount = resumeFrom != null ? resumeFrom.completedStages() : 0;
         if (resumeFrom != null
             && (resumeFrom.totalStages() != stagePlans.size()
@@ -1173,6 +1182,10 @@ public final class SnippetAiWorkflowSupport {
     private static SnippetAiResponseSupport.SnippetSecurityFix fixFromEdits(String content, AiExecutionResult result) {
         String answer = result != null && result.content() != null ? result.content() : "";
         SnippetAiResponseSupport.SnippetEdits edits = SnippetAiResponseSupport.parseSnippetEdits(answer);
+        if (edits.recoveredFromBrokenJson()) {
+            logger.info("AI apply stage edits read from an answer whose JSON did not parse: {} edit(s) "
+                + "recovered line by line, no retry needed [answer chars={}]", edits.edits().size(), answer.length());
+        }
         if (!edits.isUsable()) {
             logger.warn("AI apply stage returned no usable edits [answer chars={}, starts with: {}]",
                 answer.length(), answer.strip().replaceAll("\\s+", " ").substring(0, Math.min(160, answer.strip().length())));
@@ -1277,13 +1290,29 @@ public final class SnippetAiWorkflowSupport {
         String classicHardeningInstructions,
         String inputHardeningInstructions,
         MigrationPlan migrationPlan) {
+        return planSnippetImprovements(improvements, dependencies, classicHardeningInstructions,
+            inputHardeningInstructions, migrationPlan, null);
+    }
+
+    /**
+     * @param snippetContent the script the plan is for; a long one gets the larger edit-mode
+     *     stages, so the preview shows the stage count the run will actually have
+     */
+    public static List<ImprovementApplyProgress> planSnippetImprovements(
+        List<SnippetAiResponseSupport.ScriptImprovement> improvements,
+        List<SnippetAiResponseSupport.ScriptDependency> dependencies,
+        String classicHardeningInstructions,
+        String inputHardeningInstructions,
+        MigrationPlan migrationPlan,
+        String snippetContent) {
 
         List<MandatoryRequirement> classicRequirements =
             extractMandatoryRequirements(classicHardeningInstructions, 0);
         List<MandatoryRequirement> inputRequirements =
             extractMandatoryRequirements(inputHardeningInstructions, classicRequirements.size());
         return buildImprovementApplyStagePlans(
-            improvements, dependencies, classicRequirements, inputRequirements, migrationPlan).stream()
+            improvements, dependencies, classicRequirements, inputRequirements, migrationPlan,
+            usesEditMode(snippetContent)).stream()
             .map(ImprovementApplyStagePlan::progress)
             .toList();
     }
@@ -1304,9 +1333,26 @@ public final class SnippetAiWorkflowSupport {
         List<MandatoryRequirement> classicRequirements,
         List<MandatoryRequirement> inputRequirements,
         MigrationPlan migrationPlan) {
+        return buildImprovementApplyStagePlans(
+            improvements, dependencies, classicRequirements, inputRequirements, migrationPlan, false);
+    }
+
+    private static List<ImprovementApplyStagePlan> buildImprovementApplyStagePlans(
+        List<SnippetAiResponseSupport.ScriptImprovement> improvements,
+        List<SnippetAiResponseSupport.ScriptDependency> dependencies,
+        List<MandatoryRequirement> classicRequirements,
+        List<MandatoryRequirement> inputRequirements,
+        MigrationPlan migrationPlan,
+        boolean editMode) {
 
         boolean migrates = migrationPlan != null && !migrationPlan.isNoOp();
-        List<AnalysisApplyStage> analysisStages = buildAnalysisApplyStages(improvements, dependencies);
+        // A migration rewrites the whole file first and its length is unknown here, while every
+        // later stage picks edit mode from the script it actually receives; six items are only
+        // justified by an edit-mode answer, so a run with a migration keeps the whole-file cap.
+        int itemsPerStage = editMode && !migrates
+            ? MAX_ANALYSIS_ITEMS_PER_EDIT_MODE_STAGE
+            : MAX_ANALYSIS_ITEMS_PER_APPLY_STAGE;
+        List<AnalysisApplyStage> analysisStages = buildAnalysisApplyStages(improvements, dependencies, itemsPerStage);
         List<List<MandatoryRequirement>> classicBatches = partitionRequirements(classicRequirements);
         List<List<MandatoryRequirement>> inputBatches = partitionRequirements(inputRequirements);
         // Preserve the former single-request behaviour for direct callers that provide no work lists.
@@ -1428,7 +1474,8 @@ public final class SnippetAiWorkflowSupport {
      */
     private static List<AnalysisApplyStage> buildAnalysisApplyStages(
         List<SnippetAiResponseSupport.ScriptImprovement> improvements,
-        List<SnippetAiResponseSupport.ScriptDependency> dependencies) {
+        List<SnippetAiResponseSupport.ScriptDependency> dependencies,
+        int itemsPerStage) {
 
         List<SnippetAiResponseSupport.ScriptImprovement> safeImprovements = improvements != null
             ? improvements.stream().filter(java.util.Objects::nonNull).toList()
@@ -1438,8 +1485,8 @@ public final class SnippetAiWorkflowSupport {
             : List.of();
         int totalItems = safeImprovements.size() + safeDependencies.size();
         List<AnalysisApplyStage> stages = new ArrayList<>();
-        for (int start = 0; start < totalItems; start += MAX_ANALYSIS_ITEMS_PER_APPLY_STAGE) {
-            int end = Math.min(totalItems, start + MAX_ANALYSIS_ITEMS_PER_APPLY_STAGE);
+        for (int start = 0; start < totalItems; start += itemsPerStage) {
+            int end = Math.min(totalItems, start + itemsPerStage);
             List<SnippetAiResponseSupport.ScriptImprovement> stageImprovements = new ArrayList<>();
             List<SnippetAiResponseSupport.ScriptDependency> stageDependencies = new ArrayList<>();
             List<ImprovementApplyWorkItem> workItems = new ArrayList<>();

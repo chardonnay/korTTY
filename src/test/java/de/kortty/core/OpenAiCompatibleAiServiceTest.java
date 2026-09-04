@@ -319,6 +319,83 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void miniMaxStructuredRequestsCarryTheJsonReminderWithTheFirstAttempt() throws Exception {
+        // MiniMax accepts response_format and ignores it; the reminder the retry used to carry
+        // costs ~70 tokens where a retry costs the whole request again.
+        AiRequest apply = new AiRequest(
+            AiAction.APPLY_SNIPPET_IMPROVEMENTS, "echo line\n".repeat(500), null, "en", null,
+            "Line-numbered snippet:\n```text\n   1 | echo line\n```");
+
+        String usableEdits = """
+            {"choices":[{"finish_reason":"stop","message":{"content":"{\\"edits\\":[{\\"startLine\\":1,\\"endLine\\":1,\\"replacementLines\\":[\\"echo ok\\"]}],\\"summary\\":\\"s\\",\\"changes\\":[],\\"implementedRequirements\\":[]}"}}],
+             "usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}
+            """;
+        SequencedInputStreamHttpClient miniMaxClient = new SequencedInputStreamHttpClient(new StubResponse(200, usableEdits));
+        SequencedInputStreamHttpClient openAiClient = new SequencedInputStreamHttpClient(new StubResponse(200, usableEdits));
+
+        new OpenAiCompatibleAiService("https://api.example.test/v1/chat/completions", "MiniMax-M3", "", miniMaxClient)
+            .executeWithClient(apply, miniMaxClient, null);
+        new OpenAiCompatibleAiService("https://api.example.test/v1/chat/completions", "gpt-4o", "", openAiClient)
+            .executeWithClient(apply, openAiClient, null);
+
+        assertThat(miniMaxClient.requestBodies()).hasSize(1);
+        assertThat(miniMaxClient.requestBodies().get(0)).contains("The first character of your reply must be {");
+        assertThat(miniMaxClient.requestBodies().get(0)).contains("snippet_edits_response");
+        JsonArray miniMaxMessages = JsonParser.parseString(miniMaxClient.requestBodies().get(0))
+            .getAsJsonObject().getAsJsonArray("messages");
+        String reminder = miniMaxMessages.get(miniMaxMessages.size() - 1).getAsJsonObject().get("content").getAsString();
+        // The rule the model reads: a quote becomes \" and a backslash becomes \\ — two, not three.
+        assertThat(reminder).contains("escape every double quote inside code as \\\" and every backslash as \\\\,");
+        String contract = miniMaxMessages.get(0).getAsJsonObject().get("content").getAsString();
+        assertThat(contract).contains("every backslash as \\\\, and never emit a raw line break");
+        assertThat(openAiClient.requestBodies()).hasSize(1);
+        assertThat(openAiClient.requestBodies().get(0)).doesNotContain("The first character of your reply must be {");
+    }
+
+    @Test
+    void cachedPromptTokensAreReadFromTheUsageDetails() throws Exception {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(200, """
+                {"choices":[{"finish_reason":"stop","message":{"content":"{\\"mermaid\\":\\"flowchart TD\\"}"}}],
+                 "usage":{"prompt_tokens":100,"completion_tokens":5,"total_tokens":105,
+                          "prompt_tokens_details":{"cached_tokens":64}}}
+                """));
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions", "MiniMax-M3", "", client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.GENERATE_SNIPPET_MERMAID, "echo ok", null, "en"), client, null);
+
+        assertThat(result.usage().promptTokens()).isEqualTo(100);
+        assertThat(result.usage().cachedPromptTokens()).isEqualTo(64);
+
+        // A proxy that serialises the counter as null must not fail a completed answer.
+        SequencedInputStreamHttpClient nullClient = new SequencedInputStreamHttpClient(
+            new StubResponse(200, """
+                {"choices":[{"finish_reason":"stop","message":{"content":"{\\"mermaid\\":\\"flowchart TD\\"}"}}],
+                 "usage":{"prompt_tokens":100,"completion_tokens":5,"total_tokens":105,
+                          "prompt_tokens_details":{"audio_tokens":null,"cached_tokens":null}}}
+                """));
+        AiExecutionResult nullResult = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions", "MiniMax-M3", "", nullClient)
+            .executeWithClient(new AiRequest(AiAction.GENERATE_SNIPPET_MERMAID, "echo ok", null, "en"), nullClient, null);
+        assertThat(nullResult.usage().promptTokens()).isEqualTo(100);
+        assertThat(nullResult.usage().cachedPromptTokens()).isEqualTo(0);
+        assertThat(new AiTokenUsage(10, 5, 15).cachedPromptTokens()).isEqualTo(0);
+        assertThat(new AiTokenUsage(10, 5, 15, 40).cachedPromptTokens()).isEqualTo(10);
+    }
+
+    @Test
+    void unusableAnswersAreClassifiedForTheRetryLog() {
+        assertThat(OpenAiCompatibleAiService.unusableAnswerClass("{\"edits\": [\"echo \"a\"\"]}"))
+            .startsWith("json-shaped but unparsable");
+        assertThat(OpenAiCompatibleAiService.unusableAnswerClass("{\"edits\": [")).isEqualTo("json-shaped and cut off");
+        assertThat(OpenAiCompatibleAiService.unusableAnswerClass("```json\n{}\n```")).isEqualTo("fenced");
+        assertThat(OpenAiCompatibleAiService.unusableAnswerClass("Sure, here is the plan.")).isEqualTo("prose");
+        assertThat(OpenAiCompatibleAiService.unusableAnswerClass("  ")).isEqualTo("empty");
+    }
+
+    @Test
     void diagramRequestsCarryTheirOwnSchemaAndAreNeverRepeated() throws Exception {
         // The schema is what makes an endpoint escape the quoted node labels korTTY's grammar
         // requires. A diagram is never re-requested: it costs minutes on the models this matters
