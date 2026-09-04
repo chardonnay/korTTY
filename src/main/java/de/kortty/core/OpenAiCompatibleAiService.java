@@ -768,6 +768,16 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             if (isEventStreamResponse(response, responseBody)) {
                 JsonObject aggregated = aggregateStreamedResponse(responseBody);
                 result = aggregated != null ? parseJsonResponseBody(aggregated) : null;
+                if (aggregated != null && !aggregated.has(STREAM_CLOSED_MARKER) && !body.salvaged()) {
+                    // Seen live: answers that stop mid-string at a few thousand tokens, far below
+                    // any cap, and then read as "cut off". Whether the endpoint ended them with a
+                    // finish_reason or the connection just closed is what decides the fix, so the
+                    // raw stream is kept for the report.
+                    String content = result != null && result.content() != null ? result.content() : "";
+                    java.nio.file.Path archived = AiAnswerArchive.save(null, "stream-without-finish", responseBody);
+                    logger.warn("AI response stream ended without a finish_reason or [DONE] after {} content chars; "
+                        + "raw stream: {}", content.length(), archived != null ? archived : "not archived");
+                }
             } else {
                 result = parseResponseBody(responseBody);
             }
@@ -874,13 +884,18 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         JsonObject usage = null;
         boolean sawChunk = false;
         boolean sawContent = false;
+        boolean sawDone = false;
         for (String rawLine : sseBody.split("\n")) {
             String line = rawLine.trim();
             if (!line.startsWith("data:")) {
                 continue;
             }
             String payload = line.substring("data:".length()).trim();
-            if (payload.isEmpty() || "[DONE]".equals(payload)) {
+            if ("[DONE]".equals(payload)) {
+                sawDone = true;
+                continue;
+            }
+            if (payload.isEmpty()) {
                 continue;
             }
             JsonObject chunk;
@@ -954,8 +969,14 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         if (usage != null) {
             root.add("usage", usage);
         }
+        if (sawDone || finishReason != null) {
+            root.addProperty(STREAM_CLOSED_MARKER, true);
+        }
         return root;
     }
+
+    /** Set on an aggregated stream that the endpoint closed itself, with a finish_reason or [DONE]. */
+    static final String STREAM_CLOSED_MARKER = "kortty_stream_closed";
 
     private AiExecutionResult executeToolAwareMessages(
         JsonArray messages,
