@@ -319,6 +319,29 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void aggregatedStreamsRecordWhetherTheEndpointClosedThem() throws Exception {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions", "MiniMax-M3", "");
+
+        JsonObject closedByDone = service.aggregateStreamedResponse("""
+            data: {"choices":[{"delta":{"content":"{\\"a\\":1}"}}]}
+            data: [DONE]
+            """);
+        JsonObject closedByReason = service.aggregateStreamedResponse("""
+            data: {"choices":[{"delta":{"content":"{\\"a\\":1}"},"finish_reason":"stop"}]}
+            """);
+        JsonObject cut = service.aggregateStreamedResponse("""
+            data: {"choices":[{"delta":{"content":"{\\"edits\\":[{\\"startLine\\":1,\\"replacementLines\\":[\\"echo "}}]}
+            """);
+
+        assertThat(closedByDone.has(OpenAiCompatibleAiService.STREAM_CLOSED_MARKER)).isTrue();
+        assertThat(closedByReason.has(OpenAiCompatibleAiService.STREAM_CLOSED_MARKER)).isTrue();
+        assertThat(cut.has(OpenAiCompatibleAiService.STREAM_CLOSED_MARKER)).isFalse();
+        assertThat(cut.getAsJsonArray("choices").get(0).getAsJsonObject().getAsJsonObject("message")
+            .get("content").getAsString()).startsWith("{\"edits\"");
+    }
+
+    @Test
     void miniMaxStructuredRequestsCarryTheJsonReminderWithTheFirstAttempt() throws Exception {
         // MiniMax accepts response_format and ignores it; the reminder the retry used to carry
         // costs ~70 tokens where a retry costs the whole request again.
