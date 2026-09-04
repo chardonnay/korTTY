@@ -58,8 +58,11 @@ public final class SnippetDiagramSupport {
     private static final Pattern HEADER_PATTERN = Pattern.compile("(?i)^flowchart\\s+TD\\s*;?$");
     private static final Pattern NODE_PATTERN = Pattern.compile(
         "^([A-Za-z][A-Za-z0-9_-]{0,63})\\s*(?:\\[\\s*\"((?:\\\\.|[^\"\\\\])*)\"\\s*]|\\{\\s*\"((?:\\\\.|[^\"\\\\])*)\"\\s*}|\\(\\[\\s*\"((?:\\\\.|[^\"\\\\])*)\"\\s*]\\))\\s*;?$");
-    private static final Pattern EDGE_PATTERN = Pattern.compile(
-        "^([A-Za-z][A-Za-z0-9_-]{0,63})\\s*-->\\s*(?:\\|\\s*\"?([^|\"]*)\"?\\s*\\|\\s*)?([A-Za-z][A-Za-z0-9_-]{0,63})\\s*;?$");
+    private static final Pattern EDGE_SOURCE_PATTERN = Pattern.compile("^([A-Za-z][A-Za-z0-9_-]{0,63})");
+    /** One {@code --> [|label|] target} step; a chain {@code a --> b --> c} is a sequence of them. */
+    private static final Pattern EDGE_STEP_PATTERN = Pattern.compile(
+        "\\s*-->\\s*(?:\\|\\s*\"?([^|\"]*)\"?\\s*\\|\\s*)?([A-Za-z][A-Za-z0-9_-]{0,63})");
+    private static final int UNSUPPORTED_LINE_EXCERPT_CHARS = 80;
     private static final Pattern CLASS_PATTERN = Pattern.compile(
         "(?i)^class\\s+([A-Za-z][A-Za-z0-9_-]{0,63}(?:\\s*,\\s*[A-Za-z][A-Za-z0-9_-]{0,63})*)\\s+(setup|work|success|failure)\\s*;?$");
     private static final Pattern CONDITIONAL_FLOW_PATTERN = Pattern.compile(
@@ -222,8 +225,9 @@ public final class SnippetDiagramSupport {
                 } else if (nodeMatcher.group(4) == null) {
                     actionNodes++;
                 }
-            } else if (EDGE_PATTERN.matcher(line).matches()) {
-                edges++;
+            } else {
+                List<EdgeDefinition> chain = parseEdgeChain(line);
+                edges += chain != null ? chain.size() : 0;
             }
         }
         return new FlowchartStatistics(actionNodes, decisionNodes, edges);
@@ -654,7 +658,9 @@ public final class SnippetDiagramSupport {
         List<EdgeDefinition> edges = new ArrayList<>();
         for (int index = headerIndex + 1; index < lines.length; index++) {
             String line = lines[index].trim();
-            if (line.isBlank()) {
+            // Plain comments render nothing and models write them despite the contract; the
+            // %%{...}%% directive form was already refused by the security screen.
+            if (line.isBlank() || line.startsWith("%%")) {
                 continue;
             }
             Matcher nodeMatcher = NODE_PATTERN.matcher(line);
@@ -674,12 +680,9 @@ public final class SnippetDiagramSupport {
                 nodes.put(id, new NodeDefinition(id, label, type, ""));
                 continue;
             }
-            Matcher edgeMatcher = EDGE_PATTERN.matcher(line);
-            if (edgeMatcher.matches()) {
-                edges.add(new EdgeDefinition(
-                    edgeMatcher.group(1),
-                    edgeMatcher.group(2) != null ? edgeMatcher.group(2).trim() : "",
-                    edgeMatcher.group(3)));
+            List<EdgeDefinition> chain = parseEdgeChain(line);
+            if (chain != null) {
+                edges.addAll(chain);
                 if (edges.size() > MAX_MERMAID_EDGES) {
                     return ParsedDiagram.failure("Mermaid diagram exceeds the 300-edge limit.");
                 }
@@ -698,7 +701,9 @@ public final class SnippetDiagramSupport {
                 }
                 continue;
             }
-            return ParsedDiagram.failure("Unsupported Mermaid syntax on line " + (index + 1) + ".");
+            // The line is quoted because "line 16" alone told nobody what the model had written.
+            return ParsedDiagram.failure("Unsupported Mermaid syntax on line " + (index + 1) + ": "
+                + excerpt(line) + ".");
         }
         if (nodes.isEmpty()) {
             return ParsedDiagram.failure("Mermaid flowchart must contain at least one node.");
@@ -731,6 +736,42 @@ public final class SnippetDiagramSupport {
             MermaidValidation.success(),
             Collections.unmodifiableMap(new LinkedHashMap<>(classifiedNodes)),
             List.copyOf(edges));
+    }
+
+    /**
+     * Splits an edge statement into its pairwise edges: {@code a --> b}, {@code a -->|yes| b} and
+     * the chain {@code a --> b --> c} that models write for a straight sequence, which is plain
+     * shorthand for the separate edges the grammar always accepted. Returns {@code null} when the
+     * line is not an edge statement at all.
+     */
+    private static List<EdgeDefinition> parseEdgeChain(String line) {
+        String value = line.endsWith(";") ? line.substring(0, line.length() - 1).trim() : line;
+        Matcher source = EDGE_SOURCE_PATTERN.matcher(value);
+        if (!source.find()) {
+            return null;
+        }
+        String from = source.group(1);
+        int position = source.end();
+        List<EdgeDefinition> chain = new ArrayList<>();
+        Matcher step = EDGE_STEP_PATTERN.matcher(value);
+        while (position < value.length()) {
+            step.region(position, value.length());
+            if (!step.lookingAt()) {
+                return null;
+            }
+            String label = step.group(1) != null ? step.group(1).trim() : "";
+            chain.add(new EdgeDefinition(from, label, step.group(2)));
+            from = step.group(2);
+            position = step.end();
+        }
+        return chain.isEmpty() ? null : chain;
+    }
+
+    private static String excerpt(String line) {
+        String value = line.replaceAll("\\s+", " ").trim();
+        return value.length() > UNSUPPORTED_LINE_EXCERPT_CHARS
+            ? "'" + value.substring(0, UNSUPPORTED_LINE_EXCERPT_CHARS) + "…'"
+            : "'" + value + "'";
     }
 
     private static String validateFlowTopology(

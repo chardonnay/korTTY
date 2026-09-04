@@ -108,7 +108,11 @@ public final class SnippetTypedDiagramSupport {
         if (answer == null || answer.isBlank()) {
             return "";
         }
-        String text = answer.length() > MAX_SALVAGE_CHARS ? answer.substring(0, MAX_SALVAGE_CHARS) : answer;
+        // A model that thinks inline mentions the header in its reasoning before it draws anything;
+        // the reasoning is dropped first so the search does not start inside a sentence.
+        String sanitized = AiResponseSanitizer.sanitizeForDisplay(answer);
+        String source = indexOfIgnoreCase(sanitized, header(safeType)) >= 0 ? sanitized : answer;
+        String text = source.length() > MAX_SALVAGE_CHARS ? source.substring(0, MAX_SALVAGE_CHARS) : source;
         int start = indexOfIgnoreCase(text, header(safeType));
         if (start < 0) {
             return "";
