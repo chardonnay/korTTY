@@ -250,6 +250,39 @@ class SnippetAiResponseSupportTest {
     }
 
     @Test
+    void snippetEditsAreParsedAndAppliedAgainstOriginalLineNumbers() {
+        String original = "line1\nline2\nline3\nline4\nline5\n";
+        SnippetAiResponseSupport.SnippetEdits edits = SnippetAiResponseSupport.parseSnippetEdits("""
+            {
+              "edits": [
+                { "startLine": 4, "endLine": 4, "replacementLines": ["four-a", "four-b"] },
+                { "startLine": 2, "endLine": 3, "replacementLines": [] }
+              ],
+              "summary": "Two regions.",
+              "changes": [ { "finding": "SEC-1", "anchor": "four-a", "reason": "why" } ],
+              "implementedRequirements": ["HARDENING-01"]
+            }
+            """);
+
+        assertThat(edits.isUsable()).isTrue();
+        assertThat(edits.summary()).isEqualTo("Two regions.");
+        assertThat(edits.changes()).hasSize(1);
+        assertThat(edits.implementedRequirements()).containsExactly("HARDENING-01");
+        // Applied from the end, so the earlier deletion does not shift the later range.
+        assertThat(SnippetAiResponseSupport.applySnippetEdits(original, edits.edits()))
+            .isEqualTo("line1\nfour-a\nfour-b\nline5\n");
+
+        List<SnippetAiResponseSupport.SnippetEdit> overlapping = List.of(
+            new SnippetAiResponseSupport.SnippetEdit(2, 3, List.of("x")),
+            new SnippetAiResponseSupport.SnippetEdit(3, 4, List.of("y")));
+        List<SnippetAiResponseSupport.SnippetEdit> outside = List.of(
+            new SnippetAiResponseSupport.SnippetEdit(5, 9, List.of("x")));
+        assertThat(SnippetAiResponseSupport.applySnippetEdits(original, overlapping)).isNull();
+        assertThat(SnippetAiResponseSupport.applySnippetEdits(original, outside)).isNull();
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits("no json here").isUsable()).isFalse();
+    }
+
+    @Test
     void parseMermaidDiagramRequiresSafeRestrictedFlowchart() {
         SnippetAiResponseSupport.MermaidDiagram diagram =
             SnippetAiResponseSupport.parseMermaidDiagram("""

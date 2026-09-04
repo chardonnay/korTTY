@@ -432,6 +432,95 @@ public final class SnippetAiResponseSupport {
      * {@link #parseCodeImprovement} and additionally reads optional per-region {@code changes} plus the
      * compact {@code implementedRequirements} checklist used by Full code analysis hardening.
      */
+    /** One region a stage replaces: the original lines {@code startLine..endLine} (1-based, inclusive). */
+    public record SnippetEdit(int startLine, int endLine, List<String> replacementLines) {
+        public SnippetEdit {
+            replacementLines = replacementLines != null ? List.copyOf(replacementLines) : List.of();
+        }
+    }
+
+    /**
+     * The edit-mode apply answer for a long snippet: the changed regions instead of the whole
+     * script, plus the same summary, change annotations and requirement checklist as the
+     * whole-file answer. Applied locally by {@link #applySnippetEdits}.
+     */
+    public record SnippetEdits(
+        List<SnippetEdit> edits,
+        String summary,
+        List<SecurityChange> changes,
+        List<String> implementedRequirements) {
+
+        public SnippetEdits {
+            edits = edits != null ? List.copyOf(edits) : List.of();
+            summary = summary != null ? summary.trim() : "";
+            changes = changes != null ? List.copyOf(changes) : List.of();
+            implementedRequirements = implementedRequirements != null ? List.copyOf(implementedRequirements) : List.of();
+        }
+
+        public boolean isUsable() {
+            return !edits.isEmpty();
+        }
+    }
+
+    public static SnippetEdits parseSnippetEdits(String responseText) {
+        JsonObject object = parseJsonObject(responseText);
+        if (object == null) {
+            return new SnippetEdits(List.of(), "", List.of(), List.of());
+        }
+        List<SnippetEdit> edits = new ArrayList<>();
+        JsonArray array = firstArray(object, "edits", "patches", "replacements");
+        if (array != null) {
+            for (JsonElement element : array) {
+                if (element == null || !element.isJsonObject()) {
+                    continue;
+                }
+                JsonObject edit = element.getAsJsonObject();
+                Integer startLine = firstInt(edit, "startLine", "start", "from", "line");
+                Integer endLine = firstInt(edit, "endLine", "end", "to");
+                if (startLine == null) {
+                    continue;
+                }
+                edits.add(new SnippetEdit(
+                    startLine,
+                    endLine != null ? endLine : startLine,
+                    parseStringArray(firstArray(edit, "replacementLines", "lines", "replacement", "newLines"))));
+            }
+        }
+        return new SnippetEdits(
+            edits,
+            firstString(object, "summary", "description"),
+            parseSecurityChanges(object),
+            parseStringArray(object, "implementedRequirements"));
+    }
+
+    /**
+     * Applies edit-mode regions to the snippet they were written against. Returns {@code null}
+     * when a range lies outside the snippet, ranges overlap, or they are not in ascending order —
+     * a stage result that cannot be trusted is refused, exactly like an incomplete whole-file one.
+     */
+    public static String applySnippetEdits(String original, List<SnippetEdit> edits) {
+        if (original == null || edits == null || edits.isEmpty()) {
+            return null;
+        }
+        List<String> lines = new ArrayList<>(List.of(original.split("\\R", -1)));
+        List<SnippetEdit> ordered = new ArrayList<>(edits);
+        ordered.sort(java.util.Comparator.comparingInt(SnippetEdit::startLine));
+        int previousEnd = 0;
+        for (SnippetEdit edit : ordered) {
+            if (edit.startLine() < 1 || edit.endLine() < edit.startLine() || edit.endLine() > lines.size()
+                || edit.startLine() <= previousEnd) {
+                return null;
+            }
+            previousEnd = edit.endLine();
+        }
+        for (int index = ordered.size() - 1; index >= 0; index--) {
+            SnippetEdit edit = ordered.get(index);
+            lines.subList(edit.startLine() - 1, edit.endLine()).clear();
+            lines.addAll(edit.startLine() - 1, edit.replacementLines());
+        }
+        return String.join("\n", lines);
+    }
+
     public static SnippetSecurityFix parseSecurityFix(String responseText) {
         CodeImprovement improvement = parseCodeImprovement(responseText, true);
         JsonObject object = parseJsonObject(responseText);

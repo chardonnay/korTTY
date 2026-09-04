@@ -304,6 +304,21 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void editModeApplyCarriesTheEditsSchema() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions", "MiniMax-M3", "");
+        AiRequest editMode = new AiRequest(
+            AiAction.APPLY_SNIPPET_IMPROVEMENTS, "echo line\n".repeat(500), null, "en", null,
+            "Line-numbered snippet:\n```text\n   1 | echo line\n```");
+
+        String body = service.buildRequestBody(editMode);
+
+        assertThat(body).contains("snippet_edits_response");
+        assertThat(body).contains("\"startLine\"");
+        assertThat(body).doesNotContain("snippet_improvement_response");
+    }
+
+    @Test
     void diagramRequestsCarryTheirOwnSchemaAndAreNeverRepeated() throws Exception {
         // The schema is what makes an endpoint escape the quoted node labels korTTY's grammar
         // requires. A diagram is never re-requested: it costs minutes on the models this matters

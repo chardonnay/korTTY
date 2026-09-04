@@ -319,6 +319,26 @@ class AiPromptBuilderTest {
     }
 
     @Test
+    void longSnippetApplyAsksForEditRegionsInsteadOfTheWholeScript() {
+        String longScript = "echo line\n".repeat(500);
+        AiRequest editMode = new AiRequest(
+            AiAction.APPLY_SNIPPET_IMPROVEMENTS, longScript, null, "en", null,
+            "Snippet language: bash\nLine-numbered snippet:\n```text\n   1 | echo line\n```");
+        AiRequest wholeFile = new AiRequest(
+            AiAction.APPLY_SNIPPET_IMPROVEMENTS, "echo ok", null, "en", null, "Snippet language: bash");
+
+        assertThat(AiPromptBuilder.isEditModeApply(editMode)).isTrue();
+        assertThat(AiPromptBuilder.buildSystemPrompt(editMode)).contains("keys edits, summary, changes and implementedRequirements");
+        assertThat(AiPromptBuilder.buildSystemPrompt(editMode)).contains("never the whole script");
+        assertThat(AiPromptBuilder.buildUserPrompt(editMode)).contains("\"edits\": [ { \"startLine\"");
+        // The line-numbered block is the only script copy in the request.
+        assertThat(AiPromptBuilder.buildUserPrompt(editMode)).doesNotContain("Full script content to update:");
+        assertThat(AiPromptBuilder.isEditModeApply(wholeFile)).isFalse();
+        assertThat(AiPromptBuilder.buildSystemPrompt(wholeFile)).contains("keys replacementLines, summary");
+        assertThat(AiPromptBuilder.buildUserPrompt(wholeFile)).contains("Full script content to update:");
+    }
+
+    @Test
     void mermaidPromptScalesTheNodeCapWithTheSnippetLength() {
         AiRequest request = new AiRequest(
             AiAction.GENERATE_SNIPPET_MERMAID,

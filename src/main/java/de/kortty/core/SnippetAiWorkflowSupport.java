@@ -34,6 +34,14 @@ public final class SnippetAiWorkflowSupport {
      */
     private static final int MAX_MANDATORY_REQUIREMENTS_PER_APPLY_STAGE = 3;
     private static final int MAX_ANALYSIS_ITEMS_PER_APPLY_STAGE = 3;
+    /**
+     * Above this length an apply stage asks for edit regions instead of the whole script. A
+     * 4,009-line bash script returned complete is ~60,000 output tokens: at the completion cap,
+     * twelve minutes per stage, and a single lost quote in the JSON loses all of it (observed with
+     * MiniMax-M3: 184,166 characters, no usable JSON, twice). Short snippets keep the proven
+     * whole-file answer.
+     */
+    static final int MAX_WHOLE_FILE_REPLACEMENT_LINES = 400;
     private static final long MAX_COLLAPSED_STAGE_RETRY_COMPLETION_TOKENS = 4_096L;
     private static final Pattern URL_PATTERN = Pattern.compile("https?://[^\\s'\"<>]+", Pattern.CASE_INSENSITIVE);
     private static final Pattern DOWNLOAD_COMMAND_PATTERN =
@@ -1085,7 +1093,8 @@ public final class SnippetAiWorkflowSupport {
                     repairReason,
                     requirementsNeedingRepair,
                     requirementsNeedingRestore,
-                    analysisIdsNeedingRepair));
+                    analysisIdsNeedingRepair,
+                    attemptContent));
             AiExecutionResult result = aiService.execute(request);
             if (result != null && usageRecorder != null) {
                 usageRecorder.record(request, result);
@@ -1096,12 +1105,15 @@ public final class SnippetAiWorkflowSupport {
                 return echoOnlyRepairFallback;
             }
             rejectTruncatedReplacement(result);
-            SnippetAiResponseSupport.SnippetSecurityFix fix =
-                SnippetAiResponseSupport.parseSecurityFix(result != null ? result.content() : null);
+            boolean editMode = usesEditMode(attemptContent);
+            SnippetAiResponseSupport.SnippetSecurityFix fix = editMode
+                ? fixFromEdits(attemptContent, result)
+                : SnippetAiResponseSupport.parseSecurityFix(result != null ? result.content() : null);
             boolean rejectedReplacement = fix == null || !fix.isUsable()
                 || isIncompleteStagedReplacement(attemptContent, fix.replacement());
             if (rejectedReplacement) {
-                if (!repairAttempt && isShortCollapsedStageResult(result, attemptContent)) {
+                // In edit mode a short answer is the normal shape, not a collapsed script.
+                if (!repairAttempt && !editMode && isShortCollapsedStageResult(result, attemptContent)) {
                     repairReason = StageRepairReason.COLLAPSED_REPLACEMENT;
                     continue;
                 }
@@ -1148,6 +1160,37 @@ public final class SnippetAiWorkflowSupport {
      * it. Besides the generic collapse checks, require at least half of a substantial source's
      * non-blank lines so transports without strict JSON-schema support cannot advance a fragment.
      */
+    /** Whether a stage input is long enough for edit regions instead of a whole-file answer. */
+    static boolean usesEditMode(String content) {
+        return SnippetDiagramSupport.countLines(content) > MAX_WHOLE_FILE_REPLACEMENT_LINES;
+    }
+
+    /**
+     * Turns an edit-mode answer into the whole-file fix the rest of the pipeline verifies:
+     * applied locally, then checked exactly like a returned script. {@code null} when the answer
+     * carries no usable edits or their ranges cannot be trusted.
+     */
+    private static SnippetAiResponseSupport.SnippetSecurityFix fixFromEdits(String content, AiExecutionResult result) {
+        String answer = result != null && result.content() != null ? result.content() : "";
+        SnippetAiResponseSupport.SnippetEdits edits = SnippetAiResponseSupport.parseSnippetEdits(answer);
+        if (!edits.isUsable()) {
+            logger.warn("AI apply stage returned no usable edits [answer chars={}, starts with: {}]",
+                answer.length(), answer.strip().replaceAll("\\s+", " ").substring(0, Math.min(160, answer.strip().length())));
+            return null;
+        }
+        String replacement = SnippetAiResponseSupport.applySnippetEdits(content, edits.edits());
+        if (replacement == null) {
+            logger.warn("AI apply stage edits rejected: a range lies outside the {}-line snippet, overlaps another, "
+                + "or is out of order [{} edit(s)]", SnippetDiagramSupport.countLines(content), edits.edits().size());
+            return null;
+        }
+        int editedLines = edits.edits().stream().mapToInt(edit -> edit.endLine() - edit.startLine() + 1).sum();
+        logger.info("AI apply stage applied {} edit(s) covering {} original line(s) of {} [answer chars={}]",
+            edits.edits().size(), editedLines, SnippetDiagramSupport.countLines(content), answer.length());
+        return new SnippetAiResponseSupport.SnippetSecurityFix(
+            replacement, edits.summary(), edits.changes(), edits.implementedRequirements());
+    }
+
     private static boolean isIncompleteStagedReplacement(String original, String replacement) {
         if (SnippetAiResponseSupport.isDegenerateFullReplacement(original, replacement)) {
             return true;
@@ -1928,7 +1971,8 @@ public final class SnippetAiWorkflowSupport {
         StageRepairReason repairReason,
         List<MandatoryRequirement> requirementsNeedingRepair,
         List<MandatoryRequirement> requirementsNeedingRestore,
-        List<String> analysisIdsNeedingRepair) {
+        List<String> analysisIdsNeedingRepair,
+        String stageContent) {
 
         StringBuilder items = new StringBuilder();
         if (improvements != null) {
@@ -1965,6 +2009,14 @@ public final class SnippetAiWorkflowSupport {
             context.append("\nMandatory hardening requirements (implement every entry even when the selected-analysis-items block is empty; "
                     + "after implementation echo every requirement id once in implementedRequirements):\n")
                 .append(AiPromptBuilder.toSafeTextCodeBlock(requirementsText));
+        }
+        if (usesEditMode(stageContent)) {
+            // The literal heading is what switches AiPromptBuilder to edit mode and suppresses its
+            // raw-script block; the numbered lines are what the edits' ranges refer to.
+            context.append("\nThe snippet is ").append(SnippetDiagramSupport.countLines(stageContent))
+                .append(" lines long; return edit regions against these line numbers, not the whole script.\n")
+                .append("Line-numbered snippet:\n")
+                .append(lineNumberedTextBlock(stageContent));
         }
         return context.toString();
     }
