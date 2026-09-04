@@ -205,9 +205,13 @@ public final class SnippetDiagramSupport {
         return maxGeneratedNonterminalNodes(countLines(content));
     }
 
-    /** The hard limit behind a stated cap: twice it, so an over-drawn summary keeps its diagram and only a transcription is refused. */
+    /**
+     * The hard limit behind a stated cap: three times it, so an over-drawn summary keeps its diagram
+     * and only a transcription is refused. Twice was too tight: a 49-node flowchart of a 4,000-line
+     * script — one over the 48 tolerated — was thrown away for the generic fallback.
+     */
     public static int toleratedNonterminalNodes(int maxNonterminalNodes) {
-        return maxNonterminalNodes * 2;
+        return maxNonterminalNodes * 3;
     }
 
     /** See {@link #maxGeneratedNonterminalNodes(String)}; {@code lineCount} is the snippet's line count. */
