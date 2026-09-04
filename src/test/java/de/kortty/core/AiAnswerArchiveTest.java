@@ -61,6 +61,40 @@ public class AiAnswerArchiveTest {
     }
 
     @Test
+    void archiveIsOffOutsideTheRunningApplicationUnlessSwitchedOn() throws Exception {
+        String previousSwitch = System.getProperty(AiAnswerArchive.ENABLED_PROPERTY);
+        String previousLogDir = System.getProperty(LoggingConfiguration.LOG_DIR_PROPERTY);
+        Path logDirectory = Files.createTempDirectory("kortty-logs");
+        try {
+            System.setProperty(LoggingConfiguration.LOG_DIR_PROPERTY, logDirectory.toString());
+            System.clearProperty(AiAnswerArchive.ENABLED_PROPERTY);
+            // Not enabled by an application start-up (the test JVM never runs one): nothing is written.
+            assertThat(AiAnswerArchive.save(AiAction.ANALYZE_SNIPPET_CODE, "x", "{y")).isNull();
+            assertThat(Files.exists(logDirectory.resolve(AiAnswerArchive.DIRECTORY_NAME))).isFalse();
+            System.setProperty(AiAnswerArchive.ENABLED_PROPERTY, "on");
+            Path written = AiAnswerArchive.save(AiAction.ANALYZE_SNIPPET_CODE, "x", "{y");
+            assertThat(written).isNotNull();
+            assertThat(written.getParent()).isEqualTo(logDirectory.resolve(AiAnswerArchive.DIRECTORY_NAME));
+            System.setProperty(AiAnswerArchive.ENABLED_PROPERTY, "off");
+            assertThat(AiAnswerArchive.save(AiAction.ANALYZE_SNIPPET_CODE, "x", "{y")).isNull();
+        } finally {
+            if (previousSwitch != null) {
+                System.setProperty(AiAnswerArchive.ENABLED_PROPERTY, previousSwitch);
+            } else {
+                System.clearProperty(AiAnswerArchive.ENABLED_PROPERTY);
+            }
+            if (previousLogDir != null) {
+                System.setProperty(LoggingConfiguration.LOG_DIR_PROPERTY, previousLogDir);
+            } else {
+                System.clearProperty(LoggingConfiguration.LOG_DIR_PROPERTY);
+            }
+            try (Stream<Path> files = Files.walk(logDirectory)) {
+                files.sorted(java.util.Comparator.reverseOrder()).forEach(path -> path.toFile().delete());
+            }
+        }
+    }
+
+    @Test
     void defaultDirectoryFollowsTheConfiguredLogDirectory() {
         String previous = System.getProperty(LoggingConfiguration.LOG_DIR_PROPERTY);
         try {

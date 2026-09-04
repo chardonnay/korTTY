@@ -26,8 +26,13 @@ public final class AiAnswerArchive {
 
     static final String DIRECTORY_NAME = "ai-answers";
     static final int MAX_FILES = 20;
-    /** {@code -Dkortty.ai.answerArchive=off} disables the archive (the test suite sets it). */
+    /**
+     * {@code -Dkortty.ai.answerArchive=on|off} overrides; without it the archive is on only inside
+     * the running application, so unit tests and scratch runners — which set no log directory of
+     * their own and would otherwise write into the user's — never archive anything.
+     */
     static final String ENABLED_PROPERTY = "kortty.ai.answerArchive";
+    private static volatile boolean enabledByApplication;
 
     private static final Logger logger = LoggerFactory.getLogger(AiAnswerArchive.class);
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS", Locale.ROOT);
@@ -41,8 +46,15 @@ public final class AiAnswerArchive {
      *
      * @return the file, or {@code null} when nothing could be written (never throws)
      */
+    /** Called once by the application on start-up. */
+    public static void enableForApplication() {
+        enabledByApplication = true;
+    }
+
     public static Path save(AiAction action, String label, String content) {
-        if ("off".equalsIgnoreCase(System.getProperty(ENABLED_PROPERTY, "on"))) {
+        String configured = System.getProperty(ENABLED_PROPERTY);
+        boolean enabled = configured != null ? "on".equalsIgnoreCase(configured.strip()) : enabledByApplication;
+        if (!enabled) {
             return null;
         }
         try {

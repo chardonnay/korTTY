@@ -641,12 +641,22 @@ public final class SnippetAiResponseSupport {
             return values;
         }
         // The one split a compact read cannot see locally: code that contains the delimiter
-        // itself (awk -F"," or IFS=", " with the quotes left raw). Its two halves, joined again,
-        // are a line of the snippet — then this was a code line, not two entries.
+        // itself (awk -F"," or IFS=", " with the quotes left raw) reads as two entries. When a
+        // half plus the delimiter is part of a line of the snippet, the model changed a line that
+        // carries the seam — a code line, not two entries. A blank half proves nothing.
         String delimiter = spacedStyle ? "\", \"" : "\",\"";
+        List<String> seamLines = originalLines.stream().filter(line -> line.contains(delimiter)).toList();
+        if (seamLines.isEmpty()) {
+            return values;
+        }
         for (int i = 0; i + 1 < values.size(); i++) {
-            if (originalLines.contains(values.get(i) + delimiter + values.get(i + 1))) {
-                return null;
+            String left = values.get(i);
+            String right = values.get(i + 1);
+            for (String line : seamLines) {
+                if ((!left.isBlank() && line.contains(left + delimiter))
+                    || (!right.isBlank() && line.contains(delimiter + right))) {
+                    return null;
+                }
             }
         }
         return values;
@@ -661,9 +671,14 @@ public final class SnippetAiResponseSupport {
         for (int index = 1; index < lines.length; index++) {
             String line = lines[index].strip();
             if (line.startsWith("]") || line.startsWith("}")) {
-                // Only structure may share the line with the closer: a code line that starts
-                // with } after a raw line break inside an entry is not the array's end.
-                return line.matches("[\\]}\\s,]*") ? values : null;
+                // The array has ended only when nothing but structure follows the closer: the
+                // object's end, the next edit's brace, or the answer's next key. A code line after
+                // a raw line break inside an entry — a bare } as well — is not the array's end.
+                String after = String.join("\n", java.util.Arrays.asList(lines).subList(index, lines.length))
+                    .replaceFirst("^[\\]}\\s,]*", "");
+                boolean nextEdit = after.startsWith("{")
+                    && (skipSpaces(after, 1) == after.length() || keyFollows(after, skipSpaces(after, 1)));
+                return after.isEmpty() || nextEdit || keyFollows(after, 0) ? values : null;
             }
             if (line.isEmpty()) {
                 continue;
@@ -677,11 +692,38 @@ public final class SnippetAiResponseSupport {
                 return null;
             }
             String body = core.substring(1, core.length() - 1);
-            if (!appendDecodedLines(values, body)) {
+            if (holdsSeveralEntries(body) || !appendDecodedLines(values, body)) {
                 return null;
             }
         }
         return null;
+    }
+
+    /**
+     * A wrapped line that holds more than one entry: a raw quote outside any quoted pair (an even
+     * number of raw quotes before it), a comma, optional whitespace and a quote. Code of the same
+     * shape (IFS=", " with raw quotes) cannot be told apart from it here, so both fail closed.
+     */
+    private static boolean holdsSeveralEntries(String body) {
+        int quotes = 0;
+        for (int i = 0; i < body.length(); i++) {
+            char c = body.charAt(i);
+            if (c == '\\') {
+                i++;
+                continue;
+            }
+            if (c != '"') {
+                continue;
+            }
+            if (quotes % 2 == 0 && i + 1 < body.length() && body.charAt(i + 1) == ',') {
+                int quoteAt = skipSpaces(body, i + 2);
+                if (quoteAt < body.length() && body.charAt(quoteAt) == '"') {
+                    return true;
+                }
+            }
+            quotes++;
+        }
+        return false;
     }
 
     private static List<String> readCompactStringArray(String rest, boolean spacedStyle) {
@@ -700,7 +742,10 @@ public final class SnippetAiResponseSupport {
                 return null;
             }
             String body = rest.substring(i + 1, end);
-            if (rawQuoteCount(body) % 2 != 0 || containsOtherStyleSeam(body, spacedStyle)
+            // A compact array is trusted only while no entry holds a raw quote: every seam-shaped
+            // ambiguity there comes from raw quotes, and the structural slips seen live keep the
+            // quotes escaped. An answer that left a quote raw goes to the retry.
+            if (rawQuoteCount(body) != 0 || containsOtherStyleSeam(body, spacedStyle)
                 || !appendDecodedLines(values, body)) {
                 return null;
             }
@@ -739,19 +784,33 @@ public final class SnippetAiResponseSupport {
         if (i >= text.length()) {
             return true;
         }
-        char c = text.charAt(i);
         if (text.charAt(closeAt) == ']') {
-            if (c == '}') {
-                return true;
+            char c = text.charAt(i);
+            if (c == ',') {
+                return nextEditOrKeyFollows(text, i);
             }
-            if (c != ',') {
+            if (c != '}') {
                 return false;
             }
-            int afterComma = skipSpaces(text, i + 1);
-            // The next key of this object, or — the edit's closing brace forgotten — the next edit.
-            return keyFollows(text, afterComma) || (afterComma < text.length() && text.charAt(afterComma) == '{');
+            i++;
         }
-        return c == ',' || c == ']' || c == '}';
+        // Past the edit's closing brace only closers may stack (the edits array's ], the root's })
+        // before the answer ends or a comma leads to the next edit or key. A closer inside code
+        // (echo "]}", echo "},", printf "},\n") is followed by the code's own closing quote instead.
+        while (i < text.length()
+            && (text.charAt(i) == ']' || text.charAt(i) == '}' || Character.isWhitespace(text.charAt(i)))) {
+            i++;
+        }
+        if (i >= text.length()) {
+            return true;
+        }
+        return text.charAt(i) == ',' && nextEditOrKeyFollows(text, i);
+    }
+
+    /** The next key of this object, or — the edit's closing brace forgotten — the next edit. */
+    private static boolean nextEditOrKeyFollows(String text, int commaAt) {
+        int afterComma = skipSpaces(text, commaAt + 1);
+        return keyFollows(text, afterComma) || (afterComma < text.length() && text.charAt(afterComma) == '{');
     }
 
     private static boolean keyFollows(String text, int at) {
@@ -796,8 +855,8 @@ public final class SnippetAiResponseSupport {
             }
             int closing = skipSpaces(text, next);
             if (closing < text.length() && text.charAt(closing) == ',') {
-                boolean spaceFollows = closing + 1 < text.length() && text.charAt(closing + 1) == ' ';
                 int quoteAt = skipSpaces(text, closing + 1);
+                boolean spaceFollows = quoteAt > closing + 1;
                 boolean quoteFollows = quoteAt < text.length() && text.charAt(quoteAt) == '"';
                 if (quoteFollows && spaceFollows == spacedStyle) {
                     return i;

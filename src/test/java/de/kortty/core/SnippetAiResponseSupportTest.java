@@ -290,11 +290,10 @@ class SnippetAiResponseSupportTest {
         assertThat(recovered.changes()).hasSize(1);
         assertThat(recovered.changes().get(0).finding()).isEqualTo("SEC-1");
 
-        // A compact array is read by the answer's own delimiter; the quote pair stays inside.
-        SnippetAiResponseSupport.SnippetEdits compact = SnippetAiResponseSupport.parseSnippetEdits(
-            "{\"edits\":[{\"startLine\":2,\"endLine\":2,\"replacementLines\":[\"echo \"a\" b\"]}],\"summary\":\"x\"}");
-        assertThat(compact.recoveredFromBrokenJson()).isTrue();
-        assertThat(compact.edits().get(0).replacementLines()).containsExactly("echo \"a\" b");
+        // A compact array is trusted only without raw quotes: this one goes to the retry.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":2,\"endLine\":2,\"replacementLines\":[\"echo \"a\" b\"]}],\"summary\":\"x\"}")
+            .isUsable()).isFalse();
         // All or nothing: one edit readable and one not is still a retry, never a stage that
         // silently applies half of what the model meant.
         assertThat(SnippetAiResponseSupport.parseSnippetEdits("""
@@ -396,13 +395,18 @@ class SnippetAiResponseSupportTest {
         assertThat(SnippetAiResponseSupport.parseSnippetEdits(
             "{\"edits\": [{\"startLine\": 5, \"endLine\": 5, \"replacementLines\": [\"a\",\"b\",\"c\"]}], \"summary\": \"u\"}")
             .edits().get(0).replacementLines()).containsExactly("a", "b", "c").inOrder();
-        // A raw quote pair in the answer's own style is one entry when it has no other quote.
-        SnippetAiResponseSupport.SnippetEdits compact = SnippetAiResponseSupport.parseSnippetEdits(
+        // A compact entry with any raw quote is not trusted, whatever its style.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
             "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":"
-                + "[\"echo \"a b\" done\",\"echo \"done\"\"]}],\"summary\":\"v\"}");
-        assertThat(compact.recoveredFromBrokenJson()).isTrue();
-        assertThat(compact.edits().get(0).replacementLines())
-            .containsExactly("echo \"a b\" done", "echo \"done\"").inOrder();
+                + "[\"echo \"a b\" done\",\"echo \"done\"\"]}],\"summary\":\"v\"}").isUsable()).isFalse();
+        // Escaped closers inside code are plain content; raw ones are refused with their quotes.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":"
+                + "[\"echo \\\"},\\\"\",\"echo \\\"]}\\\"\",\"echo done\"]}],\"summary\":\"w\"}")
+            .edits().get(0).replacementLines()).containsExactly("echo \"},\"", "echo \"]}\"", "echo done").inOrder();
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":[\"echo \"},\"\",\"echo done\"]}],\"summary\":\"w\"}")
+            .isUsable()).isFalse();
         // A line number beyond int range is a glitch, not a range.
         assertThat(SnippetAiResponseSupport.parseSnippetEdits(
             "{\"edits\":[{\"startLine\":99999999999,\"endLine\":5,\"replacementLines\":[\"a \"b\" c\"]}],\"summary\":\"v\"}")
@@ -414,17 +418,17 @@ class SnippetAiResponseSupportTest {
         // Code that contains the answer's own delimiter with raw quotes cannot be told from two
         // entries locally; the snippet says it was one line, and the read fails closed.
         String awkAnswer = "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":"
-            + "[\"awk -F\",\" '{print $1}'\",\"echo \"done\"\"]}],\"summary\":\"v\"}";
+            + "[\"awk -F\",\" '{print $1}'\",\"echo done\"}],\"summary\":\"v\"}";
         assertThat(SnippetAiResponseSupport.parseSnippetEdits(awkAnswer, "a\nawk -F\",\" '{print $1}'\nc\n").isUsable())
             .isFalse();
+        // Without the snippet there is no signal: the split is what Gson returns for the same text.
         assertThat(SnippetAiResponseSupport.parseSnippetEdits(awkAnswer, "a\nb\nc\n").edits().get(0).replacementLines())
-            .containsExactly("awk -F", " '{print $1}'", "echo \"done\"").inOrder();
-        // A quote followed by ] inside code does not close the array: code, not structure, follows
-        // that ], so the real close is found further on.
+            .containsExactly("awk -F", " '{print $1}'", "echo done").inOrder();
+        // A quote followed by ] inside code does not close the array (code, not structure,
+        // follows that ]); with its raw quotes the entry is refused all the same.
         assertThat(SnippetAiResponseSupport.parseSnippetEdits(
             "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":"
-                + "[\"arr=(\"]\")\",\"x\"]}],\"summary\":\"w\"}").edits().get(0).replacementLines())
-            .containsExactly("arr=(\"]\")", "x").inOrder();
+                + "[\"arr=(\"]\")\",\"x\"]}],\"summary\":\"w\"}").isUsable()).isFalse();
         // An edit's closing brace forgotten between two edits is read like the missing bracket.
         assertThat(SnippetAiResponseSupport.parseSnippetEdits(
             "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":[\"a\"],"
@@ -450,6 +454,39 @@ class SnippetAiResponseSupportTest {
         assertThat(SnippetAiResponseSupport.parseSnippetEdits(
             "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":[\"echo \"a\", \"summary\":\"s\",\"changes\":[]}")
             .isUsable()).isFalse();
+        // The model changed the seam-bearing line ($1 -> $2): its left half plus the delimiter
+        // is still part of the original line, so this was one code line, not two entries.
+        String changedAwk = "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":"
+            + "[\"awk -F\",\" '{print $2}'\",\"echo done\"}],\"summary\":\"v\"}";
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(changedAwk, "a\nb\nc\nd\nawk -F\",\" '{print $1}'\n").isUsable())
+            .isFalse();
+        // A blank entry next to an unrelated seam elsewhere in the script is still read.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":2,\"endLine\":2,\"replacementLines\":[\"foo\",\"\",\"bar\"]}],\"summary\":\"v\"}",
+            "awk -F\",\" x\ny\nz\n").edits().get(0).replacementLines()).containsExactly("foo", "", "bar").inOrder();
+        // One entry per line: a wrapped line holding several entries is refused, a raw quote pair
+        // whose seam-shaped quote closes a pair is one entry, and a bare } line inside an entry
+        // that a raw line break split is not the array's end.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits("""
+            {"edits": [{"startLine": 5, "endLine": 5, "replacementLines": [
+              "echo "hi" there", "echo done"
+            ]}], "summary": "s"}
+            """).isUsable()).isFalse();
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits("""
+            {"edits": [{"startLine": 5, "endLine": 5, "replacementLines": [
+              "printf "%s %s", "$a" "$b"",
+              "echo \\$x"
+            ]}], "summary": "s"}
+            """).edits().get(0).replacementLines()).containsExactly("printf \"%s %s\", \"$a\" \"$b\"", "echo \\$x").inOrder();
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits("""
+            {"edits": [{"startLine": 2, "endLine": 4, "replacementLines": [
+              "log() {",
+              "  echo "done
+            }
+            main "$@"",
+              "exit 0"
+            ]}], "summary": "s"}
+            """).isUsable()).isFalse();
         // A trailing comma before the close is tolerated.
         assertThat(SnippetAiResponseSupport.parseSnippetEdits(
             "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":[\"a\",\"b\",]}],\"summary\":\"w\"}")
