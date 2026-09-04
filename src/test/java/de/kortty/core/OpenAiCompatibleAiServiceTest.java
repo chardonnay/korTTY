@@ -304,6 +304,34 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void diagramRequestsCarryTheirOwnSchemaAndAreNeverRepeated() throws Exception {
+        // The schema is what makes an endpoint escape the quoted node labels korTTY's grammar
+        // requires. A diagram is never re-requested: it costs minutes on the models this matters
+        // for, and a mis-escaped answer is recovered from the text korTTY already has.
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(200, """
+                {"choices":[{"finish_reason":"stop",
+                  "message":{"content":"I am afraid I cannot draw that."}}],
+                 "usage":{"prompt_tokens":10,"completion_tokens":40,"total_tokens":50}}
+                """));
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "",
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.GENERATE_SNIPPET_MERMAID, "echo ok", null, "en"),
+            client,
+            null);
+
+        assertThat(client.requestBodies()).hasSize(1);
+        assertThat(client.requestBodies().get(0)).contains("snippet_diagram_response");
+        assertThat(client.requestBodies().get(0)).contains("codeReferences");
+        assertThat(result.content()).contains("cannot draw");
+    }
+
+    @Test
     void structuredActionRetriesWithoutSchemaWhenTheReplyCarriesNothingUsable() throws Exception {
         SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
             new StubResponse(200, """

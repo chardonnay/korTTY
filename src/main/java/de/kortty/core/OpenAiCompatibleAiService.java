@@ -348,7 +348,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             if (salvaged != null) {
                 return salvaged;
             }
-            if (!usesStructuredJsonSchema(request)) {
+            if (!repeatsRequestWithoutSchema(request)) {
                 throw e;
             }
             // The schema itself is the prime suspect for a reply that carried no content at all,
@@ -415,10 +415,23 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
      *     schema, and its own fail-closed handling must win.
      */
     private static boolean needsPlainJsonRetry(AiRequest request, AiExecutionResult result) {
-        return usesStructuredJsonSchema(request)
+        return repeatsRequestWithoutSchema(request)
             && result != null
             && !result.outputTruncated()
             && !consumerCanUseResponse(request, result.content());
+    }
+
+    /**
+     * Whether a completed generation may be repeated without the schema. Every structured action
+     * may, except the diagram: it costs minutes on the models this matters for, a rejected diagram
+     * is a modelling problem that asking again does not solve, and
+     * {@link SnippetTypedDiagramSupport#extractDiagramSource} recovers a mis-escaped answer from
+     * the text korTTY already has. An endpoint that rejects the schema outright is a different
+     * case — that costs no generation and is retried above.
+     */
+    private static boolean repeatsRequestWithoutSchema(AiRequest request) {
+        return usesStructuredJsonSchema(request)
+            && request.action() != AiAction.GENERATE_SNIPPET_MERMAID;
     }
 
     /**
@@ -432,6 +445,12 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     private static boolean consumerCanUseResponse(AiRequest request, String content) {
         if (request.action() == AiAction.ANALYZE_SNIPPET_CODE) {
             return SnippetAiResponseSupport.parseScriptAnalysis(content).isUsable();
+        }
+        if (request.action() == AiAction.GENERATE_SNIPPET_MERMAID) {
+            // The shape, not the diagram: a rejected diagram is a modelling problem that asking
+            // again does not solve, and the reasoning-channel salvage below must still recognize
+            // a well-formed answer.
+            return SnippetAiResponseSupport.carriesDiagramJson(content);
         }
         if (request.action() == AiAction.MIGRATE_SNIPPET_LANGUAGE) {
             return SnippetAiResponseSupport.parseLanguageMigration(content).isUsable();
@@ -1427,12 +1446,16 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         return request != null
             && (request.action() == AiAction.ANALYZE_SNIPPET_CODE
                 || request.action() == AiAction.APPLY_SNIPPET_IMPROVEMENTS
-                || request.action() == AiAction.MIGRATE_SNIPPET_LANGUAGE);
+                || request.action() == AiAction.MIGRATE_SNIPPET_LANGUAGE
+                || request.action() == AiAction.GENERATE_SNIPPET_MERMAID);
     }
 
     private static JsonObject buildStructuredResponseFormat(AiRequest request) {
         if (request != null && request.action() == AiAction.ANALYZE_SNIPPET_CODE) {
             return buildSnippetAnalysisResponseFormat();
+        }
+        if (request != null && request.action() == AiAction.GENERATE_SNIPPET_MERMAID) {
+            return buildSnippetDiagramResponseFormat();
         }
         if (request != null && request.action() == AiAction.MIGRATE_SNIPPET_LANGUAGE) {
             return buildLanguageMigrationResponseFormat(request);
@@ -1525,6 +1548,50 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         jsonSchema.addProperty("strict", true);
         jsonSchema.add("schema", strictObjectSchema(
             properties, "replacementLines", "summary", "notes"));
+
+        JsonObject responseFormat = new JsonObject();
+        responseFormat.addProperty("type", "json_schema");
+        responseFormat.add("json_schema", jsonSchema);
+        return responseFormat;
+    }
+
+    /**
+     * Constrains a diagram answer to the object {@link SnippetAiResponseSupport#parseMermaidDiagram}
+     * consumes. The value of this schema is the escaping, not the field list: korTTY's diagram
+     * grammar requires quoted node labels, and a model that writes them into a hand-built JSON
+     * string without escaping the quotes produces an object that parses in neither strict nor
+     * lenient mode — the whole answer is then lost, however good the diagram was. An endpoint that
+     * honors the schema cannot make that mistake.
+     */
+    private static JsonObject buildSnippetDiagramResponseFormat() {
+        JsonObject stringType = new JsonObject();
+        stringType.addProperty("type", "string");
+
+        JsonObject lineType = new JsonObject();
+        lineType.addProperty("type", "integer");
+        lineType.addProperty("minimum", 1);
+
+        JsonObject referenceProperties = new JsonObject();
+        referenceProperties.add("nodeId", stringType.deepCopy());
+        referenceProperties.add("label", stringType.deepCopy());
+        referenceProperties.add("startLine", lineType.deepCopy());
+        referenceProperties.add("endLine", lineType.deepCopy());
+        JsonObject codeReferences = arraySchema(strictObjectSchema(
+            referenceProperties, "nodeId", "label", "startLine", "endLine"));
+
+        JsonObject mermaid = new JsonObject();
+        mermaid.addProperty("type", "string");
+        mermaid.addProperty("minLength", 1);
+
+        JsonObject properties = new JsonObject();
+        properties.add("title", stringType.deepCopy());
+        properties.add("mermaid", mermaid);
+        properties.add("codeReferences", codeReferences);
+
+        JsonObject jsonSchema = new JsonObject();
+        jsonSchema.addProperty("name", "snippet_diagram_response");
+        jsonSchema.addProperty("strict", true);
+        jsonSchema.add("schema", strictObjectSchema(properties, "title", "mermaid", "codeReferences"));
 
         JsonObject responseFormat = new JsonObject();
         responseFormat.addProperty("type", "json_schema");

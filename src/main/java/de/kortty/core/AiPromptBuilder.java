@@ -308,7 +308,13 @@ public final class AiPromptBuilder {
             + "startLine, and endLine; omit it or leave it empty when no clear mapping exists. "
             + "Line numbers must be 1-based, refer only to the provided line-numbered snippet, and use the "
             + "smallest relevant source range. ";
-        String jsonTail = DIRECT_JSON_REPLY_RULE + " Do not include Markdown or explanations outside the JSON object.";
+        // The grammar below requires quoted labels, so every one of those quotes has to survive as
+        // \" inside the JSON string. Models that lose that escaping produce an object that parses
+        // in no mode at all, and a complete diagram is thrown away.
+        String jsonEscapingRule = "mermaid is one JSON string: escape every double quote inside it as \\\" "
+            + "and every line break as \\\\n, and never emit a raw line break inside a JSON string. ";
+        String jsonTail = jsonEscapingRule + DIRECT_JSON_REPLY_RULE
+            + " Do not include Markdown or explanations outside the JSON object.";
         return switch (type) {
             case LOGICAL_STRUCTURE ->
                 "You generate a compact Mermaid flowchart for the logical structure of a code snippet. "

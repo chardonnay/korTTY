@@ -662,6 +662,22 @@ public final class SnippetAiResponseSupport {
         return parsedFindings;
     }
 
+    /**
+     * Whether an answer carries the diagram object's shape — a JSON object with a non-blank
+     * {@code mermaid} value. Deliberately weaker than {@link #parseMermaidDiagram}: the transport
+     * uses it to tell "the endpoint ignored the response format and answered in prose" from "the
+     * model returned the object but drew a diagram korTTY rejects", and only the first of those is
+     * something a differently phrased request could fix.
+     */
+    public static boolean carriesDiagramJson(String responseText) {
+        JsonObject object = parseJsonObject(responseText);
+        if (object == null) {
+            return false;
+        }
+        String mermaid = firstString(object, "mermaid");
+        return mermaid != null && !mermaid.isBlank();
+    }
+
     public static MermaidDiagram parseMermaidDiagram(String responseText) {
         return parseMermaidDiagram(SnippetDiagramType.LOGICAL_STRUCTURE, responseText);
     }
