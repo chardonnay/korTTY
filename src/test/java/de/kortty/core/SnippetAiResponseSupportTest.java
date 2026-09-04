@@ -496,6 +496,16 @@ class SnippetAiResponseSupportTest {
         assertThat(SnippetAiResponseSupport.parseSnippetEdits(swallowed, "a\n  res=\"\"\nc\n").edits().get(0).replacementLines())
             .containsExactly("  res=\"\"", "  fi").inOrder();
         assertThat(SnippetAiResponseSupport.parseSnippetEdits(swallowed, "a\nb\nc\n").isUsable()).isFalse();
+        // A code line ending in a quote whose escaped last quote the model fused with the closing
+        // quote (body="{" written as body=\"{\" and then the seam): read when the oracle knows the line.
+        String fused = "{\"edits\": [{\"startLine\": 5, \"endLine\": 6, \"replacementLines\": [\"  body=\\\"{\\\", \"  fi\"]}], \"summary\": \"s\"}";
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(fused, "a\n  body=\"{\"\nc\n").edits().get(0).replacementLines())
+            .containsExactly("  body=\"{\"", "  fi").inOrder();
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(fused, "a\nb\nc\n").isUsable()).isFalse();
+        // An entry that ends in an escaped backslash (a bash line continuation) closes normally.
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(
+            "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":[\"x=$(cmd \\\\\\\\\",\"  | tail\"]}]",
+            "a\nb\n").edits().get(0).replacementLines()).containsExactly("x=$(cmd \\\\", "  | tail").inOrder();
         // A trailing comma before the close is tolerated.
         assertThat(SnippetAiResponseSupport.parseSnippetEdits(
             "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":[\"a\",\"b\",]}],\"summary\":\"w\"}")

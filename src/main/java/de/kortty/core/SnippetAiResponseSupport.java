@@ -744,11 +744,15 @@ public final class SnippetAiResponseSupport {
                 // Not an entry: the array was never closed and this is the answer's next key.
                 return null;
             }
-            int end = compactStringEnd(rest, i + 1, spacedStyle);
+            int end = compactStringEnd(rest, i + 1, spacedStyle, originalLines);
             if (end < 0) {
                 return null;
             }
-            String body = rest.substring(i + 1, end);
+            // A closing quote the model merged into the escaped quote that ends the code line
+            // (body="{" written as body=\"{\" then the seam): the oracle recognised the line, and
+            // the quote after the backslash is both the code's last character and the close.
+            boolean mergedClose = precedingBackslashes(rest, end) % 2 == 1;
+            String body = rest.substring(i + 1, mergedClose ? end + 1 : end);
             // Raw quotes inside an entry are fine in pairs (res="", echo "x"): a seam-shaped raw
             // quote has already ended the entry above, so what is left is either balanced code or
             // a split that fell inside a quoted pair — and that one has an odd count. One odd case
@@ -756,7 +760,9 @@ public final class SnippetAiResponseSupport {
             // swallowed (res="" written as res=") — when the entry plus a quote is a line of the
             // snippet, that line it is.
             if (rawQuoteCount(body) % 2 != 0) {
-                if (!originalLines.contains(body + "\"")) {
+                List<String> decoded = new ArrayList<>(1);
+                appendDecodedLines(decoded, body);
+                if (decoded.size() != 1 || !originalLines.contains(decoded.get(0) + "\"")) {
                     return null;
                 }
                 body = body + "\"";
@@ -851,9 +857,25 @@ public final class SnippetAiResponseSupport {
      * {@code }} — a quote followed by anything else is code.
      */
     private static int compactStringEnd(String text, int from, boolean spacedStyle) {
+        return compactStringEnd(text, from, spacedStyle, java.util.Set.of());
+    }
+
+    private static int compactStringEnd(
+        String text, int from, boolean spacedStyle, java.util.Set<String> originalLines) {
         for (int i = from; i < text.length(); i++) {
             char c = text.charAt(i);
             if (c == '\\') {
+                if (i + 1 < text.length() && text.charAt(i + 1) == '"' && !originalLines.isEmpty()
+                    && seamFollows(text, i + 2, spacedStyle)) {
+                    // Seen live: a code line that ends in a quote, its escaped last quote fused
+                    // with the string's closing quote. When the entry decoded up to and including
+                    // that quote is a line of the snippet, this is where the entry ends.
+                    List<String> decoded = new ArrayList<>(1);
+                    appendDecodedLines(decoded, text.substring(from, i + 2));
+                    if (decoded.size() == 1 && originalLines.contains(decoded.get(0))) {
+                        return i + 1;
+                    }
+                }
                 i++;
                 continue;
             }
@@ -915,6 +937,28 @@ public final class SnippetAiResponseSupport {
             }
         }
         return false;
+    }
+
+    /** Whether a seam in the answer's style, or the array's close, starts at {@code at}. */
+    private static boolean seamFollows(String text, int at, boolean spacedStyle) {
+        int closing = skipSpaces(text, at);
+        if (closing >= text.length()) {
+            return false;
+        }
+        if (text.charAt(closing) == ',') {
+            int quoteAt = skipSpaces(text, closing + 1);
+            return quoteAt < text.length() && text.charAt(quoteAt) == '"' && (quoteAt > closing + 1) == spacedStyle;
+        }
+        return (text.charAt(closing) == ']' || text.charAt(closing) == '}') && structureFollowsArrayEnd(text, closing);
+    }
+
+    /** How many backslashes sit directly before {@code at}: odd means the character there is escaped. */
+    private static int precedingBackslashes(String text, int at) {
+        int count = 0;
+        for (int i = at - 1; i >= 0 && text.charAt(i) == '\\'; i--) {
+            count++;
+        }
+        return count;
     }
 
     private static int skipSpaces(String text, int from) {
