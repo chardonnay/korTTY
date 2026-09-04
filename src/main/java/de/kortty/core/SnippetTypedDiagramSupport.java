@@ -82,6 +82,11 @@ public final class SnippetTypedDiagramSupport {
     /** How many trailing lines of JSON debris the salvage may strip before giving up. */
     private static final int MAX_SALVAGE_TRIM_LINES = 60;
     private static final Pattern JSON_KEY_LINE = Pattern.compile("^\"[A-Za-z][A-Za-z0-9_]{0,63}\"\\s*:");
+    /** Where the envelope resumes after the diagram string: {@code ","codeReferences":} — impossible inside a label. */
+    private static final Pattern JSON_NEXT_FIELD = Pattern.compile(
+        "\"\\s*,\\s*\"[A-Za-z][A-Za-z0-9_]{0,63}\"\\s*:");
+    /** The envelope's end when the diagram was its last field. */
+    private static final Pattern JSON_OBJECT_END = Pattern.compile("\"\\s*}\\s*$");
 
     private SnippetTypedDiagramSupport() {
     }
@@ -117,7 +122,10 @@ public final class SnippetTypedDiagramSupport {
         if (start < 0) {
             return "";
         }
-        String candidate = text.substring(start);
+        // A compact, single-line envelope continues right after the diagram string — no line
+        // break separates `class fail_1 failure","codeReferences":[…` — so the continuation is
+        // cut on the still-escaped text, where the next field's `","key":` is unmistakable.
+        String candidate = cutJsonContinuation(text.substring(start));
         if (candidate.contains("\\n")) {
             candidate = unescapeJsonStringBody(candidate);
         }
@@ -159,6 +167,15 @@ public final class SnippetTypedDiagramSupport {
         variant.add(stripped);
         String variantSource = String.join("\n", variant).strip();
         return !variantSource.isBlank() && validate(type, variantSource).valid() ? variantSource : null;
+    }
+
+    private static String cutJsonContinuation(String candidate) {
+        Matcher nextField = JSON_NEXT_FIELD.matcher(candidate);
+        if (nextField.find()) {
+            return candidate.substring(0, nextField.start());
+        }
+        Matcher objectEnd = JSON_OBJECT_END.matcher(candidate);
+        return objectEnd.find() ? candidate.substring(0, objectEnd.start()) : candidate;
     }
 
     private static int indexOfIgnoreCase(String text, String needle) {

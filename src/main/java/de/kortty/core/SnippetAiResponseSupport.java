@@ -701,7 +701,14 @@ public final class SnippetAiResponseSupport {
         }
         String rawMermaid = SnippetDiagramSupport.stripPresentationStatements(firstString(object, "mermaid"));
         if (rawMermaid == null || rawMermaid.isBlank()) {
-            return MermaidDiagram.rejected(type, "The AI answer JSON has no 'mermaid' value.");
+            // When the whole envelope fails to parse, the scanner settles on the first object that
+            // does — typically a codeReferences entry. Naming that "no mermaid value" sent a
+            // reader after the wrong defect.
+            boolean envelopeLost = !object.has("mermaid") && responseText.contains("\"mermaid\"");
+            return MermaidDiagram.rejected(type, envelopeLost
+                ? "The AI answer's JSON envelope could not be parsed, probably because quotes inside "
+                    + "the diagram are not escaped."
+                : "The AI answer JSON has no 'mermaid' value.");
         }
         MermaidDiagram diagram = new MermaidDiagram(
             firstString(object, "title", "name"),

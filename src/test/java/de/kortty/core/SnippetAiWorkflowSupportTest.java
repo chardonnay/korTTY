@@ -1534,6 +1534,27 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void mermaidRequestRecoversACompactSingleLineAnswerWithRawLabelQuotes() throws Exception {
+        // The exact shape MiniMax-M3 produced after #264: compact JSON, escaped line breaks, raw
+        // quotes in labels, classDef lines, and codeReferences right behind the diagram string.
+        CapturingAiService aiService = new CapturingAiService(
+            "{\"title\":\"Server load\",\"mermaid\":\"flowchart TD\\n classDef work fill:#fff\\n"
+                + " start_1([\"Start\"])\\n work_1[\"Read config\"]\\n stop_1([\"Stop\"])\\n"
+                + " start_1 --> work_1\\n work_1 --> stop_1\\n class start_1,stop_1 setup\\n class work_1 work\","
+                + "\"codeReferences\":[{\"nodeId\":\"work_1\",\"label\":\"Read config\",\"startLine\":1,\"endLine\":1}]}");
+
+        SnippetAiResponseSupport.MermaidDiagram diagram =
+            SnippetAiWorkflowSupport.generateSnippetMermaid(
+                aiService, null, "read config\n", "perl", null, "en", null);
+
+        assertThat(diagram.isUsable()).isTrue();
+        assertThat(diagram.mermaid()).contains("work_1[\"Read config\"]");
+        assertThat(diagram.mermaid()).doesNotContain("classDef");
+        assertThat(diagram.mermaid()).doesNotContain("codeReferences");
+        assertThat(aiService.executionCount).isEqualTo(1);
+    }
+
+    @Test
     void mermaidRequestReportsTheGenerationRuleWhenARecoveredDiagramBreaksIt() throws Exception {
         StringBuilder mermaid = new StringBuilder("flowchart TD\n    start_1([\"Start\"])\n");
         for (int index = 1; index <= 13; index++) {

@@ -182,6 +182,32 @@ class SnippetTypedDiagramSupportTest {
     }
 
     @Test
+    void recoveryCutsACompactEnvelopeThatContinuesOnTheSameLine() {
+        // MiniMax-M3 writes one line: \n-escaped diagram, raw label quotes, and the next field
+        // right behind the closing quote. Nothing separates the diagram from the envelope.
+        String compact = "{\"title\":\"Server load\",\"mermaid\":\"flowchart TD\\n classDef setup fill:#eef\\n"
+            + " start_1([\"Start\"])\\n work_1[\"Read config\"]\\n check_1{\"Config valid?\"}\\n fail_1[\"Abort\"]\\n"
+            + " stop_1([\"Stop\"])\\n start_1 --> work_1\\n work_1 --> check_1\\n check_1 -->|yes| stop_1\\n"
+            + " check_1 -->|no| fail_1\\n fail_1 --> stop_1\\n class start_1,stop_1 setup\\n class work_1,check_1 work\\n"
+            + " class fail_1 failure\",\"codeReferences\":[{\"nodeId\":\"work_1\",\"label\":\"Read config\","
+            + "\"startLine\":10,\"endLine\":20}]}";
+        String lastField = "{\"title\":\"T\",\"mermaid\":\"flowchart TD\\n start_1([\\\"Start\\\"])\\n stop_1([\\\"Stop\\\"])\\n"
+            + " start_1 --> stop_1\\n class start_1,stop_1 setup\"}";
+
+        String fromCompact = SnippetTypedDiagramSupport.extractDiagramSource(
+            SnippetDiagramType.LOGICAL_STRUCTURE, compact);
+        String fromLastField = SnippetTypedDiagramSupport.extractDiagramSource(
+            SnippetDiagramType.LOGICAL_STRUCTURE, lastField);
+
+        assertThat(fromCompact).contains("class fail_1 failure");
+        assertThat(fromCompact).doesNotContain("codeReferences");
+        assertThat(fromCompact).doesNotContain("classDef");
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(fromCompact).valid()).isTrue();
+        assertThat(fromLastField).endsWith("class start_1,stop_1 setup");
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(fromLastField).valid()).isTrue();
+    }
+
+    @Test
     void recoveryReturnsNothingForAnAnswerWithoutADiagram() {
         assertThat(SnippetTypedDiagramSupport.extractDiagramSource(
             SnippetDiagramType.LOGICAL_STRUCTURE, "I cannot draw this script.")).isEmpty();
