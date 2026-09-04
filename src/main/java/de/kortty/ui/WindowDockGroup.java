@@ -38,6 +38,15 @@ public final class WindowDockGroup {
 
     /** Breathing room between the anchor and a satellite, and against the screen edge. */
     static final double GAP = 8;
+    /**
+     * How long after docking a satellite's own size and position reports are corrected rather than
+     * believed. A {@code Dialog} shown with {@code showAndWait()} sizes itself to its scene, and on
+     * macOS the platform reports that size — and the re-centring that goes with it — only after the
+     * dock has already placed the window. Read as the user's doing, that report shrank the change
+     * preview to its preferred size and, on a screen where the three windows had to be tiled, left
+     * it parked at the screen edge. Nobody resizes a window within a second of it opening.
+     */
+    static final long SATELLITE_SETTLE_NANOS = 1_000_000_000L;
 
     /** How far the anchor may be squeezed to make room for both satellites. */
     static final double DEFAULT_ANCHOR_MIN_WIDTH = 640;
@@ -92,6 +101,7 @@ public final class WindowDockGroup {
             return;
         }
         Dock dock = new Dock(side, Math.max(satellite.getMinWidth(), preferredWidth));
+        dock.settleUntilNanos = System.nanoTime() + SATELLITE_SETTLE_NANOS;
         docks.put(satellite, dock);
         applying(() -> satellite.setWidth(dock.width));
 
@@ -105,6 +115,28 @@ public final class WindowDockGroup {
 
         makeRoomForSatellites();
         repositionSatellites();
+        settleSatellite(satellite);
+    }
+
+    /**
+     * Re-asserts the placement a few times while the platform catches up on the satellite's own
+     * opening size: on the next pulse and again a little later, always from this side, never from
+     * inside one of the platform's own notifications — answering those in place made the two fight
+     * over the window until the FX thread stalled.
+     */
+    private void settleSatellite(Stage satellite) {
+        Runnable reassert = () -> {
+            Dock dock = docks.get(satellite);
+            if (!disposed && dock != null && satellite.isShowing()) {
+                repositionSatellites();
+            }
+        };
+        javafx.application.Platform.runLater(reassert);
+        for (int delay : new int[] {200, 500}) {
+            javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(javafx.util.Duration.millis(delay));
+            pause.setOnFinished(event -> reassert.run());
+            pause.play();
+        }
     }
 
     /**
@@ -246,6 +278,11 @@ public final class WindowDockGroup {
         if (applying || dock == null || !dock.positioned) {
             return;
         }
+        if (dock.isSettling()) {
+            // The platform catching up on the window's opening geometry, not a drag: the placement
+            // is re-asserted from settleSatellite, not from inside this notification.
+            return;
+        }
         if (System.nanoTime() - anchorMovedNanos < ANCHOR_SETTLE_NANOS) {
             // The platform moved this satellite because its owner did. Re-assert the docked layout
             // instead of letting that translation stack on top of the placement already made: the
@@ -266,6 +303,11 @@ public final class WindowDockGroup {
     private void onSatelliteResized(Stage satellite) {
         Dock dock = docks.get(satellite);
         if (applying || dock == null) {
+            return;
+        }
+        if (dock.isSettling()) {
+            // The platform catching up on the window's own opening size: the dock's width stands,
+            // and settleSatellite re-asserts it.
             return;
         }
         // A resize from the left edge moves x as well; re-placing from the new width re-syncs the
@@ -465,10 +507,15 @@ public final class WindowDockGroup {
         private ChangeListener<Number> sizeListener;
         private javafx.event.EventHandler<WindowEvent> hiddenHandler;
         private boolean positioned;
+        private long settleUntilNanos;
 
         private Dock(Side side, double width) {
             this.side = side;
             this.width = width;
+        }
+
+        private boolean isSettling() {
+            return System.nanoTime() < settleUntilNanos;
         }
     }
 }

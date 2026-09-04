@@ -96,6 +96,14 @@ public final class SnippetAnalysisDockSmoke {
             rightRef.get().close();
             anchorRef.get().close();
         });
+
+        if (failure.get() == null) {
+            try {
+                checkDialogSatellite();
+            } catch (Throwable error) {
+                failure.compareAndSet(null, String.valueOf(error));
+            }
+        }
         Platform.runLater(Platform::exit);
 
         if (failure.get() != null) {
@@ -104,6 +112,78 @@ public final class SnippetAnalysisDockSmoke {
         }
         System.out.println("SnippetAnalysisDockSmoke OK");
         System.exit(0);
+    }
+
+    /**
+     * The change preview is a {@link javafx.scene.control.Dialog} shown with {@code showAndWait()}:
+     * it sizes itself to its pane, and macOS reports that size — and the re-centring over the owner
+     * that goes with it — only after the dock has placed the window. Read as the user's own resize
+     * and drag, that report once shrank the preview to 1040x700 and left it at the screen edge.
+     * The docked width, the anchor's height and the docked position must all survive it.
+     */
+    private static void checkDialogSatellite() throws Exception {
+        AtomicReference<Stage> anchorRef = new AtomicReference<>();
+        AtomicReference<Stage> rightRef = new AtomicReference<>();
+        AtomicReference<javafx.scene.control.Dialog<Void>> dialogRef = new AtomicReference<>();
+        AtomicReference<Stage> previewRef = new AtomicReference<>();
+        AtomicReference<WindowDockGroup> groupRef = new AtomicReference<>();
+        onFxRun(() -> {
+            Rectangle2D screen = Screen.getPrimary().getVisualBounds();
+            Stage anchor = stage("anchor", 1000, 640);
+            anchor.setX(screen.getMinX() + Math.min(400, screen.getWidth() / 4));
+            anchor.setY(screen.getMinY() + 60);
+            anchor.show();
+            anchorRef.set(anchor);
+            Stage right = stage("processing", SATELLITE_WIDTH, 420);
+            right.initOwner(anchor);
+            right.show();
+            rightRef.set(right);
+            WindowDockGroup group = new WindowDockGroup(anchor, true);
+            group.dock(right, WindowDockGroup.Side.RIGHT, SATELLITE_WIDTH);
+            groupRef.set(group);
+
+            javafx.scene.control.Dialog<Void> dialog = new javafx.scene.control.Dialog<>();
+            dialog.initOwner(anchor);
+            dialog.setTitle("preview dialog");
+            dialog.setResizable(true);
+            dialog.getDialogPane().setContent(new javafx.scene.layout.StackPane());
+            dialog.getDialogPane().setPrefSize(700, 400);
+            dialog.getDialogPane().getButtonTypes().add(javafx.scene.control.ButtonType.CLOSE);
+            dialog.addEventHandler(javafx.scene.control.DialogEvent.DIALOG_SHOWN, event -> {
+                Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
+                previewRef.set(stage);
+                group.dock(stage, WindowDockGroup.Side.LEFT, PREVIEW_WIDTH);
+            });
+            dialogRef.set(dialog);
+            Platform.runLater(dialog::showAndWait);
+        });
+        Thread.sleep(1500);
+        Stage anchor = anchorRef.get();
+        Stage preview = previewRef.get();
+        if (preview == null) {
+            throw new AssertionError("the preview dialog never reported DIALOG_SHOWN");
+        }
+        double width = onFx(preview::getWidth);
+        double height = onFx(preview::getHeight);
+        double anchorHeight = onFx(anchor::getHeight);
+        double expectedX = onFx(() -> anchor.getX() - WindowDockGroup.GAP - PREVIEW_WIDTH);
+        double x = onFx(preview::getX);
+        System.out.printf("dialog satellite after settling: x=%.0f (expected %.0f) width=%.0f (expected %.0f) height=%.0f (anchor %.0f)%n",
+            x, expectedX, width, PREVIEW_WIDTH, height, anchorHeight);
+        if (Math.abs(width - PREVIEW_WIDTH) > 1) {
+            throw new AssertionError("the docked dialog lost its docked width: " + width + " instead of " + PREVIEW_WIDTH);
+        }
+        if (Math.abs(height - anchorHeight) > 1) {
+            throw new AssertionError("the docked dialog does not follow the anchor's height: " + height + " vs " + anchorHeight);
+        }
+        if (Math.abs(x - expectedX) > 1) {
+            throw new AssertionError("the docked dialog is not beside its anchor: x=" + x + " expected " + expectedX);
+        }
+        onFxRun(() -> {
+            dialogRef.get().close();
+            rightRef.get().close();
+            anchorRef.get().close();
+        });
     }
 
     private static void check(Stage anchor, Stage left, Stage right, WindowDockGroup group)
