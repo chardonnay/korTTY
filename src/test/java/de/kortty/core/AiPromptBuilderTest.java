@@ -298,6 +298,8 @@ class AiPromptBuilderTest {
         // The escaping rule exists because a mis-escaped quote loses the whole answer.
         assertThat(systemPrompt).contains("escape every double quote inside it as");
         assertThat(systemPrompt).contains("never define them with classDef or style");
+        // The label syntax is shown, not described: described alone, models wrote `--> yes|target`.
+        assertThat(systemPrompt).contains("decision_id -->|yes| target_id");
         assertThat(userPrompt).contains("The snippet has 1 lines; use at most 12 action and decision nodes.");
         assertThat(systemPrompt).contains("smallest relevant source range");
         assertThat(systemPrompt).contains("builtin.action.snippet-mermaid");

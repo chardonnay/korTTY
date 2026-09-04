@@ -302,7 +302,7 @@ class SnippetAiResponseSupportTest {
     }
 
     @Test
-    void parseMermaidDiagramRejectsNodesOutsideTheStartToStopFlow() {
+    void parseMermaidDiagramPrunesNodesOutsideTheStartToStopFlow() {
         SnippetAiResponseSupport.MermaidDiagram diagram =
             SnippetAiResponseSupport.parseMermaidDiagram("""
             {
@@ -312,7 +312,8 @@ class SnippetAiResponseSupportTest {
             }
             """);
 
-        assertThat(diagram.isUsable()).isFalse();
+        assertThat(diagram.isUsable()).isTrue();
+        assertThat(diagram.rejectionReason()).isNull();
     }
 
     @Test

@@ -82,6 +82,11 @@ public final class SnippetTypedDiagramSupport {
     /** How many trailing lines of JSON debris the salvage may strip before giving up. */
     private static final int MAX_SALVAGE_TRIM_LINES = 60;
     private static final Pattern JSON_KEY_LINE = Pattern.compile("^\"[A-Za-z][A-Za-z0-9_]{0,63}\"\\s*:");
+    /** A trailing line that is JSON envelope, not Mermaid: quotes, braces, brackets, commas, a key. */
+    private static final Pattern ENVELOPE_DEBRIS_LINE = Pattern.compile(
+        "^(?:[\\s\"\\\\,\\]\\[}{]*|\"[A-Za-z][A-Za-z0-9_]{0,63}\"\\s*:.*)$");
+    private static final Pattern DOUBLE_ESCAPED_SHAPE_QUOTE = Pattern.compile(
+        "(\\[|\\{|\\(\\[)\\\\\"|\\\\\"(]|}|]\\))");
     /** Where the envelope resumes after the diagram string: {@code ","codeReferences":} — impossible inside a label. */
     private static final Pattern JSON_NEXT_FIELD = Pattern.compile(
         "\"\\s*,\\s*\"[A-Za-z][A-Za-z0-9_]{0,63}\"\\s*:");
@@ -129,6 +134,9 @@ public final class SnippetTypedDiagramSupport {
         if (candidate.contains("\\n")) {
             candidate = unescapeJsonStringBody(candidate);
         }
+        // A single node written with doubled escapes (`[\\"Label\\"]` beside `[\"Label\"]`) leaves a
+        // stray backslash at the shape boundary after unescaping; the grammar wants the bare quote.
+        candidate = DOUBLE_ESCAPED_SHAPE_QUOTE.matcher(candidate).replaceAll("$1\"$2");
         candidate = SnippetDiagramSupport.stripPresentationStatements(candidate);
         List<String> lines = new ArrayList<>();
         for (String line : candidate.split("\\R")) {
@@ -142,6 +150,11 @@ public final class SnippetTypedDiagramSupport {
             String accepted = firstAcceptedVariant(safeType, lines);
             if (accepted != null) {
                 return accepted;
+            }
+            // Only envelope debris may go. Trimming a real statement would turn an invalid
+            // diagram into a valid stub of its first lines — observed as a two-node "flow".
+            if (!ENVELOPE_DEBRIS_LINE.matcher(lines.get(lines.size() - 1).trim()).matches()) {
+                return "";
             }
             lines.remove(lines.size() - 1);
         }

@@ -1419,7 +1419,7 @@ class SnippetAiWorkflowSupportTest {
     void mermaidRequestRejectsLoggedStyleOverDetailedChainWithoutRetry() throws Exception {
         StringBuilder mermaid = new StringBuilder("flowchart TD\n    start_1([\"Start\"])\n");
         JsonArray references = new JsonArray();
-        for (int index = 1; index <= 13; index++) {
+        for (int index = 1; index <= 25; index++) {
             mermaid.append("    work_").append(index).append("[\"Step ").append(index).append("\"]\n");
             JsonObject reference = new JsonObject();
             reference.addProperty("nodeId", "work_" + index);
@@ -1429,11 +1429,11 @@ class SnippetAiWorkflowSupportTest {
             references.add(reference);
         }
         mermaid.append("    stop_1([\"Stop\"])\n    start_1 --> work_1\n");
-        for (int index = 1; index < 13; index++) {
+        for (int index = 1; index < 25; index++) {
             mermaid.append("    work_").append(index).append(" --> work_").append(index + 1).append('\n');
         }
-        mermaid.append("    work_13 --> stop_1\n    class start_1,stop_1 setup\n");
-        for (int index = 1; index <= 13; index++) {
+        mermaid.append("    work_25 --> stop_1\n    class start_1,stop_1 setup\n");
+        for (int index = 1; index <= 25; index++) {
             mermaid.append("    class work_").append(index).append(" work\n");
         }
         JsonObject response = new JsonObject();
@@ -1446,7 +1446,7 @@ class SnippetAiWorkflowSupportTest {
             SnippetAiWorkflowSupport.generateSnippetMermaid(
                 aiService,
                 null,
-                "line\n".repeat(13),
+                "line\n".repeat(25),
                 "plain",
                 null,
                 "en",
@@ -1454,7 +1454,7 @@ class SnippetAiWorkflowSupportTest {
 
         assertThat(diagram.isUsable()).isFalse();
         assertThat(diagram.rejectionReason())
-            .contains("at most 12 non-terminal nodes for this snippet, but 13 were declared");
+            .contains("at most 12 non-terminal nodes for this snippet (24 tolerated), but 25 were declared");
         assertThat(aiService.executionCount).isEqualTo(1);
     }
 
@@ -1557,15 +1557,15 @@ class SnippetAiWorkflowSupportTest {
     @Test
     void mermaidRequestReportsTheGenerationRuleWhenARecoveredDiagramBreaksIt() throws Exception {
         StringBuilder mermaid = new StringBuilder("flowchart TD\n    start_1([\"Start\"])\n");
-        for (int index = 1; index <= 13; index++) {
+        for (int index = 1; index <= 25; index++) {
             mermaid.append("    work_").append(index).append("[\"Step ").append(index).append("\"]\n");
         }
         mermaid.append("    stop_1([\"Stop\"])\n    start_1 --> work_1\n");
-        for (int index = 1; index < 13; index++) {
+        for (int index = 1; index < 25; index++) {
             mermaid.append("    work_").append(index).append(" --> work_").append(index + 1).append('\n');
         }
-        mermaid.append("    work_13 --> stop_1\n    class start_1,stop_1 setup\n");
-        for (int index = 1; index <= 13; index++) {
+        mermaid.append("    work_25 --> stop_1\n    class start_1,stop_1 setup\n");
+        for (int index = 1; index <= 25; index++) {
             mermaid.append("    class work_").append(index).append(" work\n");
         }
         CapturingAiService aiService = new CapturingAiService(
@@ -1575,7 +1575,7 @@ class SnippetAiWorkflowSupportTest {
             SnippetAiWorkflowSupport.generateSnippetMermaid(
                 aiService,
                 null,
-                "line\n".repeat(13),
+                "line\n".repeat(25),
                 "plain",
                 null,
                 "en",
@@ -1584,7 +1584,7 @@ class SnippetAiWorkflowSupportTest {
         // The recovered diagram is a modelling problem, and the reason names that rather than the
         // JSON complaint the reader cannot act on.
         assertThat(diagram.isUsable()).isFalse();
-        assertThat(diagram.rejectionReason()).contains("at most 12 non-terminal nodes");
+        assertThat(diagram.rejectionReason()).contains("(24 tolerated), but 25 were declared");
         assertThat(aiService.executionCount).isEqualTo(1);
     }
 
