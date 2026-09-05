@@ -1188,11 +1188,13 @@ public final class SnippetAiWorkflowSupport {
                     continue;
                 }
                 if (!missingRequirements.isEmpty() || !droppedRequirements.isEmpty()) {
+                    List<MandatoryRequirement> unmet = Stream.concat(
+                            missingRequirements.stream(), droppedRequirements.stream())
+                        .distinct()
+                        .toList();
                     throw new IncompleteMandatoryRequirementsException(
-                        Stream.concat(missingRequirements.stream(), droppedRequirements.stream())
-                            .map(MandatoryRequirement::id)
-                            .distinct()
-                            .toList());
+                        unmet.stream().map(MandatoryRequirement::id).toList(),
+                        unmet.stream().map(SnippetAiWorkflowSupport::describeRequirement).toList());
                 }
                 // An analysis item still unechoed after the targeted repair attempt is accepted:
                 // the item may legitimately require no code change, and the pre-batching per-item
@@ -1758,32 +1760,19 @@ public final class SnippetAiWorkflowSupport {
                 validation.message(), type, snippetLines, summary);
             return SnippetAiResponseSupport.MermaidDiagram.rejected(type, validation.message());
         }
-        if (type == de.kortty.model.SnippetDiagramType.LOGICAL_STRUCTURE) {
-            SnippetDiagramSupport.SourceMappingReport mapping = SnippetDiagramSupport.reportSourceMapping(
-                diagram.mermaid(), scopedContent, diagram.codeReferences());
-            if (!mapping.complete()) {
-                logger.warn("AI diagram accepted with an incomplete source mapping: {} of {} nodes have no "
-                        + "valid reference and lose their hover link: {} [snippet lines={}, {}]",
-                    mapping.unmappedNodeIds().size(), mapping.expectedNodes(), mapping.unmappedNodeIds(),
-                    snippetLines, summary);
-            }
-        }
-        // The answer length beside the token count tells hidden reasoning (billed, never returned)
-        // from a verbose reply: a compact diagram JSON is a few thousand characters, whatever the
-        // completion count says.
-        logger.info("AI diagram accepted [type={}, snippet lines={}, node cap={}, {}, answer chars={}]",
-            type, snippetLines, SnippetDiagramSupport.maxGeneratedNonterminalNodes(scopedContent), summary,
-            answerChars);
+        String acceptedSummary = summary;
+        String canonical = null;
         if (type == de.kortty.model.SnippetDiagramType.LOGICAL_STRUCTURE) {
             // Rendered and saved in the strict dialect, whatever shorthand the model used.
-            String canonical = SnippetDiagramSupport.canonicalizeGeneratedFlowchart(diagram.mermaid(), fallbackLanguageCode);
+            canonical = SnippetDiagramSupport.canonicalizeGeneratedFlowchart(diagram.mermaid(), fallbackLanguageCode);
             SnippetDiagramSupport.FlowchartStatistics drawn = SnippetDiagramSupport.flowchartStatistics(diagram.mermaid());
             SnippetDiagramSupport.FlowchartStatistics kept = SnippetDiagramSupport.flowchartStatistics(canonical);
             int droppedNodes = Math.max(0, drawn.nonterminalNodes() - kept.nonterminalNodes());
             int droppedEdges = Math.max(0, drawn.edges() - kept.edges());
             // The repairs may trim a diagram, never hollow it out: a start-to-stop stub, or a
             // diagram that lost more than half of what the model drew, is a rejection with a
-            // reason — the generic fallback says the same thing honestly.
+            // reason — the generic fallback says the same thing honestly. This is the last gate,
+            // so nothing may call the diagram accepted before it.
             if (kept.nonterminalNodes() == 0
                 || (drawn.nonterminalNodes() > 0 && kept.nonterminalNodes() * 2 < drawn.nonterminalNodes())) {
                 String reason = "The diagram's repairs would drop " + droppedNodes + " of " + drawn.nonterminalNodes()
@@ -1796,6 +1785,24 @@ public final class SnippetAiWorkflowSupport {
                         + "dropped; the model drew parallel branches or unreachable nodes the dialect cannot show",
                     kept.nonterminalNodes(), kept.edges(), droppedNodes, droppedEdges);
             }
+            // What the diagram window will show, not what the model drew.
+            acceptedSummary = SnippetTypedDiagramSupport.summarize(type, canonical);
+            SnippetDiagramSupport.SourceMappingReport mapping = SnippetDiagramSupport.reportSourceMapping(
+                diagram.mermaid(), scopedContent, diagram.codeReferences());
+            if (!mapping.complete()) {
+                logger.warn("AI diagram accepted with an incomplete source mapping: {} of {} nodes have no "
+                        + "valid reference and lose their hover link: {} [snippet lines={}, {}]",
+                    mapping.unmappedNodeIds().size(), mapping.expectedNodes(), mapping.unmappedNodeIds(),
+                    snippetLines, acceptedSummary);
+            }
+        }
+        // The answer length beside the token count tells hidden reasoning (billed, never returned)
+        // from a verbose reply: a compact diagram JSON is a few thousand characters, whatever the
+        // completion count says.
+        logger.info("AI diagram accepted [type={}, snippet lines={}, node cap={}, {}, answer chars={}]",
+            type, snippetLines, SnippetDiagramSupport.maxGeneratedNonterminalNodes(scopedContent), acceptedSummary,
+            answerChars);
+        if (canonical != null) {
             return new SnippetAiResponseSupport.MermaidDiagram(diagram.title(), canonical, diagram.codeReferences(), type);
         }
         return diagram;
@@ -1887,17 +1894,38 @@ public final class SnippetAiWorkflowSupport {
     /** Signals that the response did not prove implementation of every selected hardening rule. */
     public static final class IncompleteMandatoryRequirementsException extends IllegalStateException {
         private final List<String> missingRequirementIds;
+        private final List<String> missingRequirementLabels;
 
         public IncompleteMandatoryRequirementsException(List<String> missingRequirementIds) {
-            super("AI response did not implement every selected hardening requirement. Missing requirement IDs: "
-                + String.join(", ", missingRequirementIds != null ? missingRequirementIds : List.of()));
+            this(missingRequirementIds, List.of());
+        }
+
+        /**
+         * @param missingRequirementLabels the same requirements as {@code id (rule)}. An
+         *     identifier alone leaves the reader counting checkboxes to find out which option the
+         *     model would not implement, and this failure ends the run.
+         */
+        public IncompleteMandatoryRequirementsException(
+            List<String> missingRequirementIds, List<String> missingRequirementLabels) {
+            super("AI response did not implement every selected hardening requirement. Missing requirements: "
+                + String.join("; ", missingRequirementLabels != null && !missingRequirementLabels.isEmpty()
+                    ? missingRequirementLabels
+                    : missingRequirementIds != null ? missingRequirementIds : List.of()));
             this.missingRequirementIds = missingRequirementIds != null
                 ? List.copyOf(missingRequirementIds)
+                : List.of();
+            this.missingRequirementLabels = missingRequirementLabels != null
+                ? List.copyOf(missingRequirementLabels)
                 : List.of();
         }
 
         public List<String> missingRequirementIds() {
             return missingRequirementIds;
+        }
+
+        /** The missing requirements as {@code id (rule)}; empty when only identifiers were known. */
+        public List<String> missingRequirementLabels() {
+            return missingRequirementLabels.isEmpty() ? missingRequirementIds : missingRequirementLabels;
         }
     }
 
@@ -2347,11 +2375,11 @@ public final class SnippetAiWorkflowSupport {
     private static void rejectIncompleteMandatoryRequirements(
             SnippetAiResponseSupport.SnippetSecurityFix fix,
             List<MandatoryRequirement> mandatoryRequirements) {
-        List<String> missing = missingMandatoryRequirements(fix, mandatoryRequirements).stream()
-            .map(MandatoryRequirement::id)
-            .toList();
+        List<MandatoryRequirement> missing = missingMandatoryRequirements(fix, mandatoryRequirements);
         if (!missing.isEmpty()) {
-            throw new IncompleteMandatoryRequirementsException(missing);
+            throw new IncompleteMandatoryRequirementsException(
+                missing.stream().map(MandatoryRequirement::id).toList(),
+                missing.stream().map(SnippetAiWorkflowSupport::describeRequirement).toList());
         }
     }
 
@@ -2391,6 +2419,16 @@ public final class SnippetAiWorkflowSupport {
     }
 
     private record MandatoryRequirement(String id, String instruction) {
+    }
+
+    /** {@code HARDENING-10 (Add a --help usage message …)}: the identifier plus what it asks for. */
+    private static String describeRequirement(MandatoryRequirement requirement) {
+        String rule = requirement.instruction() != null ? requirement.instruction().strip() : "";
+        rule = rule.replaceAll("\\s+", " ");
+        if (rule.length() > 90) {
+            rule = rule.substring(0, 90).strip() + "…";
+        }
+        return rule.isEmpty() ? requirement.id() : requirement.id() + " (" + rule + ")";
     }
 
     private record AnalysisApplyStage(
