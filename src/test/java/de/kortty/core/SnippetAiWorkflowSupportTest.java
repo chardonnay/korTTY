@@ -1355,6 +1355,47 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void editModeStageThatRanIntoTheOutputLimitGetsOneSecondAttempt() throws Exception {
+        // Seen live: 32,768 completion tokens against the limit, then 3,239 for the identical
+        // request the user resumed with. An edit-mode answer is the changed regions only, so the
+        // limit is a runaway answer, not the stage's size.
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            "{\"edits\":[{\"startLine\":2,\"endLine\":2,\"replacementLines\":[\"echo step 1 half-w",
+            """
+            {"edits":[{"startLine":2,"endLine":2,"replacementLines":["echo step 1 hardened"]}],
+             "summary":"ok","changes":[{"finding":"SEC-1","anchor":"echo step 1 hardened","reason":"r"}],"implementedRequirements":[]}
+            """).truncatingTheFirstAnswer();
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix = SnippetAiWorkflowSupport.applySnippetImprovements(
+            aiService, null, fiveHundredSteps(), "bash", null, "en",
+            List.of(new SnippetAiResponseSupport.ScriptImprovement(
+                "SEC-1", "security", "high", "Harden", "Detail", "Harden step 1.", 2)),
+            List.of(), "", null, null, null);
+
+        assertThat(aiService.requests).hasSize(2);
+        assertThat(aiService.requests.get(1).conversationContext()).contains("ran into its output-token limit");
+        assertThat(fix.replacement()).contains("echo step 1 hardened");
+        assertThat(fix.replacement().split("\n")).hasLength(501);
+    }
+
+    @Test
+    void wholeFileStageThatRanIntoTheOutputLimitStillFails() {
+        // For a script that fits a whole-file answer the limit is the real constraint; asking
+        // again would only spend the budget twice.
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            "{\"replacementLines\":[\"echo half-w").truncatingTheFirstAnswer();
+
+        expectThrows(
+            SnippetAiWorkflowSupport.OutputTokenLimitReachedException.class,
+            () -> SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService, null, "echo one\necho two\necho three\n", "bash", null, "en",
+                List.of(new SnippetAiResponseSupport.ScriptImprovement(
+                    "SEC-1", "security", "high", "Harden", "Detail", "Harden it.", 1)),
+                List.of(), "", null, null, null));
+        assertThat(aiService.requests).hasSize(1);
+    }
+
+    @Test
     void editModeStageWhoseEditsCollapseTheScriptGetsOneSecondAttempt() throws Exception {
         // Seen live: two edits "covering" 1,199 lines, the region replaced by an omission marker.
         SequencedCapturingAiService aiService = new SequencedCapturingAiService(
@@ -2542,14 +2583,26 @@ class SnippetAiWorkflowSupportTest {
         private final Queue<String> responses;
         private final List<AiRequest> requests = new ArrayList<>();
 
+        private boolean truncateFirstAnswer;
+
         private SequencedCapturingAiService(String... responses) {
             this.responses = new ArrayDeque<>(List.of(responses));
         }
 
+        private SequencedCapturingAiService truncatingTheFirstAnswer() {
+            this.truncateFirstAnswer = true;
+            return this;
+        }
+
         @Override
         public AiExecutionResult execute(AiRequest request) {
+            boolean truncated = truncateFirstAnswer && requests.isEmpty();
             requests.add(request);
-            return new AiExecutionResult(responses.remove(), null, null);
+            // Usage only for the truncated answer: the other tests read this service's results
+            // through checks that a completion-token count would change.
+            return truncated
+                ? new AiExecutionResult(responses.remove(), new AiTokenUsage(100, 32_768, 32_868), null, true)
+                : new AiExecutionResult(responses.remove(), null, null);
         }
 
         @Override
