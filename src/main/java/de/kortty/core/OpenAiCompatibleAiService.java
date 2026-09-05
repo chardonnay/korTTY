@@ -465,7 +465,9 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             return SnippetAiResponseSupport.carriesDiagramJson(content);
         }
         if (AiPromptBuilder.isEditModeApply(request)) {
-            return SnippetAiResponseSupport.parseSnippetEdits(content).isUsable();
+            // With the snippet as oracle, as the stage reads it: without it, an answer the stage
+            // could have read (a swallowed closing quote on a known line) was re-requested here.
+            return SnippetAiResponseSupport.parseSnippetEdits(content, request.selectedText()).isUsable();
         }
         if (request.action() == AiAction.MIGRATE_SNIPPET_LANGUAGE) {
             return SnippetAiResponseSupport.parseLanguageMigration(content).isUsable();
