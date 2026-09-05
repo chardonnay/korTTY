@@ -1773,10 +1773,19 @@ public final class SnippetAiWorkflowSupport {
             // diagram that lost more than half of what the model drew, is a rejection with a
             // reason — the generic fallback says the same thing honestly. This is the last gate,
             // so nothing may call the diagram accepted before it.
-            if (kept.nonterminalNodes() == 0
-                || (drawn.nonterminalNodes() > 0 && kept.nonterminalNodes() * 2 < drawn.nonterminalNodes())) {
+            //
+            // Nodes and edges both count. A diagram's structure lives in its edges, and a model
+            // that draws branches the dialect cannot show keeps most of its nodes while the
+            // repairs leave a straight chain of them: seen live as 3 of 5 nodes but only 4 of 10
+            // edges, rendered as a five-box line for a 4,000-line script.
+            boolean nodesHollowed = kept.nonterminalNodes() == 0
+                || (drawn.nonterminalNodes() > 0 && kept.nonterminalNodes() * 2 < drawn.nonterminalNodes());
+            boolean edgesHollowed = drawn.edges() > 0 && kept.edges() * 2 < drawn.edges();
+            if (nodesHollowed || edgesHollowed) {
                 String reason = "The diagram's repairs would drop " + droppedNodes + " of " + drawn.nonterminalNodes()
-                    + " nodes (parallel branches or unreachable nodes the dialect cannot show); not enough remains.";
+                    + " nodes and " + droppedEdges + " of " + drawn.edges()
+                    + " edges (parallel branches or unreachable nodes the dialect cannot show); "
+                    + "not enough of the structure remains.";
                 logger.warn("AI diagram rejected: {} [type={}, snippet lines={}, {}] Full answer: {}",
                     reason, type, snippetLines, summary, archiveRejectedDiagram(answer));
                 return SnippetAiResponseSupport.MermaidDiagram.rejected(type, reason);

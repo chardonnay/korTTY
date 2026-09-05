@@ -1831,6 +1831,33 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void aDiagramWhoseEdgesTheRepairsMostlyDropIsRejected() throws Exception {
+        // Seen live: 3 of 5 nodes survived but only 4 of 10 edges, and what the window would have
+        // shown is a straight line of five boxes for a 4,000-line script. A diagram's structure is
+        // in its edges, so losing most of them is a hollowing even when the nodes remain.
+        StringBuilder mermaid = new StringBuilder(
+            "flowchart TD\n    start_1([\"Start\"])\n    w0[\"Dispatch\"]\n    stop_1([\"Stop\"])\n");
+        for (int index = 1; index <= 3; index++) {
+            mermaid.append("    w").append(index).append("[\"Branch ").append(index).append("\"]\n");
+        }
+        mermaid.append("    start_1 --> w0\n");
+        for (int index = 1; index <= 3; index++) {
+            mermaid.append("    w0 --> w").append(index).append('\n');
+            mermaid.append("    w").append(index).append(" --> stop_1\n");
+        }
+        mermaid.append("    class start_1,stop_1 setup\n    class w0,w1,w2,w3 work\n");
+        JsonObject response = new JsonObject();
+        response.addProperty("title", "Fanned out");
+        response.addProperty("mermaid", mermaid.toString());
+
+        SnippetAiResponseSupport.MermaidDiagram diagram = SnippetAiWorkflowSupport.generateSnippetMermaid(
+            new CapturingAiService(response.toString()), null, "line\n".repeat(4009), "bash", null, "en", null);
+
+        assertThat(diagram.isUsable()).isFalse();
+        assertThat(diagram.rejectionReason()).contains("edges");
+    }
+
+    @Test
     void aDiagramWhoseNodesAreDeclaredTwiceIsTrimmedRatherThanDiscarded() throws Exception {
         // The archived answer of a live run: every node declared once as a box in a chain and once
         // as a decision, plus one node used in edges but never declared. The repairs keep the first
@@ -1933,6 +1960,7 @@ class SnippetAiWorkflowSupportTest {
         List<String> messages = events.list.stream().map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage).toList();
         assertThat(diagram.isUsable()).isFalse();
         assertThat(diagram.rejectionReason()).contains("would drop");
+        assertThat(diagram.rejectionReason()).contains("edges");
         assertThat(messages.stream().filter(message -> message.startsWith("AI diagram accepted"))).isEmpty();
         assertThat(messages.stream().filter(message -> message.startsWith("AI diagram rejected"))).hasSize(1);
     }
