@@ -179,6 +179,13 @@ public final class SnippetAnalysisDockSmoke {
         if (Math.abs(x - expectedX) > 1) {
             throw new AssertionError("the docked dialog is not beside its anchor: x=" + x + " expected " + expectedX);
         }
+        // A window wider than the content inside it shows the bare window background as a blank band.
+        double contentWidth = onFx(() -> preview.getScene().getRoot().getLayoutBounds().getWidth());
+        double sceneWidth = onFx(() -> preview.getScene().getWidth());
+        System.out.printf("dialog satellite content: %.0f inside a %.0f-wide scene%n", contentWidth, sceneWidth);
+        if (Math.abs(contentWidth - sceneWidth) > 1) {
+            throw new AssertionError("the docked dialog's content does not fill it: " + contentWidth + " of " + sceneWidth);
+        }
         onFxRun(() -> {
             dialogRef.get().close();
             rightRef.get().close();
