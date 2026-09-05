@@ -20,7 +20,11 @@ class LlamaRuntimeVersionHealthCheckTest {
         Path executable = script(directory, "#!/bin/sh\n[ \"$1\" = \"--version\" ] || exit 9\necho 'llama.cpp b10025'\n");
         LlamaRuntimeInstallation installation = installation(directory, executable);
 
-        assertThat(new LlamaRuntimeVersionHealthCheck(Duration.ofSeconds(2)).isHealthy(installation)).isTrue();
+        // Generous budget on purpose: this case is about the success path, not the deadline. Two
+        // seconds to spawn a process and read its output was thin on a loaded machine, and the
+        // test failed intermittently in full-suite runs while passing alone.
+        // killsVersionCommandAfterTimeout keeps the short timeout that covers the deadline.
+        assertThat(new LlamaRuntimeVersionHealthCheck(Duration.ofSeconds(30)).isHealthy(installation)).isTrue();
     }
 
     @Test
