@@ -1120,8 +1120,23 @@ public final class SnippetAiWorkflowSupport {
             if (echoOnlyRepairFallback != null && result != null && result.outputTruncated()) {
                 return echoOnlyRepairFallback;
             }
-            rejectTruncatedReplacement(result);
             boolean editMode = usesEditMode(attemptContent);
+            // An edit-mode answer holds the changed regions only, so its output limit is never the
+            // stage's real size — it is a runaway answer, and how long an answer the model writes
+            // varies per attempt. Seen live: 32,768 completion tokens against the limit, then
+            // 3,239 for the byte-identical request the user resumed with. So the stage gets the
+            // same single second attempt every other failure gets instead of ending the run.
+            // A whole-file answer keeps failing here: for a large script the limit is the
+            // constraint, and asking again would only spend the budget twice.
+            if (editMode && !repairAttempt && result != null && result.outputTruncated()
+                && !result.streamInterrupted()) {
+                logger.warn("AI apply stage answer reached the output-token limit ({} completion tokens); "
+                    + "one second attempt for the changed regions only.",
+                    result.usage() != null ? result.usage().completionTokens() : -1L);
+                repairReason = StageRepairReason.TRUNCATED_ANSWER;
+                continue;
+            }
+            rejectTruncatedReplacement(result);
             SnippetAiResponseSupport.SnippetSecurityFix fix = editMode
                 ? fixFromEdits(attemptContent, result)
                 : SnippetAiResponseSupport.parseSecurityFix(result != null ? result.content() : null);
@@ -2138,6 +2153,11 @@ public final class SnippetAiWorkflowSupport {
             .append(preservePriorStageWork
                 ? "This is a later stage of one atomic rewrite. The provided snippet already contains completed work from earlier stages. Preserve every existing behavior and hardening measure unless the current requirements strictly require an adjustment; never revert, remove, or abbreviate earlier work.\n"
                 : "")
+            .append(repairReason == StageRepairReason.TRUNCATED_ANSWER
+                ? "The preceding attempt for this same stage ran into its output-token limit and was cut off. "
+                    + "This is the single repair attempt. Return only the regions that change, never the "
+                    + "unchanged code around them, and keep the answer no longer than those regions require.\n"
+                : "")
             .append(repairReason == StageRepairReason.UNUSABLE_EDITS
                 ? "The preceding attempt for this same stage was discarded because it contained no edit that could be applied: "
                     + "its JSON was unreadable, its ranges lay outside the snippet, its replacementLines held only the first "
@@ -2421,6 +2441,8 @@ public final class SnippetAiWorkflowSupport {
     private enum StageRepairReason {
         NONE,
         COLLAPSED_REPLACEMENT,
+        /** Edit mode: the answer ran into its output-token limit and was cut off. */
+        TRUNCATED_ANSWER,
         /** Edit mode: the answer held no edit korTTY could apply (unreadable, out of range, hollow). */
         UNUSABLE_EDITS,
         MISSING_REQUIREMENTS
