@@ -65,12 +65,14 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         "Reply with the single JSON object described above and nothing else: no prose, no explanation, "
             + "no markdown code fences. Every string value must be valid JSON — escape every double quote "
             + "inside code as \\\" and every backslash as \\\\, and never break a string across lines. "
+            + "Never abbreviate the JSON with \"...\" or \"etc\". "
             + "The first character of your reply must be { and the last must be }.";
 
     private static final String JSON_ONLY_RETRY_INSTRUCTION =
         "Your previous answer was not valid JSON. Reply with the single JSON object described above "
             + "and nothing else: no prose, no explanation, no markdown code fences, no leading or "
-            + "trailing text. The first character of your reply must be { and the last must be }.";
+            + "trailing text. Never abbreviate the JSON: no \"...\", no \"etc\", every array element written out in "
+            + "full. The first character of your reply must be { and the last must be }.";
 
     private enum CompletionTokenParameter {
         MAX_TOKENS("max_tokens"),
@@ -528,9 +530,26 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             return "fenced";
         }
         if (trimmed.startsWith("{")) {
-            return trimmed.endsWith("}") ? "json-shaped but unparsable (likely an unescaped quote)" : "json-shaped and cut off";
+            if (trimmed.endsWith("}")) {
+                return "json-shaped but unparsable (likely an unescaped quote)";
+            }
+            // Seen live: an answer that stopped after fifteen edits with the literal text
+            // `{"edits"...etc`. That is the model abbreviating, not a truncated transfer, and the
+            // two need different fixes — so they get different names.
+            return endsWithAbbreviation(trimmed) ? "json-shaped and abbreviated by the model" : "json-shaped and cut off";
         }
         return "prose";
+    }
+
+    /**
+     * Whether an answer ends in an explicit abbreviation ("...", "…", "etc"). Only the text after
+     * the answer's last quotation mark counts: a code line that itself ends in an ellipsis is
+     * indistinguishable from an abbreviation while it is still inside its string, and calling that
+     * one an abbreviation would name the wrong problem.
+     */
+    private static boolean endsWithAbbreviation(String trimmed) {
+        String tail = trimmed.substring(trimmed.lastIndexOf('"') + 1).toLowerCase(java.util.Locale.ROOT);
+        return tail.contains("...") || tail.contains("\u2026") || tail.matches("(?s).*\\betc\\b\\W*$");
     }
 
     private void logUnusableStructuredResponse(AiRequest request, AiExecutionResult result) {
