@@ -102,6 +102,8 @@ public final class SnippetDiagramSupport {
         "(?i)-->\\s*\\|\\s*(" + OUTCOME_WORDS + ")\\s+(?=[A-Za-z])");
     /** {@code -->|no]}: the closing pipe typed as a bracket. */
     private static final Pattern MISCLOSED_LABEL_PIPE = Pattern.compile("-->\\s*\\|([^|\\]\\[\"\\s]*?)]\\s*");
+    /** {@code -->|no> stop_1}: the closing pipe typed as an angle bracket (seen live from MiniMax-M3). */
+    private static final Pattern MISCLOSED_LABEL_ANGLE = Pattern.compile("-->\\s*\\|([^|<>\\]\\[\"\\s]*?)>\\s*");
     /** {@code n{"Ready?" --> x}: a shape whose closing bracket was dropped before the arrow. */
     private static final Pattern UNCLOSED_SHAPE_BEFORE_ARROW = Pattern.compile(
         "(\\(\\[|\\[|\\{)\\s*(\"(?:\\\\.|[^\"\\\\])*\")\\s*(?=--)");
@@ -1338,6 +1340,7 @@ public final class SnippetDiagramSupport {
         value = MISPLACED_OUTCOME_LABEL.matcher(value).replaceAll("-->|$1| ");
         value = UNCLOSED_LABEL_PIPE.matcher(value).replaceAll("-->|$1| ");
         value = MISCLOSED_LABEL_PIPE.matcher(value).replaceAll("-->|$1| ");
+        value = MISCLOSED_LABEL_ANGLE.matcher(value).replaceAll("-->|$1| ");
         value = DOUBLED_ARROW_AFTER_LABEL.matcher(value).replaceAll("$1 ");
         Matcher unclosed = UNCLOSED_SHAPE_BEFORE_ARROW.matcher(value);
         StringBuilder closed = new StringBuilder();

@@ -523,6 +523,19 @@ class SnippetDiagramSupportTest {
             """).valid()).isTrue();
         assertThat(SnippetDiagramSupport.normalizeShapeShorthand("hist_60 -->|no] hist_60_skip"))
             .isEqualTo("hist_60 -->|no| hist_60_skip");
+        // Seen live: the closing pipe typed as an angle bracket cost a whole 34-node diagram.
+        assertThat(SnippetDiagramSupport.normalizeShapeShorthand("renewed_check -->|no> stop_1"))
+            .isEqualTo("renewed_check -->|no| stop_1");
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid("""
+            flowchart TD
+            start_1(["Start"]) --> renewed_check{"Renewed?"}
+            renewed_check -->|yes> work_1["Install"]
+            renewed_check -->|no> stop_1(["Stop"])
+            work_1 --> stop_1
+            class start_1,stop_1 setup
+            class renewed_check decision
+            class work_1 work
+            """).valid()).isTrue();
         assertThat(SnippetDiagramSupport.normalizeShapeShorthand("c{\"Ready?\" -->|yes| p"))
             .isEqualTo("c{\"Ready?\"} -->|yes| p");
         assertThat(SnippetDiagramSupport.normalizeShapeShorthand("a[\"Do it\" --> b([\"End\" --> c"))
