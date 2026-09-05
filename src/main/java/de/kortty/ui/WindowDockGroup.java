@@ -1,5 +1,9 @@
 package de.kortty.ui;
 
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Rectangle2D;
@@ -37,6 +41,8 @@ public final class WindowDockGroup {
     public enum Side { LEFT, RIGHT }
 
     /** Breathing room between the anchor and a satellite, and against the screen edge. */
+    private static final Logger logger = LoggerFactory.getLogger(WindowDockGroup.class);
+
     static final double GAP = 8;
     /**
      * How long after docking a satellite's own size and position reports are corrected rather than
@@ -129,6 +135,7 @@ public final class WindowDockGroup {
             Dock dock = docks.get(satellite);
             if (!disposed && dock != null && satellite.isShowing()) {
                 repositionSatellites();
+                fillWindowWithContent(satellite);
             }
         };
         javafx.application.Platform.runLater(reassert);
@@ -399,6 +406,31 @@ public final class WindowDockGroup {
     private Rectangle2D screen() {
         return screenFor(anchor.getX(), anchor.getY(),
             Math.max(1, anchor.getWidth()), Math.max(1, anchor.getHeight()));
+    }
+
+    /**
+     * Makes the scene's content cover the window a dock just resized. A window that is wider than
+     * the content inside it shows the bare window background — reported as a white band beside the
+     * change preview — and JavaFX only re-lays-out a root whose size actually changed, which a
+     * programmatic resize does not always deliver. Cheap and idempotent: when the two already
+     * agree, which is the normal case, nothing happens.
+     */
+    private static void fillWindowWithContent(Stage satellite) {
+        Scene scene = satellite.getScene();
+        Parent root = scene != null ? scene.getRoot() : null;
+        if (root == null || scene.getWidth() <= 0 || scene.getHeight() <= 0) {
+            return;
+        }
+        double widthGap = scene.getWidth() - root.getLayoutBounds().getWidth();
+        double heightGap = scene.getHeight() - root.getLayoutBounds().getHeight();
+        if (Math.abs(widthGap) <= 1 && Math.abs(heightGap) <= 1) {
+            return;
+        }
+        logger.warn("Docked window content did not follow its window ({}x{} inside {}x{}); laying it out again.",
+            Math.round(root.getLayoutBounds().getWidth()), Math.round(root.getLayoutBounds().getHeight()),
+            Math.round(scene.getWidth()), Math.round(scene.getHeight()));
+        root.resize(scene.getWidth(), scene.getHeight());
+        root.requestLayout();
     }
 
     private static Side other(Side side) {
