@@ -388,6 +388,7 @@ class OpenAiCompatibleAiServiceTest {
         String reminder = miniMaxMessages.get(miniMaxMessages.size() - 1).getAsJsonObject().get("content").getAsString();
         // The rule the model reads: a quote becomes \" and a backslash becomes \\ — two, not three.
         assertThat(reminder).contains("escape every double quote inside code as \\\" and every backslash as \\\\,");
+        assertThat(reminder).contains("Never abbreviate the JSON");
         String contract = miniMaxMessages.get(0).getAsJsonObject().get("content").getAsString();
         assertThat(contract).contains("every backslash as \\\\, and never emit a raw line break");
         assertThat(openAiClient.requestBodies()).hasSize(1);
@@ -432,6 +433,15 @@ class OpenAiCompatibleAiServiceTest {
         assertThat(OpenAiCompatibleAiService.unusableAnswerClass("{\"edits\": [\"echo \"a\"\"]}"))
             .startsWith("json-shaped but unparsable");
         assertThat(OpenAiCompatibleAiService.unusableAnswerClass("{\"edits\": [")).isEqualTo("json-shaped and cut off");
+        // Seen live: the model ended its own answer with an abbreviation instead of the rest.
+        assertThat(OpenAiCompatibleAiService.unusableAnswerClass(
+            "{\"edits\":[{\"startLine\":1607,\"endLine\":1607,\"replacementLines\":[\"add_dns_rr() {\"}],\"{\"edits\"...etc"))
+            .isEqualTo("json-shaped and abbreviated by the model");
+        assertThat(OpenAiCompatibleAiService.unusableAnswerClass("{\"edits\":[{\"startLine\":1}], etc."))
+            .isEqualTo("json-shaped and abbreviated by the model");
+        // A code line that itself ends in an ellipsis, cut off inside its string, is a truncation.
+        assertThat(OpenAiCompatibleAiService.unusableAnswerClass("{\"edits\":[{\"replacementLines\":[\"echo ...\""))
+            .isEqualTo("json-shaped and cut off");
         assertThat(OpenAiCompatibleAiService.unusableAnswerClass("```json\n{}\n```")).isEqualTo("fenced");
         assertThat(OpenAiCompatibleAiService.unusableAnswerClass("Sure, here is the plan.")).isEqualTo("prose");
         assertThat(OpenAiCompatibleAiService.unusableAnswerClass("  ")).isEqualTo("empty");
