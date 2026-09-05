@@ -300,33 +300,34 @@ public final class SnippetDiagramSupport {
     }
 
     public static FlowchartStatistics flowchartStatistics(String mermaidSource) {
-        Set<String> actionIds = new LinkedHashSet<>();
-        Set<String> decisionIds = new LinkedHashSet<>();
+        // One id, one node — whatever shape a later line gives it again. A model that declares
+        // the same node twice with two shapes (seen live: every node once as a box in a chain and
+        // once as a decision on its own line) was counted twice here, while the parser keeps the
+        // first declaration; comparing the two counts then read as if the repairs had thrown the
+        // diagram away.
+        Map<String, NodeType> types = new LinkedHashMap<>();
         int edges = 0;
         for (String rawLine : normalizeMermaid(mermaidSource).split("\\R")) {
             String line = normalizeShapeShorthand(rawLine.trim());
             Matcher nodeMatcher = NODE_PATTERN.matcher(line);
             if (nodeMatcher.matches()) {
-                if (nodeMatcher.group(3) != null) {
-                    decisionIds.add(nodeMatcher.group(1));
-                } else if (nodeMatcher.group(4) == null) {
-                    actionIds.add(nodeMatcher.group(1));
-                }
+                NodeType type = nodeMatcher.group(3) != null ? NodeType.DECISION
+                    : nodeMatcher.group(4) != null ? NodeType.TERMINAL
+                    : NodeType.ACTION;
+                types.putIfAbsent(nodeMatcher.group(1), type);
             } else {
                 EdgeStatement statement = parseEdgeStatement(line);
                 if (statement != null) {
                     edges += statement.edges().size();
                     for (NodeDefinition node : statement.declaredNodes()) {
-                        if (node.type() == NodeType.DECISION) {
-                            decisionIds.add(node.id());
-                        } else if (node.type() == NodeType.ACTION) {
-                            actionIds.add(node.id());
-                        }
+                        types.putIfAbsent(node.id(), node.type());
                     }
                 }
             }
         }
-        return new FlowchartStatistics(actionIds.size(), decisionIds.size(), edges);
+        int actionNodes = (int) types.values().stream().filter(type -> type == NodeType.ACTION).count();
+        int decisionNodes = (int) types.values().stream().filter(type -> type == NodeType.DECISION).count();
+        return new FlowchartStatistics(actionNodes, decisionNodes, edges);
     }
 
     /**

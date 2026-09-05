@@ -1831,6 +1831,26 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void aDiagramWhoseNodesAreDeclaredTwiceIsTrimmedRatherThanDiscarded() throws Exception {
+        // The archived answer of a live run: every node declared once as a box in a chain and once
+        // as a decision, plus one node used in edges but never declared. The repairs keep the first
+        // declaration and drop the undeclared node — a trim, and the diagram is kept.
+        CapturingAiService aiService = new CapturingAiService("""
+            {"title": "Execution flow",
+             "mermaid": "flowchart TD\\nstart_1[\\"Start\\"] --> setup[\\"Setup variables\\"] --> work[\\"Main loop\\"] --> success[\\"Success\\"] --> stop_1[\\"Stop\\"]\\nsetup{ \\"Check dependencies\\" }\\nwork{ \\"Parse arguments\\" }\\nsuccess{ \\"Certificate obtained\\" }\\nstop_1{ \\"Exit program\\" }\\nsetup --> work\\nwork --> success\\nwork --> failure\\nfailure --> stop_1\\n",
+             "codeReferences": [{"nodeId": "setup", "label": "Setup variables", "startLine": 10, "endLine": 20}]}
+            """);
+
+        SnippetAiResponseSupport.MermaidDiagram diagram = SnippetAiWorkflowSupport.generateSnippetMermaid(
+            aiService, null, "line\n".repeat(4009), "bash", null, "en", null);
+
+        assertThat(diagram.isUsable()).isTrue();
+        assertThat(diagram.mermaid()).contains("setup[\"Setup variables\"]");
+        assertThat(diagram.mermaid()).doesNotContain("failure");
+        assertThat(diagram.mermaid()).contains("class start_1,stop_1 setup");
+    }
+
+    @Test
     void aRejectedDiagramAnswerIsArchivedWhole() throws Exception {
         // A rejection names one broken rule and the log carries only its first line; whether the
         // grammar could learn the shorthand the model wrote is decidable on the whole answer alone.
