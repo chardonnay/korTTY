@@ -1742,9 +1742,9 @@ public final class SnippetAiWorkflowSupport {
         if (!diagram.isUsable()) {
             // This used to be silent: the generic local fallback replaced the diagram and nobody
             // could tell an AI diagram from the fallback, let alone why the answer was thrown away.
-            logger.warn("AI diagram rejected: {} [type={}, snippet lines={}, answer chars={}, {}]",
+            logger.warn("AI diagram rejected: {} [type={}, snippet lines={}, answer chars={}, {}] Full answer: {}",
                 diagram.rejectionReason(), type, snippetLines, answer != null ? answer.length() : 0,
-                describeAnswer(type, answer));
+                describeAnswer(type, answer), archiveRejectedDiagram(answer));
             return diagram;
         }
         int answerChars = answer != null ? answer.length() : 0;
@@ -1756,8 +1756,8 @@ public final class SnippetAiWorkflowSupport {
             type, diagram.mermaid(), scopedContent, diagram.codeReferences(), fallbackLanguageCode);
         String summary = SnippetTypedDiagramSupport.summarize(type, diagram.mermaid());
         if (!validation.valid()) {
-            logger.warn("AI diagram rejected: {} [type={}, snippet lines={}, {}]",
-                validation.message(), type, snippetLines, summary);
+            logger.warn("AI diagram rejected: {} [type={}, snippet lines={}, {}] Full answer: {}",
+                validation.message(), type, snippetLines, summary, archiveRejectedDiagram(answer));
             return SnippetAiResponseSupport.MermaidDiagram.rejected(type, validation.message());
         }
         String acceptedSummary = summary;
@@ -1777,7 +1777,8 @@ public final class SnippetAiWorkflowSupport {
                 || (drawn.nonterminalNodes() > 0 && kept.nonterminalNodes() * 2 < drawn.nonterminalNodes())) {
                 String reason = "The diagram's repairs would drop " + droppedNodes + " of " + drawn.nonterminalNodes()
                     + " nodes (parallel branches or unreachable nodes the dialect cannot show); not enough remains.";
-                logger.warn("AI diagram rejected: {} [type={}, snippet lines={}, {}]", reason, type, snippetLines, summary);
+                logger.warn("AI diagram rejected: {} [type={}, snippet lines={}, {}] Full answer: {}",
+                    reason, type, snippetLines, summary, archiveRejectedDiagram(answer));
                 return SnippetAiResponseSupport.MermaidDiagram.rejected(type, reason);
             }
             if (droppedNodes > 0 || droppedEdges > 0) {
@@ -1806,6 +1807,19 @@ public final class SnippetAiWorkflowSupport {
             return new SnippetAiResponseSupport.MermaidDiagram(diagram.title(), canonical, diagram.codeReferences(), type);
         }
         return diagram;
+    }
+
+    /**
+     * Keeps a rejected diagram answer whole, beside the unusable apply answers. A rejection names
+     * one broken rule, and the log can only carry the first line or two — but which shorthand the
+     * model wrote, and whether the grammar could learn it, is only decidable on the whole answer.
+     *
+     * @return the archived file, or a short note when nothing could be written
+     */
+    private static Object archiveRejectedDiagram(String answer) {
+        java.nio.file.Path archived = AiAnswerArchive.save(
+            AiAction.GENERATE_SNIPPET_MERMAID, "rejected-diagram", answer);
+        return archived != null ? archived : "not archived";
     }
 
     /**
