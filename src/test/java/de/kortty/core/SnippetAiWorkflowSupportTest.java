@@ -1335,6 +1335,31 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void editModeStageWhoseEditsCollapseTheScriptGetsOneSecondAttempt() throws Exception {
+        // Seen live: two edits "covering" 1,199 lines, the region replaced by an omission marker.
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            """
+            {"edits":[{"startLine":2,"endLine":480,"replacementLines":["# ... rest unchanged ..."]}],
+             "summary":"s","changes":[{"finding":"SEC-1","anchor":"# ... rest unchanged ...","reason":"r"}],"implementedRequirements":[]}
+            """,
+            """
+            {"edits":[{"startLine":2,"endLine":2,"replacementLines":["echo step 1 hardened"]}],
+             "summary":"ok","changes":[{"finding":"SEC-1","anchor":"echo step 1 hardened","reason":"r"}],"implementedRequirements":[]}
+            """);
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix = SnippetAiWorkflowSupport.applySnippetImprovements(
+            aiService, null, fiveHundredSteps(), "bash", null, "en",
+            List.of(new SnippetAiResponseSupport.ScriptImprovement(
+                "SEC-1", "security", "high", "Harden", "Detail", "Harden step 1.", 2)),
+            List.of(), "", null, null, null);
+
+        assertThat(aiService.requests).hasSize(2);
+        assertThat(aiService.requests.get(1).conversationContext()).contains("omission marker");
+        assertThat(fix.replacement()).contains("echo step 1 hardened");
+        assertThat(fix.replacement().split("\n")).hasLength(501);
+    }
+
+    @Test
     void hollowEditIsDroppedAndItsEchoDoesNotHideTheMissingItem() throws Exception {
         // Seen live: a range of five lines "replaced" by its own first line, with the item's id
         // echoed in changes anyway. The hollow edit is dropped, the echo is ignored, and the

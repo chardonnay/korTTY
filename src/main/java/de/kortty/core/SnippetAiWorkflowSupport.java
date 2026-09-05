@@ -1133,10 +1133,21 @@ public final class SnippetAiWorkflowSupport {
                     repairReason = StageRepairReason.COLLAPSED_REPLACEMENT;
                     continue;
                 }
-                // An edit-mode answer with nothing to apply gets the same single second chance a
-                // collapsed whole-file answer gets: the stage input is unchanged, the request
-                // says what was wrong with the first answer.
-                if (!repairAttempt && editMode && fix == null) {
+                // An edit-mode answer with nothing to apply — or whose edits collapse the script,
+                // seen live as two edits "covering" 1,199 lines with an omission marker — gets the
+                // same single second chance a collapsed whole-file answer gets: the stage input is
+                // unchanged, the request says what was wrong with the first answer.
+                if (!repairAttempt && editMode) {
+                    if (fix != null) {
+                        String answer = result != null && result.content() != null ? result.content() : "";
+                        java.nio.file.Path archived = AiAnswerArchive.save(
+                            AiAction.APPLY_SNIPPET_IMPROVEMENTS, "collapsing-edits", answer);
+                        logger.warn("AI apply stage edits collapse the script ({} -> {} non-blank lines); "
+                            + "one second attempt. Full answer: {}",
+                            attemptContent.lines().filter(line -> !line.isBlank()).count(),
+                            fix.replacement().lines().filter(line -> !line.isBlank()).count(),
+                            archived != null ? archived : "not archived");
+                    }
                     repairReason = StageRepairReason.UNUSABLE_EDITS;
                     continue;
                 }
@@ -1248,6 +1259,13 @@ public final class SnippetAiWorkflowSupport {
                 edits.edits().size(), applied.dropped());
         }
         int editedLines = applied.applied().stream().mapToInt(edit -> edit.endLine() - edit.startLine() + 1).sum();
+        for (SnippetAiResponseSupport.SnippetEdit edit : applied.applied()) {
+            int range = edit.endLine() - edit.startLine() + 1;
+            if (range >= 100 && edit.replacementLines().size() * 10 < range) {
+                logger.warn("AI apply stage edit {}-{} replaces {} lines with {}: a large region shrunk to little",
+                    edit.startLine(), edit.endLine(), range, edit.replacementLines().size());
+            }
+        }
         logger.info("AI apply stage applied {} edit(s) covering {} original line(s) of {} [answer chars={}]",
             applied.applied().size(), editedLines, SnippetDiagramSupport.countLines(content), answer.length());
         return new SnippetAiResponseSupport.SnippetSecurityFix(
@@ -2104,10 +2122,12 @@ public final class SnippetAiWorkflowSupport {
                 : "")
             .append(repairReason == StageRepairReason.UNUSABLE_EDITS
                 ? "The preceding attempt for this same stage was discarded because it contained no edit that could be applied: "
-                    + "its JSON was unreadable, its ranges lay outside the snippet, or its replacementLines held only the first "
-                    + "line of the range instead of the range's complete new content. This is the single repair attempt. "
-                    + "Return every changed region as one edit whose replacementLines contain the entire new text of "
-                    + "startLine..endLine, and make the JSON valid: escape every double quote inside code.\n"
+                    + "its JSON was unreadable, its ranges lay outside the snippet, its replacementLines held only the first "
+                    + "line of the range instead of the range's complete new content, or an edit replaced a large region "
+                    + "with a placeholder or an omission marker instead of that region's complete new code. This is the "
+                    + "single repair attempt. Return every changed region as one edit whose replacementLines contain the "
+                    + "entire new text of startLine..endLine — every line that stays must be repeated, nothing may be "
+                    + "summarized — and make the JSON valid: escape every double quote inside code.\n"
                 : "")
             .append(repairReason == StageRepairReason.COLLAPSED_REPLACEMENT
                 ? "The preceding attempt for this same stage was discarded because it returned an empty or severely collapsed script. This is the single repair attempt: copy the complete input into replacementLines, one source line per array entry, then make only the current requested change. Do not close the JSON object after the header or a partial function.\n"
