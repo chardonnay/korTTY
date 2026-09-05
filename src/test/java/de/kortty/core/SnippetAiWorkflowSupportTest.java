@@ -770,6 +770,10 @@ class SnippetAiWorkflowSupportTest {
                 progress -> { }, checkpoints::add, null));
 
         assertThat(rejection.missingRequirementIds()).containsExactly("HARDENING-01");
+        // The identifier alone leaves the reader counting checkboxes; the rule says what is missing.
+        assertThat(rejection.missingRequirementLabels()).hasSize(rejection.missingRequirementIds().size());
+        assertThat(rejection.missingRequirementLabels().get(0)).startsWith(rejection.missingRequirementIds().get(0) + " (");
+        assertThat(rejection.getMessage()).contains(rejection.missingRequirementLabels().get(0));
         // The offending stage fails instead of the final cumulative verification, so the completed
         // stages survive as a checkpoint and the run stays resumable from the stage that broke them.
         assertThat(checkpoints).hasSize(1);
@@ -1824,6 +1828,49 @@ class SnippetAiWorkflowSupportTest {
         assertThat(diagram.mermaid()).doesNotContain("classDef");
         assertThat(diagram.mermaid()).doesNotContain("codeReferences");
         assertThat(aiService.executionCount).isEqualTo(1);
+    }
+
+    @Test
+    void aDiagramRejectedByTheRepairsIsNeverLoggedAsAcceptedFirst() throws Exception {
+        // Seen live from a weaker model: "AI diagram accepted" and "AI diagram rejected" one
+        // millisecond apart, because the acceptance was logged before the last gate.
+        // A work node fanning out into parallel branches: valid Mermaid the strict dialect cannot
+        // show, so the repairs keep one branch and the diagram is hollowed out.
+        StringBuilder mermaid = new StringBuilder(
+            "flowchart TD\n    start_1([\"Start\"])\n    w0[\"Dispatch\"]\n    stop_1([\"Stop\"])\n");
+        for (int index = 1; index <= 4; index++) {
+            mermaid.append("    w").append(index).append("[\"Branch ").append(index).append("\"]\n");
+        }
+        mermaid.append("    start_1 --> w0\n");
+        for (int index = 1; index <= 4; index++) {
+            mermaid.append("    w0 --> w").append(index).append('\n');
+            mermaid.append("    w").append(index).append(" --> stop_1\n");
+        }
+        mermaid.append("    class start_1,stop_1 setup\n    class w0,w1,w2,w3,w4 work\n");
+        JsonObject response = new JsonObject();
+        response.addProperty("title", "Fanned out");
+        response.addProperty("mermaid", mermaid.toString());
+        CapturingAiService aiService = new CapturingAiService(response.toString());
+
+        ch.qos.logback.classic.Logger workflowLogger =
+            (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(SnippetAiWorkflowSupport.class);
+        ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> events =
+            new ch.qos.logback.core.read.ListAppender<>();
+        events.start();
+        workflowLogger.addAppender(events);
+        SnippetAiResponseSupport.MermaidDiagram diagram;
+        try {
+            diagram = SnippetAiWorkflowSupport.generateSnippetMermaid(
+                aiService, null, "line\n".repeat(40), "plain", null, "en", null);
+        } finally {
+            workflowLogger.detachAppender(events);
+        }
+
+        List<String> messages = events.list.stream().map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage).toList();
+        assertThat(diagram.isUsable()).isFalse();
+        assertThat(diagram.rejectionReason()).contains("would drop");
+        assertThat(messages.stream().filter(message -> message.startsWith("AI diagram accepted"))).isEmpty();
+        assertThat(messages.stream().filter(message -> message.startsWith("AI diagram rejected"))).hasSize(1);
     }
 
     @Test

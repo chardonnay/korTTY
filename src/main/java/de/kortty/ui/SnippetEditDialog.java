@@ -6296,7 +6296,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (isIncompleteMandatoryRequirementsFailure(failure)) {
             setStatus(I18n.get(
                 "snippets.ai.analysis.fix.incompleteHardening",
-                String.join(", ", incompleteMandatoryRequirementIds(failure))));
+                String.join("; ", incompleteMandatoryRequirementLabels(failure))));
             finishSnippetAiAction(task);
             return;
         }
@@ -6362,6 +6362,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         SnippetAiWorkflowSupport.IncompleteMandatoryRequirementsException incomplete =
             findIncompleteMandatoryRequirementsFailure(failure);
         return incomplete != null ? incomplete.missingRequirementIds() : List.of();
+    }
+
+    /** The unmet requirements as {@code id (rule)}, so the status names what was not implemented. */
+    static List<String> incompleteMandatoryRequirementLabels(Throwable failure) {
+        SnippetAiWorkflowSupport.IncompleteMandatoryRequirementsException incomplete =
+            findIncompleteMandatoryRequirementsFailure(failure);
+        return incomplete != null ? incomplete.missingRequirementLabels() : List.of();
     }
 
     private static SnippetAiWorkflowSupport.IncompleteMandatoryRequirementsException
