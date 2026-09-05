@@ -1335,6 +1335,26 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void editModeCommentMentioningUnchangedCodeAmongRealLinesIsNotAnOmissionMarker() throws Exception {
+        // Seen live: a whole-script scan refused a stage over such a comment and asked again.
+        CapturingAiService aiService = new CapturingAiService("""
+            {"edits":[{"startLine":2,"endLine":3,"replacementLines":[
+              "# names declared earlier. The actual implementation is unchanged so that signatures",
+              "echo step 1 hardened","echo step 2"]}],
+             "summary":"ok","changes":[{"finding":"SEC-1","anchor":"echo step 1 hardened","reason":"r"}],"implementedRequirements":[]}
+            """);
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix = SnippetAiWorkflowSupport.applySnippetImprovements(
+            aiService, null, fiveHundredSteps(), "bash", null, "en",
+            List.of(new SnippetAiResponseSupport.ScriptImprovement(
+                "SEC-1", "security", "high", "Harden", "Detail", "Harden step 1.", 2)),
+            List.of(), "", null, null, null);
+
+        assertThat(aiService.executionCount).isEqualTo(1);
+        assertThat(fix.replacement()).contains("implementation is unchanged so that signatures\necho step 1 hardened\necho step 2\n");
+    }
+
+    @Test
     void editModeStageWhoseEditsCollapseTheScriptGetsOneSecondAttempt() throws Exception {
         // Seen live: two edits "covering" 1,199 lines, the region replaced by an omission marker.
         SequencedCapturingAiService aiService = new SequencedCapturingAiService(

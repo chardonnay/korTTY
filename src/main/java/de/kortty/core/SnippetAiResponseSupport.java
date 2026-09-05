@@ -760,12 +760,19 @@ public final class SnippetAiResponseSupport {
             // swallowed (res="" written as res=") — when the entry plus a quote is a line of the
             // snippet, that line it is.
             if (rawQuoteCount(body) % 2 != 0) {
+                // Odd because one quote of the line was escaped and the others left raw, or
+                // because the closing quote was swallowed: either way only a line the snippet
+                // knows is read.
                 List<String> decoded = new ArrayList<>(1);
                 appendDecodedLines(decoded, body);
-                if (decoded.size() != 1 || !originalLines.contains(decoded.get(0) + "\"")) {
+                if (decoded.size() != 1) {
                     return null;
                 }
-                body = body + "\"";
+                if (originalLines.contains(decoded.get(0) + "\"")) {
+                    body = body + "\"";
+                } else if (!originalLines.contains(decoded.get(0))) {
+                    return null;
+                }
             }
             if (containsOtherStyleSeam(body, spacedStyle) || !appendDecodedLines(values, body)) {
                 return null;
@@ -1183,13 +1190,23 @@ public final class SnippetAiResponseSupport {
      * original is allowed when it is preserved unchanged.
      */
     public static boolean isDegenerateFullReplacement(String original, String replacement) {
+        return isDegenerateFullReplacement(original, replacement, true);
+    }
+
+    /**
+     * @param checkOmissionMarkers whether a newly introduced omission comment anywhere in the
+     *     replacement counts. A whole-file answer that says "rest unchanged" has left code out;
+     *     in edit mode the edits are checked one by one instead, because a comment that mentions
+     *     unchanged code among real code lines is just a comment.
+     */
+    public static boolean isDegenerateFullReplacement(String original, String replacement, boolean checkOmissionMarkers) {
         String current = original != null ? original.strip() : "";
         String candidate = replacement != null ? replacement.strip() : "";
         if (candidate.isEmpty()) {
             return true;
         }
         // An explicit omission marker is never a complete replacement, even for a short source.
-        if (introducesOmittedCodeMarker(current, candidate)) {
+        if (checkOmissionMarkers && introducesOmittedCodeMarker(current, candidate)) {
             return true;
         }
         if (current.length() < 40) {
@@ -1229,6 +1246,11 @@ public final class SnippetAiResponseSupport {
             }
         }
         return false;
+    }
+
+    /** Whether a line reads like an omission marker ("# ... rest of the function unchanged ..."). */
+    public static boolean isOmittedCodeMarker(String line) {
+        return normalizedOmittedCodeMarker(line) != null;
     }
 
     private static String normalizedOmittedCodeMarker(String line) {

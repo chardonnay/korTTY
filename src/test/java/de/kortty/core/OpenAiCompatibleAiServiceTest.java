@@ -319,6 +319,25 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void editModeUsabilityIsJudgedWithTheSnippetAsOracle() throws Exception {
+        // A swallowed closing quote on a line the snippet knows: readable by the stage, so the
+        // transport must not re-request it without the schema.
+        String snippet = "a\n  res=\"\"\n" + "echo line\n".repeat(500);
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(new StubResponse(200, """
+            {"choices":[{"finish_reason":"stop","message":{"content":"{\\"edits\\":[{\\"startLine\\":2,\\"endLine\\":2,\\"replacementLines\\":[\\"  res=\\"\\"]}],\\"summary\\":\\"s\\",\\"changes\\":[],\\"implementedRequirements\\":[]}"}}],
+             "usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}
+            """));
+        AiRequest editMode = new AiRequest(
+            AiAction.APPLY_SNIPPET_IMPROVEMENTS, snippet, null, "en", null,
+            "Line-numbered snippet:\n```text\n   1 | a\n```");
+
+        new OpenAiCompatibleAiService("https://api.example.test/v1/chat/completions", "MiniMax-M3", "", client)
+            .executeWithClient(editMode, client, null);
+
+        assertThat(client.requestBodies()).hasSize(1);
+    }
+
+    @Test
     void aggregatedStreamsRecordWhetherTheEndpointClosedThem() throws Exception {
         OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
             "https://api.example.test/v1/chat/completions", "MiniMax-M3", "");

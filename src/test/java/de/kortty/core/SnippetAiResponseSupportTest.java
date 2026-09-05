@@ -506,6 +506,12 @@ class SnippetAiResponseSupportTest {
         assertThat(SnippetAiResponseSupport.parseSnippetEdits(
             "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":[\"x=$(cmd \\\\\\\\\",\"  | tail\"]}]",
             "a\nb\n").edits().get(0).replacementLines()).containsExactly("x=$(cmd \\\\", "  | tail").inOrder();
+        // One quote of a known line escaped and the others raw: odd parity, but the snippet knows
+        // the decoded line as it is.
+        String mixed = "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":[\"  echo -n \"$k\" > \"$d/$t\\\"\",\"  fi\"]}],\"summary\":\"s\"}";
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(mixed, "a\n  echo -n \"$k\" > \"$d/$t\"\nc\n").edits().get(0).replacementLines())
+            .containsExactly("  echo -n \"$k\" > \"$d/$t\"", "  fi").inOrder();
+        assertThat(SnippetAiResponseSupport.parseSnippetEdits(mixed, "a\nb\nc\n").isUsable()).isFalse();
         // A trailing comma before the close is tolerated.
         assertThat(SnippetAiResponseSupport.parseSnippetEdits(
             "{\"edits\":[{\"startLine\":5,\"endLine\":5,\"replacementLines\":[\"a\",\"b\",]}],\"summary\":\"w\"}")

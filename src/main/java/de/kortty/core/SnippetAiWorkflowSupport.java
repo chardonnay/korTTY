@@ -1126,7 +1126,7 @@ public final class SnippetAiWorkflowSupport {
                 ? fixFromEdits(attemptContent, result)
                 : SnippetAiResponseSupport.parseSecurityFix(result != null ? result.content() : null);
             boolean rejectedReplacement = fix == null || !fix.isUsable()
-                || isIncompleteStagedReplacement(attemptContent, fix.replacement());
+                || isIncompleteStagedReplacement(attemptContent, fix.replacement(), editMode);
             if (rejectedReplacement) {
                 // In edit mode a short answer is the normal shape, not a collapsed script.
                 if (!repairAttempt && !editMode && isShortCollapsedStageResult(result, attemptContent)) {
@@ -1142,7 +1142,7 @@ public final class SnippetAiWorkflowSupport {
                         String answer = result != null && result.content() != null ? result.content() : "";
                         java.nio.file.Path archived = AiAnswerArchive.save(
                             AiAction.APPLY_SNIPPET_IMPROVEMENTS, "collapsing-edits", answer);
-                        logger.warn("AI apply stage edits collapse the script ({} -> {} non-blank lines); "
+                        logger.warn("AI apply stage result refused as incomplete ({} -> {} non-blank lines); "
                             + "one second attempt. Full answer: {}",
                             attemptContent.lines().filter(line -> !line.isBlank()).count(),
                             fix.replacement().lines().filter(line -> !line.isBlank()).count(),
@@ -1221,6 +1221,20 @@ public final class SnippetAiWorkflowSupport {
                 archived != null ? archived : "not archived");
             return null;
         }
+        // Seen live: a whole-script scan for omission comments refused a stage over a comment
+        // that merely mentioned unchanged code among real lines. In edit mode the marker is an
+        // edit of its own: a range of code "replaced" by nothing but such a comment.
+        for (SnippetAiResponseSupport.SnippetEdit edit : edits.edits()) {
+            List<String> lines = edit.replacementLines();
+            boolean placeholder = !lines.isEmpty() && lines.size() <= 2
+                && lines.stream().allMatch(SnippetAiResponseSupport::isOmittedCodeMarker)
+                && Math.abs(edit.endLine() - edit.startLine()) + 1 >= 3;
+            if (placeholder) {
+                logger.warn("AI apply stage edit {}-{} replaces its range with an omission marker: {}",
+                    edit.startLine(), edit.endLine(), lines.get(0).strip());
+                return null;
+            }
+        }
         SnippetAiResponseSupport.AppliedEdits applied =
             SnippetAiResponseSupport.applySnippetEditsLeniently(content, edits.edits());
         if (applied == null) {
@@ -1273,7 +1287,11 @@ public final class SnippetAiWorkflowSupport {
     }
 
     private static boolean isIncompleteStagedReplacement(String original, String replacement) {
-        if (SnippetAiResponseSupport.isDegenerateFullReplacement(original, replacement)) {
+        return isIncompleteStagedReplacement(original, replacement, false);
+    }
+
+    private static boolean isIncompleteStagedReplacement(String original, String replacement, boolean editMode) {
+        if (SnippetAiResponseSupport.isDegenerateFullReplacement(original, replacement, !editMode)) {
             return true;
         }
         String source = original != null ? original : "";
