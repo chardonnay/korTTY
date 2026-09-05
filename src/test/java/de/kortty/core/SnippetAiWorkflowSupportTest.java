@@ -1831,6 +1831,50 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void aRejectedDiagramAnswerIsArchivedWhole() throws Exception {
+        // A rejection names one broken rule and the log carries only its first line; whether the
+        // grammar could learn the shorthand the model wrote is decidable on the whole answer alone.
+        String previousArchive = System.getProperty(AiAnswerArchive.ENABLED_PROPERTY);
+        String previousLogDir = System.getProperty(LoggingConfiguration.LOG_DIR_PROPERTY);
+        java.nio.file.Path logDirectory = java.nio.file.Files.createTempDirectory("kortty-diagram-archive");
+        String answer = "{\"title\": \"Runtime flow\", \"mermaid\": \"flowchart TD\\n"
+            + "start_1([\\\"Start\\\"]) --> work_1[\\\"Run\\\"]\\n"
+            + "work_1 --> stop_1([\\\"Stop\\\"])\\nstop_1 --> work_1\\n"
+            + "class start_1,stop_1 setup\\nclass work_1 work\"}";
+        try {
+            System.setProperty(LoggingConfiguration.LOG_DIR_PROPERTY, logDirectory.toString());
+            System.setProperty(AiAnswerArchive.ENABLED_PROPERTY, "on");
+
+            SnippetAiResponseSupport.MermaidDiagram diagram = SnippetAiWorkflowSupport.generateSnippetMermaid(
+                new CapturingAiService(answer), null, "line\n".repeat(40), "plain", null, "en", null);
+
+            assertThat(diagram.isUsable()).isFalse();
+            assertThat(diagram.rejectionReason()).contains("stop_1");
+            java.nio.file.Path archive = logDirectory.resolve(AiAnswerArchive.DIRECTORY_NAME);
+            try (java.util.stream.Stream<java.nio.file.Path> files = java.nio.file.Files.list(archive)) {
+                java.util.List<java.nio.file.Path> archived = files.toList();
+                assertThat(archived).hasSize(1);
+                assertThat(archived.get(0).getFileName().toString()).contains("generate-snippet-mermaid-rejected-diagram");
+                assertThat(java.nio.file.Files.readString(archived.get(0))).isEqualTo(answer);
+            }
+        } finally {
+            restoreProperty(AiAnswerArchive.ENABLED_PROPERTY, previousArchive);
+            restoreProperty(LoggingConfiguration.LOG_DIR_PROPERTY, previousLogDir);
+            try (java.util.stream.Stream<java.nio.file.Path> files = java.nio.file.Files.walk(logDirectory)) {
+                files.sorted(java.util.Comparator.reverseOrder()).forEach(path -> path.toFile().delete());
+            }
+        }
+    }
+
+    private static void restoreProperty(String key, String previous) {
+        if (previous != null) {
+            System.setProperty(key, previous);
+        } else {
+            System.clearProperty(key);
+        }
+    }
+
+    @Test
     void aDiagramRejectedByTheRepairsIsNeverLoggedAsAcceptedFirst() throws Exception {
         // Seen live from a weaker model: "AI diagram accepted" and "AI diagram rejected" one
         // millisecond apart, because the acceptance was logged before the last gate.
