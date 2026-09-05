@@ -973,6 +973,31 @@ class SnippetDiagramSupportTest {
         assertThat(statistics.toString()).isEqualTo("nodes=25 (decisions=0), edges=26");
     }
 
+    @Test
+    void aNodeDeclaredTwiceCountsOnce() {
+        // Seen live: a model wrote every node once as a box in a chain and once as a decision on
+        // its own line. Counting both put the node in two buckets, and comparing that inflated
+        // count with the parsed diagram read as if the repairs had thrown the diagram away.
+        String twiceDeclared = """
+            flowchart TD
+            start_1["Start"] --> setup["Setup"] --> work["Work"] --> stop_1["Stop"]
+            setup{ "Check dependencies" }
+            work{ "Parse arguments" }
+            """;
+
+        SnippetDiagramSupport.FlowchartStatistics statistics = SnippetDiagramSupport.flowchartStatistics(twiceDeclared);
+
+        assertThat(statistics.nonterminalNodes()).isEqualTo(4);
+        assertThat(statistics.decisionNodes()).isEqualTo(0);
+        // The first declaration decides, exactly as the parser resolves it.
+        assertThat(SnippetDiagramSupport.flowchartStatistics("""
+            flowchart TD
+            d1{"Ready?"}
+            d1["Ready"]
+            d1 --> stop_1(["Stop"])
+            """).decisionNodes()).isEqualTo(1);
+    }
+
     private static String linearChain(int steps) {
         StringBuilder mermaid = new StringBuilder("flowchart TD\n    start_1([\"Start\"])\n");
         for (int index = 1; index <= steps; index++) {
