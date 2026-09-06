@@ -7,6 +7,7 @@ import de.kortty.core.SnippetDiagramSupport;
 import de.kortty.core.SystemThemeDetector;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.SnippetDiagramType;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
@@ -18,12 +19,14 @@ import javafx.scene.control.MenuButton;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Slider;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -32,6 +35,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.web.WebView;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
+import javafx.util.Duration;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -104,6 +108,20 @@ final class SnippetDiagramView extends VBox {
     private static final Pattern NAVIGATION_PATTERN = Pattern.compile("#kortty-code-reference-(\\d+)-(\\d+)$");
     private static final double MIN_ZOOM_FACTOR = 0.25;
     private static final double MAX_ZOOM_FACTOR = 4.0;
+    /**
+     * The zoom slider works in powers of two, so one step to either side halves or doubles the
+     * fitted size and the fitted size itself sits exactly in the middle of the track. A linear
+     * track over 0.25..4 would put it at a fifth of the way, where nobody looks for it.
+     */
+    private static final double MIN_ZOOM_SLIDER = -2.0;
+    private static final double MAX_ZOOM_SLIDER = 2.0;
+    /**
+     * How often a dragged slider re-renders. Every zoom step reloads the diagram HTML with the
+     * whole SVG inside it, which for a 4,000-line script's flowchart is far too much to do on
+     * every pixel of a drag; a render every 70 ms plus one final render at the end of the
+     * gesture keeps the drag smooth and still ends on the exact value.
+     */
+    private static final long ZOOM_RENDER_INTERVAL_NANOS = 70_000_000L;
     private static final double MIN_ZOOM = 0.05;
     private static final double MAX_ZOOM = 12.0;
     private static final String DEFAULT_BACKGROUND = "#FFFFFF";
@@ -116,6 +134,9 @@ final class SnippetDiagramView extends VBox {
     private final VBox spinnerBox;
     private final Label statusLabel = new Label();
     private final Label zoomLabel = new Label("100%");
+    private final Slider zoomSlider = new Slider(MIN_ZOOM_SLIDER, MAX_ZOOM_SLIDER, 0);
+    private final PauseTransition zoomRenderTrailer =
+        new PauseTransition(Duration.millis(ZOOM_RENDER_INTERVAL_NANOS / 1_000_000.0));
     private final Label noticeLabel = new Label();
     private final ColorPicker backgroundPicker;
     private final MenuButton darkModeButton = new MenuButton();
@@ -135,6 +156,8 @@ final class SnippetDiagramView extends VBox {
     private double baseWidth = 900.0;
     private double baseHeight = 600.0;
     private double zoomFactor = 1.0;
+    private boolean syncingZoomSlider;
+    private long lastZoomRenderNanos;
     private String backgroundColor;
     private CompletableFuture<DiagramSource> sourceFuture;
     private CompletableFuture<MermaidRenderService.RenderResult> renderFuture;
@@ -169,6 +192,12 @@ final class SnippetDiagramView extends VBox {
         diagramScroll.setVisible(false);
         diagramScroll.setManaged(false);
         diagramScroll.viewportBoundsProperty().addListener((obs, oldValue, newValue) -> renderDiagramToFitViewport());
+        zoomRenderTrailer.setOnFinished(event -> {
+            if (!disposed) {
+                lastZoomRenderNanos = System.nanoTime();
+                renderDiagramToFitViewport();
+            }
+        });
         applyBackgroundStyle();
 
         spinnerBox = buildSpinnerBox();
@@ -260,6 +289,7 @@ final class SnippetDiagramView extends VBox {
 
     void dispose() {
         disposed = true;
+        zoomRenderTrailer.stop();
         sourceGeneration++;
         clear();
     }
@@ -328,7 +358,7 @@ final class SnippetDiagramView extends VBox {
         renderedSvg = result.svg();
         renderedPng = result.png();
         if (resetZoom) {
-            zoomFactor = 1.0;
+            applyZoomFactor(1.0);
         }
         double[] parsedSize = readSvgSize(renderedSvg);
         baseWidth = result.width() > 0 ? result.width() : parsedSize[0];
@@ -370,6 +400,22 @@ final class SnippetDiagramView extends VBox {
             .toList();
     }
 
+    /**
+     * The scale the diagram is drawn at: the factor the user chose, applied to the scale that
+     * fits the whole diagram into the viewport, and bounded so a huge or tiny diagram stays
+     * renderable. Without a measured viewport the chosen factor is all there is to report.
+     */
+    private double effectiveZoom() {
+        Bounds viewport = diagramScroll.getViewportBounds();
+        double viewportWidth = viewport.getWidth();
+        double viewportHeight = viewport.getHeight();
+        if (viewportWidth <= 1.0 || viewportHeight <= 1.0) {
+            return zoomFactor;
+        }
+        double fitZoom = Math.min(viewportWidth / baseWidth, viewportHeight / baseHeight);
+        return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, fitZoom * zoomFactor));
+    }
+
     private void renderDiagramToFitViewport() {
         if (renderedSvg == null || !diagramScroll.isVisible()) {
             return;
@@ -380,8 +426,7 @@ final class SnippetDiagramView extends VBox {
         if (viewportWidth <= 1.0 || viewportHeight <= 1.0) {
             return;
         }
-        double fitZoom = Math.min(viewportWidth / baseWidth, viewportHeight / baseHeight);
-        double zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, fitZoom * zoomFactor));
+        double zoom = effectiveZoom();
         double displayWidth = Math.max(1.0, baseWidth * zoom);
         double displayHeight = Math.max(1.0, baseHeight * zoom);
         double canvasWidth = Math.max(viewportWidth, displayWidth);
@@ -390,7 +435,11 @@ final class SnippetDiagramView extends VBox {
         diagramView.setPrefSize(canvasWidth, canvasHeight);
         diagramView.getEngine().loadContent(buildDiagramHtml(
             renderedSvg, canvasWidth, canvasHeight, displayWidth, displayHeight));
-        zoomLabel.setText(Math.round(zoom * 100) + "%");
+        updateZoomLabel();
+    }
+
+    private void updateZoomLabel() {
+        zoomLabel.setText(Math.round(effectiveZoom() * 100) + "%");
     }
 
     private String buildDiagramHtml(
@@ -485,9 +534,53 @@ final class SnippetDiagramView extends VBox {
         Button zoomIn = new Button("+");
         zoomIn.setTooltip(new Tooltip(I18n.get("menu.view.zoomIn")));
         zoomIn.setOnAction(event -> setZoomFactor(zoomFactor + 0.15));
+        buildZoomSlider();
         zoomLabel.setMinWidth(Region.USE_PREF_SIZE);
-        toolbar.getChildren().addAll(saveSvg, savePng, copyImage, copyMermaid, zoomOut, zoomLabel, zoomIn, zoomFit);
+        // One box, so the wrapping toolbar never puts the slider on a row of its own with the
+        // button that belongs beside it left behind on the previous one.
+        HBox zoomBox = new HBox(6, zoomOut, zoomSlider, zoomIn, zoomLabel, zoomFit);
+        zoomBox.setAlignment(Pos.CENTER_LEFT);
+        toolbar.getChildren().addAll(saveSvg, savePng, copyImage, copyMermaid, zoomBox);
         return toolbar;
+    }
+
+    private void buildZoomSlider() {
+        zoomSlider.setPrefWidth(130);
+        zoomSlider.setMinWidth(90);
+        // A tick per power of two for the keyboard's page keys; the marks stay hidden, since the
+        // percentage beside the track and the Fit button already say where the middle is.
+        zoomSlider.setMajorTickUnit(1.0);
+        zoomSlider.setMinorTickCount(0);
+        zoomSlider.setSnapToTicks(false);
+        zoomSlider.setBlockIncrement(0.25);
+        zoomSlider.setTooltip(new Tooltip(I18n.get("snippets.ai.diagram.zoom.slider")));
+        zoomSlider.setAccessibleText(I18n.get("snippets.ai.diagram.zoom.slider"));
+        zoomSlider.valueProperty().addListener((observable, oldValue, newValue) -> {
+            if (syncingZoomSlider) {
+                return;
+            }
+            // The slider's own value is already inside the factor range, so it stands as given;
+            // writing it back would fight the knob the user is holding.
+            zoomFactor = zoomFactorForSliderValue(newValue.doubleValue());
+            updateZoomLabel();
+            requestZoomRender();
+        });
+    }
+
+    /**
+     * Renders at most every {@link #ZOOM_RENDER_INTERVAL_NANOS}, and once more shortly after the
+     * last change, so a dragged slider neither reloads the diagram on every pixel nor stops on a
+     * value it never drew.
+     */
+    private void requestZoomRender() {
+        long now = System.nanoTime();
+        if (now - lastZoomRenderNanos >= ZOOM_RENDER_INTERVAL_NANOS) {
+            zoomRenderTrailer.stop();
+            lastZoomRenderNanos = now;
+            renderDiagramToFitViewport();
+        } else {
+            zoomRenderTrailer.playFromStart();
+        }
     }
 
     private VBox buildSpinnerBox() {
@@ -618,8 +711,42 @@ final class SnippetDiagramView extends VBox {
     }
 
     private void setZoomFactor(double factor) {
+        applyZoomFactor(factor);
+        requestZoomRender();
+    }
+
+    /** Takes a factor from a button or a reset: clamped, and the slider follows it. */
+    private void applyZoomFactor(double factor) {
         zoomFactor = Math.max(MIN_ZOOM_FACTOR, Math.min(MAX_ZOOM_FACTOR, factor));
-        renderDiagramToFitViewport();
+        syncingZoomSlider = true;
+        try {
+            zoomSlider.setValue(sliderValueForZoomFactor(zoomFactor));
+        } finally {
+            syncingZoomSlider = false;
+        }
+        updateZoomLabel();
+    }
+
+    /** Where a zoom factor sits on the slider's power-of-two track. */
+    static double sliderValueForZoomFactor(double factor) {
+        double clamped = Math.max(MIN_ZOOM_FACTOR, Math.min(MAX_ZOOM_FACTOR, factor));
+        return Math.max(MIN_ZOOM_SLIDER, Math.min(MAX_ZOOM_SLIDER, Math.log(clamped) / Math.log(2.0)));
+    }
+
+    /** The zoom factor a slider position stands for. */
+    static double zoomFactorForSliderValue(double value) {
+        double clamped = Math.max(MIN_ZOOM_SLIDER, Math.min(MAX_ZOOM_SLIDER, value));
+        return Math.pow(2.0, clamped);
+    }
+
+    /** The zoom slider, for tests that drive it like a user would. */
+    Slider zoomSlider() {
+        return zoomSlider;
+    }
+
+    /** The zoom factor currently chosen, where 1.0 is the fitted size. */
+    double zoomFactor() {
+        return zoomFactor;
     }
 
     private void changeBackground(String color) {
