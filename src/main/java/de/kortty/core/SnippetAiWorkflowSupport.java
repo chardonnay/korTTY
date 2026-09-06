@@ -2757,7 +2757,11 @@ public final class SnippetAiWorkflowSupport {
         int width = String.valueOf(Math.max(1, lines.length)).length();
         StringBuilder builder = new StringBuilder("```text\n");
         for (int i = 0; i < lines.length; i++) {
-            builder.append(String.format(java.util.Locale.ROOT, "%" + width + "d | %s%n", i + 1, lines[i]));
+            // \n, not %n: the block goes into a prompt, and everything that reads it back —
+            // the edit parser, the snippet oracle, the tests — splits on \n. %n made the prompt
+            // CRLF on Windows.
+            builder.append(String.format(java.util.Locale.ROOT, "%" + width + "d | %s", i + 1, lines[i]))
+                .append('\n');
         }
         builder.append("```");
         return builder.toString();
