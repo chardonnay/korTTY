@@ -337,6 +337,286 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void unechoedDependencySuggestionsDoNotOpenTheRepairRound() throws Exception {
+        // Seen live: a 47-item run spent two full requests asking for the echo of D1..D5 and
+        // D13..D16 — reduce/replace suggestions the model had rightly left alone.
+        String original = "#!/bin/sh\nprintf 'start\\n'\nprintf 'done\\n'\n";
+        String applied = original + "# quoted\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            applyResponseWithChanges(applied, "Applied the improvement.", List.of("SEC-1")));
+
+        List<String> messages = new ArrayList<>();
+        SnippetAiResponseSupport.SnippetSecurityFix fix = captureWorkflowLog(messages, () ->
+            SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                original,
+                "bash",
+                null,
+                "en",
+                List.of(new SnippetAiResponseSupport.ScriptImprovement(
+                    "SEC-1", "security", "high", "Quote input", "Detail", "Quote it", 2)),
+                List.of(
+                    new SnippetAiResponseSupport.ScriptDependency(
+                        "D1", "awk", "program", "Parsing", "Consider built-in parsing"),
+                    new SnippetAiResponseSupport.ScriptDependency(
+                        "D2", "nslookup", "program", "DNS", "Prefer dig")),
+                null,
+                null,
+                null,
+                progress -> { }));
+
+        assertThat(aiService.requests).hasSize(1);
+        assertThat(fix.replacement()).isEqualTo(applied);
+        assertThat(messages).contains(
+            "AI apply stage accepted with dependency suggestions [D1, D2] not echoed in changes[].finding; "
+                + "a suggestion needs no change and gets no repair round");
+        assertThat(messages.stream().filter(message -> message.startsWith("AI apply stage result kept"))).isEmpty();
+    }
+
+    @Test
+    void unechoedImprovementOpensTheRepairRoundAndListsTheUnechoedSuggestionsToo() throws Exception {
+        String original = "#!/bin/sh\nprintf 'start\\n'\nprintf 'done\\n'\n";
+        String partial = original + "# quoted\n";
+        String repaired = partial + "# cached\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            applyResponseWithChanges(partial, "Applied one item.", List.of("SEC-1")),
+            applyResponseWithChanges(repaired, "Applied the rest.", List.of("SEC-1", "OPT-1", "D1")));
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix =
+            SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                original,
+                "bash",
+                null,
+                "en",
+                List.of(
+                    new SnippetAiResponseSupport.ScriptImprovement(
+                        "SEC-1", "security", "high", "Quote input", "Detail", "Quote it", 2),
+                    new SnippetAiResponseSupport.ScriptImprovement(
+                        "OPT-1", "optimization", "low", "Avoid repeat", "Detail", "Cache it", 3)),
+                List.of(new SnippetAiResponseSupport.ScriptDependency(
+                    "D1", "awk", "program", "Parsing", "Consider built-in parsing")),
+                null,
+                null,
+                null,
+                progress -> { });
+
+        assertThat(aiService.requests).hasSize(2);
+        String repairContext = aiService.requests.get(1).conversationContext();
+        assertThat(repairContext).contains("ids were missing from changes[].finding: OPT-1. Apply each of these items");
+        // A suggestion the model left alone is not ordered into the code by the round OPT-1 opened.
+        assertThat(repairContext).contains("Dependency suggestions not echoed either: D1. Implement a suggestion where it applies");
+        assertThat(fix.replacement()).isEqualTo(repaired);
+    }
+
+    @Test
+    void dependencyOnlyStageWithNoEchoIsAcceptedInOneRequest() throws Exception {
+        // The live shape: improvements come first, so the trailing stages of a large run hold
+        // dependencies alone (D6..D11), answered with an empty changes array.
+        String original = "#!/bin/sh\nprintf 'start\\n'\nprintf 'done\\n'\n";
+        String applied = original + "# looked at\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            applyResponseWithChanges(applied, "Nothing to reduce.", List.of()));
+        List<SnippetAiWorkflowSupport.ImprovementApplyProgress> progress = new ArrayList<>();
+
+        List<String> messages = new ArrayList<>();
+        SnippetAiResponseSupport.SnippetSecurityFix fix = captureWorkflowLog(messages, () ->
+            SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                original,
+                "bash",
+                null,
+                "en",
+                List.of(),
+                List.of(
+                    new SnippetAiResponseSupport.ScriptDependency(
+                        "D1", "awk", "program", "Parsing", "Consider built-in parsing"),
+                    new SnippetAiResponseSupport.ScriptDependency(
+                        "D2", "nslookup", "program", "DNS", "Prefer dig")),
+                null,
+                null,
+                null,
+                progress::add));
+
+        assertThat(aiService.requests).hasSize(1);
+        assertThat(fix.replacement()).isEqualTo(applied);
+        assertThat(progress.stream().map(SnippetAiWorkflowSupport.ImprovementApplyProgress::state).toList())
+            .doesNotContain(SnippetAiWorkflowSupport.ImprovementApplyProgressState.RETRYING);
+        assertThat(messages).contains(
+            "AI apply stage accepted with dependency suggestions [D1, D2] not echoed in changes[].finding; "
+                + "a suggestion needs no change and gets no repair round");
+    }
+
+    @Test
+    void repairRoundLeavingOnlyASuggestionUnechoedIsAcceptedAndNamesIt() throws Exception {
+        String original = "#!/bin/sh\nprintf 'start\\n'\nprintf 'done\\n'\n";
+        String partial = original + "# quoted\n";
+        String repaired = partial + "# cached\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            applyResponseWithChanges(partial, "Applied one item.", List.of("SEC-1")),
+            applyResponseWithChanges(repaired, "Applied the other.", List.of("SEC-1", "OPT-1")));
+
+        List<String> messages = new ArrayList<>();
+        SnippetAiResponseSupport.SnippetSecurityFix fix = captureWorkflowLog(messages, () ->
+            SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                original,
+                "bash",
+                null,
+                "en",
+                List.of(
+                    new SnippetAiResponseSupport.ScriptImprovement(
+                        "SEC-1", "security", "high", "Quote input", "Detail", "Quote it", 2),
+                    new SnippetAiResponseSupport.ScriptImprovement(
+                        "OPT-1", "optimization", "low", "Avoid repeat", "Detail", "Cache it", 3)),
+                List.of(new SnippetAiResponseSupport.ScriptDependency(
+                    "D1", "awk", "program", "Parsing", "Consider built-in parsing")),
+                null,
+                null,
+                null,
+                progress -> { }));
+
+        assertThat(aiService.requests).hasSize(2);
+        assertThat(fix.replacement()).isEqualTo(repaired);
+        assertThat(fix.summary()).contains("Applied one item.");
+        assertThat(fix.summary()).contains("Applied the other.");
+        // The round was opened for OPT-1; the log names the suggestion with it, and again after.
+        assertThat(messages).contains(
+            "AI apply stage result kept, but analysis ids not echoed in changes[].finding: [OPT-1, D1]; "
+                + "one repair attempt on the result asks for the rest");
+        assertThat(messages).contains("AI apply stage accepted with [D1] still not echoed after the repair attempt");
+    }
+
+    @Test
+    void aSuggestionWhoseEditWasDroppedStillOpensTheRepairRound() throws Exception {
+        // The model did try to change D1 — with a hollow edit that is dropped — so its echo is
+        // ignored and the repair round asks for it like for an improvement.
+        StringBuilder script = new StringBuilder("#!/usr/bin/env bash\n");
+        for (int index = 1; index <= 420; index++) {
+            script.append("echo step ").append(index).append('\n');
+        }
+        String content = script.toString();
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            """
+            {
+              "edits": [
+                { "startLine": 1, "endLine": 1, "replacementLines": ["#!/usr/bin/env bash", "set -euo pipefail"] },
+                { "startLine": 10, "endLine": 20, "replacementLines": ["echo step 9"] }
+              ],
+              "summary": "Strict mode; parser left as it was.",
+              "changes": [
+                { "finding": "SEC-1", "anchor": "set -euo pipefail", "reason": "fail fast" },
+                { "finding": "D1", "anchor": "echo step 9", "reason": "consolidated" }
+              ],
+              "implementedRequirements": []
+            }
+            """,
+            """
+            {
+              "edits": [
+                { "startLine": 10, "endLine": 10, "replacementLines": ["echo step 9 via dig"] }
+              ],
+              "summary": "Replaced the lookup.",
+              "changes": [
+                { "finding": "D1", "anchor": "echo step 9 via dig", "reason": "consolidated" }
+              ],
+              "implementedRequirements": []
+            }
+            """);
+
+        List<String> messages = new ArrayList<>();
+        SnippetAiResponseSupport.SnippetSecurityFix fix = captureWorkflowLog(messages, () ->
+            SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService, null, content, "bash", null, "en",
+                List.of(new SnippetAiResponseSupport.ScriptImprovement(
+                    "SEC-1", "security", "high", "Fail fast", "No strict mode.", "Add set -euo pipefail.", 1)),
+                List.of(new SnippetAiResponseSupport.ScriptDependency(
+                    "D1", "nslookup", "program", "DNS", "Prefer dig")),
+                "", null, null, null));
+
+        assertThat(aiService.requests).hasSize(2);
+        assertThat(messages.stream().anyMatch(message ->
+            message.startsWith("AI apply stage ignores the echo of [D1]: anchored in a dropped edit"))).isTrue();
+        assertThat(aiService.requests.get(1).conversationContext())
+            .contains("ids were missing from changes[].finding: D1. Apply each of these items");
+        assertThat(aiService.requests.get(1).conversationContext()).doesNotContain("Dependency suggestions not echoed either");
+        assertThat(fix.replacement()).contains("echo step 9 via dig");
+        assertThat(fix.replacement()).contains("echo step 20\n");
+    }
+
+    @Test
+    void anImprovementSharingItsIdWithASuggestionStillOpensTheRepairRound() throws Exception {
+        // Ids are the model's; nothing keeps the two lists apart, so an id that names an
+        // improvement counts as one.
+        String original = "#!/bin/sh\nprintf 'start\\n'\nprintf 'done\\n'\n";
+        String partial = original + "# first\n";
+        String repaired = partial + "# second\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            applyResponseWithChanges(partial, "Looked at the tool.", List.of("2")),
+            applyResponseWithChanges(repaired, "Applied item 1.", List.of("1", "2")));
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix =
+            SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                original,
+                "bash",
+                null,
+                "en",
+                List.of(new SnippetAiResponseSupport.ScriptImprovement(
+                    "1", "security", "high", "Quote input", "Detail", "Quote it", 2)),
+                List.of(
+                    new SnippetAiResponseSupport.ScriptDependency("1", "awk", "program", "Parsing", "Consider"),
+                    new SnippetAiResponseSupport.ScriptDependency("2", "nslookup", "program", "DNS", "Prefer dig")),
+                null,
+                null,
+                null,
+                progress -> { });
+
+        assertThat(aiService.requests).hasSize(2);
+        assertThat(aiService.requests.get(1).conversationContext())
+            .contains("ids were missing from changes[].finding: 1, 1. Apply each of these items");
+        assertThat(fix.replacement()).isEqualTo(repaired);
+    }
+
+    @Test
+    void anEchoedSuggestionIsNotListedInTheRoundAnUnechoedImprovementOpens() throws Exception {
+        String original = "#!/bin/sh\nprintf 'start\\n'\nprintf 'done\\n'\n";
+        String partial = original + "# dig\n";
+        String repaired = partial + "# quoted\n";
+        SequencedCapturingAiService aiService = new SequencedCapturingAiService(
+            applyResponseWithChanges(partial, "Switched to dig.", List.of("D1")),
+            applyResponseWithChanges(repaired, "Quoted.", List.of("SEC-1", "D1")));
+
+        SnippetAiResponseSupport.SnippetSecurityFix fix =
+            SnippetAiWorkflowSupport.applySnippetImprovements(
+                aiService,
+                null,
+                original,
+                "bash",
+                null,
+                "en",
+                List.of(new SnippetAiResponseSupport.ScriptImprovement(
+                    "SEC-1", "security", "high", "Quote input", "Detail", "Quote it", 2)),
+                List.of(new SnippetAiResponseSupport.ScriptDependency(
+                    "D1", "nslookup", "program", "DNS", "Prefer dig")),
+                null,
+                null,
+                null,
+                progress -> { });
+
+        assertThat(aiService.requests).hasSize(2);
+        String repairContext = aiService.requests.get(1).conversationContext();
+        assertThat(repairContext).contains("ids were missing from changes[].finding: SEC-1. Apply each of these items");
+        assertThat(repairContext).doesNotContain("Dependency suggestions not echoed either");
+        assertThat(fix.replacement()).isEqualTo(repaired);
+    }
+
+    @Test
     void batchedStageWithUnechoedAnalysisItemGetsOneTargetedRepairAttempt() throws Exception {
         String original = "#!/bin/sh\nprintf 'start\\n'\nprintf 'done\\n'\n";
         String partial = original + "# quoted\n";

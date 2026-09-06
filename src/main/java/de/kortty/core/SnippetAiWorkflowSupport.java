@@ -1085,6 +1085,7 @@ public final class SnippetAiWorkflowSupport {
         List<MandatoryRequirement> requirementsNeedingRepair = List.of();
         List<MandatoryRequirement> requirementsNeedingRestore = List.of();
         List<String> analysisIdsNeedingRepair = List.of();
+        List<String> suggestionIdsToConsider = List.of();
         // Set when the single repair attempt was triggered ONLY by unechoed analysis ids: the
         // first attempt's replacement already met the stage's acceptance contract, so a failed
         // repair round-trip must fall back to it instead of aborting the whole apply.
@@ -1125,6 +1126,7 @@ public final class SnippetAiWorkflowSupport {
                     requirementsNeedingRepair,
                     requirementsNeedingRestore,
                     analysisIdsNeedingRepair,
+                    suggestionIdsToConsider,
                     attemptContent));
             AiExecutionResult result = aiService.execute(request);
             if (result != null && usageRecorder != null) {
@@ -1152,9 +1154,12 @@ public final class SnippetAiWorkflowSupport {
                 continue;
             }
             rejectTruncatedReplacement(result);
-            SnippetAiResponseSupport.SnippetSecurityFix fix = editMode
+            StageAnswer stageAnswer = editMode
                 ? fixFromEdits(attemptContent, result)
-                : SnippetAiResponseSupport.parseSecurityFix(result != null ? result.content() : null);
+                : new StageAnswer(
+                    SnippetAiResponseSupport.parseSecurityFix(result != null ? result.content() : null), List.of());
+            SnippetAiResponseSupport.SnippetSecurityFix fix = stageAnswer != null ? stageAnswer.fix() : null;
+            List<String> ignoredEchoIds = stageAnswer != null ? stageAnswer.ignoredEchoIds() : List.of();
             boolean rejectedReplacement = fix == null || !fix.isUsable()
                 || isIncompleteStagedReplacement(attemptContent, fix.replacement(), editMode);
             if (rejectedReplacement) {
@@ -1191,7 +1196,30 @@ public final class SnippetAiWorkflowSupport {
             List<MandatoryRequirement> droppedRequirements =
                 droppedEarlierRequirements(fix, earlierRequirements);
             List<String> unechoedAnalysisIds = unechoedAnalysisItemIds(fix, improvements, dependencies);
-            if (!missingRequirements.isEmpty() || !droppedRequirements.isEmpty() || !unechoedAnalysisIds.isEmpty()) {
+            // A dependency entry is a reduce/replace suggestion — "consider consolidating", "prefer
+            // dig" — that the model may rightly leave alone, and a model that changed nothing
+            // seldom echoes the id. Sending the whole script again to ask for that echo cost two
+            // full requests in a 47-item run and brought nothing the items needed. So only an
+            // unechoed improvement, or a requirement, opens the repair round — and a suggestion
+            // whose edit was dropped, since the model did try to change that one. The suggestions
+            // left alone are named in that round's request as suggestions, when one happens. An
+            // id that names an improvement counts as one even when a suggestion shares it: ids
+            // are the model's, and nothing keeps the two lists apart.
+            List<String> idsNeedingRepair = unechoedAnalysisIds.stream()
+                .filter(id -> isImprovementId(id, improvements) || containsIgnoreCase(ignoredEchoIds, id))
+                .toList();
+            List<String> suggestionsLeftAlone = unechoedAnalysisIds.stream()
+                .filter(id -> !containsIgnoreCase(idsNeedingRepair, id))
+                .toList();
+            if (missingRequirements.isEmpty() && droppedRequirements.isEmpty() && idsNeedingRepair.isEmpty()) {
+                if (!unechoedAnalysisIds.isEmpty()) {
+                    logger.info(repairAttempt
+                        ? "AI apply stage accepted with {} still not echoed after the repair attempt"
+                        : "AI apply stage accepted with dependency suggestions {} not echoed in changes[].finding; "
+                            + "a suggestion needs no change and gets no repair round",
+                        unechoedAnalysisIds);
+                }
+            } else {
                 if (!repairAttempt) {
                     logger.warn("AI apply stage result kept, but {}; one repair attempt on the result asks for the rest",
                         describeMissingWork(missingRequirements, droppedRequirements, unechoedAnalysisIds));
@@ -1199,7 +1227,8 @@ public final class SnippetAiWorkflowSupport {
                     repairReason = StageRepairReason.MISSING_REQUIREMENTS;
                     requirementsNeedingRepair = missingRequirements;
                     requirementsNeedingRestore = droppedRequirements;
-                    analysisIdsNeedingRepair = unechoedAnalysisIds;
+                    analysisIdsNeedingRepair = idsNeedingRepair;
+                    suggestionIdsToConsider = suggestionsLeftAlone;
                     echoOnlyRepairFallback =
                         missingRequirements.isEmpty() && droppedRequirements.isEmpty() ? fix : null;
                     continue;
@@ -1240,7 +1269,15 @@ public final class SnippetAiWorkflowSupport {
      * applied locally, then checked exactly like a returned script. {@code null} when the answer
      * carries no usable edits or their ranges cannot be trusted.
      */
-    private static SnippetAiResponseSupport.SnippetSecurityFix fixFromEdits(String content, AiExecutionResult result) {
+    /**
+     * An edit-mode answer as the stage sees it: the fix, plus the ids of the items whose echo was
+     * ignored because the edit it was anchored in was dropped — the model did try to change
+     * those, so they belong in the repair round even when they are dependency suggestions.
+     */
+    private record StageAnswer(SnippetAiResponseSupport.SnippetSecurityFix fix, List<String> ignoredEchoIds) {
+    }
+
+    private static StageAnswer fixFromEdits(String content, AiExecutionResult result) {
         String answer = result != null && result.content() != null ? result.content() : "";
         SnippetAiResponseSupport.SnippetEdits edits = SnippetAiResponseSupport.parseSnippetEdits(answer, content);
         if (edits.recoveredFromBrokenJson()) {
@@ -1279,6 +1316,7 @@ public final class SnippetAiWorkflowSupport {
             return null;
         }
         List<SnippetAiResponseSupport.SecurityChange> changes = edits.changes();
+        List<String> ignoredEchoIds = List.of();
         if (!applied.dropped().isEmpty()) {
             // The stage goes on with what could be applied; the repair round below asks for the
             // items the dropped edits were meant to cover, instead of the whole stage failing.
@@ -1304,6 +1342,7 @@ public final class SnippetAiWorkflowSupport {
                 logger.warn("AI apply stage ignores the echo of {}: anchored in a dropped edit; the repair round asks for them",
                     unanchored);
                 changes = anchored;
+                ignoredEchoIds = List.copyOf(unanchored);
             }
             logger.warn("AI apply stage left {} of {} edit(s) out: {}", applied.dropped().size(),
                 edits.edits().size(), applied.dropped());
@@ -1318,8 +1357,10 @@ public final class SnippetAiWorkflowSupport {
         }
         logger.info("AI apply stage applied {} edit(s) covering {} original line(s) of {} [answer chars={}]",
             applied.applied().size(), editedLines, SnippetDiagramSupport.countLines(content), answer.length());
-        return new SnippetAiResponseSupport.SnippetSecurityFix(
-            applied.replacement(), edits.summary(), changes, edits.implementedRequirements());
+        return new StageAnswer(
+            new SnippetAiResponseSupport.SnippetSecurityFix(
+                applied.replacement(), edits.summary(), changes, edits.implementedRequirements()),
+            ignoredEchoIds);
     }
 
     private static boolean isIncompleteStagedReplacement(String original, String replacement) {
@@ -2200,6 +2241,7 @@ public final class SnippetAiWorkflowSupport {
         List<MandatoryRequirement> requirementsNeedingRepair,
         List<MandatoryRequirement> requirementsNeedingRestore,
         List<String> analysisIdsNeedingRepair,
+        List<String> suggestionIdsToConsider,
         String stageContent) {
 
         StringBuilder items = new StringBuilder();
@@ -2257,7 +2299,8 @@ public final class SnippetAiWorkflowSupport {
                 ? "The preceding attempt for this same stage was discarded because it returned an empty or severely collapsed script. This is the single repair attempt: copy the complete input into replacementLines, one source line per array entry, then make only the current requested change. Do not close the JSON object after the header or a partial function.\n"
                 : "")
             .append(missingWorkRepairParagraph(
-                repairReason, requirementsNeedingRepair, requirementsNeedingRestore, analysisIdsNeedingRepair))
+                repairReason, requirementsNeedingRepair, requirementsNeedingRestore, analysisIdsNeedingRepair,
+                suggestionIdsToConsider))
             .append("Selected analysis items to apply (echo each id in changes[].finding):\n")
             .append(AiPromptBuilder.toSafeTextCodeBlock(items.toString().strip()));
         if (mandatoryRequirements != null && !mandatoryRequirements.isEmpty()) {
@@ -2341,7 +2384,8 @@ public final class SnippetAiWorkflowSupport {
         StageRepairReason repairReason,
         List<MandatoryRequirement> requirementsNeedingRepair,
         List<MandatoryRequirement> requirementsNeedingRestore,
-        List<String> analysisIdsNeedingRepair) {
+        List<String> analysisIdsNeedingRepair,
+        List<String> suggestionIdsToConsider) {
 
         if (repairReason != StageRepairReason.MISSING_REQUIREMENTS) {
             return "";
@@ -2374,15 +2418,30 @@ public final class SnippetAiWorkflowSupport {
                 .append(sanitizedIds)
                 .append(". Apply each of these items and echo its id in changes[].finding.");
         }
+        String sanitizedSuggestions = suggestionIdsToConsider.stream()
+            .map(SnippetAiWorkflowSupport::sanitizedPromptId)
+            .filter(id -> !id.isBlank())
+            .collect(Collectors.joining(", "));
+        if (!sanitizedSuggestions.isEmpty()) {
+            // Not an order to apply: a suggestion the model rightly left alone must not be
+            // pushed into the code by the round another item opened.
+            paragraph.append(" Dependency suggestions not echoed either: ")
+                .append(sanitizedSuggestions)
+                .append(". Implement a suggestion where it applies and echo its id; where the code is better "
+                    + "left as it is, leave it and do not echo the id.");
+        }
         paragraph.append('\n');
         return paragraph.toString();
     }
 
     /**
-     * Batched analysis stages ask the model to echo every applied item id in changes[].finding. Ids
-     * missing from that echo trigger the stage's single targeted repair attempt. Single-item stages
-     * keep the pre-batching contract (no echo verification), and a batch item that stays unechoed
-     * after the repair attempt is accepted rather than failed — see the caller.
+     * Batched analysis stages ask the model to echo every applied item id in changes[].finding. An
+     * improvement id missing from that echo triggers the stage's single targeted repair attempt; a
+     * dependency suggestion's id does not, since a suggestion may rightly leave the code alone —
+     * unless its edit was dropped, which shows the model did try — and is otherwise only named in
+     * a repair round another cause opens. Single-item stages keep the
+     * pre-batching contract (no echo verification), and a batch item that stays unechoed after
+     * the repair attempt is accepted rather than failed — see the caller.
      */
     private static List<String> unechoedAnalysisItemIds(
         SnippetAiResponseSupport.SnippetSecurityFix fix,
@@ -2411,6 +2470,15 @@ public final class SnippetAiWorkflowSupport {
             }
         }
         return List.copyOf(missing);
+    }
+
+    private static boolean isImprovementId(String id, List<SnippetAiResponseSupport.ScriptImprovement> improvements) {
+        return improvements != null && improvements.stream()
+            .anyMatch(improvement -> improvement.id() != null && improvement.id().equalsIgnoreCase(id));
+    }
+
+    private static boolean containsIgnoreCase(List<String> ids, String id) {
+        return ids.stream().anyMatch(candidate -> candidate != null && candidate.equalsIgnoreCase(id));
     }
 
     private static boolean changeCoversAnalysisId(String finding, String id) {
