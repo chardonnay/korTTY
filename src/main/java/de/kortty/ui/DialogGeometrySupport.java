@@ -58,6 +58,9 @@ public final class DialogGeometrySupport {
     /** Prevents repeated theme application from installing duplicate event handlers. */
     private static final String AUTOMATIC_INSTALLED_KEY = "kortty.dialogGeometry.automaticInstalled";
 
+    /** Set when another party places the window: the stored geometry is then not applied on show. */
+    private static final String SUPPRESS_RESTORE_KEY = "kortty.dialogGeometry.suppressRestore";
+
     private DialogGeometrySupport() {
     }
 
@@ -83,7 +86,7 @@ public final class DialogGeometrySupport {
             if (!(window instanceof Stage stage)) {
                 return;
             }
-            if (usable != null) {
+            if (usable != null && !isRestoreSuppressed(dialog)) {
                 if (sizeStillValid) {
                     stage.setWidth(usable.getWidth());
                     stage.setHeight(usable.getHeight());
@@ -93,6 +96,20 @@ public final class DialogGeometrySupport {
             }
             track(dialog, stage);
         });
+    }
+
+    /**
+     * Keeps a stored geometry from being applied when the dialog is shown, while the tracking that
+     * {@link #capture} and {@link #persist} rely on stays in place. For a dialog that a dock places
+     * the moment it opens: the stored free geometry and the dock's placement are two sizes written
+     * to one window in the same pulse, and the docked window only needs the dock's.
+     */
+    public static void suppressRestore(Dialog<?> dialog) {
+        dialog.getDialogPane().getProperties().put(SUPPRESS_RESTORE_KEY, Boolean.TRUE);
+    }
+
+    private static boolean isRestoreSuppressed(Dialog<?> dialog) {
+        return Boolean.TRUE.equals(dialog.getDialogPane().getProperties().get(SUPPRESS_RESTORE_KEY));
     }
 
     /**

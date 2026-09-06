@@ -272,6 +272,12 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
      */
     public void setDockedWidthOnly(boolean dockedWidthOnly) {
         this.dockedWidthOnly = dockedWidthOnly;
+        if (dockedWidthOnly) {
+            // The constructor arranged for the stored free geometry to be applied on show; docked,
+            // the dock places the window in that same pulse, and two sizes written to one window
+            // at once is how a scene ends up narrower than its window.
+            DialogGeometrySupport.suppressRestore(this);
+        }
     }
 
     private Double movedSummaryDividerPosition() {

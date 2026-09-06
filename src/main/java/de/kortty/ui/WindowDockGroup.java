@@ -61,6 +61,27 @@ public final class WindowDockGroup {
     private static final double UNDOCK_TOLERANCE = 24;
 
     /**
+     * How much wider than its scene a docked window may be before the scene counts as stale: the
+     * widest decorated-window border of any platform, with room to spare.
+     */
+    static final double SCENE_LAG_TOLERANCE = 24;
+
+    /** How much taller than its scene a docked window may be: the tallest decorated title bar, with room. */
+    static final double SCENE_HEIGHT_LAG_TOLERANCE = 64;
+
+    /** How long after the group's own size write the platform's report of it may still be on its way. */
+    private static final long WRITE_REPORT_NANOS = 150_000_000L;
+
+    /** The least time between two nudges of one window's size. */
+    private static final long SCENE_NUDGE_COOLDOWN_NANOS = 1_000_000_000L;
+
+    /** How long a nudged size is held before the docked size is written back. */
+    private static final double NUDGE_HOLD_MILLIS = 150;
+
+    /** How long after a size change the content is checked a second time, once the platform reported. */
+    private static final double FILL_RECHECK_MILLIS = 300;
+
+    /**
      * How long after the anchor moves a satellite move still counts as induced by it rather than by
      * a drag. Long enough for the platform to finish translating owned windows (a frame or two),
      * short enough that letting go of the anchor and grabbing a satellite is never swallowed.
@@ -110,12 +131,26 @@ public final class WindowDockGroup {
         dock.settleUntilNanos = System.nanoTime() + SATELLITE_SETTLE_NANOS;
         docks.put(satellite, dock);
         applying(() -> satellite.setWidth(dock.width));
+        dock.lastWriteNanos = System.nanoTime();
 
         dock.moveListener = (observable, oldValue, newValue) -> onSatelliteMoved(satellite);
         dock.sizeListener = (observable, oldValue, newValue) -> onSatelliteResized(satellite);
+        dock.fillListener = (observable, oldValue, newValue) -> scheduleFill(satellite);
         satellite.xProperty().addListener(dock.moveListener);
         satellite.yProperty().addListener(dock.moveListener);
         satellite.widthProperty().addListener(dock.sizeListener);
+        // The content check follows every later size change — the window's, the scene's and the
+        // root's — because the blank band was reported long after the opening second, on a window
+        // the dock re-placed when its neighbours changed.
+        satellite.widthProperty().addListener(dock.fillListener);
+        satellite.heightProperty().addListener(dock.fillListener);
+        if (satellite.getScene() != null) {
+            satellite.getScene().widthProperty().addListener(dock.fillListener);
+            satellite.getScene().heightProperty().addListener(dock.fillListener);
+            if (satellite.getScene().getRoot() != null) {
+                satellite.getScene().getRoot().layoutBoundsProperty().addListener(dock.fillListener);
+            }
+        }
         dock.hiddenHandler = event -> undock(satellite);
         satellite.addEventHandler(WindowEvent.WINDOW_HIDDEN, dock.hiddenHandler);
 
@@ -144,6 +179,12 @@ public final class WindowDockGroup {
             pause.setOnFinished(event -> reassert.run());
             pause.play();
         }
+        // Once the opening reports have stopped, the scene is checked against the window it ended
+        // up in: a dialog docked the moment it is shown keeps its own preferred scene size.
+        javafx.animation.PauseTransition afterSettling = new javafx.animation.PauseTransition(
+            javafx.util.Duration.millis(SATELLITE_SETTLE_NANOS / 1_000_000 + 100));
+        afterSettling.setOnFinished(event -> scheduleFill(satellite));
+        afterSettling.play();
     }
 
     /**
@@ -200,6 +241,7 @@ public final class WindowDockGroup {
         satellite.xProperty().removeListener(dock.moveListener);
         satellite.yProperty().removeListener(dock.moveListener);
         satellite.widthProperty().removeListener(dock.sizeListener);
+        removeFillListener(satellite, dock);
         satellite.removeEventHandler(WindowEvent.WINDOW_HIDDEN, dock.hiddenHandler);
         if (docks.isEmpty()) {
             restoreAnchorWidth();
@@ -236,6 +278,7 @@ public final class WindowDockGroup {
             }
             placeSatellites();
         });
+        List.copyOf(docks.keySet()).forEach(this::scheduleFill);
         settleAfterMovingAnchor();
     }
 
@@ -257,6 +300,7 @@ public final class WindowDockGroup {
             satellite.xProperty().removeListener(dock.moveListener);
             satellite.yProperty().removeListener(dock.moveListener);
             satellite.widthProperty().removeListener(dock.sizeListener);
+            removeFillListener(satellite, dock);
             satellite.removeEventHandler(WindowEvent.WINDOW_HIDDEN, dock.hiddenHandler);
         }
         docks.clear();
@@ -328,6 +372,7 @@ public final class WindowDockGroup {
             return;
         }
         applying(this::placeSatellites);
+        List.copyOf(docks.keySet()).forEach(this::scheduleFill);
     }
 
     private void placeSatellites() {
@@ -346,6 +391,58 @@ public final class WindowDockGroup {
             satellite.setX(target.getMinX());
             satellite.setY(target.getMinY());
             dock.positioned = true;
+            dock.lastWriteNanos = System.nanoTime();
+        }
+    }
+
+    /**
+     * Runs the content check on the next pulse, once, however many size notifications arrive in
+     * between — and again a moment later, since the platform's own report of a programmatic resize
+     * lands after the pulse that requested it.
+     */
+    private void scheduleFill(Stage satellite) {
+        Dock dock = docks.get(satellite);
+        if (disposed || applying || dock == null) {
+            // Our own size writes fire the listeners synchronously; the platform's reports and the
+            // explicit call after a placement are what the check is for.
+            return;
+        }
+        Runnable check = () -> {
+            if (!disposed && docks.containsKey(satellite) && satellite.isShowing()) {
+                fillWindowWithContent(satellite);
+            }
+        };
+        if (!dock.fillPending) {
+            dock.fillPending = true;
+            Platform.runLater(() -> {
+                dock.fillPending = false;
+                check.run();
+            });
+        }
+        if (!dock.delayedFillPending) {
+            dock.delayedFillPending = true;
+            javafx.animation.PauseTransition later =
+                new javafx.animation.PauseTransition(javafx.util.Duration.millis(FILL_RECHECK_MILLIS));
+            later.setOnFinished(event -> {
+                dock.delayedFillPending = false;
+                check.run();
+            });
+            later.play();
+        }
+    }
+
+    private static void removeFillListener(Stage satellite, Dock dock) {
+        if (dock.fillListener == null) {
+            return;
+        }
+        satellite.widthProperty().removeListener(dock.fillListener);
+        satellite.heightProperty().removeListener(dock.fillListener);
+        if (satellite.getScene() != null) {
+            satellite.getScene().widthProperty().removeListener(dock.fillListener);
+            satellite.getScene().heightProperty().removeListener(dock.fillListener);
+            if (satellite.getScene().getRoot() != null) {
+                satellite.getScene().getRoot().layoutBoundsProperty().removeListener(dock.fillListener);
+            }
         }
     }
 
@@ -415,10 +512,66 @@ public final class WindowDockGroup {
      * programmatic resize does not always deliver. Cheap and idempotent: when the two already
      * agree, which is the normal case, nothing happens.
      */
-    private static void fillWindowWithContent(Stage satellite) {
+    private void fillWindowWithContent(Stage satellite) {
         Scene scene = satellite.getScene();
         Parent root = scene != null ? scene.getRoot() : null;
-        if (root == null || scene.getWidth() <= 0 || scene.getHeight() <= 0) {
+        Dock dock = docks.get(satellite);
+        if (root == null || dock == null || scene.getWidth() <= 0 || scene.getHeight() <= 0
+                || satellite.isIconified()) {
+            return;
+        }
+        // The scene itself can stop following the window. Seen on a dialog docked the moment it is
+        // shown: the window took the dock's size, the scene kept the dialog's own preferred size
+        // (700x400 inside a 620x668 window), and every re-assertion of the same size was a no-op
+        // that gave the platform nothing to report. The content ends where the scene ends and the
+        // rest of the window is bare. A decorated window is only a border wider and a title bar
+        // taller than its scene; anything beyond that, once the platform has had time to report
+        // the group's own last write, is a stale scene, and a one-pixel nudge to a new size — one
+        // per second at most, so a nudge that changed nothing never becomes a loop — is what makes
+        // the platform report the size afresh.
+        double widthLag = Math.abs(satellite.getWidth() - scene.getWidth());
+        double heightLag = satellite.getHeight() - scene.getHeight();
+        boolean sceneStale = widthLag > SCENE_LAG_TOLERANCE
+            || heightLag > SCENE_HEIGHT_LAG_TOLERANCE || heightLag < -1;
+        if (sceneStale) {
+            if (dock.isSettling() || System.nanoTime() - dock.lastWriteNanos < WRITE_REPORT_NANOS) {
+                // The platform's report may still be on its way, and while the window's own
+                // opening reports arrive a nudge would only add to what it has to sort out. The
+                // delayed check of the same schedule, and the one that ends the settle period,
+                // look again; re-scheduling from here fed the event queue a check per pulse.
+                return;
+            }
+            if (System.nanoTime() - dock.lastNudgeNanos < SCENE_NUDGE_COOLDOWN_NANOS) {
+                return;
+            }
+            dock.lastNudgeNanos = System.nanoTime();
+            double width = satellite.getWidth();
+            double height = satellite.getHeight();
+            logger.warn("Docked window scene did not follow its window ({}x{} scene inside a {}x{} window); "
+                + "asking the platform for its size again.",
+                Math.round(scene.getWidth()), Math.round(scene.getHeight()),
+                Math.round(width), Math.round(height));
+            applying(() -> {
+                satellite.setWidth(width + 1);
+                satellite.setHeight(height + 1);
+            });
+            dock.lastWriteNanos = System.nanoTime();
+            // Held for a moment: two writes in one pulse reach the platform as no change at all.
+            javafx.animation.PauseTransition hold = new javafx.animation.PauseTransition(javafx.util.Duration.millis(NUDGE_HOLD_MILLIS));
+            hold.setOnFinished(event -> {
+                if (!disposed && docks.containsKey(satellite) && satellite.isShowing()) {
+                    logger.info("Docked window scene after the nudge: {}x{} inside {}x{}",
+                        Math.round(satellite.getScene().getWidth()), Math.round(satellite.getScene().getHeight()),
+                        Math.round(satellite.getWidth()), Math.round(satellite.getHeight()));
+                    applying(() -> {
+                        satellite.setWidth(width);
+                        satellite.setHeight(height);
+                    });
+                    dock.lastWriteNanos = System.nanoTime();
+                    scheduleFill(satellite);
+                }
+            });
+            hold.play();
             return;
         }
         double widthGap = scene.getWidth() - root.getLayoutBounds().getWidth();
@@ -537,8 +690,13 @@ public final class WindowDockGroup {
         private double width;
         private ChangeListener<Number> moveListener;
         private ChangeListener<Number> sizeListener;
+        private ChangeListener<Object> fillListener;
         private javafx.event.EventHandler<WindowEvent> hiddenHandler;
         private boolean positioned;
+        private boolean fillPending;
+        private boolean delayedFillPending;
+        private long lastWriteNanos;
+        private long lastNudgeNanos;
         private long settleUntilNanos;
 
         private Dock(Side side, double width) {
