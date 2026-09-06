@@ -1624,6 +1624,8 @@ class SnippetAiWorkflowSupportTest {
         assertThat(aiService.requests).hasSize(2);
         assertThat(aiService.requests.get(1).conversationContext()).contains("contained no edit that could be applied");
         assertThat(aiService.requests.get(1).conversationContext()).contains("| echo step 1\n");
+        // The line-numbered block used %n, so on Windows the whole prompt went out as CRLF.
+        assertThat(aiService.requests.get(1).conversationContext()).doesNotContain("\r");
         assertThat(fix.replacement()).contains("echo step 1 hardened");
         assertThat(fix.replacement()).contains("echo step 500");
     }
