@@ -153,6 +153,7 @@ public final class SnippetAiDialogsSmoke {
                 de.kortty.core.SnippetDiagramSupport.buildFallbackLogicalStructureMermaid("print 'x';\n", "perl"),
                 "print 'x';\n", java.util.List.of()));
         verifyPendingDiagramSourcesAreCancelled();
+        verifyDiagramZoomSliderAndButtonsStayInStep();
         List<de.kortty.model.AiSkill> analysisSkills = List.of(
             smokeSkill("skill-bash", "Bash hardening", "Adds strict mode, traps and safe expansions"),
             smokeSkill("skill-posix", "POSIX portability", "Prefers POSIX-compliant constructs"));
@@ -326,6 +327,72 @@ public final class SnippetAiDialogsSmoke {
             }
         });
         pause.play();
+    }
+
+    /**
+     * The zoom slider and the −/+/Fit buttons drive one value, so whichever the user reaches for,
+     * the other follows. The track is powers of two with the fitted size in the middle.
+     */
+    private static void verifyDiagramZoomSliderAndButtonsStayInStep() {
+        SnippetDiagramView view = new SnippetDiagramView(CompletableFuture::new, false);
+        javafx.scene.control.Slider slider = view.zoomSlider();
+        Button zoomIn = findButtonByText(view, "+");
+        Button zoomOut = findButtonByText(view, "−");
+        Button zoomFit = findButtonByText(view, I18n.get("snippets.ai.diagram.zoom.fit"));
+
+        requireZoom("the fitted size does not start in the middle of the track", view, slider, 1.0, 0.0);
+
+        zoomIn.fire();
+        requireZoom("the + button did not move the slider", view, slider, 1.15,
+            Math.log(1.15) / Math.log(2.0));
+        zoomOut.fire();
+        requireZoom("the − button did not move the slider back", view, slider, 1.0, 0.0);
+
+        // One step right doubles, one step left halves.
+        slider.setValue(1.0);
+        requireZoom("a step right on the slider did not double the zoom", view, slider, 2.0, 1.0);
+        slider.setValue(-1.0);
+        requireZoom("a step left on the slider did not halve the zoom", view, slider, 0.5, -1.0);
+
+        zoomFit.fire();
+        requireZoom("Fit did not return the slider to the middle", view, slider, 1.0, 0.0);
+
+        // Past the ends the factor is pinned and the knob sits on the end it is pinned to.
+        for (int press = 0; press < 40; press++) {
+            zoomIn.fire();
+        }
+        requireZoom("the slider ran past the maximum zoom", view, slider, 4.0, slider.getMax());
+        for (int press = 0; press < 60; press++) {
+            zoomOut.fire();
+        }
+        requireZoom("the slider ran past the minimum zoom", view, slider, 0.25, slider.getMin());
+        view.dispose();
+    }
+
+    private static void requireZoom(
+        String message, SnippetDiagramView view, javafx.scene.control.Slider slider,
+        double expectedFactor, double expectedSliderValue) {
+
+        if (Math.abs(view.zoomFactor() - expectedFactor) > 1e-6
+                || Math.abs(slider.getValue() - expectedSliderValue) > 1e-6) {
+            throw new AssertionError(message + " (factor " + view.zoomFactor() + " expected " + expectedFactor
+                + ", slider " + slider.getValue() + " expected " + expectedSliderValue + ")");
+        }
+    }
+
+    private static Button findButtonByText(javafx.scene.Parent parent, String text) {
+        for (Node child : parent.getChildrenUnmodifiable()) {
+            if (child instanceof Button button && text.equals(button.getText())) {
+                return button;
+            }
+            if (child instanceof javafx.scene.Parent nested) {
+                Button found = findButtonByText(nested, text);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
 
     /** Test-double futures prove Regenerate and close cancel superseded diagram-source work. */
