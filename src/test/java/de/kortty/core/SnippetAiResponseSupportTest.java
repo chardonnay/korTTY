@@ -691,6 +691,29 @@ class SnippetAiResponseSupportTest {
     }
 
     @Test
+    void parseMermaidDiagramReadsAValueWhoseLineBreaksWereEscapedTwice() {
+        // gpt-oss-120b answered with valid JSON, but every newline of the mermaid value carried
+        // two backslashes, so the diagram decoded to one line and was refused for its header.
+        SnippetAiResponseSupport.MermaidDiagram diagram =
+            SnippetAiResponseSupport.parseMermaidDiagram("""
+            {
+              "title": "Escaped",
+              "mermaid": "flowchart TD\\\\nstart_1([\\"Start\\"])\\\\nwork_1[\\"Run snippet\\"]\\\\nstop_1([\\"Stop\\"])\\\\nstart_1 --> work_1\\\\nwork_1 --> stop_1",
+              "codeReferences": [
+                { "nodeId": "work_1", "label": "Run snippet", "startLine": 2, "endLine": 4 }
+              ]
+            }
+            """);
+
+        assertThat(diagram.isUsable()).isTrue();
+        assertThat(diagram.rejectionReason()).isNull();
+        assertThat(diagram.mermaid()).startsWith("flowchart TD\n");
+        assertThat(diagram.mermaid()).contains("work_1 --> stop_1");
+        assertThat(diagram.codeReferences()).containsExactly(
+            new SnippetDiagramSupport.SourceCodeReference("work_1", "Run snippet", 2, 4));
+    }
+
+    @Test
     void parseMermaidDiagramDropsClassDefinitionsInsteadOfRejectingTheDiagram() {
         // Told to assign four semantic classes, MiniMax-M3 "defined" them with colors as well.
         SnippetAiResponseSupport.MermaidDiagram diagram =
