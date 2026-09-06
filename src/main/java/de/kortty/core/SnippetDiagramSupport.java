@@ -140,6 +140,8 @@ public final class SnippetDiagramSupport {
     /** Pure presentation statements a model adds to "define" the semantic classes it was told to assign. */
     private static final Pattern PRESENTATION_STATEMENT_PATTERN = Pattern.compile(
         "(?i)^\\s*(?:classDef|style|linkStyle)\\b");
+    /** A line break of the mermaid value that survived JSON decoding as the two characters \\n. */
+    private static final Pattern ESCAPED_LINE_BREAK_PATTERN = Pattern.compile("(?:\\\\r)?\\\\n");
     /** The same statements inside a raw answer, whose line breaks may still be JSON-escaped. */
     private static final Pattern PRESENTATION_STATEMENT_IN_ANSWER_PATTERN = Pattern.compile(
         "(?i)(?:^|\\n|\\\\n)\\s*(?:classDef|style|linkStyle)\\b");
@@ -343,8 +345,9 @@ public final class SnippetDiagramSupport {
         if (source == null || source.isBlank()) {
             return source != null ? source : "";
         }
-        StringBuilder kept = new StringBuilder(source.length());
-        for (String line : source.split("\\R", -1)) {
+        String value = restoreEscapedLineBreaks(source);
+        StringBuilder kept = new StringBuilder(value.length());
+        for (String line : value.split("\\R", -1)) {
             if (PRESENTATION_STATEMENT_PATTERN.matcher(line).find()) {
                 continue;
             }
@@ -434,14 +437,38 @@ public final class SnippetDiagramSupport {
         return savedHash != null && !savedHash.isBlank() && !savedHash.equals(contentHash(currentContent));
     }
 
-    /** Removes only an optional Mermaid code fence; it never repairs or broadens invalid syntax. */
+    /**
+     * Removes an optional Mermaid code fence and restores line breaks a model escaped twice; it
+     * never repairs or broadens invalid syntax.
+     */
     public static String normalizeMermaid(String source) {
         String value = source != null ? source.trim() : "";
         if (value.isBlank()) {
             return "";
         }
         Matcher fence = Pattern.compile("(?is)^```mermaid\\s*\\R(.*?)\\R?```$").matcher(value);
-        return fence.matches() ? fence.group(1).trim() : value;
+        return restoreEscapedLineBreaks(fence.matches() ? fence.group(1).trim() : value);
+    }
+
+    /**
+     * Turns a diagram that arrived as a single line of literal {@code \n} sequences back into
+     * lines. A model that escapes the newlines of its mermaid value twice ("flowchart
+     * TD\\nstart_1(…)") still answers with valid JSON, but the value decodes to one line and every
+     * family's header check then refused a complete, correct diagram. No diagram korTTY accepts is
+     * a single line, so those sequences can only be the line breaks; a source that carries any
+     * real line break is left exactly as written.
+     */
+    static String restoreEscapedLineBreaks(String source) {
+        String value = source != null ? source : "";
+        if (value.isEmpty() || value.indexOf('\n') >= 0 || value.indexOf('\r') >= 0) {
+            return value;
+        }
+        Matcher escaped = ESCAPED_LINE_BREAK_PATTERN.matcher(value);
+        int breaks = 0;
+        while (escaped.find()) {
+            breaks++;
+        }
+        return breaks >= 2 ? ESCAPED_LINE_BREAK_PATTERN.matcher(value).replaceAll("\n") : value;
     }
 
     public static boolean isRenderableMermaid(String source) {

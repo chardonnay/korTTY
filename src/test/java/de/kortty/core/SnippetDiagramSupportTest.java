@@ -55,6 +55,24 @@ class SnippetDiagramSupportTest {
     }
 
     @Test
+    void normalizeMermaidRestoresLineBreaksAModelEscapedTwice() {
+        // gpt-oss-120b escaped the newlines of its mermaid value twice, so the JSON decoded to a
+        // single line and the header check refused a complete diagram.
+        String escaped = "flowchart TD\\nstart_1([\"Start\"])\\nstop_1([\"Stop\"])\\nstart_1 --> stop_1";
+        assertThat(SnippetDiagramSupport.normalizeMermaid(escaped)).isEqualTo("""
+            flowchart TD
+            start_1(["Start"])
+            stop_1(["Stop"])
+            start_1 --> stop_1""");
+        // A source that already has line breaks keeps every character, escape sequences included.
+        String written = "flowchart TD\nwork_1[\"Prints \\n at the end\"]\nstart_1 --> work_1";
+        assertThat(SnippetDiagramSupport.normalizeMermaid(written)).isEqualTo(written);
+        // A lone sequence is not a diagram's worth of line breaks.
+        assertThat(SnippetDiagramSupport.normalizeMermaid("flowchart TD\\nstart_1"))
+            .isEqualTo("flowchart TD\\nstart_1");
+    }
+
+    @Test
     void fallbackUsesStableIdsQuotedLabelsAndSemanticClasses() {
         String content = """
             BACKUP_DIR="/backup"
