@@ -11,6 +11,51 @@ This file is not part of the documentation site — it is neither published nor 
 Releases older than the ones below are recorded in `RELEASE_NOTES.adoc` next to this file, and
 every version is also listed on the [GitHub releases page](https://github.com/chardonnay/korTTY/releases).
 
+## v2.15.0
+
+### Appearance
+
+- **Main windows now reopen at their remembered position on macOS** — the native unified title bar could move a window after korTTY restored its saved bounds, making every restart appear lower even though the new position had been stored. korTTY now reapplies normal bounds after the native window is ready and also recovers main-window positions left on a disconnected monitor.
+- **Every user-resizable application window now remembers its geometry** — main windows and named dialogs persist their position and size separately, tool tabs continue to follow their main window, and a dialog moved onto a disconnected monitor is recovered onto an available screen.
+- **The German JobScheduler interface is now fully localized** — its tabs, fields, action and status names, target and remote-data selectors, security prompts, journal controls, validation messages and errors no longer mix German menus with English dialog content.
+- **All seven AtlantaFX application designs** — the Appearance tab now places AtlantaFX 2.1.0's Primer Dark, Primer Light, Nord Dark, Nord Light, Cupertino Dark, Cupertino Light and Dracula themes at the top of the design list. New installations start with Primer Dark, existing selections are not migrated, switching to a non-AtlantaFX design restores Modena explicitly, and open windows, dialogs and popups update immediately while terminal, Monaco, journal and chat colors remain independent.
+
+### AI assistant
+
+- **AI chat PDF exports preserve symbols and emoji** — Unicode characters such as check marks, stars, smileys and icons are now rendered with embedded fallback fonts instead of being replaced with question marks, and remain searchable text in the PDF.
+
+### Terminal
+
+- **The Terminal Effects manager window can now be resized** — expanding the window gives the plugin names and descriptions more room while preserving the live preview; installations that open tool windows as tabs continue to use the available main-window area.
+
+### Packaging
+
+- **Windows ARM no longer opens blank windows under x64 emulation** — korTTY now detects an x64 JavaFX runtime running on ARM64 Windows and selects the reliable software renderer before JavaFX starts. Native Windows x64 installations retain hardware rendering.
+- **Native Flatpak bundles for Intel/AMD and ARM Linux** — GitHub releases now provide `.flatpak` bundles for `x86_64` and `aarch64`. A Flatpak installation stays on the Flatpak update path, verifies the downloaded GitHub asset and shows the host-terminal installation command instead of offering an incompatible distro package. Local shells and their AI-agent commands run on the host through `flatpak-spawn`.
+- **Pacman packages for Arch Linux and Arch Linux ARM** — release builds now package and verify both `x86_64` and `aarch64` application images. A guarded Pacman-only backfill can first produce inspection artifacts and later publish collision-free signed packages without replacing older release assets.
+- **Every korTTY package now identifies the application licence as MIT** — the Arch package previously declared Apache-2.0 even though korTTY's repository licence is MIT. Arch and RPM metadata now declare MIT, and every Java, native and Flatpak artifact contains the canonical licence file; third-party licences remain unchanged.
+
+## v2.14.0
+
+### Snippets
+
+- **Four new AI diagram types** — besides the logical-structure flowchart, the snippet editor can now generate **sequence**, **state**, **class**, and **ER** diagrams. Each family uses its own compact, safety-restricted Mermaid dialect and its own built-in quality skill, and renders in the bundled offline Mermaid renderer as before. See [Mermaid diagrams](../features/snippets.md#mermaid-diagrams).
+- **Several diagrams per snippet** — a snippet now stores any number of diagrams. The diagram window lists them with family, title, and line range, offers **New diagram** with a type choice, and can **Delete** a selected diagram; **Regenerate** keeps each diagram's family and scope.
+- **Diagram from a selection** — select part of a script and pick a diagram type from the editor's new **Generate diagram** context submenu to diagram just those lines. The diagram remembers the line range, its code references point at the real snippet lines, and regeneration re-reads the same lines.
+- **Diagrams no longer fail on thinking models** — the diagram request's output budget covered the model's hidden reasoning as well, so a reasoning model could use up the whole budget before writing a single character of the diagram, and generation failed after minutes of work. The budget now leaves room for that reasoning, and a response that is still cut off says so instead of reporting a generic failure.
+
+### AI assistant
+
+- **AI code actions no longer translate your script's comments** — every action that rewrites code used to force the snippet's comments, messages, log lines and help text into the configured **Text language**, which defaults to korTTY's own interface language. Running korTTY in German and applying a [Full code analysis](../features/snippets.md#ai-code-actions) result to an English script therefore translated the whole file's prose, without asking. korTTY now keeps the language the script is already written in and only writes new text to match. Translating is still available — select a language under **Text language** — but it is now something you ask for. Where korTTY cannot tell which language a script uses, because there is too little text or the comments mix languages, it asks once per snippet instead of guessing. This applies to Full code analysis, security fixes, the improve and assist actions, alternatives, one-liners and code completion.
+- **The [Full code analysis](../features/snippets.md#ai-code-actions) review preview no longer freezes korTTY** — while the preview of a finished run was open, no terminal session accepted input and the processing window beside it could not even be scrolled, because the preview blocked the whole application. It no longer does: your sessions keep running and you can read what the run did while you review its result. Since the snippet can now be edited during the review, korTTY checks before applying that the editor still holds the text the result came from, and refuses rather than overwriting newer edits.
+- **The analysis, processing and preview windows now dock into one surface** — the review preview attaches to the free side of the [Full code analysis](../features/snippets.md#ai-code-actions) window and the AI-processing window to the other, both matching its height and following it as it moves. korTTY makes room by sliding the analysis window, and narrows it only when all three cannot fit side by side. Each docked window can be resized and its width is remembered; dragging one away detaches it, and **Arrange windows** lays all three out again.
+- **The processing window now stays open with a run summary** — it used to disappear together with the preview, taking the numbers with it. It now remains, reporting the run's duration, the prompt/completion/total token usage, the AI profile used, how many work items completed and how many repair attempts were needed, with **Copy summary** and **Show preview again**. Closing the analysis window clears the group.
+- **New category icons in the analysis report** — Security, Optimization, Design and Dependencies are marked by a padlock, a gauge, stacked layers and a module hexagon. The previous set was hard to read at a glance; "Design" in particular was a water drop, which said nothing about code structure. The same icons are used in the report, the processing checklist, the review preview's explanation cards and the exported HTML and PDF.
+
+### Terminal
+
+- **Open in Snippet Editor no longer resolves the wrong path after a user switch** — after switching identity inside a session, with `su - root` for example, or an `ssh` typed into a local shell, the context-menu entry resolved a selected file name against the original login's directories and loaded nothing, or a wrong same-named file. The entry is now greyed out while the session runs as a different identity and re-enables on its own once the prompt shows the original user again. See [Local shell tabs](../features/terminal.md#local-shell-tabs).
+
 ## v2.13.1
 
 ### AI assistant
