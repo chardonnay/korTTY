@@ -190,7 +190,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
 
         titleLabel.setStyle("-fx-font-size: 1.2308em; -fx-font-weight: bold;");
         subtitleLabel.setWrapText(true);
-        subtitleLabel.setStyle("-fx-font-size: 0.9231em; -fx-text-fill: -fx-text-inner-color;");
+        subtitleLabel.setStyle("-fx-font-size: 0.9231em; " + MutedTextStyle.MUTED);
         illustrationHolder.setMinSize(96, 96);
         illustrationHolder.setPrefSize(96, 96);
 
@@ -364,7 +364,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
             case TEST_FINISH -> {
                 testPassedOrSkipped = false;
                 testStatusLabel.setText("");
-                testStatusLabel.setStyle("-fx-text-fill: -fx-text-inner-color;");
+                testStatusLabel.setStyle(MutedTextStyle.MUTED);
             }
             default -> { }
         }
@@ -774,7 +774,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         loadButton.setOnAction(e -> loadServerModels());
         serverModelStatus = new Label();
         serverModelStatus.setWrapText(true);
-        serverModelStatus.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
+        serverModelStatus.setStyle(MutedTextStyle.HINT);
         serverModelToggle.selectedToggleProperty().addListener((o, a, b) -> {
             refreshReasoningLevels();
             updateButtons();
@@ -1104,7 +1104,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         skip.setOnAction(e -> {
             testPassedOrSkipped = true;
             testStatusLabel.setText(I18n.get("ai.wizard.test.skipped"));
-            testStatusLabel.setStyle("-fx-text-fill: -fx-text-inner-color;");
+            testStatusLabel.setStyle(MutedTextStyle.MUTED);
             illustrationHolder.getChildren().setAll(WizardIllustrations.forKey("success"));
             updateButtons();
         });
@@ -1159,7 +1159,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         testProgress.setVisible(true);
         testProgress.setManaged(true);
         testStatusLabel.setText(I18n.get("ai.wizard.test.running"));
-        testStatusLabel.setStyle("-fx-text-fill: -fx-text-inner-color;");
+        testStatusLabel.setStyle(MutedTextStyle.MUTED);
         updateButtons();
 
         CompletableFuture

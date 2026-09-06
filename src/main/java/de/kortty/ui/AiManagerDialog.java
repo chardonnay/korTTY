@@ -59,7 +59,6 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
@@ -247,7 +246,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         VBox.setVgrow(tabPane, Priority.ALWAYS);
 
         statusLabel.setWrapText(true);
-        statusLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
+        statusLabel.setStyle(MutedTextStyle.HINT);
 
         getDialogPane().setContent(root);
         getDialogPane().setPrefSize(980, 640);
@@ -309,11 +308,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
                     : "";
                 setText(profileListDisplayName(item) + managedSuffix + "\n" + buildAiProfileUsageInline(item));
                 AiTokenWarningLevel warningLevel = AiTokenUsageManager.refreshUsage(item).warningLevel();
-                setTextFill(switch (warningLevel) {
-                    case YELLOW -> Color.web("#b7791f");
-                    case RED -> Color.web("#c53030");
-                    case NONE -> Color.web("#111111");
-                });
+                // Only a budget warning overrides the colour; an unremarkable profile keeps the
+                // theme's own cell text fill, which stays readable on dark and light chrome alike.
+                setStyle(AiTokenWarningStyle.listCellStyle(warningLevel));
             }
         });
         listView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
@@ -477,7 +474,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         cliCustomModelField.textProperty().addListener((obs, oldValue, newValue) ->
             refreshReasoningOptions(reasoningCombo.getValue()));
         cliStatusLabel.setWrapText(true);
-        cliStatusLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
+        cliStatusLabel.setStyle(MutedTextStyle.HINT);
         configureDefaultProfileCombo();
 
         profileNameField.textProperty().addListener((obs, oldValue, newValue) -> {
@@ -511,7 +508,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         globalRequestTimeoutSpinner.setEditable(true);
         globalRequestTimeoutSpinner.setPrefWidth(110);
         Label globalTimeoutHint = new Label(I18n.get("settings.ai.timeout.hint"));
-        globalTimeoutHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
+        globalTimeoutHint.setStyle(MutedTextStyle.HINT);
         HBox globalTimeoutBox = new HBox(6, globalRequestTimeoutSpinner, globalTimeoutHint);
         globalTimeoutBox.setAlignment(Pos.CENTER_LEFT);
         Tooltip globalTimeoutTooltip = new Tooltip(I18n.get("settings.ai.timeout.global.tooltip"));
@@ -603,7 +600,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         profileRequestTimeoutSpinner.disableProperty().bind(
             profileRequestTimeoutOverrideCheck.selectedProperty().not());
         Label profileTimeoutHint = new Label(I18n.get("settings.ai.timeout.hint"));
-        profileTimeoutHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
+        profileTimeoutHint.setStyle(MutedTextStyle.HINT);
         Tooltip profileTimeoutTooltip = new Tooltip(I18n.get("settings.ai.timeout.profile.tooltip"));
         profileRequestTimeoutOverrideCheck.setTooltip(profileTimeoutTooltip);
         profileRequestTimeoutSpinner.setTooltip(profileTimeoutTooltip);
@@ -644,7 +641,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         tokenUsageBar.setPrefWidth(360);
         editorGrid.add(tokenUsageBar, 1, row++);
         tokenUsageLabel.setWrapText(true);
-        tokenUsageLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
+        tokenUsageLabel.setStyle(MutedTextStyle.HINT);
         editorGrid.add(tokenUsageLabel, 1, row++);
 
         VBox editorBox = new VBox(10, editorGrid);

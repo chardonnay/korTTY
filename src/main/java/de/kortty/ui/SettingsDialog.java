@@ -2134,11 +2134,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 }
                 setText(getAiProfileDisplayName(item) + "\n" + buildAiProfileUsageInline(item));
                 AiTokenWarningLevel warningLevel = AiTokenUsageManager.refreshUsage(item).warningLevel();
-                setStyle(switch (warningLevel) {
-                    case YELLOW -> "-fx-text-fill: #b7791f;";
-                    case RED -> "-fx-text-fill: #c53030;";
-                    case NONE -> "";
-                });
+                setStyle(AiTokenWarningStyle.listCellStyle(warningLevel));
             }
         });
 
@@ -2395,7 +2391,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiGlobalRequestTimeoutSpinner.setPrefWidth(110);
         aiGlobalRequestTimeoutSpinner.setTooltip(new Tooltip(I18n.get("settings.ai.timeout.global.tooltip")));
         Label aiGlobalTimeoutHint = new Label(I18n.get("settings.ai.timeout.hint"));
-        aiGlobalTimeoutHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
+        aiGlobalTimeoutHint.setStyle(MutedTextStyle.HINT);
         HBox aiGlobalTimeoutBox = new HBox(6, aiGlobalRequestTimeoutSpinner, aiGlobalTimeoutHint);
         aiGlobalTimeoutBox.setAlignment(Pos.CENTER_LEFT);
         aiEditorGrid.add(aiGlobalTimeoutBox, 1, aiRow++);
@@ -2412,7 +2408,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiRequestTimeoutOverrideCheck.setTooltip(aiProfileTimeoutTooltip);
         aiRequestTimeoutSpinner.setTooltip(aiProfileTimeoutTooltip);
         Label aiProfileTimeoutHint = new Label(I18n.get("settings.ai.timeout.hint"));
-        aiProfileTimeoutHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
+        aiProfileTimeoutHint.setStyle(MutedTextStyle.HINT);
         HBox aiProfileTimeoutBox = new HBox(
             6, aiRequestTimeoutOverrideCheck, aiRequestTimeoutSpinner, aiProfileTimeoutHint);
         aiProfileTimeoutBox.setAlignment(Pos.CENTER_LEFT);
@@ -3663,7 +3659,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         Label warn = new Label(I18n.get("settings.resources.warning"));
         warn.setWrapText(true);
-        warn.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: derive(-fx-text-inner-color, -20%);");
+        warn.setStyle(MutedTextStyle.HINT);
 
         Label restartInfo = new Label(I18n.get("settings.resources.restart"));
         restartInfo.setWrapText(true);

@@ -192,7 +192,7 @@ final class LocalModelManagerPane extends VBox {
         Label intro = new Label(I18n.get("ai.local.models.intro"));
         intro.setWrapText(true);
         status.setWrapText(true);
-        status.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
+        status.setStyle(MutedTextStyle.HINT);
 
         configureInstalledTable();
         configureHubTable();

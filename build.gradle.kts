@@ -3498,6 +3498,16 @@ tasks.register<JavaExec>("aiManagerNavigationSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("aiManagerTextContrastSmoke") {
+    group = "verification"
+    description = "Renders the AI Manager on Primer Dark chrome and fails on hint/label text that " +
+        "falls back to an unreadable fill; writes build/smoke/ai-manager-text-contrast.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AiManagerTextContrastSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+    jvmArgs("-Dprism.order=sw")
+}
+
 tasks.register<JavaExec>("localAiWizardEmbeddingSmoke") {
     group = "verification"
     description = "Opens the local-AI setup wizard and verifies the embedding role offers the full model catalog."

@@ -1485,13 +1485,13 @@ public class AiResultTab extends Tab {
         // Header-only dimension probe rejects decompression bombs before the full decode.
         if (!AiRasterImageSupport.hasSaneDimensions(imageBytes)) {
             Label broken = new Label(I18n.get("ai.result.image.error"));
-            broken.setStyle("-fx-text-fill: derive(-fx-text-inner-color, -25%); -fx-font-style: italic;");
+            broken.setStyle(MutedTextStyle.MUTED + " -fx-font-style: italic;");
             return new VBox(broken);
         }
         Image image = new Image(new java.io.ByteArrayInputStream(imageBytes));
         if (image.isError() || image.getWidth() <= 0) {
             Label broken = new Label(I18n.get("ai.result.image.error"));
-            broken.setStyle("-fx-text-fill: derive(-fx-text-inner-color, -25%); -fx-font-style: italic;");
+            broken.setStyle(MutedTextStyle.MUTED + " -fx-font-style: italic;");
             return new VBox(broken);
         }
         Label imageLabel = new Label(I18n.get("ai.result.image"));
@@ -1608,7 +1608,7 @@ public class AiResultTab extends Tab {
         Label languageLabel = new Label(headerText);
         languageLabel.setStyle("-fx-font-weight: bold;");
         Label statusLabel = new Label(I18n.get("ai.result.diagram.rendering"));
-        statusLabel.setStyle("-fx-text-fill: derive(-fx-text-inner-color, -25%);");
+        statusLabel.setStyle(MutedTextStyle.MUTED);
         Button copyCodeButton = new Button("⧉");
         copyCodeButton.setTooltip(new Tooltip(I18n.get("ai.result.copyCode")));
         copyCodeButton.setOnAction(e -> copyToClipboard(code));
@@ -1668,7 +1668,7 @@ public class AiResultTab extends Tab {
         Label languageLabel = new Label(language != null && !language.isBlank() ? language : "mermaid");
         languageLabel.setStyle("-fx-font-weight: bold;");
         Label statusLabel = new Label(I18n.get("ai.result.diagram.rendering"));
-        statusLabel.setStyle("-fx-text-fill: derive(-fx-text-inner-color, -25%);");
+        statusLabel.setStyle(MutedTextStyle.MUTED);
         Button copyCodeButton = new Button("⧉");
         copyCodeButton.setTooltip(new Tooltip(I18n.get("ai.result.copyCode")));
         copyCodeButton.setOnAction(event -> copyToClipboard(code));

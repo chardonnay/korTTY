@@ -104,7 +104,7 @@ final class AiLocalPreferencesPane extends VBox {
         Button save = new Button(I18n.get("settings.save"));
         save.setOnAction(event -> save());
         status.setWrapText(true);
-        status.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
+        status.setStyle(MutedTextStyle.HINT);
         getChildren().addAll(intro, grid, save, status);
         refresh(List.of());
     }
