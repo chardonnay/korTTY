@@ -865,7 +865,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
         Label profileHint = new Label(I18n.get("connEdit.ai.profile.hint"));
         profileHint.setWrapText(true);
-        profileHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
+        profileHint.setStyle(MutedTextStyle.HINT);
 
         java.util.Set<String> assignedSkillIds = new java.util.LinkedHashSet<>(connection.getAiSkillIds());
         java.util.List<AiSkill> connectionSkills = new java.util.ArrayList<>();
@@ -893,7 +893,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
         Label skillsHint = new Label(I18n.get("connEdit.ai.skills.hint"));
         skillsHint.setWrapText(true);
-        skillsHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
+        skillsHint.setStyle(MutedTextStyle.HINT);
 
         VBox content = new VBox(10);
         content.setPadding(new Insets(20));

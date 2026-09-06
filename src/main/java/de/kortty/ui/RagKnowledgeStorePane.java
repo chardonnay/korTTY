@@ -138,7 +138,7 @@ final class RagKnowledgeStorePane extends VBox implements AutoCloseable {
         HBox storeActions = storeActions();
         HBox sourceActions = sourceActions();
         status.setWrapText(true);
-        status.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: -fx-text-inner-color;");
+        status.setStyle(MutedTextStyle.HINT);
         VBox storeBox = new VBox(6, sectionTitle(I18n.get("ai.rag.stores")), storeTable, storeActions);
         VBox sourceBox = new VBox(6, sectionTitle(I18n.get("ai.rag.sources")), sourceTable, sourceActions);
         VBox.setVgrow(storeTable, Priority.ALWAYS);
