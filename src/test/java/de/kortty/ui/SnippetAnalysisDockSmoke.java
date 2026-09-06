@@ -186,11 +186,47 @@ public final class SnippetAnalysisDockSmoke {
         if (Math.abs(contentWidth - sceneWidth) > 1) {
             throw new AssertionError("the docked dialog's content does not fill it: " + contentWidth + " of " + sceneWidth);
         }
+        requireContentFillsWindow(preview, "after docking");
+
+        // The band was reported long after the opening second, on a preview the dock re-placed at
+        // another width when its neighbours changed. Re-dock at a different width and check again.
+        WindowDockGroup group = groupRef.get();
+        onFxRun(() -> {
+            group.undock(preview);
+            group.dock(preview, WindowDockGroup.Side.LEFT, PREVIEW_WIDTH + 160);
+        });
+        Thread.sleep(1500);
+        requireContentFillsWindow(preview, "after re-docking wider");
+        onFxRun(() -> anchor.setHeight(anchor.getHeight() - 60));
+        Thread.sleep(800);
+        requireContentFillsWindow(preview, "after the anchor shrank");
         onFxRun(() -> {
             dialogRef.get().close();
             rightRef.get().close();
             anchorRef.get().close();
         });
+    }
+
+    /** Window, scene and content must agree, or the window shows a bare band beside the content. */
+    private static void requireContentFillsWindow(Stage preview, String phase) throws Exception {
+        double stageWidth = onFx(preview::getWidth);
+        double sceneWidth = onFx(() -> preview.getScene().getWidth());
+        double sceneHeight = onFx(() -> preview.getScene().getHeight());
+        double rootWidth = onFx(() -> preview.getScene().getRoot().getLayoutBounds().getWidth());
+        double rootHeight = onFx(() -> preview.getScene().getRoot().getLayoutBounds().getHeight());
+        System.out.printf("dialog satellite %s: window %.0f wide, scene %.0fx%.0f, content %.0fx%.0f%n",
+            phase, stageWidth, sceneWidth, sceneHeight, rootWidth, rootHeight);
+        double stageHeight = onFx(preview::getHeight);
+        if (Math.abs(stageWidth - sceneWidth) > WindowDockGroup.SCENE_LAG_TOLERANCE
+                || stageHeight - sceneHeight > WindowDockGroup.SCENE_HEIGHT_LAG_TOLERANCE
+                || stageHeight - sceneHeight < -1) {
+            throw new AssertionError(phase + ": the scene does not follow the window: " + sceneWidth + "x" + sceneHeight
+                + " inside " + stageWidth + "x" + stageHeight);
+        }
+        if (Math.abs(rootWidth - sceneWidth) > 1 || Math.abs(rootHeight - sceneHeight) > 1) {
+            throw new AssertionError(phase + ": the content does not fill the scene: " + rootWidth + "x" + rootHeight
+                + " of " + sceneWidth + "x" + sceneHeight);
+        }
     }
 
     private static void check(Stage anchor, Stage left, Stage right, WindowDockGroup group)
@@ -335,8 +371,19 @@ public final class SnippetAnalysisDockSmoke {
                 latch.countDown();
             }
         });
-        if (!latch.await(20, TimeUnit.SECONDS)) {
-            throw new IllegalStateException("the FX thread did not respond");
+        if (!latch.await(5, TimeUnit.SECONDS)) {
+            // Show what the FX thread is doing before giving up on it.
+            Thread.getAllStackTraces().forEach((thread, frames) -> {
+                if (thread.getName().contains("JavaFX Application Thread")) {
+                    System.err.println("FX thread state " + thread.getState() + ":");
+                    for (StackTraceElement frame : frames) {
+                        System.err.println("    at " + frame);
+                    }
+                }
+            });
+            if (!latch.await(15, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("the FX thread did not respond");
+            }
         }
         if (error.get() != null) {
             throw new IllegalStateException(error.get());
