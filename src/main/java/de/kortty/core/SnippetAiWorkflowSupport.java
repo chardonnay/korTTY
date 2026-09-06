@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -1088,6 +1089,20 @@ public final class SnippetAiWorkflowSupport {
         // first attempt's replacement already met the stage's acceptance contract, so a failed
         // repair round-trip must fall back to it instead of aborting the whole apply.
         SnippetAiResponseSupport.SnippetSecurityFix echoOnlyRepairFallback = null;
+        // One line per stage so the log alone maps every request to its stage: the run summary
+        // counts a repair attempt, but which stage it repaired, and why, was nowhere to be read.
+        logger.info("AI apply stage {} of {} ({}): {} analysis item(s) {}, {} requirement(s) {}, {} lines, {} mode",
+            progress != null ? progress.stage() : 0,
+            progress != null ? progress.totalStages() : 0,
+            progress != null && progress.phase() != null ? progress.phase().name().toLowerCase(Locale.ROOT) : "-",
+            (improvements != null ? improvements.size() : 0) + (dependencies != null ? dependencies.size() : 0),
+            analysisItemIds(improvements, dependencies),
+            mandatoryRequirements != null ? mandatoryRequirements.size() : 0,
+            mandatoryRequirements != null
+                ? mandatoryRequirements.stream().map(MandatoryRequirement::id).toList()
+                : List.of(),
+            SnippetDiagramSupport.countLines(fullContent),
+            usesEditMode(fullContent) ? "edit" : "whole-file");
         for (int attempt = 1; attempt <= 2; attempt++) {
             checkImprovementApplyInterrupted();
             boolean repairAttempt = repairReason != StageRepairReason.NONE;
@@ -1178,6 +1193,8 @@ public final class SnippetAiWorkflowSupport {
             List<String> unechoedAnalysisIds = unechoedAnalysisItemIds(fix, improvements, dependencies);
             if (!missingRequirements.isEmpty() || !droppedRequirements.isEmpty() || !unechoedAnalysisIds.isEmpty()) {
                 if (!repairAttempt) {
+                    logger.warn("AI apply stage result kept, but {}; one repair attempt on the result asks for the rest",
+                        describeMissingWork(missingRequirements, droppedRequirements, unechoedAnalysisIds));
                     attemptContent = fix.replacement();
                     repairReason = StageRepairReason.MISSING_REQUIREMENTS;
                     requirementsNeedingRepair = missingRequirements;
@@ -1199,6 +1216,8 @@ public final class SnippetAiWorkflowSupport {
                 // An analysis item still unechoed after the targeted repair attempt is accepted:
                 // the item may legitimately require no code change, and the pre-batching per-item
                 // stages carried no echo contract either.
+                logger.info("AI apply stage accepted with {} still not echoed after the repair attempt",
+                    unechoedAnalysisIds);
             }
             return echoOnlyRepairFallback != null ? mergeRepairedStageFix(echoOnlyRepairFallback, fix) : fix;
         }
@@ -2200,8 +2219,24 @@ public final class SnippetAiWorkflowSupport {
         }
         StringBuilder context = new StringBuilder("Snippet language: ").append(snippetLanguage).append('\n')
             .append("Natural language for the summary: ").append(fallbackLanguageCode).append('\n')
-            .append(codeTextLanguageInstruction(fallbackLanguageCode, "full returned snippet"))
-            .append(preservePriorStageWork
+            .append(codeTextLanguageInstruction(fallbackLanguageCode, "full returned snippet"));
+        boolean editMode = usesEditMode(stageContent);
+        if (editMode) {
+            // The script comes before everything that is specific to this stage or attempt. Every
+            // request of a run then shares one prefix — system prompt, contract, language lines,
+            // and the script up to the first line the previous stage changed — which endpoints
+            // with a prefix cache (MiniMax reports it as cached tokens; LM Studio and llama.cpp
+            // reuse the KV cache) serve without processing it again. Measured before this order:
+            // 128 cached tokens per stage, because the stage's items sat in front of the 62,000
+            // tokens of script. The literal heading is what switches AiPromptBuilder to edit mode
+            // and suppresses its raw-script block; the numbered lines are what the edits' ranges
+            // refer to. The line count follows the script, since it changes from stage to stage.
+            context.append("Line-numbered snippet:\n")
+                .append(lineNumberedTextBlock(stageContent))
+                .append("\nThe snippet above is ").append(SnippetDiagramSupport.countLines(stageContent))
+                .append(" lines long; return edit regions against its line numbers, not the whole script.\n");
+        }
+        context.append(preservePriorStageWork
                 ? "This is a later stage of one atomic rewrite. The provided snippet already contains completed work from earlier stages. Preserve every existing behavior and hardening measure unless the current requirements strictly require an adjustment; never revert, remove, or abbreviate earlier work.\n"
                 : "")
             .append(repairReason == StageRepairReason.TRUNCATED_ANSWER
@@ -2232,14 +2267,6 @@ public final class SnippetAiWorkflowSupport {
             context.append("\nMandatory hardening requirements (implement every entry even when the selected-analysis-items block is empty; "
                     + "after implementation echo every requirement id once in implementedRequirements):\n")
                 .append(AiPromptBuilder.toSafeTextCodeBlock(requirementsText));
-        }
-        if (usesEditMode(stageContent)) {
-            // The literal heading is what switches AiPromptBuilder to edit mode and suppresses its
-            // raw-script block; the numbered lines are what the edits' ranges refer to.
-            context.append("\nThe snippet is ").append(SnippetDiagramSupport.countLines(stageContent))
-                .append(" lines long; return edit regions against these line numbers, not the whole script.\n")
-                .append("Line-numbered snippet:\n")
-                .append(lineNumberedTextBlock(stageContent));
         }
         return context.toString();
     }
@@ -2273,6 +2300,41 @@ public final class SnippetAiWorkflowSupport {
             String.join("\n\n", summaries),
             List.copyOf(changes),
             List.copyOf(implemented));
+    }
+
+    private static List<String> analysisItemIds(
+        List<SnippetAiResponseSupport.ScriptImprovement> improvements,
+        List<SnippetAiResponseSupport.ScriptDependency> dependencies) {
+
+        List<String> ids = new ArrayList<>();
+        if (improvements != null) {
+            improvements.forEach(improvement -> ids.add(improvement.id()));
+        }
+        if (dependencies != null) {
+            dependencies.forEach(dependency -> ids.add(dependency.id()));
+        }
+        return ids;
+    }
+
+    /** The log's account of why a stage result gets its repair attempt, in the order the request states it. */
+    static String describeMissingWork(
+        List<MandatoryRequirement> missingRequirements,
+        List<MandatoryRequirement> droppedRequirements,
+        List<String> unechoedAnalysisIds) {
+
+        List<String> parts = new ArrayList<>();
+        if (missingRequirements != null && !missingRequirements.isEmpty()) {
+            parts.add("requirements not verified: "
+                + missingRequirements.stream().map(MandatoryRequirement::id).toList());
+        }
+        if (droppedRequirements != null && !droppedRequirements.isEmpty()) {
+            parts.add("earlier requirements dropped: "
+                + droppedRequirements.stream().map(MandatoryRequirement::id).toList());
+        }
+        if (unechoedAnalysisIds != null && !unechoedAnalysisIds.isEmpty()) {
+            parts.add("analysis ids not echoed in changes[].finding: " + unechoedAnalysisIds);
+        }
+        return String.join("; ", parts);
     }
 
     private static String missingWorkRepairParagraph(

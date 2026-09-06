@@ -346,7 +346,8 @@ class SnippetAiWorkflowSupportTest {
             applyResponseWithChanges(repaired, "Applied both items.", List.of("SEC-1", "OPT-1")));
         List<SnippetAiWorkflowSupport.ImprovementApplyProgress> progress = new ArrayList<>();
 
-        SnippetAiResponseSupport.SnippetSecurityFix fix =
+        List<String> messages = new ArrayList<>();
+        SnippetAiResponseSupport.SnippetSecurityFix fix = captureWorkflowLog(messages, () ->
             SnippetAiWorkflowSupport.applySnippetImprovements(
                 aiService,
                 null,
@@ -363,10 +364,19 @@ class SnippetAiWorkflowSupportTest {
                 null,
                 null,
                 null,
-                progress::add);
+                progress::add));
 
         assertThat(aiService.requests).hasSize(2);
         assertThat(aiService.requests.get(1).selectedText()).isEqualTo(partial);
+        // The log alone maps both requests to the stage and says why the second one happened:
+        // the run summary counts a retry, but a live log showed four requests for three stages
+        // with nothing naming the fourth.
+        assertThat(messages).contains(
+            "AI apply stage 1 of 1 (analysis_items): 2 analysis item(s) [SEC-1, OPT-1], 0 requirement(s) [], "
+                + SnippetDiagramSupport.countLines(original) + " lines, whole-file mode");
+        assertThat(messages).contains(
+            "AI apply stage result kept, but analysis ids not echoed in changes[].finding: [OPT-1]; "
+                + "one repair attempt on the result asks for the rest");
         assertThat(aiService.requests.get(1).conversationContext())
             .contains("ids were missing from changes[].finding: OPT-1");
         assertThat(progress.stream().map(SnippetAiWorkflowSupport.ImprovementApplyProgress::state).toList())
@@ -1485,9 +1495,18 @@ class SnippetAiWorkflowSupportTest {
             List.of(), "", null, null, null);
 
         assertThat(aiService.executionCount).isEqualTo(1);
-        assertThat(aiService.lastRequest.conversationContext()).contains("Line-numbered snippet:");
-        assertThat(aiService.lastRequest.conversationContext()).contains("251 | echo step 250");
+        String context = aiService.lastRequest.conversationContext();
+        assertThat(context).contains("Line-numbered snippet:");
+        assertThat(context).contains("251 | echo step 250");
         assertThat(AiPromptBuilder.buildUserPrompt(aiService.lastRequest)).doesNotContain("Full script content to update:");
+        // The script precedes everything stage-specific, and the line count — which changes from
+        // stage to stage — follows it, so consecutive requests of a run share their prefix up to
+        // the first line the previous stage changed and a prefix cache can serve the rest.
+        String lineCount = "The snippet above is " + SnippetDiagramSupport.countLines(content) + " lines long";
+        assertThat(context.indexOf("Line-numbered snippet:")).isGreaterThan(context.indexOf("Snippet language: bash"));
+        assertThat(context.indexOf(lineCount)).isGreaterThan(context.indexOf("501 | echo step 500"));
+        assertThat(context.indexOf("Selected analysis items to apply")).isGreaterThan(context.indexOf(lineCount));
+        assertThat(context).doesNotContain("The snippet is ");
         assertThat(AiOutputTokenLimitSupport.resolve(aiService.lastRequest, null)).isEqualTo(32_768);
         assertThat(fix.replacement()).startsWith("#!/usr/bin/env bash\nset -euo pipefail\necho step 1\n");
         assertThat(fix.replacement()).contains("echo step 249\necho step 250 hardened\necho step 251\n");
@@ -2683,6 +2702,26 @@ class SnippetAiWorkflowSupportTest {
         requirementIds.forEach(implemented::add);
         response.add("implementedRequirements", implemented);
         return response.toString();
+    }
+
+    private interface WorkflowCall<T> {
+        T run() throws Exception;
+    }
+
+    /** Runs a workflow call with the support class's log captured into {@code messages}. */
+    private static <T> T captureWorkflowLog(List<String> messages, WorkflowCall<T> call) throws Exception {
+        ch.qos.logback.classic.Logger workflowLogger =
+            (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(SnippetAiWorkflowSupport.class);
+        ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> events =
+            new ch.qos.logback.core.read.ListAppender<>();
+        events.start();
+        workflowLogger.addAppender(events);
+        try {
+            return call.run();
+        } finally {
+            workflowLogger.detachAppender(events);
+            events.list.forEach(event -> messages.add(event.getFormattedMessage()));
+        }
     }
 
     private static String applyResponseWithChanges(String replacement, String summary, List<String> findings) {
