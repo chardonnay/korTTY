@@ -432,7 +432,7 @@ dependencies {
     // OS/arch inside the jar; prepareSlimRuntimeJars strips foreign platforms and the retained
     // macOS dylib is re-signed by signMacBundledNativeLibraries — an unsigned bundled .dylib
     // fails Apple notarization (same story as the pty4j pin above).
-    implementation("com.github.luben:zstd-jni:1.5.7-15")
+    implementation("com.github.luben:zstd-jni:1.5.7-16")
 
     // Native desktop power-management integration. pty4j already brings these transitively, but
     // korTTY uses their APIs directly, so keep the compile/runtime contract explicit and pinned.
