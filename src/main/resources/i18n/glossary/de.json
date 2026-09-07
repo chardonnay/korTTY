@@ -1539,6 +1539,29 @@
       "from": "Abschlussverknüpfung",
       "to": "Tastenkürzel für die Vervollständigung",
       "note": "Bare fallback for the same MT reading of 'completion shortcut'."
+    },
+    {
+      "from": "++alt+bracket-right++ Und ++alt+bracket-left++ Gehen Sie die Alternativen durch",
+      "to": "++alt+bracket-right++ und ++alt+bracket-left++ blättern durch die Alternativen",
+      "scope": "markdown",
+      "note": "The rows from here on repair what a keyboard key leaves behind in the AI code-completion release note. A ++key++ span is masked as a placeholder, and MT reads a placeholder as a sentence boundary: it capitalises the word after it, and here also turned 'step through the alternatives' into an imperative addressed to the reader. Splitting the bullet into short sentences fixed the clause-level damage; the capitalisation is what is left, and it survives every rewording that keeps the key in front of its verb. Longest first, as the ordering invariant requires."
+    },
+    {
+      "from": "++shift+tab++ Am Ende einer Zeile öffnet sich eine",
+      "to": "++shift+tab++ am Ende einer Zeile öffnet eine",
+      "scope": "markdown",
+      "note": "Also drops the reflexive: the key opens the list, the list does not open itself."
+    },
+    {
+      "from": "++shift+tab++ Entfernt",
+      "to": "++shift+tab++ entfernt",
+      "scope": "markdown"
+    },
+    {
+      "from": "AI-Vervollständigungsanforderung",
+      "to": "KI-Vervollständigungsanfrage",
+      "scope": "markdown",
+      "note": "The page says KI everywhere else, and a request is an Anfrage."
     }
   ]
 }
