@@ -60,7 +60,7 @@ These keys work inside the snippet editor's code field; see [AI Code completions
 
 | Shortcut | Action |
 | --- | --- |
-| ++shift+tab++ (cursor at the end of a line with text) | Open the completion list |
+| ++shift+tab++ (cursor at the end of a line with text) | Open the completion list (the combination is configurable, see [Snippet Editor settings](settings/snippet-editor/index.md)) |
 | ++ctrl+space++ | Open the completion list anywhere (on macOS the physical ++ctrl++ key, not ++cmd++; ++cmd+i++ and ++alt+esc++ work there too, because macOS often reserves ++ctrl+space++ for switching input sources) |
 | ++up++ / ++down++ (list open) | Move the selection; typing filters the list |
 | ++tab++ or ++enter++ (list open) | Insert the selected entry |
@@ -68,7 +68,7 @@ These keys work inside the snippet editor's code field; see [AI Code completions
 | ++tab++ (ghost text visible) | Accept the ghost text |
 | ++alt+bracket-right++ / ++alt+bracket-left++ (ghost text visible) | Next / previous ghost-text candidate (physical `]` and `[` keys of a US layout) |
 | ++tab++ (inside an inserted idiom template) | Jump to the next placeholder |
-| ++shift+tab++ (anywhere else) | Outdent the line, as before |
+| ++shift+tab++ (anywhere else, or when another combination is configured) | Outdent the line, as before |
 
 ## Terminal AI agent
 

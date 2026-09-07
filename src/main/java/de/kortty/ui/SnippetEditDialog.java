@@ -15,6 +15,7 @@ import de.kortty.core.SnippetEditorProfileSupport;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.SnippetAiWorkflowSupport;
 import de.kortty.core.SnippetAiTextSupport;
+import de.kortty.core.SnippetCompletionShortcut;
 import de.kortty.core.SnippetCompletionSupport;
 import de.kortty.core.SnippetLinter;
 import de.kortty.core.SnippetMarkupPreviewRenderer;
@@ -912,6 +913,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 handleCompletionAccepted(acceptedJson);
             }
         });
+        contentArea.setCompletionShortcut(loadCompletionShortcutSetting());
         contentArea.setPrefHeight(350);
         contentArea.setPrefWidth(600);
         EditorSettingsHelper.applyStyle(contentArea, editorSettings);
@@ -2182,6 +2184,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
     }
     
+    /** The configured chord that opens the completion list; the default when nothing is stored. */
+    private String loadCompletionShortcutSetting() {
+        try {
+            return SnippetCompletionShortcut.normalizeOrDefault(
+                KorTTYApplication.getInstance().getGlobalSettingsManager()
+                    .getSettings().getSnippetCompletionShortcut());
+        } catch (Exception e) {
+            return SnippetCompletionShortcut.DEFAULT;
+        }
+    }
+
     private boolean loadLineNumbersSetting() {
         try {
             return KorTTYApplication.getInstance().getGlobalSettingsManager()

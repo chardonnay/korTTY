@@ -1518,6 +1518,27 @@
       "to": "ist darauf begrenzt",
       "scope": "markdown",
       "note": "MT renders 'clamped to it' as 'geklemmt' in the max-log-parts policy row."
+    },
+    {
+      "from": "Auswahl der Abschlussverknüpfung",
+      "to": "Auswahl des Tastenkürzels für die Vervollständigung",
+      "scope": "markdown",
+      "note": "MT reads 'completion shortcut' as a graduation link; must precede the bare term below."
+    },
+    {
+      "from": "AI Completion Shortcut",
+      "to": "Tastenkürzel KI-Vervollständigung",
+      "note": "UI label settings.snippetEditor.completionShortcut."
+    },
+    {
+      "from": "KI-Vervollständigungsverknüpfung",
+      "to": "Tastenkürzel KI-Vervollständigung",
+      "note": "Same UI label, the rendering MT produces in running prose."
+    },
+    {
+      "from": "Abschlussverknüpfung",
+      "to": "Tastenkürzel für die Vervollständigung",
+      "note": "Bare fallback for the same MT reading of 'completion shortcut'."
     }
   ]
 }

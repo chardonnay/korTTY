@@ -1,5 +1,7 @@
 package de.kortty.ui;
 
+import de.kortty.core.SnippetCompletionShortcut;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -387,10 +389,10 @@ public final class SnippetCompletionSmoke {
             check(!stateBool("listActive"), "no list should be open before Shift+TAB");
             KeyOutcome shiftTab = fireKey(KeyCode.TAB, true);
             until("Shift+TAB to open the list", () -> stateBool("listActive") && stateInt("requestId") > requestBefore, 3000, () -> {
-                check("shiftTab".equals(stateString("trigger")), "list trigger should be shiftTab, was " + stateString("trigger"));
+                check("shortcut".equals(stateString("trigger")), "list trigger should be shortcut, was " + stateString("trigger"));
                 int shiftTabRequest = stateInt("requestId");
                 System.out.println("check 3a: Shift+TAB KeyEvent opened a new list session (request " + shiftTabRequest
-                    + ", trigger shiftTab); KEY_PRESSED " + shiftTab);
+                    + ", trigger shortcut); KEY_PRESSED " + shiftTab);
                 until("the AI rows of the Shift+TAB list", () -> stateInt("ai") >= 1, 3000, () -> {
                     KeyOutcome escape = fireKey(KeyCode.ESCAPE, false);
                     until("Esc to close the list", () -> !stateBool("listActive") && stateInt("closedCount") == closedBefore + 1
@@ -422,9 +424,74 @@ public final class SnippetCompletionSmoke {
                         "Shift+TAB at a line start must not open a list");
                     System.out.println("check 3d: Shift+TAB at the start of the indented line outdented it and opened no list;"
                         + " KEY_PRESSED " + shiftTab);
-                    undoUntil(TEXT, 2, undos -> after(200, this::check4PlainTab));
+                    undoUntil(TEXT, 2, undos -> after(200, this::check3ConfiguredShortcut));
                 });
             });
+        });
+    }
+
+    /**
+     * 3e/3f) The chord is configurable (Settings &rarr; Snippet Editor): after setting Ctrl+Alt+K the
+     * page opens the list on that chord and Shift+TAB is a plain outdent again; restoring the default
+     * brings Shift+TAB back. Proves the page re-registers its action instead of keeping the old one.
+     */
+    private void check3ConfiguredShortcut() {
+        editor.setCompletionShortcut("Ctrl+Alt+K");
+        editor.moveTo(TEXT.length());
+        webView.requestFocus();
+        after(400, () -> {
+            int requestBefore = stateInt("requestId");
+            check(!stateBool("listActive"), "no list should be open before the configured chord");
+            check("Ctrl+Alt+K".equals(stateString("shortcut")),
+                "the page should report the configured chord, was " + stateString("shortcut"));
+            fireShortcutKey(KeyCode.K, false, true);
+            until("Ctrl+Alt+K to open the list", () -> stateBool("listActive") && stateInt("requestId") > requestBefore,
+                3000, () -> {
+                    int configuredRequest = stateInt("requestId");
+                    check("shortcut".equals(stateString("trigger")),
+                        "configured chord should report the shortcut trigger, was " + stateString("trigger"));
+                    System.out.println("check 3e: the configured Ctrl+Alt+K opened the list (request " + configuredRequest
+                        + ")");
+                    // Wait for the rows the way check 3b does: Esc only reaches the widget once it is
+                    // actually showing (Monaco reveals a manual session a moment after the trigger).
+                    until("the rows of the configured list", () -> stateInt("ai") >= 1, 3000, () -> {
+                    fireKey(KeyCode.ESCAPE, false);
+                    until("Esc to close the configured list", () -> !stateBool("listActive"), 2000, () -> {
+                        // The old chord no longer opens the list; it is a plain editor Shift+TAB
+                        // again, which in Monaco outdents the caret's line.
+                        int afterEscape = stateInt("requestId");
+                        fireKey(KeyCode.TAB, true);
+                        after(700, () -> {
+                            check(!stateBool("listActive") && stateInt("requestId") == afterEscape,
+                                "Shift+TAB must not open the list once another chord is configured");
+                            check(!editorText().equals(TEXT) && editorText().contains("\nfor item in "),
+                                "Shift+TAB should fall back to Monaco's own outdent, text was " + editorText());
+                            System.out.println("check 3f: with Ctrl+Alt+K configured, Shift+TAB opens no list and is"
+                                + " Monaco's plain outdent again");
+                            undoUntil(TEXT, 2, undos -> restoreDefaultShortcut());
+                        });
+                    });
+                    });
+                });
+        });
+    }
+
+    private void restoreDefaultShortcut() {
+        editor.setCompletionShortcut(SnippetCompletionShortcut.DEFAULT);
+        editor.moveTo(TEXT.length());
+        after(400, () -> {
+            int requestBefore = stateInt("requestId");
+            fireKey(KeyCode.TAB, true);
+            until("Shift+TAB to work again after the reset",
+                () -> stateBool("listActive") && stateInt("requestId") > requestBefore, 3000, () -> {
+                    System.out.println("check 3g: resetting the setting brought Shift+TAB back (request "
+                        + stateInt("requestId") + ")");
+                    until("the rows of the restored list", () -> stateInt("ai") >= 1, 3000, () -> {
+                        fireKey(KeyCode.ESCAPE, false);
+                        until("Esc to close the restored list", () -> !stateBool("listActive"), 2000,
+                            () -> after(200, this::check4PlainTab));
+                    });
+                });
         });
     }
 
@@ -739,6 +806,20 @@ public final class SnippetCompletionSmoke {
      * the event bubbled past the WebView unconsumed.
      */
     private KeyOutcome fireKey(KeyCode code, boolean shift) {
+        return fireKey(code, shift, false, false);
+    }
+
+    /** Fires the platform's Ctrl/Cmd modifier: Monaco's CtrlCmd is Cmd on macOS and Ctrl elsewhere. */
+    private KeyOutcome fireShortcutKey(KeyCode code, boolean shift, boolean alt) {
+        boolean macOs = SnippetCompletionShortcut.isMacOs();
+        return fireKey(code, shift, !macOs, alt, macOs);
+    }
+
+    private KeyOutcome fireKey(KeyCode code, boolean shift, boolean control, boolean alt) {
+        return fireKey(code, shift, control, alt, false);
+    }
+
+    private KeyOutcome fireKey(KeyCode code, boolean shift, boolean control, boolean alt, boolean meta) {
         Scene scene = webView.getScene();
         AtomicBoolean reachedScene = new AtomicBoolean();
         AtomicBoolean consumedByWebView = new AtomicBoolean();
@@ -755,8 +836,8 @@ public final class SnippetCompletionSmoke {
         scene.addEventHandler(KeyEvent.ANY, sceneWitness);
         webView.addEventHandler(KeyEvent.ANY, webViewWitness);
         try {
-            Event.fireEvent(webView, new KeyEvent(webView, webView, KeyEvent.KEY_PRESSED, "", "", code, shift, false, false, false));
-            Event.fireEvent(webView, new KeyEvent(webView, webView, KeyEvent.KEY_RELEASED, "", "", code, shift, false, false, false));
+            Event.fireEvent(webView, new KeyEvent(webView, webView, KeyEvent.KEY_PRESSED, "", "", code, shift, control, alt, meta));
+            Event.fireEvent(webView, new KeyEvent(webView, webView, KeyEvent.KEY_RELEASED, "", "", code, shift, control, alt, meta));
             return new KeyOutcome(consumedByWebView.get(), reachedScene.get());
         } finally {
             scene.removeEventHandler(KeyEvent.ANY, sceneWitness);

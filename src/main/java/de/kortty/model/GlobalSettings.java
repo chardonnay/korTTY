@@ -827,6 +827,14 @@ public class GlobalSettings {
     @XmlElement
     private boolean snippetLineNumbers = false; // line-number gutter in snippet editor & manager preview (default: off)
 
+    /**
+     * Keyboard shortcut that opens the snippet editor's AI completion list, as a canonical chord
+     * ("Shift+Tab", "Ctrl+Space", "Ctrl+Alt+K"). Parsed by SnippetCompletionShortcut, which falls
+     * back to its default when a hand-edited value names no usable chord.
+     */
+    @XmlElement
+    private String snippetCompletionShortcut = "Shift+Tab";
+
     @XmlElement
     private Double snippetManagerPreviewDividerPosition; // Vertical table/preview divider position
 
@@ -3300,6 +3308,11 @@ public class GlobalSettings {
     
     public boolean isSnippetLineNumbers() { return snippetLineNumbers; }
     public void setSnippetLineNumbers(boolean snippetLineNumbers) { this.snippetLineNumbers = snippetLineNumbers; }
+
+    public String getSnippetCompletionShortcut() { return snippetCompletionShortcut; }
+    public void setSnippetCompletionShortcut(String snippetCompletionShortcut) {
+        this.snippetCompletionShortcut = snippetCompletionShortcut;
+    }
 
     public double getSnippetManagerPreviewDividerPosition() {
         if (snippetManagerPreviewDividerPosition == null

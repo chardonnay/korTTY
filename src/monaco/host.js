@@ -182,6 +182,8 @@ function boot(config) {
   });
   setCursor(config.cursorStyle || "BLOCK", config.cursorColor || "#ff0000");
   bindCompletion({ editor, model });
+  // The configured open chord before installing, so the action is registered with it right away.
+  if (config.completionShortcut) completionApi.setCompletionShortcut(config.completionShortcut);
   if (config.completion === true) {
     installCompletion({ editor, model });
   }

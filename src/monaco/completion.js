@@ -80,6 +80,11 @@ let ghost = null;
 let suppressClose = false;
 let focusWaiter = null;
 let focusTimer = null;
+// The configured open chord and the disposable of the action registered for it. Java sends the
+// resolved binding (SnippetCompletionShortcut), so the key table lives in Java alone and this side
+// only looks the name up in monaco.KeyCode.
+let openShortcut = null;
+let openActionDisposable = null;
 let closedCount = 0;
 let acceptedCount = 0;
 let lastAccepted = null;
@@ -376,7 +381,7 @@ function runOpenAction() {
   const position = editor.getPosition();
   const selection = editor.getSelection();
   if (position && selection && selection.isEmpty() && shouldOpenList(position)) {
-    pendingTrigger = "shiftTab";
+    pendingTrigger = "shortcut";
     try {
       editor.trigger("kortty", "editor.action.triggerSuggest", {});
     } finally {
@@ -384,7 +389,17 @@ function runOpenAction() {
     }
     return;
   }
-  editor.trigger("keyboard", "outdent", null);
+  // Where the caret rule says no, the chord keeps whatever Monaco does with it — but only for
+  // Shift+Tab, whose editor meaning (outdent) our action would otherwise swallow. Any other
+  // configured chord has no editor meaning to restore, so it simply does nothing there.
+  if (isShiftTabShortcut()) editor.trigger("keyboard", "outdent", null);
+}
+
+/** Whether the configured chord is Shift+Tab, the one that also means "outdent" in the editor. */
+function isShiftTabShortcut() {
+  const shortcut = openShortcut;
+  if (!shortcut) return true; // the default before Java configured anything
+  return shortcut.shift === true && !shortcut.ctrlCmd && !shortcut.alt && shortcut.keyCode === "Tab";
 }
 
 function provideInlineCompletions(textModel, position) {
@@ -517,6 +532,7 @@ function isGhostVisible() {
 function completionDebugState() {
   return JSON.stringify({
     enabled: installed,
+    shortcut: openShortcut && openShortcut.shortcut ? openShortcut.shortcut : null,
     listActive: !!session,
     requestId: session ? session.id : -1,
     resolved: !!(session && session.resolved),
@@ -569,6 +585,60 @@ function subscribeListClosed() {
   disposables.push({ dispose: () => observer.disconnect() });
 }
 
+/**
+ * The Monaco keybinding number for a binding Java resolved: its modifier flags ORed with the
+ * KeyCode member it named. Returns 0 when the name is unknown to this Monaco (a bump that renamed a
+ * member), so the caller can fall back to Shift+Tab rather than registering a dead chord.
+ */
+function keybindingFor(binding) {
+  if (!binding || typeof binding.keyCode !== "string") return 0;
+  const code = monaco.KeyCode[binding.keyCode];
+  if (typeof code !== "number" || code <= 0) return 0;
+  let keybinding = code;
+  if (binding.ctrlCmd) keybinding |= monaco.KeyMod.CtrlCmd;
+  if (binding.shift) keybinding |= monaco.KeyMod.Shift;
+  if (binding.alt) keybinding |= monaco.KeyMod.Alt;
+  return keybinding;
+}
+
+/** Registers the open action for the configured chord, replacing a previously registered one. */
+function registerOpenAction() {
+  if (!editor) return;
+  if (openActionDisposable) {
+    const index = disposables.indexOf(openActionDisposable);
+    if (index >= 0) disposables.splice(index, 1);
+    try {
+      openActionDisposable.dispose();
+    } catch (error) {
+      console.error("Completion shortcut could not be unregistered", error);
+    }
+    openActionDisposable = null;
+  }
+  const keybinding = keybindingFor(openShortcut) || (monaco.KeyMod.Shift | monaco.KeyCode.Tab);
+  openActionDisposable = editor.addAction({
+    id: OPEN_ACTION_ID,
+    label: "Open code completions",
+    keybindings: [keybinding],
+    // Yields to Monaco's own bindings for the same chord: accepting a suggestion or ghost text,
+    // a snippet tab stop, and (for Shift+Tab) outdenting a selection.
+    precondition: "editorTextFocus && !editorReadonly && !suggestWidgetVisible && !inlineSuggestionVisible"
+      + " && !inSnippetMode && !editorHasSelection && !editorTabMovesFocus",
+    run: runOpenAction
+  });
+  disposables.push(openActionDisposable);
+}
+
+/**
+ * Sets the chord that opens the list (payload from MonacoEditorPane.setCompletionShortcut). Applied
+ * at once when completion is already installed, otherwise picked up by the next install.
+ */
+function setCompletionShortcut(json) {
+  const payload = parsePayload(json);
+  if (!payload) return;
+  openShortcut = payload;
+  if (installed) registerOpenAction();
+}
+
 /** Records the editor pair without enabling completion (lets setCompletionEnabled install lazily). */
 export function bindCompletion({ editor: nextEditor, model: nextModel }) {
   editor = nextEditor || null;
@@ -594,14 +664,7 @@ export function installCompletion({ editor: nextEditor, model: nextModel }) {
     // Required in Monaco 0.56 (called unguarded); there is no freeInlineCompletions any more.
     disposeInlineCompletions(_completions, _reason) {}
   }));
-  disposables.push(editor.addAction({
-    id: OPEN_ACTION_ID,
-    label: "Open code completions",
-    keybindings: [monaco.KeyMod.Shift | monaco.KeyCode.Tab],
-    precondition: "editorTextFocus && !editorReadonly && !suggestWidgetVisible && !inlineSuggestionVisible"
-      + " && !inSnippetMode && !editorHasSelection && !editorTabMovesFocus",
-    run: runOpenAction
-  }));
+  registerOpenAction();
   subscribeListClosed();
 }
 
@@ -622,6 +685,7 @@ export function disposeCompletion() {
   }
   const pending = disposables.splice(0);
   installed = false;
+  openActionDisposable = null;
   for (const disposable of pending) {
     try {
       disposable.dispose();
@@ -638,6 +702,7 @@ export function disposeCompletion() {
 }
 
 export const completionApi = {
+  setCompletionShortcut,
   pushCompletions,
   pushGhostCompletions,
   clearGhost,

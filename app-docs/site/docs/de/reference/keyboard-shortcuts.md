@@ -60,7 +60,7 @@ Diese Schlüssel funktionieren im Codefeld des Snippet-Editors. siehe [AI Codeve
 
 | Verknüpfung | Aktion |
 | --- | --- |
-| ++shift+tab++ (Cursor am Ende einer Zeile mit Text) | Öffnen Sie die Vervollständigungsliste |
+| ++shift+tab++ (Cursor am Ende einer Zeile mit Text) | Öffnen Sie die Vervollständigungsliste (die Kombination ist konfigurierbar, siehe [Einstellungen des Snippet-Editors](settings/snippet-editor/index.md)) |
 | ++ctrl+space++ | Öffnen Sie die Vervollständigungsliste an einer beliebigen Stelle (unter macOS die physische). ++ctrl++ Schlüssel, nicht ++cmd++; ++cmd+i++ Und ++alt+esc++ Funktionieren dort auch, da macOS oft reserviert ++ctrl+space++ zum Umschalten von Eingangsquellen) |
 | ++up++ / ++down++ (Liste offen) | Verschieben Sie die Auswahl. Durch die Eingabe wird die Liste gefiltert |
 | ++tab++ oder ++enter++ (Liste offen) | Den ausgewählten Eintrag einfügen |
@@ -68,7 +68,7 @@ Diese Schlüssel funktionieren im Codefeld des Snippet-Editors. siehe [AI Codeve
 | ++tab++ (Geistertext sichtbar) | Akzeptieren Sie den Geistertext |
 | ++alt+bracket-right++ / ++alt+bracket-left++ (Geistertext sichtbar) | Nächster/vorheriger Ghosttext-Kandidat (physisch `]` Und `[` Tasten eines US-Layouts) |
 | ++tab++ (in einer eingefügten Redewendungsvorlage) | Zum nächsten Platzhalter springen |
-| ++shift+tab++ (anderswo) | Die Zeile wie zuvor einrücken |
+| ++shift+tab++ (an jedem anderen Ort oder wenn eine andere Kombination konfiguriert ist) | Die Zeile wie zuvor einrücken |
 
 ## Terminal-KI-Agent
 

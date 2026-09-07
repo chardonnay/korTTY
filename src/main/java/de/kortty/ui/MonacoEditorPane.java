@@ -3,6 +3,7 @@ package de.kortty.ui;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import de.kortty.core.SnippetCompletionShortcut;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
@@ -95,6 +96,7 @@ public class MonacoEditorPane extends StackPane {
     private Consumer<String> workerReadyHandler;
     private Consumer<String> workerFailureHandler;
     private CompletionHost completionHost;
+    private String completionShortcut = SnippetCompletionShortcut.DEFAULT;
 
     /**
      * Receives the code-completion protocol of the Monaco page. Every method is invoked on the JavaFX
@@ -309,6 +311,32 @@ public class MonacoEditorPane extends StackPane {
 
     public CompletionHost getCompletionHost() {
         return completionHost;
+    }
+
+    /**
+     * Sets the chord that opens the completion list ({@link SnippetCompletionShortcut} spelling, for
+     * example {@code "Shift+Tab"} or {@code "Ctrl+Space"}). The page re-registers its action, so a
+     * changed setting takes effect on the next editor without a restart; an unusable value falls back
+     * to the default. Queued until the page is ready, like the completion flag itself.
+     */
+    public void setCompletionShortcut(String shortcut) {
+        completionShortcut = SnippetCompletionShortcut.normalizeOrDefault(shortcut);
+        runWhenReady("window.korttyMonaco.setCompletionShortcut(" + jsString(completionShortcutJson()) + ");");
+    }
+
+    /** The chord the page uses, resolved to Monaco's modifier flags and {@code KeyCode} member name. */
+    private String completionShortcutJson() {
+        SnippetCompletionShortcut.Binding binding = SnippetCompletionShortcut.binding(completionShortcut);
+        if (binding == null) {
+            binding = SnippetCompletionShortcut.binding(SnippetCompletionShortcut.DEFAULT);
+        }
+        JsonObject json = new JsonObject();
+        json.addProperty("shortcut", completionShortcut);
+        json.addProperty("ctrlCmd", binding.ctrlCmd());
+        json.addProperty("shift", binding.shift());
+        json.addProperty("alt", binding.alt());
+        json.addProperty("keyCode", binding.monacoKeyCode());
+        return GSON.toJson(json);
     }
 
     /** Delivers list candidates for an open request (payload JSON, see {@code completion.js}). */
@@ -670,6 +698,7 @@ public class MonacoEditorPane extends StackPane {
         json.addProperty("cursorColor", cursorColor);
         json.addProperty("rulerColumn", rulerColumn.get());
         json.addProperty("completion", completionHost != null);
+        json.add("completionShortcut", GSON.fromJson(completionShortcutJson(), JsonObject.class));
         return GSON.toJson(json);
     }
 
