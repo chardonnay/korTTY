@@ -216,6 +216,22 @@ public final class MermaidRenderServiceSmoke {
             if (!result.success() || !result.svg().contains("<svg")) {
                 throw new AssertionError("Supported Mermaid diagram did not render: " + result.message());
             }
+            verifyRootSvgIsFreelyScalable(source, result.svg());
+        }
+    }
+
+    /**
+     * Mermaid caps the root SVG with an inline {@code max-width} for every family whose
+     * {@code useMaxWidth} option is on. That cap outranks the viewer's own width, which used to
+     * pin every non-flowchart diagram to its natural size while the zoom label happily climbed.
+     * The host script strips those declarations, so the sizes are the viewer's alone.
+     */
+    private static void verifyRootSvgIsFreelyScalable(String source, String svg) {
+        int rootEnd = svg.indexOf('>');
+        String rootTag = rootEnd > 0 ? svg.substring(0, rootEnd) : svg;
+        if (rootTag.toLowerCase(java.util.Locale.ROOT).contains("max-width")) {
+            throw new AssertionError("Rendered SVG keeps a max-width cap and cannot be resized: "
+                + source.split("\n")[0] + " -> " + rootTag);
         }
     }
 
@@ -264,6 +280,7 @@ public final class MermaidRenderServiceSmoke {
                 throw new AssertionError("Generated " + typedSource.type()
                     + " diagram did not render: " + result.message());
             }
+            verifyRootSvgIsFreelyScalable(typedSource.source(), result.svg());
         }
     }
 
