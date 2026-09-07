@@ -568,6 +568,13 @@ export function installCompletion({ editor: nextEditor, model: nextModel }) {
   disposables.push(monaco.languages.registerCompletionItemProvider(LANGUAGE_SELECTOR, { provideCompletionItems }));
   disposables.push(monaco.languages.registerInlineCompletionsProvider(LANGUAGE_SELECTOR, {
     provideInlineCompletions,
+    // Esc on a ghost (editor.action.inlineSuggest.hide) ends the shown item as Rejected: forget the
+    // cache, or the next keystroke that matches would bring the dismissed ghost straight back. Only
+    // Java's next push shows one again. (Monaco 0.56 still calls the deprecated handleRejection
+    // for the same case; handleEndOfLifetime is the current hook and covers it.)
+    handleEndOfLifetime(_completions, _item, reason) {
+      if (reason && reason.kind === monaco.languages.InlineCompletionEndOfLifeReasonKind.Rejected) ghost = null;
+    },
     // Required in Monaco 0.56 (called unguarded); there is no freeInlineCompletions any more.
     disposeInlineCompletions(_completions, _reason) {}
   }));
@@ -584,10 +591,21 @@ export function installCompletion({ editor: nextEditor, model: nextModel }) {
 
 export function disposeCompletion() {
   disposeFocusWaiter();
+  // An open list is closed first, while the providers and the cancel listener are still in place:
+  // hiding the widget cancels the session without a retrigger, which reaches the listener and
+  // reports the close to Java. Disposing the providers first does not do that in Monaco 0.56 — the
+  // word-based "*" provider keeps the model's provider set non-empty, so SuggestModel merely
+  // retriggers (onDidCancel with retrigger: true, which the listener ignores) and Java would never
+  // hear that its list is gone.
+  if (session && editor && installed) {
+    try {
+      editor.trigger("kortty", "hideSuggestWidget", null);
+    } catch (error) {
+      console.error("Completion teardown could not hide the suggest widget", error);
+    }
+  }
   const pending = disposables.splice(0);
   installed = false;
-  // Providers go first: Monaco cancels an open session when its last provider disappears, which
-  // still reaches the cancel listener (disposed last) and reports the close to Java.
   for (const disposable of pending) {
     try {
       disposable.dispose();
@@ -595,7 +613,10 @@ export function disposeCompletion() {
       console.error("Completion teardown failed", error);
     }
   }
-  clearSession();
+  // A session that outlived the hide (the widget was not showing yet, so the command was a no-op)
+  // is still reported closed: Java's list state must not stay stuck on a request that can never
+  // resolve.
+  closeSession();
   ghost = null;
   pendingTrigger = null;
 }

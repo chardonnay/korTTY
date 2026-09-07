@@ -2927,7 +2927,7 @@ class SnippetAiWorkflowSupportTest {
         assertThat(context).doesNotContain("Cursor offset");
         // The window is cut to whole lines within the cap; the early script never leaves the editor.
         String before = request.selectedText();
-        assertThat(before.length()).isAtMost(SnippetAiWorkflowSupport.COMPLETION_BEFORE_WINDOW_CHARS);
+        assertThat(before.length()).isAtMost(SnippetCompletionSupport.PREFIX_MAX_CHARS);
         assertThat(before).startsWith("printf 'line 0116\\n'\n");
         assertThat(before).endsWith("printf 'line 0400\\n'\nfor f in ");
         int windowStart = text.indexOf(before);
@@ -2994,72 +2994,6 @@ class SnippetAiWorkflowSupportTest {
             .containsExactly("echo one", "echo two")
             .inOrder();
         assertThat(aiService.lastRequest.conversationContext()).contains("Requested candidates: 2\n");
-    }
-
-    @Test
-    void completionPromptWindowCutsBothSidesAtLineBoundaries() {
-        String longLine = "x".repeat(100);
-        StringBuilder text = new StringBuilder();
-        for (int i = 0; i < 100; i++) {
-            // 101 characters per line: 10 100 characters before the caret.
-            text.append(longLine).append('\n');
-        }
-        int caret = text.length();
-        for (int i = 0; i < 200; i++) {
-            // 15 characters per line: 3 000 characters after the caret.
-            text.append(String.format("after line %03d\n", i));
-        }
-
-        SnippetAiWorkflowSupport.PromptWindow window =
-            SnippetAiWorkflowSupport.promptWindow(text.toString(), caret);
-
-        assertThat(window.line()).isEqualTo(101);
-        assertThat(window.column()).isEqualTo(1);
-        assertThat(window.beforeTruncated()).isTrue();
-        assertThat(window.before().length()).isAtMost(SnippetAiWorkflowSupport.COMPLETION_BEFORE_WINDOW_CHARS);
-        // Whole lines only: the cut moved forward to the next line start.
-        assertThat(window.before().length() % 101).isEqualTo(0);
-        assertThat(window.before()).startsWith(longLine + "\n");
-        assertThat(window.before()).endsWith(longLine + "\n");
-        assertThat(window.afterTruncated()).isTrue();
-        assertThat(window.after().length()).isAtMost(SnippetAiWorkflowSupport.COMPLETION_AFTER_WINDOW_CHARS);
-        // The cut moved back to the previous line end: the window ends with a complete line.
-        assertThat(window.after()).startsWith("after line 000\n");
-        assertThat(window.after()).endsWith("after line 099");
-        assertThat(text.charAt(caret + window.after().length())).isEqualTo('\n');
-    }
-
-    @Test
-    void completionPromptWindowKeepsTheCharacterCutInsideASingleLongLineAndClampsTheCaret() {
-        String singleLine = "y".repeat(7_000) + "z".repeat(2_000);
-
-        SnippetAiWorkflowSupport.PromptWindow window =
-            SnippetAiWorkflowSupport.promptWindow(singleLine, 7_000);
-        SnippetAiWorkflowSupport.PromptWindow beyondEnd =
-            SnippetAiWorkflowSupport.promptWindow("ab\ncd", 99);
-        SnippetAiWorkflowSupport.PromptWindow beforeStart =
-            SnippetAiWorkflowSupport.promptWindow("ab\ncd", -4);
-        SnippetAiWorkflowSupport.PromptWindow empty =
-            SnippetAiWorkflowSupport.promptWindow(null, 3);
-
-        assertThat(window.before()).isEqualTo("y".repeat(SnippetAiWorkflowSupport.COMPLETION_BEFORE_WINDOW_CHARS));
-        assertThat(window.beforeTruncated()).isTrue();
-        assertThat(window.after()).isEqualTo("z".repeat(SnippetAiWorkflowSupport.COMPLETION_AFTER_WINDOW_CHARS));
-        assertThat(window.afterTruncated()).isTrue();
-        assertThat(window.line()).isEqualTo(1);
-        assertThat(window.column()).isEqualTo(7_001);
-        assertThat(beyondEnd.before()).isEqualTo("ab\ncd");
-        assertThat(beyondEnd.after()).isEmpty();
-        assertThat(beyondEnd.beforeTruncated()).isFalse();
-        assertThat(beyondEnd.afterTruncated()).isFalse();
-        assertThat(beyondEnd.line()).isEqualTo(2);
-        assertThat(beyondEnd.column()).isEqualTo(3);
-        assertThat(beforeStart.before()).isEmpty();
-        assertThat(beforeStart.after()).isEqualTo("ab\ncd");
-        assertThat(beforeStart.line()).isEqualTo(1);
-        assertThat(beforeStart.column()).isEqualTo(1);
-        assertThat(empty.before()).isEmpty();
-        assertThat(empty.after()).isEmpty();
     }
 
     @Test

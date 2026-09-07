@@ -299,10 +299,12 @@ public class MonacoEditorPane extends StackPane {
      * with the editor, or later to install them lazily.
      */
     public void setCompletionHost(CompletionHost host) {
+        // Queued until the page is ready: boot() reads the flag from its config, but a host set
+        // after boot() and before onReady would otherwise be dropped (installCompletion is
+        // idempotent, so the flag and the queued call do not conflict). Disabling runs before the
+        // host is dropped so that the close of an open list still reaches the host that opened it.
+        runWhenReady("window.korttyMonaco.setCompletionEnabled(" + (host != null) + ");");
         this.completionHost = host;
-        if (ready.get()) {
-            executeScript("window.korttyMonaco.setCompletionEnabled(" + (host != null) + ");");
-        }
     }
 
     public CompletionHost getCompletionHost() {
@@ -872,16 +874,18 @@ public class MonacoEditorPane extends StackPane {
         }
 
         // The completion up-calls only defer to the FX thread: an executeScript from inside a
-        // JS->Java call re-enters WebKit and crashes natively (see loadEditor).
+        // JS->Java call re-enters WebKit and crashes natively (see loadEditor). They go to the host
+        // installed when the page fired them: disabling completion closes an open list, and that
+        // close belongs to the host being removed, not to nobody.
         public void onCompletionRequested(double requestId, String requestJson) {
             MonacoEditorPane pane = paneRef.get();
             if (pane == null) {
                 return;
             }
             long id = (long) requestId;
+            CompletionHost host = pane.completionHost;
             Platform.runLater(() -> {
-                CompletionHost host = pane.disposed ? null : pane.completionHost;
-                if (host != null) {
+                if (host != null && !pane.disposed) {
                     host.onCompletionRequested(id, requestJson != null ? requestJson : "{}");
                 }
             });
@@ -893,9 +897,9 @@ public class MonacoEditorPane extends StackPane {
                 return;
             }
             long id = (long) requestId;
+            CompletionHost host = pane.completionHost;
             Platform.runLater(() -> {
-                CompletionHost host = pane.disposed ? null : pane.completionHost;
-                if (host != null) {
+                if (host != null && !pane.disposed) {
                     host.onCompletionListClosed(id);
                 }
             });
@@ -906,9 +910,9 @@ public class MonacoEditorPane extends StackPane {
             if (pane == null) {
                 return;
             }
+            CompletionHost host = pane.completionHost;
             Platform.runLater(() -> {
-                CompletionHost host = pane.disposed ? null : pane.completionHost;
-                if (host != null) {
+                if (host != null && !pane.disposed) {
                     host.onCompletionAccepted(acceptedJson != null ? acceptedJson : "{}");
                 }
             });

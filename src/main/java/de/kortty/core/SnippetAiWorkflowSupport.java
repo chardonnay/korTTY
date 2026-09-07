@@ -52,14 +52,6 @@ public final class SnippetAiWorkflowSupport {
      */
     static final int MAX_WHOLE_FILE_REPLACEMENT_LINES = 400;
     private static final long MAX_COLLAPSED_STAGE_RETRY_COMPLETION_TOKENS = 4_096L;
-    /**
-     * The completion prompt sends a bounded window around the caret instead of the whole snippet
-     * (which the previous prompt sent twice): the text before the caret is what a completion
-     * continues, so it gets the larger share; the text after it only tells the model what already
-     * follows. Both cuts are moved to line boundaries so the model never sees a torn line.
-     */
-    static final int COMPLETION_BEFORE_WINDOW_CHARS = 6_000;
-    static final int COMPLETION_AFTER_WINDOW_CHARS = 1_500;
     private static final Pattern URL_PATTERN = Pattern.compile("https?://[^\\s'\"<>]+", Pattern.CASE_INSENSITIVE);
     private static final Pattern DOWNLOAD_COMMAND_PATTERN =
         Pattern.compile("(?i)(?:^|[\\s;&|()])(?:curl|wget)(?:\\s|$)");
@@ -326,7 +318,9 @@ public final class SnippetAiWorkflowSupport {
 
     /**
      * Asks for up to {@code maxCandidates} completions at {@code cursorOffset}, best first. Only a
-     * bounded window around the caret is sent (see {@link #COMPLETION_BEFORE_WINDOW_CHARS}), once,
+     * bounded window around the caret is sent ({@link SnippetCompletionSupport#promptWindow}: the
+     * text before the caret is what a completion continues, so it gets the larger share, the text
+     * after it only tells the model what already follows; both cuts sit on line boundaries), once,
      * as the snippet context; the request's selected text is that same before-window so skill
      * selection and usage accounting see what the model saw. {@code localContext} is an optional
      * paragraph from the editor (cursor context, known symbols) that steers the candidates.
@@ -344,7 +338,7 @@ public final class SnippetAiWorkflowSupport {
         String localContext) throws Exception {
 
         int requestedCandidates = Math.max(1, maxCandidates);
-        PromptWindow window = promptWindow(fullContent, cursorOffset);
+        SnippetCompletionSupport.PromptWindow window = SnippetCompletionSupport.promptWindow(fullContent, cursorOffset);
         AiRequest request = new AiRequest(
             AiAction.COMPLETE_SNIPPET_CODE,
             window.before(),
@@ -2148,64 +2142,8 @@ public final class SnippetAiWorkflowSupport {
             + AiPromptBuilder.toSafeTextCodeBlock(fullContent);
     }
 
-    /** The bounded text around the caret that a completion request sends, plus the caret's 1-based position. */
-    record PromptWindow(
-        String before,
-        String after,
-        boolean beforeTruncated,
-        boolean afterTruncated,
-        int line,
-        int column) {
-    }
-
-    /**
-     * Cuts the window a completion request sends: the last {@link #COMPLETION_BEFORE_WINDOW_CHARS}
-     * characters before the caret, moved forward to the next line start when cut, and the first
-     * {@link #COMPLETION_AFTER_WINDOW_CHARS} characters after it, moved back to the previous line
-     * end when cut. A single line longer than a window keeps the plain character cut.
-     */
-    static PromptWindow promptWindow(String text, int caret) {
-        String content = text != null ? text : "";
-        int safeCaret = Math.max(0, Math.min(caret, content.length()));
-        int beforeStart = 0;
-        boolean beforeTruncated = false;
-        if (safeCaret > COMPLETION_BEFORE_WINDOW_CHARS) {
-            beforeTruncated = true;
-            beforeStart = safeCaret - COMPLETION_BEFORE_WINDOW_CHARS;
-            int nextLineStart = content.indexOf('\n', beforeStart);
-            if (nextLineStart >= 0 && nextLineStart < safeCaret) {
-                beforeStart = nextLineStart + 1;
-            }
-        }
-        int afterEnd = content.length();
-        boolean afterTruncated = false;
-        if (content.length() - safeCaret > COMPLETION_AFTER_WINDOW_CHARS) {
-            afterTruncated = true;
-            afterEnd = safeCaret + COMPLETION_AFTER_WINDOW_CHARS;
-            int previousLineEnd = content.lastIndexOf('\n', afterEnd - 1);
-            if (previousLineEnd > safeCaret) {
-                afterEnd = previousLineEnd;
-            }
-        }
-        int line = 1;
-        int lineStart = 0;
-        for (int i = 0; i < safeCaret; i++) {
-            if (content.charAt(i) == '\n') {
-                line++;
-                lineStart = i + 1;
-            }
-        }
-        return new PromptWindow(
-            content.substring(beforeStart, safeCaret),
-            content.substring(safeCaret, afterEnd),
-            beforeTruncated,
-            afterTruncated,
-            line,
-            safeCaret - lineStart + 1);
-    }
-
     private static String buildCompletionContext(
-        PromptWindow window,
+        SnippetCompletionSupport.PromptWindow window,
         String snippetLanguage,
         String fallbackLanguageCode,
         int requestedCandidates,
@@ -2221,12 +2159,12 @@ public final class SnippetAiWorkflowSupport {
             builder.append(localContext.trim()).append("\n");
         }
         builder.append(window.beforeTruncated()
-                ? "Text before cursor (last " + COMPLETION_BEFORE_WINDOW_CHARS + " characters; earlier text omitted):\n"
+                ? "Text before cursor (last " + SnippetCompletionSupport.PREFIX_MAX_CHARS + " characters; earlier text omitted):\n"
                 : "Text before cursor:\n")
             .append(AiPromptBuilder.toSafeTextCodeBlock(window.before()))
             .append("\n")
             .append(window.afterTruncated()
-                ? "Text after cursor (first " + COMPLETION_AFTER_WINDOW_CHARS + " characters; later text omitted):\n"
+                ? "Text after cursor (first " + SnippetCompletionSupport.SUFFIX_MAX_CHARS + " characters; later text omitted):\n"
                 : "Text after cursor:\n")
             .append(AiPromptBuilder.toSafeTextCodeBlock(window.after()));
         return builder.toString();

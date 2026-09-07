@@ -494,7 +494,7 @@ class SnippetCompletionSupportTest {
     }
 
     @Test
-    void hugeContentUsesTheWindowSkipsTheEmbeddedScanAndStaysFast() {
+    void hugeContentUsesTheWindowSkipsTheEmbeddedScanAndDoesNotRunAway() {
         String padding = "echo \"" + "x".repeat(180) + "\"\n";
         StringBuilder text = new StringBuilder();
         int total = 3_200;
@@ -529,8 +529,10 @@ class SnippetCompletionSupportTest {
         long millis = (System.nanoTime() - start) / 1_000_000;
         assertThat(list).contains("\"${NEAR[@]}\"");
         assertThat(list).doesNotContain("\"${FAR[@]}\"");
+        // A runaway guard only: the windowed harvest takes milliseconds, a full scan of the 600 KB
+        // text seconds — a tight wall-clock bound would flake on a loaded CI machine.
         assertWithMessage("harvest of " + content.length() + " chars took " + millis + " ms")
-            .that(millis).isLessThan(1_000);
+            .that(millis).isLessThan(10_000);
     }
 
     @Test
@@ -691,7 +693,23 @@ class SnippetCompletionSupportTest {
         assertThat(whole.afterTruncated()).isFalse();
         assertThat(whole.line()).isEqualTo(2);
         assertThat(whole.column()).isEqualTo(1);
-        assertThat(SnippetCompletionSupport.promptWindow(null, 7).before()).isEmpty();
+
+        // The caret is clamped to the text; a missing text is an empty window.
+        PromptWindow beyondEnd = SnippetCompletionSupport.promptWindow("ab\ncd", 99);
+        assertThat(beyondEnd.before()).isEqualTo("ab\ncd");
+        assertThat(beyondEnd.after()).isEmpty();
+        assertThat(beyondEnd.beforeTruncated()).isFalse();
+        assertThat(beyondEnd.afterTruncated()).isFalse();
+        assertThat(beyondEnd.line()).isEqualTo(2);
+        assertThat(beyondEnd.column()).isEqualTo(3);
+        PromptWindow beforeStart = SnippetCompletionSupport.promptWindow("ab\ncd", -4);
+        assertThat(beforeStart.before()).isEmpty();
+        assertThat(beforeStart.after()).isEqualTo("ab\ncd");
+        assertThat(beforeStart.line()).isEqualTo(1);
+        assertThat(beforeStart.column()).isEqualTo(1);
+        PromptWindow empty = SnippetCompletionSupport.promptWindow(null, 7);
+        assertThat(empty.before()).isEmpty();
+        assertThat(empty.after()).isEmpty();
 
         // A single line longer than the budget is cut mid-line rather than dropped.
         String longLine = "x".repeat(20_000);

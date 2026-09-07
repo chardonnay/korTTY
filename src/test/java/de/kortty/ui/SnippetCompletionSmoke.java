@@ -53,9 +53,10 @@ import java.util.function.BooleanSupplier;
  * End-to-end JavaFX smoke for the snippet editor's code completion: a real {@link SnippetEditDialog}
  * on a real Stage with the real Monaco WebView, fed by a stubbed AI provider that answers on its own
  * thread after a delay. It drives the Shift+TAB / menu list with local and AI rows, the verbatim
- * multi-line accept with its ↺ snapshot, Shift+TAB / TAB / Esc through the JavaFX event chain, ghost
- * text, the cancel paths (heavy action, hint-bar Cancel, dialog close) and snapshots the list and the
- * ghost text to {@code build/smoke/snippet-completion-*.png}. Run via the {@code snippetCompletionSmoke}
+ * multi-line accept with its ↺ snapshot, Shift+TAB / TAB / Esc through the JavaFX event chain, a host
+ * removed while the list is open, ghost text and its Esc dismissal, the cancel paths (heavy action,
+ * hint-bar Cancel, dialog close) and snapshots the list and the ghost text to
+ * {@code build/smoke/snippet-completion-*.png}. Run via the {@code snippetCompletionSmoke}
  * Gradle task. Exit 0 = OK, 1 = assertion failure, 2 = timeout.
  */
 public final class SnippetCompletionSmoke {
@@ -69,6 +70,19 @@ public final class SnippetCompletionSmoke {
     private static final String AI_MULTI_LINE = "\"${ARR[@]}\"; do\n    echo \"$item\"\ndone";
     /** The stub's third candidate repeats a local row and must be deduplicated away. */
     private static final String AI_DUPLICATE_OF_LOCAL = "\"${ARR[@]}\"";
+    private static final List<CompletionSuggestion> DEFAULT_CANDIDATES = List.of(
+        new CompletionSuggestion(AI_SINGLE_LINE, "one line"),
+        new CompletionSuggestion(AI_MULTI_LINE, "loop body"),
+        new CompletionSuggestion(AI_DUPLICATE_OF_LOCAL, "same as a local row"));
+    /**
+     * Ghost candidates for the dismiss check, all starting with {@link #DISMISS_PREFIX}: a typed
+     * quote (which every default candidate starts with) is auto-closed by the shell language, and
+     * that second character alone would keep a stale ghost away, fix or no fix.
+     */
+    private static final String DISMISS_PREFIX = "x";
+    private static final List<CompletionSuggestion> DISMISS_CANDIDATES = List.of(
+        new CompletionSuggestion("xargs -0 rm --", "dismiss one"),
+        new CompletionSuggestion("xz --keep", "dismiss two"));
     private static final int LIST_CANDIDATES = 5;
     private static final int GHOST_CANDIDATES = 3;
     private static final double POLL_MS = 40;
@@ -97,6 +111,7 @@ public final class SnippetCompletionSmoke {
     private final List<ProviderCall> providerCalls = Collections.synchronizedList(new ArrayList<>());
     private final AtomicInteger interruptedCalls = new AtomicInteger();
     private final AtomicReference<StubMode> stubMode = new AtomicReference<>(StubMode.QUICK);
+    private final AtomicReference<List<CompletionSuggestion>> stubCandidates = new AtomicReference<>(DEFAULT_CANDIDATES);
     /** Host callbacks in arrival order (FX thread): requested:<id>, closed:<id>, accepted:<json>. */
     private final List<String> hostEvents = new ArrayList<>();
     private final List<JsonObject> acceptedEvents = new ArrayList<>();
@@ -273,10 +288,7 @@ public final class SnippetCompletionSmoke {
             interruptedCalls.incrementAndGet();
             throw e;
         }
-        List<CompletionSuggestion> all = List.of(
-            new CompletionSuggestion(AI_SINGLE_LINE, "one line"),
-            new CompletionSuggestion(AI_MULTI_LINE, "loop body"),
-            new CompletionSuggestion(AI_DUPLICATE_OF_LOCAL, "same as a local row"));
+        List<CompletionSuggestion> all = stubCandidates.get();
         int max = Math.max(1, request.maxCandidates());
         return List.copyOf(all.subList(0, Math.min(max, all.size())));
     }
@@ -457,7 +469,56 @@ public final class SnippetCompletionSmoke {
                 check(!stateBool("listActive") && stateInt("requestId") == requestBefore, "plain TAB must not open a list");
                 System.out.println("check 4b: plain TAB with no list inserted " + describeWhitespace(inserted)
                     + " and opened no list; KEY_PRESSED " + tab);
-                undoUntil(TEXT, 2, undos -> after(200, this::check5GhostText));
+                undoUntil(TEXT, 2, undos -> after(200, this::check4DisableHostClosesList));
+            });
+        });
+    }
+
+    /**
+     * 4c) Removing the completion host while a list is open closes the list on the page and reports the
+     * close to the host being removed (its list state must not stay stuck); restoring the host makes
+     * the next trigger open a list again.
+     */
+    private void check4DisableHostClosesList() {
+        editor.moveTo(TEXT.length());
+        after(250, () -> {
+            editor.triggerCompletionList();
+            until("the list before the host is removed", () -> stateBool("listActive") && stateInt("local") >= 3, 3000, () -> {
+                until("the suggest widget to render before the host is removed", () -> firstSuggestRowLabel() != null, 2000, () -> {
+                    int requestId = stateInt("requestId");
+                    int closedBefore = stateInt("closedCount");
+                    check(listSessionId() == requestId, "the dialog should track the open list, tracks " + listSessionId());
+                    MonacoEditorPane.CompletionHost host = editor.getCompletionHost();
+                    check(host != null, "the smoke's host wrapper should be installed");
+                    editor.setCompletionHost(null);
+                    check(!stateBool("enabled"), "setCompletionHost(null) should disable completion on the page");
+                    until("the page to close the list when completion is disabled",
+                        () -> !stateBool("listActive") && stateInt("closedCount") == closedBefore + 1, 2000, () -> {
+                        until("the close to reach the removed host and the dialog",
+                            () -> hostEvents.contains("closed:" + requestId) && listSessionId() == -1, 2000, () -> {
+                            check(field(dialog, "completionTask", Object.class) == null,
+                                "the list's AI request should end with the close");
+                            System.out.println("check 4c: setCompletionHost(null) closed the open list (closedCount " + closedBefore
+                                + " -> " + stateInt("closedCount") + "), the removed host received closed:" + requestId
+                                + ", listSessionId back to -1");
+                            editor.setCompletionHost(host);
+                            check(stateBool("enabled"), "restoring the host should re-enable completion on the page");
+                            editor.triggerCompletionList();
+                            until("the list to open again after the host was restored",
+                                () -> stateBool("listActive") && stateInt("requestId") > requestId && stateInt("local") >= 3, 3000, () -> {
+                                int reopened = stateInt("requestId");
+                                check(hostEvents.contains("requested:" + reopened), "the restored host should receive request " + reopened);
+                                check(listSessionId() == reopened, "the dialog should track the reopened list");
+                                fireKey(KeyCode.ESCAPE, false);
+                                until("the reopened list to close", () -> !stateBool("listActive") && listSessionId() == -1, 2000, () -> {
+                                    System.out.println("check 4d: the restored host opened list session " + reopened
+                                        + " again; Esc closed it");
+                                    after(200, this::check5GhostText);
+                                });
+                            });
+                        });
+                    });
+                });
             });
         });
     }
@@ -508,7 +569,52 @@ public final class SnippetCompletionSmoke {
                     setAutoAiComplete(false);
                     check(ghostTimer.getStatus() == Animation.Status.STOPPED, "disabling Auto AI Complete should stop the ghost timer");
                     System.out.println("check 5b: commit inserted the ghost text, accepted source=ghost, ↺ snapshot stored");
-                    after(300, this::check6HeavyActionCancelsCompletion);
+                    after(300, this::check5DismissedGhostStaysHidden);
+                });
+            });
+        });
+    }
+
+    /**
+     * 5c) A ghost dismissed with Esc (editor.action.inlineSuggest.hide) stays away when the next
+     * keystroke types a prefix of it — the page must drop its cache, not just hide the text — and a
+     * fresh push from Java shows a ghost again.
+     */
+    private void check5DismissedGhostStaysHidden() {
+        String text = editorText();
+        editor.moveTo(text.length());
+        stubCandidates.set(DISMISS_CANDIDATES);
+        int callsBefore = providerCalls.size();
+        setAutoAiComplete(true);
+        until("the ghost for the dismiss check", () -> providerCalls.size() > callsBefore && stateBool("ghostVisible"), 3000, () -> {
+            check(stateInt("ghostCached") == DISMISS_CANDIDATES.size(), "expected " + DISMISS_CANDIDATES.size()
+                + " cached ghost candidates, got " + stateInt("ghostCached"));
+            editor.triggerEditorCommand("editor.action.inlineSuggest.hide");
+            until("the ghost to hide", () -> !stateBool("ghostVisible"), 2000, () -> {
+                check(stateInt("ghostCached") == 0, "dismissing the ghost must drop the cached candidates, still "
+                    + stateInt("ghostCached"));
+                // Switch off without the menu handler (which would clear the page's cache itself): the
+                // keystroke must not arm a fresh request while the stale cache is probed.
+                autoCompleteItem.setSelected(false);
+                int callsAtHide = providerCalls.size();
+                typeCharacter(DISMISS_PREFIX);
+                until("the typed prefix to reach the editor", () -> editorText().equals(text + DISMISS_PREFIX), 2000, () -> {
+                    after(400, () -> {
+                        check(!stateBool("ghostVisible") && stateInt("ghostCached") == 0,
+                            "a dismissed ghost resurfaced after typing its prefix");
+                        check(providerCalls.size() == callsAtHide, "no request may run while the switch is off");
+                        System.out.println("check 5c: Esc dismissed the ghost and typing its prefix " + GSON.toJson(DISMISS_PREFIX)
+                            + " did not bring it back (cache dropped)");
+                        setAutoAiComplete(true);
+                        until("a fresh ghost after the dismiss", () -> providerCalls.size() > callsAtHide && stateBool("ghostVisible"), 3000, () -> {
+                            check(stateInt("ghostCached") == DISMISS_CANDIDATES.size(), "the fresh push should cache "
+                                + DISMISS_CANDIDATES.size() + " candidates, cached " + stateInt("ghostCached"));
+                            System.out.println("check 5d: a fresh Java push showed the ghost again after the dismiss");
+                            setAutoAiComplete(false);
+                            stubCandidates.set(DEFAULT_CANDIDATES);
+                            undoUntil(text, 2, undos -> after(300, this::check6HeavyActionCancelsCompletion));
+                        });
+                    });
                 });
             });
         });
@@ -762,6 +868,11 @@ public final class SnippetCompletionSmoke {
         editor.syncFromEditor();
         String text = editor.getText();
         return text != null ? text : "";
+    }
+
+    /** The dialog's id of the list it believes open, -1 for none. */
+    private long listSessionId() {
+        return field(dialog, "listSessionId", Long.class);
     }
 
     private JsonObject state() {

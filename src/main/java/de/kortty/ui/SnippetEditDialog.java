@@ -3857,7 +3857,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
         lastAutoCompletionKey = key;
         long requestId = nextGhostRequestId++;
-        startCompletionTask(requestId, content, caret, GHOST_AI_CANDIDATES, result -> {
+        startCompletionTask(requestId, content, caret, GHOST_AI_CANDIDATES, null, result -> {
             if (!content.equals(contentArea.getText()) || caret != contentArea.getCaretPosition()) {
                 setCompletionStatus(I18n.get("snippets.ai.complete.discarded"));
                 return;
@@ -3880,6 +3880,35 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     /**
+     * What one pass over the snippet yields for a list request: the caret context, the local rows
+     * and the "Cursor context"/"Known symbols" paragraph of the AI prompt, all from the same
+     * language detection, classification and symbol harvest — a Shift+TAB on a large snippet scans
+     * it once on the FX thread, not once per consumer.
+     */
+    record LocalCompletion(SnippetCompletionSupport.Context context,
+                           List<SnippetCompletionSupport.Candidate> candidates, String localContext) {
+
+        static final LocalCompletion NONE = new LocalCompletion(null, List.of(), "");
+    }
+
+    /**
+     * The rows of {@link SnippetCompletionSupport#localCandidates(String, String, int, int, boolean)}
+     * for {@code !hasLanguageService} and the paragraph of
+     * {@link SnippetCompletionSupport#localContext(String, String, int)}, computed together.
+     * {@code hasLanguageService} drops the plain identifiers from the rows only: Monaco's own
+     * language services add their word entries for javascript/typescript/json/css/html.
+     */
+    static LocalCompletion localCompletion(String declaredLanguage, String text, int caretOffset,
+                                           boolean hasLanguageService) {
+        String language = SnippetCompletionSupport.effectiveLanguage(declaredLanguage, text, caretOffset);
+        SnippetCompletionSupport.Context ctx = SnippetCompletionSupport.classify(language, text, caretOffset);
+        SnippetCompletionSupport.Symbols symbols = SnippetCompletionSupport.harvest(language, text, caretOffset);
+        List<SnippetCompletionSupport.Candidate> candidates = SnippetCompletionSupport.candidates(
+            ctx, hasLanguageService ? symbols.withoutIdentifiers() : symbols, LOCAL_MAX_ITEMS);
+        return new LocalCompletion(ctx, candidates, SnippetCompletionSupport.localContext(ctx, symbols));
+    }
+
+    /**
      * The suggest list opened on the page. Local candidates resolve it within this pulse; when a
      * provider is configured the AI candidates follow into the open list — every list (Shift+TAB,
      * Ctrl+Space, the menu) is a deliberate action, so no data notice is needed. Progress shows in
@@ -3898,26 +3927,22 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         activeCompletionRequestId = requestId;
         cancelCompletionRequest();
         autoCompletionDelay.stop();
-        String language = languageCombo.getValue();
-        List<SnippetCompletionSupport.Candidate> local;
+        LocalCompletion local;
         try {
-            // Monaco's own language services add their word entries for javascript/typescript/json/css/html.
-            local = SnippetCompletionSupport.localCandidates(language, text, caret, LOCAL_MAX_ITEMS, !hasLanguageService);
+            local = localCompletion(languageCombo.getValue(), text, caret, hasLanguageService);
         } catch (RuntimeException e) {
             logger.warn("Local completion candidates failed", e);
-            local = List.of();
+            local = LocalCompletion.NONE;
         }
-        contentArea.pushCompletions(MonacoCompletionPayloads.list(requestId, "local", local, completionKindLabels));
+        contentArea.pushCompletions(
+            MonacoCompletionPayloads.list(requestId, "local", local.candidates(), completionKindLabels));
         if (!hasCompletionProvider() || isAnyAiTaskRunning() || text.isBlank()) {
             return;
         }
-        String requestText = text;
-        List<SnippetCompletionSupport.Candidate> localCandidates = local;
-        startCompletionTask(requestId, requestText, caret, LIST_AI_CANDIDATES, result -> {
-            SnippetCompletionSupport.Context ctx = SnippetCompletionSupport.classify(
-                SnippetCompletionSupport.effectiveLanguage(language, requestText, caret), requestText, caret);
+        LocalCompletion scanned = local;
+        startCompletionTask(requestId, text, caret, LIST_AI_CANDIDATES, scanned.localContext(), result -> {
             List<SnippetCompletionSupport.Candidate> ai = SnippetCompletionSupport.aiCandidates(
-                ctx, caret, localCandidates, result,
+                scanned.context(), caret, scanned.candidates(), result,
                 completionKindLabels.get(SnippetCompletionSupport.CandidateKind.AI));
             if (ai.isEmpty()) {
                 setCompletionStatus(I18n.get("snippets.ai.complete.empty"));
@@ -4018,11 +4043,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     /**
      * Runs one AI completion request in its own task: it blocks none of the other AI actions (they
      * take over through {@link #beginSnippetAiAction}), a new request supersedes a running one, and
-     * the result is delivered only while {@code requestId} is still the wanted one. {@code showHintBar}
-     * is true for ghost text only; list requests report in the status line so the WebView is not
-     * resized under the open widget.
+     * the result is delivered only while {@code requestId} is still the wanted one. {@code localContext}
+     * is the prompt's cursor-context paragraph when the caller has it already (the list request), or
+     * null to derive it here (ghost text). {@code showHintBar} is true for ghost text only; list
+     * requests report in the status line so the WebView is not resized under the open widget.
      */
     private void startCompletionTask(long requestId, String content, int caretOffset, int maxCandidates,
+                                     String precomputedLocalContext,
                                      Consumer<List<SnippetAiResponseSupport.CompletionSuggestion>> onResult,
                                      boolean showHintBar) {
         if (!hasCompletionProvider() || content == null || content.isBlank() || isAnyAiTaskRunning()) {
@@ -4034,12 +4061,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         // leaves this one request without an explicit contract.
         applyCodeTextLanguage(false);
         String language = languageCombo.getValue();
-        String localContext;
-        try {
-            localContext = SnippetCompletionSupport.localContext(language, content, caretOffset);
-        } catch (RuntimeException e) {
-            logger.warn("Local completion context failed", e);
-            localContext = "";
+        String localContext = precomputedLocalContext;
+        if (localContext == null) {
+            try {
+                localContext = SnippetCompletionSupport.localContext(language, content, caretOffset);
+            } catch (RuntimeException e) {
+                logger.warn("Local completion context failed", e);
+                localContext = "";
+            }
         }
         CompletionRequest request = new CompletionRequest(
             content,

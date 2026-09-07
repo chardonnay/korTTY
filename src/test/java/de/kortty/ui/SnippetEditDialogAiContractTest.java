@@ -3,6 +3,7 @@ package de.kortty.ui;
 import de.kortty.model.AiSkill;
 import de.kortty.model.AiSkillTarget;
 import de.kortty.core.SnippetAiWorkflowSupport;
+import de.kortty.core.SnippetCompletionSupport;
 import org.testng.annotations.Test;
 
 import java.util.List;
@@ -280,6 +281,39 @@ class SnippetEditDialogAiContractTest {
         assertThat(SnippetEditDialog.ghostRequestAllowed(true, false, false, true, "", "")).isFalse();
         assertThat(SnippetEditDialog.ghostRequestAllowed(true, false, false, true, "   ", "")).isFalse();
         assertThat(SnippetEditDialog.ghostRequestAllowed(true, false, false, true, "for x in ", "done")).isFalse();
+    }
+
+    @Test
+    void listRequestsDeriveRowsAndPromptContextFromOneHarvestWithoutChangingEither() {
+        // A generic position: functions, variables and plain identifiers (logmsg) all have rows.
+        String content = "NAME=1\nARR=(a b)\nhelper() {\n  logmsg \"$NAME\"\n}\nlogmsg \"done\"\nhel";
+        int caret = content.length();
+        int max = SnippetCompletionSupport.DEFAULT_MAX_ITEMS;
+
+        SnippetEditDialog.LocalCompletion plain = SnippetEditDialog.localCompletion("bash", content, caret, false);
+        SnippetEditDialog.LocalCompletion withService = SnippetEditDialog.localCompletion("bash", content, caret, true);
+
+        // The single pass yields exactly what the separate entry points yield.
+        assertThat(plain.context()).isEqualTo(SnippetCompletionSupport.classify("bash", content, caret));
+        assertThat(plain.candidates())
+            .isEqualTo(SnippetCompletionSupport.localCandidates("bash", content, caret, max, true));
+        assertThat(withService.candidates())
+            .isEqualTo(SnippetCompletionSupport.localCandidates("bash", content, caret, max, false));
+        assertThat(plain.localContext()).isEqualTo(SnippetCompletionSupport.localContext("bash", content, caret));
+        // A Monaco language service drops the plain identifiers from the rows only: the prompt still names them.
+        assertThat(plain.candidates()).isNotEqualTo(withService.candidates());
+        assertThat(withService.localContext()).isEqualTo(plain.localContext());
+        assertThat(plain.localContext()).contains("other identifiers logmsg");
+
+        // A comment line has no rows but still describes the snippet for the prompt.
+        String comment = "ARR=(a)\n# for x in ";
+        SnippetEditDialog.LocalCompletion none =
+            SnippetEditDialog.localCompletion("bash", comment, comment.length(), false);
+        assertThat(none.context().kind()).isEqualTo(SnippetCompletionSupport.ContextKind.NONE);
+        assertThat(none.candidates()).isEmpty();
+        assertThat(none.localContext())
+            .isEqualTo(SnippetCompletionSupport.localContext("bash", comment, comment.length()));
+        assertThat(none.localContext()).contains("arrays ARR");
     }
 
     private static AiSkill skill(String name, List<String> builtinTopics, List<String> tags) {

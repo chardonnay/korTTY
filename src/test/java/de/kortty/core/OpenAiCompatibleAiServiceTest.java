@@ -872,6 +872,49 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void readResponseBodyDetailedFailsInsteadOfSalvagingWhenTheInterruptLandsInsideARead() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token");
+        // Delivers one chunk, then fails the way the JDK's HttpResponseInputStream does when
+        // Task.cancel(true) interrupts a thread blocked inside read(): the flag is re-set and an
+        // IOException wrapping the InterruptedException is thrown. That must not be salvaged as
+        // a partial body.
+        InputStream cancelledInsideRead = new InputStream() {
+            private final ByteArrayInputStream delegate = new ByteArrayInputStream(
+                "data: {\"choices\":[{\"delta\":{\"content\":\"partial\"}}]}\n\n".getBytes(StandardCharsets.UTF_8));
+            private boolean delivered;
+
+            @Override
+            public int read() {
+                return delegate.read();
+            }
+
+            @Override
+            public int read(byte[] buffer, int offset, int length) throws IOException {
+                if (!delivered) {
+                    delivered = true;
+                    return delegate.read(buffer, offset, length);
+                }
+                Thread.currentThread().interrupt();
+                throw new IOException(new InterruptedException());
+            }
+        };
+
+        boolean interruptFlagKept;
+        try {
+            InterruptedIOException error = expectThrows(
+                InterruptedIOException.class,
+                () -> service.readResponseBodyDetailed(cancelledInsideRead, null));
+            assertThat(error.getMessage()).contains("cancelled");
+        } finally {
+            interruptFlagKept = Thread.interrupted();
+        }
+        assertThat(interruptFlagKept).isTrue();
+    }
+
+    @Test
     void disabledReasoningReachesMiniMaxThroughItsOwnThinkingParameter() {
         // MiniMax ignores reasoning_effort, so a disabled profile used to arrive as no parameter at
         // all and the model applied its default: whole completion budgets spent on hidden thinking.

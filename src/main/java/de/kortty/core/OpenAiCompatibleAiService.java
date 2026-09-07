@@ -2195,6 +2195,15 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                     }
                     output.write(buffer, 0, read);
                 } catch (IOException ex) {
+                    // A cancel that lands while blocked inside read() surfaces here: the JDK's
+                    // response stream re-sets the interrupt flag and throws an IOException
+                    // wrapping the InterruptedException. Same rule as the check above.
+                    if (Thread.currentThread().isInterrupted() || causedByInterrupt(ex)) {
+                        InterruptedIOException cancelled = new InterruptedIOException(
+                            "AI request cancelled while streaming the response.");
+                        cancelled.initCause(ex);
+                        throw cancelled;
+                    }
                     if (output.size() == 0) {
                         throw ex;
                     }
@@ -2204,6 +2213,15 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             }
             return new ResponseBody(output.toString(StandardCharsets.UTF_8), false);
         }
+    }
+
+    private static boolean causedByInterrupt(Throwable error) {
+        for (Throwable cause = error.getCause(); cause != null; cause = cause.getCause()) {
+            if (cause instanceof InterruptedException) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private AiExecutionResult executeConnectionTestWithClient(HttpClient client, Duration timeout) throws Exception {
