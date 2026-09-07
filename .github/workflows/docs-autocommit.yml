@@ -90,8 +90,13 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/main/resources/guide
-          # [skip ci] is belt-and-suspenders: the path filter already excludes
-          # src/main/resources/guide/**, so this commit cannot re-trigger the workflow.
-          git commit -m "docs: regenerate bundled guide [skip ci]"
+          # No [skip ci] here. The path filter above already excludes
+          # src/main/resources/guide/**, so this commit cannot re-trigger this workflow — but
+          # the marker is not scoped to one workflow: GitHub skips EVERY run for a commit whose
+          # message carries it. On a pull request this commit becomes the head, so Test, Docs
+          # validate and Docs site stopped running from the moment the guide was regenerated,
+          # and a squash merge copied the marker into the main commit message, which silenced
+          # them on main as well (seen on #302: only the dependency submission ran).
+          git commit -m "docs: regenerate bundled guide"
           git push origin "HEAD:${GITHUB_REF_NAME}"
           echo "Pushed the regenerated guide to ${GITHUB_REF_NAME}."

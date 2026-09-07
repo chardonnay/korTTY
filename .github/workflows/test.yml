@@ -17,6 +17,9 @@ on:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+  # Lets a maintainer re-run the suite for a commit whose own run never happened —
+  # a merge that inherited a [skip ci] marker, or a run cancelled by concurrency.
+  workflow_dispatch:
 
 permissions:
   contents: read
