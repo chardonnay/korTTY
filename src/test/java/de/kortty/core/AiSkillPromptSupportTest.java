@@ -74,6 +74,34 @@ class AiSkillPromptSupportTest {
     }
 
     @Test
+    void snippetCompletionSkipsHybridClassifierAndKeepsLocalSelection() {
+        AiSkill bash = skill("bash-style", true, AiSkillTarget.BOTH, "Quote every expansion.");
+        bash.setDescription("Bash scripting style guidance.");
+        bash.setTags(List.of("bash", "shell", "printf"));
+        AiSkillPromptSupport support = new AiSkillPromptSupport(true, true, List.of(bash));
+        boolean[] classifierCalled = {false};
+        AiSkillRelevanceClassifier classifier = (context, skills) -> {
+            classifierCalled[0] = true;
+            return List.of("bash-style");
+        };
+
+        // Completion answers while the user waits at the caret: no classification round-trip,
+        // the local relevance selection still attaches the matching skill.
+        String prompt = support.appendChatSkills("base",
+            new AiRequest(
+                AiAction.COMPLETE_SNIPPET_CODE,
+                "#!/bin/bash\nprintf 'ok\\n'\nfor f in ",
+                null,
+                "en",
+                null,
+                "Snippet language: bash shell\nRequested candidates: 3"),
+            classifier);
+
+        assertThat(classifierCalled[0]).isFalse();
+        assertThat(prompt).contains("Quote every expansion.");
+    }
+
+    @Test
     void filtersDisabledGlobalDisabledAndWrongTargetSkills() {
         AiSkill chatSkill = skill("Chat", true, AiSkillTarget.CHAT, "chat");
         AiSkill disabledSkill = skill("Disabled", false, AiSkillTarget.BOTH, "disabled");

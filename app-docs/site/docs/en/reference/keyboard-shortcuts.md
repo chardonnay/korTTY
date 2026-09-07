@@ -54,6 +54,22 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | ++f12++ | Toggle Fullscreen |
 | ++ctrl+shift+f++ | Toggle Terminal-only Fullscreen |
 
+## Snippet editor
+
+These keys work inside the snippet editor's code field; see [AI Code completions](../features/snippets.md#ai-code-completions).
+
+| Shortcut | Action |
+| --- | --- |
+| ++shift+tab++ (cursor at the end of a line with text) | Open the completion list (the combination is configurable, see [Snippet Editor settings](settings/snippet-editor/index.md)) |
+| ++ctrl+space++ | Open the completion list anywhere (on macOS the physical ++ctrl++ key, not ++cmd++; ++cmd+i++ and ++alt+esc++ work there too, because macOS often reserves ++ctrl+space++ for switching input sources) |
+| ++up++ / ++down++ (list open) | Move the selection; typing filters the list |
+| ++tab++ or ++enter++ (list open) | Insert the selected entry |
+| ++esc++ | Close the list, or dismiss ghost text |
+| ++tab++ (ghost text visible) | Accept the ghost text |
+| ++alt+bracket-right++ / ++alt+bracket-left++ (ghost text visible) | Next / previous ghost-text candidate (physical `]` and `[` keys of a US layout) |
+| ++tab++ (inside an inserted idiom template) | Jump to the next placeholder |
+| ++shift+tab++ (anywhere else, or when another combination is configured) | Outdent the line, as before |
+
 ## Terminal AI agent
 
 | Shortcut | Action |

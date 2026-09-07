@@ -14,6 +14,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.net.Authenticator;
@@ -829,6 +830,88 @@ class OpenAiCompatibleAiServiceTest {
         assertThat(complete.salvaged()).isFalse();
         assertThat(salvaged.text()).isEqualTo("half");
         assertThat(salvaged.salvaged()).isTrue();
+    }
+
+    @Test
+    void readResponseBodyDetailedFailsInsteadOfSalvagingWhenTheReadingThreadIsInterrupted() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token");
+        // Delivers one chunk and then cancels the reader, the way Task.cancel(true) interrupts a
+        // completion request mid-stream: the chunk already read must not come back as an answer.
+        InputStream cancelledMidStream = new InputStream() {
+            private final ByteArrayInputStream delegate = new ByteArrayInputStream(
+                "data: {\"choices\":[{\"delta\":{\"content\":\"partial\"}}]}\n\n".getBytes(StandardCharsets.UTF_8));
+
+            @Override
+            public int read() {
+                return delegate.read();
+            }
+
+            @Override
+            public int read(byte[] buffer, int offset, int length) {
+                int read = delegate.read(buffer, offset, length);
+                Thread.currentThread().interrupt();
+                return read;
+            }
+        };
+
+        boolean interruptFlagKept;
+        try {
+            InterruptedIOException error = expectThrows(
+                InterruptedIOException.class,
+                () -> service.readResponseBodyDetailed(cancelledMidStream, null));
+            assertThat(error.getMessage()).contains("cancelled");
+        } finally {
+            // Also clears the flag so the test thread stays usable.
+            interruptFlagKept = Thread.interrupted();
+        }
+        // The check must not consume the interrupt: the cancelling caller still sees it.
+        assertThat(interruptFlagKept).isTrue();
+    }
+
+    @Test
+    void readResponseBodyDetailedFailsInsteadOfSalvagingWhenTheInterruptLandsInsideARead() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token");
+        // Delivers one chunk, then fails the way the JDK's HttpResponseInputStream does when
+        // Task.cancel(true) interrupts a thread blocked inside read(): the flag is re-set and an
+        // IOException wrapping the InterruptedException is thrown. That must not be salvaged as
+        // a partial body.
+        InputStream cancelledInsideRead = new InputStream() {
+            private final ByteArrayInputStream delegate = new ByteArrayInputStream(
+                "data: {\"choices\":[{\"delta\":{\"content\":\"partial\"}}]}\n\n".getBytes(StandardCharsets.UTF_8));
+            private boolean delivered;
+
+            @Override
+            public int read() {
+                return delegate.read();
+            }
+
+            @Override
+            public int read(byte[] buffer, int offset, int length) throws IOException {
+                if (!delivered) {
+                    delivered = true;
+                    return delegate.read(buffer, offset, length);
+                }
+                Thread.currentThread().interrupt();
+                throw new IOException(new InterruptedException());
+            }
+        };
+
+        boolean interruptFlagKept;
+        try {
+            InterruptedIOException error = expectThrows(
+                InterruptedIOException.class,
+                () -> service.readResponseBodyDetailed(cancelledInsideRead, null));
+            assertThat(error.getMessage()).contains("cancelled");
+        } finally {
+            interruptFlagKept = Thread.interrupted();
+        }
+        assertThat(interruptFlagKept).isTrue();
     }
 
     @Test

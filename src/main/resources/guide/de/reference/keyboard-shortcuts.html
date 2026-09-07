@@ -604,10 +604,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#terminal-ai-agent" class="md-nav__link">
+  <a href="#snippet-editor" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terminal AI agent
+        Snippet-Editor
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#terminal-ki-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminal-KI-Agent
       
     </span>
   </a>
@@ -2370,10 +2381,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#terminal-ai-agent" class="md-nav__link">
+  <a href="#snippet-editor" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Terminal AI agent
+        Snippet-Editor
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#terminal-ki-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terminal-KI-Agent
       
     </span>
   </a>
@@ -2403,8 +2425,8 @@
 <table>
 <thead>
 <tr>
-<th>Shortcut</th>
-<th>Action</th>
+<th>Verknüpfung</th>
+<th>Aktion</th>
 </tr>
 </thead>
 <tbody>
@@ -2414,7 +2436,7 @@
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-w">W</kbd></span></td>
-<td>Close Tab</td>
+<td>Tab schließen</td>
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-n">N</kbd></span></td>
@@ -2598,12 +2620,60 @@
 </tr>
 </tbody>
 </table>
-<h2 id="terminal-ai-agent">Terminal AI agent<a class="headerlink" href="#terminal-ai-agent" title="Permanent link">&para;</a></h2>
+<h2 id="snippet-editor">Snippet-Editor<a class="headerlink" href="#snippet-editor" title="Permanent link">&para;</a></h2>
+<p>Diese Schlüssel funktionieren im Codefeld des Snippet-Editors. siehe <a href="../features/snippets.html#ai-codevervollstandigungen">AI Codevervollständigungen</a>.</p>
 <table>
 <thead>
 <tr>
-<th>Shortcut</th>
-<th>Action</th>
+<th>Verknüpfung</th>
+<th>Aktion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> (Cursor am Ende einer Zeile mit Text)</td>
+<td>Öffnen Sie die Vervollständigungsliste (die Kombination ist konfigurierbar, siehe <a href="settings/snippet-editor/index.html">Einstellungen des Snippet-Editors</a>)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-space">Space</kbd></span></td>
+<td>Öffnen Sie die Vervollständigungsliste an einer beliebigen Stelle (unter macOS die physische). <span class="keys"><kbd class="key-control">Ctrl</kbd></span> Schlüssel, nicht <span class="keys"><kbd class="key-command">Cmd</kbd></span>; <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-i">I</kbd></span> Und <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-escape">Esc</kbd></span> Funktionieren dort auch, da macOS oft reserviert <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-space">Space</kbd></span> zum Umschalten von Eingangsquellen)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-arrow-up">Up</kbd></span> / <span class="keys"><kbd class="key-arrow-down">Down</kbd></span> (Liste offen)</td>
+<td>Verschieben Sie die Auswahl. Durch die Eingabe wird die Liste gefiltert</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-tab">Tab</kbd></span> oder <span class="keys"><kbd class="key-enter">Enter</kbd></span> (Liste offen)</td>
+<td>Den ausgewählten Eintrag einfügen</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-escape">Esc</kbd></span></td>
+<td>Schließen Sie die Liste oder verwerfen Sie Geistertext</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-tab">Tab</kbd></span> (Geistertext sichtbar)</td>
+<td>Akzeptieren Sie den Geistertext</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-bracket-right">]</kbd></span> / <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-bracket-left">[</kbd></span> (Geistertext sichtbar)</td>
+<td>Nächster/vorheriger Ghosttext-Kandidat (physisch <code>]</code> Und <code>[</code> Tasten eines US-Layouts)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-tab">Tab</kbd></span> (in einer eingefügten Redewendungsvorlage)</td>
+<td>Zum nächsten Platzhalter springen</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> (an jedem anderen Ort oder wenn eine andere Kombination konfiguriert ist)</td>
+<td>Die Zeile wie zuvor einrücken</td>
+</tr>
+</tbody>
+</table>
+<h2 id="terminal-ki-agent">Terminal-KI-Agent<a class="headerlink" href="#terminal-ki-agent" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Verknüpfung</th>
+<th>Aktion</th>
 </tr>
 </thead>
 <tbody>

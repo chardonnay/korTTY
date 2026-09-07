@@ -657,6 +657,19 @@ public class GlobalSettings {
     // Default terminal settings for new connections
     @XmlElement
     private ConnectionSettings defaultTerminalSettings;
+
+    /**
+     * The "Cursor blinks" choice of the Colors settings, stored in a field of its own.
+     *
+     * <p>The terminal consumes the flag as part of {@code cursorStyle} ({@code BLINK_BLOCK} vs
+     * {@code STEADY_BLOCK}), but that string is also owned by color profiles and themes, and every
+     * built-in one ships a {@code BLINK_*} style — so a profile copy could quietly turn blinking back
+     * on and the saved "off" was gone after the next start. This field is the user's actual choice;
+     * {@code null} means a settings file written before it existed, where the flag is read out of
+     * {@link #getDefaultTerminalSettings()} instead.</p>
+     */
+    @XmlElement
+    private Boolean terminalCursorBlink;
     
     // Last terminal settings used in QuickConnect dialog
     @XmlElement
@@ -826,6 +839,14 @@ public class GlobalSettings {
     
     @XmlElement
     private boolean snippetLineNumbers = false; // line-number gutter in snippet editor & manager preview (default: off)
+
+    /**
+     * Keyboard shortcut that opens the snippet editor's AI completion list, as a canonical chord
+     * ("Shift+Tab", "Ctrl+Space", "Ctrl+Alt+K"). Parsed by SnippetCompletionShortcut, which falls
+     * back to its default when a hand-edited value names no usable chord.
+     */
+    @XmlElement
+    private String snippetCompletionShortcut = "Shift+Tab";
 
     @XmlElement
     private Double snippetManagerPreviewDividerPosition; // Vertical table/preview divider position
@@ -2718,6 +2739,27 @@ public class GlobalSettings {
     public void setDefaultTerminalSettings(ConnectionSettings defaultTerminalSettings) {
         this.defaultTerminalSettings = defaultTerminalSettings;
     }
+
+    /**
+     * Whether the terminal cursor blinks. Falls back to the flag encoded in the stored terminal
+     * settings for a file written before this field existed, so an old "off" choice survives the
+     * upgrade.
+     */
+    public boolean isTerminalCursorBlink() {
+        if (terminalCursorBlink != null) {
+            return terminalCursorBlink;
+        }
+        return de.kortty.core.TerminalCursorBlink.isBlinking(getDefaultTerminalSettings().getCursorStyle());
+    }
+
+    /** The raw stored choice; {@code null} when this settings file predates the field. */
+    public Boolean getTerminalCursorBlink() {
+        return terminalCursorBlink;
+    }
+
+    public void setTerminalCursorBlink(Boolean terminalCursorBlink) {
+        this.terminalCursorBlink = terminalCursorBlink;
+    }
     
     public ConnectionSettings getLastQuickConnectTerminalSettings() {
         return lastQuickConnectTerminalSettings;
@@ -3300,6 +3342,11 @@ public class GlobalSettings {
     
     public boolean isSnippetLineNumbers() { return snippetLineNumbers; }
     public void setSnippetLineNumbers(boolean snippetLineNumbers) { this.snippetLineNumbers = snippetLineNumbers; }
+
+    public String getSnippetCompletionShortcut() { return snippetCompletionShortcut; }
+    public void setSnippetCompletionShortcut(String snippetCompletionShortcut) {
+        this.snippetCompletionShortcut = snippetCompletionShortcut;
+    }
 
     public double getSnippetManagerPreviewDividerPosition() {
         if (snippetManagerPreviewDividerPosition == null

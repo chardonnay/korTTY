@@ -6,6 +6,7 @@ import de.kortty.telemetry.TelemetryEvents;
 import de.kortty.telemetry.TelemetryService;
 import de.kortty.ui.I18n;
 import de.kortty.core.ConfigurationManager;
+import de.kortty.core.SnippetCompletionShortcut;
 import de.kortty.core.CredentialManager;
 import de.kortty.core.JvmLaunchProfileStore;
 import de.kortty.model.JvmResourceProfile;
@@ -352,6 +353,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final ColorPicker snippetBackgroundColorPicker;
     private final ComboBox<String> snippetCursorStyleCombo;
     private final ColorPicker snippetCursorColorPicker;
+    private final TextField snippetCompletionShortcutField;
     private String selectedGlobalThemeId;
     private ComboBox<Theme> colorProfileCombo;
     private final BooleanProperty applyThemeFontsProperty;
@@ -621,7 +623,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             refreshColorProfileCombo(colorThemeManager, selectedGlobalThemeId);
         }
         cursorBlinkCheck = new CheckBox(I18n.get("settings.colors.cursorBlink"));
-        cursorBlinkCheck.setSelected(isCursorBlink(settings.getCursorStyle()));
+        // The choice has a stored field of its own; the cursor style is only how the terminal
+        // consumes it, and color profiles own that string (see GlobalSettings.terminalCursorBlink).
+        cursorBlinkCheck.setSelected(globalSettings != null
+                ? globalSettings.isTerminalCursorBlink()
+                : isCursorBlink(settings.getCursorStyle()));
         cursorBlinkCheck.setTooltip(new Tooltip(I18n.get("settings.colors.cursorBlink.tooltip")));
         terminalColorsEnabledCheck = new CheckBox(I18n.get("settings.colors.terminalColors"));
         terminalColorsEnabledCheck.setSelected(settings.isTerminalColorsEnabled());
@@ -2765,7 +2771,53 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         snippetCursorColorPicker = new ColorPicker(snippetCursorCol != null ? Color.web(snippetCursorCol) : Color.web("#FF0000"));
         snippetEditorGrid.add(new Label(I18n.get("settings.snippetEditor.cursorColor")), 0, snippetRow);
         snippetEditorGrid.add(snippetCursorColorPicker, 1, snippetRow++);
-        
+
+        // AI completion shortcut: a recorder field. It stores the chord itself (one main key plus up
+        // to three modifiers), so the Monaco page can register it directly — see
+        // SnippetCompletionShortcut, which owns the key table for both sides.
+        snippetCompletionShortcutField = new TextField();
+        snippetCompletionShortcutField.setEditable(false);
+        snippetCompletionShortcutField.setFocusTraversable(true);
+        snippetCompletionShortcutField.setPrefWidth(160);
+        snippetCompletionShortcutField.setPromptText(I18n.get("settings.snippetEditor.completionShortcut.prompt"));
+        snippetCompletionShortcutField.setUserData(
+            SnippetCompletionShortcut.normalizeOrDefault(globalSettings.getSnippetCompletionShortcut()));
+        snippetCompletionShortcutField.setText(SnippetCompletionShortcut.displayLabel(
+            (String) snippetCompletionShortcutField.getUserData(), SnippetCompletionShortcut.isMacOs()));
+        // A filter, not a handler: TAB and the arrow keys would otherwise move the focus before the
+        // recorder ever sees them, and Shift+Tab — the default chord — is exactly such a key.
+        snippetCompletionShortcutField.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            KeyCode code = event.getCode();
+            if (code == KeyCode.ESCAPE) {
+                return; // let Escape close the settings dialog as usual
+            }
+            event.consume();
+            String chord = SnippetCompletionShortcut.fromKeyPress(
+                code.name(), event.isShortcutDown(), event.isShiftDown(), event.isAltDown());
+            if (chord == null) {
+                return; // a modifier on its own, or a key Monaco cannot bind
+            }
+            snippetCompletionShortcutField.setUserData(chord);
+            snippetCompletionShortcutField.setText(
+                SnippetCompletionShortcut.displayLabel(chord, SnippetCompletionShortcut.isMacOs()));
+        });
+        Button snippetCompletionShortcutReset = new Button(I18n.get("settings.snippetEditor.completionShortcut.reset"));
+        snippetCompletionShortcutReset.setOnAction(e -> {
+            snippetCompletionShortcutField.setUserData(SnippetCompletionShortcut.DEFAULT);
+            snippetCompletionShortcutField.setText(SnippetCompletionShortcut.displayLabel(
+                SnippetCompletionShortcut.DEFAULT, SnippetCompletionShortcut.isMacOs()));
+        });
+        HBox snippetCompletionShortcutBox =
+            new HBox(10, snippetCompletionShortcutField, snippetCompletionShortcutReset);
+        snippetEditorGrid.add(new Label(I18n.get("settings.snippetEditor.completionShortcut")), 0, snippetRow);
+        snippetEditorGrid.add(snippetCompletionShortcutBox, 1, snippetRow++);
+
+        Label snippetCompletionShortcutHint = new Label(I18n.get("settings.snippetEditor.completionShortcut.hint"));
+        snippetCompletionShortcutHint.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        snippetCompletionShortcutHint.setWrapText(true);
+        snippetCompletionShortcutHint.setMaxWidth(400);
+        snippetEditorGrid.add(snippetCompletionShortcutHint, 0, snippetRow++, 2, 1);
+
         snippetEditorTab.setContent(snippetEditorGrid);
 
         // Themes tab
@@ -2921,7 +2973,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         settings.setForegroundColor(toHex(foregroundColorPicker.getValue()));
         settings.setBackgroundColor(toHex(backgroundColorPicker.getValue()));
         settings.setCursorColor(toHex(cursorColorPicker.getValue()));
+        // Both: the dedicated preference (which nothing but this checkbox writes) and the style the
+        // terminal reads, kept in step so a profile copy can no longer decide whether the cursor blinks.
         settings.setCursorStyle(deriveCursorStyle(settings.getCursorStyle(), cursorBlinkCheck.isSelected()));
+        if (globalSettings != null) {
+            globalSettings.setTerminalCursorBlink(cursorBlinkCheck.isSelected());
+        }
         settings.setSelectionColor(toHex(selectionColorPicker.getValue()));
         settings.setThemeId(selectedGlobalThemeId);
         settings.setTerminalColumns(columnsSpinner.getValue());
@@ -3140,6 +3197,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setSnippetCursorStyle(snippetCursorSt != null && !snippetCursorSt.isEmpty() ? snippetCursorSt : null);
             
             globalSettings.setSnippetCursorColor(toHex(snippetCursorColorPicker.getValue()));
+
+            Object recordedShortcut = snippetCompletionShortcutField.getUserData();
+            globalSettings.setSnippetCompletionShortcut(SnippetCompletionShortcut.normalizeOrDefault(
+                recordedShortcut instanceof String chord ? chord : null));
         }
         trackChangedSettings(trackedSettingsBefore);
         return true;
@@ -3176,6 +3237,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         tracked.add(new TrackedSetting("terminal", "ssh_keepalive_interval", settings::getSshKeepAliveInterval, true));
         GlobalSettings gs = globalSettings;
         if (gs != null) {
+            tracked.add(new TrackedSetting("colors", "cursor_blink", gs::isTerminalCursorBlink, true));
             tracked.add(new TrackedSetting("appearance", "app_design", gs::getAppDesign, true));
             tracked.add(new TrackedSetting("appearance", "animations_enabled", gs::isAppDesignAnimationsEnabled, true));
             tracked.add(new TrackedSetting("appearance", "apply_theme_fonts", gs::isApplyThemeFonts, true));

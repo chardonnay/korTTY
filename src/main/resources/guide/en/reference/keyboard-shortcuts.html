@@ -604,6 +604,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#snippet-editor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippet editor
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#terminal-ai-agent" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2370,6 +2381,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#snippet-editor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snippet editor
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#terminal-ai-agent" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2595,6 +2617,54 @@
 <tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span></td>
 <td>Toggle Terminal-only Fullscreen</td>
+</tr>
+</tbody>
+</table>
+<h2 id="snippet-editor">Snippet editor<a class="headerlink" href="#snippet-editor" title="Permanent link">&para;</a></h2>
+<p>These keys work inside the snippet editor's code field; see <a href="../features/snippets.html#ai-code-completions">AI Code completions</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Shortcut</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> (cursor at the end of a line with text)</td>
+<td>Open the completion list (the combination is configurable, see <a href="settings/snippet-editor/index.html">Snippet Editor settings</a>)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-space">Space</kbd></span></td>
+<td>Open the completion list anywhere (on macOS the physical <span class="keys"><kbd class="key-control">Ctrl</kbd></span> key, not <span class="keys"><kbd class="key-command">Cmd</kbd></span>; <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-i">I</kbd></span> and <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-escape">Esc</kbd></span> work there too, because macOS often reserves <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-space">Space</kbd></span> for switching input sources)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-arrow-up">Up</kbd></span> / <span class="keys"><kbd class="key-arrow-down">Down</kbd></span> (list open)</td>
+<td>Move the selection; typing filters the list</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-tab">Tab</kbd></span> or <span class="keys"><kbd class="key-enter">Enter</kbd></span> (list open)</td>
+<td>Insert the selected entry</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-escape">Esc</kbd></span></td>
+<td>Close the list, or dismiss ghost text</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-tab">Tab</kbd></span> (ghost text visible)</td>
+<td>Accept the ghost text</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-bracket-right">]</kbd></span> / <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-bracket-left">[</kbd></span> (ghost text visible)</td>
+<td>Next / previous ghost-text candidate (physical <code>]</code> and <code>[</code> keys of a US layout)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-tab">Tab</kbd></span> (inside an inserted idiom template)</td>
+<td>Jump to the next placeholder</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> (anywhere else, or when another combination is configured)</td>
+<td>Outdent the line, as before</td>
 </tr>
 </tbody>
 </table>

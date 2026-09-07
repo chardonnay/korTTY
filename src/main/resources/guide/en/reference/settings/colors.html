@@ -2424,7 +2424,7 @@
 <td>toggle</td>
 <td>—</td>
 <td>On</td>
-<td><code>cursorStyle</code></td>
+<td><code>terminalCursorBlink</code> (mirrored into <code>cursorStyle</code>)</td>
 </tr>
 <tr>
 <td>Selection</td>
@@ -2561,7 +2561,7 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Cursor blinks</p>
-<p><strong>Cursor blinks</strong> is your own preference and is kept when you switch color profiles: a profile contributes the cursor <em>shape</em> (block, underline, vertical bar), while the blinking on/off state stays as you set it. It is stored together with the shape in <code>cursorStyle</code> (for example <code>STEADY_BLOCK</code> when blinking is off) and is remembered across restarts.</p>
+<p><strong>Cursor blinks</strong> is your own preference and is kept when you switch color profiles: a profile contributes the cursor <em>shape</em> (block, underline, vertical bar), while the blinking on/off state stays as you set it. The terminal reads the flag as part of <code>cursorStyle</code> (for example <code>STEADY_BLOCK</code> when blinking is off), but your choice is stored separately as <code>terminalCursorBlink</code> and wins over whatever style a profile, a theme or a per-connection setting carries — so switching profiles cannot turn blinking back on, and the setting survives restarts. A settings file written before that field existed keeps working: the choice is then read out of the stored <code>cursorStyle</code>.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">ANSI Colors</p>

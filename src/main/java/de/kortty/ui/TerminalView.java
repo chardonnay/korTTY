@@ -420,7 +420,10 @@ public class TerminalView extends BorderPane {
                     ? app.getGlobalSettingsManager().getSettings()
                     : null;
             var globalDefaults = globalSettings != null ? globalSettings.getDefaultTerminalSettings() : null;
-            return ConnectionSettingsSupport.effectiveTerminalSettings(connectionSettings, globalDefaults);
+            // The blink flag comes from its own setting, not from whichever style a profile or a
+            // per-connection override happens to carry.
+            Boolean cursorBlink = globalSettings != null ? globalSettings.isTerminalCursorBlink() : null;
+            return ConnectionSettingsSupport.effectiveTerminalSettings(connectionSettings, globalDefaults, cursorBlink);
         } catch (Exception e) {
             return ConnectionSettingsSupport.effectiveTerminalSettings(
                     connectionSettings,

@@ -10,6 +10,7 @@ import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.SnippetAiWorkflowSupport;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.Snippet;
+import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
@@ -609,8 +610,8 @@ public final class SnippetAiDialogsSmoke {
             request -> {
                 // Test double: any invocation proves the pending completion escaped into the analysis flow.
                 autoCompletionProviderCalled.set(true);
-                return new SnippetAiResponseSupport.CompletionSuggestion(
-                    "#!/usr/bin/perl\nuse autodie qw(open close);", "Unexpected during analysis");
+                return List.of(new SnippetAiResponseSupport.CompletionSuggestion(
+                    "#!/usr/bin/perl\nuse autodie qw(open close);", "Unexpected during analysis"));
             },
             null,
             null,
@@ -662,8 +663,13 @@ public final class SnippetAiDialogsSmoke {
         // Reproduce the reported race: an edit has queued auto-completion, then Full code analysis starts
         // before the 900 ms debounce expires. The analysis must own the AI flow and discard that queue.
         field(editorDialog, "autoCompleteItem", CheckMenuItem.class).setSelected(true);
+        // A static field, the notice is shown once per application run; Field.set ignores the instance.
         setField(editorDialog, "autoCompletionWarningAccepted", true);
         invoke(editorDialog, "scheduleAutoCompletion", new Class<?>[0]);
+        PauseTransition ghostTimer = field(editorDialog, "autoCompletionDelay", PauseTransition.class);
+        if (ghostTimer.getStatus() != Animation.Status.RUNNING) {
+            throw new AssertionError("scheduleAutoCompletion did not arm the ghost-text timer");
+        }
 
         Timeline timeline = new Timeline(new KeyFrame(Duration.millis(100), event -> {
             try {
@@ -825,6 +831,11 @@ public final class SnippetAiDialogsSmoke {
         poller.set(timeline);
         timeline.play();
         invoke(editorDialog, "runCodeReview", new Class<?>[0]);
+        // The analysis takes the AI flow over synchronously (beginSnippetAiAction): the timer armed above
+        // must already be gone, whatever the caret position, so no ghost request can slip in behind it.
+        if (ghostTimer.getStatus() != Animation.Status.STOPPED) {
+            throw new AssertionError("Full-code-analysis left the queued auto-completion timer running");
+        }
 
         return () -> {
             timeline.stop();

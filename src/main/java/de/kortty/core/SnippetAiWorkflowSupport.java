@@ -316,7 +316,16 @@ public final class SnippetAiWorkflowSupport {
             maxSolutions);
     }
 
-    public static SnippetAiResponseSupport.CompletionSuggestion completeSnippetCode(
+    /**
+     * Asks for up to {@code maxCandidates} completions at {@code cursorOffset}, best first. Only a
+     * bounded window around the caret is sent ({@link SnippetCompletionSupport#promptWindow}: the
+     * text before the caret is what a completion continues, so it gets the larger share, the text
+     * after it only tells the model what already follows; both cuts sit on line boundaries), once,
+     * as the snippet context; the request's selected text is that same before-window so skill
+     * selection and usage accounting see what the model saw. {@code localContext} is an optional
+     * paragraph from the editor (cursor context, known symbols) that steers the candidates.
+     */
+    public static List<SnippetAiResponseSupport.CompletionSuggestion> completeSnippetCode(
         AiService aiService,
         UsageRecorder usageRecorder,
         String fullContent,
@@ -324,20 +333,26 @@ public final class SnippetAiWorkflowSupport {
         String snippetLanguage,
         String connectionDisplayName,
         String fallbackLanguageCode,
-        String additionalInstructions) throws Exception {
+        String additionalInstructions,
+        int maxCandidates,
+        String localContext) throws Exception {
 
+        int requestedCandidates = Math.max(1, maxCandidates);
+        SnippetCompletionSupport.PromptWindow window = SnippetCompletionSupport.promptWindow(fullContent, cursorOffset);
         AiRequest request = new AiRequest(
             AiAction.COMPLETE_SNIPPET_CODE,
-            fullContent,
+            window.before(),
             connectionDisplayName,
             fallbackLanguageCode,
             additionalInstructions,
-            buildCompletionContext(fullContent, cursorOffset, snippetLanguage, fallbackLanguageCode));
+            buildCompletionContext(window, snippetLanguage, fallbackLanguageCode, requestedCandidates, localContext));
         AiExecutionResult result = aiService.execute(request);
         if (result != null && usageRecorder != null) {
             usageRecorder.record(request, result);
         }
-        return SnippetAiResponseSupport.parseCompletionSuggestion(result != null ? result.content() : null);
+        return SnippetAiResponseSupport.parseCompletionCandidates(
+            result != null ? result.content() : null,
+            requestedCandidates);
     }
 
     public static List<SnippetAiResponseSupport.CodeReviewFinding> reviewSnippetCode(
@@ -2128,16 +2143,31 @@ public final class SnippetAiWorkflowSupport {
     }
 
     private static String buildCompletionContext(
-        String fullContent, int cursorOffset, String snippetLanguage, String fallbackLanguageCode) {
-        String content = fullContent != null ? fullContent : "";
-        int safeOffset = Math.max(0, Math.min(cursorOffset, content.length()));
-        return "Snippet language: " + snippetLanguage + "\n"
-            + "Write any generated comments or user-facing strings in language " + fallbackLanguageCode + ".\n"
-            + "Cursor offset: " + safeOffset + "\n"
-            + "Text before cursor:\n"
-            + AiPromptBuilder.toSafeTextCodeBlock(content.substring(0, safeOffset))
-            + "\nText after cursor:\n"
-            + AiPromptBuilder.toSafeTextCodeBlock(content.substring(safeOffset));
+        SnippetCompletionSupport.PromptWindow window,
+        String snippetLanguage,
+        String fallbackLanguageCode,
+        int requestedCandidates,
+        String localContext) {
+
+        StringBuilder builder = new StringBuilder()
+            .append("Snippet language: ").append(snippetLanguage).append("\n")
+            .append("Write any generated comments or user-facing strings in language ")
+            .append(fallbackLanguageCode).append(".\n")
+            .append("Requested candidates: ").append(requestedCandidates).append("\n")
+            .append("Cursor at line ").append(window.line()).append(", column ").append(window.column()).append(".\n");
+        if (localContext != null && !localContext.isBlank()) {
+            builder.append(localContext.trim()).append("\n");
+        }
+        builder.append(window.beforeTruncated()
+                ? "Text before cursor (last " + SnippetCompletionSupport.PREFIX_MAX_CHARS + " characters; earlier text omitted):\n"
+                : "Text before cursor:\n")
+            .append(AiPromptBuilder.toSafeTextCodeBlock(window.before()))
+            .append("\n")
+            .append(window.afterTruncated()
+                ? "Text after cursor (first " + SnippetCompletionSupport.SUFFIX_MAX_CHARS + " characters; later text omitted):\n"
+                : "Text after cursor:\n")
+            .append(AiPromptBuilder.toSafeTextCodeBlock(window.after()));
+        return builder.toString();
     }
 
     private static String buildSelectedCodeContext(

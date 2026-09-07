@@ -3700,6 +3700,14 @@ tasks.register<JavaExec>("snippetAiDialogsSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("snippetCompletionSmoke") {
+    group = "verification"
+    description = "Drives the snippet editor's Monaco code completion end to end (Shift+TAB/menu list with local and AI rows, verbatim multi-line accept, TAB/Esc through the JavaFX event chain, ghost text, cancel and close paths) against a stubbed AI provider and snapshots the list and the ghost text to build/smoke/snippet-completion-*.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SnippetCompletionSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("generateDesignPreviews") {
     group = "build"
     description = "Renders the Settings > Appearance preview thumbnails for every app design via Scene.snapshot."

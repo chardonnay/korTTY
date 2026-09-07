@@ -2358,8 +2358,19 @@
 <td>erben (Auswahl zeigt <code>#FF0000</code>)</td>
 <td><code>snippetCursorColor</code></td>
 </tr>
+<tr>
+<td>Tastenkürzel KI-Vervollständigung</td>
+<td>Tastenrekorder</td>
+<td>Eine Taste, optional mit bis zu drei Modifikatoren (Strg/Befehl, Umschalt, Alt)</td>
+<td><code>Shift+Tab</code></td>
+<td><code>snippetCompletionShortcut</code></td>
+</tr>
 </tbody>
 </table>
+<div class="admonition tip">
+<p class="admonition-title">Auswahl des Tastenkürzels für die Vervollständigung</p>
+<p>Klicken Sie auf das Feld <strong>Tastenkürzel KI-Vervollständigung</strong> und drücken Sie die gewünschte Kombination – das Feld zeichnet auf, was Sie gedrückt haben, und <strong>Reset</strong> stellt <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> wieder her. Eine Kombination ist eine Haupttaste (ein Buchstabe, eine Ziffer, eine Funktionstaste, <span class="keys"><kbd class="key-tab">Tab</kbd></span>, <span class="keys"><kbd class="key-space">Space</kbd></span>, ein Pfeil, <span class="keys"><kbd class="key-enter">Enter</kbd></span> usw.) mit keinem, einem, zwei oder drei Modifikatoren, sodass <span class="keys"><kbd class="key-tab">Tab</kbd></span> allein, <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> und <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-k">K</kbd></span> alle gültig sind. Unter macOS ist der Modifikator <span class="keys"><kbd class="key-control">Ctrl</kbd></span> die Cmd-Taste und entspricht den eigenen Tastenkombinationen des Editors. Die neue Kombination gilt für danach geöffnete Snippet-Editoren; <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-space">Space</kbd></span> öffnet die Liste ebenfalls und kann nicht neu zugewiesen werden. Wenn Sie etwas anderes als <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> auswählen, erhält <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> wieder seine normale Editorbedeutung: Es wird eine Einrückungsebene entfernt.</p>
+</div>
 <div class="admonition note">
 <p class="admonition-title">Erben statt Überschreiben</p>
 <p>Diese Einstellungen überschreiben die Terminal-/Editor-Standardeinstellungen nur für Snippet-Fenster. Lassen Sie ein Feld leer – oder stellen Sie die Schriftgröße auf ein <code>0</code> – um die allgemeine Einstellung zu erben <a href="../appearance.html">Aussehen</a>, <a href="../colors.html">Farben</a> Und <a href="../editor.html">Editor</a> stattdessen.</p>

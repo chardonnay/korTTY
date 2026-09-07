@@ -2879,6 +2879,124 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void completionRequestSendsABoundedWindowOnceAndParsesCandidatesInOrder() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("""
+            {
+              "candidates": [
+                { "insertText": "\\"${FILES[@]}\\"; do", "summary": "Iterate the array" },
+                { "insertText": "*.log; do", "summary": "Glob log files" }
+              ]
+            }
+            """);
+        StringBuilder text = new StringBuilder("FILES=(a b c)\n");
+        for (int i = 1; i <= 400; i++) {
+            // 21 characters per line: 8 400 characters of script before the loop header.
+            text.append(String.format("printf 'line %04d\\n'\n", i));
+        }
+        text.append("for f in ");
+        int caret = text.length();
+        text.append("\necho after\n");
+
+        List<SnippetAiResponseSupport.CompletionSuggestion> candidates =
+            SnippetAiWorkflowSupport.completeSnippetCode(
+                aiService,
+                null,
+                text.toString(),
+                caret,
+                "bash",
+                null,
+                "en",
+                null,
+                3,
+                "Cursor context: bash for-in loop\nKnown symbols: FILES");
+
+        assertThat(candidates.stream().map(SnippetAiResponseSupport.CompletionSuggestion::insertText).toList())
+            .containsExactly("\"${FILES[@]}\"; do", "*.log; do")
+            .inOrder();
+        AiRequest request = aiService.lastRequest;
+        assertThat(request.action()).isEqualTo(AiAction.COMPLETE_SNIPPET_CODE);
+        assertThat(request.includeAiSkills()).isTrue();
+        String context = request.conversationContext();
+        assertThat(context).contains("Snippet language: bash\n");
+        assertThat(context).contains("Write any generated comments or user-facing strings in language en.\n");
+        assertThat(context).contains("Requested candidates: 3\n");
+        assertThat(context).contains("Cursor at line 402, column 10.\n");
+        assertThat(context).contains("Cursor context: bash for-in loop\nKnown symbols: FILES\n");
+        assertThat(context).contains("Text before cursor (last 6000 characters; earlier text omitted):\n");
+        assertThat(context).contains("Text after cursor:\n");
+        assertThat(context).doesNotContain("Cursor offset");
+        // The window is cut to whole lines within the cap; the early script never leaves the editor.
+        String before = request.selectedText();
+        assertThat(before.length()).isAtMost(SnippetCompletionSupport.PREFIX_MAX_CHARS);
+        assertThat(before).startsWith("printf 'line 0116\\n'\n");
+        assertThat(before).endsWith("printf 'line 0400\\n'\nfor f in ");
+        int windowStart = text.indexOf(before);
+        assertThat(text.charAt(windowStart - 1)).isEqualTo('\n');
+        assertThat(context).contains(before);
+        assertThat(context).doesNotContain("FILES=(a b c)");
+        assertThat(context).doesNotContain("line 0115");
+        assertThat(context).contains("\necho after\n");
+        // The snippet reaches the model once: as the context, never again as the selected text.
+        String userPrompt = AiPromptBuilder.buildUserPrompt(request);
+        assertThat(userPrompt.indexOf("printf 'line 0400")).isEqualTo(userPrompt.lastIndexOf("printf 'line 0400"));
+        assertThat(userPrompt).doesNotContain("Script content for context only");
+    }
+
+    @Test
+    void completionRequestWithoutTruncationUsesPlainHeadersAndSkipsBlankLocalContext() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("""
+            { "insertText": " && echo done", "summary": "Append success output" }
+            """);
+
+        List<SnippetAiResponseSupport.CompletionSuggestion> candidates =
+            SnippetAiWorkflowSupport.completeSnippetCode(
+                aiService,
+                null,
+                "echo start\necho end\n",
+                10,
+                "bash",
+                "prod-box",
+                "de",
+                "Prefer POSIX",
+                0,
+                "   ");
+
+        assertThat(candidates).hasSize(1);
+        assertThat(candidates.get(0).insertText()).isEqualTo(" && echo done");
+        AiRequest request = aiService.lastRequest;
+        assertThat(request.selectedText()).isEqualTo("echo start");
+        assertThat(request.connectionDisplayName()).isEqualTo("prod-box");
+        assertThat(request.userPrompt()).isEqualTo("Prefer POSIX");
+        String context = request.conversationContext();
+        assertThat(context).contains("in language de.\n");
+        // A cap below one still asks for the best candidate.
+        assertThat(context).contains("Requested candidates: 1\n");
+        assertThat(context).contains("Cursor at line 1, column 11.\n");
+        assertThat(context).contains("Text before cursor:\n```text\necho start\n```\n");
+        assertThat(context).contains("Text after cursor:\n```text\n\necho end\n\n```");
+        assertThat(context).doesNotContain("omitted");
+        assertThat(context).doesNotContain("Cursor at line 1, column 11.\n   \n");
+        String userPrompt = AiPromptBuilder.buildUserPrompt(request);
+        assertThat(userPrompt.indexOf("echo start")).isEqualTo(userPrompt.lastIndexOf("echo start"));
+    }
+
+    @Test
+    void completionRequestCapsTheParsedCandidatesAtTheRequestedCount() throws Exception {
+        CapturingAiService aiService = new CapturingAiService("""
+            { "candidates": [ "echo one", "echo two", "echo three" ] }
+            """);
+
+        List<SnippetAiResponseSupport.CompletionSuggestion> candidates =
+            SnippetAiWorkflowSupport.completeSnippetCode(
+                aiService, null, "echo ", 5, "bash", null, "en", null, 2, null);
+
+        assertThat(candidates.stream().map(SnippetAiResponseSupport.CompletionSuggestion::insertText).toList())
+            .containsExactly("echo one", "echo two")
+            .inOrder();
+        assertThat(aiService.lastRequest.conversationContext()).contains("Requested candidates: 2\n");
+    }
+
+    @Test
     void assistantRequestIncludesCursorContextSkillFlagAndParsesFullReplacement() throws Exception {
         CapturingAiService aiService = new CapturingAiService("""
             { "replacement": "def main(directory):\\n    print(directory)\\nmain('/tmp')", "summary": "Parameter ergänzt" }

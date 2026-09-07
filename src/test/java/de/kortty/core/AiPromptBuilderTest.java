@@ -203,21 +203,34 @@ class AiPromptBuilderTest {
 
     @Test
     void snippetCompletionPromptRequiresInsertTextOnly() {
+        // The workflow sends the cursor window as the snippet context and the same before-window
+        // as the selected text.
         AiRequest request = new AiRequest(
             AiAction.COMPLETE_SNIPPET_CODE,
             "echo start",
             null,
             "en",
             null,
-            "Snippet language: bash\nCursor offset: 10");
+            "Snippet language: bash\nRequested candidates: 3\nCursor at line 1, column 11.\n"
+                + "Text before cursor:\n```text\necho start\n```\nText after cursor:\n```text\n\n```");
 
         String systemPrompt = AiPromptBuilder.buildSystemPrompt(request);
         String userPrompt = AiPromptBuilder.buildUserPrompt(request);
 
+        assertThat(systemPrompt).contains("candidates array");
         assertThat(systemPrompt).contains("insertText");
         assertThat(systemPrompt).contains("not the full file");
+        assertThat(systemPrompt).contains("never repeats it");
+        assertThat(systemPrompt).contains("Requested candidates");
+        assertThat(userPrompt).contains("\"candidates\"");
         assertThat(userPrompt).contains("\"insertText\"");
-        assertThat(userPrompt).contains("Script content for context only");
+        assertThat(userPrompt).contains("Snippet context:");
+        assertThat(userPrompt).contains("Treat the text around the cursor");
+        assertThat(userPrompt).contains("Final rule, overriding any skill");
+        // The context already carries the cursor window: the selected text is not sent a second time.
+        assertThat(userPrompt).doesNotContain("Script content for context only");
+        assertThat(userPrompt).doesNotContain("line-numbered snippet");
+        assertThat(userPrompt.indexOf("echo start")).isEqualTo(userPrompt.lastIndexOf("echo start"));
     }
 
     @Test

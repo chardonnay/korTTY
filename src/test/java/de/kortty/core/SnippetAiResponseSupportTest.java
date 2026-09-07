@@ -103,6 +103,140 @@ class SnippetAiResponseSupportTest {
     }
 
     @Test
+    void parseCompletionCandidatesReadsTheArrayInOrderAndCapsAtTheRequestedCount() {
+        List<SnippetAiResponseSupport.CompletionSuggestion> candidates =
+            SnippetAiResponseSupport.parseCompletionCandidates("""
+            {
+              "candidates": [
+                { "insertText": "\\"${FILES[@]}\\"; do", "summary": "Iterate the array" },
+                { "insertText": "*.log; do", "summary": "Glob log files" },
+                { "insertText": "$(ls); do", "summary": "Command output" }
+              ]
+            }
+            """, 2);
+
+        assertThat(candidates).hasSize(2);
+        assertThat(candidates.get(0).insertText()).isEqualTo("\"${FILES[@]}\"; do");
+        assertThat(candidates.get(0).summary()).isEqualTo("Iterate the array");
+        assertThat(candidates.get(1).insertText()).isEqualTo("*.log; do");
+        assertThat(candidates.get(1).summary()).isEqualTo("Glob log files");
+    }
+
+    @Test
+    void parseCompletionCandidatesFallsBackToTheSingleSuggestionObject() {
+        List<SnippetAiResponseSupport.CompletionSuggestion> single =
+            SnippetAiResponseSupport.parseCompletionCandidates("""
+            { "insertText": " && echo done", "summary": "Append success output" }
+            """, 3);
+        List<SnippetAiResponseSupport.CompletionSuggestion> alternativeName =
+            SnippetAiResponseSupport.parseCompletionCandidates("""
+            { "completions": [ "echo one", { "text": "echo two", "label": "Second" } ] }
+            """, 3);
+
+        assertThat(single).hasSize(1);
+        assertThat(single.get(0).insertText()).isEqualTo(" && echo done");
+        assertThat(single.get(0).summary()).isEqualTo("Append success output");
+        assertThat(alternativeName).hasSize(2);
+        assertThat(alternativeName.get(0).insertText()).isEqualTo("echo one");
+        assertThat(alternativeName.get(0).summary()).isEmpty();
+        assertThat(alternativeName.get(1).insertText()).isEqualTo("echo two");
+        assertThat(alternativeName.get(1).summary()).isEqualTo("Second");
+    }
+
+    @Test
+    void parseCompletionCandidatesDropsBlankDuplicateAndPlaceholderEntries() {
+        List<SnippetAiResponseSupport.CompletionSuggestion> candidates =
+            SnippetAiResponseSupport.parseCompletionCandidates("""
+            {
+              "candidates": [
+                { "insertText": "   " },
+                { "insertText": "echo one" },
+                { "insertText": "echo one   ", "summary": "Same text again" },
+                { "insertText": "$code" },
+                { "insertText": "..." },
+                { "insertText": "<insertText>" },
+                { "insertText": "// ..." },
+                { "insertText": "TODO" },
+                "echo two",
+                null,
+                42
+              ]
+            }
+            """, 5);
+
+        assertThat(candidates.stream().map(SnippetAiResponseSupport.CompletionSuggestion::insertText).toList())
+            .containsExactly("echo one", "echo two", "42")
+            .inOrder();
+    }
+
+    @Test
+    void parseCompletionCandidatesUnwrapsFencesAndStripsCursorMarkersAndTrailingWhitespace() {
+        List<SnippetAiResponseSupport.CompletionSuggestion> candidates =
+            SnippetAiResponseSupport.parseCompletionCandidates("""
+            {
+              "candidates": [
+                { "insertText": "```bash\\n  echo fenced  \\r\\ndone   \\n```" },
+                { "insertText": "echo marker<|cursor|>" },
+                { "insertText": " echo lead\\u2588" },
+                { "insertText": "printf '%s' \\"a\\" # keeps `backticks`" }
+              ]
+            }
+            """, 4);
+
+        assertThat(candidates.stream().map(SnippetAiResponseSupport.CompletionSuggestion::insertText).toList())
+            .containsExactly(
+                "  echo fenced\ndone",
+                "echo marker",
+                " echo lead",
+                "printf '%s' \"a\" # keeps `backticks`")
+            .inOrder();
+    }
+
+    @Test
+    void parseCompletionCandidatesAcceptsARootArrayBehindLeakedReasoning() {
+        List<SnippetAiResponseSupport.CompletionSuggestion> candidates =
+            SnippetAiResponseSupport.parseCompletionCandidates("""
+            <think>Two options {with braces} come to mind, maybe {a third}.</think>
+            [ { "insertText": "echo one" }, { "insertText": "echo two" } ]
+            """, 3);
+
+        assertThat(candidates.stream().map(SnippetAiResponseSupport.CompletionSuggestion::insertText).toList())
+            .containsExactly("echo one", "echo two")
+            .inOrder();
+    }
+
+    @Test
+    void parseCompletionCandidatesReturnsNothingForACutOffAnswer() {
+        // The budget ran out mid-array: the first candidate object is complete, but an answer that
+        // went off the rails is not a source of suggestions.
+        assertThat(SnippetAiResponseSupport.parseCompletionCandidates("""
+            { "candidates": [ { "insertText": "echo one" }, { "insertText": "echo tw
+            """, 3)).isEmpty();
+        assertThat(SnippetAiResponseSupport.parseCompletionCandidates("""
+            ```json
+            { "candidates": [ { "insertText": "echo one" },
+            """, 3)).isEmpty();
+        assertThat(SnippetAiResponseSupport.parseCompletionCandidates("no json at all", 3)).isEmpty();
+        assertThat(SnippetAiResponseSupport.parseCompletionCandidates("", 3)).isEmpty();
+        assertThat(SnippetAiResponseSupport.parseCompletionCandidates(null, 3)).isEmpty();
+    }
+
+    @Test
+    void parseCompletionCandidatesStillReadsACompleteAnswerWrappedInProseOrAFence() {
+        List<SnippetAiResponseSupport.CompletionSuggestion> fenced =
+            SnippetAiResponseSupport.parseCompletionCandidates("""
+            Here you go:
+            ```json
+            { "candidates": [ { "insertText": "echo one" }, { "insertText": "echo two" } ] }
+            ```
+            """, 0);
+
+        // A cap below one still yields the best candidate.
+        assertThat(fenced).hasSize(1);
+        assertThat(fenced.get(0).insertText()).isEqualTo("echo one");
+    }
+
+    @Test
     void parseCodeImprovementReadsStructuredReplacement() {
         SnippetAiResponseSupport.CodeImprovement improvement =
             SnippetAiResponseSupport.parseCodeImprovement("""
