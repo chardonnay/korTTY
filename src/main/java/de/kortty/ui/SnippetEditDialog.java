@@ -3934,9 +3934,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             logger.warn("Local completion candidates failed", e);
             local = LocalCompletion.NONE;
         }
-        contentArea.pushCompletions(
-            MonacoCompletionPayloads.list(requestId, "local", local.candidates(), completionKindLabels));
-        if (!hasCompletionProvider() || isAnyAiTaskRunning() || text.isBlank()) {
+        boolean aiFollows = hasCompletionProvider() && !isAnyAiTaskRunning() && !text.isBlank();
+        contentArea.pushCompletions(MonacoCompletionPayloads.list(
+            requestId, "local", local.candidates(), completionKindLabels, aiFollows));
+        if (!aiFollows) {
             return;
         }
         LocalCompletion scanned = local;
@@ -3945,6 +3946,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 scanned.context(), caret, scanned.candidates(), result,
                 completionKindLabels.get(SnippetCompletionSupport.CandidateKind.AI));
             if (ai.isEmpty()) {
+                settlePendingListAi(requestId);
                 setCompletionStatus(I18n.get("snippets.ai.complete.empty"));
                 return;
             }
@@ -4113,11 +4115,15 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             if (failure != null) {
                 logger.warn("Snippet AI completion failed (request {})", requestId, failure);
             }
+            settlePendingListAi(requestId);
             if (finishCompletionTask(task) && requestId == activeCompletionRequestId) {
                 setCompletionStatus(completionFailureStatus(failure));
             }
         });
-        task.setOnCancelled(event -> finishCompletionTask(task));
+        task.setOnCancelled(event -> {
+            settlePendingListAi(requestId);
+            finishCompletionTask(task);
+        });
         completionTimeout.playFromStart();
         Thread thread = new Thread(task, "snippet-ai-complete-" + requestId);
         thread.setDaemon(true);
@@ -4161,6 +4167,16 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         hideSnippetAiHintIfIdle();
         updateAiActionAvailability();
         return true;
+    }
+
+    /**
+     * Tells the page that no AI rows will follow for the list {@code requestId}: a list that opened
+     * without local rows is kept in Monaco's loading state until then. Harmless for any other id.
+     */
+    private void settlePendingListAi(long requestId) {
+        if (requestId == listSessionId) {
+            contentArea.pushCompletions(MonacoCompletionPayloads.list(requestId, "ai", List.of(), completionKindLabels));
+        }
     }
 
     /** A blocking socket read cannot be interrupted sharply; the timeout at least clears the UI. */

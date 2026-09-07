@@ -35,9 +35,22 @@ final class MonacoCompletionPayloads {
      * {@link Candidate#documentation()} — becomes the {@code documentation} of the row.
      */
     static String list(long id, String source, List<Candidate> items, Map<CandidateKind, String> kindLabels) {
+        return list(id, source, items, kindLabels, false);
+    }
+
+    /**
+     * Like {@link #list(long, String, List, Map)}; {@code aiPending} marks a local payload whose AI
+     * rows are still on their way, so the page keeps the list loading when nothing local matched
+     * instead of showing "No suggestions" until the AI answer (or its failure) is pushed.
+     */
+    static String list(long id, String source, List<Candidate> items, Map<CandidateKind, String> kindLabels,
+                       boolean aiPending) {
         JsonObject payload = new JsonObject();
         payload.addProperty("id", id);
         payload.addProperty("source", "ai".equals(source) ? "ai" : "local");
+        if (aiPending && !"ai".equals(source)) {
+            payload.addProperty("aiPending", true);
+        }
         JsonArray array = new JsonArray();
         if (items != null) {
             for (Candidate candidate : items) {

@@ -18,6 +18,8 @@
 import { monaco, notify } from "./common.js";
 
 const REQUEST_TIMEOUT_MS = 1500;
+// A list with no local rows waits this long for a pending AI answer before it reports "No suggestions".
+const AI_WAIT_MS = 35000;
 const FOCUS_WAIT_MS = 2000;
 const ACCEPTED_COMMAND_ID = "kortty.completion.accepted";
 const OPEN_ACTION_ID = "kortty.completion.open";
@@ -156,6 +158,7 @@ function openSession(position, context) {
     trigger,
     resolved: false,
     timedOut: false,
+    aiPending: false,
     local: [],
     ai: [],
     waiters: [],
@@ -273,14 +276,22 @@ function provideCompletionItems(textModel, position, context, token) {
       resolve({ suggestions: buildItems(position) });
     };
     current.waiters.push(finish);
-    timer = setTimeout(() => {
+    const onTimeout = () => {
+      if (session === current && !current.resolved && current.aiPending && !current.aiWaitStarted) {
+        // Nothing local matched but an AI answer is on its way: keep Monaco's loading state
+        // instead of flashing "No suggestions" until the AI rows land or the request ends.
+        current.aiWaitStarted = true;
+        timer = setTimeout(onTimeout, AI_WAIT_MS);
+        return;
+      }
       if (session === current && !current.resolved) {
         current.timedOut = true;
         resolveSession();
       } else {
         finish(false);
       }
-    }, REQUEST_TIMEOUT_MS);
+    };
+    timer = setTimeout(onTimeout, REQUEST_TIMEOUT_MS);
     if (token && typeof token.onCancellationRequested === "function") {
       cancellation = token.onCancellationRequested(() => finish(true));
     }
@@ -311,11 +322,15 @@ function pushCompletions(json) {
   const source = payload.source === "ai" ? "ai" : "local";
   if (source === "ai") {
     session.ai = session.ai.concat(items);
+    // The AI request has answered (rows, nothing usable, failure or cancel): nothing else is pending.
+    session.aiPending = false;
   } else {
     session.local = items;
+    session.aiPending = payload.aiPending === true;
   }
   if (!session.resolved) {
-    if (source === "local") resolveSession();
+    // An empty local list with an AI answer pending stays unresolved so the widget keeps loading.
+    if (source === "ai" || items.length > 0 || !session.aiPending) resolveSession();
     return;
   }
   if (items.length > 0) refreshList();
@@ -505,6 +520,7 @@ function completionDebugState() {
     listActive: !!session,
     requestId: session ? session.id : -1,
     resolved: !!(session && session.resolved),
+    aiPending: !!(session && session.aiPending),
     trigger: session ? session.trigger : null,
     local: session ? session.local.length : 0,
     ai: session ? session.ai.length : 0,

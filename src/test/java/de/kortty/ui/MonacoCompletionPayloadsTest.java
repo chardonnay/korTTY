@@ -21,6 +21,21 @@ class MonacoCompletionPayloadsTest {
     private static final Map<CandidateKind, String> KIND_LABELS = kindLabels();
 
     @Test
+    void emptyLocalPayloadFlagsPendingAiRowsOnlyWhenAsked() {
+        JsonObject pending = parse(MonacoCompletionPayloads.list(3L, "local", List.of(), KIND_LABELS, true));
+        assertThat(pending.get("aiPending").getAsBoolean()).isTrue();
+        assertThat(pending.getAsJsonArray("items").size()).isEqualTo(0);
+
+        JsonObject plain = parse(MonacoCompletionPayloads.list(3L, "local", List.of(), KIND_LABELS));
+        assertThat(plain.has("aiPending")).isFalse();
+
+        // An AI payload never carries the flag: it is the answer the page waits for.
+        JsonObject settled = parse(MonacoCompletionPayloads.list(3L, "ai", List.of(), KIND_LABELS, true));
+        assertThat(settled.has("aiPending")).isFalse();
+        assertThat(settled.get("source").getAsString()).isEqualTo("ai");
+    }
+
+    @Test
     void listPayloadCarriesTheFieldNamesCompletionJsParses() {
         Candidate array = new Candidate(
             "\"${ARR[@]}\"", "\"${ARR[@]}\"", "ARR \"${ARR[@]}\"", CandidateKind.ARRAY, false, "0_000", 12, "");
