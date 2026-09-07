@@ -205,7 +205,9 @@ public class TerminalTab extends Tab {
                     ? app.getGlobalSettingsManager().getSettings()
                     : null;
             var globalDefaults = globalSettings != null ? globalSettings.getDefaultTerminalSettings() : null;
-            return ConnectionSettingsSupport.effectiveTerminalSettings(connectionSettings, globalDefaults);
+            // Same rule as in TerminalView: the "Cursor blinks" choice has its own setting and wins.
+            Boolean cursorBlink = globalSettings != null ? globalSettings.isTerminalCursorBlink() : null;
+            return ConnectionSettingsSupport.effectiveTerminalSettings(connectionSettings, globalDefaults, cursorBlink);
         } catch (Exception e) {
             return ConnectionSettingsSupport.effectiveTerminalSettings(
                     connectionSettings,

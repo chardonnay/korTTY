@@ -14,7 +14,7 @@ Konfigurieren Sie die Anzeigefarben des Terminals, einschließlich Text, Hinterg
 | Textfarbe | Farbe | RGB-Hex-Farbe | #FFFFFF | `foregroundColor` |
 | Hintergrund | Farbe | RGB-Hex-Farbe | #1E1E1E | `backgroundColor` |
 | Cursor | Farbe | RGB-Hex-Farbe | #FFFFFF | `cursorColor` |
-| Cursor blinkt | umschalten | — | Ein | `cursorStyle` |
+| Cursor blinkt | umschalten | — | Ein | `terminalCursorBlink` (gespiegelt in `cursorStyle`) |
 | Auswahl | Farbe | RGB-Hex-Farbe | #3399FF | `selectionColor` |
 | Terminalfarben aktivieren | umschalten | – | Ein | `terminalColorsEnabled` |
 | Normal: Schwarz | Farbe | RGB-Hex-Farbe | #000000 | `ansiBlack` |
@@ -40,7 +40,7 @@ Konfigurieren Sie die Anzeigefarben des Terminals, einschließlich Text, Hinterg
     Mit dem **Farbprofil** können Sie ein voreingestelltes Design auswählen, das die Einstellungen für Vordergrund, Hintergrund, Cursor und Cursorform gleichzeitig anwendet. Beim Wechseln der Profile werden die einzelnen Farbsteuerungen aktualisiert. Wenn **Profil anwenden** verfügbar ist, werden die Farben auf die Standardeinstellungen des ausgewählten Themas zurückgesetzt.
 
 !!! note "Cursor blinkt"
-    **Cursor blinkt** ist Ihre eigene Einstellung und bleibt beim Wechseln des Farbprofils erhalten: Ein Profil steuert die *Form* des Cursors bei (Block, Unterstrich, senkrechter Balken), während der Blinkzustand so bleibt, wie Sie ihn gesetzt haben. Sie wird zusammen mit der Form in `cursorStyle` gespeichert (zum Beispiel `STEADY_BLOCK`, wenn das Blinken aus ist) und bleibt über Neustarts hinweg erhalten.
+    **Cursor blinkt** ist Ihre eigene Präferenz und wird beibehalten, wenn Sie das Farbprofil wechseln: Ein Profil steuert die *Form* des Cursors (Block, Unterstreichung, vertikaler Balken), während der blinkende Ein-/Aus-Status so bleibt, wie Sie ihn festgelegt haben. Das Terminal liest die Flagge als Teil von `cursorStyle` (z. B. `STEADY_BLOCK`, wenn das Blinken ausgeschaltet ist), aber Ihre Auswahl wird separat als `terminalCursorBlink` gespeichert und hat Vorrang vor dem Stil, den ein Profil, ein Thema oder eine verbindungsspezifische Einstellung trägt – so kann das Wechseln von Profilen das Blinken nicht wieder einschalten und die Einstellung überlebt Neustarts. Eine vor der Existenz dieses Feldes geschriebene Einstellungsdatei funktioniert weiterhin: Die Auswahl wird dann aus dem gespeicherten `cursorStyle` ausgelesen.
 
 !!! note "ANSI Farben"
     Die Farbpaletten **Normal** und **Hell** definieren die 16 ANSI-Farben (0–7 normal, 8–15 hell), die verwendet werden, wenn **Terminalfarben aktivieren** aktiviert ist. Jeder Satz von 8 Farben entspricht Schwarz, Rot, Grün, Gelb, Blau, Magenta, Cyan und Weiß. Wenn Terminalfarben deaktiviert sind, werden nur die konfigurierten **Textfarben** und **Hintergrund** verwendet, alle ANSI- und TrueColor-Sequenzen werden ignoriert.

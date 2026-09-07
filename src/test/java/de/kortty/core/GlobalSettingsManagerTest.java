@@ -1387,6 +1387,60 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void terminalCursorBlinkChoicePersistsAndOutranksAProfileStyle() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-cursor-blink-field");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            ConnectionSettings defaults = new ConnectionSettings();
+            defaults.setCursorStyle("STEADY_BLOCK");
+            manager.getSettings().setDefaultTerminalSettings(defaults);
+            manager.getSettings().setTerminalCursorBlink(false);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            assertThat(reloaded.getSettings().getTerminalCursorBlink()).isFalse();
+            assertThat(reloaded.getSettings().isTerminalCursorBlink()).isFalse();
+
+            // Even if a color profile later writes a blinking style into the terminal settings, the
+            // user's own choice is what the terminal resolves — that regression is what the field is for.
+            reloaded.getSettings().getDefaultTerminalSettings().setCursorStyle("BLINK_UNDERLINE");
+            ConnectionSettings effective = ConnectionSettingsSupport.effectiveTerminalSettings(
+                    null,
+                    reloaded.getSettings().getDefaultTerminalSettings(),
+                    reloaded.getSettings().isTerminalCursorBlink());
+            assertThat(effective.getCursorStyle()).isEqualTo("STEADY_UNDERLINE");
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void terminalCursorBlinkFallsBackToTheStoredStyleForAnOlderSettingsFile() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-cursor-blink-legacy");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            ConnectionSettings defaults = new ConnectionSettings();
+            defaults.setCursorStyle("STEADY_BLOCK");
+            manager.getSettings().setDefaultTerminalSettings(defaults);
+            manager.getSettings().setTerminalCursorBlink(null); // written before the field existed
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            assertThat(reloaded.getSettings().getTerminalCursorBlink()).isNull();
+            assertThat(reloaded.getSettings().isTerminalCursorBlink()).isFalse();
+
+            reloaded.getSettings().getDefaultTerminalSettings().setCursorStyle("BLINK_BLOCK");
+            assertThat(reloaded.getSettings().isTerminalCursorBlink()).isTrue();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void defaultTerminalSettingsPersistDisabledCursorBlink() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings-cursor-blink");
         try {

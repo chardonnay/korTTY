@@ -623,7 +623,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             refreshColorProfileCombo(colorThemeManager, selectedGlobalThemeId);
         }
         cursorBlinkCheck = new CheckBox(I18n.get("settings.colors.cursorBlink"));
-        cursorBlinkCheck.setSelected(isCursorBlink(settings.getCursorStyle()));
+        // The choice has a stored field of its own; the cursor style is only how the terminal
+        // consumes it, and color profiles own that string (see GlobalSettings.terminalCursorBlink).
+        cursorBlinkCheck.setSelected(globalSettings != null
+                ? globalSettings.isTerminalCursorBlink()
+                : isCursorBlink(settings.getCursorStyle()));
         cursorBlinkCheck.setTooltip(new Tooltip(I18n.get("settings.colors.cursorBlink.tooltip")));
         terminalColorsEnabledCheck = new CheckBox(I18n.get("settings.colors.terminalColors"));
         terminalColorsEnabledCheck.setSelected(settings.isTerminalColorsEnabled());
@@ -2969,7 +2973,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         settings.setForegroundColor(toHex(foregroundColorPicker.getValue()));
         settings.setBackgroundColor(toHex(backgroundColorPicker.getValue()));
         settings.setCursorColor(toHex(cursorColorPicker.getValue()));
+        // Both: the dedicated preference (which nothing but this checkbox writes) and the style the
+        // terminal reads, kept in step so a profile copy can no longer decide whether the cursor blinks.
         settings.setCursorStyle(deriveCursorStyle(settings.getCursorStyle(), cursorBlinkCheck.isSelected()));
+        if (globalSettings != null) {
+            globalSettings.setTerminalCursorBlink(cursorBlinkCheck.isSelected());
+        }
         settings.setSelectionColor(toHex(selectionColorPicker.getValue()));
         settings.setThemeId(selectedGlobalThemeId);
         settings.setTerminalColumns(columnsSpinner.getValue());
@@ -3228,6 +3237,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         tracked.add(new TrackedSetting("terminal", "ssh_keepalive_interval", settings::getSshKeepAliveInterval, true));
         GlobalSettings gs = globalSettings;
         if (gs != null) {
+            tracked.add(new TrackedSetting("colors", "cursor_blink", gs::isTerminalCursorBlink, true));
             tracked.add(new TrackedSetting("appearance", "app_design", gs::getAppDesign, true));
             tracked.add(new TrackedSetting("appearance", "animations_enabled", gs::isAppDesignAnimationsEnabled, true));
             tracked.add(new TrackedSetting("appearance", "apply_theme_fonts", gs::isApplyThemeFonts, true));

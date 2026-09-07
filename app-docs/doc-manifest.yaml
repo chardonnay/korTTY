@@ -115,10 +115,10 @@ pages:
     last_synced_ref: "38bcd2b4"
   - path: app-docs/site/docs/en/reference/settings/colors.md
     owns_i18n: [settings.colors.]
-    owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java]
+    owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/core/TerminalCursorBlink.java, src/main/java/de/kortty/core/ConnectionSettingsSupport.java]
     screenshots:
       - settings/colors.png
-    last_synced_ref: "659b3bd9"
+    last_synced_ref: "7d0562c6"
   - path: app-docs/site/docs/en/reference/settings/terminal.md
     owns_i18n: [settings.terminal., settings.connection.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java]
