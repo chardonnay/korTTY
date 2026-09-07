@@ -2358,8 +2358,19 @@
 <td>inherit (picker shows <code>#FF0000</code>)</td>
 <td><code>snippetCursorColor</code></td>
 </tr>
+<tr>
+<td>AI Completion Shortcut</td>
+<td>key recorder</td>
+<td>One key, optionally with up to three modifiers (Ctrl/Cmd, Shift, Alt)</td>
+<td><code>Shift+Tab</code></td>
+<td><code>snippetCompletionShortcut</code></td>
+</tr>
 </tbody>
 </table>
+<div class="admonition tip">
+<p class="admonition-title">Choosing the completion shortcut</p>
+<p>Click the <strong>AI Completion Shortcut</strong> field and press the combination you want — the field records what you pressed, and <strong>Reset</strong> restores <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span>. A combination is one main key (a letter, digit, function key, <span class="keys"><kbd class="key-tab">Tab</kbd></span>, <span class="keys"><kbd class="key-space">Space</kbd></span>, an arrow, <span class="keys"><kbd class="key-enter">Enter</kbd></span> and so on) with none, one, two or three modifiers, so <span class="keys"><kbd class="key-tab">Tab</kbd></span> alone, <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-k">K</kbd></span> are all valid. On macOS the <span class="keys"><kbd class="key-control">Ctrl</kbd></span> modifier is the Cmd key, matching the editor's own shortcuts. The new combination applies to snippet editors opened afterwards; <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-space">Space</kbd></span> opens the list as well and cannot be reassigned. Choosing something other than <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> gives <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> back its normal editor meaning: it removes one level of indentation.</p>
+</div>
 <div class="admonition note">
 <p class="admonition-title">Inheriting instead of overriding</p>
 <p>These settings override the terminal/editor defaults for snippet windows only. Leave a field empty — or set the font size to <code>0</code> — to inherit the general setting from <a href="../appearance.html">Appearance</a>, <a href="../colors.html">Colors</a> and <a href="../editor.html">Editor</a> instead.</p>
