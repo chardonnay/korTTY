@@ -717,7 +717,31 @@ class AiI18nCoverageTest {
         "settings.ai.securityProfile",
         "settings.ai.securityProfile.default",
         "settings.ai.securityProfile.clear",
-        "settings.ai.securityProfile.hint");
+        "settings.ai.securityProfile.hint",
+        "snippets.ai.code.complete",
+        "snippets.ai.code.autoComplete",
+        "snippets.ai.toggle.action.complete",
+        "snippets.ai.autocomplete.warning.title",
+        "snippets.ai.autocomplete.warning.header",
+        "snippets.ai.autocomplete.warning.content",
+        "snippets.ai.autocomplete.enabled",
+        "snippets.ai.autocomplete.disabled",
+        "snippets.ai.complete.running",
+        "snippets.ai.complete.list.running",
+        "snippets.ai.complete.list.ready",
+        "snippets.ai.complete.empty",
+        "snippets.ai.complete.discarded",
+        "snippets.ai.complete.ready",
+        "snippets.ai.complete.failed",
+        "snippets.ai.complete.timeout",
+        "snippets.ai.complete.inserted",
+        "snippets.ai.complete.aiDetail",
+        "snippets.ai.complete.kind.array",
+        "snippets.ai.complete.kind.hash",
+        "snippets.ai.complete.kind.variable",
+        "snippets.ai.complete.kind.function",
+        "snippets.ai.complete.kind.idiom",
+        "snippets.ai.complete.kind.text");
 
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\d+}");
 

@@ -192,6 +192,96 @@ class SnippetEditDialogAiContractTest {
         assertThat(providerThread.isAlive()).isFalse();
     }
 
+    @Test
+    void completionAcceptMatchesAPlainInsertionAtTheCaret() {
+        String before = "for x in ";
+        String inserted = "\"${ARR[@]}\"";
+        String after = before + inserted;
+
+        assertThat(SnippetEditDialog.completionAcceptMatches(before, after, 9, inserted, after.length())).isTrue();
+        assertThat(SnippetEditDialog.completionAcceptTypedLength(before, after, 9, inserted, after.length()))
+            .isEqualTo(0);
+    }
+
+    @Test
+    void completionAcceptMatchesWhenTheTypedTokenWasReplaced() {
+        // The user had typed "$A, the list entry replaced it from the token start.
+        String before = "for x in \"$A\ndone\n";
+        String inserted = "\"${ARR[@]}\"";
+        String after = "for x in " + inserted + "\ndone\n";
+
+        assertThat(SnippetEditDialog.completionAcceptMatches(before, after, 9, inserted, after.length())).isTrue();
+        assertThat(SnippetEditDialog.completionAcceptTypedLength(before, after, 9, inserted, after.length()))
+            .isEqualTo(3);
+    }
+
+    @Test
+    void completionAcceptMatchesMultiLineIndentedInsertions() {
+        String before = "if true; then\n  for x in \nfi\n";
+        String inserted = "\"$@\"; do\n    echo \"$x\"\n  done";
+        String after = "if true; then\n  for x in " + inserted + "\nfi\n";
+
+        assertThat(SnippetEditDialog.completionAcceptMatches(before, after, 25, inserted, after.length())).isTrue();
+        assertThat(SnippetEditDialog.completionAcceptTypedLength(before, after, 25, inserted, after.length()))
+            .isEqualTo(0);
+    }
+
+    @Test
+    void completionAcceptMatchesCrlfModelsWithModelOffsets() {
+        // start and valueLength are model offsets, so they count CRLF as two characters.
+        String before = "ARR=(a b)\r\nfor x in \r\n";
+        String inserted = "\"${ARR[@]}\"; do\r\n  echo \"$x\"\r\ndone";
+        String after = "ARR=(a b)\r\nfor x in " + inserted + "\r\n";
+        int start = "ARR=(a b)\r\nfor x in ".length();
+
+        assertThat(SnippetEditDialog.completionAcceptMatches(before, after, start, inserted, after.length())).isTrue();
+        // The model reports the inserted text with its own line endings; the comparison must not
+        // depend on which convention the mirror happened to keep.
+        String insertedLf = inserted.replace("\r\n", "\n");
+        assertThat(SnippetEditDialog.completionAcceptMatches(before, after, start, insertedLf, after.length())).isTrue();
+    }
+
+    @Test
+    void completionAcceptRejectsMismatchedOffsetsLengthsAndTexts() {
+        String before = "for x in ";
+        String inserted = "\"${ARR[@]}\"";
+        String after = before + inserted;
+
+        // Wrong offset: the inserted text does not sit there.
+        assertThat(SnippetEditDialog.completionAcceptMatches(before, after, 4, inserted, after.length())).isFalse();
+        // Stale mirror: the model already has a different length.
+        assertThat(SnippetEditDialog.completionAcceptMatches(before, after, 9, inserted, after.length() + 2)).isFalse();
+        // Another edit in between: the tail after the insertion changed.
+        assertThat(SnippetEditDialog.completionAcceptMatches(before + "\ndone", after + "\nfi", 9, inserted, -1))
+            .isFalse();
+        // The prefix changed as well.
+        assertThat(SnippetEditDialog.completionAcceptMatches("while x in ", after, 9, inserted, after.length()))
+            .isFalse();
+        assertThat(SnippetEditDialog.completionAcceptMatches(before, after, 9, "", after.length())).isFalse();
+        assertThat(SnippetEditDialog.completionAcceptMatches(null, after, 9, inserted, after.length())).isFalse();
+        assertThat(SnippetEditDialog.completionAcceptMatches(before, after, -1, inserted, after.length())).isFalse();
+        assertThat(SnippetEditDialog.completionAcceptMatches(before, after, after.length() + 1, inserted, -1))
+            .isFalse();
+    }
+
+    @Test
+    void ghostRequestsOnlyRunWithTheSwitchOnNoOpenListNoOtherActionAndACaretAtTheLineEnd() {
+        assertThat(SnippetEditDialog.ghostRequestAllowed(true, false, false, true, "for x in ", "")).isTrue();
+        assertThat(SnippetEditDialog.ghostRequestAllowed(true, false, false, true, "for x in ", "   ")).isTrue();
+        // Switch off.
+        assertThat(SnippetEditDialog.ghostRequestAllowed(false, false, false, true, "for x in ", "")).isFalse();
+        // An open suggest list owns the completion flow; its result would be discarded by the page anyway.
+        assertThat(SnippetEditDialog.ghostRequestAllowed(true, true, false, true, "for x in ", "")).isFalse();
+        // A heavy AI action (analysis, improvement, ...) owns the AI flow.
+        assertThat(SnippetEditDialog.ghostRequestAllowed(true, false, true, true, "for x in ", "")).isFalse();
+        // No provider configured.
+        assertThat(SnippetEditDialog.ghostRequestAllowed(true, false, false, false, "for x in ", "")).isFalse();
+        // Caret rule: nothing typed on the line, or text after the caret.
+        assertThat(SnippetEditDialog.ghostRequestAllowed(true, false, false, true, "", "")).isFalse();
+        assertThat(SnippetEditDialog.ghostRequestAllowed(true, false, false, true, "   ", "")).isFalse();
+        assertThat(SnippetEditDialog.ghostRequestAllowed(true, false, false, true, "for x in ", "done")).isFalse();
+    }
+
     private static AiSkill skill(String name, List<String> builtinTopics, List<String> tags) {
         AiSkill skill = new AiSkill();
         skill.setName(name);

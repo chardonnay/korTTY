@@ -16,7 +16,6 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.concurrent.Worker;
-import javafx.geometry.Bounds;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.IndexRange;
 import javafx.scene.input.KeyCode;
@@ -33,7 +32,6 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.ref.WeakReference;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -293,11 +291,6 @@ public class MonacoEditorPane extends StackPane {
 
     public void requestFollowCaret() {
         runWhenReady("window.korttyMonaco.revealCaret();");
-    }
-
-    public Optional<Bounds> getCaretBounds() {
-        Bounds localBounds = webView.getBoundsInLocal();
-        return Optional.of(webView.localToScreen(localBounds));
     }
 
     /**

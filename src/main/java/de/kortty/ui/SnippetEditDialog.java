@@ -1,5 +1,8 @@
 package de.kortty.ui;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiAction;
 import de.kortty.core.AiLanguageSupport;
@@ -12,6 +15,7 @@ import de.kortty.core.SnippetEditorProfileSupport;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.SnippetAiWorkflowSupport;
 import de.kortty.core.SnippetAiTextSupport;
+import de.kortty.core.SnippetCompletionSupport;
 import de.kortty.core.SnippetLinter;
 import de.kortty.core.SnippetMarkupPreviewRenderer;
 import de.kortty.core.MermaidRenderService;
@@ -33,7 +37,6 @@ import de.kortty.model.WindowGeometry;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
-import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -59,7 +62,6 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.web.WebView;
 import javafx.stage.Modality;
-import javafx.stage.Popup;
 import javafx.stage.Window;
 import javafx.util.Duration;
 
@@ -193,12 +195,30 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private final List<SnippetDiagram> diagrams = new ArrayList<>();
     private final PauseTransition autoCompletionDelay = new PauseTransition(Duration.millis(900));
     private final PauseTransition markupPreviewRefreshDelay = new PauseTransition(Duration.millis(180));
-    private Popup completionPopup;
-    private SnippetAiResponseSupport.CompletionSuggestion pendingCompletionSuggestion;
-    private String pendingCompletionContentSnapshot;
-    private int pendingCompletionCaretOffset = -1;
     private String lastAutoCompletionKey;
-    private boolean autoCompletionWarningAccepted;
+    // Acknowledged once per application run (JVM-wide, deliberately not persisted): the ghost-text
+    // notice is about what "Auto AI Complete" sends, not about one particular editor window.
+    private static boolean autoCompletionWarningAccepted;
+    /** AI candidates asked for when the Shift+TAB / Ctrl+Space / menu list opens. */
+    private static final int LIST_AI_CANDIDATES = 5;
+    /** AI candidates asked for after a typing pause (ghost text; Alt+] / Alt+[ cycle them). */
+    private static final int GHOST_AI_CANDIDATES = 3;
+    private static final int LOCAL_MAX_ITEMS = SnippetCompletionSupport.DEFAULT_MAX_ITEMS;
+    /** A completion request is abandoned after this long, whatever the profile's own timeout allows. */
+    private static final int COMPLETION_TIMEOUT_SECONDS = 30;
+    private final PauseTransition completionTimeout =
+        new PauseTransition(Duration.seconds(COMPLETION_TIMEOUT_SECONDS));
+    private final Map<SnippetCompletionSupport.CandidateKind, String> completionKindLabels = completionKindLabels();
+    private Task<List<SnippetAiResponseSupport.CompletionSuggestion>> completionTask;
+    /** The request id whose AI result is still wanted; results for any other id are dropped. */
+    private long activeCompletionRequestId = -1;
+    /** The open suggest list's request id, or -1; the ghost timer stays quiet while a list is open. */
+    private long listSessionId = -1;
+    /** Ghost requests take ids far above anything the page's own counter reaches. */
+    private long nextGhostRequestId = 1L << 40;
+    /** The editor text before the latest change; an accepted completion is diffed against it. */
+    private String previousEditorText = "";
+    private String lastCompletionStatus;
 
     // History slider fields
     private Slider historySlider;
@@ -874,6 +894,24 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         
         // Content area with syntax highlighting – use saved editor settings
         contentArea = new MonacoEditorPane();
+        // Installing the host before the page boots enables the completion providers with the
+        // editor (Shift+TAB / Ctrl+Space list, ghost text); the page calls back on the FX thread.
+        contentArea.setCompletionHost(new MonacoEditorPane.CompletionHost() {
+            @Override
+            public void onCompletionRequested(long requestId, String requestJson) {
+                handleCompletionRequested(requestId, requestJson);
+            }
+
+            @Override
+            public void onCompletionListClosed(long requestId) {
+                handleCompletionListClosed(requestId);
+            }
+
+            @Override
+            public void onCompletionAccepted(String acceptedJson) {
+                handleCompletionAccepted(acceptedJson);
+            }
+        });
         contentArea.setPrefHeight(350);
         contentArea.setPrefWidth(600);
         EditorSettingsHelper.applyStyle(contentArea, editorSettings);
@@ -964,10 +1002,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         
         // Re-apply highlighting on text change
         contentArea.textProperty().addListener((obs, oldText, newText) -> {
+            // Stored first: an accepted completion is reported after this change and diffs against it.
+            previousEditorText = oldText != null ? oldText : "";
             if (!programmaticContentUpdate) {
                 clearLastAiChangeSnapshot();
             }
-            hideCompletionSuggestion();
             applyHighlighting();
             EditorSettingsHelper.refreshCaretStyling(contentArea, editorSettings);
             updateUndoControls();
@@ -986,12 +1025,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         });
         contentArea.selectionProperty().addListener((obs, oldSelection, newSelection) -> updateAiActionAvailability());
         contentArea.caretPositionProperty().addListener((obs, oldValue, newValue) -> {
-            hideCompletionSuggestion();
             updateColumnRulerCaret();
             scheduleAutoCompletion();
         });
         contentArea.caretColumnProperty().addListener((obs, oldValue, newValue) -> updateColumnRulerCaret());
-        autoCompletionDelay.setOnFinished(event -> runAutoCompletionIfReady());
+        autoCompletionDelay.setOnFinished(event -> requestGhostCompletion());
+        completionTimeout.setOnFinished(event -> handleCompletionTimeout());
 
         // Setup history debounce timer
         historyDebounce.setOnFinished(event -> {
@@ -1124,7 +1163,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         aiTextMenu.getItems().addAll(correctSelectionTextItem, translateSelectionTextItem, describeSnippetItem);
 
         completeCodeItem = new MenuItem(aiActionLabel("snippets.ai.code.complete"));
-        completeCodeItem.setOnAction(e -> { trackSnippetAiAction("code_complete"); runCompletion(false); });
+        completeCodeItem.setOnAction(e -> { trackSnippetAiAction("code_complete"); contentArea.triggerCompletionList(); });
         autoCompleteItem = new CheckMenuItem(aiActionLabel("snippets.ai.code.autoComplete"));
         autoCompleteItem.setOnAction(e -> { trackSnippetAiAction("code_autocomplete_toggle"); handleAutoCompletionToggle(); });
         reviewCodeItem = new MenuItem(aiActionLabel("snippets.ai.code.review"));
@@ -1387,6 +1426,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             } finally {
                 programmaticContentUpdate = false;
             }
+            previousEditorText = safeContentText();
             applyHighlighting();
 
             // Initialize history with current content
@@ -2557,7 +2597,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         MenuItem alternativeSolutionItem = new MenuItem(aiActionLabel("snippets.ai.alternatives.context"));
         alternativeSolutionItem.setOnAction(e -> runAlternativeSolutions());
         MenuItem completeCodeContextItem = new MenuItem(aiActionLabel("snippets.ai.code.complete"));
-        completeCodeContextItem.setOnAction(e -> runCompletion(false));
+        completeCodeContextItem.setOnAction(e -> { trackSnippetAiAction("code_complete"); contentArea.triggerCompletionList(); });
         MenuItem codeAssistantContextItem = new MenuItem(aiActionLabel("snippets.ai.assistant.context"));
         codeAssistantContextItem.setOnAction(e -> runCodeAssistant());
         MenuItem reviewCodeContextItem = new MenuItem(aiActionLabel("snippets.ai.code.review"));
@@ -2652,7 +2692,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             translateSelectionItem.setDisable(!hasSelection || aiAssist == null || aiAssist.selectionTranslationProvider() == null || aiBusy);
             describeSnippetContextItem.setDisable(!hasContent || aiAssist == null || aiAssist.snippetDescriptionProvider() == null || aiBusy);
             alternativeSolutionItem.setDisable(!hasContent || !hasAlternativeSolutionProvider() || aiBusy);
-            completeCodeContextItem.setDisable(!hasContent || !hasCompletionProvider() || aiBusy);
+            // The list is Monaco's own and lists local candidates without any provider; AI rows join when one exists.
+            completeCodeContextItem.setDisable(!hasContent);
             codeAssistantContextItem.setDisable(!hasContent || !hasCodeAssistantProvider() || aiBusy);
             reviewCodeContextItem.setDisable(!hasContent || !hasCodeAnalysisProviders() || aiBusy);
             improveCommentsContextItem.setDisable(!hasSelection || !hasCodeImprovementProvider() || aiBusy);
@@ -2772,7 +2813,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         translateSelectionTextItem.setDisable(busy || !hasSelection || !hasSelectionTranslationProvider);
         describeSnippetItem.setDisable(busy || !hasContent || !hasDescriptionProvider);
         aiTextMenu.setDisable(busy || !hasContent || (!hasSelectionCorrectionProvider && !hasSelectionTranslationProvider && !hasDescriptionProvider));
-        completeCodeItem.setDisable(busy || !hasContent || !hasCompletionProvider());
+        // Local candidates need no provider and the list never blocks on another action.
+        completeCodeItem.setDisable(!hasContent);
         autoCompleteItem.setDisable(busy || !hasContent || !hasCompletionProvider());
         reviewCodeItem.setDisable(busy || !hasContent || !hasCodeAnalysisProviders());
         improveReadabilityItem.setDisable(busy || !hasSelection || !hasCodeImprovementProvider());
@@ -2785,7 +2827,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         diagramItem.setDisable(busy || !hasContent || !hasDiagramProvider());
         aiCodeMenu.setDisable(busy || !hasContent || (!hasCompletionProvider() && !hasCodeReviewProvider()
             && !hasCodeImprovementProvider() && !hasSecurityProviders() && !hasDiagramProvider()));
-        cancelSnippetAiActionButton.setDisable(!snippetActionRunning);
+        // A completion request is cancellable too, but it blocks nothing else (busy stays as it is).
+        boolean cancellable = snippetActionRunning || completionTask != null;
+        cancelSnippetAiActionButton.setDisable(!cancellable);
         toggleLastAiChangeButton.setDisable(lastAiChangeSnapshot == null || busy);
         updateLastAiToggleTooltip();
     }
@@ -3596,7 +3640,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     instructions));
             }
         };
-        snippetAiActionTask = task;
+        beginSnippetAiAction(task);
         task.setOnRunning(event -> {
             showSnippetAiHint(runningStatus);
             setStatus(runningStatus);
@@ -3684,7 +3728,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     aiProfileId));
             }
         };
-        snippetAiActionTask = task;
+        beginSnippetAiAction(task);
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.description.generating"));
             setStatus(I18n.get("snippets.ai.description.generating"));
@@ -3767,13 +3811,19 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             setStatus(I18n.get("snippets.ai.autocomplete.enabled"));
         } else {
             autoCompletionDelay.stop();
-            hideCompletionSuggestion();
+            cancelCompletionRequest();
+            contentArea.clearGhostCompletions();
             setStatus(I18n.get("snippets.ai.autocomplete.disabled"));
         }
     }
 
+    /**
+     * Arms the ghost-text timer. A no-op while a suggest list is open: the caret listener fires on
+     * every filter keystroke, and a ghost request started then would supersede the list's own AI
+     * request only to have its result discarded by the page because the list is still open.
+     */
     private void scheduleAutoCompletion() {
-        if (autoCompleteItem == null || !autoCompleteItem.isSelected() || isAnyAiTaskRunning()) {
+        if (autoCompleteItem == null || !autoCompleteItem.isSelected() || listSessionId >= 0 || isAnyAiTaskRunning()) {
             return;
         }
         String content = contentArea.getText();
@@ -3783,151 +3833,421 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         autoCompletionDelay.playFromStart();
     }
 
-    private void runAutoCompletionIfReady() {
-        if (autoCompleteItem == null || !autoCompleteItem.isSelected() || isAnyAiTaskRunning()) {
+    /** The ghost-text timer fired: ask the model for a few continuations at the end of the caret line. */
+    private void requestGhostCompletion() {
+        if (autoCompleteItem == null || !autoCompleteItem.isSelected()) {
             return;
         }
-        String content = contentArea.getText();
-        int caret = contentArea.getCaretPosition();
+        // The text mirror lags behind the editor's typing; the request must see the caret and the
+        // text exactly as the editor has them.
+        contentArea.syncFromEditor();
+        String content = safeContentText();
+        int caret = Math.max(0, Math.min(contentArea.getCaretPosition(), content.length()));
+        int lineStart = content.lastIndexOf('\n', caret - 1) + 1;
+        int lineEnd = content.indexOf('\n', caret);
+        String lineBefore = content.substring(lineStart, caret);
+        String lineAfter = content.substring(caret, lineEnd >= 0 ? lineEnd : content.length());
+        if (!ghostRequestAllowed(true, listSessionId >= 0, isAnyAiTaskRunning(), hasCompletionProvider(),
+            lineBefore, lineAfter)) {
+            return;
+        }
         String key = content + "::" + caret;
         if (key.equals(lastAutoCompletionKey)) {
             return;
         }
         lastAutoCompletionKey = key;
-        runCompletion(true);
+        long requestId = nextGhostRequestId++;
+        startCompletionTask(requestId, content, caret, GHOST_AI_CANDIDATES, result -> {
+            if (!content.equals(contentArea.getText()) || caret != contentArea.getCaretPosition()) {
+                setCompletionStatus(I18n.get("snippets.ai.complete.discarded"));
+                return;
+            }
+            contentArea.pushGhostCompletions(
+                MonacoCompletionPayloads.ghost(requestId, caret, content.length(), result));
+            setCompletionStatus(I18n.get("snippets.ai.complete.ready"));
+        }, true);
     }
 
-    private void runCompletion(boolean autoCompletion) {
-        if (!hasCompletionProvider()) {
+    /**
+     * Whether the ghost-text timer may fire a request: the switch is on, no suggest list is open, no
+     * heavy AI action owns the flow, a provider exists, and the caret sits at the end of a non-empty
+     * line (the same rule Shift+TAB uses to open the list).
+     */
+    static boolean ghostRequestAllowed(boolean autoSelected, boolean listSessionActive, boolean otherAiTaskRunning,
+                                       boolean hasProvider, String lineBefore, String lineAfter) {
+        return autoSelected && !listSessionActive && !otherAiTaskRunning && hasProvider
+            && SnippetCompletionSupport.shiftTabShouldOpenList(lineBefore, lineAfter);
+    }
+
+    /**
+     * The suggest list opened on the page. Local candidates resolve it within this pulse; when a
+     * provider is configured the AI candidates follow into the open list — every list (Shift+TAB,
+     * Ctrl+Space, the menu) is a deliberate action, so no data notice is needed. Progress shows in
+     * the status line only: the hint bar would resize the WebView under the open widget.
+     */
+    private void handleCompletionRequested(long requestId, String requestJson) {
+        JsonObject request = parseJsonObject(requestJson);
+        String text = jsonString(request, "text", null);
+        if (text == null) {
+            contentArea.syncFromEditor();
+            text = safeContentText();
+        }
+        int caret = Math.max(0, Math.min(jsonInt(request, "caretOffset", text.length()), text.length()));
+        boolean hasLanguageService = jsonBoolean(request, "hasLanguageService", false);
+        listSessionId = requestId;
+        activeCompletionRequestId = requestId;
+        cancelCompletionRequest();
+        autoCompletionDelay.stop();
+        String language = languageCombo.getValue();
+        List<SnippetCompletionSupport.Candidate> local;
+        try {
+            // Monaco's own language services add their word entries for javascript/typescript/json/css/html.
+            local = SnippetCompletionSupport.localCandidates(language, text, caret, LOCAL_MAX_ITEMS, !hasLanguageService);
+        } catch (RuntimeException e) {
+            logger.warn("Local completion candidates failed", e);
+            local = List.of();
+        }
+        contentArea.pushCompletions(MonacoCompletionPayloads.list(requestId, "local", local, completionKindLabels));
+        if (!hasCompletionProvider() || isAnyAiTaskRunning() || text.isBlank()) {
             return;
         }
-        if (!ensureSnippetAiDataNoticeAccepted(autoCompletion)) {
-            if (autoCompletion && autoCompleteItem != null) {
-                autoCompleteItem.setSelected(false);
+        String requestText = text;
+        List<SnippetCompletionSupport.Candidate> localCandidates = local;
+        startCompletionTask(requestId, requestText, caret, LIST_AI_CANDIDATES, result -> {
+            SnippetCompletionSupport.Context ctx = SnippetCompletionSupport.classify(
+                SnippetCompletionSupport.effectiveLanguage(language, requestText, caret), requestText, caret);
+            List<SnippetCompletionSupport.Candidate> ai = SnippetCompletionSupport.aiCandidates(
+                ctx, caret, localCandidates, result,
+                completionKindLabels.get(SnippetCompletionSupport.CandidateKind.AI));
+            if (ai.isEmpty()) {
+                setCompletionStatus(I18n.get("snippets.ai.complete.empty"));
+                return;
             }
+            contentArea.pushCompletions(MonacoCompletionPayloads.list(requestId, "ai", ai, completionKindLabels));
+            setCompletionStatus(I18n.get("snippets.ai.complete.list.ready", ai.size()));
+        }, false);
+    }
+
+    /**
+     * The suggest list closed (Esc, blur, accept, ...). Monaco cancels the list before it inserts an
+     * accepted item, so this precedes the text change and the accept report of that item.
+     */
+    private void handleCompletionListClosed(long requestId) {
+        listSessionId = -1;
+        if (requestId == activeCompletionRequestId) {
+            cancelCompletionRequest();
+            activeCompletionRequestId = -1;
+        }
+        clearCompletionStatus();
+        scheduleAutoCompletion();
+    }
+
+    /**
+     * An AI list entry or ghost text was inserted. Deliberately not gated on the active request id:
+     * the list has already closed (and cancelled its request) by the time the accept arrives. The
+     * before/after texts come from the editor mirror and the inserted text from the model, so the
+     * ↺ toggle also works for multi-line entries; on a mismatch there is simply no ↺ entry.
+     */
+    private void handleCompletionAccepted(String acceptedJson) {
+        JsonObject accepted = parseJsonObject(acceptedJson);
+        String source = jsonString(accepted, "source", "");
+        if (!"ai".equals(source) && !"ghost".equals(source)) {
             return;
         }
-        // The text mirror lags behind the editor's typing; the request must see the caret and
-        // the text exactly as the editor has them.
-        contentArea.syncFromEditor();
-        String content = contentArea.getText();
-        if (content == null || content.isBlank()) {
+        String before = previousEditorText != null ? previousEditorText : "";
+        String after = safeContentText();
+        int start = jsonInt(accepted, "start", -1);
+        String insertedText = jsonString(accepted, "insertedText", "");
+        int valueLength = jsonInt(accepted, "valueLength", -1);
+        int typedLength = completionAcceptTypedLength(before, after, start, insertedText, valueLength);
+        if (typedLength >= 0) {
+            storeLastAiChangeSnapshot(
+                I18n.get("snippets.ai.toggle.action.complete"),
+                before,
+                after,
+                start,
+                start + typedLength,
+                start,
+                start + insertedText.length());
+        } else {
+            logger.debug("Accepted {} completion does not match the editor change (start={}, inserted={} chars)",
+                source, start, insertedText.length());
+        }
+        setCompletionStatus(I18n.get("snippets.ai.complete.inserted"));
+        trackSnippetAiAction("code_complete_accepted");
+    }
+
+    /** Whether Monaco's accept report fits the editor's before/after texts (see {@link #completionAcceptTypedLength}). */
+    static boolean completionAcceptMatches(String before, String after, int start, String insertedText, int valueLength) {
+        return completionAcceptTypedLength(before, after, start, insertedText, valueLength) >= 0;
+    }
+
+    /**
+     * Checks that {@code after} is {@code before} with the typed token at {@code start} replaced by
+     * {@code insertedText}, and returns that token's length, or -1 when the texts do not fit together
+     * (a stale mirror, another edit in between, an offset from a different model state). Line endings
+     * are normalized to LF for the comparison; {@code start} and {@code valueLength} are model offsets
+     * and are read against the raw {@code after} text.
+     */
+    static int completionAcceptTypedLength(String before, String after, int start, String insertedText, int valueLength) {
+        if (before == null || after == null || insertedText == null || insertedText.isEmpty()) {
+            return -1;
+        }
+        if (start < 0 || start > after.length() || (valueLength >= 0 && valueLength != after.length())) {
+            return -1;
+        }
+        int normalizedStart = start - countCrlf(after, start);
+        String beforeText = normalizeEol(before);
+        String afterText = normalizeEol(after);
+        String inserted = normalizeEol(insertedText);
+        if (!afterText.startsWith(inserted, normalizedStart)) {
+            return -1;
+        }
+        if (beforeText.length() < normalizedStart || !afterText.regionMatches(0, beforeText, 0, normalizedStart)) {
+            return -1;
+        }
+        int typed = beforeText.length() + inserted.length() - afterText.length();
+        if (typed < 0 || normalizedStart + typed > beforeText.length()) {
+            return -1;
+        }
+        String afterTail = afterText.substring(normalizedStart + inserted.length());
+        String beforeTail = beforeText.substring(normalizedStart + typed);
+        return afterTail.equals(beforeTail) ? typed : -1;
+    }
+
+    /**
+     * Runs one AI completion request in its own task: it blocks none of the other AI actions (they
+     * take over through {@link #beginSnippetAiAction}), a new request supersedes a running one, and
+     * the result is delivered only while {@code requestId} is still the wanted one. {@code showHintBar}
+     * is true for ghost text only; list requests report in the status line so the WebView is not
+     * resized under the open widget.
+     */
+    private void startCompletionTask(long requestId, String content, int caretOffset, int maxCandidates,
+                                     Consumer<List<SnippetAiResponseSupport.CompletionSuggestion>> onResult,
+                                     boolean showHintBar) {
+        if (!hasCompletionProvider() || content == null || content.isBlank() || isAnyAiTaskRunning()) {
             return;
         }
-        int caretOffset = contentArea.getCaretPosition();
-        String contentSnapshot = content;
+        cancelCompletionRequest();
+        activeCompletionRequestId = requestId;
+        // Completion fires while typing, so it never interrupts: an undetectable language simply
+        // leaves this one request without an explicit contract.
+        applyCodeTextLanguage(false);
+        String language = languageCombo.getValue();
+        String localContext;
+        try {
+            localContext = SnippetCompletionSupport.localContext(language, content, caretOffset);
+        } catch (RuntimeException e) {
+            logger.warn("Local completion context failed", e);
+            localContext = "";
+        }
+        CompletionRequest request = new CompletionRequest(
+            content,
+            language,
+            caretOffset,
+            resolveAiTextFallbackLanguageCode(),
+            additionalInstructions(),
+            maxCandidates,
+            localContext);
+        CompletionProvider provider = aiAssist.completionProvider();
         Task<List<SnippetAiResponseSupport.CompletionSuggestion>> task = new Task<>() {
             @Override
             protected List<SnippetAiResponseSupport.CompletionSuggestion> call() throws Exception {
-                return aiAssist.completionProvider().complete(new CompletionRequest(
-                    contentSnapshot,
-                    languageCombo.getValue(),
-                    caretOffset,
-                    resolveAiTextFallbackLanguageCode(),
-                    additionalInstructions(),
-                    1,
-                    ""));
+                return provider.complete(request);
             }
         };
-        // Completion fires while typing, so it never interrupts: an undetectable
-        // language simply leaves this one request without an explicit contract.
-        applyCodeTextLanguage(false);
-        snippetAiActionTask = task;
+        completionTask = task;
+        String runningStatus = I18n.get(showHintBar ? "snippets.ai.complete.running" : "snippets.ai.complete.list.running");
         task.setOnRunning(event -> {
-            showSnippetAiHint(I18n.get("snippets.ai.complete.running"));
-            setStatus(I18n.get("snippets.ai.complete.running"));
+            if (completionTask != task) {
+                return;
+            }
+            if (showHintBar) {
+                showSnippetAiHint(runningStatus, true);
+            }
+            setCompletionStatus(runningStatus);
             updateAiActionAvailability();
         });
         task.setOnSucceeded(event -> {
-            finishSnippetAiAction(task);
-            List<SnippetAiResponseSupport.CompletionSuggestion> candidates = task.getValue();
-            SnippetAiResponseSupport.CompletionSuggestion suggestion =
-                candidates == null || candidates.isEmpty() ? null : candidates.get(0);
-            if (suggestion == null || !suggestion.isUsable()) {
-                setStatus(I18n.get("snippets.ai.complete.empty"));
+            if (!finishCompletionTask(task) || requestId != activeCompletionRequestId) {
                 return;
             }
-            if (!contentSnapshot.equals(contentArea.getText()) || caretOffset != contentArea.getCaretPosition()) {
-                setStatus(I18n.get("snippets.ai.complete.discarded"));
+            List<SnippetAiResponseSupport.CompletionSuggestion> result = task.getValue();
+            if (!hasUsableSuggestion(result)) {
+                setCompletionStatus(I18n.get("snippets.ai.complete.empty"));
                 return;
             }
-            showCompletionSuggestion(suggestion, contentSnapshot, caretOffset);
-            setStatus(I18n.get("snippets.ai.complete.ready"));
+            onResult.accept(result);
         });
-        task.setOnFailed(event ->
-            handleSnippetAiActionFailure(task, I18n.get("snippets.ai.complete.failed")));
-        task.setOnCancelled(event -> finishSnippetAiAction(task));
-        Thread thread = new Thread(task, autoCompletion ? "snippet-ai-auto-complete" : "snippet-ai-complete");
+        task.setOnFailed(event -> {
+            Throwable failure = task.getException();
+            if (failure != null) {
+                logger.warn("Snippet AI completion failed (request {})", requestId, failure);
+            }
+            if (finishCompletionTask(task) && requestId == activeCompletionRequestId) {
+                setCompletionStatus(completionFailureStatus(failure));
+            }
+        });
+        task.setOnCancelled(event -> finishCompletionTask(task));
+        completionTimeout.playFromStart();
+        Thread thread = new Thread(task, "snippet-ai-complete-" + requestId);
         thread.setDaemon(true);
         thread.start();
+        updateAiActionAvailability();
     }
 
-    private void showCompletionSuggestion(
-        SnippetAiResponseSupport.CompletionSuggestion suggestion,
-        String contentSnapshot,
-        int caretOffset) {
+    private static boolean hasUsableSuggestion(List<SnippetAiResponseSupport.CompletionSuggestion> suggestions) {
+        if (suggestions == null) {
+            return false;
+        }
+        for (SnippetAiResponseSupport.CompletionSuggestion suggestion : suggestions) {
+            if (suggestion != null && suggestion.isUsable()) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-        hideCompletionSuggestion();
-        pendingCompletionSuggestion = suggestion;
-        pendingCompletionContentSnapshot = contentSnapshot;
-        pendingCompletionCaretOffset = caretOffset;
+    /** Clears {@code task} if it is the current request; false when it was already superseded or cancelled. */
+    private boolean finishCompletionTask(Task<?> task) {
+        if (completionTask != task) {
+            return false;
+        }
+        completionTask = null;
+        completionTimeout.stop();
+        hideSnippetAiHintIfIdle();
+        updateAiActionAvailability();
+        return true;
+    }
 
-        Label suggestionLabel = new Label(suggestion.insertText());
-        suggestionLabel.setWrapText(true);
-        suggestionLabel.setMaxWidth(520);
-        suggestionLabel.setStyle("-fx-font-family: 'Monospaced'; -fx-text-fill: rgba(210,210,210,0.82);");
-        Button insertButton = new Button(I18n.get("snippets.ai.complete.insert"));
-        insertButton.setOnAction(event -> insertPendingCompletion());
-        Button closeButton = new Button(I18n.get("dialog.cancel"));
-        closeButton.setOnAction(event -> hideCompletionSuggestion());
-        VBox popupContent = new VBox(6, suggestionLabel, new HBox(8, insertButton, closeButton));
-        popupContent.setPadding(new Insets(8));
-        popupContent.setStyle("-fx-background-color: rgba(30,30,30,0.95); -fx-border-color: rgba(128,128,128,0.55); -fx-border-radius: 6; -fx-background-radius: 6;");
-        popupContent.setOnMouseClicked(event -> insertPendingCompletion());
-        completionPopup = new Popup();
-        // A raw Popup does not inherit the owner scene's stylesheets, so the UI font scale has to
-        // be applied to its content root directly.
-        UiFontScaleSupport.applyToParent(popupContent);
-        completionPopup.getContent().add(popupContent);
-        completionPopup.setAutoHide(true);
-        Bounds caretBounds = contentArea.getCaretBounds()
-            .map(bounds -> contentArea.localToScreen(bounds))
-            .orElse(null);
-        if (caretBounds != null) {
-            completionPopup.show(contentArea, caretBounds.getMinX(), caretBounds.getMaxY() + 6);
-        } else if (getDialogPane().getScene() != null) {
-            completionPopup.show(getDialogPane().getScene().getWindow());
+    /** Cancels the running completion request, if any; true when there was one. */
+    private boolean cancelCompletionRequest() {
+        completionTimeout.stop();
+        Task<?> task = completionTask;
+        if (task == null) {
+            return false;
+        }
+        completionTask = null;
+        task.cancel(true);
+        hideSnippetAiHintIfIdle();
+        updateAiActionAvailability();
+        return true;
+    }
+
+    /** A blocking socket read cannot be interrupted sharply; the timeout at least clears the UI. */
+    private void handleCompletionTimeout() {
+        if (cancelCompletionRequest()) {
+            setCompletionStatus(I18n.get("snippets.ai.complete.timeout", COMPLETION_TIMEOUT_SECONDS));
         }
     }
 
-    private void insertPendingCompletion() {
-        if (pendingCompletionSuggestion == null || !pendingCompletionSuggestion.isUsable()) {
-            hideCompletionSuggestion();
-            return;
+    /** The status-line text for a failed completion request; completion never raises a dialog. */
+    private String completionFailureStatus(Throwable failure) {
+        if (isResponseStreamInterruptedFailure(failure)) {
+            return I18n.get("snippets.ai.streamInterrupted");
         }
-        if (!pendingCompletionContentSnapshot.equals(contentArea.getText())
-            || pendingCompletionCaretOffset != contentArea.getCaretPosition()) {
-            hideCompletionSuggestion();
-            setStatus(I18n.get("snippets.ai.complete.discarded"));
-            return;
+        if (isOutputTokenLimitFailure(failure)) {
+            return I18n.get("snippets.ai.outputLimitReached");
         }
-        applyAiContentChange(
-            pendingCompletionCaretOffset,
-            pendingCompletionCaretOffset,
-            pendingCompletionSuggestion.insertText(),
-            I18n.get("snippets.ai.toggle.action.complete"));
-        hideCompletionSuggestion();
-        setStatus(I18n.get("snippets.ai.complete.inserted"));
+        String detail = failure != null && failure.getMessage() != null && !failure.getMessage().isBlank()
+            ? failure.getMessage().strip()
+            : null;
+        return detail != null
+            ? I18n.get("snippets.ai.actionFailed", shortenStatusMessage(detail))
+            : I18n.get("snippets.ai.complete.failed");
     }
 
-    private void hideCompletionSuggestion() {
-        if (completionPopup != null) {
-            completionPopup.hide();
-            completionPopup = null;
+    /**
+     * Every heavy AI action starts here: it takes the flow over from completion, so a debounced ghost
+     * request cannot fire into the analysis and a visible ghost text does not linger over its result.
+     */
+    private void beginSnippetAiAction(Task<?> task) {
+        cancelCompletionRequest();
+        autoCompletionDelay.stop();
+        contentArea.clearGhostCompletions();
+        snippetAiActionTask = task;
+    }
+
+    /** A completion status is transient: it is cleared again when its list closes. */
+    private void setCompletionStatus(String message) {
+        lastCompletionStatus = message;
+        setStatus(message);
+    }
+
+    private void clearCompletionStatus() {
+        if (lastCompletionStatus != null && statusLabel != null && lastCompletionStatus.equals(statusLabel.getText())) {
+            setStatus("");
         }
-        pendingCompletionSuggestion = null;
-        pendingCompletionContentSnapshot = null;
-        pendingCompletionCaretOffset = -1;
+        lastCompletionStatus = null;
+    }
+
+    private static Map<SnippetCompletionSupport.CandidateKind, String> completionKindLabels() {
+        Map<SnippetCompletionSupport.CandidateKind, String> labels =
+            new EnumMap<>(SnippetCompletionSupport.CandidateKind.class);
+        labels.put(SnippetCompletionSupport.CandidateKind.ARRAY, I18n.get("snippets.ai.complete.kind.array"));
+        labels.put(SnippetCompletionSupport.CandidateKind.HASH, I18n.get("snippets.ai.complete.kind.hash"));
+        labels.put(SnippetCompletionSupport.CandidateKind.VARIABLE, I18n.get("snippets.ai.complete.kind.variable"));
+        labels.put(SnippetCompletionSupport.CandidateKind.FUNCTION, I18n.get("snippets.ai.complete.kind.function"));
+        labels.put(SnippetCompletionSupport.CandidateKind.IDIOM, I18n.get("snippets.ai.complete.kind.idiom"));
+        labels.put(SnippetCompletionSupport.CandidateKind.TEXT, I18n.get("snippets.ai.complete.kind.text"));
+        labels.put(SnippetCompletionSupport.CandidateKind.AI, I18n.get("snippets.ai.complete.aiDetail"));
+        return labels;
+    }
+
+    private static JsonObject parseJsonObject(String json) {
+        if (json == null || json.isBlank()) {
+            return new JsonObject();
+        }
+        try {
+            JsonElement element = JsonParser.parseString(json);
+            return element.isJsonObject() ? element.getAsJsonObject() : new JsonObject();
+        } catch (RuntimeException e) {
+            logger.warn("Invalid completion payload from the editor page", e);
+            return new JsonObject();
+        }
+    }
+
+    private static String jsonString(JsonObject object, String name, String fallback) {
+        JsonElement value = object.get(name);
+        return value != null && value.isJsonPrimitive() ? value.getAsString() : fallback;
+    }
+
+    private static int jsonInt(JsonObject object, String name, int fallback) {
+        JsonElement value = object.get(name);
+        if (value == null || !value.isJsonPrimitive()) {
+            return fallback;
+        }
+        try {
+            return value.getAsInt();
+        } catch (RuntimeException e) {
+            return fallback;
+        }
+    }
+
+    private static boolean jsonBoolean(JsonObject object, String name, boolean fallback) {
+        JsonElement value = object.get(name);
+        if (value == null || !value.isJsonPrimitive()) {
+            return fallback;
+        }
+        try {
+            return value.getAsBoolean();
+        } catch (RuntimeException e) {
+            return fallback;
+        }
+    }
+
+    private static String normalizeEol(String text) {
+        return text.replace("\r\n", "\n").replace('\r', '\n');
+    }
+
+    /** The number of CRLF pairs that lie completely before {@code end}. */
+    private static int countCrlf(String text, int end) {
+        int count = 0;
+        int limit = Math.min(end, text.length());
+        for (int i = text.indexOf("\r\n"); i >= 0 && i + 1 < limit; i = text.indexOf("\r\n", i + 2)) {
+            count++;
+        }
+        return count;
     }
 
     private void runCodeReview() {
@@ -3952,10 +4272,6 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (isAnyAiTaskRunning()) {
             return;
         }
-        // Full code analysis supersedes a debounced or already visible inline completion. Without clearing
-        // both states, a fast analysis can finish before the 900 ms timer and the stale popup appears on top.
-        autoCompletionDelay.stop();
-        hideCompletionSuggestion();
         // Preselect the skills relevant to this snippet (unless the user already edited the set) so the
         // analysis actually uses them and the dialog can show which skills were auto-included. No-op when the
         // skill picker doesn't apply or the user has taken manual control.
@@ -3971,7 +4287,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     fullContent, language, analysisLanguageCode, extra, aiProfileId));
             }
         };
-        snippetAiActionTask = task;
+        beginSnippetAiAction(task);
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.review.running"));
             setStatus(I18n.get("snippets.ai.review.running"));
@@ -4258,7 +4574,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (!applyCodeTextLanguage(true)) {
             return;
         }
-        snippetAiActionTask = task;
+        beginSnippetAiAction(task);
         task.setOnRunning(event -> {
             String runningMessage = task.getMessage() != null && !task.getMessage().isBlank()
                 ? task.getMessage()
@@ -4918,7 +5234,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (!applyCodeTextLanguage(true)) {
             return;
         }
-        snippetAiActionTask = task;
+        beginSnippetAiAction(task);
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.improve.running"));
             setStatus(I18n.get("snippets.ai.improve.running"));
@@ -5031,7 +5347,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     aiProfileId));
             }
         };
-        snippetAiActionTask = task;
+        beginSnippetAiAction(task);
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.migrate.running"));
             setStatus(I18n.get("snippets.ai.migrate.running"));
@@ -5192,7 +5508,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (!applyCodeTextLanguage(true)) {
             return;
         }
-        snippetAiActionTask = task;
+        beginSnippetAiAction(task);
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.assistant.running"));
             setStatus(I18n.get("snippets.ai.assistant.running"));
@@ -5337,7 +5653,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     additionalInstructions()));
             }
         };
-        snippetAiActionTask = task;
+        beginSnippetAiAction(task);
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.security.running"));
             setStatus(I18n.get("snippets.ai.security.running"));
@@ -5384,7 +5700,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (!applyCodeTextLanguage(true)) {
             return;
         }
-        snippetAiActionTask = task;
+        beginSnippetAiAction(task);
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.security.fix.running"));
             setStatus(I18n.get("snippets.ai.security.fix.running"));
@@ -5673,7 +5989,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 return new DiagramGenerationResult(diagram, syntaxCheck, renderCheck, outputLimitReached);
             }
         };
-        snippetAiActionTask = task;
+        beginSnippetAiAction(task);
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.diagram.generating"));
             setStatus(I18n.get("snippets.ai.diagram.generating"));
@@ -6159,7 +6475,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private void cancelAiTasks() {
         improvementApplyRecoverySuppressed = true;
         autoCompletionDelay.stop();
-        hideCompletionSuggestion();
+        cancelCompletionRequest();
+        contentArea.clearGhostCompletions();
         cancelMetadataTask();
         cancelDescriptionCorrectionTask();
         cancelSnippetAiActionTask(false);
@@ -6209,6 +6526,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void cancelSnippetAiActionTask(boolean updateStatus) {
+        // The hint bar's Cancel button also serves a ghost-text request, which is not a snippet action.
+        boolean completionCancelled = cancelCompletionRequest();
         if (snippetAiActionTask != null) {
             snippetAiActionTask.cancel(true);
             snippetAiActionTask = null;
@@ -6217,6 +6536,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 setStatus(I18n.get("ai.result.cancelled"));
             }
             updateAiActionAvailability();
+        } else if (completionCancelled && updateStatus) {
+            setStatus(I18n.get("ai.result.cancelled"));
         }
     }
 
@@ -6260,7 +6581,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void hideSnippetAiHintIfIdle() {
-        if (!isAnyAiTaskRunning()) {
+        if (!isAnyAiTaskRunning() && completionTask == null) {
             hideSnippetAiHint();
         }
     }
@@ -6442,7 +6763,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (!applyCodeTextLanguage(true)) {
             return;
         }
-        snippetAiActionTask = task;
+        beginSnippetAiAction(task);
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.oneliner.generating"));
             setStatus(I18n.get("snippets.oneliner.generating"));
@@ -6704,7 +7025,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (!applyCodeTextLanguage(true)) {
             return;
         }
-        snippetAiActionTask = task;
+        beginSnippetAiAction(task);
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.format.running"));
             setStatus(I18n.get("snippets.ai.format.running"));
@@ -6851,7 +7172,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     aiProfileId));
             }
         };
-        snippetAiActionTask = task;
+        beginSnippetAiAction(task);
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.lint.running"));
             setStatus(I18n.get("snippets.ai.lint.running"));
