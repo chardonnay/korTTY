@@ -104,11 +104,12 @@ public final class AiReasoningSupport {
     }
 
     /**
-     * Returns the request-scoped profile used for an AI action. Mermaid generation and the two
-     * post-analysis full-script apply actions have strict, machine-parsed contracts and do not
-     * benefit from spending their bounded completion budget on a hidden chain-of-thought, so they
-     * explicitly request {@link AiReasoningEffort#NONE} when that value is available for the
-     * profile. Profiles without an explicit-off value keep the configured effort instead of
+     * Returns the request-scoped profile used for an AI action. Mermaid generation, the two
+     * post-analysis full-script apply actions and code completion have strict, machine-parsed
+     * contracts and do not benefit from spending their bounded completion budget on a hidden
+     * chain-of-thought — completion in particular must answer while the user waits at the caret —
+     * so they explicitly request {@link AiReasoningEffort#NONE} when that value is available for
+     * the profile. Profiles without an explicit-off value keep the configured effort instead of
      * receiving an unsupported override. The stored profile is never mutated.
      */
     public static AiProfile profileForAction(AiProfile profile, AiAction action) {
@@ -134,7 +135,8 @@ public final class AiReasoningSupport {
     private static boolean prefersExplicitReasoningOff(AiAction action) {
         return action == AiAction.GENERATE_SNIPPET_MERMAID
             || action == AiAction.APPLY_SNIPPET_IMPROVEMENTS
-            || action == AiAction.APPLY_SNIPPET_SECURITY_FIXES;
+            || action == AiAction.APPLY_SNIPPET_SECURITY_FIXES
+            || action == AiAction.COMPLETE_SNIPPET_CODE;
     }
 
     public static List<AiReasoningEffort> availableEfforts(AiProfile profile) {

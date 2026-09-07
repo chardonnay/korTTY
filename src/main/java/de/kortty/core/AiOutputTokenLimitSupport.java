@@ -25,6 +25,14 @@ public final class AiOutputTokenLimitSupport {
     /** Edit mode returns changed regions only; a model that transcribes the file anyway is stopped here. */
     static final int EDIT_MODE_MAX_COMPLETION_TOKENS = 32_768;
     /**
+     * Budget for one code-completion answer: a handful of short candidates is a few hundred tokens,
+     * and the user is waiting at the caret, so a model that starts transcribing the file — or a
+     * thinking model that ignores the request-scoped reasoning-off and burns the budget before its
+     * JSON — is cut off early instead of holding the editor for minutes. A cut-off answer parses to
+     * no candidates; the editor reports "empty" and does not retry.
+     */
+    static final int COMPLETION_MAX_COMPLETION_TOKENS = 4_096;
+    /**
      * Head-room for everything a model emits before the replacement itself, and therefore also the
      * floor of the full-replacement budget. Sized for models that bill hidden thinking as
      * completion tokens: MiniMax-M3 spent 36 449 of a ~36 500-token budget on a 13 KB script and
@@ -56,6 +64,7 @@ public final class AiOutputTokenLimitSupport {
                 : fullReplacementLimit(request.selectedText());
             case APPLY_SNIPPET_SECURITY_FIXES, IMPROVE_SNIPPET_CODE, ASSIST_SNIPPET_CODE ->
                 fullReplacementLimit(request.selectedText());
+            case COMPLETE_SNIPPET_CODE -> COMPLETION_MAX_COMPLETION_TOKENS;
             default -> null;
         };
     }

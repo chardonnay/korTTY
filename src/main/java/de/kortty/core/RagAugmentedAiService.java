@@ -45,9 +45,12 @@ final class RagAugmentedAiService implements AiPromptService, AiSkillUsageTracke
     @Override
     public AiExecutionResult execute(AiRequest request) throws Exception {
         // A diagram must describe only control flow visible in the supplied snippet. Retrieval adds
-        // latency and unrelated prose without improving that fixed, source-grounded contract.
+        // latency and unrelated prose without improving that fixed, source-grounded contract. Code
+        // completion continues the text at the caret and answers while the user waits: a retrieval
+        // round-trip plus knowledge-store prose would slow it down and pull it away from the code.
         if (request == null || storeIds.isEmpty()
-            || request.action() == AiAction.GENERATE_SNIPPET_MERMAID) {
+            || request.action() == AiAction.GENERATE_SNIPPET_MERMAID
+            || request.action() == AiAction.COMPLETE_SNIPPET_CODE) {
             return delegate.execute(request);
         }
         String query = retrievalQuery(request);

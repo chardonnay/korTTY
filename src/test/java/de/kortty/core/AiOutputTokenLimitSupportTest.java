@@ -56,6 +56,17 @@ class AiOutputTokenLimitSupportTest {
     }
 
     @Test
+    void capsSnippetCompletionAtASmallFixedBudget() {
+        AiRequest request = new AiRequest(AiAction.COMPLETE_SNIPPET_CODE, "for f in ", null, "en");
+
+        // A few short candidates are a few hundred tokens; the cap stops a model that starts
+        // transcribing the file, in either direction of the transport fallback.
+        assertThat(AiOutputTokenLimitSupport.resolve(request, null)).isEqualTo(4_096);
+        assertThat(AiOutputTokenLimitSupport.resolve(request, 1_024)).isEqualTo(4_096);
+        assertThat(AiOutputTokenLimitSupport.resolve(request, 65_536)).isEqualTo(4_096);
+    }
+
+    @Test
     void capsWholeSnippetImprovementAndAssistantReplacements() {
         AiRequest improve = new AiRequest(AiAction.IMPROVE_SNIPPET_CODE, "echo ok", null, "en");
         AiRequest assist = new AiRequest(AiAction.ASSIST_SNIPPET_CODE, "echo ok", null, "en");

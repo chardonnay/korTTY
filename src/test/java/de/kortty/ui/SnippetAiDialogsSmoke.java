@@ -609,8 +609,8 @@ public final class SnippetAiDialogsSmoke {
             request -> {
                 // Test double: any invocation proves the pending completion escaped into the analysis flow.
                 autoCompletionProviderCalled.set(true);
-                return new SnippetAiResponseSupport.CompletionSuggestion(
-                    "#!/usr/bin/perl\nuse autodie qw(open close);", "Unexpected during analysis");
+                return List.of(new SnippetAiResponseSupport.CompletionSuggestion(
+                    "#!/usr/bin/perl\nuse autodie qw(open close);", "Unexpected during analysis"));
             },
             null,
             null,

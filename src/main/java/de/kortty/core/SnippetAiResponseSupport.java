@@ -7,7 +7,9 @@ import com.google.gson.JsonParser;
 import de.kortty.model.SnippetDiagramType;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,6 +20,17 @@ public final class SnippetAiResponseSupport {
 
     private static final Pattern MARKDOWN_CODE_BLOCK_PATTERN =
         Pattern.compile("(?s)```[A-Za-z0-9_+.#-]*\\R(.*?)\\R?```");
+    /**
+     * Cursor markers a model echoes into a completion instead of code: the prompt names the cursor
+     * position, and editor training data marks it with these tokens or block glyphs.
+     */
+    private static final Pattern COMPLETION_CURSOR_MARKER_PATTERN = Pattern.compile(
+        "(?i)<\\|?cursor\\|?>|<<cursor>>|\\[cursor]|\\{\\{cursor}}|[\\u2588\\u258C]");
+    /** A bare stand-in for code — an ellipsis, a TODO, or a relabelled {@code $code} token — is never inserted. */
+    private static final Pattern COMPLETION_PLACEHOLDER_PATTERN = Pattern.compile(
+        "(?is)^(?:\\.{3}|\\u2026|todo|(?://|#|--|;)\\s*(?:\\.{3}|\\u2026|todo)|/\\*\\s*(?:\\.{3}|\\u2026|todo)\\s*\\*/"
+            + "|[<\\[{$]{1,2}\\s*(?:code|insert[ _-]?text|completion|placeholder|your[ _-]?code(?:[ _-]?here)?)"
+            + "\\s*[>\\]}]{0,2})$");
 
     private SnippetAiResponseSupport() {
     }
@@ -369,15 +382,147 @@ public final class SnippetAiResponseSupport {
         }
     }
 
+    /** The single-suggestion shape ({@code insertText} plus {@code summary}); the editor asks for {@link #parseCompletionCandidates}. */
     public static CompletionSuggestion parseCompletionSuggestion(String responseText) {
         JsonObject object = parseJsonObject(responseText);
         if (object == null) {
             return new CompletionSuggestion("", "");
         }
-        String insertText = firstString(object, "insertText", "completion", "text", "code");
-        String summary = firstString(object, "summary", "description");
-        CompletionSuggestion suggestion = new CompletionSuggestion(insertText, summary);
-        return suggestion.isUsable() ? suggestion : new CompletionSuggestion("", "");
+        CompletionSuggestion suggestion = parseCompletionCandidate(object);
+        return suggestion != null ? suggestion : new CompletionSuggestion("", "");
+    }
+
+    /**
+     * Parses a completion answer into its candidates, best first, capped at {@code maxCandidates}
+     * (at least one). The contract is one object with a {@code candidates} array; like
+     * {@link #parseAlternativeSolutions} this also accepts the older single-object answer, a bare
+     * root array (even behind leaked {@code <think>} reasoning), plain string entries and a few
+     * alternative array names. Every insert text is normalized — CRLF to LF, a wrapping Markdown
+     * fence and echoed cursor markers removed, trailing whitespace trimmed per line — and blank,
+     * placeholder and duplicate entries are dropped. Truncated JSON yields no candidates.
+     */
+    public static List<CompletionSuggestion> parseCompletionCandidates(String responseText, int maxCandidates) {
+        int limit = Math.max(1, maxCandidates);
+        JsonElement root = parseJsonElement(responseText);
+        if (root == null) {
+            root = parseRootArrayAnswer(responseText);
+        }
+        if (root == null && !answerIsCutOff(responseText)) {
+            root = parseJsonElement(extractJsonPayload(responseText));
+        }
+        if (root == null) {
+            return List.of();
+        }
+        try {
+            JsonArray candidates = null;
+            if (root.isJsonObject()) {
+                JsonObject object = root.getAsJsonObject();
+                candidates = firstArray(object, "candidates", "completions", "suggestions", "items");
+                if (candidates == null) {
+                    CompletionSuggestion single = parseCompletionCandidate(object);
+                    return single != null ? List.of(single) : List.of();
+                }
+            } else if (root.isJsonArray()) {
+                candidates = root.getAsJsonArray();
+            }
+            if (candidates == null) {
+                return List.of();
+            }
+            List<CompletionSuggestion> parsedCandidates = new ArrayList<>();
+            Set<String> seenInsertTexts = new HashSet<>();
+            for (JsonElement element : candidates) {
+                if (parsedCandidates.size() >= limit) {
+                    break;
+                }
+                CompletionSuggestion candidate = parseCompletionCandidate(element);
+                if (candidate != null && seenInsertTexts.add(candidate.insertText())) {
+                    parsedCandidates.add(candidate);
+                }
+            }
+            return parsedCandidates;
+        } catch (Exception ignored) {
+            return List.of();
+        }
+    }
+
+    /**
+     * Whether the answer's outermost JSON container never closes — the completion budget ran out
+     * (a model transcribing the file, or thinking through the cap). The payload scan would still
+     * find the first complete candidate object inside, but an answer that went off the rails is
+     * not a source of suggestions; the editor reports "empty" instead.
+     */
+    private static boolean answerIsCutOff(String responseText) {
+        String sanitized = AiResponseSanitizer.sanitizeForDisplay(responseText);
+        int objectStart = sanitized.indexOf('{');
+        int arrayStart = sanitized.indexOf('[');
+        int start = objectStart < 0 ? arrayStart
+            : arrayStart < 0 ? objectStart
+            : Math.min(objectStart, arrayStart);
+        if (start < 0) {
+            return false;
+        }
+        char open = sanitized.charAt(start);
+        return balancedSpan(sanitized, start, open, open == '{' ? '}' : ']') == null;
+    }
+
+    /**
+     * A root-array answer that only surfaces once leaked reasoning is stripped. The
+     * object-preferring payload scan would pick the array's first element and lose the rest.
+     */
+    private static JsonElement parseRootArrayAnswer(String responseText) {
+        String sanitized = AiResponseSanitizer.sanitizeForDisplay(responseText);
+        if (!sanitized.startsWith("[")) {
+            return null;
+        }
+        return parseJsonElement(balancedSpan(sanitized, 0, '[', ']'));
+    }
+
+    private static CompletionSuggestion parseCompletionCandidate(JsonElement element) {
+        if (element == null || element.isJsonNull()) {
+            return null;
+        }
+        String insertText;
+        String summary = "";
+        if (element.isJsonPrimitive()) {
+            insertText = element.getAsString();
+        } else if (element.isJsonObject()) {
+            JsonObject object = element.getAsJsonObject();
+            insertText = firstString(object, "insertText", "completion", "text", "code");
+            summary = firstString(object, "summary", "description", "label", "title");
+        } else {
+            return null;
+        }
+        String normalized = normalizeCompletionInsertText(insertText);
+        if (normalized.isBlank() || COMPLETION_PLACEHOLDER_PATTERN.matcher(normalized.strip()).matches()) {
+            return null;
+        }
+        return new CompletionSuggestion(normalized, summary);
+    }
+
+    /**
+     * Normalizes one insert text for the editor: line endings to LF, a fence that wraps the whole
+     * text unwrapped, echoed cursor markers removed, trailing whitespace trimmed per line. Leading
+     * whitespace is kept — it is part of what continues the text before the cursor.
+     */
+    static String normalizeCompletionInsertText(String insertText) {
+        if (insertText == null || insertText.isEmpty()) {
+            return "";
+        }
+        String text = insertText.replace("\r\n", "\n").replace('\r', '\n');
+        Matcher fenced = MARKDOWN_CODE_BLOCK_PATTERN.matcher(text.strip());
+        if (fenced.matches()) {
+            text = fenced.group(1);
+        }
+        text = COMPLETION_CURSOR_MARKER_PATTERN.matcher(text).replaceAll("");
+        String[] lines = text.split("\n", -1);
+        StringBuilder builder = new StringBuilder(text.length());
+        for (int i = 0; i < lines.length; i++) {
+            if (i > 0) {
+                builder.append('\n');
+            }
+            builder.append(lines[i].stripTrailing());
+        }
+        return builder.toString();
     }
 
     public static List<CodeReviewFinding> parseCodeReviewFindings(String responseText) {

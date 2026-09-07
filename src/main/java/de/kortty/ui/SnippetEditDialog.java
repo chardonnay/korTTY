@@ -309,7 +309,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     @FunctionalInterface
     public interface CompletionProvider {
-        SnippetAiResponseSupport.CompletionSuggestion complete(CompletionRequest request) throws Exception;
+        /** Completion candidates at the request's caret, best first; empty when the model had nothing usable. */
+        List<SnippetAiResponseSupport.CompletionSuggestion> complete(CompletionRequest request) throws Exception;
     }
 
     @FunctionalInterface
@@ -394,12 +395,19 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         String aiProfileId) {
     }
 
+    /**
+     * @param maxCandidates how many candidates to ask for (at least one), best first
+     * @param localContext an optional paragraph for the prompt describing the cursor context and
+     *                     the symbols known in the snippet; blank when the editor has none
+     */
     public record CompletionRequest(
         String fullContent,
         String snippetLanguage,
         int cursorOffset,
         String fallbackLanguageCode,
-        String additionalInstructions) {
+        String additionalInstructions,
+        int maxCandidates,
+        String localContext) {
     }
 
     public record CodeReviewRequest(
@@ -3799,31 +3807,31 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             }
             return;
         }
+        // The text mirror lags behind the editor's typing; the request must see the caret and
+        // the text exactly as the editor has them.
+        contentArea.syncFromEditor();
         String content = contentArea.getText();
         if (content == null || content.isBlank()) {
             return;
         }
         int caretOffset = contentArea.getCaretPosition();
         String contentSnapshot = content;
-        Task<SnippetAiResponseSupport.CompletionSuggestion> task = new Task<>() {
+        Task<List<SnippetAiResponseSupport.CompletionSuggestion>> task = new Task<>() {
             @Override
-            protected SnippetAiResponseSupport.CompletionSuggestion call() throws Exception {
+            protected List<SnippetAiResponseSupport.CompletionSuggestion> call() throws Exception {
                 return aiAssist.completionProvider().complete(new CompletionRequest(
                     contentSnapshot,
                     languageCombo.getValue(),
                     caretOffset,
                     resolveAiTextFallbackLanguageCode(),
-                    additionalInstructions()));
+                    additionalInstructions(),
+                    1,
+                    ""));
             }
         };
-        // Auto-completion fires while typing, so it never interrupts: an undetectable
+        // Completion fires while typing, so it never interrupts: an undetectable
         // language simply leaves this one request without an explicit contract.
         applyCodeTextLanguage(false);
-        // The rewrite must not silently translate the snippet's own comments and messages;
-        // an undetectable language is a question for the user, not a guess.
-        if (!applyCodeTextLanguage(true)) {
-            return;
-        }
         snippetAiActionTask = task;
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.complete.running"));
@@ -3832,7 +3840,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         });
         task.setOnSucceeded(event -> {
             finishSnippetAiAction(task);
-            SnippetAiResponseSupport.CompletionSuggestion suggestion = task.getValue();
+            List<SnippetAiResponseSupport.CompletionSuggestion> candidates = task.getValue();
+            SnippetAiResponseSupport.CompletionSuggestion suggestion =
+                candidates == null || candidates.isEmpty() ? null : candidates.get(0);
             if (suggestion == null || !suggestion.isUsable()) {
                 setStatus(I18n.get("snippets.ai.complete.empty"));
                 return;
