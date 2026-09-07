@@ -103,6 +103,21 @@
     });
   }
 
+  /**
+   * Mermaid caps the root SVG with an inline `max-width` for every diagram family whose
+   * `useMaxWidth` option is on - every family except the flowchart, which `config` turns it off
+   * for. That inline cap beats the host page's `width: 100%`, so a sequence, class, state or ER
+   * diagram would keep its natural size however large the viewport or the chosen zoom is. The
+   * viewBox carries the aspect ratio, so sizing is the container's business alone.
+   */
+  function clearRootSizeStyles(svg) {
+    if (svg.style && typeof svg.style.removeProperty === "function") {
+      ["max-width", "max-height", "min-width", "min-height", "width", "height"]
+        .forEach(property => svg.style.removeProperty(property));
+    }
+    if (!String(svg.getAttribute("style") || "").trim()) svg.removeAttribute("style");
+  }
+
   function dimensions(svg) {
     const viewBox = svg.viewBox && svg.viewBox.baseVal;
     let x = viewBox && Number.isFinite(viewBox.x) ? viewBox.x : 0;
@@ -117,6 +132,7 @@
       height = Math.max(1, box.height);
       svg.setAttribute("viewBox", [x, y, width, height].join(" "));
     }
+    clearRootSizeStyles(svg);
     svg.setAttribute("width", String(width));
     svg.setAttribute("height", String(height));
     svg.setAttribute("xmlns", SVG_NS);
