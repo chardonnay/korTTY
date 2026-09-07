@@ -250,7 +250,7 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 | **UI** | JavaFX | 21.0.12 | Anwendungsframework |
 | | AtlantaFX Base | 2.1.0 | Sieben wählbare Primer-, Nord-, Cupertino- und Dracula-JavaFX-Benutzeragententhemen; seine transitive OpenJFX-Abhängigkeit ist ausgeschlossen |
 | | Monaco-Editor | 0.56.0 | Code-Editor-Komponente |
-| | Mermaid | 11.17.0 | Lokale Diagrammanalyse, SVG-Rendering und PNG-Rasterisierung |
+| | Mermaid | 11.17.2 | Lokale Diagrammanalyse, SVG-Rendering und PNG-Rasterisierung |
 | | MathJax | 3.2.2 | Lokales AI-Chat-Formel-Rendering |
 | | google-java-format | 1.36.1 | Java-Codeformatierung |
 | **Dienstprogramme** | jfiglet | 0.0.9 | ASCII-Art-Banner |
