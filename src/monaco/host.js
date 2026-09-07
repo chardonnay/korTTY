@@ -6,6 +6,7 @@ import {
   releaseWorkers,
   sanitizeColor
 } from "./common.js";
+import { bindCompletion, completionApi, disposeCompletion, installCompletion } from "./completion.js";
 
 let editor;
 let model;
@@ -17,10 +18,26 @@ let currentCursorColor = "#ff0000";
 let currentRulerColumn = 0;
 const UNKNOWN_CARET_X = -1000000000;
 
+// Mixes two 6-digit hex colors (without "#"): ratio 0 returns `from`, 1 returns `to`.
+function blendHex(from, to, ratio) {
+  const weight = Math.max(0, Math.min(1, Number(ratio) || 0));
+  let result = "";
+  for (let index = 0; index < 6; index += 2) {
+    const start = parseInt(from.slice(index, index + 2), 16);
+    const end = parseInt(to.slice(index, index + 2), 16);
+    const channel = Math.round(start + (end - start) * weight);
+    result += Math.max(0, Math.min(255, channel)).toString(16).padStart(2, "0");
+  }
+  return result;
+}
+
 function defineTheme(theme) {
   currentTheme = theme || {};
   const foreground = sanitizeColor(theme && theme.foreground, "#d4d4d4").replace("#", "");
   const background = sanitizeColor(theme && theme.background, "#1e1e1e").replace("#", "");
+  // Suggest widget and ghost text derive from the editor colors so light designs stay readable
+  // instead of inheriting the vs-dark defaults.
+  const accent = "6ca0dc";
   currentThemeName = `kortty-monaco-theme-${foreground}-${background}`;
   monaco.editor.defineTheme(currentThemeName, {
     base: "vs-dark",
@@ -38,7 +55,15 @@ function defineTheme(theme) {
       "editor.foreground": `#${foreground}`,
       "editor.background": `#${background}`,
       "editorLineNumber.foreground": "#858585",
-      "editorCursor.foreground": currentCursorColor
+      "editorCursor.foreground": currentCursorColor,
+      "editorSuggestWidget.background": `#${blendHex(background, foreground, 0.05)}`,
+      "editorSuggestWidget.foreground": `#${foreground}`,
+      "editorSuggestWidget.border": `#${blendHex(background, foreground, 0.3)}`,
+      "editorSuggestWidget.selectedBackground": `#${blendHex(background, foreground, 0.2)}`,
+      "editorSuggestWidget.selectedForeground": `#${foreground}`,
+      "editorSuggestWidget.highlightForeground": `#${blendHex(accent, foreground, 0.35)}`,
+      "editorSuggestWidget.focusHighlightForeground": `#${blendHex(accent, foreground, 0.15)}`,
+      "editorGhostText.foreground": `#${blendHex(foreground, background, 0.45)}`
     }
   });
   monaco.editor.setTheme(currentThemeName);
@@ -156,6 +181,10 @@ function boot(config) {
     theme: currentThemeName
   });
   setCursor(config.cursorStyle || "BLOCK", config.cursorColor || "#ff0000");
+  bindCompletion({ editor, model });
+  if (config.completion === true) {
+    installCompletion({ editor, model });
+  }
   model.onDidChangeContent(emitTextChanged);
   editor.onDidChangeCursorSelection(emitSelectionChanged);
   editor.onDidChangeCursorPosition(emitSelectionChanged);
@@ -309,6 +338,8 @@ function forgetHistory() {
 }
 
 function dispose() {
+  disposeCompletion();
+  bindCompletion({ editor: null, model: null });
   releaseWorkers();
   if (editor) editor.dispose();
   if (model) model.dispose();
@@ -338,6 +369,7 @@ export function installEditorHost() {
     undo,
     redo,
     forgetHistory,
-    dispose
+    dispose,
+    ...completionApi
   };
 }

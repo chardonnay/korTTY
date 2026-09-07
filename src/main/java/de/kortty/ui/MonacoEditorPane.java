@@ -96,6 +96,24 @@ public class MonacoEditorPane extends StackPane {
     private boolean lineNumbers = true;
     private Consumer<String> workerReadyHandler;
     private Consumer<String> workerFailureHandler;
+    private CompletionHost completionHost;
+
+    /**
+     * Receives the code-completion protocol of the Monaco page. Every method is invoked on the JavaFX
+     * application thread. Requests are answered asynchronously through {@link #pushCompletions(String)}
+     * (source {@code local} resolves the open list, {@code ai} is merged into it) and
+     * {@link #pushGhostCompletions(String)}.
+     */
+    public interface CompletionHost {
+        /** The suggest list opened for {@code requestId}; {@code requestJson} carries text, caret and language. */
+        void onCompletionRequested(long requestId, String requestJson);
+
+        /** The suggest list of {@code requestId} closed without a retrigger (Esc, blur, accept, ...). */
+        void onCompletionListClosed(long requestId);
+
+        /** An AI list entry or ghost text was inserted; {@code acceptedJson} holds the text read back from the model. */
+        void onCompletionAccepted(String acceptedJson);
+    }
 
     public MonacoEditorPane() {
         this(true);
@@ -280,6 +298,62 @@ public class MonacoEditorPane extends StackPane {
     public Optional<Bounds> getCaretBounds() {
         Bounds localBounds = webView.getBoundsInLocal();
         return Optional.of(webView.localToScreen(localBounds));
+    }
+
+    /**
+     * Enables the completion providers on the Monaco page and routes their callbacks to {@code host};
+     * {@code null} disables them again. Set it before the page boots to have the providers installed
+     * with the editor, or later to install them lazily.
+     */
+    public void setCompletionHost(CompletionHost host) {
+        this.completionHost = host;
+        if (ready.get()) {
+            executeScript("window.korttyMonaco.setCompletionEnabled(" + (host != null) + ");");
+        }
+    }
+
+    public CompletionHost getCompletionHost() {
+        return completionHost;
+    }
+
+    /** Delivers list candidates for an open request (payload JSON, see {@code completion.js}). */
+    public void pushCompletions(String payloadJson) {
+        executeWhenReady("window.korttyMonaco.pushCompletions(" + jsString(payloadJson) + ");");
+    }
+
+    /** Delivers ghost-text candidates for the current caret (payload JSON, see {@code completion.js}). */
+    public void pushGhostCompletions(String payloadJson) {
+        executeWhenReady("window.korttyMonaco.pushGhostCompletions(" + jsString(payloadJson) + ");");
+    }
+
+    public void clearGhostCompletions() {
+        executeWhenReady("window.korttyMonaco.clearGhost();");
+    }
+
+    /**
+     * Opens the completion list as if Shift+TAB/Ctrl+Space had been pressed. The WebView is focused
+     * first and the JS call deferred one pulse, because a JavaFX menu popup only hands focus back after
+     * its ActionEvent and Monaco cancels a suggest session that starts without editor focus.
+     */
+    public void triggerCompletionList() {
+        webView.requestFocus();
+        Platform.runLater(() -> runWhenReady("window.korttyMonaco.triggerCompletionList();"));
+    }
+
+    /** JSON snapshot of the completion state on the page (smoke tests only); {@code "{}"} before boot. */
+    String completionDebugState() {
+        if (!ready.get()) {
+            return "{}";
+        }
+        Object state = executeScript("window.korttyMonaco.completionDebugState();");
+        return state instanceof String json && !json.isBlank() ? json : "{}";
+    }
+
+    /** Runs a Monaco editor command such as {@code acceptSelectedSuggestion} (smoke tests only). */
+    void triggerEditorCommand(String commandId) {
+        if (ready.get() && commandId != null && !commandId.isBlank()) {
+            executeScript("window.korttyMonaco.triggerEditorCommand(" + jsString(commandId) + ");");
+        }
     }
 
     public void setEditable(boolean editable) {
@@ -600,6 +674,7 @@ public class MonacoEditorPane extends StackPane {
         json.addProperty("cursorStyle", cursorStyle);
         json.addProperty("cursorColor", cursorColor);
         json.addProperty("rulerColumn", rulerColumn.get());
+        json.addProperty("completion", completionHost != null);
         return GSON.toJson(json);
     }
 
@@ -801,6 +876,49 @@ public class MonacoEditorPane extends StackPane {
             if (handler != null) {
                 Platform.runLater(() -> handler.accept(detail));
             }
+        }
+
+        // The completion up-calls only defer to the FX thread: an executeScript from inside a
+        // JS->Java call re-enters WebKit and crashes natively (see loadEditor).
+        public void onCompletionRequested(double requestId, String requestJson) {
+            MonacoEditorPane pane = paneRef.get();
+            if (pane == null) {
+                return;
+            }
+            long id = (long) requestId;
+            Platform.runLater(() -> {
+                CompletionHost host = pane.disposed ? null : pane.completionHost;
+                if (host != null) {
+                    host.onCompletionRequested(id, requestJson != null ? requestJson : "{}");
+                }
+            });
+        }
+
+        public void onCompletionListClosed(double requestId) {
+            MonacoEditorPane pane = paneRef.get();
+            if (pane == null) {
+                return;
+            }
+            long id = (long) requestId;
+            Platform.runLater(() -> {
+                CompletionHost host = pane.disposed ? null : pane.completionHost;
+                if (host != null) {
+                    host.onCompletionListClosed(id);
+                }
+            });
+        }
+
+        public void onCompletionAccepted(String acceptedJson) {
+            MonacoEditorPane pane = paneRef.get();
+            if (pane == null) {
+                return;
+            }
+            Platform.runLater(() -> {
+                CompletionHost host = pane.disposed ? null : pane.completionHost;
+                if (host != null) {
+                    host.onCompletionAccepted(acceptedJson != null ? acceptedJson : "{}");
+                }
+            });
         }
     }
 }
