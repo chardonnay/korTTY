@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -2161,7 +2162,9 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
      * only covers the wait for the response headers; on a streamed reply the model generates
      * during this body read, so the user-configured limit must be enforced here as well. The
      * check runs between reads — a stream that ticks (as token streams do) is cut close to the
-     * deadline, and a timeout is a hard failure rather than a salvaged partial body.
+     * deadline, and a timeout is a hard failure rather than a salvaged partial body. A cancelled
+     * caller (an interrupted thread) is likewise a hard failure: what was streamed before the
+     * cancel is never salvaged as an answer.
      */
     String readResponseBody(InputStream responseStream, Duration timeout) throws IOException {
         return readResponseBodyDetailed(responseStream, timeout).text();
@@ -2175,6 +2178,11 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         try (InputStream input = responseStream; ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[8192];
             while (true) {
+                // Outside the inner try on purpose: the partial-body salvage below catches
+                // IOException, and a cancel must not come back as a "usable" half answer.
+                if (Thread.currentThread().isInterrupted()) {
+                    throw new InterruptedIOException("AI request was cancelled while streaming the response.");
+                }
                 if (timeout != null && System.nanoTime() - deadlineNanos >= 0) {
                     throw new HttpTimeoutException(
                         "AI request exceeded the configured timeout of " + timeout.toSeconds()

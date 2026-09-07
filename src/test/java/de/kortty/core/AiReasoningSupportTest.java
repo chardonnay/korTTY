@@ -258,6 +258,36 @@ class AiReasoningSupportTest {
     }
 
     @Test
+    void snippetCompletionUsesRequestScopedNoneWhenProfileAdvertisesIt() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("http://127.0.0.1:1234/v1/chat/completions");
+        profile.setModel("qwen-reasoning");
+        profile.setDiscoveredReasoningEfforts(List.of(
+            AiReasoningEffort.NONE, AiReasoningEffort.MINIMAL));
+        profile.setReasoningDiscoveryKey(AiReasoningSupport.discoveryKey(profile));
+        profile.setReasoningEffort(AiReasoningEffort.MINIMAL);
+
+        AiProfile executionProfile = AiReasoningSupport.profileForAction(
+            profile, AiAction.COMPLETE_SNIPPET_CODE);
+
+        // The user waits at the caret: a hidden chain-of-thought only delays the candidates.
+        assertThat(executionProfile).isNotSameInstanceAs(profile);
+        assertThat(executionProfile.getReasoningEffort()).isEqualTo(AiReasoningEffort.NONE);
+        assertThat(profile.getReasoningEffort()).isEqualTo(AiReasoningEffort.MINIMAL);
+    }
+
+    @Test
+    void snippetCompletionKeepsConfiguredEffortWithoutVerifiedNoneSupport() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("http://127.0.0.1:1234/v1/chat/completions");
+        profile.setModel("unknown-model");
+        profile.setReasoningEffort(AiReasoningEffort.MINIMAL);
+
+        assertThat(AiReasoningSupport.profileForAction(
+            profile, AiAction.COMPLETE_SNIPPET_CODE)).isSameInstanceAs(profile);
+    }
+
+    @Test
     void mermaidKeepsConfiguredEffortWithoutVerifiedNoneSupport() {
         AiProfile profile = new AiProfile();
         profile.setApiUrl("http://127.0.0.1:1234/v1/chat/completions");

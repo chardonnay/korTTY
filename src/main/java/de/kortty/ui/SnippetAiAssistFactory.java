@@ -239,7 +239,7 @@ final class SnippetAiAssistFactory {
             request.additionalInstructions());
     }
 
-    private static SnippetAiResponseSupport.CompletionSuggestion completeSnippetCode(
+    private static List<SnippetAiResponseSupport.CompletionSuggestion> completeSnippetCode(
         MainWindow ownerWindow,
         ServerConnection connection,
         SnippetEditDialog.CompletionRequest request,
@@ -256,7 +256,9 @@ final class SnippetAiAssistFactory {
             request.snippetLanguage(),
             connectionDisplayName,
             request.fallbackLanguageCode(),
-            request.additionalInstructions());
+            request.additionalInstructions(),
+            request.maxCandidates(),
+            request.localContext());
     }
 
     private static List<SnippetAiResponseSupport.CodeReviewFinding> reviewSnippetCode(

@@ -67,6 +67,22 @@ class RagAugmentedAiServiceTest {
         assertThat(delegate.request).isSameInstanceAs(request);
     }
 
+    @Test
+    void snippetCompletionSkipsRetrievalAndKeepsTheOriginalRequest() throws Exception {
+        RecordingPromptService delegate = new RecordingPromptService();
+        RecordingRetriever retriever = new RecordingRetriever();
+        RagAugmentedAiService service = new RagAugmentedAiService(
+            delegate, List.of("knowledge"), 8_000, retriever);
+        AiRequest request = new AiRequest(
+            AiAction.COMPLETE_SNIPPET_CODE, "for f in ", null, "de");
+
+        service.execute(request);
+
+        // The user waits at the caret: no retrieval round-trip, no knowledge-store prose.
+        assertThat(retriever.calls).isEqualTo(0);
+        assertThat(delegate.request).isSameInstanceAs(request);
+    }
+
     private static final class RecordingRetriever implements RagAugmentedAiService.ContextRetriever {
         private AiWorkload workload;
         private boolean autonomousOnly;
