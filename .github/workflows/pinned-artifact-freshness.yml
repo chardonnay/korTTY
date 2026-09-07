@@ -37,7 +37,18 @@ jobs:
           set -uo pipefail
 
           # --- helpers ---------------------------------------------------------
-          gv() { grep -E "^val $1[[:space:]]*=" build.gradle.kts | head -n1 | sed -E 's/.*"([^"]+)".*/\1/'; }
+          # `|| true` so a pin the parser no longer finds does not kill the step: an empty
+          # grep is a pipefail failure, and the runner adds its own `bash -e`, so the step
+          # died before its first network call with nothing in the log to say why. Missing
+          # pins are collected and named by `require` below instead.
+          gv() { grep -E "^val $1[[:space:]]*=" build.gradle.kts | head -n1 | sed -E 's/.*"([^"]+)".*/\1/' || true; }
+          MISSING=0
+          require() { # require <pin name> <parsed value>
+            if [ -z "$2" ]; then
+              echo "::error::No version parsed for ${1} in build.gradle.kts. The pin was renamed or reshaped — update the parser in this workflow."
+              MISSING=1
+            fi
+          }
           # is_newer PINNED UPSTREAM  -> exit 0 if UPSTREAM is a strictly newer version
           is_newer() {
             [ -n "$2" ] || return 1
@@ -52,8 +63,19 @@ jobs:
           MONACO_PIN="$(gv monacoEditorVersion)"
           MERMAID_PIN="$(gv mermaidVersion)"
           SITH_PIN="$(gv sithtermfxVersion)"
-          BC_PIN="$(grep -oE 'bcprov-jdk18on:[0-9][0-9.]*' build.gradle.kts | head -n1 | cut -d: -f2)"
-          PB_PIN="$(grep -oE 'protobuf-java/[0-9][0-9.]*/' build.gradle.kts | head -n1 | sed -E 's#.*/([0-9][0-9.]*)/#\1#')"
+          BC_PIN="$(grep -oE 'bcprov-jdk18on:[0-9][0-9.]*' build.gradle.kts | head -n1 | cut -d: -f2 || true)"
+          # Read from the `val`, not from the download URL: 43daf681 replaced the literal
+          # version in that URL with $mosh4jProtobufVersion, so the old pattern matched nothing.
+          PB_PIN="$(gv mosh4jProtobufVersion)"
+
+          require mosh4jVersion "$MOSH4J_PIN"
+          require formatterNodeVersion "$NODE_PIN"
+          require monacoEditorVersion "$MONACO_PIN"
+          require mermaidVersion "$MERMAID_PIN"
+          require sithtermfxVersion "$SITH_PIN"
+          require "the bcprov-jdk18on dependency line" "$BC_PIN"
+          require mosh4jProtobufVersion "$PB_PIN"
+          [ "$MISSING" = 0 ] || exit 1
 
           # --- upstream "latest" (failures degrade gracefully to empty) --------
           MOSH4J_UP="$(gh api repos/chardonnay/mosh4j/releases/latest --jq '.tag_name' 2>/dev/null | sed 's/^v//' || true)"
