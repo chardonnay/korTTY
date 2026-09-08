@@ -403,9 +403,9 @@ pages:
     last_synced_ref: "f56db94e"
   - path: app-docs/site/docs/en/features/ascii-art.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/ui/AsciiArtBannerDialog.java, src/main/java/de/kortty/core/AsciiArtSupport.java]
-    screenshots: [tools/ascii-art.png]
-    last_synced_ref: "031ad3c0"
+    owns_code: [src/main/java/de/kortty/ui/AsciiArtBannerDialog.java, src/main/java/de/kortty/core/AsciiArtSupport.java, src/main/java/de/kortty/core/AsciiArtPictureRenderer.java, src/main/java/de/kortty/core/AsciiArtSvgScanner.java, src/main/java/de/kortty/core/AsciiArtRasterizer.java, src/main/java/de/kortty/core/AsciiArtGlyphs.java, src/main/java/de/kortty/core/AsciiArtCopySupport.java, src/main/java/de/kortty/core/AsciiArtImageSupport.java, src/main/java/de/kortty/model/AsciiArtPictureSize.java, src/main/java/de/kortty/model/AsciiArtCommentStyle.java, src/main/java/de/kortty/model/AsciiArtPrintStyle.java]
+    screenshots: [tools/ascii-art.png, tools/ascii-art-image.png]
+    last_synced_ref: "0efc32f7"
   - path: app-docs/site/docs/en/features/terminal-effect-plugins.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/plugin, src/main/java/de/kortty/ui/TerminalEffectPluginManagerDialog.java]

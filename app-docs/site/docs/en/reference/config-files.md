@@ -128,6 +128,8 @@ Global application preferences and defaults.
 - Docked live session-journal panel: placement (hidden/left/right) and width
 - JobScheduler status display preference
 - Last ASCII Art dialog preview zoom level
+- Last ASCII Art picture size (Small to Extra large) for the AI Picture tab, and separately for the Image File tab
+- Last ASCII Art copy format: comment style, output-code style and gap
 
 #### Terminal and connections
 

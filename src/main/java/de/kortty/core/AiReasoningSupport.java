@@ -109,8 +109,11 @@ public final class AiReasoningSupport {
      * contracts and do not benefit from spending their bounded completion budget on a hidden
      * chain-of-thought — completion in particular must answer while the user waits at the caret —
      * so they explicitly request {@link AiReasoningEffort#NONE} when that value is available for
-     * the profile. Profiles without an explicit-off value keep the configured effort instead of
-     * receiving an unsupported override. The stored profile is never mutated.
+     * the profile. ASCII-art pictures join them: a drawing's fidelity comes from its composition,
+     * not from deliberation, and a thinking model spent minutes and its whole completion budget on
+     * a hidden chain-of-thought before drawing a single shape. Profiles without an explicit-off
+     * value keep the configured effort instead of receiving an unsupported override. The stored
+     * profile is never mutated.
      */
     public static AiProfile profileForAction(AiProfile profile, AiAction action) {
         if (profile == null || !prefersExplicitReasoningOff(action)) {
@@ -136,7 +139,8 @@ public final class AiReasoningSupport {
         return action == AiAction.GENERATE_SNIPPET_MERMAID
             || action == AiAction.APPLY_SNIPPET_IMPROVEMENTS
             || action == AiAction.APPLY_SNIPPET_SECURITY_FIXES
-            || action == AiAction.COMPLETE_SNIPPET_CODE;
+            || action == AiAction.COMPLETE_SNIPPET_CODE
+            || action == AiAction.GENERATE_ASCII_ART;
     }
 
     public static List<AiReasoningEffort> availableEfforts(AiProfile profile) {

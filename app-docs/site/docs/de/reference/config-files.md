@@ -54,13 +54,13 @@ Enthält alle gespeicherten SSH-Verbindungen mit ihren Einstellungen.
 - Authentifizierungsmethode (Passwort, SSH-Schlüssel, temporärer SSH-Schlüssel)
 - Überschreibungen des Terminal-Erscheinungsbilds (Schriftart, Farben, Größe)
 - SSH-Tunnel und Jump-Server-Konfiguration
-- Optionale Überschreibung der SSH-Hostschlüsselüberprüfung pro Verbindung (überprüfen, nicht überprüfen oder erben)
+- Optionale Außerkraftsetzung der SSH-Hostschlüsselüberprüfung pro Verbindung (überprüfen, nicht überprüfen oder erben)
 - Terminaleffekt-Plugins und Animationsgeschwindigkeit
 - Verbindungsspezifische Terminalprotokollierungseinstellungen
 - Einstellungen für das Sitzungsjournal pro Verbindung (aktivieren, typisierte Eingaben erfassen, KI-Zusammenfassungen, Zusammenfassungsintervall)
 - Einstellungen für Fenstergeometrie
 - Gruppen-/Ordnerorganisation
-- Optionales Freitext-Tag (wird für Suche, Massen-Tagging und Tag-basierten Export verwendet)
+- Optionaler Freitext-Tag (wird für Suche, Massen-Tagging und Tag-basierten Export verwendet)
 
 **Sicherheit:** Verbindungspasswörter werden mit AES-256-GCM unter Verwendung des Master-Passworts verschlüsselt.
 
@@ -94,7 +94,7 @@ Verwaltet die zentrale SSH-Schlüsselspeicherung.
 
 ### ssh-host-keys.properties
 
-Der versionierte Trust-on-First-Use-Speicher für interaktive Terminal- und SFTP-Verbindungen und der von Mosh verwendete SSH-Bootstrap. Einträge werden durch normalisierten Hostnamen und Port verschlüsselt und enthalten den Public-Key-Algorithmus, den OpenSSH-SHA-256-Fingerabdruck, die OpenSSH-Public-Key-Zeile und den Vertrauenszeitstempel. Ein passender Schlüssel wird nach der Bestätigung der ersten Verwendung stillschweigend akzeptiert. Ein geänderter Schlüssel ist fest gesperrt und wird nicht automatisch ersetzt. Wenn die Überprüfung des Hostschlüssels für eine Verbindung auf „Akzeptieren neuer“ gelockert wird, wird ein unbekannter Schlüssel ohne Bestätigungsaufforderung angeheftet – ein geänderter Schlüssel wird in beiden Modi weiterhin abgelehnt.
+Der versionierte Trust-on-First-Use-Speicher für interaktive Terminal- und SFTP-Verbindungen und der von Mosh verwendete SSH-Bootstrap. Einträge werden durch normalisierten Hostnamen und Port verschlüsselt und enthalten den Public-Key-Algorithmus, den OpenSSH-SHA-256-Fingerabdruck, die OpenSSH-Public-Key-Zeile und den Vertrauenszeitstempel. Ein passender Schlüssel wird nach der Bestätigung der ersten Verwendung stillschweigend akzeptiert; Ein geänderter Schlüssel ist fest gesperrt und wird nicht automatisch ersetzt. Wenn die Überprüfung des Hostschlüssels für eine Verbindung auf „Akzeptieren neuer“ gelockert wird, wird ein unbekannter Schlüssel ohne Bestätigungsaufforderung angeheftet – ein geänderter Schlüssel wird in beiden Modi weiterhin abgelehnt.
 
 Schreibvorgänge verwenden eine temporäre Datei plus atomare Ersetzung, während `ssh-host-keys.properties.lock` separate korTTY-Prozesse koordiniert, sodass ihre Pins sicher zusammengeführt werden. Die Eigenschaftendatei ist in verschlüsselten Backups enthalten; die vorübergehende Sperrdatei ist es nicht. Dieser endpunktbasierte Speicher ist von den JobScheduler-Hostschlüssel-Pins in `job-scheduler.xml` getrennt, die für unbeaufsichtigte Vorgänge nach Verbindungs-ID kodiert sind.
 
@@ -110,7 +110,7 @@ Speichert GPG-Schlüsselinformationen für die Backup-Verschlüsselung.
 ### global-settings.xml
 Globale Anwendungseinstellungen und Standardeinstellungen.
 
-**Enthält:** jede Einstellung des Dialogs [Globale Einstellungen](settings/index.md), im Folgenden nach Bereichen gruppiert.
+**Enthält:** alle Einstellungen des Dialogs [Globale Einstellungen](settings/index.md), unten gruppiert nach dem Bereich, zu dem sie gehören.
 
 #### Aussehen und Schriftarten
 
@@ -119,56 +119,58 @@ Globale Anwendungseinstellungen und Standardeinstellungen.
 - UI-Schriftgröße (Prozent, 80–160 % oder automatisch von der Bildschirmauflösung abgeleitet) und die separate Textgröße der Anleitungs (70–250 %)
 - Terminal-Farbkonfiguration
 
-#### Fenster, Menüs und Panels
+#### Fenster, Menüs und Bedienfelder
 
 - Geometrie und Status des Hauptfensters (Position, Größe, maximierter Status) sowie ein benannter Geometrieeintrag für jeden Anwendungsdialog, dessen Größe vom Benutzer geändert werden kann
 - Präferenz für die Sichtbarkeit der Menüleiste
 - Dashboard-Sichtbarkeitsstatus
-- Flag „Toolfenster als Registerkarten öffnen“
+-  Flag „Toolfenster als Registerkarten öffnen“.
 - Angedocktes Live-Sitzungsjournal-Panel: Platzierung (versteckt/links/rechts) und Breite
 - JobScheduler-Statusanzeigeeinstellung
 - Letzte Vorschau-Zoomstufe des ASCII-Art-Dialogfelds
+- Letzte ASCII-Art-Bildgröße (Klein bis Extragroß) für die Registerkarte „AI-Bild“ und separat für die Registerkarte „Bilddatei“.
+- Letztes ASCII-Art-Kopierformat: Kommentarstil, Ausgabecodestil und Lücke
 
-#### Terminal und Verbindungen
+#### Terminal und Anschlüsse
 
 - Standardeinstellungen für die Terminalprotokollierung
-- Standardeinstellungen für Terminaleffekt-Plugins
-- SSH-Keep-Alive-Einstellungen
+- Standardeinstellungen für das Terminaleffekt-Plugin
+- SSH Keep-Alive-Einstellungen
 - Verbindungszeitlimit und Standardwerte für Wiederholungsversuche
 
-#### KI, Modelle und Wissensspeicher
+#### AI, Modelle und Wissensspeicher
 
-- KI-Profil-Standards, Text-/Coding-Rollenzuweisungen, eingebettete GGUF-Referenzen, Prompt-Voreinstellungen und Wissensspeicher-Zuordnungen
-- RAG-Einbettungsmodell-ID und bevorzugtes Laufzeit-Backend sowie Update-Richtlinie für llama.cpp
-- Optional verschlüsseltes Hugging-Face-Token
+- AI-Profilstandards, Text-/Coding-Rollenzuweisungen, eingebettete GGUF-Referenzen, Eingabeaufforderungsvoreinstellungen und Wissensspeicherzuordnungen
+- RAG-Einbettungsmodell-ID und llama.cpp bevorzugte Laufzeit-Backend-/Update-Richtlinie
+- Optional verschlüsseltes Hugging Face-Token
 - Zeitlimit für KI-Anfragen in Minuten (0 = keine Begrenzung)
 
 #### Sitzungsjournal
 
 - Speicherordner und Capture-Log-Format
-- KI-Zusammenfassungen (Intervall und Profil) und der Umschalter für die KI-Screenshot-Analyse
-- Übersetzungssprache für Notizen
-- KI-Zeilenfenster und Token-Budget
-- Erscheinungsbild der Journalseite und Endhöhe des Live-Protokolls
+- KI-Zusammenfassungen (Intervall und Profil) und der Schalter für die KI-Screenshot-Analyse
+- Übersetzungssprache beachten
+- AI-Zeilenfenster und Token-Budget
+- Journal-Seitendarstellung und Höhe des Live-Log-Endes
 - Benutzerdefinierte Markierungen und Markierungsregeln
-- Die gespeicherten Geometrien der Journalfenster
+- Die gespeicherten Journalfenstergeometrien
 
 #### Snippets und Übersetzung
 
 - Standardeinstellungen der Snippet-Eingabe-Härtung (aktiviert, Optionen, maximale Dateigröße)
-- Zielsprache der Snippet-Übersetzung
+- Snippet-Übersetzung Zielsprache
 - Übersetzungs-API-Einstellungen
 
 #### Export und Aufzeichnung
 
-- PDF-Export-Wasserzeichen (standardmäßig deaktiviert; benutzerdefinierter Text und benutzerdefinierte Farbe)
+- PDF-Exportwasserzeichen (standardmäßig deaktiviert; benutzerdefinierter Text und benutzerdefinierte Farbe)
 - Dokumentexport-Fußzeile (standardmäßig aktiviert; benutzerdefinierter Text)
 - Video-/Aufnahmeeinstellungen
 
 #### Sicherheit und Backup
 
 - Master-Passwort-Auto-Login-Flag (`skipMasterPasswordPrompt`)
-- SSH-Opt-out für die Überprüfung des Hostschlüssels: das globale Flag und die Liste der Verbindungsgruppen, deren Überprüfung auf „Neue akzeptieren“ gelockert wird
+- SSH-Opt-out für die Überprüfung des Hostschlüssels: das globale Flag und die Liste der Verbindungsgruppen, deren Überprüfung auf „Akzeptieren von Neu“ gelockert wird
 - Backup-Verschlüsselungsmethode und Aufbewahrungseinstellungen
 
 ### llm/models.xml
@@ -209,7 +211,7 @@ Die atomar geschriebene, vom Eigentümer lesbare JSON-Registrierung für Wissens
 
 - Wissensspeicher-ID/Name/Typ, lokales Snapshot-Verzeichnis oder Qdrant-Endpunkt/Sammlung, Einbettungsmodell-ID und Vektordimensionen
 - Text-, Codierungs- und autonome Nutzungszuweisungen
-- Stabile ID pro Quelle, kanonischer Pfad, Datei-/Verzeichnistyp, aktiviertes Flag, automatischer/manueller Synchronisierungsmodus, Größenbeschränkung, Einschluss-/Ausschluss-Globs, `.gitignore`-Präferenz, Inhalts-Hashes, letzter Status, Anzahl der Dateien/Chunks/Probleme und Zeitpunkt der letzten erfolgreichen Indexierung
+- Stabile ID pro Quelle, kanonischer Pfad, Datei-/Verzeichnistyp, aktiviertes Flag, automatischer/manueller Synchronisierungsmodus, Größenbeschränkung, Ein-/Ausschluss von Globs, `.gitignore`-Präferenz, Inhalts-Hashes, letzter Status, Anzahl der Dateien/Chunks/Probleme und Zeitpunkt der letzten erfolgreichen Indexierung
 
 Das Unterverzeichnis `rag/stores/` enthält regenerierbare `index.hnsw`-Snapshots. Ein v2-Snapshot bettet seine Formatversion, Vektordimensionen, Einbettungsmodell-ID, hierarchische Diagrammparameter, Einstiegspunkt, Chunk-Metadaten, Vektoren, Knotenebenen und Nachbarn pro Ebene ein; Eine Nichtübereinstimmung wird abgelehnt und erfordert einen Neuaufbau. Ein gültiger Single-Layer-V1-Snapshot der Legacy-Version wird beim Öffnen neu erstellt und atomar migriert.
 
@@ -405,7 +407,7 @@ Optionales Verzeichnis für kopierte SSH-Schlüssel.
 | Master-Passwort | PBKDF2-Hashing mit 310.000 Iterationen |
 | Verbindungspasswörter | AES-256-GCM-Verschlüsselung |
 | SSH-Schlüsselpassphrasen | AES-256-GCM-Verschlüsselung |
-| Hostschlüssel für interaktives Terminal/SFTP/Mosh | Normalisiertes Host:Port-TOFU mit OpenSSH SHA-256-Fingerabdrücken und Fail-Closed-Änderungserkennung; Das optionale Opt-Out pro Verbindung/Gruppe/Global lockert nur die Aufforderung zum Akzeptieren neuer Schlüssel mit unbekannten Schlüsseln |
+| Hostschlüssel für interaktives Terminal/SFTP/Mosh | Normalisiertes Host:Port-TOFU mit OpenSSH SHA-256-Fingerabdrücken und Fail-Closed-Änderungserkennung; Die optionale pro-Verbindung/Gruppe/globale Opt-out-Option lockert nur die Aufforderung zur Annahme neuer Schlüssel mit unbekannten Schlüsseln |
 | Anmeldeinformationen (Benutzername/Passwort) | AES-256-GCM-Verschlüsselung |
 | JobScheduler Sudo-Passwörter | AES-256-GCM-Verschlüsselung |
 | JobScheduler-Journaleinträge | Geschwärzte Geheimnisse vor Persistenz |

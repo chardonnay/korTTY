@@ -33,6 +33,16 @@ public final class AiOutputTokenLimitSupport {
      */
     static final int COMPLETION_MAX_COMPLETION_TOKENS = 4_096;
     /**
+     * Budget for one ASCII-art answer. The picture itself is a restricted SVG of at most 40 shapes,
+     * about 3 000 tokens; the rest is a reasoning reserve for hybrid thinking models that ignore
+     * the request-scoped reasoning-off and bill their hidden chain-of-thought as completion tokens.
+     * Without any cap an HTTP profile sent no {@code max_tokens} at all, so such a model could think
+     * for minutes. The cap also flips {@link OpenAiCompatibleAiService}'s returnTruncatedResult, so
+     * a cut-off answer comes back flagged as truncated — the converter still draws the shapes that
+     * arrived — instead of being discarded as an EmptyResponseException.
+     */
+    static final int ASCII_ART_MAX_COMPLETION_TOKENS = 8_192;
+    /**
      * Head-room for everything a model emits before the replacement itself, and therefore also the
      * floor of the full-replacement budget. Sized for models that bill hidden thinking as
      * completion tokens: MiniMax-M3 spent 36 449 of a ~36 500-token budget on a 13 KB script and
@@ -65,6 +75,7 @@ public final class AiOutputTokenLimitSupport {
             case APPLY_SNIPPET_SECURITY_FIXES, IMPROVE_SNIPPET_CODE, ASSIST_SNIPPET_CODE ->
                 fullReplacementLimit(request.selectedText());
             case COMPLETE_SNIPPET_CODE -> COMPLETION_MAX_COMPLETION_TOKENS;
+            case GENERATE_ASCII_ART -> ASCII_ART_MAX_COMPLETION_TOKENS;
             default -> null;
         };
     }

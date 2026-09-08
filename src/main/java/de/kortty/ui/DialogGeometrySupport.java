@@ -49,8 +49,11 @@ public final class DialogGeometrySupport {
     /** How much of the window must remain on a screen for the position to count as reachable. */
     private static final double MIN_VISIBLE = 80;
 
-    /** Where the live-tracked geometry is parked; the dialog pane owns it, so nothing leaks. */
-    private static final String TRACKED_KEY = "kortty.dialogGeometry.tracked";
+    /**
+     * Where the live-tracked geometry is parked; the dialog pane owns it, so nothing leaks.
+     * Package-private so a headless smoke harness can seed the geometry of a dialog it never shows.
+     */
+    static final String TRACKED_KEY = "kortty.dialogGeometry.tracked";
 
     /** Explicit per-dialog geometry fields take precedence over automatic named persistence. */
     private static final String EXPLICIT_KEY = "kortty.dialogGeometry.explicit";
@@ -113,10 +116,11 @@ public final class DialogGeometrySupport {
     }
 
     /**
-     * @return whether stored dialog sizes were captured at the UI font scale that is active now.
+     * @return whether stored window sizes were captured at the UI font scale that is active now.
      *     True when nothing was ever recorded, so pre-existing geometry keeps working unchanged.
+     *     Package-private for windows that restore a plain {@link Stage} themselves.
      */
-    private static boolean uiFontScaleMatchesStoredGeometry() {
+    static boolean uiFontScaleMatchesStoredGeometry() {
         GlobalSettings settings = settings();
         if (settings == null) {
             return true;
@@ -219,21 +223,48 @@ public final class DialogGeometrySupport {
      * letting it escape into a closing handler.
      */
     public static void persist(Dialog<?> dialog, BiConsumer<GlobalSettings, WindowGeometry> setter) {
-        WindowGeometry geometry = capture(dialog);
         GlobalSettingsManager manager = settingsManager();
-        if (geometry == null || manager == null || manager.getSettings() == null) {
+        if (manager == null || !store(dialog, manager.getSettings(), setter)) {
             return;
         }
-        setter.accept(manager.getSettings(), geometry);
-        // Stamp the scale this size was measured at, so restore() can tell a stale size apart from
-        // one that still fits.
-        manager.getSettings().setUiFontScalePercentAtGeometrySave(UiFontScaleSupport.effectivePercent());
         try {
             manager.save();
         } catch (Exception e) {
             logger.warn("Could not save the geometry of {}: {}",
                 dialog.getClass().getSimpleName(), e.getMessage());
         }
+    }
+
+    /**
+     * Hands the dialog's current geometry to the given setter without writing the settings file —
+     * for a dialog that stores several values and wants a single write for all of them. Stamps the
+     * UI font scale the size was measured at, exactly as {@link #persist} does: a dialog that sets
+     * its geometry field directly and skips the stamp keeps a stale stamp alive for good, and
+     * {@link #restore} then drops its stored size on every open.
+     *
+     * @return whether a geometry was stored; false when the dialog was never shown or there are no
+     *     settings to store it in
+     */
+    public static boolean store(Dialog<?> dialog, GlobalSettings settings,
+                                BiConsumer<GlobalSettings, WindowGeometry> setter) {
+        return store(capture(dialog), settings, setter);
+    }
+
+    /**
+     * Stores an already captured geometry — a plain {@link Stage}'s, or the one {@link #install}
+     * hands to its close callback — with the UI font scale stamp, without writing the settings
+     * file. See {@link #store(Dialog, GlobalSettings, BiConsumer)}.
+     */
+    public static boolean store(WindowGeometry geometry, GlobalSettings settings,
+                                BiConsumer<GlobalSettings, WindowGeometry> setter) {
+        if (geometry == null || settings == null) {
+            return false;
+        }
+        setter.accept(settings, geometry);
+        // Stamp the scale this size was measured at, so restore() can tell a stale size apart from
+        // one that still fits.
+        settings.setUiFontScalePercentAtGeometrySave(UiFontScaleSupport.effectivePercent());
+        return true;
     }
 
     private static GlobalSettingsManager settingsManager() {

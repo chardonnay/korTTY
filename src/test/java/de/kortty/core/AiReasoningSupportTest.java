@@ -304,6 +304,39 @@ class AiReasoningSupportTest {
             profile, AiAction.ANALYZE_SNIPPET_CODE)).isSameInstanceAs(profile);
     }
 
+    // ---- ASCII art ----
+
+    @Test
+    void asciiArtUsesRequestScopedNoneWhenProfileAdvertisesIt() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("http://127.0.0.1:1234/v1/chat/completions");
+        profile.setModel("qwen-reasoning");
+        profile.setDiscoveredReasoningEfforts(List.of(
+            AiReasoningEffort.NONE, AiReasoningEffort.MINIMAL));
+        profile.setReasoningDiscoveryKey(AiReasoningSupport.discoveryKey(profile));
+        profile.setReasoningEffort(AiReasoningEffort.MINIMAL);
+
+        AiProfile executionProfile = AiReasoningSupport.profileForAction(
+            profile, AiAction.GENERATE_ASCII_ART);
+
+        // A picture's fidelity comes from composition, not deliberation: a thinking model spent
+        // minutes and its whole budget on a hidden chain-of-thought before drawing a single shape.
+        assertThat(executionProfile).isNotSameInstanceAs(profile);
+        assertThat(executionProfile.getReasoningEffort()).isEqualTo(AiReasoningEffort.NONE);
+        assertThat(profile.getReasoningEffort()).isEqualTo(AiReasoningEffort.MINIMAL);
+    }
+
+    @Test
+    void asciiArtKeepsConfiguredEffortWithoutVerifiedNoneSupport() {
+        AiProfile profile = new AiProfile();
+        profile.setApiUrl("http://127.0.0.1:1234/v1/chat/completions");
+        profile.setModel("unknown-model");
+        profile.setReasoningEffort(AiReasoningEffort.MINIMAL);
+
+        assertThat(AiReasoningSupport.profileForAction(
+            profile, AiAction.GENERATE_ASCII_ART)).isSameInstanceAs(profile);
+    }
+
     @Test
     void automaticModelSelectionDoesNotForceCapabilitiesCachedForAnEarlierLoadedModel() {
         AiProfile profile = new AiProfile();

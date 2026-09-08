@@ -83,6 +83,23 @@ class RagAugmentedAiServiceTest {
         assertThat(delegate.request).isSameInstanceAs(request);
     }
 
+    @Test
+    void asciiArtSkipsRetrievalAndKeepsTheOriginalRequest() throws Exception {
+        RecordingPromptService delegate = new RecordingPromptService();
+        RecordingRetriever retriever = new RecordingRetriever();
+        RagAugmentedAiService service = new RagAugmentedAiService(
+            delegate, List.of("knowledge"), 8_000, retriever);
+        AiRequest request = new AiRequest(
+            AiAction.GENERATE_ASCII_ART, "lighthouse", null, "de", AsciiArtSupport.variationInstructions(1));
+
+        service.execute(request);
+
+        // No knowledge-store prose for a picture, no embedding load — and on a retry the query
+        // would have been the variation hint rather than the subject.
+        assertThat(retriever.calls).isEqualTo(0);
+        assertThat(delegate.request).isSameInstanceAs(request);
+    }
+
     private static final class RecordingRetriever implements RagAugmentedAiService.ContextRetriever {
         private AiWorkload workload;
         private boolean autonomousOnly;

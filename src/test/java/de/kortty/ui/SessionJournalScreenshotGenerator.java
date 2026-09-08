@@ -422,6 +422,11 @@ public final class SessionJournalScreenshotGenerator {
         if (Math.abs(stored.getWidth() - 1180) > 1 || Math.abs(stored.getHeight() - 860) > 1) {
             throw new IllegalStateException("the stored size is not the one the user set");
         }
+        // Without the scale stamp the stored size would count as stale on the next open.
+        Integer stamp = settings.getUiFontScalePercentAtGeometrySave();
+        if (stamp == null || stamp != UiFontScaleSupport.effectivePercent()) {
+            throw new IllegalStateException("closing the edit window did not stamp the UI font scale: " + stamp);
+        }
 
         var second = SessionJournalScreenshotEditorDialog.buildForCapture(image, entry);
         second.dialog().show();

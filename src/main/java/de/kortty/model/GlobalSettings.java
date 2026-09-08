@@ -869,6 +869,26 @@ public class GlobalSettings {
     @XmlElement
     private double asciiArtPreviewFontSize = 12.0;
 
+    /** Character grid the AI picture is fitted into; the ASCII Art dialog's Size dropdown. */
+    @XmlElement
+    private AsciiArtPictureSize asciiArtPictureSize = AsciiArtPictureSize.MEDIUM;
+
+    /** Character grid an opened image file is fitted into; the ASCII Art dialog's Image File tab. */
+    @XmlElement
+    private AsciiArtPictureSize asciiArtImageSize = AsciiArtPictureSize.MEDIUM;
+
+    /** Comment style applied when copying from the ASCII Art dialog; NONE copies the bare picture. */
+    @XmlElement
+    private AsciiArtCommentStyle asciiArtCopyCommentStyle = AsciiArtCommentStyle.NONE;
+
+    /** Output-code style applied when copying from the ASCII Art dialog; NONE copies the bare picture. */
+    @XmlElement
+    private AsciiArtPrintStyle asciiArtCopyPrintStyle = AsciiArtPrintStyle.NONE;
+
+    /** Spaces placed before every picture line when copying from the ASCII Art dialog. */
+    @XmlElement
+    private int asciiArtCopyGap = 1;
+
     /** Last window geometry of the alternative snippet solutions dialog. */
     @XmlElement
     private WindowGeometry alternativeSnippetSolutionsDialogGeometry;
@@ -3393,6 +3413,32 @@ public class GlobalSettings {
 
     public double getAsciiArtPreviewFontSize() { return asciiArtPreviewFontSize; }
     public void setAsciiArtPreviewFontSize(double asciiArtPreviewFontSize) { this.asciiArtPreviewFontSize = asciiArtPreviewFontSize; }
+
+    // JAXB unmarshals an enum name it does not know (a newer or older korTTY wrote it) as null;
+    // the getters fall back to the defaults so the dialog never restores a null choice.
+    public AsciiArtPictureSize getAsciiArtPictureSize() {
+        return asciiArtPictureSize != null ? asciiArtPictureSize : AsciiArtPictureSize.MEDIUM;
+    }
+    public void setAsciiArtPictureSize(AsciiArtPictureSize asciiArtPictureSize) { this.asciiArtPictureSize = asciiArtPictureSize; }
+
+    public AsciiArtPictureSize getAsciiArtImageSize() {
+        return asciiArtImageSize != null ? asciiArtImageSize : AsciiArtPictureSize.MEDIUM;
+    }
+    public void setAsciiArtImageSize(AsciiArtPictureSize asciiArtImageSize) { this.asciiArtImageSize = asciiArtImageSize; }
+
+    public AsciiArtCommentStyle getAsciiArtCopyCommentStyle() {
+        return asciiArtCopyCommentStyle != null ? asciiArtCopyCommentStyle : AsciiArtCommentStyle.NONE;
+    }
+    public void setAsciiArtCopyCommentStyle(AsciiArtCommentStyle asciiArtCopyCommentStyle) { this.asciiArtCopyCommentStyle = asciiArtCopyCommentStyle; }
+
+    public AsciiArtPrintStyle getAsciiArtCopyPrintStyle() {
+        return asciiArtCopyPrintStyle != null ? asciiArtCopyPrintStyle : AsciiArtPrintStyle.NONE;
+    }
+    public void setAsciiArtCopyPrintStyle(AsciiArtPrintStyle asciiArtCopyPrintStyle) { this.asciiArtCopyPrintStyle = asciiArtCopyPrintStyle; }
+
+    /** The copy gap clamped to the range the dialog's spinner offers, whatever the file holds. */
+    public int getAsciiArtCopyGap() { return Math.max(0, Math.min(20, asciiArtCopyGap)); }
+    public void setAsciiArtCopyGap(int asciiArtCopyGap) { this.asciiArtCopyGap = asciiArtCopyGap; }
 
     public WindowGeometry getAlternativeSnippetSolutionsDialogGeometry() { return alternativeSnippetSolutionsDialogGeometry; }
     public void setAlternativeSnippetSolutionsDialogGeometry(WindowGeometry alternativeSnippetSolutionsDialogGeometry) {

@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.core.SessionJournalScreenshotAnnotator;
+import de.kortty.model.GlobalSettings;
 import de.kortty.model.SessionJournalAnnotation;
 import de.kortty.model.SessionJournalEntry;
 import javafx.geometry.Insets;
@@ -141,7 +142,10 @@ public final class SessionJournalScreenshotEditorDialog {
         DialogGeometrySupport.install(dialog,
             manager.getSettings().getSessionJournalScreenshotEditorGeometry(),
             geometry -> {
-                manager.getSettings().setSessionJournalScreenshotEditorGeometry(geometry);
+                // Through the helper, so the UI font scale stamp that validates the stored size on
+                // the next open is refreshed along with the geometry.
+                DialogGeometrySupport.store(geometry, manager.getSettings(),
+                    GlobalSettings::setSessionJournalScreenshotEditorGeometry);
                 try {
                     manager.save();
                 } catch (Exception e) {

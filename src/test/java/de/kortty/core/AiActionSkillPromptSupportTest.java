@@ -45,14 +45,72 @@ class AiActionSkillPromptSupportTest {
     @Test
     void allOtherActionsExcludeMermaidSkill() {
         for (AiAction action : AiAction.values()) {
-            if (action == AiAction.GENERATE_SNIPPET_MERMAID) {
+            if (action == AiAction.GENERATE_SNIPPET_MERMAID || action == AiAction.GENERATE_ASCII_ART) {
                 continue;
             }
             String prompt = AiPromptBuilder.buildSystemPrompt(
                 new AiRequest(action, "echo ok", null, "en"));
             assertThat(prompt).doesNotContain("kortty_required_action_skill");
             assertThat(prompt).doesNotContain(AiActionSkillPromptSupport.MERMAID_SKILL_ID);
+            assertThat(prompt).doesNotContain(AiActionSkillPromptSupport.ASCII_ART_SKILL_ID);
         }
+    }
+
+    // ---- ASCII art ----
+
+    @Test
+    void asciiArtSvgRequestIncludesTheCompositionSkill() {
+        AiRequest request = new AiRequest(AiAction.GENERATE_ASCII_ART, "lighthouse", null, "en");
+
+        String prompt = AiPromptBuilder.buildSystemPrompt(request);
+
+        assertThat(prompt).contains("<kortty_required_action_skill id=\"builtin.action.ascii-art-svg\"");
+        assertThat(prompt).contains("Apply it after the fixed SVG contract");
+        // One of the eight composition rules and one line of the worked example.
+        assertThat(prompt).contains("Draw layers from back to front");
+        assertThat(prompt).contains("<svg viewBox=\"0 0 100 100\">");
+        assertThat(prompt).contains("</kortty_required_action_skill>");
+        assertThat(countOccurrences(prompt, AiActionSkillPromptSupport.ASCII_ART_SKILL_ID)).isEqualTo(1);
+        assertThat(prompt).doesNotContain(AiActionSkillPromptSupport.MERMAID_SKILL_ID);
+        // The skill refines the contract, so it follows it.
+        assertThat(prompt.indexOf("Return the SVG immediately"))
+            .isLessThan(prompt.indexOf("<kortty_required_action_skill"));
+    }
+
+    @Test
+    void asciiArtLegacyModeCarriesNoSkill() {
+        AiRequest request = new AiRequest(AiAction.GENERATE_ASCII_ART, "lighthouse", null, "en")
+            .withAsciiArtOptions(AsciiArtRequestOptions.ascii(de.kortty.model.AsciiArtPictureSize.MEDIUM));
+
+        String prompt = AiPromptBuilder.buildSystemPrompt(request);
+
+        // Composition advice about shapes has nothing to say to a model typing characters.
+        assertThat(prompt).doesNotContain("kortty_required_action_skill");
+        assertThat(prompt).doesNotContain(AiActionSkillPromptSupport.ASCII_ART_SKILL_ID);
+    }
+
+    @Test
+    void theAsciiArtExampleSurvivesLoading() {
+        String example = AiActionSkillPromptSupport.asciiArtExampleSvg();
+
+        // The front-matter parser must hand the fenced example through untouched: the converter
+        // renders it as its fixture and the copied-example detector compares answers against it.
+        assertThat(example).isNotNull();
+        assertThat(example).startsWith("<svg viewBox=\"0 0 100 100\">");
+        assertThat(example).endsWith("</svg>");
+        assertThat(example).doesNotContain("```");
+        int shapes = 0;
+        for (String element : List.of("<rect", "<circle", "<ellipse", "<line", "<polyline", "<polygon", "<path")) {
+            shapes += countOccurrences(example, element);
+        }
+        assertThat(shapes).isEqualTo(11);
+        // Every tone of the contract appears, including the white window on the black lamp room.
+        for (String tone : List.of("fill=\"black\"", "fill=\"#555\"", "fill=\"#aaa\"", "fill=\"white\"")) {
+            assertThat(example).contains(tone);
+        }
+        assertThat(example).contains("stroke-width=\"3\"");
+        // Cached: the second call is the same instance.
+        assertThat(AiActionSkillPromptSupport.asciiArtExampleSvg()).isSameInstanceAs(example);
     }
 
     @Test
