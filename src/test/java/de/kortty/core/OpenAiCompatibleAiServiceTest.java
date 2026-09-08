@@ -1090,6 +1090,49 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void asciiArtSendsTheFiniteCompletionCap() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions",
+            "qwen-test",
+            "");
+
+        String body = service.buildRequestBody(
+            new AiRequest(AiAction.GENERATE_ASCII_ART, "lighthouse", null, "en"));
+
+        // Without the cap an HTTP profile sent no max_tokens at all, so a hybrid thinking model
+        // could reason for minutes before the first shape.
+        assertThat(body).contains("\"max_tokens\":8192");
+        assertThat(body).contains("Reply now with only the ```svg block.");
+    }
+
+    @Test
+    void asciiArtTruncatedAnswerComesBackFlaggedInsteadOfAsEmptyResponse() throws Exception {
+        String sse = """
+            data: {"choices":[{"delta":{"reasoning_content":"composing"},"finish_reason":"length"}],"usage":{"prompt_tokens":5,"completion_tokens":8191,"total_tokens":8196}}
+
+            data: [DONE]
+            """;
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(sse);
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions",
+            "MiniMax-M3",
+            "secret-token",
+            client);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.GENERATE_ASCII_ART, "lighthouse", null, "en"),
+            client,
+            null);
+
+        // The action cap flips returnTruncatedResult: the picture pipeline needs the truncation
+        // marker to report "budget consumed by reasoning" instead of retrying twice more.
+        assertThat(result.content()).isEmpty();
+        assertThat(result.outputTruncated()).isTrue();
+        assertThat(result.usage().completionTokens()).isEqualTo(8191);
+        assertThat(client.requestBodies()).hasSize(1);
+    }
+
+    @Test
     void fullAnalysisApplyRequestsStrictSnippetReplacementJsonSchema() {
         OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
             "http://localhost:1234/v1/chat/completions",

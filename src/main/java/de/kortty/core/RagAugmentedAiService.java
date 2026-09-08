@@ -48,9 +48,14 @@ final class RagAugmentedAiService implements AiPromptService, AiSkillUsageTracke
         // latency and unrelated prose without improving that fixed, source-grounded contract. Code
         // completion continues the text at the caret and answers while the user waits: a retrieval
         // round-trip plus knowledge-store prose would slow it down and pull it away from the code.
+        // An ASCII-art picture has no use for knowledge-store prose either: retrieval would only
+        // pay the embedding-model load and a vector search for text the drawing contract forbids,
+        // and on a "new variation" retry the retrieval query would have been the variation hint
+        // rather than the subject.
         if (request == null || storeIds.isEmpty()
             || request.action() == AiAction.GENERATE_SNIPPET_MERMAID
-            || request.action() == AiAction.COMPLETE_SNIPPET_CODE) {
+            || request.action() == AiAction.COMPLETE_SNIPPET_CODE
+            || request.action() == AiAction.GENERATE_ASCII_ART) {
             return delegate.execute(request);
         }
         String query = retrievalQuery(request);
@@ -59,12 +64,8 @@ final class RagAugmentedAiService implements AiPromptService, AiSkillUsageTracke
             request.action() != null ? request.action().workload() : null,
             false,
             CancellationToken.NONE);
-        AiRequest augmented = new AiRequest(
-            request.action(), request.selectedText(), request.connectionDisplayName(),
-            request.responseLanguageCode(), request.userPrompt(), request.conversationContext(),
-            request.includeAiSkills(), request.promptPreset(), context.text(),
-            request.codeTextLanguage());
-        return delegate.execute(augmented);
+        // withRetrievedContext keeps every other component (diagramType, asciiArtOptions, …).
+        return delegate.execute(request.withRetrievedContext(context.text()));
     }
 
     @Override

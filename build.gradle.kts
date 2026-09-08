@@ -3700,6 +3700,14 @@ tasks.register<JavaExec>("snippetAiDialogsSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("asciiArtDialogSmoke") {
+    group = "verification"
+    description = "Builds the ASCII Art dialog owner-less, fills both previews (FIGlet banner, locally rendered AI picture), exercises the copy-format row and snapshots the pane to build/smoke/ascii-art-*.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AsciiArtDialogSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("snippetCompletionSmoke") {
     group = "verification"
     description = "Drives the snippet editor's Monaco code completion end to end (Shift+TAB/menu list with local and AI rows, verbatim multi-line accept, TAB/Esc through the JavaFX event chain, ghost text, cancel and close paths) against a stubbed AI provider and snapshots the list and the ghost text to build/smoke/snippet-completion-*.png."

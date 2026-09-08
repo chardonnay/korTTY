@@ -501,8 +501,12 @@ public final class GuideViewer {
                 stage.centerOnScreen();
                 return;
             }
-            stage.setWidth(geometry.getWidth());
-            stage.setHeight(geometry.getHeight());
+            // Like the dialogs: a size measured at another UI font scale is stale, keep the
+            // position and let the window size itself afresh.
+            if (DialogGeometrySupport.uiFontScaleMatchesStoredGeometry()) {
+                stage.setWidth(geometry.getWidth());
+                stage.setHeight(geometry.getHeight());
+            }
             stage.setX(geometry.getX());
             stage.setY(geometry.getY());
             stage.setMaximized(stored.isMaximized());
@@ -535,7 +539,8 @@ public final class GuideViewer {
             }
             WindowGeometry geometry = new WindowGeometry(stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
             geometry.setMaximized(stage.isMaximized());
-            settings().setGuideViewerGeometry(geometry);
+            // Through the helper, so the UI font scale stamp restoreGeometry() checks stays current.
+            DialogGeometrySupport.store(geometry, settings(), GlobalSettings::setGuideViewerGeometry);
             app.getGlobalSettingsManager().save();
         } catch (Exception e) {
             logger.debug("Could not save guide viewer geometry", e);

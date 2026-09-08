@@ -3,7 +3,6 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.SessionJournalMeta;
-import de.kortty.model.WindowGeometry;
 import javafx.scene.control.ButtonType;
 import javafx.stage.Modality;
 import org.slf4j.Logger;
@@ -68,12 +67,11 @@ public class SessionJournalViewerDialog extends ThemeAwareDialog<Void> {
         if (isHostedInTab()) {
             return; // the pane's window is the main window's stage, not this dialog's geometry
         }
-        WindowGeometry geometry = DialogGeometrySupport.capture(this);
         var settingsManager = app != null ? app.getGlobalSettingsManager() : null;
-        if (geometry == null || settingsManager == null || settingsManager.getSettings() == null) {
+        if (settingsManager == null || !DialogGeometrySupport.store(this, settingsManager.getSettings(),
+                GlobalSettings::setSessionJournalViewerGeometry)) {
             return;
         }
-        settingsManager.getSettings().setSessionJournalViewerGeometry(geometry);
         try {
             settingsManager.save();
         } catch (Exception e) {

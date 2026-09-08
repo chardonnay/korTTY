@@ -7,7 +7,13 @@ import de.kortty.model.SnippetDiagramType;
  * Immutable request passed to an AI service.
  *
  * <p>{@code diagramType} is only meaningful for {@link AiAction#GENERATE_SNIPPET_MERMAID}; a
- * {@code null} value means the default logical-structure flowchart.</p>
+ * {@code null} value means the default logical-structure flowchart. {@code asciiArtOptions} is only
+ * meaningful for {@link AiAction#GENERATE_ASCII_ART}; {@code null} means the default SVG contract on
+ * the default picture size.</p>
+ *
+ * <p>Wrappers that derive a request from another one must use the {@code with…} methods rather than
+ * a shorter constructor, so that action-specific components such as {@code diagramType} and
+ * {@code asciiArtOptions} survive the copy.</p>
  */
 public record AiRequest(
     AiAction action,
@@ -20,7 +26,8 @@ public record AiRequest(
     AiPromptPreset promptPreset,
     String retrievedContext,
     CodeTextLanguage codeTextLanguage,
-    SnippetDiagramType diagramType) {
+    SnippetDiagramType diagramType,
+    AsciiArtRequestOptions asciiArtOptions) {
 
     public AiRequest {
         promptPreset = promptPreset != null ? promptPreset : AiPromptPreset.GENERIC;
@@ -35,14 +42,53 @@ public record AiRequest(
     public AiRequest withCodeTextLanguage(CodeTextLanguage codeTextLanguage) {
         return new AiRequest(action, selectedText, connectionDisplayName, responseLanguageCode,
             userPrompt, conversationContext, includeAiSkills, promptPreset, retrievedContext,
-            codeTextLanguage, diagramType);
+            codeTextLanguage, diagramType, asciiArtOptions);
     }
 
     /** The same request for one diagram family; only {@code GENERATE_SNIPPET_MERMAID} uses it. */
     public AiRequest withDiagramType(SnippetDiagramType diagramType) {
         return new AiRequest(action, selectedText, connectionDisplayName, responseLanguageCode,
             userPrompt, conversationContext, includeAiSkills, promptPreset, retrievedContext,
-            codeTextLanguage, diagramType);
+            codeTextLanguage, diagramType, asciiArtOptions);
+    }
+
+    /** The same request with the ASCII-art options; only {@code GENERATE_ASCII_ART} uses them. */
+    public AiRequest withAsciiArtOptions(AsciiArtRequestOptions asciiArtOptions) {
+        return new AiRequest(action, selectedText, connectionDisplayName, responseLanguageCode,
+            userPrompt, conversationContext, includeAiSkills, promptPreset, retrievedContext,
+            codeTextLanguage, diagramType, asciiArtOptions);
+    }
+
+    /** The same request with the model-specific prompt preset resolved by the profile. */
+    public AiRequest withPromptPreset(AiPromptPreset promptPreset) {
+        return new AiRequest(action, selectedText, connectionDisplayName, responseLanguageCode,
+            userPrompt, conversationContext, includeAiSkills, promptPreset, retrievedContext,
+            codeTextLanguage, diagramType, asciiArtOptions);
+    }
+
+    /** The same request with knowledge-store context retrieved for it. */
+    public AiRequest withRetrievedContext(String retrievedContext) {
+        return new AiRequest(action, selectedText, connectionDisplayName, responseLanguageCode,
+            userPrompt, conversationContext, includeAiSkills, promptPreset, retrievedContext,
+            codeTextLanguage, diagramType, asciiArtOptions);
+    }
+
+    public AiRequest(
+        AiAction action,
+        String selectedText,
+        String connectionDisplayName,
+        String responseLanguageCode,
+        String userPrompt,
+        String conversationContext,
+        boolean includeAiSkills,
+        AiPromptPreset promptPreset,
+        String retrievedContext,
+        CodeTextLanguage codeTextLanguage,
+        SnippetDiagramType diagramType) {
+
+        this(action, selectedText, connectionDisplayName, responseLanguageCode, userPrompt,
+            conversationContext, includeAiSkills, promptPreset, retrievedContext,
+            codeTextLanguage, diagramType, null);
     }
 
     public AiRequest(
@@ -59,7 +105,7 @@ public record AiRequest(
 
         this(action, selectedText, connectionDisplayName, responseLanguageCode, userPrompt,
             conversationContext, includeAiSkills, promptPreset, retrievedContext,
-            codeTextLanguage, null);
+            codeTextLanguage, null, null);
     }
 
     public AiRequest(
@@ -74,7 +120,7 @@ public record AiRequest(
         String retrievedContext) {
 
         this(action, selectedText, connectionDisplayName, responseLanguageCode, userPrompt,
-            conversationContext, includeAiSkills, promptPreset, retrievedContext, null, null);
+            conversationContext, includeAiSkills, promptPreset, retrievedContext, null, null, null);
     }
 
     public AiRequest(
@@ -88,7 +134,7 @@ public record AiRequest(
         AiPromptPreset promptPreset) {
 
         this(action, selectedText, connectionDisplayName, responseLanguageCode, userPrompt,
-            conversationContext, includeAiSkills, promptPreset, null, null, null);
+            conversationContext, includeAiSkills, promptPreset, null, null, null, null);
     }
 
     public AiRequest(
@@ -101,7 +147,7 @@ public record AiRequest(
         boolean includeAiSkills) {
 
         this(action, selectedText, connectionDisplayName, responseLanguageCode, userPrompt,
-            conversationContext, includeAiSkills, AiPromptPreset.GENERIC, null, null, null);
+            conversationContext, includeAiSkills, AiPromptPreset.GENERIC, null, null, null, null);
     }
 
     public AiRequest(
@@ -113,7 +159,7 @@ public record AiRequest(
         String conversationContext) {
 
         this(action, selectedText, connectionDisplayName, responseLanguageCode, userPrompt,
-            conversationContext, true, AiPromptPreset.GENERIC, null, null, null);
+            conversationContext, true, AiPromptPreset.GENERIC, null, null, null, null);
     }
 
     public AiRequest(AiAction action, String selectedText, String connectionDisplayName, String responseLanguageCode) {

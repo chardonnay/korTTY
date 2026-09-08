@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** Adds small, mandatory built-in skills that refine one specific AI action. */
 final class AiActionSkillPromptSupport {
@@ -25,7 +26,22 @@ final class AiActionSkillPromptSupport {
         SnippetDiagramType.CLASS, "builtin.action.snippet-class",
         SnippetDiagramType.ER, "builtin.action.snippet-er"));
 
+    /**
+     * Composition rules plus one worked example for the SVG drawings behind
+     * {@link AiAction#GENERATE_ASCII_ART}. Kept out of the fixed contract because it is advice a
+     * model may weigh against the subject, whereas the contract is what the converter enforces.
+     */
+    static final String ASCII_ART_SKILL_ID = "builtin.action.ascii-art-svg";
+    static final String ASCII_ART_SKILL_RESOURCE =
+        "/builtin-action-ai-skills/builtin.action.ascii-art-svg.md";
+
+    private static final String SVG_FENCE_OPENING = "```svg";
+    private static final String FENCE = "```";
+
     private static final Map<SnippetDiagramType, AiSkill> LOADED_SKILLS = new ConcurrentHashMap<>();
+    /** Cached apart from the diagram map: it is keyed by nothing and loaded on the first picture. */
+    private static final AtomicReference<AiSkill> ASCII_ART_SKILL = new AtomicReference<>();
+    private static final AtomicReference<String> ASCII_ART_EXAMPLE_SVG = new AtomicReference<>();
 
     private AiActionSkillPromptSupport() {
     }
@@ -33,20 +49,75 @@ final class AiActionSkillPromptSupport {
     /**
      * Appends the action skill independently of user skill settings. The fixed action contract remains
      * authoritative; this block only adds quality criteria that are specific to the requested result.
+     * The ASCII-art skill applies to the SVG contract only: the legacy direct-typing fallback has no
+     * shapes to compose, and its composition advice would only distract a model that is already
+     * struggling to align characters.
      */
     static String appendToSystemPrompt(String systemPrompt, AiRequest request) {
         String base = systemPrompt != null ? systemPrompt.trim() : "";
-        if (request == null || request.action() != AiAction.GENERATE_SNIPPET_MERMAID) {
+        if (request == null) {
             return base;
         }
-        AiSkill skill = diagramSkill(request.diagramType());
-        String block = "Mandatory built-in KorTTY action skill. Apply it after the fixed Mermaid JSON and "
-            + "safety contract; the fixed contract wins if any instruction conflicts.\n"
+        if (request.action() == AiAction.GENERATE_SNIPPET_MERMAID) {
+            return AiPromptPipeline.insertSkills(base, skillBlock(
+                "Mandatory built-in KorTTY action skill. Apply it after the fixed Mermaid JSON and "
+                    + "safety contract; the fixed contract wins if any instruction conflicts.",
+                diagramSkill(request.diagramType())));
+        }
+        if (request.action() == AiAction.GENERATE_ASCII_ART
+            && AsciiArtRequestOptions.orDefault(request.asciiArtOptions()).isSvg()) {
+            return AiPromptPipeline.insertSkills(base, skillBlock(
+                "Mandatory built-in KorTTY action skill. Apply it after the fixed SVG contract; the "
+                    + "fixed contract wins if any instruction conflicts.",
+                asciiArtSkill()));
+        }
+        return base;
+    }
+
+    private static String skillBlock(String preamble, AiSkill skill) {
+        return preamble + "\n"
             + "<kortty_required_action_skill id=\"" + skill.getBuiltinId() + "\" name=\""
             + promptAttribute(skill.getName(), skill.getBuiltinId()) + "\">\n"
             + skill.getContent().strip()
             + "\n</kortty_required_action_skill>";
-        return AiPromptPipeline.insertSkills(base, block);
+    }
+
+    /**
+     * The worked example shipped in the ASCII-art skill, as the bare SVG document. The picture
+     * pipeline renders it as its self-test fixture and compares every answer against it, because
+     * very small models return the example instead of the subject.
+     */
+    static String asciiArtExampleSvg() {
+        // Read-then-compareAndSet rather than updateAndGet: the JDK may re-apply an update
+        // function under contention, which would parse the bundled Markdown twice for nothing.
+        String cached = ASCII_ART_EXAMPLE_SVG.get();
+        if (cached == null) {
+            ASCII_ART_EXAMPLE_SVG.compareAndSet(null, firstSvgFenceBody(asciiArtSkill().getContent()));
+            cached = ASCII_ART_EXAMPLE_SVG.get();
+        }
+        return cached;
+    }
+
+    private static AiSkill asciiArtSkill() {
+        AiSkill cached = ASCII_ART_SKILL.get();
+        if (cached == null) {
+            ASCII_ART_SKILL.compareAndSet(null, loadRequiredSkill(ASCII_ART_SKILL_RESOURCE, ASCII_ART_SKILL_ID));
+            cached = ASCII_ART_SKILL.get();
+        }
+        return cached;
+    }
+
+    private static String firstSvgFenceBody(String markdown) {
+        int opening = markdown.indexOf(SVG_FENCE_OPENING);
+        if (opening < 0) {
+            throw new IllegalStateException("Built-in ASCII-art skill has no ```svg example: " + ASCII_ART_SKILL_RESOURCE);
+        }
+        int bodyStart = markdown.indexOf('\n', opening);
+        int closing = bodyStart < 0 ? -1 : markdown.indexOf(FENCE, bodyStart);
+        if (closing < 0) {
+            throw new IllegalStateException("Built-in ASCII-art skill example is not closed: " + ASCII_ART_SKILL_RESOURCE);
+        }
+        return markdown.substring(bodyStart + 1, closing).strip();
     }
 
     static String diagramSkillId(SnippetDiagramType diagramType) {

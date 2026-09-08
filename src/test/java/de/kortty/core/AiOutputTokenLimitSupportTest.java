@@ -67,6 +67,19 @@ class AiOutputTokenLimitSupportTest {
     }
 
     @Test
+    void capsAsciiArtWithAReasoningReserve() {
+        AiRequest request = new AiRequest(AiAction.GENERATE_ASCII_ART, "lighthouse", null, "en");
+
+        // A 40-shape SVG is ~3 000 tokens; the rest absorbs a hybrid thinking model's hidden
+        // chain-of-thought. Without the cap an HTTP profile sent no max_tokens at all, and a
+        // cut-off answer was discarded as empty instead of coming back flagged as truncated.
+        assertThat(AiOutputTokenLimitSupport.resolve(request, null)).isEqualTo(8_192);
+        assertThat(AiOutputTokenLimitSupport.resolve(request, 1_024)).isEqualTo(8_192);
+        assertThat(AiOutputTokenLimitSupport.resolve(request, 65_536)).isEqualTo(8_192);
+        assertThat(AiOutputTokenLimitSupport.actionLimit(request)).isEqualTo(8_192);
+    }
+
+    @Test
     void capsWholeSnippetImprovementAndAssistantReplacements() {
         AiRequest improve = new AiRequest(AiAction.IMPROVE_SNIPPET_CODE, "echo ok", null, "en");
         AiRequest assist = new AiRequest(AiAction.ASSIST_SNIPPET_CODE, "echo ok", null, "en");
