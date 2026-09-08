@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -100,6 +101,15 @@ public final class AiAnswerArchive {
         }
     }
 
+    /** Never throws: an unreadable timestamp sorts as oldest, so the file is a pruning candidate. */
+    private static FileTime lastModified(Path path) {
+        try {
+            return Files.getLastModifiedTime(path);
+        } catch (IOException e) {
+            return FileTime.fromMillis(0);
+        }
+    }
+
     private static void pruneOldest(Path directory) throws IOException {
         List<Path> files = new ArrayList<>();
         try (Stream<Path> entries = Files.list(directory)) {
@@ -108,8 +118,12 @@ public final class AiAnswerArchive {
         if (files.size() <= MAX_FILES) {
             return;
         }
-        // The stamp leads the file name, so name order is age order.
-        files.sort(Comparator.comparing(path -> path.getFileName().toString()));
+        // The stamp leads the file name, but it only resolves milliseconds, and answers archived in
+        // the same millisecond then sort alphabetically by action instead of by age -- which drops a
+        // newer answer and keeps an older one. Order by modification time, which the filesystem keeps
+        // at a finer resolution, and let the name break a remaining tie.
+        files.sort(Comparator.comparing(AiAnswerArchive::lastModified)
+            .thenComparing(path -> path.getFileName().toString()));
         for (Path stale : files.subList(0, files.size() - MAX_FILES)) {
             Files.deleteIfExists(stale);
         }
