@@ -365,12 +365,12 @@ dependencies {
     // with an unfixed signature-malleability flaw (CVE-2020-36843, no patched release exists).
 
     // SithTermFX - Terminal emulator for JavaFX (built from source by installSithtermfxLocal)
-    implementation("com.sithtermfx:sithtermfx-core:1.2.1") {
-        // SithTermFX 1.2.1 accidentally publishes its JUnit API as a runtime dependency.
+    implementation("com.sithtermfx:sithtermfx-core:1.2.2") {
+        // SithTermFX 1.2.2 accidentally publishes its JUnit API as a runtime dependency.
         // korTTY supplies its own test dependencies and must not ship test frameworks.
         exclude(group = "org.junit.jupiter", module = "junit-jupiter-api")
     }
-    implementation("com.sithtermfx:sithtermfx-ui:1.2.1") {
+    implementation("com.sithtermfx:sithtermfx-ui:1.2.2") {
         exclude(group = "org.junit.jupiter", module = "junit-jupiter-api")
     }
     
@@ -486,23 +486,18 @@ tasks.named<JavaExec>("run") {
 
 // ==================== SithTermFX from source (no GitHub token required) ====================
 
-val sithtermfxVersion = "1.2.1"
+val sithtermfxVersion = "1.2.2"
 val sithtermfxDir = layout.projectDirectory.dir("vendor/sithtermfx")
 // Applied in order. Every patch ships its own marker resource so each one stays independently
 // forward/reverse-checkable against the vendor tree regardless of which patches are present.
 val sithtermfxPatchFiles = listOf(
-    layout.projectDirectory.file("patches/sithtermfx/1.2.1-terminal-panel-bottom-row.patch"),
-    layout.projectDirectory.file("patches/sithtermfx/1.2.1-terminal-panel-meta-shortcut-key-typed.patch"),
-    layout.projectDirectory.file("patches/sithtermfx/1.2.1-terminal-scroll-region-cursor-clamp.patch"),
+    layout.projectDirectory.file("patches/sithtermfx/1.2.2-terminal-panel-bottom-row.patch"),
+    layout.projectDirectory.file("patches/sithtermfx/1.2.2-terminal-panel-meta-shortcut-key-typed.patch"),
 )
 // Jar entry -> line that entry must contain for the installed artifact to count as patched.
-// Split by artifact: a patch's marker ships in the jar the patch actually changes.
-val sithtermfxUiPatchMarkers = listOf(
+val sithtermfxPatchMarkers = listOf(
     "META-INF/kortty-patches.properties" to "terminal-panel-bottom-row-hyperlink-boundary=1",
     "META-INF/kortty-patch-meta-shortcut-key-typed.properties" to "terminal-panel-meta-shortcut-key-typed=1",
-)
-val sithtermfxCorePatchMarkers = listOf(
-    "META-INF/kortty-patch-scroll-region-cursor-clamp.properties" to "terminal-scroll-region-cursor-clamp=1",
 )
 
 tasks.register("cloneSithtermfx") {
@@ -582,21 +577,17 @@ val applySithtermfxPatches = tasks.register("applySithtermfxPatches") {
 val mavenLocalSithtermfxCore = File(System.getProperty("user.home"), ".m2/repository/com/sithtermfx/sithtermfx-core/$sithtermfxVersion/sithtermfx-core-$sithtermfxVersion.jar")
 val mavenLocalSithtermfxUi = File(System.getProperty("user.home"), ".m2/repository/com/sithtermfx/sithtermfx-ui/$sithtermfxVersion/sithtermfx-ui-$sithtermfxVersion.jar")
 
-fun jarHasPatchMarkers(jar: File, markers: List<Pair<String, String>>): Boolean =
-    ZipFile(jar).use { archive ->
-        markers.all { (entryName, requiredLine) ->
-            val marker = archive.getEntry(entryName)
-            marker != null && archive.getInputStream(marker).bufferedReader().use { reader ->
-                reader.readText().lineSequence().any { it.trim() == requiredLine }
-            }
-        }
-    }
-
 fun installedSithtermfxHasRequiredPatches(): Boolean {
     if (!mavenLocalSithtermfxCore.isFile || !mavenLocalSithtermfxUi.isFile) return false
     return try {
-        jarHasPatchMarkers(mavenLocalSithtermfxUi, sithtermfxUiPatchMarkers) &&
-            jarHasPatchMarkers(mavenLocalSithtermfxCore, sithtermfxCorePatchMarkers)
+        ZipFile(mavenLocalSithtermfxUi).use { archive ->
+            sithtermfxPatchMarkers.all { (entryName, requiredLine) ->
+                val marker = archive.getEntry(entryName) ?: return false
+                archive.getInputStream(marker).bufferedReader().use { reader ->
+                    reader.readText().lineSequence().any { it.trim() == requiredLine }
+                }
+            }
+        }
     } catch (_: Exception) {
         false
     }

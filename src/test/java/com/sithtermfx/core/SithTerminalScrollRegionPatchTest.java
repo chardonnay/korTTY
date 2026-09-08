@@ -17,13 +17,13 @@ import java.io.IOException;
 import static com.google.common.truth.Truth.assertThat;
 
 /**
- * Regression coverage for korTTY's pinned SithTermFX patch
- * {@code 1.2.1-terminal-scroll-region-cursor-clamp.patch}.
+ * Regression coverage for the scroll-region fix that korTTY carried as a pinned patch until it
+ * shipped upstream in SithTermFX 1.2.2 (see {@code vendor-patches/0002-*.patch}).
  *
- * <p>The patch ships its own tests inside the vendored SithTermFX tree, but CI builds SithTermFX
- * with {@code -DskipTests}, so those never run for a korTTY change. These cases re-assert the
- * behaviour from korTTY's own suite, mirroring {@code TerminalPanelBoundaryPatchTest} for the
- * boundary patch.
+ * <p>SithTermFX has its own tests for it, but CI builds SithTermFX with {@code -DskipTests}, so
+ * they never run for a korTTY change — and a later SithTermFX release could regress it unnoticed.
+ * These cases re-assert the behaviour from korTTY's own suite, mirroring
+ * {@code TerminalPanelBoundaryPatchTest} for the boundary patch.
  *
  * <p>Only origin mode (DECOM) confines the cursor to the scrolling region. With DECOM reset — the
  * default, and what tmux relies on — the margins bound scrolling, not line addressing: text written

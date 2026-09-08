@@ -42,7 +42,7 @@ checkouts and in CI. Until then the branch builds only where `vendor/sithtermfx/
 local `v1.2.1` (source change + pom bump) and the `1.2.1` jars are in `~/.m2` — which is the current
 state on this machine.
 
-## `0002-terminal-scroll-region-cursor-clamp.patch` → SithTermFX **1.2.2** (unreleased)
+## `0002-terminal-scroll-region-cursor-clamp.patch` → SithTermFX **1.2.2**
 
 A SithTermFX bug inherited from JediTerm, not a korTTY customisation: `SithTerminal.scrollY()`
 enforced the DECSTBM margins on every write, and enforced them by scrolling. But the margins bound
@@ -72,10 +72,10 @@ git commit -am "Release 1.2.2"
 git tag v1.2.2 && git push origin main --tags
 ```
 
-Until that tag exists korTTY ships the same fix through
-`patches/sithtermfx/1.2.1-terminal-scroll-region-cursor-clamp.patch`, which additionally carries the
-`META-INF` marker resource korTTY's build gate needs (upstream has no use for it). After bumping
-`sithtermfxVersion` to `1.2.2`, delete that patch, its entries in `sithtermfxPatchFiles` /
-`sithtermfxCorePatchMarkers`, and the marker check it feeds — but keep
-`src/test/java/com/sithtermfx/core/SithTerminalScrollRegionPatchTest.java`, which pins the behaviour
-from korTTY's own suite regardless of where the fix lives.
+Released on 2026-09-09 and korTTY is on `sithtermfxVersion = "1.2.2"`, so this fix is no longer a
+patch: `patches/sithtermfx/1.2.1-terminal-scroll-region-cursor-clamp.patch` and its `META-INF` marker
+are gone, and the two surviving patches were renamed to the `1.2.2-` base they now apply to.
+`src/test/java/com/sithtermfx/core/SithTerminalScrollRegionPatchTest.java` stays: it pins the
+behaviour from korTTY's own suite regardless of where the fix lives, and would catch a downgrade or a
+regression in a later SithTermFX release. The patch file is kept here as the record of what 1.2.2
+contains.
