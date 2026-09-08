@@ -738,7 +738,7 @@ val bundledFormatterDir = layout.buildDirectory.dir("bundled-formatters")
 val bundledMosh4jDir = layout.buildDirectory.dir("bundled-mosh4j")
 val slimRuntimeJarDir = layout.buildDirectory.dir("slim-runtime-jars")
 val monacoBuildNodeDir = layout.buildDirectory.dir("monaco-node")
-val formatterNodeVersion = "24.19.0"
+val formatterNodeVersion = "24.20.0"
 val formatterShfmtVersion = "3.13.1"
 val formatterPrettierVersion = "3.6.2"
 val formatterPrettierSha256 = "bc81ab83674f175a8601b7d013786f48ec2507dd4a5fcf3415831ff13a875bdf"
@@ -1174,8 +1174,8 @@ tasks.named<ProcessResources>("processResources") {
 // Monaco Node/esbuild workspace because JavaFX 21 WebKit cannot parse the upstream target. Node
 // remains a build-only tool. Mermaid and MathJax stay separate runtime resources so each hidden
 // WebView extracts only the library it needs.
-val mermaidVersion = "11.17.0"
-val mermaidSha256 = "d72c77f9ff0c37145a2839096eb365a17052db761bb953abd073707167bc10be"
+val mermaidVersion = "11.17.2"
+val mermaidSha256 = "6ad2f42c3fc26bbf9e45cbb6d11898972573ea52b33a5f4ff51952899f950ffd"
 val chatRenderMathJaxVersion = "3.2.2"
 val chatRenderMathJaxSha256 = "1b9c0a1c44df864e915690558e72adb9cc5203360daefd385084ced3b6c64c09"
 
@@ -1482,9 +1482,9 @@ val mosh4jReleaseUrl = "https://github.com/chardonnay/mosh4j/releases/download/$
 val mosh4jModules = listOf("protocol", "crypto", "transport", "terminal", "core")
 // The protobuf runtime that ships next to the mosh4j jars. Kept as one version value: the download
 // URL and the file name are built from it, so a bump cannot leave them disagreeing.
-val mosh4jProtobufVersion = "4.36.0"
+val mosh4jProtobufVersion = "4.36.1"
 val mosh4jProtobufJar = "protobuf-java-$mosh4jProtobufVersion.jar"
-val mosh4jProtobufSha256 = "06515776b10bfed334b610273ffdd8884098a9333cb816314b4e4876bfcd2041"
+val mosh4jProtobufSha256 = "26434a93561a1a44bf7157b2630fa73a5b4d8df20e94df167bc03fcd14abd7e4"
 val mosh4jSha256 = mapOf(
     "amd64" to mapOf(
         "core" to "c84e0a370417b9e6aea02506d8328458e4645926791765d87993e0848618f0f8",

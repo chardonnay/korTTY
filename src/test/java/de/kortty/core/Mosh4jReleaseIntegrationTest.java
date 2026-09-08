@@ -28,7 +28,7 @@ public class Mosh4jReleaseIntegrationTest {
     private static final String EXPECTED_VERSION = "2.0.2";
     private static final String EXPECTED_RELEASE_TAG = "v2.0.2";
     private static final String EXPECTED_BCPROV_VERSION = "1.84";
-    private static final String EXPECTED_PROTOBUF_VERSION = "4.36.0";
+    private static final String EXPECTED_PROTOBUF_VERSION = "4.36.1";
     private static final String[] MODULES = {"protocol", "crypto", "transport", "terminal", "core"};
 
     @Test
