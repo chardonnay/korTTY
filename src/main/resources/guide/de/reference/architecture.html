@@ -3401,7 +3401,7 @@
 </tbody>
 </table>
 <h2 id="sithtermfx-terminal-engine">SithTermFX Terminal Engine<a class="headerlink" href="#sithtermfx-terminal-engine" title="Permanent link">&para;</a></h2>
-<p>KorTTY verwendet <strong>SithTermFX 1.2.1</strong> als primären Terminalemulator, der während des Erstellungsprozesses aus dem Quellcode erstellt wird. SithTermFX bietet:</p>
+<p>KorTTY verwendet <strong>SithTermFX 1.2.2</strong> als primären Terminalemulator, der während des Erstellungsprozesses aus dem Quellcode erstellt wird. SithTermFX bietet:</p>
 <ul>
 <li><strong>Terminalemulation</strong>: VT100/xterm-kompatibles Terminal-Rendering, unterstützt durch ein benutzerdefiniertes JavaFX-Steuerelement</li>
 <li><strong>OSC 8-Hyperlinks</strong>: Ab SithTermFX 1.2.0 Unterstützung für anklickbare explizite Hyperlinks (beschränkt auf sichere URI-Schemata: <code>http</code>, <code>https</code>, <code>mailto</code>, <code>ftp</code>, <code>ftps</code>, <code>news</code>; <code>file://</code> beschränkt auf lokalen Host)</li>
@@ -3409,15 +3409,15 @@
 <li><strong>Farbunterstützung</strong>: Konfigurierbare ANSI- und TrueColor-Verarbeitung mit Überschreibungen pro Verbindung</li>
 <li><strong>Überprüfte Grenzkorrektur</strong>: Ein angehefteter korTTY-Patch lehnt die nicht vorhandene Zeile bei ab <code>line == height</code> beim Hyperlink-Treffertest, um die unterste Zeile zu verhindern <code>TerminalTextBuffer</code> Bereichsfehler</li>
 <li><strong>Überprüfter Shortcut-Akkord-Fix</strong>: Ein zweiter angehefteter korTTY-Patch verhindert, dass Shortcut-Akkord-<code>KEY_TYPED</code>-Zeichen (z. B. <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-d">D</kbd></span>) die PTY- oder Broadcast-Fenster erreichen</li>
-<li><strong>Überprüfter Fix für den Bildlaufbereich</strong>: Ein dritter angehefteter korTTY-Patch verhindert, dass der Bildlaufbereich den Cursor einschränkt, während der Ursprungsmodus (DECOM) ausgeschaltet ist. Text, der oberhalb des oberen Rands oder unterhalb des unteren Rands adressiert wird, bleibt jetzt in dieser Zeile, anstatt in den Bereich gezogen zu werden, und nur ein Zeilenvorschub oder automatischer Zeilenumbruch, der tatsächlich den unteren Rand überschreitet, scrollt – so landen die erste Bereichszeile von tmux, seine Statuszeile und der Cursor alle dort, wo die Anwendung sie platziert hat</li>
+<li><strong>Korrektheit des Bildlaufbereichs</strong>: Der Bildlaufbereich schränkt den Cursor nicht ein, während der Ursprungsmodus (DECOM) deaktiviert ist. Text, der oberhalb des oberen Rands oder unterhalb des unteren Rands adressiert wird, bleibt in dieser Zeile, anstatt in den Bereich gezogen zu werden, und nur ein Zeilenvorschub oder ein automatischer Zeilenumbruch, der tatsächlich den unteren Rand überschreitet, scrollt – so landen die erste Bereichszeile von tmux, seine Statuszeile und der Cursor alle dort, wo die Anwendung sie platziert hat. Wird als korTTY-Patch getragen, bis er in SithTermFX 1.2.2 ausgeliefert wird</li>
 </ul>
 <h3 id="build-integration">Build-Integration<a class="headerlink" href="#build-integration" title="Permanent link">&para;</a></h3>
 <p>Der Build-Prozess automatisch:</p>
 <ol>
-<li>Klont SithTermFX am Tag <code>v1.2.1</code> in <code>vendor/sithtermfx</code> (kein GitHub-Token erforderlich)</li>
-<li>Wendet die überprüften Patches in <code>patches/sithtermfx/</code> – <code>1.2.1-terminal-panel-bottom-row.patch</code>, <code>1.2.1-terminal-panel-meta-shortcut-key-typed.patch</code> und <code>1.2.1-terminal-scroll-region-cursor-clamp.patch</code> – der Reihe nach an. Dies schlägt fehl, wenn ein Patch weder zutrifft noch bereits mit der Quelle übereinstimmt</li>
+<li>Klont SithTermFX am Tag <code>v1.2.2</code> in <code>vendor/sithtermfx</code> (kein GitHub-Token erforderlich)</li>
+<li>Wendet die überprüften Patches in <code>patches/sithtermfx/</code> – <code>1.2.2-terminal-panel-bottom-row.patch</code> und <code>1.2.2-terminal-panel-meta-shortcut-key-typed.patch</code> – der Reihe nach an. Dies schlägt fehl, wenn ein Patch weder zutrifft noch bereits mit der Quelle übereinstimmt</li>
 <li>Erstellt es lokal mit Maven über die <code>installSithtermfxLocal</code>-Aufgabe</li>
-<li>Installiert Artefakte im lokalen Maven-Repo (<code>mavenLocal()</code>), einschließlich einer Markierungsressource pro Patch – in der JAR, die Änderungen patcht –, die es Gradle ermöglicht, einen ungepatchten zwischengespeicherten Kern oder eine UI-JAR abzulehnen</li>
+<li>Installiert Artefakte im lokalen Maven-Repository (<code>mavenLocal()</code>), einschließlich einer Markierungsressource pro Patch, die es Gradle ermöglicht, ein ungepatchtes zwischengespeichertes UI-JAR abzulehnen</li>
 <li>Verknüpft SithTermFX-Kern- und UI-Module mit der korTTY-JAR</li>
 </ol>
 <p>Nach dem Klonen ist kein Netzwerkzugriff erforderlich; Alle Build-Schritte sind deterministisch und reproduzierbar.</p>
@@ -3723,7 +3723,7 @@
 <tr>
 <td><strong>Terminal</strong></td>
 <td>SithTermFX (Kern, UI)</td>
-<td>1.2.1 plus angeheftete KorTTY-Grenz- und Shortcut-Akkord-Patches</td>
+<td>1.2.2 plus angeheftete KorTTY-Grenz- und Shortcut-Akkord-Patches</td>
 <td>Terminal-Emulator-Engine</td>
 </tr>
 <tr>
