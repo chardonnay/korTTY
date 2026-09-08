@@ -50,15 +50,16 @@ KorTTY verwendet **SithTermFX 1.2.1** als primären Terminalemulator, der währe
 - **Farbunterstützung**: Konfigurierbare ANSI- und TrueColor-Verarbeitung mit Überschreibungen pro Verbindung
 - **Überprüfte Grenzkorrektur**: Ein angehefteter korTTY-Patch lehnt die nicht vorhandene Zeile bei ab `line == height` beim Hyperlink-Treffertest, um die unterste Zeile zu verhindern `TerminalTextBuffer` Bereichsfehler
 - **Überprüfter Shortcut-Akkord-Fix**: Ein zweiter angehefteter korTTY-Patch verhindert, dass Shortcut-Akkord-`KEY_TYPED`-Zeichen (z. B. ++cmd+shift+d++) die PTY- oder Broadcast-Fenster erreichen
+- **Überprüfter Fix für den Bildlaufbereich**: Ein dritter angehefteter korTTY-Patch verhindert, dass der Bildlaufbereich den Cursor einschränkt, während der Ursprungsmodus (DECOM) ausgeschaltet ist. Text, der oberhalb des oberen Rands oder unterhalb des unteren Rands adressiert wird, bleibt jetzt in dieser Zeile, anstatt in den Bereich gezogen zu werden, und nur ein Zeilenvorschub oder automatischer Zeilenumbruch, der tatsächlich den unteren Rand überschreitet, scrollt – so landen die erste Bereichszeile von tmux, seine Statuszeile und der Cursor alle dort, wo die Anwendung sie platziert hat
 
 ### Build-Integration
 
 Der Build-Prozess automatisch:
 
 1. Klont SithTermFX am Tag `v1.2.1` in `vendor/sithtermfx` (kein GitHub-Token erforderlich)
-2. Wendet die überprüften Patches in `patches/sithtermfx/` – `1.2.1-terminal-panel-bottom-row.patch` und `1.2.1-terminal-panel-meta-shortcut-key-typed.patch` – der Reihe nach an. Dies schlägt fehl, wenn ein Patch weder zutrifft noch bereits mit der Quelle übereinstimmt
+2. Wendet die überprüften Patches in `patches/sithtermfx/` – `1.2.1-terminal-panel-bottom-row.patch`, `1.2.1-terminal-panel-meta-shortcut-key-typed.patch` und `1.2.1-terminal-scroll-region-cursor-clamp.patch` – der Reihe nach an. Dies schlägt fehl, wenn ein Patch weder zutrifft noch bereits mit der Quelle übereinstimmt
 3. Erstellt es lokal mit Maven über die `installSithtermfxLocal`-Aufgabe
-4. Installiert Artefakte im lokalen Maven-Repository (`mavenLocal()`), einschließlich einer Markierungsressource pro Patch, die es Gradle ermöglicht, eine ungepatchte zwischengespeicherte UI-JAR abzulehnen
+4. Installiert Artefakte im lokalen Maven-Repo (`mavenLocal()`), einschließlich einer Markierungsressource pro Patch – in der JAR, die Änderungen patcht –, die es Gradle ermöglicht, einen ungepatchten zwischengespeicherten Kern oder eine UI-JAR abzulehnen
 5. Verknüpft SithTermFX-Kern- und UI-Module mit der korTTY-JAR
 
 Nach dem Klonen ist kein Netzwerkzugriff erforderlich; Alle Build-Schritte sind deterministisch und reproduzierbar.

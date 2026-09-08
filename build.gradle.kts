@@ -493,11 +493,16 @@ val sithtermfxDir = layout.projectDirectory.dir("vendor/sithtermfx")
 val sithtermfxPatchFiles = listOf(
     layout.projectDirectory.file("patches/sithtermfx/1.2.1-terminal-panel-bottom-row.patch"),
     layout.projectDirectory.file("patches/sithtermfx/1.2.1-terminal-panel-meta-shortcut-key-typed.patch"),
+    layout.projectDirectory.file("patches/sithtermfx/1.2.1-terminal-scroll-region-cursor-clamp.patch"),
 )
 // Jar entry -> line that entry must contain for the installed artifact to count as patched.
-val sithtermfxPatchMarkers = listOf(
+// Split by artifact: a patch's marker ships in the jar the patch actually changes.
+val sithtermfxUiPatchMarkers = listOf(
     "META-INF/kortty-patches.properties" to "terminal-panel-bottom-row-hyperlink-boundary=1",
     "META-INF/kortty-patch-meta-shortcut-key-typed.properties" to "terminal-panel-meta-shortcut-key-typed=1",
+)
+val sithtermfxCorePatchMarkers = listOf(
+    "META-INF/kortty-patch-scroll-region-cursor-clamp.properties" to "terminal-scroll-region-cursor-clamp=1",
 )
 
 tasks.register("cloneSithtermfx") {
@@ -577,17 +582,21 @@ val applySithtermfxPatches = tasks.register("applySithtermfxPatches") {
 val mavenLocalSithtermfxCore = File(System.getProperty("user.home"), ".m2/repository/com/sithtermfx/sithtermfx-core/$sithtermfxVersion/sithtermfx-core-$sithtermfxVersion.jar")
 val mavenLocalSithtermfxUi = File(System.getProperty("user.home"), ".m2/repository/com/sithtermfx/sithtermfx-ui/$sithtermfxVersion/sithtermfx-ui-$sithtermfxVersion.jar")
 
+fun jarHasPatchMarkers(jar: File, markers: List<Pair<String, String>>): Boolean =
+    ZipFile(jar).use { archive ->
+        markers.all { (entryName, requiredLine) ->
+            val marker = archive.getEntry(entryName)
+            marker != null && archive.getInputStream(marker).bufferedReader().use { reader ->
+                reader.readText().lineSequence().any { it.trim() == requiredLine }
+            }
+        }
+    }
+
 fun installedSithtermfxHasRequiredPatches(): Boolean {
     if (!mavenLocalSithtermfxCore.isFile || !mavenLocalSithtermfxUi.isFile) return false
     return try {
-        ZipFile(mavenLocalSithtermfxUi).use { archive ->
-            sithtermfxPatchMarkers.all { (entryName, requiredLine) ->
-                val marker = archive.getEntry(entryName) ?: return false
-                archive.getInputStream(marker).bufferedReader().use { reader ->
-                    reader.readText().lineSequence().any { it.trim() == requiredLine }
-                }
-            }
-        }
+        jarHasPatchMarkers(mavenLocalSithtermfxUi, sithtermfxUiPatchMarkers) &&
+            jarHasPatchMarkers(mavenLocalSithtermfxCore, sithtermfxCorePatchMarkers)
     } catch (_: Exception) {
         false
     }

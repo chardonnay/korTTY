@@ -50,15 +50,16 @@ KorTTY uses **SithTermFX 1.2.1** as its primary terminal emulator, built from so
 - **Color support**: Configurable ANSI and TrueColor handling with per-connection overrides
 - **Reviewed boundary fix**: A pinned korTTY patch rejects the non-existent row at `line == height` during hyperlink hit-testing, preventing bottom-row `TerminalTextBuffer` range errors
 - **Reviewed shortcut-chord fix**: A second pinned korTTY patch stops shortcut-chord `KEY_TYPED` characters (for example ++cmd+shift+d++) from reaching the pty or broadcast panes
+- **Reviewed scroll-region fix**: A third pinned korTTY patch stops the scrolling region from confining the cursor while origin mode (DECOM) is off. Text addressed above the top margin or below the bottom one now stays on that line instead of being pulled into the region, and only a line feed or autowrap that actually crosses the bottom margin scrolls — so tmux's first pane row, its status line and the cursor all land where the application put them
 
 ### Build Integration
 
 The build process automatically:
 
 1. Clones SithTermFX at tag `v1.2.1` into `vendor/sithtermfx` (no GitHub token required)
-2. Applies the reviewed patches in `patches/sithtermfx/` — `1.2.1-terminal-panel-bottom-row.patch` and `1.2.1-terminal-panel-meta-shortcut-key-typed.patch` — in order, failing if a patch neither applies nor already matches the source
+2. Applies the reviewed patches in `patches/sithtermfx/` — `1.2.1-terminal-panel-bottom-row.patch`, `1.2.1-terminal-panel-meta-shortcut-key-typed.patch` and `1.2.1-terminal-scroll-region-cursor-clamp.patch` — in order, failing if a patch neither applies nor already matches the source
 3. Builds it locally using Maven via the `installSithtermfxLocal` task
-4. Installs artifacts to the local Maven repo (`mavenLocal()`), including one marker resource per patch that lets Gradle reject an unpatched cached UI JAR
+4. Installs artifacts to the local Maven repo (`mavenLocal()`), including one marker resource per patch — in the JAR that patch changes — that lets Gradle reject an unpatched cached core or UI JAR
 5. Links SithTermFX core and UI modules into the korTTY JAR
 
 No network access is needed after cloning; all build steps are deterministic and reproducible.
