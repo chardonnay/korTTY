@@ -3170,13 +3170,13 @@
 - Authentifizierungsmethode (Passwort, SSH-Schlüssel, temporärer SSH-Schlüssel)
 - Überschreibungen des Terminal-Erscheinungsbilds (Schriftart, Farben, Größe)
 - SSH-Tunnel und Jump-Server-Konfiguration
-- Optionale Überschreibung der SSH-Hostschlüsselüberprüfung pro Verbindung (überprüfen, nicht überprüfen oder erben)
+- Optionale Außerkraftsetzung der SSH-Hostschlüsselüberprüfung pro Verbindung (überprüfen, nicht überprüfen oder erben)
 - Terminaleffekt-Plugins und Animationsgeschwindigkeit
 - Verbindungsspezifische Terminalprotokollierungseinstellungen
 - Einstellungen für das Sitzungsjournal pro Verbindung (aktivieren, typisierte Eingaben erfassen, KI-Zusammenfassungen, Zusammenfassungsintervall)
 - Einstellungen für Fenstergeometrie
 - Gruppen-/Ordnerorganisation
-- Optionales Freitext-Tag (wird für Suche, Massen-Tagging und Tag-basierten Export verwendet)</p>
+- Optionaler Freitext-Tag (wird für Suche, Massen-Tagging und Tag-basierten Export verwendet)</p>
 <p><strong>Sicherheit:</strong> Verbindungspasswörter werden mit AES-256-GCM unter Verwendung des Master-Passworts verschlüsselt.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -3203,7 +3203,7 @@
 <p>SSH-Schlüssel, auf die in dieser Datei verwiesen wird, können an ihrem ursprünglichen Speicherort aufbewahrt oder über die Aktion <em>In Benutzerverzeichnis kopieren</em> in der SSH-Schlüsselverwaltung nach <code>~/.kortty/ssh-keys/</code> kopiert werden. Kopierte Schlüssel sind in verschlüsselten Backups enthalten; Schlüssel, die an ihren ursprünglichen Speicherorten verbleiben, werden nur referenziert und müssen separat migriert werden.</p>
 </div>
 <h3 id="ssh-host-keysproperties">ssh-host-keys.properties<a class="headerlink" href="#ssh-host-keysproperties" title="Permanent link">&para;</a></h3>
-<p>Der versionierte Trust-on-First-Use-Speicher für interaktive Terminal- und SFTP-Verbindungen und der von Mosh verwendete SSH-Bootstrap. Einträge werden durch normalisierten Hostnamen und Port verschlüsselt und enthalten den Public-Key-Algorithmus, den OpenSSH-SHA-256-Fingerabdruck, die OpenSSH-Public-Key-Zeile und den Vertrauenszeitstempel. Ein passender Schlüssel wird nach der Bestätigung der ersten Verwendung stillschweigend akzeptiert. Ein geänderter Schlüssel ist fest gesperrt und wird nicht automatisch ersetzt. Wenn die Überprüfung des Hostschlüssels für eine Verbindung auf „Akzeptieren neuer“ gelockert wird, wird ein unbekannter Schlüssel ohne Bestätigungsaufforderung angeheftet – ein geänderter Schlüssel wird in beiden Modi weiterhin abgelehnt.</p>
+<p>Der versionierte Trust-on-First-Use-Speicher für interaktive Terminal- und SFTP-Verbindungen und der von Mosh verwendete SSH-Bootstrap. Einträge werden durch normalisierten Hostnamen und Port verschlüsselt und enthalten den Public-Key-Algorithmus, den OpenSSH-SHA-256-Fingerabdruck, die OpenSSH-Public-Key-Zeile und den Vertrauenszeitstempel. Ein passender Schlüssel wird nach der Bestätigung der ersten Verwendung stillschweigend akzeptiert; Ein geänderter Schlüssel ist fest gesperrt und wird nicht automatisch ersetzt. Wenn die Überprüfung des Hostschlüssels für eine Verbindung auf „Akzeptieren neuer“ gelockert wird, wird ein unbekannter Schlüssel ohne Bestätigungsaufforderung angeheftet – ein geänderter Schlüssel wird in beiden Modi weiterhin abgelehnt.</p>
 <p>Schreibvorgänge verwenden eine temporäre Datei plus atomare Ersetzung, während <code>ssh-host-keys.properties.lock</code> separate korTTY-Prozesse koordiniert, sodass ihre Pins sicher zusammengeführt werden. Die Eigenschaftendatei ist in verschlüsselten Backups enthalten; die vorübergehende Sperrdatei ist es nicht. Dieser endpunktbasierte Speicher ist von den JobScheduler-Hostschlüssel-Pins in <code>job-scheduler.xml</code> getrennt, die für unbeaufsichtigte Vorgänge nach Verbindungs-ID kodiert sind.</p>
 <h3 id="gpg-keysxml">gpg-keys.xml<a class="headerlink" href="#gpg-keysxml" title="Permanent link">&para;</a></h3>
 <p>Speichert GPG-Schlüsselinformationen für die Backup-Verschlüsselung.</p>
@@ -3214,7 +3214,7 @@
 - Importquelle (Systemschlüsselbund oder manuelle Eingabe)</p>
 <h3 id="global-settingsxml">global-settings.xml<a class="headerlink" href="#global-settingsxml" title="Permanent link">&para;</a></h3>
 <p>Globale Anwendungseinstellungen und Standardeinstellungen.</p>
-<p><strong>Enthält:</strong> jede Einstellung des Dialogs <a href="settings/index.html">Globale Einstellungen</a>, im Folgenden nach Bereichen gruppiert.</p>
+<p><strong>Enthält:</strong> alle Einstellungen des Dialogs <a href="settings/index.html">Globale Einstellungen</a>, unten gruppiert nach dem Bereich, zu dem sie gehören.</p>
 <h4 id="aussehen-und-schriftarten">Aussehen und Schriftarten<a class="headerlink" href="#aussehen-und-schriftarten" title="Permanent link">&para;</a></h4>
 <ul>
 <li>UI-Design- und Darstellungseinstellungen</li>
@@ -3222,56 +3222,58 @@
 <li>UI-Schriftgröße (Prozent, 80–160 % oder automatisch von der Bildschirmauflösung abgeleitet) und die separate Textgröße der Anleitungs (70–250 %)</li>
 <li>Terminal-Farbkonfiguration</li>
 </ul>
-<h4 id="fenster-menus-und-panels">Fenster, Menüs und Panels<a class="headerlink" href="#fenster-menus-und-panels" title="Permanent link">&para;</a></h4>
+<h4 id="fenster-menus-und-bedienfelder">Fenster, Menüs und Bedienfelder<a class="headerlink" href="#fenster-menus-und-bedienfelder" title="Permanent link">&para;</a></h4>
 <ul>
 <li>Geometrie und Status des Hauptfensters (Position, Größe, maximierter Status) sowie ein benannter Geometrieeintrag für jeden Anwendungsdialog, dessen Größe vom Benutzer geändert werden kann</li>
 <li>Präferenz für die Sichtbarkeit der Menüleiste</li>
 <li>Dashboard-Sichtbarkeitsstatus</li>
-<li>Flag „Toolfenster als Registerkarten öffnen“</li>
+<li>Flag „Toolfenster als Registerkarten öffnen“.</li>
 <li>Angedocktes Live-Sitzungsjournal-Panel: Platzierung (versteckt/links/rechts) und Breite</li>
 <li>JobScheduler-Statusanzeigeeinstellung</li>
 <li>Letzte Vorschau-Zoomstufe des ASCII-Art-Dialogfelds</li>
+<li>Letzte ASCII-Art-Bildgröße (Klein bis Extragroß) für die Registerkarte „AI-Bild“ und separat für die Registerkarte „Bilddatei“.</li>
+<li>Letztes ASCII-Art-Kopierformat: Kommentarstil, Ausgabecodestil und Lücke</li>
 </ul>
-<h4 id="terminal-und-verbindungen">Terminal und Verbindungen<a class="headerlink" href="#terminal-und-verbindungen" title="Permanent link">&para;</a></h4>
+<h4 id="terminal-und-anschlusse">Terminal und Anschlüsse<a class="headerlink" href="#terminal-und-anschlusse" title="Permanent link">&para;</a></h4>
 <ul>
 <li>Standardeinstellungen für die Terminalprotokollierung</li>
-<li>Standardeinstellungen für Terminaleffekt-Plugins</li>
-<li>SSH-Keep-Alive-Einstellungen</li>
+<li>Standardeinstellungen für das Terminaleffekt-Plugin</li>
+<li>SSH Keep-Alive-Einstellungen</li>
 <li>Verbindungszeitlimit und Standardwerte für Wiederholungsversuche</li>
 </ul>
-<h4 id="ki-modelle-und-wissensspeicher">KI, Modelle und Wissensspeicher<a class="headerlink" href="#ki-modelle-und-wissensspeicher" title="Permanent link">&para;</a></h4>
+<h4 id="ai-modelle-und-wissensspeicher">AI, Modelle und Wissensspeicher<a class="headerlink" href="#ai-modelle-und-wissensspeicher" title="Permanent link">&para;</a></h4>
 <ul>
-<li>KI-Profil-Standards, Text-/Coding-Rollenzuweisungen, eingebettete GGUF-Referenzen, Prompt-Voreinstellungen und Wissensspeicher-Zuordnungen</li>
-<li>RAG-Einbettungsmodell-ID und bevorzugtes Laufzeit-Backend sowie Update-Richtlinie für llama.cpp</li>
-<li>Optional verschlüsseltes Hugging-Face-Token</li>
+<li>AI-Profilstandards, Text-/Coding-Rollenzuweisungen, eingebettete GGUF-Referenzen, Eingabeaufforderungsvoreinstellungen und Wissensspeicherzuordnungen</li>
+<li>RAG-Einbettungsmodell-ID und llama.cpp bevorzugte Laufzeit-Backend-/Update-Richtlinie</li>
+<li>Optional verschlüsseltes Hugging Face-Token</li>
 <li>Zeitlimit für KI-Anfragen in Minuten (0 = keine Begrenzung)</li>
 </ul>
 <h4 id="sitzungsjournal">Sitzungsjournal<a class="headerlink" href="#sitzungsjournal" title="Permanent link">&para;</a></h4>
 <ul>
 <li>Speicherordner und Capture-Log-Format</li>
-<li>KI-Zusammenfassungen (Intervall und Profil) und der Umschalter für die KI-Screenshot-Analyse</li>
-<li>Übersetzungssprache für Notizen</li>
-<li>KI-Zeilenfenster und Token-Budget</li>
-<li>Erscheinungsbild der Journalseite und Endhöhe des Live-Protokolls</li>
+<li>KI-Zusammenfassungen (Intervall und Profil) und der Schalter für die KI-Screenshot-Analyse</li>
+<li>Übersetzungssprache beachten</li>
+<li>AI-Zeilenfenster und Token-Budget</li>
+<li>Journal-Seitendarstellung und Höhe des Live-Log-Endes</li>
 <li>Benutzerdefinierte Markierungen und Markierungsregeln</li>
-<li>Die gespeicherten Geometrien der Journalfenster</li>
+<li>Die gespeicherten Journalfenstergeometrien</li>
 </ul>
 <h4 id="snippets-und-ubersetzung">Snippets und Übersetzung<a class="headerlink" href="#snippets-und-ubersetzung" title="Permanent link">&para;</a></h4>
 <ul>
 <li>Standardeinstellungen der Snippet-Eingabe-Härtung (aktiviert, Optionen, maximale Dateigröße)</li>
-<li>Zielsprache der Snippet-Übersetzung</li>
+<li>Snippet-Übersetzung Zielsprache</li>
 <li>Übersetzungs-API-Einstellungen</li>
 </ul>
 <h4 id="export-und-aufzeichnung">Export und Aufzeichnung<a class="headerlink" href="#export-und-aufzeichnung" title="Permanent link">&para;</a></h4>
 <ul>
-<li>PDF-Export-Wasserzeichen (standardmäßig deaktiviert; benutzerdefinierter Text und benutzerdefinierte Farbe)</li>
+<li>PDF-Exportwasserzeichen (standardmäßig deaktiviert; benutzerdefinierter Text und benutzerdefinierte Farbe)</li>
 <li>Dokumentexport-Fußzeile (standardmäßig aktiviert; benutzerdefinierter Text)</li>
 <li>Video-/Aufnahmeeinstellungen</li>
 </ul>
 <h4 id="sicherheit-und-backup">Sicherheit und Backup<a class="headerlink" href="#sicherheit-und-backup" title="Permanent link">&para;</a></h4>
 <ul>
 <li>Master-Passwort-Auto-Login-Flag (<code>skipMasterPasswordPrompt</code>)</li>
-<li>SSH-Opt-out für die Überprüfung des Hostschlüssels: das globale Flag und die Liste der Verbindungsgruppen, deren Überprüfung auf „Neue akzeptieren“ gelockert wird</li>
+<li>SSH-Opt-out für die Überprüfung des Hostschlüssels: das globale Flag und die Liste der Verbindungsgruppen, deren Überprüfung auf „Akzeptieren von Neu“ gelockert wird</li>
 <li>Backup-Verschlüsselungsmethode und Aufbewahrungseinstellungen</li>
 </ul>
 <h3 id="llmmodelsxml">llm/models.xml<a class="headerlink" href="#llmmodelsxml" title="Permanent link">&para;</a></h3>
@@ -3303,7 +3305,7 @@
 <ul>
 <li>Wissensspeicher-ID/Name/Typ, lokales Snapshot-Verzeichnis oder Qdrant-Endpunkt/Sammlung, Einbettungsmodell-ID und Vektordimensionen</li>
 <li>Text-, Codierungs- und autonome Nutzungszuweisungen</li>
-<li>Stabile ID pro Quelle, kanonischer Pfad, Datei-/Verzeichnistyp, aktiviertes Flag, automatischer/manueller Synchronisierungsmodus, Größenbeschränkung, Einschluss-/Ausschluss-Globs, <code>.gitignore</code>-Präferenz, Inhalts-Hashes, letzter Status, Anzahl der Dateien/Chunks/Probleme und Zeitpunkt der letzten erfolgreichen Indexierung</li>
+<li>Stabile ID pro Quelle, kanonischer Pfad, Datei-/Verzeichnistyp, aktiviertes Flag, automatischer/manueller Synchronisierungsmodus, Größenbeschränkung, Ein-/Ausschluss von Globs, <code>.gitignore</code>-Präferenz, Inhalts-Hashes, letzter Status, Anzahl der Dateien/Chunks/Probleme und Zeitpunkt der letzten erfolgreichen Indexierung</li>
 </ul>
 <p>Das Unterverzeichnis <code>rag/stores/</code> enthält regenerierbare <code>index.hnsw</code>-Snapshots. Ein v2-Snapshot bettet seine Formatversion, Vektordimensionen, Einbettungsmodell-ID, hierarchische Diagrammparameter, Einstiegspunkt, Chunk-Metadaten, Vektoren, Knotenebenen und Nachbarn pro Ebene ein; Eine Nichtübereinstimmung wird abgelehnt und erfordert einen Neuaufbau. Ein gültiger Single-Layer-V1-Snapshot der Legacy-Version wird beim Öffnen neu erstellt und atomar migriert.</p>
 <h3 id="job-schedulerxml">job-scheduler.xml<a class="headerlink" href="#job-schedulerxml" title="Permanent link">&para;</a></h3>
@@ -3468,7 +3470,7 @@
 </tr>
 <tr>
 <td>Hostschlüssel für interaktives Terminal/SFTP/Mosh</td>
-<td>Normalisiertes Host:Port-TOFU mit OpenSSH SHA-256-Fingerabdrücken und Fail-Closed-Änderungserkennung; Das optionale Opt-Out pro Verbindung/Gruppe/Global lockert nur die Aufforderung zum Akzeptieren neuer Schlüssel mit unbekannten Schlüsseln</td>
+<td>Normalisiertes Host:Port-TOFU mit OpenSSH SHA-256-Fingerabdrücken und Fail-Closed-Änderungserkennung; Die optionale pro-Verbindung/Gruppe/globale Opt-out-Option lockert nur die Aufforderung zur Annahme neuer Schlüssel mit unbekannten Schlüsseln</td>
 </tr>
 <tr>
 <td>Anmeldeinformationen (Benutzername/Passwort)</td>

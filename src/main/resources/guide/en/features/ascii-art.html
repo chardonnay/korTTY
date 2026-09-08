@@ -2149,6 +2149,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#image-file-tab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Image File tab
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#preview-zoom" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2167,6 +2178,34 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Copying to clipboard">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#comment-styles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comment styles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output code
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -2503,6 +2542,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#image-file-tab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Image File tab
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#preview-zoom" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2521,6 +2571,34 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Copying to clipboard">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#comment-styles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comment styles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output code
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -2564,7 +2642,7 @@
 
 
 <h1 id="ascii-art">ASCII art<a class="headerlink" href="#ascii-art" title="Permanent link">&para;</a></h1>
-<p>Create ASCII art in two ways: render text as a FIGlet banner, or let the AI draw a picture from a subject word such as "house". Both sit in one dialog behind their own tab, share a zoomable preview, and copy to the clipboard for use in terminal scripts, login banners, or documentation.</p>
+<p>Create ASCII art in three ways: render text as a FIGlet banner, let the AI draw a picture from a subject such as "house in the forest", or convert an existing image file. All three sit in one dialog behind their own tab, share a zoomable preview, and copy to the clipboard — plain, as a code comment, or as ready-made print statements — for use in terminal scripts, login banners, or documentation.</p>
 <h2 id="accessing-the-tool">Accessing the tool<a class="headerlink" href="#accessing-the-tool" title="Permanent link">&para;</a></h2>
 <p>Open the dialog from <strong>Tools &gt; ASCII Art...</strong> in the menu bar, or press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-a">A</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-a">A</kbd></span> on macOS).</p>
 <h2 id="text-banner-tab">Text Banner tab<a class="headerlink" href="#text-banner-tab" title="Permanent link">&para;</a></h2>
@@ -2575,7 +2653,7 @@
 <p>Type or paste the text to convert into the <strong>Text</strong> field. Multi-line input is supported — each line is converted on its own, and blank lines stay blank.</p>
 <p>The <strong>Preview</strong> re-renders as you type and whenever you change the style.</p>
 <h2 id="ai-picture-tab">AI Picture tab<a class="headerlink" href="#ai-picture-tab" title="Permanent link">&para;</a></h2>
-<p>Instead of lettering, this tab asks a model to draw the subject as a picture.</p>
+<p>Instead of lettering, this tab asks a model to draw the subject as a small vector drawing (a restricted SVG), which korTTY then converts into ASCII characters itself — a model is far better at describing shapes than at typing aligned characters.</p>
 <table>
 <thead>
 <tr>
@@ -2586,7 +2664,11 @@
 <tbody>
 <tr>
 <td><strong>Subject</strong></td>
-<td>The thing to draw, for example <code>house</code>. Pressing <span class="keys"><kbd class="key-enter">Enter</kbd></span> starts the generation.</td>
+<td>The thing to draw, for example <code>house in the forest</code>. Pressing <span class="keys"><kbd class="key-enter">Enter</kbd></span> starts the generation.</td>
+</tr>
+<tr>
+<td><strong>Size</strong></td>
+<td>The character grid the picture is fitted into: Small (40 × 20), Medium (60 × 30), Large (80 × 40) or Extra large (100 × 50). Remembered between sessions.</td>
 </tr>
 <tr>
 <td><strong>Generate</strong></td>
@@ -2598,17 +2680,59 @@
 </tr>
 <tr>
 <td><strong>New variation</strong></td>
-<td>Redraws the same subject with a different treatment — viewing angle, level of detail, line style, scene context or proportions — asking for something different again on each retry.</td>
+<td>Redraws the same subject with a different treatment — viewpoint, level of detail, scene context, geometric style, proportions, contrast or tones — asking for something different again on each retry.</td>
+</tr>
+<tr>
+<td><strong>Cancel</strong></td>
+<td>Stops the running generation; the previous picture stays.</td>
 </tr>
 </tbody>
 </table>
-<p>The tab needs at least one configured AI profile and the AI features switch enabled; otherwise its controls stay disabled and the status line says so. Errors and "no usable picture" replies are reported in the same status line.</p>
+<p>The tab needs at least one configured AI profile and the AI features switch enabled; otherwise its controls stay disabled and the status line says so.</p>
+<p>The status line names the current step: asking the AI for a drawing, converting it to characters, asking once more, or asking the AI to type the picture directly. If an answer holds no usable drawing, korTTY asks once more and tells the model what was wrong; if that fails too, it falls back to asking the model to type the ASCII picture directly and says so in the status line. Errors, a cut-off answer and "no usable picture" replies are reported there as well, together with the reason.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>The model is asked for printable ASCII only, at most 60 characters per line and 30 lines tall, so a result stays readable in the preview. Replies are cleaned before they are shown: a fenced code block is unwrapped, reasoning blocks and control characters are removed, tabs become spaces, and blank leading and trailing lines are trimmed.</p>
+<p>The model returns a drawing rather than characters: korTTY draws it off-screen, fits it into the chosen size and picks one printable ASCII character per cell, so the result is always plain ASCII that fits the grid, with blank edge rows and columns trimmed. A drawing is checked before it is shown — it must contain shapes, lie inside its canvas, be neither blank nor one solid block, and be large enough. Only the direct-typing fallback shows the model's own characters, cleaned as before and cropped to the chosen size: a fenced code block is unwrapped, reasoning blocks and control characters are removed, tabs become spaces, and blank leading and trailing lines are trimmed. For this action korTTY switches the model's reasoning off where the profile allows it, caps the answer length and skips knowledge stores, because a picture gains nothing from either.</p>
+</div>
+<h2 id="image-file-tab">Image File tab<a class="headerlink" href="#image-file-tab" title="Permanent link">&para;</a></h2>
+<p>This tab converts an existing picture — a photo, a logo, an icon — into ASCII art on your machine; no AI profile is involved. Open a file with <strong>Open image…</strong> or drop it onto the tab. PNG, JPEG, GIF and BMP are read.</p>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Size</strong></td>
+<td>The character grid the picture is fitted into, keeping its aspect ratio: a landscape photo uses fewer rows, a portrait one fewer columns. Remembered between sessions.</td>
+</tr>
+<tr>
+<td><strong>Brightness</strong></td>
+<td>Shifts all tones lighter or darker.</td>
+</tr>
+<tr>
+<td><strong>Contrast</strong></td>
+<td>Spreads or flattens the tones around mid grey.</td>
+</tr>
+<tr>
+<td><strong>Invert</strong></td>
+<td>Swaps light and dark. ASCII ink is dark on light, so a light subject on a dark background reads correctly only when inverted.</td>
+</tr>
+<tr>
+<td><strong>Reset</strong></td>
+<td>Returns brightness, contrast and inversion to neutral.</td>
+</tr>
+</tbody>
+</table>
+<p>Every change converts again immediately, and the status line shows the source size in pixels and the result size in characters.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Before your adjustments apply, korTTY stretches the picture's own tonal range to full contrast (ignoring the darkest and lightest percent of pixels), because photos cluster in the mid tones and would otherwise become one grey block. Transparent pixels count as white paper. Very large files are reduced to 1600 pixels on the long edge when they are opened; more detail cannot reach the character grid anyway. Freestanding subjects, logos and icons convert well; busy photographs need a large size and usually some contrast.</p>
 </div>
 <h2 id="preview-zoom">Preview zoom<a class="headerlink" href="#preview-zoom" title="Permanent link">&para;</a></h2>
-<p>Both tabs share one zoom level, so a banner and a picture are always shown at the same size.</p>
+<p>All tabs share one zoom level, so a banner and a picture are always shown at the same size.</p>
 <table>
 <thead>
 <tr>
@@ -2633,7 +2757,168 @@
 </table>
 <p>The percentage between the buttons shows the current level, from 50 % to 333 %, where 100 % is the default 12 px monospace size.</p>
 <h2 id="copying-to-clipboard">Copying to clipboard<a class="headerlink" href="#copying-to-clipboard" title="Permanent link">&para;</a></h2>
-<p><strong>Copy to Clipboard</strong> copies the preview of the tab that is currently open, so you get the banner from the Text Banner tab and the picture from the AI Picture tab.</p>
+<p><strong>Copy to Clipboard</strong> copies the preview of the tab that is currently open, so you get the banner from the Text Banner tab and the picture from the AI Picture or Image File tab. The <strong>Copy as</strong> row above the buttons decides the shape of what lands on the clipboard, so a picture can be pasted straight into program code:</p>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Comment</strong></td>
+<td>Puts a comment marker in front of every picture line, or wraps the picture in a block comment, so it can sit inside source code without being executed.</td>
+</tr>
+<tr>
+<td><strong>Output code</strong></td>
+<td>Turns every picture line into a print statement of the chosen language, with the quoting and escaping that language needs, so a script prints the picture as-is.</td>
+</tr>
+<tr>
+<td><strong>Gap</strong></td>
+<td>The number of spaces placed before every picture line — between the comment marker and the picture, or inside the printed string — to align the picture. 0 to 20, default 1.</td>
+</tr>
+</tbody>
+</table>
+<p>Comment and output code exclude each other: choosing one resets the other to <strong>None</strong>. All three choices are remembered between sessions, and the copy button's tooltip shows the first line as it will be copied.</p>
+<h3 id="comment-styles">Comment styles<a class="headerlink" href="#comment-styles" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Style</th>
+<th>Languages</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>#</code></td>
+<td>Bash, Perl, Python, Ruby, YAML, TOML, PowerShell</td>
+</tr>
+<tr>
+<td><code>//</code></td>
+<td>Java, C, C++, JavaScript, TypeScript, Go, Rust, Kotlin, Swift, PHP</td>
+</tr>
+<tr>
+<td><code>--</code></td>
+<td>SQL, Lua, Haskell, Ada</td>
+</tr>
+<tr>
+<td><code>;</code></td>
+<td>Lisp, Clojure, INI, assembler</td>
+</tr>
+<tr>
+<td><code>%</code></td>
+<td>LaTeX, MATLAB, Erlang</td>
+</tr>
+<tr>
+<td><code>'</code></td>
+<td>VB, VBA</td>
+</tr>
+<tr>
+<td><code>REM</code></td>
+<td>Batch</td>
+</tr>
+<tr>
+<td><code>/* … */</code></td>
+<td>C-style block comment; every picture line is prefixed with <code>*</code></td>
+</tr>
+<tr>
+<td><code>&lt;!-- … --&gt;</code></td>
+<td>XML, HTML, SVG, Markdown</td>
+</tr>
+<tr>
+<td><code>[ "…", … ]</code></td>
+<td>JSON string array — the picture as a list of string values</td>
+</tr>
+</tbody>
+</table>
+<h3 id="output-code">Output code<a class="headerlink" href="#output-code" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Language</th>
+<th>Statement per picture line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bash / sh heredoc</td>
+<td><code>cat &lt;&lt;'KORTTY_ASCII_ART'</code> … <code>KORTTY_ASCII_ART</code> — no escaping at all</td>
+</tr>
+<tr>
+<td>Bash</td>
+<td><code>echo '…'</code></td>
+</tr>
+<tr>
+<td>POSIX sh</td>
+<td><code>printf '%s\n' '…'</code></td>
+</tr>
+<tr>
+<td>Perl</td>
+<td><code>print '…', "\n";</code></td>
+</tr>
+<tr>
+<td>Python</td>
+<td><code>print("…")</code></td>
+</tr>
+<tr>
+<td>Ruby</td>
+<td><code>puts '…'</code></td>
+</tr>
+<tr>
+<td>PHP</td>
+<td><code>echo '…', PHP_EOL;</code></td>
+</tr>
+<tr>
+<td>JavaScript</td>
+<td><code>console.log("…");</code></td>
+</tr>
+<tr>
+<td>Java</td>
+<td><code>System.out.println("…");</code></td>
+</tr>
+<tr>
+<td>C</td>
+<td><code>puts("…");</code></td>
+</tr>
+<tr>
+<td>C#</td>
+<td><code>Console.WriteLine("…");</code></td>
+</tr>
+<tr>
+<td>Go</td>
+<td><code>fmt.Println("…")</code></td>
+</tr>
+<tr>
+<td>Rust</td>
+<td><code>println!("…");</code></td>
+</tr>
+<tr>
+<td>Kotlin</td>
+<td><code>println("…")</code></td>
+</tr>
+<tr>
+<td>Swift</td>
+<td><code>print("…")</code></td>
+</tr>
+<tr>
+<td>Lua</td>
+<td><code>print("…")</code></td>
+</tr>
+<tr>
+<td>PowerShell</td>
+<td><code>Write-Output '…'</code></td>
+</tr>
+<tr>
+<td>Batch</td>
+<td><code>echo(…</code></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>A few characters have to change so the copied text stays valid: inside a C-style block comment <code>*/</code> becomes <code>+/</code>, inside an XML comment every second hyphen of a <code>--</code> run becomes <code>=</code> because XML forbids <code>--</code> in comments, JSON strings escape backslashes and quotes, Rust doubles <code>{</code> and <code>}</code>, Kotlin escapes <code>$</code>, C rewrites <code>??</code> so it is not read as a trigraph, and Batch escapes <code>^ &amp; | &lt; &gt; ( ) "</code> and doubles <code>%</code>. Line comments and the Bash heredoc copy the picture unchanged. Three cases stay outside what escaping can fix: with a gap of 0, Bash's <code>echo</code> swallows a picture line that is exactly <code>-n</code> or <code>-e</code> (use the heredoc, <code>printf</code>, or the default gap of 1); a Batch file with delayed expansion enabled still interprets <code>!</code>, and a <code>REM</code> line still expands <code>%~</code>; and a <code>//</code> comment whose last picture line ends in a backslash would swallow the next source line in C and C++, so korTTY appends an empty <code>//</code> line in that case.</p>
+</div>
 <h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h2>
 <p>The <strong>banner</strong> style with the input text "Nostromo":</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a> #     #                                                 
@@ -2645,7 +2930,8 @@
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a> #     #  ####   ####    #   #    #  ####  #    #  ####  
 </span></code></pre></div>
 <h2 id="dialog-state">Dialog state<a class="headerlink" href="#dialog-state" title="Permanent link">&para;</a></h2>
-<p>The dialog remembers its window position, its size, and the preview zoom level between sessions.</p>
+<p>The dialog remembers its window position, its size, the preview zoom level, the picture sizes of the AI Picture and Image File tabs, and the copy settings between sessions.</p>
+<p><img alt="ASCII art from an image file" src="../assets/screenshots/tools/ascii-art-image.png" /></p>
 <p><img alt="ASCII art generator" src="../assets/screenshots/tools/ascii-art.png" /></p>
 
 

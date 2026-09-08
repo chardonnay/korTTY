@@ -2273,6 +2273,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tools
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ai-assistent" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2421,6 +2432,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tools
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ai-assistent" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2474,6 +2496,13 @@
 <li><strong>Sequenz-, Zustands-, Klassen- und ER-Diagramme skalieren jetzt mit dem Fenster</strong> – Mermaid fügt ein Inline-<code>max-width</code> in die Stamm-SVG jeder Familie ein, deren <code>useMaxWidth</code>-Option aktiviert ist, also alle außer dem Flussdiagramm, das korTTY explizit konfiguriert, und diese Obergrenze übertraf die eigene Größe des Viewers: Diese vier blieben in ihrer natürlichen Größe, egal wie groß das Fenster wurde, während die Zoombezeichnung auf 311 % stieg. Die Inline-Größendeklarationen werden jetzt entfernt, bevor die Breite und Höhe aus der ViewBox geschrieben werden. Wie groß ein Diagramm gezeichnet wird, ist also allein Sache des Containers – für die Familien kann korTTY später auch gerendert werden.</li>
 <li><strong>Ein Zoom-Schieberegler für das Diagramm</strong> – Die Schaltflächen <strong>−</strong> / <strong>+</strong> / <strong>Anpassen</strong> der Diagramm-Symbolleiste verfügen jetzt über einen Schieberegler dazwischen, der den Maßstab direkt festlegt. Seine Spur verläuft in Zweierpotenzen, sodass die angepasste Größe in der Mitte liegt und ein Schritt zu beiden Seiten sie halbiert oder verdoppelt, anstelle einer linearen Spur, die die angepasste Größe auf einem Fünftel des Weges belassen würde. Die Schaltflächen und der Schieberegler steuern einen Wert, sodass jeder dem anderen folgt, und <strong>Fit</strong> bringt beide in die Mitte zurück. Da bei jedem Zoomschritt das gesamte Diagramm neu gezeichnet wird, wird ein gezogener Schieberegler einige Male pro Sekunde neu gezeichnet und noch einmal auf den Wert, bei dem er losgelassen wird, sodass das Flussdiagramm eines 4.000-Zeilen-Skripts dem Ziehen reibungslos folgt. Die Zoom-Steuerelemente bleiben beim Umbrechen der Symbolleiste als eine Gruppe zusammen.</li>
 <li><strong>Die angedockte Änderungsvorschau behält ihre Größe und Position bei</strong> – die neben einer <a href="../features/snippets.html#ai-codeaktionen">vollständigen Codeanalyse angedockte Vorschau.</a> wurde mit 1040 × 700 statt in der angedockten Größe geöffnet, verschwand an den Bildschirmrand, als alle drei Fenster gekachelt werden mussten, und konnte ein leeres Band anzeigen, dessen Inhalt nur die Hälfte des Fensters bedeckte. Ein frisch angedocktes Fenster ignoriert jetzt für eine Sekunde die späten Größenberichte der Plattform und bestätigt seine Platzierung erneut, öffnet sich in seiner angedockten Größe und überprüft, ob sein Inhalt es immer noch bedeckt, wenn das Fenster, die Szene oder der Inhalt seine Größe ändert.</li>
+</ul>
+<h3 id="tools">Tools<a class="headerlink" href="#tools" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>KI-Bilder im ASCII-Art-Tool stimmen jetzt mit ihrem Thema überein und kommen in Sekunden statt in Minuten an</strong> – die Registerkarte „KI-Bild“ forderte das Modell auf, ein ausgerichtetes Zeichenbild einzugeben, was Modelle schlecht und langsam machen: denkende Modelle gaben ihr gesamtes Budget für Überlegungen aus, die Antwort hatte keine Ausgabeobergrenze, eine abgeschnittene Antwort sah aus wie eine leere, und jede Anfrage kostete zunächst eine Suche im Wissensspeicher. Das Modell gibt nun eine kleine Vektorzeichnung zurück, die von korTTY gerastert und in ASCII selbst konvertiert wird. Die Reasoning wird ausgeschaltet und die Antwort für diese Aktion begrenzt. Wissensspeicher werden übersprungen Zeichen und Schritt-für-Schritt-Statustexte. Abgelehnte Antworten werden zur Diagnose unter <code>ai-answers/</code> gespeichert. Siehe <a href="../features/ascii-art.html#ai-registerkarte-bild">ASCII art</a>.</li>
+<li><strong>ASCII-Grafik aus einem vorhandenen Bild</strong> – die neue Registerkarte <strong>Bilddatei</strong> des ASCII-Art-Tools wandelt ein Foto, ein Logo oder ein Symbol auf Ihrem Computer mit demselben Konverter in Zeichen um, den auch die KI-Bilder verwenden: Öffnen Sie ein PNG, JPEG, GIF oder BMP oder legen Sie es auf der Registerkarte ab, wählen Sie die Größe aus, passen Sie Helligkeit und Kontrast an und kehren Sie ein helles Motiv auf einem dunklen Hintergrund um. Der Tonwertbereich wird automatisch gedehnt, sodass Mitteltonfotos nicht zu einem einzigen Graublock werden. Siehe <a href="../features/ascii-art.html#registerkarte-bilddatei">Registerkarte „Bilddatei“</a>.</li>
+<li><strong>ASCII-Grafik direkt in Code kopieren</strong> – die neue Zeile <strong>Kopieren als</strong> im ASCII-Art-Tool stellt jeder Zeile die Kommentarmarkierung Ihrer Sprache voran, umschließt das Bild in einen Blockkommentar oder ein JSON-String-Array oder wandelt jede Zeile in eine druckfertige Anweisung für Bash, Perl, Python, Ruby, PHP, JavaScript, Java, C, C#, Go, Rust, Kotlin, Swift, Lua, PowerShell oder Batch mit den Anführungszeichen und um Diese Sprachanforderungen werden umgangen, und eine <strong>Lücke</strong>-Einstellung richtet das Bild aus. Siehe <a href="../features/ascii-art.html#in-die-zwischenablage-kopieren">In die Zwischenablage kopieren</a>.</li>
+<li><strong>Das ASCII-Art-Tool, der Guide-Viewer und die Journalfenster werden wieder in der Größe geöffnet, die Sie ihnen gegeben haben</strong> – diese Fenster speicherten ihre Geometrie, zeichneten jedoch nie den UI-Schriftmaßstab auf, in dem die Größe gemessen wurde. Sobald also ein anderes Fenster einen anderen Maßstab aufgezeichnet hatte, galt die gespeicherte Größe bei jedem Öffnen als veraltet und nur die Position wurde zurückgegeben. Wenn Sie sie jetzt schließen, wird dieser Datensatz aktualisiert, sodass beim nächsten Öffnen sowohl Position als auch Größe wiederhergestellt werden. Siehe <a href="../features/ascii-art.html#dialogstatus">ASCII art</a>.</li>
 </ul>
 <h3 id="ai-assistent">AI-Assistent<a class="headerlink" href="#ai-assistent" title="Permanent link">&para;</a></h3>
 <ul>

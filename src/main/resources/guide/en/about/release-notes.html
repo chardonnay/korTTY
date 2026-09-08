@@ -2273,6 +2273,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tools
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ai-assistant" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2421,6 +2432,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tools
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#ai-assistant" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2474,6 +2496,13 @@
 <li><strong>Sequence, state, class and ER diagrams now scale with the window</strong> — Mermaid puts an inline <code>max-width</code> on the root SVG of every family whose <code>useMaxWidth</code> option is on, which is all of them except the flowchart korTTY configures explicitly, and that cap outranked the viewer's own sizing: those four stayed at their natural size however large the window grew, while the zoom label climbed to 311%. The inline size declarations are now stripped before the width and height are written from the viewBox, so how large a diagram is drawn is the container's business alone — for the families korTTY may render later as well.</li>
 <li><strong>A zoom slider for the diagram</strong> — the diagram toolbar's <strong>−</strong> / <strong>+</strong> / <strong>Fit</strong> buttons now have a slider between them that sets the scale directly. Its track runs in powers of two, so the fitted size sits in the middle and one step to either side halves or doubles it, instead of a linear track that would leave the fitted size at a fifth of the way. The buttons and the slider drive one value, so each follows the other, and <strong>Fit</strong> returns both to the middle. Because every zoom step redraws the whole diagram, a dragged slider redraws a few times a second and once more on the value it is released on, so a 4,000-line script's flowchart follows the drag smoothly. The zoom controls stay together as one group when the toolbar wraps.</li>
 <li><strong>The docked change preview keeps its size and place</strong> — the preview docked beside a <a href="../features/snippets.html#ai-code-actions">Full code analysis</a> opened at 1040×700 instead of its docked size, drifted to the screen edge when all three windows had to be tiled, and could show a blank band with its content covering only half the window. A freshly docked window now ignores the platform's late size reports for a second and re-asserts its placement, opens at its docked size, and checks that its content still covers it whenever the window, the scene or the content changes size.</li>
+</ul>
+<h3 id="tools">Tools<a class="headerlink" href="#tools" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>AI pictures in the ASCII Art tool now match their subject and arrive in seconds instead of minutes</strong> — the AI Picture tab asked the model to type an aligned character picture, which models do badly and slowly: thinking models spent their whole budget reasoning about it, the reply had no output cap, a cut-off answer looked like an empty one, and every request first paid for a knowledge-store search. The model now returns a small vector drawing that korTTY rasterises and converts to ASCII itself, reasoning is switched off and the answer capped for this action, knowledge stores are skipped, a cut-off drawing is shown as far as it arrived, an unusable answer gets one second request naming the defect and then a direct-typing fallback, and the tab gained a <strong>Cancel</strong> button, a <strong>Size</strong> dropdown from 40 × 20 to 100 × 50 characters, and step-by-step status texts. Rejected answers are kept under <code>ai-answers/</code> for diagnosis. See <a href="../features/ascii-art.html#ai-picture-tab">ASCII art</a>.</li>
+<li><strong>ASCII art from an existing image</strong> — the new <strong>Image File</strong> tab of the ASCII Art tool converts a photo, logo or icon on your machine into characters through the same converter the AI pictures use: open a PNG, JPEG, GIF or BMP or drop it onto the tab, pick the size, adjust brightness and contrast, and invert a light subject on a dark background. The tonal range is stretched automatically so mid-tone photographs do not turn into one grey block. See <a href="../features/ascii-art.html#image-file-tab">Image File tab</a>.</li>
+<li><strong>Copy ASCII art straight into code</strong> — the new <strong>Copy as</strong> row in the ASCII Art tool prefixes every line with the comment marker of your language or wraps the picture in a block comment or a JSON string array, or turns each line into a ready print statement for Bash, Perl, Python, Ruby, PHP, JavaScript, Java, C, C#, Go, Rust, Kotlin, Swift, Lua, PowerShell or Batch with the quoting and escaping that language needs, and a <strong>Gap</strong> setting aligns the picture. See <a href="../features/ascii-art.html#copying-to-clipboard">Copying to clipboard</a>.</li>
+<li><strong>The ASCII Art tool, the guide viewer and the journal windows reopen at the size you gave them</strong> — these windows stored their geometry but never recorded the UI font scale the size was measured at, so once any other window had recorded a different scale the stored size counted as stale on every open and only the position came back. Closing them now refreshes that record, so the next open restores both position and size. See <a href="../features/ascii-art.html#dialog-state">ASCII art</a>.</li>
 </ul>
 <h3 id="ai-assistant">AI assistant<a class="headerlink" href="#ai-assistant" title="Permanent link">&para;</a></h3>
 <ul>
