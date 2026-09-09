@@ -247,7 +247,7 @@ KorTTY relies on carefully curated, production-tested dependencies:
 | | PDFBox | 3.0.8 | PDF export and RAG text extraction |
 | **Archive** | Apache Commons Compress | 1.28.0 | TAR, BZ2, XZ support |
 | | Tukaani xz | 1.12 | XZ compression |
-| | zstd-jni | 1.5.7-15 | zstd compression for rotated session-journal parts |
+| | zstd-jni | 1.5.7-16 | zstd compression for rotated session-journal parts |
 | **UI** | JavaFX | 21.0.12 | Application framework |
 | | AtlantaFX Base | 2.1.0 | Seven selectable Primer, Nord, Cupertino and Dracula JavaFX user-agent themes; its transitive OpenJFX dependency is excluded |
 | | Monaco Editor | 0.56.0 | Code editor component |
