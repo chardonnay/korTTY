@@ -10,7 +10,7 @@
 schema_version: 1
 
 # Mirrored from build.gradle.kts:12 by scripts/sync-version.py.
-version: "2.16.0"
+version: "2.17.0"
 
 coverage:
   i18n_source: src/main/resources/i18n/messages.properties
@@ -405,7 +405,7 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/AsciiArtBannerDialog.java, src/main/java/de/kortty/core/AsciiArtSupport.java, src/main/java/de/kortty/core/AsciiArtPictureRenderer.java, src/main/java/de/kortty/core/AsciiArtSvgScanner.java, src/main/java/de/kortty/core/AsciiArtRasterizer.java, src/main/java/de/kortty/core/AsciiArtGlyphs.java, src/main/java/de/kortty/core/AsciiArtCopySupport.java, src/main/java/de/kortty/core/AsciiArtImageSupport.java, src/main/java/de/kortty/model/AsciiArtPictureSize.java, src/main/java/de/kortty/model/AsciiArtCommentStyle.java, src/main/java/de/kortty/model/AsciiArtPrintStyle.java]
     screenshots: [tools/ascii-art.png, tools/ascii-art-image.png]
-    last_synced_ref: "0efc32f7"
+    last_synced_ref: "65898ac2"
   - path: app-docs/site/docs/en/features/terminal-effect-plugins.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/plugin, src/main/java/de/kortty/ui/TerminalEffectPluginManagerDialog.java]
@@ -426,7 +426,7 @@ pages:
     # package will not flag the module table.
     owns_code: [build.gradle.kts, src/mermaid]
     diagrams: [architecture.svg, modules-overview.svg, app-startup-manager-init.svg]
-    last_synced_ref: "38bcd2b4"
+    last_synced_ref: "65898ac2"
   - path: app-docs/site/docs/en/reference/config-files.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/persistence, src/main/java/de/kortty/model/ServerConnection.java, src/main/java/de/kortty/model/SnippetDiagram.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ai/llama/LlamaModelRegistry.java, src/main/java/de/kortty/rag/RagConfigurationManager.java]
