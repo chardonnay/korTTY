@@ -92,13 +92,19 @@ jobs:
         shell: bash
         run: |
           rm -rf vendor/sithtermfx
-          git clone --depth 1 --branch v1.2.1 https://github.com/chardonnay/SithTermFX.git vendor/sithtermfx
+          git clone --depth 1 --branch v1.2.2 https://github.com/chardonnay/SithTermFX.git vendor/sithtermfx
 
       - name: Apply pinned korTTY SithTermFX patches
         shell: bash
         run: |
-          git -C vendor/sithtermfx apply --unidiff-zero --check ../../patches/sithtermfx/1.2.1-terminal-panel-bottom-row.patch
-          git -C vendor/sithtermfx apply --unidiff-zero ../../patches/sithtermfx/1.2.1-terminal-panel-bottom-row.patch
+          # Every patch in the directory, in the same (sorted) order Gradle's
+          # applySithtermfxPatches uses. This step must stay complete: CI builds the
+          # SithTermFX jars with Maven right after it, so a patch missed here is a patch
+          # missing from the artifacts.
+          for patch in patches/sithtermfx/*.patch; do
+            git -C vendor/sithtermfx apply --unidiff-zero --check "../../$patch"
+            git -C vendor/sithtermfx apply --unidiff-zero "../../$patch"
+          done
 
       - name: Patch SithTermFX Maven config for CI
         shell: bash

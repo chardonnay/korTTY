@@ -35,6 +35,47 @@ public class AiAnswerArchiveTest {
         }
     }
 
+    /**
+     * The name stamp only resolves milliseconds, so answers archived inside one millisecond carry
+     * the same prefix and the rest of the name decides the order — alphabetically by action, not by
+     * age. Sorting on the name alone then prunes a newer answer and keeps an older one, which turned
+     * {@link #archivesAnswersAndKeepsOnlyTheNewest} flaky on fast CI runners. The stamps here are
+     * identical on purpose, so the case is deterministic instead of timing-dependent.
+     */
+    @Test
+    void prunesByAgeWhenTheNameStampsCollide() throws Exception {
+        Path directory = Files.createTempDirectory("ai-answers-collide");
+        try {
+            String stamp = "20260909-120000-000";
+            // "apply-..." sorts after "analyze-...", so by name this oldest file looks like the newest.
+            Path oldest = writeAt(directory, stamp + "-apply-snippet-improvements-first.txt", 1_000L);
+            for (int index = 0; index < AiAnswerArchive.MAX_FILES; index++) {
+                writeAt(directory, stamp + "-analyze-snippet-code-n" + index + ".txt", 2_000L + index);
+            }
+
+            AiAnswerArchive.save(directory, AiAction.ANALYZE_SNIPPET_CODE, "trigger", "prune me");
+
+            assertThat(Files.exists(oldest)).isFalse();
+            try (Stream<Path> files = Files.list(directory)) {
+                assertThat(files.count()).isEqualTo(AiAnswerArchive.MAX_FILES);
+            }
+        } finally {
+            deleteRecursively(directory);
+        }
+    }
+
+    private static Path writeAt(Path directory, String name, long modifiedMillis) throws Exception {
+        Path file = Files.writeString(directory.resolve(name), "answer");
+        Files.setLastModifiedTime(file, java.nio.file.attribute.FileTime.fromMillis(modifiedMillis));
+        return file;
+    }
+
+    private static void deleteRecursively(Path directory) throws Exception {
+        try (Stream<Path> files = Files.walk(directory)) {
+            files.sorted(java.util.Comparator.reverseOrder()).forEach(path -> path.toFile().delete());
+        }
+    }
+
     @Test
     void archivedAnswersFollowTheLogRetention() throws Exception {
         Path logDirectory = Files.createTempDirectory("kortty-logs");

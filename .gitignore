@@ -3,6 +3,12 @@
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
+# TestNG's own report directory. Gradle writes its reports under build/, but a
+# TestNG suite run directly (org.testng.TestNG on the command line, e.g. the
+# javac + TestNG loop used to iterate on a single test class) drops this in the
+# repository root instead.
+test-output/
+
 # IDE
 .idea/
 *.iml

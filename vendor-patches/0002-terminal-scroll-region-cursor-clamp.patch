@@ -1,0 +1,239 @@
+From 3b1e1fde9f88e5dd9b179a8409c3ebe0257a2d2f Mon Sep 17 00:00:00 2001
+From: Daniel Mengel <daniel.mengel@gmail.com>
+Date: Tue, 8 Sep 2026 23:37:40 +0200
+Subject: [PATCH] Fix scrolling margins confining the cursor with origin mode
+ off
+
+DECSTBM sets the region that scrolls, not the region the cursor may be
+addressed in. Only origin mode (DECOM) makes line addressing relative and
+confines the cursor to the margins; with DECOM reset -- the default -- CUP may
+address any line on the screen, and text written above the top margin or below
+the bottom one belongs on the line it was addressed to.
+
+scrollY() enforced the margins on every write instead, and enforced them by
+scrolling: a write above the top margin was pulled down into the region, and a
+write below the bottom margin scrolled the region out from under the text
+already on screen. Both positions are reachable from any full-screen
+application that keeps a status line outside its scrolling area.
+
+tmux hits both. It paints the first pane row while the margins are still set to
+the sub-region it just scrolled, so that row landed one line too low, while the
+cursor -- placed afterwards, once the margins were restored -- stayed on the
+blank line above it.
+
+Separate the two jobs. lineFeed() is now the only place that scrolls: on the
+bottom margin it scrolls the region, below it the cursor is outside the region
+and simply advances until the last line of the screen. newLine(), index(),
+nextLine() and the autowrap in wrapLines() share it, which drops three copies
+of the same margin check and stops index()/nextLine() from running the cursor
+past the last line. scrollY() is left as a plain clamp onto an addressable
+line, and never scrolls.
+
+Found in korTTY, which uses SithTermFX as its terminal.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+---
+ .../sithtermfx/core/model/SithTerminal.java   | 55 ++++++++------
+ .../com/sithtermfx/core/ScrollingTest.java    | 76 +++++++++++++++++++
+ 2 files changed, 109 insertions(+), 22 deletions(-)
+
+diff --git a/sithtermfx-core/src/main/java/com/sithtermfx/core/model/SithTerminal.java b/sithtermfx-core/src/main/java/com/sithtermfx/core/model/SithTerminal.java
+index 91ac01e..3a03ce8 100644
+--- a/sithtermfx-core/src/main/java/com/sithtermfx/core/model/SithTerminal.java
++++ b/sithtermfx-core/src/main/java/com/sithtermfx/core/model/SithTerminal.java
+@@ -136,7 +136,7 @@ public class SithTerminal implements Terminal, TerminalMouseListener, TerminalCo
+             myTerminalTextBuffer.getLine(myCursorY - 1).deleteCharacters(myTerminalWidth);
+             if (isAutoWrap()) {
+                 myTerminalTextBuffer.getLine(myCursorY - 1).setWrapped(true);
+-                myCursorY += 1;
++                lineFeed();
+             }
+         }
+     }
+@@ -199,17 +199,37 @@ public class SithTerminal implements Terminal, TerminalMouseListener, TerminalCo
+         }
+     }
+ 
++    /**
++     * Moves the cursor to the next line. On the bottom margin that scrolls the scrolling region.
++     * Below the margin the cursor is <em>outside</em> the region — a position only reachable while
++     * origin mode (DECOM) is off, which is exactly where tmux parks the cursor to paint its status
++     * line — so the region must not scroll: the cursor simply advances until the last line of the
++     * screen and stops there.
++     */
++    private void lineFeed() {
++        if (myCursorY == myScrollRegionBottom) {
++            scrollArea(myScrollRegionTop, scrollingRegionSize(), -1);
++        } else if (myCursorY < myTerminalHeight) {
++            myCursorY += 1;
++        }
++    }
++
++    /**
++     * Keeps the cursor on an addressable line before text is written to it. Only origin mode
++     * (DECOM) confines the cursor to the scrolling region; with DECOM reset — the default, and what
++     * tmux relies on — CUP may address any line on the screen, above the top margin or below the
++     * bottom one, and text written there must stay on that line. The margins bound the scrolling,
++     * not the addressing, so this clamps to the screen and never scrolls; the region scrolls in
++     * {@link #lineFeed()}, where a line feed or an autowrap actually crosses the bottom margin.
++     */
+     public void scrollY() {
+         myTerminalTextBuffer.lock();
+         try {
+-            if (myCursorY > myScrollRegionBottom) {
+-                final int dy = myScrollRegionBottom - myCursorY;
+-                myCursorY = myScrollRegionBottom;
+-                scrollArea(myScrollRegionTop, scrollingRegionSize(), dy);
+-                myDisplay.setCursor(myCursorX, myCursorY);
++            if (myCursorY < scrollingRegionTop()) {
++                myCursorY = scrollingRegionTop();
+             }
+-            if (myCursorY < myScrollRegionTop) {
+-                myCursorY = myScrollRegionTop;
++            if (myCursorY > myTerminalHeight) {
++                myCursorY = myTerminalHeight;
+             }
+         } finally {
+             myTerminalTextBuffer.unlock();
+@@ -224,8 +244,7 @@ public class SithTerminal implements Terminal, TerminalMouseListener, TerminalCo
+     @Override
+     public void newLine() {
+         myCursorYChanged = true;
+-        myCursorY += 1;
+-        scrollY();
++        lineFeed();
+         if (isAutoNewLine()) {
+             carriageReturn();
+         }
+@@ -609,13 +628,9 @@ public class SithTerminal implements Terminal, TerminalMouseListener, TerminalCo
+         //bottom margin, the page scrolls up
+         myTerminalTextBuffer.lock();
+         try {
+-            if (myCursorY == myScrollRegionBottom) {
+-                scrollArea(myScrollRegionTop, scrollingRegionSize(), -1);
+-            } else {
+-                myCursorY += 1;
+-                adjustXY(-1);
+-                myDisplay.setCursor(myCursorX, myCursorY);
+-            }
++            lineFeed();
++            adjustXY(-1);
++            myDisplay.setCursor(myCursorX, myCursorY);
+         } finally {
+             myTerminalTextBuffer.unlock();
+         }
+@@ -631,11 +646,7 @@ public class SithTerminal implements Terminal, TerminalMouseListener, TerminalCo
+         myTerminalTextBuffer.lock();
+         try {
+             myCursorX = 0;
+-            if (myCursorY == myScrollRegionBottom) {
+-                scrollArea(myScrollRegionTop, scrollingRegionSize(), -1);
+-            } else {
+-                myCursorY += 1;
+-            }
++            lineFeed();
+             myDisplay.setCursor(myCursorX, myCursorY);
+         } finally {
+             myTerminalTextBuffer.unlock();
+diff --git a/sithtermfx-core/src/test/java/com/sithtermfx/core/ScrollingTest.java b/sithtermfx-core/src/test/java/com/sithtermfx/core/ScrollingTest.java
+index dd17c2e..1f99b88 100644
+--- a/sithtermfx-core/src/test/java/com/sithtermfx/core/ScrollingTest.java
++++ b/sithtermfx-core/src/test/java/com/sithtermfx/core/ScrollingTest.java
+@@ -11,11 +11,15 @@ import com.sithtermfx.core.util.TestSession;
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+ import org.junit.jupiter.api.Test;
+ 
++import java.io.IOException;
++
+ /**
+  * @author Daniel Mengel
+  */
+ public class ScrollingTest {
+ 
++    private static final String ESC = "\u001B";
++
+     @Test
+     public void testScrollOnNewLine() {
+         StyleState state = new StyleState();
+@@ -94,6 +98,78 @@ public class ScrollingTest {
+         session.assertCursorPosition(1, 4);
+     }
+ 
++    /**
++     * With origin mode (DECOM) reset the scrolling region must not confine the cursor: text written
++     * above the top margin belongs on the addressed line. tmux relies on this — it draws the first
++     * pane row while the margins are still set to the scrolled sub-region, which used to push that
++     * row one line down and strand the cursor on the blank line above it.
++     */
++    @Test
++    public void testWriteAboveScrollRegionTopStaysOnAddressedLine() throws IOException {
++        TestSession session = new TestSession(5, 4);
++        session.process(ESC + "[2;3r" + ESC + "[1;1Hab");
++        assertEquals("ab   \n" +
++                "     \n" +
++                "     \n" +
++                "     \n", session.getTerminalTextBuffer().getScreenLines());
++        session.assertCursorPosition(3, 1);
++    }
++
++    /** With origin mode set, the same write is confined to the region — line addressing is relative. */
++    @Test
++    public void testWriteAboveScrollRegionTopInOriginMode() throws IOException {
++        TestSession session = new TestSession(5, 4);
++        session.process(ESC + "[?6h" + ESC + "[2;3r" + ESC + "[1;1Hab");
++        assertEquals("     \n" +
++                "ab   \n" +
++                "     \n" +
++                "     \n", session.getTerminalTextBuffer().getScreenLines());
++        session.assertCursorPosition(3, 2);
++    }
++
++    /**
++     * The mirror image of the case above: a line below the bottom margin is addressable too, and
++     * writing there must not scroll the region out from under the text that is already on screen.
++     * tmux paints its status line exactly like this.
++     */
++    @Test
++    public void testWriteBelowScrollRegionBottomStaysOnAddressedLine() throws IOException {
++        TestSession session = new TestSession(5, 4);
++        session.process(ESC + "[1;3r" + ESC + "[1;1Ha" + ESC + "[4;1Hzz");
++        assertEquals("a    \n" +
++                "     \n" +
++                "     \n" +
++                "zz   \n", session.getTerminalTextBuffer().getScreenLines());
++        session.assertCursorPosition(3, 4);
++    }
++
++    /** A line feed below the bottom margin advances to the last screen line without scrolling. */
++    @Test
++    public void testLineFeedBelowScrollRegionDoesNotScroll() throws IOException {
++        TestSession session = new TestSession(5, 4);
++        session.process(ESC + "[1;3r" + ESC + "[1;1Ha" + ESC + "[2;1Hb" + ESC + "[3;1Hc"
++                + ESC + "[4;1Hz" + "\n");
++        assertEquals("a    \n" +
++                "b    \n" +
++                "c    \n" +
++                "z    \n", session.getTerminalTextBuffer().getScreenLines());
++        assertEquals(0, session.getTerminalTextBuffer().getHistoryLinesCount());
++        session.assertCursorPosition(2, 4);
++    }
++
++    /** A line feed on the bottom margin still scrolls the region — and only the region. */
++    @Test
++    public void testLineFeedOnScrollRegionBottomScrollsRegionOnly() throws IOException {
++        TestSession session = new TestSession(5, 4);
++        session.process(ESC + "[1;3r" + ESC + "[4;1Hz" + ESC + "[1;1Ha" + ESC + "[2;1Hb"
++                + ESC + "[3;1Hc" + "\n");
++        assertEquals("b    \n" +
++                "c    \n" +
++                "     \n" +
++                "z    \n", session.getTerminalTextBuffer().getScreenLines());
++        session.assertCursorPosition(2, 3);
++    }
++
+     @Test
+     public void testScrollingOrigin() {
+         StyleState state = new StyleState();
+-- 
+2.50.1 (Apple Git-155)
+
