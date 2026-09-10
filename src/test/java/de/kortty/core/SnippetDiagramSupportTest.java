@@ -696,6 +696,46 @@ class SnippetDiagramSupportTest {
     }
 
     @Test
+    void aLoopHeadDrawnAsAnActionBecomesTheLoopDecision() {
+        // Seen live from qwen3.8-27b: the read loop is a rectangle going on to the body and to the
+        // report. Keeping only the body cut the exit, and the loop lost its way to stop_1.
+        String loop = """
+            flowchart TD
+            start_1(["Start"])
+            parse_args["Argumente parsen"]
+            check_file{"Datei vorhanden?"}
+            file_missing["Fehler: Datei fehlt"]
+            init_findings["Ergebnisstruktur initialisieren"]
+            read_log["Logdatei zeilenweise lesen"]
+            parse_line["Zeile parsen"]
+            has_message{"Meldung vorhanden?"}
+            record["Eintrag aktualisieren"]
+            print_table["Tabelle ausgeben"]
+            stop_1(["Ende"])
+            start_1 --> parse_args
+            parse_args --> check_file
+            check_file -->|nein| file_missing
+            check_file -->|ja| init_findings
+            init_findings --> read_log
+            read_log --> parse_line
+            parse_line --> has_message
+            has_message -->|nein| read_log
+            has_message -->|ja| record
+            record --> read_log
+            read_log --> print_table
+            print_table --> stop_1
+            """;
+
+        assertThat(SnippetDiagramSupport.validateMermaidForSnippet(loop, "x\n".repeat(110), List.of(), "de").valid())
+            .isTrue();
+        String canonical = SnippetDiagramSupport.canonicalizeGeneratedFlowchart(loop, "de");
+        assertThat(canonical).contains("read_log{\"Logdatei zeilenweise lesen\"}");
+        assertThat(canonical).contains("read_log -->|ja| parse_line");
+        assertThat(canonical).contains("read_log -->|nein| print_table");
+        assertThat(canonical).contains("file_missing --> stop_1");
+    }
+
+    @Test
     void parallelBranchesFromAnActionAreReducedToTheFirstPath() {
         String parallel = """
             flowchart TD

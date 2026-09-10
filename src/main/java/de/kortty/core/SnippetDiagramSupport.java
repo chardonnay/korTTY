@@ -1069,10 +1069,29 @@ public final class SnippetDiagramSupport {
         Map<String, List<String>> forward = new LinkedHashMap<>();
         edges.forEach(edge -> forward.computeIfAbsent(edge.from(), key -> new ArrayList<>()).add(edge.to()));
         Set<EdgeDefinition> keptFanOut = new LinkedHashSet<>();
-        for (NodeDefinition node : nodes.values()) {
+        List<String> outcomes = ORDERED_OUTCOME_LABELS.getOrDefault(
+            normalizeLanguageCode(languageCode), ORDERED_OUTCOME_LABELS.get("en"));
+        for (Map.Entry<String, NodeDefinition> entry : nodes.entrySet()) {
+            NodeDefinition node = entry.getValue();
             List<EdgeDefinition> outgoing = edges.stream().filter(edge -> edge.from().equals(node.id())).toList();
             if (node.type() == NodeType.DECISION || outgoing.size() < 2) {
                 continue;
+            }
+            // A loop head drawn as an action ("Read the log line by line" going on to the body and
+            // on to the report) is a loop condition in the wrong shape. Keeping only the branch that
+            // reaches most would keep the body — which reaches everything through the loop — and cut
+            // the exit, leaving the loop with no way to stop_1. It becomes the decision it meant.
+            if (outgoing.size() == 2) {
+                boolean firstLoops = reachableNodes(outgoing.get(0).to(), forward).contains(node.id());
+                boolean secondLoops = reachableNodes(outgoing.get(1).to(), forward).contains(node.id());
+                if (firstLoops != secondLoops) {
+                    EdgeDefinition body = firstLoops ? outgoing.get(0) : outgoing.get(1);
+                    EdgeDefinition exit = firstLoops ? outgoing.get(1) : outgoing.get(0);
+                    entry.setValue(new NodeDefinition(node.id(), node.label(), NodeType.DECISION, node.semanticClass()));
+                    edges.set(edges.indexOf(body), new EdgeDefinition(body.from(), outcomes.get(0), body.to()));
+                    edges.set(edges.indexOf(exit), new EdgeDefinition(exit.from(), outcomes.get(1), exit.to()));
+                    continue;
+                }
             }
             EdgeDefinition best = outgoing.get(0);
             int bestReach = -1;
