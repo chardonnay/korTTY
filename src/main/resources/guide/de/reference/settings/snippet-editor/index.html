@@ -2365,11 +2365,22 @@
 <td><code>Shift+Tab</code></td>
 <td><code>snippetCompletionShortcut</code></td>
 </tr>
+<tr>
+<td>Halten Sie einen vorgewärmten Editor bereit.</td>
+<td>Kontrollkästchen</td>
+<td>ein/aus</td>
+<td>ein</td>
+<td><code>snippetEditorPrewarmEnabled</code></td>
+</tr>
 </tbody>
 </table>
 <div class="admonition tip">
 <p class="admonition-title">Auswahl des Tastenkürzels für die Vervollständigung</p>
 <p>Klicken Sie auf das Feld <strong>Tastenkürzel KI-Vervollständigung</strong> und drücken Sie die gewünschte Kombination – das Feld zeichnet auf, was Sie gedrückt haben, und <strong>Reset</strong> stellt <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> wieder her. Eine Kombination ist eine Haupttaste (ein Buchstabe, eine Ziffer, eine Funktionstaste, <span class="keys"><kbd class="key-tab">Tab</kbd></span>, <span class="keys"><kbd class="key-space">Space</kbd></span>, ein Pfeil, <span class="keys"><kbd class="key-enter">Enter</kbd></span> usw.) mit keinem, einem, zwei oder drei Modifikatoren, sodass <span class="keys"><kbd class="key-tab">Tab</kbd></span> allein, <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> und <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-k">K</kbd></span> alle gültig sind. Unter macOS ist der Modifikator <span class="keys"><kbd class="key-control">Ctrl</kbd></span> die Cmd-Taste und entspricht den eigenen Tastenkombinationen des Editors. Die neue Kombination gilt für danach geöffnete Snippet-Editoren; <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-space">Space</kbd></span> öffnet die Liste ebenfalls und kann nicht neu zugewiesen werden. Wenn Sie etwas anderes als <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> auswählen, erhält <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> wieder seine normale Editorbedeutung: Es wird eine Einrückungsebene entfernt.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Vorgewärmter Editor</p>
+<p>Wenn <strong>Einen vorgewärmten Editor bereithalten</strong> aktiviert ist, startet korTTY etwa zwei Sekunden nach dem Öffnen des ersten Snippet-Editors einer Sitzung einen Ersatzeditor im Hintergrund, sodass der nächste Snippet-Bearbeitungsdialog oder die nächste Snippet-Manager-Vorschau mit einem fertigen Editor startet, anstatt Monaco zu laden, während Sie warten. Der Ersatz wird erst erstellt, nachdem Sie einen Editor einmal verwendet haben, und er hält im Leerlauf eine WebKit-Seite im Speicher – schalten Sie die Option auf Computern mit wenig RAM aus, um einen kurzen Start pro Öffnung für diesen Speicher einzutauschen.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Erben statt Überschreiben</p>
