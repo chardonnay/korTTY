@@ -1,6 +1,58 @@
 {#-
-  korTTY theme override entrypoint. Pass-through today; reserved for future
-  blocks (per-page language switcher, hero, announce bar). Keeping it here makes
-  theme.custom_dir valid and ready to extend.
+  korTTY theme override for the Dracula theme.
+
+  Three things the stock theme cannot give us:
+
+  1. OFFLINE. Dracula's own `styles` block opens with an UNCONDITIONAL
+     <link> to https://stackpath.bootstrapcdn.com/font-awesome/... — 59 pages x 1
+     external stylesheet, which scripts/build-docs-site.py's assert_offline()
+     rejects outright, and which would simply fail to load inside korTTY's
+     WebView (jar:/file: origin, no network). The block is therefore
+     reimplemented below WITHOUT that link and with only the theme's own local
+     assets. kortty.css substitutes glyphs for the seven `fa-*` icons the
+     templates use. The highlight.js CDN <script> in the `libs` block is
+     already switched off by theme.highlightjs: false in mkdocs.yml.
+
+  2. The EN<->DE switcher. Material rendered a language selector from
+     extra.alternate on its own; Dracula has no such notion, so the header
+     block appends one. Keep the "/" between base_url and "..": base_url has no
+     trailing slash (".", "..", "../.."), so plain concatenation produces
+     invalid ".../de/..." paths and the switcher navigates nowhere.
+
+  3. The footer. Licence, credit and the build-time korTTY version replace the
+     theme's own "Made with Dracula Theme for MkDocs" band wholesale.
 -#}
 {% extends "base.html" %}
+
+{% block styles %}
+        <link rel="stylesheet" href="{{ 'assets/css/darcula-highlight.min.css'|url }}">
+        <link rel="stylesheet" href="{{ 'assets/css/bootstrap.min.css'|url }}">
+        <link rel="stylesheet" href="{{ 'assets/css/dracula-ui.min.css'|url }}">
+        <link rel="stylesheet" href="{{ 'assets/css/mkdocs.min.css'|url }}">
+        {%- for path in extra_css %}
+        <link href="{{ path }}" rel="stylesheet">
+        {%- endfor %}
+        {%- if config.theme.favicon %}
+        <link rel="icon" type="image/x-icon" href="{{ config.theme.favicon|url }}">
+        {%- endif %}
+{% endblock %}
+
+{% block header %}
+{{ super() }}
+{%- set other = "de" if config.extra.kt_lang == "en" else "en" %}
+{%- set other_name = "Deutsch" if other == "de" else "English" %}
+<div class="kt-lang-bar">
+  <a class="kt-lang-switch" href="{{ base_url }}/../{{ other }}/{{ page.url }}"
+     title="{{ other_name }}" hreflang="{{ other }}">{{ other | upper }}</a>
+</div>
+{% endblock %}
+
+{% block footer %}
+{%- set _lang = config.extra.kt_lang %}
+{%- set _license = "MIT-lizenziert" if _lang == "de" else "MIT-licensed" %}
+{%- set _credit = "Entwickelt von Daniel Mengel" if _lang == "de" else "Developed by Daniel Mengel" %}
+<footer class="kt-footer">
+  <div class="kt-footer__line">{{ _license }} &middot; {{ _credit }}</div>
+  <div class="kt-footer__line">korTTY <strong>v{{ config.extra.kortty_version }}</strong></div>
+</footer>
+{% endblock %}

@@ -1379,8 +1379,11 @@ tasks.register("stageGuideIntoResources") {
         val built = guideSiteOutputDir.get().asFile
         val enIndex = built.resolve("en/index.html")
         // Never overwrite the committed guide with the buildDocsSite placeholder (written
-        // when MkDocs is unavailable): the real Material site contains the "md-header" markup.
-        if (!enIndex.isFile || !enIndex.readText().contains("md-header")) {
+        // when MkDocs is unavailable). The placeholder is a hand-written <html> stub with no
+        // navigation, so any real theme marker distinguishes it: the Dracula build wraps every
+        // page body in <article>, which the placeholder never emits. (Was "md-header" while the
+        // site was built with Material — a marker that no longer exists in the output.)
+        if (!enIndex.isFile || !enIndex.readText().contains("<article")) {
             logger.warn(
                 "stageGuideIntoResources: build/guide has no real MkDocs site (placeholder or empty); " +
                     "leaving the committed src/main/resources/guide untouched. " +

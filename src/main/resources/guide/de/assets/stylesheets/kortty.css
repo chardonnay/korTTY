@@ -143,13 +143,39 @@ body,
 }
 
 /* ---- Admonitions: cyan glow left border ---------------------------------- */
-.md-typeset .admonition,
-.md-typeset details {
+/* Dracula emits <div class="admonition warning"><p class="admonition-title">
+   inside a bare <article>; Material wrapped the same markup in .md-typeset.
+   The theme ships its own admonition styling, so these rules have to win on
+   specificity — hence the `article` scope rather than a bare `.admonition`. */
+article .admonition,
+article details {
   background: var(--kt-surface);
   border: 1px solid var(--kt-line);
-  border-left-width: 0.25rem;
+  border-left: 0.25rem solid var(--kt-primary);
   border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  margin: 1.2rem 0;
 }
+article .admonition-title,
+article summary {
+  color: var(--kt-accent);
+  font-family: var(--kt-mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0 0 0.4rem;
+}
+/* The six types the guide actually uses (note 80, warning 46, tip 15,
+   important 6, info 3, danger 2), keyed off the korTTY palette rather than
+   Dracula's purple/pink defaults. note/info/important keep the cyan default. */
+article .admonition.tip { border-left-color: #4ade80; }
+article .admonition.tip > .admonition-title { color: #4ade80; }
+article .admonition.warning { border-left-color: #fbbf24; }
+article .admonition.warning > .admonition-title { color: #fbbf24; }
+article .admonition.danger { border-left-color: #f87171; }
+article .admonition.danger > .admonition-title { color: #f87171; }
+article .admonition > :last-child { margin-bottom: 0; }
 
 /* ---- Diagrams: frame the embedded SVGs ----------------------------------- */
 .md-typeset img[src*="assets/diagrams/"],
@@ -311,29 +337,78 @@ body.kt-zoom-open {
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
 }
 
-/* Header language switcher (EN <-> DE) */
+/* Header language switcher (EN <-> DE), rendered by overrides/main.html.
+   Its own bar under the navbar rather than a navbar item: Dracula builds the
+   header from a Bootstrap <ul class="navbar-nav">, and injecting a list item
+   into an included module would mean overriding the whole header template. */
+.kt-lang-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.35rem 1rem;
+  background: var(--kt-bg-2);
+  border-bottom: 1px solid var(--kt-line);
+}
 .kt-lang-switch {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: auto;
-  padding: 0 0.5rem;
+  padding: 0.05rem 0.55rem;
   border: 1px solid var(--kt-line-strong);
   border-radius: 999px;
   color: var(--kt-accent) !important;
-}
-.kt-lang-switch:hover {
-  background: rgba(56, 189, 248, 0.12);
-}
-.kt-lang-code {
+  text-decoration: none;
   font-family: var(--kt-mono);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.06em;
 }
+.kt-lang-switch:hover {
+  background: rgba(56, 189, 248, 0.12);
+}
 
-/* Footer version chip */
-.md-copyright__highlight strong {
+/* Footer (overrides/main.html) — replaces the theme's own credit band. */
+.kt-footer {
+  padding: 1.1rem 1rem 1.6rem;
+  text-align: center;
+  color: var(--kt-muted);
+  font-size: 0.8rem;
+  border-top: 1px solid var(--kt-line);
+}
+.kt-footer strong {
   color: var(--kt-accent);
   font-family: var(--kt-mono);
+}
+
+/* ---- Offline substitutes for the theme's Font Awesome icons -------------- */
+/* overrides/main.html drops Dracula's unconditional CDN <link> to Font Awesome
+   (assert_offline in build-docs-site.py rejects it, and it would not load from
+   a jar:/file: origin anyway). Only three of the theme's `fa-*` classes reach
+   the built pages — the repo star/fork/tag icons need a repo_url this site does
+   not set — so three Unicode glyphs replace the font outright. */
+.fa {
+  font-style: normal;
+  font-family: var(--kt-sans);
+}
+.fa-bars::before { content: "\2630"; }        /* ☰ */
+.fa-arrow-left::before { content: "\2190"; }  /* ← */
+.fa-arrow-right::before { content: "\2192"; } /* → */
+
+/* ---- Heading permalinks -------------------------------------------------- */
+/* toc.permalink emits a ¶ anchor after every heading. Material hid it until the
+   heading was hovered; Dracula ships no such rule, so all 114 pages would carry
+   a visible pilcrow on every heading. Same behaviour restored here. */
+article .headerlink {
+  opacity: 0;
+  margin-left: 0.4rem;
+  color: var(--kt-accent) !important;
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+article h1:hover .headerlink,
+article h2:hover .headerlink,
+article h3:hover .headerlink,
+article h4:hover .headerlink,
+article h5:hover .headerlink,
+article h6:hover .headerlink {
+  opacity: 1;
 }
