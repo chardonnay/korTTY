@@ -92,15 +92,30 @@ public final class AppDesignStyleSupport {
     private static final Set<Parent> REGISTERED_PARENT_SURFACES = Collections.synchronizedSet(
             Collections.newSetFromMap(new WeakHashMap<>()));
 
+    // A window that was fully styled at construction (every ThemeAwareDialog, via DialogThemeHelper)
+    // carries a matching StyleStamp and is skipped here; the listener only still styles windows
+    // nobody prepared (raw Stages, JavaFX-internal dialogs).
     private static final ListChangeListener<Window> WINDOW_LISTENER = change -> {
         while (change.next()) {
             if (change.wasAdded()) {
                 for (Window window : change.getAddedSubList()) {
-                    applyToWindow(window);
+                    applyToWindow(window, resolveActiveDesign(), false);
                 }
             }
         }
     };
+
+    /**
+     * What a surface was last styled for. Stored in the Scene's or root's properties; a surface
+     * whose stamp still matches the active design, UI font scale and terminal-theme stylesheet is
+     * skipped by the non-forced application paths (the window listener at show, the registered
+     * surface pass after a window pass), which otherwise re-add the same stylesheets and force a
+     * second full-tree {@code applyCss()} on every dialog open.
+     */
+    record StyleStamp(AppDesign design, int fontScalePercent, String dynamicStylesheetUrl) {
+    }
+
+    private static final Object STYLE_STAMP_KEY = new Object();
 
     private static boolean windowStylerInstalled;
 
@@ -225,22 +240,29 @@ public final class AppDesignStyleSupport {
         applyToOpenWindows(resolveActiveDesign());
     }
 
+    /** Live design switch: every open window is restyled regardless of its stamp. */
     static void applyToOpenWindows(AppDesign design) {
         if (!Platform.isFxApplicationThread()) {
             Platform.runLater(() -> applyToOpenWindows(design));
             return;
         }
         for (Window window : Window.getWindows()) {
-            applyToWindow(window, design);
+            applyToWindow(window, design, true);
         }
+        // Panes that live in one of the windows above were just stamped and are skipped; only
+        // detached surfaces (popup content, unshown dialogs) still carry an old stamp.
         applyToRegisteredParentSurfaces(design);
     }
 
     static void applyToWindow(Window window) {
-        applyToWindow(window, resolveActiveDesign());
+        applyToWindow(window, resolveActiveDesign(), true);
     }
 
     static void applyToWindow(Window window, AppDesign design) {
+        applyToWindow(window, design, true);
+    }
+
+    static void applyToWindow(Window window, AppDesign design, boolean force) {
         if (window == null) {
             return;
         }
@@ -248,9 +270,9 @@ public final class AppDesignStyleSupport {
         if (scene == null) {
             return;
         }
-        applyToScene(scene, design);
+        applyToScene(scene, design, force);
         if (scene.getRoot() instanceof DialogPane dialogPane) {
-            applyToDialogPane(dialogPane, design);
+            applyToDialogPane(dialogPane, design, force);
         }
     }
 
@@ -260,19 +282,27 @@ public final class AppDesignStyleSupport {
             surfaces = new ArrayList<>(REGISTERED_PARENT_SURFACES);
         }
         for (Parent surface : surfaces) {
-            applyToParent(surface, design);
+            applyToParent(surface, design, false);
         }
     }
 
     static void applyToScene(Scene scene) {
-        applyToScene(scene, resolveActiveDesign());
+        applyToScene(scene, resolveActiveDesign(), true);
     }
 
     static void applyToScene(Scene scene, AppDesign active) {
+        applyToScene(scene, active, true);
+    }
+
+    static void applyToScene(Scene scene, AppDesign active, boolean force) {
         if (scene == null) {
             return;
         }
         active = active != null ? active : AppDesign.NORMAL;
+        StyleStamp stamp = currentStamp(active, scene.getRoot());
+        if (!shouldApply(scene.getProperties(), stamp, force)) {
+            return;
+        }
         if (hasApplicationBaseStyles(scene.getRoot())) {
             syncApplicationBaseStylesheets(scene.getStylesheets(), active);
             ThemeCssSupport.reconcileDynamicStylesheets(scene.getStylesheets(), active);
@@ -280,17 +310,26 @@ public final class AppDesignStyleSupport {
         applyToStylesheets(scene.getStylesheets(), active);
         UiFontScaleSupport.applyToScene(scene);
         forceRestyle(active, scene.getRoot());
+        scene.getProperties().put(STYLE_STAMP_KEY, stamp);
     }
 
     static void applyToDialogPane(DialogPane dialogPane) {
-        applyToDialogPane(dialogPane, resolveActiveDesign());
+        applyToDialogPane(dialogPane, resolveActiveDesign(), true);
     }
 
     static void applyToDialogPane(DialogPane dialogPane, AppDesign active) {
+        applyToDialogPane(dialogPane, active, true);
+    }
+
+    static void applyToDialogPane(DialogPane dialogPane, AppDesign active, boolean force) {
         if (dialogPane == null) {
             return;
         }
         active = active != null ? active : AppDesign.NORMAL;
+        StyleStamp stamp = currentStamp(active, dialogPane);
+        if (!shouldApply(dialogPane.getProperties(), stamp, force)) {
+            return;
+        }
         if (hasApplicationBaseStyles(dialogPane)) {
             syncApplicationBaseStylesheets(dialogPane.getStylesheets(), active);
             ThemeCssSupport.reconcileDynamicStylesheets(dialogPane.getStylesheets(), active);
@@ -298,17 +337,26 @@ public final class AppDesignStyleSupport {
         applyToStylesheets(dialogPane.getStylesheets(), active);
         UiFontScaleSupport.applyToDialogPane(dialogPane);
         forceRestyle(active, dialogPane);
+        dialogPane.getProperties().put(STYLE_STAMP_KEY, stamp);
     }
 
     static void applyToParent(Parent parent) {
-        applyToParent(parent, resolveActiveDesign());
+        applyToParent(parent, resolveActiveDesign(), true);
     }
 
     static void applyToParent(Parent parent, AppDesign active) {
+        applyToParent(parent, active, true);
+    }
+
+    static void applyToParent(Parent parent, AppDesign active, boolean force) {
         if (parent == null) {
             return;
         }
         active = active != null ? active : AppDesign.NORMAL;
+        StyleStamp stamp = currentStamp(active, parent);
+        if (!shouldApply(parent.getProperties(), stamp, force)) {
+            return;
+        }
         if (hasApplicationBaseStyles(parent)) {
             syncApplicationBaseStylesheets(parent.getStylesheets(), active);
             ThemeCssSupport.reconcileDynamicStylesheets(parent.getStylesheets(), active);
@@ -316,6 +364,32 @@ public final class AppDesignStyleSupport {
         applyToStylesheets(parent.getStylesheets(), active);
         UiFontScaleSupport.applyToParent(parent);
         forceRestyle(active, parent);
+        parent.getProperties().put(STYLE_STAMP_KEY, stamp);
+    }
+
+    /** The stamp a surface would get if styled now for {@code design}. */
+    static StyleStamp currentStamp(AppDesign design, Parent root) {
+        String dynamic = design == AppDesign.NORMAL
+            ? ThemeCssSupport.getDynamicStylesheetUrl(ThemeCssSupport.resolveThemeColors(KorTTYApplication.getInstance()))
+            : null;
+        return new StyleStamp(design, UiFontScaleSupport.percentFor(root), dynamic);
+    }
+
+    /** Whether a surface stamped {@code properties.get(STYLE_STAMP_KEY)} must be (re)styled for {@code current}. */
+    static boolean shouldApply(Map<Object, Object> properties, StyleStamp current, boolean force) {
+        return force || properties == null || !current.equals(properties.get(STYLE_STAMP_KEY));
+    }
+
+    /** Records {@code stamp} on a surface's properties (tests and smokes). */
+    static void stamp(Map<Object, Object> properties, StyleStamp stamp) {
+        if (properties != null) {
+            properties.put(STYLE_STAMP_KEY, stamp);
+        }
+    }
+
+    /** The stamp currently on a surface, or {@code null} (smoke tests). */
+    static StyleStamp stampOf(Map<Object, Object> properties) {
+        return properties != null && properties.get(STYLE_STAMP_KEY) instanceof StyleStamp stamp ? stamp : null;
     }
 
     /**
@@ -332,10 +406,24 @@ public final class AppDesignStyleSupport {
         if (root == null) {
             return;
         }
-        if (active != AppDesign.NORMAL
-            || UiFontScaleSupport.effectivePercent() != GlobalSettings.UI_FONT_SCALE_DEFAULT_PERCENT) {
+        if (shouldForceRestyle(active, UiFontScaleSupport.effectivePercent(), isShowing(root))) {
             root.applyCss();
         }
+    }
+
+    /**
+     * The stale-skin problem only exists for a tree that has already been styled and rendered; a
+     * tree that is not on screen yet gets its first, complete CSS pass from the show/pulse anyway,
+     * so forcing one earlier just doubles (or triples) the work for every dialog open.
+     */
+    static boolean shouldForceRestyle(AppDesign active, int fontScalePercent, boolean showing) {
+        return showing
+            && (active != AppDesign.NORMAL || fontScalePercent != GlobalSettings.UI_FONT_SCALE_DEFAULT_PERCENT);
+    }
+
+    private static boolean isShowing(Parent root) {
+        Scene scene = root.getScene();
+        return scene != null && scene.getWindow() != null && scene.getWindow().isShowing();
     }
 
     static boolean isMatrixTerminalActive() {
@@ -418,19 +506,28 @@ public final class AppDesignStyleSupport {
         if (stylesheets == null) {
             return;
         }
+        DesignSpec active = SPECS.get(appDesign);
+        String activeUrl = active != null ? resolveCssUrl(active.cssResource()) : null;
+        // Every list mutation makes StyleManager re-register the whole list and invalidates CSS
+        // for the subtree, so touch it only when a design sheet is actually stale or missing.
+        Set<String> designUrls = designStylesheetUrls();
+        if (stylesheets.stream().anyMatch(url -> designUrls.contains(url) && !url.equals(activeUrl))) {
+            stylesheets.removeIf(url -> designUrls.contains(url) && !url.equals(activeUrl));
+        }
+        if (activeUrl != null && !stylesheets.contains(activeUrl)) {
+            stylesheets.add(activeUrl);
+        }
+    }
+
+    private static Set<String> designStylesheetUrls() {
+        Set<String> urls = new java.util.HashSet<>();
         for (DesignSpec spec : SPECS.values()) {
             String url = resolveCssUrl(spec.cssResource());
             if (url != null) {
-                stylesheets.removeIf(url::equals);
+                urls.add(url);
             }
         }
-        DesignSpec active = SPECS.get(appDesign);
-        if (active != null) {
-            String url = resolveCssUrl(active.cssResource());
-            if (url != null) {
-                stylesheets.add(url);
-            }
-        }
+        return urls;
     }
 
     /**
@@ -463,6 +560,12 @@ public final class AppDesignStyleSupport {
         }
         String base = resolveCssUrl(APPLICATION_BASE_STYLESHEET_RESOURCE);
         String components = resolveCssUrl(ATLANTAFX_COMPONENTS_STYLESHEET_RESOURCE);
+        String wanted = design != null && design.isAtlantaFx() ? components : base;
+        String other = wanted == components ? base : components;
+        if (wanted != null && stylesheets.indexOf(wanted) == stylesheets.lastIndexOf(wanted)
+            && stylesheets.contains(wanted) && (other == null || !stylesheets.contains(other))) {
+            return; // exactly one copy of the right sheet, none of the other: nothing to change
+        }
         int insertionIndex = stylesheets.size();
         if (base != null) {
             int index = stylesheets.indexOf(base);

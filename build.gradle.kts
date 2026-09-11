@@ -3331,6 +3331,14 @@ tasks.register<JavaExec>("dialogOpenPerfSmoke") {
     }
 }
 
+tasks.register<JavaExec>("dialogThemeIdempotenceSmoke") {
+    group = "verification"
+    description = "Checks that a ThemeAwareDialog is styled exactly once per open and still restyles on a live design switch."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.DialogThemeIdempotenceSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("sessionJournalPageWebViewSmoke") {
     group = "verification"
     description = "Drives the journal page's context menu inside the real JavaFX WebView."

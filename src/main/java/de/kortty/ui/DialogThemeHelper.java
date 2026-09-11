@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import javafx.scene.Scene;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
 
@@ -40,5 +41,16 @@ public final class DialogThemeHelper {
         }
 
         AppDesignStyleSupport.applyToDialogPane(dialogPane);
+        // A Dialog owns its Scene from construction. Styling it here (stylesheets for popups,
+        // font scale) stamps it as done, so the global window listener has nothing left to do at
+        // show() — previously it re-applied everything to scene and pane and forced two extra
+        // full-tree applyCss() passes on every dialog open under a custom design or font scale.
+        // Note that a later initOwner() binds this scene's stylesheet list to the owner scene's
+        // (HeavyweightDialog.updateStageBindings), so for owned dialogs the list ends up mirroring
+        // the main window's, which is styled the same way; the pane keeps its own copies either way.
+        Scene scene = dialogPane.getScene();
+        if (scene != null && scene.getRoot() == dialogPane) {
+            AppDesignStyleSupport.applyToScene(scene);
+        }
     }
 }
