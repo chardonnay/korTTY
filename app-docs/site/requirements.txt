@@ -16,7 +16,7 @@
 
 # Direct dependencies
 mkdocs==1.6.1
-mkdocs-material==9.7.6
+mkdocs-material==9.7.7
 deep-translator==1.11.4
 
 # Transitive, pinned for a reproducible build (resolved from the three above)
