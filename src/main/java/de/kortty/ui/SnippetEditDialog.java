@@ -110,7 +110,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private final MonacoEditorPane contentArea;
     private final SnippetColumnRuler columnRuler;
     private final ToggleButton markupPreviewToggleButton;
-    private final WebView markupPreviewView;
+    // Created on the first preview toggle: a WebView is a native WebKit page, too expensive to
+    // instantiate on every editor open for a feature most sessions never switch on.
+    private WebView markupPreviewView;
+    private final StackPane contentStack;
     private final TextArea aiAdditionalInstructionsArea;
     private ComboBox<AiLanguageSupport.LanguageOption> aiCodeTextLanguageCombo;
     private CheckBox rememberAiCodeTextLanguageCheckBox;
@@ -894,7 +897,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         cancelSnippetAiActionButton.setVisible(false);
         
         // Content area with syntax highlighting – use saved editor settings
-        contentArea = new MonacoEditorPane();
+        contentArea = MonacoEditorWarmup.acquire();
         // Installing the host before the page boots enables the completion providers with the
         // editor (Shift+TAB / Ctrl+Space list, ghost text); the page calls back on the FX thread.
         contentArea.setCompletionHost(new MonacoEditorPane.CompletionHost() {
@@ -951,11 +954,6 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         var contentScrollPane = EditorSettingsHelper.createScrollPane(contentArea);
         VBox.setVgrow(contentScrollPane, Priority.ALWAYS);
 
-        markupPreviewView = new WebView();
-        markupPreviewView.getEngine().setJavaScriptEnabled(false);
-        markupPreviewView.setContextMenuEnabled(false);
-        markupPreviewView.setVisible(false);
-        markupPreviewView.setManaged(false);
         markupPreviewToggleButton = new ToggleButton(I18n.get("snippets.preview"));
         markupPreviewToggleButton.setTooltip(new Tooltip(I18n.get("snippets.preview.tooltip")));
         markupPreviewToggleButton.setAccessibleText(I18n.get("snippets.preview.tooltip"));
@@ -964,10 +962,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         contentScrollPane.managedProperty().bind(contentScrollPane.visibleProperty());
         columnRuler.visibleProperty().bind(markupPreviewToggleButton.selectedProperty().not());
         columnRuler.managedProperty().bind(columnRuler.visibleProperty());
-        markupPreviewView.visibleProperty().bind(markupPreviewToggleButton.selectedProperty());
-        markupPreviewView.managedProperty().bind(markupPreviewView.visibleProperty());
         markupPreviewRefreshDelay.setOnFinished(event -> refreshMarkupPreview());
-        StackPane contentStack = new StackPane(contentScrollPane, markupPreviewView);
+        contentStack = new StackPane(contentScrollPane);
         VBox.setVgrow(contentStack, Priority.ALWAYS);
         
         // Word wrap checkbox – persistent setting
@@ -1488,8 +1484,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             cancelAiTasks();
             // Tear down the Monaco WebView (page, JS bridge, boot retries) on close instead of leaking it.
             contentArea.dispose();
-            // Same for the markup preview's WebKit engine.
-            markupPreviewView.getEngine().loadContent("");
+            // Same for the markup preview's WebKit engine, if the preview was ever shown.
+            if (markupPreviewView != null) {
+                markupPreviewView.getEngine().loadContent("");
+            }
         });
         if (aiAssist != null
             && aiAssist.metadataProvider() != null
@@ -2780,9 +2778,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void refreshMarkupPreview() {
-        if (markupPreviewView == null
-            || markupPreviewToggleButton == null
-            || !markupPreviewToggleButton.isSelected()) {
+        if (markupPreviewToggleButton == null || !markupPreviewToggleButton.isSelected()) {
             return;
         }
         String language = languageCombo.getValue();
@@ -2790,9 +2786,22 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             updateMarkupPreviewAvailability();
             return;
         }
-        markupPreviewView.getEngine().loadContent(
+        ensureMarkupPreviewView().getEngine().loadContent(
             SnippetMarkupPreviewRenderer.renderHtml(language, safeContentText()),
             "text/html");
+    }
+
+    /** Lazily creates the preview WebView and stacks it over the editor, bound to the toggle. */
+    private WebView ensureMarkupPreviewView() {
+        if (markupPreviewView == null) {
+            markupPreviewView = new WebView();
+            markupPreviewView.getEngine().setJavaScriptEnabled(false);
+            markupPreviewView.setContextMenuEnabled(false);
+            markupPreviewView.visibleProperty().bind(markupPreviewToggleButton.selectedProperty());
+            markupPreviewView.managedProperty().bind(markupPreviewView.visibleProperty());
+            contentStack.getChildren().add(markupPreviewView);
+        }
+        return markupPreviewView;
     }
 
     private void updateAiActionAvailability() {
