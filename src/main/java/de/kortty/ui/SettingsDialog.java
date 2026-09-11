@@ -354,6 +354,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final ComboBox<String> snippetCursorStyleCombo;
     private final ColorPicker snippetCursorColorPicker;
     private final TextField snippetCompletionShortcutField;
+    private final CheckBox snippetPrewarmCheck;
     private String selectedGlobalThemeId;
     private ComboBox<Theme> colorProfileCombo;
     private final BooleanProperty applyThemeFontsProperty;
@@ -2818,6 +2819,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         snippetCompletionShortcutHint.setMaxWidth(400);
         snippetEditorGrid.add(snippetCompletionShortcutHint, 0, snippetRow++, 2, 1);
 
+        snippetPrewarmCheck = new CheckBox(I18n.get("settings.snippetEditor.prewarm"));
+        snippetPrewarmCheck.setSelected(globalSettings == null || globalSettings.isSnippetEditorPrewarmEnabled());
+        snippetEditorGrid.add(snippetPrewarmCheck, 0, snippetRow++, 2, 1);
+        Label snippetPrewarmHint = new Label(I18n.get("settings.snippetEditor.prewarm.hint"));
+        snippetPrewarmHint.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        snippetPrewarmHint.setWrapText(true);
+        snippetPrewarmHint.setMaxWidth(400);
+        snippetEditorGrid.add(snippetPrewarmHint, 0, snippetRow++, 2, 1);
+
         snippetEditorTab.setContent(snippetEditorGrid);
 
         // Themes tab
@@ -3201,6 +3211,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             Object recordedShortcut = snippetCompletionShortcutField.getUserData();
             globalSettings.setSnippetCompletionShortcut(SnippetCompletionShortcut.normalizeOrDefault(
                 recordedShortcut instanceof String chord ? chord : null));
+
+            globalSettings.setSnippetEditorPrewarmEnabled(snippetPrewarmCheck.isSelected());
+            MonacoEditorWarmup.applyEnabled(snippetPrewarmCheck.isSelected());
         }
         trackChangedSettings(trackedSettingsBefore);
         return true;

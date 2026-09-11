@@ -53,6 +53,7 @@ import java.util.function.Supplier;
  * (time a dialog stays open before closing, default 3000 — long enough for a Monaco boot),
  * {@code kortty.perf.dialogs} (comma list of {@code alert,settings,connection,ai,snippet}),
  * {@code kortty.perf.design} (an {@link AppDesign} name), {@code kortty.perf.fontScale} (percent),
+ * {@code kortty.perf.startupSettleMs} (pause after the main window shows, default 5000),
  * {@code kortty.perf.sample} (sample the FX thread's stack every 2 ms from construction to the first
  * pulse and print the hottest frames for the first {@code kortty.perf.sampleRuns} runs, default 1 —
  * JFR cannot do this on macOS, where the FX thread is the native AppKit main thread).
@@ -169,8 +170,10 @@ public final class DialogOpenPerfSmoke {
         }
         steps.add(done::countDown);
         QUEUE.addAll(steps);
-        // Let the main window settle (its own first pulses) before the first measurement.
-        PauseTransition settle = new PauseTransition(Duration.millis(1500));
+        // Let the main window settle (its own first pulses, the WebKit preload that starts 1.5 s
+        // after show) before the first measurement — the realistic case is a user opening a dialog
+        // seconds after startup, not in the very first moment. kortty.perf.startupSettleMs overrides.
+        PauseTransition settle = new PauseTransition(Duration.millis(Integer.getInteger("kortty.perf.startupSettleMs", 5000)));
         settle.setOnFinished(e -> next());
         settle.play();
     }

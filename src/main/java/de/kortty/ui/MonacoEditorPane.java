@@ -24,6 +24,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
@@ -57,7 +58,12 @@ public class MonacoEditorPane extends StackPane {
     private static final Duration HOST_READY_RETRY_DELAY = Duration.millis(25);
     private static final double UNKNOWN_CARET_X = -1000000000.0;
 
-    private final WebView webView = new WebView();
+    // Created in activate(): constructing a WebView initializes native WebKit (and, for the first
+    // one in the JVM, loads libjfxwebkit) — far too expensive for a pane that is merely part of a
+    // dialog's tree until its tab is shown. The placeholder keeps the WebView's default preferred
+    // size so the layout is identical before and after the swap.
+    private WebView webView;
+    private final Region webViewPlaceholder = new Region();
     private final String editorId = "kortty-editor-" + UUID.randomUUID();
     private final StringProperty text = new SimpleStringProperty("");
     private final ObjectProperty<IndexRange> selection = new SimpleObjectProperty<>(new IndexRange(0, 0));
@@ -129,9 +135,8 @@ public class MonacoEditorPane extends StackPane {
      */
     public MonacoEditorPane(boolean autoLoad) {
         getStyleClass().add("monaco-editor-pane");
-        webView.setContextMenuEnabled(false);
-        webView.getEngine().setJavaScriptEnabled(true);
-        getChildren().add(webView);
+        webViewPlaceholder.setPrefSize(800, 600);
+        getChildren().add(webViewPlaceholder);
 
         text.addListener((obs, oldValue, newValue) -> {
             if (!internalTextUpdate && ready.get()) {
@@ -140,15 +145,15 @@ public class MonacoEditorPane extends StackPane {
         });
 
         installInputGuards();
-        installContextMenuHandling();
         if (autoLoad) {
             activate();
         }
     }
 
     /**
-     * Loads the WebView page on first call. Idempotent, and a no-op after {@link #dispose()}.
-     * The editor boots with whatever text the Java-side mirror currently holds.
+     * Creates the WebView (native WebKit page) and loads the editor page on first call. Idempotent,
+     * and a no-op after {@link #dispose()}. The editor boots with whatever text the Java-side mirror
+     * currently holds.
      */
     public void activate() {
         if (disposed || loadRequested) {
@@ -156,7 +161,25 @@ public class MonacoEditorPane extends StackPane {
         }
         loadRequested = true;
         bootPerf = PerfTrace.begin("MonacoEditorPane.boot");
+        ensureWebView();
+        bootPerf.mark("webView");
         loadEditor();
+    }
+
+    /** Whether {@link #activate()} has run, i.e. the native WebView exists. */
+    public boolean isActivated() {
+        return webView != null;
+    }
+
+    private void ensureWebView() {
+        if (webView != null) {
+            return;
+        }
+        webView = new WebView();
+        webView.setContextMenuEnabled(false);
+        webView.getEngine().setJavaScriptEnabled(true);
+        installContextMenuHandling();
+        getChildren().setAll(webView);
     }
 
     public StringProperty textProperty() {
@@ -362,7 +385,9 @@ public class MonacoEditorPane extends StackPane {
      * its ActionEvent and Monaco cancels a suggest session that starts without editor focus.
      */
     public void triggerCompletionList() {
-        webView.requestFocus();
+        if (webView != null) {
+            webView.requestFocus();
+        }
         Platform.runLater(() -> runWhenReady("window.korttyMonaco.triggerCompletionList();"));
     }
 
@@ -577,7 +602,7 @@ public class MonacoEditorPane extends StackPane {
             pendingBootRetry.stop();
             pendingBootRetry = null;
         }
-        if (!loadRequested) {
+        if (!loadRequested || webView == null) {
             return;
         }
         WebEngine engine = webView.getEngine();
@@ -672,7 +697,7 @@ public class MonacoEditorPane extends StackPane {
 
     private void installInputGuards() {
         addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-            if (event.getCode() == KeyCode.TAB) {
+            if (event.getCode() == KeyCode.TAB && webView != null) {
                 webView.requestFocus();
             }
         });
@@ -730,7 +755,7 @@ public class MonacoEditorPane extends StackPane {
     }
 
     private Object executeScript(String script) {
-        if (disposed) {
+        if (disposed || webView == null) {
             return null;
         }
         if (!Platform.isFxApplicationThread()) {
