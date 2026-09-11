@@ -18,15 +18,22 @@
 # =============================================================================
 set -euo pipefail
 
-MLX_LM_VERSION="0.31.3"
-INSTALLATION_ID="mlx-${MLX_LM_VERSION}-kortty1-macos-aarch64-dev"
-
 if [[ "$(uname -s)" != "Darwin" || "$(uname -m)" != "arm64" ]]; then
   echo "build-mlx-runtime-local.sh: MLX only exists on Apple silicon; refusing to build on $(uname -s)/$(uname -m)." >&2
   exit 1
 fi
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Derived, never duplicated: mlx-runtime/requirements.in is the authoritative mlx-lm pin, and the
+# weekly detect job in .github/workflows/mlx-runtime.yml bumps it there.
+MLX_LM_VERSION="$(sed -nE 's/^mlx-lm==([^[:space:]]+)$/\1/p' "${REPO_ROOT}/mlx-runtime/requirements.in")"
+if [[ -z "${MLX_LM_VERSION}" ]]; then
+  echo "build-mlx-runtime-local.sh: no mlx-lm== pin found in mlx-runtime/requirements.in." >&2
+  exit 1
+fi
+INSTALLATION_ID="mlx-${MLX_LM_VERSION}-kortty1-macos-aarch64-dev"
+
 LAUNCHER_SOURCE="${REPO_ROOT}/src/main/resources/mlx/kortty_mlx_server.py"
 OUTPUT_ROOT="${REPO_ROOT}/build/mlx-runtime-dev"
 PACKAGE_DIRECTORY="${OUTPUT_ROOT}/packages/${INSTALLATION_ID}"

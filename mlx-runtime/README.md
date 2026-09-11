@@ -21,8 +21,15 @@ platform; MLX does not exist anywhere else.
 
 ## Dependency pinning and lock flow
 
-- `requirements.in` pins exactly one direct dependency: `mlx-lm==0.31.3`. The same version is
-  enforced at start time by `kortty_mlx_server.py` (`EXPECTED_MLX_LM_VERSION`).
+- `requirements.in` pins exactly one direct dependency, `mlx-lm`, and is the **authoritative**
+  version pin: `.github/workflows/mlx-runtime.yml` and `scripts/build-mlx-runtime-local.sh` both
+  derive the version from it instead of keeping a copy. The workflow in particular must not carry
+  its own, because `GITHUB_TOKEN` is refused pushes that touch `.github/workflows/**` and the
+  detect job below could then never bump it.
+- `kortty_mlx_server.py` (`EXPECTED_MLX_LM_VERSION`) is the one unavoidable second copy — the
+  launcher ships standalone inside the runtime package and cannot read this repository at run time.
+  It enforces the version at start time, so a drift from `requirements.in` fails the authenticated
+  API smoke, which starts the launcher against the staged wheelhouse.
 - `requirements.lock` is generated **in CI** (`.github/workflows/mlx-runtime.yml`) on the
   macOS 14 arm64 builder via:
 
@@ -35,6 +42,19 @@ platform; MLX does not exist anywhere else.
   with `uv pip install --require-hashes --no-build` (wheels only, no sdist builds, no unpinned
   resolution). The generate step only bootstraps a first lock or produces a review artifact for a
   dependency-update PR; a human must review and commit that artifact before any stable promotion.
+
+## Version detection
+
+`mlx-runtime.yml`'s `detect-candidate` job asks PyPI weekly (Monday 04:41 UTC, or on demand via
+`workflow_dispatch` with `action=detect`) whether a newer stable `mlx-lm` exists. If one does, it
+rewrites the two pins, regenerates `requirements.lock`, and opens a single
+`automation/mlx-runtime-<version>` pull request — the MLX counterpart to `llama-runtime.yml`'s
+`detect-candidate`, which Dependabot cannot cover because neither pin is a Gradle dependency.
+
+Pre-releases and fully yanked releases are never proposed, and a lower upstream version never opens
+a downgrade PR. The result is a candidate only: the PR re-enters this workflow through the
+`pull_request` trigger and must pass the macOS arm64 build and the authenticated API smoke, then
+human approval, before it is promoted to the signed `mlx-stable` channel.
 
 ## Build and publication
 
