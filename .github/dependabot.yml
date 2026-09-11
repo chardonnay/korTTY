@@ -82,3 +82,46 @@ updates:
       codeql-action:
         patterns:
           - "github/codeql-action/*"
+
+  # ---- pip: the MkDocs toolchain that builds the bundled guide ----
+  #
+  # This block buys VERSION updates only. Security updates for app-docs/site/requirements.txt
+  # already worked without it: the dependency graph detects the file on its own, and Dependabot
+  # opens a security PR off the alert regardless of what stands here (#317 bumped
+  # mkdocs-material 9.7.6 -> 9.7.7 for GHSA-xvg9-69gf-fjrf that way, while this file still
+  # listed gradle and github-actions only).
+  #
+  # The gap that leaves is routine drift. Every package below is pinned, ~50 of them transitive,
+  # and without an updates entry none of them is ever offered a bump — the toolchain only moves
+  # when an advisory forces it, which is how a pin ages into the next advisory. It also puts the
+  # labels, commit prefix and grouping under this file's control instead of Dependabot's defaults.
+  #
+  # requirements.txt is FULLY pinned, transitive packages included, because the built guide is
+  # committed under src/main/resources/guide and the toolchain shapes its HTML. A bump therefore
+  # has to ship the regenerated bundle with it — docs-autocommit.yml does that automatically on
+  # a branch (it triggers on app-docs/site/**), so a Dependabot PR self-heals before merge and
+  # must not be merged while its guide diff is still missing.
+  - package-ecosystem: "pip"
+    directory: "/app-docs/site"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "documentation"
+    commit-message:
+      prefix: "docs"
+      include: "scope"
+    groups:
+      # Every package here is one reproducible-build pin, and each bump costs a full guide
+      # rebuild, so routine minor/patch updates ride in ONE PR instead of ~50. Security
+      # advisories still open their own dedicated PR, which is the case that matters.
+      docs-toolchain:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
