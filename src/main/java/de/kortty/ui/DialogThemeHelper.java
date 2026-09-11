@@ -16,6 +16,7 @@ public final class DialogThemeHelper {
         if (dialog == null) {
             return;
         }
+        DialogPerfTrace.attach(dialog);
         applyTheme(dialog.getDialogPane());
         WindowCloseShortcutSupport.installForDialog(dialog);
         DialogGeometrySupport.installAutomatic(dialog);

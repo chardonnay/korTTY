@@ -1,5 +1,6 @@
 package de.kortty.security;
 
+import de.kortty.perf.PerfTrace;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,9 +42,11 @@ public class EncryptionService {
      */
     public SecretKey deriveKey(char[] password, byte[] salt) 
             throws NoSuchAlgorithmException, InvalidKeySpecException {
+        PerfTrace.Span perf = PerfTrace.begin("EncryptionService.deriveKey");
         KeySpec spec = new PBEKeySpec(password, salt, ITERATIONS, KEY_LENGTH);
         SecretKeyFactory factory = SecretKeyFactory.getInstance(KEY_DERIVATION_ALGORITHM);
         byte[] keyBytes = factory.generateSecret(spec).getEncoded();
+        perf.end();
         return new SecretKeySpec(keyBytes, KEY_ALGORITHM);
     }
     

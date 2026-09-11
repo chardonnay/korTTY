@@ -1,5 +1,6 @@
 package de.kortty.ui;
 
+import de.kortty.perf.PerfTrace;
 import javafx.scene.text.Font;
 
 import java.util.ArrayList;
@@ -35,7 +36,10 @@ public final class MonospaceFontFamilies {
 
     /** All installed families, common monospace ones first. */
     public static List<String> monospaceFirst() {
-        return monospaceFirst(Font.getFamilies());
+        PerfTrace.Span perf = PerfTrace.begin("Font.getFamilies");
+        List<String> installed = Font.getFamilies();
+        perf.end();
+        return monospaceFirst(installed);
     }
 
     /** Testable variant taking the installed families explicitly. */

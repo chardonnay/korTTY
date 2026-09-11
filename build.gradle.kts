@@ -3318,6 +3318,19 @@ tasks.register<JavaExec>("monacoWebViewSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("dialogOpenPerfSmoke") {
+    group = "verification"
+    description = "Opens the heavy korTTY dialogs repeatedly and prints construct/show/first-pulse/stall/close times."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.DialogOpenPerfSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+    systemProperty("kortty.ui.perf", "true")
+    listOf("kortty.perf.iterations", "kortty.perf.settleMs", "kortty.perf.dialogs",
+        "kortty.perf.design", "kortty.perf.fontScale").forEach { key ->
+        (findProperty(key) as String?)?.let { systemProperty(key, it) }
+    }
+}
+
 tasks.register<JavaExec>("sessionJournalPageWebViewSmoke") {
     group = "verification"
     description = "Drives the journal page's context menu inside the real JavaFX WebView."

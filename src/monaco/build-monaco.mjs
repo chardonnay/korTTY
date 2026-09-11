@@ -53,7 +53,7 @@ await fs.writeFile(
   "utf8"
 );
 
-await build({
+const hostBuild = await build({
   entryPoints: [path.join(root, "monaco-host.js")],
   bundle: true,
   outfile: path.join(outDir, "monaco-host.js"),
@@ -68,5 +68,14 @@ await build({
   // are emitted only once.
   minify: true,
   legalComments: "none",
-  logLevel: "info"
+  logLevel: "info",
+  // The metafile stays in the build workspace (never in outDir, so it does not ship in the jar);
+  // `node src/bundle-report.mjs` turns it into a size breakdown per Monaco subsystem — the input
+  // for deciding what the WebView has to parse on every editor boot.
+  metafile: true
 });
+await fs.writeFile(
+  path.join(root, "generated", "monaco-host.meta.json"),
+  JSON.stringify(hostBuild.metafile),
+  "utf8"
+);
