@@ -52,7 +52,10 @@ import java.util.function.Supplier;
  * <p>System properties: {@code kortty.perf.iterations} (default 5), {@code kortty.perf.settleMs}
  * (time a dialog stays open before closing, default 3000 — long enough for a Monaco boot),
  * {@code kortty.perf.dialogs} (comma list of {@code alert,settings,connection,ai,snippet}),
- * {@code kortty.perf.design} (an {@link AppDesign} name), {@code kortty.perf.fontScale} (percent).
+ * {@code kortty.perf.design} (an {@link AppDesign} name), {@code kortty.perf.fontScale} (percent),
+ * {@code kortty.perf.sample} (sample the FX thread's stack every 2 ms from construction to the first
+ * pulse and print the hottest frames for the first {@code kortty.perf.sampleRuns} runs, default 1 —
+ * JFR cannot do this on macOS, where the FX thread is the native AppKit main thread).
  * {@code kortty.ui.perf} is forced on, so the per-dialog {@code perf …} log lines appear too.</p>
  */
 public final class DialogOpenPerfSmoke {
@@ -185,6 +188,13 @@ public final class DialogOpenPerfSmoke {
     }
 
     private static void measure(String name, Supplier<Dialog<?>> factory, int settleMs, Runnable next) {
+        int run = RESULTS.getOrDefault(name, List.of()).size() + 1;
+        FxStackSampler sampler = Boolean.getBoolean("kortty.perf.sample")
+            && run <= Integer.getInteger("kortty.perf.sampleRuns", 1)
+            ? new FxStackSampler(name + " #" + run) : null;
+        if (sampler != null) {
+            sampler.start();
+        }
         long t0 = System.nanoTime();
         Dialog<?> dialog = factory.get();
         long constructed = System.nanoTime();
@@ -202,6 +212,9 @@ public final class DialogOpenPerfSmoke {
             once[0] = () -> {
                 scene.removePostLayoutPulseListener(once[0]);
                 firstPulse[0] = System.nanoTime();
+                if (sampler != null) {
+                    sampler.stopAndPrint();
+                }
                 PauseTransition wait = new PauseTransition(Duration.millis(settleMs));
                 wait.setOnFinished(ev -> dialog.close());
                 wait.play();
@@ -230,6 +243,95 @@ public final class DialogOpenPerfSmoke {
 
     private static double ms(long nanos) {
         return nanos / 1_000_000.0;
+    }
+
+    /**
+     * Polls the FX thread's stack from a daemon thread and aggregates the hottest frames: the top
+     * frame (self time), the nearest {@code de.kortty} frame (which korTTY code is responsible) and
+     * frames anywhere on the stack (inclusive). Coarse (safepoint-biased, 2 ms), but enough to
+     * attribute a cold dialog open to CSS, layout, WebKit, class loading or a korTTY constructor.
+     */
+    private static final class FxStackSampler {
+        private final String label;
+        private final Thread fxThread = Thread.currentThread();
+        private final Map<String, Integer> self = new LinkedHashMap<>();
+        private final Map<String, Integer> kortty = new LinkedHashMap<>();
+        private final Map<String, Integer> inclusive = new LinkedHashMap<>();
+        private volatile boolean running = true;
+        private int samples;
+        private Thread worker;
+
+        FxStackSampler(String label) {
+            this.label = label;
+        }
+
+        void start() {
+            worker = new Thread(() -> {
+                while (running) {
+                    StackTraceElement[] stack = fxThread.getStackTrace();
+                    synchronized (this) {
+                        record(stack);
+                    }
+                    try {
+                        Thread.sleep(2);
+                    } catch (InterruptedException e) {
+                        return;
+                    }
+                }
+            }, "fx-stack-sampler");
+            worker.setDaemon(true);
+            worker.start();
+        }
+
+        private void record(StackTraceElement[] stack) {
+            if (stack.length == 0) {
+                return;
+            }
+            samples++;
+            self.merge(frame(stack[0]), 1, Integer::sum);
+            java.util.Set<String> seen = new java.util.HashSet<>();
+            boolean korttyFound = false;
+            for (StackTraceElement element : stack) {
+                String frame = frame(element);
+                if (!korttyFound && element.getClassName().startsWith("de.kortty.")
+                    && !element.getClassName().contains("DialogOpenPerfSmoke")) {
+                    kortty.merge(frame, 1, Integer::sum);
+                    korttyFound = true;
+                }
+                if (seen.add(frame)) {
+                    inclusive.merge(frame, 1, Integer::sum);
+                }
+            }
+            if (!korttyFound) {
+                kortty.merge("(no de.kortty frame: JavaFX/JDK internal)", 1, Integer::sum);
+            }
+        }
+
+        private static String frame(StackTraceElement element) {
+            return element.getClassName() + "." + element.getMethodName();
+        }
+
+        void stopAndPrint() {
+            running = false;
+            if (worker != null) {
+                worker.interrupt();
+            }
+            synchronized (this) {
+                System.out.println("SAMPLES " + label + ": " + samples + " stack samples (~2 ms each)");
+                print("  self (top frame)", self, 12);
+                print("  nearest de.kortty frame", kortty, 15);
+                print("  inclusive", inclusive, 40);
+            }
+        }
+
+        private void print(String title, Map<String, Integer> counts, int limit) {
+            System.out.println(title + ":");
+            counts.entrySet().stream()
+                .sorted((a, b) -> Integer.compare(b.getValue(), a.getValue()))
+                .limit(limit)
+                .forEach(e -> System.out.printf(Locale.ROOT, "  %5d %5.1f%%  %s%n",
+                    e.getValue(), 100.0 * e.getValue() / Math.max(1, samples), e.getKey()));
+        }
     }
 
     /** Longest gap between two consecutive animation frames = longest FX-thread freeze. */
