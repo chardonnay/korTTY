@@ -91,7 +91,7 @@ updates:
   # mkdocs-material 9.7.6 -> 9.7.7 for GHSA-xvg9-69gf-fjrf that way, while this file still
   # listed gradle and github-actions only).
   #
-  # The gap that leaves is routine drift. Every package below is pinned, ~50 of them transitive,
+  # The gap that leaves is routine drift. Every package below is pinned, 23 of them transitive,
   # and without an updates entry none of them is ever offered a bump — the toolchain only moves
   # when an advisory forces it, which is how a pin ages into the next advisory. It also puts the
   # labels, commit prefix and grouping under this file's control instead of Dependabot's defaults.
