@@ -1513,4 +1513,46 @@ class GlobalSettingsManagerTest {
             Files.deleteIfExists(dir);
         }
     }
+
+    @Test
+    void scheduledSavesWithinTheCoalesceWindowProduceOneWrite() throws Exception {
+        Path home = Files.createTempDirectory("kortty-settings-schedule");
+        GlobalSettingsManager manager = new GlobalSettingsManager(home);
+        manager.getSettings().setLanguage("de");
+        for (int i = 0; i < 10; i++) {
+            manager.scheduleSave();
+        }
+        long deadline = System.currentTimeMillis() + 5000;
+        while (manager.writeCount() == 0 && System.currentTimeMillis() < deadline) {
+            Thread.sleep(20);
+        }
+        Thread.sleep(GlobalSettingsManager.SAVE_COALESCE_MILLIS * 2);
+        assertThat(manager.writeCount()).isEqualTo(1);
+        assertThat(Files.exists(home.resolve("global-settings.xml"))).isTrue();
+        assertThat(Files.exists(home.resolve("global-settings.xml.tmp"))).isFalse();
+        // The manager's own write must not look like an external edit.
+        assertThat(manager.reloadIfChanged()).isFalse();
+        GlobalSettingsManager reloaded = new GlobalSettingsManager(home);
+        reloaded.load();
+        assertThat(reloaded.getSettings().getLanguage()).isEqualTo("de");
+    }
+
+    @Test
+    void flushPendingSaveWritesSynchronouslyAndSaveSupersedesAScheduledOne() throws Exception {
+        Path home = Files.createTempDirectory("kortty-settings-flush");
+        GlobalSettingsManager manager = new GlobalSettingsManager(home);
+        manager.getSettings().setLanguage("fr");
+        manager.scheduleSave();
+        manager.flushPendingSave();
+        assertThat(manager.writeCount()).isEqualTo(1);
+        assertThat(Files.readString(home.resolve("global-settings.xml"))).contains("<language>fr</language>");
+        // Nothing left pending: a second flush is a no-op.
+        manager.flushPendingSave();
+        assertThat(manager.writeCount()).isEqualTo(1);
+        // An explicit save cancels a scheduled one instead of writing twice.
+        manager.scheduleSave();
+        manager.save();
+        Thread.sleep(GlobalSettingsManager.SAVE_COALESCE_MILLIS * 2);
+        assertThat(manager.writeCount()).isEqualTo(2);
+    }
 }

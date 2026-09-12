@@ -2145,6 +2145,9 @@ public class MainWindow {
         // Restore the persisted live journal panel placement (hidden/left/right) and width.
         applyPersistedJournalLivePanel();
         updateForegroundActivity();
+        // The first WebView of the session (AI Manager, snippet editor, guide, reports) would
+        // otherwise freeze the FX thread for ~1 s while libjfxwebkit is extracted and loaded.
+        WebKitPreloader.start();
 
         // Mark startup as complete after a short delay to allow UI to settle
         Platform.runLater(() -> {

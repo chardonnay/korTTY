@@ -847,6 +847,9 @@ public class GlobalSettings {
      */
     @XmlElement
     private String snippetCompletionShortcut = "Shift+Tab";
+    // Keep one pre-booted Monaco editor in reserve after the first snippet editor of the session
+    // (see MonacoEditorWarmup); off saves the idle WebKit page's memory at the cost of a boot per open.
+    private boolean snippetEditorPrewarmEnabled = true;
 
     @XmlElement
     private Double snippetManagerPreviewDividerPosition; // Vertical table/preview divider position
@@ -3362,6 +3365,11 @@ public class GlobalSettings {
     
     public boolean isSnippetLineNumbers() { return snippetLineNumbers; }
     public void setSnippetLineNumbers(boolean snippetLineNumbers) { this.snippetLineNumbers = snippetLineNumbers; }
+
+    public boolean isSnippetEditorPrewarmEnabled() { return snippetEditorPrewarmEnabled; }
+    public void setSnippetEditorPrewarmEnabled(boolean snippetEditorPrewarmEnabled) {
+        this.snippetEditorPrewarmEnabled = snippetEditorPrewarmEnabled;
+    }
 
     public String getSnippetCompletionShortcut() { return snippetCompletionShortcut; }
     public void setSnippetCompletionShortcut(String snippetCompletionShortcut) {

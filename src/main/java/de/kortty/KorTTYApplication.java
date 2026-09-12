@@ -541,6 +541,11 @@ public class KorTTYApplication extends Application {
         shuttingDown = true;
         logger.info("Shutting down {}...", APP_NAME);
 
+        // A geometry save scheduled by a dialog that closed just now must land before halt(0).
+        if (globalSettingsManager != null) {
+            globalSettingsManager.flushPendingSave();
+        }
+
         // Close all SSH sessions first.
         if (sessionManager != null) {
             try {

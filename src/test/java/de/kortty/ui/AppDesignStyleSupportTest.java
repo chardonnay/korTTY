@@ -239,4 +239,60 @@ class AppDesignStyleSupportTest {
         AppDesignStyleSupport.syncApplicationBaseStylesheets(stylesheets, AppDesign.NORMAL);
         assertThat(stylesheets).containsExactly("other.css", terminal).inOrder();
     }
+
+    @Test
+    void applyToStylesheetsDoesNotTouchAnAlreadyCorrectList() {
+        ObservableList<String> stylesheets = FXCollections.observableArrayList("base.css");
+        AppDesignStyleSupport.applyToStylesheets(stylesheets, AppDesign.MATRIX_TERMINAL);
+        int[] changes = {0};
+        stylesheets.addListener((javafx.collections.ListChangeListener<String>) change -> changes[0]++);
+        AppDesignStyleSupport.applyToStylesheets(stylesheets, AppDesign.MATRIX_TERMINAL);
+        AppDesignStyleSupport.applyToStylesheets(stylesheets, AppDesign.MATRIX_TERMINAL);
+        assertThat(changes[0]).isEqualTo(0);
+        AppDesignStyleSupport.applyToStylesheets(stylesheets, AppDesign.NORMAL);
+        assertThat(stylesheets).containsExactly("base.css");
+    }
+
+    @Test
+    void syncApplicationBaseStylesheetsDoesNotTouchAnAlreadyCorrectList() {
+        ObservableList<String> stylesheets = FXCollections.observableArrayList("other.css");
+        AppDesignStyleSupport.syncApplicationBaseStylesheets(stylesheets, AppDesign.NORMAL);
+        int[] changes = {0};
+        stylesheets.addListener((javafx.collections.ListChangeListener<String>) change -> changes[0]++);
+        AppDesignStyleSupport.syncApplicationBaseStylesheets(stylesheets, AppDesign.NORMAL);
+        assertThat(changes[0]).isEqualTo(0);
+        AppDesignStyleSupport.syncApplicationBaseStylesheets(stylesheets, AppDesign.ATLANTAFX_PRIMER_DARK);
+        assertThat(changes[0]).isGreaterThan(0);
+        assertThat(stylesheets).containsExactly("other.css", AppDesignStyleSupport.atlantaFxComponentsStylesheetUrl()).inOrder();
+    }
+
+    @Test
+    void forcedRestyleOnlyForShownSurfacesWithANonDefaultDesignOrScale() {
+        assertThat(AppDesignStyleSupport.shouldForceRestyle(AppDesign.NORMAL, 100, true)).isFalse();
+        assertThat(AppDesignStyleSupport.shouldForceRestyle(AppDesign.ATLANTAFX_PRIMER_DARK, 100, true)).isTrue();
+        assertThat(AppDesignStyleSupport.shouldForceRestyle(AppDesign.NORMAL, 130, true)).isTrue();
+        assertThat(AppDesignStyleSupport.shouldForceRestyle(AppDesign.ATLANTAFX_PRIMER_DARK, 130, false)).isFalse();
+        assertThat(AppDesignStyleSupport.shouldForceRestyle(AppDesign.MATRIX_TERMINAL, 100, false)).isFalse();
+    }
+
+    @Test
+    void styleStampSkipsOnlyAnUnchangedSurfaceUnlessForced() {
+        java.util.Map<Object, Object> properties = new java.util.HashMap<>();
+        AppDesignStyleSupport.StyleStamp primer = new AppDesignStyleSupport.StyleStamp(AppDesign.ATLANTAFX_PRIMER_DARK, 100, null);
+        assertThat(AppDesignStyleSupport.shouldApply(properties, primer, false)).isTrue();
+        assertThat(AppDesignStyleSupport.shouldApply(null, primer, false)).isTrue();
+        properties.put(stampKey(properties, primer), primer);
+        assertThat(AppDesignStyleSupport.shouldApply(properties, primer, false)).isFalse();
+        assertThat(AppDesignStyleSupport.shouldApply(properties, primer, true)).isTrue();
+        assertThat(AppDesignStyleSupport.shouldApply(properties,
+            new AppDesignStyleSupport.StyleStamp(AppDesign.ATLANTAFX_PRIMER_DARK, 130, null), false)).isTrue();
+        assertThat(AppDesignStyleSupport.shouldApply(properties,
+            new AppDesignStyleSupport.StyleStamp(AppDesign.NORMAL, 100, "file:/theme.css"), false)).isTrue();
+    }
+
+    /** The stamp key is private; stamping through the real code path keeps the test honest. */
+    private static Object stampKey(java.util.Map<Object, Object> properties, AppDesignStyleSupport.StyleStamp stamp) {
+        AppDesignStyleSupport.stamp(properties, stamp);
+        return properties.keySet().iterator().next();
+    }
 }

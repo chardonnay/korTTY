@@ -253,7 +253,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         categoryFilter.setOnAction(e -> updateFilter());
         
         // ---- Preview Area with scrollbars ----
-        previewArea = new MonacoEditorPane();
+        previewArea = MonacoEditorWarmup.acquire();
         previewArea.setEditable(false);
         EditorSettingsHelper.applyStyle(previewArea, editorSettings);
         EditorSettingsHelper.installPersistentCaretStyling(previewArea, editorSettings);

@@ -248,7 +248,7 @@ final class UiFontScaleSupport {
     }
 
     /** @return 100 for a surface that opted out via {@link #FIXED_SCALE_STYLE_CLASS}, else the active scale. */
-    private static int percentFor(Parent root) {
+    static int percentFor(Parent root) {
         if (root != null && root.getStyleClass().contains(FIXED_SCALE_STYLE_CLASS)) {
             return GlobalSettings.UI_FONT_SCALE_DEFAULT_PERCENT;
         }
