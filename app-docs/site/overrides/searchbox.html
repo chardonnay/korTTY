@@ -22,12 +22,19 @@
 {% set no_results = "Keine Treffer" if de else "No results found" %}
 {% set preparing = "Suche wird vorbereitet …" if de else "Preparing search …" %}
 {% set more = "{n} weitere Treffer anzeigen" if de else "Show {n} more results" %}
+{% set clear_label = "Suche zurücksetzen" if de else "Clear search" %}
 <div role="search" class="search-box kt-search">
-	<form id="rtd-search-form" class="wy-form" action="{{ base_url }}/search.html" method="get">
+	<form id="rtd-search-form" class="wy-form kt-search-form" action="{{ base_url }}/search.html" method="get">
 		<input type="text" name="q"{% if live %} id="mkdocs-search-query"{% endif %}
-		class="drac-input drac-input-search drac-input-white drac-text-white drac-bg-black-secondary"
-		placeholder="{{ "Anleitung durchsuchen" if config.extra.kt_lang == "de" else "Search docs" }}"
+		class="kt-search-input drac-input drac-input-search drac-input-white drac-text-white drac-bg-black-secondary"
+		placeholder="{{ "Anleitung durchsuchen" if de else "Search docs" }}"
 		autocomplete="off" title="Type search term here" />
+		{%- if live %}
+		{#- type="button": inside the form, a default-type button would submit it and
+		    navigate to the results page instead of clearing the field. -#}
+		<button type="button" class="kt-search-clear" hidden
+		        aria-label="{{ clear_label }}" title="{{ clear_label }}">&times;</button>
+		{%- endif %}
 	</form>
 	{%- if live %}
 	<div id="mkdocs-search-results" class="kt-search-suggest"
@@ -35,14 +42,56 @@
 	     data-preparing-text="{{ preparing }}"
 	     data-more-text="{{ more }}"></div>
 	<script>
-	  // Close the suggestion panel on Escape or a click outside it. Emptying the panel
-	  // is what hides it (CSS :empty), so this only has to clear it.
 	  (function () {
 	    var box = document.currentScript.parentNode;
 	    var panel = box.querySelector('.kt-search-suggest');
+	    var input = box.querySelector('#mkdocs-search-query');
+	    var clear = box.querySelector('.kt-search-clear');
+
+	    // Emptying the panel is what hides it (CSS :empty), so closing is just that.
 	    function close () { while (panel.firstChild) { panel.removeChild(panel.firstChild); } }
+	    // The button is only useful once there is something to clear.
+	    function sync () { clear.hidden = !input.value; }
+
+	    input.addEventListener('input', sync);
+	    clear.addEventListener('click', function () {
+	      input.value = '';
+	      sync();
+	      // search/main.js renders on keyup, which a programmatic clear never fires, so
+	      // the panel has to be emptied here or the old hits would outlive the query.
+	      close();
+	      input.focus();
+	    });
+
 	    document.addEventListener('click', function (e) { if (!box.contains(e.target)) { close(); } });
-	    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { close(); } });
+
+	    // Escape has to be handled on keyUP, and on the document rather than the input.
+	    // search/main.js binds doSearch to the field's keyup, so anything that closed the
+	    // panel on keydown was undone microseconds later by that re-render — which is why
+	    // Escape appeared to do nothing at all. Listening on the document means this runs
+	    // after the field's own handler has already re-rendered, so closing sticks.
+	    // What the panel looked like BEFORE that re-render is the interesting state, so it
+	    // is captured on keydown: the usual two steps, Escape dismisses the suggestions,
+	    // Escape again empties the box.
+	    var panelWasOpen = false;
+	    document.addEventListener('keydown', function (e) {
+	      if (e.key === 'Escape') {
+	        panelWasOpen = !!panel.firstChild;
+	      }
+	    });
+	    document.addEventListener('keyup', function (e) {
+	      if (e.key !== 'Escape') {
+	        return;
+	      }
+	      // Only clear the field while it has focus — Escape elsewhere on the page is not ours.
+	      if (!panelWasOpen && document.activeElement === input && input.value) {
+	        input.value = '';
+	        sync();
+	      }
+	      close();
+	    });
+
+	    sync();  // a ?q= deep link arrives with the field already filled
 	  })();
 	</script>
 	{%- endif %}

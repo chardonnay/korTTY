@@ -422,6 +422,40 @@ article h6:hover .headerlink {
 .kt-search {
   position: relative;
 }
+/* The reset button sits inside the field's right edge, so the form is the positioning
+   context and the input reserves room for it. .kt-search itself must stay the context
+   for the suggestion panel below, which anchors to the whole box rather than the form. */
+.kt-search-form {
+  position: relative;
+}
+.kt-search .kt-search-input {
+  padding-right: 1.9rem;
+}
+.kt-search-clear {
+  position: absolute;
+  top: 50%;
+  right: 0.5rem;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--kt-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.kt-search-clear:hover,
+.kt-search-clear:focus-visible {
+  background: rgba(56, 189, 248, 0.16);
+  color: var(--kt-accent);
+}
+
 .kt-search-suggest {
   position: absolute;
   z-index: 60;
