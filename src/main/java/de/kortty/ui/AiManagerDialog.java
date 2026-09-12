@@ -96,10 +96,15 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private final KorTTYApplication app;
     private final ObservableList<AiProfile> profiles;
     private final ListView<AiProfile> profileListView;
-    private final AiLocalPreferencesPane localPreferencesPane;
-    private final LocalModelManagerPane localModelManagerPane;
-    private final RagKnowledgeStorePane knowledgeStorePane;
-    private final AiSkillsPane aiSkillsPane;
+    // Built on first selection of their tab (LazyTabContent): each constructor scans registries,
+    // starts watchers or holds a WebView, none of which should be paid for merely opening the
+    // dialog. Null until then — every access goes through the null-safe helpers below.
+    private AiLocalPreferencesPane localPreferencesPane;
+    private LocalModelManagerPane localModelManagerPane;
+    private RagKnowledgeStorePane knowledgeStorePane;
+    private AiSkillsPane aiSkillsPane;
+    private final javafx.stage.Window paneOwner;
+    private Tab localModelsTab;
     private final ComboBox<AiProfile> defaultProfileCombo;
     private final TextField profileNameField;
     private final ComboBox<AiConnectionMode> connectionModeCombo;
@@ -165,25 +170,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         getDialogPane().getButtonTypes().addAll(ButtonType.CLOSE);
 
         profiles = FXCollections.observableArrayList();
-        javafx.stage.Window owner = ownerWindow != null ? ownerWindow.getStage() : null;
-        localPreferencesPane = new AiLocalPreferencesPane(app);
-        localModelManagerPane = new LocalModelManagerPane(app, owner, this::mergeExternalProfileChanges);
-        RagKnowledgeStorePane ragPane;
-        if (ownerWindow == null) {
-            // Headless UI harnesses intentionally have no application owner or configuration
-            // lifecycle. Avoid starting file watchers against the real user directory there.
-            ragPane = null;
-        } else {
-            try {
-                ragPane = new RagKnowledgeStorePane(app, owner, this::mergeExternalProfileChanges,
-                    localModelManagerPane::openEmbeddingSetupWizard);
-            } catch (java.io.IOException error) {
-                logger.warn("Could not initialize knowledge-store manager", error);
-                ragPane = null;
-            }
-        }
-        knowledgeStorePane = ragPane;
-        aiSkillsPane = new AiSkillsPane(app, owner);
+        paneOwner = ownerWindow != null ? ownerWindow.getStage() : null;
 
         profileListView = buildProfileListView();
         defaultProfileCombo = new ComboBox<>();
@@ -260,19 +247,25 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         setOnCloseRequest(event -> saveGeometry());
         setOnHidden(event -> {
             saveGeometry();
-            localModelManagerPane.close();
+            if (localModelManagerPane != null) {
+                localModelManagerPane.close();
+            }
             if (knowledgeStorePane != null) {
                 knowledgeStorePane.close();
             }
             try {
                 if (app != null && app.getGlobalSettingsManager() != null) {
-                    aiSkillsPane.save(true); // quiet: no status/alerts while the dialog is closing
+                    if (aiSkillsPane != null) {
+                        aiSkillsPane.save(true); // quiet: no status/alerts while the dialog is closing
+                    }
                     saveProfiles(true); // quiet: no modal alerts while the dialog is closing
                 }
             } catch (Exception ignored) {
                 // Best-effort persistence on close.
             }
-            aiSkillsPane.close();
+            if (aiSkillsPane != null) {
+                aiSkillsPane.close();
+            }
         });
 
         refreshAll();
@@ -722,40 +715,79 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
 
     private Tab buildAiSkillsTab() {
         Tab tab = new Tab(I18n.get("settings.tab.aiSkills"));
-        tab.setContent(aiSkillsPane);
-        // Defer the Monaco WebView boot (native WebKit + JS bridge + web workers) until the tab is
-        // actually shown, so merely opening the AI Manager never spins up that path.
-        tab.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
-            if (Boolean.TRUE.equals(isSelected)) {
-                aiSkillsPane.activateEditor();
-            }
+        // The pane (and with it the Monaco WebView: native WebKit + JS bridge + web workers) is
+        // built and activated on the first visit, so merely opening the AI Manager never spins up
+        // that path.
+        LazyTabContent.defer(tab, () -> {
+            aiSkillsPane = new AiSkillsPane(app, paneOwner);
+            aiSkillsPane.activateEditor();
+            return aiSkillsPane;
         });
         return tab;
     }
 
     private Tab buildLocalPreferencesTab() {
         Tab tab = new Tab(I18n.get("ai.local.preferences.tab"));
-        tab.setContent(localPreferencesPane);
+        LazyTabContent.defer(tab, () -> {
+            localPreferencesPane = new AiLocalPreferencesPane(app);
+            localPreferencesPane.refresh(profiles);
+            return localPreferencesPane;
+        });
         return tab;
     }
 
     private Tab buildLocalModelsTab() {
         Tab tab = new Tab(I18n.get("ai.local.models.tab"));
-        tab.setContent(localModelManagerPane);
+        localModelsTab = tab;
+        // The constructor ends with refresh(): registry reload, runtime status, table refresh.
+        LazyTabContent.defer(tab, () -> {
+            localModelManagerPane = new LocalModelManagerPane(app, paneOwner, this::mergeExternalProfileChanges);
+            return localModelManagerPane;
+        });
         return tab;
+    }
+
+    /** The Local Models pane, built now if its tab was never visited (the RAG wizard needs it). */
+    private LocalModelManagerPane ensureLocalModelManagerPane() {
+        if (localModelManagerPane == null && localModelsTab != null) {
+            LazyTabContent.ensureContent(localModelsTab);
+        }
+        return localModelManagerPane;
     }
 
     private Tab buildKnowledgeStoresTab() {
         Tab tab = new Tab(I18n.get("ai.rag.tab"));
-        tab.setContent(knowledgeStorePane != null
-            ? knowledgeStorePane
-            : new Label(I18n.get("ai.rag.unavailable")));
+        if (ownerWindow == null) {
+            // Headless UI harnesses intentionally have no application owner or configuration
+            // lifecycle. Avoid starting file watchers against the real user directory there.
+            tab.setContent(new Label(I18n.get("ai.rag.unavailable")));
+            return tab;
+        }
+        // The constructor starts the source watch service and ends with refresh().
+        LazyTabContent.defer(tab, () -> {
+            try {
+                knowledgeStorePane = new RagKnowledgeStorePane(app, paneOwner, this::mergeExternalProfileChanges,
+                    () -> {
+                        LocalModelManagerPane models = ensureLocalModelManagerPane();
+                        if (models != null) {
+                            models.openEmbeddingSetupWizard();
+                        }
+                    });
+                return knowledgeStorePane;
+            } catch (java.io.IOException error) {
+                logger.warn("Could not initialize knowledge-store manager", error);
+                return new Label(I18n.get("ai.rag.unavailable"));
+            }
+        });
         return tab;
     }
 
     private void refreshAll() {
         refreshProfiles();
-        localModelManagerPane.refresh();
+        // Panes that were never visited refresh themselves when they are built.
+        if (localModelManagerPane != null) {
+            localModelManagerPane.refresh();
+        }
         if (knowledgeStorePane != null) {
             knowledgeStorePane.refresh();
         }
@@ -767,7 +799,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         defaultProfileId = getConfiguredDefaultProfileId();
         globalRequestTimeoutSpinner.getValueFactory().setValue(configuredGlobalRequestTimeoutMinutes());
         profiles.setAll(loadedProfiles);
-        localPreferencesPane.refresh(profiles);
+        if (localPreferencesPane != null) {
+            localPreferencesPane.refresh(profiles);
+        }
         refreshDefaultProfileSelection(defaultProfileId);
         if (selectedProfileId != null) {
             for (AiProfile profile : profiles) {
@@ -789,7 +823,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         String selectedProfileId = selectedProfile != null ? selectedProfile.getId() : null;
         defaultProfileId = getConfiguredDefaultProfileId();
         profiles.setAll(mergeExternalProfiles(profiles, loadProfiles()));
-        localPreferencesPane.refresh(profiles);
+        if (localPreferencesPane != null) {
+            localPreferencesPane.refresh(profiles);
+        }
         refreshDefaultProfileSelection(defaultProfileId);
         if (selectedProfileId != null) {
             profiles.stream().filter(profile -> selectedProfileId.equals(profile.getId())).findFirst()
