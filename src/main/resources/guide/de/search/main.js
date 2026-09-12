@@ -44,10 +44,28 @@ function displayResults (results) {
     search_results.removeChild(search_results.firstChild);
   }
   if (results.length > 0){
-    for (var i=0; i < results.length; i++){
+    // KORTTY: the header panel is a suggestion list, not the results page. A common
+    // word matches ~70 of the guide's 698 sections, and re-rendering all of them on
+    // every keystroke is both unreadable and slow enough to be felt while typing in
+    // a WebView. Cap it and point at the full page for the rest; the results page
+    // itself (no .kt-search-suggest) keeps showing everything.
+    var suggest = search_results.classList.contains('kt-search-suggest');
+    var shown = suggest ? Math.min(results.length, SUGGEST_LIMIT) : results.length;
+    for (var i=0; i < shown; i++){
       var result = results[i];
       var html = formatResult(result.location, result.title, result.summary);
       search_results.insertAdjacentHTML('beforeend', html);
+    }
+    if (suggest && results.length > shown) {
+      var moreText = search_results.getAttribute('data-more-text');
+      if (moreText) {
+        var input = document.getElementById('mkdocs-search-query');
+        var href = joinUrl(base_url, 'search.html?q=')
+          + encodeURIComponent(input ? input.value : '');
+        search_results.insertAdjacentHTML('beforeend',
+          '<p class="kt-search-more"><a href="' + href + '">'
+          + escapeHtml(moreText.replace('{n}', results.length - shown)) + '</a></p>');
+      }
     }
   } else {
     var noResultsText = search_results.getAttribute('data-no-results-text');
@@ -77,13 +95,22 @@ function doSearch () {
 }
 
 function initSearch () {
+  searchReady = true;  // KORTTY: stops showPreparing() from overwriting real results.
   var search_input = document.getElementById('mkdocs-search-query');
   if (search_input) {
     search_input.addEventListener("keyup", doSearch);
   }
   var term = getSearchTermFromLocation();
-  if (term) {
+  if (term && search_input) {
     search_input.value = term;
+  }
+  // KORTTY: run what is already in the box, not just a ?q= term. The index is fetched
+  // on the first keystroke and takes a moment to build, and every keystroke until then
+  // is swallowed — so a reader who finishes the word before the index is ready would
+  // face an empty panel until they typed one more character or pressed Enter. This
+  // replay closes that window. Upstream never needed it: it built the index at page
+  // load, before anyone could type.
+  if (search_input && search_input.value) {
     doSearch();
   }
 }
@@ -106,6 +133,29 @@ function onWorkerMessage (e) {
 // someone focuses or types in it (or lands on a ?q= deep link).
 var searchWorker = null;
 var searchBootstrapped = false;
+var SUGGEST_LIMIT = 10;
+var searchReady = false;
+
+// KORTTY: say that something is happening. Fetching the ~1.2 MB index and building the
+// lunr structure takes a moment in a WebView, and a panel that stays blank while the
+// reader types reads as a broken search rather than a loading one. This hangs off the
+// keystroke rather than off bootstrapSearch(), which usually fires on the focus that
+// precedes the first keystroke, while the box is still empty.
+function showPreparing () {
+  if (searchReady) {
+    return;
+  }
+  var panel = document.getElementById('mkdocs-search-results');
+  var typed = document.getElementById('mkdocs-search-query');
+  var text = panel && panel.getAttribute('data-preparing-text');
+  if (!text || !typed || !typed.value) {
+    return;
+  }
+  while (panel.firstChild) {
+    panel.removeChild(panel.firstChild);
+  }
+  panel.insertAdjacentHTML('beforeend', '<p>' + escapeHtml(text) + '</p>');
+}
 
 function bootstrapSearch () {
   if (searchBootstrapped) {
@@ -150,7 +200,10 @@ function armSearchBox () {
     return;
   }
   input.addEventListener('focus', bootstrapSearch);
-  input.addEventListener('keyup', bootstrapSearch);
+  input.addEventListener('keyup', function () {
+    bootstrapSearch();
+    showPreparing();
+  });
   if (getSearchTermFromLocation()) {
     bootstrapSearch();
   }

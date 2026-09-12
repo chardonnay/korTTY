@@ -456,6 +456,26 @@ article h6:hover .headerlink {
   color: var(--kt-accent);
   text-decoration: none;
 }
+/* The panel scrolls, so an ordinary trailing line would sit below the fold and the
+   reader would never learn there are more hits. Pinned to the bottom edge instead. */
+.kt-search-suggest .kt-search-more {
+  position: sticky;
+  bottom: -0.35rem;
+  margin: 0.3rem -0.35rem -0.35rem;
+  padding: 0.4rem 0.55rem 0.45rem;
+  border-top: 1px solid var(--kt-line);
+  background: var(--kt-surface);
+  font-size: 0.76rem;
+  display: block;
+  text-align: center;
+}
+.kt-search-suggest .kt-search-more a {
+  color: var(--kt-accent);
+  text-decoration: none;
+}
+.kt-search-suggest .kt-search-more a:hover {
+  text-decoration: underline;
+}
 .kt-search-suggest p {
   margin: 0.1rem 0 0;
   font-size: 0.74rem;

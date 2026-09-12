@@ -638,6 +638,9 @@
                     <!-- block search -->
                     <li class="nav-item">
 
+
+
+
 <div role="search" class="search-box kt-search">
 	<form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
 		<input type="text" name="q" id="mkdocs-search-query"
@@ -645,7 +648,10 @@
 		placeholder="Anleitung durchsuchen"
 		autocomplete="off" title="Type search term here" />
 	</form>
-	<div id="mkdocs-search-results" class="kt-search-suggest" data-no-results-text="Keine Treffer"></div>
+	<div id="mkdocs-search-results" class="kt-search-suggest"
+	     data-no-results-text="Keine Treffer"
+	     data-preparing-text="Suche wird vorbereitet …"
+	     data-more-text="{n} weitere Treffer anzeigen"></div>
 	<script>
 	  // Close the suggestion panel on Escape or a click outside it. Emptying the panel
 	  // is what hides it (CSS :empty), so this only has to clear it.
