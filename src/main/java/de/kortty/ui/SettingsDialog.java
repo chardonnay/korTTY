@@ -561,7 +561,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         appearanceScroll.setFitToWidth(true);
         appearanceScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         appearanceScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        appearanceTab.setContent(appearanceScroll);
+        // Tab contents are attached on first selection (LazyTabContent): TabPaneSkin keeps every
+        // tab's content in the scene graph, so with 20 eager tabs the dialog's show() styled and laid
+        // out ~700 controls of which one tab's worth is visible. The controls themselves are still
+        // built here, so applySettings() reads every field exactly as before.
+        LazyTabContent.defer(appearanceTab, () -> appearanceScroll);
         
         // Font tab
         Tab fontTab = new Tab(I18n.get("settings.tab.font"));
@@ -596,7 +600,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         fontGrid.add(new Label(I18n.get("settings.font.preview")), 0, 2);
         fontGrid.add(previewLabel, 1, 2);
         
-        fontTab.setContent(fontGrid);
+        LazyTabContent.defer(fontTab, () -> fontGrid);
         
         // Colors tab
         Tab colorsTab = new Tab(I18n.get("settings.tab.colors"));
@@ -699,7 +703,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         colorsGrid.add(new Label(I18n.get("settings.colors.bright")), 0, 10);
         colorsGrid.add(brightColorsBox, 1, 10);
         
-        colorsTab.setContent(colorsGrid);
+        LazyTabContent.defer(colorsTab, () -> colorsGrid);
         
         // Terminal tab
         Tab terminalTab = new Tab(I18n.get("settings.tab.terminal"));
@@ -822,7 +826,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalGrid.add(connectionRetriesEnabledCheck, 0, 20, 2, 1);
         terminalGrid.add(autoReconnectEnabledCheck, 0, 21, 2, 1);
 
-        terminalTab.setContent(terminalGrid);
+        LazyTabContent.defer(terminalTab, () -> terminalGrid);
 
         // Video tab
         Tab videoTab = new Tab(I18n.get("settings.tab.video"));
@@ -845,7 +849,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         videoGrid.add(terminalRecordingAlwaysEnabledCheck, 0, 0, 2, 1);
         videoGrid.add(terminalRecordingCaptureColorsCheck, 0, 1, 2, 1);
-        videoTab.setContent(videoGrid);
+        LazyTabContent.defer(videoTab, () -> videoGrid);
         
         // Backup tab
         Tab backupTab = new Tab(I18n.get("settings.tab.backup"));
@@ -993,7 +997,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             backupGrid.add(lastBackupValue, 1, backupRow++);
         }
         
-        backupTab.setContent(backupGrid);
+        LazyTabContent.defer(backupTab, () -> backupGrid);
 
         // Logging tab
         Tab loggingTab = new Tab(I18n.get("settings.tab.logging"));
@@ -1142,7 +1146,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         loggingGrid.add(new Label(I18n.get("settings.journal.aiProfile")), 0, loggingRow);
         loggingGrid.add(sessionJournalAiProfileCombo, 1, loggingRow++);
 
-        loggingTab.setContent(loggingGrid);
+        LazyTabContent.defer(loggingTab, () -> loggingGrid);
 
         // Export tab: watermark and footer for exported documents (journals and AI chats)
         Tab exportTab = new Tab(I18n.get("settings.tab.export"));
@@ -1209,7 +1213,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         footerInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         exportGrid.add(footerInfo, 1, exportRow++);
 
-        exportTab.setContent(exportGrid);
+        LazyTabContent.defer(exportTab, () -> exportGrid);
 
         // Updates tab
         Tab updatesTab = new Tab(I18n.get("settings.tab.updates"));
@@ -1262,7 +1266,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         updatesInfoLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         updatesGrid.add(updatesInfoLabel, 0, updatesRow++, 2, 1);
 
-        updatesTab.setContent(updatesGrid);
+        LazyTabContent.defer(updatesTab, () -> updatesGrid);
         
         // Window tab
         Tab windowTab = new Tab(I18n.get("settings.tab.window"));
@@ -1371,7 +1375,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         fixedGeometryInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         windowGrid.add(fixedGeometryInfoLabel, 0, windowRow++, 2, 1);
         
-        windowTab.setContent(windowGrid);
+        LazyTabContent.defer(windowTab, () -> windowGrid);
         
         // Security tab
         Tab securityTab = new Tab(I18n.get("settings.tab.security"));
@@ -1473,7 +1477,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         temporarySshKeyEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.security.temporarySshKeyEnabled.tooltip")));
         securityGrid.add(temporarySshKeyEnabledCheck, 0, securityRow++, 2, 1);
         
-        securityTab.setContent(securityGrid);
+        LazyTabContent.defer(securityTab, () -> securityGrid);
 
         // Privacy tab (anonymous usage statistics: opt-in, EU servers, GDPR)
         Tab privacyTab = new Tab(I18n.get("settings.tab.privacy"));
@@ -1537,7 +1541,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             privacyGrid.add(telemetryDecisionLabel, 0, privacyRow++, 2, 1);
         }
 
-        privacyTab.setContent(privacyGrid);
+        LazyTabContent.defer(privacyTab, () -> privacyGrid);
 
         // Language tab
         Tab languageTab = new Tab(I18n.get("settings.tab.language"));
@@ -1602,7 +1606,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         languageInfo.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         languageGrid.add(languageInfo, 0, 1, 2, 1);
         
-        languageTab.setContent(languageGrid);
+        LazyTabContent.defer(languageTab, () -> languageGrid);
         
         // Translation tab (dynamic i18n)
         Tab translationTab = new Tab(I18n.get("settings.tab.translation"));
@@ -1813,7 +1817,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         translationGrid.add(new VBox(5, guideTranslationList, guideDeleteButton), 1, transRow++);
         refreshGuideTranslationList();
 
-        translationTab.setContent(translationGrid);
+        LazyTabContent.defer(translationTab, () -> translationGrid);
 
         // AI tab
         Tab aiTab = new Tab(I18n.get("settings.tab.ai"));
@@ -2538,7 +2542,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiScrollPane.setFitToHeight(false);
         aiScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         aiScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        aiTab.setContent(aiScrollPane);
+        LazyTabContent.defer(aiTab, () -> aiScrollPane);
 
         aiProfileListView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
             snapshotSelectedAiProfileEditorState();
@@ -2654,7 +2658,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         rsyncInfo.setMaxWidth(400);
         sftpGrid.add(rsyncInfo, 0, sftpRow++, 2, 1);
         
-        sftpTab.setContent(sftpGrid);
+        LazyTabContent.defer(sftpTab, () -> sftpGrid);
         
         // Editor tab
         Tab editorTab = new Tab(I18n.get("settings.tab.editor"));
@@ -2704,7 +2708,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         cursorInfo.setMaxWidth(400);
         editorGrid.add(cursorInfo, 0, editorRow++, 2, 1);
         
-        editorTab.setContent(editorGrid);
+        LazyTabContent.defer(editorTab, () -> editorGrid);
         
         // Snippet Editor tab
         Tab snippetEditorTab = new Tab(I18n.get("settings.tab.snippetEditor"));
@@ -2828,7 +2832,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         snippetPrewarmHint.setMaxWidth(400);
         snippetEditorGrid.add(snippetPrewarmHint, 0, snippetRow++, 2, 1);
 
-        snippetEditorTab.setContent(snippetEditorGrid);
+        LazyTabContent.defer(snippetEditorTab, () -> snippetEditorGrid);
 
         // Themes tab
         Tab themesTab = createThemesTab(owner);
@@ -3658,7 +3662,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         buttons.getChildren().addAll(addBtn, editBtn, duplicateBtn, deleteBtn);
         vbox.getChildren().addAll(themeList, buttons);
         
-        tab.setContent(vbox);
+        LazyTabContent.defer(tab, () -> vbox);
         return tab;
     }
 
@@ -3741,7 +3745,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         restartInfo.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
 
         vbox.getChildren().addAll(header, desc, profileRow, ramLabel, maxHeapLabel, profileDetail, warn, restartInfo);
-        tab.setContent(vbox);
+        LazyTabContent.defer(tab, () -> vbox);
         return tab;
     }
 

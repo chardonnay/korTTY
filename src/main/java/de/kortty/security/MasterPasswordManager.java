@@ -67,6 +67,7 @@ public class MasterPasswordManager {
      * Sets up a new master password.
      */
     public void setupPassword(char[] password) throws Exception {
+        EncryptionService.clearDerivedKeyCache();
         salt = encryptionService.generateSalt();
         storedHash = encryptionService.hashPassword(password, salt);
         
@@ -157,6 +158,7 @@ public class MasterPasswordManager {
      * @throws SecurityException if the old password is wrong (nothing is staged)
      */
     public PendingPasswordChange beginPasswordChange(char[] oldPassword, char[] newPassword) throws Exception {
+        EncryptionService.clearDerivedKeyCache();
         if (!verifyPassword(oldPassword)) {
             throw new SecurityException("Old password is incorrect");
         }
@@ -198,6 +200,7 @@ public class MasterPasswordManager {
      * remains the one that unlocks the vault.
      */
     public void rollbackPasswordChange(PendingPasswordChange pending) {
+        EncryptionService.clearDerivedKeyCache();
         if (pending == null) {
             return;
         }
@@ -370,5 +373,6 @@ public class MasterPasswordManager {
             masterPassword = null;
         }
         derivedKey = null;
+        EncryptionService.clearDerivedKeyCache();
     }
 }
