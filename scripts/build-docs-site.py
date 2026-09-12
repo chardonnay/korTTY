@@ -38,6 +38,8 @@ BUILD_OUT = REPO_ROOT / "build" / "guide"
 
 # Hosts allowed to appear as canonical/social LINKS (metadata, not fetched).
 LANGS = ["en", "de"]
+# The tree GuideTranslationGenerator clones when it translates the guide at run time.
+SOURCE_LANG = "en"
 
 # Strip ANSI color codes from captured mkdocs output before filtering/printing.
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
@@ -108,6 +110,7 @@ def build_lang(lang: str, strict: bool, version: str) -> Path:
     if proc.returncode != 0:
         raise subprocess.CalledProcessError(proc.returncode, cmd)
     out = BUILD_OUT / lang
+    set_html_lang(out, lang)
     stage_lunr_language_packs(out)
     write_offline_search_index(out)
     normalize_text_line_endings(out)
@@ -159,6 +162,44 @@ def extract_translation_manifests(out: Path, lang: str) -> None:
                or " page(s), " in line]
     for line in summary:
         print(f"  {line}")
+
+
+def set_html_lang(out: Path, lang: str) -> None:
+    """Declare each page's real language on its <html> element.
+
+    Dracula hardcodes `<html lang="en" data-bs-theme="dark">` on line 2 of base.html,
+    outside any Jinja block, so a custom_dir template cannot reach it — the only
+    template-level fix would be shadowing base.html itself, i.e. forking the theme's
+    whole layout and maintaining it against every upgrade. A post-pass is cheaper and
+    cannot drift.
+
+    It is not cosmetic. A German page claiming to be English makes a screen reader
+    pronounce it with English phonemes, points the browser's hyphenation and
+    spellchecking at the wrong dictionary, defeats :lang() selectors, and mislabels
+    every page published to GitHub Pages.
+
+    The English tree is deliberately left untouched: GuideTranslationGenerator finds
+    `<html lang="en"` and rewrites it to the target code when it clones that tree for a
+    runtime translation, so the marker has to stay exactly as MkDocs emitted it.
+    """
+    if lang == SOURCE_LANG:
+        return
+    needle = f'<html lang="{SOURCE_LANG}"'
+    pages = sorted(out.rglob("*.html"))
+    # Replace once per page: the document element, never a lang="en" inside the prose.
+    rewritten = [p for p in pages if needle in p.read_text(encoding="utf-8")]
+    for page in rewritten:
+        text = page.read_text(encoding="utf-8")
+        page.write_text(text.replace(needle, f'<html lang="{lang}"', 1), encoding="utf-8")
+    # A silent no-op here would ship the whole tree mislabelled, so fail instead: it
+    # means the theme changed the markup this pass is looking for.
+    if not rewritten:
+        sys.exit(f"FATAL: no page in {out} carries {needle!r}; the theme's <html> tag changed")
+    stragglers = [p.relative_to(out).as_posix() for p in pages
+                  if needle in p.read_text(encoding="utf-8")]
+    if stragglers:
+        sys.exit(f"FATAL: {len(stragglers)} page(s) still declare lang=\"{SOURCE_LANG}\": {stragglers[:5]}")
+    print(f"  declared lang=\"{lang}\" on {len(rewritten)} page(s)")
 
 
 def stage_lunr_language_packs(out: Path) -> None:
