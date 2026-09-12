@@ -107,11 +107,12 @@ final class ThemeCssSupport {
         if (stylesheets == null) {
             return;
         }
-        stylesheets.removeIf(ThemeCssSupport::isDynamicStylesheetUrl);
-        if (appDesign != AppDesign.NORMAL) {
-            return;
+        String active = appDesign == AppDesign.NORMAL ? getDynamicStylesheetUrl(themeColors) : null;
+        // Mutate only when a stale dynamic sheet is present or the active one is missing: each
+        // list change re-registers the stylesheets and invalidates CSS for the whole subtree.
+        if (stylesheets.stream().anyMatch(url -> isDynamicStylesheetUrl(url) && !url.equals(active))) {
+            stylesheets.removeIf(url -> isDynamicStylesheetUrl(url) && !url.equals(active));
         }
-        String active = getDynamicStylesheetUrl(themeColors);
         if (active != null && !stylesheets.contains(active)) {
             stylesheets.add(active);
         }

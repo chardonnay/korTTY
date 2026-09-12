@@ -161,25 +161,31 @@ public final class DialogGeometrySupport {
         if (Boolean.TRUE.equals(properties.put(AUTOMATIC_INSTALLED_KEY, Boolean.TRUE))) {
             return;
         }
+        // Size before the window is mapped: with an explicit width and height the show() no
+        // longer sizes to the scene first, so the dialog appears at its stored size instead of
+        // being laid out at its preferred size and then resized on screen. The position is still
+        // applied after show, where JavaFX's own centering would otherwise override it.
+        dialog.addEventHandler(DialogEvent.DIALOG_SHOWING, event -> {
+            if (isExplicit(dialog) || isHostedInTab(dialog)) {
+                return;
+            }
+            WindowGeometry usable = storedUsableGeometry(key);
+            if (usable != null && uiFontScaleMatchesStoredGeometry()) {
+                dialog.setWidth(usable.getWidth());
+                dialog.setHeight(usable.getHeight());
+            }
+        });
         dialog.addEventHandler(DialogEvent.DIALOG_SHOWN, event -> {
             if (isExplicit(dialog) || isHostedInTab(dialog)) {
                 return;
             }
-            GlobalSettings currentSettings = settings();
-            WindowGeometry stored = currentSettings != null && currentSettings.isRememberWindowGeometry()
-                ? currentSettings.getWindowGeometry(key)
-                : null;
-            WindowGeometry usable = sanitize(stored, visualScreenBounds());
+            WindowGeometry usable = storedUsableGeometry(key);
             Window window = dialog.getDialogPane().getScene() != null
                 ? dialog.getDialogPane().getScene().getWindow() : null;
             if (!(window instanceof Stage stage)) {
                 return;
             }
             if (usable != null) {
-                if (uiFontScaleMatchesStoredGeometry()) {
-                    stage.setWidth(usable.getWidth());
-                    stage.setHeight(usable.getHeight());
-                }
                 stage.setX(usable.getX());
                 stage.setY(usable.getY());
             }
@@ -197,12 +203,17 @@ public final class DialogGeometrySupport {
             }
             currentSettings.setWindowGeometry(key, captured);
             currentSettings.setUiFontScalePercentAtGeometrySave(UiFontScaleSupport.effectivePercent());
-            try {
-                manager.save();
-            } catch (Exception e) {
-                logger.warn("Could not save the geometry of {}: {}", key, e.getMessage());
-            }
+            // Bookkeeping, not a user action: written off the FX thread, merged with other saves.
+            manager.scheduleSave();
         });
+    }
+
+    private static WindowGeometry storedUsableGeometry(String key) {
+        GlobalSettings currentSettings = settings();
+        WindowGeometry stored = currentSettings != null && currentSettings.isRememberWindowGeometry()
+            ? currentSettings.getWindowGeometry(key)
+            : null;
+        return sanitize(stored, visualScreenBounds());
     }
 
     static String automaticKey(Class<?> dialogClass) {
@@ -227,12 +238,7 @@ public final class DialogGeometrySupport {
         if (manager == null || !store(dialog, manager.getSettings(), setter)) {
             return;
         }
-        try {
-            manager.save();
-        } catch (Exception e) {
-            logger.warn("Could not save the geometry of {}: {}",
-                dialog.getClass().getSimpleName(), e.getMessage());
-        }
+        manager.scheduleSave();
     }
 
     /**
