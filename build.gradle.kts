@@ -1147,24 +1147,32 @@ tasks.named<ProcessResources>("processResources") {
     from(formatterWebGeneratedResourceDir) {
         into("")
     }
-    // Jar slimming: sourcemaps and the Thai/Japanese search segmenters are dead weight in the
-    // bundled guide (UI languages are en/de; lunr loads wordcut/tinyseg only for th/ja). The
-    // .icns/.ico are packaging-only inputs that jpackage reads from the source tree, not the jar.
+    // Jar slimming. The .icns/.ico are packaging-only inputs that jpackage reads from the
+    // source tree, not the jar.
     exclude("guide/**/*.map")
-    exclude("guide/**/assets/javascripts/lunr/wordcut.js")
-    exclude("guide/**/assets/javascripts/lunr/tinyseg.js")
-    // search_index.js is mkdocs-material's offline wrapper around search_index.json, read only
-    // from file: documents. The bundled guide loads over jar: (it uses the .json), and generated
-    // translations get a rebuilt wrapper from GuideSearchIndexTranslator instead.
-    exclude("guide/**/search/search_index.js")
-    // The DE tree only needs its own lunr stemmer; the other ~30 language packs are staged for
-    // generated translations exclusively from the EN tree (GuideTranslationGenerator.stageAssets).
+    // NOT excluded, though it looks redundant: search/search_index.js is the offline wrapper
+    // (var __index = {...}) around search_index.json, and it is the only way the bundled guide's
+    // in-page search can read the index at all. The page is loaded over jar:, where
+    // XMLHttpRequest is blocked and a <script> tag is not, so shipping the .json alone leaves
+    // the search box dead. (It was excluded while the guide was built with Material, whose
+    // search reached the .json through an iframe-worker shim; the Dracula build drops the shim.)
+    // Both files ship: the .json is the corpus GuideSearchIndex reads on the Java side, the .js
+    // is what the WebView reads — the same pair GuideSearchIndexTranslator already writes into
+    // a generated language tree.
+
+    // The DE tree only needs the stemmer for its own language. The rest of the lunr language set
+    // is staged for generated translations exclusively from the EN tree
+    // (GuideTranslationGenerator.stageAssets), which must therefore keep all of it.
     exclude { details ->
         val path = details.relativePath.pathString
-        path.startsWith("guide/de/assets/javascripts/lunr/min/") &&
-            !path.endsWith("/lunr.de.min.js") &&
-            !path.endsWith("/lunr.stemmer.support.min.js")
+        path.startsWith("guide/de/search/lunr.")
+            && !path.endsWith("/lunr.js")
+            && !path.endsWith("/lunr.de.js")
+            && !path.endsWith("/lunr.stemmer.support.js")
     }
+    // tinyseg segments Japanese for lunr and is dead weight next to the German pages, but the
+    // EN tree keeps it: that is the tree cloned when the guide is translated into ja at run time.
+    exclude("guide/de/search/tinyseg.js")
     exclude("icon/kortty_icon.icns")
     exclude("icon/kortty_icon.ico")
 }
