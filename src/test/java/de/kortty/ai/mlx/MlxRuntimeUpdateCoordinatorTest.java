@@ -2,7 +2,9 @@ package de.kortty.ai.mlx;
 
 import de.kortty.model.LlamaRuntimeUpdatePolicy;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.net.URI;
+import java.net.http.HttpConnectTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -97,6 +99,71 @@ class MlxRuntimeUpdateCoordinatorTest {
                 assertThat(status.state()).isEqualTo(MlxRuntimeUpdateCoordinator.State.REVOKED);
                 assertThat(status.revokedRuntimeId()).isEqualTo("mlx-0.31.3");
                 assertThat(status.activeInstallation()).isNull();
+            } finally {
+                coordinator.close();
+            }
+        }
+    }
+
+    @Test
+    void reportsAnUnreachableReleaseIndexAsOfflineAndKeepsTheActiveInstallation() throws Exception {
+        Path directory = Files.createTempDirectory("kortty-mlx-coordinator-offline-");
+        Path runtimeRoot = createInstallation(directory, NEW_INSTALLATION_ID);
+        MlxRuntimePackageInstaller.IndexProvider unreachable = () -> {
+            throw new HttpConnectTimeoutException("HTTP connect timed out");
+        };
+        MlxRuntimePackageInstaller installer = new MlxRuntimePackageInstaller(
+            runtimeRoot, unreachable,
+            uri -> {
+                throw new AssertionError("An unreachable index must never download a package.");
+            },
+            (packageDirectory, pythonExecutable) -> { },
+            () -> true);
+        try (MlxRuntimeManager manager = manager(directory, runtimeRoot)) {
+            MlxRuntimeProvisioner provisioner = new MlxRuntimeProvisioner(
+                installer, unreachable, () -> manager, () -> true, () -> true);
+            MlxRuntimeUpdateCoordinator coordinator = new MlxRuntimeUpdateCoordinator(
+                provisioner, Executors.newSingleThreadExecutor());
+            try {
+                MlxRuntimeUpdateCoordinator.Status status =
+                    coordinator.start(LlamaRuntimeUpdatePolicy.NOTIFY).get();
+
+                assertThat(status.state()).isEqualTo(MlxRuntimeUpdateCoordinator.State.OFFLINE);
+                assertThat(status.detail()).isEqualTo("HTTP connect timed out");
+                assertThat(status.activeInstallation()).isNotNull();
+                assertThat(status.activeInstallation().id()).isEqualTo(NEW_INSTALLATION_ID);
+            } finally {
+                coordinator.close();
+            }
+        }
+    }
+
+    @Test
+    void keepsAnAnsweringButBrokenReleaseIndexAFailure() throws Exception {
+        Path directory = Files.createTempDirectory("kortty-mlx-coordinator-broken-index-");
+        Path runtimeRoot = directory.resolve("mlx").resolve("runtime");
+        MlxRuntimePackageInstaller.IndexProvider broken = () -> {
+            throw new IOException("MLX runtime index signature verification failed.");
+        };
+        MlxRuntimePackageInstaller installer = new MlxRuntimePackageInstaller(
+            runtimeRoot, broken,
+            uri -> {
+                throw new AssertionError("A rejected index must never download a package.");
+            },
+            (packageDirectory, pythonExecutable) -> { },
+            () -> true);
+        try (MlxRuntimeManager manager = manager(directory, runtimeRoot)) {
+            MlxRuntimeProvisioner provisioner = new MlxRuntimeProvisioner(
+                installer, broken, () -> manager, () -> true, () -> true);
+            MlxRuntimeUpdateCoordinator coordinator = new MlxRuntimeUpdateCoordinator(
+                provisioner, Executors.newSingleThreadExecutor());
+            try {
+                MlxRuntimeUpdateCoordinator.Status status =
+                    coordinator.start(LlamaRuntimeUpdatePolicy.NOTIFY).get();
+
+                assertThat(status.state()).isEqualTo(MlxRuntimeUpdateCoordinator.State.FAILED);
+                assertThat(status.detail())
+                    .isEqualTo("MLX runtime index signature verification failed.");
             } finally {
                 coordinator.close();
             }

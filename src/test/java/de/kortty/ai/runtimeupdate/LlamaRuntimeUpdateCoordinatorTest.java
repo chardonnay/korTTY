@@ -3,6 +3,8 @@ package de.kortty.ai.runtimeupdate;
 import de.kortty.ai.llama.LlamaBackend;
 import de.kortty.ai.llama.LlamaModelRegistry;
 import de.kortty.model.LlamaRuntimeUpdatePolicy;
+import java.io.IOException;
+import java.net.http.HttpConnectTimeoutException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.net.URI;
@@ -90,6 +92,58 @@ class LlamaRuntimeUpdateCoordinatorTest {
             assertThat(status.revokedRuntimeId()).isEqualTo("llama-b10025-kortty1");
             assertThat(status.availablePackage()).isEqualTo(replacement);
             assertThat(status.activeInstallation()).isNull();
+        } finally {
+            coordinator.close();
+        }
+    }
+
+    @Test
+    void reportsAnUnreachableReleaseIndexAsOfflineInsteadOfFailed() throws Exception {
+        Path root = Files.createTempDirectory("kortty-runtime-coordinator-offline-");
+        LlamaRuntimeProvisioner provisioner = new LlamaRuntimeProvisioner(
+            configuration(),
+            new LlamaRuntimePackageInstaller(root.resolve("runtime"), uri -> {
+                throw new AssertionError("An unreachable index must never download a package.");
+            }),
+            LlamaModelRegistry.inDirectory(root.resolve("llm")),
+            () -> "2.5.2", () -> true, () -> { }, () -> { }, installation -> true,
+            (policy, backend, idle, health) -> {
+                throw new HttpConnectTimeoutException("HTTP connect timed out");
+            });
+        LlamaRuntimeUpdateCoordinator coordinator = new LlamaRuntimeUpdateCoordinator(
+            provisioner, Executors.newSingleThreadScheduledExecutor());
+        try {
+            LlamaRuntimeUpdateCoordinator.Status status = coordinator.start(
+                LlamaRuntimeUpdatePolicy.NOTIFY, LlamaBackend.CPU).get();
+
+            assertThat(status.state()).isEqualTo(LlamaRuntimeUpdateCoordinator.State.OFFLINE);
+            assertThat(status.detail()).isEqualTo("HTTP connect timed out");
+        } finally {
+            coordinator.close();
+        }
+    }
+
+    @Test
+    void keepsAnAnsweringButBrokenReleaseIndexAFailure() throws Exception {
+        Path root = Files.createTempDirectory("kortty-runtime-coordinator-broken-index-");
+        LlamaRuntimeProvisioner provisioner = new LlamaRuntimeProvisioner(
+            configuration(),
+            new LlamaRuntimePackageInstaller(root.resolve("runtime"), uri -> {
+                throw new AssertionError("A rejected index must never download a package.");
+            }),
+            LlamaModelRegistry.inDirectory(root.resolve("llm")),
+            () -> "2.5.2", () -> true, () -> { }, () -> { }, installation -> true,
+            (policy, backend, idle, health) -> {
+                throw new IOException("Runtime index signature verification failed.");
+            });
+        LlamaRuntimeUpdateCoordinator coordinator = new LlamaRuntimeUpdateCoordinator(
+            provisioner, Executors.newSingleThreadScheduledExecutor());
+        try {
+            LlamaRuntimeUpdateCoordinator.Status status = coordinator.start(
+                LlamaRuntimeUpdatePolicy.NOTIFY, LlamaBackend.CPU).get();
+
+            assertThat(status.state()).isEqualTo(LlamaRuntimeUpdateCoordinator.State.FAILED);
+            assertThat(status.detail()).isEqualTo("Runtime index signature verification failed.");
         } finally {
             coordinator.close();
         }

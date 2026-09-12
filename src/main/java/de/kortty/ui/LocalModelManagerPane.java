@@ -408,7 +408,10 @@ final class LocalModelManagerPane extends VBox {
                     status.setText(I18n.get("ai.local.models.runtime.import.success",
                         RuntimeKind.MLX.label(),
                         result.activeInstallation() != null ? result.activeInstallation().id() : ""));
-                } else if (result.state() == MlxRuntimeUpdateCoordinator.State.FAILED) {
+                } else if (result.state() == MlxRuntimeUpdateCoordinator.State.FAILED
+                    || result.state() == MlxRuntimeUpdateCoordinator.State.OFFLINE) {
+                    // OFFLINE is silent for the background check, but an install the user asked for
+                    // must say why nothing happened.
                     status.setText(I18n.get("ai.local.models.runtime.install.failed")
                         + (result.detail() != null ? ": " + result.detail() : ""));
                 }

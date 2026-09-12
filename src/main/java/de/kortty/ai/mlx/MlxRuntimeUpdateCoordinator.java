@@ -1,6 +1,7 @@
 package de.kortty.ai.mlx;
 
 import de.kortty.ai.mlx.MlxRuntimeLocator.MlxRuntimeInstallation;
+import de.kortty.ai.runtimeupdate.RuntimeUpdateReachability;
 import de.kortty.model.LlamaRuntimeUpdatePolicy;
 import java.io.IOException;
 import java.util.Objects;
@@ -24,6 +25,12 @@ import org.slf4j.LoggerFactory;
  * bounded sanity launch, so there is no pending-first-launch polling or staged-until-idle retry
  * scheduling. MLX has a single backend, so {@link #start(LlamaRuntimeUpdatePolicy)} takes no backend
  * parameter.
+ *
+ * <p>A release index that cannot be reached ends in {@link State#OFFLINE} rather than
+ * {@link State#FAILED} and is logged without a stack trace: the startup check runs whenever the
+ * machine happens to be offline, and an unreachable server says nothing about korTTY's state. Every
+ * other failure — an HTTP error, a bad signature, a broken install — still reports as
+ * {@code FAILED} at {@code ERROR} level. See {@link RuntimeUpdateReachability}.
  */
 public final class MlxRuntimeUpdateCoordinator implements AutoCloseable {
 
@@ -112,10 +119,10 @@ public final class MlxRuntimeUpdateCoordinator implements AutoCloseable {
             explicitInstall || effective == LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE
                 ? State.INSTALLING : State.CHECKING,
             null, null, activeInstallation().orElse(null)));
-        return CompletableFuture.supplyAsync(() -> run(effective), executor);
+        return CompletableFuture.supplyAsync(() -> run(effective, explicitInstall), executor);
     }
 
-    private Status run(LlamaRuntimeUpdatePolicy policy) {
+    private Status run(LlamaRuntimeUpdatePolicy policy, boolean explicitInstall) {
         try {
             MlxRuntimeUpdateResult result = provisioner.checkAndMaybeApply(policy);
             Optional<MlxRuntimeInstallation> active = provisioner.activeInstallation();
@@ -137,18 +144,34 @@ public final class MlxRuntimeUpdateCoordinator implements AutoCloseable {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             logger.warn("MLX runtime update or installation was interrupted", e);
-            Status failed = failureStatus("MLX runtime update was interrupted.");
+            Status failed = failureStatus("MLX runtime update was interrupted.", State.FAILED);
             publish(failed);
             return failed;
         } catch (Exception e) {
+            if (RuntimeUpdateReachability.isUnreachable(e)) {
+                // Being offline is not an update failure: no stack trace, and a state of its own so
+                // the startup listener stays quiet while an explicit install can still report why it
+                // did not happen. The next start (or a re-saved policy) checks again.
+                if (explicitInstall) {
+                    logger.warn("Could not install the MLX runtime: the signed release index is"
+                        + " unreachable ({})", message(e));
+                } else {
+                    logger.info("Skipped the MLX runtime update check: the signed release index is"
+                        + " unreachable ({})", message(e));
+                }
+                logger.debug("MLX runtime release index was unreachable", e);
+                Status offline = failureStatus(message(e), State.OFFLINE);
+                publish(offline);
+                return offline;
+            }
             logger.error("MLX runtime update or installation failed", e);
-            Status failed = failureStatus(message(e));
+            Status failed = failureStatus(message(e), State.FAILED);
             publish(failed);
             return failed;
         }
     }
 
-    private Status failureStatus(String detail) {
+    private Status failureStatus(String detail, State fallback) {
         try {
             Optional<String> revokedRuntime = provisioner.blockedActiveRuntimeId();
             if (revokedRuntime.isPresent()) {
@@ -159,7 +182,7 @@ public final class MlxRuntimeUpdateCoordinator implements AutoCloseable {
             detail = detail + " (Could not read the blocked runtime state: "
                 + message(blockedStateFailure) + ")";
         }
-        return new Status(State.FAILED, detail, null, activeInstallation().orElse(null));
+        return new Status(fallback, detail, null, activeInstallation().orElse(null));
     }
 
     private void publish(Status next) {
@@ -206,6 +229,8 @@ public final class MlxRuntimeUpdateCoordinator implements AutoCloseable {
         REVOKED,
         INSTALLING,
         READY,
+        /** The release index could not be reached (offline, captive portal, link not up yet). */
+        OFFLINE,
         FAILED,
         CLOSED
     }
