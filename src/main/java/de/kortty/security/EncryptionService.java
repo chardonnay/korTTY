@@ -11,6 +11,12 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.security.MessageDigest;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -36,18 +42,76 @@ public class EncryptionService {
     private static final int ITERATIONS = 310000;
     
     private final SecureRandom secureRandom = new SecureRandom();
+
+    /**
+     * Derived keys by (password fingerprint, salt). Every stored secret carries its own salt, so the
+     * 310 000-round derivation ran again for every secret read - ~60 ms each on the FX thread, in
+     * the connection editor's constructor and three times in a row for the AI internet-access keys.
+     * The cache holds what the process keeps in memory anyway for the session (the master password
+     * and its key live in MasterPasswordManager), bounded, and is dropped whenever the master
+     * password is cleared or changed. Password verification ({@link #hashPassword}) is deliberately
+     * not cached: a wrong password must stay expensive.
+     */
+    private static final int DERIVED_KEY_CACHE_SIZE = 256;
+    private static final Map<String, SecretKey> DERIVED_KEY_CACHE = Collections.synchronizedMap(
+        new LinkedHashMap<>(64, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<String, SecretKey> eldest) {
+                return size() > DERIVED_KEY_CACHE_SIZE;
+            }
+        });
     
     /**
-     * Derives an AES key from a password using PBKDF2.
+     * Derives an AES key from a password using PBKDF2, memoised per (password, salt) - see
+     * {@link #DERIVED_KEY_CACHE}.
      */
     public SecretKey deriveKey(char[] password, byte[] salt) 
             throws NoSuchAlgorithmException, InvalidKeySpecException {
+        String cacheKey = cacheKey(password, salt);
+        SecretKey cached = cacheKey != null ? DERIVED_KEY_CACHE.get(cacheKey) : null;
+        if (cached != null) {
+            return cached;
+        }
         PerfTrace.Span perf = PerfTrace.begin("EncryptionService.deriveKey");
         KeySpec spec = new PBEKeySpec(password, salt, ITERATIONS, KEY_LENGTH);
         SecretKeyFactory factory = SecretKeyFactory.getInstance(KEY_DERIVATION_ALGORITHM);
         byte[] keyBytes = factory.generateSecret(spec).getEncoded();
         perf.end();
-        return new SecretKeySpec(keyBytes, KEY_ALGORITHM);
+        SecretKey key = new SecretKeySpec(keyBytes, KEY_ALGORITHM);
+        if (cacheKey != null) {
+            DERIVED_KEY_CACHE.put(cacheKey, key);
+        }
+        return key;
+    }
+
+    /** Forgets every memoised key: call when the master password is cleared or changed. */
+    public static void clearDerivedKeyCache() {
+        DERIVED_KEY_CACHE.clear();
+    }
+
+    /** Number of memoised keys (tests). */
+    static int derivedKeyCacheSize() {
+        return DERIVED_KEY_CACHE.size();
+    }
+
+    /** SHA-256 of the password (never the password itself) plus the salt; null if hashing is unavailable. */
+    private static String cacheKey(char[] password, byte[] salt) {
+        if (password == null || salt == null) {
+            return null;
+        }
+        byte[] passwordBytes = null;
+        try {
+            passwordBytes = StandardCharsets.UTF_8.encode(CharBuffer.wrap(password)).array();
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            digest.update(passwordBytes);
+            return Base64.getEncoder().encodeToString(digest.digest()) + ":" + Base64.getEncoder().encodeToString(salt);
+        } catch (NoSuchAlgorithmException e) {
+            return null;
+        } finally {
+            if (passwordBytes != null) {
+                Arrays.fill(passwordBytes, (byte) 0);
+            }
+        }
     }
     
     /**
