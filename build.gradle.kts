@@ -440,7 +440,7 @@ dependencies {
     implementation("net.java.dev.jna:jna-platform:5.19.1")
 
     // Logging
-    implementation("org.slf4j:slf4j-api:2.0.18")
+    implementation("org.slf4j:slf4j-api:2.0.19")
     implementation("ch.qos.logback:logback-classic:1.6.3")
     
     // Testing
