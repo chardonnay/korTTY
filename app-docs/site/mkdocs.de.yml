@@ -8,13 +8,12 @@ docs_dir: docs/de
 site_dir: ../../build/guide/de
 site_url: https://chardonnay.github.io/korTTY/guide/de/
 
-theme:
-  language: de
+extra:
+  kt_lang: de
 
 plugins:
   - search:
-      lang: de # German stemmer/stopwords for correct offline search
-  - offline
+      lang: de # German stemmer/stopwords for correct search
 
 # Same page list as the shared nav in mkdocs.yml, with the SECTION labels
 # translated. Page entries carry no label here — their titles come from the

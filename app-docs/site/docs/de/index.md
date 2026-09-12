@@ -23,53 +23,53 @@ hide:
 
 <div class="grid cards" markdown>
 
--   :material-rocket-launch: __Erste Schritte__
+-   __Erste Schritte__
 
     Installieren Sie korTTY, legen Sie Ihr Master-Passwort fest und lernen Sie das Hauptfenster kennen.
 
-    [:octicons-arrow-right-24: Hier beginnen](getting-started/installation.md)
+    [→ Hier beginnen](getting-started/installation.md)
 
--   :material-console-network: __Verbindungen & Terminal__
+-   __Verbindungen & Terminal__
 
     SSH/Mosh-Verbindungen, Tabs, Split-Screen, Tunnel, Jump-Server und SFTP.
 
-    [:octicons-arrow-right-24: Verbindungen](features/connections.md)
+    [→ Verbindungen](features/connections.md)
 
--   :material-tune-variant: __Einstellungsreferenz__
+-   __Einstellungsreferenz__
 
     Alle Einstellungen auf allen Konfigurationsregisterkarten, mit Typen, Standardeinstellungen und dem Speicherort der einzelnen Werte.
 
-    [:octicons-arrow-right-24: Einstellungen](reference/settings/index.md)
+    [→ Einstellungen](reference/settings/index.md)
 
--   :material-menu: __Menüs und Verknüpfungen__
+-   __Menüs und Verknüpfungen__
 
     Der vollständige Menübaum und alle Tastenkombinationen.
 
-    [:octicons-arrow-right-24: Menüreferenz](reference/menu.md)
+    [→ Menüreferenz](reference/menu.md)
 
--   :material-robot-happy: __KI-Assistent und Agenten-Tools__
+-   __KI-Assistent und Agenten-Tools__
 
     Profile, Fähigkeiten, der KI-Manager und die Tools des Terminal-KI-Agenten.
 
-    [:octicons-arrow-right-24: KI-Assistent](features/ai-assistant.md)
+    [→ KI-Assistent](features/ai-assistant.md)
 
--   :material-brain: __Lokale Modelle__
+-   __Lokale Modelle__
 
     Installieren, importieren, leiten und führen Sie private GGUF-Modelle mit integriertem llama.cpp aus.
 
-    [:octicons-arrow-right-24: Lokale Modelle](features/local-models.md)
+    [→ Lokale Modelle](features/local-models.md)
 
--   :material-database-search: __RAG Wissensspeicher__
+-   __RAG Wissensspeicher__
 
     Überprüfen Sie Dateien oder Ordner, erstellen Sie einen sicheren lokalen HNSW-Index und fügen Sie zitierten Kontext zu KI-Profilen hinzu.
 
-    [:octicons-arrow-right-24: Wissensspeicher](features/rag.md)
+    [→ Wissensspeicher](features/rag.md)
 
--   :material-history: __Was ist neu__
+-   __Was ist neu__
 
     Versionshinweise für die aktuelle und frühere Versionen.
 
-    [:octicons-arrow-right-24: Versionshinweise](about/release-notes.md)
+    [→ Versionshinweise](about/release-notes.md)
 
 </div>
 

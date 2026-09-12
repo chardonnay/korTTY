@@ -1147,24 +1147,32 @@ tasks.named<ProcessResources>("processResources") {
     from(formatterWebGeneratedResourceDir) {
         into("")
     }
-    // Jar slimming: sourcemaps and the Thai/Japanese search segmenters are dead weight in the
-    // bundled guide (UI languages are en/de; lunr loads wordcut/tinyseg only for th/ja). The
-    // .icns/.ico are packaging-only inputs that jpackage reads from the source tree, not the jar.
+    // Jar slimming. The .icns/.ico are packaging-only inputs that jpackage reads from the
+    // source tree, not the jar.
     exclude("guide/**/*.map")
-    exclude("guide/**/assets/javascripts/lunr/wordcut.js")
-    exclude("guide/**/assets/javascripts/lunr/tinyseg.js")
-    // search_index.js is mkdocs-material's offline wrapper around search_index.json, read only
-    // from file: documents. The bundled guide loads over jar: (it uses the .json), and generated
-    // translations get a rebuilt wrapper from GuideSearchIndexTranslator instead.
-    exclude("guide/**/search/search_index.js")
-    // The DE tree only needs its own lunr stemmer; the other ~30 language packs are staged for
-    // generated translations exclusively from the EN tree (GuideTranslationGenerator.stageAssets).
+    // NOT excluded, though it looks redundant: search/search_index.js is the offline wrapper
+    // (var __index = {...}) around search_index.json, and it is the only way the bundled guide's
+    // in-page search can read the index at all. The page is loaded over jar:, where
+    // XMLHttpRequest is blocked and a <script> tag is not, so shipping the .json alone leaves
+    // the search box dead. (It was excluded while the guide was built with Material, whose
+    // search reached the .json through an iframe-worker shim; the Dracula build drops the shim.)
+    // Both files ship: the .json is the corpus GuideSearchIndex reads on the Java side, the .js
+    // is what the WebView reads — the same pair GuideSearchIndexTranslator already writes into
+    // a generated language tree.
+
+    // The DE tree only needs the stemmer for its own language. The rest of the lunr language set
+    // is staged for generated translations exclusively from the EN tree
+    // (GuideTranslationGenerator.stageAssets), which must therefore keep all of it.
     exclude { details ->
         val path = details.relativePath.pathString
-        path.startsWith("guide/de/assets/javascripts/lunr/min/") &&
-            !path.endsWith("/lunr.de.min.js") &&
-            !path.endsWith("/lunr.stemmer.support.min.js")
+        path.startsWith("guide/de/search/lunr.")
+            && !path.endsWith("/lunr.js")
+            && !path.endsWith("/lunr.de.js")
+            && !path.endsWith("/lunr.stemmer.support.js")
     }
+    // tinyseg segments Japanese for lunr and is dead weight next to the German pages, but the
+    // EN tree keeps it: that is the tree cloned when the guide is translated into ja at run time.
+    exclude("guide/de/search/tinyseg.js")
     exclude("icon/kortty_icon.icns")
     exclude("icon/kortty_icon.ico")
 }
@@ -1317,8 +1325,9 @@ tasks.register("buildDocsSite") {
     group = "documentation"
     description = "Builds the bilingual offline guide site into build/guide for bundling and Pages."
     inputs.dir("app-docs/site/docs")
+    // overrides/ now also carries the offline search scripts (search/main.js,
+    // search/worker.js), which shadow the ones MkDocs' search plugin ships.
     inputs.dir("app-docs/site/overrides")
-    inputs.dir("app-docs/site/vendor")
     inputs.dir("app-docs/screenshots")
     inputs.file("app-docs/site/mkdocs.yml")
     inputs.file("app-docs/site/mkdocs.en.yml")
@@ -1379,8 +1388,11 @@ tasks.register("stageGuideIntoResources") {
         val built = guideSiteOutputDir.get().asFile
         val enIndex = built.resolve("en/index.html")
         // Never overwrite the committed guide with the buildDocsSite placeholder (written
-        // when MkDocs is unavailable): the real Material site contains the "md-header" markup.
-        if (!enIndex.isFile || !enIndex.readText().contains("md-header")) {
+        // when MkDocs is unavailable). The placeholder is a hand-written <html> stub with no
+        // navigation, so any real theme marker distinguishes it: the Dracula build wraps every
+        // page body in <article>, which the placeholder never emits. (Was "md-header" while the
+        // site was built with Material — a marker that no longer exists in the output.)
+        if (!enIndex.isFile || !enIndex.readText().contains("<article")) {
             logger.warn(
                 "stageGuideIntoResources: build/guide has no real MkDocs site (placeholder or empty); " +
                     "leaving the committed src/main/resources/guide untouched. " +

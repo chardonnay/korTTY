@@ -22,6 +22,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import shutil
@@ -33,12 +34,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SITE_DIR = REPO_ROOT / "app-docs" / "site"
 DIAGRAMS_SRC = REPO_ROOT / "app-docs" / "diagrams"
 SCREENSHOTS_SRC = REPO_ROOT / "app-docs" / "screenshots"
-SHIM = SITE_DIR / "vendor" / "iframe-worker-shim.js"
 BUILD_OUT = REPO_ROOT / "build" / "guide"
-
-# The exact tag the Material `offline` plugin injects; we replace it with an
-# inline copy of the vendored shim so nothing is fetched from unpkg.com.
-UNPKG_SHIM_TAG = '<script src="https://unpkg.com/iframe-worker/shim"></script>'
 
 # Hosts allowed to appear as canonical/social LINKS (metadata, not fetched).
 LANGS = ["en", "de"]
@@ -112,8 +108,9 @@ def build_lang(lang: str, strict: bool, version: str) -> Path:
     if proc.returncode != 0:
         raise subprocess.CalledProcessError(proc.returncode, cmd)
     out = BUILD_OUT / lang
+    stage_lunr_language_packs(out)
+    write_offline_search_index(out)
     normalize_text_line_endings(out)
-    inline_shim(out)
     assert_offline(out)
     extract_translation_manifests(out, lang)
     return out
@@ -164,20 +161,73 @@ def extract_translation_manifests(out: Path, lang: str) -> None:
         print(f"  {line}")
 
 
-def inline_shim(out: Path) -> int:
-    if not SHIM.is_file():
-        sys.exit(f"FATAL: vendored shim missing at {SHIM} — run "
-                 f"`curl -fsSL https://unpkg.com/iframe-worker/shim -o {SHIM}`")
-    shim_js = SHIM.read_text(encoding="utf-8")
-    inline_tag = f"<script>/* iframe-worker shim (vendored, offline) */\n{shim_js}</script>"
-    patched = 0
-    for html in out.rglob("*.html"):
-        text = html.read_bytes().decode("utf-8")
-        if UNPKG_SHIM_TAG in text:
-            html.write_bytes(text.replace(UNPKG_SHIM_TAG, inline_tag).encode("utf-8"))
-            patched += 1
-    print(f"  inlined offline search shim into {patched} page(s)")
-    return patched
+def stage_lunr_language_packs(out: Path) -> None:
+    """Ship every lunr stemmer, not just the one this build's language needs.
+
+    MkDocs' search plugin copies only the stemmer for the configured language, but the
+    ENGLISH tree is the source korTTY clones when it translates the guide at run time
+    (Languages & dynamic translation). Without the packs there, GuideSearchIndexTranslator
+    finds no stemmer for the target language and falls back to English rules, and the
+    browser's worker.js then fails to load `lunr.<lang>.js` at all. Material shipped the
+    full set on every build, which is why this never had to be handled before.
+
+    31 files, ~470 KB, and they are what makes a translated guide searchable in its own
+    language.
+    """
+    try:
+        import mkdocs.contrib.search as _search
+    except ImportError:  # pragma: no cover - mkdocs is a hard dependency of this script
+        sys.exit("FATAL: mkdocs.contrib.search is not importable")
+    packs = Path(_search.__file__).parent / "lunr-language"
+    if not packs.is_dir():
+        sys.exit(f"FATAL: lunr language packs missing at {packs}")
+    dst = out / "search"
+    copied = 0
+    for js in sorted(packs.glob("*.js")):
+        target = dst / js.name
+        if not target.exists():
+            shutil.copy2(js, target)
+            copied += 1
+    print(f"  staged {copied} lunr stemmer(s) for runtime-translated languages")
+
+
+def write_offline_search_index(out: Path) -> None:
+    """Wrap the search index as a script so the offline search can load it.
+
+    The bundled guide is opened from a jar:/file: origin inside korTTY's WebView,
+    where both `new Worker()` and XMLHttpRequest are blocked — so the search plugin's
+    stock XHR for search_index.json can never succeed there. A <script> tag is not
+    blocked, so overrides/search/worker.js loads this wrapper instead (lazily, on the
+    first query: the index is ~1.2 MB and must not ride along on all 57 pages).
+
+    `var __index = ...` is deliberately the same shape GuideSearchIndexTranslator
+    already writes for runtime-translated languages, so every language tree — built
+    or translated in-app — exposes the index identically.
+    """
+    index = out / "search" / "search_index.json"
+    if not index.is_file():
+        sys.exit(f"FATAL: {index} missing — the search plugin did not run")
+
+    # toc.permalink appends a ¶ anchor to every heading, and the plugin indexes the
+    # rendered text, so each page-level entry reads "Title ¶ First sentence…" and that
+    # pilcrow shows up in the result summaries. Strip it from the JSON too, not just
+    # from the wrapper: GuideSearchIndex feeds the same file to the in-app AI docs
+    # search as its retrieval corpus, where a stray ¶ is noise as well.
+    data = json.loads(index.read_text(encoding="utf-8"))
+    cleaned = 0
+    for doc in data.get("docs", []):
+        for field in ("title", "text"):
+            value = doc.get(field)
+            if value and "\u00b6" in value:
+                doc[field] = re.sub(r"\s*\u00b6\s*", " ", value).strip()
+                cleaned += 1
+    serialised = json.dumps(data, ensure_ascii=False, separators=(",", ": "))
+    index.write_text(serialised, encoding="utf-8")
+
+    wrapper = index.with_suffix(".js")
+    wrapper.write_text("var __index = " + serialised, encoding="utf-8")
+    print(f"  wrapped search index for offline use "
+          f"({wrapper.stat().st_size // 1024} KB, {cleaned} heading anchors stripped)")
 
 
 def assert_offline(out: Path) -> None:

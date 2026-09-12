@@ -1,6 +1,6 @@
 # Shared MkDocs config for the korTTY Guide.
 # Per-language entrypoints (mkdocs.en.yml / mkdocs.de.yml) INHERIT this file and
-# override docs_dir, site_dir, theme.language and the plugins list (search lang).
+# override docs_dir, site_dir, theme.locale and the plugins list (search lang).
 #
 # Built into a fully OFFLINE, self-contained site that loads from a jar:/file:
 # base URL inside korTTY's WebView (Help -> Anleitung) AND on GitHub Pages.
@@ -34,31 +34,19 @@ validation:
     not_found: warn
 
 theme:
-  name: material
+  # Dracula rather than Material: Material for MkDocs reaches end of life on 2026-11-05
+  # and is already incompatible with the in-development MkDocs 2.0, so staying on it would
+  # freeze this build on mkdocs 1.x with no further security fixes for the JS that ships
+  # inside the app. Dracula is dark by default, ships no external assets, and emits the
+  # <article> container GuideSearchIndexTranslator slices — see docs/ADR or PR for the
+  # comparison against mkdocs-terminal.
+  name: dracula
   custom_dir: overrides
-  language: en
   logo: assets/images/favicon.png
   favicon: assets/images/favicon.png
-  font: false # CRITICAL offline: no Google Fonts CDN — fonts are self-hosted via kortty.css
-  icon:
-    repo: fontawesome/brands/github
-  palette:
-    # Dark "terminal" scheme matching the SVG diagram palette (#07111d / #38bdf8 / #67e8f9).
-    scheme: slate
-    primary: black
-    accent: cyan
-  features:
-    - navigation.sections
-    - navigation.indexes
-    - navigation.top
-    - navigation.tracking
-    - toc.follow
-    - search.suggest
-    - search.highlight
-    - search.share
-    - content.code.copy
-    - content.code.annotate
-    - content.tabs.link
+  # The guide bundles its own Pygments stylesheet through the codehilite extension;
+  # highlight.js would be a second, redundant highlighter loaded on all 57 pages.
+  highlightjs: false
 
 extra_css:
   - assets/stylesheets/kortty.css
@@ -74,9 +62,15 @@ extra:
   # Falls back to 'dev' for ad-hoc local builds. Rendered in the footer/hero
   # via the theme (config.extra.kortty_version) — never hard-typed in prose.
   kortty_version: !ENV [KORTTY_VERSION, "dev"]
+  # Build language for overrides/main.html (switcher + footer wording). NOT
+  # theme.locale: Dracula ships no locale catalogs, so setting that key only
+  # makes `mkdocs build --strict` abort on "No translations could be found",
+  # and it localises nothing because the theme has zero {% trans %} blocks.
+  kt_lang: en
   generator: false
-  # Truthy so Material renders the header language selector (overrides/partials/
-  # alternate.html computes the per-page EN<->DE counterpart link).
+  # Consumed by overrides/main.html, which renders the header EN<->DE switcher and
+  # computes the per-page counterpart link. Material read this key on its own; Dracula
+  # has no such notion, so the override is now what makes the switcher exist at all.
   alternate:
     - name: English
       link: en
@@ -112,10 +106,6 @@ markdown_extensions:
   - pymdownx.keys
   - pymdownx.snippets
   - pymdownx.smartsymbols
-  # Inline Material/Octicons/FontAwesome icons as SVG (offline-safe, no CDN).
-  - pymdownx.emoji:
-      emoji_index: !!python/name:material.extensions.emoji.twemoji
-      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 # Nav is shared: both docs/en and docs/de mirror the same file layout. Only the
 # SECTION labels ("Reference", "Settings", …) come from this list rather than from

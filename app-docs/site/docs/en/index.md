@@ -23,53 +23,53 @@ hide:
 
 <div class="grid cards" markdown>
 
--   :material-rocket-launch: __Getting started__
+-   __Getting started__
 
     Install korTTY, set your master password, and learn the main window.
 
-    [:octicons-arrow-right-24: Start here](getting-started/installation.md)
+    [→ Start here](getting-started/installation.md)
 
--   :material-console-network: __Connections & terminal__
+-   __Connections & terminal__
 
     SSH/Mosh connections, tabs, split-screen, tunnels, jump servers and SFTP.
 
-    [:octicons-arrow-right-24: Connections](features/connections.md)
+    [→ Connections](features/connections.md)
 
--   :material-tune-variant: __Settings reference__
+-   __Settings reference__
 
     Every setting across all configuration tabs, with types, defaults and where each value is stored.
 
-    [:octicons-arrow-right-24: Settings](reference/settings/index.md)
+    [→ Settings](reference/settings/index.md)
 
--   :material-menu: __Menus & shortcuts__
+-   __Menus & shortcuts__
 
     The full menu tree and every keyboard shortcut.
 
-    [:octicons-arrow-right-24: Menu reference](reference/menu.md)
+    [→ Menu reference](reference/menu.md)
 
--   :material-robot-happy: __AI assistant & agent tools__
+-   __AI assistant & agent tools__
 
     Profiles, skills, the AI Manager, and the terminal AI agent's tools.
 
-    [:octicons-arrow-right-24: AI assistant](features/ai-assistant.md)
+    [→ AI assistant](features/ai-assistant.md)
 
--   :material-brain: __Local models__
+-   __Local models__
 
     Install, import, route, and run private GGUF models with integrated llama.cpp.
 
-    [:octicons-arrow-right-24: Local models](features/local-models.md)
+    [→ Local models](features/local-models.md)
 
--   :material-database-search: __RAG knowledge stores__
+-   __RAG knowledge stores__
 
     Review files or folders, build a safe local HNSW index, and add cited context to AI profiles.
 
-    [:octicons-arrow-right-24: Knowledge stores](features/rag.md)
+    [→ Knowledge stores](features/rag.md)
 
--   :material-history: __What's new__
+-   __What's new__
 
     Release notes for the current and previous versions.
 
-    [:octicons-arrow-right-24: Release notes](about/release-notes.md)
+    [→ Release notes](about/release-notes.md)
 
 </div>
 

@@ -1,0 +1,19 @@
+{#-
+  Dracula lists 404.html in its own `static_templates`, and the theme's copy
+  extends base.html DIRECTLY — so it bypasses main.html and, with it, the
+  offline `styles` override, re-introducing the Font Awesome CDN <link> on one
+  page. assert_offline() in scripts/build-docs-site.py catches exactly that.
+  Same content as the theme's template; only the parent changes.
+-#}
+{% extends "main.html" %}
+
+{% block content %}
+    <section class="p-md-5 section-content">
+        <article>
+            <p></p>
+            <h1>404</h1>
+            <hr>
+            <p><strong>{{ "Seite nicht gefunden" if config.extra.kt_lang == "de" else "Page not found" }}</strong></p>
+        </article>
+    </section>
+{% endblock %}

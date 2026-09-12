@@ -6,10 +6,6 @@ docs_dir: docs/en
 site_dir: ../../build/guide/en
 site_url: https://chardonnay.github.io/korTTY/guide/en/
 
-theme:
-  language: en
-
 plugins:
   - search:
       lang: en
-  - offline # CRITICAL: makes search + assets work from file:// / jar://

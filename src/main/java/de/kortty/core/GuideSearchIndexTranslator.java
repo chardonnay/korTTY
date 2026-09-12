@@ -37,7 +37,10 @@ public final class GuideSearchIndexTranslator {
 
     private static final Logger logger = LoggerFactory.getLogger(GuideSearchIndexTranslator.class);
     private static final String SOURCE_INDEX = "/guide/en/search/search_index.json";
-    private static final String LUNR_PACK = "assets/javascripts/lunr/min/lunr.%s.min.js";
+    // MkDocs' search plugin lays its stemmers out as search/lunr.<lang>.js. (Material used
+    // assets/javascripts/lunr/min/lunr.<lang>.min.js; build-docs-site.py stages the full set
+    // into every built tree so a cloned language tree still finds one here.)
+    private static final String LUNR_PACK = "search/lunr.%s.js";
 
     private static final Pattern ARTICLE =
         Pattern.compile("<article\\b[^>]*>(.*)</article>", Pattern.DOTALL);
