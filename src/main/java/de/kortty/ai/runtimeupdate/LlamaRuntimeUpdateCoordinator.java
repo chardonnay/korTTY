@@ -17,7 +17,15 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Application-wide asynchronous coordinator for startup checks and explicit provisioning. */
+/**
+ * Application-wide asynchronous coordinator for startup checks and explicit provisioning.
+ *
+ * <p>A release index that cannot be reached ends in {@link State#OFFLINE} rather than
+ * {@link State#FAILED} and is logged without a stack trace: the startup check runs whenever the
+ * machine happens to be offline, and an unreachable server says nothing about korTTY's state. Every
+ * other failure — an HTTP error, a bad signature, a failed health check — still reports as
+ * {@code FAILED} at {@code ERROR} level. See {@link RuntimeUpdateReachability}.
+ */
 public final class LlamaRuntimeUpdateCoordinator implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(LlamaRuntimeUpdateCoordinator.class);
@@ -114,10 +122,11 @@ public final class LlamaRuntimeUpdateCoordinator implements AutoCloseable {
             explicitInstall || effective == LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE
                 ? State.INSTALLING : State.CHECKING,
             null, null, activeInstallation().orElse(null)));
-        return CompletableFuture.supplyAsync(() -> run(effective, effectiveBackend), executor);
+        return CompletableFuture.supplyAsync(
+            () -> run(effective, effectiveBackend, explicitInstall), executor);
     }
 
-    private Status run(LlamaRuntimeUpdatePolicy policy, LlamaBackend backend) {
+    private Status run(LlamaRuntimeUpdatePolicy policy, LlamaBackend backend, boolean explicitInstall) {
         try {
             LlamaRuntimeUpdateResult result = provisioner.checkAndMaybeApply(policy, backend);
             Optional<LlamaRuntimeInstallation> active = provisioner.activeInstallation();
@@ -157,7 +166,7 @@ public final class LlamaRuntimeUpdateCoordinator implements AutoCloseable {
             publish(next);
             if (next.state() == State.STAGED_UNTIL_IDLE && !closed.get()) {
                 executor.schedule(
-                    () -> run(LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE, backend),
+                    () -> run(LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE, backend, explicitInstall),
                     IDLE_RETRY_SECONDS,
                     TimeUnit.SECONDS);
             }
@@ -168,12 +177,28 @@ public final class LlamaRuntimeUpdateCoordinator implements AutoCloseable {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             logger.warn("llama.cpp runtime update or installation was interrupted", e);
-            Status failed = failureStatus("Runtime update was interrupted.");
+            Status failed = failureStatus("Runtime update was interrupted.", State.FAILED);
             publish(failed);
             return failed;
         } catch (Exception e) {
+            if (RuntimeUpdateReachability.isUnreachable(e)) {
+                // Being offline is not an update failure: no stack trace, and a state of its own so
+                // the startup listener stays quiet while an explicit install can still report why it
+                // did not happen. The next start (or a re-saved policy) checks again.
+                if (explicitInstall) {
+                    logger.warn("Could not install the llama.cpp runtime: the signed release index"
+                        + " is unreachable ({})", message(e));
+                } else {
+                    logger.info("Skipped the llama.cpp runtime update check: the signed release"
+                        + " index is unreachable ({})", message(e));
+                }
+                logger.debug("llama.cpp runtime release index was unreachable", e);
+                Status offline = failureStatus(message(e), State.OFFLINE);
+                publish(offline);
+                return offline;
+            }
             logger.error("llama.cpp runtime update or installation failed", e);
-            Status failed = failureStatus(message(e));
+            Status failed = failureStatus(message(e), State.FAILED);
             publish(failed);
             return failed;
         }
@@ -209,11 +234,11 @@ public final class LlamaRuntimeUpdateCoordinator implements AutoCloseable {
                     active.orElse(null)));
         } catch (Exception e) {
             logger.error("Polling pending llama.cpp runtime activation failed", e);
-            publish(failureStatus(message(e)));
+            publish(failureStatus(message(e), State.FAILED));
         }
     }
 
-    private Status failureStatus(String detail) {
+    private Status failureStatus(String detail, State fallback) {
         try {
             Optional<String> revokedRuntime = provisioner.blockedActiveRuntimeId();
             if (revokedRuntime.isPresent()) {
@@ -224,7 +249,7 @@ public final class LlamaRuntimeUpdateCoordinator implements AutoCloseable {
             detail = detail + " (Could not read the quarantined runtime state: "
                 + message(blockedStateFailure) + ")";
         }
-        return new Status(State.FAILED, detail, null, activeInstallation().orElse(null));
+        return new Status(fallback, detail, null, activeInstallation().orElse(null));
     }
 
     private void publish(Status next) {
@@ -274,6 +299,8 @@ public final class LlamaRuntimeUpdateCoordinator implements AutoCloseable {
         PENDING_FIRST_LAUNCH,
         STAGED_UNTIL_IDLE,
         ROLLED_BACK,
+        /** The release index could not be reached (offline, captive portal, link not up yet). */
+        OFFLINE,
         FAILED,
         CLOSED
     }

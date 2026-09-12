@@ -193,6 +193,9 @@ The **Runtimes** table in **Local Models** shows the installed version and state
 **A signed runtime check or installation fails**
 : Confirm that this korTTY build contains the official runtime-channel public key, that HTTPS access to the stable index and package is available, and that the platform/backend combination is published. korTTY fails closed instead of bypassing a missing trust root, invalid signature, checksum mismatch, incompatible API contract, or runtime quarantine. The runtime update coordinator records the complete failure cause and stack trace in `kortty.log` under the log directory configured in **Configuration > Global Settings > Logging** (default `~/.kortty/logs`), even when the manager shows a shorter status message.
 
+**The update check cannot reach the runtime channel**
+: A machine that is offline, behind a captive portal, or whose link is not up yet reports no failure: the startup check ends in an **Offline** status, already installed runtimes stay usable, every withdrawal already persisted locally stays enforced, and the check simply runs again at the next application start or when the update policy is saved again. An unreachable channel is recorded as a single informational line in `kortty.log` rather than as a failure with a stack trace, because an unreachable server says nothing about korTTY's own state. An installation you start yourself still reports the unreachable channel in the Local Models status, so a deliberate action never fails silently.
+
 **The runtime is reported as revoked**
 : Open **AI > AI Manager > Local Models** and install the offered verified replacement. Do not remove the package marker or edit `models.xml`: the durable denylist still blocks the installation, and revoked versions are deliberately ineligible for rollback or reinstallation. If no compatible replacement is listed, local AI stays unavailable until the stable channel publishes one for this platform/backend.
 
