@@ -33,12 +33,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SITE_DIR = REPO_ROOT / "app-docs" / "site"
 DIAGRAMS_SRC = REPO_ROOT / "app-docs" / "diagrams"
 SCREENSHOTS_SRC = REPO_ROOT / "app-docs" / "screenshots"
-SHIM = SITE_DIR / "vendor" / "iframe-worker-shim.js"
 BUILD_OUT = REPO_ROOT / "build" / "guide"
-
-# The exact tag the Material `offline` plugin injects; we replace it with an
-# inline copy of the vendored shim so nothing is fetched from unpkg.com.
-UNPKG_SHIM_TAG = '<script src="https://unpkg.com/iframe-worker/shim"></script>'
 
 # Hosts allowed to appear as canonical/social LINKS (metadata, not fetched).
 LANGS = ["en", "de"]
@@ -112,8 +107,8 @@ def build_lang(lang: str, strict: bool, version: str) -> Path:
     if proc.returncode != 0:
         raise subprocess.CalledProcessError(proc.returncode, cmd)
     out = BUILD_OUT / lang
+    write_offline_search_index(out)
     normalize_text_line_endings(out)
-    inline_shim(out)
     assert_offline(out)
     extract_translation_manifests(out, lang)
     return out
@@ -164,20 +159,26 @@ def extract_translation_manifests(out: Path, lang: str) -> None:
         print(f"  {line}")
 
 
-def inline_shim(out: Path) -> int:
-    if not SHIM.is_file():
-        sys.exit(f"FATAL: vendored shim missing at {SHIM} — run "
-                 f"`curl -fsSL https://unpkg.com/iframe-worker/shim -o {SHIM}`")
-    shim_js = SHIM.read_text(encoding="utf-8")
-    inline_tag = f"<script>/* iframe-worker shim (vendored, offline) */\n{shim_js}</script>"
-    patched = 0
-    for html in out.rglob("*.html"):
-        text = html.read_bytes().decode("utf-8")
-        if UNPKG_SHIM_TAG in text:
-            html.write_bytes(text.replace(UNPKG_SHIM_TAG, inline_tag).encode("utf-8"))
-            patched += 1
-    print(f"  inlined offline search shim into {patched} page(s)")
-    return patched
+def write_offline_search_index(out: Path) -> None:
+    """Wrap the search index as a script so the offline search can load it.
+
+    The bundled guide is opened from a jar:/file: origin inside korTTY's WebView,
+    where both `new Worker()` and XMLHttpRequest are blocked — so the search plugin's
+    stock XHR for search_index.json can never succeed there. A <script> tag is not
+    blocked, so overrides/search/worker.js loads this wrapper instead (lazily, on the
+    first query: the index is ~1.2 MB and must not ride along on all 57 pages).
+
+    `var __index = ...` is deliberately the same shape GuideSearchIndexTranslator
+    already writes for runtime-translated languages, so every language tree — built
+    or translated in-app — exposes the index identically.
+    """
+    index = out / "search" / "search_index.json"
+    if not index.is_file():
+        sys.exit(f"FATAL: {index} missing — the search plugin did not run")
+    wrapper = index.with_suffix(".js")
+    wrapper.write_text("var __index = " + index.read_text(encoding="utf-8"),
+                       encoding="utf-8")
+    print(f"  wrapped search index for offline use ({wrapper.stat().st_size // 1024} KB)")
 
 
 def assert_offline(out: Path) -> None:

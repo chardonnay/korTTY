@@ -1,4 +1,15 @@
-var base_path = 'function' === typeof importScripts ? '.' : '/search/';
+/* korTTY override of MkDocs' bundled search/worker.js.
+   Upstream verbatim except where marked KORTTY: the guide is bundled into the app and
+   loaded from a jar:/file: origin, where new Worker() and XMLHttpRequest are both
+   blocked. <script> tags are not, so the offline path uses those instead. The
+   http(s) worker path (GitHub Pages) is left exactly as upstream ships it. */
+
+var IS_WORKER = 'function' === typeof importScripts;
+// KORTTY: upstream hardcodes the absolute '/search/', which cannot resolve under a
+// jar:/file: origin (nor with use_directory_urls:false). Derive it from base_url instead.
+var base_path = IS_WORKER
+  ? '.'
+  : ((typeof base_url === 'string' ? base_url.replace(/\/$/, '') : '.') + '/search');
 var allowSearch = false;
 var index;
 var documents = {};
@@ -6,12 +17,12 @@ var lang = ['en'];
 var data;
 
 function getScript(script, callback) {
-  console.log('Loading script: ' + script);
-  $.getScript(base_path + script).done(function () {
-    callback();
-  }).fail(function (jqxhr, settings, exception) {
-    console.log('Error: ' + exception);
-  });
+  // KORTTY: <script> tag instead of $.getScript (XHR, blocked on jar:/file:).
+  var s = document.createElement('script');
+  s.src = base_path + '/' + script;
+  s.onload = function () { callback(); };
+  s.onerror = function () { console.error('search: could not load ' + s.src); };
+  document.head.appendChild(s);
 }
 
 function getScriptsInOrder(scripts, callback) {
@@ -33,8 +44,7 @@ function loadScripts(urls, callback) {
   }
 }
 
-function onJSONLoaded () {
-  data = JSON.parse(this.responseText);
+function onIndexReady () {
   var scriptsToLoad = ['lunr.js'];
   if (data.config && data.config.lang && data.config.lang.length) {
     lang = data.config.lang;
@@ -93,14 +103,31 @@ function onScriptsLoaded () {
 }
 
 function init () {
-  var oReq = new XMLHttpRequest();
-  oReq.addEventListener("load", onJSONLoaded);
-  var index_path = base_path + '/search_index.json';
-  if( 'function' === typeof importScripts ){
-      index_path = 'search_index.json';
+  if (IS_WORKER) {
+    // Real worker (http/https): keep upstream's XHR, which works there.
+    var oReq = new XMLHttpRequest();
+    oReq.addEventListener("load", function () {
+      data = JSON.parse(this.responseText);
+      onIndexReady();
+    });
+    oReq.open("GET", 'search_index.json');
+    oReq.send();
+    return;
   }
-  oReq.open("GET", index_path);
-  oReq.send();
+  // KORTTY: offline path. search_index.js is the same index wrapped as
+  // `var __index = {...}` — the very convention GuideSearchIndexTranslator already
+  // writes for runtime-translated languages — so a <script> tag replaces the XHR.
+  // Loaded lazily on first search: the index is ~1.2 MB and must not ride along on
+  // all 57 pages.
+  var s = document.createElement('script');
+  s.src = base_path + '/search_index.js';
+  s.onload = function () {
+    data = (typeof __index !== 'undefined') ? __index : null;
+    if (!data) { console.error('search: search_index.js defined no __index'); return; }
+    onIndexReady();
+  };
+  s.onerror = function () { console.error('search: could not load ' + s.src); };
+  document.head.appendChild(s);
 }
 
 function search (query) {

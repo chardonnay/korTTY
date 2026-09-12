@@ -1,3 +1,9 @@
+/* korTTY override of MkDocs' bundled search/main.js.
+   Upstream verbatim except where marked KORTTY: the guide is bundled into the app and
+   loaded from a jar:/file: origin, where new Worker() and XMLHttpRequest are both
+   blocked. <script> tags are not, so the offline path uses those instead. The
+   http(s) worker path (GitHub Pages) is left exactly as upstream ships it. */
+
 function getSearchTermFromLocation() {
   var sPageURL = window.location.search.substring(1);
   var sURLVariables = sPageURL.split('&');
@@ -55,7 +61,11 @@ function displayResults (results) {
 function doSearch () {
   var query = document.getElementById('mkdocs-search-query').value;
   if (query.length > min_search_length) {
-    if (!window.Worker) {
+    // KORTTY: branch on the worker we actually managed to construct, not on the
+    // presence of the Worker API. On a jar:/file: origin the API exists but the
+    // constructor throws, so upstream's `!window.Worker` test takes the worker
+    // branch and calls postMessage on null.
+    if (!searchWorker) {
       displayResults(search(query));
     } else {
       searchWorker.postMessage({query: query});
@@ -89,21 +99,32 @@ function onWorkerMessage (e) {
   }
 }
 
-if (!window.Worker) {
-  console.log('Web Worker API not supported');
+// KORTTY: a jar:/file: page HAS window.Worker, but constructing one throws
+// (opaque origin), so feature-detection alone never reaches the fallback below.
+// Probe by actually constructing it and fall back on failure.
+var searchWorker = null;
+if (window.Worker) {
+  try {
+    searchWorker = new Worker(joinUrl(base_url, "search/worker.js"));
+  } catch (e) {
+    console.log('Web Worker blocked for this origin, searching in the main thread');
+    searchWorker = null;
+  }
+}
+if (!searchWorker) {
   // load index in main thread
-  $.getScript(joinUrl(base_url, "search/worker.js")).done(function () {
-    console.log('Loaded worker');
+  // KORTTY: a <script> tag rather than $.getScript, whose same-origin path is XHR.
+  var s = document.createElement('script');
+  s.src = joinUrl(base_url, "search/worker.js");
+  s.onload = function () {
     init();
     window.postMessage = function (msg) {
       onWorkerMessage({data: msg});
     };
-  }).fail(function (jqxhr, settings, exception) {
-    console.error('Could not load worker.js');
-  });
+  };
+  s.onerror = function () { console.error('Could not load worker.js'); };
+  document.head.appendChild(s);
 } else {
-  // Wrap search in a web worker
-  var searchWorker = new Worker(joinUrl(base_url, "search/worker.js"));
   searchWorker.postMessage({init: true});
   searchWorker.onmessage = onWorkerMessage;
 }

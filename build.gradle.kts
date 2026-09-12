@@ -1317,8 +1317,9 @@ tasks.register("buildDocsSite") {
     group = "documentation"
     description = "Builds the bilingual offline guide site into build/guide for bundling and Pages."
     inputs.dir("app-docs/site/docs")
+    // overrides/ now also carries the offline search scripts (search/main.js,
+    // search/worker.js), which shadow the ones MkDocs' search plugin ships.
     inputs.dir("app-docs/site/overrides")
-    inputs.dir("app-docs/site/vendor")
     inputs.dir("app-docs/screenshots")
     inputs.file("app-docs/site/mkdocs.yml")
     inputs.file("app-docs/site/mkdocs.en.yml")
