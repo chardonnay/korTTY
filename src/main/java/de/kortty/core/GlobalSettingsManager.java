@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import de.kortty.model.GlobalSettings;
+import de.kortty.perf.PerfTrace;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.Unmarshaller;
@@ -95,6 +96,7 @@ public class GlobalSettingsManager {
      */
     public synchronized void save() throws Exception {
         Path settingsFile = settingsFile();
+        PerfTrace.Span perf = PerfTrace.begin("GlobalSettingsManager.save");
         
         // Include all nested classes in context
         JAXBContext context = JAXBContext.newInstance(
@@ -116,6 +118,7 @@ public class GlobalSettingsManager {
         );
         Marshaller marshaller = context.createMarshaller();
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
+        perf.mark("context");
         if (policyClamp != null) {
             // Re-clamp forced values and swap in filtered lists so policy-managed objects never
             // reach the user XML; the live lists are left untouched (no in-place mutation that a
@@ -130,6 +133,7 @@ public class GlobalSettingsManager {
             marshaller.marshal(settings, settingsFile.toFile());
         }
         this.loadedSettingsLastModifiedMillis = lastModifiedMillis(settingsFile);
+        perf.mark("marshalAndWrite").end();
 
         logger.info("Saved global settings to {}", settingsFile);
     }

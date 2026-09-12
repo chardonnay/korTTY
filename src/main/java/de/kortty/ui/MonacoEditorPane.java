@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import com.google.gson.Gson;
+import de.kortty.perf.PerfTrace;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import de.kortty.core.SnippetCompletionShortcut;
@@ -84,6 +85,7 @@ public class MonacoEditorPane extends StackPane {
     private boolean disposed;
     private boolean loadRequested;
     private PauseTransition pendingBootRetry;
+    private PerfTrace.Span bootPerf;
     private String language = "plaintext";
     private String fontFamily = "Monospaced";
     private int fontSize = 14;
@@ -153,6 +155,7 @@ public class MonacoEditorPane extends StackPane {
             return;
         }
         loadRequested = true;
+        bootPerf = PerfTrace.begin("MonacoEditorPane.boot");
         loadEditor();
     }
 
@@ -611,6 +614,9 @@ public class MonacoEditorPane extends StackPane {
                 return;
             }
             if (newState == Worker.State.SUCCEEDED) {
+                if (bootPerf != null) {
+                    bootPerf.mark("pageLoaded");
+                }
                 // Defer off the load-worker callback: this listener fires while WebKit is still inside
                 // its native load-finished dispatch (fwkFireLoadEvent), so calling executeScript here
                 // re-enters WebKit re-entrantly and intermittently crashes in JNI get_method_id on
@@ -840,6 +846,10 @@ public class MonacoEditorPane extends StackPane {
                 return;
             }
             Platform.runLater(() -> {
+                if (pane.bootPerf != null) {
+                    pane.bootPerf.mark("hostReady").end();
+                    pane.bootPerf = null;
+                }
                 pane.ready.set(true);
                 pane.flushPendingScripts();
             });
