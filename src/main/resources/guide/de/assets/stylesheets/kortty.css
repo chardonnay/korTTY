@@ -466,3 +466,55 @@ article h6:hover .headerlink {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ---- Theme chrome recoloured to the korTTY palette ---------------------- */
+/* Dracula drives its accents and gradients from a handful of custom properties
+   (--purple #9580ff, --pink #ff80bf, --cyan #80ffea), so remapping those three is
+   what turns the sidebar chevrons, the menu tab and every *-gradient cyan at once —
+   far better than chasing the individual selectors that consume them. */
+:root {
+  --purple: var(--kt-primary);
+  --pink: var(--kt-accent);
+  --cyan: var(--kt-accent);
+  --purple-transparent: rgba(56, 189, 248, 0.1);
+  --pink-transparent: rgba(103, 232, 249, 0.1);
+  --cyan-transparent: rgba(103, 232, 249, 0.1);
+}
+
+/* The surfaces that must stay dark rather than take the accent as a fill: the
+   navbar is `drac-bg-purple`, i.e. a solid var(--purple) background, and remapping
+   the variable alone would turn it into a bright blue band. */
+.navbar.drac-bg-purple {
+  background: linear-gradient(180deg, #08141f, var(--kt-bg)) !important;
+  border-bottom: 1px solid var(--kt-line);
+}
+nav.divider.drac-bg-purple-cyan {
+  background: linear-gradient(180deg, var(--kt-primary), var(--kt-accent)) !important;
+}
+.custom-menu .dot-li.drac-bg-purple {
+  background: linear-gradient(135deg, var(--kt-primary), var(--kt-accent)) !important;
+  color: var(--kt-bg) !important;
+}
+body.drac-scrollbar-purple {
+  scrollbar-color: var(--kt-line-strong) transparent;
+}
+body.drac-scrollbar-purple::-webkit-scrollbar-thumb,
+.content::-webkit-scrollbar-thumb {
+  background: var(--kt-line-strong);
+}
+/* The navbar's Previous/Next buttons and search field inherit Dracula's purple
+   borders through .drac-btn / .drac-input. */
+.navbar .drac-btn {
+  border-color: var(--kt-line-strong) !important;
+  color: var(--kt-accent) !important;
+}
+.navbar .drac-btn:hover {
+  background: rgba(56, 189, 248, 0.12) !important;
+}
+.navbar .drac-input {
+  border-color: var(--kt-line-strong) !important;
+}
+.navbar .drac-input:focus {
+  border-color: var(--kt-primary) !important;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.18) !important;
+}

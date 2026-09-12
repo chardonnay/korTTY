@@ -108,6 +108,7 @@ def build_lang(lang: str, strict: bool, version: str) -> Path:
     if proc.returncode != 0:
         raise subprocess.CalledProcessError(proc.returncode, cmd)
     out = BUILD_OUT / lang
+    stage_lunr_language_packs(out)
     write_offline_search_index(out)
     normalize_text_line_endings(out)
     assert_offline(out)
@@ -158,6 +159,36 @@ def extract_translation_manifests(out: Path, lang: str) -> None:
                or " page(s), " in line]
     for line in summary:
         print(f"  {line}")
+
+
+def stage_lunr_language_packs(out: Path) -> None:
+    """Ship every lunr stemmer, not just the one this build's language needs.
+
+    MkDocs' search plugin copies only the stemmer for the configured language, but the
+    ENGLISH tree is the source korTTY clones when it translates the guide at run time
+    (Languages & dynamic translation). Without the packs there, GuideSearchIndexTranslator
+    finds no stemmer for the target language and falls back to English rules, and the
+    browser's worker.js then fails to load `lunr.<lang>.js` at all. Material shipped the
+    full set on every build, which is why this never had to be handled before.
+
+    31 files, ~470 KB, and they are what makes a translated guide searchable in its own
+    language.
+    """
+    try:
+        import mkdocs.contrib.search as _search
+    except ImportError:  # pragma: no cover - mkdocs is a hard dependency of this script
+        sys.exit("FATAL: mkdocs.contrib.search is not importable")
+    packs = Path(_search.__file__).parent / "lunr-language"
+    if not packs.is_dir():
+        sys.exit(f"FATAL: lunr language packs missing at {packs}")
+    dst = out / "search"
+    copied = 0
+    for js in sorted(packs.glob("*.js")):
+        target = dst / js.name
+        if not target.exists():
+            shutil.copy2(js, target)
+            copied += 1
+    print(f"  staged {copied} lunr stemmer(s) for runtime-translated languages")
 
 
 def write_offline_search_index(out: Path) -> None:
