@@ -126,11 +126,12 @@ public final class DialogOpenPerfSmoke {
 
         // Crypto fixture: an SSH key with a stored passphrase makes ConnectionEditDialog run the
         // PBKDF2 decrypt in its constructor, exactly as for a real key-backed connection.
+        // Throwaway fixture values, generated per run so nothing in the source looks like a credential.
         MasterPasswordManager passwords = app.getMasterPasswordManager();
-        passwords.setupPassword("perf-smoke".toCharArray());
+        passwords.setupPassword(fixtureValue("master").toCharArray());
         SSHKey key = new SSHKey("perf-key", home().resolve("id_perf").toString());
         app.getSSHKeyManager().addKey(key);
-        app.getSSHKeyManager().setPassphrase(key, "secret", passwords.getMasterPassword());
+        app.getSSHKeyManager().setPassphrase(key, fixtureValue("passphrase"), passwords.getMasterPassword());
         ServerConnection connection = new ServerConnection();
         connection.setName("perf");
         connection.setHost("localhost");
@@ -181,6 +182,10 @@ public final class DialogOpenPerfSmoke {
             return;
         }
         QUEUE.remove(0).run();
+    }
+
+    private static String fixtureValue(String purpose) {
+        return purpose + "-" + Long.toHexString(System.nanoTime());
     }
 
     private static Path home() {
