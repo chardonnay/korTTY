@@ -1,0 +1,43 @@
+{#-
+  korTTY override of Dracula's searchbox.
+
+  Stock behaviour is a bare form that submits to search.html, so nothing happens
+  until the reader presses Enter and leaves the page — Material offered
+  as-you-type suggestions (its search.suggest feature) and losing them is a real
+  downgrade for an in-app manual.
+
+  MkDocs' own search/main.js already does live search: it binds `keyup` on
+  #mkdocs-search-query and renders into #mkdocs-search-results. Dracula's box
+  simply carries neither id. Adding them turns the header box into a live one on
+  every page, and the form action stays, so Enter still opens the full results
+  page.
+
+  The ids may exist only ONCE per document. search.html renders its own box with
+  exactly these ids, and this partial is included there too via the header — so
+  they are attached only on real content pages. MkDocs passes page=None for its
+  static templates (search.html, 404.html), which is what `page` tests here.
+-#}
+{% set live = page is not none %}
+{% set no_results = "Keine Treffer" if config.extra.kt_lang == "de" else "No results found" %}
+<div role="search" class="search-box kt-search">
+	<form id="rtd-search-form" class="wy-form" action="{{ base_url }}/search.html" method="get">
+		<input type="text" name="q"{% if live %} id="mkdocs-search-query"{% endif %}
+		class="drac-input drac-input-search drac-input-white drac-text-white drac-bg-black-secondary"
+		placeholder="{{ "Anleitung durchsuchen" if config.extra.kt_lang == "de" else "Search docs" }}"
+		autocomplete="off" title="Type search term here" />
+	</form>
+	{%- if live %}
+	<div id="mkdocs-search-results" class="kt-search-suggest" data-no-results-text="{{ no_results }}"></div>
+	<script>
+	  // Close the suggestion panel on Escape or a click outside it. Emptying the panel
+	  // is what hides it (CSS :empty), so this only has to clear it.
+	  (function () {
+	    var box = document.currentScript.parentNode;
+	    var panel = box.querySelector('.kt-search-suggest');
+	    function close () { while (panel.firstChild) { panel.removeChild(panel.firstChild); } }
+	    document.addEventListener('click', function (e) { if (!box.contains(e.target)) { close(); } });
+	    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { close(); } });
+	  })();
+	</script>
+	{%- endif %}
+</div>

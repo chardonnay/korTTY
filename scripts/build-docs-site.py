@@ -22,6 +22,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import shutil
@@ -175,10 +176,27 @@ def write_offline_search_index(out: Path) -> None:
     index = out / "search" / "search_index.json"
     if not index.is_file():
         sys.exit(f"FATAL: {index} missing — the search plugin did not run")
+
+    # toc.permalink appends a ¶ anchor to every heading, and the plugin indexes the
+    # rendered text, so each page-level entry reads "Title ¶ First sentence…" and that
+    # pilcrow shows up in the result summaries. Strip it from the JSON too, not just
+    # from the wrapper: GuideSearchIndex feeds the same file to the in-app AI docs
+    # search as its retrieval corpus, where a stray ¶ is noise as well.
+    data = json.loads(index.read_text(encoding="utf-8"))
+    cleaned = 0
+    for doc in data.get("docs", []):
+        for field in ("title", "text"):
+            value = doc.get(field)
+            if value and "\u00b6" in value:
+                doc[field] = re.sub(r"\s*\u00b6\s*", " ", value).strip()
+                cleaned += 1
+    serialised = json.dumps(data, ensure_ascii=False, separators=(",", ": "))
+    index.write_text(serialised, encoding="utf-8")
+
     wrapper = index.with_suffix(".js")
-    wrapper.write_text("var __index = " + index.read_text(encoding="utf-8"),
-                       encoding="utf-8")
-    print(f"  wrapped search index for offline use ({wrapper.stat().st_size // 1024} KB)")
+    wrapper.write_text("var __index = " + serialised, encoding="utf-8")
+    print(f"  wrapped search index for offline use "
+          f"({wrapper.stat().st_size // 1024} KB, {cleaned} heading anchors stripped)")
 
 
 def assert_offline(out: Path) -> None:

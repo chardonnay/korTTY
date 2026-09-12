@@ -412,3 +412,57 @@ article h5:hover .headerlink,
 article h6:hover .headerlink {
   opacity: 1;
 }
+
+/* ---- Live search suggestions (overrides/searchbox.html) ------------------ */
+/* MkDocs' search/main.js renders straight into #mkdocs-search-results; this makes
+   that element a panel hanging under the header box instead of a block in the
+   page flow. :empty is what hides it — main.js clears the element for queries
+   below min_search_length, and the inline script empties it on Escape / click
+   outside, so no extra show/hide state is needed. */
+.kt-search {
+  position: relative;
+}
+.kt-search-suggest {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  width: min(30rem, 80vw);
+  max-height: min(26rem, 60vh);
+  overflow-y: auto;
+  padding: 0.35rem;
+  text-align: left;
+  background: var(--kt-surface);
+  border: 1px solid var(--kt-line-strong);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+.kt-search-suggest:empty {
+  display: none;
+}
+.kt-search-suggest article {
+  padding: 0.4rem 0.55rem;
+  border-radius: 7px;
+}
+.kt-search-suggest article:hover {
+  background: rgba(56, 189, 248, 0.1);
+}
+.kt-search-suggest h3 {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+.kt-search-suggest h3 a {
+  color: var(--kt-accent);
+  text-decoration: none;
+}
+.kt-search-suggest p {
+  margin: 0.1rem 0 0;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: var(--kt-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

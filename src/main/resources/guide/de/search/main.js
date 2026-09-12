@@ -99,32 +99,65 @@ function onWorkerMessage (e) {
   }
 }
 
-// KORTTY: a jar:/file: page HAS window.Worker, but constructing one throws
-// (opaque origin), so feature-detection alone never reaches the fallback below.
-// Probe by actually constructing it and fall back on failure.
+// KORTTY: upstream bootstraps the index as soon as this script runs. The index is
+// ~1.2 MB and building the lunr structure costs real time, so on all 57 pages of an
+// embedded guide that is pure waste — the reader opens the search box on almost none
+// of them. The box is armed immediately but the index is only fetched the first time
+// someone focuses or types in it (or lands on a ?q= deep link).
 var searchWorker = null;
-if (window.Worker) {
-  try {
-    searchWorker = new Worker(joinUrl(base_url, "search/worker.js"));
-  } catch (e) {
-    console.log('Web Worker blocked for this origin, searching in the main thread');
-    searchWorker = null;
+var searchBootstrapped = false;
+
+function bootstrapSearch () {
+  if (searchBootstrapped) {
+    return;
   }
-}
-if (!searchWorker) {
-  // load index in main thread
-  // KORTTY: a <script> tag rather than $.getScript, whose same-origin path is XHR.
-  var s = document.createElement('script');
-  s.src = joinUrl(base_url, "search/worker.js");
-  s.onload = function () {
+  searchBootstrapped = true;
+  // KORTTY: a jar:/file: page HAS window.Worker, but constructing one throws (opaque
+  // origin), so feature-detection alone never reaches the main-thread fallback.
+  // Probe by actually constructing it.
+  if (window.Worker) {
+    try {
+      searchWorker = new Worker(joinUrl(base_url, "search/worker.js"));
+    } catch (e) {
+      console.log('Web Worker blocked for this origin, searching in the main thread');
+      searchWorker = null;
+    }
+  }
+  if (searchWorker) {
+    searchWorker.onmessage = onWorkerMessage;
+    searchWorker.postMessage({init: true});
+    return;
+  }
+  // KORTTY: a <script> tag rather than $.getScript, whose same-origin path is XHR
+  // and is therefore blocked on jar:/file:.
+  var script = document.createElement('script');
+  script.src = joinUrl(base_url, "search/worker.js");
+  script.onload = function () {
     init();
     window.postMessage = function (msg) {
       onWorkerMessage({data: msg});
     };
   };
-  s.onerror = function () { console.error('Could not load worker.js'); };
-  document.head.appendChild(s);
+  script.onerror = function () { console.error('Could not load worker.js'); };
+  document.head.appendChild(script);
+}
+
+// KORTTY: arm the box before the index exists so the first keystroke is what pays
+// for it. initSearch() re-binds keyup once the index is ready and replays the value.
+function armSearchBox () {
+  var input = document.getElementById('mkdocs-search-query');
+  if (!input) {
+    return;
+  }
+  input.addEventListener('focus', bootstrapSearch);
+  input.addEventListener('keyup', bootstrapSearch);
+  if (getSearchTermFromLocation()) {
+    bootstrapSearch();
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', armSearchBox);
 } else {
-  searchWorker.postMessage({init: true});
-  searchWorker.onmessage = onWorkerMessage;
+  armSearchBox();
 }
