@@ -99,9 +99,10 @@ public final class AiSkillsTabScreenshotGenerator {
         // to the stage, so an unshown pane would snapshot with default (light) list cells.
         dialog.show();
 
+        // The pane is built on the tab's first selection, so select before reaching for the field.
+        selectAiSkillsTab(dialog);
         AiSkillsPane skillsPane = field(dialog, "aiSkillsPane");
         fillDemoSkills(skillsPane);
-        selectAiSkillsTab(dialog);
 
         DialogPane pane = dialog.getDialogPane();
         pane.setMinSize(WIDTH, HEIGHT);
