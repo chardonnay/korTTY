@@ -163,6 +163,22 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../reference/control-api.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Steuerungs-API
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/cli.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Steuerungs-CLI
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="#" class="
             drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
             data-bs-toggle="collapse" data-bs-target="#einstellungen-collapse" aria-expanded="false">
@@ -758,6 +774,8 @@
 </div>
 </div>
 </div>
+<h2 id="der-befehl-kortty-cli">Der Befehl <code>kortty-cli</code><a class="headerlink" href="#der-befehl-kortty-cli" title="Permanent link">&para;</a></h2>
+<p>Jedes native Paket installiert einen zweiten Starter, <code>kortty-cli</code>, neben der Anwendung: den Client für korTTYs standardmäßig ausgeschaltete <a href="../reference/control-api.html">Steuerungs-API</a>. Er liegt im selben Verzeichnis wie der grafische Starter – <code>korTTY.app/Contents/MacOS/kortty-cli</code> unter macOS, neben <code>korTTY.exe</code> unter Windows, <code>bin/kortty-cli</code> im Linux-Anwendungsverzeichnis – und nur das Arch-Paket legt ihn als <code>/usr/bin/kortty-cli</code> in Ihren <code>PATH</code>. <code>kortty-cli --version</code> ist der einzige Befehl, der ohne laufendes korTTY funktioniert, und damit der schnellste Weg, die Installation zu prüfen. Die plattformweise <code>PATH</code>-Einrichtung steht unter <a href="../reference/cli.html">Steuerungs-CLI</a>.</p>
 <h2 id="optionale-systemtools">Optionale Systemtools<a class="headerlink" href="#optionale-systemtools" title="Permanent link">&para;</a></h2>
 <p>Einige Funktionen rufen externe Programme nur auf, wenn Sie sie verwenden:</p>
 <table>

@@ -163,6 +163,22 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../reference/control-api.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Control API
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/cli.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Control CLI
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="#" class="
             drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
             data-bs-toggle="collapse" data-bs-target="#settings-collapse" aria-expanded="false">
@@ -1072,6 +1088,8 @@ The number of agents waiting for a decision — across all windows — is shown 
 <h3 id="maintaining-rules">Maintaining rules<a class="headerlink" href="#maintaining-rules" title="Permanent link">&para;</a></h3>
 <p>Agents change their interfaces often, and a rule that matched last month may silently stop matching after an update. KorTTY's bundled rules are therefore pinned by <strong>screen fixtures</strong>: for every agent, the repository keeps captured terminal screens with the state and rule they must produce, and the test suite fails as soon as a bundled rule no longer matches its fixture or a rule has no fixture at all. When you notice a wrong or missing state, the most useful report is the visible screen text of the pane at that moment, the agent and its version, and the state you expected — it becomes a new fixture and a rule fix in the next release. Until then, a local override file lets you correct the rule for yourself immediately.</p>
 <p>The repository ships a recorder for exactly this purpose: <code>scripts/capture-coding-agent-fixtures.py</code> runs an agent inside a pseudo-terminal and passes your keyboard through, so the session behaves like a normal terminal. Press <span class="keys"><kbd class="key-f12">F12</kbd></span> at every interesting moment — the permission dialog, the spinner, the empty prompt — and the visible screen is written to a fixture file; <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-bracket-right">]</kbd></span> stops the recording. Each file starts with a <code>expect state=REVIEW rule=REVIEW</code> line: set the state and rule id you expect there, and drop the file into <code>src/test/resources/coding-agents/&lt;kind&gt;/</code> (<code>claude-code</code>, <code>codex</code> or <code>gemini-cli</code>). From then on the test suite guards the rule against that screen, and a rule change that would break it is caught before release.</p>
+<h2 id="driving-agents-from-a-script">Driving agents from a script<a class="headerlink" href="#driving-agents-from-a-script" title="Permanent link">&para;</a></h2>
+<p>Everything the Coding Agents panel does — listing agents, reading their state, prompting them, answering their questions, renaming them, starting a new one in a split pane — is also reachable from a local script or another coding agent through korTTY's <a href="../reference/control-api.html">control API</a> and its <a href="../reference/cli.html"><code>kortty-cli</code></a> client. It is off by default; the <code>agent.*</code> commands need a detected agent, so they need detection switched on as well.</p>
 <h2 id="limitations-and-troubleshooting">Limitations and troubleshooting<a class="headerlink" href="#limitations-and-troubleshooting" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Flatpak.</strong> In the Flatpak package the local shell runs on the host through <code>flatpak-spawn</code>, so the process ID korTTY holds belongs to the sandbox-side helper and the agent's process tree is not visible. No agent is detected in Flatpak local shells.</li>

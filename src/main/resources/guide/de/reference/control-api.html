@@ -1,0 +1,1018 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+
+<head>
+        <title>Steuerungs-API - korTTY Anleitung</title>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/guide/de/reference/control-api.html">
+        <meta name="author" content="korTTY">
+        <link rel="stylesheet" href="../assets/css/darcula-highlight.min.css">
+        <link rel="stylesheet" href="../assets/css/bootstrap.min.css">
+        <link rel="stylesheet" href="../assets/css/dracula-ui.min.css">
+        <link rel="stylesheet" href="../assets/css/mkdocs.min.css">
+        <link href="../assets/stylesheets/kortty.css" rel="stylesheet">
+        <link rel="icon" type="image/x-icon" href="../assets/images/favicon.png">
+
+
+</head>
+
+<body class="drac-bg-black-secondary drac-text-grey-ternary drac-text drac-scrollbar-purple">
+
+    <main class="d-flex">
+
+        <!-- block sidebar -->
+            <nav id="sidebar" class="sidebar drac-bg-black">
+    <div class="custom-menu">
+        <button type="button" id="sidebarCollapse" class="btn btn-primary">
+            <i class="fa fa-bars"></i>
+            <span class="sr-only">Menu</span>
+        </button>
+    </div>
+
+    <div class="p-4">
+        
+            <img class="logo" src="../assets/images/favicon.png" height="150px">
+        
+
+        <div class="drac-text-center">
+            
+                <span class="drac-text drac-line-height drac-text-white">korTTY Anleitung</span>
+            
+        </div>
+
+        <div class="drac-box flex-column">
+            <ul class="dot-ul">
+                <li><div class="dot-li drac-bg-cyan"></div></li>
+                <li><div class="dot-li drac-bg-green"></div></li>
+                <li><div class="dot-li drac-bg-orange"></div></li>
+                <li><div class="dot-li drac-bg-pink"></div></li>
+                <li><div class="dot-li drac-bg-purple"></div></li>
+                <li><div class="dot-li drac-bg-red"></div></li>
+                <li><div class="dot-li drac-bg-yellow"></div></li>
+            </ul>
+        </div>
+
+        <hr class="drac-divider" />
+
+        <!-- block menu -->
+        <ul class="mb-5 drac-list drac-list-none">
+            
+            <li class="drac-box">
+                <a href="../index.html"
+                    class="
+                    drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+                    Startseite
+                </a>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#erste-schritte-collapse" aria-expanded="false">
+                    Erste Schritte
+                </a>
+                <div class="collapse" id="erste-schritte-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/installation.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Installation
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/building-packages.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KorTTY-Pakete erstellen
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/first-launch.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Erster Start – Master-Passwort
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/main-window.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Main window overview
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class=" active 
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover"
+                    data-bs-toggle="collapse" data-bs-target="#referenz-collapse" aria-expanded="true">
+                    Referenz
+                </a>
+                <div class="collapse show" id="referenz-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="menu.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Menüreferenz
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="keyboard-shortcuts.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Tastaturkürzel
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="architecture.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Architektur
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="config-files.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Konfigurationsdateien
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="enterprise-policy.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Richtlinienkonfiguration
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="control-api.html"
+            class=" active 
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Steuerungs-API
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="cli.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Steuerungs-CLI
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="#" class="
+            drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+            data-bs-toggle="collapse" data-bs-target="#einstellungen-collapse" aria-expanded="false">
+            Einstellungen
+        </a>
+
+        <div class="collapse" id="einstellungen-collapse">
+            <ul class="mb-5 drac-list drac-list-none">
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/index.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Einstellungsreferenz
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/appearance.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Aussehen, Themen und Schriftart
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/colors.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Farben
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/terminal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/window.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Fenster
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/resources.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Ressourcen
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/logging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Protokollierung
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/export.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Export
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/backup.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sicherung
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/updates.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Aktualisierungen
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/security.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sicherheit
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/language.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sprache
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/translation.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Übersetzung
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/video.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Video
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/ai.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KI
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/ai-skills.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KI-Fähigkeiten
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/sftp.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SFTP-Manager
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/editor.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Editor
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="#" class="
+            drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+            data-bs-toggle="collapse" data-bs-target="#snippet-editor-collapse" aria-expanded="false">
+            Snippet-Editor
+        </a>
+
+        <div class="collapse" id="snippet-editor-collapse">
+            <ul class="mb-5 drac-list drac-list-none">
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/snippet-editor/index.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Snippet-Editor
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="hardening-options.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Härtungsoptionen
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="input-hardening.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Eingabe-Härtung
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="language-migration.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sprachvereinigung
+        </a>
+    </li>
+            </ul>
+        </div>
+    </li>
+            </ul>
+        </div>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#funktionen-collapse" aria-expanded="false">
+                    Funktionen
+                </a>
+                <div class="collapse" id="funktionen-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/connections.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Verbindungen
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/terminal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminalsitzungen
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/tunnels.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SSH-Tunnel (Portweiterleitung)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/jump-server.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Jump-Server (Bastion Host)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/sftp.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SFTP-Dateimanager
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/file-browser.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Dateibrowser
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/snippets.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Snippet-Manager
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/jobscheduler.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            JobScheduler
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/projects.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Projekte (Arbeitsbereiche)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/teamwork.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Teamarbeit (gemeinsame Verbindungen)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/ai-assistant.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KI-Assistent
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/local-models.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Lokale Modelle (llama.cpp und MLX)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/rag.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            RAG-Wissensspeicher
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/ai-tools.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal-KI-Agent und -Tools
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/ai-swarm.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KI-Schwarm
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/security.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sicherheit – Anmeldeinformationen, Schlüssel und Verschlüsselung
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/backup.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sichern und wiederherstellen
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/recording.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminalaufzeichnung
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/session-journal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sitzungsjournal
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/ascii-art.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            ASCII-Art
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/terminal-effect-plugins.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminaleffekt-Plugins
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/coding-agents.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Coding-Agents
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/i18n.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sprachen und dynamische Übersetzung
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#über-kortty-collapse" aria-expanded="false">
+                    Über korTTY
+                </a>
+                <div class="collapse" id="über-kortty-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/release-notes.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Versionshinweise
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/feedback.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Feedback und Support
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/anonymous-data.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Anonyme Daten zur Applikationsoptimierung
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+        </ul>
+        <!-- endblock -->
+    </div>
+</nav>
+        <!-- endblock -->
+
+        <nav class="divider drac-bg-purple-cyan"></nav>
+
+        <div class="content">
+            <!-- block header -->
+
+                <header>
+    <nav class="navbar navbar-expand-xl drac-bg-purple">
+        <div class="container-fluid">
+            
+            <button class="navbar-toggler w-100 text-center" type="button" data-bs-toggle="collapse" data-bs-target="#navbarsMenu"
+                aria-controls="navbarsMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse flex-column ml-auto" id="navbarsMenu">
+                <ul class="navbar-nav text-md-center">
+
+                    <!-- block preview -->
+                    <li class="nav-item">
+                            
+        <div class="container">
+            <div class="row row-preview">
+                <div class="col">
+                    <a href="enterprise-policy.html"
+                        class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover">
+                        <i class="fa fa-arrow-left"></i> Previous
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="cli.html"
+                        class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover" style="padding-left: 3%;">
+                        Next <i class="fa fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+                    </li>
+                    <!--  endblock -->
+
+                    <!-- block search -->
+                    <li class="nav-item">
+
+
+
+
+
+<div role="search" class="search-box kt-search">
+	<form id="rtd-search-form" class="wy-form kt-search-form" action="../search.html" method="get">
+		<input type="text" name="q" id="mkdocs-search-query"
+		class="kt-search-input drac-input drac-input-search drac-input-white drac-text-white drac-bg-black-secondary"
+		placeholder="Anleitung durchsuchen"
+		autocomplete="off" title="Type search term here" /><button type="button" class="kt-search-clear" hidden
+		        aria-label="Suche zurücksetzen" title="Suche zurücksetzen">&times;</button>
+	</form>
+	<div id="mkdocs-search-results" class="kt-search-suggest"
+	     data-no-results-text="Keine Treffer"
+	     data-preparing-text="Suche wird vorbereitet …"
+	     data-more-text="{n} weitere Treffer anzeigen"></div>
+	<script>
+	  (function () {
+	    var box = document.currentScript.parentNode;
+	    var panel = box.querySelector('.kt-search-suggest');
+	    var input = box.querySelector('#mkdocs-search-query');
+	    var clear = box.querySelector('.kt-search-clear');
+
+	    // Emptying the panel is what hides it (CSS :empty), so closing is just that.
+	    function close () { while (panel.firstChild) { panel.removeChild(panel.firstChild); } }
+	    // The button is only useful once there is something to clear.
+	    function sync () { clear.hidden = !input.value; }
+
+	    input.addEventListener('input', sync);
+	    clear.addEventListener('click', function () {
+	      input.value = '';
+	      sync();
+	      // search/main.js renders on keyup, which a programmatic clear never fires, so
+	      // the panel has to be emptied here or the old hits would outlive the query.
+	      close();
+	      input.focus();
+	    });
+
+	    document.addEventListener('click', function (e) { if (!box.contains(e.target)) { close(); } });
+
+	    // Escape has to be handled on keyUP, and on the document rather than the input.
+	    // search/main.js binds doSearch to the field's keyup, so anything that closed the
+	    // panel on keydown was undone microseconds later by that re-render — which is why
+	    // Escape appeared to do nothing at all. Listening on the document means this runs
+	    // after the field's own handler has already re-rendered, so closing sticks.
+	    // What the panel looked like BEFORE that re-render is the interesting state, so it
+	    // is captured on keydown: the usual two steps, Escape dismisses the suggestions,
+	    // Escape again empties the box.
+	    var panelWasOpen = false;
+	    document.addEventListener('keydown', function (e) {
+	      if (e.key === 'Escape') {
+	        panelWasOpen = !!panel.firstChild;
+	      }
+	    });
+	    document.addEventListener('keyup', function (e) {
+	      if (e.key !== 'Escape') {
+	        return;
+	      }
+	      // Only clear the field while it has focus — Escape elsewhere on the page is not ours.
+	      if (!panelWasOpen && document.activeElement === input && input.value) {
+	        input.value = '';
+	        sync();
+	      }
+	      close();
+	    });
+
+	    sync();  // a ?q= deep link arrives with the field already filled
+	  })();
+	</script>
+</div>
+                    </li>
+                    <!--  endblock -->
+
+                    <!-- block source -->
+                    <li class="nav-item">
+                        
+                    </li>
+                    <!--  endblock -->
+
+                </ul>
+            </div>
+
+        </div>
+    </nav>
+</header>
+<div class="kt-lang-bar">
+  <a class="kt-lang-switch" href="../../en/reference/control-api.html"
+     title="English" hreflang="en">EN</a>
+</div>
+
+            <!-- endblock -->
+
+            <!-- block content -->
+                <section class="p-md-5 section-content">
+    <article>
+        <p><h1 id="steuerungs-api">Steuerungs-API<a class="headerlink" href="#steuerungs-api" title="Permanent link">&para;</a></h1>
+<p>korTTY kann einen <strong>lokalen</strong> Steuerungs-Socket öffnen, damit ein Skript oder ein Coding-Agent auf demselben Rechner Ihre Fenster auflisten, den Inhalt eines Terminalbereichs lesen und darin tippen kann. Es ist das maschinenseitige Gegenstück zu dem, was Sie mit Maus und Tastatur tun: nichts davon geht über das hinaus, was Sie selbst in einem offenen Bereich tun könnten.</p>
+<p>Die Funktion ist <strong>standardmäßig aus</strong> und muss pro Installation unter <strong>Einstellungen › Terminal › Steuerungs-API</strong> eingeschaltet werden. Über das Netzwerk ist zu keinem Zeitpunkt etwas erreichbar, und kein anderer Benutzer desselben Rechners kann sich verbinden.</p>
+<div class="admonition warning">
+<p class="admonition-title">Machen Sie sich klar, was Sie einschalten</p>
+<p>Solange die Steuerungs-API an ist, kann jedes Programm, das unter Ihrem Benutzerkonto auf diesem Rechner läuft, jeden offenen Bereich lesen – lokale Shells wie SSH-Sitzungen – und beliebig darin tippen, einschließlich <span class="keys"><kbd class="key-enter">Enter</kbd></span>. Das ist dieselbe Macht, als säße jemand an Ihrer Tastatur. Schalten Sie es ein, wenn ein Coding-Agent oder ein Skript korTTY steuern soll, und wieder aus, wenn nicht.</p>
+</div>
+<h2 id="einschalten">Einschalten<a class="headerlink" href="#einschalten" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Öffnen Sie <strong>Einstellungen › Terminal</strong> und blättern Sie zu <strong>Steuerungs-API</strong>.</li>
+<li>Setzen Sie den Haken bei <strong>Einem lokalen Programm erlauben, dieses korTTY zu lesen und zu steuern</strong>.</li>
+<li>Speichern. Die Statuszeile darunter sagt sofort, was passiert ist – ein Neustart ist nicht nötig.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Statuszeile</th>
+<th>Bedeutung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Status: aus</td>
+<td>Der Haken ist nicht gesetzt, oder korTTY hat den Listener beendet.</td>
+</tr>
+<tr>
+<td>Status: von Ihrer Organisation gesperrt</td>
+<td>Die Unternehmensrichtlinie verbietet die Funktion <code>control-api</code>; das Kontrollkästchen ist gesperrt.</td>
+</tr>
+<tr>
+<td>Status: lauscht auf …</td>
+<td>Ein Listener läuft und <code>endpoint.json</code> wurde geschrieben. Der Text nennt den Socket oder den Loopback-Port.</td>
+</tr>
+<tr>
+<td>Status: konnte nicht starten – …</td>
+<td>Der Listener ist nicht gestartet. Der häufigste Grund ist, dass bereits ein anderes korTTY den Socket besitzt; der Text sagt welcher.</td>
+</tr>
+</tbody>
+</table>
+<p>Das Entfernen des Hakens beendet den Listener und löscht den Socket sofort.</p>
+<h2 id="wo-der-endpunkt-liegt">Wo der Endpunkt liegt<a class="headerlink" href="#wo-der-endpunkt-liegt" title="Permanent link">&para;</a></h2>
+<p>Alles, was die API besitzt, liegt in einem eigenen Verzeichnis, <code>~/.kortty/control/</code>, das <strong>vor</strong> jedem Binden mit Rechten nur für den Eigentümer (<code>0700</code>) angelegt wird. Das Verzeichnis, nicht die Socket-Datei, ist der eigentliche Schutz: eine Socket-Inode entsteht mit der umask des Prozesses, die auf den meisten Systemen für alle lesbar ist.</p>
+<table>
+<thead>
+<tr>
+<th>Plattform</th>
+<th>Listener</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Linux, macOS</td>
+<td>Ein Unix-Domain-Socket unter <code>~/.kortty/control/control.sock</code></td>
+</tr>
+<tr>
+<td>Windows</td>
+<td>TCP auf <code>127.0.0.1</code> mit einem vom Betriebssystem vergebenen Port</td>
+</tr>
+</tbody>
+</table>
+<p>Ein Client findet den Endpunkt, indem er <code>~/.kortty/control/endpoint.json</code> (Modus <code>0600</code>) liest:</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span><span class="nt">"transport"</span><span class="p">:</span><span class="s2">"unix"</span><span class="p">,</span><span class="nt">"path"</span><span class="p">:</span><span class="s2">"/home/you/.kortty/control/control.sock"</span><span class="p">,</span><span class="nt">"host"</span><span class="p">:</span><span class="kc">null</span><span class="p">,</span><span class="nt">"port"</span><span class="p">:</span><span class="mi">0</span><span class="p">,</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w"> </span><span class="nt">"token"</span><span class="p">:</span><span class="s2">"kQ7f…"</span><span class="p">,</span><span class="nt">"pid"</span><span class="p">:</span><span class="mi">38211</span><span class="p">,</span><span class="nt">"app_version"</span><span class="p">:</span><span class="s2">"…"</span><span class="p">,</span><span class="nt">"protocol_version"</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w"> </span><span class="nt">"instance_id"</span><span class="p">:</span><span class="s2">"6f0c2a1e-…"</span><span class="p">,</span><span class="nt">"started_at_millis"</span><span class="p">:</span><span class="mi">1736000000000</span><span class="p">}</span>
+</span></code></pre></div>
+<p>Die Datei wird <strong>zuletzt</strong> geschrieben, nachdem der Listener gebunden ist, damit ihre Existenz immer einen erreichbaren Endpunkt und ein lesbares Token bedeutet. korTTY löscht sie samt Socket, wenn die API ausgeschaltet wird und wenn die Anwendung endet.</p>
+<p>Das Token besteht aus 32 Zufallsbytes, wird bei jedem Start neu erzeugt und ist auf <strong>beiden</strong> Transportwegen erforderlich. Unter Linux und macOS ist das Verzeichnis mit Eigentümerrechten der primäre Schutz und das Token die zweite Verteidigungslinie – gegen eine gelockerte umask, ein geteiltes oder über das Netz eingebundenes Home-Verzeichnis oder eine Sicherung, die das Verzeichnis an einen lesbaren Ort kopiert hat. Unter Windows ist es der einzige Schutz. Es wird nie protokolliert, nie in einer Fehlermeldung wiedergegeben, nie auf einer Kommandozeile übergeben und nie in einer Benachrichtigung gezeigt: der legitime Client liest es aus der Datei, und genau darum geht es.</p>
+<h2 id="das-protokoll-sprechen">Das Protokoll sprechen<a class="headerlink" href="#das-protokoll-sprechen" title="Permanent link">&para;</a></h2>
+<p>Das Protokoll ist zeilenweises JSON-RPC 2.0 – genau ein JSON-Objekt pro Zeile, UTF-8, höchstens 1 MiB pro Zeile. Die erste Anfrage einer Verbindung muss <code>auth</code> sein; alles andere schließt die Verbindung. Ein falsches Token schließt sie ebenfalls.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>→ {"jsonrpc":"2.0","id":1,"method":"auth","params":{"token":"kQ7f…","client":"my-script"}}
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>← {"jsonrpc":"2.0","id":1,"result":{"api":"kortty-control","protocol_version":1,"transport":"unix","ids_survive_restart":false,"capabilities":["events","split","agent_start","pane_resolve"]}}
+</span></code></pre></div>
+<p>Anfragen einer Verbindung werden <strong>nacheinander</strong> ausgeführt: die nächste Zeile wird erst gelesen, wenn die vorige Antwort in der Warteschlange liegt. Ein Client, der gleichzeitig lange warten und andere Aufrufe absetzen will, öffnet eine zweite Verbindung – bis zu acht gleichzeitig.</p>
+<p>Statt die Methodenliste hier zu wiederholen, fragen Sie korTTY: <code>api.schema</code> liefert die vollständige maschinenlesbare Oberfläche – jede Methode mit Parametern, Ergebnisform, Fehlern, CLI-Entsprechung und einem ausgearbeiteten Beispiel, dazu das Tastenvokabular, die Fehlertabelle und die Grenzwerte. Sie wird aus denselben Deklarationen erzeugt, die der Dispatcher registriert, kann also nicht von der Implementierung abweichen.</p>
+<h3 id="was-die-methoden-tun">Was die Methoden tun<a class="headerlink" href="#was-die-methoden-tun" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Gruppe</th>
+<th>Methoden</th>
+<th>Zweck</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>api</code></td>
+<td><code>ping</code>, <code>auth</code>, <code>api.schema</code></td>
+<td>Handshake und Erkundung.</td>
+</tr>
+<tr>
+<td><code>events</code></td>
+<td><code>events.subscribe</code>, <code>events.unsubscribe</code></td>
+<td>Meldungen, wenn ein Coding-Agent seinen Zustand ändert.</td>
+</tr>
+<tr>
+<td><code>window</code> / <code>tab</code></td>
+<td><code>window.list</code>, <code>tab.list</code>, <code>tab.focus</code></td>
+<td>Fenster und Tabs auflisten und eines nach vorn holen.</td>
+</tr>
+<tr>
+<td><code>pane</code></td>
+<td><code>pane.list</code>, <code>pane.current</code>, <code>pane.get</code>, <code>pane.resolve</code>, <code>pane.focus</code>, <code>pane.read</code>, <code>pane.send_text</code>, <code>pane.run</code>, <code>pane.send_keys</code>, <code>pane.wait_output</code>, <code>pane.split</code>, <code>pane.close</code></td>
+<td>Einen Bereich lesen, darin tippen, auf Ausgabe warten, eine lokale Shell teilen oder einen geteilten Bereich schließen.</td>
+</tr>
+<tr>
+<td><code>agent</code></td>
+<td><code>agent.list</code>, <code>agent.get</code>, <code>agent.explain</code>, <code>agent.prompt</code>, <code>agent.send_keys</code>, <code>agent.wait</code>, <code>agent.rename</code>, <code>agent.start</code></td>
+<td>Mit den von korTTY erkannten Coding-Agents arbeiten – siehe <a href="../features/coding-agents.html">Coding-Agents</a>.</td>
+</tr>
+<tr>
+<td><code>notification</code></td>
+<td><code>notification.show</code></td>
+<td>Eine Desktop-Benachrichtigung auslösen.</td>
+</tr>
+</tbody>
+</table>
+<p><code>tab.create</code>, <code>tab.close</code> und <code>tab.rename</code> sind <strong>reserviert</strong>: sie antworten mit einem eindeutigen „in dieser Version nicht implementiert“ statt mit einem Unbekannte-Methode-Fehler und stehen in <code>api.schema</code> als reserviert, damit ein Client „korTTY wird das nie für dich tun“ von „du hast dich vertippt“ unterscheiden kann.</p>
+<h3 id="einen-bereich-adressieren">Einen Bereich adressieren<a class="headerlink" href="#einen-bereich-adressieren" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Kennung</th>
+<th>Form</th>
+<th>Lebensdauer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fenster</td>
+<td><code>w1</code></td>
+<td>Die Lebensdauer des Fensters. Es ist ein Zähler, keine Position, damit das Schließen eines anderen Fensters nie neu durchnummeriert.</td>
+</tr>
+<tr>
+<td>Tab</td>
+<td><code>t</code> + eine UUID</td>
+<td>Die Lebensdauer dieser Tab-Instanz.</td>
+</tr>
+<tr>
+<td>Bereich</td>
+<td><code>p</code> + eine kurze Hex-Zeichenkette</td>
+<td>Die Lebensdauer des Bereichs.</td>
+</tr>
+<tr>
+<td>Vollständig</td>
+<td><code>w1:t9f3a…:p1a2b3c4d</code></td>
+<td>Wie oben.</td>
+</tr>
+</tbody>
+</table>
+<p>Jeder Parameter namens <code>pane</code> akzeptiert auch eine reine Tab-Kennung – gemeint ist dann der fokussierte Bereich dieses Tabs – und den Alias <code>@focused</code>, also den Bereich, den Sie gerade ansehen. Eine reine <strong>Fenster</strong>-Kennung dort, wo ein Bereich erwartet wird, wird als mehrdeutig abgelehnt statt geraten: ein Fenster enthält meist mehrere Bereiche, und stillschweigend einen auszuwählen ist genau der Weg, auf dem ein Skript in das falsche Terminal tippt.</p>
+<div class="admonition note">
+<p class="admonition-title">Keine Kennung überlebt einen Neustart</p>
+<p>Kennungen werden pro korTTY-Lauf vergeben. Jede Antwort mit Kennungen trägt auch die <code>instance</code> des laufenden korTTY, und jede verändernde Methode akzeptiert einen optionalen Parameter <code>instance</code>: passt er nicht, schlägt der Aufruf mit <code>stale_instance</code> fehl, statt in den Bereich zu schreiben, der die Kennung geerbt hat. Listen Sie neu auf, sobald sich <code>instance</code> ändert.</p>
+</div>
+<h3 id="einen-bereich-lesen">Einen Bereich lesen<a class="headerlink" href="#einen-bereich-lesen" title="Permanent link">&para;</a></h3>
+<p><code>pane.read</code> kennt drei Modi. <code>visible</code> liefert den aktuellen Bildschirm einschließlich des Alternativpuffers, rechts beschnitten. <code>recent</code> liefert den Scrollback plus den Bildschirm, unter einer einzigen Puffersperre gelesen, die neuesten <code>lines</code> Zeilen. <code>detection</code> liefert das, was korTTYs Coding-Agent-Erkennung zuletzt für den Bereich veröffentlicht hat – die Erkennung wird für eine Anfrage nie neu ausgeführt.</p>
+<p><code>pane.wait_output</code> blockiert, bis ein regulärer Ausdruck oder eine Zeichenkette erscheint, und fragt den Bereich dafür regelmäßig ab. Ausgabe, die innerhalb eines Abfrageintervalls erscheint und wieder weggescrollt wird, kann im Modus <code>visible</code> übersehen werden; der Standardmodus <code>recent</code> durchsucht auch den Scrollback und hat diese Lücke nicht.</p>
+<h3 id="teilen">Teilen<a class="headerlink" href="#teilen" title="Permanent link">&para;</a></h3>
+<p><code>pane.split</code> funktioniert <strong>nur</strong> bei einem Bereich, dessen Tab eine lokale Shell ist. Alles andere wird mit <code>unsupported</code> abgelehnt. Die neue Shell startet ohne jeden Dialog, damit ein Skript nie auf ein Fenster wartet, das es nicht sehen kann; ein Split, der eine neue Verbindung bräuchte, braucht einen Menschen und wird nicht angeboten.</p>
+<p><code>pane.close</code> verweigert den <strong>letzten</strong> Bereich eines Tabs. Ihn zu schließen hinterließe einen leeren Terminalbereich in einem noch offenen Tab – genau deshalb ist korTTYs eigener Menüpunkt „Split schließen“ in diesem Fall ausgegraut. Schließen Sie den Tab selbst.</p>
+<h2 id="was-sie-nicht-kann">Was sie nicht kann<a class="headerlink" href="#was-sie-nicht-kann" title="Permanent link">&para;</a></h2>
+<p>Das Bedrohungsmodell ist ein lokaler Prozess, der als Sie läuft, während die API an ist. Ein solcher Prozess <strong>kann</strong> Ihre Fenster auflisten, jeden Bereich lesen, in jeden Bereich tippen einschließlich des Absendens von Befehlen, eine lokale Shell teilen, einen geteilten Bereich schließen, einen erkannten Coding-Agent steuern und eine Benachrichtigung auslösen.</p>
+<p>Er <strong>kann nicht</strong>:</p>
+<ul>
+<li>irgendetwas erreichen, bevor Sie den Haken setzen, oder überhaupt, wenn die Unternehmensrichtlinie die Funktion verbietet;</li>
+<li>einen neuen Tab, ein neues Fenster oder irgendeine Verbindung öffnen – es gibt keinen Weg zu einem Server, der nicht schon offen ist;</li>
+<li>etwas anderes teilen als eine lokale Shell desselben Servers;</li>
+<li>einen Tab schließen, korTTYs letzten Bereich schließen oder einen Tab umbenennen;</li>
+<li>Ihre Einstellungen lesen oder schreiben, Ihre Zugangsdaten, den Tresor, Ihre SSH-Schlüssel oder das Master-Passwort lesen;</li>
+<li>irgendetwas über das Netzwerk erreichen – der Listener ist ein Unix-Socket oder Loopback, nie etwas anderes, und keine Einstellung kann das aufweiten;</li>
+<li>handeln, ohne eine Auditzeile zu hinterlassen, oder ohne eine Desktop-Benachrichtigung beim ersten Schreibzugriff des Laufs.</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Schreibzugriffe sind absichtlich nicht auf lokale Shells beschränkt</p>
+<p>Auch in entfernte Bereiche darf getippt werden. Eine Beschränkung würde das Beantworten eines über SSH laufenden Coding-Agents unmöglich machen und wäre ohnehin keine echte Grenze: wer den Socket erreicht, kann stattdessen einfach <code>ssh</code> in einem lokalen Bereich starten. Die ehrlichen Kontrollen sind der standardmäßig ausgeschaltete Schalter, das Richtlinienverbot, die Auditzeile und die Benachrichtigung – nicht ein Filter, der wie eine Grenze aussieht und keine ist.</p>
+</div>
+<h2 id="audit-und-sichtbarkeit">Audit und Sichtbarkeit<a class="headerlink" href="#audit-und-sichtbarkeit" title="Permanent link">&para;</a></h2>
+<p>Jede Aktion der API schreibt genau eine Zeile in korTTYs Protokoll, und zwar <strong>nur Byte-Anzahlen und Formen</strong> – <code>bytes=28 bracketed=false submitted=true</code>, <code>keys=2</code>, <code>orientation=vertical</code> – niemals Terminaltext. Die Zeile steht in korTTYs Protokoll und nur dort – in das Sitzungsjournal eines Tabs schreibt die API nichts.</p>
+<p>Beim ersten Tippen eines Programms in einen Bereich während eines korTTY-Laufs erhalten Sie eine Desktop-Benachrichtigung. Eine, nicht eine pro Tastendruck: es geht darum, dass eine Übernahme nie unbemerkt bleibt, nicht darum, dass sie zu Lärm wird, den man wegzuklicken lernt. korTTY protokolliert außerdem eine Warnung mit dem Endpunkt, sobald der Listener startet.</p>
+<p>Aktionen, die ein Coding-Agent über die API ausführt, werden unterscheidbar von denen protokolliert, die Sie im Coding-Agents-Panel auslösen – ein Blick ins Protokoll sagt also, was was war.</p>
+<h2 id="grenzwerte">Grenzwerte<a class="headerlink" href="#grenzwerte" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Grenzwert</th>
+<th>Wert</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gleichzeitige Verbindungen</td>
+<td>8; eine neunte wird abgelehnt und geschlossen</td>
+</tr>
+<tr>
+<td>Zeilengröße, ein- und ausgehend</td>
+<td>1 MiB</td>
+</tr>
+<tr>
+<td>Ergebnisgröße</td>
+<td>512 KiB, mit <code>truncated: true</code> gekürzt</td>
+</tr>
+<tr>
+<td>Nicht authentifizierte Verbindung</td>
+<td>nach 5 s geschlossen</td>
+</tr>
+<tr>
+<td>Längste Wartezeit</td>
+<td>10 Minuten; eine größere Anforderung wird gekappt und sagt es</td>
+</tr>
+<tr>
+<td>Ereigniswarteschlange je Abonnement</td>
+<td>256 Rahmen; bei Überlauf fallen die ältesten weg und die Anzahl wird gemeldet</td>
+</tr>
+<tr>
+<td>Zeilen bei <code>pane.read</code></td>
+<td>10 000</td>
+</tr>
+</tbody>
+</table>
+<p>Ein Client, der nicht mehr liest, wird getrennt statt gepuffert.</p>
+<h2 id="unternehmensrichtlinie">Unternehmensrichtlinie<a class="headerlink" href="#unternehmensrichtlinie" title="Permanent link">&para;</a></h2>
+<p>Eine Administratorin kann die Steuerungs-API mit der Funktion <code>control-api</code> in <code>kortty-policy.toml</code> vollständig verbieten:</p>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"no-local-automation"</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="k">[rule.features]</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="n">control-api</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"deny"</span>
+</span></code></pre></div>
+<p>Das Kontrollkästchen wird dann mit dem Hinweis „Von Ihrer Organisation verwaltet“ gesperrt, die Einstellung wird beim Laden wie beim Speichern auf aus gezwungen, und der Listener antwortet sofort mit <code>blocked_by_policy</code> – die Prüfung erfolgt bei jeder Anfrage, nicht nur beim Annehmen einer Verbindung, sodass eine Richtlinienänderung den Dienst einstellt, bevor der Abbau fertig ist. Siehe <a href="enterprise-policy.html">Richtlinienkonfiguration</a>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Auch <code>control-api = "allow"</code> sperrt das Kontrollkästchen – und zwar im <strong>eingeschalteten</strong> Zustand. Eine Richtliniendatei, die eine Einstellung erwähnt, übernimmt sie, egal wie sie entscheidet. Lassen Sie den Schlüssel ganz weg, um die Wahl beim Benutzer zu belassen.</p>
+</div>
+<h2 id="der-client">Der Client<a class="headerlink" href="#der-client" title="Permanent link">&para;</a></h2>
+<p>Der Befehl <code>kortty-cli</code>, der neben korTTY ausgeliefert wird, spricht dieses Protokoll und übernimmt Endpunktsuche, Authentifizierung und Exit-Codes für Sie. Siehe <a href="cli.html">Steuerungs-CLI</a>.</p></p>
+    </article>
+</section>
+            <!-- endblock -->
+
+            <!-- block footer -->
+<footer class="kt-footer">
+  <div class="kt-footer__line">MIT-lizenziert &middot; Entwickelt von Daniel Mengel</div>
+  <div class="kt-footer__line">korTTY <strong>v2.17.0</strong></div>
+</footer>
+
+            <!-- endblock -->
+        </div>
+
+    </main>
+
+        <script>var base_url = '..';</script>
+        <script src="../assets/js/jquery-3.3.1.slim.min.js"></script>
+        <script src="../assets/js/bootstrap.bundle.min.js"></script>
+        <script src="../assets/js/mkdocs.js"></script>
+			<script src="../assets/javascripts/kt-zoom.js" defer></script>
+			<script src="../search/main.js" defer></script>
+
+</body>
+
+</html>
