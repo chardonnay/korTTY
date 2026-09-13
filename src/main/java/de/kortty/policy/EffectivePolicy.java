@@ -169,6 +169,7 @@ public final class EffectivePolicy {
                     case TEAMWORK -> ManagedSetting.TEAMWORK;
                     case PLUGINS -> ManagedSetting.PLUGINS;
                     case SESSION_JOURNAL -> ManagedSetting.SESSION_JOURNAL;
+                    case CONTROL_API -> ManagedSetting.CONTROL_API;
                 });
             }
         }
@@ -299,6 +300,21 @@ public final class EffectivePolicy {
 
     public boolean teamworkAllowed() {
         return decision(PolicyFeature.TEAMWORK) != PolicyDecision.DENY;
+    }
+
+    /**
+     * Whether the local control API may run at all.
+     *
+     * <p>Not chained through any other feature: the API is about local automation, not AI. This is
+     * only the policy leg — the user's own default-off setting still has to be on, which is what
+     * {@code ControlApiGate.shouldRun} combines.
+     *
+     * <p>Note the documented consequence of the managed-settings model: an admin who writes
+     * {@code control-api = "allow"} also locks the checkbox in that position, because a policy file
+     * that mentions a setting takes it over.
+     */
+    public boolean controlApiAllowed() {
+        return decision(PolicyFeature.CONTROL_API) != PolicyDecision.DENY;
     }
 
     /** Session journals are NOT chained through {@link #aiAllowed()}: capture works without AI. */

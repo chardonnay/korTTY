@@ -16,7 +16,9 @@ public enum PolicyFeature {
     /** Plugins, e.g. terminal effect plugins. */
     PLUGINS("plugins"),
     /** Session journal capture, management and export — not an AI feature; AI summaries additionally require AI. */
-    SESSION_JOURNAL("session-journal");
+    SESSION_JOURNAL("session-journal"),
+    /** The local control API and its {@code kortty-cli} client — not an AI feature. */
+    CONTROL_API("control-api");
 
     private final String tomlKey;
 

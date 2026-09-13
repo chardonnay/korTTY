@@ -90,6 +90,9 @@ public final class PolicyClamp {
         if (!policy.terminalRecordingAllowed()) {
             settings.setTerminalRecordingEnabled(false);
         }
+        if (!policy.controlApiAllowed()) {
+            settings.setControlApiEnabled(false);
+        }
         if (policy.requireMasterPassword()) {
             settings.setRequireMasterPasswordOnStartup(true);
             // A forced master password rules out the insecure auto-unlock path.

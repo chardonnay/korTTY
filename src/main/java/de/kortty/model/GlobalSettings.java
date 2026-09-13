@@ -196,6 +196,14 @@ public class GlobalSettings {
     @XmlElement
     private Double codingAgentPanelWidth;
 
+    /**
+     * The local control API: a unix socket (loopback on Windows) that lets a local program read and
+     * type into this korTTY. Default off — this field initialiser, not the policy layer, is what
+     * keeps the API closed out of the box, because the clamp only runs when a policy file exists.
+     */
+    @XmlElement
+    private boolean controlApiEnabled = false;
+
     @XmlElement
     private String sessionJournalStoragePath; // Blank/null = ~/.kortty/journals
 
@@ -1518,6 +1526,19 @@ public class GlobalSettings {
 
     public void setCodingAgentAppBadgeEnabled(boolean enabled) {
         this.codingAgentAppBadgeEnabled = enabled;
+    }
+
+    /**
+     * Whether the local control API may listen. The only default-off switch in this group: it hands a
+     * local program the ability to read and type into every open pane, so it is opted into, never out
+     * of.
+     */
+    public boolean isControlApiEnabled() {
+        return controlApiEnabled;
+    }
+
+    public void setControlApiEnabled(boolean controlApiEnabled) {
+        this.controlApiEnabled = controlApiEnabled;
     }
 
     /**

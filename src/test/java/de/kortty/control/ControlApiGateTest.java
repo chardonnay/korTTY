@@ -1,6 +1,7 @@
 package de.kortty.control;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 import de.kortty.model.GlobalSettings;
 import de.kortty.policy.EffectivePolicy;
@@ -9,18 +10,11 @@ import org.testng.annotations.Test;
 /** The full gate truth table, including both null arguments. */
 class ControlApiGateTest {
 
-    /** A settings object that already carries the accessor the integration package adds. */
-    static class FlaggedSettings extends GlobalSettings {
-
-        private final boolean enabled;
-
-        FlaggedSettings(boolean enabled) {
-            this.enabled = enabled;
-        }
-
-        public boolean isControlApiEnabled() {
-            return enabled;
-        }
+    /** Settings with the control API switched on; the default is off. */
+    private static GlobalSettings enabledSettings() {
+        GlobalSettings settings = new GlobalSettings();
+        settings.setControlApiEnabled(true);
+        return settings;
     }
 
     @Test
@@ -61,35 +55,26 @@ class ControlApiGateTest {
 
     @Test
     void aNullPolicyRefusesWhateverTheSettingSays() {
-        assertThat(ControlApiGate.shouldRun(new FlaggedSettings(true), null)).isFalse();
-        assertThat(ControlApiGate.shouldRun(new FlaggedSettings(false), null)).isFalse();
+        assertThat(ControlApiGate.shouldRun(enabledSettings(), null)).isFalse();
         assertThat(ControlApiGate.shouldRun(new GlobalSettings(), null)).isFalse();
     }
 
     @Test
-    void aSettingsObjectWithoutTheAccessorIsRefused() {
-        assertThat(ControlApiGate.shouldRun(new GlobalSettings(), EffectivePolicy.unrestricted())).isFalse();
+    void freshSettingsKeepTheApiClosedBecauseTheSettingDefaultsToOff() {
+        assertWithMessage("the control API must be opted into, never out of")
+            .that(ControlApiGate.shouldRun(new GlobalSettings(), EffectivePolicy.unrestricted()))
+            .isFalse();
     }
 
     @Test
-    void aLegIsReadOffTheRuntimeClass() {
-        assertThat(ControlApiGate.flag(new FlaggedSettings(true), "isControlApiEnabled")).isTrue();
-        assertThat(ControlApiGate.flag(new FlaggedSettings(false), "isControlApiEnabled")).isFalse();
+    void anUnrestrictedPolicyAndTheSettingOnOpensTheGate() {
+        assertThat(ControlApiGate.shouldRun(enabledSettings(), EffectivePolicy.unrestricted())).isTrue();
     }
 
     @Test
-    void aMissingOrUnreadableAccessorLeavesTheLegUnknown() {
-        assertThat(ControlApiGate.flag(null, "isControlApiEnabled")).isNull();
-        assertThat(ControlApiGate.flag(new GlobalSettings(), "isControlApiEnabled")).isNull();
-        assertThat(ControlApiGate.flag(EffectivePolicy.unrestricted(), "controlApiAllowed")).isNull();
-        assertThat(ControlApiGate.flag(new FlaggedSettings(true), "toString")).isNull();
-    }
-
-    @Test
-    void anUnknownPolicyLegRefusesEvenWithTheSettingOn() {
-        // Until the integration package adds EffectivePolicy.controlApiAllowed() the policy leg is
-        // unknown, and an unknown leg is a refusal — the API cannot come up half-wired.
-        assertThat(ControlApiGate.shouldRun(new FlaggedSettings(true), EffectivePolicy.unrestricted()))
+    void lockdownRefusesEvenWithTheSettingOn() {
+        assertWithMessage("lockdown() denies every PolicyFeature, CONTROL_API included")
+            .that(ControlApiGate.shouldRun(enabledSettings(), EffectivePolicy.lockdown()))
             .isFalse();
     }
 }
