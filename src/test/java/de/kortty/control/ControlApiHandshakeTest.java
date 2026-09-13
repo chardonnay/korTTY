@@ -1,6 +1,7 @@
 package de.kortty.control;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 import com.google.gson.JsonObject;
 import java.io.IOException;
@@ -9,9 +10,11 @@ import java.net.UnixDomainSocketAddress;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Path;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -19,6 +22,9 @@ import org.testng.annotations.Test;
 
 /** The five-second unauthenticated deadline, the one-shot token check and the hello result. */
 class ControlApiHandshakeTest {
+
+    /** How long the close callback may lag the rx thread's return from {@code run()}. */
+    private static final long CALLBACK_BUDGET_SECONDS = 10L;
 
     private Path root;
 
@@ -113,7 +119,7 @@ class ControlApiHandshakeTest {
             return thread;
         });
         Path socket = root.resolve("pair.sock");
-        AtomicBoolean closedCallback = new AtomicBoolean();
+        CountDownLatch closedCallback = new CountDownLatch(1);
         try (ServerSocketChannel listener = ServerSocketChannel.open(StandardProtocolFamily.UNIX)) {
             listener.bind(UnixDomainSocketAddress.of(socket));
             try (SocketChannel client = SocketChannel.open(UnixDomainSocketAddress.of(socket));
@@ -121,12 +127,17 @@ class ControlApiHandshakeTest {
                 ControlConnection connection = new ControlConnection("c-deadline", accepted,
                     EndpointDescriptor.TRANSPORT_UNIX, endpoint.token(),
                     ControlApiServerLifecycleTest.helloRegistry(() -> true), () -> true,
-                    System::currentTimeMillis, timer, writers, () -> closedCallback.set(true));
+                    System::currentTimeMillis, timer, writers, closedCallback::countDown);
 
                 connection.run();
 
                 assertThat(accepted.isOpen()).isFalse();
-                assertThat(closedCallback.get()).isTrue();
+                // The deadline fires on the timer thread, and close() unlinks the socket before it
+                // runs the callback, so run() can return on the rx thread while the timer thread is
+                // still between the two. The callback is the assertion, so it is awaited.
+                assertWithMessage("the server must tell its owner the connection is gone, or a"
+                        + " connection slot is never released")
+                    .that(closedCallback.await(CALLBACK_BUDGET_SECONDS, TimeUnit.SECONDS)).isTrue();
                 assertThat(client.isOpen()).isTrue();
             }
         }

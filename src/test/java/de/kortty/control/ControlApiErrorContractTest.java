@@ -5,6 +5,7 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import de.kortty.codingagent.AgentProcess;
 import de.kortty.codingagent.CodingAgentActions;
 import de.kortty.codingagent.CodingAgentEvent;
@@ -115,6 +116,14 @@ public class ControlApiErrorContractTest {
     private static final String TAB = "t9f3a";
 
     private static final long DEAD_PID = 4_294_967_200L;
+
+    /**
+     * The text a scripted bug carries.
+     *
+     * <p>It is shaped like the detail a real throw site holds — a path — because that is exactly what
+     * {@code internal_error} must never ship: §4 says the message is generic and the detail is logged.
+     */
+    private static final String BUG_DETAIL = "a bug inside the surface at /home/someone/.ssh/config";
 
     private Path root;
 
@@ -247,13 +256,61 @@ public class ControlApiErrorContractTest {
     @Test(timeOut = 60_000)
     void anUncheckedFailureInsideAVerbIsAGenericInternalError() throws Exception {
         surface.setInUiHop(() -> {
-            throw new IllegalArgumentException("a bug inside the surface");
+            throw new IllegalArgumentException(BUG_DETAIL);
         });
-        JsonObject data = assertError(callOnServer("window.list", new JsonObject()),
-            ControlErrorCode.INTERNAL_ERROR);
+        JsonObject frame = callOnServer("window.list", new JsonObject());
+        JsonObject data = assertError(frame, ControlErrorCode.INTERNAL_ERROR);
         assertWithMessage("the detail of a bug is logged, never sent: a stack trace on the wire is"
                 + " an information leak and a client cannot act on it")
             .that(data.keySet()).containsNoneOf("stack", "exception", "cause");
+
+        // error.message is the channel §4 actually constrains — "the message is generic, the detail
+        // is logged" — and it is the one a naive implementation fills with cause.getMessage().
+        String message = frame.getAsJsonObject("error").get("message").getAsString();
+        assertWithMessage("§4: an internal_error carries a generic message, so the client still has"
+                + " something to print")
+            .that(message).isNotEmpty();
+        assertWithMessage("§4: the detail of the bug belongs in the korTTY log, never on the wire —"
+                + " a throw site's text carries file paths, host names and whatever else the bug"
+                + " happened to be holding")
+            .that(message).doesNotContain(BUG_DETAIL);
+        assertWithMessage("the class of the failure is detail too; a client cannot act on it and an"
+                + " attacker can")
+            .that(message).doesNotContain("IllegalArgumentException");
+        assertWithMessage("no member of the frame — message or data — may carry the throw site's"
+                + " text")
+            .that(frame.toString()).doesNotContain(BUG_DETAIL);
+    }
+
+    @Test
+    void aHandlerThatThrowsOutsideTheUiHopIsAlsoAGenericInternalError() {
+        MethodRegistry table = MethodRegistry.builder()
+            .register(new MethodSpec("pane.explode", "Throws.", List.of(), "{}", List.of(), false,
+                    false, null, null, null),
+                (session, params) -> {
+                    throw new IllegalArgumentException(BUG_DETAIL);
+                })
+            .build();
+        ControlSession session = new ControlSession("c1", EndpointDescriptor.TRANSPORT_UNIX, true,
+            "contract-test", frame -> { });
+
+        ControlApiException thrown = null;
+        try {
+            table.dispatch(session, new ControlRequest(new JsonPrimitive(1), "pane.explode",
+                new JsonObject()));
+        } catch (ControlApiException e) {
+            thrown = e;
+        }
+        assertWithMessage("a handler that throws something unchecked must not escape the dispatcher")
+            .that(thrown).isNotNull();
+        assertThat(thrown.code()).isEqualTo(ControlErrorCode.INTERNAL_ERROR);
+        assertWithMessage("§4: the dispatcher's own catch is the second place a bug's text could"
+                + " reach the wire, and it must be as generic as the UI hop's")
+            .that(thrown.getMessage()).doesNotContain(BUG_DETAIL);
+        assertThat(thrown.getMessage()).isNotEmpty();
+        assertWithMessage("the refusal may name the method that failed — that is not detail from the"
+                + " throw site — and nothing else")
+            .that(thrown.toWire().data().toString()).doesNotContain(BUG_DETAIL);
     }
 
     @Test(timeOut = 60_000)
@@ -287,6 +344,41 @@ public class ControlApiErrorContractTest {
             // The gate is re-evaluated at dispatch time, so a policy reload stops serving requests
             // before the listener is even torn down.
             assertError(wire.call("ping", new JsonObject()), ControlErrorCode.CONTROL_API_DISABLED);
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    void aGateThatIsAlreadyClosedRefusesTheHandshakeItselfAndHandsOutNoHello() throws Exception {
+        AtomicBoolean open = new AtomicBoolean(true);
+        AtomicBoolean closeOnTheNextCheck = new AtomicBoolean();
+        // The gate is read at accept and again at dispatch. This one answers the accept truthfully
+        // and closes itself immediately afterwards, so the connection is established — exactly as it
+        // would be by a policy reload landing a moment later — and the very first line the client
+        // sends is the handshake. §3.5: once the API is off, every request, auth included, answers
+        // control_api_disabled; the connection-level check therefore has to run BEFORE the auth
+        // branch, not inside the path a dispatched method takes.
+        ControlApiServer gated = startGatedServer(() -> {
+            boolean answer = open.get();
+            if (closeOnTheNextCheck.compareAndSet(true, false)) {
+                open.set(false);
+            }
+            return answer;
+        });
+        EndpointDescriptor gatedEndpoint = gated.endpoint().orElseThrow();
+        closeOnTheNextCheck.set(true);
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(gatedEndpoint)) {
+            JsonObject frame = wire.authenticate(gatedEndpoint.token());
+            assertError(frame, ControlErrorCode.CONTROL_API_DISABLED);
+            assertWithMessage("a switched-off korTTY must not complete a handshake, because the hello"
+                    + " document is itself information: instance_id, pid, transport, capabilities and"
+                    + " the whole method table")
+                .that(frame.has("result")).isFalse();
+            assertWithMessage("not one member of the hello may leak through the refusal")
+                .that(frame.toString()).doesNotContain(gatedEndpoint.instanceId());
+            assertWithMessage("the connection is still unauthenticated, so the next request is"
+                    + " refused for the same reason rather than served")
+                .that(assertError(wire.call("ping", new JsonObject()),
+                    ControlErrorCode.CONTROL_API_DISABLED)).isNotNull();
         }
     }
 
@@ -432,6 +524,14 @@ public class ControlApiErrorContractTest {
             JsonObject first = wire.call("notification.show", params);
             assertWithMessage("the first notification must succeed, or the rate limit proves nothing")
                 .that(first.has("result")).isTrue();
+            JsonObject shown = first.getAsJsonObject("result");
+            assertWithMessage("§6 gives notification.show the result {shown, supported}")
+                .that(shown.keySet()).containsExactly("shown", "supported");
+            assertThat(shown.get("shown").getAsBoolean()).isTrue();
+            assertWithMessage("'supported' reports what this platform's notifier answered, not a"
+                    + " constant: the fixture backend has no desktop support, so a client that"
+                    + " believed a hard-coded true would silently show nothing")
+                .that(shown.get("supported").getAsBoolean()).isFalse();
             JsonObject data = assertError(wire.call("notification.show", params),
                 ControlErrorCode.BUSY);
             assertWithMessage("a rate limit is retryable and must say when")

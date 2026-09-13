@@ -143,6 +143,68 @@ public class ControlApiEventStreamTest {
     }
 
     @Test(timeOut = 60_000)
+    void lookingAtADoneAgentIsDeliveredAsAgentSeenAndNotAsAStateChange() throws Exception {
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(endpoint)) {
+            wire.authenticate(endpoint.token());
+            result(wire.call("events.subscribe", new JsonObject()));
+
+            detect(CodingAgentState.DONE, "Done — 3 files changed");
+            assertThat(event(wire).get("kind").getAsString()).isEqualTo("agent.added");
+
+            assertWithMessage("the scenery must really be a DONE agent, or markSeen changes nothing")
+                .that(agents.markSeen(ref)).isTrue();
+            JsonObject seen = event(wire);
+            assertWithMessage("§6 names agent.seen as its own kind: the user merely looked at a done"
+                    + " pane, and a subscriber that received agent.state_changed instead could not"
+                    + " tell that from the agent itself moving on")
+                .that(seen.get("kind").getAsString()).isEqualTo("agent.seen");
+            assertWithMessage("the frame must say what the agent held before the look")
+                .that(seen.get("previous_state").getAsString()).isEqualTo("done");
+            assertWithMessage("a look turns DONE into IDLE, and the frame carries the agent it"
+                    + " concerns")
+                .that(seen.getAsJsonObject("agent").get("state").getAsString()).isEqualTo("idle");
+            assertThat(seen.get("pane_id").getAsString()).isEqualTo(PANE);
+            assertThat(seen.get("tab_id").getAsString()).isEqualTo(TAB);
+            assertThat(seen.get("window_id").getAsString()).isEqualTo(WINDOW);
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    void settingAnAliasIsDeliveredAsAgentAliasChangedCarryingTheNewAlias() throws Exception {
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(endpoint)) {
+            wire.authenticate(endpoint.token());
+            result(wire.call("events.subscribe", new JsonObject()));
+
+            detect(CodingAgentState.WORKING, "✻ Thinking…");
+            assertThat(event(wire).get("kind").getAsString()).isEqualTo("agent.added");
+
+            agents.setAlias(ref, "backend");
+            JsonObject renamed = event(wire);
+            assertWithMessage("§6 names agent.alias_changed as its own kind: a panel or a dashboard"
+                    + " relabels the agent on it, and nothing else in the stream says an alias was"
+                    + " set")
+                .that(renamed.get("kind").getAsString()).isEqualTo("agent.alias_changed");
+            assertWithMessage("the frame must carry the alias that was just set, or a subscriber has"
+                    + " to re-enumerate to learn what changed")
+                .that(renamed.getAsJsonObject("agent").get("alias").getAsString())
+                .isEqualTo("backend");
+            assertWithMessage("an alias is not a state change; the state is unchanged and the frame"
+                    + " must say so")
+                .that(renamed.getAsJsonObject("agent").get("state").getAsString())
+                .isEqualTo("working");
+            assertThat(renamed.get("pane_id").getAsString()).isEqualTo(PANE);
+
+            agents.setAlias(ref, null);
+            JsonObject cleared = event(wire);
+            assertWithMessage("clearing an alias is the same kind, so a client has one place to"
+                    + " react to a relabelling")
+                .that(cleared.get("kind").getAsString()).isEqualTo("agent.alias_changed");
+            assertWithMessage("§6: the alias is null once it has been cleared")
+                .that(cleared.getAsJsonObject("agent").get("alias").isJsonNull()).isTrue();
+        }
+    }
+
+    @Test(timeOut = 60_000)
     void anEventFrameIsANotificationWithNoIdAndTheDocumentedMembers() throws Exception {
         try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(endpoint)) {
             wire.authenticate(endpoint.token());

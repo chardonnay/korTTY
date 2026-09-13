@@ -54,6 +54,14 @@ public class ControlApiEndToEndTest {
     /** A pid no live process can hold, so nothing here depends on the machine's process table. */
     private static final long DEAD_PID = 4_294_967_200L;
 
+    /**
+     * How long the deliberately slow request parks the connection.
+     *
+     * <p>Long enough that a concurrent dispatcher would answer the request behind it far sooner, and
+     * short enough that the test costs well under a second.
+     */
+    private static final long WAIT_MILLIS = 600L;
+
     private Path root;
 
     private FakeControlSurface surface;
@@ -242,6 +250,42 @@ public class ControlApiEndToEndTest {
             assertWithMessage("one request at a time per connection: the replies must come back in"
                     + " the order the requests were read, or a client cannot pipeline at all")
                 .that(ids).containsExactly(10L, 11L, 12L).inOrder();
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    void aBlockingRequestHoldsTheConnectionUntilItIsAnsweredAndTheNextOneWaits() throws Exception {
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(endpoint)) {
+            wire.authenticate(endpoint.token());
+            // Both lines are in the socket buffer before the server has answered either. §2: "the
+            // next line is read only after the previous response has been queued" — which is the
+            // whole reason §8 tells a client to open a second connection for a long wait plus
+            // concurrent calls. Three instantaneous verbs cannot tell that apart from a dispatcher
+            // that hands every parsed request to a pool, so one of these two is slow on purpose.
+            long sentAtNanos = System.nanoTime();
+            wire.sendRaw(ControlApiScenarioFixtures.requestLine(20L, "pane.wait_output",
+                ControlApiScenarioFixtures.params("pane", SOURCE_PANE,
+                    "contains", "this output never appears", "timeout_ms", WAIT_MILLIS,
+                    "poll_ms", 50)));
+            wire.sendRaw(ControlApiScenarioFixtures.requestLine(21L, "ping", new JsonObject()));
+
+            JsonObject waited = wire.next();
+            assertWithMessage("the wait was read first, so it must be answered first").that(waited)
+                .isNotNull();
+            assertThat(waited.get("id").getAsLong()).isEqualTo(20L);
+            assertWithMessage("a wait that never matches ends in timeout, not in a result")
+                .that(waited.getAsJsonObject("error").getAsJsonObject("data").get("code")
+                    .getAsString()).isEqualTo(ControlErrorCode.TIMEOUT.wire());
+
+            JsonObject pong = wire.next();
+            long elapsedMillis = (System.nanoTime() - sentAtNanos) / 1_000_000L;
+            assertThat(pong.get("id").getAsLong()).isEqualTo(21L);
+            assertThat(result(pong, "ping").get("pong").getAsBoolean()).isTrue();
+            assertWithMessage("the ping was sent immediately but must not be served until the %s ms"
+                    + " wait ahead of it is done; it came back after %s ms, which means the two"
+                    + " requests ran concurrently and the sequential-execution promise §8 publishes"
+                    + " is not kept", WAIT_MILLIS, elapsedMillis)
+                .that(elapsedMillis).isAtLeast(WAIT_MILLIS / 2L);
         }
     }
 
