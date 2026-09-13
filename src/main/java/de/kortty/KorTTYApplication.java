@@ -113,6 +113,9 @@ public class KorTTYApplication extends Application {
     private java.util.concurrent.ExecutorService appBadgeExecutor;
     private DesktopNotifier desktopNotifier;
     private CodingAgentUiBridge codingAgentUiBridge;
+    // Control API (Stage 3): the listener plus the bridge that answers it from the windows.
+    private de.kortty.control.ControlApiServer controlApiServer;
+    private de.kortty.ui.ControlApiUiBridge controlApiUiBridge;
     private BackupManager backupManager;
     private AiChatManager aiChatManager;
     private SwarmChatManager swarmChatManager;
@@ -233,6 +236,7 @@ public class KorTTYApplication extends Application {
             Platform::runLater,
             CodingAgentService.defaultScheduler());
         initCodingAgentUiServices();
+        initControlApi(configDir);
         aiChatManager = new AiChatManager(configDir);
         swarmChatManager = new SwarmChatManager(configDir);
         sessionJournalService = new de.kortty.core.SessionJournalService();
@@ -479,6 +483,7 @@ public class KorTTYApplication extends Application {
             MainWindow mainWindow = new MainWindow(primaryStage);
             mainWindow.show();
             startCodingAgentUi();
+            startControlApi();
             startLlamaRuntimeUpdateCoordinator();
             // Register/download admin-provisioned local AI models in the background.
             new de.kortty.policy.PolicyRuntimeProvisioner(getConfigDirectory()).provisionAsync();
@@ -608,6 +613,12 @@ public class KorTTYApplication extends Application {
         // independent and individually guarded: Runtime.halt(0) (in shutdownAndExit)
         // skips the JVM shutdown hooks, so this is the only chance to flush state —
         // one manager failing must not skip the remaining saves/stops.
+        if (controlApiServer != null) {
+            // Runtime.halt(0) below skips every JVM shutdown hook, so this registered step is the
+            // only place the socket and endpoint.json are ever unlinked. close() is bounded so the
+            // shutdown watchdog cannot be tripped by a connection that refuses to die.
+            shutdownStep("stop control API server", controlApiServer::close);
+        }
         if (codingAgentUiBridge != null) {
             shutdownStep("stop coding agent UI bridge", codingAgentUiBridge::stop);
         }
@@ -1298,6 +1309,71 @@ public class KorTTYApplication extends Application {
         }
     }
 
+    /**
+     * Builds the local control API on top of the coding-agent services: the window bridge, a second
+     * {@code CodingAgentActions} and the server.
+     *
+     * <p>Nothing listens yet. {@link de.kortty.control.ControlApiServer#applyEnabledState()} opens the
+     * socket, and only once both gate legs say yes — the default-off setting and the
+     * {@code control-api} policy feature.
+     */
+    private void initControlApi(Path configDir) {
+        if (codingAgentRegistry == null || codingAgentUiBridge == null) {
+            logger.debug("Control API not wired: the coding-agent UI services are unavailable");
+            return;
+        }
+        try {
+            controlApiUiBridge = new de.kortty.ui.ControlApiUiBridge(MainWindow::getOpenWindows,
+                codingAgentRegistry, codingAgentUiBridge, System::currentTimeMillis);
+            // A SECOND CodingAgentActions over the same registry and the same UI bridge, differing
+            // only in its audit sink: without it every action the Coding Agents panel performs would
+            // be logged as if a script had made it. The sink must never throw — explain() and
+            // rename() call it directly and a failure there would turn a successful action into an
+            // error — hence the blanket catch.
+            CodingAgentActions.AuditSink controlAudit = (verb, pane, detail) -> {
+                try {
+                    logger.info("control-api agent.{} pane={} {}", verb,
+                        pane == null ? null : pane.paneId(), detail);
+                } catch (RuntimeException e) {
+                    // An audit line is never worth failing the action it describes.
+                }
+            };
+            CodingAgentActions controlActions =
+                new CodingAgentActions(codingAgentRegistry, codingAgentUiBridge, controlAudit);
+            controlApiServer = de.kortty.control.ControlApiWiring.create(configDir,
+                PlatformProbe.fromSystem(), controlApiUiBridge, controlApiUiBridge, codingAgentRegistry,
+                controlActions, desktopNotifier,
+                () -> de.kortty.control.ControlApiGate.shouldRun(
+                    globalSettingsManager == null ? null : globalSettingsManager.getSettings(),
+                    de.kortty.policy.PolicyManager.effective()),
+                APP_VERSION);
+        } catch (RuntimeException e) {
+            logger.warn("Control API could not be initialised: {}", e.toString());
+            controlApiServer = null;
+            controlApiUiBridge = null;
+        }
+    }
+
+    /**
+     * Opens the control-API listener when the gate allows it, and subscribes its event bus to the
+     * coding-agent registry; FX thread, once the first window exists.
+     */
+    private void startControlApi() {
+        if (controlApiServer == null) {
+            return;
+        }
+        try {
+            de.kortty.control.ControlEventBus events =
+                de.kortty.control.ControlApiWiring.eventBus(controlApiServer);
+            if (events != null && codingAgentRegistry != null && controlApiUiBridge != null) {
+                codingAgentRegistry.addListener(events.registryListener(controlApiUiBridge));
+            }
+            controlApiServer.applyEnabledState();
+        } catch (RuntimeException e) {
+            logger.warn("Control API could not be started: {}", e.toString());
+        }
+    }
+
     /** Starts the coding-agent UI bridge once the first window exists; FX thread. */
     private void startCodingAgentUi() {
         if (codingAgentUiBridge == null) {
@@ -1345,6 +1421,19 @@ public class KorTTYApplication extends Application {
     /** The bridge between the coding-agent services and the open windows; null before {@code init()}. */
     public CodingAgentUiBridge getCodingAgentUiBridge() {
         return codingAgentUiBridge;
+    }
+
+    /**
+     * The local control-API listener; null before {@code init()} and whenever the coding-agent
+     * services it stands on could not be built. Built but not listening until the gate says yes.
+     */
+    public de.kortty.control.ControlApiServer getControlApiServer() {
+        return controlApiServer;
+    }
+
+    /** The control API's view of the windows; null before {@code init()}. */
+    public de.kortty.ui.ControlApiUiBridge getControlApiUiBridge() {
+        return controlApiUiBridge;
     }
 
     public AiChatManager getAiChatManager() {

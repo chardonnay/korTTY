@@ -166,6 +166,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox codingAgentDetectionCheck;
     private final CheckBox codingAgentNotificationsCheck;
     private final CheckBox codingAgentAppBadgeCheck;
+    private final CheckBox controlApiEnabledCheck;
+    private final Label controlApiStatusLabel;
 
     // Appearance settings
     private final ComboBox<AppDesign> appDesignCombo;
@@ -798,6 +800,17 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         codingAgentAppBadgeCheck = new CheckBox(I18n.get("settings.codingAgent.appBadgeEnabled"));
         codingAgentAppBadgeCheck.setSelected(globalSettings == null || globalSettings.isCodingAgentAppBadgeEnabled());
         codingAgentAppBadgeCheck.setTooltip(new Tooltip(I18n.get("settings.codingAgent.appBadgeEnabled.tooltip")));
+
+        controlApiEnabledCheck = new CheckBox(I18n.get("settings.controlApi.enabled"));
+        controlApiEnabledCheck.setSelected(globalSettings != null && globalSettings.isControlApiEnabled());
+        controlApiEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.controlApi.enabled.tooltip")));
+        // After setTooltip, never before: lockIfManaged replaces the tooltip with the managed-by-your-
+        // organization hint, and the user needs to see the reason the box cannot be ticked.
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(
+            controlApiEnabledCheck, de.kortty.policy.ManagedSetting.CONTROL_API);
+        controlApiStatusLabel = new Label(controlApiStatusText());
+        controlApiStatusLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        controlApiStatusLabel.setWrapText(true);
         
         terminalGrid.add(new Label(I18n.get("settings.terminal.columns")), 0, 0);
         terminalGrid.add(columnsSpinner, 1, 0);
@@ -854,6 +867,18 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalGrid.add(codingAgentInfo, 0, 25, 2, 1);
         terminalGrid.add(codingAgentNotificationsCheck, 0, 26, 2, 1);
         terminalGrid.add(codingAgentAppBadgeCheck, 0, 27, 2, 1);
+
+        // Control API section
+        terminalGrid.add(new Separator(), 0, 28, 2, 1);
+        Label controlApiHeader = new Label(I18n.get("settings.controlApi.header"));
+        controlApiHeader.setStyle("-fx-font-weight: bold;");
+        terminalGrid.add(controlApiHeader, 0, 29, 2, 1);
+        terminalGrid.add(controlApiEnabledCheck, 0, 30, 2, 1);
+        Label controlApiInfo = new Label(I18n.get("settings.controlApi.enabled.info"));
+        controlApiInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        controlApiInfo.setWrapText(true);
+        terminalGrid.add(controlApiInfo, 0, 31, 2, 1);
+        terminalGrid.add(controlApiStatusLabel, 0, 32, 2, 1);
 
         LazyTabContent.defer(terminalTab, () -> terminalGrid);
 
@@ -2920,6 +2945,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                         // The notification toggle is read live by the coordinator on every decision.
                         app.getAppBadgeService().refresh();
                     }
+                    if (app.getControlApiServer() != null) {
+                        // Ticking the box opens the listener and unticking it unlinks the socket;
+                        // the server re-reads the gate rather than being told what the user chose.
+                        app.getControlApiServer().applyEnabledState();
+                        controlApiStatusLabel.setText(controlApiStatusText());
+                    }
                     app.applyLoggingSettings();
                     app.restartUpdateCheckService();
                     if (app.getTelemetryService() != null) {
@@ -3077,6 +3108,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setCodingAgentDetectionEnabled(codingAgentDetectionCheck.isSelected());
             globalSettings.setCodingAgentNotificationsEnabled(codingAgentNotificationsCheck.isSelected());
             globalSettings.setCodingAgentAppBadgeEnabled(codingAgentAppBadgeCheck.isSelected());
+            globalSettings.setControlApiEnabled(controlApiEnabledCheck.isSelected());
             globalSettings.setRequireMasterPasswordOnStartup(requireMasterPasswordOnStartupCheck.isSelected());
             boolean skipPrompt = skipMasterPasswordPromptCheck.isSelected();
             // Only touch the remembered-password file when the option actually changes — or when it
@@ -3311,6 +3343,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("terminal", "coding_agent_notifications",
                 gs::isCodingAgentNotificationsEnabled, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_app_badge", gs::isCodingAgentAppBadgeEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "control_api_enabled", gs::isControlApiEnabled, true));
             tracked.add(new TrackedSetting("video", "recording_enabled", gs::isTerminalRecordingEnabled, true));
             tracked.add(new TrackedSetting("video", "capture_colors", gs::isTerminalRecordingCaptureColorsEnabled, true));
             tracked.add(new TrackedSetting("backup", "max_count", gs::getMaxBackupCount, true));
@@ -6254,5 +6287,26 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             new Alert(Alert.AlertType.ERROR, I18n.get("settings.translation.error.generationFailed") + ": " + (t != null ? t.getMessage() : "")).showAndWait();
         });
         new Thread(task).start();
+    }
+
+    /**
+     * The Control API status line, rendered from the server's own state rather than from the
+     * checkbox: the two can legitimately disagree — policy can deny the feature, and a start can fail
+     * because another korTTY already owns the socket — and the user needs to see which it is.
+     */
+    private String controlApiStatusText() {
+        de.kortty.KorTTYApplication application = de.kortty.KorTTYApplication.getInstance();
+        de.kortty.control.ControlApiServer server =
+            application == null ? null : application.getControlApiServer();
+        if (server == null) {
+            return I18n.get("settings.controlApi.status.disabled");
+        }
+        return switch (server.status()) {
+            case DISABLED -> I18n.get("settings.controlApi.status.disabled");
+            case BLOCKED_BY_POLICY -> I18n.get("settings.controlApi.status.blockedByPolicy");
+            case RUNNING -> I18n.get("settings.controlApi.status.running",
+                server.endpoint().map(de.kortty.control.EndpointDescriptor::displayText).orElse(""));
+            case FAILED -> I18n.get("settings.controlApi.status.failed", server.statusDetail());
+        };
     }
 }
