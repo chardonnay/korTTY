@@ -2,7 +2,6 @@ package de.kortty.codingagent;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
@@ -58,8 +57,9 @@ class CodingAgentServiceTest {
     }
 
     private static Optional<AgentProcess> liveProcess() {
+        // The real start instant: AgentProcess.isAlive() rejects a pid whose occupant started at another time.
         return Optional.of(new AgentProcess(ProcessHandle.current().pid(), CodingAgentKind.CLAUDE_CODE, "claude",
-            Instant.now()));
+            ProcessHandle.current().info().startInstant().orElse(null)));
     }
 
     private CodingAgentMonitor attachAndDetect(PaneRef pane, AtomicInteger screenCalls, int expectedEvents)

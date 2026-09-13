@@ -24,7 +24,8 @@ import org.slf4j.LoggerFactory;
  *   <li>coalesced {@link #COALESCE_MILLIS} after the first {@link #markDirty()} of a burst
  *       (the terminal model listener calls markDirty on every buffer mutation),</li>
  *   <li>every {@link #HEARTBEAT_MILLIS} on a heartbeat that notices process exit without screen
- *       output, disconnection and the detection setting being switched off, and</li>
+ *       output, disconnection (which cancels the heartbeat until the next bind or a later evaluation
+ *       finds the connector connected again) and the detection setting being switched off, and</li>
  *   <li>on demand via {@link #evaluateNow()} from any thread.</li>
  * </ul>
  * Every evaluation runs on the shared scheduler thread (or the caller's thread for evaluateNow) and
@@ -48,7 +49,6 @@ public final class CodingAgentMonitor implements AutoCloseable {
     public static final long PROCESS_RESCAN_MILLIS = 1_500L;
 
     private static final long PROCESS_RESCAN_NANOS = TimeUnit.MILLISECONDS.toNanos(PROCESS_RESCAN_MILLIS);
-    private static final long NO_PID = -1L;
 
     private record Binding(Supplier<Optional<AgentProcess>> processSource, BooleanSupplier connected) {}
 
@@ -68,8 +68,8 @@ public final class CodingAgentMonitor implements AutoCloseable {
     private final AtomicReference<AgentProcess> currentProcess = new AtomicReference<>();
     private final AtomicReference<ScheduledFuture<?>> heartbeat = new AtomicReference<>();
 
-    /** Pid of the process that produced the first rule match; guarded by the monitor lock. */
-    private long confirmedPid = NO_PID;
+    /** The process that produced the first rule match (pid + start time identity); guarded by the monitor lock. */
+    private AgentProcess confirmedProcess;
     /** System.nanoTime() of the last process-source invocation (0 = never); guarded by the monitor lock. */
     private long lastRescanNanos;
 
@@ -184,6 +184,11 @@ public final class CodingAgentMonitor implements AutoCloseable {
         evaluate();
     }
 
+    /** True while the periodic heartbeat is scheduled (bound and not known to be disconnected); for tests. */
+    boolean heartbeatArmed() {
+        return heartbeat.get() != null;
+    }
+
     /** True once {@link #close} has run. */
     public boolean isClosed() {
         return closed.get();
@@ -223,7 +228,9 @@ public final class CodingAgentMonitor implements AutoCloseable {
     private synchronized void evaluate() {
         try {
             doEvaluate();
-        } catch (RuntimeException e) {
+        } catch (RuntimeException | StackOverflowError e) {
+            // A pathological user regex overflows the matcher stack with an Error, not an exception;
+            // letting it escape would silently cancel the scheduled heartbeat for this pane.
             logger.debug("Coding agent evaluation failed for {}: {}", pane, e.toString());
         }
     }
@@ -242,18 +249,24 @@ public final class CodingAgentMonitor implements AutoCloseable {
             return;
         }
         if (!bound.connected().getAsBoolean()) {
+            // Dormant until the next bind or markDirty: a dead connector needs no heartbeat.
             dropTo(CodingAgentEvent.Reason.DISCONNECTED);
+            cancelHeartbeat();
             return;
+        }
+        if (heartbeat.get() == null) {
+            // Re-armed after a disconnect that turned out to be transient (or a bind that raced it).
+            armHeartbeat();
         }
         AgentProcess process = resolveProcess(bound);
         if (process == null) {
             dropTo(CodingAgentEvent.Reason.PROCESS_EXITED);
             return;
         }
-        if (confirmedPid != NO_PID && confirmedPid != process.pid()) {
+        if (confirmedProcess != null && !confirmedProcess.equals(process)) {
             // The confirmed process is gone and a different, not yet confirmed one took its place.
             publishRemoval(CodingAgentEvent.Reason.PROCESS_EXITED, null);
-            confirmedPid = NO_PID;
+            confirmedProcess = null;
         }
         ScreenSnapshot snapshot = screenSource.get();
         DetectionResult result = classifier.classify(process.kind(), snapshot == null ? ScreenSnapshot.EMPTY : snapshot);
@@ -263,9 +276,9 @@ public final class CodingAgentMonitor implements AutoCloseable {
             return;
         }
         if (result.ruleMatched()) {
-            confirmedPid = process.pid();
+            confirmedProcess = process;
         }
-        if (confirmedPid != process.pid()) {
+        if (!process.equals(confirmedProcess)) {
             // Double evidence pending: process present, but no rule has matched its screen yet.
             return;
         }
@@ -300,7 +313,7 @@ public final class CodingAgentMonitor implements AutoCloseable {
     /** Resets the detection (publishing a removal if an agent was detected) and clears the process cache. */
     private void dropTo(CodingAgentEvent.Reason reason) {
         AgentProcess process = currentProcess.getAndSet(null);
-        confirmedPid = NO_PID;
+        confirmedProcess = null;
         publishRemoval(reason, reason == CodingAgentEvent.Reason.PROCESS_EXITED ? null : process);
     }
 

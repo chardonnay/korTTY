@@ -1,0 +1,21 @@
+#! expect state=WORKING rule=working
+#! alt=false
+> run the installer and report what it did
+
+✦ Running the installer now; it prompts before touching an existing configuration.
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ ✔  Shell ./install.sh (Run the installer)                                    │
+│                                                                              │
+│    Checking prerequisites... ok                                              │
+│    Do you want to proceed? n                                                 │
+│    Installation aborted.                                                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+⠹ Running installer… (esc to cancel, 4s)
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ >   Type your message or @path/to/file                                       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+~/kortty (main*)              no sandbox (see /docs)           gemini-2.5-pro (97% context left)

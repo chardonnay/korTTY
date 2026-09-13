@@ -549,6 +549,10 @@ public class TerminalSplitPane extends StackPane {
         SithTermFxWidget newWidget = createWidget(request);
         TtyConnector connector = newWidget.getTtyConnector();
         if (connector == null || !connector.isConnected()) {
+            // The widget configurator (and, with a connector, the decorator) already ran for this
+            // widget, so per-widget registrations exist although it never joins the tree: fire the
+            // close hook exactly as closeSplit does, or those registrations leak for the tab's life.
+            notifyWidgetClosed(newWidget);
             try {
                 newWidget.close();
             } catch (Exception ignored) {

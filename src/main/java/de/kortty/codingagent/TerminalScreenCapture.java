@@ -11,7 +11,7 @@ import java.util.function.Supplier;
 /**
  * Captures the visible screen of a SithTermFX widget as a {@link ScreenSnapshot}. This is the only
  * class of the package that touches the terminal library; it reads the text buffer under its own
- * lock (held only for the three getters, microseconds) and the OSC window title from the panel. It
+ * lock (held only for the three getters plus the OSC window title read, microseconds). It
  * is safe to call from the detection scheduler thread and never touches JavaFX nodes.
  */
 public final class TerminalScreenCapture {
@@ -34,12 +34,15 @@ public final class TerminalScreenCapture {
             return ScreenSnapshot.EMPTY;
         }
         TerminalPanel panel = widget.getTerminalPanel();
-        String title = panel != null ? panel.getWindowTitle() : null;
+        String title;
         String text;
         int columns;
         boolean alternateScreen;
         textBuffer.lock();
         try {
+            // The OSC title is a plain field written on the emulator thread; reading it after the
+            // lock acquisition gives it the same happens-before edge as the screen it is paired with.
+            title = panel != null ? panel.getWindowTitle() : null;
             text = textBuffer.getScreenLines();
             columns = textBuffer.getWidth();
             alternateScreen = textBuffer.isUsingAlternateBuffer();

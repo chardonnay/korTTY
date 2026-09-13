@@ -193,7 +193,8 @@ public final class AgentRuleRepository {
     }
 
     private static void report(List<RuleLoadProblem> problems, String location, String message) {
-        logger.warn("Ignoring coding-agent rule file {}: {}", location, message);
+        // "coding-agents" is the term the guide tells users to grep the log for.
+        logger.warn("Ignoring coding-agents rule file {}: {}", location, message);
         problems.add(new RuleLoadProblem(location, message));
     }
 }

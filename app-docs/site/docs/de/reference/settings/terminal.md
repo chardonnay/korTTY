@@ -25,6 +25,7 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 | Verbindungswiederholungen aktivieren | umschalten | – | Ein | `connectionRetriesEnabled` |
 | Verlorene Verbindungen automatisch wiederherstellen | umschalten | – | Ein | `autoReconnectEnabled` |
 | Hostschlüsselüberprüfung für alle Verbindungen deaktivieren | umschalten | – | Aus | `hostKeyCheckDisabledForAllConnections` |
+| Coding-Agents (Claude Code, Codex, Gemini CLI) in lokalen Shell-Tabs erkennen | umschalten | – | Ein | `codingAgentDetectionEnabled` |
 
 ## Hinweise
 
@@ -50,3 +51,6 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 
 !!! note "Verlorene Verbindungen automatisch wiederherstellen"
     Wenn diese Option aktiviert ist und eine **hergestellte** SSH-Verbindung verloren geht (Netzwerkausfall, Server weg), stellt die Registerkarte die Verbindung mit zunehmenden Verzögerungen selbstständig wieder her – 3, 5, 10, 20, 30, dann alle 60 Sekunden – und die rote Statusleiste zählt bis zum nächsten Versuch herunter. Ein Doppelklick auf die Leiste stellt die Verbindung trotzdem sofort wieder her und eine erfolgreiche erneute Verbindung oder das Schließen des Tabs stoppt die automatischen Versuche. Fehlgeschlagene Anmeldungen und andere dauerhafte Fehler (Authentifizierung, Hostschlüssel, Konfiguration) werden nie automatisch wiederholt, und eine Verbindung, die nie hergestellt wurde, wird durch diese Einstellung auch nicht erneut versucht – das ist es, was *Verbindungswiederholungen aktivieren* abdeckt. Siehe [Terminalsitzungen → Verbindungsverlust](../../features/terminal.md#verbindungsverlust-und-automatische-wiederherstellung-der-verbindung).
+
+!!! note "Coding-Agents erkennen"
+    Wenn diese Option aktiviert ist, beobachtet korTTY jeden lokalen Shell-Bereich auf ein laufendes Claude Code, Codex oder Gemini CLI und verfolgt, ob es arbeitet, auf eine Frage wartet oder untätig ist. Der Bildschirm wird lokal analysiert und nichts verlässt den Rechner; die Änderung wirkt sofort auf offene Registerkarten. Siehe [Coding-Agents](../../features/coding-agents.md).

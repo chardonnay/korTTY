@@ -199,6 +199,37 @@ class AgentRuleSetTest {
     }
 
     @Test
+    void regexThatOverflowsTheMatcherStackOnALargeScreenIsRejected() {
+        // Alternation inside a greedy loop: compiles fine, recurses per character when matched.
+        IOException anyLine = parseFails(minimal(
+            "{\"id\":\"boom\",\"state\":\"WORKING\",\"priority\":1,\"anyLineRegex\":[\"(\\\\w|\\\\s)*Yes\"]}"));
+        assertThat(anyLine).hasMessageThat().contains("boom");
+        assertThat(anyLine).hasMessageThat().contains("overflows");
+
+        IOException regex = parseFails(minimal(
+            "{\"id\":\"boom2\",\"state\":\"WORKING\",\"priority\":1,\"regex\":\"(.|\\\\n)*Yes\"}"));
+        assertThat(regex).hasMessageThat().contains("boom2");
+    }
+
+    @Test
+    void duplicateKeysAreRejectedNamingTheKey() {
+        IOException topLevel = parseFails(
+            "{\"kind\":\"CODEX\",\"version\":1,\"rules\":[],"
+                + "\"rules\":[{\"id\":\"x\",\"state\":\"BLOCKED\",\"priority\":1,\"contains\":[\"never\"]}]}");
+        assertThat(topLevel).hasMessageThat().contains("duplicate key 'rules'");
+
+        IOException inRule = parseFails(minimal(
+            "{\"id\":\"x\",\"state\":\"BLOCKED\",\"priority\":1,\"priority\":2,\"contains\":[\"a\"]}"));
+        assertThat(inRule).hasMessageThat().contains("duplicate key 'priority'");
+        assertThat(inRule).hasMessageThat().contains("rules");
+
+        IOException inRegion = parseFails(minimal(
+            "{\"id\":\"x\",\"state\":\"BLOCKED\",\"priority\":1,\"contains\":[\"a\"],"
+                + "\"region\":{\"bottomNonEmptyLines\":1,\"bottomNonEmptyLines\":2}}"));
+        assertThat(inRegion).hasMessageThat().contains("duplicate key 'bottomNonEmptyLines'");
+    }
+
+    @Test
     void wrongVersionIsRejected() {
         assertThat(parseFails("{\"kind\":\"CODEX\",\"version\":2,\"rules\":[]}")).hasMessageThat().contains("version");
         assertThat(parseFails("{\"kind\":\"CODEX\",\"version\":\"1\",\"rules\":[]}")).hasMessageThat()

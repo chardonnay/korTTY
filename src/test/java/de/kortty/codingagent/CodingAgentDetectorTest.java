@@ -96,6 +96,44 @@ class CodingAgentDetectorTest {
         assertThat(result.fallbackApplied()).isTrue();
     }
 
+    @Test(timeOut = 30_000)
+    void ruleWhoseRegexOverflowsTheStackAtRuntimeIsSkippedNotFatal() throws Exception {
+        // Passes the parse-time probe (no long a/b runs there) but overflows on a screen full of them.
+        String override = """
+            {
+              "kind": "GEMINI_CLI",
+              "version": 1,
+              "rules": [
+                { "id": "boom", "state": "BLOCKED", "priority": 100, "regex": "(a|b)*c" },
+                { "id": "safe", "state": "WORKING", "priority": 10, "contains": ["ab"] }
+              ]
+            }
+            """;
+        Files.writeString(configDir.resolve(AgentRuleRepository.USER_DIR_NAME).resolve("gemini-cli.json"), override,
+            StandardCharsets.UTF_8);
+        repository.reload();
+        assertThat(repository.problems()).isEmpty();
+        ScreenSnapshot huge = screen(("ab".repeat(200) + "\n").repeat(100));
+
+        DetectionResult[] result = new DetectionResult[1];
+        Throwable[] failure = new Throwable[1];
+        // A small stack makes the overflow certain whatever the test runner's thread stack is.
+        Thread thread = new Thread(null, () -> {
+            try {
+                result[0] = detector.classify(CodingAgentKind.GEMINI_CLI, huge);
+                result[0] = detector.classify(CodingAgentKind.GEMINI_CLI, huge);
+            } catch (Throwable t) {
+                failure[0] = t;
+            }
+        }, "small-stack", 128L * 1024L);
+        thread.start();
+        thread.join();
+
+        assertThat(failure[0]).isNull();
+        assertThat(result[0].matchedRuleId()).isEqualTo("safe");
+        assertThat(result[0].state()).isEqualTo(CodingAgentState.WORKING);
+    }
+
     @Test
     void unknownKindYieldsNone() {
         assertThat(detector.classify(CodingAgentKind.UNKNOWN, screen("shared"))).isSameInstanceAs(DetectionResult.NONE);

@@ -91,7 +91,9 @@ class CodingAgentMonitorTest {
     }
 
     private static AgentProcess liveProcess() {
-        return new AgentProcess(ProcessHandle.current().pid(), CodingAgentKind.CLAUDE_CODE, "claude", Instant.now());
+        // The real start instant: AgentProcess.isAlive() rejects a pid whose occupant started at another time.
+        return new AgentProcess(ProcessHandle.current().pid(), CodingAgentKind.CLAUDE_CODE, "claude",
+            ProcessHandle.current().info().startInstant().orElse(null));
     }
 
     private void bindAndAwaitDetection() throws InterruptedException {
@@ -193,6 +195,71 @@ class CodingAgentMonitorTest {
         assertThat(removal.process()).isNull();
         assertThat(monitor.current()).isEqualTo(DetectionResult.NONE);
         assertThat(monitor.currentProcess()).isEmpty();
+    }
+
+    @Test(timeOut = 30_000)
+    void reusedPidWithAnotherStartTimeIsTreatedAsExited() throws InterruptedException {
+        // The pid is alive (it is this JVM) but the recorded start time belongs to the dead agent, as
+        // after the OS handed the agent's pid to an unrelated process.
+        Instant realStart = ProcessHandle.current().info().startInstant().orElse(Instant.EPOCH);
+        process.set(new AgentProcess(ProcessHandle.current().pid(), CodingAgentKind.CLAUDE_CODE, "claude",
+            realStart.minusSeconds(3600)));
+        bindAndAwaitDetection();
+
+        // The stale record is not accepted as the live process: the cached detection is dropped
+        // (the process source is re-invoked once the rescan cap has elapsed).
+        monitor.evaluateNow();
+
+        assertThat(events.size()).isEqualTo(2);
+        assertThat(events.last().reason()).isEqualTo(CodingAgentEvent.Reason.PROCESS_EXITED);
+        assertThat(monitor.current()).isEqualTo(DetectionResult.NONE);
+        assertThat(monitor.currentProcess()).isEmpty();
+    }
+
+    @Test(timeOut = 30_000)
+    void disconnectCancelsTheHeartbeatAndAConnectedEvaluationReArmsIt() throws InterruptedException {
+        bindAndAwaitDetection();
+        assertThat(monitor.heartbeatArmed()).isTrue();
+
+        connected.set(false);
+        monitor.evaluateNow();
+        assertThat(monitor.heartbeatArmed()).isFalse();
+        assertThat(monitor.isBound()).isTrue();
+        assertThat(events.last().reason()).isEqualTo(CodingAgentEvent.Reason.DISCONNECTED);
+
+        connected.set(true);
+        monitor.evaluateNow();
+        assertThat(monitor.heartbeatArmed()).isTrue();
+        assertThat(events.size()).isEqualTo(2);
+
+        monitor.unbind();
+        assertThat(monitor.heartbeatArmed()).isFalse();
+    }
+
+    @Test(timeOut = 30_000)
+    void stackOverflowInTheClassifierIsSwallowedAndTheHeartbeatSurvives() throws InterruptedException {
+        bindAndAwaitDetection();
+        classifierLatch.set(null);
+        AtomicBoolean overflow = new AtomicBoolean(true);
+        CodingAgentMonitor local = new CodingAgentMonitor(new PaneRef("tab-1", "terminal-soe"), this::captureScreen,
+            (kind, snapshot) -> {
+                if (overflow.get()) {
+                    throw new StackOverflowError("pathological regex");
+                }
+                return BLOCKED;
+            }, enabled::get, scheduler, Runnable::run, events);
+        try {
+            local.bind(this::processSource, connected::get);
+            local.evaluateNow();
+            assertThat(local.current()).isEqualTo(DetectionResult.NONE);
+            assertThat(local.heartbeatArmed()).isTrue();
+
+            overflow.set(false);
+            local.evaluateNow();
+            assertThat(local.current()).isEqualTo(BLOCKED);
+        } finally {
+            local.close();
+        }
     }
 
     @Test(timeOut = 30_000)

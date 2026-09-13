@@ -83,6 +83,70 @@ class LocalProcessInspectorTest {
     }
 
     @Test
+    void classifyHonoursQuotedWindowsCommandLines() {
+        // npm's claude.cmd shim: node.exe under "Program Files", both paths quoted, arguments not reported.
+        assertThat(LocalProcessInspector.classify("C:\\Program Files\\nodejs\\node.exe", List.of(),
+            "\"C:\\Program Files\\nodejs\\node.exe\"  "
+                + "\"C:\\Users\\jd\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js\""))
+            .hasValue(CodingAgentKind.CLAUDE_CODE);
+        // Same without a reported command: the first (quoted) token is the executable.
+        assertThat(LocalProcessInspector.classify(null, null,
+            "\"C:\\Program Files\\nodejs\\node.exe\" \"C:\\Program Files\\nodejs\\node_modules\\@openai\\codex\\bin\\codex.js\""))
+            .hasValue(CodingAgentKind.CODEX);
+        // A user name with a space in the script path.
+        assertThat(LocalProcessInspector.classify("node", List.of(),
+            "\"node\"  \"C:\\Users\\John Doe\\AppData\\Roaming\\npm\\node_modules\\@google\\gemini-cli\\dist\\index.js\""))
+            .hasValue(CodingAgentKind.GEMINI_CLI);
+    }
+
+    @Test
+    void tokensSplitOnWhitespaceOutsideDoubleQuotes() {
+        assertThat(LocalProcessInspector.tokens("a  b\tc")).containsExactly("a", "b", "c").inOrder();
+        assertThat(LocalProcessInspector.tokens("\"C:\\Program Files\\node.exe\" x \"y z\"  \"\""))
+            .containsExactly("C:\\Program Files\\node.exe", "x", "y z").inOrder();
+        assertThat(LocalProcessInspector.tokens("say \"a \"\"quoted\"\" word\""))
+            .containsExactly("say", "a \"quoted\" word").inOrder();
+        assertThat(LocalProcessInspector.tokens("\"unterminated run")).containsExactly("unterminated run");
+        assertThat(LocalProcessInspector.tokens(null)).isEmpty();
+        assertThat(LocalProcessInspector.tokens("   ")).isEmpty();
+    }
+
+    @Test
+    void classifySkipsInterpreterSubCommandsAndValueTakingFlags() {
+        // deno install generates 'deno run <flags> <module>'.
+        assertThat(LocalProcessInspector.classify("/usr/bin/deno",
+            List.of("run", "-A", "/x/node_modules/@anthropic-ai/claude-code/cli.js"), null))
+            .hasValue(CodingAgentKind.CLAUDE_CODE);
+        assertThat(LocalProcessInspector.classify("/usr/bin/node",
+            List.of("-r", "dotenv/config", "/x/node_modules/@anthropic-ai/claude-code/cli.js"), null))
+            .hasValue(CodingAgentKind.CLAUDE_CODE);
+        assertThat(LocalProcessInspector.classify("/usr/bin/node",
+            List.of("--import", "tsx", "/opt/homebrew/lib/node_modules/@google/gemini-cli/dist/index.js"), null))
+            .hasValue(CodingAgentKind.GEMINI_CLI);
+        assertThat(LocalProcessInspector.classify("/usr/bin/bun",
+            List.of("x", "@openai/codex"), null)).hasValue(CodingAgentKind.CODEX);
+    }
+
+    @Test
+    void classifyIgnoresUnrelatedScriptsBelowDirectoriesNamedLikeAnAgent() {
+        // An MCP server or Bash-tool script that merely lives under a directory called gemini/claude/codex.
+        assertThat(LocalProcessInspector.classify("/usr/bin/node",
+            List.of("/home/u/projects/gemini/mcp/server.js"), null)).isEmpty();
+        assertThat(LocalProcessInspector.classify("/usr/bin/node",
+            List.of("/home/u/claude/tools/server.js"), null)).isEmpty();
+        assertThat(LocalProcessInspector.classify("/usr/bin/node",
+            List.of("/home/u/codex/index.js"), null)).isEmpty();
+        assertThat(LocalProcessInspector.classify("/usr/bin/node",
+            List.of("/home/u/projects/claude-code/index.js"), null)).isEmpty();
+        // But the package directory itself, below node_modules or its npm scope, still counts.
+        assertThat(LocalProcessInspector.classify("/usr/bin/node",
+            List.of("/home/u/.bun/install/global/node_modules/claude-code/cli.js"), null))
+            .hasValue(CodingAgentKind.CLAUDE_CODE);
+        assertThat(LocalProcessInspector.classify("/usr/bin/deno",
+            List.of("run", "-A", "npm:@anthropic-ai/claude-code"), null)).hasValue(CodingAgentKind.CLAUDE_CODE);
+    }
+
+    @Test
     void classifyIsEmptyForShellsUnrelatedScriptsAndNull() {
         assertThat(LocalProcessInspector.classify("/bin/zsh", List.of("-l"), null)).isEmpty();
         assertThat(LocalProcessInspector.classify("node", List.of("server.js"), null)).isEmpty();

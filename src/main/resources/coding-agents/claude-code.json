@@ -1,7 +1,7 @@
 {
   "kind": "CLAUDE_CODE",
   "version": 1,
-  "comment": "Written against Claude Code 2.1.x (Ink TUI). Screens were transcribed from documented UI text and from the onboarding screens of an unauthenticated Claude Code 2.1.270 session; they must be re-verified against live authenticated sessions. Permission dialogs (Bash, Edit, Write, MCP) and the AskUserQuestion picker are BLOCKED; a tool call showing 'Running…' or the spinner status line with 'esc to interrupt' is WORKING; the empty input prompt with '? for shortcuts' is IDLE. The onboarding menus (theme picker, login method) intentionally match no rule. Claude Code does not use the alternate screen, so no rule depends on that flag.",
+  "comment": "Written against Claude Code 2.1.x (Ink TUI). Screens were transcribed from documented UI text and from the onboarding screens of an unauthenticated Claude Code 2.1.270 session; they must be re-verified against live authenticated sessions. Permission dialogs (Bash, Edit, Write, MCP) and the AskUserQuestion picker are BLOCKED; a tool call showing 'Running…' or the spinner status line ('✻ Thinking… (…)', with 'esc to interrupt') is WORKING — a '*' or '·' bullet ending in an ellipsis is answer text, not a spinner; the empty input prompt with '? for shortcuts' is IDLE. The onboarding menus (theme picker, login method) intentionally match no rule. Claude Code does not use the alternate screen, so no rule depends on that flag.",
   "fallbackState": "IDLE",
   "rules": [
     {
@@ -40,7 +40,7 @@
       "region": { "bottomNonEmptyLines": 8 },
       "anyLineRegex": [
         "(?i)esc to interrupt",
-        "^\\s*[✻✳✶✽✢·\\*]\\s+\\S.*…"
+        "^\\s*[✻✳✶✽✢]\\s+\\S.*…\\s*\\("
       ]
     },
     {

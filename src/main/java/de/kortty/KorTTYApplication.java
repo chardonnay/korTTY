@@ -201,9 +201,8 @@ public class KorTTYApplication extends Application {
         powerManagementCoordinator = PowerManagementCoordinator.createDefault();
         themeManager = new ThemeManager(configDir);
         terminalEffectPluginManager = new TerminalEffectPluginManager(configDir);
+        // The repository itself warns once per invalid override file ("Ignoring coding-agents rule file").
         AgentRuleRepository codingAgentRules = new AgentRuleRepository(configDir);
-        codingAgentRules.problems().forEach(problem ->
-            logger.warn("Ignoring coding-agents rule file {}: {}", problem.location(), problem.message()));
         codingAgentService = new CodingAgentService(
             new CodingAgentDetector(codingAgentRules),
             () -> {

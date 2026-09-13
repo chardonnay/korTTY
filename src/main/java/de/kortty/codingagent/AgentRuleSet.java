@@ -5,8 +5,12 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.Strictness;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
 
 import java.io.IOException;
+import java.io.StringReader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.file.Path;
@@ -22,8 +26,9 @@ import java.util.regex.PatternSyntaxException;
 /**
  * The parsed rule file of one {@link CodingAgentKind} (schema version {@link #SCHEMA_VERSION}).
  * Rules are held sorted by priority descending; ties keep file order. {@code sourcePath} is null for
- * bundled files. Parsing is strict: unknown keys anywhere, a bad regex, a duplicate rule id or a rule
- * without any matcher fail the whole file with an {@link IOException}.
+ * bundled files. Parsing is strict: unknown or duplicated keys anywhere, a bad regex (including one
+ * that overflows the matcher stack on a large screen), a duplicate rule id or a rule without any
+ * matcher fail the whole file with an {@link IOException}.
  */
 public record AgentRuleSet(CodingAgentKind kind, int version, String comment, CodingAgentState fallbackState,
                            List<AgentRule> rules, Source source, Path sourcePath) {
@@ -39,6 +44,12 @@ public record AgentRuleSet(CodingAgentKind kind, int version, String comment, Co
         "contains", "notContains", "title", "alternateScreen");
     private static final Set<String> REGION_KEYS = Set.of("bottomNonEmptyLines");
     private static final Pattern VALID_RULE_ID = Pattern.compile("[A-Za-z0-9._-]+");
+    /** Rows x columns of the synthetic screen every regex is run against at parse time. */
+    private static final int PROBE_ROWS = 80;
+    private static final int PROBE_COLUMNS = 300;
+    private static final String PROBE_SCREEN = probeScreen();
+    /** Stack of the probe thread; below the 1 MiB default of the threads that evaluate rules. */
+    private static final long PROBE_STACK_BYTES = 512L * 1024L;
 
     public AgentRuleSet {
         rules = List.copyOf(rules == null ? List.of() : rules);
@@ -59,6 +70,7 @@ public record AgentRuleSet(CodingAgentKind kind, int version, String comment, Co
         } catch (RuntimeException e) {
             throw new IOException("Rule file is not valid JSON: " + e.getMessage(), e);
         }
+        rejectDuplicateKeys(json);
         if (parsed == null || !parsed.isJsonObject()) {
             throw new IOException("Rule file root must be a JSON object");
         }
@@ -169,10 +181,100 @@ public record AgentRuleSet(CodingAgentKind kind, int version, String comment, Co
     }
 
     private static Pattern compile(String source, int flags, String where) throws IOException {
+        Pattern pattern;
         try {
-            return Pattern.compile(source, flags);
+            pattern = Pattern.compile(source, flags);
         } catch (PatternSyntaxException e) {
             throw new IOException(where + " is not a valid regex: " + e.getDescription(), e);
+        }
+        if (overflowsOnProbeScreen(pattern)) {
+            throw new IOException(where + " overflows the regex matcher stack on a large screen"
+                + " (avoid alternations inside repeated groups)");
+        }
+        return pattern;
+    }
+
+    /**
+     * Alternations inside greedy loops ({@code (\\w|\\s)*Yes}) recurse per character and overflow the
+     * matcher stack on a full terminal screen. The probe runs on a dedicated thread with a stack
+     * smaller than any evaluating thread's, so the verdict does not depend on who parses the file.
+     */
+    private static boolean overflowsOnProbeScreen(Pattern pattern) {
+        boolean[] overflowed = new boolean[1];
+        Thread probe = new Thread(null, () -> {
+            try {
+                pattern.matcher(PROBE_SCREEN).find();
+            } catch (StackOverflowError e) {
+                overflowed[0] = true;
+            }
+        }, "kortty-coding-agent-regex-probe", PROBE_STACK_BYTES);
+        probe.setDaemon(true);
+        probe.start();
+        try {
+            probe.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+        return overflowed[0];
+    }
+
+    /**
+     * A {@link #PROBE_ROWS} x {@link #PROBE_COLUMNS} screen of words, digits and spaces, one row per
+     * line — like a terminal full of agent output, an unbroken run for loops over {@code \\w|\\s}.
+     */
+    private static String probeScreen() {
+        String words = "lorem ipsum 42 dolor sit amet consectetur adipiscing elit sed do eiusmod tempor 2026 ";
+        StringBuilder row = new StringBuilder(PROBE_COLUMNS + words.length());
+        while (row.length() < PROBE_COLUMNS) {
+            row.append(words);
+        }
+        row.setLength(PROBE_COLUMNS);
+        StringBuilder screen = new StringBuilder(PROBE_ROWS * (PROBE_COLUMNS + 1));
+        for (int i = 0; i < PROBE_ROWS; i++) {
+            screen.append(row).append('\n');
+        }
+        return screen.toString();
+    }
+
+    /**
+     * Gson's tree parser keeps the last value of a duplicated object key; a strict schema must report
+     * it instead (a pasted second {@code "priority"} line would otherwise silently win).
+     */
+    private static void rejectDuplicateKeys(String json) throws IOException {
+        try (JsonReader reader = new JsonReader(new StringReader(json == null ? "" : json))) {
+            reader.setStrictness(Strictness.LENIENT);
+            walkForDuplicateKeys(reader, "rule file");
+        } catch (RuntimeException e) {
+            throw new IOException("Rule file is not valid JSON: " + e.getMessage(), e);
+        }
+    }
+
+    private static void walkForDuplicateKeys(JsonReader reader, String where) throws IOException {
+        JsonToken token = reader.peek();
+        switch (token) {
+            case BEGIN_OBJECT -> {
+                reader.beginObject();
+                Set<String> seen = new HashSet<>();
+                while (reader.hasNext()) {
+                    String name = reader.nextName();
+                    if (!seen.add(name)) {
+                        throw new IOException(where + " has the duplicate key '" + name + "'");
+                    }
+                    walkForDuplicateKeys(reader, where + " key '" + name + "'");
+                }
+                reader.endObject();
+            }
+            case BEGIN_ARRAY -> {
+                reader.beginArray();
+                int index = 0;
+                while (reader.hasNext()) {
+                    walkForDuplicateKeys(reader, where + "[" + index + "]");
+                    index++;
+                }
+                reader.endArray();
+            }
+            default -> reader.skipValue();
         }
     }
 

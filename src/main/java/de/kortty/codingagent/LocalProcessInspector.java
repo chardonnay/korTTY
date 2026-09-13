@@ -47,6 +47,12 @@ public final class LocalProcessInspector {
     /** Marker returned by {@link #toAgentProcess} when the OS does not report the command path. */
     private static final String UNKNOWN_COMMAND = "?";
 
+    /** Directory below which an agent's package directory ({@code <kind-id>}) identifies the agent. */
+    private static final String NODE_MODULES_SEGMENT = "node_modules";
+
+    /** npm scope directories under which the agents' packages are installed ({@code @scope/<kind-id>}). */
+    private static final Set<String> AGENT_PACKAGE_SCOPES = Set.of("@anthropic-ai", "@openai", "@google");
+
     public LocalProcessInspector() {
     }
 
@@ -127,11 +133,15 @@ public final class LocalProcessInspector {
      * Classifies a process by its executable and, for script hosts, by the script it runs.
      *
      * <p>Rules, in order: (1) the executable's base name is a known agent name; (2) the executable is
-     * a script host ({@link #SCRIPT_HOSTS} or {@code nodejs}) and the first non-flag argument —
-     * taken from {@code arguments}, or from the whitespace tokens of {@code commandLine} when the
-     * platform does not report arguments — has a base name (extension stripped) or any path segment
-     * equal to a known executable name or kind id (npm installs run {@code cli.js} from a directory
-     * named {@code claude-code}).
+     * a script host ({@link #SCRIPT_HOSTS} or {@code nodejs}) and one of its non-flag arguments —
+     * taken from {@code arguments}, or from the quote-aware tokens of {@code commandLine} when the
+     * platform does not report arguments — names an agent: its base name (extension stripped) is a
+     * known executable name or kind id, or the path contains the agent's npm package directory
+     * ({@code @anthropic-ai/claude-code}, {@code @openai/codex}, {@code @google/gemini-cli}, or
+     * {@code node_modules/<kind-id>}). Arguments are tried in order so interpreter sub-commands
+     * ({@code deno run}) and value-taking flags ({@code -r dotenv/config}) are skipped naturally; a
+     * plain directory that merely shares an agent's name ({@code ~/projects/gemini/server.js}) does
+     * not classify.
      *
      * @param command executable path as reported by {@link ProcessHandle.Info#command()}; when
      *     null the first token of {@code commandLine} is used
@@ -156,11 +166,19 @@ public final class LocalProcessInspector {
         if (!SCRIPT_HOSTS.contains(basename) && !SCRIPT_HOST_ALIASES.contains(basename)) {
             return Optional.empty();
         }
-        Optional<String> script = firstNonFlag(arguments == null ? List.of() : arguments);
-        if (script.isEmpty() && !commandLineTokens.isEmpty()) {
-            script = firstNonFlag(commandLineTokens.subList(1, commandLineTokens.size()));
+        List<String> candidates = arguments == null || arguments.isEmpty()
+            ? (commandLineTokens.isEmpty() ? List.of() : commandLineTokens.subList(1, commandLineTokens.size()))
+            : arguments;
+        for (String argument : candidates) {
+            if (argument == null || argument.isBlank() || argument.startsWith("-")) {
+                continue;
+            }
+            Optional<CodingAgentKind> kind = classifyScriptPath(argument);
+            if (kind.isPresent()) {
+                return kind;
+            }
         }
-        return script.flatMap(LocalProcessInspector::classifyScriptPath);
+        return Optional.empty();
     }
 
     /** Newest live descendant of {@code pid} accepted by {@code accept}; newest = latest start instant (missing sorts last), ties broken by the higher PID. */
@@ -244,17 +262,29 @@ public final class LocalProcessInspector {
         }
     }
 
-    private static Optional<CodingAgentKind> classifyScriptPath(String script) {
-        Optional<CodingAgentKind> byName = CodingAgentKind.forExecutable(executableBasename(script));
+    /**
+     * Classifies a script path: by its base name (executable name or kind id, so {@code .../bin/codex}
+     * and {@code npm:@openai/codex} both work), otherwise by an agent package directory segment
+     * ({@code <kind-id>} directly below an npm scope of {@link #AGENT_PACKAGE_SCOPES} or below
+     * {@code node_modules}). Any other directory named like an agent does not count.
+     */
+    static Optional<CodingAgentKind> classifyScriptPath(String script) {
+        if (script == null || script.isBlank()) {
+            return Optional.empty();
+        }
+        String basename = executableBasename(script);
+        Optional<CodingAgentKind> byName = CodingAgentKind.forExecutable(basename)
+            .or(() -> CodingAgentKind.forId(basename));
         if (byName.isPresent()) {
             return byName;
         }
-        for (String segment : script.split("[/\\\\]+")) {
-            String name = segment.toLowerCase(Locale.ROOT);
-            if (name.isEmpty()) {
+        String[] segments = script.split("[/\\\\]+");
+        for (int i = 1; i < segments.length; i++) {
+            String parent = segments[i - 1].toLowerCase(Locale.ROOT);
+            if (!NODE_MODULES_SEGMENT.equals(parent) && !AGENT_PACKAGE_SCOPES.contains(parent)) {
                 continue;
             }
-            Optional<CodingAgentKind> kind = CodingAgentKind.forExecutable(name).or(() -> CodingAgentKind.forId(name));
+            Optional<CodingAgentKind> kind = CodingAgentKind.forId(segments[i].toLowerCase(Locale.ROOT));
             if (kind.isPresent()) {
                 return kind;
             }
@@ -262,25 +292,45 @@ public final class LocalProcessInspector {
         return Optional.empty();
     }
 
-    private static Optional<String> firstNonFlag(List<String> arguments) {
-        for (String argument : arguments) {
-            if (argument != null && !argument.isBlank() && !argument.startsWith("-")) {
-                return Optional.of(argument);
-            }
-        }
-        return Optional.empty();
-    }
-
-    private static List<String> tokens(String commandLine) {
+    /**
+     * Splits a command line into arguments honouring double quotes (a quoted run may contain
+     * whitespace; {@code ""} inside a quoted run is a literal quote, Windows {@code CommandLineToArgvW}
+     * style). Backslashes are kept verbatim because the tokens are file paths on every platform.
+     */
+    static List<String> tokens(String commandLine) {
         if (commandLine == null || commandLine.isBlank()) {
             return List.of();
         }
         List<String> result = new ArrayList<>();
-        for (String token : commandLine.trim().split("\\s+")) {
-            if (!token.isEmpty()) {
-                result.add(token);
+        StringBuilder token = new StringBuilder();
+        boolean inQuotes = false;
+        boolean tokenStarted = false;
+        int length = commandLine.length();
+        for (int i = 0; i < length; i++) {
+            char c = commandLine.charAt(i);
+            if (c == '"') {
+                if (inQuotes && i + 1 < length && commandLine.charAt(i + 1) == '"') {
+                    token.append('"');
+                    i++;
+                } else {
+                    inQuotes = !inQuotes;
+                    tokenStarted = true;
+                }
+            } else if (!inQuotes && Character.isWhitespace(c)) {
+                if (tokenStarted) {
+                    result.add(token.toString());
+                    token.setLength(0);
+                    tokenStarted = false;
+                }
+            } else {
+                token.append(c);
+                tokenStarted = true;
             }
         }
+        if (tokenStarted) {
+            result.add(token.toString());
+        }
+        result.removeIf(String::isEmpty);
         return result;
     }
 }
