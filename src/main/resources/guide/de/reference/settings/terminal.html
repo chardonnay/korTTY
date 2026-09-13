@@ -867,6 +867,20 @@
 <td>Ein</td>
 <td><code>codingAgentDetectionEnabled</code></td>
 </tr>
+<tr>
+<td>Desktop-Benachrichtigung, wenn ein Coding-Agent eine Entscheidung braucht oder fertig wird, während Sie seinen Bereich nicht ansehen</td>
+<td>umschalten</td>
+<td>–</td>
+<td>Ein</td>
+<td><code>codingAgentNotificationsEnabled</code></td>
+</tr>
+<tr>
+<td>Anzahl der auf eine Entscheidung wartenden Agents am App-Symbol anzeigen</td>
+<td>umschalten</td>
+<td>–</td>
+<td>Ein</td>
+<td><code>codingAgentAppBadgeEnabled</code></td>
+</tr>
 </tbody>
 </table>
 <h2 id="hinweise">Hinweise<a class="headerlink" href="#hinweise" title="Permanent link">&para;</a></h2>
@@ -901,7 +915,7 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Coding-Agents erkennen</p>
-<p>Wenn diese Option aktiviert ist, beobachtet korTTY jeden lokalen Shell-Bereich auf ein laufendes Claude Code, Codex oder Gemini CLI und verfolgt, ob es arbeitet, auf eine Frage wartet oder untätig ist. Der Bildschirm wird lokal analysiert und nichts verlässt den Rechner; die Änderung wirkt sofort auf offene Registerkarten. Siehe <a href="../../features/coding-agents.html">Coding-Agents</a>.</p>
+<p>Wenn diese Option aktiviert ist, beobachtet korTTY jeden lokalen Shell-Bereich auf ein laufendes Claude Code, Codex oder Gemini CLI und verfolgt, ob es arbeitet, auf eine Frage wartet, fertig oder untätig ist. Der Bildschirm wird lokal analysiert und nichts verlässt den Rechner; die Änderung wirkt sofort auf offene Registerkarten. Die beiden Schalter darunter steuern die Desktop-Benachrichtigung für einen Agent, der eine Entscheidung braucht oder fertig wird, während Sie seinen Bereich nicht ansehen, sowie die Zahl der wartenden Agents am App-Symbol (oder im Fenstertitel, wo kein Symbol-Badge existiert); beide lesen die Einstellung live, sodass eine Änderung sofort wirkt. Siehe <a href="../../features/coding-agents.html#app-symbol-badge-und-benachrichtigungen">Coding-Agents</a>.</p>
 </div></p>
     </article>
 </section>
