@@ -3650,6 +3650,18 @@ tasks.register<JavaExec>("swarmStatusStripSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("codingAgentUiSmoke") {
+    group = "verification"
+    description = "Builds the Coding Agents panel, status strip, dock manager, dashboard rows and app-icon " +
+        "badge headless against a harness scenario, exercises quick keys and prompt box and writes " +
+        "build/smoke/coding-agent-*.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.CodingAgentUiSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+    jvmArgs("-Dprism.order=sw", "--enable-native-access=ALL-UNNAMED")
+    systemProperty("kortty.smoke.outputDir", layout.buildDirectory.dir("smoke").get().asFile.absolutePath)
+}
+
 tasks.register<JavaExec>("aiChatRedesignSmoke") {
     group = "verification"
     description = "Renders the redesigned AI chat for every color profile and snapshots it to build/smoke/ai-chat-*.png."
@@ -3787,6 +3799,18 @@ tasks.register<JavaExec>("generateSessionJournalScreenshots") {
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.SessionJournalScreenshotGenerator")
     classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("generateCodingAgentScreenshots") {
+    group = "build"
+    description = "Renders the Coding Agents panel, status strip, dashboard rows and app-icon badge " +
+        "screenshots for the manual (app-docs/screenshots/coding-agents/) headless via Scene.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.CodingAgentScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+    jvmArgs("-Dprism.order=sw", "--enable-native-access=ALL-UNNAMED")
+    systemProperty("kortty.screenshot.outputDir",
+        layout.projectDirectory.dir("app-docs/screenshots/coding-agents").asFile.absolutePath)
 }
 
 tasks.register<JavaExec>("generatePrivacyTabScreenshot") {

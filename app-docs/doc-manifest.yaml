@@ -425,6 +425,7 @@ pages:
       - src/main/java/de/kortty/ui/CodingAgentUiBridge.java
       - src/main/java/de/kortty/ui/DashboardAgentMarks.java
     diagrams: [coding-agents.svg]
+    screenshots: [coding-agents/dashboard.png, coding-agents/panel.png, coding-agents/status-strip.png, coding-agents/badge-icon.png]
     last_synced_ref: "0dad374"
   - path: app-docs/site/docs/en/features/i18n.md
     owns_i18n: []

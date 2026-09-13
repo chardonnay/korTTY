@@ -37,6 +37,7 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -87,6 +88,7 @@ public class CodingAgentPanel extends BorderPane {
     private static final int EVIDENCE_MAX_CHARS = 80;
     private static final int EXPLAIN_ROWS = 6;
     private static final int PROMPT_ROWS = 2;
+    private static final int PROMPT_COLUMNS = 16;
     private static final double STATE_DOT_RADIUS = 5;
     private static final String DEFAULT_BG = "#1e1e1e";
     private static final String DEFAULT_FG = "#d4d4d4";
@@ -277,6 +279,7 @@ public class CodingAgentPanel extends BorderPane {
                 return null;
             }
         });
+        targetCombo.setMinWidth(110);
         targetCombo.setMaxWidth(220);
         targetCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldEntry, newEntry) -> {
             if (newEntry != null) {
@@ -286,6 +289,9 @@ public class CodingAgentPanel extends BorderPane {
         });
 
         promptArea.setPrefRowCount(PROMPT_ROWS);
+        // The TextArea default (40 columns) is wider than the panel and would squeeze the target
+        // combo and the Send button to nothing; it grows with the row instead.
+        promptArea.setPrefColumnCount(PROMPT_COLUMNS);
         promptArea.setWrapText(true);
         promptArea.setPromptText(I18n.get("codingAgent.panel.prompt.placeholder"));
         promptArea.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
@@ -303,6 +309,7 @@ public class CodingAgentPanel extends BorderPane {
 
         sendButton.setOnAction(event -> sendPrompt());
         sendButton.setDisable(true);
+        sendButton.setMinWidth(Region.USE_PREF_SIZE);
 
         HBox row = new HBox(6, targetCombo, promptArea, sendButton);
         row.setAlignment(Pos.CENTER_LEFT);
@@ -640,6 +647,7 @@ public class CodingAgentPanel extends BorderPane {
         CodingAgentEntry target = targetCombo.getValue();
         if (target == null) {
             sendButton.setDisable(true);
+        sendButton.setMinWidth(Region.USE_PREF_SIZE);
             sendButton.setTooltip(null);
             promptArea.setDisable(targetCombo.getItems().isEmpty());
             return;
@@ -771,6 +779,10 @@ public class CodingAgentPanel extends BorderPane {
 
         AgentCell() {
             root.setPadding(new Insets(6, 8, 6, 8));
+            // The stylesheets' selected-cell colour equals their button colour, which would make the
+            // quick keys of the selected row vanish; the selection tint is derived from the panel
+            // background instead.
+            selectedProperty().addListener((obs, was, selected) -> applySelectionStyle());
             nameLabel.setStyle("-fx-font-weight: bold;");
             Region spacer = new Region();
             HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -792,8 +804,10 @@ public class CodingAgentPanel extends BorderPane {
             Button ctrlCButton = keyButton("Ctrl+C", KeyChord.CTRL_C, false);
             explainButton.setOnAction(event -> withEntry(CodingAgentPanel.this::toggleExplain));
             renameButton.setOnAction(event -> withEntry(CodingAgentPanel.this::rename));
-            HBox line4 = new HBox(4, focusButton, yButton, nButton, enterButton, escButton, upButton, downButton,
-                ctrlCButton, explainButton, renameButton);
+            // A FlowPane, not an HBox: ten buttons are wider than the panel at its default width
+            // (380 px), and a row that wraps beats one whose last buttons are clipped away.
+            FlowPane line4 = new FlowPane(4, 4, focusButton, yButton, nButton, enterButton, escButton, upButton,
+                downButton, ctrlCButton, explainButton, renameButton);
             line4.setAlignment(Pos.CENTER_LEFT);
 
             explainArea.setEditable(false);
@@ -863,8 +877,13 @@ public class CodingAgentPanel extends BorderPane {
                 button.setDisable(!connected);
                 button.setTooltip(connected ? keyTooltips.get(button) : notConnectedTooltip);
             }
+            // Explicit colours, not -fx-base: the design stylesheets paint .button with a literal
+            // background, which would swallow a derived accent.
             for (Button button : answerButtons) {
-                button.setStyle(blocked ? "-fx-base: " + stateColor + ";" : null);
+                button.setStyle(blocked
+                    ? "-fx-background-color: " + stateColor + "; -fx-text-fill: "
+                        + CodingAgentStripSupport.chipTextHex(lightBackground) + ";"
+                    : null);
             }
             boolean expanded = expandedExplain.contains(item.pane());
             explainArea.setText(expanded ? explainTexts.getOrDefault(item.pane(), "") : "");
@@ -900,7 +919,14 @@ public class CodingAgentPanel extends BorderPane {
             }
         }
 
+        void applySelectionStyle() {
+            setStyle(isSelected()
+                ? "-fx-background-color: derive(" + background + ", " + (lightBackground ? "-8%" : "10%") + ");"
+                : null);
+        }
+
         void applyPalette() {
+            applySelectionStyle();
             CodingAgentEntry current = entry;
             CodingAgentState state = current != null ? current.state() : null;
             String stateColor = CodingAgentStripSupport.colorHex(state, lightBackground);
