@@ -457,12 +457,10 @@ pages:
     last_synced_ref: "0dad374"
   - path: app-docs/site/docs/en/reference/cli.md
     owns_i18n: []
-    # src/main/java/de/kortty/cli belongs on this list and is left off only because the package does
-    # not exist on disk yet — doc-links.py hard-fails on an owns_code path that is not there, and a
-    # missing path would make the page read as permanently clean. Add it in the change that lands the
-    # CLI package. What is listed is what governs the launcher itself: its jpackage declaration and
-    # the three packagings that install or link it.
+    # The CLI source plus what governs the launcher itself: its jpackage declaration and the three
+    # packagings that install or link it.
     owns_code:
+      - src/main/java/de/kortty/cli
       - build.gradle.kts
       - package/flatpak/kortty-cli-flatpak
       - package/arch/PKGBUILD
