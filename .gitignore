@@ -18,6 +18,10 @@ test-output/
 # Claude Code local (machine-specific) settings
 .claude/settings.local.json
 
+# Claude Code agent worktrees: throwaway git checkouts the agent harness creates
+# while running work in isolation. They are working state, never repository content.
+.claude/worktrees/
+
 # Codex/AI agent local configuration
 .agents/
 
