@@ -120,7 +120,11 @@ Patterns match the host string exactly as configured in the connection — korTT
 | `teamwork` | string | `allow`, `deny` | Teamwork shared-connections sync (service is not started, menu locked) |
 | `plugins` | string | `allow`, `deny` | Plugin loading and the Plugins menu (e.g. terminal effects) |
 | `session-journal` | string | `allow`, `deny` | The [session journal](../features/session-journal.md): capture, journal bar, manager, viewer and exports. Not chained to `ai` — with AI denied the journal still records raw activity |
+| `control-api` | string | `allow`, `deny` | The [control API](control-api.md) and its `kortty-cli` client: `deny` stops the listener, locks the Settings checkbox and forces the setting off. Not chained to `ai` — the API is local automation, not an AI capability |
 | `ai-agent-execution` | string | `allow`, `confirm`, `read-only` | `confirm` forces interactive approval of every mutating command set and defeats the auto-approve option; `read-only` lets the agent plan and chat but never execute commands |
+
+!!! note "Naming a feature takes it over, whichever way you decide it"
+    A policy file that mentions a key locks the corresponding control, in the position the policy chose. Writing `control-api = "allow"` therefore locks the checkbox **on** — users can no longer switch the API off themselves. Leave the key out entirely to leave the choice with the user; write `deny` to take it away.
 
 ### `[rule.security]`
 

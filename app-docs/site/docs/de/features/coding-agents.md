@@ -231,6 +231,10 @@ Agents ändern ihre Oberflächen häufig, und eine Regel, die letzten Monat gepa
 
 Das Repository liefert genau dafür einen Recorder mit: `scripts/capture-coding-agent-fixtures.py` führt einen Agent in einem Pseudo-Terminal aus und reicht Ihre Tastatur durch, sodass sich die Sitzung wie ein normales Terminal verhält. Drücken Sie ++f12++ in jedem interessanten Moment – beim Berechtigungsdialog, beim Spinner, bei der leeren Eingabeaufforderung –, und der sichtbare Bildschirm wird in eine Fixture-Datei geschrieben; ++ctrl+bracket-right++ beendet die Aufzeichnung. Jede Datei beginnt mit einer Zeile `#! expect state=REVIEW rule=REVIEW`: Tragen Sie dort den erwarteten Zustand und die Regel-ID ein und legen Sie die Datei unter `src/test/resources/coding-agents/<kind>/` ab (`claude-code`, `codex` oder `gemini-cli`). Von da an sichert die Testsuite die Regel gegen diesen Bildschirm, und eine Regeländerung, die ihn brechen würde, fällt vor dem Release auf.
 
+## Agents per Skript steuern
+
+Alles, was das Coding-Agents-Panel tut – Agents auflisten, ihren Zustand lesen, sie anweisen, ihre Rückfragen beantworten, sie umbenennen, einen neuen in einem geteilten Bereich starten – ist auch aus einem lokalen Skript oder von einem anderen Coding-Agent aus über korTTYs [Steuerungs-API](../reference/control-api.md) und deren Client [`kortty-cli`](../reference/cli.md) erreichbar. Sie ist standardmäßig aus; die `agent.*`-Befehle brauchen einen erkannten Agent, also muss auch die Erkennung eingeschaltet sein.
+
 ## Einschränkungen und Fehlerbehebung
 
 - **Flatpak.** Im Flatpak-Paket läuft die lokale Shell über `flatpak-spawn` auf dem Host, sodass die Prozess-ID, die korTTY hält, zum Helfer auf der Sandbox-Seite gehört und der Prozessbaum des Agents nicht sichtbar ist. In lokalen Flatpak-Shells wird kein Agent erkannt.

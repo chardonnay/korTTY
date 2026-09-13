@@ -120,7 +120,11 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
 | `teamwork` | Zeichenfolge | `allow`, `deny` | Synchronisierung freigegebener Teamwork-Verbindungen (Dienst ist nicht gestartet, Menü gesperrt) |
 | `plugins` | Zeichenfolge | `allow`, `deny` | Laden des Plugins und Plugins-Menü (z. B. Terminaleffekte) |
 | `session-journal` | Zeichenfolge | `allow`, `deny` | The [session journal](../features/session-journal.md): Erfassung, Journalleiste, Manager, Viewer und Exporte. Nicht angekettet `ai` – Auch wenn die KI verweigert wird, zeichnet das Journal immer noch Rohaktivitäten auf |
+| `control-api` | Zeichenfolge | `allow`, `deny` | Die [Steuerungs-API](control-api.md) und ihr Client `kortty-cli`: `deny` beendet den Listener, sperrt das Kontrollkästchen in den Einstellungen und erzwingt die Einstellung aus. Nicht an `ai` gekoppelt – die API ist lokale Automatisierung, keine KI-Funktion |
 | `ai-agent-execution` | Zeichenfolge | `allow`, `confirm`, `read-only` | `confirm` erzwingt die interaktive Genehmigung jedes mutierenden Befehlssatzes und deaktiviert die Option zur automatischen Genehmigung; `read-only` lässt den Agenten planen und chatten, aber niemals Befehle ausführen |
+
+!!! note "Eine genannte Funktion wird übernommen, egal wie entschieden"
+    Eine Richtliniendatei, die einen Schlüssel erwähnt, sperrt das zugehörige Bedienelement – und zwar in der Stellung, die die Richtlinie gewählt hat. `control-api = "allow"` sperrt das Kontrollkästchen also **eingeschaltet**; Benutzer können die API dann nicht mehr selbst abschalten. Lassen Sie den Schlüssel ganz weg, um die Wahl beim Benutzer zu belassen, und schreiben Sie `deny`, um sie zu entziehen.
 
 ### `[rule.security]`
 

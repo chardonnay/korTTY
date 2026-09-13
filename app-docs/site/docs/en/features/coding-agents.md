@@ -231,6 +231,10 @@ Agents change their interfaces often, and a rule that matched last month may sil
 
 The repository ships a recorder for exactly this purpose: `scripts/capture-coding-agent-fixtures.py` runs an agent inside a pseudo-terminal and passes your keyboard through, so the session behaves like a normal terminal. Press ++f12++ at every interesting moment — the permission dialog, the spinner, the empty prompt — and the visible screen is written to a fixture file; ++ctrl+bracket-right++ stops the recording. Each file starts with a `#! expect state=REVIEW rule=REVIEW` line: set the state and rule id you expect there, and drop the file into `src/test/resources/coding-agents/<kind>/` (`claude-code`, `codex` or `gemini-cli`). From then on the test suite guards the rule against that screen, and a rule change that would break it is caught before release.
 
+## Driving agents from a script
+
+Everything the Coding Agents panel does — listing agents, reading their state, prompting them, answering their questions, renaming them, starting a new one in a split pane — is also reachable from a local script or another coding agent through korTTY's [control API](../reference/control-api.md) and its [`kortty-cli`](../reference/cli.md) client. It is off by default; the `agent.*` commands need a detected agent, so they need detection switched on as well.
+
 ## Limitations and troubleshooting
 
 - **Flatpak.** In the Flatpak package the local shell runs on the host through `flatpak-spawn`, so the process ID korTTY holds belongs to the sandbox-side helper and the agent's process tree is not visible. No agent is detected in Flatpak local shells.

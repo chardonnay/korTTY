@@ -34,6 +34,9 @@ KorTTY stores all application data and configuration under the `~/.kortty/` dire
 ├── master.autounlock                  # Optional auto-login password (obfuscated; owner-only)
 ├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
 ├── coding-agents/                     # User overrides for coding-agent detection rules
+├── control/                           # Control API endpoint (owner-only 0700; only while enabled)
+│   ├── control.sock                   # Unix socket (Linux/macOS); absent on Windows
+│   └── endpoint.json                  # Transport, port and access token (0600); deleted on exit
 ├── kortty.log                         # Application log file
 ├── history/                           # Terminal session history (compressed)
 ├── journals/                          # Session journals (one directory per journal)

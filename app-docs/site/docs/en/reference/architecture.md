@@ -36,6 +36,8 @@ KorTTY is organized into distinct functional modules. The diagram below groups t
 | **plugin** | Terminal effect plugins (ServiceLoader SPI) | `TerminalEffectPlugin`, `TerminalEffectSession` |
 | **power** | Activity-aware sleep and App Nap management per platform | `PowerManagementCoordinator`, `MacPowerManagementBackend` |
 | **telemetry** | Consent-gated anonymous usage events | `TelemetryService`, `Telemetry` |
+| **control** | Default-off local control API: transport, token, verbs, event bus (see [Control API](control-api.md)) | `ControlApiServer`, `ControlVerbs`, `ControlSurface`, `ControlEventBus`, `ControlApiGate` |
+| **cli** | The `kortty-cli` client that speaks the control API (see [Control CLI](cli.md)) | `KorttyCli` |
 | **teamwork** | Collaboration and remote access features | Team-based session sharing and coordination |
 | **jmx** | Java Management Extensions monitoring | `SSHClientMonitor`, `SSHClientMonitorMBean` |
 | **update** | Version checking and update notifications | Update service and version metadata |
