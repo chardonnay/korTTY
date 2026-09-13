@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Coding agents — from the pane to dashboard, panel, strip, badge and notifier</title>
+  <desc id="desc">A local shell pane's screen and shell process are watched by a per-pane monitor; the detection service publishes state changes on the JavaFX thread into the registry, which computes the effective state (done until seen), per-tab rollups and the summary. The registry fans out to the dashboard marks, the Coding Agents panel, the status strip and tab titles, the app-icon badge and the desktop notifier. Quick keys and prompts from the panel and the dashboard go through the actions verbs back into the pane's own terminal connection. The UI bridge answers the ports (focus, location, pane access, stage icons and title) over the open windows.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker>
+    <marker id="arrowdash" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#64748b"/></marker>
+    <style>
+      text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}
+      .bg{fill:#07111d}
+      .box{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:12}
+      .title{font-size:28px;font-weight:700;fill:#f8fafc}
+      .subtitle{font-size:14px;fill:#b9c8da}
+      .small{font-size:13px;fill:#b9c8da}
+      .label{font-size:17px;font-weight:700;fill:#f8fafc;text-anchor:middle}
+      .note{font-size:13px;fill:#b9c8da;text-anchor:middle}
+      .line{stroke:#67e8f9;stroke-width:2.6;fill:none;marker-end:url(#arrow)}
+      .bus{stroke:#67e8f9;stroke-width:2.6;fill:none}
+      .dash{stroke:#64748b;stroke-width:2.2;stroke-dasharray:7 7;fill:none;marker-end:url(#arrowdash)}
+      .secure{stroke:#f59e0b}
+      .state{stroke:#34d399}
+      .ai{stroke:#a78bfa}
+      .service{stroke:#60a5fa}
+      .glyph{font-size:15px;fill:#f59e0b;text-anchor:middle}
+      .bold{font-weight:700}
+    </style>
+  </defs>
+  <rect class="bg" width="1280" height="720"/>
+
+  <text class="title" x="40" y="52">Coding agents — from the pane to every surface</text>
+  <text class="subtitle" x="40" y="78">Detection stays on a background scheduler; everything from the registry onwards runs on the JavaFX thread and reaches the windows only through the UI bridge's ports.</text>
+
+  <!-- Row A: pane → monitor → service → registry -->
+  <rect class="box secure" x="40" y="120" width="260" height="96"/>
+  <text class="label" x="170" y="150">Local shell pane</text>
+  <text class="note" x="170" y="172">visible screen + shell process</text>
+  <text class="note" x="170" y="192">Claude Code · Codex · Gemini CLI</text>
+
+  <rect class="box service" x="380" y="120" width="250" height="96"/>
+  <text class="label" x="505" y="150">CodingAgentMonitor</text>
+  <text class="note" x="505" y="172">one per pane · coalesces output</text>
+  <text class="note" x="505" y="192">process tree + screen rules</text>
+
+  <rect class="box service" x="710" y="120" width="230" height="96"/>
+  <text class="label" x="825" y="150">CodingAgentService</text>
+  <text class="note" x="825" y="172">DETECTED · STATE_CHANGED · …</text>
+  <text class="note" x="825" y="192">published via Platform.runLater</text>
+
+  <rect class="box state" x="1020" y="120" width="220" height="96"/>
+  <text class="label" x="1130" y="150">CodingAgentRegistry</text>
+  <text class="note" x="1130" y="172">effective state · done until seen</text>
+  <text class="note" x="1130" y="192">tab rollups · summary · aliases</text>
+
+  <path class="line" d="M300 168 H378"/>
+  <path class="line" d="M630 168 H708"/>
+  <path class="line" d="M940 168 H1018"/>
+
+  <!-- Bus from the registry to the surfaces -->
+  <path class="bus" d="M1130 216 V270 H150"/>
+  <path class="line" d="M150 270 V328"/>
+  <path class="line" d="M400 270 V328"/>
+  <path class="line" d="M650 270 V328"/>
+  <path class="line" d="M900 270 V328"/>
+  <path class="line" d="M1130 270 V328"/>
+  <text class="small" x="620" y="258">one registry listener (the UI bridge) fans every change out to all windows</text>
+
+  <!-- Row B: surfaces -->
+  <rect class="box" x="40" y="330" width="220" height="96"/>
+  <text class="label" x="150" y="360">Dashboard</text>
+  <text class="note" x="150" y="382">chips · accent bars · rollups</text>
+  <text class="note" x="150" y="402">pane rows · auto-expand</text>
+
+  <rect class="box" x="290" y="330" width="220" height="96"/>
+  <text class="label" x="400" y="360">Coding Agents panel</text>
+  <text class="note" x="400" y="382">rows · quick keys · prompt box</text>
+  <text class="note" x="400" y="402">Explain · Rename · Next blocked</text>
+
+  <rect class="box" x="540" y="330" width="220" height="96"/>
+  <text class="label" x="650" y="360">Status strip · tab title</text>
+  <text class="note" x="650" y="382">✋ 1 · ⚡ 2 · ✓ 1 in the status bar</text>
+  <text class="note" x="650" y="402">✋ ⚡ ⏸ ✓ merged into the title</text>
+
+  <rect class="box" x="790" y="330" width="220" height="96"/>
+  <text class="label" x="900" y="360">App icon badge</text>
+  <text class="note" x="900" y="382">Dock · Windows icon · launcher</text>
+  <text class="note" x="900" y="402">title fallback “(2) KorTTY”</text>
+
+  <rect class="box" x="1020" y="330" width="220" height="96"/>
+  <text class="label" x="1130" y="360">Desktop notifier</text>
+  <text class="note" x="1130" y="382">needs a decision · finished</text>
+  <text class="note" x="1130" y="402">only for panes not looked at</text>
+
+  <!-- Row C: actions back into the pane, bridge ports -->
+  <rect class="box ai" x="290" y="520" width="220" height="90"/>
+  <text class="label" x="400" y="550">CodingAgentActions</text>
+  <text class="note" x="400" y="572">y · n · Enter · Esc · ↑ ↓ · Ctrl+C</text>
+  <text class="note" x="400" y="592">prompt (bracketed paste aware)</text>
+
+  <path class="line" d="M400 426 V518"/>
+  <path class="line" d="M150 426 V470 H290 V520"/>
+  <path class="dash" d="M290 565 H150 V218"/>
+  <text class="small" x="60" y="500">writes to the pane's own</text>
+  <text class="small" x="60" y="518">terminal connection —</text>
+  <text class="small" x="60" y="536">the same path as a key press</text>
+
+  <rect class="box state" x="640" y="520" width="600" height="90"/>
+  <text class="label" x="940" y="550">CodingAgentUiBridge — the ports over MainWindow.getOpenWindows()</text>
+  <text class="note" x="940" y="572">FocusOracle (is the pane seen?) · PaneLocator (window › tab › pane · cwd) · PaneAccess (connector, DECSET 2004)</text>
+  <text class="note" x="940" y="592">PaneFocuser (jump to a pane) · StageIconPresenter and TitleBadgePresenter (badge on every window)</text>
+
+  <path class="dash" d="M900 426 V518"/>
+  <path class="dash" d="M1130 426 V518"/>
+  <path class="dash" d="M510 565 H638"/>
+
+  <text class="small" x="40" y="660">Done until seen: an agent that returns from working to its prompt while its pane is not selected and focused in the front window stays ✓ until you look at it.</text>
+  <text class="small" x="40" y="682">Settings → Terminal → Coding agents: detection, desktop notifications and the app-icon badge each have their own toggle; panel placement and width follow View → Coding Agents.</text>
+</svg>

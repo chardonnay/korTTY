@@ -180,6 +180,22 @@ public class GlobalSettings {
     @XmlElement
     private boolean codingAgentDetectionEnabled = true; // Detect Claude Code / Codex / Gemini CLI in local shell panes
 
+    /** Desktop notification when a coding agent becomes BLOCKED or finishes in a pane the user is not looking at. */
+    @XmlElement
+    private boolean codingAgentNotificationsEnabled = true;
+
+    /** App-icon badge with the number of coding agents waiting for a decision (window-title fallback). */
+    @XmlElement
+    private boolean codingAgentAppBadgeEnabled = true;
+
+    /** Where the Coding Agents panel is docked: HIDDEN (default), LEFT or RIGHT (View-menu state, like the journal panel). */
+    @XmlElement
+    private String codingAgentPanelPlacement = "HIDDEN";
+
+    /** Persisted width of the docked Coding Agents panel (null = default). */
+    @XmlElement
+    private Double codingAgentPanelWidth;
+
     @XmlElement
     private String sessionJournalStoragePath; // Blank/null = ~/.kortty/journals
 
@@ -1486,6 +1502,56 @@ public class GlobalSettings {
 
     public void setCodingAgentDetectionEnabled(boolean codingAgentDetectionEnabled) {
         this.codingAgentDetectionEnabled = codingAgentDetectionEnabled;
+    }
+
+    public boolean isCodingAgentNotificationsEnabled() {
+        return codingAgentNotificationsEnabled;
+    }
+
+    public void setCodingAgentNotificationsEnabled(boolean enabled) {
+        this.codingAgentNotificationsEnabled = enabled;
+    }
+
+    public boolean isCodingAgentAppBadgeEnabled() {
+        return codingAgentAppBadgeEnabled;
+    }
+
+    public void setCodingAgentAppBadgeEnabled(boolean enabled) {
+        this.codingAgentAppBadgeEnabled = enabled;
+    }
+
+    /**
+     * Allowed range and default for the docked Coding Agents panel width; aliases of
+     * {@link de.kortty.codingagent.CodingAgentPanelDefaults} so the dock manager, the settings
+     * model and the panel agree on one source of truth.
+     */
+    public static final double CODING_AGENT_PANEL_MIN_WIDTH = de.kortty.codingagent.CodingAgentPanelDefaults.MIN_WIDTH;
+    public static final double CODING_AGENT_PANEL_MAX_WIDTH = de.kortty.codingagent.CodingAgentPanelDefaults.MAX_WIDTH;
+    public static final double CODING_AGENT_PANEL_DEFAULT_WIDTH =
+        de.kortty.codingagent.CodingAgentPanelDefaults.DEFAULT_WIDTH;
+
+    /** Coding Agents panel placement: "HIDDEN" (default), "LEFT" or "RIGHT". */
+    public String getCodingAgentPanelPlacement() {
+        return codingAgentPanelPlacement != null ? codingAgentPanelPlacement : "HIDDEN";
+    }
+
+    public void setCodingAgentPanelPlacement(String placement) {
+        this.codingAgentPanelPlacement = placement;
+    }
+
+    /** Docked Coding Agents panel width, clamped to the allowed range (default 380). */
+    public double getCodingAgentPanelWidth() {
+        double value = codingAgentPanelWidth != null ? codingAgentPanelWidth : CODING_AGENT_PANEL_DEFAULT_WIDTH;
+        if (Double.isNaN(value)) {
+            value = CODING_AGENT_PANEL_DEFAULT_WIDTH;
+        }
+        return Math.max(CODING_AGENT_PANEL_MIN_WIDTH, Math.min(value, CODING_AGENT_PANEL_MAX_WIDTH));
+    }
+
+    public void setCodingAgentPanelWidth(double width) {
+        double value = Double.isNaN(width) ? CODING_AGENT_PANEL_DEFAULT_WIDTH : width;
+        this.codingAgentPanelWidth = Math.max(CODING_AGENT_PANEL_MIN_WIDTH,
+            Math.min(value, CODING_AGENT_PANEL_MAX_WIDTH));
     }
 
     public String getSessionJournalStoragePath() {

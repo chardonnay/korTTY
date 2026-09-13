@@ -35,6 +35,8 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++ctrl+alt+t++ | Starten/stoppen Sie das Sitzungsjournal des aktiven Tabs |
 | ++ctrl+alt+c++ | Fügen Sie dem Protokoll der laufenden Sitzung einen Screenshot hinzu |
 | ++ctrl+alt+l++ | Blenden Sie das Live-Journal-Panel auf der zuletzt verwendeten Seite ein/aus |
+| ++ctrl+alt+g++ | Blenden Sie das Coding-Agents-Panel auf der zuletzt verwendeten Seite ein/aus |
+| ++ctrl+alt+n++ | Springen Sie zum nächsten Coding-Agent, der auf eine Entscheidung wartet, über Fenster hinweg |
 | ++ctrl+shift+a++ | ASCII-Art |
 | ++ctrl+shift+y++ | Öffnen Sie KI-Manager |
 | ++ctrl+alt+a++ | Öffnen Sie AI Agent |

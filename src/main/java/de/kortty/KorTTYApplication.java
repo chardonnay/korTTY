@@ -15,8 +15,20 @@ import de.kortty.core.ThemeManager;
 import de.kortty.core.TerminalEffectPluginManager;
 import de.kortty.core.BackupManager;
 import de.kortty.codingagent.AgentRuleRepository;
+import de.kortty.codingagent.CodingAgentActions;
 import de.kortty.codingagent.CodingAgentDetector;
+import de.kortty.codingagent.CodingAgentNavigator;
+import de.kortty.codingagent.CodingAgentNotificationCoordinator;
+import de.kortty.codingagent.CodingAgentRegistry;
 import de.kortty.codingagent.CodingAgentService;
+import de.kortty.codingagent.FocusOracle;
+import de.kortty.codingagent.desktop.AppBadgeBackends;
+import de.kortty.codingagent.desktop.AppBadgeService;
+import de.kortty.codingagent.desktop.DesktopNotifier;
+import de.kortty.codingagent.desktop.PlatformProbe;
+import de.kortty.codingagent.desktop.StageIconPresenter;
+import de.kortty.codingagent.desktop.TitleBadgePresenter;
+import de.kortty.ui.CodingAgentUiBridge;
 import de.kortty.core.AiChatManager;
 import de.kortty.core.SwarmChatManager;
 import de.kortty.teamwork.TeamworkSyncService;
@@ -92,6 +104,15 @@ public class KorTTYApplication extends Application {
     private ThemeManager themeManager;
     private TerminalEffectPluginManager terminalEffectPluginManager;
     private CodingAgentService codingAgentService;
+    // Coding-agent UI services (Stage 2): registry + verbs + navigation + notifications + badge.
+    private CodingAgentRegistry codingAgentRegistry;
+    private CodingAgentActions codingAgentActions;
+    private CodingAgentNavigator codingAgentNavigator;
+    private CodingAgentNotificationCoordinator codingAgentNotificationCoordinator;
+    private AppBadgeService appBadgeService;
+    private java.util.concurrent.ExecutorService appBadgeExecutor;
+    private DesktopNotifier desktopNotifier;
+    private CodingAgentUiBridge codingAgentUiBridge;
     private BackupManager backupManager;
     private AiChatManager aiChatManager;
     private SwarmChatManager swarmChatManager;
@@ -211,6 +232,7 @@ public class KorTTYApplication extends Application {
             },
             Platform::runLater,
             CodingAgentService.defaultScheduler());
+        initCodingAgentUiServices();
         aiChatManager = new AiChatManager(configDir);
         swarmChatManager = new SwarmChatManager(configDir);
         sessionJournalService = new de.kortty.core.SessionJournalService();
@@ -456,6 +478,7 @@ public class KorTTYApplication extends Application {
             // Create and show main window
             MainWindow mainWindow = new MainWindow(primaryStage);
             mainWindow.show();
+            startCodingAgentUi();
             startLlamaRuntimeUpdateCoordinator();
             // Register/download admin-provisioned local AI models in the background.
             new de.kortty.policy.PolicyRuntimeProvisioner(getConfigDirectory()).provisionAsync();
@@ -582,6 +605,20 @@ public class KorTTYApplication extends Application {
         // independent and individually guarded: Runtime.halt(0) (in shutdownAndExit)
         // skips the JVM shutdown hooks, so this is the only chance to flush state —
         // one manager failing must not skip the remaining saves/stops.
+        if (codingAgentUiBridge != null) {
+            shutdownStep("stop coding agent UI bridge", codingAgentUiBridge::stop);
+        }
+        if (desktopNotifier != null) {
+            shutdownStep("stop desktop notifier", desktopNotifier::close);
+        }
+        if (appBadgeService != null) {
+            shutdownStep("stop app badge", () -> {
+                appBadgeService.close();
+                if (appBadgeExecutor != null) {
+                    appBadgeExecutor.shutdownNow();
+                }
+            });
+        }
         if (codingAgentService != null) {
             shutdownStep("stop coding agent detection", codingAgentService::stop);
         }
@@ -1151,6 +1188,148 @@ public class KorTTYApplication extends Application {
     /** Coding-agent detection for local shell panes; null before {@code init()} (e.g. in unit tests). */
     public CodingAgentService getCodingAgentService() {
         return codingAgentService;
+    }
+
+    /**
+     * Builds the Stage-2 coding-agent UI services on top of the detection service: the FX-thread
+     * registry, the desktop badge and notifier with their bridge to the windows, the notification
+     * policy, the verbs and the cross-window navigator. The bridge implements every port the
+     * services need but is constructed last, so the badge and the coordinator reach it through
+     * forwarding adapters over a holder.
+     */
+    private void initCodingAgentUiServices() {
+        try {
+            codingAgentRegistry = new CodingAgentRegistry(FocusOracle.NEVER, System::currentTimeMillis,
+                Platform::isFxApplicationThread);
+            codingAgentService.addListener(codingAgentRegistry::onEvent);
+            java.util.concurrent.atomic.AtomicReference<CodingAgentUiBridge> bridgeRef =
+                new java.util.concurrent.atomic.AtomicReference<>();
+            PlatformProbe probe = PlatformProbe.fromSystem();
+            desktopNotifier = DesktopNotifier.createDefault(probe);
+            appBadgeExecutor = java.util.concurrent.Executors.newSingleThreadExecutor(runnable -> {
+                Thread thread = new Thread(runnable, "kortty-app-badge");
+                thread.setDaemon(true);
+                return thread;
+            });
+            StageIconPresenter stageIcons = new StageIconPresenter() {
+                @Override
+                public void applyBadgedIcon(javafx.scene.image.Image icon) {
+                    CodingAgentUiBridge bridge = bridgeRef.get();
+                    if (bridge != null) {
+                        bridge.applyBadgedIcon(icon);
+                    }
+                }
+
+                @Override
+                public void restorePlainIcon() {
+                    CodingAgentUiBridge bridge = bridgeRef.get();
+                    if (bridge != null) {
+                        bridge.restorePlainIcon();
+                    }
+                }
+            };
+            TitleBadgePresenter titles = count -> {
+                CodingAgentUiBridge bridge = bridgeRef.get();
+                if (bridge != null) {
+                    bridge.applyTitleCount(count);
+                }
+            };
+            appBadgeService = new AppBadgeService(
+                AppBadgeBackends.createDefault(probe, stageIcons, appBadgeExecutor),
+                titles,
+                () -> {
+                    GlobalSettings current = globalSettingsManager.getSettings();
+                    return current == null || current.isCodingAgentAppBadgeEnabled();
+                });
+            FocusOracle focus = new FocusOracle() {
+                @Override
+                public boolean isSeen(de.kortty.codingagent.PaneRef pane) {
+                    CodingAgentUiBridge bridge = bridgeRef.get();
+                    return bridge != null && bridge.isSeen(pane);
+                }
+
+                @Override
+                public boolean isAnyWindowFocused() {
+                    CodingAgentUiBridge bridge = bridgeRef.get();
+                    return bridge != null && bridge.isAnyWindowFocused();
+                }
+            };
+            CodingAgentNotificationCoordinator.Sink sink = (entry, state, anyWindowFocused) -> {
+                CodingAgentUiBridge bridge = bridgeRef.get();
+                if (bridge != null) {
+                    bridge.notificationSink().notify(entry, state, anyWindowFocused);
+                }
+            };
+            codingAgentNotificationCoordinator = new CodingAgentNotificationCoordinator(
+                codingAgentRegistry,
+                focus,
+                () -> {
+                    GlobalSettings current = globalSettingsManager.getSettings();
+                    return current == null || current.isCodingAgentNotificationsEnabled();
+                },
+                sink,
+                System::currentTimeMillis);
+            codingAgentUiBridge = new CodingAgentUiBridge(codingAgentRegistry, appBadgeService,
+                codingAgentNotificationCoordinator, desktopNotifier, MainWindow::getOpenWindows,
+                globalSettingsManager::getSettings);
+            bridgeRef.set(codingAgentUiBridge);
+            codingAgentActions = new CodingAgentActions(codingAgentRegistry, codingAgentUiBridge,
+                CodingAgentActions.AuditSink.LOGGING);
+            codingAgentNavigator = new CodingAgentNavigator(codingAgentRegistry, codingAgentUiBridge,
+                codingAgentUiBridge);
+            codingAgentRegistry.setFocusOracle(codingAgentUiBridge);
+        } catch (RuntimeException e) {
+            logger.warn("Coding-agent UI services could not be initialised: {}", e.toString());
+        }
+    }
+
+    /** Starts the coding-agent UI bridge once the first window exists; FX thread. */
+    private void startCodingAgentUi() {
+        if (codingAgentUiBridge == null) {
+            return;
+        }
+        try {
+            codingAgentUiBridge.start();
+            if (codingAgentService != null && codingAgentRegistry != null) {
+                codingAgentRegistry.seed(codingAgentService.snapshot());
+            }
+            if (appBadgeService != null) {
+                // Clear a badge left over by a previous session that ended without a clean exit.
+                appBadgeService.update(0, false);
+            }
+        } catch (RuntimeException e) {
+            logger.warn("Coding-agent UI could not be started: {}", e.toString());
+        }
+    }
+
+    /** The FX-thread registry of detected coding agents; null before {@code init()}. */
+    public CodingAgentRegistry getCodingAgentRegistry() {
+        return codingAgentRegistry;
+    }
+
+    /** The verbs (send keys, prompt, explain, rename) against a coding agent; null before {@code init()}. */
+    public CodingAgentActions getCodingAgentActions() {
+        return codingAgentActions;
+    }
+
+    /** Cross-window "next blocked agent" navigation; null before {@code init()}. */
+    public CodingAgentNavigator getCodingAgentNavigator() {
+        return codingAgentNavigator;
+    }
+
+    /** The app-icon badge service (FX thread); null before {@code init()}. */
+    public AppBadgeService getAppBadgeService() {
+        return appBadgeService;
+    }
+
+    /** The desktop notifier; null before {@code init()}. */
+    public DesktopNotifier getDesktopNotifier() {
+        return desktopNotifier;
+    }
+
+    /** The bridge between the coding-agent services and the open windows; null before {@code init()}. */
+    public CodingAgentUiBridge getCodingAgentUiBridge() {
+        return codingAgentUiBridge;
     }
 
     public AiChatManager getAiChatManager() {

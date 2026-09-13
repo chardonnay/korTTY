@@ -37,6 +37,8 @@ public final class TelemetryEvents {
     public static final String FILE_BROWSER_TOGGLED = "file_browser_toggled";
     public static final String FILE_BROWSER_ACTION = "file_browser_action";
     public static final String JOURNAL_LIVE_PANEL_TOGGLED = "journal_live_panel_toggled";
+    public static final String CODING_AGENT_PANEL_TOGGLED = "coding_agent_panel_toggled";
+    public static final String CODING_AGENT_ACTION = "coding_agent_action";
     public static final String JOURNAL_AI_ASK = "journal_ai_ask";
     public static final String JOURNAL_AI_CROSS_SEARCH = "journal_ai_cross_search";
 

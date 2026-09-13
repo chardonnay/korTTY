@@ -4,7 +4,9 @@ title: Coding-Agents
 
 # Coding-Agents
 
-KorTTY erkennt, wenn ein terminalbasierter Coding-Agent – **Claude Code**, **Codex** oder **Gemini CLI** – in einer Ihrer [lokalen Shell-Registerkarten](terminal.md#lokale-shell-registerkarten) läuft, und verfolgt, was er gerade tut: arbeiten, auf Ihre Antwort warten oder untätig an seiner Eingabeaufforderung stehen. Die Analyse findet vollständig innerhalb von korTTY auf Ihrem eigenen Rechner statt. Diese Seite erklärt, was erkannt wird, wie die Erkennung funktioniert, wie Sie sie abschalten und wie Sie die Bildschirmregeln anpassen oder erweitern, wenn ein Agent seine Benutzeroberfläche ändert.
+KorTTY erkennt, wenn ein terminalbasierter Coding-Agent – **Claude Code**, **Codex** oder **Gemini CLI** – in einer Ihrer [lokalen Shell-Registerkarten](terminal.md#lokale-shell-registerkarten) läuft, und verfolgt, was er gerade tut: arbeiten, auf Ihre Antwort warten, fertig sein oder untätig an seiner Eingabeaufforderung stehen. Die Analyse findet vollständig innerhalb von korTTY auf Ihrem eigenen Rechner statt. Was sie findet, wird überall dort angezeigt, wo Sie hinsehen: als Symbol im Registerkartentitel, als Chips und Akzente im Dashboard, in einem andockbaren **Coding-Agents**-Panel mit Schnellantworten und Prompt-Feld, als Streifen in der Statusleiste, als Zähler am App-Symbol und – wenn Sie den Bereich gerade nicht ansehen – als Desktop-Benachrichtigung. Diese Seite erklärt, was erkannt wird, wie jede dieser Oberflächen funktioniert, wie Sie Dinge abschalten und wie Sie die Bildschirmregeln anpassen oder erweitern, wenn ein Agent seine Benutzeroberfläche ändert.
+
+![Coding-Agents – vom Bildschirm des Bereichs zu Dashboard, Panel, Statusstreifen, App-Badge und Benachrichtigung](../assets/diagrams/coding-agents.svg)
 
 ## Was erkannt wird
 
@@ -25,10 +27,52 @@ Ein erkannter Agent befindet sich immer in genau einem von fünf Zuständen. Die
 | Zustand | Bedeutung |
 |-------|---------|
 | **BLOCKED** | Der Agent wartet auf Sie – ein Berechtigungsdialog (*Do you want to proceed?*), eine Fragenauswahl oder eine `(y/n)`-Abfrage steht auf dem Bildschirm. |
-| **DONE** | Der Agent hat eine Aufgabe abgeschlossen und zeigt einen expliziten Abschlussbildschirm. Reserviert für Agents, die einen solchen Bildschirm darstellen, und für das kommende Dashboard; die mitgelieferten Regeln melden ihn noch nicht. |
+| **DONE** | Der Agent ist fertig. Entweder zeigt er einen expliziten Abschlussbildschirm, den eine Regel erkennt, oder – weit häufiger – er ist von WORKING zu seiner leeren Eingabeaufforderung zurückgekehrt, während Sie seinen Bereich nicht angesehen haben. KorTTY hält ihn dann als DONE (✓) markiert, bis Sie den Bereich ansehen; sobald seine Registerkarte ausgewählt und sein Bereich im vordersten Fenster fokussiert ist, wird er IDLE. |
 | **WORKING** | Der Agent denkt nach, führt ein Werkzeug aus oder streamt Ausgabe – typischerweise erkennbar an seiner Spinner-Zeile und dem Hinweis *esc to interrupt*. |
 | **IDLE** | Der Agent läuft und sein Eingabefeld ist leer; er wartet auf Ihre nächste Anweisung. |
 | **UNKNOWN** | Der Agent-Prozess ist vorhanden, aber der Bildschirm passt zu keiner Regel, und die Regeldatei verlangt ein striktes Ergebnis statt eines Fallbacks. |
+
+## Markierung im Dashboard
+
+Öffnen Sie das [Dashboard](../getting-started/main-window.md) über **Ansicht → Dashboard anzeigen** (++ctrl+shift+d++), und jede Verbindungszeile, in der ein Coding-Agent läuft, zeigt hinter dem Protokoll-Badge einen **Chip**: das Zustandssymbol, den Kurznamen des Agents (oder den Alias, den Sie ihm gegeben haben) und – bei einem wartenden, arbeitenden oder fertigen Agent – wie lange er sich schon in diesem Zustand befindet (`✋ claude 2:14`). Ein untätiger Agent erhält einen gedämpften, nur umrandeten Chip, damit Sie trotzdem sehen, dass einer vorhanden ist. Eine Zeile, in der zusätzlich korTTYs eigener KI-Agent läuft, führt beide Markierungen in einem Chip zusammen.
+
+Die Zeile selbst trägt am linken Rand einen farbigen **Akzentbalken** – bernsteinfarben, solange der Agent auf Sie wartet (die Zeile wird zusätzlich eingefärbt), blau, während er arbeitet, grün, wenn er fertig ist – und der Statuspunkt eines wartenden Agents pulsiert, solange das Fenster vorne liegt und Animationen aktiviert sind. Gruppen- und Umgebungszeilen über einer markierten Verbindung zeigen einen **Rollup-Chip** wie `✋ 1 · ⚡ 2` und übernehmen den Akzent ihres dringlichsten Kindes, und die Fußzeile hängt denselben Rollup an die Verbindungszahl an (`3 von 5 verbunden · ✋ 1 · ⚡ 2`), sodass ein wartender Agent auch dann sichtbar ist, wenn seine Gruppe eingeklappt ist.
+
+Eine Registerkarte, in deren geteilten Bereichen zwei oder mehr Agents laufen, erhält unterhalb der Verbindung **Bereichszeilen** (`Bereich 2 · api`, benannt nach dem Arbeitsverzeichnis des Bereichs), eine pro Bereich, damit jeder Agent einzeln erreichbar ist. Wird ein Agent blockiert, **klappt** das Dashboard den Baum einmal pro Übergang bis zu seiner Zeile auf – ein wartender Agent bleibt nie in einer eingeklappten Gruppe verborgen – und respektiert danach *Alle einklappen*.
+
+Das Kontextmenü einer markierten Zeile ergänzt **Bereich fokussieren**, das die Registerkarte auswählt und genau diesen Bereich fokussiert, **Im Coding-Agents-Panel anzeigen**, das das Panel andockt und den Agent auswählt, und – solange der Agent auf Sie wartet – **Enter senden**, **Esc senden** und **Unterbrechen (Strg+C)**, um den Dialog zu beantworten, ohne das Dashboard zu verlassen. Der Registerkartentitel zeigt dasselbe Symbol wie der Chip – ✋ wartend, ⚡ arbeitend, ✓ fertig, zusammengeführt mit dem Symbol von korTTYs eigenem KI-Agent, wo beides zutrifft.
+
+## Das Coding-Agents-Panel
+
+Das Panel listet jeden erkannten Agent aller korTTY-Fenster an einer Stelle. Öffnen Sie es über **Ansicht → Coding-Agents → Links andocken / Rechts andocken**, schalten Sie es mit **Ein-/Ausblenden** (++ctrl+alt+g++) auf seiner zuletzt verwendeten Seite um, über das ⋯-Menü im Panel, über das Kontextmenü des Statusstreifens oder mit *Im Coding-Agents-Panel anzeigen* im Dashboard. Position und Breite bleiben über Neustarts hinweg erhalten. Agents, die auf Sie warten, stehen zuerst (der am längsten wartende oben), danach die arbeitenden, fertigen und untätigen in Fenster-, Registerkarten- und Bereichsreihenfolge; die Zeile des Bereichs, in dem Sie sich gerade befinden, trägt einen linken Akzent.
+
+Jede Zeile zeigt Statuspunkt und Namen, einen Zustands-Chip wie `✋ Wartet auf Sie · 2:14`, die Ortszeile (`Fenster 2 › api › Bereich 2 · ~/proj/api`) und die letzte Bildschirmzeile, auf die eine Regel gepasst hat – die Evidenz. Darunter sitzen die **Schnelltasten**: **Fokussieren** holt den Bereich nach vorne, **y**, **n**, **Enter** und **Esc** beantworten einen Dialog (sie sind hervorgehoben, solange der Agent auf Sie wartet), **↑** und **↓** bewegen sich durch eine Fragenauswahl, **Strg+C** unterbricht, **Erklären** öffnet eine Schublade mit der vollständigen Erkennungserklärung (Agent, Zustand, passende Regel, Evidenz, Prozess und Zeit im Zustand), und **Umbenennen…** gibt dem Agent einen Alias, der seinen Namen in jedem Chip, jeder Zeile und jeder Benachrichtigung ersetzt – ein leerer Alias stellt den Agent-Namen wieder her, und der Alias überlebt ein erneutes Verbinden, wird aber verworfen, wenn der Bereich geschlossen wird. Jede Taste geht an die eigene Terminalverbindung des Bereichs, genau so, als hätten Sie sie dort getippt; die Schaltflächen sind deaktiviert, solange der Bereich nicht verbunden ist.
+
+Das **Prompt-Feld** unten sendet längeren Text an den in der Zielliste ausgewählten Agent: ++enter++ sendet, ++shift+enter++ fügt einen Zeilenumbruch ein. Eine einzelne Zeile wird gefolgt von Enter gesendet. Ein mehrzeiliger Prompt wird in Bracketed Paste eingebettet – der Agent erhält ihn so als einen eingefügten Block statt als mehrere abgeschickte Zeilen –, aber nur, wenn dieser Agent Bracketed Paste eingeschaltet hat, was Claude Code, Codex und Gemini CLI an ihrer Eingabeaufforderung alle tun; andernfalls werden die Zeilen wie getippt gesendet. Zwei Prompts werden mit einer Meldung in der Statuszeile des Panels abgelehnt, statt gesendet zu werden: Solange der Agent **auf eine Entscheidung wartet**, bleibt die Schaltfläche *Senden* deaktiviert, weil der Text im Berechtigungsdialog landen würde – beantworten Sie ihn zuerst mit y, n, Enter oder Esc; und ein Prompt, dessen erste Zeile mit **korTTYs eigenem KI-Kürzel** beginnt (dem unter Einstellungen → KI konfigurierten Befehlsnamen, standardmäßig `agent`), wird zurückgewiesen, weil korTTYs Kürzelfilter diese Zeile an seinen eigenen KI-Agent statt an den Coding-Agent umleiten würde – formulieren Sie die Zeile um. Fehler einer Schnelltaste oder eines Prompts (Bereich geschlossen, nicht verbunden, Schreiben fehlgeschlagen) erscheinen für einige Sekunden in derselben Statuszeile, nie als Dialog, und ein erfolgreicher Versand bestätigt mit *An Claude Code gesendet*.
+
+Die Schaltfläche **Nächster wartender** in der Kopfzeile des Panels springt zum nächsten Agent, der auf Sie wartet, über alle Fenster hinweg und mit Umlauf; es ist dieselbe Aktion wie ++ctrl+alt+n++ und ein Klick auf den Statusstreifen.
+
+## Statusstreifen
+
+Das rechte Ende der Statusleiste zeigt einen kompakten Streifen, solange mindestens ein Coding-Agent bekannt ist: bis zu drei Chips für wartende, arbeitende und fertige Agents (`✋ 1 · ⚡ 2 · ✓ 1`, Nullwerte werden weggelassen), wobei der Punkt der wartenden pulsiert, solange das Fenster vorne liegt. Ein Klick springt zum nächsten Agent, der auf Sie wartet – oder, wenn keiner wartet, zum ersten Agent in Anzeigereihenfolge –, und ein Rechtsklick bietet *Ein-/Ausblenden* für das Panel und *Nächster wartender Agent*. Der Tooltip fasst die Zähler zusammen. Der Streifen verschwindet zusammen mit der Statusleiste, wenn Sie diese unter *Ansicht* ausblenden.
+
+## App-Symbol-Badge und Benachrichtigungen
+
+Die Zahl der Agents, die auf eine Entscheidung warten – über alle Fenster hinweg –, wird als **Badge am App-Symbol** angezeigt, damit Sie sie bemerken, während Sie in einer anderen Anwendung arbeiten. Wie das Badge gezeichnet wird, hängt von der Plattform ab: Unter **macOS** setzt die paketierte App das Dock-Badge; unter **Windows** zeichnet korTTY die Zahl in sein eigenes Taskleisten- und Titelleistensymbol; unter **Linux** sendet es das Launcher-Entry-Signal, das KDE Plasma, Ubuntu Dock und Dash to Dock am Launcher-Symbol darstellen – das braucht eine installierte Desktop-Datei (das deb-, rpm- oder pacman-Paket) und `gdbus`, und im Flatpak-Paket wird das Signal über den Host gesendet. Eine unveränderte GNOME Shell ohne Dock-Erweiterung zeigt überhaupt keine Launcher-Zähler. Wo kein Symbol-Badge verfügbar ist – ein entpacktes Archiv, `./gradlew run`, ein nicht unterstützter Desktop –, weicht korTTY auf den **Fenstertitel** aus, der zu `(2) KorTTY` wird, solange zwei Agents warten, und bei null wieder zu `KorTTY`. Wird ein Agent blockiert, während kein korTTY-Fenster fokussiert ist, fordert die App zusätzlich einmal Aufmerksamkeit an (das Dock-Symbol hüpft, der Launcher-Eintrag wird als dringend markiert).
+
+Eine **Desktop-Benachrichtigung** erscheint, wenn ein Agent eine Entscheidung braucht oder fertig wird, während Sie seinen Bereich nicht ansehen – also solange seine Registerkarte nicht die ausgewählte Registerkarte des vordersten Fensters ist oder sein Bereich nicht der fokussierte ist. Der Titel nennt den Agent (*Claude Code braucht eine Entscheidung*, *Claude Code ist fertig*), der Text zeigt Ort und Arbeitsverzeichnis, gefolgt von der passenden Bildschirmzeile. Ein blockierter Zustand muss einen Moment bestehen bleiben, bevor er gemeldet wird, ein Agent wird höchstens alle zehn Sekunden gemeldet, derselbe Übergang wird nie zweimal gemeldet, und für den Bereich, den Sie gerade ansehen, wird nichts angezeigt. Benachrichtigungen verwenden den eigenen Dienst des Betriebssystems: die Mitteilungszentrale unter **macOS**, die Infobereich-Sprechblase unter **Windows** und `notify-send` unter **Linux** (im Flatpak-Paket über den Host). Nichts verlässt diesen Rechner – der Text ist die Bildschirmzeile, die korTTY ohnehin gelesen hat.
+
+Beide Oberflächen sind standardmäßig eingeschaltet und haben eigene Schalter unter **Einstellungen → Terminal → Coding-Agents** (siehe [Erkennung aktivieren](#erkennung-aktivieren)). Das Abschalten des Badges löscht es sofort; das Abschalten der Benachrichtigungen stoppt neue, ohne das Badge zu berühren.
+
+## Tastenkürzel
+
+| Tastenkürzel | Aktion |
+| --- | --- |
+| ++ctrl+alt+g++ | Coding-Agents-Panel auf seiner zuletzt verwendeten Seite ein- oder ausblenden (standardmäßig rechts) |
+| ++ctrl+alt+n++ | Zum nächsten Coding-Agent springen, der auf eine Entscheidung wartet, über Fenster hinweg |
+| ++enter++ / ++shift+enter++ | Im Prompt-Feld des Panels: Prompt senden / Zeilenumbruch einfügen |
+
+Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 
 ## So funktioniert die Erkennung
 
@@ -44,13 +88,15 @@ Der Bildschirm wird etwa 200 ms nach der ersten Änderung eines Ausgabeschwalls 
 
 ## Erkennung aktivieren
 
-Die Erkennung ist standardmäßig eingeschaltet und wird über einen einzigen Schalter unter **Einstellungen → Terminal**, Abschnitt **Coding-Agents**, gesteuert. Eine Änderung wirkt sofort auf alle offenen Registerkarten – kein Neustart und kein erneutes Verbinden nötig.
+Die Erkennung ist standardmäßig eingeschaltet und wird über drei Schalter unter **Einstellungen → Terminal**, Abschnitt **Coding-Agents**, gesteuert. Eine Änderung wirkt sofort auf alle offenen Registerkarten – kein Neustart und kein erneutes Verbinden nötig.
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
 | Coding-Agents (Claude Code, Codex, Gemini CLI) in lokalen Shell-Tabs erkennen | Schalter | — | Ein | `codingAgentDetectionEnabled` |
+| Desktop-Benachrichtigung, wenn ein Coding-Agent eine Entscheidung braucht oder fertig wird, während Sie seinen Bereich nicht ansehen | Schalter | — | Ein | `codingAgentNotificationsEnabled` |
+| Anzahl der auf eine Entscheidung wartenden Agents am App-Symbol anzeigen | Schalter | — | Ein | `codingAgentAppBadgeEnabled` |
 
-Ist der Schalter aus, durchläuft korTTY weder den Prozessbaum noch liest es den Bildschirm irgendeines Bereichs.
+Ist der Erkennungsschalter aus, durchläuft korTTY weder den Prozessbaum noch liest es den Bildschirm irgendeines Bereichs, und Dashboard-Markierungen, Panel, Streifen, Badge und Benachrichtigungen verstummen alle. Position und Breite des Panels sind keine Optionen des Einstellungsdialogs: Sie folgen dem Menü **Ansicht → Coding-Agents** und werden als `codingAgentPanelPlacement` (`HIDDEN`, `LEFT` oder `RIGHT`) und `codingAgentPanelWidth` gespeichert.
 
 ## Eigene Regeln
 
@@ -175,9 +221,11 @@ Reguläre Ausdrücke verwenden die **Java-Syntax** und werden mit Unicode-Groß-
 
 Die beiden BLOCKED-Regeln kombinieren ein zeilenweises Muster mit einem `regex` über die gesamte Region, sodass ein Berechtigungsdialog nur gemeldet wird, wenn sowohl die Frage als auch ihre Option *1. Yes* auf dem Bildschirm stehen, und eine Fragenauswahl nur zusammen mit ihrer Navigationsfußzeile – die Onboarding-Menüs einer frischen Installation zeigen eine ähnliche Liste, aber keine der beiden Fußzeilen, und dürfen nicht als blockiert zählen. Auch das `notContains`-Veto in den BLOCKED- und IDLE-Regeln ist wichtig: Während Claude Code arbeitet, bleibt seine Statuszeile zusammen mit älterem Dialogtext auf dem Bildschirm, und das Veto verhindert, dass die höher priorisierten Prompt-Regeln auf veraltete Zeilen anspringen.
 
-### Regeln mit den Agents synchron halten
+### Regeln pflegen
 
 Agents ändern ihre Oberflächen häufig, und eine Regel, die letzten Monat gepasst hat, kann nach einem Update stillschweigend nicht mehr passen. Die mitgelieferten Regeln von KorTTY sind deshalb durch **Bildschirm-Fixtures** abgesichert: Für jeden Agent bewahrt das Repository aufgezeichnete Terminalbildschirme mit dem Zustand und der Regel auf, die sie liefern müssen, und die Testsuite schlägt fehl, sobald eine mitgelieferte Regel nicht mehr zu ihrem Fixture passt oder eine Regel gar kein Fixture hat. Wenn Ihnen ein falscher oder fehlender Zustand auffällt, ist der nützlichste Bericht der sichtbare Bildschirmtext des Bereichs in diesem Moment, der Agent samt Version und der von Ihnen erwartete Zustand – daraus werden im nächsten Release ein neues Fixture und eine Regelkorrektur. Bis dahin können Sie die Regel mit einer lokalen Überschreibungsdatei sofort für sich selbst korrigieren.
+
+Das Repository liefert genau dafür einen Recorder mit: `scripts/capture-coding-agent-fixtures.py` führt einen Agent in einem Pseudo-Terminal aus und reicht Ihre Tastatur durch, sodass sich die Sitzung wie ein normales Terminal verhält. Drücken Sie ++f12++ in jedem interessanten Moment – beim Berechtigungsdialog, beim Spinner, bei der leeren Eingabeaufforderung –, und der sichtbare Bildschirm wird in eine Fixture-Datei geschrieben; ++ctrl+bracket-right++ beendet die Aufzeichnung. Jede Datei beginnt mit einer Zeile `#! expect state=REVIEW rule=REVIEW`: Tragen Sie dort den erwarteten Zustand und die Regel-ID ein und legen Sie die Datei unter `src/test/resources/coding-agents/<kind>/` ab (`claude-code`, `codex` oder `gemini-cli`). Von da an sichert die Testsuite die Regel gegen diesen Bildschirm, und eine Regeländerung, die ihn brechen würde, fällt vor dem Release auf.
 
 ## Einschränkungen und Fehlerbehebung
 
@@ -186,7 +234,6 @@ Agents ändern ihre Oberflächen häufig, und eine Regel, die letzten Monat gepa
 - **Ungewöhnliche Wrapper.** Ein Agent, der über einen Starter gestartet wird, den korTTY nicht kennt – ein eigenes Shell-Skript, das per `exec` in eine anders benannte Binärdatei wechselt, ein Container oder ein Terminal-Multiplexer außerhalb der Registerkarte – wird nicht identifiziert, weil der Programmname im Prozessbaum keinem bekannten Agent zugeordnet werden kann.
 - **Falscher oder flackernder Zustand.** Der Bildschirm des Agents hat sich geändert, oder ein Dialog wird auf eine Weise dargestellt, die die mitgelieferten Regeln nicht abdecken. Kopieren Sie die mitgelieferte Regeldatei nach `~/.kortty/coding-agents/<agent>.json`, passen Sie das Muster an, starten Sie korTTY neu und melden Sie den Bildschirmtext, damit die mitgelieferten Regeln korrigiert werden können.
 - **Gar kein Zustand, obwohl der Agent läuft.** Prüfen Sie, dass der Schalter unter **Einstellungen → Terminal → Coding-Agents** eingeschaltet ist, dass die Registerkarte eine Lokale-Shell-Registerkarte ist, und suchen Sie im Protokoll nach einer *coding-agents*-Warnung – eine ungültige Überschreibungsdatei fällt auf die mitgelieferten Regeln zurück, aber eine mitgelieferte Regeldatei, die nie zu Ihrer Agent-Version passt, lässt den Agent unbestätigt.
-
-## Was als Nächstes kommt
-
-Dieses Release legt das Fundament: Die Erkennung läuft, und ihre Ergebnisse stehen innerhalb von korTTY zur Verfügung. Die nächste Stufe baut darauf den sichtbaren Teil auf – Zustandsabzeichen neben den Registerkarten und im Dashboard, ein Panel mit jedem laufenden Agent und seinem Zustand sowie Desktop-Benachrichtigungen, wenn ein Agent BLOCKED wird oder fertig ist, während seine Registerkarte nicht im Vordergrund liegt.
+- **Kein Badge unter GNOME.** Eine unveränderte GNOME Shell stellt keine Launcher-Zähler dar, und korTTY kann nicht erkennen, ob eine Dock-Erweiterung installiert ist, die es täte; die Zahl wird also gesendet, kann aber unsichtbar bleiben. Auf den Fenstertitel wird nur dort ausgewichen, wo korTTY sicher weiß, dass kein Symbol-Badge existiert (keine installierte Desktop-Datei, kein `gdbus`, `./gradlew run`).
+- **Keine Benachrichtigung, obwohl der Agent gewartet hat.** Benachrichtigungen werden unterdrückt für den Bereich, den Sie gerade ansehen, für einen blockierten Zustand, der kürzer als einen Moment bestand, für eine zweite Meldung desselben Übergangs und innerhalb von zehn Sekunden nach der vorherigen für diesen Bereich; unter Linux muss `notify-send` im PATH liegen, und der Schalter unter **Einstellungen → Terminal → Coding-Agents** muss eingeschaltet sein.
+- **Der Prompt wurde abgelehnt.** Ein wartender Agent muss zuerst beantwortet werden (y, n, Enter oder Esc), und eine erste Zeile, die mit korTTYs eigenem KI-Kürzelbefehl beginnt, muss umformuliert werden – siehe [Das Coding-Agents-Panel](#das-coding-agents-panel).

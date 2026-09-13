@@ -6,6 +6,18 @@ import de.kortty.telemetry.TelemetryEvents;
 import de.kortty.telemetry.TelemetryProps;
 import de.kortty.ui.I18n;
 import de.kortty.core.AgentDashboardStatus;
+import com.sithtermfx.ui.SithTermFxWidget;
+import de.kortty.codingagent.CodingAgentActionException;
+import de.kortty.codingagent.CodingAgentActions;
+import de.kortty.codingagent.CodingAgentEntry;
+import de.kortty.codingagent.CodingAgentGlyphs;
+import de.kortty.codingagent.CodingAgentNavigator;
+import de.kortty.codingagent.CodingAgentRegistry;
+import de.kortty.codingagent.CodingAgentState;
+import de.kortty.codingagent.KeyChord;
+import de.kortty.codingagent.PaneRef;
+import de.kortty.codingagent.TabRollup;
+import de.kortty.codingagent.desktop.AppBadgeService;
 import de.kortty.core.AtomicFileWriter;
 import de.kortty.core.AiAction;
 import de.kortty.core.AiCliArgumentTemplate;
@@ -240,6 +252,19 @@ public class MainWindow {
     private CheckMenuItem showJournalLiveRightMenuItem;
     private CheckMenuItem systemShowJournalLiveLeftMenuItem;
     private CheckMenuItem systemShowJournalLiveRightMenuItem;
+    // Coding Agents panel docking (hidden by default, or docked left/right) and the status-bar strip.
+    private CodingAgentPanel codingAgentPanel;
+    private CodingAgentPanelDockManager codingAgentDockManager;
+    private ResizableDivider codingAgentDivider;
+    private java.util.function.Consumer<CodingAgentPanelDockManager.Placement> codingAgentPlacementListener;
+    private javafx.animation.PauseTransition codingAgentWidthSaveDelay;
+    private CodingAgentStatusStrip codingAgentStatusStrip;
+    private CheckMenuItem showCodingAgentLeftMenuItem;
+    private CheckMenuItem showCodingAgentRightMenuItem;
+    private CheckMenuItem systemShowCodingAgentLeftMenuItem;
+    private CheckMenuItem systemShowCodingAgentRightMenuItem;
+    /** The status bar's single row; the coding-agent strip sits right-aligned inside it. */
+    private HBox statusRow;
     // 1s tick that refreshes the per-tab AI-agent status badge (✋/⚡/⏸/✓) in tab titles.
     private javafx.animation.Timeline agentStatusIndicatorTimer;
     private CheckMenuItem systemShowDashboardMenuItem;
@@ -332,6 +357,15 @@ public class MainWindow {
         
         openWindows.add(this);
         Telemetry.track(TelemetryEvents.WINDOW_OPENED, Map.of("open_windows", openWindows.size()));
+        // A window created later receives the current app badge / "(n) KorTTY" title right away.
+        AppBadgeService appBadge = app.getAppBadgeService();
+        if (appBadge != null) {
+            try {
+                appBadge.refresh();
+            } catch (RuntimeException e) {
+                logger.debug("App badge refresh for the new window failed: {}", e.getMessage());
+            }
+        }
         // OS fullscreen can be entered via F12, the menu, or the macOS window button —
         // the stage property is the single funnel for all of them.
         stage.fullScreenProperty().addListener((obs, wasFullScreen, isFullScreen) -> {
@@ -434,6 +468,9 @@ public class MainWindow {
             Platform.runLater(this::rebindAiAgentSidePanelToActiveTab);
             // The live journal panel follows only tabs that have a running journal.
             Platform.runLater(this::rebindJournalLivePanelToActiveTab);
+            // Done-until-seen: the newly selected tab's agent may now be seen; the panel's current-row
+            // accent follows the focus as well.
+            Platform.runLater(this::onCodingAgentFocusContextChanged);
         });
         
         // Listen for tab removals to update dashboard and clear per-terminal AI state.
@@ -535,6 +572,8 @@ public class MainWindow {
             tabPane.getSelectionModel().select(tab);
             if (tab instanceof TerminalTab tt) {
                 installAiSelectionHandler(tt);
+                // Re-bind the per-tab hooks to this window (the creation-time lambdas captured the source).
+                registerTerminalTabForAiAgentDock(tt);
                 Platform.runLater(() -> tt.getTerminalView().requestFocus());
             }
             event.setDropCompleted(true);
@@ -578,6 +617,8 @@ public class MainWindow {
             tabPane.getSelectionModel().select(tab);
             if (tab instanceof TerminalTab tt) {
                 installAiSelectionHandler(tt);
+                // Re-bind the per-tab hooks to this window (the creation-time lambdas captured the source).
+                registerTerminalTabForAiAgentDock(tt);
                 Platform.runLater(() -> tt.getTerminalView().requestFocus());
             }
             event.setDropCompleted(true);
@@ -599,9 +640,10 @@ public class MainWindow {
         appDesignCursor.setVisible(false);
         appDesignCursor.setManaged(false);
         Region statusSpacer = new Region();
-        HBox statusRow = new HBox(8, statusLabel, statusSpacer, appDesignCursor);
+        statusRow = new HBox(8, statusLabel, statusSpacer, appDesignCursor);
         statusRow.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(statusSpacer, Priority.ALWAYS);
+        installCodingAgentStatusStrip(statusSpacer);
         statusBar = new VBox(statusRow);
         statusBar.getStyleClass().add("status-bar");
         statusLabel.getStyleClass().add("status-label");
@@ -792,6 +834,12 @@ public class MainWindow {
                 globalSettings.setJournalLivePanelWidth(journalLiveDockManager.getPreferredWidth());
             }
 
+            // Save Coding Agents panel placement + width on close
+            if (codingAgentDockManager != null) {
+                globalSettings.setCodingAgentPanelPlacement(codingAgentDockManager.getPlacement().name());
+                globalSettings.setCodingAgentPanelWidth(codingAgentDockManager.getPreferredWidth());
+            }
+
             // Save settings BEFORE confirmClose (which might exit the app)
             try {
                 app.getGlobalSettingsManager().save();
@@ -828,6 +876,24 @@ public class MainWindow {
                 if (journalLiveDockManager != null && journalLivePlacementListener != null) {
                     journalLiveDockManager.removePlacementListener(journalLivePlacementListener);
                     journalLivePlacementListener = null;
+                }
+                // Coding agents: unsubscribe the panel, strip and dashboard from the registry and
+                // stop their timers; the placement listener dies with the per-window manager.
+                if (codingAgentDockManager != null && codingAgentPlacementListener != null) {
+                    codingAgentDockManager.removePlacementListener(codingAgentPlacementListener);
+                    codingAgentPlacementListener = null;
+                }
+                if (codingAgentWidthSaveDelay != null) {
+                    codingAgentWidthSaveDelay.stop();
+                }
+                if (codingAgentPanel != null) {
+                    codingAgentPanel.dispose();
+                }
+                if (codingAgentStatusStrip != null) {
+                    codingAgentStatusStrip.dispose();
+                }
+                if (dashboardView != null) {
+                    dashboardView.dispose();
                 }
                 if (powerManagementStateListener != null && app.getPowerManagementCoordinator() != null) {
                     app.getPowerManagementCoordinator().removeListener(powerManagementStateListener);
@@ -1023,7 +1089,8 @@ public class MainWindow {
     }
 
     private void updateForegroundActivity() {
-        if (isForegroundWindow()) {
+        boolean foreground = isForegroundWindow();
+        if (foreground) {
             startJobSchedulerStatusUpdates();
             if (!terminalTabs().isEmpty()) {
                 startAgentStatusIndicatorTimer();
@@ -1034,10 +1101,20 @@ public class MainWindow {
             stopJobSchedulerStatusUpdates();
             stopAgentStatusIndicatorTimer();
         }
+        // Coding agents: the BLOCKED pulse only runs in the foreground window, and a window coming
+        // to the front may now "see" a DONE agent.
+        if (codingAgentStatusStrip != null) {
+            codingAgentStatusStrip.setWindowActive(foreground);
+        }
+        if (codingAgentPanel != null) {
+            codingAgentPanel.setWindowActive(foreground);
+        }
+        onCodingAgentFocusContextChanged();
         AppDesignAnimator.refreshAll();
     }
 
-    private boolean isForegroundWindow() {
+    /** True while this window is showing, not iconified and focused (the foreground window). */
+    public boolean isForegroundWindow() {
         return shouldRunForegroundPolling(stage.isShowing(), stage.isIconified(), stage.isFocused());
     }
 
@@ -1774,6 +1851,36 @@ public class MainWindow {
         journalLivePanelMenu.getItems().addAll(journalLiveLeftItem, journalLiveRightItem,
             new SeparatorMenuItem(), journalLiveToggleItem);
 
+        // Coding Agents panel: hidden by default, dockable left/right beside the terminal tabs, plus
+        // the cross-window "next blocked agent" jump.
+        Menu codingAgentPanelMenu = new Menu(I18n.get("menu.codingAgent.panel"));
+        CheckMenuItem codingAgentLeftItem = new CheckMenuItem(I18n.get("menu.codingAgent.panel.left"));
+        codingAgentLeftItem.setOnAction(e ->
+            setCodingAgentPanelPlacement(CodingAgentPanelDockManager.Placement.LEFT));
+        CheckMenuItem codingAgentRightItem = new CheckMenuItem(I18n.get("menu.codingAgent.panel.right"));
+        codingAgentRightItem.setOnAction(e ->
+            setCodingAgentPanelPlacement(CodingAgentPanelDockManager.Placement.RIGHT));
+        MenuItem codingAgentToggleItem = new MenuItem(I18n.get("menu.codingAgent.panel.toggle"));
+        MenuItem codingAgentNextBlockedItem = new MenuItem(I18n.get("menu.codingAgent.nextBlocked"));
+        // Cmd/Ctrl+Alt+G ("aGents") and Cmd/Ctrl+Alt+N ("Next") are free: Shortcut+Alt already binds
+        // A (AI agent), C, J, L (journal family), P, S and T; Shortcut+Shift+A/B are ASCII Art and
+        // Create Backup, so the Shift chords the feature plan first suggested would be swallowed.
+        codingAgentToggleItem.setAccelerator(
+            new KeyCodeCombination(KeyCode.G, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN));
+        codingAgentToggleItem.setOnAction(e -> toggleCodingAgentPanelVisible());
+        codingAgentNextBlockedItem.setAccelerator(
+            new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN));
+        codingAgentNextBlockedItem.setOnAction(e -> focusNextBlockedCodingAgent());
+        if (target == MenuBarTarget.WINDOW) {
+            showCodingAgentLeftMenuItem = codingAgentLeftItem;
+            showCodingAgentRightMenuItem = codingAgentRightItem;
+        } else {
+            systemShowCodingAgentLeftMenuItem = codingAgentLeftItem;
+            systemShowCodingAgentRightMenuItem = codingAgentRightItem;
+        }
+        codingAgentPanelMenu.getItems().addAll(codingAgentLeftItem, codingAgentRightItem,
+            new SeparatorMenuItem(), codingAgentToggleItem, codingAgentNextBlockedItem);
+
         MenuItem zoomIn = new MenuItem(I18n.get("menu.view.zoomIn"));
         zoomIn.setAccelerator(new KeyCodeCombination(KeyCode.PLUS, KeyCombination.ALT_DOWN));
         zoomIn.setOnAction(e -> zoomTerminal(1));
@@ -1824,7 +1931,7 @@ public class MainWindow {
         }
 
         viewMenu.getItems().addAll(dashboardItem, timestampsItem, menuBarItem, fileBrowserMenu, aiAgentPanelMenu,
-            journalLivePanelMenu,
+            journalLivePanelMenu, codingAgentPanelMenu,
             new SeparatorMenuItem(),
             zoomIn, zoomOut, resetZoom);
         // The background-transparency slider is a CustomMenuItem, which the macOS native system menu
@@ -2144,6 +2251,8 @@ public class MainWindow {
         applyPersistedFileBrowser();
         // Restore the persisted live journal panel placement (hidden/left/right) and width.
         applyPersistedJournalLivePanel();
+        // Restore the persisted Coding Agents panel placement (hidden/left/right) and width.
+        applyPersistedCodingAgentPanel();
         updateForegroundActivity();
         // The first WebView of the session (AI Manager, snippet editor, guide, reports) would
         // otherwise freeze the FX thread for ~1 s while libjfxwebkit is extracted and loaded.
@@ -2864,6 +2973,12 @@ public class MainWindow {
             if (journalLivePanel != null) {
                 journalLivePanel.applyTheme(bg, fg);
             }
+            if (codingAgentPanel != null) {
+                codingAgentPanel.applyTheme(bg, fg);
+            }
+            if (codingAgentStatusStrip != null) {
+                codingAgentStatusStrip.applyTheme(bg, fg);
+            }
             if (customAppDesign) {
                 // The app design fully owns the chrome; the terminal-theme dynamic stylesheet would
                 // override its menu/button/label colours, so strip it while a custom design is active.
@@ -2977,6 +3092,12 @@ public class MainWindow {
             statusBar.setStyle("-fx-padding: 5;");
         }
         statusLabel.setStyle(null);
+        if (codingAgentPanel != null) {
+            codingAgentPanel.applyTheme(null, null);
+        }
+        if (codingAgentStatusStrip != null) {
+            codingAgentStatusStrip.applyTheme(null, null);
+        }
     }
 
     private void updateDynamicThemeStylesheet(String bg, String fg) {
@@ -3119,6 +3240,24 @@ public class MainWindow {
         }
 
         return openWindows.get(openWindows.size() - 1);
+    }
+
+    /** The focused main window, else the most recently opened one; empty when no window is open. */
+    public static Optional<MainWindow> getFocusedWindow() {
+        return Optional.ofNullable(getFocusedOrLastOpenWindow());
+    }
+
+    /** The open window that currently hosts the terminal tab with {@code terminalViewId}. */
+    public static Optional<MainWindow> findWindowOwning(String terminalViewId) {
+        if (terminalViewId == null) {
+            return Optional.empty();
+        }
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            if (window.findTerminalTabByViewId(terminalViewId).isPresent()) {
+                return Optional.of(window);
+            }
+        }
+        return Optional.empty();
     }
 
     /** Actions invokable from the macOS Dock icon menu (see {@link MacDockMenu}). */
@@ -3898,16 +4037,73 @@ public class MainWindow {
         }
         terminalTab.getTerminalView().setOnWidgetSetChanged(() -> onTerminalWidgetSetChanged(terminalTab));
         terminalTab.setJournalStateListener(() -> onTabJournalStateChanged(terminalTab));
+        // Pane focus → done-until-seen; idempotent, and the listener resolves the owning window
+        // itself, so a tab dragged to another window keeps working without re-registration.
+        terminalTab.getTerminalView().addFocusedWidgetListener(CODING_AGENT_PANE_FOCUS_LISTENER);
     }
 
-    /** Updates each terminal tab's title badge to reflect its aggregated AI-agent status. */
+    /** Shared per-pane focus hook: resolves the window from the widget's scene, never captures one. */
+    private static final Consumer<SithTermFxWidget> CODING_AGENT_PANE_FOCUS_LISTENER = widget -> {
+        MainWindow window = null;
+        try {
+            if (widget != null && widget.getPane() != null && widget.getPane().getScene() != null) {
+                window = findByStage(widget.getPane().getScene().getWindow());
+            }
+        } catch (RuntimeException e) {
+            window = null;
+        }
+        if (window != null) {
+            window.onCodingAgentFocusContextChanged();
+        } else {
+            CodingAgentUiBridge bridge = KorTTYApplication.getInstance() != null
+                ? KorTTYApplication.getInstance().getCodingAgentUiBridge() : null;
+            if (bridge != null) {
+                bridge.reconcileSeen();
+            }
+        }
+    };
+
+    /** Tab selection, pane focus or window focus changed: re-evaluate done-until-seen, follow the focus in the panel. */
+    private void onCodingAgentFocusContextChanged() {
+        CodingAgentUiBridge bridge = app.getCodingAgentUiBridge();
+        if (bridge != null) {
+            bridge.reconcileSeen();
+        }
+        if (codingAgentPanel != null && codingAgentPanel.isBound()) {
+            codingAgentPanel.refresh();
+        }
+    }
+
+    /**
+     * Updates each terminal tab's title badge: the korTTY AI-agent status merged with the most urgent
+     * coding-agent state of the tab (DONE-until-seen outranks WORKING so title, chip and rollup agree).
+     */
     private void refreshAgentStatusIndicators() {
+        CodingAgentRegistry registry = app.getCodingAgentRegistry();
         for (TerminalTab tab : terminalTabs()) {
             TerminalView view = tab.getTerminalView();
-            String badge = view != null
-                ? AgentDashboardStatus.icon(view.aggregateTerminalAgentRunCounts())
-                : "";
+            String badge = "";
+            if (view != null) {
+                AgentDashboardStatus.State legacy = AgentDashboardStatus.aggregate(view.aggregateTerminalAgentRunCounts());
+                CodingAgentState coding = null;
+                if (registry != null) {
+                    TabRollup rollup = registry.rollupFor(view.getTerminalViewId());
+                    coding = rollup != null && rollup.hasAgents() ? rollup.mostUrgent() : null;
+                }
+                badge = CodingAgentGlyphs.tabBadge(legacy, coding);
+            }
             tab.setAgentStatusBadge(badge);
+        }
+    }
+
+    /**
+     * Called by the UI bridge on every registry change (background windows included, where the
+     * foreground-gated title timer is off): refreshes the tab glyphs and the status strip.
+     */
+    public void onCodingAgentsChanged() {
+        refreshAgentStatusIndicators();
+        if (codingAgentStatusStrip != null) {
+            codingAgentStatusStrip.refresh();
         }
     }
 
@@ -4232,6 +4428,256 @@ public class MainWindow {
         }
     }
 
+    // ---------------------------------------------------------------- Coding Agents panel docking
+
+    /** Inserts the coding-agent status strip right-aligned into the status row (after the spacer). */
+    private void installCodingAgentStatusStrip(Region statusSpacer) {
+        CodingAgentRegistry registry = app.getCodingAgentRegistry();
+        if (registry == null || statusRow == null) {
+            return;
+        }
+        try {
+            codingAgentStatusStrip = new CodingAgentStatusStrip(registry);
+            codingAgentStatusStrip.setOnActivate(this::focusNextBlockedCodingAgent);
+            codingAgentStatusStrip.setOnShowPanel(this::toggleCodingAgentPanelVisible);
+            codingAgentStatusStrip.setOnNextBlocked(this::focusNextBlockedCodingAgent);
+            int spacerIndex = statusRow.getChildren().indexOf(statusSpacer);
+            statusRow.getChildren().add(spacerIndex < 0 ? statusRow.getChildren().size() : spacerIndex + 1,
+                codingAgentStatusStrip);
+            codingAgentStatusStrip.attach();
+        } catch (RuntimeException e) {
+            logger.warn("Coding-agent status strip could not be installed: {}", e.toString());
+            codingAgentStatusStrip = null;
+        }
+    }
+
+    /** This window's docked Coding Agents panel, or null while it was never shown. */
+    CodingAgentPanel getCodingAgentPanel() {
+        return codingAgentPanel;
+    }
+
+    /** The per-window dock manager of the Coding Agents panel (created on first use). */
+    public CodingAgentPanelDockManager getCodingAgentDockManager() {
+        ensureCodingAgentDockManager();
+        return codingAgentDockManager;
+    }
+
+    private void ensureCodingAgentDockManager() {
+        if (codingAgentDockManager == null) {
+            // Per-window (not a singleton): each window docks independently and is GC'd with its manager.
+            codingAgentDockManager = new CodingAgentPanelDockManager();
+            codingAgentPlacementListener = placement -> onCodingAgentPanelPlacementChanged(placement);
+            codingAgentDockManager.addPlacementListener(codingAgentPlacementListener);
+        }
+    }
+
+    private void setCodingAgentPanelPlacement(CodingAgentPanelDockManager.Placement placement) {
+        ensureCodingAgentDockManager();
+        codingAgentDockManager.toggle(placement);
+    }
+
+    /** Shows the Coding Agents panel on its last-used side, or hides it when visible (Shortcut+Alt+G). */
+    public void toggleCodingAgentPanelVisible() {
+        ensureCodingAgentDockManager();
+        codingAgentDockManager.toggleVisible();
+    }
+
+    /** Docks the Coding Agents panel (last side) if hidden and selects the row of {@code pane}. */
+    public void showCodingAgentPanelFor(PaneRef pane) {
+        ensureCodingAgentDockManager();
+        if (!codingAgentDockManager.isDocked()) {
+            codingAgentDockManager.setPlacement(codingAgentDockManager.getLastDockedSide());
+        }
+        if (codingAgentPanel != null && pane != null) {
+            codingAgentPanel.selectPane(pane);
+        }
+    }
+
+    /**
+     * Brings the next coding agent that waits for a decision to the front (across windows); when
+     * none is blocked, focuses the first agent in display order so a click always lands somewhere.
+     */
+    public void focusNextBlockedCodingAgent() {
+        CodingAgentNavigator navigator = app.getCodingAgentNavigator();
+        if (navigator == null) {
+            return;
+        }
+        try {
+            if (navigator.focusNextBlocked().isPresent()) {
+                Telemetry.track(TelemetryEvents.CODING_AGENT_ACTION, Map.of("action", "next_blocked"));
+                return;
+            }
+            List<CodingAgentEntry> ordered = navigator.orderedEntries();
+            if (!ordered.isEmpty() && navigator.focus(ordered.get(0).pane())) {
+                Telemetry.track(TelemetryEvents.CODING_AGENT_ACTION, Map.of("action", "focus_first"));
+            }
+        } catch (RuntimeException e) {
+            logger.debug("Next blocked coding agent could not be focused: {}", e.getMessage());
+        }
+    }
+
+    private void onCodingAgentPanelPlacementChanged(CodingAgentPanelDockManager.Placement placement) {
+        ensureCodingAgentDockManager();
+        // Lazily create the panel + resizable divider on first dock.
+        if (placement != CodingAgentPanelDockManager.Placement.HIDDEN && codingAgentPanel == null) {
+            CodingAgentRegistry registry = app.getCodingAgentRegistry();
+            CodingAgentActions actions = app.getCodingAgentActions();
+            CodingAgentNavigator navigator = app.getCodingAgentNavigator();
+            CodingAgentUiBridge bridge = app.getCodingAgentUiBridge();
+            if (registry == null || actions == null || navigator == null || bridge == null) {
+                logger.debug("Coding Agents panel unavailable: the coding-agent services are not initialised");
+                syncCodingAgentPanelMenuItems(CodingAgentPanelDockManager.Placement.HIDDEN);
+                return;
+            }
+            codingAgentPanel = new CodingAgentPanel(registry, actions, navigator, bridge, System::currentTimeMillis);
+            codingAgentPanel.setOnDockRequest(requested -> codingAgentDockManager.setPlacement(requested));
+            codingAgentPanel.setOnNextBlocked(this::focusNextBlockedCodingAgent);
+            codingAgentPanel.setWindowActive(isForegroundWindow());
+            codingAgentPanel.setMinWidth(CodingAgentPanelDockManager.MIN_WIDTH);
+            codingAgentPanel.setPrefWidth(codingAgentDockManager.getPreferredWidth());
+            codingAgentPanel.setMaxWidth(CodingAgentPanelDockManager.MAX_WIDTH);
+            codingAgentDivider = new ResizableDivider(Orientation.VERTICAL);
+            codingAgentDivider.setResizeListener(delta -> {
+                double current = codingAgentPanel.getPrefWidth();
+                double directional = codingAgentDockManager.getPlacement()
+                    == CodingAgentPanelDockManager.Placement.RIGHT ? -delta : delta;
+                double newWidth = CodingAgentPanelDockManager.clampWidth(current + directional);
+                codingAgentPanel.setPrefWidth(newWidth);
+                codingAgentDockManager.setPreferredWidth(newWidth);
+                // Debounced: the resize listener fires per drag delta, and the settings file is
+                // large enough that writing it on every pixel would stutter the drag.
+                if (codingAgentWidthSaveDelay == null) {
+                    codingAgentWidthSaveDelay =
+                        new javafx.animation.PauseTransition(javafx.util.Duration.millis(350));
+                    codingAgentWidthSaveDelay.setOnFinished(event -> persistCodingAgentPanelSettings());
+                }
+                codingAgentWidthSaveDelay.playFromStart();
+                return newWidth;
+            });
+        }
+        // Remove the panel + divider from the layout if currently present.
+        if (codingAgentPanel != null) {
+            mainContentBox.getChildren().remove(codingAgentPanel);
+        }
+        if (codingAgentDivider != null) {
+            mainContentBox.getChildren().remove(codingAgentDivider);
+        }
+
+        if (placement == CodingAgentPanelDockManager.Placement.HIDDEN) {
+            if (codingAgentPanel != null) {
+                codingAgentPanel.unbind(); // re-showing re-subscribes; the registry is the source of truth
+            }
+            syncCodingAgentPanelMenuItems(placement);
+        } else {
+            double width = CodingAgentPanelDockManager.clampWidth(codingAgentDockManager.getPreferredWidth());
+            codingAgentPanel.setPrefWidth(width);
+            // Dock immediately adjacent to the terminal tabPane, computing the index relative to it so
+            // the layout is independent of action order and of the other docked side panels.
+            int tabIndex = Math.max(0, mainContentBox.getChildren().indexOf(tabPane));
+            if (placement == CodingAgentPanelDockManager.Placement.LEFT) {
+                // Result order: [ ... ][ panel ][ divider ][ tabPane ][ ... ]
+                mainContentBox.getChildren().add(tabIndex, codingAgentDivider);
+                mainContentBox.getChildren().add(tabIndex, codingAgentPanel);
+            } else {
+                // Result order: [ ... ][ tabPane ][ divider ][ panel ][ ... ]
+                mainContentBox.getChildren().add(tabIndex + 1, codingAgentDivider);
+                mainContentBox.getChildren().add(tabIndex + 2, codingAgentPanel);
+            }
+            codingAgentPanel.bind();
+            syncCodingAgentPanelMenuItems(placement);
+            applyMainWindowThemeFromGlobalSettings();
+        }
+        persistCodingAgentPanelSettings();
+        Telemetry.track(TelemetryEvents.CODING_AGENT_PANEL_TOGGLED,
+            java.util.Map.of("placement", placement.name()));
+    }
+
+    private void syncCodingAgentPanelMenuItems(CodingAgentPanelDockManager.Placement placement) {
+        boolean left = placement == CodingAgentPanelDockManager.Placement.LEFT;
+        boolean right = placement == CodingAgentPanelDockManager.Placement.RIGHT;
+        if (showCodingAgentLeftMenuItem != null) {
+            showCodingAgentLeftMenuItem.setSelected(left);
+        }
+        if (showCodingAgentRightMenuItem != null) {
+            showCodingAgentRightMenuItem.setSelected(right);
+        }
+        if (systemShowCodingAgentLeftMenuItem != null) {
+            systemShowCodingAgentLeftMenuItem.setSelected(left);
+        }
+        if (systemShowCodingAgentRightMenuItem != null) {
+            systemShowCodingAgentRightMenuItem.setSelected(right);
+        }
+    }
+
+    private void applyPersistedCodingAgentPanel() {
+        try {
+            ensureCodingAgentDockManager();
+            GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+            if (settings == null) {
+                return;
+            }
+            codingAgentDockManager.setPreferredWidth(settings.getCodingAgentPanelWidth());
+            CodingAgentPanelDockManager.Placement placement =
+                CodingAgentPanelDockManager.parsePlacement(settings.getCodingAgentPanelPlacement());
+            if (placement == CodingAgentPanelDockManager.Placement.HIDDEN) {
+                syncCodingAgentPanelMenuItems(placement);
+            } else {
+                codingAgentDockManager.setPlacement(placement); // fires the placement listener → docks
+            }
+        } catch (Exception e) {
+            logger.debug("Could not apply persisted Coding Agents panel placement: {}", e.getMessage());
+        }
+    }
+
+    private void persistCodingAgentPanelSettings() {
+        try {
+            var gsm = app.getGlobalSettingsManager();
+            GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+            if (settings == null || codingAgentDockManager == null) {
+                return;
+            }
+            settings.setCodingAgentPanelPlacement(codingAgentDockManager.getPlacement().name());
+            settings.setCodingAgentPanelWidth(codingAgentDockManager.getPreferredWidth());
+            gsm.save();
+        } catch (Exception e) {
+            logger.debug("Could not persist Coding Agents panel settings: {}", e.getMessage());
+        }
+    }
+
+    /** The terminal tab of this window whose view carries {@code terminalViewId}. */
+    public Optional<TerminalTab> findTerminalTabByViewId(String terminalViewId) {
+        if (terminalViewId == null) {
+            return Optional.empty();
+        }
+        for (TerminalTab tab : terminalTabs()) {
+            TerminalView view = tab.getTerminalView();
+            if (view != null && terminalViewId.equals(view.getTerminalViewId())) {
+                return Optional.of(tab);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** Window-title fallback of the app badge: "(n) KorTTY" for n &gt; 0, the plain name otherwise. */
+    public void applyWindowTitleBadge(int blockedCount) {
+        String title = CodingAgentUiBridge.titleFor(blockedCount, KorTTYApplication.getAppName(), I18n::get);
+        if (!title.equals(stage.getTitle())) {
+            stage.setTitle(title);
+        }
+    }
+
+    /** Replaces this window's stage icons (Windows taskbar badge / plain icon). */
+    public void applyStageIcon(Image icon) {
+        if (icon == null) {
+            return;
+        }
+        try {
+            stage.getIcons().setAll(icon);
+        } catch (RuntimeException e) {
+            logger.debug("Stage icon could not be applied: {}", e.getMessage());
+        }
+    }
+
     private void syncTimestampMenuItems(boolean visible) {
         if (showTimestampsMenuItem != null && showTimestampsMenuItem.isSelected() != visible) {
             showTimestampsMenuItem.setSelected(visible);
@@ -4432,6 +4878,12 @@ public class MainWindow {
                 // Content-sized width: the view measures its entries and animates itself.
                 dashboardView = new DashboardView(tabPane, this::handleDashboardAction,
                         this::resolveDashboardEnvironmentName);
+                // Coding-agent marks: chips, accents, rollups and PANE rows come from the registry.
+                dashboardView.setCodingAgentRegistry(app.getCodingAgentRegistry());
+                dashboardView.setPaneActionHandler(this::handleDashboardPaneAction);
+                if (app.getCodingAgentUiBridge() != null) {
+                    dashboardView.setPaneLocator(app.getCodingAgentUiBridge());
+                }
             }
             if (!mainContentBox.getChildren().contains(dashboardView)) {
                 mainContentBox.getChildren().add(0, dashboardView);
@@ -4517,6 +4969,58 @@ public class MainWindow {
                 // Duplicate the tab
                 duplicateTab(terminalTab);
                 break;
+        }
+    }
+
+    /** Pane-level dashboard actions of coding-agent rows: focus the pane, open the panel, send a key. */
+    private void handleDashboardPaneAction(TerminalTab terminalTab, SithTermFxWidget widget, PaneRef pane,
+                                           DashboardView.PaneAction action) {
+        if (action == null) {
+            return;
+        }
+        Telemetry.track(TelemetryEvents.CODING_AGENT_ACTION,
+            Map.of("action", "dashboard_" + action.name().toLowerCase(Locale.ROOT)));
+        switch (action) {
+            case FOCUS -> {
+                CodingAgentNavigator navigator = app.getCodingAgentNavigator();
+                if (pane != null && navigator != null && navigator.focus(pane)) {
+                    return;
+                }
+                if (terminalTab != null) {
+                    tabPane.getSelectionModel().select(terminalTab);
+                    if (widget != null && terminalTab.getTerminalView() != null) {
+                        Platform.runLater(() -> terminalTab.getTerminalView().focusWidget(widget));
+                    }
+                    stage.toFront();
+                    stage.requestFocus();
+                }
+            }
+            case OPEN_PANEL -> showCodingAgentPanelFor(pane);
+            case SEND_ENTER -> sendCodingAgentKey(pane, KeyChord.ENTER);
+            case SEND_ESC -> sendCodingAgentKey(pane, KeyChord.ESC);
+            case INTERRUPT -> sendCodingAgentKey(pane, KeyChord.CTRL_C);
+        }
+    }
+
+    private void sendCodingAgentKey(PaneRef pane, KeyChord chord) {
+        CodingAgentActions actions = app.getCodingAgentActions();
+        if (actions == null || pane == null) {
+            return;
+        }
+        try {
+            actions.sendKey(pane, chord);
+        } catch (CodingAgentActionException e) {
+            String message = switch (e.code()) {
+                case PANE_NOT_FOUND -> I18n.get("codingAgent.panel.error.paneNotFound");
+                case NOT_CONNECTED -> I18n.get("codingAgent.panel.error.notConnected");
+                case WRITE_FAILED -> I18n.get("codingAgent.panel.error.writeFailed", e.getMessage());
+                case AGENT_BLOCKED -> I18n.get("codingAgent.panel.prompt.blocked");
+                case HOST_SHORTCUT_CONFLICT -> I18n.get("codingAgent.panel.prompt.hostShortcut", e.getMessage());
+                case EMPTY_INPUT -> null;
+            };
+            if (message != null) {
+                updateStatus(message);
+            }
         }
     }
     
@@ -6680,7 +7184,8 @@ public class MainWindow {
         }
     }
 
-    private TerminalTab getActiveTerminalTab() {
+    /** The selected terminal tab of this window, or null when none (or a non-terminal tab) is selected. */
+    public TerminalTab getActiveTerminalTab() {
         Tab activeTab = getActiveTab();
         return activeTab instanceof TerminalTab terminalTab ? terminalTab : null;
     }

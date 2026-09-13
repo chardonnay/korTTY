@@ -113,6 +113,9 @@ The three session-journal items stay visible but are disabled when an [enterpris
 | AI Agent Panel ▸ At Bottom / Dock Left / Dock Right | | Choose where the AI agent activity panel lives |
 | Live Journal ▸ Dock Left / Dock Right | | Dock the [live journal panel](../features/session-journal.md#the-live-journal-panel) beside the terminal; selecting the active side hides it |
 | Live Journal ▸ Show/Hide | ++ctrl+alt+l++ | Toggle the live journal panel on its last-used side (right by default) |
+| Coding Agents ▸ Dock Left / Dock Right | | Dock the [Coding Agents panel](../features/coding-agents.md#the-coding-agents-panel) beside the terminal; selecting the active side hides it |
+| Coding Agents ▸ Show/Hide | ++ctrl+alt+g++ | Toggle the Coding Agents panel on its last-used side (right by default) |
+| Coding Agents ▸ Next Blocked Agent | ++ctrl+alt+n++ | Bring the next coding agent that is waiting for a decision to the front, across windows |
 
 ## Teamwork
 

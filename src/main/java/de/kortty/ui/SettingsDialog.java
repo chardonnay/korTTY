@@ -164,6 +164,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox terminalRecordingAlwaysEnabledCheck;
     private final CheckBox terminalRecordingCaptureColorsCheck;
     private final CheckBox codingAgentDetectionCheck;
+    private final CheckBox codingAgentNotificationsCheck;
+    private final CheckBox codingAgentAppBadgeCheck;
 
     // Appearance settings
     private final ComboBox<AppDesign> appDesignCombo;
@@ -788,6 +790,14 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         codingAgentDetectionCheck = new CheckBox(I18n.get("settings.codingAgent.detectionEnabled"));
         codingAgentDetectionCheck.setSelected(globalSettings == null || globalSettings.isCodingAgentDetectionEnabled());
         codingAgentDetectionCheck.setTooltip(new Tooltip(I18n.get("settings.codingAgent.detectionEnabled.tooltip")));
+        codingAgentNotificationsCheck = new CheckBox(I18n.get("settings.codingAgent.notificationsEnabled"));
+        codingAgentNotificationsCheck.setSelected(
+            globalSettings == null || globalSettings.isCodingAgentNotificationsEnabled());
+        codingAgentNotificationsCheck.setTooltip(
+            new Tooltip(I18n.get("settings.codingAgent.notificationsEnabled.tooltip")));
+        codingAgentAppBadgeCheck = new CheckBox(I18n.get("settings.codingAgent.appBadgeEnabled"));
+        codingAgentAppBadgeCheck.setSelected(globalSettings == null || globalSettings.isCodingAgentAppBadgeEnabled());
+        codingAgentAppBadgeCheck.setTooltip(new Tooltip(I18n.get("settings.codingAgent.appBadgeEnabled.tooltip")));
         
         terminalGrid.add(new Label(I18n.get("settings.terminal.columns")), 0, 0);
         terminalGrid.add(columnsSpinner, 1, 0);
@@ -842,6 +852,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         codingAgentInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         codingAgentInfo.setWrapText(true);
         terminalGrid.add(codingAgentInfo, 0, 25, 2, 1);
+        terminalGrid.add(codingAgentNotificationsCheck, 0, 26, 2, 1);
+        terminalGrid.add(codingAgentAppBadgeCheck, 0, 27, 2, 1);
 
         LazyTabContent.defer(terminalTab, () -> terminalGrid);
 
@@ -2903,6 +2915,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                         // Re-read the toggle for every open local shell pane right away.
                         app.getCodingAgentService().evaluateAll();
                     }
+                    if (app.getAppBadgeService() != null) {
+                        // Re-reads the badge toggle: applies the current count or clears the badge.
+                        // The notification toggle is read live by the coordinator on every decision.
+                        app.getAppBadgeService().refresh();
+                    }
                     app.applyLoggingSettings();
                     app.restartUpdateCheckService();
                     if (app.getTelemetryService() != null) {
@@ -3058,6 +3075,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setTerminalRecordingEnabled(terminalRecordingAlwaysEnabledCheck.isSelected());
             globalSettings.setTerminalRecordingCaptureColorsEnabled(terminalRecordingCaptureColorsCheck.isSelected());
             globalSettings.setCodingAgentDetectionEnabled(codingAgentDetectionCheck.isSelected());
+            globalSettings.setCodingAgentNotificationsEnabled(codingAgentNotificationsCheck.isSelected());
+            globalSettings.setCodingAgentAppBadgeEnabled(codingAgentAppBadgeCheck.isSelected());
             globalSettings.setRequireMasterPasswordOnStartup(requireMasterPasswordOnStartupCheck.isSelected());
             boolean skipPrompt = skipMasterPasswordPromptCheck.isSelected();
             // Only touch the remembered-password file when the option actually changes — or when it
@@ -3289,6 +3308,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("terminal", "close_without_confirmation",
                 gs::isCloseActiveTerminalWindowsWithoutConfirmation, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_detection", gs::isCodingAgentDetectionEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "coding_agent_notifications",
+                gs::isCodingAgentNotificationsEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "coding_agent_app_badge", gs::isCodingAgentAppBadgeEnabled, true));
             tracked.add(new TrackedSetting("video", "recording_enabled", gs::isTerminalRecordingEnabled, true));
             tracked.add(new TrackedSetting("video", "capture_colors", gs::isTerminalRecordingCaptureColorsEnabled, true));
             tracked.add(new TrackedSetting("backup", "max_count", gs::getMaxBackupCount, true));

@@ -13,6 +13,7 @@ import com.sithtermfx.ui.split.SplitConnectorFactory;
 import com.sithtermfx.ui.split.SplitRequest;
 import com.sithtermfx.ui.split.TerminalSplitPane;
 import de.kortty.KorTTYApplication;
+import de.kortty.codingagent.BracketedPasteTracker;
 import de.kortty.codingagent.CodingAgentMonitor;
 import de.kortty.codingagent.CodingAgentService;
 import de.kortty.codingagent.LocalProcessInspector;
@@ -96,12 +97,14 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import javafx.scene.control.ProgressIndicator;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -350,6 +353,17 @@ public class TerminalView extends BorderPane {
     private final String terminalViewId = UUID.randomUUID().toString();
     private final Map<SithTermFxWidget, CodingAgentMonitor> codingAgentMonitors = new ConcurrentHashMap<>();
     private final Map<SithTermFxWidget, TerminalModelListener> codingAgentModelListeners = new ConcurrentHashMap<>();
+    /** Canvas focus observers per pane (Stage 2): feed the focused-widget listeners and done-until-seen. */
+    private final Map<SithTermFxWidget, javafx.beans.value.ChangeListener<Boolean>> paneFocusListeners =
+        new ConcurrentHashMap<>();
+    /** DECSET 2004 trackers per pane, registered on the pane's base connector data stream. */
+    private final Map<SithTermFxWidget, PasteTracking> codingAgentPasteTrackers = new ConcurrentHashMap<>();
+    private final List<Consumer<SithTermFxWidget>> focusedWidgetListeners = new CopyOnWriteArrayList<>();
+    /** The pane whose canvas most recently gained keyboard focus (null before the first focus). */
+    private volatile SithTermFxWidget lastFocusedWidget;
+
+    /** A bracketed-paste tracker together with the connector it listens on, so a rebind can detach it. */
+    private record PasteTracking(BracketedPasteTracker tracker, ObservableTtyConnector connector) {}
     private final LocalProcessInspector codingAgentProcessInspector = new LocalProcessInspector();
     private final Map<ObservableTtyConnector, ObservableTtyConnector.InputActivityListener> terminalRecordingInputListeners = new ConcurrentHashMap<>();
     private final Map<SithTermFxWidget, StringBuilder> agentShortcutBuffers = new ConcurrentHashMap<>();
@@ -1088,6 +1102,8 @@ public class TerminalView extends BorderPane {
             widget.getTerminalTextBuffer().removeModelListener(recordingListener);
         }
         releaseCodingAgentMonitor(widget);
+        releasePaneFocusObserver(widget);
+        releaseBracketedPasteTracker(widget);
         if (terminalRecordingTargetWidgets.contains(widget)) {
             terminalRecordingTargetWidgets = terminalRecordingTargetWidgets.stream()
                 .filter(target -> target != widget)
@@ -2123,6 +2139,7 @@ public class TerminalView extends BorderPane {
         installAgentShortcutInputInterceptor(widget, baseConnector);
         installTerminalRecordingInputListener(baseConnector);
         bindCodingAgentMonitor(widget, baseConnector);
+        attachBracketedPasteTracker(widget, baseConnector);
         PaneEffect effect = paneEffects.get(widget);
         TtyConnector decorated = baseConnector;
         if (effect == null || effect.session == null) {
@@ -3213,6 +3230,218 @@ public class TerminalView extends BorderPane {
         }
         installTerminalRecordingModelListener(widget);
         attachCodingAgentMonitor(widget);
+        installPaneFocusObserver(widget);
+    }
+
+    /**
+     * Observes the pane's canvas focus (the real focus owner — TerminalSplitPane's own listener sits
+     * on the pane node and never fires for keyboard focus) and forwards every gained focus to the
+     * focused-widget listeners. Removed in {@link #releasePaneState}.
+     */
+    private void installPaneFocusObserver(SithTermFxWidget widget) {
+        if (widget == null || paneFocusListeners.containsKey(widget)) {
+            return;
+        }
+        Node target = getPrimaryKeyEventTarget(widget);
+        if (target == null) {
+            return;
+        }
+        javafx.beans.value.ChangeListener<Boolean> listener = (obs, wasFocused, focused) -> {
+            if (Boolean.TRUE.equals(focused)) {
+                onPaneFocused(widget);
+            }
+        };
+        paneFocusListeners.put(widget, listener);
+        target.focusedProperty().addListener(listener);
+        if (target.isFocused()) {
+            onPaneFocused(widget);
+        }
+    }
+
+    private void onPaneFocused(SithTermFxWidget widget) {
+        lastFocusedWidget = widget;
+        for (Consumer<SithTermFxWidget> listener : focusedWidgetListeners) {
+            try {
+                listener.accept(widget);
+            } catch (RuntimeException e) {
+                logger.debug("Focused-widget listener failed: {}", e.toString());
+            }
+        }
+    }
+
+    private void releasePaneFocusObserver(SithTermFxWidget widget) {
+        javafx.beans.value.ChangeListener<Boolean> listener = paneFocusListeners.remove(widget);
+        if (listener != null) {
+            Node target = getPrimaryKeyEventTarget(widget);
+            if (target != null) {
+                target.focusedProperty().removeListener(listener);
+            }
+        }
+        if (lastFocusedWidget == widget) {
+            lastFocusedWidget = null;
+        }
+    }
+
+    // ---- Coding-agent UI ports (Stage 2) ------------------------------------------------------------
+
+    /**
+     * Focuses a specific pane of this tab (its canvas), marshalled to the FX thread. Unlike
+     * {@link #focusTerminal()} it does not depend on the split pane's notion of the focused widget,
+     * so the navigator can land on the exact pane a coding agent runs in.
+     */
+    public void focusWidget(SithTermFxWidget widget) {
+        if (widget == null) {
+            focusTerminal();
+            return;
+        }
+        Runnable focusTask = () -> {
+            Node target = getPrimaryKeyEventTarget(widget);
+            if (target != null) {
+                target.requestFocus();
+            }
+        };
+        if (Platform.isFxApplicationThread()) {
+            focusTask.run();
+        } else {
+            Platform.runLater(focusTask);
+        }
+    }
+
+    /**
+     * The pane that currently has (or most recently had) keyboard focus in this tab: the last widget
+     * whose canvas gained focus while it is still open, otherwise the split pane's focused widget.
+     */
+    public SithTermFxWidget getFocusedWidget() {
+        SithTermFxWidget last = lastFocusedWidget;
+        if (last != null) {
+            if (splitPane == null) {
+                if (last == terminalWidget) {
+                    return last;
+                }
+            } else if (splitPane.getAllWidgets().contains(last)) {
+                return last;
+            }
+        }
+        return splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+    }
+
+    /** Registers a listener called on the FX thread whenever a pane of this tab gains keyboard focus. */
+    public void addFocusedWidgetListener(Consumer<SithTermFxWidget> listener) {
+        if (listener != null && !focusedWidgetListeners.contains(listener)) {
+            focusedWidgetListeners.add(listener);
+        }
+    }
+
+    public void removeFocusedWidgetListener(Consumer<SithTermFxWidget> listener) {
+        if (listener != null) {
+            focusedWidgetListeners.remove(listener);
+        }
+    }
+
+    /** The coding-agent pane reference of {@code widget}, empty when it has no monitor in this tab. */
+    public Optional<PaneRef> paneRefOf(SithTermFxWidget widget) {
+        if (widget == null) {
+            return Optional.empty();
+        }
+        CodingAgentMonitor monitor = codingAgentMonitors.get(widget);
+        if (monitor != null) {
+            return Optional.of(monitor.pane());
+        }
+        if (getOrderedWidgets().contains(widget)) {
+            return Optional.of(new PaneRef(terminalViewId, TerminalScreenCapture.paneIdOf(widget)));
+        }
+        return Optional.empty();
+    }
+
+    /** True while the application inside {@code widget} has enabled bracketed paste (DECSET 2004). */
+    public boolean isBracketedPasteEnabled(SithTermFxWidget widget) {
+        if (widget == null) {
+            return false;
+        }
+        PasteTracking tracking = codingAgentPasteTrackers.get(widget);
+        return tracking != null && tracking.tracker().isEnabled();
+    }
+
+    /**
+     * The pane's shell working directory when it runs a local shell: the cached directory, or the
+     * start directory while a {@code cd} is unresolved; {@code null} for remote panes. Never blocks.
+     */
+    public String workingDirectoryOf(SithTermFxWidget widget) {
+        if (widget == null) {
+            return null;
+        }
+        TtyConnector base = unwrapTerminalEffectConnector(widget.getTtyConnector());
+        if (base instanceof LocalShellTtyConnector local) {
+            String cwd = local.getCurrentWorkingDirectory();
+            return cwd != null ? cwd : local.getStartDirectory();
+        }
+        return null;
+    }
+
+    /**
+     * True when korTTY's own AI shortcut filter would swallow a line starting like {@code firstLine}
+     * instead of passing it to the pane (the coding-agent prompt box refuses such prompts).
+     */
+    public boolean wouldAgentShortcutIntercept(String firstLine) {
+        if (firstLine == null || firstLine.isBlank()) {
+            return false;
+        }
+        if (!isTerminalAgentShortcutEnabled() || terminalAgentShortcutHandler == null) {
+            return false;
+        }
+        return canInterceptBufferedAgentShortcut(firstLine, getTerminalAgentCommandName(),
+            isTerminalAgentCommandNameCaseInsensitive());
+    }
+
+    /**
+     * (Re)attaches the pane's bracketed-paste tracker to its base connector's data stream. A rebind
+     * (mosh recovery, reconnect) detaches the tracker from the old connector and resets it, so a
+     * stale DECSET 2004 flag never survives a new session.
+     */
+    private void attachBracketedPasteTracker(SithTermFxWidget widget, TtyConnector baseConnector) {
+        if (widget == null) {
+            return;
+        }
+        PasteTracking previous = codingAgentPasteTrackers.remove(widget);
+        if (previous != null) {
+            detachPasteTracking(previous);
+        }
+        if (baseConnector instanceof ObservableTtyConnector observable) {
+            BracketedPasteTracker tracker = previous != null ? previous.tracker() : new BracketedPasteTracker();
+            try {
+                observable.addDataListener(tracker);
+                codingAgentPasteTrackers.put(widget, new PasteTracking(tracker, observable));
+            } catch (RuntimeException e) {
+                logger.debug("Bracketed-paste tracker could not be attached: {}", e.toString());
+            }
+        }
+    }
+
+    private void detachPasteTracking(PasteTracking tracking) {
+        try {
+            tracking.connector().removeDataListener(tracking.tracker());
+        } catch (RuntimeException e) {
+            logger.debug("Bracketed-paste tracker could not be detached: {}", e.toString());
+        }
+        tracking.tracker().reset();
+    }
+
+    private void releaseBracketedPasteTracker(SithTermFxWidget widget) {
+        PasteTracking tracking = codingAgentPasteTrackers.remove(widget);
+        if (tracking != null) {
+            detachPasteTracking(tracking);
+        }
+    }
+
+    private void releaseAllCodingAgentPaneState() {
+        for (SithTermFxWidget widget : new ArrayList<>(paneFocusListeners.keySet())) {
+            releasePaneFocusObserver(widget);
+        }
+        for (SithTermFxWidget widget : new ArrayList<>(codingAgentPasteTrackers.keySet())) {
+            releaseBracketedPasteTracker(widget);
+        }
+        focusedWidgetListeners.clear();
+        lastFocusedWidget = null;
     }
 
     // ---- Coding-agent detection (de.kortty.codingagent) -------------------------------------------
@@ -5844,6 +6073,7 @@ public class TerminalView extends BorderPane {
         stopAllTerminalAgentShellKeepAlives();
         detachTerminalRecordingSession();
         releaseAllCodingAgentMonitors();
+        releaseAllCodingAgentPaneState();
         stopLogger();
         stopSessionJournal();
         stopAllEffects();

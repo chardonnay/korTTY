@@ -26,6 +26,8 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Automatically reconnect lost connections | toggle | — | On | `autoReconnectEnabled` |
 | Disable host key verification for all connections | toggle | — | Off | `hostKeyCheckDisabledForAllConnections` |
 | Detect coding agents (Claude Code, Codex, Gemini CLI) in local shell tabs | toggle | — | On | `codingAgentDetectionEnabled` |
+| Desktop notification when a coding agent needs a decision or finishes while you are not looking at its pane | toggle | — | On | `codingAgentNotificationsEnabled` |
+| Show the number of agents waiting for a decision on the app icon | toggle | — | On | `codingAgentAppBadgeEnabled` |
 
 ## Notes
 
@@ -53,4 +55,4 @@ Configure terminal display and behavior settings, including dimensions, scrollba
     When enabled and an **established** SSH connection is lost (network drop, server gone), the tab reconnects on its own with increasing delays — 3, 5, 10, 20, 30, then every 60 seconds — and the red status bar counts down to the next attempt. A double-click on the bar still reconnects immediately, and a successful reconnect or closing the tab stops the automatic attempts. Failed logins and other permanent failures (authentication, host key, configuration) are never retried automatically, and a connection that never got established is not retried by this setting either — that is what *Enable connection retries* covers. See [Terminal sessions → Connection loss](../../features/terminal.md#connection-loss-and-automatic-reconnect).
 
 !!! note "Detect coding agents"
-    When enabled, korTTY watches every local shell pane for a running Claude Code, Codex or Gemini CLI and tracks whether it is working, blocked on a question or idle. The screen is analysed locally and nothing leaves the computer; the change applies immediately to open tabs. See [Coding agents](../../features/coding-agents.md).
+    When enabled, korTTY watches every local shell pane for a running Claude Code, Codex or Gemini CLI and tracks whether it is working, blocked on a question, done or idle. The screen is analysed locally and nothing leaves the computer; the change applies immediately to open tabs. The two toggles below it control the desktop notification for an agent that needs a decision or finishes while you are not looking at its pane, and the count of waiting agents on the app icon (or in the window title where no icon badge exists); both read the setting live, so a change applies at once. See [Coding agents](../../features/coding-agents.md#app-icon-badge-and-notifications).

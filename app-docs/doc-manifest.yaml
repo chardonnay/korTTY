@@ -413,8 +413,18 @@ pages:
     screenshots: [plugins/terminal-effects.png]
     last_synced_ref: "38bcd2b4"
   - path: app-docs/site/docs/en/features/coding-agents.md
-    owns_i18n: [settings.codingAgent.]
-    owns_code: [src/main/java/de/kortty/codingagent, src/main/resources/coding-agents]
+    owns_i18n: [settings.codingAgent., menu.codingAgent., codingAgent., dashboard.codingAgent.]
+    owns_code:
+      - src/main/java/de/kortty/codingagent
+      - src/main/java/de/kortty/codingagent/desktop
+      - src/main/resources/coding-agents
+      - src/main/java/de/kortty/ui/CodingAgentPanel.java
+      - src/main/java/de/kortty/ui/CodingAgentStatusStrip.java
+      - src/main/java/de/kortty/ui/CodingAgentPanelDockManager.java
+      - src/main/java/de/kortty/ui/CodingAgentStripSupport.java
+      - src/main/java/de/kortty/ui/CodingAgentUiBridge.java
+      - src/main/java/de/kortty/ui/DashboardAgentMarks.java
+    diagrams: [coding-agents.svg]
     last_synced_ref: "0dad374"
   - path: app-docs/site/docs/en/features/i18n.md
     owns_i18n: []
