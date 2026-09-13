@@ -620,6 +620,11 @@
     -kortty-dash-border: #3d3d3d;
     -kortty-dash-hover: #313132;
     -kortty-dash-selected: #3a3a3c;
+    -kortty-dash-agent-blocked: #f59e0b;
+    -kortty-dash-agent-working: #60a5fa;
+    -kortty-dash-agent-done: #34d399;
+    -kortty-dash-agent-blocked-tint: rgba(245,158,11,0.14);
+    -kortty-dash-agent-chip-fg: #0b1220;
     -fx-background-color: -kortty-dash-bg;
     -fx-border-color: transparent -kortty-dash-border transparent transparent;
     -fx-border-width: 0 1 0 0;
@@ -703,6 +708,64 @@
 
 .dashboard-tree .tree-cell:hover {
     -fx-background-color: -kortty-dash-hover;
+}
+
+/* Coding-agent marks (Stage 2). The accent classes sit on the TreeCell itself and reuse
+ * its 3 px left-border slot; they are declared BEFORE .tree-cell:selected on purpose —
+ * both selectors have the same specificity, so the later selection rule keeps winning. */
+.dashboard-tree .tree-cell.dashboard-row-agent-blocked {
+    -fx-border-color: transparent transparent transparent -kortty-dash-agent-blocked;
+    -fx-background-color: -kortty-dash-agent-blocked-tint;
+}
+
+.dashboard-tree .tree-cell.dashboard-row-agent-working {
+    -fx-border-color: transparent transparent transparent -kortty-dash-agent-working;
+}
+
+.dashboard-tree .tree-cell.dashboard-row-agent-done {
+    -fx-border-color: transparent transparent transparent -kortty-dash-agent-done;
+}
+
+.dashboard-agent-chip {
+    -fx-background-radius: 8;
+    -fx-padding: 0 6 0 6;
+    -fx-alignment: center-left;
+}
+
+.dashboard-agent-chip .label {
+    -fx-font-size: 0.9231em;
+    -fx-text-fill: -kortty-dash-agent-chip-fg;
+}
+
+.dashboard-agent-chip-blocked {
+    -fx-background-color: -kortty-dash-agent-blocked;
+}
+
+.dashboard-agent-chip-working {
+    -fx-background-color: -kortty-dash-agent-working;
+}
+
+.dashboard-agent-chip-done {
+    -fx-background-color: -kortty-dash-agent-done;
+}
+
+.dashboard-agent-chip-idle {
+    -fx-background-color: transparent;
+    -fx-border-color: -kortty-dash-dim;
+    -fx-border-width: 1;
+    -fx-border-radius: 8;
+}
+
+.dashboard-agent-chip-idle .label {
+    -fx-text-fill: -kortty-dash-dim;
+}
+
+.dashboard-rollup-chip {
+    -fx-font-size: 0.9231em;
+    -fx-text-fill: -kortty-dash-fg;
+    -fx-background-color: -kortty-dash-hover;
+    -fx-background-radius: 8;
+    -fx-padding: 0 6 0 6;
 }
 
 .dashboard-tree .tree-cell:selected {
