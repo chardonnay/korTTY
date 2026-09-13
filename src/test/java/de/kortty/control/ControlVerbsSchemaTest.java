@@ -55,6 +55,51 @@ class ControlVerbsSchemaTest {
     }
 
     @Test
+    void theTableCarriesTheAuthVerbTheServerDispatchesAfterTheTokenCheck() {
+        assertWithMessage("ControlConnection answers a good token by dispatching 'auth' through the"
+                + " table; without the verb the handshake would fail with unknown_method")
+            .that(registry.spec(ControlConnection.AUTH_METHOD).isPresent()).isTrue();
+    }
+
+    @Test
+    void theHelloResultDescribesThisKorttyAndItsCapabilities() throws Exception {
+        JsonObject params = new JsonObject();
+        params.addProperty("token", "irrelevant-the-server-already-checked-it");
+        ControlSession session = new ControlSession("c1", EndpointDescriptor.TRANSPORT_UNIX, true,
+            "kortty-cli", frame -> { });
+        JsonObject hello = registry
+            .dispatch(session, new ControlRequest(new JsonPrimitive(1),
+                ControlConnection.AUTH_METHOD, params))
+            .getAsJsonObject();
+
+        assertThat(hello.get("api").getAsString()).isEqualTo(ControlApiProtocol.API_NAME);
+        assertThat(hello.get("protocol_version").getAsInt())
+            .isEqualTo(ControlApiProtocol.PROTOCOL_VERSION);
+        assertThat(hello.get("app_version").getAsString()).isEqualTo("3.4.1");
+        assertThat(hello.get("instance_id").getAsString()).isEqualTo("test-instance");
+        assertThat(hello.get("transport").getAsString())
+            .isEqualTo(EndpointDescriptor.TRANSPORT_UNIX);
+        assertThat(hello.get("pid").getAsLong()).isEqualTo(ProcessHandle.current().pid());
+        assertThat(hello.get("server_time_millis").getAsLong()).isEqualTo(1_000L);
+        assertWithMessage("nothing in this API survives a korTTY restart")
+            .that(hello.get("ids_survive_restart").getAsBoolean()).isFalse();
+
+        List<String> methods = new ArrayList<>();
+        for (JsonElement element : hello.getAsJsonArray("methods")) {
+            methods.add(element.getAsString());
+        }
+        assertThat(methods).containsExactlyElementsIn(
+            registry.specs().stream().map(MethodSpec::name).toList());
+
+        List<String> capabilities = new ArrayList<>();
+        for (JsonElement element : hello.getAsJsonArray("capabilities")) {
+            capabilities.add(element.getAsString());
+        }
+        assertThat(capabilities)
+            .containsAtLeast("events", "split", "agent_start", "pane_resolve");
+    }
+
+    @Test
     void everyRegisteredMethodHasASpecAndEverySpecIsRegistered() {
         List<String> specNames = new ArrayList<>();
         for (MethodSpec spec : registry.specs()) {

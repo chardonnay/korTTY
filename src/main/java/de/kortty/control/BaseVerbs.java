@@ -1,7 +1,9 @@
 package de.kortty.control;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
@@ -9,8 +11,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
 
 /**
- * {@code ping} and {@code api.schema}, plus the parameter helpers every other verb file shares:
- * selector resolution, the optional {@code instance} guard and the one-hop UI wrapper.
+ * {@code auth}, {@code ping} and {@code api.schema}, plus the parameter helpers every other verb file
+ * shares: selector resolution, the optional {@code instance} guard and the one-hop UI wrapper.
  *
  * <p>Any thread, never the JavaFX application thread.
  */
@@ -28,11 +30,19 @@ final class BaseVerbs {
     /** The parameter name every window selector uses. */
     static final String PARAM_WINDOW = "window";
 
+    /** Each advertised capability and the method whose presence proves it. */
+    private static final Map<String, String> CAPABILITY_METHODS = new LinkedHashMap<>(Map.of(
+        "events", "events.subscribe",
+        "split", "pane.split",
+        "agent_start", "agent.start",
+        "pane_resolve", "pane.resolve",
+        "notifications", "notification.show"));
+
     private BaseVerbs() {
     }
 
     /**
-     * Registers the two discovery verbs.
+     * Registers the handshake verb and the two discovery verbs.
      *
      * @param builder the table being assembled
      * @param self the registry this build produces, filled in once {@code build()} has run — the
@@ -46,6 +56,47 @@ final class BaseVerbs {
     static void register(MethodRegistry.Builder builder, AtomicReference<MethodRegistry> self,
                          LongSupplier clockMillis, long startedAtMillis, String appVersion,
                          String instanceId) {
+        builder.register(new MethodSpec(ControlConnection.AUTH_METHOD,
+                "Completes the handshake and returns what this korTTY is and can do. It must be the "
+                    + "first request on a connection; the token is checked by the server before this "
+                    + "handler runs.",
+                List.of(new ParamSpec("token", "string", true, null,
+                        "The contents of the endpoint file's token field."),
+                    new ParamSpec("client", "string", false, null,
+                        "A name for this client, for the korTTY log.")),
+                "{api, protocol_version, app_version, pid, transport, instance_id, "
+                    + "server_time_millis, ids_survive_restart, capabilities, methods}",
+                List.of(ControlErrorCode.UNAUTHORIZED, ControlErrorCode.INVALID_PARAMS),
+                false, false,
+                "(the CLI authenticates on every invocation)",
+                "{\"jsonrpc\":\"2.0\",\"id\":0,\"method\":\"auth\","
+                    + "\"params\":{\"token\":\"<from the endpoint file>\",\"client\":\"kortty-cli\"}}",
+                "{\"jsonrpc\":\"2.0\",\"id\":0,\"result\":{\"api\":\"kortty-control\","
+                    + "\"protocol_version\":1}}"),
+            (session, params) -> {
+                MethodRegistry table = self.get();
+                if (table == null) {
+                    throw new ControlApiException(ControlErrorCode.NOT_READY,
+                        "The method table is not built yet");
+                }
+                JsonObject result = new JsonObject();
+                result.addProperty("api", ControlApiProtocol.API_NAME);
+                result.addProperty("protocol_version", ControlApiProtocol.PROTOCOL_VERSION);
+                result.addProperty("app_version", appVersion);
+                result.addProperty("pid", ProcessHandle.current().pid());
+                result.addProperty("transport", session.transport());
+                result.addProperty("instance_id", instanceId);
+                result.addProperty("server_time_millis", clockMillis.getAsLong());
+                result.addProperty("ids_survive_restart", false);
+                JsonArray methodNames = new JsonArray();
+                for (MethodSpec spec : table.specs()) {
+                    methodNames.add(spec.name());
+                }
+                result.add("methods", methodNames);
+                result.add("capabilities", capabilities(table));
+                return result;
+            });
+
         builder.register(new MethodSpec("ping",
                 "Checks that the control API answers and reports the running instance.",
                 List.of(), "{pong, instance, protocol_version, app_version, uptime_millis}",
@@ -89,6 +140,20 @@ final class BaseVerbs {
                     Map.of("method", method)));
                 return ControlApiSchema.method(spec);
             });
+    }
+
+    /**
+     * The coarse feature flags a client branches on before it composes a call, derived from the very
+     * table that will answer it so the two can never disagree.
+     */
+    private static JsonArray capabilities(MethodRegistry table) {
+        JsonArray capabilities = new JsonArray();
+        for (Map.Entry<String, String> entry : CAPABILITY_METHODS.entrySet()) {
+            if (table.spec(entry.getValue()).isPresent()) {
+                capabilities.add(entry.getKey());
+            }
+        }
+        return capabilities;
     }
 
     /**
