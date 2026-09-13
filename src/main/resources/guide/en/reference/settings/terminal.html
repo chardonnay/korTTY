@@ -545,6 +545,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../../features/coding-agents.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Coding agents
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../../features/i18n.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -852,6 +860,13 @@
 <td>Off</td>
 <td><code>hostKeyCheckDisabledForAllConnections</code></td>
 </tr>
+<tr>
+<td>Detect coding agents (Claude Code, Codex, Gemini CLI) in local shell tabs</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>codingAgentDetectionEnabled</code></td>
+</tr>
 </tbody>
 </table>
 <h2 id="notes">Notes<a class="headerlink" href="#notes" title="Permanent link">&para;</a></h2>
@@ -883,6 +898,10 @@
 <div class="admonition note">
 <p class="admonition-title">Automatically reconnect lost connections</p>
 <p>When enabled and an <strong>established</strong> SSH connection is lost (network drop, server gone), the tab reconnects on its own with increasing delays — 3, 5, 10, 20, 30, then every 60 seconds — and the red status bar counts down to the next attempt. A double-click on the bar still reconnects immediately, and a successful reconnect or closing the tab stops the automatic attempts. Failed logins and other permanent failures (authentication, host key, configuration) are never retried automatically, and a connection that never got established is not retried by this setting either — that is what <em>Enable connection retries</em> covers. See <a href="../../features/terminal.html#connection-loss-and-automatic-reconnect">Terminal sessions → Connection loss</a>.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Detect coding agents</p>
+<p>When enabled, korTTY watches every local shell pane for a running Claude Code, Codex or Gemini CLI and tracks whether it is working, blocked on a question or idle. The screen is analysed locally and nothing leaves the computer; the change applies immediately to open tabs. See <a href="../../features/coding-agents.html">Coding agents</a>.</p>
 </div></p>
     </article>
 </section>

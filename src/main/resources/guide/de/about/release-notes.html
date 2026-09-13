@@ -545,6 +545,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/coding-agents.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Coding-Agents
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/i18n.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -738,6 +746,7 @@
 <h2 id="v2170">v2.17.0<a class="headerlink" href="#v2170" title="Permanent link">&para;</a></h2>
 <h3 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h3>
 <ul>
+<li><strong>Erkennung von Coding-Agents</strong> – korTTY erkennt Claude Code, Codex und Gemini CLI in lokalen Shell-Tabs und stuft jeden Bereich als arbeitend, durch eine Rückfrage blockiert oder untätig ein. Die Erkennung liest den Terminalinhalt lokal und lässt sich unter <em>Einstellungen → Terminal → Coding-Agents</em> abschalten; die Regeln sind JSON-Dateien, die Sie unter <code>~/.kortty/coding-agents/</code> überschreiben können. Siehe <a href="../features/coding-agents.html">Coding-Agents</a>.</li>
 <li><strong>Ein falsch platzierter Bildlaufbereich schränkt den Cursor nicht mehr ein</strong> – DECSTBM legt den Bereich fest, in dem gescrollt wird, nicht den Bereich, in dem der Cursor adressiert werden kann, aber jeder Schreibvorgang hat den Cursor durch Scrollen trotzdem an die Ränder geklemmt: Text, der über dem oberen Rand adressiert wurde, wurde in den Bereich gezogen, und Text, der unter dem unteren Rand adressiert wurde, scrollte den Bereich unter dem heraus, was bereits auf dem Bildschirm war. tmux löst den ersten Fall aus, während es einen Bereich mit immer noch schmalen Rändern zeichnet, wodurch der Cursor eine Zeile über der Eingabeaufforderung angezeigt wird. Das Scrollen erfolgt jetzt nur noch bei einem expliziten Zeilenvorschub, sodass der Cursor jede Zeile im Terminal ansprechen kann, ohne bereits vorhandene Zeilen zu verschieben.</li>
 </ul>
 <h3 id="tools">Tools<a class="headerlink" href="#tools" title="Permanent link">&para;</a></h3>
