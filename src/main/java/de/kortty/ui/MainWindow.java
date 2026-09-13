@@ -295,6 +295,16 @@ public class MainWindow {
     private final List<ConnectionImporter> importers;
     
     private static final List<MainWindow> openWindows = new ArrayList<>();
+
+    /**
+     * Mints {@link #windowId}. A counter rather than the list position: a window id that renumbered
+     * itself whenever an earlier window closed would silently re-point every id a script is holding.
+     */
+    private static final java.util.concurrent.atomic.AtomicLong windowIdSequence =
+        new java.util.concurrent.atomic.AtomicLong();
+
+    /** This window's stable id for the lifetime of the window; see {@link #getWindowId()}. */
+    private final String windowId = "w" + windowIdSequence.incrementAndGet();
     private static final Set<MainWindow> applicationQuitApprovedWindows =
         Collections.newSetFromMap(new IdentityHashMap<>());
     private final List<CheckMenuItem> preventSleepMenuItems = new ArrayList<>();
@@ -8590,6 +8600,33 @@ public class MainWindow {
         alert.showAndWait();
     }
     
+    /**
+     * This window's stable id, {@code "w"} plus a monotonic counter minted in the constructor.
+     *
+     * <p>It is deliberately not the position in {@link #getOpenWindows()}: positions shift whenever
+     * an earlier window closes, so a caller holding an id would start addressing a different window
+     * without noticing. The id is unique within one korTTY run and does not survive a restart.
+     */
+    public String getWindowId() {
+        return windowId;
+    }
+
+    /**
+     * The open window carrying {@code windowId}; JavaFX thread, because it walks the live open-window
+     * list.
+     */
+    public static Optional<MainWindow> findWindowById(String windowId) {
+        if (windowId == null || windowId.isBlank()) {
+            return Optional.empty();
+        }
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            if (windowId.equals(window.getWindowId())) {
+                return Optional.of(window);
+            }
+        }
+        return Optional.empty();
+    }
+
     public static List<MainWindow> getOpenWindows() {
         return openWindows;
     }

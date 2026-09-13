@@ -236,11 +236,24 @@ public class TerminalSplitPane extends StackPane {
     }
 
     private @NotNull SithTermFxWidget createWidget(@Nullable SplitRequest request) {
+        return createWidget(request, null);
+    }
+
+    /**
+     * @param preparedConnector an already-connected connector to adopt; when it is non-null the
+     *     {@link SplitConnectorFactory} is <strong>not consulted at all</strong>, which is what keeps
+     *     a caller that prepared its own connector off the FX thread out of the factory's modal
+     *     connect dialog
+     */
+    private @NotNull SithTermFxWidget createWidget(@Nullable SplitRequest request,
+                                                   @Nullable TtyConnector preparedConnector) {
         // KorttyTermWidget routes terminal copy/paste through the policy-aware clipboard handler
         // (enterprise internal-clipboard mode).
         SithTermFxWidget widget = new de.kortty.ui.KorttyTermWidget(80, 24, settingsProviderFactory.get());
         widgetConfigurator.accept(widget);
-        TtyConnector connector = connectorFactory.createConnectorForSplit(request);
+        TtyConnector connector = preparedConnector != null
+            ? preparedConnector
+            : connectorFactory.createConnectorForSplit(request);
         if (connector != null) {
             TtyConnector decoratedConnector = connectorDecorator.apply(widget, connector);
             widget.setTtyConnector(decoratedConnector != null ? decoratedConnector : connector);
@@ -545,8 +558,38 @@ public class TerminalSplitPane extends StackPane {
 
     private void splitWidget(@NotNull SithTermFxWidget widget, @NotNull SplitRequest.SplitMode mode,
                             @NotNull Orientation orientation) {
+        splitWidget(widget, mode, orientation, null);
+    }
+
+    /**
+     * Splits {@code widget}, optionally adopting a connector the caller has already built and
+     * connected.
+     *
+     * <p>A non-null {@code preparedConnector} bypasses the {@link SplitConnectorFactory} entirely.
+     * That is the whole point of the overload: korTTY answers a same-server split by showing an
+     * {@code APPLICATION_MODAL} progress stage and running a nested JavaFX event loop with a
+     * two-minute await, which a programmatic caller on the FX thread would sit inside. Preparing the
+     * connector off the FX thread and handing it in here keeps the layout mutation to a single
+     * non-blocking hop.
+     *
+     * <p>Unlike the menu path this reports the outcome instead of aborting silently: a connector that
+     * is null or not connected leaves the tree untouched and answers null, so a programmatic caller
+     * can surface the failure rather than watch nothing happen.
+     *
+     * @param widget the pane to split; it stays open beside the new one
+     * @param mode always pass a mode explicitly — {@code splitHorizontally(null)} and
+     *     {@code splitVertically(null)} fall back to {@link SplitRequest.SplitMode#NEW_CONNECTION},
+     *     which asks the user for a new connection
+     * @param orientation where the new pane goes
+     * @param preparedConnector an already-connected connector, or null to use the factory
+     * @return the new pane, or null when the split did not happen
+     */
+    public @Nullable SithTermFxWidget splitWidget(@NotNull SithTermFxWidget widget,
+                                                  @NotNull SplitRequest.SplitMode mode,
+                                                  @NotNull Orientation orientation,
+                                                  @Nullable TtyConnector preparedConnector) {
         SplitRequest request = new SplitRequest(mode, widget);
-        SithTermFxWidget newWidget = createWidget(request);
+        SithTermFxWidget newWidget = createWidget(request, preparedConnector);
         TtyConnector connector = newWidget.getTtyConnector();
         if (connector == null || !connector.isConnected()) {
             // The widget configurator (and, with a connector, the decorator) already ran for this
@@ -557,22 +600,43 @@ public class TerminalSplitPane extends StackPane {
                 newWidget.close();
             } catch (Exception ignored) {
             }
-            return;
+            return null;
         }
         setupWidget(newWidget);
         applyLeftPanel(newWidget);
         applyBottomPanel(newWidget);
         SplitCell newCell = new SplitCell(newWidget);
         SplitCell replacement = rootCell.replaceWidget(widget, newCell, orientation);
-        if (replacement != null) {
-            getChildren().clear();
-            rootCell = replacement;
-            getChildren().add(rootCell.getNode());
-            VBox.setVgrow(rootCell.getNode(), Priority.ALWAYS);
-            refreshDragAndDrop();
-            refreshSplitCloseButtons();
-            notifyWidgetSplitCreated(newWidget, request);
+        if (replacement == null) {
+            return null;
         }
+        getChildren().clear();
+        rootCell = replacement;
+        getChildren().add(rootCell.getNode());
+        VBox.setVgrow(rootCell.getNode(), Priority.ALWAYS);
+        refreshDragAndDrop();
+        refreshSplitCloseButtons();
+        notifyWidgetSplitCreated(newWidget, request);
+        return newWidget;
+    }
+
+    /**
+     * Closes one split pane, refusing the tab's last one.
+     *
+     * <p>The refusal is the contract, not a convenience: {@code SplitCell.removeWidget} answers null
+     * for a root leaf, so closing the only pane clears the children and leaves an empty terminal area
+     * inside a still-open tab. The user-facing "Close split" menu item is disabled in exactly this
+     * case; a programmatic caller gets the same protection here.
+     *
+     * @param widget a pane of this split pane
+     * @return true when the pane was closed, false when it was the last one or does not belong here
+     */
+    public boolean closeSplitPane(@NotNull SithTermFxWidget widget) {
+        if (getWidgetCount() <= 1 || !getAllWidgets().contains(widget)) {
+            return false;
+        }
+        closeSplit(widget);
+        return true;
     }
 
     private void closeSplit(@NotNull SithTermFxWidget widget) {

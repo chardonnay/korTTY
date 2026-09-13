@@ -94,6 +94,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.UUID;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -3403,6 +3404,163 @@ public class TerminalView extends BorderPane {
         }
         return canInterceptBufferedAgentShortcut(firstLine, getTerminalAgentCommandName(),
             isTerminalAgentCommandNameCaseInsensitive());
+    }
+
+    // ---- Control API (de.kortty.control) ------------------------------------------------------
+
+    /**
+     * The pane of this tab whose {@link TerminalScreenCapture#paneIdOf} is {@code widgetPaneId}.
+     *
+     * <p>This scans every open pane, unlike {@link #codingAgentWidgetFor(PaneRef)}, which only sees
+     * panes that own a {@code CodingAgentMonitor} and would therefore report a perfectly valid pane
+     * as missing whenever coding-agent detection is switched off.
+     *
+     * @param widgetPaneId a widget pane id, i.e. with its {@code terminal-} prefix
+     */
+    public Optional<SithTermFxWidget> widgetForPaneId(String widgetPaneId) {
+        if (widgetPaneId == null || widgetPaneId.isBlank()) {
+            return Optional.empty();
+        }
+        for (SithTermFxWidget widget : getOrderedWidgets()) {
+            if (widgetPaneId.equals(TerminalScreenCapture.paneIdOf(widget))) {
+                return Optional.of(widget);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * The scrollback plus the visible screen of one pane, right-trimmed, oldest row first.
+     *
+     * <p>Deliberately not {@link #getTerminalHistory()}: that reads the primary widget only, returns
+     * the visible screen only and takes no buffer lock. This is the per-widget form of the private
+     * journal seed read — history buffer and screen under a single lock, so a reader on a background
+     * thread can never observe half of a scroll.
+     *
+     * <p>Safe off the JavaFX thread: it touches the text buffer under its own lock and no scene node.
+     *
+     * @param widget the pane to read
+     * @param maxLines the newest rows to keep; zero or less keeps everything
+     */
+    public List<String> readPaneScrollback(SithTermFxWidget widget, int maxLines) {
+        List<String> lines = new ArrayList<>();
+        if (widget == null || widget.getTerminalTextBuffer() == null) {
+            return lines;
+        }
+        com.sithtermfx.core.model.TerminalTextBuffer textBuffer = widget.getTerminalTextBuffer();
+        textBuffer.lock();
+        try {
+            if (textBuffer.getHistoryBuffer() != null) {
+                collectSeedLines(textBuffer.getHistoryBuffer().getLines(), lines);
+            }
+            collectSeedLines(textBuffer.getScreenLines(), lines);
+        } finally {
+            textBuffer.unlock();
+        }
+        // The screen is padded to its full height; trailing blank rows are noise, not content.
+        while (!lines.isEmpty() && lines.get(lines.size() - 1).isBlank()) {
+            lines.remove(lines.size() - 1);
+        }
+        if (maxLines > 0 && lines.size() > maxLines) {
+            return new ArrayList<>(lines.subList(lines.size() - maxLines, lines.size()));
+        }
+        return lines;
+    }
+
+    /**
+     * The operating-system pid of the pane's local shell, empty for a remote pane, a disconnected one
+     * or a Flatpak shell that runs on the host. This is what lets a script identify the pane it is
+     * itself running in, by matching its own process ancestry.
+     *
+     * <p>Safe off the JavaFX thread.
+     */
+    public OptionalLong shellPidOf(SithTermFxWidget widget) {
+        if (widget == null) {
+            return OptionalLong.empty();
+        }
+        TtyConnector base = unwrapTerminalEffectConnector(widget.getTtyConnector());
+        if (base instanceof LocalShellTtyConnector local) {
+            return local.getShellPid();
+        }
+        return OptionalLong.empty();
+    }
+
+    /**
+     * Builds and connects a second local shell for this tab, without any user interaction.
+     *
+     * <p>This is the non-modal half of a programmatic split. The menu path goes through
+     * {@code createSameServerConnection}, which opens an {@code APPLICATION_MODAL} progress stage and
+     * runs a nested JavaFX event loop with a two-minute await — a caller that is waiting for the
+     * split to finish would be waiting inside that loop. Here the pty is spawned on the calling
+     * thread and only the attach needs the FX thread.
+     *
+     * <p>Call it off the JavaFX application thread: spawning a process is not something the UI thread
+     * should wait for, however briefly.
+     *
+     * @return a connected connector, ready to be handed to
+     *     {@link #attachSplitPane(SithTermFxWidget, Orientation, TtyConnector)}
+     * @throws IllegalStateException when this tab is not a {@code LOCAL_SHELL} connection; every
+     *     other protocol needs the interactive path
+     * @throws IOException when the shell could not be started
+     */
+    public TtyConnector createLocalShellSplitConnector() throws IOException {
+        ServerConnection target = connection;
+        if (target == null || target.getProtocol() != ConnectionProtocol.LOCAL_SHELL) {
+            throw new IllegalStateException(
+                "Only a LOCAL_SHELL tab can be split without a dialog, this tab is "
+                    + (target == null ? "unconnected" : String.valueOf(target.getProtocol())));
+        }
+        LocalShellTtyConnector connector = new LocalShellTtyConnector(target);
+        boolean connected;
+        try {
+            connected = connector.connect();
+        } catch (IOException | RuntimeException e) {
+            closeSplitConnectorQuietly(connector);
+            throw e instanceof IOException io ? io : new IOException(e.getMessage(), e);
+        }
+        if (!connected) {
+            closeSplitConnectorQuietly(connector);
+            throw new IOException("The local shell for the new pane did not start");
+        }
+        reportTerminalConnected(connector);
+        return connector;
+    }
+
+    /** Never lets a failed connect leak the half-built pty behind the exception that reports it. */
+    private void closeSplitConnectorQuietly(LocalShellTtyConnector connector) {
+        try {
+            connector.close();
+        } catch (RuntimeException e) {
+            logger.debug("Split connector could not be closed after a failed connect: {}", e.toString());
+        }
+    }
+
+    /**
+     * Attaches an already-connected connector as a new pane beside {@code source}; JavaFX thread.
+     *
+     * <p>The mode is always {@link SplitRequest.SplitMode#SAME_SERVER_NEW_SHELL} and the connector is
+     * passed in, so the split connector factory — and with it the modal connect dialog and
+     * QuickConnect — is never consulted.
+     *
+     * @return the new pane, or empty when the split did not happen
+     */
+    public Optional<SithTermFxWidget> attachSplitPane(SithTermFxWidget source, Orientation orientation,
+                                                      TtyConnector connected) {
+        if (splitPane == null || source == null || orientation == null || connected == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(splitPane.splitWidget(source,
+            SplitRequest.SplitMode.SAME_SERVER_NEW_SHELL, orientation, connected));
+    }
+
+    /**
+     * Closes one split pane of this tab; JavaFX thread.
+     *
+     * @return false when {@code widget} is this tab's last pane — closing it would leave an empty
+     *     terminal area inside a still-open tab — or does not belong to this tab
+     */
+    public boolean closePane(SithTermFxWidget widget) {
+        return splitPane != null && widget != null && splitPane.closeSplitPane(widget);
     }
 
     /**
