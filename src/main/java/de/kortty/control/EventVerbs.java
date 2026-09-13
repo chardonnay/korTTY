@@ -6,7 +6,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * {@code events.subscribe} and {@code events.unsubscribe}.
@@ -32,9 +31,8 @@ final class EventVerbs {
      * @param events the fan-out
      */
     static void register(MethodRegistry.Builder builder, ControlEventBus events) {
-        // Per connection, so events.unsubscribe without an id can drop exactly this client's own.
-        Map<String, List<ControlEventBus.Subscription>> perConnection = new ConcurrentHashMap<>();
-
+        // The bus itself indexes a subscription by its connection, so there is no second map here to
+        // grow for the life of the process: every connection id is minted once and never reused.
         builder.register(new MethodSpec("events.subscribe",
                 "Starts pushing agent events to this connection.",
                 List.of(new ParamSpec("kinds", "string[]", false, null,
@@ -54,8 +52,6 @@ final class EventVerbs {
                 boolean includeEvidence = ControlJson.optBool(params, "include_evidence", false);
                 ControlEventBus.Subscription subscription =
                     events.subscribe(session, kinds, panes, includeEvidence);
-                perConnection.computeIfAbsent(session.connectionId(), key -> new ArrayList<>())
-                    .add(subscription);
                 JsonObject result = new JsonObject();
                 result.addProperty(PARAM_SUBSCRIPTION, subscription.id());
                 result.add("kinds", BaseVerbs.tree(
@@ -75,31 +71,16 @@ final class EventVerbs {
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"subscribed\":[]}}"),
             (session, params) -> {
                 String id = ControlJson.optString(params, PARAM_SUBSCRIPTION, null);
-                List<ControlEventBus.Subscription> live =
-                    perConnection.computeIfAbsent(session.connectionId(), key -> new ArrayList<>());
-                synchronized (live) {
-                    if (id == null) {
-                        for (ControlEventBus.Subscription subscription : live) {
-                            subscription.close();
-                        }
-                        live.clear();
-                    } else {
-                        live.removeIf(subscription -> {
-                            if (!subscription.id().equals(id)) {
-                                return false;
-                            }
-                            subscription.close();
-                            return true;
-                        });
-                    }
-                    JsonObject result = new JsonObject();
-                    List<String> remaining = new ArrayList<>();
-                    for (ControlEventBus.Subscription subscription : live) {
-                        remaining.add(subscription.id());
-                    }
-                    result.add("subscribed", BaseVerbs.tree(remaining));
-                    return result;
+                if (id == null) {
+                    events.closeConnection(session.connectionId());
+                } else {
+                    // Scoped to this connection: one client must never be able to silence another's
+                    // stream by guessing an id.
+                    events.unsubscribe(session.connectionId(), id);
                 }
+                JsonObject result = new JsonObject();
+                result.add("subscribed", BaseVerbs.tree(events.subscriptionsOf(session.connectionId())));
+                return result;
             });
     }
 

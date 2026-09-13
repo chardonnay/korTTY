@@ -58,6 +58,9 @@ public final class ControlApiServer implements AutoCloseable {
 
     private final String instanceId;
 
+    /** The fan-out whose subscriptions die with their connection; null for a server built without one. */
+    private final ControlEventBus events;
+
     private final Object lifecycle = new Object();
 
     private final Map<String, ControlConnection> connections = new ConcurrentHashMap<>();
@@ -100,6 +103,21 @@ public final class ControlApiServer implements AutoCloseable {
     public ControlApiServer(Path configDir, PlatformProbe platformProbe, MethodRegistry methods,
                             BooleanSupplier gate, LongSupplier clockMillis, String appVersion,
                             String instanceId) {
+        this(configDir, platformProbe, methods, gate, clockMillis, appVersion, instanceId, null);
+    }
+
+    /**
+     * The same, plus the event bus whose subscriptions this server owns.
+     *
+     * @param events the bus {@code events.subscribe} registers into; every subscription of a
+     *     connection is dropped when that connection closes and every subscription of the server when
+     *     it stops, because nothing else ever would — a client that is simply gone never sends
+     *     {@code events.unsubscribe}, and a registration left open keeps copying JSON on the JavaFX
+     *     thread for every registry change for the life of the process
+     */
+    public ControlApiServer(Path configDir, PlatformProbe platformProbe, MethodRegistry methods,
+                            BooleanSupplier gate, LongSupplier clockMillis, String appVersion,
+                            String instanceId, ControlEventBus events) {
         this.configDir = Objects.requireNonNull(configDir, "configDir");
         this.platformProbe = Objects.requireNonNull(platformProbe, "platformProbe");
         this.methods = Objects.requireNonNull(methods, "methods");
@@ -107,6 +125,7 @@ public final class ControlApiServer implements AutoCloseable {
         this.clockMillis = Objects.requireNonNull(clockMillis, "clockMillis");
         this.appVersion = appVersion == null ? "" : appVersion;
         this.instanceId = Objects.requireNonNull(instanceId, "instanceId");
+        this.events = events;
     }
 
     /**
@@ -209,6 +228,18 @@ public final class ControlApiServer implements AutoCloseable {
         statusDetail = "Failed: " + message;
     }
 
+    /**
+     * One connection is gone: forget it, and drop the event subscriptions it owned. A dead
+     * subscription is never cleaned up anywhere else — the client that would have sent
+     * {@code events.unsubscribe} is the one that disappeared.
+     */
+    private void closed(String id) {
+        connections.remove(id);
+        if (events != null) {
+            events.closeConnection(id);
+        }
+    }
+
     private void stop() {
         listening = false;
         ControlApiTransport current = transport;
@@ -222,6 +253,11 @@ public final class ControlApiServer implements AutoCloseable {
             connection.close();
         }
         stopThreads();
+        if (events != null) {
+            // Belt and braces: a connection that never ran its close callback still leaves nothing
+            // behind once the listener is down.
+            events.closeAll();
+        }
         if (endpointFileWritten) {
             ControlEndpointFile.delete(controlDir);
             endpointFileWritten = false;
@@ -316,7 +352,7 @@ public final class ControlApiServer implements AutoCloseable {
         }
         String id = "c" + connectionCounter.incrementAndGet();
         ControlConnection connection = new ControlConnection(id, channel, transportKind, token, methods,
-            gate, clockMillis, timer, writers, () -> connections.remove(id));
+            gate, clockMillis, timer, writers, () -> closed(id));
         connections.put(id, connection);
         try {
             readers.execute(connection);

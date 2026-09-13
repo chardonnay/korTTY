@@ -7,6 +7,7 @@ import de.kortty.codingagent.CodingAgentState;
 import de.kortty.codingagent.PaneRef;
 import de.kortty.codingagent.RegistryChange;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -94,12 +95,14 @@ public final class ControlEventBus {
     public Subscription subscribe(ControlSession session, Set<String> kinds, Set<String> paneIds,
                                   boolean includeEvidence) {
         Objects.requireNonNull(session, "session");
-        String id = "s" + sequence.incrementAndGet();
+        long order = sequence.incrementAndGet();
+        String id = "s" + order;
         Set<String> wanted = kinds == null || kinds.isEmpty()
             ? DEFAULT_KINDS
             : Set.copyOf(kinds);
         Set<String> panes = paneIds == null || paneIds.isEmpty() ? Set.of() : Set.copyOf(paneIds);
-        Registration registration = new Registration(id, session, wanted, panes, includeEvidence);
+        Registration registration =
+            new Registration(id, order, session, wanted, panes, includeEvidence);
         subscriptions.put(id, registration);
         return registration;
     }
@@ -113,6 +116,77 @@ public final class ControlEventBus {
         if (registration != null) {
             registration.detach();
         }
+    }
+
+    /**
+     * Drops one subscription, but only when it belongs to the given connection, so a client can never
+     * silence another client's stream by guessing an id.
+     *
+     * @return whether a subscription of that connection was dropped
+     */
+    public boolean unsubscribe(String connectionId, String subscriptionId) {
+        if (connectionId == null || subscriptionId == null) {
+            return false;
+        }
+        Registration registration = subscriptions.get(subscriptionId);
+        if (registration == null || !connectionId.equals(registration.connectionId())) {
+            return false;
+        }
+        if (!subscriptions.remove(subscriptionId, registration)) {
+            return false;
+        }
+        registration.detach();
+        return true;
+    }
+
+    /**
+     * The live subscription ids of one connection, oldest first.
+     *
+     * <p>This is the bus's own answer to "what is this connection still subscribed to", so no verb has
+     * to keep a second, never-pruned index of its own.
+     */
+    public List<String> subscriptionsOf(String connectionId) {
+        List<Registration> owned = ownedBy(connectionId);
+        owned.sort(Comparator.comparingLong(Registration::sequence));
+        List<String> ids = new ArrayList<>(owned.size());
+        for (Registration registration : owned) {
+            ids.add(registration.id());
+        }
+        return List.copyOf(ids);
+    }
+
+    /**
+     * Drops every subscription of one connection.
+     *
+     * <p>Called when a control connection closes, however it closed — {@code events.unsubscribe}, a
+     * client that simply went away, an overflowing outbound queue. Without it a dead connection's
+     * registrations stay {@code open} and every registry change keeps copying JSON and scheduling
+     * drains for them on the JavaFX thread for the life of the process.
+     *
+     * @return how many subscriptions were dropped
+     */
+    public int closeConnection(String connectionId) {
+        int closed = 0;
+        for (Registration registration : ownedBy(connectionId)) {
+            if (subscriptions.remove(registration.id(), registration)) {
+                registration.detach();
+                closed++;
+            }
+        }
+        return closed;
+    }
+
+    private List<Registration> ownedBy(String connectionId) {
+        List<Registration> owned = new ArrayList<>();
+        if (connectionId == null) {
+            return owned;
+        }
+        for (Registration registration : subscriptions.values()) {
+            if (connectionId.equals(registration.connectionId())) {
+                owned.add(registration);
+            }
+        }
+        return owned;
     }
 
     /**
@@ -236,6 +310,9 @@ public final class ControlEventBus {
 
         private final String id;
 
+        /** The mint order behind {@link #id}, so a connection's subscriptions list oldest first. */
+        private final long sequence;
+
         private final ControlSession session;
 
         private final Set<String> kinds;
@@ -253,9 +330,10 @@ public final class ControlEventBus {
 
         private volatile boolean open = true;
 
-        private Registration(String id, ControlSession session, Set<String> kinds, Set<String> paneIds,
-                             boolean includeEvidence) {
+        private Registration(String id, long sequence, ControlSession session, Set<String> kinds,
+                             Set<String> paneIds, boolean includeEvidence) {
             this.id = id;
+            this.sequence = sequence;
             this.session = session;
             this.kinds = kinds;
             this.paneIds = paneIds;
@@ -265,6 +343,15 @@ public final class ControlEventBus {
         @Override
         public String id() {
             return id;
+        }
+
+        private long sequence() {
+            return sequence;
+        }
+
+        /** The connection this subscription belongs to, which is what its lifetime is tied to. */
+        private String connectionId() {
+            return session.connectionId();
         }
 
         @Override

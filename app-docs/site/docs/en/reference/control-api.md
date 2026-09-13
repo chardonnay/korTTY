@@ -118,7 +118,7 @@ It **cannot**:
 
 ## Audit and visibility
 
-Every action the API takes writes exactly one line to korTTY's log, carrying **byte counts and shapes only** — `bytes=28 bracketed=false submitted=true`, `keys=2`, `orientation=vertical` — never terminal text. When a session journal happens to be running for the tab, the same line is appended to it as a note.
+Every action the API takes writes exactly one line to korTTY's log, carrying **byte counts and shapes only** — `bytes=28 bracketed=false submitted=true`, `keys=2`, `orientation=vertical` — never terminal text. The line goes to korTTY's log and only there — the API writes nothing into a tab's session journal.
 
 The first time a program types into a pane during a korTTY run you get one desktop notification. One, not one per keystroke: the point is that a takeover is never silent, not that it becomes noise you learn to dismiss. korTTY also logs a warning naming the endpoint whenever the listener starts.
 

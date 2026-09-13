@@ -118,7 +118,7 @@ Er **kann nicht**:
 
 ## Audit und Sichtbarkeit
 
-Jede Aktion der API schreibt genau eine Zeile in korTTYs Protokoll, und zwar **nur Byte-Anzahlen und Formen** – `bytes=28 bracketed=false submitted=true`, `keys=2`, `orientation=vertical` – niemals Terminaltext. Läuft für den Tab gerade ein Sitzungsjournal, wird dieselbe Zeile dort als Notiz angehängt.
+Jede Aktion der API schreibt genau eine Zeile in korTTYs Protokoll, und zwar **nur Byte-Anzahlen und Formen** – `bytes=28 bracketed=false submitted=true`, `keys=2`, `orientation=vertical` – niemals Terminaltext. Die Zeile steht in korTTYs Protokoll und nur dort – in das Sitzungsjournal eines Tabs schreibt die API nichts.
 
 Beim ersten Tippen eines Programms in einen Bereich während eines korTTY-Laufs erhalten Sie eine Desktop-Benachrichtigung. Eine, nicht eine pro Tastendruck: es geht darum, dass eine Übernahme nie unbemerkt bleibt, nicht darum, dass sie zu Lärm wird, den man wegzuklicken lernt. korTTY protokolliert außerdem eine Warnung mit dem Endpunkt, sobald der Listener startet.
 

@@ -52,7 +52,7 @@ class AgentStartServiceTest {
         CodingAgentActions actions =
             new CodingAgentActions(agents, new FakePaneAccess(), (verb, pane, detail) -> { });
         ControlAgentGateway gateway =
-            new ControlAgentGateway(surface, UiDispatcher.DIRECT, agents, actions);
+            new ControlAgentGateway(surface, UiDispatcher.DIRECT, agents, actions, null);
         AgentStateWaiter waiter =
             new AgentStateWaiter(surface, UiDispatcher.DIRECT, agents, timer);
         starter = new AgentStartService(splits, writer, gateway, waiter, surface);

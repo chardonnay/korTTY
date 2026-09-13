@@ -13,7 +13,9 @@ import de.kortty.codingagent.FakeFocusOracle;
 import de.kortty.codingagent.PaneRef;
 import java.lang.reflect.Field;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -71,6 +73,41 @@ class AgentStateWaiterTest {
         @Override
         public boolean isUiThread() {
             return true;
+        }
+    }
+
+    /**
+     * Never drains on its own: {@code submit} parks the task and {@link #drain} runs it later, which
+     * is exactly what a JavaFX thread stuck in a nested event loop does to a {@code Platform.runLater}
+     * task — it runs, but long after the caller's budget has gone.
+     */
+    private static final class StalledDispatcher implements UiDispatcher {
+
+        private final List<Runnable> pending = new ArrayList<>();
+
+        @Override
+        public <T> CompletableFuture<T> submit(Supplier<T> task) {
+            CompletableFuture<T> future = new CompletableFuture<>();
+            pending.add(() -> {
+                try {
+                    future.complete(task.get());
+                } catch (RuntimeException e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            return future;
+        }
+
+        @Override
+        public boolean isUiThread() {
+            return true;
+        }
+
+        /** The toolkit draining again, one pulse after nobody is waiting any more. */
+        void drain() {
+            List<Runnable> batch = new ArrayList<>(pending);
+            pending.clear();
+            batch.forEach(Runnable::run);
         }
     }
 
@@ -187,6 +224,29 @@ class AgentStateWaiterTest {
         // reports that effective state rather than the raw detection.
         assertThat(result.state()).isEqualTo("done");
         assertThat(result.previousState()).isEqualTo("working");
+    }
+
+    /**
+     * Why: {@code UiCalls} deliberately does not cancel the task behind a missed budget — it is left
+     * to finish once the toolkit drains again. For this task finishing is not harmless: it registers
+     * a registry listener. If the wait no longer owns that listener, nothing ever closes it, and the
+     * registry invokes it on the JavaFX thread for every change for the rest of the process.
+     */
+    @Test(timeOut = 30_000)
+    void aHopThatMissesItsBudgetStillOwnsTheListenerItsTaskRegistersAfterwards() throws Exception {
+        register(CodingAgentState.WORKING);
+        int before = listenerCount();
+        StalledDispatcher stalled = new StalledDispatcher();
+        AgentStateWaiter late = new AgentStateWaiter(surface, stalled, agents, timer);
+
+        ControlApiException failure =
+            expectThrows(ControlApiException.class, () -> late.await(PANE, "done", 10_000L));
+
+        assertThat(failure.code()).isEqualTo(ControlErrorCode.TIMEOUT);
+        assertThat(failure.data()).containsEntry("stage", "ui");
+        // The toolkit drains one pulse later and the abandoned task subscribes after all.
+        stalled.drain();
+        assertThat(listenerCount()).isEqualTo(before);
     }
 
     @Test(timeOut = 30_000)

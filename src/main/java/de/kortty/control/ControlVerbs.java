@@ -61,7 +61,7 @@ public final class ControlVerbs {
         ScheduledExecutorService timer = timer();
         ControlPaneWriter writer = new ControlPaneWriter(surface, ui, sink);
         ControlSplitService splits = new ControlSplitService(surface, ui, sink);
-        ControlAgentGateway agents = new ControlAgentGateway(surface, ui, registry, agentActions);
+        ControlAgentGateway agents = new ControlAgentGateway(surface, ui, registry, agentActions, sink);
         PaneOutputWaiter outputWaiter = new PaneOutputWaiter(surface, ui, timer);
         AgentStateWaiter stateWaiter = new AgentStateWaiter(surface, ui, registry, timer);
         AgentStartService starter =

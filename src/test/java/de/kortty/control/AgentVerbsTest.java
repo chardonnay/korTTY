@@ -54,6 +54,9 @@ class AgentVerbsTest {
 
     private ControlEventBus events;
 
+    /** Every audit line the verb table produced, as {@code verb pane detail}. */
+    private List<String> audit;
+
     private MethodRegistry registry;
 
     private final AtomicLong clock = new AtomicLong(100_000L);
@@ -92,10 +95,12 @@ class AgentVerbsTest {
         panes.connect(ref(WORKING_PANE));
         timer = new ScheduledThreadPoolExecutor(1);
         events = new ControlEventBus(timer, clock::get);
+        audit = new ArrayList<>();
+        ControlAuditSink sink = (verb, pane, detail) -> audit.add(verb + " " + pane + " " + detail);
         CodingAgentActions actions =
-            new CodingAgentActions(agents, panes, (verb, pane, detail) -> { });
+            new CodingAgentActions(agents, panes, ControlApiWiring.agentAuditSink(sink));
         registry = ControlVerbs.build(surface, ui, agents, actions, events,
-            (verb, pane, detail) -> { }, null, clock::get, "3.4.1", "test-instance");
+            sink, null, clock::get, "3.4.1", "test-instance");
     }
 
     @AfterMethod
@@ -206,6 +211,42 @@ class AgentVerbsTest {
         assertThat(result.getAsJsonArray("keys").toString()).isEqualTo("[\"pageup\"]");
         assertThat(new String(surface.written(BLOCKED_PANE), StandardCharsets.UTF_8))
             .isEqualTo("\u001b[5~");
+    }
+
+    /**
+     * Why: the fallback branch writes straight through the surface instead of through
+     * {@code CodingAgentActions}, so it owes its own audit line. It is also the branch that carries
+     * an arbitrary payload — every printable character is in the key table but in no {@code KeyChord}
+     * — which makes an unaudited write here exactly the one that matters.
+     */
+    @Test
+    void everySendKeysBranchLeavesExactlyOneAuditLine() throws Exception {
+        register(BLOCKED_PANE, CodingAgentState.BLOCKED, "Do you want to proceed?");
+        JsonObject chords = params(BLOCKED_PANE);
+        chords.addProperty("keys", "y enter");
+        JsonObject wide = params(BLOCKED_PANE);
+        wide.addProperty("keys", "c u r l enter");
+
+        call("agent.send_keys", chords);
+        call("agent.send_keys", wide);
+
+        assertThat(audit).hasSize(2);
+        for (String line : audit) {
+            assertThat(line).startsWith("agent.send_keys " + BLOCKED_PANE + " ");
+        }
+    }
+
+    /** Why: a prompt types arbitrary bytes into someone else's agent; it may never write unrecorded. */
+    @Test
+    void promptIsAuditedUnderItsWireVerb() throws Exception {
+        register(WORKING_PANE, CodingAgentState.IDLE, "waiting");
+        JsonObject params = params(WORKING_PANE);
+        params.addProperty("text", "summarise");
+
+        call("agent.prompt", params);
+
+        assertThat(audit).hasSize(1);
+        assertThat(audit.get(0)).startsWith("agent.prompt " + WORKING_PANE + " bytes=");
     }
 
     @Test

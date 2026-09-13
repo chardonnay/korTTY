@@ -1325,24 +1325,13 @@ public class KorTTYApplication extends Application {
         try {
             controlApiUiBridge = new de.kortty.ui.ControlApiUiBridge(MainWindow::getOpenWindows,
                 codingAgentRegistry, codingAgentUiBridge, System::currentTimeMillis);
-            // A SECOND CodingAgentActions over the same registry and the same UI bridge, differing
-            // only in its audit sink: without it every action the Coding Agents panel performs would
-            // be logged as if a script had made it. The sink must never throw — explain() and
-            // rename() call it directly and a failure there would turn a successful action into an
-            // error — hence the blanket catch.
-            CodingAgentActions.AuditSink controlAudit = (verb, pane, detail) -> {
-                try {
-                    logger.info("control-api agent.{} pane={} {}", verb,
-                        pane == null ? null : pane.paneId(), detail);
-                } catch (RuntimeException e) {
-                    // An audit line is never worth failing the action it describes.
-                }
-            };
-            CodingAgentActions controlActions =
-                new CodingAgentActions(codingAgentRegistry, codingAgentUiBridge, controlAudit);
+            // The wiring builds a SECOND CodingAgentActions over this same registry and UI bridge,
+            // differing only in its audit sink: without it every action the Coding Agents panel
+            // performs would be logged as if a script had made it, and no agent.* write would raise
+            // the takeover notification.
             controlApiServer = de.kortty.control.ControlApiWiring.create(configDir,
                 PlatformProbe.fromSystem(), controlApiUiBridge, controlApiUiBridge, codingAgentRegistry,
-                controlActions, desktopNotifier,
+                codingAgentUiBridge, desktopNotifier,
                 () -> de.kortty.control.ControlApiGate.shouldRun(
                     globalSettingsManager == null ? null : globalSettingsManager.getSettings(),
                     de.kortty.policy.PolicyManager.effective()),

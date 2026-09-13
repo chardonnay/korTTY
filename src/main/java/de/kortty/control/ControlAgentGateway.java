@@ -17,6 +17,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The {@code agent.*} verbs, running against a <strong>second</strong> {@code CodingAgentActions}
@@ -34,6 +36,11 @@ import java.util.concurrent.CompletionException;
  */
 public final class ControlAgentGateway {
 
+    private static final Logger LOG = LoggerFactory.getLogger(ControlAgentGateway.class);
+
+    /** The wire name of the key verb, used for the audit line the raw-write branch owes. */
+    private static final String VERB_SEND_KEYS = "agent.send_keys";
+
     private final ControlSurface surface;
 
     private final UiDispatcher ui;
@@ -42,18 +49,23 @@ public final class ControlAgentGateway {
 
     private final CodingAgentActions actions;
 
+    private final ControlAuditSink audit;
+
     /**
      * @param surface the window port
      * @param ui the JavaFX marshaller
      * @param registry the Stage-2 registry
      * @param actions the control-flavoured {@code CodingAgentActions} instance
+     * @param audit the sink for the one write this class performs itself, rather than through
+     *     {@code actions}; {@link ControlAuditSink#LOGGING} when null
      */
     public ControlAgentGateway(ControlSurface surface, UiDispatcher ui, CodingAgentRegistry registry,
-                               CodingAgentActions actions) {
+                               CodingAgentActions actions, ControlAuditSink audit) {
         this.surface = Objects.requireNonNull(surface, "surface");
         this.ui = Objects.requireNonNull(ui, "ui");
         this.registry = Objects.requireNonNull(registry, "registry");
         this.actions = Objects.requireNonNull(actions, "actions");
+        this.audit = audit == null ? ControlAuditSink.LOGGING : audit;
     }
 
     /**
@@ -163,6 +175,10 @@ public final class ControlAgentGateway {
      * through the surface, which keeps the full vocabulary available without widening the Stage-2
      * enum.
      *
+     * <p>Both branches leave <strong>exactly one</strong> audit line: the delegating one through
+     * {@code CodingAgentActions}, the raw one here. The raw branch is the one that carries an
+     * arbitrary printable payload, so it is the last place that may write unrecorded.
+     *
      * @throws ControlApiException {@link ControlErrorCode#AGENT_NOT_FOUND},
      *     {@link ControlErrorCode#UNKNOWN_KEY}, {@link ControlErrorCode#EMPTY_INPUT},
      *     {@link ControlErrorCode#NOT_CONNECTED}, {@link ControlErrorCode#WRITE_FAILED}
@@ -181,8 +197,21 @@ public final class ControlAgentGateway {
                 return new WriteResult(resolved.pane().paneId(), payload.length, false, false, normalised);
             }
             int written = surface.write(resolved.pane().paneId(), payload);
+            record(resolved.pane().paneId(), "keys=" + normalised.size() + " bytes=" + written);
             return new WriteResult(resolved.pane().paneId(), written, false, false, normalised);
         });
+    }
+
+    /**
+     * Records the raw-write branch's audit line. A sink that throws is swallowed at debug level, as
+     * everywhere else: a successful write must not become a JSON-RPC error.
+     */
+    private void record(String paneId, String detail) {
+        try {
+            audit.record(VERB_SEND_KEYS, paneId, detail);
+        } catch (RuntimeException e) {
+            LOG.debug("The control-API audit sink failed for {}: {}", VERB_SEND_KEYS, e.toString());
+        }
     }
 
     /**

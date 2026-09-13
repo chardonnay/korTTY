@@ -251,6 +251,59 @@ class ControlEventBusTest {
         assertThat(delivered).isEmpty();
     }
 
+    /**
+     * Why: a client that simply goes away — Ctrl-C, a crashed script, an outbound queue the server
+     * itself closed — never sends {@code events.unsubscribe}. Its registration would stay open, and
+     * {@code publish} would keep deep-copying JSON and scheduling drains for it on the JavaFX thread
+     * for the life of the process.
+     */
+    @Test(timeOut = 30_000)
+    void closingAConnectionDropsExactlyThatConnectionsSubscriptions() {
+        List<ControlFrame> otherFrames = new ArrayList<>();
+        ControlSession other = new ControlSession("c2", EndpointDescriptor.TRANSPORT_UNIX, true, "other",
+            otherFrames::add);
+        bus.subscribe(session, Set.of(), Set.of(), false);
+        bus.subscribe(other, Set.of(), Set.of(), false);
+
+        assertThat(bus.closeConnection("c1")).isEqualTo(1);
+
+        bus.publish(event("agent.added", PANE));
+        timer.runAll();
+        assertThat(delivered).isEmpty();
+        assertThat(otherFrames).hasSize(1);
+        assertThat(bus.subscriptionsOf("c1")).isEmpty();
+        assertThat(bus.subscriptionsOf("c2")).hasSize(1);
+    }
+
+    /**
+     * Why: {@code events.unsubscribe} takes an id off the wire, and ids are a short global sequence.
+     * Scoping the drop to the caller's own connection is what stops one client from silencing
+     * another's stream by guessing {@code s1}.
+     */
+    @Test(timeOut = 30_000)
+    void oneConnectionCannotUnsubscribeAnothersSubscription() {
+        ControlSession other = new ControlSession("c2", EndpointDescriptor.TRANSPORT_UNIX, true, "other",
+            frame -> { });
+        ControlEventBus.Subscription mine = bus.subscribe(session, Set.of(), Set.of(), false);
+
+        assertThat(bus.unsubscribe("c2", mine.id())).isFalse();
+        assertThat(bus.unsubscribe("c1", mine.id())).isTrue();
+
+        bus.publish(event("agent.added", PANE));
+        timer.runAll();
+        assertThat(delivered).isEmpty();
+        assertThat(bus.subscriptionsOf("c2")).isEmpty();
+        assertThat(other.connectionId()).isEqualTo("c2");
+    }
+
+    @Test(timeOut = 30_000)
+    void aConnectionsSubscriptionsAreListedOldestFirst() {
+        String first = bus.subscribe(session, Set.of(), Set.of(), false).id();
+        String second = bus.subscribe(session, Set.of(), Set.of(), false).id();
+
+        assertThat(bus.subscriptionsOf("c1")).containsExactly(first, second).inOrder();
+    }
+
     /** Builds the three {@link RegistryChange} shapes the bus has to translate. */
     private static final class CodingAgentRegistryListenerFixture {
 

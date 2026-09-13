@@ -86,9 +86,22 @@ public final class ControlSplitService {
             throw new ControlApiException(ControlErrorCode.SPLIT_FAILED,
                 "The split could not be prepared for " + paneId, Map.of("pane", paneId));
         }
-        PaneInfo created = UiCalls.await(ui, ControlApiProtocol.UI_SPLIT_TIMEOUT_MILLIS,
-            () -> unchecked(() -> surface.attachSplitPane(source.paneId(), direction, connector, focus)));
+        PaneInfo created;
+        try {
+            created = UiCalls.await(ui, ControlApiProtocol.UI_SPLIT_TIMEOUT_MILLIS,
+                () -> unchecked(() -> surface.attachSplitPane(source.paneId(), direction, connector, focus)));
+        } catch (ControlApiException e) {
+            // The attach never reached the toolkit, so nothing there can have taken the connector:
+            // close the shell this call spawned rather than leave it running with no pane.
+            // A TIMEOUT is deliberately NOT closed — UiCalls does not cancel the task, so it may still
+            // attach the pane, and closing the connector would gut a live pane.
+            if (e.code() == ControlErrorCode.UI_UNAVAILABLE) {
+                discard(connector);
+            }
+            throw e;
+        }
         if (created == null) {
+            discard(connector);
             throw new ControlApiException(ControlErrorCode.SPLIT_FAILED,
                 "The split aborted: the new pane never attached", Map.of("pane", paneId));
         }
@@ -116,6 +129,25 @@ public final class ControlSplitService {
             throw e.code() == ControlErrorCode.LAST_PANE ? lastPane(paneId, e) : e;
         }
         record(VERB_CLOSE, paneId, "closed=1");
+    }
+
+    /**
+     * Closes a prepared connector that no pane will ever own.
+     *
+     * <p>The connector is opaque here on purpose — the package knows nothing about terminals — but a
+     * live pty is behind it, so a split that ends without a pane must not leave the shell process
+     * running for the life of the application. {@code ControlSurface.attachSplitPane} closes it on the
+     * failure paths it sees itself; this covers the one it cannot, namely never being called at all.
+     */
+    private static void discard(Object connector) {
+        if (!(connector instanceof AutoCloseable closeable)) {
+            return;
+        }
+        try {
+            closeable.close();
+        } catch (Exception e) {
+            LOG.debug("control-api: an orphaned split connector could not be closed: {}", e.toString());
+        }
     }
 
     private static ControlApiException lastPane(String paneId, ControlApiException cause) {

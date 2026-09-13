@@ -389,20 +389,42 @@ public final class ControlApiUiBridge implements ControlSurface, UiDispatcher {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The connector arrives already connected: a live pty with a live shell process behind it,
+     * spawned in the previous hop. Nothing else owns it until the widget does, so <strong>every</strong>
+     * way out of here that is not that widget closes it. The two-hop design exists precisely because
+     * the pane can go away in between — a user closing the tab during the spawn would otherwise leave
+     * a shell running for the life of the application with no pane to reach it from.
+     */
     @Override
     public PaneInfo attachSplitPane(String paneId, String orientation, Object preparedConnector,
                                     boolean focus) throws ControlApiException {
         requireUiThread("attachSplitPane");
-        Located located = requireLocated(paneId);
+        Located located;
+        try {
+            located = requireLocated(paneId);
+        } catch (ControlApiException | RuntimeException e) {
+            discardPreparedConnector(preparedConnector);
+            throw e;
+        }
         if (!(preparedConnector instanceof TtyConnector connector)) {
+            discardPreparedConnector(preparedConnector);
             throw new ControlApiException(ControlErrorCode.SPLIT_FAILED,
                 "The prepared connector is not usable for " + paneId, Map.of("pane", paneId));
         }
         Orientation direction = ORIENTATION_VERTICAL.equalsIgnoreCase(orientation)
             ? Orientation.VERTICAL : Orientation.HORIZONTAL;
-        SithTermFxWidget created = located.view()
-            .attachSplitPane(located.widget(), direction, connector).orElse(null);
+        SithTermFxWidget created;
+        try {
+            created = located.view().attachSplitPane(located.widget(), direction, connector).orElse(null);
+        } catch (RuntimeException e) {
+            discardPreparedConnector(connector);
+            throw e;
+        }
         if (created == null) {
+            discardPreparedConnector(connector);
             throw new ControlApiException(ControlErrorCode.SPLIT_FAILED,
                 "The split aborted: the new pane never attached", Map.of("pane", paneId));
         }
@@ -410,6 +432,22 @@ public final class ControlApiUiBridge implements ControlSurface, UiDispatcher {
             located.view().focusWidget(created);
         }
         return paneInfo(located.window(), located.view(), created);
+    }
+
+    /**
+     * Closes a prepared connector no pane will ever own, so the shell process behind it dies with the
+     * failed split instead of outliving it. Never throws: it runs on a failure path that already has
+     * an answer for the caller.
+     */
+    private static void discardPreparedConnector(Object preparedConnector) {
+        if (!(preparedConnector instanceof TtyConnector connector)) {
+            return;
+        }
+        try {
+            connector.close();
+        } catch (RuntimeException e) {
+            logger.debug("control-api: an orphaned split connector could not be closed: {}", e.toString());
+        }
     }
 
     @Override

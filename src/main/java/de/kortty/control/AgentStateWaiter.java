@@ -26,7 +26,9 @@ import org.slf4j.LoggerFactory;
  * <p>The current entry is read <strong>and</strong> the registry listener registered inside
  * <strong>one</strong> {@link UiDispatcher} block, so an already-satisfied condition returns
  * immediately and a transition delivered between the check and the subscribe cannot be lost. The
- * listener handle is closed in a {@code finally} — on success, on timeout and on cancellation alike.
+ * listener handle is closed in a {@code finally} — on success, on timeout and on cancellation alike,
+ * and also when the opening hop itself timed out, because {@link UiCalls} deliberately leaves that
+ * task to finish later and it would otherwise register a listener nobody owns.
  *
  * <p>Any thread, never the JavaFX application thread — it blocks until the deadline.
  */
@@ -79,35 +81,42 @@ public final class AgentStateWaiter {
         long budget = Math.max(1L, Math.min(timeoutMillis, ControlApiProtocol.WAIT_HARD_CAP_MILLIS));
         long startNanos = System.nanoTime();
         CompletableFuture<AgentWaitResult> future = new CompletableFuture<>();
-        AtomicReference<AutoCloseable> handle = new AtomicReference<>();
+        ListenerHandle handle = new ListenerHandle();
         AtomicReference<String> lastState = new AtomicReference<>();
 
         // One block: read the entry and subscribe, so no transition can slip between the two.
-        UiCalls.await(ui, ControlApiProtocol.UI_TIMEOUT_MILLIS, () -> {
-            try {
-                PaneInfo pane = surface.resolve(PaneAddress.ofPaneId(require(paneId)));
-                PaneRef ref = surface.paneRefOf(pane.paneId()).orElseThrow(() -> new ControlApiException(
-                    ControlErrorCode.PANE_NOT_FOUND, "The pane is no longer open: " + pane.paneId(),
-                    Map.of("pane", pane.paneId())));
-                CodingAgentEntry entry = registry.entry(ref).orElseThrow(() -> new ControlApiException(
-                    ControlErrorCode.AGENT_NOT_FOUND,
-                    "No coding agent is registered for " + pane.paneId(),
-                    Map.of("pane", pane.paneId())));
-                String current = wire(entry.state());
-                lastState.set(current);
-                if (satisfiedAlready(target, current)) {
-                    future.complete(new AgentWaitResult(current, null, 0L,
-                        AgentInfo.of(entry, pane.paneId(), pane.tabId(), pane.windowId(),
-                            System.currentTimeMillis())));
+        try {
+            UiCalls.await(ui, ControlApiProtocol.UI_TIMEOUT_MILLIS, () -> {
+                try {
+                    PaneInfo pane = surface.resolve(PaneAddress.ofPaneId(require(paneId)));
+                    PaneRef ref = surface.paneRefOf(pane.paneId()).orElseThrow(() -> new ControlApiException(
+                        ControlErrorCode.PANE_NOT_FOUND, "The pane is no longer open: " + pane.paneId(),
+                        Map.of("pane", pane.paneId())));
+                    CodingAgentEntry entry = registry.entry(ref).orElseThrow(() -> new ControlApiException(
+                        ControlErrorCode.AGENT_NOT_FOUND,
+                        "No coding agent is registered for " + pane.paneId(),
+                        Map.of("pane", pane.paneId())));
+                    String current = wire(entry.state());
+                    lastState.set(current);
+                    if (satisfiedAlready(target, current)) {
+                        future.complete(new AgentWaitResult(current, null, 0L,
+                            AgentInfo.of(entry, pane.paneId(), pane.tabId(), pane.windowId(),
+                                System.currentTimeMillis())));
+                        return Boolean.TRUE;
+                    }
+                    handle.set(registry.addListener(change -> onChange(change, ref, pane, target, lastState,
+                        startNanos, future)));
                     return Boolean.TRUE;
+                } catch (ControlApiException e) {
+                    throw new CompletionException(e);
                 }
-                handle.set(registry.addListener(change -> onChange(change, ref, pane, target, lastState,
-                    startNanos, future)));
-                return Boolean.TRUE;
-            } catch (ControlApiException e) {
-                throw new CompletionException(e);
-            }
-        });
+            });
+        } catch (ControlApiException e) {
+            // The hop may still be queued: UiCalls never cancels it, so a listener registered one
+            // pulse from now must find the wait already gone and close itself.
+            handle.abandon();
+            throw e;
+        }
 
         // The shared timer owns the deadline, so the waiting thread parks on one future and nothing
         // else: no poll loop, and the wait ends even if the registry never fires again.
@@ -126,7 +135,45 @@ public final class AgentStateWaiter {
                 "The wait failed; see the korTTY log", e.getCause());
         } finally {
             deadline.cancel(false);
-            release(handle.get());
+            handle.abandon();
+        }
+    }
+
+    /**
+     * Owns the registry listener for exactly one wait, so it is closed once and never leaked.
+     *
+     * <p>The two ends race on purpose: {@link #set} runs on the JavaFX thread inside the opening hop,
+     * {@link #abandon} on the waiting thread when the wait ends — including when the hop's own budget
+     * expired and the task has not run yet. Whichever comes second does the closing, so a listener
+     * registered after the wait gave up is dropped immediately instead of living for the rest of the
+     * process.
+     */
+    private final class ListenerHandle {
+
+        private AutoCloseable handle;
+
+        private boolean abandoned;
+
+        /** JavaFX thread: keeps the handle, or closes it at once when the wait already gave up. */
+        void set(AutoCloseable value) {
+            synchronized (this) {
+                if (!abandoned) {
+                    handle = value;
+                    return;
+                }
+            }
+            closeQuietly(value);
+        }
+
+        /** Ends the listener's life; idempotent, and safe to call before {@link #set} ever runs. */
+        void abandon() {
+            AutoCloseable value;
+            synchronized (this) {
+                abandoned = true;
+                value = handle;
+                handle = null;
+            }
+            release(value);
         }
     }
 
@@ -171,15 +218,23 @@ public final class AgentStateWaiter {
         }
         try {
             UiCalls.await(ui, ControlApiProtocol.UI_TIMEOUT_MILLIS, () -> {
-                try {
-                    handle.close();
-                } catch (Exception e) {
-                    LOG.debug("control-api agent.wait could not unregister its listener: {}", e.toString());
-                }
+                closeQuietly(handle);
                 return Boolean.TRUE;
             });
         } catch (ControlApiException e) {
             LOG.debug("control-api agent.wait could not reach the UI to unregister: {}", e.toString());
+        }
+    }
+
+    /** Closes a listener handle on the current thread; a failure here is never the wait's outcome. */
+    private static void closeQuietly(AutoCloseable handle) {
+        if (handle == null) {
+            return;
+        }
+        try {
+            handle.close();
+        } catch (Exception e) {
+            LOG.debug("control-api agent.wait could not unregister its listener: {}", e.toString());
         }
     }
 

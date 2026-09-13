@@ -117,6 +117,81 @@ class ControlSplitServiceTest {
         assertThat(audit).isEmpty();
     }
 
+    /**
+     * Why: the prepared connector is a live pty with a live shell process behind it. Until a widget
+     * owns it, this call is the only thing that does, so a split that ends without a pane must close
+     * it — otherwise the shell survives with no pane, no connector close and no way for the user to
+     * reach or kill it, once per attempt.
+     */
+    @Test
+    void aSplitThatNeverAttachesClosesTheShellItAlreadySpawned() {
+        surface.addPane(FakeControlSurface.pane(SOURCE, "t1", "w1", 0, true, true, 4711L));
+        ClosingConnector connector = new ClosingConnector();
+        surface.setPreparedConnector(connector);
+        surface.setAttachResult(null);
+
+        expectThrows(ControlApiException.class, () -> splits.split(SOURCE, "horizontal", true));
+
+        assertThat(connector.closes).isEqualTo(1);
+    }
+
+    /**
+     * Why: when the hop never reaches the toolkit the attach cannot have run, so nothing over there
+     * can have taken the connector. A missed budget is the opposite case and is deliberately left
+     * alone — {@code UiCalls} does not cancel the task, so it may still attach the pane, and closing
+     * the connector then would gut a live pane.
+     */
+    @Test
+    void aSplitThatNeverReachesTheToolkitClosesTheShellItAlreadySpawned() {
+        surface.addPane(FakeControlSurface.pane(SOURCE, "t1", "w1", 0, true, true, 4711L));
+        ClosingConnector connector = new ClosingConnector();
+        surface.setPreparedConnector(connector);
+        ControlSplitService gone = new ControlSplitService(surface, new NoToolkitDispatcher(ui),
+            (verb, pane, detail) -> audit.add(verb));
+
+        ControlApiException failure =
+            expectThrows(ControlApiException.class, () -> gone.split(SOURCE, "horizontal", true));
+
+        assertThat(failure.code()).isEqualTo(ControlErrorCode.UI_UNAVAILABLE);
+        assertThat(connector.closes).isEqualTo(1);
+    }
+
+    /** A prepared connector that counts its closes, standing in for the pty of a new local shell. */
+    private static final class ClosingConnector implements AutoCloseable {
+
+        private int closes;
+
+        @Override
+        public void close() {
+            closes++;
+        }
+    }
+
+    /** Answers the first hop and then behaves like a toolkit that has gone: no dispatch at all. */
+    private static final class NoToolkitDispatcher implements UiDispatcher {
+
+        private final UiDispatcher delegate;
+
+        private int hops;
+
+        private NoToolkitDispatcher(UiDispatcher delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public <T> CompletableFuture<T> submit(Supplier<T> task) {
+            if (hops++ == 0) {
+                return delegate.submit(task);
+            }
+            throw new IllegalStateException("Toolkit not running");
+        }
+
+        @Override
+        public boolean isUiThread() {
+            return delegate.isUiThread();
+        }
+    }
+
     @Test
     void anUnknownOrientationIsInvalidParams() {
         surface.addPane(FakeControlSurface.pane(SOURCE, "t1", "w1", 0, true, true, 4711L));
