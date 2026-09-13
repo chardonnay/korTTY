@@ -545,6 +545,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/coding-agents.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Coding agents
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/i18n.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -760,15 +768,16 @@
 </span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>├── master.key                         # Hashed master password (PBKDF2)
 </span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>├── master.autounlock                  # Optional auto-login password (obfuscated; owner-only)
 </span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
-</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>├── kortty.log                         # Application log file
-</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>├── history/                           # Terminal session history (compressed)
-</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>├── journals/                          # Session journals (one directory per journal)
-</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>├── terminal-logs/                     # Default folder for per-connection terminal logs
-</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>├── plugins/                           # Imported terminal-effect plugin JARs
-</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
-</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>├── projects/                          # Project files (.kortty)
-</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>├── i18n/                              # Generated language files (messages_*.properties)
-</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>└── ssh-keys/                          # Optional copied SSH keys (included in backups)
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>├── coding-agents/                     # User overrides for coding-agent detection rules
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>├── kortty.log                         # Application log file
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>├── history/                           # Terminal session history (compressed)
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>├── journals/                          # Session journals (one directory per journal)
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>├── terminal-logs/                     # Default folder for per-connection terminal logs
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>├── plugins/                           # Imported terminal-effect plugin JARs
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>├── projects/                          # Project files (.kortty)
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>├── i18n/                              # Generated language files (messages_*.properties)
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>└── ssh-keys/                          # Optional copied SSH keys (included in backups)
 </span></code></pre></div>
 <h2 id="core-configuration-files">Core configuration files<a class="headerlink" href="#core-configuration-files" title="Permanent link">&para;</a></h2>
 <h3 id="connectionsxml">connections.xml<a class="headerlink" href="#connectionsxml" title="Permanent link">&para;</a></h3>
@@ -979,6 +988,9 @@
 <h3 id="terminal-effect-pluginsdisabled">terminal-effect-plugins.disabled<a class="headerlink" href="#terminal-effect-pluginsdisabled" title="Permanent link">&para;</a></h3>
 <p>Text file listing disabled terminal-effect plugin IDs (one per line).</p>
 <p><strong>Purpose:</strong> When you disable a terminal-effect plugin via <em>Plugins &gt; Terminal Effects</em>, its ID is written to this file so it remains disabled after restart.</p>
+<h3 id="coding-agents">coding-agents/<a class="headerlink" href="#coding-agents" title="Permanent link">&para;</a></h3>
+<p>Optional user overrides for the coding-agent detection rules, one JSON file per agent (<code>claude-code.json</code>, <code>codex.json</code>, <code>gemini-cli.json</code>).</p>
+<p><strong>Purpose:</strong> A file here replaces the bundled rule file of the same agent entirely. An invalid file is reported in the log as a <em>coding-agents</em> warning and the bundled rules stay in effect. The directory does not exist until you create it. See <a href="../features/coding-agents.html#custom-rules">Coding agents → Custom rules</a>.</p>
 <h3 id="korttylog">kortty.log<a class="headerlink" href="#korttylog" title="Permanent link">&para;</a></h3>
 <p>Application log file.</p>
 <p><strong>Contains:</strong>

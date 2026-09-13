@@ -545,6 +545,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../../features/coding-agents.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Coding-Agents
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../../features/i18n.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -852,6 +860,13 @@
 <td>Aus</td>
 <td><code>hostKeyCheckDisabledForAllConnections</code></td>
 </tr>
+<tr>
+<td>Coding-Agents (Claude Code, Codex, Gemini CLI) in lokalen Shell-Tabs erkennen</td>
+<td>umschalten</td>
+<td>–</td>
+<td>Ein</td>
+<td><code>codingAgentDetectionEnabled</code></td>
+</tr>
 </tbody>
 </table>
 <h2 id="hinweise">Hinweise<a class="headerlink" href="#hinweise" title="Permanent link">&para;</a></h2>
@@ -883,6 +898,10 @@
 <div class="admonition note">
 <p class="admonition-title">Verlorene Verbindungen automatisch wiederherstellen</p>
 <p>Wenn diese Option aktiviert ist und eine <strong>hergestellte</strong> SSH-Verbindung verloren geht (Netzwerkausfall, Server weg), stellt die Registerkarte die Verbindung mit zunehmenden Verzögerungen selbstständig wieder her – 3, 5, 10, 20, 30, dann alle 60 Sekunden – und die rote Statusleiste zählt bis zum nächsten Versuch herunter. Ein Doppelklick auf die Leiste stellt die Verbindung trotzdem sofort wieder her und eine erfolgreiche erneute Verbindung oder das Schließen des Tabs stoppt die automatischen Versuche. Fehlgeschlagene Anmeldungen und andere dauerhafte Fehler (Authentifizierung, Hostschlüssel, Konfiguration) werden nie automatisch wiederholt, und eine Verbindung, die nie hergestellt wurde, wird durch diese Einstellung auch nicht erneut versucht – das ist es, was <em>Verbindungswiederholungen aktivieren</em> abdeckt. Siehe <a href="../../features/terminal.html#verbindungsverlust-und-automatische-wiederherstellung-der-verbindung">Terminalsitzungen → Verbindungsverlust</a>.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Coding-Agents erkennen</p>
+<p>Wenn diese Option aktiviert ist, beobachtet korTTY jeden lokalen Shell-Bereich auf ein laufendes Claude Code, Codex oder Gemini CLI und verfolgt, ob es arbeitet, auf eine Frage wartet oder untätig ist. Der Bildschirm wird lokal analysiert und nichts verlässt den Rechner; die Änderung wirkt sofort auf offene Registerkarten. Siehe <a href="../../features/coding-agents.html">Coding-Agents</a>.</p>
 </div></p>
     </article>
 </section>
