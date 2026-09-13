@@ -228,6 +228,6 @@ class DesktopNotifierTest {
         ok.notify("title", "body");
         assertThat(commands.get(0)).containsExactly(
             "notify-send", "--app-name=korTTY", "--icon=utilities-terminal", "--urgency=normal",
-            "--expire-time=8000", "title", "body").inOrder();
+            "--expire-time=8000", "--", "title", "body").inOrder();
     }
 }

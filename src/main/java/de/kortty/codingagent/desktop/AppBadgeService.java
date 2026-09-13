@@ -48,6 +48,11 @@ public final class AppBadgeService implements AutoCloseable {
     /**
      * Applies {@code blockedCount} (coalescing an unchanged count) and, when {@code urgent} and the
      * effective count is positive, asks the desktop for attention. JavaFX thread only.
+     *
+     * <p>An unchanged count is re-applied when the backend has just given up asynchronously (a
+     * failed launcher-entry emit on its own executor flips {@code isSupported()} to false long after
+     * {@code showCount} returned): the count that caused the failure would otherwise appear neither
+     * on the icon nor in the title until it changes again.
      */
     public void update(int blockedCount, boolean urgent) {
         if (closed) {
@@ -55,7 +60,8 @@ public final class AppBadgeService implements AutoCloseable {
         }
         lastRequestedCount = Math.max(0, blockedCount);
         int effective = effectiveCount();
-        if (effective != lastAppliedCount) {
+        boolean fallbackJustActivated = !titleFallbackActive && usingTitleFallback();
+        if (effective != lastAppliedCount || fallbackJustActivated) {
             apply(effective);
         }
         if (urgent && effective > 0) {

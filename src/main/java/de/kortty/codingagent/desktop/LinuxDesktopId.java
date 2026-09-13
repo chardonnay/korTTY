@@ -15,9 +15,10 @@ import java.util.function.Predicate;
 import java.util.zip.CRC32;
 
 /**
- * Resolves the {@code .desktop} id korTTY was installed under on Linux and builds the
+ * Resolves the {@code .desktop} id korTTY was installed under on Linux and addresses the
  * {@code com.canonical.Unity.LauncherEntry.Update} signal (honoured by KDE Plasma, Ubuntu Dock and
- * Dash to Dock) that carries the application-icon counter.
+ * Dash to Dock) that carries the application-icon counter; the signal itself is emitted by
+ * {@link LauncherEntryDBusConnection}.
  *
  * <p>Inside Flatpak the id is fixed ({@link #FLATPAK_DESKTOP_ID}); the deb/rpm packages install
  * {@code kortty-korTTY.desktop} below {@code /opt/kortty} and the Arch package installs
@@ -34,7 +35,8 @@ public final class LinuxDesktopId {
     static final String DEB_RPM_DESKTOP_ID = "kortty-korTTY.desktop";
     static final String PACMAN_DESKTOP_ID = "kortty.desktop";
     static final String LAUNCHER_ENTRY_OBJECT_PREFIX = "/com/canonical/unity/launcherentry/";
-    static final String LAUNCHER_ENTRY_SIGNAL = "com.canonical.Unity.LauncherEntry.Update";
+    static final String LAUNCHER_ENTRY_INTERFACE = "com.canonical.Unity.LauncherEntry";
+    static final String LAUNCHER_ENTRY_MEMBER = "Update";
     static final String DEFAULT_XDG_DATA_DIRS = "/usr/local/share:/usr/share";
 
     private static final String PACMAN_INSTALL_PREFIX = "/usr/lib/kortty";
@@ -108,21 +110,9 @@ public final class LinuxDesktopId {
         return LAUNCHER_ENTRY_OBJECT_PREFIX + Long.toUnsignedString(crc.getValue());
     }
 
-    /**
-     * The {@code gdbus emit} argv for one counter update. The property dictionary is a single argv
-     * element; {@code count-visible} is {@code true} only for a positive count.
-     */
-    public static List<String> gdbusCommand(String desktopId, int count, boolean urgent) {
-        Objects.requireNonNull(desktopId, "desktopId");
-        int visibleCount = Math.max(0, count);
-        String dictionary = "{'count': <int64 " + visibleCount + ">, 'count-visible': <" + (visibleCount > 0)
-            + ">, 'urgent': <" + urgent + ">}";
-        return List.of(
-            "gdbus", "emit", "--session",
-            "--object-path", objectPath(desktopId),
-            "--signal", LAUNCHER_ENTRY_SIGNAL,
-            "application://" + desktopId,
-            dictionary);
+    /** The {@code application://<desktop id>} URI the counter update carries as its first argument. */
+    public static String applicationUri(String desktopId) {
+        return "application://" + Objects.requireNonNull(desktopId, "desktopId");
     }
 
     private static List<String> candidates(String jpackageAppPath) {

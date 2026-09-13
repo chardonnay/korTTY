@@ -13,8 +13,11 @@
  *
  * <p>Threading: {@link de.kortty.codingagent.desktop.AppBadgeService#update} and {@code refresh}
  * run on the JavaFX thread (the Windows backend snapshots a canvas); external processes
- * ({@code gdbus}, {@code osascript}, {@code notify-send}) run through {@link
- * de.kortty.codingagent.desktop.ExternalCommandRunner} on named daemon executors and AWT work
+ * ({@code osascript}, {@code notify-send}) run through {@link
+ * de.kortty.codingagent.desktop.ExternalCommandRunner} on named daemon executors, the Linux
+ * launcher counter is emitted over the persistent session-bus connection of {@link
+ * de.kortty.codingagent.desktop.LauncherEntryDBusConnection} on the {@code kortty-app-badge}
+ * executor, and AWT work
  * ({@code Taskbar}, {@code SystemTray}) is always posted with {@code EventQueue.invokeLater} — the
  * JavaFX thread never waits for either. Failures degrade to the {@code Unsupported} backend or the
  * window-title fallback and are logged once per session.

@@ -63,6 +63,14 @@ public final class NotificationCommands {
     /**
      * The {@code notify-send} argv, wrapped with {@code flatpak-spawn --host} when {@code env}
      * carries {@code FLATPAK_ID} (the sandbox lacks the notification talk-name).
+     *
+     * <p>Summary and body are separated from the options by {@code --}: they carry user-chosen names
+     * (the agent alias, the connection name), and GOption would otherwise read a leading {@code -} as
+     * an option — an unknown one aborts with exit 1 (two of those disable the notifier for the
+     * session), a known one such as {@code --urgency=critical} would silently take effect. The body
+     * is additionally escaped for markup, because most notification servers render it as Pango
+     * markup and would swallow the {@code <}, {@code >} and {@code &} of a screen line; the summary
+     * is never markup and stays verbatim.
      */
     public static List<String> notifySend(String appName, String icon, String title, String body,
                                           Map<String, String> env) {
@@ -72,9 +80,22 @@ public final class NotificationCommands {
             "--icon=" + icon,
             "--urgency=normal",
             "--expire-time=" + NOTIFY_SEND_EXPIRE_MILLIS,
+            "--",
             title == null ? "" : title,
-            body == null ? "" : body);
+            escapeMarkup(body));
         return ExternalCommandRunner.hostAware(argv, env);
+    }
+
+    /**
+     * Escapes {@code text} for the Pango/HTML markup that notification servers apply to the body:
+     * {@code &} → {@code &amp;}, {@code <} → {@code &lt;}, {@code >} → {@code &gt;} (the ampersand
+     * first, so the entities are not escaped twice). A {@code null} text becomes the empty string.
+     */
+    public static String escapeMarkup(String text) {
+        if (text == null || text.isEmpty()) {
+            return "";
+        }
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     /**

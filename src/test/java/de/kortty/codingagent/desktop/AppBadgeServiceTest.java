@@ -182,6 +182,30 @@ class AppBadgeServiceTest {
     }
 
     @Test
+    void anUnchangedCountIsReAppliedWhenTheBackendGivesUpAsynchronously() {
+        // The Linux backend emits on its own executor and reports the failure only afterwards, so the
+        // count that caused it must still reach the title even though it never changes.
+        FakeBadgeBackend backend = new FakeBadgeBackend();
+        FakeTitlePresenter title = new FakeTitlePresenter();
+        AppBadgeService service = new AppBadgeService(backend, title, () -> true);
+
+        service.update(1, false);
+        assertThat(backend.counts).containsExactly(1);
+        assertThat(title.counts).isEmpty();
+
+        backend.supported = false;
+        service.update(1, false);
+
+        assertThat(service.usingTitleFallback()).isTrue();
+        assertThat(title.counts).containsExactly(1);
+        assertThat(backend.counts).containsExactly(1);
+
+        // Once the fallback is active an unchanged count is coalesced again.
+        service.update(1, false);
+        assertThat(title.counts).containsExactly(1);
+    }
+
+    @Test
     void refreshReappliesTheCurrentCount() {
         FakeBadgeBackend backend = new FakeBadgeBackend();
         FakeTitlePresenter title = new FakeTitlePresenter();

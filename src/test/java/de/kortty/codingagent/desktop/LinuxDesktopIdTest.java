@@ -134,36 +134,15 @@ class LinuxDesktopIdTest {
     }
 
     @Test
-    void gdbusCommandForZeroHidesTheCounter() {
-        assertThat(LinuxDesktopId.gdbusCommand("kortty.desktop", 0, false)).containsExactly(
-            "gdbus", "emit", "--session",
-            "--object-path", "/com/canonical/unity/launcherentry/1711539872",
-            "--signal", "com.canonical.Unity.LauncherEntry.Update",
-            "application://kortty.desktop",
-            "{'count': <int64 0>, 'count-visible': <false>, 'urgent': <false>}").inOrder();
+    void applicationUriNamesTheDesktopFile() {
+        assertThat(LinuxDesktopId.applicationUri("kortty.desktop")).isEqualTo("application://kortty.desktop");
+        assertThat(LinuxDesktopId.applicationUri(LinuxDesktopId.FLATPAK_DESKTOP_ID))
+            .isEqualTo("application://io.github.chardonnay.korTTY.desktop");
     }
 
     @Test
-    void gdbusCommandForThreeShowsTheCounter() {
-        assertThat(LinuxDesktopId.gdbusCommand("kortty-korTTY.desktop", 3, false)).containsExactly(
-            "gdbus", "emit", "--session",
-            "--object-path", "/com/canonical/unity/launcherentry/2080713640",
-            "--signal", "com.canonical.Unity.LauncherEntry.Update",
-            "application://kortty-korTTY.desktop",
-            "{'count': <int64 3>, 'count-visible': <true>, 'urgent': <false>}").inOrder();
-    }
-
-    @Test
-    void gdbusCommandCarriesTheUrgentFlag() {
-        List<String> argv = LinuxDesktopId.gdbusCommand("io.github.chardonnay.korTTY.desktop", 1, true);
-
-        assertThat(argv).hasSize(9);
-        assertThat(argv.get(8)).isEqualTo("{'count': <int64 1>, 'count-visible': <true>, 'urgent': <true>}");
-    }
-
-    @Test
-    void negativeCountsAreClampedToZero() {
-        assertThat(LinuxDesktopId.gdbusCommand("kortty.desktop", -4, false).get(8))
-            .isEqualTo("{'count': <int64 0>, 'count-visible': <false>, 'urgent': <false>}");
+    void signalNameIsTheInterfaceAndMemberTheConnectionSends() {
+        assertThat(LinuxDesktopId.LAUNCHER_ENTRY_INTERFACE + "." + LinuxDesktopId.LAUNCHER_ENTRY_MEMBER)
+            .isEqualTo("com.canonical.Unity.LauncherEntry.Update");
     }
 }

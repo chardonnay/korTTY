@@ -70,6 +70,29 @@ class NativeBackendSmokeTest {
     }
 
     @Test(timeOut = 30_000)
+    void linuxLauncherEntryKeepsOneConnectionForSeveralUpdates() throws Exception {
+        java.util.Optional<String> socket =
+            LauncherEntryDBusConnection.sessionBusSocketPath(System.getenv());
+        if (!PROBE.isLinux() || socket.isEmpty() || !Files.exists(Path.of(socket.get()))) {
+            throw new SkipException("Linux with a unix:path session bus only");
+        }
+        String desktopId = LinuxDesktopId.PACMAN_DESKTOP_ID;
+        LauncherEntryDBusConnection connection =
+            LauncherEntryDBusConnection.open(socket.get(), AppBadgeBackends.DBUS_TIMEOUT_MILLIS);
+        try {
+            // A malformed message would make the bus disconnect us, so the second emit is the real
+            // assertion: the connection — and with it the sender name every receiver watches — lives on.
+            connection.emitUpdate(LinuxDesktopId.objectPath(desktopId),
+                LinuxDesktopId.applicationUri(desktopId), 2, true);
+            connection.emitUpdate(LinuxDesktopId.objectPath(desktopId),
+                LinuxDesktopId.applicationUri(desktopId), 0, false);
+            assertThat(connection).isNotNull();
+        } finally {
+            connection.close();
+        }
+    }
+
+    @Test(timeOut = 30_000)
     void createDefaultNeverThrows() {
         AppBadgeBackend badge = AppBadgeBackends.createDefault(PROBE, null, Runnable::run);
         DesktopNotifierBackend notifier = DesktopNotifierBackends.createDefault(PROBE);

@@ -567,6 +567,9 @@ public class KorTTYApplication extends Application {
     /** Grace period for a clean shutdown before the watchdog force-halts the process. */
     private static final long SHUTDOWN_WATCHDOG_MILLIS = 25_000;
 
+    /** Bounded wait for the badge executor to run the clearing emit queued by {@code close()}. */
+    private static final long APP_BADGE_SHUTDOWN_MILLIS = 400L;
+
     /**
      * Flushes all persistent state and stops background services, each step guarded
      * independently so one failure cannot skip the rest. Idempotent via {@link #shuttingDown}.
@@ -615,7 +618,19 @@ public class KorTTYApplication extends Application {
             shutdownStep("stop app badge", () -> {
                 appBadgeService.close();
                 if (appBadgeExecutor != null) {
-                    appBadgeExecutor.shutdownNow();
+                    // close() only queues the clearing emit on this executor; shutdownNow() would
+                    // throw it away or interrupt it mid-write, leaving the launcher counter behind.
+                    // shutdown() lets the queue drain, bounded so the exit path never stalls.
+                    appBadgeExecutor.shutdown();
+                    try {
+                        if (!appBadgeExecutor.awaitTermination(APP_BADGE_SHUTDOWN_MILLIS,
+                                java.util.concurrent.TimeUnit.MILLISECONDS)) {
+                            appBadgeExecutor.shutdownNow();
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        appBadgeExecutor.shutdownNow();
+                    }
                 }
             });
         }

@@ -1,7 +1,7 @@
 package de.kortty.codingagent.desktop;
 
+import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Executor;
@@ -14,10 +14,8 @@ import java.util.concurrent.Executor;
  */
 public final class AppBadgeBackends {
 
-    /** Bounded wait for one {@code gdbus emit}. */
-    static final long GDBUS_TIMEOUT_MILLIS = 2_000L;
-
-    private static final Path GDBUS = Path.of("/usr/bin/gdbus");
+    /** Bounded wait for the session-bus handshake and for one emitted signal. */
+    static final long DBUS_TIMEOUT_MILLIS = 2_000L;
 
     private AppBadgeBackends() {
     }
@@ -34,7 +32,7 @@ public final class AppBadgeBackends {
     public static AppBadgeBackend createDefault(PlatformProbe probe, StageIconPresenter stageIcons, Executor background) {
         Objects.requireNonNull(probe, "probe");
         Optional<String> desktopId = Optional.empty();
-        if (probe.isLinux() && (probe.flatpak() || Files.isExecutable(GDBUS))) {
+        if (probe.isLinux()) {
             desktopId = LinuxDesktopId.resolve(probe, System.getenv(), Files::isRegularFile);
         }
         return select(probe, desktopId, stageIcons, background);
@@ -67,10 +65,32 @@ public final class AppBadgeBackends {
         if (probe.isLinux() && linuxDesktopId.isPresent() && background != null) {
             return new LinuxLauncherEntryBadgeBackend(
                 linuxDesktopId.get(),
-                probe.flatpak(),
-                argv -> ExternalCommandRunner.runBlocking(argv, GDBUS_TIMEOUT_MILLIS),
+                AppBadgeBackends::openLauncherEntrySender,
                 background);
         }
         return new UnsupportedAppBadgeBackend();
+    }
+
+    /**
+     * Opens the persistent session-bus sender for the launcher counter. Runs on the badge executor,
+     * never on the JavaFX thread; a missing or unreachable session bus throws, which disables the
+     * backend for the session and hands the count to the window-title fallback.
+     */
+    private static LinuxLauncherEntryBadgeBackend.LauncherEntrySender openLauncherEntrySender() throws IOException {
+        String socket = LauncherEntryDBusConnection.sessionBusSocketPath(System.getenv())
+            .orElseThrow(() -> new IOException("no unix:path session bus address"));
+        LauncherEntryDBusConnection connection = LauncherEntryDBusConnection.open(socket, DBUS_TIMEOUT_MILLIS);
+        return new LinuxLauncherEntryBadgeBackend.LauncherEntrySender() {
+            @Override
+            public void emit(String objectPath, String applicationUri, int count, boolean urgent)
+                throws IOException {
+                connection.emitUpdate(objectPath, applicationUri, count, urgent);
+            }
+
+            @Override
+            public void close() {
+                connection.close();
+            }
+        };
     }
 }

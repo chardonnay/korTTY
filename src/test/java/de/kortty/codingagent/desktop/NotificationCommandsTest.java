@@ -60,7 +60,46 @@ class NotificationCommandsTest {
 
         assertThat(argv).containsExactly(
             "notify-send", "--app-name=korTTY", "--icon=utilities-terminal", "--urgency=normal",
-            "--expire-time=8000", "claude finished", "~/proj › /home/me/proj").inOrder();
+            "--expire-time=8000", "--", "claude finished", "~/proj › /home/me/proj").inOrder();
+    }
+
+    @Test
+    void notifySendKeepsALeadingDashOutOfTheOptionParser() {
+        // GOption reads every argument: without the "--" separator a title or body starting with '-'
+        // aborts notify-send with "Unknown option" (two failures disable the notifier for the
+        // session) or, worse, takes effect as a real option.
+        List<String> argv = NotificationCommands.notifySend(
+            "korTTY", "utilities-terminal", "-h needs a decision", "-dev › /home/me/proj", Map.of());
+
+        assertThat(argv.indexOf("--")).isEqualTo(5);
+        assertThat(argv.subList(6, argv.size()))
+            .containsExactly("-h needs a decision", "-dev › /home/me/proj").inOrder();
+
+        List<String> injected = NotificationCommands.notifySend(
+            "korTTY", "utilities-terminal", "--urgency=critical", "--transient", Map.of());
+
+        assertThat(injected.subList(6, injected.size()))
+            .containsExactly("--urgency=critical", "--transient").inOrder();
+        assertThat(injected).containsNoneOf("--urgency=critical ", "--transient ");
+        assertThat(injected.get(3)).isEqualTo("--urgency=normal");
+    }
+
+    @Test
+    void notifySendEscapesMarkupInTheBodyOnly() {
+        List<String> argv = NotificationCommands.notifySend(
+            "korTTY", "utilities-terminal", "R&D <agent> finished", "Allow Bash(rm -rf <build>) && run?", Map.of());
+
+        assertThat(argv.get(6)).isEqualTo("R&D <agent> finished");
+        assertThat(argv.get(7)).isEqualTo("Allow Bash(rm -rf &lt;build&gt;) &amp;&amp; run?");
+    }
+
+    @Test
+    void escapeMarkupEscapesAmpersandFirst() {
+        assertThat(NotificationCommands.escapeMarkup("a & b < c > d")).isEqualTo("a &amp; b &lt; c &gt; d");
+        assertThat(NotificationCommands.escapeMarkup("&lt;")).isEqualTo("&amp;lt;");
+        assertThat(NotificationCommands.escapeMarkup("plain ünïcödé ✋")).isEqualTo("plain ünïcödé ✋");
+        assertThat(NotificationCommands.escapeMarkup(null)).isEmpty();
+        assertThat(NotificationCommands.escapeMarkup("")).isEmpty();
     }
 
     @Test
@@ -71,16 +110,17 @@ class NotificationCommandsTest {
         assertThat(argv).containsExactly(
             "flatpak-spawn", "--host", "--watch-bus",
             "notify-send", "--app-name=korTTY", "--icon=io.github.chardonnay.korTTY", "--urgency=normal",
-            "--expire-time=8000", "title", "body").inOrder();
+            "--expire-time=8000", "--", "title", "body").inOrder();
     }
 
     @Test
     void notifySendToleratesNullTitleAndBody() {
         List<String> argv = NotificationCommands.notifySend("korTTY", "x", null, null, null);
 
-        assertThat(argv).hasSize(7);
-        assertThat(argv.get(5)).isEmpty();
+        assertThat(argv).hasSize(8);
+        assertThat(argv.get(5)).isEqualTo("--");
         assertThat(argv.get(6)).isEmpty();
+        assertThat(argv.get(7)).isEmpty();
     }
 
     @Test

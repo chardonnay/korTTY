@@ -101,6 +101,11 @@ class CodingAgentI18nCoverageTest {
                     .that(countPlaceholders(localizedValue)).isEqualTo(countPlaceholders(baseValue));
                 assertWithMessage(bundle + " has blank value for key " + key)
                     .that(!localizedValue.isBlank()).isTrue();
+                // LanguageManager.getString substitutes {n} with a plain String.replace and never runs
+                // MessageFormat, so a MessageFormat-style doubled apostrophe is shown literally.
+                assertWithMessage(bundle + " uses a MessageFormat-style doubled apostrophe for key " + key
+                    + " (korTTY substitutes placeholders with a plain replace): " + localizedValue)
+                    .that(localizedValue).doesNotContain("''");
             }
         }
     }
