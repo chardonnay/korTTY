@@ -69,6 +69,18 @@ case "$launcher_target" in
   *) echo "Unexpected launcher symlink target: $launcher_target" >&2; exit 1 ;;
 esac
 
+# The control CLI symlink is OPTIONAL on purpose: the packaging fixture in
+# scripts/test_pacman_packaging.sh contains only korTTY/bin/korTTY and libjvm.so, so a mandatory
+# assertion would force a fixture change for no safety gain. When the symlink is there it must be
+# right; the binary itself is covered by the per-OS `kortty-cli --version` check in build-release.yml.
+cli_link="$verify_root/usr/bin/kortty-cli"
+if [[ -e "$cli_link" || -L "$cli_link" ]]; then
+  [[ -L "$cli_link" ]] || { echo '/usr/bin/kortty-cli exists but is not a symlink.' >&2; exit 1; }
+  cli_target=$(readlink "$cli_link")
+  [[ "$cli_target" == "/usr/lib/kortty/bin/kortty-cli" ]] \
+    || { echo "Unexpected control CLI symlink target: $cli_target" >&2; exit 1; }
+fi
+
 launcher="$verify_root$launcher_target"
 runtime_jvm="$verify_root/usr/lib/kortty/lib/runtime/lib/server/libjvm.so"
 

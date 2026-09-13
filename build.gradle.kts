@@ -731,6 +731,45 @@ tasks.withType<JavaCompile>().configureEach {
 val jpackageDir = layout.buildDirectory.dir("jpackage")
 val jpackageInput = layout.buildDirectory.dir("jpackage-input")
 
+// The second jpackage launcher: the kortty-cli control client. Its properties file lives OUTSIDE
+// build/jpackage-input on purpose — everything under --input is copied verbatim into the image's
+// app/ directory, so a properties file there would ship inside the application.
+val jpackageLauncherDir = layout.buildDirectory.dir("jpackage-launchers")
+val cliLauncherProperties = jpackageLauncherDir.map { it.file("kortty-cli.properties") }
+
+val prepareCliLauncherProperties = tasks.register("prepareCliLauncherProperties") {
+    group = "build"
+    description = "Writes the jpackage --add-launcher properties for the kortty-cli control launcher."
+    outputs.file(cliLauncherProperties)
+    doLast {
+        val target = cliLauncherProperties.get().asFile
+        target.parentFile.mkdirs()
+        // java-options REPLACES the command line's --java-options wholesale rather than appending,
+        // so this list must stand on its own: inheriting the GUI's
+        // --add-exports=javafx.graphics/... would print "Unknown module" on stderr at every CLI
+        // start, which is harmless for a GUI and poison for a tool whose stderr scripts parse.
+        // Values are whitespace-split into separate options, so no single option may contain a space.
+        // main-jar is deliberately omitted so the CLI inherits the GUI's classpath.
+        val lines = mutableListOf(
+            "main-class=de.kortty.cli.KorttyCli",
+            "description=korTTY control CLI",
+            "java-options=-XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Xms16m -Xmx256m"
+        )
+        // Keys absent from the file are INHERITED from the main launcher, so a console tool would
+        // otherwise gain a desktop entry, a Start-menu entry and a desktop shortcut.
+        if (isLinux) {
+            lines.add("linux-shortcut=false")
+        }
+        if (isWindows) {
+            // A GUI-subsystem launcher cannot write to the console it was started from.
+            lines.add("win-console=true")
+            lines.add("win-menu=false")
+            lines.add("win-shortcut=false")
+        }
+        target.writeText(lines.joinToString("\n") + "\n")
+    }
+}
+
 // ==================== Gebuendelte Code-Formatter ====================
 
 val formatterDownloadDir = layout.buildDirectory.dir("formatter-downloads")
@@ -2058,7 +2097,11 @@ fun verifyDmgAppImage(dmgFile: File, sourceAppImage: File) {
  * resource the user runs.</p>
  */
 fun bundlePayloadHash(bundle: File): String {
-    val ignored = setOf("Contents/app/.jpackage.xml", "Contents/app/.package", "Contents/MacOS/korTTY")
+    // Contents/MacOS/kortty-cli is ignored for exactly the reason Contents/MacOS/korTTY is: jpackage
+    // re-signs the app image it copies into the DMG, and a second Mach-O in the same directory is in
+    // the same position. Its architecture set is asserted separately in build-release.yml.
+    val ignored = setOf("Contents/app/.jpackage.xml", "Contents/app/.package",
+        "Contents/MacOS/korTTY", "Contents/MacOS/kortty-cli")
     val digest = MessageDigest.getInstance("SHA-256")
     bundle.walkTopDown()
         .filter { it.isFile && !Files.isSymbolicLink(it.toPath()) }
@@ -2299,6 +2342,12 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
         // javafx.graphics MODULE present it degrades to an ignorable "unknown module" warning.
         "--java-options", "--add-exports=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED"
     )
+    // One line reaches every image and installer: getJpackageBaseArgs is shared by the macOS
+    // app-image, the Windows app-image and msi, and the Linux app-image, deb and rpm. jpackageDmg
+    // builds its own argument list and repackages the finished .app via --app-image, so it must NOT
+    // receive this — it inherits the launcher with the bundle.
+    args.addAll(listOf("--add-launcher",
+        "kortty-cli=" + cliLauncherProperties.get().asFile.absolutePath))
     if (externalRuntimeImage) {
         // The image from prepareRuntimeImage (same modules/options, minus lib/ct.sym).
         args.addAll(listOf("--runtime-image", runtimeImageDir.get().asFile.absolutePath))
@@ -2477,6 +2526,7 @@ if (isMac) {
     tasks.register<Exec>("jpackage") {
         dependsOn("signMacBundledNativeLibraries")
         dependsOn(prepareRuntimeImage)
+        dependsOn(prepareCliLauncherProperties)
 
         val appName = "korTTY"
         val appVersion = project.version.toString().replace("-SNAPSHOT", "")
@@ -2761,6 +2811,7 @@ if (isWindows) {
     tasks.register<Exec>("jpackage") {
         dependsOn("prepareJpackage")
         dependsOn(prepareRuntimeImage)
+        dependsOn(prepareCliLauncherProperties)
 
         val appName = "korTTY"
         val appVersion = project.version.toString().replace("-SNAPSHOT", "")
@@ -2786,6 +2837,7 @@ if (isWindows) {
     tasks.register<Exec>("jpackageMsi") {
         dependsOn("prepareJpackage")
         dependsOn(prepareRuntimeImage)
+        dependsOn(prepareCliLauncherProperties)
 
         val appName = "korTTY"
         val appVersion = project.version.toString().replace("-SNAPSHOT", "")
@@ -2831,6 +2883,7 @@ if (isLinux) {
     tasks.register<Exec>("jpackage") {
         dependsOn("prepareJpackage")
         dependsOn(prepareRuntimeImage)
+        dependsOn(prepareCliLauncherProperties)
 
         val appName = "korTTY"
         val appVersion = project.version.toString().replace("-SNAPSHOT", "")
@@ -2856,6 +2909,7 @@ if (isLinux) {
     tasks.register<Exec>("jpackageDeb") {
         dependsOn("prepareJpackage")
         dependsOn(prepareRuntimeImage)
+        dependsOn(prepareCliLauncherProperties)
 
         val appName = "korTTY"
         val appVersion = project.version.toString().replace("-SNAPSHOT", "")
@@ -2884,6 +2938,7 @@ if (isLinux) {
     tasks.register<Exec>("jpackageRpm") {
         dependsOn("prepareJpackage")
         dependsOn(prepareRuntimeImage)
+        dependsOn(prepareCliLauncherProperties)
 
         val appName = "korTTY"
         val appVersion = project.version.toString().replace("-SNAPSHOT", "")
