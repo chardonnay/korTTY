@@ -192,6 +192,39 @@ class CliExitCodeTest {
             .isEqualTo("pane.resolve");
     }
 
+    /**
+     * Silence is something the user asks for, never something a payload does by accident: the pane
+     * text here happens to spell the short quiet flag, and the diagnostic for the unknown flag on the
+     * same line is mandatory. A probe that matched the spelling anywhere in {@code argv} left the user
+     * with a bare exit 2 and nothing on stderr.
+     */
+    @Test
+    void aPayloadThatSpellsTheQuietFlagStillGetsItsSyntaxDiagnostic() {
+        assertThat(run("pane", "send-text", "--focused", "--text", "-q", "--nope"))
+            .isEqualTo(KorttyCli.EXIT_SYNTAX);
+
+        assertThat(stdout()).isEmpty();
+        assertThat(stderr()).contains("--nope");
+        assertThat(server.requests()).isEmpty();
+    }
+
+    /**
+     * {@code --count} is counted down with an {@code int}, so an out-of-range value has to be refused
+     * before the socket is opened. It used to parse, authenticate, subscribe and only then throw an
+     * unchecked NumberFormatException out of {@code run} — a stack trace, exit 1, and a subscription
+     * logged for a client that had already died.
+     */
+    @Test
+    void anOutOfRangeEventCountExitsTwoBeforeAnythingIsSubscribed() {
+        assertThat(run("events", "--count", "3000000000")).isEqualTo(KorttyCli.EXIT_SYNTAX);
+
+        assertThat(stdout()).isEmpty();
+        assertThat(stderr()).contains("--count");
+        assertWithMessage("no auth and no events.subscribe may have reached the server")
+            .that(server.requests())
+            .isEmpty();
+    }
+
     @Test
     void quietPrintsNothingOnAnyExitCode() {
         server.failWith(-32012, "pane_not_found", "No pane p1a2b is open", 1);

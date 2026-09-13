@@ -228,11 +228,71 @@ class CliArgumentsTest {
         assertThat(failure.message()).contains("positional");
     }
 
+    /**
+     * The operands here have to start with a dash, or the marker is never what makes the assertion
+     * hold: with {@code pane.list} alone the same line parses identically without any {@code --}, and
+     * dropping the {@code endOfFlags} branch would not fail the test.
+     */
     @Test
     void theDoubleDashMarkerEndsFlagParsingSoAKeyMayLookLikeAFlag() throws Exception {
-        CliInvocation invocation = CliArguments.parse(new String[] {"raw", "--", "pane.list"});
+        CliInvocation invocation = CliArguments.parse(new String[] {"pane", "send-keys", "--focused",
+            "--", "--foo", "-q"});
 
-        assertThat(invocation.operands()).containsExactly("pane.list");
+        assertWithMessage("after -- every token is an operand, however much it looks like a flag")
+            .that(invocation.operands())
+            .containsExactly("--foo", "-q")
+            .inOrder();
+        assertWithMessage("a -q that the marker turned into an operand never asked for silence")
+            .that(invocation.quiet())
+            .isFalse();
+        assertThat(CliArguments.parse(new String[] {"raw", "--", "pane.list"}).operands())
+            .containsExactly("pane.list");
+    }
+
+    /**
+     * Why the pre-parse silence probe tokenises instead of searching: {@link KorttyCli} asks
+     * {@code looksQuiet} before the line is parsed, so a probe that matched the spelling anywhere in
+     * {@code argv} would swallow the mandatory syntax diagnostic of every line that merely sends the
+     * two characters {@code -q} somewhere — the user would get a bare exit 2 and no way to learn why.
+     */
+    @Test
+    void aFlagValueThatSpellsQuietDoesNotSilenceTheDiagnostic() {
+        assertWithMessage("-q is the text being sent to a pane, not a request for silence")
+            .that(CliArguments.looksQuiet(new String[] {"pane", "send-text", "--focused", "--text",
+                "-q", "--nope"}))
+            .isFalse();
+        assertWithMessage("--quiet after -- is an operand like any other")
+            .that(CliArguments.looksQuiet(new String[] {"pane", "send-keys", "--focused", "--",
+                "--quiet"}))
+            .isFalse();
+        assertWithMessage("the flag is still recognised once the value before it is accounted for")
+            .that(CliArguments.looksQuiet(new String[] {"pane", "send-text", "--focused", "--text",
+                "hi", "-q", "--nope"}))
+            .isTrue();
+        assertThat(CliArguments.looksQuiet(new String[] {"--text=-q", "pane", "list"})).isFalse();
+        assertThat(CliArguments.looksQuiet(new String[] {"pane", "list", "--quiet"})).isTrue();
+    }
+
+    /**
+     * {@code --count} is the one numeric flag the client itself counts down with an {@code int}, so a
+     * value that fits in a long but not in an int has to be refused by the parser: it used to be
+     * accepted here and then throw an unchecked NumberFormatException inside the event loop, after the
+     * subscription had already been sent.
+     */
+    @Test
+    void aCountAboveTheIntRangeIsASyntaxErrorRatherThanACrashLaterOn() {
+        CliSyntaxException failure = expectThrows(CliSyntaxException.class,
+            () -> CliArguments.parse(new String[] {"events", "--count", "3000000000"}));
+
+        assertThat(failure.message()).contains("--count");
+        assertThat(failure.message()).contains(String.valueOf(Integer.MAX_VALUE));
+    }
+
+    @Test
+    void theLargestCountTheClientCanHonourIsStillAccepted() throws Exception {
+        assertThat(CliArguments.parse(new String[] {"events", "--count",
+            String.valueOf(Integer.MAX_VALUE)}).flag("count", null))
+            .isEqualTo(String.valueOf(Integer.MAX_VALUE));
     }
 
     @Test

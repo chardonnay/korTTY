@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -81,6 +80,17 @@ public final class CliArguments {
 
     /** Flags that must be strictly positive; {@code --count 0} and {@code --timeout 0} mean "no limit". */
     private static final Set<String> POSITIVE_FLAGS = Set.of("lines", "timeout-ms", "poll-ms");
+
+    /**
+     * Numeric flags the client itself counts with an {@code int}.
+     *
+     * <p>{@code --count} is handed to {@link ControlClient#stream} as an {@code int}, so a value the
+     * parser accepted as a {@code long} would blow up far downstream — after the socket is open and
+     * {@code events.subscribe} is already on the wire — as an unchecked {@code NumberFormatException}
+     * that escapes {@link KorttyCli#run} as a stack trace, taking both the documented exit codes and
+     * {@code --quiet} with it. It is a syntax error, so it is diagnosed here, before anything is sent.
+     */
+    private static final Set<String> INT_FLAGS = Set.of("count");
 
     /** Single-letter aliases, the only short flags the CLI has. */
     private static final Map<String, String> SHORT_FLAGS = Map.of("q", "quiet", "h", FLAG_HELP);
@@ -325,6 +335,10 @@ public final class CliArguments {
                 throw new CliSyntaxException("--" + name + " must be "
                     + (positive ? "greater than zero" : "zero or greater") + ", but was " + number);
             }
+            if (INT_FLAGS.contains(name) && number > Integer.MAX_VALUE) {
+                throw new CliSyntaxException("--" + name + " must be at most " + Integer.MAX_VALUE
+                    + ", but was " + number);
+            }
         }
     }
 
@@ -413,19 +427,46 @@ public final class CliArguments {
      *
      * <p>{@link KorttyCli} needs the answer before {@link #parse} has run, because a syntax error must
      * also stay silent under {@code --quiet}: the contract is "exit code only", and a parser
-     * diagnostic is still output. Scanning the raw tokens is exact here, since neither spelling of the
-     * flag ever appears as a value — every value flag is consumed by name.
+     * diagnostic is still output.
+     *
+     * <p>It tokenises the line the way {@link #readTokens} does instead of searching {@code argv} for
+     * the spelling. A value flag swallows whatever token follows it, so {@code --text -q} sends the
+     * two characters {@code -q} to a pane and {@code --} ends flag parsing altogether; reading either
+     * as a request for silence would swallow the mandatory diagnostic of a line that never asked to be
+     * quiet. Where the two readers can disagree — an unknown flag, whose arity is unknowable here —
+     * the guess errs towards speaking: the worst case is a diagnostic that is printed for a line that
+     * is about to be refused anyway, never one that is lost.
      */
     static boolean looksQuiet(String[] args) {
         if (args == null) {
             return false;
         }
-        for (String token : args) {
-            if (token == null) {
+        boolean endOfFlags = false;
+        for (int index = 0; index < args.length; index++) {
+            String token = args[index];
+            if (token == null || endOfFlags || !token.startsWith("-") || "-".equals(token)) {
                 continue;
             }
-            String lower = token.toLowerCase(Locale.ROOT);
-            if ("-q".equals(lower) || "--quiet".equals(lower)) {
+            if ("--".equals(token)) {
+                endOfFlags = true;
+                continue;
+            }
+            if (!token.startsWith("--")) {
+                if ("quiet".equals(SHORT_FLAGS.get(token.substring(1)))) {
+                    return true;
+                }
+                continue;
+            }
+            int equals = token.indexOf('=');
+            if (equals >= 0) {
+                // --name=value carries its own value, so the next token is a flag again; and --quiet
+                // spelled with a value is a syntax error, whose diagnostic must be printed.
+                continue;
+            }
+            String name = token.substring(2);
+            if (VALUE_FLAGS.contains(name)) {
+                index++;
+            } else if ("quiet".equals(name)) {
                 return true;
             }
         }

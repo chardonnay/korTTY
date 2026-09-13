@@ -177,6 +177,24 @@ class CliStubServerRoundTripTest {
         assertThat(printed.get(0)).doesNotContain("subscription_id");
     }
 
+    /**
+     * The stream reader must read {@code --count} exactly the way the parser validated it — stripped —
+     * or a quoted value that the parser accepted throws an unchecked NumberFormatException out of
+     * {@code run}, after the subscription has already been sent.
+     */
+    @Test
+    void aPaddedEventCountIsReadTheSameWayTheParserValidatedIt() throws Exception {
+        startLoopback();
+        JsonObject subscribed = new JsonObject();
+        subscribed.addProperty("subscription_id", "s1");
+        server.replyWith(subscribed);
+        server.emitEvents(3);
+
+        assertThat(run("events", "--count", " 2 ")).isEqualTo(KorttyCli.EXIT_OK);
+
+        assertThat(stdout().lines().toList()).hasSize(2);
+    }
+
     @Test
     void aCurrentSelectorResolvesThroughPaneResolveBeforeTheRealCall() throws Exception {
         startLoopback();

@@ -161,7 +161,12 @@ public final class KorttyCli {
                                     ControlClient client, PrintStream out)
             throws IOException, CliServerException {
         client.call(call.method(), call.params());
-        int count = Integer.parseInt(invocation.flag("count", "0"));
+        // Parsed the way CliArguments validated it — as a stripped long — and clamped, although the
+        // parser has already bounded --count to the int range. A NumberFormatException here would
+        // escape run() as a stack trace: no documented exit code, and output despite --quiet, and all
+        // of it after events.subscribe is on the wire and korTTY has logged the subscription.
+        int count = (int) Math.min(Long.parseLong(invocation.flag("count", "0").strip()),
+            Integer.MAX_VALUE);
         long deadline = invocation.timeoutMillis() <= 0
             ? Long.MAX_VALUE : System.currentTimeMillis() + invocation.timeoutMillis();
         boolean quiet = invocation.quiet();
