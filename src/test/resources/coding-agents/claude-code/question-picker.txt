@@ -1,0 +1,18 @@
+#! expect state=BLOCKED rule=question-picker
+#! title=✳ Claude Code
+#! alt=false
+❯ add a connector for the new jump host
+
+⏺ Before I wire up the new connector I need one decision from you.
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Which transport should the jump-host connector use?                          │
+│                                                                              │
+│ ❯ 1. SSH (recommended)                                                       │
+│      Reuses the existing key management and known-hosts handling.            │
+│   2. Mosh                                                                    │
+│      Better on flaky links, needs the bundled mosh4j runtime.                │
+│   3. Type something.                                                         │
+│                                                                              │
+│ Enter to select · ↑↓ to navigate · Esc to cancel                             │
+╰──────────────────────────────────────────────────────────────────────────────╯

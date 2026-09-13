@@ -1,0 +1,19 @@
+#! expect state=WORKING rule=working
+#! alt=false
+> find the reconnect race in the mosh connector
+
+✦ I'll start by reading the connector and its test to understand how reconnect() is driven.
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ ✔  ReadFile src/main/java/de/kortty/core/MoshConnector.java                  │
+│                                                                              │
+│    Read 412 lines.                                                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+⠹ Reading files… (esc to cancel, 4s)
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ >   Type your message or @path/to/file                                       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+~/kortty (main*)              no sandbox (see /docs)           gemini-2.5-pro (97% context left)

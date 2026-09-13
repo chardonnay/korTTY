@@ -1,0 +1,20 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=false
+> find the reconnect race in the mosh connector
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ ✔  ReadFile src/test/java/de/kortty/core/MoshConnectorTest.java              │
+│                                                                              │
+│    Read 182 lines.                                                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+✦ The race is in MoshConnector.reconnect(): it opens the new session before the previous reader
+  thread has observed isClosed(), so a read that completes late writes into the fresh buffer.
+  Closing the old reader and joining it before openSession() removes the race; I have not changed
+  any code yet, tell me if you want me to apply that fix.
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ >   Type your message or @path/to/file                                       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+~/kortty (main*)              no sandbox (see /docs)           gemini-2.5-pro (96% context left)

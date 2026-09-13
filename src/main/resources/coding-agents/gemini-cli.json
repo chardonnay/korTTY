@@ -1,0 +1,38 @@
+{
+  "kind": "GEMINI_CLI",
+  "version": 1,
+  "comment": "Written against Gemini CLI 2026 (Ink TUI). Gemini CLI was not available in the sandbox: screens were transcribed from documented UI text and must be re-verified against live sessions. The tool confirmation dialog ('Allow execution of: …?', 'Apply this change?', '● 1. Yes, allow once') is BLOCKED; the Braille spinner line ending in '(esc to cancel, <n>s)' is WORKING; the rounded input box with the 'Type your message or @path/to/file' placeholder is IDLE. The input box stays visible while Gemini works, so the idle rule vetoes on 'esc to cancel,' and has the lowest priority. No rule depends on the alternate-screen flag.",
+  "fallbackState": "IDLE",
+  "rules": [
+    {
+      "id": "approval-prompt",
+      "state": "BLOCKED",
+      "priority": 1000,
+      "region": { "bottomNonEmptyLines": 20 },
+      "anyLineRegex": [
+        "(?i)Allow execution",
+        "(?i)Apply this change\\?",
+        "(?i)Do you want to proceed\\?",
+        "^\\s*[│┃]?\\s*[●○]?\\s*1\\.\\s*Yes, allow (once|always)"
+      ]
+    },
+    {
+      "id": "working",
+      "state": "WORKING",
+      "priority": 900,
+      "region": { "bottomNonEmptyLines": 8 },
+      "anyLineRegex": [
+        "\\(esc to cancel, \\d+s\\)",
+        "^\\s*[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]\\s+\\S"
+      ]
+    },
+    {
+      "id": "idle-prompt",
+      "state": "IDLE",
+      "priority": 100,
+      "region": { "bottomNonEmptyLines": 6 },
+      "anyLineRegex": ["Type your message or @path/to/file", "^\\s*[│┃]\\s*>\\s*$"],
+      "notContains": ["esc to cancel,"]
+    }
+  ]
+}

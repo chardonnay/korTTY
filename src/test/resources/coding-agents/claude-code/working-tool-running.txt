@@ -1,0 +1,14 @@
+#! expect state=WORKING rule=working-tool-running
+#! title=✶ Claude Code
+#! alt=false
+❯ run the connector tests
+
+⏺ Running the connector test class now; this takes a while because Gradle has to warm up first.
+
+⏺ Bash(./gradlew test --tests 'de.kortty.core.MoshConnectorTest' --console=plain -q)
+  ⎿  Running… (ctrl+b to run in background)
+
+────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────
+  ? for shortcuts

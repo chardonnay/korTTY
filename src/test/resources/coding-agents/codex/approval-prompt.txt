@@ -1,0 +1,14 @@
+#! expect state=BLOCKED rule=approval-prompt
+#! alt=false
+› Run the integration tests and fix whatever fails
+
+• I'll run the Gradle test task first to see the current failures before touching any code.
+
+• Codex wants to run the following command:
+
+    ./gradlew test --console=plain
+
+  Allow command?
+  › 1. Yes (y)
+    2. Yes, and don't ask again for this session (a)
+    3. No, and tell Codex what to do differently (esc)

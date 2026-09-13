@@ -1,0 +1,22 @@
+#! expect state=BLOCKED rule=permission-prompt
+#! title=✳ Claude Code
+#! alt=false
+⏺ The reconnect delay is hard-coded; I'll route it through the policy so the test can shorten it.
+
+⏺ Update(src/main/java/de/kortty/core/SshReconnectPolicy.java)
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Edit file                                                                    │
+│ ╭──────────────────────────────────────────────────────────────────────────╮ │
+│ │ src/main/java/de/kortty/core/SshReconnectPolicy.java                     │ │
+│ │                                                                          │ │
+│ │   41    public Duration nextDelay(int attempt) {                         │ │
+│ │   42 -      return Duration.ofSeconds(5);                                │ │
+│ │   42 +      return baseDelay.multipliedBy(Math.min(attempt, 6));         │ │
+│ │   43    }                                                                │ │
+│ ╰──────────────────────────────────────────────────────────────────────────╯ │
+│ Do you want to make this edit to SshReconnectPolicy.java?                    │
+│ ❯ 1. Yes                                                                     │
+│   2. Yes, allow all edits during this session (shift+tab)                    │
+│   3. No, and tell Claude what to do differently (esc)                        │
+╰──────────────────────────────────────────────────────────────────────────────╯

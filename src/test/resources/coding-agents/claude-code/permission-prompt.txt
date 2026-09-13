@@ -1,0 +1,21 @@
+#! expect state=BLOCKED rule=permission-prompt
+#! title=✳ Claude Code
+#! alt=false
+❯ clean the build output and run the connector tests
+
+⏺ I'll remove the stale build output first so the next Gradle run starts from a clean tree, then run
+  the connector test class.
+
+⏺ Bash(rm -rf build)
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Bash command                                                                 │
+│                                                                              │
+│   rm -rf build                                                               │
+│   Remove the stale build directory                                           │
+│                                                                              │
+│ Do you want to proceed?                                                      │
+│ ❯ 1. Yes                                                                     │
+│   2. Yes, and don't ask again for rm commands in /home/user/kortty           │
+│   3. No, and tell Claude what to do differently (esc)                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
