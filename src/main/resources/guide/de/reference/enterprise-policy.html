@@ -163,6 +163,22 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="control-api.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Steuerungs-API
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="cli.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Steuerungs-CLI
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="#" class="
             drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
             data-bs-toggle="collapse" data-bs-target="#einstellungen-collapse" aria-expanded="false">
@@ -633,7 +649,7 @@
                     </a>
                 </div>
                 <div class="col">
-                    <a href="settings/index.html"
+                    <a href="control-api.html"
                         class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover" style="padding-left: 3%;">
                         Next <i class="fa fa-arrow-right"></i>
                     </a>
@@ -1012,6 +1028,12 @@
 <td>The <a href="../features/session-journal.html">session journal</a>: Erfassung, Journalleiste, Manager, Viewer und Exporte. Nicht angekettet <code>ai</code> – Auch wenn die KI verweigert wird, zeichnet das Journal immer noch Rohaktivitäten auf</td>
 </tr>
 <tr>
+<td><code>control-api</code></td>
+<td>Zeichenfolge</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>Die <a href="control-api.html">Steuerungs-API</a> und ihr Client <code>kortty-cli</code>: <code>deny</code> beendet den Listener, sperrt das Kontrollkästchen in den Einstellungen und erzwingt die Einstellung aus. Nicht an <code>ai</code> gekoppelt – die API ist lokale Automatisierung, keine KI-Funktion</td>
+</tr>
+<tr>
 <td><code>ai-agent-execution</code></td>
 <td>Zeichenfolge</td>
 <td><code>allow</code>, <code>confirm</code>, <code>read-only</code></td>
@@ -1019,6 +1041,10 @@
 </tr>
 </tbody>
 </table>
+<div class="admonition note">
+<p class="admonition-title">Eine genannte Funktion wird übernommen, egal wie entschieden</p>
+<p>Eine Richtliniendatei, die einen Schlüssel erwähnt, sperrt das zugehörige Bedienelement – und zwar in der Stellung, die die Richtlinie gewählt hat. <code>control-api = "allow"</code> sperrt das Kontrollkästchen also <strong>eingeschaltet</strong>; Benutzer können die API dann nicht mehr selbst abschalten. Lassen Sie den Schlüssel ganz weg, um die Wahl beim Benutzer zu belassen, und schreiben Sie <code>deny</code>, um sie zu entziehen.</p>
+</div>
 <h3 id="rulesecurity"><code>[rule.security]</code><a class="headerlink" href="#rulesecurity" title="Permanent link">&para;</a></h3>
 <table>
 <thead>

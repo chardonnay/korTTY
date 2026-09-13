@@ -163,6 +163,22 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../reference/control-api.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Control API
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/cli.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Control CLI
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="#" class="
             drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
             data-bs-toggle="collapse" data-bs-target="#settings-collapse" aria-expanded="false">
@@ -747,6 +763,7 @@
 <h3 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Coding agents</strong> — korTTY recognises Claude Code, Codex and Gemini CLI in local shell tabs and classifies each pane as working, blocked on a question, done or idle, and now shows it everywhere: a glyph in the tab title, chips, accent bars, rollups and pane rows in the dashboard (which expands to a waiting agent and offers Send Enter / Esc / Interrupt in the context menu), a dockable <strong>Coding Agents</strong> panel (<em>View → Coding Agents</em>, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-g">G</kbd></span>) listing every agent of every window with one-click answers (y, n, Enter, Esc, ↑, ↓, Ctrl+C), Explain, Rename and a prompt box, a status-bar strip, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-n">N</kbd></span> to jump to the next waiting agent, a badge with the number of waiting agents on the app icon (Dock, Windows taskbar, KDE/Ubuntu launcher; window title elsewhere) and a desktop notification when an agent needs a decision or finishes while you are not looking at its pane. Detection reads the terminal screen locally and can be switched off in <em>Settings → Terminal → Coding agents</em>, where the badge and the notifications have their own toggles; the rules are JSON files you can override under <code>~/.kortty/coding-agents/</code>. See <a href="../features/coding-agents.html">Coding agents</a>.</li>
+<li><strong>Control API and <code>kortty-cli</code></strong> — korTTY can now open a local socket so a script or a coding agent on the same computer can list your windows, read any pane, type into it, wait for output, split a local shell, and drive a detected coding agent. It is <strong>off by default</strong> and is switched on under <em>Settings → Terminal → Control API</em>, where a status line reports what the listener is actually doing. Nothing is reachable over the network and no other user of the computer can connect: the endpoint lives in an owner-only <code>~/.kortty/control/</code> directory and needs a token that is regenerated on every start. Every action is logged with byte counts only, never terminal text, and the first time a program types into a pane you get one desktop notification, so a takeover is never silent. An administrator can deny the feature outright with the <code>control-api</code> policy key. The <code>kortty-cli</code> client ships beside the application in every native package and handles discovery, authentication and exit codes for you. See <a href="../reference/control-api.html">Control API</a> and <a href="../reference/cli.html">Control CLI</a>.</li>
 <li><strong>A misplaced scrolling region no longer confines the cursor</strong> — DECSTBM sets the region that scrolls, not the region the cursor may be addressed in, but every write clamped the cursor to the margins by scrolling anyway: text addressed above the top margin was pulled into the region, and text addressed below the bottom margin scrolled the region out from under what was already on screen. tmux triggers the first case while it paints a pane with the margins still narrowed, which showed the cursor one line above the prompt. Scrolling now happens only on an explicit line feed, so the cursor can address any line inside the terminal without moving what is already there.</li>
 </ul>
 <h3 id="tools">Tools<a class="headerlink" href="#tools" title="Permanent link">&para;</a></h3>

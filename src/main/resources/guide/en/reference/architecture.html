@@ -163,6 +163,22 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="control-api.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Control API
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="cli.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Control CLI
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="#" class="
             drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
             data-bs-toggle="collapse" data-bs-target="#settings-collapse" aria-expanded="false">
@@ -814,6 +830,16 @@
 <td><strong>telemetry</strong></td>
 <td>Consent-gated anonymous usage events</td>
 <td><code>TelemetryService</code>, <code>Telemetry</code></td>
+</tr>
+<tr>
+<td><strong>control</strong></td>
+<td>Default-off local control API: transport, token, verbs, event bus (see <a href="control-api.html">Control API</a>)</td>
+<td><code>ControlApiServer</code>, <code>ControlVerbs</code>, <code>ControlSurface</code>, <code>ControlEventBus</code>, <code>ControlApiGate</code></td>
+</tr>
+<tr>
+<td><strong>cli</strong></td>
+<td>The <code>kortty-cli</code> client that speaks the control API (see <a href="cli.html">Control CLI</a>)</td>
+<td><code>KorttyCli</code></td>
 </tr>
 <tr>
 <td><strong>teamwork</strong></td>
