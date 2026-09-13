@@ -322,7 +322,24 @@ public final class CodingAgentRegistry {
             process != null ? process : existing.process(), since, existing.detectedAtMillis(), existing.alias(),
             synthetic);
         put(updated);
-        publish(new RegistryChange(RegistryChange.Kind.STATE_CHANGED, existing.pane(), existing, updated, now));
+        publish(new RegistryChange(changeKindOf(existing, updated), existing.pane(), existing, updated, now));
+    }
+
+    /**
+     * STATE_CHANGED when anything the UI renders as structure changed, EVIDENCE_CHANGED when the new
+     * detection differs from the previous one only in its evidence line (or matched rule). A WORKING
+     * agent's animated status line ("✻ Thinking… (12s · esc to interrupt)") is the rule's evidence, so
+     * without this distinction every spinner frame would look like a state change to the panel, the
+     * dashboard and the strip.
+     */
+    private static RegistryChange.Kind changeKindOf(CodingAgentEntry previous, CodingAgentEntry current) {
+        boolean structural = previous.state() != current.state()
+            || previous.kind() != current.kind()
+            || previous.stateSinceMillis() != current.stateSinceMillis()
+            || previous.doneUntilSeen() != current.doneUntilSeen()
+            || !Objects.equals(previous.alias(), current.alias())
+            || !Objects.equals(previous.process(), current.process());
+        return structural ? RegistryChange.Kind.STATE_CHANGED : RegistryChange.Kind.EVIDENCE_CHANGED;
     }
 
     private void remove(PaneRef pane, CodingAgentEvent.Reason reason) {

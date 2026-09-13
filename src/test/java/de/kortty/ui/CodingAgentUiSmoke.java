@@ -1,19 +1,30 @@
 package de.kortty.ui;
 
+import com.sithtermfx.core.TtyConnector;
+import com.sithtermfx.core.util.TermSize;
+import com.sithtermfx.ui.SithTermFxWidget;
+import com.sithtermfx.ui.settings.DefaultSettingsProvider;
+import com.sithtermfx.ui.split.SplitRequest;
+import com.sithtermfx.ui.split.TerminalSplitPane;
 import de.kortty.codingagent.CodingAgentEntry;
 import de.kortty.codingagent.CodingAgentGlyphs;
 import de.kortty.codingagent.CodingAgentKind;
 import de.kortty.codingagent.CodingAgentState;
 import de.kortty.codingagent.CodingAgentTestHarness;
 import de.kortty.codingagent.PaneRef;
+import de.kortty.codingagent.RegistryChange;
 import de.kortty.codingagent.desktop.BadgeIconRenderer;
 import javafx.application.Platform;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.event.Event;
+import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
@@ -43,6 +54,7 @@ import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -87,6 +99,7 @@ public final class CodingAgentUiSmoke {
                 checkDockManager();
                 checkBadge(outputDir);
                 checkDashboard(outputDir);
+                checkSplitPaneFocus();
             } catch (Throwable error) {
                 failure.compareAndSet(null, stack(error));
             } finally {
@@ -231,10 +244,95 @@ public final class CodingAgentUiSmoke {
         require(!send.isDisabled(), "Send must be enabled once the target leaves BLOCKED");
         fixture.harness().setState(ids.claude(), CodingAgentState.BLOCKED, CodingAgentSmokeFixture.CLAUDE_EVIDENCE);
         require(send.isDisabled(), "Send must be disabled when the target is BLOCKED again");
+        // A disabled Send can never show its tooltip, so the prompt box states the reason instead.
+        require(I18n.get("codingAgent.panel.prompt.blocked").equals(prompt.getPromptText()),
+            "the prompt placeholder must name the blocked reason, was " + prompt.getPromptText());
+        panel.selectPane(ids.codex());
+        require(I18n.get("codingAgent.panel.prompt.placeholder").equals(prompt.getPromptText()),
+            "the prompt placeholder must return once the target can take a prompt");
+
+        // A Tooltip on a disabled quick-key button never shows either, so the row itself says why.
+        String notConnected = I18n.get("codingAgent.panel.notConnected");
+        fixture.connector(ids.gemini()).setConnected(false);
+        panel.refresh();
+        list.refresh();
+        scene.snapshot(null);
+        ListCell<?> geminiCell = cellFor(list, ids.gemini());
+        require(geminiCell != null, "no visible cell for the Gemini row");
+        require(buttonWithText(geminiCell, "y").isDisabled(), "the quick keys of a disconnected pane are disabled");
+        require(labelContaining(geminiCell, notConnected) != null,
+            "a disconnected pane must state the reason on its row");
+        fixture.connector(ids.gemini()).setConnected(true);
+        panel.refresh();
+        list.refresh();
+        scene.snapshot(null);
+        require(labelContaining(cellFor(list, ids.gemini()), notConnected) == null,
+            "the not-connected hint must disappear once the pane is connected again");
+
+        checkEvidenceOnlyChangeIsInPlace(fixture, panel, list, scene);
 
         panel.dispose();
         require(!panel.isBound(), "dispose must unbind the panel");
         require(!panel.isPulseTimerRunning(), "dispose must stop the pulse timer");
+    }
+
+    /**
+     * A WORKING agent's animated status line publishes one registry change per coalescing window.
+     * The panel must answer it with an in-place row update: the prompt-target dropdown is left alone
+     * and exactly one row item is replaced, instead of {@code setAll} on both lists.
+     */
+    @SuppressWarnings("unchecked")
+    private static void checkEvidenceOnlyChangeIsInPlace(CodingAgentSmokeFixture fixture, CodingAgentPanel panel,
+                                                         ListView<?> list, Scene scene) {
+        CodingAgentSmokeFixture.PaneIds ids = fixture.ids();
+        ComboBox<CodingAgentEntry> target = (ComboBox<CodingAgentEntry>) panel.lookup(".combo-box");
+        require(target != null, "the prompt target ComboBox was not found");
+        ObservableList<CodingAgentEntry> rows = (ObservableList<CodingAgentEntry>) list.getItems();
+
+        AtomicInteger targetChanges = new AtomicInteger();
+        target.getItems().addListener((ListChangeListener<CodingAgentEntry>) change -> targetChanges.incrementAndGet());
+        AtomicInteger rowChanges = new AtomicInteger();
+        AtomicInteger replacedRows = new AtomicInteger();
+        rows.addListener((ListChangeListener<CodingAgentEntry>) change -> {
+            rowChanges.incrementAndGet();
+            while (change.next()) {
+                if (change.wasReplaced()) {
+                    replacedRows.addAndGet(change.getTo() - change.getFrom());
+                } else {
+                    replacedRows.addAndGet(100); // any add/remove is a rebuild, not an in-place update
+                }
+            }
+        });
+
+        int codexRow = -1;
+        for (int i = 0; i < rows.size(); i++) {
+            if (ids.codex().equals(rows.get(i).pane())) {
+                codexRow = i;
+            }
+        }
+        require(codexRow >= 0, "the Codex row was not found in the panel list");
+
+        String spinner = "✻ Thinking… (49s · ↓ 1.4k tokens · esc to interrupt)";
+        fixture.harness().setState(ids.codex(), CodingAgentState.WORKING, spinner);
+
+        List<RegistryChange> published = fixture.harness().changes();
+        require(!published.isEmpty()
+                && published.get(published.size() - 1).kind() == RegistryChange.Kind.EVIDENCE_CHANGED,
+            "a spinner frame must publish EVIDENCE_CHANGED, was "
+                + (published.isEmpty() ? "nothing" : published.get(published.size() - 1).kind()));
+        require(targetChanges.get() == 0,
+            "an evidence-only change must not rebuild the prompt target dropdown, it fired "
+                + targetChanges.get() + " list changes");
+        require(rowChanges.get() == 1 && replacedRows.get() == 1,
+            "an evidence-only change must replace exactly one row, was " + rowChanges.get() + " change(s) / "
+                + replacedRows.get() + " replaced row(s)");
+        require(spinner.equals(rows.get(codexRow).lastLine()), "the row item must carry the new evidence, was "
+            + rows.get(codexRow).lastLine());
+
+        scene.snapshot(null);
+        ListCell<?> codexCell = cellFor(list, ids.codex());
+        require(codexCell != null && labelWithText(codexCell, spinner) != null,
+            "the Codex row must render the new evidence line");
     }
 
     private static void checkStrip(CodingAgentSmokeFixture fixture, File outputDir) throws Exception {
@@ -413,6 +511,17 @@ public final class CodingAgentUiSmoke {
             requireNotBlank(image, "dashboard");
             CodingAgentSmokeFixture.writePng(image, new File(outputDir, "coding-agent-dashboard.png"));
 
+            // An evidence-only change (a WORKING agent's animated status line, up to 5x/s) must not
+            // rebuild the tree: setRoot would drop focus, anchor and every visible cell's context
+            // menu. A real state change still does.
+            Object rootBefore = tree.getRoot();
+            fixture.harness().setState(codex, CodingAgentState.WORKING,
+                "✻ Thinking… (52s · ↓ 1.4k tokens · esc to interrupt)");
+            require(tree.getRoot() == rootBefore,
+                "an evidence-only registry change must not rebuild the dashboard tree");
+            fixture.harness().setState(codex, CodingAgentState.BLOCKED, "Apply this patch? (y/n)");
+            require(tree.getRoot() != rootBefore, "a real state change must still rebuild the dashboard tree");
+
             dashboard.dispose();
             require(!dashboard.isPulseTimerRunning(), "dispose must stop the dashboard pulse timer");
             for (TerminalTab tab : List.of(apiTab, webTab)) {
@@ -422,6 +531,115 @@ public final class CodingAgentUiSmoke {
                     // never connected; cleanup only stops timers
                 }
             }
+        }
+    }
+
+    // ---- split-pane focus -------------------------------------------------------------------------
+
+    /**
+     * The invariant {@link TerminalView#focusWidget} depends on: after a navigator jump the split
+     * pane's own focused widget must be the pane that was jumped to, or Copy/Paste, file drops, the
+     * AI run context, the recording scope and the next tab re-selection keep acting on the pane the
+     * user clicked last. A real two-pane {@link TerminalSplitPane} is built for this; the split's
+     * session is an idle stub connector so no shell is spawned.
+     */
+    private static void checkSplitPaneFocus() {
+        TerminalSplitPane splitPane = new TerminalSplitPane(DefaultSettingsProvider::new,
+            request -> request == null ? null : new IdleTtyConnector());
+        try {
+            Scene scene = new Scene(splitPane, 600, 300);
+            CodingAgentSmokeFixture.stageFor(scene);
+            splitPane.split(SplitRequest.SplitMode.SAME_SERVER_NEW_SHELL, Orientation.HORIZONTAL);
+            List<SithTermFxWidget> widgets = splitPane.getAllWidgets();
+            require(widgets.size() == 2, "the split pane must host two panes, found " + widgets.size());
+            SithTermFxWidget first = widgets.get(0);
+            SithTermFxWidget second = widgets.get(1);
+            scene.snapshot(null);
+
+            // The user clicks the first pane: the split pane tracks it.
+            Event.fireEvent(first.getPane(), primaryClick());
+            require(splitPane.getFocusedWidget() == first, "a primary click on a pane must focus that pane");
+
+            // Focusing the other pane's canvas alone does NOT update the split pane's notion — the
+            // pre-Stage-2 gap this smoke guards against.
+            second.getTerminalPanel().getCanvas().requestFocus();
+            require(splitPane.getFocusedWidget() == first,
+                "canvas focus alone is not enough to move the split pane's focused widget");
+
+            // focusWidget does both, which is what TerminalView.focusWidget calls after a jump.
+            splitPane.focusWidget(second);
+            require(splitPane.getFocusedWidget() == second,
+                "focusWidget must leave the split pane focused on the pane that was jumped to");
+            require(isWithin(scene.getFocusOwner(), second.getPane()),
+                "focusWidget must also give keyboard focus to that pane, owner was " + scene.getFocusOwner());
+        } finally {
+            try {
+                splitPane.closeAll();
+            } catch (RuntimeException ignored) {
+                // the stub session has nothing to shut down
+            }
+        }
+    }
+
+    private static boolean isWithin(Node node, Node ancestor) {
+        for (Node current = node; current != null; current = current.getParent()) {
+            if (current == ancestor) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** A connected TtyConnector that never delivers data, so a split can be created headlessly. */
+    private static final class IdleTtyConnector implements TtyConnector {
+
+        private final CountDownLatch closed = new CountDownLatch(1);
+
+        @Override
+        public int read(char[] buf, int offset, int length) {
+            try {
+                closed.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return -1;
+        }
+
+        @Override
+        public void write(byte[] bytes) {
+        }
+
+        @Override
+        public void write(String string) {
+        }
+
+        @Override
+        public boolean isConnected() {
+            return closed.getCount() > 0;
+        }
+
+        @Override
+        public void resize(TermSize termSize) {
+        }
+
+        @Override
+        public int waitFor() {
+            return 0;
+        }
+
+        @Override
+        public boolean ready() {
+            return false;
+        }
+
+        @Override
+        public String getName() {
+            return "idle";
+        }
+
+        @Override
+        public void close() {
+            closed.countDown();
         }
     }
 
@@ -453,6 +671,20 @@ public final class CodingAgentUiSmoke {
     private static Label labelWithText(Node root, String text) {
         for (Node node : root.lookupAll(".label")) {
             if (node instanceof Label label && text.equals(label.getText())) {
+                return label;
+            }
+        }
+        return null;
+    }
+
+    /** The first visible Label of {@code root} whose text contains {@code part}, or null. */
+    private static Label labelContaining(Node root, String part) {
+        if (root == null) {
+            return null;
+        }
+        for (Node node : root.lookupAll(".label")) {
+            if (node instanceof Label label && label.isVisible() && label.getText() != null
+                && label.getText().contains(part)) {
                 return label;
             }
         }

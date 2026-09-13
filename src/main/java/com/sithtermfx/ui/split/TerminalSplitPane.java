@@ -605,6 +605,28 @@ public class TerminalSplitPane extends StackPane {
         return focusedWidget;
     }
 
+    /**
+     * Focuses {@code widget} programmatically exactly as a primary click on its pane would: the
+     * split pane's own notion of the focused widget is updated first, then keyboard focus is
+     * requested on the node that receives the keystrokes.
+     *
+     * <p>Without this, focusing the pane's canvas alone leaves {@link #getFocusedWidget()} on the
+     * previously clicked pane: the field is only written from the pane's primary MOUSE_CLICKED
+     * handler and from {@code getPreferredFocusableNode().focusedProperty()}, and that node's
+     * {@code focused} property stays false while its child canvas is the focus owner (and while the
+     * window is not focused at all).
+     *
+     * @param widget a widget of this split pane; widgets that do not belong to it are ignored
+     */
+    public void focusWidget(@NotNull SithTermFxWidget widget) {
+        if (!getAllWidgets().contains(widget)) {
+            logger.debug("focusWidget ignored a widget that does not belong to this split pane");
+            return;
+        }
+        focusedWidget = widget;
+        requestWidgetFocus(widget);
+    }
+
     public @NotNull List<SithTermFxWidget> getAllWidgets() {
         List<SithTermFxWidget> widgets = new ArrayList<>();
         collectWidgets(rootCell, widgets);

@@ -107,8 +107,71 @@ class CodingAgentRegistryTest {
         assertThat(sameState.state()).isEqualTo(CodingAgentState.WORKING);
         assertThat(sameState.stateSinceMillis()).isEqualTo(2_000_000L);
         assertThat(sameState.detection()).isEqualTo(newEvidence);
-        assertThat(lastChange().kind()).isEqualTo(RegistryChange.Kind.STATE_CHANGED);
+        assertThat(lastChange().kind()).isEqualTo(RegistryChange.Kind.EVIDENCE_CHANGED);
         assertThat(lastChange().entered(CodingAgentState.WORKING)).isFalse();
+    }
+
+    @Test
+    void everyFrameOfAnAnimatedStatusLinePublishesEvidenceChangedOnly() {
+        detect(PANE_A, CodingAgentState.WORKING);
+        int before = changes.size();
+
+        for (int second = 10; second < 15; second++) {
+            clock.addAndGet(200L);
+            change(PANE_A, result(CodingAgentKind.CLAUDE_CODE, CodingAgentState.WORKING, "working-spinner",
+                "✻ Thinking… (" + second + "s · esc to interrupt)"));
+        }
+
+        assertThat(changes.subList(before, changes.size()).stream().map(RegistryChange::kind).distinct().toList())
+            .containsExactly(RegistryChange.Kind.EVIDENCE_CHANGED);
+        CodingAgentEntry entry = registry.entry(PANE_A).orElseThrow();
+        assertThat(entry.lastLine()).isEqualTo("✻ Thinking… (14s · esc to interrupt)");
+        assertThat(entry.stateSinceMillis()).isEqualTo(lastChange().previous().stateSinceMillis());
+    }
+
+    @Test
+    void anEvidenceOnlyChangeOfASyntheticDoneStaysEvidenceChanged() {
+        detect(PANE_A, CodingAgentState.WORKING);
+        CodingAgentEntry done = change(PANE_A, CodingAgentState.IDLE);
+        assertThat(lastChange().kind()).isEqualTo(RegistryChange.Kind.STATE_CHANGED);
+
+        clock.addAndGet(1_000L);
+        CodingAgentEntry stillDone = change(PANE_A,
+            result(CodingAgentKind.CLAUDE_CODE, CodingAgentState.IDLE, "idle-prompt", "› "));
+
+        assertThat(stillDone.state()).isEqualTo(CodingAgentState.DONE);
+        assertThat(stillDone.doneUntilSeen()).isTrue();
+        assertThat(stillDone.stateSinceMillis()).isEqualTo(done.stateSinceMillis());
+        assertThat(lastChange().kind()).isEqualTo(RegistryChange.Kind.EVIDENCE_CHANGED);
+    }
+
+    @Test
+    void aKindOrProcessChangeIsNeverEvidenceOnly() {
+        detect(PANE_A, CodingAgentState.WORKING);
+
+        change(PANE_A, result(CodingAgentKind.CODEX, CodingAgentState.WORKING, "rule-x", "evidence WORKING"));
+        assertThat(registry.entry(PANE_A).orElseThrow().kind()).isEqualTo(CodingAgentKind.CODEX);
+        assertThat(lastChange().kind()).isEqualTo(RegistryChange.Kind.STATE_CHANGED);
+
+        DetectionResult same = result(CodingAgentKind.CODEX, CodingAgentState.WORKING, "rule-x", "evidence WORKING");
+        AgentProcess other = new AgentProcess(99L, CodingAgentKind.CODEX, "codex", null);
+        registry.onEvent(new CodingAgentEvent(PANE_A, same, same, other, CodingAgentEvent.Reason.STATE_CHANGED,
+            Instant.ofEpochMilli(0)));
+        assertThat(registry.entry(PANE_A).orElseThrow().process()).isEqualTo(other);
+        assertThat(lastChange().kind()).isEqualTo(RegistryChange.Kind.STATE_CHANGED);
+    }
+
+    @Test
+    void anAliasChangeKeepsItsOwnKindAndAnEvidenceChangeKeepsTheAlias() {
+        detect(PANE_A, CodingAgentState.WORKING);
+        registry.setAlias(PANE_A, "api");
+        assertThat(lastChange().kind()).isEqualTo(RegistryChange.Kind.ALIAS_CHANGED);
+
+        CodingAgentEntry entry = change(PANE_A,
+            result(CodingAgentKind.CLAUDE_CODE, CodingAgentState.WORKING, "working-spinner", "✳ Thinking… (3s)"));
+
+        assertThat(entry.alias()).isEqualTo("api");
+        assertThat(lastChange().kind()).isEqualTo(RegistryChange.Kind.EVIDENCE_CHANGED);
     }
 
     @Test

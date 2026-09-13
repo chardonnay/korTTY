@@ -3288,6 +3288,14 @@ public class TerminalView extends BorderPane {
      * Focuses a specific pane of this tab (its canvas), marshalled to the FX thread. Unlike
      * {@link #focusTerminal()} it does not depend on the split pane's notion of the focused widget,
      * so the navigator can land on the exact pane a coding agent runs in.
+     *
+     * <p>It does update that notion, though: {@link TerminalSplitPane#focusWidget} sets the split
+     * pane's focused widget before requesting focus, so {@link #getFocusedWidget()} — and with it
+     * Copy/Paste, file drops, the AI run context, recording scope and the tab-selection
+     * {@code focusTerminal()} — follow the pane the user was sent to instead of the one last
+     * clicked. Focusing the canvas alone would not: the split pane watches the pane's primary mouse
+     * clicks and its preferred focusable node, whose {@code focused} property stays false while the
+     * child canvas holds the focus.
      */
     public void focusWidget(SithTermFxWidget widget) {
         if (widget == null) {
@@ -3295,6 +3303,10 @@ public class TerminalView extends BorderPane {
             return;
         }
         Runnable focusTask = () -> {
+            if (splitPane != null && splitPane.getAllWidgets().contains(widget)) {
+                splitPane.focusWidget(widget);
+                return;
+            }
             Node target = getPrimaryKeyEventTarget(widget);
             if (target != null) {
                 target.requestFocus();

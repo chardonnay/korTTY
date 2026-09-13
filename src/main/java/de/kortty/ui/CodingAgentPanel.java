@@ -13,6 +13,7 @@ import de.kortty.codingagent.KeyChord;
 import de.kortty.codingagent.PaneLocation;
 import de.kortty.codingagent.PaneLocator;
 import de.kortty.codingagent.PaneRef;
+import de.kortty.codingagent.RegistryChange;
 import javafx.animation.AnimationTimer;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
@@ -326,7 +327,7 @@ public class CodingAgentPanel extends BorderPane {
             return;
         }
         bound = true;
-        registryHandle = registry.addListener(change -> refresh());
+        registryHandle = registry.addListener(this::onRegistryChanged);
         durationTimer = new Timeline(new KeyFrame(Duration.seconds(1), event -> tick()));
         durationTimer.setCycleCount(Timeline.INDEFINITE);
         durationTimer.play();
@@ -354,6 +355,51 @@ public class CodingAgentPanel extends BorderPane {
     /** True between {@link #bind()} and {@link #unbind()}. */
     public boolean isBound() {
         return bound;
+    }
+
+    /**
+     * Registry callback (FX thread). An {@code EVIDENCE_CHANGED} carries a new detection for a pane
+     * whose state, name and time in state are unchanged — a WORKING agent's animated status line
+     * produces one every coalescing window — so it only replaces that one row's item instead of
+     * rebuilding both lists: a full {@code setAll} would reset the target dropdown and re-render
+     * every row several times per second while any agent works.
+     */
+    private void onRegistryChanged(RegistryChange change) {
+        if (disposed) {
+            return;
+        }
+        if (change != null && change.kind() == RegistryChange.Kind.EVIDENCE_CHANGED
+                && refreshEvidenceRow(change.current())) {
+            return;
+        }
+        refresh();
+    }
+
+    /**
+     * Replaces the item of the row showing {@code entry}'s pane, so the {@link ListView} re-renders
+     * that single cell. The prompt target {@link ComboBox} keeps the previous instance on purpose:
+     * it renders name and location only, neither of which comes from the detection, and replacing
+     * its items would disturb an open dropdown.
+     *
+     * @return true when the row was found and updated
+     */
+    private boolean refreshEvidenceRow(CodingAgentEntry entry) {
+        if (entry == null) {
+            return false;
+        }
+        List<CodingAgentEntry> items = list.getItems();
+        for (int i = 0; i < items.size(); i++) {
+            if (entry.pane().equals(items.get(i).pane())) {
+                syncingSelection = true;
+                try {
+                    items.set(i, entry);
+                } finally {
+                    syncingSelection = false;
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Rebuilds the rows from the registry (selection preserved by pane), the summary and the prompt target. */
@@ -647,15 +693,29 @@ public class CodingAgentPanel extends BorderPane {
         CodingAgentEntry target = targetCombo.getValue();
         if (target == null) {
             sendButton.setDisable(true);
-        sendButton.setMinWidth(Region.USE_PREF_SIZE);
+            sendButton.setMinWidth(Region.USE_PREF_SIZE);
             sendButton.setTooltip(null);
             promptArea.setDisable(targetCombo.getItems().isEmpty());
+            setPromptHint(false);
             return;
         }
         promptArea.setDisable(false);
         boolean blocked = target.state() == CodingAgentState.BLOCKED;
         sendButton.setDisable(blocked);
         sendButton.setTooltip(blocked ? sendBlockedTooltip : null);
+        setPromptHint(blocked);
+    }
+
+    /**
+     * A disabled Send button can never show its tooltip — JavaFX skips disabled nodes while picking,
+     * so the button receives no MOUSE_ENTERED — so the reason is put where the user is typing: while
+     * the target waits for a decision the prompt box's placeholder states it.
+     */
+    private void setPromptHint(boolean blocked) {
+        String hint = I18n.get(blocked ? "codingAgent.panel.prompt.blocked" : "codingAgent.panel.prompt.placeholder");
+        if (!hint.equals(promptArea.getPromptText())) {
+            promptArea.setPromptText(hint);
+        }
     }
 
     private static CodingAgentEntry findEntry(List<CodingAgentEntry> entries, PaneRef pane) {
@@ -864,13 +924,20 @@ public class CodingAgentPanel extends BorderPane {
             kindTag.setText(aliased ? item.kind().displayName() : "");
             kindTag.setVisible(aliased);
             kindTag.setManaged(aliased);
-            locationLabel.setText(locator.locate(item.pane()).map(location -> location.text(I18n::get)).orElse(""));
+            boolean connected = actions.isConnected(item.pane());
+            String location = locator.locate(item.pane()).map(value -> value.text(I18n::get)).orElse("");
+            if (!connected) {
+                // The quick keys are disabled, and a Tooltip on a disabled Button never shows (JavaFX
+                // skips disabled nodes while picking), so the reason goes on the row itself.
+                String hint = I18n.get("codingAgent.panel.notConnected");
+                location = location.isEmpty() ? hint : location + CodingAgentGlyphs.SEPARATOR + hint;
+            }
+            locationLabel.setText(location);
             String evidence = CodingAgentGlyphs.evidenceLine(item.detection(), EVIDENCE_MAX_CHARS);
             evidenceLabel.setText(evidence);
             evidenceLabel.setVisible(!evidence.isEmpty());
             evidenceLabel.setManaged(!evidence.isEmpty());
 
-            boolean connected = actions.isConnected(item.pane());
             boolean blocked = item.state() == CodingAgentState.BLOCKED;
             String stateColor = CodingAgentStripSupport.colorHex(item.state(), lightBackground);
             for (Button button : keyButtons) {
@@ -886,7 +953,12 @@ public class CodingAgentPanel extends BorderPane {
                     : null);
             }
             boolean expanded = expandedExplain.contains(item.pane());
-            explainArea.setText(expanded ? explainTexts.getOrDefault(item.pane(), "") : "");
+            String explainText = expanded ? explainTexts.getOrDefault(item.pane(), "") : "";
+            // setText always deletes and re-inserts the content, which snaps the drawer back to the
+            // top; the row re-renders whenever the detection evidence moves, so only set on change.
+            if (!explainText.equals(explainArea.getText())) {
+                explainArea.setText(explainText);
+            }
             explainArea.setVisible(expanded);
             explainArea.setManaged(expanded);
 

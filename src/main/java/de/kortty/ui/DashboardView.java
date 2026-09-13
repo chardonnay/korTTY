@@ -408,6 +408,15 @@ public class DashboardView extends VBox {
         if (disposed) {
             return;
         }
+        if (change != null && change.kind() == RegistryChange.Kind.EVIDENCE_CHANGED) {
+            // Only the detection evidence moved (a WORKING agent's animated status line does that
+            // every coalescing window): nothing the tree renders — state, rollups, counts, durations
+            // — changed, so take the same in-place path as the 1s badge tick instead of rebuilding
+            // the whole tree, which would replace the root and reset focus, anchor and every cell's
+            // context menu several times per second.
+            treeView.refresh();
+            return;
+        }
         refresh();
         if (change == null || !change.entered(CodingAgentState.BLOCKED) || change.current() == null
                 || change.current().pane() == null) {
