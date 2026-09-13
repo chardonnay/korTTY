@@ -742,7 +742,8 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="coding-agents">Coding agents<a class="headerlink" href="#coding-agents" title="Permanent link">&para;</a></h1>
-<p>KorTTY recognises when a terminal-based coding agent — <strong>Claude Code</strong>, <strong>Codex</strong> or <strong>Gemini CLI</strong> — is running inside one of your <a href="terminal.html#local-shell-tabs">local shell tabs</a> and keeps track of what it is currently doing: working, waiting for your answer, or sitting idle at its prompt. The analysis happens entirely inside korTTY on your own machine. This page explains what is detected, how the detection works, how to switch it off, and how to adjust or extend the screen rules when an agent changes its user interface.</p>
+<p>KorTTY recognises when a terminal-based coding agent — <strong>Claude Code</strong>, <strong>Codex</strong> or <strong>Gemini CLI</strong> — is running inside one of your <a href="terminal.html#local-shell-tabs">local shell tabs</a> and keeps track of what it is currently doing: working, waiting for your answer, finished, or sitting idle at its prompt. The analysis happens entirely inside korTTY on your own machine. What it finds is shown wherever you look: as a glyph in the tab title, as chips and accents in the dashboard, in a dockable <strong>Coding Agents</strong> panel with quick answers and a prompt box, as a strip in the status bar, as a count on the app icon and, when you are not looking at the pane, as a desktop notification. This page explains what is detected, how each of these surfaces works, how to switch things off, and how to adjust or extend the screen rules when an agent changes its user interface.</p>
+<p><img alt="Coding agents — from the pane's screen to dashboard, panel, status strip, app badge and notifier" src="../assets/diagrams/coding-agents.svg" /></p>
 <h2 id="what-it-detects">What it detects<a class="headerlink" href="#what-it-detects" title="Permanent link">&para;</a></h2>
 <p>Detection covers the three agents below, started from a <strong>Local Shell</strong> tab — directly, through a package-manager wrapper such as <code>npx</code>, or as a <code>node</code>, <code>bun</code> or <code>deno</code> script. SSH and Mosh tabs are not analysed, because the agent runs on the remote machine and korTTY cannot see its process.</p>
 <table>
@@ -784,7 +785,7 @@
 </tr>
 <tr>
 <td><strong>DONE</strong></td>
-<td>The agent has finished a task and shows an explicit completion screen. Reserved for agents that render such a screen and for the upcoming dashboard; the bundled rules do not report it yet.</td>
+<td>The agent has finished. Either it shows an explicit completion screen that a rule recognises, or — far more often — it went from WORKING back to its empty prompt while you were not looking at its pane. KorTTY then keeps it marked DONE (✓) until you look at the pane; the moment its tab is selected and its pane focused in the front window, it becomes IDLE.</td>
 </tr>
 <tr>
 <td><strong>WORKING</strong></td>
@@ -800,6 +801,50 @@
 </tr>
 </tbody>
 </table>
+<h2 id="dashboard-marking">Dashboard marking<a class="headerlink" href="#dashboard-marking" title="Permanent link">&para;</a></h2>
+<p><img alt="Dashboard rows with coding-agent chips, accent bars and the rollup" src="../assets/screenshots/coding-agents/dashboard.png" />
+Open the <a href="../getting-started/main-window.html">dashboard</a> with <strong>View → Show Dashboard</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-d">D</kbd></span>) and every connection row that hosts a coding agent shows a <strong>chip</strong> after the protocol badge: the state glyph, the agent's short name (or the alias you gave it) and, for an agent that is waiting, working or done, how long it has been in that state (<code>✋ claude 2:14</code>). An idle agent gets a dim, outlined chip so you still see that one is present. A row that also runs korTTY's own AI agent merges both marks into one chip.</p>
+<p>The row itself carries a coloured <strong>accent bar</strong> on its left edge — amber while the agent waits for you (the row is tinted as well), blue while it works, green when it is done — and the status dot of a waiting agent pulses while the window is in front and animations are enabled. Group and environment rows above a marked connection show a <strong>rollup chip</strong> such as <code>✋ 1 · ⚡ 2</code> and take the accent of their most urgent child, and the footer appends the same rollup to the connection count (<code>3 of 5 connected · ✋ 1 · ⚡ 2</code>), so a waiting agent is visible even when its group is collapsed.</p>
+<p>A tab whose split panes host two or more agents grows <strong>pane rows</strong> below the connection (<code>Pane 2 · api</code>, named after the pane's working directory), one per pane, so each agent can be reached on its own. When an agent becomes blocked, the dashboard <strong>expands</strong> the tree down to its row once per transition — a waiting agent is never hidden inside a collapsed group — and respects <em>Collapse all</em> afterwards.</p>
+<p>The context menu of a marked row adds <strong>Focus Pane</strong>, which selects the tab and focuses exactly that pane, <strong>Show in Coding Agents Panel</strong>, which docks the panel and selects the agent, and, while the agent waits for you, <strong>Send Enter</strong>, <strong>Send Esc</strong> and <strong>Interrupt (Ctrl+C)</strong> to answer the dialog without leaving the dashboard. The tab title shows the same glyph as the chip — ✋ waiting, ⚡ working, ✓ done, merged with korTTY's own AI-agent glyph where both apply.</p>
+<h2 id="the-coding-agents-panel">The Coding Agents panel<a class="headerlink" href="#the-coding-agents-panel" title="Permanent link">&para;</a></h2>
+<p><img alt="The Coding Agents panel docked beside the terminal" src="../assets/screenshots/coding-agents/panel.png" />
+The panel lists every detected agent of every korTTY window in one place. Open it with <strong>View → Coding Agents → Dock Left / Dock Right</strong>, toggle it on its last-used side with <strong>Show/Hide</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-g">G</kbd></span>), from the ⋯ menu inside the panel, from the status strip's context menu, or with <em>Show in Coding Agents Panel</em> in the dashboard. Placement and width are remembered across restarts. Agents that wait for you are listed first (longest waiting on top), then the working, done and idle ones in window, tab and pane order; the row of the pane you are currently in carries a left accent.</p>
+<p>Every row shows the state dot and name, a state chip such as <code>✋ Waiting for you · 2:14</code>, the location line (<code>Window 2 › api › Pane 2 · ~/proj/api</code>) and the last screen line that matched a rule — the evidence. Below them sit the <strong>quick keys</strong>: <strong>Focus</strong> brings the pane to the front, <strong>y</strong>, <strong>n</strong>, <strong>Enter</strong> and <strong>Esc</strong> answer a dialog (they are highlighted while the agent waits for you), <strong>↑</strong> and <strong>↓</strong> move through a question picker, <strong>Ctrl+C</strong> interrupts, <strong>Explain</strong> opens a drawer with the full detection explanation (agent, state, matching rule, evidence, process and time in state), and <strong>Rename…</strong> gives the agent an alias that replaces its name in every chip, row and notification — an empty alias restores the agent name, and the alias survives a reconnect but is dropped when the pane closes. Every key goes to the pane's own terminal connection, exactly as if you had typed it there; the buttons are disabled while the pane is not connected.</p>
+<p>The <strong>prompt box</strong> at the bottom sends longer text to the agent selected in the target list: <span class="keys"><kbd class="key-enter">Enter</kbd></span> sends, <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> inserts a line break. A single line is sent followed by Enter. A multi-line prompt is wrapped in bracketed paste — so the agent receives it as one pasted block instead of several submitted lines — but only when that agent has switched bracketed paste on, which Claude Code, Codex and Gemini CLI all do at their prompt; otherwise the lines are sent as typed. Two prompts are refused with a message in the panel's status line instead of being sent: while the agent is <strong>waiting for a decision</strong> the <em>Send</em> button stays disabled, because the text would land inside the permission dialog — answer it with y, n, Enter or Esc first; and a prompt whose first line starts with <strong>korTTY's own AI shortcut</strong> (the command name configured under Settings → AI, <code>agent</code> by default) is rejected, because korTTY's shortcut filter would divert that line to its own AI agent instead of the coding agent — rephrase the line. Errors of a quick key or prompt (pane closed, not connected, write failed) appear in the same status line for a few seconds, never as a dialog, and a successful send confirms with <em>Sent to Claude Code</em>.</p>
+<p>The <strong>Next blocked</strong> button in the panel header jumps to the next agent that waits for you, across all windows and wrapping around; it is the same action as <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-n">N</kbd></span> and a click on the status strip.</p>
+<h2 id="status-strip">Status strip<a class="headerlink" href="#status-strip" title="Permanent link">&para;</a></h2>
+<p><img alt="The coding-agent status strip at the right end of the status bar" src="../assets/screenshots/coding-agents/status-strip.png" />
+The right end of the status bar shows a compact strip while at least one coding agent is known: up to three chips for waiting, working and done agents (<code>✋ 1 · ⚡ 2 · ✓ 1</code>, zero counts are omitted), with the waiting dot pulsing while the window is in front. A click jumps to the next agent waiting for you — or, when none is waiting, to the first agent in display order — and a right-click offers <em>Show/Hide</em> for the panel and <em>Next Blocked Agent</em>. The tooltip summarises the counts. The strip disappears together with the status bar when you hide it under <em>View</em>.</p>
+<h2 id="app-icon-badge-and-notifications">App icon badge and notifications<a class="headerlink" href="#app-icon-badge-and-notifications" title="Permanent link">&para;</a></h2>
+<p><img alt="The app icon with the badge for three waiting agents" src="../assets/screenshots/coding-agents/badge-icon.png" />
+The number of agents waiting for a decision — across all windows — is shown as a <strong>badge on the app icon</strong> so you notice it while working in another application. How the badge is drawn depends on the platform: on <strong>macOS</strong> the packaged app sets the Dock badge; on <strong>Windows</strong> korTTY draws the count into its own taskbar and title-bar icon; on <strong>Linux</strong> it emits the launcher-entry signal that KDE Plasma, Ubuntu Dock and Dash to Dock render on the launcher icon — this needs an installed desktop file (the deb, rpm or pacman package) and a reachable session bus, which korTTY talks to directly. Stock GNOME Shell without a dock extension shows no launcher counters at all. Wherever no icon badge is available — an unpacked archive, <code>./gradlew run</code>, an unsupported desktop — korTTY falls back to the <strong>window title</strong>, which becomes <code>(2) KorTTY</code> while two agents wait and returns to <code>KorTTY</code> at zero. When an agent becomes blocked while no korTTY window is focused, the app additionally asks for attention once (the Dock icon bounces, the launcher entry is marked urgent).</p>
+<p>A <strong>desktop notification</strong> is shown when an agent needs a decision or finishes while you are not looking at its pane — that is, while its tab is not the selected tab of the front window, or its pane is not the focused one. The title names the agent (<em>Claude Code needs a decision</em>, <em>Claude Code finished</em>), the body shows the location and working directory followed by the matching screen line. A blocked state has to persist for a moment before it is reported, an agent is reported at most once every ten seconds, the same transition is never reported twice, and nothing is shown for the pane you are looking at. Notifications use the operating system's own service: the Notification Center on <strong>macOS</strong>, the tray balloon on <strong>Windows</strong>, and <code>notify-send</code> on <strong>Linux</strong> (through the host in the Flatpak package). Nothing leaves this computer — the text is the screen line korTTY already read.</p>
+<p>Both surfaces are on by default and have their own toggles under <strong>Settings → Terminal → Coding agents</strong> (see <a href="#enabling-detection">Enabling detection</a>). Switching the badge off clears it immediately; switching notifications off stops new ones without touching the badge.</p>
+<h2 id="keyboard-shortcuts">Keyboard shortcuts<a class="headerlink" href="#keyboard-shortcuts" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Shortcut</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-g">G</kbd></span></td>
+<td>Show or hide the Coding Agents panel on its last-used side (right by default)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-n">N</kbd></span></td>
+<td>Jump to the next coding agent waiting for a decision, across windows</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-enter">Enter</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span></td>
+<td>In the panel's prompt box: send the prompt / insert a line break</td>
+</tr>
+</tbody>
+</table>
+<p>On macOS use <span class="keys"><kbd class="key-command">Cmd</kbd></span> where <span class="keys"><kbd class="key-control">Ctrl</kbd></span> is shown.</p>
 <h2 id="how-detection-works">How detection works<a class="headerlink" href="#how-detection-works" title="Permanent link">&para;</a></h2>
 <p>KorTTY only believes an agent is present when two independent observations agree — this <em>double evidence</em> keeps a stray <code>claude</code> in a shell script or a quoted prompt fragment from producing false alarms:</p>
 <ol>
@@ -812,7 +857,7 @@
 <p>Screen text is analysed only inside korTTY, in memory, on this computer. Nothing is sent to any service, written to disk, or handed to the AI assistant — detection is plain pattern matching against local rule files. If you prefer not to have local shell screens inspected at all, switch the feature off under <strong>Settings → Terminal → Coding agents</strong>.</p>
 </div>
 <h2 id="enabling-detection">Enabling detection<a class="headerlink" href="#enabling-detection" title="Permanent link">&para;</a></h2>
-<p>Detection is on by default and is controlled by a single toggle in <strong>Settings → Terminal</strong>, section <strong>Coding agents</strong>. Changing it takes effect immediately for all open tabs — no restart or reconnect is needed.</p>
+<p>Detection is on by default and is controlled by three toggles in <strong>Settings → Terminal</strong>, section <strong>Coding agents</strong>. Changing them takes effect immediately for all open tabs — no restart or reconnect is needed.</p>
 <table>
 <thead>
 <tr>
@@ -831,9 +876,23 @@
 <td>On</td>
 <td><code>codingAgentDetectionEnabled</code></td>
 </tr>
+<tr>
+<td>Desktop notification when a coding agent needs a decision or finishes while you are not looking at its pane</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>codingAgentNotificationsEnabled</code></td>
+</tr>
+<tr>
+<td>Show the number of agents waiting for a decision on the app icon</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>codingAgentAppBadgeEnabled</code></td>
+</tr>
 </tbody>
 </table>
-<p>When the toggle is off, korTTY neither walks the process tree nor reads the screen of any pane.</p>
+<p>When the detection toggle is off, korTTY neither walks the process tree nor reads the screen of any pane, and the dashboard marks, panel, strip, badge and notifications all fall silent. The panel's placement and width are not settings-dialog options: they follow the <strong>View → Coding Agents</strong> menu and are stored as <code>codingAgentPanelPlacement</code> (<code>HIDDEN</code>, <code>LEFT</code> or <code>RIGHT</code>) and <code>codingAgentPanelWidth</code>.</p>
 <h2 id="custom-rules">Custom rules<a class="headerlink" href="#custom-rules" title="Permanent link">&para;</a></h2>
 <p>Each agent's screen rules live in a small JSON file. KorTTY ships one bundled file per agent and lets you replace it with your own copy under your configuration directory:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>~/.kortty/coding-agents/claude-code.json
@@ -1010,8 +1069,9 @@
 </span><span id="__span-2-55"><a id="__codelineno-2-55" name="__codelineno-2-55" href="#__codelineno-2-55"></a><span class="p">}</span>
 </span></code></pre></div>
 <p>The two BLOCKED rules combine a per-line pattern with a whole-region <code>regex</code>, so a permission dialog is only reported when both the question and its <em>1. Yes</em> option are on screen, and a question picker only together with its navigation footer — the onboarding menus of a fresh installation show a similar list but neither footer, and must not count as blocked. The <code>notContains</code> veto on the BLOCKED and IDLE rules matters too: while Claude Code is working, its status line stays on screen together with older dialog text, and the veto keeps the higher-priority prompt rules from firing on stale lines.</p>
-<h3 id="keeping-rules-in-sync-with-the-agents">Keeping rules in sync with the agents<a class="headerlink" href="#keeping-rules-in-sync-with-the-agents" title="Permanent link">&para;</a></h3>
+<h3 id="maintaining-rules">Maintaining rules<a class="headerlink" href="#maintaining-rules" title="Permanent link">&para;</a></h3>
 <p>Agents change their interfaces often, and a rule that matched last month may silently stop matching after an update. KorTTY's bundled rules are therefore pinned by <strong>screen fixtures</strong>: for every agent, the repository keeps captured terminal screens with the state and rule they must produce, and the test suite fails as soon as a bundled rule no longer matches its fixture or a rule has no fixture at all. When you notice a wrong or missing state, the most useful report is the visible screen text of the pane at that moment, the agent and its version, and the state you expected — it becomes a new fixture and a rule fix in the next release. Until then, a local override file lets you correct the rule for yourself immediately.</p>
+<p>The repository ships a recorder for exactly this purpose: <code>scripts/capture-coding-agent-fixtures.py</code> runs an agent inside a pseudo-terminal and passes your keyboard through, so the session behaves like a normal terminal. Press <span class="keys"><kbd class="key-f12">F12</kbd></span> at every interesting moment — the permission dialog, the spinner, the empty prompt — and the visible screen is written to a fixture file; <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-bracket-right">]</kbd></span> stops the recording. Each file starts with a <code>expect state=REVIEW rule=REVIEW</code> line: set the state and rule id you expect there, and drop the file into <code>src/test/resources/coding-agents/&lt;kind&gt;/</code> (<code>claude-code</code>, <code>codex</code> or <code>gemini-cli</code>). From then on the test suite guards the rule against that screen, and a rule change that would break it is caught before release.</p>
 <h2 id="limitations-and-troubleshooting">Limitations and troubleshooting<a class="headerlink" href="#limitations-and-troubleshooting" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Flatpak.</strong> In the Flatpak package the local shell runs on the host through <code>flatpak-spawn</code>, so the process ID korTTY holds belongs to the sandbox-side helper and the agent's process tree is not visible. No agent is detected in Flatpak local shells.</li>
@@ -1019,9 +1079,10 @@
 <li><strong>Unusual wrappers.</strong> An agent started through a launcher that korTTY does not recognise — a custom shell script that <code>exec</code>s into a differently named binary, a container, or a terminal multiplexer running outside the tab — is not identified, because the executable name in the process tree does not map to a known agent.</li>
 <li><strong>Wrong or flickering state.</strong> The agent's screen has changed, or a dialog is rendered in a way the bundled rules do not cover. Copy the bundled rule file to <code>~/.kortty/coding-agents/&lt;agent&gt;.json</code>, adjust the pattern, restart korTTY, and report the screen text so the bundled rules can be fixed.</li>
 <li><strong>No state at all although the agent is running.</strong> Check that the toggle in <strong>Settings → Terminal → Coding agents</strong> is on, that the tab is a Local Shell tab, and look for a <em>coding-agents</em> warning in the log — an invalid override file falls back to the bundled rules, but a bundled rule file that never matches your agent version leaves the agent unconfirmed.</li>
-</ul>
-<h2 id="coming-next">Coming next<a class="headerlink" href="#coming-next" title="Permanent link">&para;</a></h2>
-<p>This release lays the foundation: detection runs and its results are available inside korTTY. The next stage builds the visible part on top of it — state badges next to the tabs and in the dashboard, a panel listing every running agent with its state, and desktop notifications when an agent becomes BLOCKED or finishes while its tab is not in front.</p></p>
+<li><strong>No badge on GNOME.</strong> Stock GNOME Shell renders no launcher counters, and korTTY cannot detect whether a dock extension that would is installed, so the count is emitted but may stay invisible; the window-title fallback is used only where korTTY knows for certain that no icon badge exists (no installed desktop file, no reachable session bus, <code>./gradlew run</code>).</li>
+<li><strong>No notification although the agent waited.</strong> Notifications are suppressed for the pane you are looking at, for a blocked state that lasted less than a moment, for a second report of the same transition, and within ten seconds of the previous one for that pane; on Linux <code>notify-send</code> must be on the PATH, and the setting under <strong>Settings → Terminal → Coding agents</strong> must be on.</li>
+<li><strong>The prompt was refused.</strong> A waiting agent must be answered first (y, n, Enter or Esc), and a first line that begins with korTTY's own AI shortcut command must be rephrased — see <a href="#the-coding-agents-panel">The Coding Agents panel</a>.</li>
+</ul></p>
     </article>
 </section>
             <!-- endblock -->
