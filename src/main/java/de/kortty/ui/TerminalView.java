@@ -13,6 +13,11 @@ import com.sithtermfx.ui.split.SplitConnectorFactory;
 import com.sithtermfx.ui.split.SplitRequest;
 import com.sithtermfx.ui.split.TerminalSplitPane;
 import de.kortty.KorTTYApplication;
+import de.kortty.codingagent.CodingAgentMonitor;
+import de.kortty.codingagent.CodingAgentService;
+import de.kortty.codingagent.LocalProcessInspector;
+import de.kortty.codingagent.PaneRef;
+import de.kortty.codingagent.TerminalScreenCapture;
 import de.kortty.core.AiAction;
 import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.AiTokenWarningLevel;
@@ -87,6 +92,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
@@ -339,6 +346,11 @@ public class TerminalView extends BorderPane {
     private final Map<ObservableTtyConnector, TerminalAgentShortcutInputFilterRegistration>
         terminalAgentShortcutInputFilters = new ConcurrentHashMap<>();
     private final Map<SithTermFxWidget, TerminalModelListener> terminalRecordingModelListeners = new ConcurrentHashMap<>();
+    /** Stable identity of this tab for coding-agent {@link PaneRef}s (one UUID per TerminalView lifetime). */
+    private final String terminalViewId = UUID.randomUUID().toString();
+    private final Map<SithTermFxWidget, CodingAgentMonitor> codingAgentMonitors = new ConcurrentHashMap<>();
+    private final Map<SithTermFxWidget, TerminalModelListener> codingAgentModelListeners = new ConcurrentHashMap<>();
+    private final LocalProcessInspector codingAgentProcessInspector = new LocalProcessInspector();
     private final Map<ObservableTtyConnector, ObservableTtyConnector.InputActivityListener> terminalRecordingInputListeners = new ConcurrentHashMap<>();
     private final Map<SithTermFxWidget, StringBuilder> agentShortcutBuffers = new ConcurrentHashMap<>();
     private final StringBuilder agentShortcutPromptTail = new StringBuilder();
@@ -1075,6 +1087,7 @@ public class TerminalView extends BorderPane {
         if (recordingListener != null && widget.getTerminalTextBuffer() != null) {
             widget.getTerminalTextBuffer().removeModelListener(recordingListener);
         }
+        releaseCodingAgentMonitor(widget);
         if (terminalRecordingTargetWidgets.contains(widget)) {
             terminalRecordingTargetWidgets = terminalRecordingTargetWidgets.stream()
                 .filter(target -> target != widget)
@@ -2109,6 +2122,7 @@ public class TerminalView extends BorderPane {
         applyTerminalEmulation(widget, baseConnector);
         installAgentShortcutInputInterceptor(widget, baseConnector);
         installTerminalRecordingInputListener(baseConnector);
+        bindCodingAgentMonitor(widget, baseConnector);
         PaneEffect effect = paneEffects.get(widget);
         TtyConnector decorated = baseConnector;
         if (effect == null || effect.session == null) {
@@ -3198,6 +3212,130 @@ public class TerminalView extends BorderPane {
             });
         }
         installTerminalRecordingModelListener(widget);
+        attachCodingAgentMonitor(widget);
+    }
+
+    // ---- Coding-agent detection (de.kortty.codingagent) -------------------------------------------
+
+    /** Identity of this tab for coding-agent pane references; stable for the lifetime of the view. */
+    public String getTerminalViewId() {
+        return terminalViewId;
+    }
+
+    /** The coding-agent monitor attached to {@code widget}, if detection was available when it was created. */
+    public Optional<CodingAgentMonitor> codingAgentMonitorFor(SithTermFxWidget widget) {
+        if (widget == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(codingAgentMonitors.get(widget));
+    }
+
+    /** The widget whose monitor is identified by {@code pane}, if it belongs to this tab. */
+    public Optional<SithTermFxWidget> codingAgentWidgetFor(PaneRef pane) {
+        if (pane == null) {
+            return Optional.empty();
+        }
+        for (Map.Entry<SithTermFxWidget, CodingAgentMonitor> entry : codingAgentMonitors.entrySet()) {
+            if (pane.equals(entry.getValue().pane())) {
+                return Optional.of(entry.getKey());
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** Every coding-agent monitor of this tab (dormant or bound), in no particular order. */
+    public List<CodingAgentMonitor> codingAgentMonitors() {
+        return List.copyOf(codingAgentMonitors.values());
+    }
+
+    /**
+     * Creates the dormant monitor for a freshly configured widget and installs the O(1) model listener
+     * that only flags the screen as dirty. Runs inside the widget configurator — for the first widget
+     * before {@code splitPane} is assigned, so it must not touch it — and must never break widget
+     * creation, hence the blanket catch. The connector is not known yet; {@link #bindCodingAgentMonitor}
+     * binds it from {@link #decorateTerminalConnector}.
+     */
+    private void attachCodingAgentMonitor(SithTermFxWidget widget) {
+        if (widget == null) {
+            return;
+        }
+        try {
+            KorTTYApplication app = KorTTYApplication.getInstance();
+            CodingAgentService service = app == null ? null : app.getCodingAgentService();
+            if (service == null || service.isClosed()) {
+                return;
+            }
+            codingAgentMonitors.computeIfAbsent(widget, w -> service.attach(
+                new PaneRef(terminalViewId, TerminalScreenCapture.paneIdOf(w)),
+                TerminalScreenCapture.sourceFor(w)));
+            codingAgentModelListeners.computeIfAbsent(widget, key -> {
+                TerminalModelListener listener = () -> {
+                    CodingAgentMonitor monitor = codingAgentMonitors.get(key);
+                    if (monitor != null) {
+                        monitor.markDirty();
+                    }
+                };
+                key.getTerminalTextBuffer().addModelListener(listener);
+                return listener;
+            });
+        } catch (RuntimeException e) {
+            logger.warn("Coding agent detection could not be attached to a terminal pane: {}", e.toString());
+        }
+    }
+
+    /**
+     * Binds (or re-binds after a reconnect) the pane's monitor to the base connector it now runs on.
+     * Only a local shell exposes a process tree; every other connector leaves the monitor dormant.
+     */
+    private void bindCodingAgentMonitor(SithTermFxWidget widget, TtyConnector baseConnector) {
+        CodingAgentMonitor monitor = codingAgentMonitors.get(widget);
+        if (monitor == null) {
+            return;
+        }
+        try {
+            if (baseConnector instanceof LocalShellTtyConnector local) {
+                monitor.bind(
+                    codingAgentProcessInspector.sourceFor(local::getShellPid, local::isForeignSessionSuspected),
+                    local::isConnected);
+            } else {
+                monitor.unbind();
+            }
+        } catch (RuntimeException e) {
+            logger.warn("Coding agent detection could not be bound to a terminal connector: {}", e.toString());
+        }
+    }
+
+    /** Detaches the pane's monitor (publishing PANE_DETACHED if an agent was detected) and its model listener. */
+    private void releaseCodingAgentMonitor(SithTermFxWidget widget) {
+        if (widget == null) {
+            return;
+        }
+        TerminalModelListener listener = codingAgentModelListeners.remove(widget);
+        if (listener != null && widget.getTerminalTextBuffer() != null) {
+            widget.getTerminalTextBuffer().removeModelListener(listener);
+        }
+        CodingAgentMonitor monitor = codingAgentMonitors.remove(widget);
+        if (monitor == null) {
+            return;
+        }
+        try {
+            KorTTYApplication app = KorTTYApplication.getInstance();
+            CodingAgentService service = app == null ? null : app.getCodingAgentService();
+            if (service != null) {
+                service.detach(monitor);
+            } else {
+                monitor.close();
+            }
+        } catch (RuntimeException e) {
+            logger.warn("Coding agent monitor for {} could not be released: {}", monitor.pane(), e.toString());
+        }
+    }
+
+    private void releaseAllCodingAgentMonitors() {
+        for (SithTermFxWidget widget : new ArrayList<>(codingAgentMonitors.keySet())) {
+            releaseCodingAgentMonitor(widget);
+        }
+        codingAgentModelListeners.clear();
     }
 
     private void installAgentShortcutEventDispatcher(SithTermFxWidget widget) {
@@ -5705,6 +5843,7 @@ public class TerminalView extends BorderPane {
         cancelAllTerminalAgentRuns();
         stopAllTerminalAgentShellKeepAlives();
         detachTerminalRecordingSession();
+        releaseAllCodingAgentMonitors();
         stopLogger();
         stopSessionJournal();
         stopAllEffects();

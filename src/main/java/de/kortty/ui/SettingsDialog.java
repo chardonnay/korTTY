@@ -163,6 +163,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox closeActiveTerminalWindowsWithoutConfirmationCheck;
     private final CheckBox terminalRecordingAlwaysEnabledCheck;
     private final CheckBox terminalRecordingCaptureColorsCheck;
+    private final CheckBox codingAgentDetectionCheck;
 
     // Appearance settings
     private final ComboBox<AppDesign> appDesignCombo;
@@ -782,6 +783,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         autoReconnectEnabledCheck = new CheckBox(I18n.get("settings.connection.autoReconnect"));
         autoReconnectEnabledCheck.setSelected(globalSettings != null ? globalSettings.isAutoReconnectEnabled() : true);
         autoReconnectEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.connection.autoReconnect.tooltip")));
+
+        // Coding-agent detection (local shell tabs)
+        codingAgentDetectionCheck = new CheckBox(I18n.get("settings.codingAgent.detectionEnabled"));
+        codingAgentDetectionCheck.setSelected(globalSettings == null || globalSettings.isCodingAgentDetectionEnabled());
+        codingAgentDetectionCheck.setTooltip(new Tooltip(I18n.get("settings.codingAgent.detectionEnabled.tooltip")));
         
         terminalGrid.add(new Label(I18n.get("settings.terminal.columns")), 0, 0);
         terminalGrid.add(columnsSpinner, 1, 0);
@@ -825,6 +831,17 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalGrid.add(connectionHeader, 0, 19, 2, 1);
         terminalGrid.add(connectionRetriesEnabledCheck, 0, 20, 2, 1);
         terminalGrid.add(autoReconnectEnabledCheck, 0, 21, 2, 1);
+
+        // Coding agents section
+        terminalGrid.add(new Separator(), 0, 22, 2, 1);
+        Label codingAgentHeader = new Label(I18n.get("settings.codingAgent.header"));
+        codingAgentHeader.setStyle("-fx-font-weight: bold;");
+        terminalGrid.add(codingAgentHeader, 0, 23, 2, 1);
+        terminalGrid.add(codingAgentDetectionCheck, 0, 24, 2, 1);
+        Label codingAgentInfo = new Label(I18n.get("settings.codingAgent.detectionEnabled.info"));
+        codingAgentInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        codingAgentInfo.setWrapText(true);
+        terminalGrid.add(codingAgentInfo, 0, 25, 2, 1);
 
         LazyTabContent.defer(terminalTab, () -> terminalGrid);
 
@@ -2882,6 +2899,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 // Save global settings
                 try {
                     app.getGlobalSettingsManager().save();
+                    if (app.getCodingAgentService() != null) {
+                        // Re-read the toggle for every open local shell pane right away.
+                        app.getCodingAgentService().evaluateAll();
+                    }
                     app.applyLoggingSettings();
                     app.restartUpdateCheckService();
                     if (app.getTelemetryService() != null) {
@@ -3036,6 +3057,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             );
             globalSettings.setTerminalRecordingEnabled(terminalRecordingAlwaysEnabledCheck.isSelected());
             globalSettings.setTerminalRecordingCaptureColorsEnabled(terminalRecordingCaptureColorsCheck.isSelected());
+            globalSettings.setCodingAgentDetectionEnabled(codingAgentDetectionCheck.isSelected());
             globalSettings.setRequireMasterPasswordOnStartup(requireMasterPasswordOnStartupCheck.isSelected());
             boolean skipPrompt = skipMasterPasswordPromptCheck.isSelected();
             // Only touch the remembered-password file when the option actually changes — or when it
@@ -3266,6 +3288,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("terminal", "copy_on_select", gs::isTerminalCopyOnSelectEnabled, true));
             tracked.add(new TrackedSetting("terminal", "close_without_confirmation",
                 gs::isCloseActiveTerminalWindowsWithoutConfirmation, true));
+            tracked.add(new TrackedSetting("terminal", "coding_agent_detection", gs::isCodingAgentDetectionEnabled, true));
             tracked.add(new TrackedSetting("video", "recording_enabled", gs::isTerminalRecordingEnabled, true));
             tracked.add(new TrackedSetting("video", "capture_colors", gs::isTerminalRecordingCaptureColorsEnabled, true));
             tracked.add(new TrackedSetting("backup", "max_count", gs::getMaxBackupCount, true));

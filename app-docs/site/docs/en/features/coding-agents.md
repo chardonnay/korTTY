@@ -119,29 +119,37 @@ Regular expressions use **Java syntax** and are compiled with Unicode case foldi
 {
   "kind": "CLAUDE_CODE",
   "version": 1,
-  "comment": "Permission dialogs and the AskUserQuestion picker are BLOCKED; the spinner status line with 'esc to interrupt' is WORKING; the empty input box with '? for shortcuts' is IDLE. Claude Code does not use the alternate screen, so no rule depends on that flag.",
+  "comment": "Permission dialogs (Bash, Edit, Write, MCP) and the AskUserQuestion picker are BLOCKED; a tool call showing 'Running…' or the spinner status line with 'esc to interrupt' is WORKING; the empty input prompt with '? for shortcuts' is IDLE. The onboarding menus (theme picker, login method) intentionally match no rule. Claude Code does not use the alternate screen, so no rule depends on that flag. Re-verify against live sessions after an agent update.",
   "fallbackState": "IDLE",
   "rules": [
     {
       "id": "permission-prompt",
       "state": "BLOCKED",
       "priority": 1000,
-      "region": { "bottomNonEmptyLines": 18 },
+      "region": { "bottomNonEmptyLines": 20 },
       "anyLineRegex": [
         "Do you want to (proceed|make this edit|create|run|allow)",
-        "^\\s*[│┃]?\\s*[❯>]?\\s*1\\.\\s*Yes\\b",
-        "No, and tell Claude what to do differently",
-        "\\(y/n\\)"
+        "Do you want to allow this connection\\?",
+        "Would you like to proceed\\?"
       ],
+      "regex": "^\\s*[│┃]?\\s*❯?\\s*1\\.\\s*Yes\\b",
       "notContains": ["esc to interrupt"]
     },
     {
       "id": "question-picker",
       "state": "BLOCKED",
       "priority": 950,
-      "region": { "bottomNonEmptyLines": 18 },
-      "anyLineRegex": ["Enter to select", "Would you like to proceed", "^\\s*[│┃]?\\s*[❯>]\\s*\\d+\\.\\s+\\S"],
-      "notContains": ["esc to interrupt"]
+      "region": { "bottomNonEmptyLines": 20 },
+      "anyLineRegex": ["(?i)\\bEsc to cancel\\b"],
+      "regex": "(?i)Enter to (select|confirm)|Arrow keys to navigate|↑/?↓ to navigate|Review your answers",
+      "notContains": ["esc to interrupt", "Enter to set as default"]
+    },
+    {
+      "id": "working-tool-running",
+      "state": "WORKING",
+      "priority": 910,
+      "region": { "bottomNonEmptyLines": 12 },
+      "anyLineRegex": ["^\\s*⎿\\s+Running…"]
     },
     {
       "id": "working-spinner",
@@ -150,7 +158,7 @@ Regular expressions use **Java syntax** and are compiled with Unicode case foldi
       "region": { "bottomNonEmptyLines": 8 },
       "anyLineRegex": [
         "(?i)esc to interrupt",
-        "^\\s*[✻✳✶✽✢·⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]\\s+\\S+…"
+        "^\\s*[✻✳✶✽✢·\\*]\\s+\\S.*…"
       ]
     },
     {
@@ -158,14 +166,14 @@ Regular expressions use **Java syntax** and are compiled with Unicode case foldi
       "state": "IDLE",
       "priority": 100,
       "region": { "bottomNonEmptyLines": 6 },
-      "anyLineRegex": ["^\\s*[│┃]?\\s*>\\s*$", "\\?\\s+for shortcuts"],
+      "anyLineRegex": ["^\\s*[│┃]?\\s*[❯>]\\s*$", "\\?\\s+for shortcuts"],
       "notContains": ["esc to interrupt"]
     }
   ]
 }
 ```
 
-The `notContains` veto on the BLOCKED and IDLE rules matters: while Claude Code is working, its status line stays on screen together with older dialog text, and the veto keeps the higher-priority prompt rules from firing on stale lines.
+The two BLOCKED rules combine a per-line pattern with a whole-region `regex`, so a permission dialog is only reported when both the question and its *1. Yes* option are on screen, and a question picker only together with its navigation footer — the onboarding menus of a fresh installation show a similar list but neither footer, and must not count as blocked. The `notContains` veto on the BLOCKED and IDLE rules matters too: while Claude Code is working, its status line stays on screen together with older dialog text, and the veto keeps the higher-priority prompt rules from firing on stale lines.
 
 ### Keeping rules in sync with the agents
 

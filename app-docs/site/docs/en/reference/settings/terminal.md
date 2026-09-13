@@ -25,6 +25,7 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Enable connection retries | toggle | — | On | `connectionRetriesEnabled` |
 | Automatically reconnect lost connections | toggle | — | On | `autoReconnectEnabled` |
 | Disable host key verification for all connections | toggle | — | Off | `hostKeyCheckDisabledForAllConnections` |
+| Detect coding agents (Claude Code, Codex, Gemini CLI) in local shell tabs | toggle | — | On | `codingAgentDetectionEnabled` |
 
 ## Notes
 
@@ -50,3 +51,6 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 
 !!! note "Automatically reconnect lost connections"
     When enabled and an **established** SSH connection is lost (network drop, server gone), the tab reconnects on its own with increasing delays — 3, 5, 10, 20, 30, then every 60 seconds — and the red status bar counts down to the next attempt. A double-click on the bar still reconnects immediately, and a successful reconnect or closing the tab stops the automatic attempts. Failed logins and other permanent failures (authentication, host key, configuration) are never retried automatically, and a connection that never got established is not retried by this setting either — that is what *Enable connection retries* covers. See [Terminal sessions → Connection loss](../../features/terminal.md#connection-loss-and-automatic-reconnect).
+
+!!! note "Detect coding agents"
+    When enabled, korTTY watches every local shell pane for a running Claude Code, Codex or Gemini CLI and tracks whether it is working, blocked on a question or idle. The screen is analysed locally and nothing leaves the computer; the change applies immediately to open tabs. See [Coding agents](../../features/coding-agents.md).

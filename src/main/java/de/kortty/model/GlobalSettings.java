@@ -178,6 +178,9 @@ public class GlobalSettings {
     private boolean terminalRecordingCaptureColorsEnabled = false;
 
     @XmlElement
+    private boolean codingAgentDetectionEnabled = true; // Detect Claude Code / Codex / Gemini CLI in local shell panes
+
+    @XmlElement
     private String sessionJournalStoragePath; // Blank/null = ~/.kortty/journals
 
     @XmlElement
@@ -1475,6 +1478,14 @@ public class GlobalSettings {
 
     public void setTerminalRecordingCaptureColorsEnabled(boolean terminalRecordingCaptureColorsEnabled) {
         this.terminalRecordingCaptureColorsEnabled = terminalRecordingCaptureColorsEnabled;
+    }
+
+    public boolean isCodingAgentDetectionEnabled() {
+        return codingAgentDetectionEnabled;
+    }
+
+    public void setCodingAgentDetectionEnabled(boolean codingAgentDetectionEnabled) {
+        this.codingAgentDetectionEnabled = codingAgentDetectionEnabled;
     }
 
     public String getSessionJournalStoragePath() {

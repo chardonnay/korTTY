@@ -6,6 +6,7 @@ What changed in the current release. The version this guide was built for is sho
 
 ### Terminal
 
+- **Coding agent detection** — korTTY recognises Claude Code, Codex and Gemini CLI in local shell tabs and classifies each pane as working, blocked on a question or idle. Detection reads the terminal screen locally and can be switched off in *Settings → Terminal → Coding agents*; the rules are JSON files you can override under `~/.kortty/coding-agents/`. See [Coding agents](../features/coding-agents.md).
 - **A misplaced scrolling region no longer confines the cursor** — DECSTBM sets the region that scrolls, not the region the cursor may be addressed in, but every write clamped the cursor to the margins by scrolling anyway: text addressed above the top margin was pulled into the region, and text addressed below the bottom margin scrolled the region out from under what was already on screen. tmux triggers the first case while it paints a pane with the margins still narrowed, which showed the cursor one line above the prompt. Scrolling now happens only on an explicit line feed, so the cursor can address any line inside the terminal without moving what is already there.
 
 ### Tools

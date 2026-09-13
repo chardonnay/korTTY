@@ -6,6 +6,7 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 
 ### Terminal
 
+- **Erkennung von Coding-Agents** – korTTY erkennt Claude Code, Codex und Gemini CLI in lokalen Shell-Tabs und stuft jeden Bereich als arbeitend, durch eine Rückfrage blockiert oder untätig ein. Die Erkennung liest den Terminalinhalt lokal und lässt sich unter *Einstellungen → Terminal → Coding-Agents* abschalten; die Regeln sind JSON-Dateien, die Sie unter `~/.kortty/coding-agents/` überschreiben können. Siehe [Coding-Agents](../features/coding-agents.md).
 - **Ein falsch platzierter Bildlaufbereich schränkt den Cursor nicht mehr ein** – DECSTBM legt den Bereich fest, in dem gescrollt wird, nicht den Bereich, in dem der Cursor adressiert werden kann, aber jeder Schreibvorgang hat den Cursor durch Scrollen trotzdem an die Ränder geklemmt: Text, der über dem oberen Rand adressiert wurde, wurde in den Bereich gezogen, und Text, der unter dem unteren Rand adressiert wurde, scrollte den Bereich unter dem heraus, was bereits auf dem Bildschirm war. tmux löst den ersten Fall aus, während es einen Bereich mit immer noch schmalen Rändern zeichnet, wodurch der Cursor eine Zeile über der Eingabeaufforderung angezeigt wird. Das Scrollen erfolgt jetzt nur noch bei einem expliziten Zeilenvorschub, sodass der Cursor jede Zeile im Terminal ansprechen kann, ohne bereits vorhandene Zeilen zu verschieben.
 
 ### Tools

@@ -14,6 +14,9 @@ import de.kortty.core.LoggingConfiguration;
 import de.kortty.core.ThemeManager;
 import de.kortty.core.TerminalEffectPluginManager;
 import de.kortty.core.BackupManager;
+import de.kortty.codingagent.AgentRuleRepository;
+import de.kortty.codingagent.CodingAgentDetector;
+import de.kortty.codingagent.CodingAgentService;
 import de.kortty.core.AiChatManager;
 import de.kortty.core.SwarmChatManager;
 import de.kortty.teamwork.TeamworkSyncService;
@@ -88,6 +91,7 @@ public class KorTTYApplication extends Application {
     private GlobalSettingsManager globalSettingsManager;
     private ThemeManager themeManager;
     private TerminalEffectPluginManager terminalEffectPluginManager;
+    private CodingAgentService codingAgentService;
     private BackupManager backupManager;
     private AiChatManager aiChatManager;
     private SwarmChatManager swarmChatManager;
@@ -197,6 +201,17 @@ public class KorTTYApplication extends Application {
         powerManagementCoordinator = PowerManagementCoordinator.createDefault();
         themeManager = new ThemeManager(configDir);
         terminalEffectPluginManager = new TerminalEffectPluginManager(configDir);
+        AgentRuleRepository codingAgentRules = new AgentRuleRepository(configDir);
+        codingAgentRules.problems().forEach(problem ->
+            logger.warn("Ignoring coding-agents rule file {}: {}", problem.location(), problem.message()));
+        codingAgentService = new CodingAgentService(
+            new CodingAgentDetector(codingAgentRules),
+            () -> {
+                GlobalSettings current = globalSettingsManager.getSettings();
+                return current != null && current.isCodingAgentDetectionEnabled();
+            },
+            Platform::runLater,
+            CodingAgentService.defaultScheduler());
         aiChatManager = new AiChatManager(configDir);
         swarmChatManager = new SwarmChatManager(configDir);
         sessionJournalService = new de.kortty.core.SessionJournalService();
@@ -568,6 +583,9 @@ public class KorTTYApplication extends Application {
         // independent and individually guarded: Runtime.halt(0) (in shutdownAndExit)
         // skips the JVM shutdown hooks, so this is the only chance to flush state —
         // one manager failing must not skip the remaining saves/stops.
+        if (codingAgentService != null) {
+            shutdownStep("stop coding agent detection", codingAgentService::stop);
+        }
         if (sessionJournalSummarizer != null) {
             shutdownStep("stop session journal summarizer", sessionJournalSummarizer::stop);
         }
@@ -1129,6 +1147,11 @@ public class KorTTYApplication extends Application {
 
     public TerminalEffectPluginManager getTerminalEffectPluginManager() {
         return terminalEffectPluginManager;
+    }
+
+    /** Coding-agent detection for local shell panes; null before {@code init()} (e.g. in unit tests). */
+    public CodingAgentService getCodingAgentService() {
+        return codingAgentService;
     }
 
     public AiChatManager getAiChatManager() {

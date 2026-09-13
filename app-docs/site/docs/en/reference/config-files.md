@@ -33,6 +33,7 @@ KorTTY stores all application data and configuration under the `~/.kortty/` dire
 ├── master.key                         # Hashed master password (PBKDF2)
 ├── master.autounlock                  # Optional auto-login password (obfuscated; owner-only)
 ├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
+├── coding-agents/                     # User overrides for coding-agent detection rules
 ├── kortty.log                         # Application log file
 ├── history/                           # Terminal session history (compressed)
 ├── journals/                          # Session journals (one directory per journal)

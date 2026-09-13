@@ -173,6 +173,7 @@ nav:
       - features/session-journal.md
       - features/ascii-art.md
       - features/terminal-effect-plugins.md
+      - features/coding-agents.md
       - features/i18n.md
   - About:
       - about/release-notes.md
