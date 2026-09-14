@@ -58,7 +58,7 @@ Das Protokoll ist zeilenweises JSON-RPC 2.0 – genau ein JSON-Objekt pro Zeile,
 
 Anfragen einer Verbindung werden **nacheinander** ausgeführt: die nächste Zeile wird erst gelesen, wenn die vorige Antwort in der Warteschlange liegt. Ein Client, der gleichzeitig lange warten und andere Aufrufe absetzen will, öffnet eine zweite Verbindung – bis zu acht gleichzeitig.
 
-Statt die Methodenliste hier zu wiederholen, fragen Sie korTTY: `api.schema` liefert die vollständige maschinenlesbare Oberfläche – jede Methode mit Parametern, Ergebnisform, Fehlern, CLI-Entsprechung und einem ausgearbeiteten Beispiel, dazu das Tastenvokabular, die Fehlertabelle und die Grenzwerte. Sie wird aus denselben Deklarationen erzeugt, die der Dispatcher registriert, kann also nicht von der Implementierung abweichen.
+Statt die Methodenliste hier zu wiederholen, fragen Sie korTTY: `api.schema` liefert die vollständige maschinenlesbare Oberfläche – jede Methode mit Parametern, Ergebnisform, Fehlern, CLI-Entsprechung und einem ausgearbeiteten Beispiel, dazu das Tastenvokabular, die Fehlertabelle und die Grenzwerte. Parameter, Ergebnisse, Fehler und Grenzwerte entstehen aus denselben Deklarationen, die der Dispatcher registriert, und können daher nicht von der Implementierung abweichen; jede Zeile `cli` ist ein Befehl, den das ausgelieferte `kortty-cli` nachweislich für genau diese Methode annimmt.
 
 ### Was die Methoden tun
 

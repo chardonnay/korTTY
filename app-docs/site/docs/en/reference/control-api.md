@@ -58,7 +58,7 @@ The protocol is newline-delimited JSON-RPC 2.0 — exactly one JSON object per l
 
 Requests on one connection are executed **one at a time**: the next line is read only after the previous answer has been queued. A client that needs a long wait and concurrent calls opens a second connection — up to eight at once.
 
-Rather than duplicating the method list here, ask korTTY: `api.schema` returns the full machine-readable surface — every method with its parameters, result shape, errors, CLI equivalent and a worked example, plus the key vocabulary, the error table and the limits. It is generated from the same declarations the dispatcher registers, so it cannot drift from the implementation.
+Rather than duplicating the method list here, ask korTTY: `api.schema` returns the full machine-readable surface — every method with its parameters, result shape, errors, CLI equivalent and a worked example, plus the key vocabulary, the error table and the limits. The parameters, results, errors and limits are generated from the same declarations the dispatcher registers, so they cannot drift from the implementation; each `cli` line is a command the shipped `kortty-cli` is tested to accept for that very method.
 
 ### What the methods do
 

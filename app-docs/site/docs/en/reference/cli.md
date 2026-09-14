@@ -22,7 +22,9 @@ It talks only to a korTTY running **on the same computer as you**, and only whil
 | Linux deb / rpm | `/opt/kortty/bin/kortty-cli` |
 | Arch (pacman) | `/usr/bin/kortty-cli` → `/usr/lib/kortty/bin/kortty-cli` |
 | Flatpak | `flatpak run --command=kortty-cli io.github.chardonnay.korTTY` |
-| Portable archive | `<extracted directory>/bin/kortty-cli` |
+| Portable archive (Linux) | `<extracted directory>/korTTY/bin/kortty-cli` |
+| Portable archive (Windows) | `<extracted directory>\korTTY\kortty-cli.exe` — at the image root, not under `bin` |
+| Portable archive (macOS) | `<extracted directory>/korTTY.app/Contents/MacOS/kortty-cli` |
 
 Only the pacman package puts it on your `PATH` for you. Everywhere else, add the directory to `PATH` or link the launcher into a directory that is already on it:
 
@@ -48,32 +50,37 @@ The launcher is deliberately **not** called `kortty`: that name belongs to the g
 ## Shape of a command
 
 ```bash
-kortty-cli <group> <command> [selector] [options]
+kortty-cli <group> <command> [options]
 ```
 
-Groups mirror the API: `pane`, `tab`, `window`, `agent`, `events`, `notification`, plus `ping` and `schema`. A command name is the API method with its underscores spelled as dashes — `pane.send_text` is `pane send-text`.
+The groups are `pane`, `tab`, `window`, `agent`, `events`, `notify`, `raw`, `ping` and `schema`. Inside a group, a command name is the API method after the dot with its underscores spelled as dashes — `pane.send_text` is `pane send-text`. Four methods do not follow from their name and are worth learning: `api.schema` is `schema`, `events.subscribe` is `events`, `notification.show` is `notify`, and anything without a command of its own — `events.unsubscribe`, `pane.resolve` — is reached through `raw`.
+
+Everything a command needs is a flag. There are no positional arguments except the key names of `pane send-keys` and `agent send-keys`, and the method and JSON of `raw`.
 
 ```bash
 kortty-cli ping                                   # is a korTTY listening?
 kortty-cli pane list                              # every open pane
-kortty-cli pane read @focused --mode recent --lines 200
-kortty-cli pane run p1a2b3c4d --command 'make test'
-kortty-cli pane wait-output p1a2b3c4d --contains 'BUILD SUCCESSFUL' --timeout-ms 300000
+kortty-cli pane read --focused --recent --lines 200
+kortty-cli pane run --pane p1a2b3c4d --command 'make test'
+kortty-cli pane wait-output --pane p1a2b3c4d --contains 'BUILD SUCCESSFUL' --timeout-ms 300000
+kortty-cli raw events.unsubscribe '{"subscription":"s1"}'
 ```
 
-`kortty-cli schema` prints the complete machine-readable command surface — every command, its options, its result shape, its errors and a worked example — straight from the running korTTY. It is generated from the same declarations the server dispatches, so it is authoritative in a way a manual page cannot be; use it rather than guessing, especially from a script that has to keep working across versions.
+`kortty-cli schema` prints the complete machine-readable command surface — every command, its options, its result shape, its errors and a worked example — straight from the running korTTY. The parameters, results and errors come from the same declarations the server dispatches, and each entry's `cli` line is checked against this client's own parser before release, so both describe the version you are actually talking to; use it rather than guessing, especially from a script that has to keep working across versions.
 
 ## Choosing a pane
 
-Anywhere a pane is expected you may write:
+Every `pane` and `agent` command takes **exactly one** selector, and every selector is a flag:
 
 | Selector | Means |
 | --- | --- |
-| `p1a2b3c4d` | That pane, which must be unique among the open ones |
-| `w1:t9f3a…:p1a2b3c4d` | The fully qualified address |
-| `t9f3a…` | That tab's focused pane |
-| `@focused` | The pane you are looking at |
+| `--pane p1a2b3c4d` | That pane, which must be unique among the open ones |
+| `--pane w1:t9f3a…:p1a2b3c4d` | The fully qualified address |
+| `--tab t9f3a…` | That tab's focused pane |
+| `--focused` | The pane you are looking at |
 | `--current` | The pane the command is **running in** |
+
+Giving none of them, or more than one, is a syntax error (exit 2) that names the four; a bare `p1a2b3c4d` or `@focused` written where a flag belongs is a syntax error too.
 
 `--current` is resolved by the client, not the server: it walks its own process ancestry and asks korTTY which pane owns one of those process ids. That is why it works from a sub-shell, a `Makefile` recipe or a nested script without any setup, and why it fails loudly with a clear message where it cannot work rather than addressing the wrong pane.
 
@@ -86,6 +93,19 @@ Commands that wait — `pane wait-output`, `agent wait`, `agent prompt --wait-un
 
 Requests on one connection run one at a time, so a script that wants to wait on one pane while doing something in another simply runs two commands concurrently — each opens its own connection. Up to eight connections may be open at once.
 
+## Watching events
+
+`kortty-cli events` subscribes to korTTY's coding-agent events and prints one JSON object per line, as they happen, until it is told to stop.
+
+```bash
+kortty-cli events --kinds agent.state_changed --panes p1a2b3c4d --count 1
+kortty-cli events --include-evidence --timeout 60000
+```
+
+`--kinds` and `--panes` take comma-separated lists and narrow what is delivered; `--include-evidence` adds the detector's evidence to each event; `--count N` stops after N events. Three things end the stream: `--count` is reached, the `--timeout` passes, or you interrupt it. The first two exit 0. An interrupt is **not** handled — there is deliberately no signal handler, so the process ends with the shell's 128 + SIGINT = 130, which is worth allowing for in a CI job that wraps the stream in `timeout`.
+
+With neither `--count` nor `--timeout`, the stream has no deadline at all and runs until korTTY exits or you stop it.
+
 ## Exit codes
 
 The exit code comes from the server, not from a table the client keeps, so the two can never disagree.
@@ -97,8 +117,15 @@ The exit code comes from the server, not from a table the client keeps, so the t
 | 2 | The request itself was wrong: a bad selector, an unknown key name, an invalid regular expression, a missing or out-of-range parameter, an unknown command | No |
 | 3 | Refused: the Control API is off, enterprise policy denies it, the token was rejected, korTTY is not ready yet, or too many connections are open | No, until you change something |
 | 4 | A wait timed out | Usually |
+| 130 | `kortty-cli events` was interrupted (Ctrl-C). The stream has no signal handler, so this is the shell's own 128 + SIGINT | — |
 
-Every failure also prints a JSON error object on stderr carrying a stable `code` string, so a script can branch on the cause rather than on the message text.
+Every failure prints a one-line diagnostic on stderr in the form `kortty-cli: <message> (<code>)`, where `<code>` is the stable wire code — `not_found`, `timeout`, `blocked_by_policy` — that the exit code above was derived from. Add `--pretty` to get the whole JSON-RPC error object instead, which is what a script should branch on:
+
+```bash
+kortty-cli pane read --focused --pretty 2>err.json || code=$(jq -r .error.data.code err.json)
+```
+
+Failures the client diagnoses on its own are the exception: an unparseable command line, a korTTY that is not running, a `--current` that matches no pane and an expired client deadline never reached the server, so they carry no wire code and print a bare `kortty-cli: <message>` on either setting. Branch on the exit code for those.
 
 ## Checking the installation
 
@@ -110,7 +137,7 @@ kortty-cli --version || echo 'kortty-cli is not installed or not on PATH'
 
 ## Scripting notes
 
-* Nothing is written to stdout except the command's result, so `kortty-cli pane read @focused` pipes cleanly.
+* Nothing is written to stdout except the command's result, so `kortty-cli pane read --focused` pipes cleanly.
 * Diagnostics, warnings and error objects go to stderr.
 * The authentication token is read from `~/.kortty/control/endpoint.json` by the client. There is no `--token` option and no environment variable, deliberately: a token on a command line ends up in the process list and in your shell history.
 * korTTY logs one line per action the CLI performs, and raises one desktop notification the first time a program types into a pane. Your script is not invisible, by design.
