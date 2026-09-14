@@ -15,6 +15,8 @@ import java.net.UnixDomainSocketAddress;
 import java.nio.channels.Channels;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -58,6 +60,16 @@ public final class ControlClient implements AutoCloseable {
     private final AtomicBoolean deadlineFired = new AtomicBoolean();
 
     private final AtomicBoolean closed = new AtomicBoolean();
+
+    /**
+     * Events that arrived while a call was waiting for its result, in arrival order.
+     *
+     * <p>The server publishes a subscription before it queues the {@code events.subscribe} result, and
+     * both travel on the same queue, so an event raised in that window is written <em>first</em>.
+     * Dropping it would silently destroy the very first event a subscriber asked to see — and
+     * {@code kortty-cli events --count 1} would then block for a second one.
+     */
+    private final Deque<JsonObject> pendingEvents = new ArrayDeque<>();
 
     private final long timeoutMillis;
 
@@ -119,8 +131,10 @@ public final class ControlClient implements AutoCloseable {
     /**
      * Sends one request and returns its result.
      *
-     * <p>Event notifications that arrive while the answer is outstanding are skipped rather than
-     * treated as the answer: a connection that subscribed to events can still make ordinary calls.
+     * <p>Event notifications that arrive while the answer is outstanding are set aside rather than
+     * treated as the answer — a connection that subscribed to events can still make ordinary calls —
+     * and {@link #stream} hands them on before it reads anything further, so an event the server
+     * queued ahead of the {@code events.subscribe} result is reported rather than lost.
      *
      * @throws SocketTimeoutException when the client deadline expired
      * @throws CliServerException when the server answered with an error object
@@ -160,7 +174,13 @@ public final class ControlClient implements AutoCloseable {
         try {
             int seen = 0;
             while (count <= 0 || seen < count) {
-                JsonObject frame = readFrame();
+                JsonObject frame = pendingEvents.pollFirst();
+                if (frame != null) {
+                    sink.accept(frame);
+                    seen++;
+                    continue;
+                }
+                frame = readFrame();
                 if (frame == null) {
                     return;
                 }
@@ -214,6 +234,9 @@ public final class ControlClient implements AutoCloseable {
                 if (frame.has("error")) {
                     // A framing failure the server could not correlate, e.g. message_too_large.
                     throw serverError(frame.getAsJsonObject("error"));
+                }
+                if (frame.has("method")) {
+                    pendingEvents.addLast(frame);
                 }
                 continue;
             }

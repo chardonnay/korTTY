@@ -66,6 +66,8 @@ final class StubControlServer implements AutoCloseable {
 
     private volatile int eventsToEmit;
 
+    private volatile int eventsBeforeReply;
+
     private volatile boolean stalling;
 
     private volatile boolean running = true;
@@ -135,6 +137,18 @@ final class StubControlServer implements AutoCloseable {
     /** Emits {@code count} event notifications after the next non-auth reply. */
     void emitEvents(int count) {
         this.eventsToEmit = count;
+    }
+
+    /**
+     * Emits {@code count} event notifications <strong>before</strong> the next non-auth reply.
+     *
+     * <p>Not a contrivance: the real server publishes a subscription inside the
+     * {@code events.subscribe} handler and only queues that handler's result afterwards, while the
+     * event bus enqueues onto the same outbound queue from the JavaFX thread. Anything raised in that
+     * window really is written ahead of the subscribe result.
+     */
+    void emitEventsBeforeReply(int count) {
+        this.eventsBeforeReply = count;
     }
 
     /**
@@ -264,6 +278,10 @@ final class StubControlServer implements AutoCloseable {
                 codec.writeLine(errorFrame(id, cannedError));
                 continue;
             }
+            for (int index = 0; index < eventsBeforeReply; index++) {
+                codec.writeLine(eventLine(index));
+            }
+            eventsBeforeReply = 0;
             codec.writeLine(resultLine(id, cannedResult));
             for (int index = 0; index < eventsToEmit; index++) {
                 codec.writeLine(eventLine(index));

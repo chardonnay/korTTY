@@ -177,6 +177,25 @@ class CliStubServerRoundTripTest {
         assertThat(printed.get(0)).doesNotContain("subscription_id");
     }
 
+    @Test(timeOut = 60_000)
+    void anEventTheServerWroteAheadOfTheSubscribeResultIsStillReported() throws Exception {
+        startLoopback();
+        JsonObject subscribed = new JsonObject();
+        subscribed.addProperty("subscription_id", "s1");
+        server.replyWith(subscribed);
+        server.emitEventsBeforeReply(1);
+
+        assertThat(run("events", "--count", "1")).isEqualTo(KorttyCli.EXIT_OK);
+
+        List<String> printed = stdout().lines().toList();
+        assertWithMessage("an event raised between the subscription being published and the"
+                + " subscribe result being queued is written first; dropping it destroys the one"
+                + " event 'events --count 1' was asked to report, and then blocks for another")
+            .that(printed)
+            .hasSize(1);
+        assertThat(printed.get(0)).contains("agent.state_changed");
+    }
+
     /**
      * The stream reader must read {@code --count} exactly the way the parser validated it — stripped —
      * or a quoted value that the parser accepted throws an unchecked NumberFormatException out of
