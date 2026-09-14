@@ -105,13 +105,7 @@ public final class MlxRuntimePackageInstaller {
     /** Standard layout below {@code <llmDir>/mlx/runtime} with the pinned signed release channel. */
     public MlxRuntimePackageInstaller(Path llmDirectory) {
         this(llmDirectory.resolve("mlx").resolve("runtime"),
-            () -> {
-                MlxRuntimeReleaseConfiguration configuration = MlxRuntimeReleaseConfiguration.loadDefault();
-                return new MlxRuntimeIndexClient(
-                    configuration.stableIndexUri(),
-                    configuration.stableSignatureUri(),
-                    configuration.requireTrustedPublicKey()).fetch();
-            },
+            () -> MlxRuntimeReleaseConfiguration.loadDefault().fetchStableIndex(),
             new HttpPackageContentProvider(),
             MlxRuntimePackageInstaller::defaultSanityLaunch,
             MlxPlatform::isSupported);

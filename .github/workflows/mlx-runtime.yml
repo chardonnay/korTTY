@@ -2,9 +2,10 @@ name: MLX runtime candidates
 
 # Candidate detection, candidate building and source-side validation live with korTTY.
 # Human-approved signing and immutable stable publication run in chardonnay/kortty-llama-runtimes,
-# which publishes the MLX channel as a separate mlx-stable index signed with the same Ed25519
-# release key as the llama.cpp channel, so no cross-repository release token or private signing key
-# is exposed to this repository's pull-request workflows.
+# which publishes the MLX channel as a separate index signed with the same Ed25519 release key as the
+# llama.cpp channel and carries both indexes in every immutable latest release, so no
+# cross-repository release token or private signing key is exposed to this repository's
+# pull-request workflows.
 #
 # mlx-runtime/requirements.in is the ONE authoritative mlx-lm pin and this workflow derives
 # MLX_LM_VERSION from it instead of carrying a second copy. That is not just tidiness: GITHUB_TOKEN

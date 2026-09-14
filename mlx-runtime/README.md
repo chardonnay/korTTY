@@ -54,7 +54,7 @@ rewrites the two pins, regenerates `requirements.lock`, and opens a single
 Pre-releases and fully yanked releases are never proposed, and a lower upstream version never opens
 a downgrade PR. The result is a candidate only: the PR re-enters this workflow through the
 `pull_request` trigger and must pass the macOS arm64 build and the authenticated API smoke, then
-human approval, before it is promoted to the signed `mlx-stable` channel.
+human approval, before it is promoted to the signed stable MLX channel.
 
 ## Build and publication
 
@@ -64,6 +64,10 @@ human approval, before it is promoted to the signed `mlx-stable` channel.
   candidate `tar.zst` plus its SHA-256 as workflow artifacts.
 - Candidate packages are never signed in this repository. Human-approved signing and immutable
   stable publication run in `chardonnay/kortty-llama-runtimes`, which publishes the MLX channel as
-  a separate `mlx-stable` index signed with the same Ed25519 release key as the llama.cpp channel.
+  a separate `mlx-runtime-index-v1` signed with the same Ed25519 release key as the llama.cpp
+  channel. Every promotion of either channel creates a new immutable release marked latest that
+  carries both signed indexes, so korTTY resolves both through `releases/latest`; the rolling
+  `mlx-stable` release is kept only as the legacy pointer for older korTTY builds, which current
+  builds read solely while the latest release carries no MLX index yet.
 - For local development only, `scripts/build-mlx-runtime-local.sh` assembles an unsigned package
   layout from a plain venv under `build/mlx-runtime-dev/`. Dev packages must never be shipped.

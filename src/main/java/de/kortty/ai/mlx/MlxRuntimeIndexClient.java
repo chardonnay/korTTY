@@ -25,6 +25,16 @@ public final class MlxRuntimeIndexClient {
     private static final int MAX_INDEX_BYTES = 5 * 1024 * 1024;
     private static final int MAX_SIGNATURE_BYTES = 4096;
 
+    /**
+     * The channel publishes no MLX index at all (HTTP 404), as opposed to an unreachable, failing or
+     * tampered one. Only this case may fall back to another channel.
+     */
+    public static final class IndexNotPublishedException extends IOException {
+        IndexNotPublishedException(URI uri) {
+            super("No MLX runtime index is published at " + uri + ".");
+        }
+    }
+
     private final HttpClient httpClient;
     private final URI indexUri;
     private final URI signatureUri;
@@ -79,6 +89,10 @@ public final class MlxRuntimeIndexClient {
             .build();
         HttpResponse<InputStream> response = httpClient.send(
             request, HttpResponse.BodyHandlers.ofInputStream());
+        if (response.statusCode() == 404) {
+            response.body().close();
+            throw new IndexNotPublishedException(uri);
+        }
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             response.body().close();
             throw new IOException("MLX runtime index request failed with HTTP " + response.statusCode() + ".");
