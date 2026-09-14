@@ -91,6 +91,9 @@ public final class ControlConnection implements Runnable, AutoCloseable {
 
     private final CountDownLatch writerFinished = new CountDownLatch(1);
 
+    /** Guards {@link #rxThread} and the interrupt it carries; see that field. */
+    private final Object rxLock = new Object();
+
     /**
      * Held by the rx thread while it reads and by the tx thread while it probes, so the two never
      * touch the channel at once. The probe only ever {@code tryLock}s: while the rx thread is inside
@@ -116,8 +119,14 @@ public final class ControlConnection implements Runnable, AutoCloseable {
 
     private volatile ScheduledFuture<?> authDeadline;
 
-    /** The thread running {@link #run()}, so {@link #close()} can cut short whatever it parks on. */
-    private volatile Thread rxThread;
+    /**
+     * The thread running {@link #run()}, so {@link #close()} can cut short whatever it parks on.
+     *
+     * <p>Read, written and interrupted only under {@link #rxLock}: the pool hands this thread to the
+     * next connection, and an interrupt that landed after {@link #run()} cleared the flag would kill
+     * that connection's first read instead of this one's wait.
+     */
+    private Thread rxThread;
 
     /**
      * @param connectionId a short id unique for this server run, used in logs and in
@@ -190,7 +199,9 @@ public final class ControlConnection implements Runnable, AutoCloseable {
 
     @Override
     public void run() {
-        rxThread = Thread.currentThread();
+        synchronized (rxLock) {
+            rxThread = Thread.currentThread();
+        }
         startWriter();
         armAuthDeadline();
         try {
@@ -201,10 +212,12 @@ public final class ControlConnection implements Runnable, AutoCloseable {
             LOG.error("control-api {}: connection failed", connectionId, e);
         } finally {
             finish();
-            rxThread = null;
-            // The pool hands this thread to the next connection: an interrupt meant for this one's
-            // wait must not be inherited by that one's first read.
-            Thread.interrupted();
+            synchronized (rxLock) {
+                rxThread = null;
+                // The pool hands this thread to the next connection: an interrupt meant for this
+                // one's wait must not be inherited by that one's first read.
+                Thread.interrupted();
+            }
         }
     }
 
@@ -223,9 +236,10 @@ public final class ControlConnection implements Runnable, AutoCloseable {
         // A blocking verb parks the rx thread on a future that nothing else will complete, so a
         // connection that is gone has to say so: every wait is documented as cancelled when its
         // connection closes, and an interrupt is how the waiters hear it.
-        Thread rx = rxThread;
-        if (rx != null && rx != Thread.currentThread()) {
-            rx.interrupt();
+        synchronized (rxLock) {
+            if (rxThread != null && rxThread != Thread.currentThread()) {
+                rxThread.interrupt();
+            }
         }
         LOG.debug("control-api {}: closed after {} ms", connectionId,
             clockMillis.getAsLong() - openedAtMillis);
