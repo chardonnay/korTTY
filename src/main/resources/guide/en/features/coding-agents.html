@@ -1,0 +1,1128 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+
+<head>
+        <title>Coding agents - korTTY Guide</title>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/guide/en/features/coding-agents.html">
+        <meta name="author" content="korTTY">
+        <link rel="stylesheet" href="../assets/css/darcula-highlight.min.css">
+        <link rel="stylesheet" href="../assets/css/bootstrap.min.css">
+        <link rel="stylesheet" href="../assets/css/dracula-ui.min.css">
+        <link rel="stylesheet" href="../assets/css/mkdocs.min.css">
+        <link href="../assets/stylesheets/kortty.css" rel="stylesheet">
+        <link rel="icon" type="image/x-icon" href="../assets/images/favicon.png">
+
+
+</head>
+
+<body class="drac-bg-black-secondary drac-text-grey-ternary drac-text drac-scrollbar-purple">
+
+    <main class="d-flex">
+
+        <!-- block sidebar -->
+            <nav id="sidebar" class="sidebar drac-bg-black">
+    <div class="custom-menu">
+        <button type="button" id="sidebarCollapse" class="btn btn-primary">
+            <i class="fa fa-bars"></i>
+            <span class="sr-only">Menu</span>
+        </button>
+    </div>
+
+    <div class="p-4">
+        
+            <img class="logo" src="../assets/images/favicon.png" height="150px">
+        
+
+        <div class="drac-text-center">
+            
+                <span class="drac-text drac-line-height drac-text-white">korTTY Guide</span>
+            
+        </div>
+
+        <div class="drac-box flex-column">
+            <ul class="dot-ul">
+                <li><div class="dot-li drac-bg-cyan"></div></li>
+                <li><div class="dot-li drac-bg-green"></div></li>
+                <li><div class="dot-li drac-bg-orange"></div></li>
+                <li><div class="dot-li drac-bg-pink"></div></li>
+                <li><div class="dot-li drac-bg-purple"></div></li>
+                <li><div class="dot-li drac-bg-red"></div></li>
+                <li><div class="dot-li drac-bg-yellow"></div></li>
+            </ul>
+        </div>
+
+        <hr class="drac-divider" />
+
+        <!-- block menu -->
+        <ul class="mb-5 drac-list drac-list-none">
+            
+            <li class="drac-box">
+                <a href="../index.html"
+                    class="
+                    drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+                    Home
+                </a>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#getting-started-collapse" aria-expanded="false">
+                    Getting started
+                </a>
+                <div class="collapse" id="getting-started-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/installation.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Installation
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/building-packages.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Building korTTY packages
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/first-launch.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            First launch — master password
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/main-window.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Main window overview
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#reference-collapse" aria-expanded="false">
+                    Reference
+                </a>
+                <div class="collapse" id="reference-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/menu.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Menu reference
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/keyboard-shortcuts.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Keyboard shortcuts
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/architecture.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Architecture
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/config-files.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Configuration files
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/enterprise-policy.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Policy configuration
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/control-api.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Control API
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/cli.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Control CLI
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="#" class="
+            drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+            data-bs-toggle="collapse" data-bs-target="#settings-collapse" aria-expanded="false">
+            Settings
+        </a>
+
+        <div class="collapse" id="settings-collapse">
+            <ul class="mb-5 drac-list drac-list-none">
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/index.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Settings reference
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/appearance.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Appearance, themes & font
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/colors.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Colors
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/terminal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/window.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Window
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/resources.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Resources
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/logging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Logging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/export.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Export
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/backup.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Backup
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/updates.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Updates
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/security.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Security
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/language.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Language
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/translation.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Translation
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/video.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Video
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/ai.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/ai-skills.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI Skills
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/sftp.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SFTP Manager
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/editor.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Editor
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="#" class="
+            drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+            data-bs-toggle="collapse" data-bs-target="#snippet-editor-collapse" aria-expanded="false">
+            Snippet editor
+        </a>
+
+        <div class="collapse" id="snippet-editor-collapse">
+            <ul class="mb-5 drac-list drac-list-none">
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/snippet-editor/index.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Snippet Editor
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/hardening-options.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Hardening options
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/input-hardening.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Input hardening
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/language-migration.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Language unification
+        </a>
+    </li>
+            </ul>
+        </div>
+    </li>
+            </ul>
+        </div>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class=" active 
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover"
+                    data-bs-toggle="collapse" data-bs-target="#features-collapse" aria-expanded="true">
+                    Features
+                </a>
+                <div class="collapse show" id="features-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="connections.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Connections
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="terminal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal sessions
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="tunnels.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SSH Tunnels (Port Forwarding)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="jump-server.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Jump Server (Bastion Host)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="sftp.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SFTP file manager
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="file-browser.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            File browser
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="snippets.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Snippet manager
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="jobscheduler.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            JobScheduler
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="projects.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Projects (workspaces)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="teamwork.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Teamwork (shared connections)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ai-assistant.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI assistant
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="local-models.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Local models (llama.cpp and MLX)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="rag.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            RAG knowledge stores
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ai-tools.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal AI agent & tools
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ai-swarm.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI Swarm
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="security.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Security — credentials, keys & encryption
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="backup.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Backup & restore
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="recording.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal recording
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="session-journal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Session journal
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ascii-art.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            ASCII art
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="terminal-effect-plugins.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal effect plugins
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="coding-agents.html"
+            class=" active 
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Coding agents
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="i18n.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Languages & dynamic translation
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#about-collapse" aria-expanded="false">
+                    About
+                </a>
+                <div class="collapse" id="about-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/release-notes.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Release notes
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/feedback.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Feedback & support
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/anonymous-data.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Anonymous data for application optimization
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+        </ul>
+        <!-- endblock -->
+    </div>
+</nav>
+        <!-- endblock -->
+
+        <nav class="divider drac-bg-purple-cyan"></nav>
+
+        <div class="content">
+            <!-- block header -->
+
+                <header>
+    <nav class="navbar navbar-expand-xl drac-bg-purple">
+        <div class="container-fluid">
+            
+            <button class="navbar-toggler w-100 text-center" type="button" data-bs-toggle="collapse" data-bs-target="#navbarsMenu"
+                aria-controls="navbarsMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse flex-column ml-auto" id="navbarsMenu">
+                <ul class="navbar-nav text-md-center">
+
+                    <!-- block preview -->
+                    <li class="nav-item">
+                            
+        <div class="container">
+            <div class="row row-preview">
+                <div class="col">
+                    <a href="terminal-effect-plugins.html"
+                        class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover">
+                        <i class="fa fa-arrow-left"></i> Previous
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="i18n.html"
+                        class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover" style="padding-left: 3%;">
+                        Next <i class="fa fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+                    </li>
+                    <!--  endblock -->
+
+                    <!-- block search -->
+                    <li class="nav-item">
+
+
+
+
+
+<div role="search" class="search-box kt-search">
+	<form id="rtd-search-form" class="wy-form kt-search-form" action="../search.html" method="get">
+		<input type="text" name="q" id="mkdocs-search-query"
+		class="kt-search-input drac-input drac-input-search drac-input-white drac-text-white drac-bg-black-secondary"
+		placeholder="Search docs"
+		autocomplete="off" title="Type search term here" /><button type="button" class="kt-search-clear" hidden
+		        aria-label="Clear search" title="Clear search">&times;</button>
+	</form>
+	<div id="mkdocs-search-results" class="kt-search-suggest"
+	     data-no-results-text="No results found"
+	     data-preparing-text="Preparing search …"
+	     data-more-text="Show {n} more results"></div>
+	<script>
+	  (function () {
+	    var box = document.currentScript.parentNode;
+	    var panel = box.querySelector('.kt-search-suggest');
+	    var input = box.querySelector('#mkdocs-search-query');
+	    var clear = box.querySelector('.kt-search-clear');
+
+	    // Emptying the panel is what hides it (CSS :empty), so closing is just that.
+	    function close () { while (panel.firstChild) { panel.removeChild(panel.firstChild); } }
+	    // The button is only useful once there is something to clear.
+	    function sync () { clear.hidden = !input.value; }
+
+	    input.addEventListener('input', sync);
+	    clear.addEventListener('click', function () {
+	      input.value = '';
+	      sync();
+	      // search/main.js renders on keyup, which a programmatic clear never fires, so
+	      // the panel has to be emptied here or the old hits would outlive the query.
+	      close();
+	      input.focus();
+	    });
+
+	    document.addEventListener('click', function (e) { if (!box.contains(e.target)) { close(); } });
+
+	    // Escape has to be handled on keyUP, and on the document rather than the input.
+	    // search/main.js binds doSearch to the field's keyup, so anything that closed the
+	    // panel on keydown was undone microseconds later by that re-render — which is why
+	    // Escape appeared to do nothing at all. Listening on the document means this runs
+	    // after the field's own handler has already re-rendered, so closing sticks.
+	    // What the panel looked like BEFORE that re-render is the interesting state, so it
+	    // is captured on keydown: the usual two steps, Escape dismisses the suggestions,
+	    // Escape again empties the box.
+	    var panelWasOpen = false;
+	    document.addEventListener('keydown', function (e) {
+	      if (e.key === 'Escape') {
+	        panelWasOpen = !!panel.firstChild;
+	      }
+	    });
+	    document.addEventListener('keyup', function (e) {
+	      if (e.key !== 'Escape') {
+	        return;
+	      }
+	      // Only clear the field while it has focus — Escape elsewhere on the page is not ours.
+	      if (!panelWasOpen && document.activeElement === input && input.value) {
+	        input.value = '';
+	        sync();
+	      }
+	      close();
+	    });
+
+	    sync();  // a ?q= deep link arrives with the field already filled
+	  })();
+	</script>
+</div>
+                    </li>
+                    <!--  endblock -->
+
+                    <!-- block source -->
+                    <li class="nav-item">
+                        
+                    </li>
+                    <!--  endblock -->
+
+                </ul>
+            </div>
+
+        </div>
+    </nav>
+</header>
+<div class="kt-lang-bar">
+  <a class="kt-lang-switch" href="../../de/features/coding-agents.html"
+     title="Deutsch" hreflang="de">DE</a>
+</div>
+
+            <!-- endblock -->
+
+            <!-- block content -->
+                <section class="p-md-5 section-content">
+    <article>
+        <p><h1 id="coding-agents">Coding agents<a class="headerlink" href="#coding-agents" title="Permanent link">&para;</a></h1>
+<p>KorTTY recognises when a terminal-based coding agent — <strong>Claude Code</strong>, <strong>Codex</strong> or <strong>Gemini CLI</strong> — is running inside one of your <a href="terminal.html#local-shell-tabs">local shell tabs</a> and keeps track of what it is currently doing: working, waiting for your answer, finished, or sitting idle at its prompt. The analysis happens entirely inside korTTY on your own machine. What it finds is shown wherever you look: as a glyph in the tab title, as chips and accents in the dashboard, in a dockable <strong>Coding Agents</strong> panel with quick answers and a prompt box, as a strip in the status bar, as a count on the app icon and, when you are not looking at the pane, as a desktop notification. This page explains what is detected, how each of these surfaces works, how to switch things off, and how to adjust or extend the screen rules when an agent changes its user interface.</p>
+<p><img alt="Coding agents — from the pane's screen to dashboard, panel, status strip, app badge and notifier" src="../assets/diagrams/coding-agents.svg" /></p>
+<h2 id="what-it-detects">What it detects<a class="headerlink" href="#what-it-detects" title="Permanent link">&para;</a></h2>
+<p>Detection covers the three agents below, started from a <strong>Local Shell</strong> tab — directly, through a package-manager wrapper such as <code>npx</code>, or as a <code>node</code>, <code>bun</code> or <code>deno</code> script. SSH and Mosh tabs are not analysed, because the agent runs on the remote machine and korTTY cannot see its process.</p>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Recognised executables</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Claude Code</td>
+<td><code>claude</code>, <code>claude-code</code></td>
+</tr>
+<tr>
+<td>Codex</td>
+<td><code>codex</code></td>
+</tr>
+<tr>
+<td>Gemini CLI</td>
+<td><code>gemini</code></td>
+</tr>
+</tbody>
+</table>
+<p>Every split pane is tracked on its own, so a tab with two panes can show one agent working while the other waits for a permission decision. A pane that runs no agent, or whose agent has exited, simply has no detection result.</p>
+<h2 id="states">States<a class="headerlink" href="#states" title="Permanent link">&para;</a></h2>
+<p>A detected agent is always in exactly one of five states. The list is ordered by urgency: when several panes are summarised, the most urgent state wins.</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>BLOCKED</strong></td>
+<td>The agent is waiting for you — a permission dialog (<em>Do you want to proceed?</em>), a question picker, or a <code>(y/n)</code> prompt is on screen.</td>
+</tr>
+<tr>
+<td><strong>DONE</strong></td>
+<td>The agent has finished. Either it shows an explicit completion screen that a rule recognises, or — far more often — it went from WORKING back to its empty prompt while you were not looking at its pane. KorTTY then keeps it marked DONE (✓) until you look at the pane; the moment its tab is selected and its pane focused in the front window, it becomes IDLE.</td>
+</tr>
+<tr>
+<td><strong>WORKING</strong></td>
+<td>The agent is thinking, running a tool or streaming output — typically recognisable by its spinner line and the <em>esc to interrupt</em> hint.</td>
+</tr>
+<tr>
+<td><strong>IDLE</strong></td>
+<td>The agent is running and its input box is empty, waiting for your next instruction.</td>
+</tr>
+<tr>
+<td><strong>UNKNOWN</strong></td>
+<td>The agent process is present but the screen matches none of the rules and the rule file asks for a strict result instead of a fallback.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="dashboard-marking">Dashboard marking<a class="headerlink" href="#dashboard-marking" title="Permanent link">&para;</a></h2>
+<p><img alt="Dashboard rows with coding-agent chips, accent bars and the rollup" src="../assets/screenshots/coding-agents/dashboard.png" />
+Open the <a href="../getting-started/main-window.html">dashboard</a> with <strong>View → Show Dashboard</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-d">D</kbd></span>) and every connection row that hosts a coding agent shows a <strong>chip</strong> after the protocol badge: the state glyph, the agent's short name (or the alias you gave it) and, for an agent that is waiting, working or done, how long it has been in that state (<code>✋ claude 2:14</code>). An idle agent gets a dim, outlined chip so you still see that one is present. A row that also runs korTTY's own AI agent merges both marks into one chip.</p>
+<p>The row itself carries a coloured <strong>accent bar</strong> on its left edge — amber while the agent waits for you (the row is tinted as well), blue while it works, green when it is done — and the status dot of a waiting agent pulses while the window is in front and animations are enabled. Group and environment rows above a marked connection show a <strong>rollup chip</strong> such as <code>✋ 1 · ⚡ 2</code> and take the accent of their most urgent child, and the footer appends the same rollup to the connection count (<code>3 of 5 connected · ✋ 1 · ⚡ 2</code>), so a waiting agent is visible even when its group is collapsed.</p>
+<p>A split tab grows <strong>pane rows</strong> below the connection (<code>Pane 2 · api</code>, named after the pane's working directory, with your home directory written <code>~</code> as the shell writes it), one per pane, so each pane can be reached on its own. Every pane is listed, whether or not an agent was detected in it: a split where one pane runs an agent and the other does not is the ordinary case, and showing only the agent's pane would hide half the tab. A pane without an agent carries no chip and no accent. An unsplit tab gets no pane rows, because its connection row already is the pane. When an agent becomes blocked, the dashboard <strong>expands</strong> the tree down to its row once per transition — a waiting agent is never hidden inside a collapsed group — and respects <em>Collapse all</em> afterwards.</p>
+<p>The context menu of a marked row adds <strong>Focus Pane</strong>, which selects the tab and focuses exactly that pane, <strong>Show in Coding Agents Panel</strong>, which docks the panel and selects the agent, and, while the agent waits for you, <strong>Send Enter</strong>, <strong>Send Esc</strong> and <strong>Interrupt (Ctrl+C)</strong> to answer the dialog without leaving the dashboard. The tab title shows the same glyph as the chip — ✋ waiting, ⚡ working, ✓ done, merged with korTTY's own AI-agent glyph where both apply.</p>
+<h2 id="the-coding-agents-panel">The Coding Agents panel<a class="headerlink" href="#the-coding-agents-panel" title="Permanent link">&para;</a></h2>
+<p><img alt="The Coding Agents panel docked beside the terminal" src="../assets/screenshots/coding-agents/panel.png" />
+The panel lists every detected agent of every korTTY window in one place. Open it with <strong>View → Coding Agents → Dock Left / Dock Right</strong>, toggle it on its last-used side with <strong>Show/Hide</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-g">G</kbd></span>), from the ⋯ menu inside the panel, from the status strip's context menu, or with <em>Show in Coding Agents Panel</em> in the dashboard. Placement and width are remembered across restarts. Agents that wait for you are listed first (longest waiting on top), then the working, done and idle ones in window, tab and pane order; the row of the pane you are currently in carries a left accent.</p>
+<p>Every row shows the state dot and name, a state chip such as <code>✋ Waiting for you · 2:14</code>, the location line (<code>Window 2 › api › Pane 2 · ~/proj/api</code>) and the last screen line that matched a rule — the evidence. Below them sit the <strong>quick keys</strong>: <strong>Focus</strong> brings the pane to the front, <strong>y</strong>, <strong>n</strong>, <strong>Enter</strong> and <strong>Esc</strong> answer a dialog (they are highlighted while the agent waits for you), <strong>↑</strong> and <strong>↓</strong> move through a question picker, <strong>Ctrl+C</strong> interrupts, <strong>Explain</strong> opens a drawer with the full detection explanation (agent, state, matching rule, evidence, process and time in state), and <strong>Rename…</strong> gives the agent an alias that replaces its name in every chip, row and notification — an empty alias restores the agent name, and the alias survives a reconnect but is dropped when the pane closes. Every key goes to the pane's own terminal connection, exactly as if you had typed it there; the buttons are disabled while the pane is not connected.</p>
+<p>The <strong>prompt box</strong> at the bottom sends longer text to the agent selected in the target list: <span class="keys"><kbd class="key-enter">Enter</kbd></span> sends, <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> inserts a line break. A single line is sent followed by Enter. A multi-line prompt is wrapped in bracketed paste — so the agent receives it as one pasted block instead of several submitted lines — but only when that agent has switched bracketed paste on, which Claude Code, Codex and Gemini CLI all do at their prompt; otherwise the lines are sent as typed. Two prompts are refused with a message in the panel's status line instead of being sent: while the agent is <strong>waiting for a decision</strong> the <em>Send</em> button stays disabled, because the text would land inside the permission dialog — answer it with y, n, Enter or Esc first; and a prompt whose first line starts with <strong>korTTY's own AI shortcut</strong> (the command name configured under Settings → AI, <code>agent</code> by default) is rejected, because korTTY's shortcut filter would divert that line to its own AI agent instead of the coding agent — rephrase the line. Errors of a quick key or prompt (pane closed, not connected, write failed) appear in the same status line for a few seconds, never as a dialog, and a successful send confirms with <em>Sent to Claude Code</em>.</p>
+<p>The <strong>Next blocked</strong> button in the panel header jumps to the next agent that waits for you, across all windows and wrapping around; it is the same action as <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-n">N</kbd></span> and a click on the status strip.</p>
+<h2 id="status-strip">Status strip<a class="headerlink" href="#status-strip" title="Permanent link">&para;</a></h2>
+<p><img alt="The coding-agent status strip at the right end of the status bar" src="../assets/screenshots/coding-agents/status-strip.png" />
+The right end of the status bar shows a compact strip while at least one coding agent is known: up to three chips for waiting, working and done agents (<code>✋ 1 · ⚡ 2 · ✓ 1</code>, zero counts are omitted), with the waiting dot pulsing while the window is in front. A click jumps to the next agent waiting for you — or, when none is waiting, to the first agent in display order — and a right-click offers <em>Show/Hide</em> for the panel and <em>Next Blocked Agent</em>. The tooltip summarises the counts. The strip disappears together with the status bar when you hide it under <em>View</em>.</p>
+<h2 id="app-icon-badge-and-notifications">App icon badge and notifications<a class="headerlink" href="#app-icon-badge-and-notifications" title="Permanent link">&para;</a></h2>
+<p><img alt="The app icon with the badge for three waiting agents" src="../assets/screenshots/coding-agents/badge-icon.png" />
+The number of agents waiting for a decision — across all windows — is shown as a <strong>badge on the app icon</strong> so you notice it while working in another application. How the badge is drawn depends on the platform: on <strong>macOS</strong> the packaged app sets the Dock badge; on <strong>Windows</strong> korTTY draws the count into its own taskbar and title-bar icon; on <strong>Linux</strong> it emits the launcher-entry signal that KDE Plasma, Ubuntu Dock and Dash to Dock render on the launcher icon — this needs an installed desktop file (the deb, rpm or pacman package) and a reachable session bus, which korTTY talks to directly. Stock GNOME Shell without a dock extension shows no launcher counters at all. Wherever no icon badge is available — an unpacked archive, <code>./gradlew run</code>, an unsupported desktop — korTTY falls back to the <strong>window title</strong>, which becomes <code>(2) KorTTY</code> while two agents wait and returns to <code>KorTTY</code> at zero. When an agent becomes blocked while no korTTY window is focused, the app additionally asks for attention once (the Dock icon bounces, the launcher entry is marked urgent).</p>
+<p>A <strong>desktop notification</strong> is shown when an agent needs a decision or finishes while you are not looking at its pane — that is, while its tab is not the selected tab of the front window, or its pane is not the focused one. The title names the agent (<em>Claude Code needs a decision</em>, <em>Claude Code finished</em>), the body shows the location and working directory followed by the matching screen line. A blocked state has to persist for a moment before it is reported, an agent is reported at most once every ten seconds, the same transition is never reported twice, and nothing is shown for the pane you are looking at. Notifications use the operating system's own service: the Notification Center on <strong>macOS</strong>, the tray balloon on <strong>Windows</strong>, and <code>notify-send</code> on <strong>Linux</strong> (through the host in the Flatpak package). Nothing leaves this computer — the text is the screen line korTTY already read.</p>
+<p>Both surfaces are on by default and have their own toggles under <strong>Settings → Terminal → Coding agents</strong> (see <a href="#enabling-detection">Enabling detection</a>). Switching the badge off clears it immediately; switching notifications off stops new ones without touching the badge.</p>
+<h2 id="keyboard-shortcuts">Keyboard shortcuts<a class="headerlink" href="#keyboard-shortcuts" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Shortcut</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-g">G</kbd></span></td>
+<td>Show or hide the Coding Agents panel on its last-used side (right by default)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-n">N</kbd></span></td>
+<td>Jump to the next coding agent waiting for a decision, across windows</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-enter">Enter</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span></td>
+<td>In the panel's prompt box: send the prompt / insert a line break</td>
+</tr>
+</tbody>
+</table>
+<p>On macOS use <span class="keys"><kbd class="key-command">Cmd</kbd></span> where <span class="keys"><kbd class="key-control">Ctrl</kbd></span> is shown.</p>
+<h2 id="how-detection-works">How detection works<a class="headerlink" href="#how-detection-works" title="Permanent link">&para;</a></h2>
+<p>KorTTY only believes an agent is present when two independent observations agree — this <em>double evidence</em> keeps a stray <code>claude</code> in a shell script or a quoted prompt fragment from producing false alarms:</p>
+<ol>
+<li><strong>Process tree.</strong> The pane's local shell has a known process ID. KorTTY walks that process's descendants and looks for the newest live one whose executable name — or, for <code>node</code>, <code>bun</code> and <code>deno</code>, the script it runs — belongs to one of the supported agents.</li>
+<li><strong>Screen rules.</strong> The text currently visible in the pane (never the scrollback), together with the window title the agent sets and whether it switched to the alternate screen, is matched against the rule file of that agent. The first rule match confirms the process; from then on the rules decide the state.</li>
+</ol>
+<p>The screen is re-evaluated about 200 ms after the first change in a burst of output — further changes inside that window are coalesced — so a long stream of output triggers one evaluation per 200 ms window instead of one per line, and a short burst exactly one. A slow heartbeat additionally notices when the agent exits without printing anything, when the tab disconnects, or when you switch detection off. Rules are evaluated by priority; the first rule whose conditions all hold determines the state. If the agent process is confirmed but no rule matches, the rule file's fallback state (IDLE for the bundled files) is reported.</p>
+<div class="admonition note">
+<p class="admonition-title">Privacy</p>
+<p>Screen text is analysed only inside korTTY, in memory, on this computer. Nothing is sent to any service, written to disk, or handed to the AI assistant — detection is plain pattern matching against local rule files. If you prefer not to have local shell screens inspected at all, switch the feature off under <strong>Settings → Terminal → Coding agents</strong>.</p>
+</div>
+<h2 id="enabling-detection">Enabling detection<a class="headerlink" href="#enabling-detection" title="Permanent link">&para;</a></h2>
+<p>Detection is on by default and is controlled by three toggles in <strong>Settings → Terminal</strong>, section <strong>Coding agents</strong>. Changing them takes effect immediately for all open tabs — no restart or reconnect is needed.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Type</th>
+<th>Values</th>
+<th>Default</th>
+<th>Stored as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Detect coding agents (Claude Code, Codex, Gemini CLI) in local shell tabs</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>codingAgentDetectionEnabled</code></td>
+</tr>
+<tr>
+<td>Desktop notification when a coding agent needs a decision or finishes while you are not looking at its pane</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>codingAgentNotificationsEnabled</code></td>
+</tr>
+<tr>
+<td>Show the number of agents waiting for a decision on the app icon</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>codingAgentAppBadgeEnabled</code></td>
+</tr>
+</tbody>
+</table>
+<p>When the detection toggle is off, korTTY neither walks the process tree nor reads the screen of any pane, and the dashboard marks, panel, strip, badge and notifications all fall silent. The panel's placement and width are not settings-dialog options: they follow the <strong>View → Coding Agents</strong> menu and are stored as <code>codingAgentPanelPlacement</code> (<code>HIDDEN</code>, <code>LEFT</code> or <code>RIGHT</code>) and <code>codingAgentPanelWidth</code>.</p>
+<h2 id="custom-rules">Custom rules<a class="headerlink" href="#custom-rules" title="Permanent link">&para;</a></h2>
+<p>Each agent's screen rules live in a small JSON file. KorTTY ships one bundled file per agent and lets you replace it with your own copy under your configuration directory:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>~/.kortty/coding-agents/claude-code.json
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>~/.kortty/coding-agents/codex.json
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>~/.kortty/coding-agents/gemini-cli.json
+</span></code></pre></div>
+<p>An override replaces the bundled file for that agent <strong>as a whole</strong> — there is no merging, so start from the bundled file and edit it. The file must be a regular file (symbolic links are not followed), and its <code>kind</code> must match the file name. An invalid file — malformed JSON, an unknown key, a bad regular expression, a duplicate rule id, or a rule without any condition — is ignored with a warning in the log and the bundled rules stay in effect, so a typo can never silently disable detection. Rule files are read at startup; restart korTTY after editing one.</p>
+<h3 id="rule-file-schema">Rule file schema<a class="headerlink" href="#rule-file-schema" title="Permanent link">&para;</a></h3>
+<p>The schema is strict: every key not listed here is an error, so misspelt keys are reported instead of being ignored.</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">"kind"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CLAUDE_CODE | CODEX | GEMINI_CLI"</span><span class="p">,</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">"version"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">"comment"</span><span class="p">:</span><span class="w"> </span><span class="s2">"optional free text, e.g. the agent version the rules were written against"</span><span class="p">,</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="nt">"fallbackState"</span><span class="p">:</span><span class="w"> </span><span class="s2">"IDLE | WORKING | BLOCKED | DONE | UNKNOWN (optional, default IDLE)"</span><span class="p">,</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="nt">"rules"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">      </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"unique-rule-id"</span><span class="p">,</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">      </span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"WORKING | BLOCKED | DONE | IDLE"</span><span class="p">,</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">      </span><span class="nt">"priority"</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span><span class="p">,</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">      </span><span class="nt">"region"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"bottomNonEmptyLines"</span><span class="p">:</span><span class="w"> </span><span class="mi">8</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">      </span><span class="nt">"anyLineRegex"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"Java regex, matched per line"</span><span class="p">],</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">      </span><span class="nt">"regex"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Java regex, matched against the whole region"</span><span class="p">,</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">      </span><span class="nt">"contains"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"literal text that must all be present"</span><span class="p">],</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">      </span><span class="nt">"notContains"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"literal text that vetoes the rule"</span><span class="p">],</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">      </span><span class="nt">"title"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Java regex matched against the window title"</span><span class="p">,</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">      </span><span class="nt">"alternateScreen"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">  </span><span class="p">]</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="p">}</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kind</code></td>
+<td>yes</td>
+<td>The agent this file describes; must match the file name (<code>claude-code</code>, <code>codex</code>, <code>gemini-cli</code>).</td>
+</tr>
+<tr>
+<td><code>version</code></td>
+<td>yes</td>
+<td>Schema version; currently always <code>1</code>.</td>
+</tr>
+<tr>
+<td><code>comment</code></td>
+<td>no</td>
+<td>Free text for your own notes, for example which agent version the rules were verified against.</td>
+</tr>
+<tr>
+<td><code>fallbackState</code></td>
+<td>no</td>
+<td>State reported while the agent process is present but no rule matches. Defaults to <code>IDLE</code>; <code>UNKNOWN</code> makes detection stricter.</td>
+</tr>
+<tr>
+<td><code>rules</code></td>
+<td>yes</td>
+<td>The list of rules, evaluated by descending <code>priority</code>; ties keep file order. May be empty.</td>
+</tr>
+<tr>
+<td><code>rules[].id</code></td>
+<td>yes</td>
+<td>Unique within the file; letters, digits, <code>.</code>, <code>_</code> and <code>-</code>. Shown in diagnostics so you can see which rule fired.</td>
+</tr>
+<tr>
+<td><code>rules[].state</code></td>
+<td>yes</td>
+<td>The state this rule reports: <code>WORKING</code>, <code>BLOCKED</code>, <code>DONE</code> or <code>IDLE</code>.</td>
+</tr>
+<tr>
+<td><code>rules[].priority</code></td>
+<td>yes</td>
+<td>Higher values are checked first.</td>
+</tr>
+<tr>
+<td><code>rules[].region</code></td>
+<td>no</td>
+<td><code>{ "bottomNonEmptyLines": N }</code> restricts matching to the bottom N non-empty screen lines; <code>0</code> or absent means the whole screen.</td>
+</tr>
+<tr>
+<td><code>rules[].anyLineRegex</code></td>
+<td>no</td>
+<td>Regular expressions tried against each line of the region; the first matching line becomes the rule's evidence.</td>
+</tr>
+<tr>
+<td><code>rules[].regex</code></td>
+<td>no</td>
+<td>One regular expression tried against the region joined with newlines (multi-line, dot matches newline).</td>
+</tr>
+<tr>
+<td><code>rules[].contains</code></td>
+<td>no</td>
+<td>Literal substrings that must <strong>all</strong> occur in the region.</td>
+</tr>
+<tr>
+<td><code>rules[].notContains</code></td>
+<td>no</td>
+<td>Literal substrings whose presence anywhere in the region vetoes the rule.</td>
+</tr>
+<tr>
+<td><code>rules[].title</code></td>
+<td>no</td>
+<td>Regular expression that must match the window title set by the agent; never matches while no title has been received.</td>
+</tr>
+<tr>
+<td><code>rules[].alternateScreen</code></td>
+<td>no</td>
+<td>When present, the pane's alternate-screen flag must equal this value.</td>
+</tr>
+</tbody>
+</table>
+<p>A rule must declare at least one of <code>anyLineRegex</code>, <code>regex</code>, <code>contains</code>, <code>title</code> or <code>alternateScreen</code>. All conditions of a rule must hold for it to match.</p>
+<p>Regular expressions use <strong>Java syntax</strong> and are compiled with Unicode case folding; put <code>(?i)</code> at the start of a pattern to make it case-insensitive. Remember that JSON requires backslashes to be doubled, so <code>\s</code> is written as <code>"\\s"</code>. Patterns in <code>anyLineRegex</code> are searched within a line (they need not match the whole line), and <code>^</code> and <code>$</code> anchor to the line. Most agents keep their status line and prompt at the bottom of the screen, so a small <code>bottomNonEmptyLines</code> region keeps rules fast and prevents older output from matching.</p>
+<h3 id="example-bundled-claude-code-rules">Example: bundled Claude Code rules<a class="headerlink" href="#example-bundled-claude-code-rules" title="Permanent link">&para;</a></h3>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="p">{</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">"kind"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CLAUDE_CODE"</span><span class="p">,</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">"version"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">"comment"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Permission dialogs (Bash, Edit, Write, MCP) and the AskUserQuestion picker are BLOCKED; a tool call showing 'Running…' or the spinner status line with 'esc to interrupt' is WORKING; the empty input prompt with '? for shortcuts' is IDLE. The onboarding menus (theme picker, login method) intentionally match no rule. Claude Code does not use the alternate screen, so no rule depends on that flag. Re-verify against live sessions after an agent update."</span><span class="p">,</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="nt">"fallbackState"</span><span class="p">:</span><span class="w"> </span><span class="s2">"IDLE"</span><span class="p">,</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">"rules"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">      </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"permission-prompt"</span><span class="p">,</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">      </span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"BLOCKED"</span><span class="p">,</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">      </span><span class="nt">"priority"</span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span><span class="p">,</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">      </span><span class="nt">"region"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"bottomNonEmptyLines"</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">      </span><span class="nt">"anyLineRegex"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">        </span><span class="s2">"Do you want to (proceed|make this edit|create|run|allow)"</span><span class="p">,</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">        </span><span class="s2">"Do you want to allow this connection\\?"</span><span class="p">,</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">        </span><span class="s2">"Would you like to proceed\\?"</span>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="w">      </span><span class="p">],</span>
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="w">      </span><span class="nt">"regex"</span><span class="p">:</span><span class="w"> </span><span class="s2">"^\\s*[│┃]?\\s*❯?\\s*1\\.\\s*Yes\\b"</span><span class="p">,</span>
+</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="w">      </span><span class="nt">"notContains"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"esc to interrupt"</span><span class="p">]</span>
+</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="w">    </span><span class="p">},</span>
+</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-21"><a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="w">      </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"question-picker"</span><span class="p">,</span>
+</span><span id="__span-2-22"><a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="w">      </span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"BLOCKED"</span><span class="p">,</span>
+</span><span id="__span-2-23"><a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="w">      </span><span class="nt">"priority"</span><span class="p">:</span><span class="w"> </span><span class="mi">950</span><span class="p">,</span>
+</span><span id="__span-2-24"><a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a><span class="w">      </span><span class="nt">"region"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"bottomNonEmptyLines"</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-2-25"><a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a><span class="w">      </span><span class="nt">"anyLineRegex"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"(?i)\\bEsc to cancel\\b"</span><span class="p">],</span>
+</span><span id="__span-2-26"><a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a><span class="w">      </span><span class="nt">"regex"</span><span class="p">:</span><span class="w"> </span><span class="s2">"(?i)Enter to (select|confirm)|Arrow keys to navigate|↑/?↓ to navigate|Review your answers"</span><span class="p">,</span>
+</span><span id="__span-2-27"><a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a><span class="w">      </span><span class="nt">"notContains"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"esc to interrupt"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Enter to set as default"</span><span class="p">]</span>
+</span><span id="__span-2-28"><a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a><span class="w">    </span><span class="p">},</span>
+</span><span id="__span-2-29"><a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-30"><a id="__codelineno-2-30" name="__codelineno-2-30" href="#__codelineno-2-30"></a><span class="w">      </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"working-tool-running"</span><span class="p">,</span>
+</span><span id="__span-2-31"><a id="__codelineno-2-31" name="__codelineno-2-31" href="#__codelineno-2-31"></a><span class="w">      </span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"WORKING"</span><span class="p">,</span>
+</span><span id="__span-2-32"><a id="__codelineno-2-32" name="__codelineno-2-32" href="#__codelineno-2-32"></a><span class="w">      </span><span class="nt">"priority"</span><span class="p">:</span><span class="w"> </span><span class="mi">910</span><span class="p">,</span>
+</span><span id="__span-2-33"><a id="__codelineno-2-33" name="__codelineno-2-33" href="#__codelineno-2-33"></a><span class="w">      </span><span class="nt">"region"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"bottomNonEmptyLines"</span><span class="p">:</span><span class="w"> </span><span class="mi">12</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-2-34"><a id="__codelineno-2-34" name="__codelineno-2-34" href="#__codelineno-2-34"></a><span class="w">      </span><span class="nt">"anyLineRegex"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"^\\s*⎿\\s+Running…"</span><span class="p">]</span>
+</span><span id="__span-2-35"><a id="__codelineno-2-35" name="__codelineno-2-35" href="#__codelineno-2-35"></a><span class="w">    </span><span class="p">},</span>
+</span><span id="__span-2-36"><a id="__codelineno-2-36" name="__codelineno-2-36" href="#__codelineno-2-36"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-37"><a id="__codelineno-2-37" name="__codelineno-2-37" href="#__codelineno-2-37"></a><span class="w">      </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"working-spinner"</span><span class="p">,</span>
+</span><span id="__span-2-38"><a id="__codelineno-2-38" name="__codelineno-2-38" href="#__codelineno-2-38"></a><span class="w">      </span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"WORKING"</span><span class="p">,</span>
+</span><span id="__span-2-39"><a id="__codelineno-2-39" name="__codelineno-2-39" href="#__codelineno-2-39"></a><span class="w">      </span><span class="nt">"priority"</span><span class="p">:</span><span class="w"> </span><span class="mi">900</span><span class="p">,</span>
+</span><span id="__span-2-40"><a id="__codelineno-2-40" name="__codelineno-2-40" href="#__codelineno-2-40"></a><span class="w">      </span><span class="nt">"region"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"bottomNonEmptyLines"</span><span class="p">:</span><span class="w"> </span><span class="mi">8</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-2-41"><a id="__codelineno-2-41" name="__codelineno-2-41" href="#__codelineno-2-41"></a><span class="w">      </span><span class="nt">"anyLineRegex"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+</span><span id="__span-2-42"><a id="__codelineno-2-42" name="__codelineno-2-42" href="#__codelineno-2-42"></a><span class="w">        </span><span class="s2">"(?i)esc to interrupt"</span><span class="p">,</span>
+</span><span id="__span-2-43"><a id="__codelineno-2-43" name="__codelineno-2-43" href="#__codelineno-2-43"></a><span class="w">        </span><span class="s2">"^\\s*[✻✳✶✽✢·\\*]\\s+\\S.*…"</span>
+</span><span id="__span-2-44"><a id="__codelineno-2-44" name="__codelineno-2-44" href="#__codelineno-2-44"></a><span class="w">      </span><span class="p">]</span>
+</span><span id="__span-2-45"><a id="__codelineno-2-45" name="__codelineno-2-45" href="#__codelineno-2-45"></a><span class="w">    </span><span class="p">},</span>
+</span><span id="__span-2-46"><a id="__codelineno-2-46" name="__codelineno-2-46" href="#__codelineno-2-46"></a><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-2-47"><a id="__codelineno-2-47" name="__codelineno-2-47" href="#__codelineno-2-47"></a><span class="w">      </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"idle-prompt"</span><span class="p">,</span>
+</span><span id="__span-2-48"><a id="__codelineno-2-48" name="__codelineno-2-48" href="#__codelineno-2-48"></a><span class="w">      </span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"IDLE"</span><span class="p">,</span>
+</span><span id="__span-2-49"><a id="__codelineno-2-49" name="__codelineno-2-49" href="#__codelineno-2-49"></a><span class="w">      </span><span class="nt">"priority"</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span><span class="p">,</span>
+</span><span id="__span-2-50"><a id="__codelineno-2-50" name="__codelineno-2-50" href="#__codelineno-2-50"></a><span class="w">      </span><span class="nt">"region"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"bottomNonEmptyLines"</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-2-51"><a id="__codelineno-2-51" name="__codelineno-2-51" href="#__codelineno-2-51"></a><span class="w">      </span><span class="nt">"anyLineRegex"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"^\\s*[│┃]?\\s*[❯&gt;]\\s*$"</span><span class="p">,</span><span class="w"> </span><span class="s2">"\\?\\s+for shortcuts"</span><span class="p">],</span>
+</span><span id="__span-2-52"><a id="__codelineno-2-52" name="__codelineno-2-52" href="#__codelineno-2-52"></a><span class="w">      </span><span class="nt">"notContains"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"esc to interrupt"</span><span class="p">]</span>
+</span><span id="__span-2-53"><a id="__codelineno-2-53" name="__codelineno-2-53" href="#__codelineno-2-53"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-54"><a id="__codelineno-2-54" name="__codelineno-2-54" href="#__codelineno-2-54"></a><span class="w">  </span><span class="p">]</span>
+</span><span id="__span-2-55"><a id="__codelineno-2-55" name="__codelineno-2-55" href="#__codelineno-2-55"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>The two BLOCKED rules combine a per-line pattern with a whole-region <code>regex</code>, so a permission dialog is only reported when both the question and its <em>1. Yes</em> option are on screen, and a question picker only together with its navigation footer — the onboarding menus of a fresh installation show a similar list but neither footer, and must not count as blocked. The <code>notContains</code> veto on the BLOCKED and IDLE rules matters too: while Claude Code is working, its status line stays on screen together with older dialog text, and the veto keeps the higher-priority prompt rules from firing on stale lines.</p>
+<h3 id="maintaining-rules">Maintaining rules<a class="headerlink" href="#maintaining-rules" title="Permanent link">&para;</a></h3>
+<p>Agents change their interfaces often, and a rule that matched last month may silently stop matching after an update. KorTTY's bundled rules are therefore pinned by <strong>screen fixtures</strong>: for every agent, the repository keeps captured terminal screens with the state and rule they must produce, and the test suite fails as soon as a bundled rule no longer matches its fixture or a rule has no fixture at all. When you notice a wrong or missing state, the most useful report is the visible screen text of the pane at that moment, the agent and its version, and the state you expected — it becomes a new fixture and a rule fix in the next release. Until then, a local override file lets you correct the rule for yourself immediately.</p>
+<p>The repository ships a recorder for exactly this purpose: <code>scripts/capture-coding-agent-fixtures.py</code> runs an agent inside a pseudo-terminal and passes your keyboard through, so the session behaves like a normal terminal. Press <span class="keys"><kbd class="key-f12">F12</kbd></span> at every interesting moment — the permission dialog, the spinner, the empty prompt — and the visible screen is written to a fixture file; <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-bracket-right">]</kbd></span> stops the recording. Each file starts with a <code>expect state=REVIEW rule=REVIEW</code> line: set the state and rule id you expect there, and drop the file into <code>src/test/resources/coding-agents/&lt;kind&gt;/</code> (<code>claude-code</code>, <code>codex</code> or <code>gemini-cli</code>). From then on the test suite guards the rule against that screen, and a rule change that would break it is caught before release.</p>
+<h2 id="driving-agents-from-a-script">Driving agents from a script<a class="headerlink" href="#driving-agents-from-a-script" title="Permanent link">&para;</a></h2>
+<p>Everything the Coding Agents panel does — listing agents, reading their state, prompting them, answering their questions, renaming them, starting a new one in a split pane — is also reachable from a local script or another coding agent through korTTY's <a href="../reference/control-api.html">control API</a> and its <a href="../reference/cli.html"><code>kortty-cli</code></a> client. It is off by default; the <code>agent.*</code> commands need a detected agent, so they need detection switched on as well.</p>
+<h2 id="limitations-and-troubleshooting">Limitations and troubleshooting<a class="headerlink" href="#limitations-and-troubleshooting" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Flatpak.</strong> In the Flatpak package the local shell runs on the host through <code>flatpak-spawn</code>, so the process ID korTTY holds belongs to the sandbox-side helper and the agent's process tree is not visible. No agent is detected in Flatpak local shells.</li>
+<li><strong>Remote clients as the shell command.</strong> A local shell tab whose configured shell command is itself <code>ssh</code> or <code>mosh</code> runs the agent on another machine; the process tree ends at the client and no agent is detected. The same applies to any SSH or Mosh tab.</li>
+<li><strong>Unusual wrappers.</strong> An agent started through a launcher that korTTY does not recognise — a custom shell script that <code>exec</code>s into a differently named binary, a container, or a terminal multiplexer running outside the tab — is not identified, because the executable name in the process tree does not map to a known agent.</li>
+<li><strong>Wrong or flickering state.</strong> The agent's screen has changed, or a dialog is rendered in a way the bundled rules do not cover. Copy the bundled rule file to <code>~/.kortty/coding-agents/&lt;agent&gt;.json</code>, adjust the pattern, restart korTTY, and report the screen text so the bundled rules can be fixed.</li>
+<li><strong>No state at all although the agent is running.</strong> Check that the toggle in <strong>Settings → Terminal → Coding agents</strong> is on, that the tab is a Local Shell tab, and look for a <em>coding-agents</em> warning in the log — an invalid override file falls back to the bundled rules, but a bundled rule file that never matches your agent version leaves the agent unconfirmed.</li>
+<li><strong>No badge on GNOME.</strong> Stock GNOME Shell renders no launcher counters, and korTTY cannot detect whether a dock extension that would is installed, so the count is emitted but may stay invisible; the window-title fallback is used only where korTTY knows for certain that no icon badge exists (no installed desktop file, no reachable session bus, <code>./gradlew run</code>).</li>
+<li><strong>No notification although the agent waited.</strong> Notifications are suppressed for the pane you are looking at, for a blocked state that lasted less than a moment, for a second report of the same transition, and within ten seconds of the previous one for that pane; on Linux <code>notify-send</code> must be on the PATH, and the setting under <strong>Settings → Terminal → Coding agents</strong> must be on.</li>
+<li><strong>The prompt was refused.</strong> A waiting agent must be answered first (y, n, Enter or Esc), and a first line that begins with korTTY's own AI shortcut command must be rephrased — see <a href="#the-coding-agents-panel">The Coding Agents panel</a>.</li>
+</ul></p>
+    </article>
+</section>
+            <!-- endblock -->
+
+            <!-- block footer -->
+<footer class="kt-footer">
+  <div class="kt-footer__line">MIT-licensed &middot; Developed by Daniel Mengel</div>
+  <div class="kt-footer__line">korTTY <strong>v2.17.0</strong></div>
+</footer>
+
+            <!-- endblock -->
+        </div>
+
+    </main>
+
+        <script>var base_url = '..';</script>
+        <script src="../assets/js/jquery-3.3.1.slim.min.js"></script>
+        <script src="../assets/js/bootstrap.bundle.min.js"></script>
+        <script src="../assets/js/mkdocs.js"></script>
+			<script src="../assets/javascripts/kt-zoom.js" defer></script>
+			<script src="../search/main.js" defer></script>
+
+</body>
+
+</html>

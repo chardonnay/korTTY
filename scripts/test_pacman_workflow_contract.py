@@ -93,6 +93,19 @@ class PacmanWorkflowContractTest(unittest.TestCase):
         ):
             self.assertIn(expected, VERIFIER)
 
+    def test_verifier_checks_the_optional_control_cli_symlink(self):
+        # Optional by design, so the assertion is about the target, not about its presence.
+        for expected in (
+            "usr/bin/kortty-cli",
+            "/usr/lib/kortty/bin/kortty-cli",
+        ):
+            self.assertIn(expected, VERIFIER)
+
+    def test_pkgbuild_links_the_control_cli_when_the_app_image_carries_it(self):
+        self.assertIn("ln -s /usr/lib/kortty/bin/kortty-cli", PKGBUILD)
+        # /usr/bin/kortty must keep pointing at the GUI launcher.
+        self.assertIn("ln -s /usr/lib/kortty/bin/korTTY", PKGBUILD)
+
 
 if __name__ == "__main__":
     unittest.main()

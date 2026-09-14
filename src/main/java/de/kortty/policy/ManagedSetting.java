@@ -23,5 +23,6 @@ public enum ManagedSetting {
     SERVER_ACCESS,
     CLIPBOARD,
     LOGGING,
-    SESSION_JOURNAL
+    SESSION_JOURNAL,
+    CONTROL_API
 }

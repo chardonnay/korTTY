@@ -1,0 +1,16 @@
+#! expect state=WORKING rule=working
+#! alt=false
+› Run the setup script and then the integration tests
+
+• I'll run the setup script first; it may ask before overwriting the existing config.
+
+• Ran ./setup.sh
+  └ Checking prerequisites… ok
+    This will overwrite config. Continue? [y/n] n
+    Aborted by user.
+
+• Working (18s • esc to interrupt)
+
+› Ask Codex to do anything
+
+  ⏎ send   ⇧⏎ newline   ⌃T transcript   ⌃C quit                     gpt-5-codex · 82% context left

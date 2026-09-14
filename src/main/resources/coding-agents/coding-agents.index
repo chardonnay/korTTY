@@ -1,0 +1,5 @@
+# Bundled coding-agent rule files, one per CodingAgentKind.id() (<kind-id>.json).
+# Every *.json file in this directory must be listed here; AgentRuleRepositoryTest enforces it.
+claude-code.json
+codex.json
+gemini-cli.json

@@ -36,6 +36,8 @@ KorTTY ist in verschiedene Funktionsmodule unterteilt. Das folgende Diagramm gru
 | **Plugin** | Terminaleffekt-Plugins (ServiceLoader SPI) | `TerminalEffectPlugin`, `TerminalEffectSession` |
 | **Leistung** | Aktivitätsbewusstes Schlaf- und App-Nap-Management pro Plattform | `PowerManagementCoordinator`, `MacPowerManagementBackend` |
 | **Telemetrie** | Anonyme Nutzungsereignisse nach Zustimmung | `TelemetryService`, `Telemetry` |
+| **control** | Standardmäßig ausgeschaltete lokale Steuerungs-API: Transport, Token, Verben, Ereignisbus (siehe [Steuerungs-API](control-api.md)) | `ControlApiServer`, `ControlVerbs`, `ControlSurface`, `ControlEventBus`, `ControlApiGate` |
+| **cli** | Der Client `kortty-cli`, der die Steuerungs-API spricht (siehe [Steuerungs-CLI](cli.md)) | `KorttyCli` |
 | **Teamarbeit** | Funktionen für Zusammenarbeit und Fernzugriff | Teambasierte Sitzungsfreigabe und -koordination |
 | **jmx** | Überwachung der Java-Verwaltungserweiterungen | `SSHClientMonitor`, `SSHClientMonitorMBean` |
 | **Update** | Versionsprüfung und Update-Benachrichtigungen | Update-Dienst und Versionsmetadaten |

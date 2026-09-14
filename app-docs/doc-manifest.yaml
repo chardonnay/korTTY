@@ -412,6 +412,21 @@ pages:
     diagrams: [terminal-effect-plugin-flow.svg]
     screenshots: [plugins/terminal-effects.png]
     last_synced_ref: "38bcd2b4"
+  - path: app-docs/site/docs/en/features/coding-agents.md
+    owns_i18n: [settings.codingAgent., menu.codingAgent., codingAgent., dashboard.codingAgent.]
+    owns_code:
+      - src/main/java/de/kortty/codingagent
+      - src/main/java/de/kortty/codingagent/desktop
+      - src/main/resources/coding-agents
+      - src/main/java/de/kortty/ui/CodingAgentPanel.java
+      - src/main/java/de/kortty/ui/CodingAgentStatusStrip.java
+      - src/main/java/de/kortty/ui/CodingAgentPanelDockManager.java
+      - src/main/java/de/kortty/ui/CodingAgentStripSupport.java
+      - src/main/java/de/kortty/ui/CodingAgentUiBridge.java
+      - src/main/java/de/kortty/ui/DashboardAgentMarks.java
+    diagrams: [coding-agents.svg]
+    screenshots: [coding-agents/dashboard.png, coding-agents/panel.png, coding-agents/status-strip.png, coding-agents/badge-icon.png]
+    last_synced_ref: "0dad374"
   - path: app-docs/site/docs/en/features/i18n.md
     owns_i18n: []
     # TranslationService is owned here as well: the provider table on this page states which API
@@ -431,6 +446,27 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/persistence, src/main/java/de/kortty/model/ServerConnection.java, src/main/java/de/kortty/model/SnippetDiagram.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ai/llama/LlamaModelRegistry.java, src/main/java/de/kortty/rag/RagConfigurationManager.java]
     last_synced_ref: "38bcd2b4"
+  - path: app-docs/site/docs/en/reference/control-api.md
+    owns_i18n: [settings.controlApi., controlApi.]
+    owns_code:
+      - src/main/java/de/kortty/control
+      - src/main/java/de/kortty/ui/ControlApiUiBridge.java
+      - src/main/java/de/kortty/ui/ControlApiPaneReader.java
+    diagrams: []
+    screenshots: []
+    last_synced_ref: "0dad374"
+  - path: app-docs/site/docs/en/reference/cli.md
+    owns_i18n: []
+    # The CLI source plus what governs the launcher itself: its jpackage declaration and the three
+    # packagings that install or link it.
+    owns_code:
+      - src/main/java/de/kortty/cli
+      - build.gradle.kts
+      - package/flatpak/kortty-cli-flatpak
+      - package/arch/PKGBUILD
+    diagrams: []
+    screenshots: []
+    last_synced_ref: "0dad374"
   - path: app-docs/site/docs/en/reference/enterprise-policy.md
     owns_i18n: [policy.]
     owns_code: [src/main/java/de/kortty/policy, package/policy]

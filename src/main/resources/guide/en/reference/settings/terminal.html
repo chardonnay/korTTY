@@ -163,6 +163,22 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../control-api.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Control API
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../cli.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Control CLI
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="#" class="
             drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover"
             data-bs-toggle="collapse" data-bs-target="#settings-collapse" aria-expanded="true">
@@ -545,6 +561,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../../features/coding-agents.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Coding agents
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../../features/i18n.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -852,6 +876,34 @@
 <td>Off</td>
 <td><code>hostKeyCheckDisabledForAllConnections</code></td>
 </tr>
+<tr>
+<td>Detect coding agents (Claude Code, Codex, Gemini CLI) in local shell tabs</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>codingAgentDetectionEnabled</code></td>
+</tr>
+<tr>
+<td>Desktop notification when a coding agent needs a decision or finishes while you are not looking at its pane</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>codingAgentNotificationsEnabled</code></td>
+</tr>
+<tr>
+<td>Show the number of agents waiting for a decision on the app icon</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>codingAgentAppBadgeEnabled</code></td>
+</tr>
+<tr>
+<td>Allow a local program to read and control this korTTY</td>
+<td>toggle</td>
+<td>—</td>
+<td><strong>Off</strong></td>
+<td><code>controlApiEnabled</code></td>
+</tr>
 </tbody>
 </table>
 <h2 id="notes">Notes<a class="headerlink" href="#notes" title="Permanent link">&para;</a></h2>
@@ -883,6 +935,14 @@
 <div class="admonition note">
 <p class="admonition-title">Automatically reconnect lost connections</p>
 <p>When enabled and an <strong>established</strong> SSH connection is lost (network drop, server gone), the tab reconnects on its own with increasing delays — 3, 5, 10, 20, 30, then every 60 seconds — and the red status bar counts down to the next attempt. A double-click on the bar still reconnects immediately, and a successful reconnect or closing the tab stops the automatic attempts. Failed logins and other permanent failures (authentication, host key, configuration) are never retried automatically, and a connection that never got established is not retried by this setting either — that is what <em>Enable connection retries</em> covers. See <a href="../../features/terminal.html#connection-loss-and-automatic-reconnect">Terminal sessions → Connection loss</a>.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Allow a local program to read and control this korTTY</p>
+<p>This is the Control API, and it is the only setting in this tab that is off by default. While it is on, any program running under your user account on this computer can list your windows, read every open pane — local shells and SSH sessions alike — and type into them, including pressing <span class="keys"><kbd class="key-enter">Enter</kbd></span>. Nothing is reachable over the network and no other user of the computer can connect, but that is the extent of the boundary: within your own account it is the same power as sitting at your keyboard. A status line under the checkbox reports what the listener is actually doing, because the checkbox and the listener can legitimately disagree — enterprise policy can deny the feature, and a start can fail because another korTTY already owns the socket. Every action is logged with byte counts only, never terminal text, and the first time a program types into a pane you get one desktop notification. See <a href="../control-api.html">Control API</a> for the security model and <a href="../cli.html">Control CLI</a> for the <code>kortty-cli</code> client that speaks it.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Detect coding agents</p>
+<p>When enabled, korTTY watches every local shell pane for a running Claude Code, Codex or Gemini CLI and tracks whether it is working, blocked on a question, done or idle. The screen is analysed locally and nothing leaves the computer; the change applies immediately to open tabs. The two toggles below it control the desktop notification for an agent that needs a decision or finishes while you are not looking at its pane, and the count of waiting agents on the app icon (or in the window title where no icon badge exists); both read the setting live, so a change applies at once. See <a href="../../features/coding-agents.html#app-icon-badge-and-notifications">Coding agents</a>.</p>
 </div></p>
     </article>
 </section>

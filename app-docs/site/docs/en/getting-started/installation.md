@@ -15,6 +15,10 @@ Each native asset name includes its processor architecture. Use `aarch64` or `ar
 === "Linux"
     Use the package for your architecture and distribution: DEB for Debian/Ubuntu, RPM for RPM-based distributions, Pacman `x86_64` for Arch Linux, Pacman `aarch64` for Arch Linux ARM, or the ZIP/TAR archive for a portable installation. The archive contains a complete `jpackage` application-image directory; it is not a Linux `.AppImage` file.
 
+## The `kortty-cli` command
+
+Every native package installs a second launcher, `kortty-cli`, beside the application: the client for korTTY's default-off [control API](../reference/control-api.md). It sits in the same directory as the graphical launcher — `korTTY.app/Contents/MacOS/kortty-cli` on macOS, next to `korTTY.exe` on Windows, `bin/kortty-cli` inside the Linux application directory — and only the Arch package puts it on your `PATH`, as `/usr/bin/kortty-cli`. `kortty-cli --version` is the one command that works without a running korTTY, so it is the quickest way to confirm the installation. See [Control CLI](../reference/cli.md) for the per-platform `PATH` setup.
+
 ## Optional system tools
 
 Some features call external programs only when you use them:

@@ -1,0 +1,55 @@
+{
+  "kind": "CLAUDE_CODE",
+  "version": 1,
+  "comment": "Written against Claude Code 2.1.x (Ink TUI). Screens were transcribed from documented UI text and from the onboarding screens of an unauthenticated Claude Code 2.1.270 session; they must be re-verified against live authenticated sessions. Permission dialogs (Bash, Edit, Write, MCP) and the AskUserQuestion picker are BLOCKED; a tool call showing 'Running…' or the spinner status line ('✻ Thinking… (…)', with 'esc to interrupt') is WORKING — a '*' or '·' bullet ending in an ellipsis is answer text, not a spinner; the empty input prompt with '? for shortcuts' is IDLE. The onboarding menus (theme picker, login method) intentionally match no rule. Claude Code does not use the alternate screen, so no rule depends on that flag.",
+  "fallbackState": "IDLE",
+  "rules": [
+    {
+      "id": "permission-prompt",
+      "state": "BLOCKED",
+      "priority": 1000,
+      "region": { "bottomNonEmptyLines": 20 },
+      "anyLineRegex": [
+        "Do you want to (proceed|make this edit|create|run|allow)",
+        "Do you want to allow this connection\\?",
+        "Would you like to proceed\\?"
+      ],
+      "regex": "^\\s*[│┃]?\\s*❯?\\s*1\\.\\s*Yes\\b",
+      "notContains": ["esc to interrupt"]
+    },
+    {
+      "id": "question-picker",
+      "state": "BLOCKED",
+      "priority": 950,
+      "region": { "bottomNonEmptyLines": 20 },
+      "anyLineRegex": ["(?i)\\bEsc to cancel\\b"],
+      "regex": "(?i)Enter to (select|confirm)|Arrow keys to navigate|↑/?↓ to navigate|Review your answers",
+      "notContains": ["esc to interrupt", "Enter to set as default"]
+    },
+    {
+      "id": "working-tool-running",
+      "state": "WORKING",
+      "priority": 910,
+      "region": { "bottomNonEmptyLines": 12 },
+      "anyLineRegex": ["^\\s*⎿\\s+Running…"]
+    },
+    {
+      "id": "working-spinner",
+      "state": "WORKING",
+      "priority": 900,
+      "region": { "bottomNonEmptyLines": 8 },
+      "anyLineRegex": [
+        "(?i)esc to interrupt",
+        "^\\s*[✻✳✶✽✢]\\s+\\S.*…\\s*\\("
+      ]
+    },
+    {
+      "id": "idle-prompt",
+      "state": "IDLE",
+      "priority": 100,
+      "region": { "bottomNonEmptyLines": 6 },
+      "anyLineRegex": ["^\\s*[│┃]?\\s*[❯>]\\s*$", "\\?\\s+for shortcuts"],
+      "notContains": ["esc to interrupt"]
+    }
+  ]
+}

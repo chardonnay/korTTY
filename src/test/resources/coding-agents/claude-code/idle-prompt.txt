@@ -1,0 +1,14 @@
+#! expect state=IDLE rule=idle-prompt
+#! title=✳ Claude Code
+#! alt=false
+⏺ Bash(./gradlew test --tests 'de.kortty.core.MoshConnectorTest' --console=plain -q)
+  ⎿  (No output)
+
+⏺ Done. The reconnect race is now covered by MoshConnectorTest.reconnectWhileReadPending, which
+  starts a blocking read, triggers reconnect() from a second thread and asserts that the old
+  reader is closed before the new session is opened. The full test class is green.
+
+────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────
+  ? for shortcuts                                              ⏵⏵ accept edits on

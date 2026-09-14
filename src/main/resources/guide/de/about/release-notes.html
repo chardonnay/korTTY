@@ -163,6 +163,22 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../reference/control-api.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Steuerungs-API
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/cli.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Steuerungs-CLI
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="#" class="
             drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
             data-bs-toggle="collapse" data-bs-target="#einstellungen-collapse" aria-expanded="false">
@@ -545,6 +561,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/coding-agents.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Coding-Agents
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/i18n.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -738,6 +762,8 @@
 <h2 id="v2170">v2.17.0<a class="headerlink" href="#v2170" title="Permanent link">&para;</a></h2>
 <h3 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h3>
 <ul>
+<li><strong>Coding-Agents</strong> – korTTY erkennt Claude Code, Codex und Gemini CLI in lokalen Shell-Tabs, stuft jeden Bereich als arbeitend, durch eine Rückfrage blockiert, fertig oder untätig ein und zeigt das jetzt überall: als Symbol im Registerkartentitel, als Chips, Akzentbalken, Rollups und Bereichszeilen im Dashboard (das zu einem wartenden Agent aufklappt und im Kontextmenü Enter senden / Esc senden / Unterbrechen anbietet), in einem andockbaren <strong>Coding-Agents</strong>-Panel (<em>Ansicht → Coding-Agents</em>, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-g">G</kbd></span>), das jeden Agent aller Fenster mit Ein-Klick-Antworten (y, n, Enter, Esc, ↑, ↓, Strg+C), Erklären, Umbenennen und einem Prompt-Feld auflistet, als Streifen in der Statusleiste, mit <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-n">N</kbd></span> zum Sprung zum nächsten wartenden Agent, als Badge mit der Zahl der wartenden Agents am App-Symbol (Dock, Windows-Taskleiste, KDE-/Ubuntu-Launcher; sonst im Fenstertitel) und als Desktop-Benachrichtigung, wenn ein Agent eine Entscheidung braucht oder fertig wird, während Sie seinen Bereich nicht ansehen. Die Erkennung liest den Terminalinhalt lokal und lässt sich unter <em>Einstellungen → Terminal → Coding-Agents</em> abschalten, wo Badge und Benachrichtigungen eigene Schalter haben; die Regeln sind JSON-Dateien, die Sie unter <code>~/.kortty/coding-agents/</code> überschreiben können. Siehe <a href="../features/coding-agents.html">Coding-Agents</a>.</li>
+<li><strong>Steuerungs-API und <code>kortty-cli</code></strong> – korTTY kann jetzt einen lokalen Socket öffnen, damit ein Skript oder ein Coding-Agent auf demselben Rechner Ihre Fenster auflisten, jeden Bereich lesen, darin tippen, auf Ausgabe warten, eine lokale Shell teilen und einen erkannten Coding-Agent steuern kann. Sie ist <strong>standardmäßig aus</strong> und wird unter <em>Einstellungen → Terminal → Steuerungs-API</em> eingeschaltet, wo eine Statuszeile meldet, was der Listener tatsächlich tut. Über das Netzwerk ist nichts erreichbar und kein anderer Benutzer des Rechners kann sich verbinden: der Endpunkt liegt in einem nur für den Eigentümer zugänglichen Verzeichnis <code>~/.kortty/control/</code> und verlangt ein Token, das bei jedem Start neu erzeugt wird. Jede Aktion wird nur mit Byte-Anzahlen protokolliert, nie mit Terminaltext, und beim ersten Tippen eines Programms in einen Bereich erhalten Sie eine Desktop-Benachrichtigung, damit eine Übernahme nie unbemerkt bleibt. Eine Administratorin kann die Funktion mit dem Richtlinienschlüssel <code>control-api</code> vollständig verbieten. Der Client <code>kortty-cli</code> wird in jedem nativen Paket neben der Anwendung ausgeliefert und übernimmt Endpunktsuche, Authentifizierung und Exit-Codes für Sie. Siehe <a href="../reference/control-api.html">Steuerungs-API</a> und <a href="../reference/cli.html">Steuerungs-CLI</a>.</li>
 <li><strong>Ein falsch platzierter Bildlaufbereich schränkt den Cursor nicht mehr ein</strong> – DECSTBM legt den Bereich fest, in dem gescrollt wird, nicht den Bereich, in dem der Cursor adressiert werden kann, aber jeder Schreibvorgang hat den Cursor durch Scrollen trotzdem an die Ränder geklemmt: Text, der über dem oberen Rand adressiert wurde, wurde in den Bereich gezogen, und Text, der unter dem unteren Rand adressiert wurde, scrollte den Bereich unter dem heraus, was bereits auf dem Bildschirm war. tmux löst den ersten Fall aus, während es einen Bereich mit immer noch schmalen Rändern zeichnet, wodurch der Cursor eine Zeile über der Eingabeaufforderung angezeigt wird. Das Scrollen erfolgt jetzt nur noch bei einem expliziten Zeilenvorschub, sodass der Cursor jede Zeile im Terminal ansprechen kann, ohne bereits vorhandene Zeilen zu verschieben.</li>
 </ul>
 <h3 id="tools">Tools<a class="headerlink" href="#tools" title="Permanent link">&para;</a></h3>

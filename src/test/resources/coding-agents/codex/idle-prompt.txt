@@ -1,0 +1,16 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=false
+› Run the integration tests and fix whatever fails
+
+• Ran ./gradlew test --console=plain
+  └ > Task :test
+    MoshConnectorTest > reconnectWhileReadPending PASSED
+    … +40 lines
+
+• The suite is green again. The only failure was MoshConnectorTest.reconnectWhileReadPending,
+  which raced the reader shutdown against reconnect(); I now close the old reader before opening
+  the new session and re-ran the whole test task to confirm nothing else regressed.
+
+› Ask Codex to do anything
+
+  ⏎ send   ⇧⏎ newline   ⌃T transcript   ⌃C quit                     gpt-5-codex · 81% context left

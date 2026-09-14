@@ -452,4 +452,9 @@
     -kortty-dash-border: derive(#1a0b2e, 30%);
     -kortty-dash-hover: derive(#1a0b2e, 15%);
     -kortty-dash-selected: derive(#1a0b2e, 25%);
+    -kortty-dash-agent-blocked: #fede5d;
+    -kortty-dash-agent-working: #36f9f6;
+    -kortty-dash-agent-done: #72f1b8;
+    -kortty-dash-agent-blocked-tint: rgba(254,222,93,0.16);
+    -kortty-dash-agent-chip-fg: #1a0b2e;
 }

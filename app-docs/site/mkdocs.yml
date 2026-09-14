@@ -124,6 +124,8 @@ nav:
       - reference/architecture.md
       - reference/config-files.md
       - reference/enterprise-policy.md
+      - reference/control-api.md
+      - reference/cli.md
       - Settings:
           - reference/settings/index.md
           - reference/settings/appearance.md
@@ -173,6 +175,7 @@ nav:
       - features/session-journal.md
       - features/ascii-art.md
       - features/terminal-effect-plugins.md
+      - features/coding-agents.md
       - features/i18n.md
   - About:
       - about/release-notes.md

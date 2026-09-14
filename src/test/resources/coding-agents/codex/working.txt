@@ -1,0 +1,18 @@
+#! expect state=WORKING rule=working
+#! alt=false
+› Run the integration tests and fix whatever fails
+
+• I'll run the Gradle test task first to see the current failures before touching any code.
+
+• Ran ./gradlew test --console=plain
+  └ > Task :compileJava
+    > Task :processResources
+    > Task :compileTestJava
+    > Task :test
+    … +42 lines
+
+• Working (18s • esc to interrupt)
+
+› Ask Codex to do anything
+
+  ⏎ send   ⇧⏎ newline   ⌃T transcript   ⌃C quit                     gpt-5-codex · 82% context left

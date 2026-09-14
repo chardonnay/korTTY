@@ -33,6 +33,8 @@ nav:
       - reference/architecture.md
       - reference/config-files.md
       - reference/enterprise-policy.md
+      - reference/control-api.md
+      - reference/cli.md
       - Einstellungen:
           - reference/settings/index.md
           - reference/settings/appearance.md
@@ -79,6 +81,7 @@ nav:
       - features/session-journal.md
       - features/ascii-art.md
       - features/terminal-effect-plugins.md
+      - features/coding-agents.md
       - features/i18n.md
   - Über korTTY:
       - about/release-notes.md

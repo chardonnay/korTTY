@@ -1,0 +1,779 @@
+package de.kortty.control;
+
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import de.kortty.codingagent.AgentProcess;
+import de.kortty.codingagent.CodingAgentActions;
+import de.kortty.codingagent.CodingAgentEvent;
+import de.kortty.codingagent.CodingAgentKind;
+import de.kortty.codingagent.CodingAgentRegistry;
+import de.kortty.codingagent.CodingAgentState;
+import de.kortty.codingagent.DetectionResult;
+import de.kortty.codingagent.FakeFocusOracle;
+import de.kortty.codingagent.FakePaneAccess;
+import de.kortty.codingagent.PaneRef;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+/**
+ * Every error in the closed vocabulary, provoked over a real socket and checked against the table in
+ * {@code stufe3-final-wire.md} §4.
+ *
+ * <p>Three things have to hold at once for a client to behave, and only a suite that crosses a socket
+ * can see all three: the JSON-RPC {@code error.code} number, the stable {@code data.code} a script
+ * branches on, and {@code data.exit} — the CLI exit code, supplied by the <em>server</em> precisely so
+ * that client and server can never hold two disagreeing tables. {@code data.retryable} is the fourth:
+ * it is what tells an automated caller whether a retry is worth anything.
+ *
+ * <p>The documented table is transcribed into {@link #DOCUMENTED_TABLE} and compared with the enum,
+ * so the doc and {@link ControlErrorCode} cannot drift apart unnoticed; the provoked round trips then
+ * read their expectations from the enum, so a scenario can never be quietly rewritten to match
+ * whatever the server happened to answer.
+ *
+ * <p>Two codes have no wire scenario at all in the shipped implementation — see
+ * {@code aScenarioExistsForEveryCodeTheServerCanActuallyRaise}, which names them rather than pretending
+ * they are covered.
+ */
+public class ControlApiErrorContractTest {
+
+    /**
+     * §4 of the wire specification, transcribed: wire code, JSON-RPC number, CLI exit, retryable.
+     *
+     * <p>This is the one place the document is copied. Deriving it from the enum would make the test
+     * agree with the implementation by construction and prove nothing.
+     */
+    private static final String[][] DOCUMENTED_TABLE = {
+        {"parse_error", "-32700", "2", "false"},
+        {"invalid_request", "-32600", "2", "false"},
+        {"unknown_method", "-32601", "2", "false"},
+        {"invalid_params", "-32602", "2", "false"},
+        {"internal_error", "-32603", "1", "false"},
+        {"message_too_large", "-32005", "2", "false"},
+        {"unauthorized", "-32001", "3", "false"},
+        {"control_api_disabled", "-32002", "3", "false"},
+        {"blocked_by_policy", "-32003", "3", "false"},
+        {"not_ready", "-32004", "3", "true"},
+        {"too_many_connections", "-32006", "3", "true"},
+        {"window_not_found", "-32010", "1", "false"},
+        {"tab_not_found", "-32011", "1", "false"},
+        {"pane_not_found", "-32012", "1", "false"},
+        {"agent_not_found", "-32013", "1", "false"},
+        {"ambiguous_pane", "-32014", "2", "false"},
+        {"stale_instance", "-32015", "1", "false"},
+        {"unknown_key", "-32016", "2", "false"},
+        {"invalid_regex", "-32017", "2", "false"},
+        {"empty_input", "-32022", "2", "false"},
+        {"host_shortcut_conflict", "-32024", "2", "false"},
+        {"not_connected", "-32020", "1", "true"},
+        {"write_failed", "-32021", "1", "true"},
+        {"agent_blocked", "-32023", "1", "false"},
+        {"busy", "-32025", "1", "true"},
+        {"last_pane", "-32030", "1", "false"},
+        {"unsupported", "-32031", "1", "false"},
+        {"split_failed", "-32032", "1", "true"},
+        {"ui_unavailable", "-32041", "1", "true"},
+        {"timeout", "-32040", "4", "true"},
+    };
+
+    /**
+     * The codes no request can provoke in the shipped server.
+     *
+     * <p>Empty, and it has to stay empty: a documented code with no reachable raise site is a branch
+     * every generated client carries and can never reach. {@code blocked_by_policy} and
+     * {@code not_ready} used to live here, because the gate answered one boolean and collapsed the
+     * policy leg, the settings leg and "not started yet" into {@code control_api_disabled}; they are
+     * now three {@link ControlApiGate.Verdict} arms, each with its own scenario below.
+     */
+    private static final Set<ControlErrorCode> WITHOUT_A_WIRE_SCENARIO =
+        EnumSet.noneOf(ControlErrorCode.class);
+
+    private static final String LOCAL_PANE = "p1a2b";
+
+    private static final String SECOND_PANE = "p2c3d";
+
+    private static final String SSH_PANE = "p4a5b";
+
+    private static final String TAB = "t9f3a";
+
+    private static final long DEAD_PID = 4_294_967_200L;
+
+    /**
+     * The text a scripted bug carries.
+     *
+     * <p>It is shaped like the detail a real throw site holds — a path — because that is exactly what
+     * {@code internal_error} must never ship: §4 says the message is generic and the detail is logged.
+     */
+    private static final String BUG_DETAIL = "a bug inside the surface at /home/someone/.ssh/config";
+
+    private Path root;
+
+    private FakeControlSurface surface;
+
+    private CodingAgentRegistry agents;
+
+    private ControlApiServer server;
+
+    private EndpointDescriptor endpoint;
+
+    /** Extra servers a scenario had to build for itself, closed in the teardown regardless. */
+    private final List<ControlApiServer> extraServers = new ArrayList<>();
+
+    private final List<ScheduledExecutorService> extraTimers = new ArrayList<>();
+
+    @BeforeMethod
+    void startTheServer() throws IOException {
+        root = ControlApiScenarioFixtures.newTempRoot();
+        surface = (FakeControlSurface) ControlApiScenarioFixtures.twoWindowsThreeTabs();
+        agents = CodingAgentRegistry.forTests(new FakeFocusOracle(), System::currentTimeMillis);
+        server = ControlApiScenarioFixtures.startServer(root, surface, agents);
+        endpoint = server.endpoint().orElseThrow();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    void stopEveryServerAndDeleteTheTempTree() {
+        for (ControlApiServer extra : extraServers) {
+            extra.close();
+        }
+        extraServers.clear();
+        for (ScheduledExecutorService timer : extraTimers) {
+            timer.shutdownNow();
+        }
+        extraTimers.clear();
+        if (server != null) {
+            server.close();
+            server = null;
+        }
+        if (agents != null) {
+            agents.clear();
+        }
+        ControlApiScenarioFixtures.deleteTree(root);
+    }
+
+    // --- the table itself ---------------------------------------------------------------------
+
+    @Test
+    void theShippedEnumIsTheTableTheSpecificationPrints() {
+        assertWithMessage("the vocabulary is closed: §4 lists %s codes", DOCUMENTED_TABLE.length)
+            .that(ControlErrorCode.values().length).isEqualTo(DOCUMENTED_TABLE.length);
+        for (String[] row : DOCUMENTED_TABLE) {
+            ControlErrorCode code = ControlErrorCode.forWire(row[0]).orElseThrow(
+                () -> new AssertionError("§4 documents the code '" + row[0]
+                    + "', which ControlErrorCode does not define"));
+            assertWithMessage("§4 gives %s the JSON-RPC number %s", row[0], row[1])
+                .that(code.jsonRpcCode()).isEqualTo(Integer.parseInt(row[1]));
+            assertWithMessage("§4 gives %s the CLI exit code %s, and the server is what supplies it",
+                    row[0], row[2])
+                .that(code.cliExit()).isEqualTo(Integer.parseInt(row[2]));
+            assertWithMessage("§4 marks %s retryable=%s", row[0], row[3])
+                .that(code.retryable()).isEqualTo(Boolean.parseBoolean(row[3]));
+        }
+    }
+
+    @Test
+    void everyJsonRpcNumberIsUniqueSoAClientCanSwitchOnIt() {
+        List<Integer> numbers = new ArrayList<>();
+        for (ControlErrorCode code : ControlErrorCode.values()) {
+            numbers.add(code.jsonRpcCode());
+        }
+        assertThat(numbers).containsNoDuplicates();
+    }
+
+    @Test
+    void everyExitCodeIsOneTheCliDocuments() {
+        for (ControlErrorCode code : ControlErrorCode.values()) {
+            assertWithMessage("%s maps to exit %s, which is not one of the documented 1, 2, 3, 4",
+                    code.wire(), code.cliExit())
+                .that(code.cliExit()).isIn(List.of(1, 2, 3, 4));
+        }
+    }
+
+    // --- one provoked round trip per code -----------------------------------------------------
+
+    @Test(timeOut = 60_000)
+    void aLineThatIsNotJsonIsParseErrorWithANullId() throws Exception {
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(endpoint)) {
+            wire.authenticate(endpoint.token());
+            wire.sendRaw("{\"jsonrpc\":\"2.0\",");
+            JsonObject frame = wire.next();
+            assertWithMessage("a line the parser could not read cannot be correlated, so its id is"
+                    + " JSON null rather than a guess")
+                .that(frame.get("id").isJsonNull()).isTrue();
+            assertError(frame, ControlErrorCode.PARSE_ERROR);
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    void aBatchArrayIsInvalidRequestBecauseSequentialLinesAreTheBatchingMechanism() throws Exception {
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(endpoint)) {
+            wire.authenticate(endpoint.token());
+            wire.sendRaw("[{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\",\"params\":{}}]");
+            assertError(wire.next(), ControlErrorCode.INVALID_REQUEST);
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    void aNotificationWithoutAnIdIsInvalidRequest() throws Exception {
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(endpoint)) {
+            wire.authenticate(endpoint.token());
+            wire.sendRaw("{\"jsonrpc\":\"2.0\",\"method\":\"ping\",\"params\":{}}");
+            assertError(wire.next(), ControlErrorCode.INVALID_REQUEST);
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    void anUnregisteredMethodIsUnknownMethod() throws Exception {
+        assertError(callOnServer("pane.teleport", new JsonObject()), ControlErrorCode.UNKNOWN_METHOD);
+    }
+
+    @Test(timeOut = 60_000)
+    void aMissingRequiredParameterIsInvalidParams() throws Exception {
+        JsonObject data = assertError(callOnServer("pane.get", new JsonObject()),
+            ControlErrorCode.INVALID_PARAMS);
+        assertWithMessage("a refusal must name the parameter that was wrong")
+            .that(data.get("param").getAsString()).isEqualTo("pane");
+    }
+
+    @Test(timeOut = 60_000)
+    void anUncheckedFailureInsideAVerbIsAGenericInternalError() throws Exception {
+        surface.setInUiHop(() -> {
+            throw new IllegalArgumentException(BUG_DETAIL);
+        });
+        JsonObject frame = callOnServer("window.list", new JsonObject());
+        JsonObject data = assertError(frame, ControlErrorCode.INTERNAL_ERROR);
+        assertWithMessage("the detail of a bug is logged, never sent: a stack trace on the wire is"
+                + " an information leak and a client cannot act on it")
+            .that(data.keySet()).containsNoneOf("stack", "exception", "cause");
+
+        // error.message is the channel §4 actually constrains — "the message is generic, the detail
+        // is logged" — and it is the one a naive implementation fills with cause.getMessage().
+        String message = frame.getAsJsonObject("error").get("message").getAsString();
+        assertWithMessage("§4: an internal_error carries a generic message, so the client still has"
+                + " something to print")
+            .that(message).isNotEmpty();
+        assertWithMessage("§4: the detail of the bug belongs in the korTTY log, never on the wire —"
+                + " a throw site's text carries file paths, host names and whatever else the bug"
+                + " happened to be holding")
+            .that(message).doesNotContain(BUG_DETAIL);
+        assertWithMessage("the class of the failure is detail too; a client cannot act on it and an"
+                + " attacker can")
+            .that(message).doesNotContain("IllegalArgumentException");
+        assertWithMessage("no member of the frame — message or data — may carry the throw site's"
+                + " text")
+            .that(frame.toString()).doesNotContain(BUG_DETAIL);
+    }
+
+    @Test
+    void aHandlerThatThrowsOutsideTheUiHopIsAlsoAGenericInternalError() {
+        MethodRegistry table = MethodRegistry.builder()
+            .register(new MethodSpec("pane.explode", "Throws.", List.of(), "{}", List.of(), false,
+                    false, null, null, null),
+                (session, params) -> {
+                    throw new IllegalArgumentException(BUG_DETAIL);
+                })
+            .build();
+        ControlSession session = new ControlSession("c1", EndpointDescriptor.TRANSPORT_UNIX, true,
+            "contract-test", frame -> { });
+
+        ControlApiException thrown = null;
+        try {
+            table.dispatch(session, new ControlRequest(new JsonPrimitive(1), "pane.explode",
+                new JsonObject()));
+        } catch (ControlApiException e) {
+            thrown = e;
+        }
+        assertWithMessage("a handler that throws something unchecked must not escape the dispatcher")
+            .that(thrown).isNotNull();
+        assertThat(thrown.code()).isEqualTo(ControlErrorCode.INTERNAL_ERROR);
+        assertWithMessage("§4: the dispatcher's own catch is the second place a bug's text could"
+                + " reach the wire, and it must be as generic as the UI hop's")
+            .that(thrown.getMessage()).doesNotContain(BUG_DETAIL);
+        assertThat(thrown.getMessage()).isNotEmpty();
+        assertWithMessage("the refusal may name the method that failed — that is not detail from the"
+                + " throw site — and nothing else")
+            .that(thrown.toWire().data().toString()).doesNotContain(BUG_DETAIL);
+    }
+
+    @Test(timeOut = 60_000)
+    void aLineOverTheWireLimitIsMessageTooLargeAndTheConnectionIsClosed() throws Exception {
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(endpoint)) {
+            wire.authenticate(endpoint.token());
+            wire.sendRaw(oversizedLine());
+            JsonObject frame = wire.next();
+            assertThat(frame.get("id").isJsonNull()).isTrue();
+            assertError(frame, ControlErrorCode.MESSAGE_TOO_LARGE);
+            assertWithMessage("a truncated line cannot be resynchronised, so the connection must go")
+                .that(wire.next()).isNull();
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    void aMethodBeforeAuthIsUnauthorized() throws Exception {
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(endpoint)) {
+            assertError(wire.call("ping", new JsonObject()), ControlErrorCode.UNAUTHORIZED);
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    void aGateThatClosesAfterTheHandshakeRefusesTheNextRequest() throws Exception {
+        AtomicBoolean open = new AtomicBoolean(true);
+        ControlApiServer gated = startGatedServer(() -> open.get()
+            ? ControlApiGate.Verdict.OPEN : ControlApiGate.Verdict.DISABLED_BY_SETTING);
+        EndpointDescriptor gatedEndpoint = gated.endpoint().orElseThrow();
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(gatedEndpoint)) {
+            wire.authenticate(gatedEndpoint.token());
+            open.set(false);
+            // The gate is re-evaluated at dispatch time, so a policy reload stops serving requests
+            // before the listener is even torn down.
+            assertError(wire.call("ping", new JsonObject()), ControlErrorCode.CONTROL_API_DISABLED);
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    void aGateThatIsAlreadyClosedRefusesTheHandshakeItselfAndHandsOutNoHello() throws Exception {
+        AtomicBoolean open = new AtomicBoolean(true);
+        AtomicBoolean closeOnTheNextCheck = new AtomicBoolean();
+        // The gate is read at accept and again at dispatch. This one answers the accept truthfully
+        // and closes itself immediately afterwards, so the connection is established — exactly as it
+        // would be by a policy reload landing a moment later — and the very first line the client
+        // sends is the handshake. §3.5: once the API is off, every request, auth included, answers
+        // control_api_disabled; the connection-level check therefore has to run BEFORE the auth
+        // branch, not inside the path a dispatched method takes.
+        ControlApiServer gated = startGatedServer(() -> {
+            boolean answer = open.get();
+            if (closeOnTheNextCheck.compareAndSet(true, false)) {
+                open.set(false);
+            }
+            return answer
+                ? ControlApiGate.Verdict.OPEN : ControlApiGate.Verdict.DISABLED_BY_SETTING;
+        });
+        EndpointDescriptor gatedEndpoint = gated.endpoint().orElseThrow();
+        closeOnTheNextCheck.set(true);
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(gatedEndpoint)) {
+            JsonObject frame = wire.authenticate(gatedEndpoint.token());
+            assertError(frame, ControlErrorCode.CONTROL_API_DISABLED);
+            assertWithMessage("a switched-off korTTY must not complete a handshake, because the hello"
+                    + " document is itself information: instance_id, pid, transport, capabilities and"
+                    + " the whole method table")
+                .that(frame.has("result")).isFalse();
+            assertWithMessage("not one member of the hello may leak through the refusal")
+                .that(frame.toString()).doesNotContain(gatedEndpoint.instanceId());
+            assertWithMessage("the connection is still unauthenticated, so the next request is"
+                    + " refused for the same reason rather than served")
+                .that(assertError(wire.call("ping", new JsonObject()),
+                    ControlErrorCode.CONTROL_API_DISABLED)).isNotNull();
+        }
+    }
+
+    /**
+     * Why: a managed client has to be able to tell an administrator's decision — which it must not
+     * retry and must report to its user — from the user's own switch, which the user can simply turn
+     * on. One boolean gate made both answer {@code control_api_disabled} and left
+     * {@code blocked_by_policy} with no raise site anywhere in {@code src/main}.
+     */
+    @Test(timeOut = 60_000)
+    void aPolicyThatDeniesTheFeatureAnswersBlockedByPolicyAndNotTheUsersSwitch() throws Exception {
+        // A policy reload lands while a client is connected: exactly the sequence §3.5 describes, and
+        // the one that tells the two refusals apart, since both close the same listener.
+        AtomicReference<ControlApiGate.Verdict> verdict =
+            new AtomicReference<>(ControlApiGate.Verdict.OPEN);
+        ControlApiServer gated = startGatedServer(verdict::get);
+        EndpointDescriptor gatedEndpoint = gated.endpoint().orElseThrow();
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(gatedEndpoint)) {
+            wire.authenticate(gatedEndpoint.token());
+            verdict.set(ControlApiGate.Verdict.BLOCKED_BY_POLICY);
+            JsonObject frame = wire.call("ping", new JsonObject());
+            JsonObject data = assertError(frame, ControlErrorCode.BLOCKED_BY_POLICY);
+            assertWithMessage("an administrator's decision is not retryable; a client that retries it"
+                    + " is a client that never reports it")
+                .that(data.get("retryable").getAsBoolean()).isFalse();
+            assertWithMessage("the refusal must name the cause without naming the policy file or the"
+                    + " rule that produced it")
+                .that(frame.getAsJsonObject("error").get("message").getAsString().toLowerCase(
+                    java.util.Locale.ROOT)).contains("policy");
+        }
+    }
+
+    /**
+     * Why: §4 makes {@code not_ready} the retryable refusal for "Stage-1/2 services are not
+     * initialised yet". Its only guard in the verbs — a null method table — cannot be reached,
+     * because the table is built before the listener can bind. The gate's unresolved leg IS that
+     * state, and is the raise site the documented meaning needs.
+     */
+    @Test(timeOut = 60_000)
+    void aGateWhoseLegsHaveNotResolvedYetAnswersNotReadyAndSaysToRetry() throws Exception {
+        AtomicReference<ControlApiGate.Verdict> verdict =
+            new AtomicReference<>(ControlApiGate.Verdict.OPEN);
+        ControlApiServer gated = startGatedServer(verdict::get);
+        EndpointDescriptor gatedEndpoint = gated.endpoint().orElseThrow();
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(gatedEndpoint)) {
+            wire.authenticate(gatedEndpoint.token());
+            verdict.set(ControlApiGate.Verdict.NOT_READY);
+            JsonObject data = assertError(wire.call("ping", new JsonObject()),
+                ControlErrorCode.NOT_READY);
+            assertWithMessage("korTTY is still starting; the identical request succeeds a moment"
+                    + " later, which is the whole point of the code")
+                .that(data.get("retryable").getAsBoolean()).isTrue();
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    void aNinthConnectionIsRefusedWithTooManyConnections() throws Exception {
+        List<ControlApiScenarioFixtures.Wire> open = new ArrayList<>();
+        try {
+            for (int i = 0; i < ControlApiProtocol.MAX_CONNECTIONS; i++) {
+                ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(endpoint);
+                open.add(wire);
+                wire.authenticate(endpoint.token());
+            }
+            try (ControlApiScenarioFixtures.Wire ninth =
+                     new ControlApiScenarioFixtures.Wire(endpoint)) {
+                JsonObject frame = ninth.next();
+                assertWithMessage("the %sth connection must be refused, not queued",
+                        ControlApiProtocol.MAX_CONNECTIONS + 1)
+                    .that(frame).isNotNull();
+                assertError(frame, ControlErrorCode.TOO_MANY_CONNECTIONS);
+                assertThat(ninth.next()).isNull();
+            }
+        } finally {
+            open.forEach(ControlApiScenarioFixtures.Wire::close);
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    void anUnknownWindowIsWindowNotFound() throws Exception {
+        assertError(callOnServer("tab.list", ControlApiScenarioFixtures.params("window", "w99")),
+            ControlErrorCode.WINDOW_NOT_FOUND);
+    }
+
+    @Test(timeOut = 60_000)
+    void anUnknownTabIsTabNotFound() throws Exception {
+        assertError(callOnServer("pane.list", ControlApiScenarioFixtures.params("tab", "tnosuchtab")),
+            ControlErrorCode.TAB_NOT_FOUND);
+    }
+
+    @Test(timeOut = 60_000)
+    void anUnknownPaneIsPaneNotFound() throws Exception {
+        JsonObject data = assertError(
+            callOnServer("pane.get", ControlApiScenarioFixtures.params("pane", "p0000")),
+            ControlErrorCode.PANE_NOT_FOUND);
+        assertThat(data.get("pane").getAsString()).isEqualTo("p0000");
+    }
+
+    @Test(timeOut = 60_000)
+    void aPaneWithoutARegisteredAgentIsAgentNotFound() throws Exception {
+        assertError(callOnServer("agent.get", ControlApiScenarioFixtures.params("pane", SECOND_PANE)),
+            ControlErrorCode.AGENT_NOT_FOUND);
+    }
+
+    @Test(timeOut = 60_000)
+    void aBareWindowIdWhereAPaneIsExpectedIsAmbiguousPane() throws Exception {
+        JsonObject data = assertError(
+            callOnServer("pane.get", ControlApiScenarioFixtures.params("pane", "w1")),
+            ControlErrorCode.AMBIGUOUS_PANE);
+        assertWithMessage("the refusal must say what a usable selector looks like")
+            .that(data.get("hint").getAsString()).isNotEmpty();
+    }
+
+    @Test(timeOut = 60_000)
+    void aMutatingCallPinnedToAnotherInstanceIsStaleInstance() throws Exception {
+        JsonObject data = assertError(callOnServer("pane.focus", ControlApiScenarioFixtures.params(
+                "pane", LOCAL_PANE, "instance", "a-previous-korTTY")),
+            ControlErrorCode.STALE_INSTANCE);
+        assertWithMessage("the refusal must name the instance that is actually running, so a client"
+                + " can re-enumerate instead of guessing")
+            .that(data.get("instance").getAsString()).isEqualTo(endpoint.instanceId());
+    }
+
+    @Test(timeOut = 60_000)
+    void aKeyNameOutsideTheVocabularyIsUnknownKeyAndNotInternalError() throws Exception {
+        JsonObject data = assertError(callOnServer("pane.send_keys",
+                ControlApiScenarioFixtures.params("pane", LOCAL_PANE, "keys", "meta+frobnicate")),
+            ControlErrorCode.UNKNOWN_KEY);
+        assertWithMessage("§6 requires data.known to publish the vocabulary, so a mistyped key is"
+                + " self-correcting rather than a guessing game")
+            .that(strings(data.getAsJsonArray("known")))
+            .containsExactlyElementsIn(ControlKeyTable.knownKeys());
+    }
+
+    @Test(timeOut = 60_000)
+    void aPatternThatDoesNotCompileIsInvalidRegexWithTheParserMessage() throws Exception {
+        JsonObject data = assertError(callOnServer("pane.wait_output",
+                ControlApiScenarioFixtures.params("pane", LOCAL_PANE, "regex", "[")),
+            ControlErrorCode.INVALID_REGEX);
+        assertWithMessage("§4 requires data.detail to carry the PatternSyntaxException message")
+            .that(data.get("detail").getAsString()).isNotEmpty();
+    }
+
+    @Test(timeOut = 60_000)
+    void aBlankPayloadIsEmptyInput() throws Exception {
+        assertError(callOnServer("pane.send_text",
+                ControlApiScenarioFixtures.params("pane", LOCAL_PANE, "text", "")),
+            ControlErrorCode.EMPTY_INPUT);
+    }
+
+    @Test(timeOut = 60_000)
+    void aFirstLineKorttysOwnShortcutWouldSwallowIsHostShortcutConflict() throws Exception {
+        surface.setHostShortcut(line -> line.startsWith("agent "), "agent");
+        JsonObject data = assertError(callOnServer("pane.send_text",
+                ControlApiScenarioFixtures.params("pane", LOCAL_PANE, "text", "agent do the thing")),
+            ControlErrorCode.HOST_SHORTCUT_CONFLICT);
+        assertWithMessage("§6 requires data.shortcut to name the command, because the alternative is"
+                + " input that silently disappears")
+            .that(data.get("shortcut").getAsString()).isEqualTo("agent");
+    }
+
+    @Test(timeOut = 60_000)
+    void aPaneWhoseConnectorIsDownIsNotConnectedAndIsRetryable() throws Exception {
+        surface.failWrite(new ControlApiException(ControlErrorCode.NOT_CONNECTED,
+            "The pane is not connected", Map.of("pane", LOCAL_PANE)));
+        JsonObject data = assertError(callOnServer("pane.send_text",
+                ControlApiScenarioFixtures.params("pane", LOCAL_PANE, "text", "ls")),
+            ControlErrorCode.NOT_CONNECTED);
+        assertWithMessage("a connection that may come back is worth retrying, and §4 says so")
+            .that(data.get("retryable").getAsBoolean()).isTrue();
+    }
+
+    @Test(timeOut = 60_000)
+    void aFailedPtyWriteIsWriteFailed() throws Exception {
+        surface.failWrite(new ControlApiException(ControlErrorCode.WRITE_FAILED,
+            "The write to the pty failed", Map.of("pane", LOCAL_PANE)));
+        assertError(callOnServer("pane.run",
+                ControlApiScenarioFixtures.params("pane", LOCAL_PANE, "command", "make")),
+            ControlErrorCode.WRITE_FAILED);
+    }
+
+    @Test(timeOut = 60_000)
+    void promptingABlockedAgentIsAgentBlocked() throws Exception {
+        register(LOCAL_PANE, CodingAgentState.BLOCKED, "Do you want to proceed?");
+        // §6: a BLOCKED agent must be answered with agent.send_keys before it will take a prompt.
+        assertError(callOnServer("agent.prompt", ControlApiScenarioFixtures.params(
+            "pane", LOCAL_PANE, "text", "carry on")), ControlErrorCode.AGENT_BLOCKED);
+    }
+
+    @Test(timeOut = 60_000)
+    void aSecondNotificationInsideTheRateLimitIsBusy() throws Exception {
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(endpoint)) {
+            wire.authenticate(endpoint.token());
+            JsonObject params = ControlApiScenarioFixtures.params("title", "Build", "body", "green");
+            JsonObject first = wire.call("notification.show", params);
+            assertWithMessage("the first notification must succeed, or the rate limit proves nothing")
+                .that(first.has("result")).isTrue();
+            JsonObject shown = first.getAsJsonObject("result");
+            assertWithMessage("§6 gives notification.show the result {shown, supported}")
+                .that(shown.keySet()).containsExactly("shown", "supported");
+            assertThat(shown.get("shown").getAsBoolean()).isTrue();
+            assertWithMessage("'supported' reports what this platform's notifier answered, not a"
+                    + " constant: the fixture backend has no desktop support, so a client that"
+                    + " believed a hard-coded true would silently show nothing")
+                .that(shown.get("supported").getAsBoolean()).isFalse();
+            JsonObject data = assertError(wire.call("notification.show", params),
+                ControlErrorCode.BUSY);
+            assertWithMessage("a rate limit is retryable and must say when")
+                .that(data.get("retry_after_millis").getAsLong()).isGreaterThan(0L);
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    void closingATabsLastPaneIsLastPaneWithAHint() throws Exception {
+        surface.failClose(new ControlApiException(ControlErrorCode.LAST_PANE,
+            "A tab's last pane cannot be closed", Map.of()));
+        JsonObject data = assertError(
+            callOnServer("pane.close", ControlApiScenarioFixtures.params("pane", LOCAL_PANE)),
+            ControlErrorCode.LAST_PANE);
+        assertWithMessage("§6 requires the hint, because closeSplit on a root leaf would leave an"
+                + " empty terminal area inside a still-open tab")
+            .that(data.get("hint").getAsString()).isEqualTo("close the tab yourself");
+    }
+
+    @Test(timeOut = 60_000)
+    void splittingANonLocalShellPaneIsUnsupportedWithTheProtocolThatRefusedIt() throws Exception {
+        ControlApiServer sshServer = startServerFor(ControlApiScenarioFixtures.oneSshPane());
+        EndpointDescriptor sshEndpoint = sshServer.endpoint().orElseThrow();
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(sshEndpoint)) {
+            wire.authenticate(sshEndpoint.token());
+            JsonObject data = assertError(wire.call("pane.split",
+                ControlApiScenarioFixtures.params("pane", SSH_PANE)), ControlErrorCode.UNSUPPORTED);
+            assertThat(data.get("reason").getAsString()).isEqualTo("split is local-shell only");
+            assertWithMessage("§6 requires data.protocol, so a client can explain the refusal")
+                .that(data.get("protocol").getAsString()).isEqualTo("SSH");
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    void aSplitThatNeverAttachesIsSplitFailedAndIsRetryable() throws Exception {
+        // The scenario surface attaches nothing, which is exactly what a connector that came up null
+        // or disconnected looks like from the verb's side.
+        JsonObject data = assertError(
+            callOnServer("pane.split", ControlApiScenarioFixtures.params("pane", LOCAL_PANE)),
+            ControlErrorCode.SPLIT_FAILED);
+        assertThat(data.get("retryable").getAsBoolean()).isTrue();
+    }
+
+    @Test(timeOut = 60_000)
+    void aUiHopWithNoToolkitBehindItIsUiUnavailable() throws Exception {
+        surface.setInUiHop(() -> {
+            throw new IllegalStateException("the toolkit is gone");
+        });
+        JsonObject data = assertError(callOnServer("pane.list", new JsonObject()),
+            ControlErrorCode.UI_UNAVAILABLE);
+        assertWithMessage("a window may open again, so §4 marks this retryable")
+            .that(data.get("retryable").getAsBoolean()).isTrue();
+    }
+
+    @Test(timeOut = 60_000)
+    void aWaitThatExpiresIsTimeoutWithExitFourAndWhatItLastSaw() throws Exception {
+        JsonObject data = assertError(callOnServer("pane.wait_output", ControlApiScenarioFixtures.params(
+                "pane", LOCAL_PANE, "contains", "this never appears",
+                "timeout_ms", 300, "poll_ms", 50)), ControlErrorCode.TIMEOUT);
+        assertWithMessage("a wait that expired is the one failure the CLI reports as exit 4, so a"
+                + " script can tell 'still working' from 'it broke'")
+            .that(data.get("exit").getAsInt()).isEqualTo(4);
+        assertThat(data.get("waited_millis").getAsLong()).isAtLeast(0L);
+        assertWithMessage("§6 requires data.last_line, so a human can see what the pane did show")
+            .that(data.has("last_line")).isTrue();
+    }
+
+    @Test(timeOut = 60_000)
+    void everyRefusalCarriesTheThreeInvariantDataFieldsAndAMessage() throws Exception {
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(endpoint)) {
+            wire.authenticate(endpoint.token());
+            JsonObject frame = wire.call("pane.get", ControlApiScenarioFixtures.params("pane", "p0000"));
+            JsonObject error = frame.getAsJsonObject("error");
+            assertThat(error.get("message").getAsString()).isNotEmpty();
+            assertWithMessage("data.code, data.retryable and data.exit are invariants of every error")
+                .that(error.getAsJsonObject("data").keySet())
+                .containsAtLeast("code", "retryable", "exit");
+            assertWithMessage("a refused request must leave the connection usable; only a line the"
+                    + " codec could not delimit closes it")
+                .that(wire.call("ping", new JsonObject()).has("result")).isTrue();
+        }
+    }
+
+    @Test
+    void aScenarioExistsForEveryCodeTheServerCanActuallyRaise() {
+        for (ControlErrorCode code : WITHOUT_A_WIRE_SCENARIO) {
+            assertWithMessage("%s is documented in §4 but has no reachable raise site in the shipped"
+                    + " server; this is reported as a contract violation, not accommodated by"
+                    + " weakening the table above", code.wire())
+                .that(ControlErrorCode.forWire(code.wire())).isPresent();
+        }
+        // All 30 codes now have a provoking test in this class. Keeping the count here means a code
+        // added to the enum without a scenario fails this test rather than passing unnoticed.
+        assertThat(ControlErrorCode.values().length - WITHOUT_A_WIRE_SCENARIO.size()).isEqualTo(30);
+    }
+
+    // --- helpers ------------------------------------------------------------------------------
+
+    /** Authenticates, sends one request to the default server and returns the reply frame. */
+    private JsonObject callOnServer(String method, JsonObject params) throws IOException {
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(endpoint)) {
+            wire.authenticate(endpoint.token());
+            return wire.call(method, params);
+        }
+    }
+
+    /** Asserts the frame is the documented refusal, reading every expectation from the enum. */
+    private static JsonObject assertError(JsonObject frame, ControlErrorCode expected) {
+        assertWithMessage("expected %s but the server sent nothing", expected.wire())
+            .that(frame).isNotNull();
+        assertWithMessage("expected %s but the server answered %s", expected.wire(), frame)
+            .that(frame.has("error")).isTrue();
+        JsonObject error = frame.getAsJsonObject("error");
+        assertWithMessage("the JSON-RPC number of %s", expected.wire())
+            .that(error.get("code").getAsInt()).isEqualTo(expected.jsonRpcCode());
+        JsonObject data = error.getAsJsonObject("data");
+        assertWithMessage("data.code is the stable contract a client branches on")
+            .that(data.get("code").getAsString()).isEqualTo(expected.wire());
+        assertWithMessage("data.exit is supplied by the server so the CLI needs no second table")
+            .that(data.get("exit").getAsInt()).isEqualTo(expected.cliExit());
+        assertWithMessage("data.retryable tells an automated caller whether to try again")
+            .that(data.get("retryable").getAsBoolean()).isEqualTo(expected.retryable());
+        return data;
+    }
+
+    /** The same scenery behind a gate the test can close mid-connection. */
+    private ControlApiServer startGatedServer(
+            java.util.function.Supplier<ControlApiGate.Verdict> gate) {
+        return startOwnServer(surface, gate);
+    }
+
+    /** A second server over a different scenario surface. */
+    private ControlApiServer startServerFor(ControlSurface ownSurface) {
+        return startOwnServer(ownSurface, () -> ControlApiGate.Verdict.OPEN);
+    }
+
+    /**
+     * Builds one more real server in the same temp tree.
+     *
+     * <p>It gets its own configuration directory below {@code root} so the fixture server's socket
+     * and {@code endpoint.json} stay untouched; both are unlinked by their own {@code close()}.
+     */
+    private ControlApiServer startOwnServer(ControlSurface ownSurface,
+                                            java.util.function.Supplier<ControlApiGate.Verdict> gate) {
+        CodingAgentActions actions =
+            new CodingAgentActions(agents, new FakePaneAccess(), (verb, pane, detail) -> { });
+        Path configDir = root.resolve("s" + extraServers.size());
+        ControlApiScenarioFixtures.skipIfSocketPathTooLong(
+            configDir.resolve(ControlDirectory.DIRECTORY_NAME));
+        ScheduledExecutorService timer = new ScheduledThreadPoolExecutor(1, runnable -> {
+            Thread thread = new Thread(runnable, "kt-error-contract-timer");
+            thread.setDaemon(true);
+            return thread;
+        });
+        extraTimers.add(timer);
+        String instanceId = UUID.randomUUID().toString();
+        MethodRegistry methods = ControlVerbs.build(ownSurface, UiDispatcher.DIRECT, agents, actions,
+            new ControlEventBus(timer, System::currentTimeMillis), (verb, pane, detail) -> { }, null,
+            System::currentTimeMillis, "3.4.1", instanceId);
+        ControlApiServer own = new ControlApiServer(configDir,
+            ControlApiScenarioFixtures.nativeProbe(), methods, gate, System::currentTimeMillis,
+            "3.4.1", instanceId);
+        extraServers.add(own);
+        own.applyEnabledState();
+        assertWithMessage("the extra server must be listening before the scenario runs")
+            .that(own.status()).isEqualTo(ControlApiStatus.RUNNING);
+        return own;
+    }
+
+    private void register(String paneId, CodingAgentState state, String evidence) {
+        PaneRef ref = ControlApiScenarioFixtures.paneRef(TAB, paneId);
+        agents.onEvent(new CodingAgentEvent(ref, DetectionResult.NONE,
+            DetectionResult.of(CodingAgentKind.CLAUDE_CODE, state, "claude.rule", evidence),
+            new AgentProcess(DEAD_PID, CodingAgentKind.CLAUDE_CODE, "claude", null),
+            CodingAgentEvent.Reason.DETECTED, Instant.now()));
+    }
+
+    /** One byte over the 1 MiB cap, wrapped in an otherwise perfectly valid request. */
+    private static String oversizedLine() {
+        String prefix = "{\"jsonrpc\":\"2.0\",\"id\":99,\"method\":\"ping\",\"params\":{\"pad\":\"";
+        String suffix = "\"}}";
+        int padding = ControlApiProtocol.MAX_LINE_BYTES + 1 - prefix.length() - suffix.length();
+        return prefix + "x".repeat(padding) + suffix;
+    }
+
+    private static List<String> strings(JsonArray array) {
+        List<String> values = new ArrayList<>();
+        if (array != null) {
+            array.forEach(element -> values.add(element.getAsString()));
+        }
+        return values;
+    }
+}

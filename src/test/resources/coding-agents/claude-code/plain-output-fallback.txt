@@ -1,0 +1,19 @@
+#! expect state=IDLE rule=none
+#! title=✳ Claude Code
+#! alt=false
+❯ explain the retry loop in SshReconnectPolicy
+
+⏺ The retry loop lives in SshReconnectPolicy.next(). Each attempt is described by a small record
+  holding the attempt number, the delay before the next try and the reason for the last failure.
+
+  1. nextDelay(attempt) multiplies the base delay by min(attempt, 6), so the delay grows linearly
+     for the first six attempts and then stays flat instead of growing without bound.
+  2. shouldRetry(failure) returns false for authentication failures and for an explicit user
+     disconnect, so those never re-enter the loop.
+  3. The loop itself is driven by SshConnector.reconnect(), which sleeps for nextDelay() on the
+     connector's own executor and re-checks isClosed() before every attempt.
+
+  The only surprising part is that a host-key mismatch counts as retryable: the policy assumes
+  the user will fix known_hosts while the loop keeps trying.
+
+  Showing detailed transcript · ctrl+o to toggle

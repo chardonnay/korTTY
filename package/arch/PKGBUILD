@@ -47,6 +47,13 @@ package() {
     return 1
   fi
 
+  # The control CLI, when the app image carries it. cp -a above already installed the binary; this
+  # only adds the PATH entry. /usr/bin/kortty stays the GUI. Guarded rather than required so an
+  # older app image (or a tarball built before the second launcher existed) still packages.
+  if [[ -x "$pkgdir/usr/lib/kortty/bin/kortty-cli" ]]; then
+    ln -s /usr/lib/kortty/bin/kortty-cli "$pkgdir/usr/bin/kortty-cli"
+  fi
+
   # Desktop entry
   install -d "$pkgdir/usr/share/applications"
   install -m644 "$srcdir/kortty.desktop" "$pkgdir/usr/share/applications/kortty.desktop"

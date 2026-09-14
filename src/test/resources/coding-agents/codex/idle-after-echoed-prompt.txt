@@ -1,0 +1,18 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=false
+› Run the setup script and then the integration tests
+
+• Ran ./setup.sh
+  └ Checking prerequisites… ok
+    This will overwrite config. Continue? [y/n] n
+    Aborted by user.
+
+• Ran grep -n "Yes (y)" scripts/prompt.sh
+  └ 12:  echo "Yes (y) / No (n)"
+
+• The setup script refuses to overwrite your config without confirmation, so I stopped there.
+  Tell me whether I may answer yes, or run it yourself and I'll continue with the tests.
+
+› Ask Codex to do anything
+
+  ⏎ send   ⇧⏎ newline   ⌃T transcript   ⌃C quit                     gpt-5-codex · 80% context left

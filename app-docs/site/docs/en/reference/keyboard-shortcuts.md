@@ -35,6 +35,8 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | ++ctrl+alt+t++ | Start / stop the session journal of the active tab |
 | ++ctrl+alt+c++ | Add a screenshot to the running session journal |
 | ++ctrl+alt+l++ | Show/hide the live journal panel on its last-used side |
+| ++ctrl+alt+g++ | Show/hide the Coding Agents panel on its last-used side |
+| ++ctrl+alt+n++ | Jump to the next coding agent waiting for a decision, across windows |
 | ++ctrl+shift+a++ | ASCII Art |
 | ++ctrl+shift+y++ | Open AI Manager |
 | ++ctrl+alt+a++ | Open AI Agent |

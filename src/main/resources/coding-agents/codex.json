@@ -1,0 +1,42 @@
+{
+  "kind": "CODEX",
+  "version": 1,
+  "comment": "Written against Codex CLI 2026 (Rust/ratatui TUI). Codex was not available in the sandbox: screens were transcribed from documented UI text and must be re-verified against live sessions. The command/patch approval dialog ('Allow command?', 'Yes (y)', '[y/n]'), the trust-directory prompt and the 'press enter to confirm or esc to cancel' forms are BLOCKED; the '• Working (…s • esc to interrupt)' status line is WORKING; the '›' composer with its '⏎ send' footer is IDLE. The composer stays visible while Codex works, so the idle rule vetoes on 'esc to interrupt' and has the lowest priority; the approval rule vetoes on it too and anchors its patterns, because command output echoed in the transcript ('Continue? [y/n] n') must not read as an approval dialog. No rule depends on the alternate-screen flag.",
+  "fallbackState": "IDLE",
+  "rules": [
+    {
+      "id": "approval-prompt",
+      "state": "BLOCKED",
+      "priority": 1000,
+      "region": { "bottomNonEmptyLines": 20 },
+      "anyLineRegex": [
+        "(?i)^\\s*Allow command\\?",
+        "(?i)^\\s*›?\\s*1\\.\\s*Yes \\(y\\)",
+        "\\[y/n\\]\\s*$",
+        "(?i)press enter to confirm or esc to cancel",
+        "(?i)enter to submit (answer|all)",
+        "(?i)Do you trust the contents of this directory"
+      ],
+      "notContains": ["esc to interrupt"]
+    },
+    {
+      "id": "working",
+      "state": "WORKING",
+      "priority": 900,
+      "region": { "bottomNonEmptyLines": 8 },
+      "anyLineRegex": [
+        "^\\s*[•◦]\\s+Working\\b",
+        "(?i)esc to interrupt"
+      ],
+      "notContains": ["■ Conversation interrupted"]
+    },
+    {
+      "id": "idle-prompt",
+      "state": "IDLE",
+      "priority": 100,
+      "region": { "bottomNonEmptyLines": 6 },
+      "anyLineRegex": ["^\\s*›", "⏎ send"],
+      "notContains": ["esc to interrupt"]
+    }
+  ]
+}

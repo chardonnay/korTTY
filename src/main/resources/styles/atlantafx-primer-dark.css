@@ -86,6 +86,11 @@
     -kortty-dash-border: -color-border-muted;
     -kortty-dash-hover: -color-neutral-subtle;
     -kortty-dash-selected: -color-accent-subtle;
+    -kortty-dash-agent-blocked: -color-warning-emphasis;
+    -kortty-dash-agent-working: -color-accent-emphasis;
+    -kortty-dash-agent-done: -color-success-emphasis;
+    -kortty-dash-agent-blocked-tint: -color-warning-muted;
+    -kortty-dash-agent-chip-fg: -color-fg-emphasis;
 }
 
 .dashboard-menu-icon {

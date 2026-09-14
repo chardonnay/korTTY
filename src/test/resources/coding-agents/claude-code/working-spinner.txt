@@ -1,0 +1,19 @@
+#! expect state=WORKING rule=working-spinner
+#! title=✶ Claude Code
+#! alt=false
+❯ add a regression test for the reconnect race in MoshConnector
+
+⏺ I'll look at the existing connector tests first so the new test matches their structure.
+
+⏺ Read(src/test/java/de/kortty/core/MoshConnectorTest.java)
+  ⎿  Read 182 lines
+
+⏺ Search(pattern: "reconnect", path: "src/main/java/de/kortty/core")
+  ⎿  Found 7 files
+
+✻ Thinking… (12s · ↓ 1.4k tokens · esc to interrupt)
+
+────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────
+  ? for shortcuts                                              ⏵⏵ accept edits on

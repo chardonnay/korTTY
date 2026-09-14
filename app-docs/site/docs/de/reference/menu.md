@@ -113,6 +113,9 @@ The three session-journal items stay visible but are disabled when an [enterpris
 | AI-Agent-Panel ▸ Unten / Links andocken / Rechts andocken | | Wählen Sie, wo sich das AI-Agent-Aktivitätspanel befindet |
 | Live Journal ▸ Links andocken / Rechts andocken | | Docken Sie an [Live-Journal-Panel](../features/session-journal.md#das-live-journal-panel) neben dem Terminal; Wenn Sie die aktive Seite auswählen, wird sie ausgeblendet |
 | Live Journal ▸ Show/Hide | ++ctrl+alt+l++ | Toggle the live journal panel on its last-used side (right by default) |
+| Coding-Agents ▸ Links andocken / Rechts andocken | | Docken Sie das [Coding-Agents-Panel](../features/coding-agents.md#das-coding-agents-panel) neben dem Terminal an; die Auswahl der aktiven Seite blendet es aus |
+| Coding-Agents ▸ Ein-/Ausblenden | ++ctrl+alt+g++ | Blenden Sie das Coding-Agents-Panel auf seiner zuletzt verwendeten Seite ein oder aus (standardmäßig rechts) |
+| Coding-Agents ▸ Nächster wartender Agent | ++ctrl+alt+n++ | Holen Sie den nächsten Coding-Agent, der auf eine Entscheidung wartet, über Fenster hinweg nach vorne |
 
 ## Teamarbeit
 

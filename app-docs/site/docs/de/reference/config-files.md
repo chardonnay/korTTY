@@ -33,6 +33,10 @@ KorTTY speichert alle Anwendungsdaten und Konfigurationen im Verzeichnis `~/.kor
 ├── master.key                         # Hashed master password (PBKDF2)
 ├── master.autounlock                  # Optional auto-login password (obfuscated; owner-only)
 ├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
+├── coding-agents/                     # User overrides for coding-agent detection rules
+├── control/                           # Control API endpoint (owner-only 0700; only while enabled)
+│   ├── control.sock                   # Unix socket (Linux/macOS); absent on Windows
+│   └── endpoint.json                  # Transport, port and access token (0600); deleted on exit
 ├── kortty.log                         # Application log file
 ├── history/                           # Terminal session history (compressed)
 ├── journals/                          # Session journals (one directory per journal)
@@ -292,6 +296,11 @@ Wird nur geschrieben, während [auto-login](settings/security.md) aktiviert ist:
 Textdatei mit den IDs der deaktivierten Terminaleffekt-Plugins (eine pro Zeile).
 
 **Zweck:** Wenn Sie ein Terminaleffekt-Plugin über *Plugins > Terminaleffekte* deaktivieren, wird seine ID in diese Datei geschrieben, sodass es nach dem Neustart deaktiviert bleibt.
+
+### coding-agents/
+Optionale Benutzerüberschreibungen für die Regeln der Coding-Agent-Erkennung, eine JSON-Datei pro Agent (`claude-code.json`, `codex.json`, `gemini-cli.json`).
+
+**Zweck:** Eine Datei hier ersetzt die mitgelieferte Regeldatei desselben Agents vollständig. Eine ungültige Datei wird im Protokoll als *coding-agents*-Warnung gemeldet, und die mitgelieferten Regeln bleiben in Kraft. Das Verzeichnis existiert erst, wenn Sie es anlegen. Siehe [Coding-Agents → Eigene Regeln](../features/coding-agents.md#eigene-regeln).
 
 ### kortty.log
 Anwendungsprotokolldatei.

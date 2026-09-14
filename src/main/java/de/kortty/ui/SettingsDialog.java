@@ -163,6 +163,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox closeActiveTerminalWindowsWithoutConfirmationCheck;
     private final CheckBox terminalRecordingAlwaysEnabledCheck;
     private final CheckBox terminalRecordingCaptureColorsCheck;
+    private final CheckBox codingAgentDetectionCheck;
+    private final CheckBox codingAgentNotificationsCheck;
+    private final CheckBox codingAgentAppBadgeCheck;
+    private final CheckBox controlApiEnabledCheck;
+    private final Label controlApiStatusLabel;
 
     // Appearance settings
     private final ComboBox<AppDesign> appDesignCombo;
@@ -782,6 +787,30 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         autoReconnectEnabledCheck = new CheckBox(I18n.get("settings.connection.autoReconnect"));
         autoReconnectEnabledCheck.setSelected(globalSettings != null ? globalSettings.isAutoReconnectEnabled() : true);
         autoReconnectEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.connection.autoReconnect.tooltip")));
+
+        // Coding-agent detection (local shell tabs)
+        codingAgentDetectionCheck = new CheckBox(I18n.get("settings.codingAgent.detectionEnabled"));
+        codingAgentDetectionCheck.setSelected(globalSettings == null || globalSettings.isCodingAgentDetectionEnabled());
+        codingAgentDetectionCheck.setTooltip(new Tooltip(I18n.get("settings.codingAgent.detectionEnabled.tooltip")));
+        codingAgentNotificationsCheck = new CheckBox(I18n.get("settings.codingAgent.notificationsEnabled"));
+        codingAgentNotificationsCheck.setSelected(
+            globalSettings == null || globalSettings.isCodingAgentNotificationsEnabled());
+        codingAgentNotificationsCheck.setTooltip(
+            new Tooltip(I18n.get("settings.codingAgent.notificationsEnabled.tooltip")));
+        codingAgentAppBadgeCheck = new CheckBox(I18n.get("settings.codingAgent.appBadgeEnabled"));
+        codingAgentAppBadgeCheck.setSelected(globalSettings == null || globalSettings.isCodingAgentAppBadgeEnabled());
+        codingAgentAppBadgeCheck.setTooltip(new Tooltip(I18n.get("settings.codingAgent.appBadgeEnabled.tooltip")));
+
+        controlApiEnabledCheck = new CheckBox(I18n.get("settings.controlApi.enabled"));
+        controlApiEnabledCheck.setSelected(globalSettings != null && globalSettings.isControlApiEnabled());
+        controlApiEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.controlApi.enabled.tooltip")));
+        // After setTooltip, never before: lockIfManaged replaces the tooltip with the managed-by-your-
+        // organization hint, and the user needs to see the reason the box cannot be ticked.
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(
+            controlApiEnabledCheck, de.kortty.policy.ManagedSetting.CONTROL_API);
+        controlApiStatusLabel = new Label(controlApiStatusText());
+        controlApiStatusLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        controlApiStatusLabel.setWrapText(true);
         
         terminalGrid.add(new Label(I18n.get("settings.terminal.columns")), 0, 0);
         terminalGrid.add(columnsSpinner, 1, 0);
@@ -825,6 +854,31 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalGrid.add(connectionHeader, 0, 19, 2, 1);
         terminalGrid.add(connectionRetriesEnabledCheck, 0, 20, 2, 1);
         terminalGrid.add(autoReconnectEnabledCheck, 0, 21, 2, 1);
+
+        // Coding agents section
+        terminalGrid.add(new Separator(), 0, 22, 2, 1);
+        Label codingAgentHeader = new Label(I18n.get("settings.codingAgent.header"));
+        codingAgentHeader.setStyle("-fx-font-weight: bold;");
+        terminalGrid.add(codingAgentHeader, 0, 23, 2, 1);
+        terminalGrid.add(codingAgentDetectionCheck, 0, 24, 2, 1);
+        Label codingAgentInfo = new Label(I18n.get("settings.codingAgent.detectionEnabled.info"));
+        codingAgentInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        codingAgentInfo.setWrapText(true);
+        terminalGrid.add(codingAgentInfo, 0, 25, 2, 1);
+        terminalGrid.add(codingAgentNotificationsCheck, 0, 26, 2, 1);
+        terminalGrid.add(codingAgentAppBadgeCheck, 0, 27, 2, 1);
+
+        // Control API section
+        terminalGrid.add(new Separator(), 0, 28, 2, 1);
+        Label controlApiHeader = new Label(I18n.get("settings.controlApi.header"));
+        controlApiHeader.setStyle("-fx-font-weight: bold;");
+        terminalGrid.add(controlApiHeader, 0, 29, 2, 1);
+        terminalGrid.add(controlApiEnabledCheck, 0, 30, 2, 1);
+        Label controlApiInfo = new Label(I18n.get("settings.controlApi.enabled.info"));
+        controlApiInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        controlApiInfo.setWrapText(true);
+        terminalGrid.add(controlApiInfo, 0, 31, 2, 1);
+        terminalGrid.add(controlApiStatusLabel, 0, 32, 2, 1);
 
         LazyTabContent.defer(terminalTab, () -> terminalGrid);
 
@@ -2882,6 +2936,21 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 // Save global settings
                 try {
                     app.getGlobalSettingsManager().save();
+                    if (app.getCodingAgentService() != null) {
+                        // Re-read the toggle for every open local shell pane right away.
+                        app.getCodingAgentService().evaluateAll();
+                    }
+                    if (app.getAppBadgeService() != null) {
+                        // Re-reads the badge toggle: applies the current count or clears the badge.
+                        // The notification toggle is read live by the coordinator on every decision.
+                        app.getAppBadgeService().refresh();
+                    }
+                    if (app.getControlApiServer() != null) {
+                        // Ticking the box opens the listener and unticking it unlinks the socket;
+                        // the server re-reads the gate rather than being told what the user chose.
+                        app.getControlApiServer().applyEnabledState();
+                        controlApiStatusLabel.setText(controlApiStatusText());
+                    }
                     app.applyLoggingSettings();
                     app.restartUpdateCheckService();
                     if (app.getTelemetryService() != null) {
@@ -3036,6 +3105,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             );
             globalSettings.setTerminalRecordingEnabled(terminalRecordingAlwaysEnabledCheck.isSelected());
             globalSettings.setTerminalRecordingCaptureColorsEnabled(terminalRecordingCaptureColorsCheck.isSelected());
+            globalSettings.setCodingAgentDetectionEnabled(codingAgentDetectionCheck.isSelected());
+            globalSettings.setCodingAgentNotificationsEnabled(codingAgentNotificationsCheck.isSelected());
+            globalSettings.setCodingAgentAppBadgeEnabled(codingAgentAppBadgeCheck.isSelected());
+            globalSettings.setControlApiEnabled(controlApiEnabledCheck.isSelected());
             globalSettings.setRequireMasterPasswordOnStartup(requireMasterPasswordOnStartupCheck.isSelected());
             boolean skipPrompt = skipMasterPasswordPromptCheck.isSelected();
             // Only touch the remembered-password file when the option actually changes — or when it
@@ -3266,6 +3339,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("terminal", "copy_on_select", gs::isTerminalCopyOnSelectEnabled, true));
             tracked.add(new TrackedSetting("terminal", "close_without_confirmation",
                 gs::isCloseActiveTerminalWindowsWithoutConfirmation, true));
+            tracked.add(new TrackedSetting("terminal", "coding_agent_detection", gs::isCodingAgentDetectionEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "coding_agent_notifications",
+                gs::isCodingAgentNotificationsEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "coding_agent_app_badge", gs::isCodingAgentAppBadgeEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "control_api_enabled", gs::isControlApiEnabled, true));
             tracked.add(new TrackedSetting("video", "recording_enabled", gs::isTerminalRecordingEnabled, true));
             tracked.add(new TrackedSetting("video", "capture_colors", gs::isTerminalRecordingCaptureColorsEnabled, true));
             tracked.add(new TrackedSetting("backup", "max_count", gs::getMaxBackupCount, true));
@@ -6209,5 +6287,26 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             new Alert(Alert.AlertType.ERROR, I18n.get("settings.translation.error.generationFailed") + ": " + (t != null ? t.getMessage() : "")).showAndWait();
         });
         new Thread(task).start();
+    }
+
+    /**
+     * The Control API status line, rendered from the server's own state rather than from the
+     * checkbox: the two can legitimately disagree — policy can deny the feature, and a start can fail
+     * because another korTTY already owns the socket — and the user needs to see which it is.
+     */
+    private String controlApiStatusText() {
+        de.kortty.KorTTYApplication application = de.kortty.KorTTYApplication.getInstance();
+        de.kortty.control.ControlApiServer server =
+            application == null ? null : application.getControlApiServer();
+        if (server == null) {
+            return I18n.get("settings.controlApi.status.disabled");
+        }
+        return switch (server.status()) {
+            case DISABLED -> I18n.get("settings.controlApi.status.disabled");
+            case BLOCKED_BY_POLICY -> I18n.get("settings.controlApi.status.blockedByPolicy");
+            case RUNNING -> I18n.get("settings.controlApi.status.running",
+                server.endpoint().map(de.kortty.control.EndpointDescriptor::displayText).orElse(""));
+            case FAILED -> I18n.get("settings.controlApi.status.failed", server.statusDetail());
+        };
     }
 }

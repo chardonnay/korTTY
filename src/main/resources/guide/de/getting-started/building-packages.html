@@ -163,6 +163,22 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../reference/control-api.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Steuerungs-API
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/cli.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Steuerungs-CLI
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="#" class="
             drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
             data-bs-toggle="collapse" data-bs-target="#einstellungen-collapse" aria-expanded="false">
@@ -545,6 +561,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/coding-agents.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Coding-Agents
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/i18n.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -787,6 +811,10 @@
 <div class="admonition important">
 <p class="admonition-title">Ein App-Image ist keine einzelne ausführbare Datei</p>
 <p>Unter macOS ist das App-Image das vollständige <code>korTTY.app</code>-Bundle, unter Windows das vollständige <code>korTTY</code>-Verzeichnis mit <code>korTTY.exe</code> und unter Linux das vollständige <code>korTTY</code>-Verzeichnis mit <code>bin/korTTY</code>. Durch das Verschieben nur des Launchers wird die Anwendung unterbrochen, da ihre Laufzeit und Bibliotheken in Geschwisterverzeichnissen verbleiben. Das Linux-Verzeichnis ist keine <code>.AppImage</code>-Datei.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Zwei Starter je Image</p>
+<p>Jedes App-Image trägt außerdem <code>kortty-cli</code>, den Client für die <a href="../reference/control-api.html">Steuerungs-API</a>. Er wird einmal über <code>--add-launcher</code> von <code>jpackage</code> in der gemeinsamen Argumentliste deklariert, sodass ihn jedes Image und jeder Installer erbt. Seine Properties-Datei erzeugt die Aufgabe <code>prepareCliLauncherProperties</code> in <code>build/jpackage-launchers/</code> – bewusst außerhalb von <code>build/jpackage-input/</code>, dessen Inhalt vollständig in das ausgelieferte Image kopiert wird. Die DMG-Aufgabe verpackt das fertige <code>.app</code> neu und erbt den Starter, statt ihn ein zweites Mal zu deklarieren. Der Name <code>kortty-cli</code> ist nicht gegen <code>kortty</code> austauschbar: der grafische Starter heißt <code>korTTY</code>, und auf den Groß-/Kleinschreibung ignorierenden Dateisystemen von macOS und Windows würden beide kollidieren.</p>
 </div>
 <h2 id="allgemeine-voraussetzungen">Allgemeine Voraussetzungen<a class="headerlink" href="#allgemeine-voraussetzungen" title="Permanent link">&para;</a></h2>
 <p>Installieren Sie diese Tools, bevor Sie auf einem Betriebssystem aufbauen:</p>

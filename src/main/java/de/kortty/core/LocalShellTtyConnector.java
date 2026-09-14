@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.OptionalLong;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -511,6 +512,28 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
                 .orElse(false);
         } catch (UnsupportedOperationException | SecurityException e) {
             return false;
+        }
+    }
+
+    /**
+     * The process ID of the local shell this connector spawned, for callers that inspect its process
+     * tree (coding-agent detection). Non-blocking. Empty under Flatpak (pty4j owns the sandbox-side
+     * flatpak-spawn client, whose PID is not the host shell), for tabs whose shell command launches a
+     * remote client such as ssh or mosh (the descendants live on another machine), when not connected,
+     * or when the platform does not expose the PID. Never exposes the PtyProcess itself.
+     */
+    public OptionalLong getShellPid() {
+        if (FlatpakSupport.isRunningInFlatpak() || remoteClientShell) {
+            return OptionalLong.empty();
+        }
+        PtyProcess localPty = ptyProcess;
+        if (localPty == null || !isConnected()) {
+            return OptionalLong.empty();
+        }
+        try {
+            return OptionalLong.of(localPty.pid());
+        } catch (UnsupportedOperationException | SecurityException e) {
+            return OptionalLong.empty();
         }
     }
 

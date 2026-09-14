@@ -33,6 +33,10 @@ KorTTY stores all application data and configuration under the `~/.kortty/` dire
 ├── master.key                         # Hashed master password (PBKDF2)
 ├── master.autounlock                  # Optional auto-login password (obfuscated; owner-only)
 ├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
+├── coding-agents/                     # User overrides for coding-agent detection rules
+├── control/                           # Control API endpoint (owner-only 0700; only while enabled)
+│   ├── control.sock                   # Unix socket (Linux/macOS); absent on Windows
+│   └── endpoint.json                  # Transport, port and access token (0600); deleted on exit
 ├── kortty.log                         # Application log file
 ├── history/                           # Terminal session history (compressed)
 ├── journals/                          # Session journals (one directory per journal)
@@ -292,6 +296,11 @@ Written only while [auto-login](settings/security.md) is enabled: a copy of the 
 Text file listing disabled terminal-effect plugin IDs (one per line).
 
 **Purpose:** When you disable a terminal-effect plugin via *Plugins > Terminal Effects*, its ID is written to this file so it remains disabled after restart.
+
+### coding-agents/
+Optional user overrides for the coding-agent detection rules, one JSON file per agent (`claude-code.json`, `codex.json`, `gemini-cli.json`).
+
+**Purpose:** A file here replaces the bundled rule file of the same agent entirely. An invalid file is reported in the log as a *coding-agents* warning and the bundled rules stay in effect. The directory does not exist until you create it. See [Coding agents → Custom rules](../features/coding-agents.md#custom-rules).
 
 ### kortty.log
 Application log file.

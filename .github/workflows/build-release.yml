@@ -443,6 +443,21 @@ jobs:
 
           echo "Validated macOS app launcher architecture: $launcher_archs."
 
+          cli="build/jpackage/korTTY.app/Contents/MacOS/kortty-cli"
+          if [ ! -x "$cli" ]; then
+            echo "Expected control CLI launcher not found or not executable: $cli"
+            exit 1
+          fi
+          cli_archs="$(lipo -archs "$cli" | xargs)"
+          if [ "$cli_archs" != "$expected_lipo_arch" ]; then
+            echo "Control CLI architecture mismatch: expected '$expected_lipo_arch', got '${cli_archs:-unknown}'."
+            exit 1
+          fi
+          # --version is the only command that needs no running korTTY, so it is the one smoke test
+          # that works on a headless release runner.
+          "$cli" --version
+          echo "Validated control CLI launcher architecture: $cli_archs."
+
       - name: Store Apple notarization credentials
         if: matrix.platform == 'macos'
         shell: bash
@@ -690,6 +705,22 @@ jobs:
             Write-Error "Windows x86_64 artifact has the wrong PE machine (launcher=0x$('{0:X4}' -f $launcherMachine), jvm=0x$('{0:X4}' -f $jvmMachine))."
             exit 1
           }
+          $cli = Get-ChildItem -Path $appImage -Filter "kortty-cli.exe" -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $cli) {
+            Write-Error "Control CLI launcher kortty-cli.exe not found in $appImage."
+            exit 1
+          }
+          $cliMachine = Get-PeMachine $cli.FullName
+          if ($cliMachine -ne 0x8664 -and $cliMachine -ne 0xAA64) {
+            Write-Error "Control CLI has the wrong PE machine (0x$('{0:X4}' -f $cliMachine))."
+            exit 1
+          }
+          # --version is the only command that needs no running korTTY.
+          & $cli.FullName --version
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "kortty-cli --version exited with $LASTEXITCODE."
+            exit 1
+          }
           Compress-Archive -Path $appImage -DestinationPath (Join-Path $jpackageDir "$artifactBase.zip") -Force
           if (Test-Path korTTY-*.msi) {
             $msiFile = Get-Item korTTY-*.msi | Select-Object -First 1
@@ -709,6 +740,10 @@ jobs:
             ls -la
             exit 1
           fi
+          # The control CLI ships inside the same directory archive; verify it before packing.
+          # --version is the only command that needs no running korTTY.
+          test -x "$app_dir/bin/kortty-cli"
+          "$app_dir/bin/kortty-cli" --version
           tar -czf kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.tar.gz "$app_dir"
           zip -r kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.zip "$app_dir"
           for f in kortty*.deb; do [ -f "$f" ] && cp "$f" "kortty-Linux-${{ steps.version.outputs.version }}-${{ matrix.arch }}.deb" && break; done
@@ -757,6 +792,8 @@ jobs:
           test "$(flatpak info --user --show-ref "$APP_ID")" = "app/${APP_ID}/${ARCH}/stable"
           test "$(dbus-run-session -- flatpak run --command=flatpak-spawn "$APP_ID" --host sh -lc 'printf kortty-flatpak-host-ok')" = \
             "kortty-flatpak-host-ok"
+          # The control CLI inside the sandbox; `command:` stays the GUI.
+          dbus-run-session -- flatpak run --command=kortty-cli "$APP_ID" --version
           dbus-run-session -- xvfb-run -a timeout 90 flatpak run "$APP_ID" --webview-jit-smoke
           flatpak uninstall --user --noninteractive "$APP_ID"
 

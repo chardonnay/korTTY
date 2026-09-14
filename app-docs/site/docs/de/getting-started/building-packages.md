@@ -16,6 +16,9 @@ korTTY kann als Java-Artefakte, als eigenständiges tragbares Anwendungs-Image o
 !!! important "Ein App-Image ist keine einzelne ausführbare Datei"
     Unter macOS ist das App-Image das vollständige `korTTY.app`-Bundle, unter Windows das vollständige `korTTY`-Verzeichnis mit `korTTY.exe` und unter Linux das vollständige `korTTY`-Verzeichnis mit `bin/korTTY`. Durch das Verschieben nur des Launchers wird die Anwendung unterbrochen, da ihre Laufzeit und Bibliotheken in Geschwisterverzeichnissen verbleiben. Das Linux-Verzeichnis ist keine `.AppImage`-Datei.
 
+!!! note "Zwei Starter je Image"
+    Jedes App-Image trägt außerdem `kortty-cli`, den Client für die [Steuerungs-API](../reference/control-api.md). Er wird einmal über `--add-launcher` von `jpackage` in der gemeinsamen Argumentliste deklariert, sodass ihn jedes Image und jeder Installer erbt. Seine Properties-Datei erzeugt die Aufgabe `prepareCliLauncherProperties` in `build/jpackage-launchers/` – bewusst außerhalb von `build/jpackage-input/`, dessen Inhalt vollständig in das ausgelieferte Image kopiert wird. Die DMG-Aufgabe verpackt das fertige `.app` neu und erbt den Starter, statt ihn ein zweites Mal zu deklarieren. Der Name `kortty-cli` ist nicht gegen `kortty` austauschbar: der grafische Starter heißt `korTTY`, und auf den Groß-/Kleinschreibung ignorierenden Dateisystemen von macOS und Windows würden beide kollidieren.
+
 ## Allgemeine Voraussetzungen
 
 Installieren Sie diese Tools, bevor Sie auf einem Betriebssystem aufbauen:

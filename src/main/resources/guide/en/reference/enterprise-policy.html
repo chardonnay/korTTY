@@ -163,6 +163,22 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="control-api.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Control API
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="cli.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Control CLI
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="#" class="
             drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
             data-bs-toggle="collapse" data-bs-target="#settings-collapse" aria-expanded="false">
@@ -545,6 +561,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/coding-agents.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Coding agents
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/i18n.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -625,7 +649,7 @@
                     </a>
                 </div>
                 <div class="col">
-                    <a href="settings/index.html"
+                    <a href="control-api.html"
                         class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover" style="padding-left: 3%;">
                         Next <i class="fa fa-arrow-right"></i>
                     </a>
@@ -1004,6 +1028,12 @@
 <td>The <a href="../features/session-journal.html">session journal</a>: capture, journal bar, manager, viewer and exports. Not chained to <code>ai</code> — with AI denied the journal still records raw activity</td>
 </tr>
 <tr>
+<td><code>control-api</code></td>
+<td>string</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>The <a href="control-api.html">control API</a> and its <code>kortty-cli</code> client: <code>deny</code> stops the listener, locks the Settings checkbox and forces the setting off. Not chained to <code>ai</code> — the API is local automation, not an AI capability</td>
+</tr>
+<tr>
 <td><code>ai-agent-execution</code></td>
 <td>string</td>
 <td><code>allow</code>, <code>confirm</code>, <code>read-only</code></td>
@@ -1011,6 +1041,10 @@
 </tr>
 </tbody>
 </table>
+<div class="admonition note">
+<p class="admonition-title">Naming a feature takes it over, whichever way you decide it</p>
+<p>A policy file that mentions a key locks the corresponding control, in the position the policy chose. Writing <code>control-api = "allow"</code> therefore locks the checkbox <strong>on</strong> — users can no longer switch the API off themselves. Leave the key out entirely to leave the choice with the user; write <code>deny</code> to take it away.</p>
+</div>
 <h3 id="rulesecurity"><code>[rule.security]</code><a class="headerlink" href="#rulesecurity" title="Permanent link">&para;</a></h3>
 <table>
 <thead>

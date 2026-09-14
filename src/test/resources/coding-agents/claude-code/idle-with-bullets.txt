@@ -1,0 +1,15 @@
+#! expect state=IDLE rule=idle-prompt
+#! title=✳ Claude Code
+#! alt=false
+❯ what is left to do on the reconnect branch?
+
+⏺ Here is what is left:
+
+  * Refactor the reconnect loop… (blocked on review)
+  * Write the docs… (in progress)
+  · Cut the release… (after both of the above)
+
+────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────
+  ? for shortcuts                                              ⏵⏵ accept edits on

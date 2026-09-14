@@ -1,0 +1,1018 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+
+<head>
+        <title>Control API - korTTY Guide</title>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/guide/en/reference/control-api.html">
+        <meta name="author" content="korTTY">
+        <link rel="stylesheet" href="../assets/css/darcula-highlight.min.css">
+        <link rel="stylesheet" href="../assets/css/bootstrap.min.css">
+        <link rel="stylesheet" href="../assets/css/dracula-ui.min.css">
+        <link rel="stylesheet" href="../assets/css/mkdocs.min.css">
+        <link href="../assets/stylesheets/kortty.css" rel="stylesheet">
+        <link rel="icon" type="image/x-icon" href="../assets/images/favicon.png">
+
+
+</head>
+
+<body class="drac-bg-black-secondary drac-text-grey-ternary drac-text drac-scrollbar-purple">
+
+    <main class="d-flex">
+
+        <!-- block sidebar -->
+            <nav id="sidebar" class="sidebar drac-bg-black">
+    <div class="custom-menu">
+        <button type="button" id="sidebarCollapse" class="btn btn-primary">
+            <i class="fa fa-bars"></i>
+            <span class="sr-only">Menu</span>
+        </button>
+    </div>
+
+    <div class="p-4">
+        
+            <img class="logo" src="../assets/images/favicon.png" height="150px">
+        
+
+        <div class="drac-text-center">
+            
+                <span class="drac-text drac-line-height drac-text-white">korTTY Guide</span>
+            
+        </div>
+
+        <div class="drac-box flex-column">
+            <ul class="dot-ul">
+                <li><div class="dot-li drac-bg-cyan"></div></li>
+                <li><div class="dot-li drac-bg-green"></div></li>
+                <li><div class="dot-li drac-bg-orange"></div></li>
+                <li><div class="dot-li drac-bg-pink"></div></li>
+                <li><div class="dot-li drac-bg-purple"></div></li>
+                <li><div class="dot-li drac-bg-red"></div></li>
+                <li><div class="dot-li drac-bg-yellow"></div></li>
+            </ul>
+        </div>
+
+        <hr class="drac-divider" />
+
+        <!-- block menu -->
+        <ul class="mb-5 drac-list drac-list-none">
+            
+            <li class="drac-box">
+                <a href="../index.html"
+                    class="
+                    drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+                    Home
+                </a>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#getting-started-collapse" aria-expanded="false">
+                    Getting started
+                </a>
+                <div class="collapse" id="getting-started-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/installation.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Installation
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/building-packages.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Building korTTY packages
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/first-launch.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            First launch — master password
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/main-window.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Main window overview
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class=" active 
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover"
+                    data-bs-toggle="collapse" data-bs-target="#reference-collapse" aria-expanded="true">
+                    Reference
+                </a>
+                <div class="collapse show" id="reference-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="menu.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Menu reference
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="keyboard-shortcuts.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Keyboard shortcuts
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="architecture.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Architecture
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="config-files.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Configuration files
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="enterprise-policy.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Policy configuration
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="control-api.html"
+            class=" active 
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Control API
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="cli.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Control CLI
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="#" class="
+            drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+            data-bs-toggle="collapse" data-bs-target="#settings-collapse" aria-expanded="false">
+            Settings
+        </a>
+
+        <div class="collapse" id="settings-collapse">
+            <ul class="mb-5 drac-list drac-list-none">
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/index.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Settings reference
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/appearance.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Appearance, themes & font
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/colors.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Colors
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/terminal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/window.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Window
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/resources.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Resources
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/logging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Logging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/export.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Export
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/backup.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Backup
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/updates.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Updates
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/security.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Security
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/language.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Language
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/translation.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Translation
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/video.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Video
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/ai.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/ai-skills.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI Skills
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/sftp.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SFTP Manager
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/editor.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Editor
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="#" class="
+            drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+            data-bs-toggle="collapse" data-bs-target="#snippet-editor-collapse" aria-expanded="false">
+            Snippet editor
+        </a>
+
+        <div class="collapse" id="snippet-editor-collapse">
+            <ul class="mb-5 drac-list drac-list-none">
+                    
+    <li class="drac-box-ternary">
+        <a href="settings/snippet-editor/index.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Snippet Editor
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="hardening-options.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Hardening options
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="input-hardening.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Input hardening
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="language-migration.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Language unification
+        </a>
+    </li>
+            </ul>
+        </div>
+    </li>
+            </ul>
+        </div>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#features-collapse" aria-expanded="false">
+                    Features
+                </a>
+                <div class="collapse" id="features-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/connections.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Connections
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/terminal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal sessions
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/tunnels.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SSH Tunnels (Port Forwarding)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/jump-server.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Jump Server (Bastion Host)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/sftp.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SFTP file manager
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/file-browser.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            File browser
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/snippets.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Snippet manager
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/jobscheduler.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            JobScheduler
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/projects.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Projects (workspaces)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/teamwork.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Teamwork (shared connections)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/ai-assistant.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI assistant
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/local-models.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Local models (llama.cpp and MLX)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/rag.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            RAG knowledge stores
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/ai-tools.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal AI agent & tools
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/ai-swarm.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI Swarm
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/security.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Security — credentials, keys & encryption
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/backup.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Backup & restore
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/recording.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal recording
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/session-journal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Session journal
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/ascii-art.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            ASCII art
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/terminal-effect-plugins.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal effect plugins
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/coding-agents.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Coding agents
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/i18n.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Languages & dynamic translation
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#about-collapse" aria-expanded="false">
+                    About
+                </a>
+                <div class="collapse" id="about-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/release-notes.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Release notes
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/feedback.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Feedback & support
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/anonymous-data.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Anonymous data for application optimization
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+        </ul>
+        <!-- endblock -->
+    </div>
+</nav>
+        <!-- endblock -->
+
+        <nav class="divider drac-bg-purple-cyan"></nav>
+
+        <div class="content">
+            <!-- block header -->
+
+                <header>
+    <nav class="navbar navbar-expand-xl drac-bg-purple">
+        <div class="container-fluid">
+            
+            <button class="navbar-toggler w-100 text-center" type="button" data-bs-toggle="collapse" data-bs-target="#navbarsMenu"
+                aria-controls="navbarsMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse flex-column ml-auto" id="navbarsMenu">
+                <ul class="navbar-nav text-md-center">
+
+                    <!-- block preview -->
+                    <li class="nav-item">
+                            
+        <div class="container">
+            <div class="row row-preview">
+                <div class="col">
+                    <a href="enterprise-policy.html"
+                        class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover">
+                        <i class="fa fa-arrow-left"></i> Previous
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="cli.html"
+                        class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover" style="padding-left: 3%;">
+                        Next <i class="fa fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+                    </li>
+                    <!--  endblock -->
+
+                    <!-- block search -->
+                    <li class="nav-item">
+
+
+
+
+
+<div role="search" class="search-box kt-search">
+	<form id="rtd-search-form" class="wy-form kt-search-form" action="../search.html" method="get">
+		<input type="text" name="q" id="mkdocs-search-query"
+		class="kt-search-input drac-input drac-input-search drac-input-white drac-text-white drac-bg-black-secondary"
+		placeholder="Search docs"
+		autocomplete="off" title="Type search term here" /><button type="button" class="kt-search-clear" hidden
+		        aria-label="Clear search" title="Clear search">&times;</button>
+	</form>
+	<div id="mkdocs-search-results" class="kt-search-suggest"
+	     data-no-results-text="No results found"
+	     data-preparing-text="Preparing search …"
+	     data-more-text="Show {n} more results"></div>
+	<script>
+	  (function () {
+	    var box = document.currentScript.parentNode;
+	    var panel = box.querySelector('.kt-search-suggest');
+	    var input = box.querySelector('#mkdocs-search-query');
+	    var clear = box.querySelector('.kt-search-clear');
+
+	    // Emptying the panel is what hides it (CSS :empty), so closing is just that.
+	    function close () { while (panel.firstChild) { panel.removeChild(panel.firstChild); } }
+	    // The button is only useful once there is something to clear.
+	    function sync () { clear.hidden = !input.value; }
+
+	    input.addEventListener('input', sync);
+	    clear.addEventListener('click', function () {
+	      input.value = '';
+	      sync();
+	      // search/main.js renders on keyup, which a programmatic clear never fires, so
+	      // the panel has to be emptied here or the old hits would outlive the query.
+	      close();
+	      input.focus();
+	    });
+
+	    document.addEventListener('click', function (e) { if (!box.contains(e.target)) { close(); } });
+
+	    // Escape has to be handled on keyUP, and on the document rather than the input.
+	    // search/main.js binds doSearch to the field's keyup, so anything that closed the
+	    // panel on keydown was undone microseconds later by that re-render — which is why
+	    // Escape appeared to do nothing at all. Listening on the document means this runs
+	    // after the field's own handler has already re-rendered, so closing sticks.
+	    // What the panel looked like BEFORE that re-render is the interesting state, so it
+	    // is captured on keydown: the usual two steps, Escape dismisses the suggestions,
+	    // Escape again empties the box.
+	    var panelWasOpen = false;
+	    document.addEventListener('keydown', function (e) {
+	      if (e.key === 'Escape') {
+	        panelWasOpen = !!panel.firstChild;
+	      }
+	    });
+	    document.addEventListener('keyup', function (e) {
+	      if (e.key !== 'Escape') {
+	        return;
+	      }
+	      // Only clear the field while it has focus — Escape elsewhere on the page is not ours.
+	      if (!panelWasOpen && document.activeElement === input && input.value) {
+	        input.value = '';
+	        sync();
+	      }
+	      close();
+	    });
+
+	    sync();  // a ?q= deep link arrives with the field already filled
+	  })();
+	</script>
+</div>
+                    </li>
+                    <!--  endblock -->
+
+                    <!-- block source -->
+                    <li class="nav-item">
+                        
+                    </li>
+                    <!--  endblock -->
+
+                </ul>
+            </div>
+
+        </div>
+    </nav>
+</header>
+<div class="kt-lang-bar">
+  <a class="kt-lang-switch" href="../../de/reference/control-api.html"
+     title="Deutsch" hreflang="de">DE</a>
+</div>
+
+            <!-- endblock -->
+
+            <!-- block content -->
+                <section class="p-md-5 section-content">
+    <article>
+        <p><h1 id="control-api">Control API<a class="headerlink" href="#control-api" title="Permanent link">&para;</a></h1>
+<p>korTTY can open a <strong>local</strong> control socket so that a script or a coding agent running on the same computer can list your windows, read what a terminal pane is showing and type into it. It is the machine-facing twin of what you do with the mouse and the keyboard: nothing it can do is something you could not do yourself in an open pane.</p>
+<p>It is <strong>off by default</strong> and has to be switched on per installation under <strong>Settings › Terminal › Control API</strong>. Nothing is reachable over the network at any point, and no other user of the same computer can connect.</p>
+<div class="admonition warning">
+<p class="admonition-title">Understand what you are enabling</p>
+<p>While the Control API is on, any program running under your user account on this computer can read every open pane — local shells and SSH sessions alike — and type anything into them, including pressing <span class="keys"><kbd class="key-enter">Enter</kbd></span>. That is the same power as sitting at your keyboard. Switch it on when you want a coding agent or a script to drive korTTY, and off again when you do not.</p>
+</div>
+<h2 id="switching-it-on">Switching it on<a class="headerlink" href="#switching-it-on" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Open <strong>Settings › Terminal</strong> and scroll to <strong>Control API</strong>.</li>
+<li>Tick <strong>Allow a local program to read and control this korTTY</strong>.</li>
+<li>Save. The status line underneath tells you what happened right away — no restart is needed.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Status line</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Status: off</td>
+<td>The checkbox is unticked, or korTTY has shut the listener down.</td>
+</tr>
+<tr>
+<td>Status: blocked by your organization</td>
+<td>Enterprise policy denies the <code>control-api</code> feature; the checkbox is locked.</td>
+</tr>
+<tr>
+<td>Status: listening on …</td>
+<td>A listener is up and <code>endpoint.json</code> has been written. The text names the socket or the loopback port.</td>
+</tr>
+<tr>
+<td>Status: could not start — …</td>
+<td>The listener refused to start. The most common reason is that another korTTY already owns the socket; the text says which.</td>
+</tr>
+</tbody>
+</table>
+<p>Unticking the box stops the listener and deletes the socket immediately.</p>
+<h2 id="where-the-endpoint-lives">Where the endpoint lives<a class="headerlink" href="#where-the-endpoint-lives" title="Permanent link">&para;</a></h2>
+<p>Everything the API owns lives in its own directory, <code>~/.kortty/control/</code>, created with owner-only permissions (<code>0700</code>) <strong>before</strong> anything binds. The directory, not the socket file, is the real protection: a socket inode is created with the process umask, which on most systems is world-readable.</p>
+<table>
+<thead>
+<tr>
+<th>Platform</th>
+<th>Listener</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Linux, macOS</td>
+<td>A unix domain socket at <code>~/.kortty/control/control.sock</code></td>
+</tr>
+<tr>
+<td>Windows</td>
+<td>TCP on <code>127.0.0.1</code> with an operating-system-assigned port</td>
+</tr>
+</tbody>
+</table>
+<p>A client finds the endpoint by reading <code>~/.kortty/control/endpoint.json</code> (mode <code>0600</code>):</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span><span class="nt">"transport"</span><span class="p">:</span><span class="s2">"unix"</span><span class="p">,</span><span class="nt">"path"</span><span class="p">:</span><span class="s2">"/home/you/.kortty/control/control.sock"</span><span class="p">,</span><span class="nt">"host"</span><span class="p">:</span><span class="kc">null</span><span class="p">,</span><span class="nt">"port"</span><span class="p">:</span><span class="mi">0</span><span class="p">,</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w"> </span><span class="nt">"token"</span><span class="p">:</span><span class="s2">"kQ7f…"</span><span class="p">,</span><span class="nt">"pid"</span><span class="p">:</span><span class="mi">38211</span><span class="p">,</span><span class="nt">"app_version"</span><span class="p">:</span><span class="s2">"…"</span><span class="p">,</span><span class="nt">"protocol_version"</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w"> </span><span class="nt">"instance_id"</span><span class="p">:</span><span class="s2">"6f0c2a1e-…"</span><span class="p">,</span><span class="nt">"started_at_millis"</span><span class="p">:</span><span class="mi">1736000000000</span><span class="p">}</span>
+</span></code></pre></div>
+<p>The file is written <strong>last</strong>, after the listener is bound, so its existence always implies a reachable endpoint and a readable token. korTTY deletes it, and the socket, when the API is switched off and when the application exits.</p>
+<p>The token is 32 random bytes, regenerated on every start, and is required on <strong>both</strong> transports. On Linux and macOS the owner-only directory is the primary control and the token is defence in depth — against a loosened umask, a shared or network-mounted home directory, or a backup that copied the directory somewhere readable. On Windows it is the only control. It is never logged, never echoed in an error message, never passed on a command line and never shown in a notification: the legitimate client reads it from the file, which is the whole point.</p>
+<h2 id="speaking-the-protocol">Speaking the protocol<a class="headerlink" href="#speaking-the-protocol" title="Permanent link">&para;</a></h2>
+<p>The protocol is newline-delimited JSON-RPC 2.0 — exactly one JSON object per line, UTF-8, at most 1 MiB per line. The first request on a connection must be <code>auth</code>; anything else, and the connection is closed. One failed token closes the connection too.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>→ {"jsonrpc":"2.0","id":1,"method":"auth","params":{"token":"kQ7f…","client":"my-script"}}
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>← {"jsonrpc":"2.0","id":1,"result":{"api":"kortty-control","protocol_version":1,"transport":"unix","ids_survive_restart":false,"capabilities":["events","split","agent_start","pane_resolve"]}}
+</span></code></pre></div>
+<p>Requests on one connection are executed <strong>one at a time</strong>: the next line is read only after the previous answer has been queued. A client that needs a long wait and concurrent calls opens a second connection — up to eight at once.</p>
+<p>Rather than duplicating the method list here, ask korTTY: <code>api.schema</code> returns the full machine-readable surface — every method with its parameters, result shape, errors, CLI equivalent and a worked example, plus the key vocabulary, the error table and the limits. The parameters, results, errors and limits are generated from the same declarations the dispatcher registers, so they cannot drift from the implementation; each <code>cli</code> line is a command the shipped <code>kortty-cli</code> is tested to accept for that very method.</p>
+<h3 id="what-the-methods-do">What the methods do<a class="headerlink" href="#what-the-methods-do" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Group</th>
+<th>Methods</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>api</code></td>
+<td><code>ping</code>, <code>auth</code>, <code>api.schema</code></td>
+<td>Handshake and discovery.</td>
+</tr>
+<tr>
+<td><code>events</code></td>
+<td><code>events.subscribe</code>, <code>events.unsubscribe</code></td>
+<td>Push notifications when a coding agent changes state.</td>
+</tr>
+<tr>
+<td><code>window</code> / <code>tab</code></td>
+<td><code>window.list</code>, <code>tab.list</code>, <code>tab.focus</code></td>
+<td>Enumerate the windows and tabs, and bring one to the front.</td>
+</tr>
+<tr>
+<td><code>pane</code></td>
+<td><code>pane.list</code>, <code>pane.current</code>, <code>pane.get</code>, <code>pane.resolve</code>, <code>pane.focus</code>, <code>pane.read</code>, <code>pane.send_text</code>, <code>pane.run</code>, <code>pane.send_keys</code>, <code>pane.wait_output</code>, <code>pane.split</code>, <code>pane.close</code></td>
+<td>Read a pane, type into it, wait for output, split a local shell or close a split.</td>
+</tr>
+<tr>
+<td><code>agent</code></td>
+<td><code>agent.list</code>, <code>agent.get</code>, <code>agent.explain</code>, <code>agent.prompt</code>, <code>agent.send_keys</code>, <code>agent.wait</code>, <code>agent.rename</code>, <code>agent.start</code></td>
+<td>Work with the coding agents korTTY has detected — see <a href="../features/coding-agents.html">Coding agents</a>.</td>
+</tr>
+<tr>
+<td><code>notification</code></td>
+<td><code>notification.show</code></td>
+<td>Raise one desktop notification.</td>
+</tr>
+</tbody>
+</table>
+<p><code>tab.create</code>, <code>tab.close</code> and <code>tab.rename</code> are <strong>reserved</strong>: they answer a definite "not implemented in this version" rather than an unknown-method error, and they are listed as reserved in <code>api.schema</code>, so a client can tell "korTTY will never do this for you" apart from "you spelled it wrong".</p>
+<h3 id="addressing-a-pane">Addressing a pane<a class="headerlink" href="#addressing-a-pane" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Id</th>
+<th>Shape</th>
+<th>Lifetime</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Window</td>
+<td><code>w1</code></td>
+<td>The window's life. It is a counter, not a position, so closing another window never renumbers it.</td>
+</tr>
+<tr>
+<td>Tab</td>
+<td><code>t</code> + a UUID</td>
+<td>The tab instance.</td>
+</tr>
+<tr>
+<td>Pane</td>
+<td><code>p</code> + a short hex string</td>
+<td>The pane's life.</td>
+</tr>
+<tr>
+<td>Qualified</td>
+<td><code>w1:t9f3a…:p1a2b3c4d</code></td>
+<td>As above.</td>
+</tr>
+</tbody>
+</table>
+<p>Every parameter called <code>pane</code> also accepts a bare tab id, meaning that tab's focused pane, and the alias <code>@focused</code>, meaning the pane you are looking at. A bare <strong>window</strong> id where a pane is expected is refused as ambiguous rather than guessed at — a window usually holds several panes, and picking one silently is how a script types into the wrong terminal.</p>
+<div class="admonition note">
+<p class="admonition-title">No id survives a restart</p>
+<p>Ids are minted per korTTY run. Every reply that carries ids also carries the <code>instance</code> of the running korTTY, and every mutating method accepts an optional <code>instance</code> parameter: when it does not match, the call fails with <code>stale_instance</code> instead of writing into whatever pane inherited the id. Re-enumerate whenever <code>instance</code> changes.</p>
+</div>
+<h3 id="reading-a-pane">Reading a pane<a class="headerlink" href="#reading-a-pane" title="Permanent link">&para;</a></h3>
+<p><code>pane.read</code> has three modes. <code>visible</code> returns the live screen, including the alternate buffer, right-trimmed. <code>recent</code> returns the scrollback plus the screen, read under a single buffer lock, newest <code>lines</code> rows. <code>detection</code> returns what korTTY's coding-agent detector last published for the pane — the detector is never re-run for a request.</p>
+<p><code>pane.wait_output</code> blocks until a regular expression or a literal string appears, polling the pane. Output that appears and scrolls away inside a single poll window can be missed in <code>visible</code> mode; the default <code>recent</code> mode also searches the scrollback and does not have that gap.</p>
+<h3 id="splitting">Splitting<a class="headerlink" href="#splitting" title="Permanent link">&para;</a></h3>
+<p><code>pane.split</code> works <strong>only</strong> on a pane whose tab is a local shell. Anything else is refused with <code>unsupported</code>. The new shell is started without any dialog, so a script never ends up waiting on a window it cannot see; a split that would need a new connection needs a human, and is not offered.</p>
+<p><code>pane.close</code> refuses a tab's <strong>last</strong> pane. Closing it would leave an empty terminal area inside a still-open tab, which is exactly why korTTY's own "Close split" menu item is greyed out in that case. Close the tab yourself.</p>
+<h2 id="what-it-cannot-do">What it cannot do<a class="headerlink" href="#what-it-cannot-do" title="Permanent link">&para;</a></h2>
+<p>The threat model is a local process running as you, while the API is on. Such a process <strong>can</strong> enumerate your windows, read any pane, type into any pane including submitting commands, split a local shell, close a split pane, drive a detected coding agent, and raise a notification.</p>
+<p>It <strong>cannot</strong>:</p>
+<ul>
+<li>reach anything before you tick the box, or at all when enterprise policy denies the feature;</li>
+<li>open a new tab, a new window or a connection of any kind — there is no way to reach a server that is not already open;</li>
+<li>split anything other than a same-server local shell;</li>
+<li>close a tab, close korTTY's last pane, or rename a tab;</li>
+<li>read or write your settings, your credentials, the vault, your SSH keys or the master password;</li>
+<li>reach anything over the network — the listener is a unix socket or loopback, never anything else, and there is no setting that can widen it;</li>
+<li>act without leaving an audit line, or without a desktop notification on its first write of the run.</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Writes are not restricted to local shells — on purpose</p>
+<p>Typing is allowed into remote panes too. Restricting it would break answering a coding agent that runs over SSH, and it would not be a real boundary anyway: a caller who can reach the socket can simply run <code>ssh</code> in a local pane instead. The honest controls are the default-off switch, the policy deny, the audit line and the notification — not a filter that looks like a boundary and is not one.</p>
+</div>
+<h2 id="audit-and-visibility">Audit and visibility<a class="headerlink" href="#audit-and-visibility" title="Permanent link">&para;</a></h2>
+<p>Every action the API takes writes exactly one line to korTTY's log, carrying <strong>byte counts and shapes only</strong> — <code>bytes=28 bracketed=false submitted=true</code>, <code>keys=2</code>, <code>orientation=vertical</code> — never terminal text. The line goes to korTTY's log and only there — the API writes nothing into a tab's session journal.</p>
+<p>The first time a program types into a pane during a korTTY run you get one desktop notification. One, not one per keystroke: the point is that a takeover is never silent, not that it becomes noise you learn to dismiss. korTTY also logs a warning naming the endpoint whenever the listener starts.</p>
+<p>Actions a coding agent performs through the API are logged distinguishably from the ones you trigger in the Coding Agents panel, so reading the log tells you which was which.</p>
+<h2 id="limits">Limits<a class="headerlink" href="#limits" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Limit</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Concurrent connections</td>
+<td>8; a ninth is refused and closed</td>
+</tr>
+<tr>
+<td>Line size, in and out</td>
+<td>1 MiB</td>
+</tr>
+<tr>
+<td>Result size</td>
+<td>512 KiB, truncated with <code>truncated: true</code></td>
+</tr>
+<tr>
+<td>Unauthenticated connection</td>
+<td>closed after 5 s</td>
+</tr>
+<tr>
+<td>Longest wait</td>
+<td>10 minutes; a larger request is clamped and says so</td>
+</tr>
+<tr>
+<td>Event queue per subscription</td>
+<td>256 frames; overflow drops the oldest and reports how many</td>
+</tr>
+<tr>
+<td><code>pane.read</code> rows</td>
+<td>10 000</td>
+</tr>
+</tbody>
+</table>
+<p>A client that stops reading is disconnected rather than buffered.</p>
+<h2 id="enterprise-policy">Enterprise policy<a class="headerlink" href="#enterprise-policy" title="Permanent link">&para;</a></h2>
+<p>An administrator can deny the Control API outright with the <code>control-api</code> feature in <code>kortty-policy.toml</code>:</p>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"no-local-automation"</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="k">[rule.features]</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="n">control-api</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"deny"</span>
+</span></code></pre></div>
+<p>The checkbox is then locked with the "Managed by your organization" hint, the setting is forced off both when it is loaded and when it is saved, and the listener answers <code>blocked_by_policy</code> immediately — the gate is re-checked on every request, not only when a connection is accepted, so a policy change stops service before teardown finishes. See <a href="enterprise-policy.html">Policy configuration</a>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Writing <code>control-api = "allow"</code> also locks the checkbox — in the <strong>on</strong> position. A policy file that mentions a setting takes it over, whichever way it decides it. Leave the key out entirely to leave the choice with the user.</p>
+</div>
+<h2 id="the-client">The client<a class="headerlink" href="#the-client" title="Permanent link">&para;</a></h2>
+<p>The <code>kortty-cli</code> command that ships beside korTTY speaks this protocol and handles endpoint discovery, authentication and exit codes for you. See <a href="cli.html">Control CLI</a>.</p></p>
+    </article>
+</section>
+            <!-- endblock -->
+
+            <!-- block footer -->
+<footer class="kt-footer">
+  <div class="kt-footer__line">MIT-licensed &middot; Developed by Daniel Mengel</div>
+  <div class="kt-footer__line">korTTY <strong>v2.17.0</strong></div>
+</footer>
+
+            <!-- endblock -->
+        </div>
+
+    </main>
+
+        <script>var base_url = '..';</script>
+        <script src="../assets/js/jquery-3.3.1.slim.min.js"></script>
+        <script src="../assets/js/bootstrap.bundle.min.js"></script>
+        <script src="../assets/js/mkdocs.js"></script>
+			<script src="../assets/javascripts/kt-zoom.js" defer></script>
+			<script src="../search/main.js" defer></script>
+
+</body>
+
+</html>
