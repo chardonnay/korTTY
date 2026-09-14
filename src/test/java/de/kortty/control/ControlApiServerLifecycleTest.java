@@ -1,6 +1,7 @@
 package de.kortty.control;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 import com.google.gson.JsonObject;
 import java.io.IOException;
@@ -95,6 +96,35 @@ class ControlApiServerLifecycleTest {
         assertThat(server.endpoint()).isEmpty();
         assertThat(Files.exists(socketPath())).isFalse();
         assertThat(Files.exists(ControlEndpointFile.path(controlDir()))).isFalse();
+    }
+
+    @Test(timeOut = 30_000)
+    void aPolicyDenialIsReportedAsBlockedByPolicyAndNotAsTheUsersOwnSwitch() throws Exception {
+        server = newServer(() -> ControlApiGate.Verdict.BLOCKED_BY_POLICY);
+
+        server.applyEnabledState();
+
+        assertWithMessage("the Settings status line renders this enum; collapsing a policy deny into"
+                + " DISABLED tells the user their own unticked checkbox is the reason")
+            .that(server.status())
+            .isEqualTo(ControlApiStatus.BLOCKED_BY_POLICY);
+        assertThat(server.statusDetail()).isEqualTo("Blocked by policy");
+        assertThat(server.endpoint()).isEmpty();
+        assertThat(Files.exists(socketPath())).isFalse();
+    }
+
+    @Test(timeOut = 30_000)
+    void aListenerThatPolicyClosesLaterEndsUpBlockedByPolicyToo() throws Exception {
+        AtomicBoolean open = new AtomicBoolean(true);
+        server = newServer(() -> open.get()
+            ? ControlApiGate.Verdict.OPEN : ControlApiGate.Verdict.BLOCKED_BY_POLICY);
+        server.applyEnabledState();
+        assertThat(server.status()).isEqualTo(ControlApiStatus.RUNNING);
+
+        open.set(false);
+        server.applyEnabledState();
+
+        assertThat(server.status()).isEqualTo(ControlApiStatus.BLOCKED_BY_POLICY);
     }
 
     @Test(timeOut = 30_000)

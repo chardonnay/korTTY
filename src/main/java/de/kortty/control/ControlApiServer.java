@@ -136,17 +136,21 @@ public final class ControlApiServer implements AutoCloseable {
      */
     public void applyEnabledState() {
         synchronized (lifecycle) {
-            boolean wanted = verdict().isOpen();
-            if (wanted && listening) {
+            ControlApiGate.Verdict verdict = verdict();
+            if (verdict.isOpen() && listening) {
                 return;
             }
-            if (!wanted) {
+            if (!verdict.isOpen()) {
                 if (listening) {
                     LOG.info("control API: the gate closed, stopping the listener");
                     stop();
                 }
-                status = ControlApiStatus.DISABLED;
-                statusDetail = "Disabled";
+                // Not one refusal but two: an administrator's decision and the user's own switch read
+                // identically in the Settings status line unless the verdict is carried across, and
+                // "Status: off" for a policy deny tells the user their own checkbox is to blame.
+                boolean blocked = verdict == ControlApiGate.Verdict.BLOCKED_BY_POLICY;
+                status = blocked ? ControlApiStatus.BLOCKED_BY_POLICY : ControlApiStatus.DISABLED;
+                statusDetail = blocked ? "Blocked by policy" : "Disabled";
                 return;
             }
             start();
