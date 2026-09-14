@@ -549,16 +549,36 @@ public class DashboardView extends VBox {
         }
     }
 
-    /** Last path segment of the pane's working directory via the locator port, or null when unknown. */
+    /**
+     * Last path segment of the pane's working directory via the locator port, or null when unknown.
+     *
+     * <p>The home directory is abbreviated to {@code ~} first, with the same helper the Coding Agents
+     * panel uses, so both views write one directory the same way. Without it the home directory
+     * contributes its last segment, which is the user's account name — and a pane row reading
+     * "Pane 1 · claude" is then indistinguishable from one naming a detected agent.
+     */
     private String cwdTailFor(PaneRef pane) {
         if (paneLocator == null || pane == null) {
             return null;
         }
         try {
-            return paneLocator.locate(pane).map(PaneLocation::workingDirectory).map(DashboardView::pathTail).orElse(null);
+            return paneLocator.locate(pane)
+                .map(PaneLocation::workingDirectory)
+                .map(directory -> cwdLabel(directory, System.getProperty("user.home")))
+                .orElse(null);
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /**
+     * What a pane row puts after its number: the working directory's last segment, with the home
+     * directory abbreviated first so it reads {@code ~} rather than the account name.
+     *
+     * <p>Separated from the locator lookup so the rule itself is assertable without a toolkit.
+     */
+    static String cwdLabel(String workingDirectory, String home) {
+        return pathTail(PaneLocation.abbreviateHome(workingDirectory, home));
     }
 
     private static String pathTail(String path) {
