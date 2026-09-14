@@ -22,6 +22,7 @@ public final class NotificationCommands {
     static final int NOTIFY_SEND_EXPIRE_MILLIS = 8_000;
 
     private static final String OSASCRIPT = "/usr/bin/osascript";
+    private static final String NOTIFY_SEND = "notify-send";
     private static final String ELLIPSIS = "…";
 
     private NotificationCommands() {
@@ -74,8 +75,18 @@ public final class NotificationCommands {
      */
     public static List<String> notifySend(String appName, String icon, String title, String body,
                                           Map<String, String> env) {
+        return notifySend(NOTIFY_SEND, appName, icon, title, body, env);
+    }
+
+    /**
+     * The same argv with the executable named explicitly, so a caller that has already located
+     * {@code notify-send} on {@code PATH} can run the file it checked rather than let
+     * {@code ProcessBuilder} search {@code PATH} a second time at exec time.
+     */
+    public static List<String> notifySend(String executable, String appName, String icon, String title,
+                                          String body, Map<String, String> env) {
         List<String> argv = List.of(
-            "notify-send",
+            executable == null || executable.isBlank() ? NOTIFY_SEND : executable,
             "--app-name=" + appName,
             "--icon=" + icon,
             "--urgency=normal",

@@ -6,6 +6,7 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 /**
@@ -67,6 +68,18 @@ public final class DesktopNotifierBackends {
      * of the {@code PATH} entries of {@code env} (default {@code /usr/local/bin:/usr/bin:/bin}).
      */
     public static boolean isOnPath(String executable, Map<String, String> env, Predicate<Path> executableCheck) {
+        return resolveOnPath(executable, env, executableCheck).isPresent();
+    }
+
+    /**
+     * The same lookup, but handing back <em>which</em> file it found.
+     *
+     * <p>The caller needs the resolved path, not just the answer: handing the bare name to
+     * {@code ProcessBuilder} would search {@code PATH} again at exec time, so the file that was
+     * checked here and the file that actually runs need not be the same one.
+     */
+    public static Optional<Path> resolveOnPath(String executable, Map<String, String> env,
+                                               Predicate<Path> executableCheck) {
         Objects.requireNonNull(executable, "executable");
         Objects.requireNonNull(executableCheck, "executable predicate");
         String path = env == null ? null : env.get("PATH");
@@ -78,13 +91,14 @@ public final class DesktopNotifierBackends {
                 continue;
             }
             try {
-                if (executableCheck.test(Path.of(dir).resolve(executable))) {
-                    return true;
+                Path candidate = Path.of(dir).resolve(executable);
+                if (executableCheck.test(candidate)) {
+                    return Optional.of(candidate);
                 }
             } catch (InvalidPathException e) {
                 // Skip malformed PATH entries.
             }
         }
-        return false;
+        return Optional.empty();
     }
 }

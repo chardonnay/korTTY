@@ -1,6 +1,7 @@
 package de.kortty.codingagent.desktop;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -180,6 +181,35 @@ class NotificationCommandsTest {
 
         assertThat(NotificationCommands.truncate(text, 4)).isEqualTo("ab…");
         assertThat(NotificationCommands.truncate(text, 5)).isEqualTo("ab\uD83D\uDE00…");
+    }
+
+    @Test
+    void resolveOnPathNamesTheFileItFoundSoTheCheckedOneIsTheOneThatRuns() {
+        Map<String, String> env = Map.of("PATH", "/opt/bin::/usr/local/bin:/usr/bin");
+
+        assertWithMessage("handing ProcessBuilder the bare name would search PATH again at exec time,"
+                + " so the file checked here and the file that runs need not be the same one")
+            .that(DesktopNotifierBackends.resolveOnPath("notify-send", env,
+                filesPresent("/usr/bin/notify-send")))
+            .hasValue(LinuxPathsTestSupport.canonical("/usr/bin/notify-send"));
+        assertThat(DesktopNotifierBackends.resolveOnPath("gdbus", env,
+            filesPresent("/usr/bin/notify-send"))).isEmpty();
+    }
+
+    @Test
+    void anExplicitExecutableReplacesTheBareNameAndNothingElse() {
+        List<String> argv = NotificationCommands.notifySend("/usr/bin/notify-send",
+            "korTTY", "utilities-terminal", "Claude Code needs a decision", "y/n", Map.of());
+        List<String> bare = NotificationCommands.notifySend(
+            "korTTY", "utilities-terminal", "Claude Code needs a decision", "y/n", Map.of());
+
+        assertThat(argv.get(0)).isEqualTo("/usr/bin/notify-send");
+        assertThat(bare.get(0)).isEqualTo("notify-send");
+        assertWithMessage("only the executable may differ; every option and both payloads stay put")
+            .that(argv.subList(1, argv.size()))
+            .containsExactlyElementsIn(bare.subList(1, bare.size())).inOrder();
+        assertThat(NotificationCommands.notifySend(null, "korTTY", "x", "t", "b", Map.of()).get(0))
+            .isEqualTo("notify-send");
     }
 
     @Test

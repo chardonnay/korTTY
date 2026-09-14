@@ -4,6 +4,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -18,6 +20,8 @@ final class LinuxNotifySendNotifierBackend implements DesktopNotifierBackend {
 
     private static final Logger logger = LoggerFactory.getLogger(LinuxNotifySendNotifierBackend.class);
 
+    private static final String NOTIFY_SEND = "notify-send";
+
     private final String icon;
     private final boolean flatpak;
     private final Function<List<String>, ExternalCommandRunner.Result> runner;
@@ -30,6 +34,23 @@ final class LinuxNotifySendNotifierBackend implements DesktopNotifierBackend {
         this.runner = Objects.requireNonNull(runner, "runner");
     }
 
+    /**
+     * The {@code notify-send} to run: the absolute path it resolves to on this machine, or the bare
+     * name when it cannot be found. Resolved per call rather than cached because {@code PATH} and the
+     * installed tools can change under a long-running korTTY.
+     *
+     * <p>Inside Flatpak the name is left bare on purpose: the command runs on the host through
+     * {@code flatpak-spawn}, where this sandbox's view of the filesystem does not apply.
+     */
+    private String executable() {
+        if (flatpak) {
+            return NOTIFY_SEND;
+        }
+        return DesktopNotifierBackends.resolveOnPath(NOTIFY_SEND, System.getenv(), Files::isExecutable)
+            .map(Path::toString)
+            .orElse(NOTIFY_SEND);
+    }
+
     @Override
     public boolean isSupported() {
         return supported;
@@ -37,7 +58,7 @@ final class LinuxNotifySendNotifierBackend implements DesktopNotifierBackend {
 
     @Override
     public void notify(String title, String body) throws IOException {
-        List<String> argv = NotificationCommands.notifySend(
+        List<String> argv = NotificationCommands.notifySend(executable(),
             NotificationCommands.APP_NAME, icon, title, body, flatpak ? environment() : Map.of());
         ExternalCommandRunner.Result result = runner.apply(argv);
         if (!result.ok()) {
