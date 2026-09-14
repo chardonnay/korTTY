@@ -161,7 +161,7 @@ class LocalProcessInspectorTest {
     @Test(timeOut = 30_000)
     void newestLiveDescendantFindsAChildOfThisJvm() throws Exception {
         skipOnWindows();
-        Process sleep = new ProcessBuilder("sleep", "30").start();
+        Process sleep = new ProcessBuilder(sleepBinary().toString(), "30").start();
         try {
             Optional<ProcessHandle> found =
                 LocalProcessInspector.newestLiveDescendant(ProcessHandle.current().pid(), IS_SLEEP);
@@ -177,7 +177,7 @@ class LocalProcessInspectorTest {
     void descendantsIncludeGrandChildren() throws Exception {
         skipOnWindows();
         // The trailing command keeps sh from exec-ing sleep in place, so sleep really is a grand-child.
-        Process sh = new ProcessBuilder("sh", "-c", "sleep 30; exit 0").start();
+        Process sh = new ProcessBuilder(shBinary().toString(), "-c", sleepBinary() + " 30; exit 0").start();
         Optional<ProcessHandle> found = Optional.empty();
         try {
             long jvmPid = ProcessHandle.current().pid();
@@ -217,11 +217,11 @@ class LocalProcessInspectorTest {
     @Test(timeOut = 30_000)
     void newestWinsWhenTwoMatch() throws Exception {
         skipOnWindows();
-        Process first = new ProcessBuilder("sleep", "30").start();
+        Process first = new ProcessBuilder(sleepBinary().toString(), "30").start();
         Process second = null;
         try {
             Thread.sleep(300);
-            second = new ProcessBuilder("sleep", "30").start();
+            second = new ProcessBuilder(sleepBinary().toString(), "30").start();
             Optional<ProcessHandle> found =
                 LocalProcessInspector.newestLiveDescendant(ProcessHandle.current().pid(), IS_SLEEP);
             assertThat(found).isPresent();
@@ -388,13 +388,29 @@ class LocalProcessInspectorTest {
     // ---- Helpers --------------------------------------------------------------------------------
 
     private static Path sleepBinary() {
-        for (String candidate : List.of("/bin/sleep", "/usr/bin/sleep")) {
+        return absoluteBinary("sleep", "/bin/sleep", "/usr/bin/sleep");
+    }
+
+    private static Path shBinary() {
+        return absoluteBinary("sh", "/bin/sh", "/usr/bin/sh");
+    }
+
+    /**
+     * The first of {@code candidates} that exists and is executable.
+     *
+     * <p>These tests spawn real children, and they name them by absolute path rather than letting the
+     * OS search {@code PATH}: a relative command name is resolved against an environment the test does
+     * not control, which is both a finding CodeQL reports and a real way for a test to run something
+     * other than the binary it meant to.
+     */
+    private static Path absoluteBinary(String name, String... candidates) {
+        for (String candidate : candidates) {
             Path path = Path.of(candidate);
             if (Files.isRegularFile(path) && Files.isExecutable(path)) {
                 return path;
             }
         }
-        throw new SkipException("no sleep binary found to impersonate an agent");
+        throw new SkipException("no " + name + " binary found at " + String.join(" or ", candidates));
     }
 
     /**
@@ -420,8 +436,14 @@ class LocalProcessInspectorTest {
         if (!System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac")) {
             return;
         }
+        Path codesign = Path.of("/usr/bin/codesign");
+        if (!Files.isExecutable(codesign)) {
+            // Best effort: without the command-line tools the copy simply will not run, and
+            // requireStillRunning turns that into a skip that says so.
+            return;
+        }
         try {
-            new ProcessBuilder("codesign", "--force", "--sign", "-", binary.toString())
+            new ProcessBuilder(codesign.toString(), "--force", "--sign", "-", binary.toString())
                 .redirectErrorStream(true)
                 .redirectOutput(ProcessBuilder.Redirect.DISCARD)
                 .start()

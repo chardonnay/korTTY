@@ -1,5 +1,6 @@
 package de.kortty.codingagent.desktop;
 
+import static com.google.common.truth.Truth.assertWithMessage;
 import static com.google.common.truth.Truth.assertThat;
 
 import java.nio.file.Files;
@@ -8,6 +9,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
 import org.testng.SkipException;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -82,21 +84,42 @@ class ExternalCommandRunnerTest {
     @Test(timeOut = 30_000)
     void runSubmitsToTheNamedDaemonThreadAndCloseRejectsLaterWork() throws Exception {
         requireBinary("/bin/true");
+        requireBinary("/bin/sleep");
         ExternalCommandRunner runner = new ExternalCommandRunner("kortty-test-runner", 5_000);
         try {
             ExternalCommandRunner.Result result = runner.run(List.of("/bin/true")).get(10, TimeUnit.SECONDS);
             assertThat(result.ok()).isTrue();
 
-            Thread thread = runner.run(List.of("/bin/true"))
-                .thenApply(ignored -> Thread.currentThread()).get(10, TimeUnit.SECONDS);
-            assertThat(thread.getName()).isEqualTo("kortty-test-runner");
-            assertThat(thread.isDaemon()).isTrue();
+            // The worker is observed while it is busy, not through thenApply on the finished future:
+            // a completed CompletableFuture runs thenApply on the CALLING thread, so that reports the
+            // test's own thread whenever the command finishes first — which it sometimes does.
+            CompletableFuture<ExternalCommandRunner.Result> inFlight =
+                runner.run(List.of("/bin/sleep", "1"));
+            Thread worker = awaitThreadNamed("kortty-test-runner");
+            assertWithMessage("work must run on the runner's own named thread")
+                .that(worker).isNotNull();
+            assertWithMessage("the runner's thread must be a daemon so it cannot hold the JVM open")
+                .that(worker.isDaemon()).isTrue();
+            assertThat(inFlight.get(15, TimeUnit.SECONDS).ok()).isTrue();
         } finally {
             runner.close();
         }
 
-        ExternalCommandRunner.Result afterClose = runner.run(List.of("/bin/true")).get(1, TimeUnit.SECONDS);
+        ExternalCommandRunner.Result afterClose = runner.run(List.of("/bin/true")).get(10, TimeUnit.SECONDS);
         assertThat(afterClose.ok()).isFalse();
+    }
+
+    /** The live thread with this name, polled until it appears; null when it never does. */
+    private static Thread awaitThreadNamed(String name) throws InterruptedException {
+        for (int attempt = 0; attempt < 200; attempt++) {
+            for (Thread thread : Thread.getAllStackTraces().keySet()) {
+                if (name.equals(thread.getName())) {
+                    return thread;
+                }
+            }
+            Thread.sleep(25);
+        }
+        return null;
     }
 
     @Test

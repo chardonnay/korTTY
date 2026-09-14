@@ -3,11 +3,13 @@ package de.kortty.codingagent.desktop;
 import static com.google.common.truth.Truth.assertThat;
 
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.function.Predicate;
 import org.testng.annotations.Test;
 
@@ -18,9 +20,16 @@ class LinuxDesktopIdTest {
     private static final PlatformProbe PACMAN = new PlatformProbe("Linux", "/usr/lib/kortty/bin/korTTY", false, false);
     private static final PlatformProbe UNPACKAGED = new PlatformProbe("Linux", null, false, false);
 
+    /**
+     * Compares {@link Path} values, not their strings. A path renders with the host's separator, so
+     * comparing {@code path.toString()} against a POSIX literal silently asserts "this test is
+     * running on a POSIX host" as well — which is why these Linux-only rules failed on the Windows
+     * runner while the logic under test was fine.
+     */
     private static Predicate<Path> filesPresent(String... paths) {
-        Set<String> present = Set.of(paths);
-        return path -> present.contains(path.toString());
+        Set<Path> present = Arrays.stream(paths).map(LinuxPathsTestSupport::canonical)
+            .collect(Collectors.toUnmodifiableSet());
+        return path -> present.contains(LinuxPathsTestSupport.canonical(path));
     }
 
     @Test

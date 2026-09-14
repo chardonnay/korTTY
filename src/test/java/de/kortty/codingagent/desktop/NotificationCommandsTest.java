@@ -3,9 +3,11 @@ package de.kortty.codingagent.desktop;
 import static com.google.common.truth.Truth.assertThat;
 
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.function.Predicate;
 import org.testng.annotations.Test;
 
@@ -13,9 +15,16 @@ class NotificationCommandsTest {
 
     private static final Map<String, String> FLATPAK_ENV = Map.of("FLATPAK_ID", "io.github.chardonnay.korTTY");
 
+    /**
+     * Compares {@link Path} values, not their strings. A path renders with the host's separator, so
+     * comparing {@code path.toString()} against a POSIX literal silently asserts "this test is
+     * running on a POSIX host" as well — which is why these Linux-only rules failed on the Windows
+     * runner while the logic under test was fine.
+     */
     private static Predicate<Path> filesPresent(String... paths) {
-        Set<String> present = Set.of(paths);
-        return path -> present.contains(path.toString());
+        Set<Path> present = Arrays.stream(paths).map(LinuxPathsTestSupport::canonical)
+            .collect(Collectors.toUnmodifiableSet());
+        return path -> present.contains(LinuxPathsTestSupport.canonical(path));
     }
 
     @Test
@@ -134,8 +143,12 @@ class NotificationCommandsTest {
     void linuxIconUsesTheInstalledPngNextToTheLauncher() {
         PlatformProbe deb = new PlatformProbe("Linux", "/opt/kortty/bin/korTTY", false, false);
 
-        assertThat(NotificationCommands.linuxIcon(deb, filesPresent("/opt/kortty/lib/korTTY.png")))
-            .isEqualTo("/opt/kortty/lib/korTTY.png");
+        // Compared as a Path, and absolutised on both sides: the icon really is a local filesystem
+        // path, so both its separator and (on Windows) its drive follow the host. Only its identity
+        // is the contract.
+        assertThat(LinuxPathsTestSupport.canonical(
+                NotificationCommands.linuxIcon(deb, filesPresent("/opt/kortty/lib/korTTY.png"))))
+            .isEqualTo(LinuxPathsTestSupport.canonical("/opt/kortty/lib/korTTY.png"));
         assertThat(NotificationCommands.linuxIcon(deb, path -> false)).isEqualTo("utilities-terminal");
     }
 

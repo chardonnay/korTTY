@@ -87,7 +87,12 @@ final class LauncherEntryDBusConnection implements AutoCloseable {
         }
         String runtimeDir = environment.get("XDG_RUNTIME_DIR");
         if (runtimeDir != null && !runtimeDir.isBlank()) {
-            return Optional.of(Path.of(runtimeDir, "bus").toString());
+            // Joined with "/" rather than through Path: a D-Bus address is a POSIX path defined by the
+            // protocol, not a path on whatever filesystem happens to be running this JVM, so it must
+            // not pick up a platform separator.
+            String base = runtimeDir.endsWith("/") ? runtimeDir.substring(0, runtimeDir.length() - 1)
+                : runtimeDir;
+            return Optional.of(base + "/bus");
         }
         return Optional.empty();
     }
