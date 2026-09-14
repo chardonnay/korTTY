@@ -795,8 +795,16 @@
 <td><code>flatpak run --command=kortty-cli io.github.chardonnay.korTTY</code></td>
 </tr>
 <tr>
-<td>Portables Archiv</td>
-<td><code>&lt;entpacktes Verzeichnis&gt;/bin/kortty-cli</code></td>
+<td>Portables Archiv (Linux)</td>
+<td><code>&lt;entpacktes Verzeichnis&gt;/korTTY/bin/kortty-cli</code></td>
+</tr>
+<tr>
+<td>Portables Archiv (Windows)</td>
+<td><code>&lt;entpacktes Verzeichnis&gt;\korTTY\kortty-cli.exe</code> – im Wurzelverzeichnis des Abbilds, nicht unter <code>bin</code></td>
+</tr>
+<tr>
+<td>Portables Archiv (macOS)</td>
+<td><code>&lt;entpacktes Verzeichnis&gt;/korTTY.app/Contents/MacOS/kortty-cli</code></td>
 </tr>
 </tbody>
 </table>
@@ -817,18 +825,20 @@
 <p>Die Archive <code>korTTY-Java-*.zip</code> und <code>.tar</code> enthalten außer dem grafischen keinen weiteren Starter. Aus ihnen starten Sie den Client als <code>java -cp korTTY-&lt;version&gt;.jar de.kortty.cli.KorttyCli &lt;befehl&gt;</code>.</p>
 </div>
 <h2 id="aufbau-eines-befehls">Aufbau eines Befehls<a class="headerlink" href="#aufbau-eines-befehls" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kortty-cli<span class="w"> </span>&lt;gruppe&gt;<span class="w"> </span>&lt;befehl&gt;<span class="w"> </span><span class="o">[</span>selektor<span class="o">]</span><span class="w"> </span><span class="o">[</span>optionen<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kortty-cli<span class="w"> </span>&lt;gruppe&gt;<span class="w"> </span>&lt;befehl&gt;<span class="w"> </span><span class="o">[</span>optionen<span class="o">]</span>
 </span></code></pre></div>
-<p>Die Gruppen entsprechen der API: <code>pane</code>, <code>tab</code>, <code>window</code>, <code>agent</code>, <code>events</code>, <code>notification</code>, dazu <code>ping</code> und <code>schema</code>. Ein Befehlsname ist die API-Methode, deren Unterstriche als Bindestriche geschrieben werden – <code>pane.send_text</code> wird zu <code>pane send-text</code>.</p>
+<p>Die Gruppen sind <code>pane</code>, <code>tab</code>, <code>window</code>, <code>agent</code>, <code>events</code>, <code>notify</code>, <code>raw</code>, <code>ping</code> und <code>schema</code>. Innerhalb einer Gruppe ist der Befehlsname die API-Methode nach dem Punkt, deren Unterstriche als Bindestriche geschrieben werden – <code>pane.send_text</code> wird zu <code>pane send-text</code>. Vier Methoden ergeben sich nicht aus ihrem Namen und sind es wert, gemerkt zu werden: <code>api.schema</code> ist <code>schema</code>, <code>events.subscribe</code> ist <code>events</code>, <code>notification.show</code> ist <code>notify</code>, und alles ohne eigenen Befehl – <code>events.unsubscribe</code>, <code>pane.resolve</code> – erreichen Sie über <code>raw</code>.</p>
+<p>Alles, was ein Befehl braucht, ist eine Option. Positionsargumente gibt es nur für die Tastennamen von <code>pane send-keys</code> und <code>agent send-keys</code> sowie für Methode und JSON von <code>raw</code>.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>kortty-cli<span class="w"> </span>ping<span class="w">                                   </span><span class="c1"># lauscht ein korTTY?</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span>list<span class="w">                              </span><span class="c1"># alle offenen Bereiche</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span><span class="nb">read</span><span class="w"> </span>@focused<span class="w"> </span>--mode<span class="w"> </span>recent<span class="w"> </span>--lines<span class="w"> </span><span class="m">200</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span>run<span class="w"> </span>p1a2b3c4d<span class="w"> </span>--command<span class="w"> </span><span class="s1">'make test'</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span>wait-output<span class="w"> </span>p1a2b3c4d<span class="w"> </span>--contains<span class="w"> </span><span class="s1">'BUILD SUCCESSFUL'</span><span class="w"> </span>--timeout-ms<span class="w"> </span><span class="m">300000</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span><span class="nb">read</span><span class="w"> </span>--focused<span class="w"> </span>--recent<span class="w"> </span>--lines<span class="w"> </span><span class="m">200</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span>run<span class="w"> </span>--pane<span class="w"> </span>p1a2b3c4d<span class="w"> </span>--command<span class="w"> </span><span class="s1">'make test'</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span>wait-output<span class="w"> </span>--pane<span class="w"> </span>p1a2b3c4d<span class="w"> </span>--contains<span class="w"> </span><span class="s1">'BUILD SUCCESSFUL'</span><span class="w"> </span>--timeout-ms<span class="w"> </span><span class="m">300000</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>kortty-cli<span class="w"> </span>raw<span class="w"> </span>events.unsubscribe<span class="w"> </span><span class="s1">'{"subscription":"s1"}'</span>
 </span></code></pre></div>
-<p><code>kortty-cli schema</code> gibt die vollständige maschinenlesbare Befehlsoberfläche aus – jeden Befehl, seine Optionen, seine Ergebnisform, seine Fehler und ein ausgearbeitetes Beispiel, direkt aus dem laufenden korTTY. Sie wird aus denselben Deklarationen erzeugt, die der Server ausliefert, ist also auf eine Weise verbindlich, wie es eine Handbuchseite nicht sein kann; nutzen Sie sie statt zu raten, besonders aus einem Skript, das über Versionen hinweg funktionieren soll.</p>
+<p><code>kortty-cli schema</code> gibt die vollständige maschinenlesbare Befehlsoberfläche aus – jeden Befehl, seine Optionen, seine Ergebnisform, seine Fehler und ein ausgearbeitetes Beispiel, direkt aus dem laufenden korTTY. Parameter, Ergebnisse und Fehler entstehen aus denselben Deklarationen, die der Server ausliefert, und die Zeile <code>cli</code> jedes Eintrags wird vor der Auslieferung gegen den Parser genau dieses Clients geprüft; beide beschreiben also die Version, mit der Sie gerade sprechen. Nutzen Sie sie statt zu raten, besonders aus einem Skript, das über Versionen hinweg funktionieren soll.</p>
 <h2 id="einen-bereich-auswahlen">Einen Bereich auswählen<a class="headerlink" href="#einen-bereich-auswahlen" title="Permanent link">&para;</a></h2>
-<p>Überall, wo ein Bereich erwartet wird, können Sie schreiben:</p>
+<p>Jeder <code>pane</code>- und <code>agent</code>-Befehl nimmt <strong>genau einen</strong> Selektor, und jeder Selektor ist eine Option:</p>
 <table>
 <thead>
 <tr>
@@ -838,19 +848,19 @@
 </thead>
 <tbody>
 <tr>
-<td><code>p1a2b3c4d</code></td>
+<td><code>--pane p1a2b3c4d</code></td>
 <td>Dieser Bereich, der unter den offenen eindeutig sein muss</td>
 </tr>
 <tr>
-<td><code>w1:t9f3a…:p1a2b3c4d</code></td>
+<td><code>--pane w1:t9f3a…:p1a2b3c4d</code></td>
 <td>Die vollständige Adresse</td>
 </tr>
 <tr>
-<td><code>t9f3a…</code></td>
+<td><code>--tab t9f3a…</code></td>
 <td>Der fokussierte Bereich dieses Tabs</td>
 </tr>
 <tr>
-<td><code>@focused</code></td>
+<td><code>--focused</code></td>
 <td>Der Bereich, den Sie gerade ansehen</td>
 </tr>
 <tr>
@@ -859,6 +869,7 @@
 </tr>
 </tbody>
 </table>
+<p>Keinen oder mehr als einen anzugeben ist ein Syntaxfehler (Code 2), der die vier benennt; ein bloßes <code>p1a2b3c4d</code> oder <code>@focused</code> an der Stelle einer Option ist ebenfalls ein Syntaxfehler.</p>
 <p><code>--current</code> löst der Client auf, nicht der Server: er geht seine eigene Prozessabstammung durch und fragt korTTY, welcher Bereich eine dieser Prozesskennungen besitzt. Deshalb funktioniert es ohne jede Vorbereitung aus einer Untershell, einer <code>Makefile</code>-Regel oder einem verschachtelten Skript, und deshalb scheitert es dort, wo es nicht funktionieren kann, mit einer klaren Meldung, statt den falschen Bereich anzusprechen.</p>
 <div class="admonition warning">
 <p class="admonition-title"><code>--current</code> braucht eine lokale Shell</p>
@@ -867,6 +878,13 @@
 <h2 id="warten">Warten<a class="headerlink" href="#warten" title="Permanent link">&para;</a></h2>
 <p>Befehle, die warten – <code>pane wait-output</code>, <code>agent wait</code>, <code>agent prompt --wait-until</code>, <code>agent start --wait</code> – blockieren, bis die Bedingung erfüllt ist oder die Zeit abläuft, und enden bei Zeitüberschreitung mit Code 4. Jede Wartezeit hat serverseitig eine harte Obergrenze von zehn Minuten; eine längere Anforderung wird gekappt, und die Antwort sagt es.</p>
 <p>Anfragen einer Verbindung laufen nacheinander. Ein Skript, das auf einen Bereich warten und gleichzeitig in einem anderen etwas tun will, startet daher einfach zwei Befehle nebenläufig – jeder öffnet seine eigene Verbindung. Bis zu acht Verbindungen dürfen gleichzeitig offen sein.</p>
+<h2 id="ereignisse-beobachten">Ereignisse beobachten<a class="headerlink" href="#ereignisse-beobachten" title="Permanent link">&para;</a></h2>
+<p><code>kortty-cli events</code> abonniert die Coding-Agent-Ereignisse von korTTY und gibt sie, sobald sie auftreten, als ein JSON-Objekt pro Zeile aus, bis der Strom beendet wird.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kortty-cli<span class="w"> </span>events<span class="w"> </span>--kinds<span class="w"> </span>agent.state_changed<span class="w"> </span>--panes<span class="w"> </span>p1a2b3c4d<span class="w"> </span>--count<span class="w"> </span><span class="m">1</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>kortty-cli<span class="w"> </span>events<span class="w"> </span>--include-evidence<span class="w"> </span>--timeout<span class="w"> </span><span class="m">60000</span>
+</span></code></pre></div>
+<p><code>--kinds</code> und <code>--panes</code> nehmen kommagetrennte Listen und schränken die Zustellung ein; <code>--include-evidence</code> ergänzt jedes Ereignis um die Belege des Erkenners; <code>--count N</code> hält nach N Ereignissen an. Drei Dinge beenden den Strom: <code>--count</code> ist erreicht, die Frist aus <code>--timeout</code> läuft ab, oder Sie unterbrechen ihn. Die ersten beiden enden mit 0. Eine Unterbrechung wird <strong>nicht</strong> behandelt – es gibt bewusst keine Signalbehandlung –, der Prozess endet also mit der 128 + SIGINT = 130 der Shell, was ein CI-Job einplanen sollte, der den Strom in <code>timeout</code> einpackt.</p>
+<p>Ohne <code>--count</code> und ohne <code>--timeout</code> hat der Strom überhaupt keine Frist und läuft, bis korTTY endet oder Sie ihn anhalten.</p>
 <h2 id="exit-codes">Exit-Codes<a class="headerlink" href="#exit-codes" title="Permanent link">&para;</a></h2>
 <p>Der Exit-Code kommt vom Server, nicht aus einer Tabelle im Client, damit beide nie auseinanderlaufen können.</p>
 <table>
@@ -903,16 +921,24 @@
 <td>Eine Wartezeit ist abgelaufen</td>
 <td>Meistens</td>
 </tr>
+<tr>
+<td>130</td>
+<td><code>kortty-cli events</code> wurde unterbrochen (Strg-C). Der Datenstrom hat keine Signalbehandlung, dies ist also die 128 + SIGINT der Shell selbst</td>
+<td>—</td>
+</tr>
 </tbody>
 </table>
-<p>Jeder Fehlschlag gibt zusätzlich ein JSON-Fehlerobjekt auf stderr aus, das eine stabile Zeichenkette <code>code</code> trägt – ein Skript kann also auf die Ursache verzweigen statt auf den Meldungstext.</p>
+<p>Jeder Fehlschlag gibt auf stderr eine einzeilige Diagnose der Form <code>kortty-cli: &lt;meldung&gt; (&lt;code&gt;)</code> aus, wobei <code>&lt;code&gt;</code> der stabile Protokollcode ist – <code>not_found</code>, <code>timeout</code>, <code>blocked_by_policy</code> –, aus dem der obige Exit-Code abgeleitet wurde. Mit <code>--pretty</code> erhalten Sie stattdessen das vollständige JSON-RPC-Fehlerobjekt, auf das ein Skript verzweigen sollte:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span><span class="nb">read</span><span class="w"> </span>--focused<span class="w"> </span>--pretty<span class="w"> </span><span class="m">2</span>&gt;err.json<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nv">code</span><span class="o">=</span><span class="k">$(</span>jq<span class="w"> </span>-r<span class="w"> </span>.error.data.code<span class="w"> </span>err.json<span class="k">)</span>
+</span></code></pre></div>
+<p>Fehlschläge, die der Client selbst feststellt, sind die Ausnahme: eine unlesbare Kommandozeile, ein nicht laufendes korTTY, ein <code>--current</code> ohne passenden Bereich und eine abgelaufene Client-Frist haben den Server nie erreicht, tragen also keinen Protokollcode und geben in beiden Einstellungen nur <code>kortty-cli: &lt;meldung&gt;</code> aus. Verzweigen Sie dort auf den Exit-Code.</p>
 <h2 id="die-installation-prufen">Die Installation prüfen<a class="headerlink" href="#die-installation-prufen" title="Permanent link">&para;</a></h2>
 <p><code>kortty-cli --version</code> gibt die Version aus und endet mit 0. Es ist der einzige Befehl, der <strong>kein</strong> laufendes korTTY braucht, und damit das Richtige für eine Installationsprüfung oder einen CI-Rauchtest.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kortty-cli<span class="w"> </span>--version<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s1">'kortty-cli ist nicht installiert oder nicht im PATH'</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kortty-cli<span class="w"> </span>--version<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s1">'kortty-cli ist nicht installiert oder nicht im PATH'</span>
 </span></code></pre></div>
 <h2 id="hinweise-furs-skripten">Hinweise fürs Skripten<a class="headerlink" href="#hinweise-furs-skripten" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Auf stdout steht nichts außer dem Ergebnis des Befehls, <code>kortty-cli pane read @focused</code> lässt sich also sauber weiterleiten.</li>
+<li>Auf stdout steht nichts außer dem Ergebnis des Befehls, <code>kortty-cli pane read --focused</code> lässt sich also sauber weiterleiten.</li>
 <li>Diagnosen, Warnungen und Fehlerobjekte gehen auf stderr.</li>
 <li>Das Authentifizierungstoken liest der Client aus <code>~/.kortty/control/endpoint.json</code>. Es gibt bewusst weder eine Option <code>--token</code> noch eine Umgebungsvariable: ein Token auf der Kommandozeile landet in der Prozessliste und in der Shell-Historie.</li>
 <li>korTTY protokolliert eine Zeile pro Aktion der CLI und zeigt eine Desktop-Benachrichtigung, sobald ein Programm zum ersten Mal in einen Bereich tippt. Ihr Skript ist absichtlich nicht unsichtbar.</li>

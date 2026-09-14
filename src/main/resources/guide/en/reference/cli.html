@@ -795,8 +795,16 @@
 <td><code>flatpak run --command=kortty-cli io.github.chardonnay.korTTY</code></td>
 </tr>
 <tr>
-<td>Portable archive</td>
-<td><code>&lt;extracted directory&gt;/bin/kortty-cli</code></td>
+<td>Portable archive (Linux)</td>
+<td><code>&lt;extracted directory&gt;/korTTY/bin/kortty-cli</code></td>
+</tr>
+<tr>
+<td>Portable archive (Windows)</td>
+<td><code>&lt;extracted directory&gt;\korTTY\kortty-cli.exe</code> — at the image root, not under <code>bin</code></td>
+</tr>
+<tr>
+<td>Portable archive (macOS)</td>
+<td><code>&lt;extracted directory&gt;/korTTY.app/Contents/MacOS/kortty-cli</code></td>
 </tr>
 </tbody>
 </table>
@@ -817,18 +825,20 @@
 <p>The <code>korTTY-Java-*.zip</code> and <code>.tar</code> archives carry no launchers beyond the graphical one. From those, start the client as <code>java -cp korTTY-&lt;version&gt;.jar de.kortty.cli.KorttyCli &lt;command&gt;</code>.</p>
 </div>
 <h2 id="shape-of-a-command">Shape of a command<a class="headerlink" href="#shape-of-a-command" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kortty-cli<span class="w"> </span>&lt;group&gt;<span class="w"> </span>&lt;command&gt;<span class="w"> </span><span class="o">[</span>selector<span class="o">]</span><span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kortty-cli<span class="w"> </span>&lt;group&gt;<span class="w"> </span>&lt;command&gt;<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
 </span></code></pre></div>
-<p>Groups mirror the API: <code>pane</code>, <code>tab</code>, <code>window</code>, <code>agent</code>, <code>events</code>, <code>notification</code>, plus <code>ping</code> and <code>schema</code>. A command name is the API method with its underscores spelled as dashes — <code>pane.send_text</code> is <code>pane send-text</code>.</p>
+<p>The groups are <code>pane</code>, <code>tab</code>, <code>window</code>, <code>agent</code>, <code>events</code>, <code>notify</code>, <code>raw</code>, <code>ping</code> and <code>schema</code>. Inside a group, a command name is the API method after the dot with its underscores spelled as dashes — <code>pane.send_text</code> is <code>pane send-text</code>. Four methods do not follow from their name and are worth learning: <code>api.schema</code> is <code>schema</code>, <code>events.subscribe</code> is <code>events</code>, <code>notification.show</code> is <code>notify</code>, and anything without a command of its own — <code>events.unsubscribe</code>, <code>pane.resolve</code> — is reached through <code>raw</code>.</p>
+<p>Everything a command needs is a flag. There are no positional arguments except the key names of <code>pane send-keys</code> and <code>agent send-keys</code>, and the method and JSON of <code>raw</code>.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>kortty-cli<span class="w"> </span>ping<span class="w">                                   </span><span class="c1"># is a korTTY listening?</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span>list<span class="w">                              </span><span class="c1"># every open pane</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span><span class="nb">read</span><span class="w"> </span>@focused<span class="w"> </span>--mode<span class="w"> </span>recent<span class="w"> </span>--lines<span class="w"> </span><span class="m">200</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span>run<span class="w"> </span>p1a2b3c4d<span class="w"> </span>--command<span class="w"> </span><span class="s1">'make test'</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span>wait-output<span class="w"> </span>p1a2b3c4d<span class="w"> </span>--contains<span class="w"> </span><span class="s1">'BUILD SUCCESSFUL'</span><span class="w"> </span>--timeout-ms<span class="w"> </span><span class="m">300000</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span><span class="nb">read</span><span class="w"> </span>--focused<span class="w"> </span>--recent<span class="w"> </span>--lines<span class="w"> </span><span class="m">200</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span>run<span class="w"> </span>--pane<span class="w"> </span>p1a2b3c4d<span class="w"> </span>--command<span class="w"> </span><span class="s1">'make test'</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span>wait-output<span class="w"> </span>--pane<span class="w"> </span>p1a2b3c4d<span class="w"> </span>--contains<span class="w"> </span><span class="s1">'BUILD SUCCESSFUL'</span><span class="w"> </span>--timeout-ms<span class="w"> </span><span class="m">300000</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>kortty-cli<span class="w"> </span>raw<span class="w"> </span>events.unsubscribe<span class="w"> </span><span class="s1">'{"subscription":"s1"}'</span>
 </span></code></pre></div>
-<p><code>kortty-cli schema</code> prints the complete machine-readable command surface — every command, its options, its result shape, its errors and a worked example — straight from the running korTTY. It is generated from the same declarations the server dispatches, so it is authoritative in a way a manual page cannot be; use it rather than guessing, especially from a script that has to keep working across versions.</p>
+<p><code>kortty-cli schema</code> prints the complete machine-readable command surface — every command, its options, its result shape, its errors and a worked example — straight from the running korTTY. The parameters, results and errors come from the same declarations the server dispatches, and each entry's <code>cli</code> line is checked against this client's own parser before release, so both describe the version you are actually talking to; use it rather than guessing, especially from a script that has to keep working across versions.</p>
 <h2 id="choosing-a-pane">Choosing a pane<a class="headerlink" href="#choosing-a-pane" title="Permanent link">&para;</a></h2>
-<p>Anywhere a pane is expected you may write:</p>
+<p>Every <code>pane</code> and <code>agent</code> command takes <strong>exactly one</strong> selector, and every selector is a flag:</p>
 <table>
 <thead>
 <tr>
@@ -838,19 +848,19 @@
 </thead>
 <tbody>
 <tr>
-<td><code>p1a2b3c4d</code></td>
+<td><code>--pane p1a2b3c4d</code></td>
 <td>That pane, which must be unique among the open ones</td>
 </tr>
 <tr>
-<td><code>w1:t9f3a…:p1a2b3c4d</code></td>
+<td><code>--pane w1:t9f3a…:p1a2b3c4d</code></td>
 <td>The fully qualified address</td>
 </tr>
 <tr>
-<td><code>t9f3a…</code></td>
+<td><code>--tab t9f3a…</code></td>
 <td>That tab's focused pane</td>
 </tr>
 <tr>
-<td><code>@focused</code></td>
+<td><code>--focused</code></td>
 <td>The pane you are looking at</td>
 </tr>
 <tr>
@@ -859,6 +869,7 @@
 </tr>
 </tbody>
 </table>
+<p>Giving none of them, or more than one, is a syntax error (exit 2) that names the four; a bare <code>p1a2b3c4d</code> or <code>@focused</code> written where a flag belongs is a syntax error too.</p>
 <p><code>--current</code> is resolved by the client, not the server: it walks its own process ancestry and asks korTTY which pane owns one of those process ids. That is why it works from a sub-shell, a <code>Makefile</code> recipe or a nested script without any setup, and why it fails loudly with a clear message where it cannot work rather than addressing the wrong pane.</p>
 <div class="admonition warning">
 <p class="admonition-title"><code>--current</code> needs a local shell</p>
@@ -867,6 +878,13 @@
 <h2 id="waiting">Waiting<a class="headerlink" href="#waiting" title="Permanent link">&para;</a></h2>
 <p>Commands that wait — <code>pane wait-output</code>, <code>agent wait</code>, <code>agent prompt --wait-until</code>, <code>agent start --wait</code> — block until the condition is met or the timeout expires, and exit 4 on a timeout. Every wait has a server-side hard cap of ten minutes; a longer request is clamped and the answer says so.</p>
 <p>Requests on one connection run one at a time, so a script that wants to wait on one pane while doing something in another simply runs two commands concurrently — each opens its own connection. Up to eight connections may be open at once.</p>
+<h2 id="watching-events">Watching events<a class="headerlink" href="#watching-events" title="Permanent link">&para;</a></h2>
+<p><code>kortty-cli events</code> subscribes to korTTY's coding-agent events and prints one JSON object per line, as they happen, until it is told to stop.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kortty-cli<span class="w"> </span>events<span class="w"> </span>--kinds<span class="w"> </span>agent.state_changed<span class="w"> </span>--panes<span class="w"> </span>p1a2b3c4d<span class="w"> </span>--count<span class="w"> </span><span class="m">1</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>kortty-cli<span class="w"> </span>events<span class="w"> </span>--include-evidence<span class="w"> </span>--timeout<span class="w"> </span><span class="m">60000</span>
+</span></code></pre></div>
+<p><code>--kinds</code> and <code>--panes</code> take comma-separated lists and narrow what is delivered; <code>--include-evidence</code> adds the detector's evidence to each event; <code>--count N</code> stops after N events. Three things end the stream: <code>--count</code> is reached, the <code>--timeout</code> passes, or you interrupt it. The first two exit 0. An interrupt is <strong>not</strong> handled — there is deliberately no signal handler, so the process ends with the shell's 128 + SIGINT = 130, which is worth allowing for in a CI job that wraps the stream in <code>timeout</code>.</p>
+<p>With neither <code>--count</code> nor <code>--timeout</code>, the stream has no deadline at all and runs until korTTY exits or you stop it.</p>
 <h2 id="exit-codes">Exit codes<a class="headerlink" href="#exit-codes" title="Permanent link">&para;</a></h2>
 <p>The exit code comes from the server, not from a table the client keeps, so the two can never disagree.</p>
 <table>
@@ -903,16 +921,24 @@
 <td>A wait timed out</td>
 <td>Usually</td>
 </tr>
+<tr>
+<td>130</td>
+<td><code>kortty-cli events</code> was interrupted (Ctrl-C). The stream has no signal handler, so this is the shell's own 128 + SIGINT</td>
+<td>—</td>
+</tr>
 </tbody>
 </table>
-<p>Every failure also prints a JSON error object on stderr carrying a stable <code>code</code> string, so a script can branch on the cause rather than on the message text.</p>
+<p>Every failure prints a one-line diagnostic on stderr in the form <code>kortty-cli: &lt;message&gt; (&lt;code&gt;)</code>, where <code>&lt;code&gt;</code> is the stable wire code — <code>not_found</code>, <code>timeout</code>, <code>blocked_by_policy</code> — that the exit code above was derived from. Add <code>--pretty</code> to get the whole JSON-RPC error object instead, which is what a script should branch on:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span><span class="nb">read</span><span class="w"> </span>--focused<span class="w"> </span>--pretty<span class="w"> </span><span class="m">2</span>&gt;err.json<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nv">code</span><span class="o">=</span><span class="k">$(</span>jq<span class="w"> </span>-r<span class="w"> </span>.error.data.code<span class="w"> </span>err.json<span class="k">)</span>
+</span></code></pre></div>
+<p>Failures the client diagnoses on its own are the exception: an unparseable command line, a korTTY that is not running, a <code>--current</code> that matches no pane and an expired client deadline never reached the server, so they carry no wire code and print a bare <code>kortty-cli: &lt;message&gt;</code> on either setting. Branch on the exit code for those.</p>
 <h2 id="checking-the-installation">Checking the installation<a class="headerlink" href="#checking-the-installation" title="Permanent link">&para;</a></h2>
 <p><code>kortty-cli --version</code> prints the version and exits 0. It is the only command that does <strong>not</strong> need a running korTTY, which makes it the right thing to put in an installation check or a CI smoke test.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kortty-cli<span class="w"> </span>--version<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s1">'kortty-cli is not installed or not on PATH'</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kortty-cli<span class="w"> </span>--version<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s1">'kortty-cli is not installed or not on PATH'</span>
 </span></code></pre></div>
 <h2 id="scripting-notes">Scripting notes<a class="headerlink" href="#scripting-notes" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Nothing is written to stdout except the command's result, so <code>kortty-cli pane read @focused</code> pipes cleanly.</li>
+<li>Nothing is written to stdout except the command's result, so <code>kortty-cli pane read --focused</code> pipes cleanly.</li>
 <li>Diagnostics, warnings and error objects go to stderr.</li>
 <li>The authentication token is read from <code>~/.kortty/control/endpoint.json</code> by the client. There is no <code>--token</code> option and no environment variable, deliberately: a token on a command line ends up in the process list and in your shell history.</li>
 <li>korTTY logs one line per action the CLI performs, and raises one desktop notification the first time a program types into a pane. Your script is not invisible, by design.</li>

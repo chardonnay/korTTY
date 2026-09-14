@@ -830,7 +830,7 @@
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>← {"jsonrpc":"2.0","id":1,"result":{"api":"kortty-control","protocol_version":1,"transport":"unix","ids_survive_restart":false,"capabilities":["events","split","agent_start","pane_resolve"]}}
 </span></code></pre></div>
 <p>Requests on one connection are executed <strong>one at a time</strong>: the next line is read only after the previous answer has been queued. A client that needs a long wait and concurrent calls opens a second connection — up to eight at once.</p>
-<p>Rather than duplicating the method list here, ask korTTY: <code>api.schema</code> returns the full machine-readable surface — every method with its parameters, result shape, errors, CLI equivalent and a worked example, plus the key vocabulary, the error table and the limits. It is generated from the same declarations the dispatcher registers, so it cannot drift from the implementation.</p>
+<p>Rather than duplicating the method list here, ask korTTY: <code>api.schema</code> returns the full machine-readable surface — every method with its parameters, result shape, errors, CLI equivalent and a worked example, plus the key vocabulary, the error table and the limits. The parameters, results, errors and limits are generated from the same declarations the dispatcher registers, so they cannot drift from the implementation; each <code>cli</code> line is a command the shipped <code>kortty-cli</code> is tested to accept for that very method.</p>
 <h3 id="what-the-methods-do">What the methods do<a class="headerlink" href="#what-the-methods-do" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
