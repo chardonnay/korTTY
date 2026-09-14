@@ -1,6 +1,7 @@
 package de.kortty.codingagent;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 import org.testng.SkipException;
 import org.testng.annotations.Test;
@@ -295,6 +296,7 @@ class LocalProcessInspectorTest {
         Path fakeAgent = dir.resolve("claude");
         Files.copy(sleepBinary(), fakeAgent);
         assertThat(fakeAgent.toFile().setExecutable(true)).isTrue();
+        adHocSignOnMac(fakeAgent);
         Process agent;
         try {
             agent = new ProcessBuilder(fakeAgent.toString(), "30").start();
@@ -308,8 +310,21 @@ class LocalProcessInspectorTest {
                 return OptionalLong.of(ProcessHandle.current().pid());
             }, () -> false);
 
-            Optional<AgentProcess> result = source.get();
-            assertThat(pidReads.get()).isEqualTo(1);
+            // A freshly spawned child does not appear in this JVM's process tree the instant start()
+            // returns, so poll the way the sibling descendant tests do rather than reading once.
+            Optional<AgentProcess> result = Optional.empty();
+            int polls = 0;
+            while (polls < 50 && result.isEmpty()) {
+                requireStillRunning(agent, fakeAgent);
+                polls++;
+                result = source.get();
+                if (result.isEmpty()) {
+                    Thread.sleep(100);
+                }
+            }
+            assertWithMessage("the source must re-read the shell PID on every call, because the shell"
+                    + " may have reconnected between two polls")
+                .that(pidReads.get()).isEqualTo(polls);
             assertThat(result).isPresent();
             assertThat(result.get().pid()).isEqualTo(agent.pid());
             assertThat(result.get().kind()).isEqualTo(CodingAgentKind.CLAUDE_CODE);
@@ -380,6 +395,43 @@ class LocalProcessInspectorTest {
             }
         }
         throw new SkipException("no sleep binary found to impersonate an agent");
+    }
+
+    /**
+     * Turns a fake agent that died on start into an accurate skip rather than a puzzling "no agent
+     * found" further down. On Apple Silicon a copied system binary can be refused by the code-signing
+     * enforcement and killed immediately, which leaves the process tree with nothing to find.
+     */
+    private static void requireStillRunning(Process agent, Path fakeAgent) {
+        if (agent.isAlive()) {
+            return;
+        }
+        throw new SkipException("the copy of sleep at " + fakeAgent + " exited immediately with "
+            + agent.exitValue() + "; this platform will not run a copied system binary, so there is"
+            + " no live process to impersonate an agent");
+    }
+
+    /**
+     * Re-signs a copied binary ad hoc on macOS, where a plain copy of a system binary may no longer
+     * satisfy code-signing enforcement. Best effort: a machine without the command-line tools simply
+     * skips the test through {@link #requireStillRunning}.
+     */
+    private static void adHocSignOnMac(Path binary) {
+        if (!System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac")) {
+            return;
+        }
+        try {
+            new ProcessBuilder("codesign", "--force", "--sign", "-", binary.toString())
+                .redirectErrorStream(true)
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .start()
+                .waitFor();
+        } catch (IOException | InterruptedException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            // Without codesign the process simply will not start; requireStillRunning explains that.
+        }
     }
 
     private static void skipOnWindows() {
