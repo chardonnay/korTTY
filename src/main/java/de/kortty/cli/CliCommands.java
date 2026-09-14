@@ -117,7 +117,7 @@ public final class CliCommands {
     private static final String SELECTOR_SYNTAX = "--pane <id> | --tab <id> | --focused | --current";
 
     private static final String RESERVED_TAB =
-        "not implemented in this version — open the tab in korTTY and address it with --pane";
+        "not implemented in this version; open the tab in korTTY and address it with --pane";
 
     private static final List<Command> TABLE = buildTable();
 
@@ -577,8 +577,8 @@ public final class CliCommands {
         table.add(pane("run", "pane.run", Set.of("command"), List.of(Set.of("command")), null,
             "pane run <selector> --command <s>",
             "Types one single-line command and submits it."));
-        table.add(pane("send-keys", "pane.send_keys", Set.of(), List.of(), "<key>…",
-            "pane send-keys <selector> <key>…",
+        table.add(pane("send-keys", "pane.send_keys", Set.of(), List.of(), "<key>...",
+            "pane send-keys <selector> <key>...",
             "Sends key names; an unknown name is a local syntax error."));
         table.add(pane("wait-output", "pane.wait_output",
             Set.of("regex", "contains", "visible", "recent", "lines", "timeout-ms", "poll-ms"),
@@ -608,8 +608,8 @@ public final class CliCommands {
             Set.of("text", "stdin", "wait-until", "timeout-ms"), List.of(Set.of("text", "stdin")),
             null, "agent prompt <selector> --text <s>|--stdin [--wait-until done] [--timeout-ms N]",
             "Prompts an agent and optionally waits for it."));
-        table.add(agent("send-keys", "agent.send_keys", Set.of(), List.of(), "<key>…",
-            "agent send-keys <selector> <key>…", "Answers an agent's prompt with key names."));
+        table.add(agent("send-keys", "agent.send_keys", Set.of(), List.of(), "<key>...",
+            "agent send-keys <selector> <key>...", "Answers an agent's prompt with key names."));
         table.add(agent("rename", "agent.rename", Set.of("alias"), List.of(Set.of("alias")), null,
             "agent rename <selector> --alias <s>", "Sets or clears an agent's alias."));
         Set<String> startFlags = new LinkedHashSet<>(selectors);

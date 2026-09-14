@@ -55,7 +55,7 @@ public final class CliUsage {
             .append("<config-dir>/control/endpoint.json only, so it never reaches argv or a log.")
             .append(NEWLINE).append(NEWLINE)
             .append("Selectors (a pane verb needs exactly one):").append(NEWLINE);
-        appendRow(text, "--pane <id>", "a pane id or a w1:t…:p… address from 'pane list'");
+        appendRow(text, "--pane <id>", "a pane id or a w1:t..:p.. address from 'pane list'");
         appendRow(text, "--tab <id>", "that tab's focused pane");
         appendRow(text, "--focused", "whatever pane the user is looking at");
         appendRow(text, "--current", "the pane this process is running in; never falls back");

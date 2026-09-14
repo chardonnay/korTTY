@@ -57,7 +57,7 @@ public final class KorttyCli {
      * survive a Windows console code page that has no {@code →}.
      */
     static final String NOT_RUNNING =
-        "the korTTY control API is not running — enable it in Settings > Terminal > Control API";
+        "the korTTY control API is not running; enable it in Settings > Terminal > Control API";
 
     /** What {@code --current} says when no ancestor process is a korTTY local shell. */
     static final String NOT_IN_PANE =
@@ -106,9 +106,22 @@ public final class KorttyCli {
         return execute(resolved, call, out, err);
     }
 
-    /** The process entry point; the only {@code System.exit} caller in this package. */
+    /**
+     * The process entry point; the only {@code System.exit} caller in this package.
+     *
+     * <p>Both streams are pinned to UTF-8 rather than inherited with the platform encoding. stdout
+     * carries JSON that a script pipes into a parser, and {@code pane read} puts a terminal's own
+     * text in it, which is arbitrary Unicode — on a console the JVM reports as POSIX or cp1252 those
+     * characters would be replaced by {@code ?} and the output would no longer be the pane's
+     * contents. stderr follows so a message the server wrote survives the same way.
+     */
     public static void main(String[] args) {
-        System.exit(run(args, System.out, System.err));
+        System.exit(run(args, utf8(System.out), utf8(System.err)));
+    }
+
+    /** Re-encodes one inherited stream as UTF-8, preserving any {@code System.setOut} redirection. */
+    private static PrintStream utf8(PrintStream stream) {
+        return new PrintStream(stream, true, StandardCharsets.UTF_8);
     }
 
     // --- the call ----------------------------------------------------------------------------
@@ -145,7 +158,7 @@ public final class KorttyCli {
                 + invocation.timeoutMillis() + " ms (raise --timeout)", EXIT_TIMEOUT);
         } catch (IOException e) {
             return fail(err, quiet, "cannot reach the korTTY control API on "
-                + endpoint.displayText() + " — korTTY may have exited; restart it, or delete"
+                + endpoint.displayText() + "; korTTY may have exited. Restart it, or delete"
                 + " its control directory and restart it", EXIT_UNREACHABLE);
         }
     }
