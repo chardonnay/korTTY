@@ -6,6 +6,7 @@ import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import de.kortty.control.ControlApiException;
 import de.kortty.control.ControlApiProtocol;
+import de.kortty.control.ControlApiTokens;
 import de.kortty.control.ControlEndpointFile;
 import de.kortty.control.ControlJson;
 import de.kortty.control.ControlLineCodec;
@@ -44,8 +45,15 @@ import org.testng.SkipException;
  */
 final class StubControlServer implements AutoCloseable {
 
-    /** A 43-character token, the shape {@code ControlApiTokens} mints. */
-    static final String TOKEN = "kQ7fN3rWx9TgY2mLpC5vB8sD1hJ4nR6uZ0aE7iO3qXt";
+    /**
+     * The token this JVM's stub servers accept, minted the way the real server mints its own.
+     *
+     * <p>Generated rather than written down. A fixed high-entropy literal is indistinguishable from a
+     * leaked credential to a secret scanner, and it makes the tests that assert the token never
+     * reaches stdout or stderr weaker than they look: a fresh value each run cannot be one that
+     * happens to be absent for some unrelated reason.
+     */
+    static final String TOKEN = ControlApiTokens.generate();
 
     /** The longest socket path these tests attempt; below every measured platform limit. */
     static final int MAX_SOCKET_PATH_CHARS = 100;
