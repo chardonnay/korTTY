@@ -63,8 +63,8 @@ import java.util.function.Function;
  * <p>When a {@link CodingAgentRegistry} is installed ({@link #setCodingAgentRegistry}) the rows
  * additionally carry the coding-agent marks of Stage 2: a state-coloured chip with the time in
  * state, an accent bar on the tree cell, a breathing status dot while an agent is BLOCKED, rollup
- * chips on container rows and in the footer, PANE leaf rows when several panes of a tab host
- * agents, a one-shot auto-expand of the path to a newly BLOCKED pane and pane-level context-menu
+ * chips on container rows and in the footer, one PANE leaf row per pane of a split tab, a one-shot
+ * auto-expand of the path to a newly BLOCKED pane and pane-level context-menu
  * entries routed through the {@link PaneActionHandler} port. Without a registry the view behaves
  * exactly as before (legacy AI-agent glyph only).
  */
@@ -1142,14 +1142,19 @@ public class DashboardView extends VBox {
             closeItem.setOnAction(e -> actionHandler.accept(item.getTerminalTab(), DashboardAction.CLOSE));
             contextMenu.getItems().add(closeItem);
 
-            if (entry != null) {
+            // Focusing one pane of a split tab is useful whether or not an agent was detected in it,
+            // so it sits outside the agent-only block below.
+            boolean singleAgentConnection = item.getType() == NodeType.CONNECTION
+                    && item.getRollup() != null && item.getRollup().agentCount() == 1;
+            if (item.getType() == NodeType.PANE || (entry != null && singleAgentConnection)) {
                 contextMenu.getItems().add(new SeparatorMenuItem());
-                boolean singleAgentConnection = item.getType() == NodeType.CONNECTION
-                        && item.getRollup() != null && item.getRollup().agentCount() == 1;
-                if (item.getType() == NodeType.PANE || singleAgentConnection) {
-                    MenuItem focusPane = new MenuItem(I18n.get("dashboard.codingAgent.focusPane"), menuIcon(ICON_FOCUS));
-                    focusPane.setOnAction(e -> firePaneAction(item, PaneAction.FOCUS));
-                    contextMenu.getItems().add(focusPane);
+                MenuItem focusPane = new MenuItem(I18n.get("dashboard.codingAgent.focusPane"), menuIcon(ICON_FOCUS));
+                focusPane.setOnAction(e -> firePaneAction(item, PaneAction.FOCUS));
+                contextMenu.getItems().add(focusPane);
+            }
+            if (entry != null) {
+                if (item.getType() != NodeType.PANE && !singleAgentConnection) {
+                    contextMenu.getItems().add(new SeparatorMenuItem());
                 }
                 MenuItem openPanel = new MenuItem(I18n.get("dashboard.codingAgent.openPanel"), menuIcon(ICON_PANE));
                 openPanel.setOnAction(e -> firePaneAction(item, PaneAction.OPEN_PANEL));
@@ -1480,8 +1485,15 @@ public class DashboardView extends VBox {
     }
 
     /**
-     * The CONNECTION row of a tab with, when at least two of its panes host agents, one PANE
-     * leaf per agent pane ("Pane n · cwd tail") below it.
+     * The CONNECTION row of a tab, with one PANE leaf per pane ("Pane n · cwd tail") below it once
+     * the tab is split.
+     *
+     * <p>Every pane of a split tab gets a row, whether or not an agent was detected in it. A split
+     * tab where one pane runs an agent and the other does not is the ordinary case, and listing only
+     * the agent's pane would leave the user looking for the half of their tab that the dashboard had
+     * silently dropped. A pane with no agent simply carries no chip and no accent, and its row still
+     * focuses that pane. An unsplit tab keeps no children at all: its connection row already <em>is</em>
+     * the pane.
      */
     private TreeItem<DashboardItem> connectionItem(TerminalTab terminalTab, java.util.Map<String, Boolean> expansion) {
         String viewId = terminalViewIdOf(terminalTab);
@@ -1491,8 +1503,8 @@ public class DashboardView extends VBox {
         TreeItem<DashboardItem> item = new TreeItem<>(
                 DashboardItem.connection(getServerDisplayName(terminalTab), terminalTab, topEntry, rollup));
         TerminalView view = terminalTab.getTerminalView();
-        if (entries.size() >= 2 && view != null) {
-            List<SithTermFxWidget> widgets = orderedWidgets(view);
+        List<SithTermFxWidget> widgets = view == null ? List.of() : orderedWidgets(view);
+        if (widgets.size() >= 2) {
             for (int i = 0; i < widgets.size(); i++) {
                 SithTermFxWidget widget = widgets.get(i);
                 if (widget == null) {
@@ -1500,9 +1512,6 @@ public class DashboardView extends VBox {
                 }
                 PaneRef pane = paneRefFor(view, widget);
                 CodingAgentEntry entry = entryFor(pane);
-                if (entry == null) {
-                    continue;
-                }
                 String name = I18n.get("dashboard.paneTitle", i + 1);
                 String tail = cwdTailFor(pane);
                 if (tail != null) {
