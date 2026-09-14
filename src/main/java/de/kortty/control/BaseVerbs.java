@@ -122,7 +122,7 @@ final class BaseVerbs {
                 "the schema document, or one method entry",
                 List.of(ControlErrorCode.UNKNOWN_METHOD, ControlErrorCode.INVALID_PARAMS),
                 false, false,
-                "kortty-cli api schema",
+                "kortty-cli schema",
                 "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"api.schema\",\"params\":{}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"api\":\"kortty-control\"}}"),
             (session, params) -> {

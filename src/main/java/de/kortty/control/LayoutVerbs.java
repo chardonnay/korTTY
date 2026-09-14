@@ -102,7 +102,7 @@ final class LayoutVerbs {
                 "{ok, tab:TabInfo}",
                 List.of(ControlErrorCode.TAB_NOT_FOUND, ControlErrorCode.STALE_INSTANCE),
                 true, false,
-                "kortty-cli tab focus <selector>",
+                "kortty-cli tab focus --tab <id>",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tab.focus\",\"params\":{\"tab\":\"t9f3a\"}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"ok\":true}}"),
             (session, params) -> {
@@ -179,7 +179,7 @@ final class LayoutVerbs {
                 "{pane:PaneInfo}",
                 List.of(ControlErrorCode.PANE_NOT_FOUND, ControlErrorCode.AMBIGUOUS_PANE),
                 false, false,
-                "kortty-cli pane get <selector>",
+                "kortty-cli pane get --pane <id>",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"pane.get\",\"params\":{\"pane\":\"p1a2b\"}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"pane\":{\"pane_id\":\"p1a2b\"}}}"),
             (session, params) -> {
@@ -200,7 +200,7 @@ final class LayoutVerbs {
                         + ControlApiProtocol.MAX_RESOLVE_PIDS + ".")),
                 "{pane:PaneInfo|null, matched_pid:int|null}",
                 List.of(ControlErrorCode.INVALID_PARAMS), false, false,
-                "kortty-cli pane resolve --current",
+                "kortty-cli raw pane.resolve {\"pane\":\"@focused\"}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"pane.resolve\",\"params\":{\"pids\":[4711]}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"pane\":null,\"matched_pid\":null}}"),
             (session, params) -> {
@@ -232,7 +232,7 @@ final class LayoutVerbs {
                 List.of(ControlErrorCode.PANE_NOT_FOUND, ControlErrorCode.AMBIGUOUS_PANE,
                     ControlErrorCode.STALE_INSTANCE),
                 true, false,
-                "kortty-cli pane focus <selector>",
+                "kortty-cli pane focus --pane <id>",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"pane.focus\",\"params\":{\"pane\":\"p1a2b\"}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"ok\":true}}"),
             (session, params) -> {
@@ -264,7 +264,7 @@ final class LayoutVerbs {
                     ControlErrorCode.UNSUPPORTED, ControlErrorCode.SPLIT_FAILED,
                     ControlErrorCode.STALE_INSTANCE),
                 true, true,
-                "kortty-cli pane split <selector> --vertical",
+                "kortty-cli pane split --pane <id> --vertical",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"pane.split\",\"params\":{\"pane\":\"p1a2b\"}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"pane\":{\"pane_id\":\"p7f31\"}}}"),
             (session, params) -> {
@@ -292,7 +292,7 @@ final class LayoutVerbs {
                 List.of(ControlErrorCode.PANE_NOT_FOUND, ControlErrorCode.LAST_PANE,
                     ControlErrorCode.STALE_INSTANCE),
                 true, false,
-                "kortty-cli pane close <selector>",
+                "kortty-cli pane close --pane <id>",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"pane.close\",\"params\":{\"pane\":\"p7f31\"}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"ok\":true}}"),
             (session, params) -> {

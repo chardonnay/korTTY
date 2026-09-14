@@ -81,7 +81,7 @@ final class AgentVerbs {
                 "{agent:AgentInfo}",
                 List.of(ControlErrorCode.PANE_NOT_FOUND, ControlErrorCode.AGENT_NOT_FOUND),
                 false, false,
-                "kortty-cli agent get <selector>",
+                "kortty-cli agent get --pane <id>",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"agent.get\",\"params\":{\"pane\":\"p1a2b\"}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"agent\":{\"kind\":\"claude-code\"}}}"),
             (session, params) -> {
@@ -100,7 +100,7 @@ final class AgentVerbs {
                 "{explain:string}",
                 List.of(ControlErrorCode.PANE_NOT_FOUND, ControlErrorCode.AGENT_NOT_FOUND),
                 false, false,
-                "kortty-cli agent explain <selector>",
+                "kortty-cli agent explain --pane <id>",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"agent.explain\",\"params\":{\"pane\":\"p1a2b\"}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"explain\":\"Claude Code is IDLE\"}}"),
             (session, params) -> {
@@ -132,7 +132,7 @@ final class AgentVerbs {
                     ControlErrorCode.HOST_SHORTCUT_CONFLICT, ControlErrorCode.TIMEOUT,
                     ControlErrorCode.STALE_INSTANCE),
                 true, true,
-                "kortty-cli agent prompt <selector> --text <s> --wait-until done",
+                "kortty-cli agent prompt --pane <id> --text <s> --wait-until done",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"agent.prompt\","
                     + "\"params\":{\"pane\":\"p1a2b\",\"text\":\"hi\"}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"bytes_written\":3,\"submitted\":true}}"),
@@ -171,7 +171,7 @@ final class AgentVerbs {
                     ControlErrorCode.NOT_CONNECTED, ControlErrorCode.WRITE_FAILED,
                     ControlErrorCode.STALE_INSTANCE),
                 true, false,
-                "kortty-cli agent send-keys <selector> y enter",
+                "kortty-cli agent send-keys --pane <id> y enter",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"agent.send_keys\","
                     + "\"params\":{\"pane\":\"p1a2b\",\"keys\":\"y enter\"}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"keys\":[\"y\",\"enter\"]}}"),
@@ -201,7 +201,7 @@ final class AgentVerbs {
                 List.of(ControlErrorCode.PANE_NOT_FOUND, ControlErrorCode.AGENT_NOT_FOUND,
                     ControlErrorCode.INVALID_PARAMS, ControlErrorCode.TIMEOUT),
                 false, true,
-                "kortty-cli agent wait <selector> --until done",
+                "kortty-cli agent wait --pane <id> --until done",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"agent.wait\","
                     + "\"params\":{\"pane\":\"p1a2b\",\"until\":\"done\"}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"state\":\"done\"}}"),
@@ -227,7 +227,7 @@ final class AgentVerbs {
                 List.of(ControlErrorCode.PANE_NOT_FOUND, ControlErrorCode.AGENT_NOT_FOUND,
                     ControlErrorCode.STALE_INSTANCE),
                 true, false,
-                "kortty-cli agent rename <selector> --alias backend",
+                "kortty-cli agent rename --pane <id> --alias backend",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"agent.rename\","
                     + "\"params\":{\"pane\":\"p1a2b\",\"alias\":\"backend\"}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"agent\":{\"alias\":\"backend\"}}}"),
@@ -272,7 +272,7 @@ final class AgentVerbs {
                     ControlErrorCode.INVALID_PARAMS, ControlErrorCode.AGENT_BLOCKED,
                     ControlErrorCode.TIMEOUT, ControlErrorCode.STALE_INSTANCE),
                 true, true,
-                "kortty-cli agent start --split-from <selector> --kind claude-code",
+                "kortty-cli agent start --split-from <id> --kind claude-code",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"agent.start\","
                     + "\"params\":{\"pane\":\"p7f31\",\"kind\":\"claude-code\"}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"command\":[\"claude\"]}}"),

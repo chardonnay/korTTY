@@ -3,6 +3,8 @@ package de.kortty.cli;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import de.kortty.codingagent.CodingAgentRegistry;
 import de.kortty.codingagent.FakeFocusOracle;
@@ -17,6 +19,7 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
@@ -102,6 +105,45 @@ public class CliServerRoundTripTest {
             .that(lines.get(0)).doesNotContain("\": ");
         assertWithMessage("nothing but the result may reach the caller on a success")
             .that(stderr()).isEmpty();
+    }
+
+    @Test(timeOut = 60_000)
+    void everyCliEquivalentApiSchemaPublishesIsACommandThisClientAcceptsForThatVeryMethod() {
+        assertThat(run("schema")).isEqualTo(KorttyCli.EXIT_OK);
+        JsonObject schema = ControlJson.gson().fromJson(stdout().strip(), JsonObject.class);
+        JsonArray methods = schema.getAsJsonArray("methods");
+        assertWithMessage("the schema must describe the whole surface, or this proves nothing")
+            .that(methods.size()).isGreaterThan(20);
+
+        List<String> rejected = new ArrayList<>();
+        for (JsonElement element : methods) {
+            JsonObject method = element.getAsJsonObject();
+            JsonElement cli = method.get("cli");
+            if (cli == null || cli.isJsonNull() || !cli.getAsString().startsWith("kortty-cli ")) {
+                continue;
+            }
+            String invocation = cli.getAsString();
+            String[] tokens = invocation.substring("kortty-cli ".length()).trim().split("\\s+");
+            try {
+                CliInvocation parsed = CliArguments.parse(tokens);
+                CliCommands.Command command =
+                    CliCommands.find(parsed.group(), parsed.verb());
+                if (command != null && command.method() != null
+                        && !command.method().equals(method.get("name").getAsString())) {
+                    rejected.add(invocation + " runs " + command.method() + ", not "
+                        + method.get("name").getAsString());
+                }
+            } catch (CliSyntaxException e) {
+                rejected.add(invocation + " -> " + e.message());
+            }
+        }
+
+        assertWithMessage("api.schema's cli strings are the one place an agent that discovered the"
+                + " API is told how to drive it from a shell, and both reference pages promise they"
+                + " cannot drift from the implementation; every one must parse, and must reach the"
+                + " method it is published under")
+            .that(rejected)
+            .isEmpty();
     }
 
     @Test(timeOut = 60_000)

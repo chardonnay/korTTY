@@ -62,7 +62,7 @@ final class PaneIoVerbs {
                 List.of(ControlErrorCode.PANE_NOT_FOUND, ControlErrorCode.AMBIGUOUS_PANE,
                     ControlErrorCode.INVALID_PARAMS),
                 false, false,
-                "kortty-cli pane read <selector> --recent",
+                "kortty-cli pane read --pane <id> --recent",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"pane.read\",\"params\":{\"pane\":\"p1a2b\"}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"pane_id\":\"p1a2b\",\"lines\":[]}}"),
             (session, params) -> {
@@ -105,7 +105,7 @@ final class PaneIoVerbs {
                     ControlErrorCode.WRITE_FAILED, ControlErrorCode.EMPTY_INPUT,
                     ControlErrorCode.HOST_SHORTCUT_CONFLICT, ControlErrorCode.STALE_INSTANCE),
                 true, false,
-                "kortty-cli pane send-text <selector> --text <s>",
+                "kortty-cli pane send-text --pane <id> --text <s>",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"pane.send_text\","
                     + "\"params\":{\"pane\":\"p1a2b\",\"text\":\"ls\"}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"bytes_written\":2}}"),
@@ -134,7 +134,7 @@ final class PaneIoVerbs {
                     ControlErrorCode.WRITE_FAILED, ControlErrorCode.EMPTY_INPUT,
                     ControlErrorCode.INVALID_PARAMS, ControlErrorCode.STALE_INSTANCE),
                 true, false,
-                "kortty-cli pane run <selector> -- <command>",
+                "kortty-cli pane run --pane <id> --command <s>",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"pane.run\","
                     + "\"params\":{\"pane\":\"p1a2b\",\"command\":\"ls -l\"}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"bytes_written\":6,\"submitted\":true}}"),
@@ -161,7 +161,7 @@ final class PaneIoVerbs {
                     ControlErrorCode.WRITE_FAILED, ControlErrorCode.EMPTY_INPUT,
                     ControlErrorCode.UNKNOWN_KEY, ControlErrorCode.STALE_INSTANCE),
                 true, false,
-                "kortty-cli pane send-keys <selector> ctrl+c enter",
+                "kortty-cli pane send-keys --pane <id> ctrl+c enter",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"pane.send_keys\","
                     + "\"params\":{\"pane\":\"p1a2b\",\"keys\":\"ctrl+c enter\"}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"keys\":[\"ctrl+c\",\"enter\"]}}"),
@@ -198,7 +198,7 @@ final class PaneIoVerbs {
                 List.of(ControlErrorCode.PANE_NOT_FOUND, ControlErrorCode.INVALID_REGEX,
                     ControlErrorCode.INVALID_PARAMS, ControlErrorCode.TIMEOUT),
                 false, true,
-                "kortty-cli pane wait-output <selector> --contains <s>",
+                "kortty-cli pane wait-output --pane <id> --contains <s>",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"pane.wait_output\","
                     + "\"params\":{\"pane\":\"p1a2b\",\"contains\":\"$ \"}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"matched\":true}}"),

@@ -43,7 +43,7 @@ final class EventVerbs {
                         "Allow the rate-limited agent.evidence kind.")),
                 "{subscription_id, kinds, queue_depth}",
                 List.of(ControlErrorCode.INVALID_PARAMS), false, false,
-                "kortty-cli events watch",
+                "kortty-cli events --kinds agent.state_changed",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"events.subscribe\",\"params\":{}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"subscription_id\":\"s1\"}}"),
             (session, params) -> {
@@ -66,7 +66,7 @@ final class EventVerbs {
                     "Omit to drop all of this connection's subscriptions.")),
                 "{subscribed:[string]}",
                 List.of(ControlErrorCode.INVALID_PARAMS), false, false,
-                "kortty-cli events unwatch",
+                "kortty-cli raw events.unsubscribe {\"subscription\":\"<id>\"}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"events.unsubscribe\",\"params\":{}}",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"subscribed\":[]}}"),
             (session, params) -> {
