@@ -123,13 +123,68 @@ class CliExitCodeTest {
         assertThat(stderr()).contains("Control API");
     }
 
+    /**
+     * korTTY exiting without unlinking its socket leaves an {@code endpoint.json} pointing at nothing.
+     *
+     * <p>This runs over the unix-domain socket on purpose. A closed loopback port is not a stable
+     * "nothing": the kernel hands ephemeral ports back out within the same JVM, and a port that has
+     * been re-bound completes the handshake from its backlog even before its owner accepts — so the
+     * client connects, waits and reports a timeout instead. A deleted socket file cannot be recycled,
+     * so the refusal is the same on every run.
+     */
     @Test
-    void aStaleEndpointFileWhoseListenerIsGoneExitsThreeWithoutNamingTheToken() {
+    void aStaleEndpointFileWhoseListenerIsGoneExitsThreeWithoutNamingTheToken() throws IOException {
+        Path socketPath = root.resolve("s.sock");
+        StubControlServer.requireBindableSocketPath(socketPath);
         server.close();
+        server = StubControlServer.onUnixSocket(socketPath, StubControlServer.TOKEN);
+        server.publishEndpoint(configDir);
+        server.close();
+        Files.deleteIfExists(socketPath);
 
         assertThat(run("ping")).isEqualTo(KorttyCli.EXIT_UNREACHABLE);
         assertThat(stderr()).doesNotContain(StubControlServer.TOKEN);
         assertThat(stderr()).contains("korTTY may have exited");
+    }
+
+    /**
+     * A stale {@code endpoint.json} can name an address that is not korTTY at all. However the host
+     * answers it, the endpoint is unreachable — never a wait a larger {@code --timeout} could have
+     * saved, and never a hang.
+     *
+     * <p>The address is {@code 192.0.2.1}, reserved by RFC 5737 for documentation and routed nowhere.
+     * Note what this does and does not pin: it pins the exit code and that the client returns at all.
+     * It does <em>not</em> prove {@code ControlClient}'s connect bound, because a host that answers
+     * "no route" immediately — as this sandbox does — never reaches the bound. The bound matters on a
+     * host that silently drops instead, where an unbounded connect would never return; the elapsed
+     * assertion below is what would catch that regression there.
+     */
+    @Test
+    void anAddressThatIsNotKorttyIsUnreachableRatherThanATimeout() throws IOException {
+        server.close();
+        writeEndpointHost("192.0.2.1", 9);
+
+        long startedAt = System.nanoTime();
+        int code = run("ping");
+        long elapsedMillis = (System.nanoTime() - startedAt) / 1_000_000L;
+
+        assertWithMessage("an address nothing answers on is unreachable, not a wait that a larger"
+                + " --timeout could have saved")
+            .that(code).isEqualTo(KorttyCli.EXIT_UNREACHABLE);
+        assertWithMessage("the client must return; on a host that drops rather than refuses, an"
+                + " unbounded connect would never come back")
+            .that(elapsedMillis).isLessThan(30_000L);
+        assertThat(stdout()).isEmpty();
+        assertThat(stderr()).doesNotContain(StubControlServer.TOKEN);
+    }
+
+    /** Repoints the published endpoint file at {@code host:port}. */
+    private void writeEndpointHost(String host, int port) throws IOException {
+        Path file = configDir.resolve("control").resolve("endpoint.json");
+        String json = Files.readString(file)
+            .replaceAll("\"port\"\\s*:\\s*\\d+", "\"port\": " + port)
+            .replaceAll("\"host\"\\s*:\\s*\"[^\"]*\"", "\"host\": \"" + host + "\"");
+        Files.writeString(file, json);
     }
 
     @Test

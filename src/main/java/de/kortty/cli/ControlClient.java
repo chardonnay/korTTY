@@ -49,6 +49,16 @@ public final class ControlClient implements AutoCloseable {
     /** The watchdog thread's name; deliberately outside the server's {@code kortty-control-} space. */
     private static final String WATCHDOG_THREAD = "kortty-cli-deadline";
 
+    /**
+     * How long the loopback connect may take before the endpoint counts as unreachable.
+     *
+     * <p>A blocking connect has no timeout of its own, so without this a stale {@code endpoint.json}
+     * naming a port that silently drops packets — a recycled ephemeral port, a host-firewall rule —
+     * hangs the client forever, and the per-call deadline never gets a chance to arm because it is
+     * only armed once the connection is up.
+     */
+    private static final int CONNECT_TIMEOUT_MILLIS = 5_000;
+
     private final EndpointDescriptor endpoint;
 
     private final SocketChannel channel;
@@ -91,6 +101,13 @@ public final class ControlClient implements AutoCloseable {
     /**
      * Opens the transport {@code endpoint} describes.
      *
+     * <p>Reaching the endpoint is bounded by {@link #CONNECT_TIMEOUT_MILLIS}, and a connect that
+     * expires is reported as an ordinary {@link IOException} rather than a
+     * {@link SocketTimeoutException}: an endpoint nothing answers on is <em>unreachable</em>, whether
+     * the kernel refuses it or drops the packet, and telling the caller to raise {@code --timeout}
+     * would be advice that cannot help. Only a call that reached a live server and then ran out of
+     * time is a timeout.
+     *
      * @param timeoutMillis the per-call deadline applied by {@link #call}; zero or less means none
      * @throws IOException when the socket cannot be opened, which for a leftover endpoint file means
      *     korTTY exited without unlinking it
@@ -102,11 +119,31 @@ public final class ControlClient implements AutoCloseable {
         if (EndpointDescriptor.TRANSPORT_LOOPBACK.equals(endpoint.transport())) {
             String host = endpoint.host() == null || endpoint.host().isBlank()
                 ? "127.0.0.1" : endpoint.host();
-            channel = SocketChannel.open(new InetSocketAddress(host, endpoint.port()));
+            channel = SocketChannel.open();
+            try {
+                channel.socket().connect(new InetSocketAddress(host, endpoint.port()),
+                    CONNECT_TIMEOUT_MILLIS);
+            } catch (SocketTimeoutException e) {
+                closeQuietly(channel);
+                throw new IOException("the control API did not accept a connection on "
+                    + endpoint.displayText() + " within " + CONNECT_TIMEOUT_MILLIS + " ms", e);
+            } catch (IOException | RuntimeException e) {
+                closeQuietly(channel);
+                throw e;
+            }
         } else {
             channel = SocketChannel.open(socketAddress(endpoint));
         }
         return new ControlClient(endpoint, channel, timeoutMillis);
+    }
+
+    /** Closes a half-opened channel on a failed connect; the failure to report is the caller's. */
+    private static void closeQuietly(SocketChannel channel) {
+        try {
+            channel.close();
+        } catch (IOException ignored) {
+            // The connect failure is what the caller needs to hear about.
+        }
     }
 
     /**
