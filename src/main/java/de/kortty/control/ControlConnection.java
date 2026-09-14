@@ -5,9 +5,12 @@ import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -19,6 +22,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -44,6 +48,18 @@ public final class ControlConnection implements Runnable, AutoCloseable {
 
     /** How long {@link #run()} waits for the writer to drain before it drops the socket. */
     private static final long FLUSH_BUDGET_MILLIS = 1_000L;
+
+    /**
+     * How often the tx thread looks for a peer that has gone away while the rx thread is parked.
+     *
+     * <p>A blocking verb can hold the rx thread for up to ten minutes, during which nothing reads the
+     * socket and the peer's end-of-stream is never observed. Without this, an abandoned wait keeps its
+     * connection slot — one of eight — and its rx thread for the rest of its budget.
+     */
+    private static final long PEER_PROBE_MILLIS = 250L;
+
+    /** How much of a pipelined request one probe may take out of the socket and hand back. */
+    private static final int PROBE_BYTES = 512;
 
     /** Queue sentinel that tells the writer thread to finish. */
     private static final ControlFrame POISON = ControlFrame.event("control.connection.closed", null);
@@ -75,6 +91,21 @@ public final class ControlConnection implements Runnable, AutoCloseable {
 
     private final CountDownLatch writerFinished = new CountDownLatch(1);
 
+    /**
+     * Held by the rx thread while it reads and by the tx thread while it probes, so the two never
+     * touch the channel at once. The probe only ever {@code tryLock}s: while the rx thread is inside
+     * a read there is nothing to probe for, because that read observes the end of stream itself.
+     */
+    private final ReentrantLock channelRead = new ReentrantLock();
+
+    /**
+     * Bytes a peer probe consumed before the reader asked for them, handed back in order.
+     *
+     * <p>Only ever touched while {@link #channelRead} is held, by the tx thread filling it and the rx
+     * thread draining it, so it needs no synchronisation of its own.
+     */
+    private final ArrayDeque<Byte> pending = new ArrayDeque<>();
+
     private final AtomicBoolean closed = new AtomicBoolean();
 
     private final long openedAtMillis;
@@ -84,6 +115,9 @@ public final class ControlConnection implements Runnable, AutoCloseable {
     private volatile boolean authenticated;
 
     private volatile ScheduledFuture<?> authDeadline;
+
+    /** The thread running {@link #run()}, so {@link #close()} can cut short whatever it parks on. */
+    private volatile Thread rxThread;
 
     /**
      * @param connectionId a short id unique for this server run, used in logs and in
@@ -117,7 +151,7 @@ public final class ControlConnection implements Runnable, AutoCloseable {
         this.timer = Objects.requireNonNull(timer, "timer");
         this.writerExecutor = Objects.requireNonNull(writerExecutor, "writerExecutor");
         this.onClosed = onClosed == null ? () -> { } : onClosed;
-        this.codec = new ControlLineCodec(Channels.newInputStream(channel),
+        this.codec = new ControlLineCodec(new ProbedInputStream(Channels.newInputStream(channel)),
             Channels.newOutputStream(channel), ControlApiProtocol.MAX_LINE_BYTES);
         this.openedAtMillis = clockMillis.getAsLong();
         this.session = new ControlSession(connectionId, transportKind, false, null, this::enqueue);
@@ -156,6 +190,7 @@ public final class ControlConnection implements Runnable, AutoCloseable {
 
     @Override
     public void run() {
+        rxThread = Thread.currentThread();
         startWriter();
         armAuthDeadline();
         try {
@@ -166,6 +201,10 @@ public final class ControlConnection implements Runnable, AutoCloseable {
             LOG.error("control-api {}: connection failed", connectionId, e);
         } finally {
             finish();
+            rxThread = null;
+            // The pool hands this thread to the next connection: an interrupt meant for this one's
+            // wait must not be inherited by that one's first read.
+            Thread.interrupted();
         }
     }
 
@@ -181,6 +220,13 @@ public final class ControlConnection implements Runnable, AutoCloseable {
         closeChannel();
         outbound.clear();
         outbound.offer(POISON);
+        // A blocking verb parks the rx thread on a future that nothing else will complete, so a
+        // connection that is gone has to say so: every wait is documented as cancelled when its
+        // connection closes, and an interrupt is how the waiters hear it.
+        Thread rx = rxThread;
+        if (rx != null && rx != Thread.currentThread()) {
+            rx.interrupt();
+        }
         LOG.debug("control-api {}: closed after {} ms", connectionId,
             clockMillis.getAsLong() - openedAtMillis);
         try {
@@ -193,11 +239,14 @@ public final class ControlConnection implements Runnable, AutoCloseable {
     private void pumpRequests() throws IOException {
         while (!closed.get()) {
             String line;
+            channelRead.lock();
             try {
                 line = codec.readLine();
             } catch (ControlApiException e) {
                 enqueue(ControlFrame.error(JsonNull.INSTANCE, e.toWire()));
                 return;
+            } finally {
+                channelRead.unlock();
             }
             if (line == null) {
                 return;
@@ -354,7 +403,11 @@ public final class ControlConnection implements Runnable, AutoCloseable {
     private void drainOutbound() {
         try {
             while (true) {
-                ControlFrame frame = outbound.take();
+                ControlFrame frame = outbound.poll(PEER_PROBE_MILLIS, TimeUnit.MILLISECONDS);
+                if (frame == null) {
+                    probePeer();
+                    continue;
+                }
                 if (frame == POISON) {
                     return;
                 }
@@ -366,6 +419,98 @@ public final class ControlConnection implements Runnable, AutoCloseable {
             LOG.debug("control-api {}: write failed", connectionId, e);
         } finally {
             writerFinished.countDown();
+        }
+    }
+
+    /**
+     * Looks for an end of stream while the rx thread is busy, and closes the connection when it finds
+     * one.
+     *
+     * <p>This runs on the tx thread rather than on the shared timer on purpose: reading the channel
+     * has to briefly put it into non-blocking mode, which waits for the channel's own read and write
+     * locks, and the tx thread is the only writer — on the timer a slow client could wedge the
+     * scheduler every other connection depends on.
+     *
+     * <p>A byte that turns up instead of an end of stream belongs to a pipelined request, so it is
+     * pushed back unread and the rx thread sees it in order.
+     */
+    private void probePeer() {
+        if (closed.get() || !channelRead.tryLock()) {
+            return;
+        }
+        boolean gone = false;
+        try {
+            if (closed.get()) {
+                return;
+            }
+            channel.configureBlocking(false);
+            try {
+                ByteBuffer probe = ByteBuffer.allocate(PROBE_BYTES);
+                int read = channel.read(probe);
+                if (read < 0) {
+                    gone = true;
+                } else {
+                    for (int i = 0; i < read; i++) {
+                        pending.addLast(probe.array()[i]);
+                    }
+                }
+            } finally {
+                channel.configureBlocking(true);
+            }
+        } catch (IOException | RuntimeException e) {
+            LOG.debug("control-api {}: the peer probe failed", connectionId, e);
+            gone = true;
+        } finally {
+            channelRead.unlock();
+        }
+        if (gone) {
+            LOG.info("control-api {}: the client is gone, cancelling whatever it was waiting for",
+                connectionId);
+            close();
+        }
+    }
+
+    /**
+     * The stream the codec reads: whatever a peer probe already took out of the socket, then the
+     * socket itself.
+     *
+     * <p>Reading is the only way to tell an end of stream from a pipelined request, so the probe has
+     * to consume what it finds; this is what keeps that invisible to the reader above it. The two
+     * threads never overlap — both hold {@link #channelRead} — so no further locking is needed.
+     */
+    private final class ProbedInputStream extends InputStream {
+
+        private final InputStream channelStream;
+
+        ProbedInputStream(InputStream channelStream) {
+            this.channelStream = channelStream;
+        }
+
+        @Override
+        public int read() throws IOException {
+            byte[] one = new byte[1];
+            int read = read(one, 0, 1);
+            return read < 0 ? -1 : one[0] & 0xff;
+        }
+
+        @Override
+        public int read(byte[] buffer, int offset, int length) throws IOException {
+            if (length == 0) {
+                return 0;
+            }
+            if (!pending.isEmpty()) {
+                int taken = 0;
+                while (taken < length && !pending.isEmpty()) {
+                    buffer[offset + taken++] = pending.removeFirst();
+                }
+                return taken;
+            }
+            return channelStream.read(buffer, offset, length);
+        }
+
+        @Override
+        public void close() throws IOException {
+            channelStream.close();
         }
     }
 
