@@ -112,6 +112,46 @@ public class ControlApiFrameSizeTest {
         }
     }
 
+    @Test(timeOut = 120_000)
+    void aWaitOutputMatchOnAHugeScreenIsTruncatedRatherThanTurnedIntoAnInternalError() throws Exception {
+        giveThePaneScrollback(HUGE_LINES, COLUMNS);
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(endpoint)) {
+            wire.authenticate(endpoint.token());
+            JsonObject frame = wire.call("pane.wait_output", ControlApiScenarioFixtures.params(
+                "pane", PANE, "contains", "line-" + (HUGE_LINES - 1) + " ", "mode", "recent",
+                "lines", HUGE_LINES, "timeout_ms", 5_000));
+
+            assertWithMessage("pane.wait_output embeds a whole screen in its result; without the"
+                    + " 512 KiB cap ControlConnection.send answers internal_error and the caller"
+                    + " loses the match it waited for")
+                .that(frame.has("error")).isFalse();
+            JsonObject result = result(frame);
+            assertThat(result.get("matched").getAsBoolean()).isTrue();
+            JsonObject screen = result.getAsJsonObject("screen");
+            assertWithMessage("dropping leading rows silently would let a caller believe it had the"
+                    + " whole scrollback")
+                .that(screen.get("truncated").getAsBoolean()).isTrue();
+
+            long payload = 0L;
+            JsonArray lines = screen.getAsJsonArray("lines");
+            for (int i = 0; i < lines.size(); i++) {
+                payload += lines.get(i).getAsString().getBytes(StandardCharsets.UTF_8).length + 1L;
+            }
+            assertWithMessage("the embedded screen must fit the documented 512 KiB result cap")
+                .that(payload).isAtMost((long) ControlApiProtocol.MAX_RESULT_BYTES);
+
+            int frameBytes = ControlJson.gson().toJson(frame).getBytes(StandardCharsets.UTF_8).length;
+            assertWithMessage("the server must never emit a frame its own codec would reject: this"
+                    + " one is %s bytes against a %s-byte line limit", frameBytes,
+                    ControlApiProtocol.MAX_LINE_BYTES)
+                .that(frameBytes).isLessThan(ControlApiProtocol.MAX_LINE_BYTES);
+
+            int lineIndex = result.get("line_index").getAsInt();
+            assertWithMessage("line_index addresses a row of the screen that is actually returned")
+                .that(lineIndex).isLessThan(lines.size());
+        }
+    }
+
     @Test(timeOut = 60_000)
     void aReadWellInsideTheCapIsNotMarkedTruncated() throws Exception {
         giveThePaneScrollback(50, 80);

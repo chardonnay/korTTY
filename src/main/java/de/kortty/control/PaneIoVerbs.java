@@ -214,7 +214,7 @@ final class PaneIoVerbs {
                 long poll = ControlJson.optLong(params, "poll_ms", ControlApiProtocol.WAIT_POLL_MILLIS,
                     1L, ControlApiProtocol.WAIT_HARD_CAP_MILLIS);
                 return BaseVerbs.tree(
-                    waiter.await(pane.paneId(), regex, contains, mode, lines, timeout, poll));
+                    capped(mode, waiter.await(pane.paneId(), regex, contains, mode, lines, timeout, poll)));
             });
     }
 
@@ -241,6 +241,31 @@ final class PaneIoVerbs {
         result.addProperty("evidence", agent.evidence());
         result.addProperty("explain", agents.explain(pane.paneId()));
         return result;
+    }
+
+    /**
+     * The same cap for {@code pane.wait_output}, whose result embeds a whole screen.
+     *
+     * <p>Without it a match found in ten thousand wide rows serialises to more than the line cap and
+     * {@code ControlConnection.send} replaces a perfectly ordinary answer with {@code internal_error}
+     * — the backstop firing on a legitimate request rather than on a bug, and the caller losing the
+     * match it waited for. Leading lines are dropped from the embedded screen exactly as
+     * {@code pane.read} drops them, so {@code line_index} is re-based onto what is actually returned
+     * and becomes -1 when the matched line itself did not survive the cut.
+     */
+    private static MatchResult capped(ReadMode mode, MatchResult result) {
+        if (result == null || result.screen() == null) {
+            return result;
+        }
+        PaneText screen = result.screen();
+        PaneText fitted = truncate(screen.paneId(), mode, screen);
+        if (fitted == screen) {
+            return result;
+        }
+        int dropped = screen.lines().size() - fitted.lines().size();
+        int index = result.lineIndex() < 0 ? result.lineIndex() : result.lineIndex() - dropped;
+        return new MatchResult(result.paneId(), result.matched(), result.match(), result.line(),
+            Math.max(index, -1), result.waitedMillis(), fitted);
     }
 
     /**
