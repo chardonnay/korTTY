@@ -123,14 +123,59 @@ class ControlApiPolicyTest {
     }
 
     @Test
-    void anAllowingPolicyLeavesTheUsersChoiceAlone() throws Exception {
+    void anAllowingPolicyForcesTheSettingOnBecauseItAlsoLocksTheCheckbox() throws Exception {
+        GlobalSettingsManager manager = new GlobalSettingsManager(configDir);
+        manager.setPolicyClamp(new PolicyClamp(policyWith(PolicyDecision.ALLOW)));
+
+        manager.load();
+
+        assertWithMessage("the API ships off and a managed control is disabled, never assigned, so"
+                + " an allowing policy that did not switch it on would lock every fresh profile in"
+                + " the off position — the opposite of what the administrator wrote and what both"
+                + " reference pages promise")
+            .that(manager.getSettings().isControlApiEnabled())
+            .isTrue();
+    }
+
+    @Test
+    void anAllowingPolicyKeepsTheSettingOnAcrossASave() throws Exception {
         GlobalSettingsManager manager = new GlobalSettingsManager(configDir);
         manager.setPolicyClamp(new PolicyClamp(policyWith(PolicyDecision.ALLOW)));
         manager.load();
 
-        manager.getSettings().setControlApiEnabled(true);
+        manager.getSettings().setControlApiEnabled(false);
         manager.save();
 
-        assertThat(manager.getSettings().isControlApiEnabled()).isTrue();
+        assertWithMessage("the checkbox is locked, so a value that diverges from the policy must not"
+                + " survive a save either")
+            .that(manager.getSettings().isControlApiEnabled())
+            .isTrue();
+    }
+
+    @Test
+    void aPolicyThatDoesNotMentionTheFeatureLeavesTheUsersChoiceAlone() throws Exception {
+        PolicyFile silent = new PolicyFile(1, "ACME", Map.of(),
+            List.of(PolicyRule.builder().features(Map.of()).build()),
+            List.of(), List.of(), List.of(), List.of());
+        EffectivePolicy policy = EffectivePolicy.resolve(silent, new PolicyIdentity() {
+            @Override
+            public String userName() {
+                return "u";
+            }
+
+            @Override
+            public Set<String> osGroups() {
+                return Set.of();
+            }
+        });
+        GlobalSettingsManager manager = new GlobalSettingsManager(configDir);
+        manager.setPolicyClamp(new PolicyClamp(policy));
+        manager.load();
+
+        assertWithMessage("leaving the key out is the documented way to leave the decision to the"
+                + " user, so the default-off setting must stay off")
+            .that(manager.getSettings().isControlApiEnabled())
+            .isFalse();
+        assertThat(policy.isManaged(ManagedSetting.CONTROL_API)).isFalse();
     }
 }

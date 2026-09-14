@@ -311,7 +311,9 @@ public final class EffectivePolicy {
      *
      * <p>Note the documented consequence of the managed-settings model: an admin who writes
      * {@code control-api = "allow"} also locks the checkbox in that position, because a policy file
-     * that mentions a setting takes it over.
+     * that mentions a setting takes it over. Because this is the one default-off setting of the
+     * group, locking it means {@code PolicyClamp} has to switch it <em>on</em> — every other managed
+     * control is already at the value its policy chose.
      */
     public boolean controlApiAllowed() {
         return decision(PolicyFeature.CONTROL_API) != PolicyDecision.DENY;

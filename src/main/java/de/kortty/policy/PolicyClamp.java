@@ -92,6 +92,13 @@ public final class PolicyClamp {
         }
         if (!policy.controlApiAllowed()) {
             settings.setControlApiEnabled(false);
+        } else if (policy.isManaged(ManagedSetting.CONTROL_API)) {
+            // The only default-OFF setting in this group, and the only one where "locked at whatever
+            // the user left it" is not what the policy said. A managed control is disabled, never
+            // assigned, so an administrator who writes control-api = "allow" to turn the API on for
+            // the fleet would otherwise lock every fresh profile's checkbox in the OFF position —
+            // with no way for the user to correct it. Both reference pages promise the opposite.
+            settings.setControlApiEnabled(true);
         }
         if (policy.requireMasterPassword()) {
             settings.setRequireMasterPasswordOnStartup(true);
