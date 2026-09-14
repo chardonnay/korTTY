@@ -28,6 +28,7 @@ import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -95,17 +96,14 @@ public class ControlApiErrorContractTest {
     /**
      * The codes no request can provoke in the shipped server.
      *
-     * <p>{@code blocked_by_policy} has no raise site at all: {@link ControlApiGate} collapses "the
-     * setting is off" and "enterprise policy denies control-api" into a single boolean, so the server
-     * can only ever answer {@code control_api_disabled} and a managed client cannot tell an
-     * administrator's decision from a user's. {@code not_ready} is raised only from a branch that
-     * cannot be reached — the method table is always built before the listener binds.
-     *
-     * <p>Both are reported as findings rather than accommodated: the assertions below still pin their
-     * numbers, and only the round trip is skipped.
+     * <p>Empty, and it has to stay empty: a documented code with no reachable raise site is a branch
+     * every generated client carries and can never reach. {@code blocked_by_policy} and
+     * {@code not_ready} used to live here, because the gate answered one boolean and collapsed the
+     * policy leg, the settings leg and "not started yet" into {@code control_api_disabled}; they are
+     * now three {@link ControlApiGate.Verdict} arms, each with its own scenario below.
      */
     private static final Set<ControlErrorCode> WITHOUT_A_WIRE_SCENARIO =
-        EnumSet.of(ControlErrorCode.BLOCKED_BY_POLICY, ControlErrorCode.NOT_READY);
+        EnumSet.noneOf(ControlErrorCode.class);
 
     private static final String LOCAL_PANE = "p1a2b";
 
@@ -336,7 +334,8 @@ public class ControlApiErrorContractTest {
     @Test(timeOut = 60_000)
     void aGateThatClosesAfterTheHandshakeRefusesTheNextRequest() throws Exception {
         AtomicBoolean open = new AtomicBoolean(true);
-        ControlApiServer gated = startGatedServer(open::get);
+        ControlApiServer gated = startGatedServer(() -> open.get()
+            ? ControlApiGate.Verdict.OPEN : ControlApiGate.Verdict.DISABLED_BY_SETTING);
         EndpointDescriptor gatedEndpoint = gated.endpoint().orElseThrow();
         try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(gatedEndpoint)) {
             wire.authenticate(gatedEndpoint.token());
@@ -362,7 +361,8 @@ public class ControlApiErrorContractTest {
             if (closeOnTheNextCheck.compareAndSet(true, false)) {
                 open.set(false);
             }
-            return answer;
+            return answer
+                ? ControlApiGate.Verdict.OPEN : ControlApiGate.Verdict.DISABLED_BY_SETTING;
         });
         EndpointDescriptor gatedEndpoint = gated.endpoint().orElseThrow();
         closeOnTheNextCheck.set(true);
@@ -379,6 +379,58 @@ public class ControlApiErrorContractTest {
                     + " refused for the same reason rather than served")
                 .that(assertError(wire.call("ping", new JsonObject()),
                     ControlErrorCode.CONTROL_API_DISABLED)).isNotNull();
+        }
+    }
+
+    /**
+     * Why: a managed client has to be able to tell an administrator's decision — which it must not
+     * retry and must report to its user — from the user's own switch, which the user can simply turn
+     * on. One boolean gate made both answer {@code control_api_disabled} and left
+     * {@code blocked_by_policy} with no raise site anywhere in {@code src/main}.
+     */
+    @Test(timeOut = 60_000)
+    void aPolicyThatDeniesTheFeatureAnswersBlockedByPolicyAndNotTheUsersSwitch() throws Exception {
+        // A policy reload lands while a client is connected: exactly the sequence §3.5 describes, and
+        // the one that tells the two refusals apart, since both close the same listener.
+        AtomicReference<ControlApiGate.Verdict> verdict =
+            new AtomicReference<>(ControlApiGate.Verdict.OPEN);
+        ControlApiServer gated = startGatedServer(verdict::get);
+        EndpointDescriptor gatedEndpoint = gated.endpoint().orElseThrow();
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(gatedEndpoint)) {
+            wire.authenticate(gatedEndpoint.token());
+            verdict.set(ControlApiGate.Verdict.BLOCKED_BY_POLICY);
+            JsonObject frame = wire.call("ping", new JsonObject());
+            JsonObject data = assertError(frame, ControlErrorCode.BLOCKED_BY_POLICY);
+            assertWithMessage("an administrator's decision is not retryable; a client that retries it"
+                    + " is a client that never reports it")
+                .that(data.get("retryable").getAsBoolean()).isFalse();
+            assertWithMessage("the refusal must name the cause without naming the policy file or the"
+                    + " rule that produced it")
+                .that(frame.getAsJsonObject("error").get("message").getAsString().toLowerCase(
+                    java.util.Locale.ROOT)).contains("policy");
+        }
+    }
+
+    /**
+     * Why: §4 makes {@code not_ready} the retryable refusal for "Stage-1/2 services are not
+     * initialised yet". Its only guard in the verbs — a null method table — cannot be reached,
+     * because the table is built before the listener can bind. The gate's unresolved leg IS that
+     * state, and is the raise site the documented meaning needs.
+     */
+    @Test(timeOut = 60_000)
+    void aGateWhoseLegsHaveNotResolvedYetAnswersNotReadyAndSaysToRetry() throws Exception {
+        AtomicReference<ControlApiGate.Verdict> verdict =
+            new AtomicReference<>(ControlApiGate.Verdict.OPEN);
+        ControlApiServer gated = startGatedServer(verdict::get);
+        EndpointDescriptor gatedEndpoint = gated.endpoint().orElseThrow();
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(gatedEndpoint)) {
+            wire.authenticate(gatedEndpoint.token());
+            verdict.set(ControlApiGate.Verdict.NOT_READY);
+            JsonObject data = assertError(wire.call("ping", new JsonObject()),
+                ControlErrorCode.NOT_READY);
+            assertWithMessage("korTTY is still starting; the identical request succeeds a moment"
+                    + " later, which is the whole point of the code")
+                .that(data.get("retryable").getAsBoolean()).isTrue();
         }
     }
 
@@ -623,10 +675,9 @@ public class ControlApiErrorContractTest {
                     + " weakening the table above", code.wire())
                 .that(ControlErrorCode.forWire(code.wire())).isPresent();
         }
-        // The remaining 28 codes each have a provoking test in this class. Keeping the count here
-        // means a code added to the enum without a scenario fails this test rather than passing
-        // unnoticed.
-        assertThat(ControlErrorCode.values().length - WITHOUT_A_WIRE_SCENARIO.size()).isEqualTo(28);
+        // All 30 codes now have a provoking test in this class. Keeping the count here means a code
+        // added to the enum without a scenario fails this test rather than passing unnoticed.
+        assertThat(ControlErrorCode.values().length - WITHOUT_A_WIRE_SCENARIO.size()).isEqualTo(30);
     }
 
     // --- helpers ------------------------------------------------------------------------------
@@ -659,13 +710,14 @@ public class ControlApiErrorContractTest {
     }
 
     /** The same scenery behind a gate the test can close mid-connection. */
-    private ControlApiServer startGatedServer(java.util.function.BooleanSupplier gate) {
+    private ControlApiServer startGatedServer(
+            java.util.function.Supplier<ControlApiGate.Verdict> gate) {
         return startOwnServer(surface, gate);
     }
 
     /** A second server over a different scenario surface. */
     private ControlApiServer startServerFor(ControlSurface ownSurface) {
-        return startOwnServer(ownSurface, () -> true);
+        return startOwnServer(ownSurface, () -> ControlApiGate.Verdict.OPEN);
     }
 
     /**
@@ -675,7 +727,7 @@ public class ControlApiErrorContractTest {
      * and {@code endpoint.json} stay untouched; both are unlinked by their own {@code close()}.
      */
     private ControlApiServer startOwnServer(ControlSurface ownSurface,
-                                            java.util.function.BooleanSupplier gate) {
+                                            java.util.function.Supplier<ControlApiGate.Verdict> gate) {
         CodingAgentActions actions =
             new CodingAgentActions(agents, new FakePaneAccess(), (verb, pane, detail) -> { });
         Path configDir = root.resolve("s" + extraServers.size());

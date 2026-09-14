@@ -458,10 +458,9 @@ public class ControlApiSchemaContractTest {
                         .that(strings(entry.getAsJsonArray("fields")))
                         .containsAtLeast("pane_id", "tab_id", "window_id", "agent", "previous_state");
                 }
-                // events.overflow is deliberately NOT checked here: the shipped document gives it the
-                // same field list as an agent event, while the frame the bus actually emits carries
-                // "dropped" and "subscription_id" and none of those ids. That disagreement is
-                // reported as a finding rather than pinned as if it were the contract.
+                // events.overflow is not checked here because it carries no ids at all: every
+                // kind's field list is compared with the frame that kind really emits in
+                // ControlEventBusTest, which is the assertion that can tell them apart.
             }
             assertWithMessage("the published catalogue must be exactly the kinds events.subscribe"
                     + " accepts, or a client can ask for a kind it will never receive")
@@ -566,16 +565,14 @@ public class ControlApiSchemaContractTest {
      * Pins §6's sentence that {@code pane.wait_output} answers {@code pane_not_found},
      * {@code invalid_regex}, {@code invalid_params} and {@code timeout}.
      *
-     * <p>Disabled because it fails against the shipped server, which also declares {@code busy}:
+     * <p>It used to fail against the shipped server, which also declared {@code busy}:
      * {@code PaneIoVerbs} has no {@code BUSY} raise site at all — the only one in the whole of
      * {@code src/main} is {@code NotificationVerbs}' rate limiter — and a wait cannot collide with
-     * another wait on the same connection either, because §2 executes one request at a time. A
-     * client generated from this schema therefore carries a refusal branch no request can ever
-     * reach. Either the declaration goes or the per-connection wait guard the error doc promises
-     * ("a wait is already running on this connection") has to be implemented; both are production
-     * changes, so the test stays here asserting the specification.
+     * another wait on the same connection either, because §2 executes one request at a time. The
+     * declaration has since been dropped rather than a per-connection wait guard invented for it, so
+     * no generated client carries a refusal branch it can never reach.
      */
-    @Test(enabled = false, timeOut = 60_000)
+    @Test(timeOut = 60_000)
     void paneWaitOutputDeclaresOnlyTheRefusalsARequestCanActuallyProvoke() throws Exception {
         try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(endpoint)) {
             wire.authenticate(endpoint.token());
@@ -583,6 +580,12 @@ public class ControlApiSchemaContractTest {
             assertWithMessage("§6 pane.wait_output names these four and no others")
                 .that(errorsOf(schema, "pane.wait_output"))
                 .containsExactlyElementsIn(WAIT_OUTPUT_ERRORS);
+            assertWithMessage("§4's busy entry must describe the rate limit it actually means; the"
+                    + " second half of the old sentence — 'a wait is already running on this"
+                    + " connection' — is unreachable by construction, because requests on one"
+                    + " connection are executed one at a time")
+                .that(errorDoc(schema, "busy").toLowerCase(java.util.Locale.ROOT))
+                .doesNotContain("wait");
         }
     }
 
@@ -601,6 +604,17 @@ public class ControlApiSchemaContractTest {
         assertWithMessage("expected an error object but the server answered %s", frame)
             .that(frame.has("error")).isTrue();
         return frame.getAsJsonObject("error").getAsJsonObject("data");
+    }
+
+    /** The prose the schema publishes for one error code. */
+    private static String errorDoc(JsonObject schema, String code) {
+        for (JsonElement element : schema.getAsJsonArray("errors")) {
+            JsonObject entry = element.getAsJsonObject();
+            if (entry.get("code").getAsString().equals(code)) {
+                return entry.get("doc").getAsString();
+            }
+        }
+        throw new AssertionError("api.schema does not document the error " + code);
     }
 
     private static List<String> errorsOf(JsonObject schema, String method) {

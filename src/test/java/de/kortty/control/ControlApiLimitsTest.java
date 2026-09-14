@@ -28,7 +28,8 @@ class ControlApiLimitsTest {
         root = UdsTestSupport.newTempRoot();
         UdsTestSupport.requireBindableSocketPath(root.resolve(ControlDirectory.DIRECTORY_NAME));
         server = new ControlApiServer(root, UdsTestSupport.posixProbe(),
-            ControlApiServerLifecycleTest.helloRegistry(() -> true), () -> true,
+            ControlApiServerLifecycleTest.helloRegistry(() -> ControlApiGate.Verdict.OPEN),
+            () -> ControlApiGate.Verdict.OPEN,
             System::currentTimeMillis, "3.4.1", "limits-instance");
         server.applyEnabledState();
         endpoint = server.endpoint().orElseThrow();

@@ -45,7 +45,7 @@ class ControlApiServerLifecycleTest {
 
     @Test(timeOut = 30_000)
     void anOpenGateBindsAndThenWritesTheEndpointFile() throws Exception {
-        server = newServer(() -> true);
+        server = newServer(() -> ControlApiGate.Verdict.OPEN);
 
         server.applyEnabledState();
 
@@ -72,7 +72,7 @@ class ControlApiServerLifecycleTest {
 
     @Test(timeOut = 30_000)
     void closeUnlinksBothFilesAndIsIdempotent() throws Exception {
-        server = newServer(() -> true);
+        server = newServer(() -> ControlApiGate.Verdict.OPEN);
         server.applyEnabledState();
         assertThat(Files.exists(socketPath())).isTrue();
 
@@ -87,7 +87,7 @@ class ControlApiServerLifecycleTest {
 
     @Test(timeOut = 30_000)
     void aClosedGateBindsNothing() throws Exception {
-        server = newServer(() -> false);
+        server = newServer(() -> ControlApiGate.Verdict.DISABLED_BY_SETTING);
 
         server.applyEnabledState();
 
@@ -100,7 +100,8 @@ class ControlApiServerLifecycleTest {
     @Test(timeOut = 30_000)
     void aGateThatClosesLaterStopsTheListener() throws Exception {
         AtomicBoolean open = new AtomicBoolean(true);
-        server = newServer(open::get);
+        server = newServer(() -> open.get()
+            ? ControlApiGate.Verdict.OPEN : ControlApiGate.Verdict.DISABLED_BY_SETTING);
         server.applyEnabledState();
         assertThat(server.status()).isEqualTo(ControlApiStatus.RUNNING);
 
@@ -121,7 +122,7 @@ class ControlApiServerLifecycleTest {
         }
         assertThat(Files.exists(socketPath())).isTrue();
 
-        server = newServer(() -> true);
+        server = newServer(() -> ControlApiGate.Verdict.OPEN);
         server.applyEnabledState();
 
         assertThat(server.status()).isEqualTo(ControlApiStatus.RUNNING);
@@ -136,7 +137,7 @@ class ControlApiServerLifecycleTest {
         Path endpointFile = ControlEndpointFile.path(dir);
         Files.writeString(endpointFile, "{\"transport\":\"unix\"}");
 
-        server = newServer(() -> true);
+        server = newServer(() -> ControlApiGate.Verdict.OPEN);
         server.applyEnabledState();
 
         assertThat(server.status()).isEqualTo(ControlApiStatus.FAILED);
@@ -151,7 +152,7 @@ class ControlApiServerLifecycleTest {
         Path dir = ControlDirectory.createAndVerify(root);
         Files.writeString(socketPath(), "not a socket");
 
-        server = newServer(() -> true);
+        server = newServer(() -> ControlApiGate.Verdict.OPEN);
         server.applyEnabledState();
 
         assertThat(server.status()).isEqualTo(ControlApiStatus.FAILED);
@@ -161,7 +162,7 @@ class ControlApiServerLifecycleTest {
 
     @Test(timeOut = 30_000)
     void startingTwiceKeepsTheSameEndpoint() throws Exception {
-        server = newServer(() -> true);
+        server = newServer(() -> ControlApiGate.Verdict.OPEN);
         server.applyEnabledState();
         EndpointDescriptor first = server.endpoint().orElseThrow();
 
@@ -170,7 +171,7 @@ class ControlApiServerLifecycleTest {
         assertThat(server.endpoint().orElseThrow()).isEqualTo(first);
     }
 
-    private ControlApiServer newServer(java.util.function.BooleanSupplier gate) {
+    private ControlApiServer newServer(java.util.function.Supplier<ControlApiGate.Verdict> gate) {
         return new ControlApiServer(root, UdsTestSupport.posixProbe(), helloRegistry(gate), gate,
             System::currentTimeMillis, "3.4.1", "instance-under-test");
     }
@@ -184,7 +185,7 @@ class ControlApiServerLifecycleTest {
     }
 
     /** A minimal table carrying only the {@code auth} verb the handshake needs. */
-    static MethodRegistry helloRegistry(java.util.function.BooleanSupplier gate) {
+    static MethodRegistry helloRegistry(java.util.function.Supplier<ControlApiGate.Verdict> gate) {
         return MethodRegistry.builder()
             .register(spec("auth"), (session, params) -> {
                 JsonObject hello = new JsonObject();
@@ -193,7 +194,7 @@ class ControlApiServerLifecycleTest {
                 hello.addProperty("connection", session.connectionId());
                 hello.addProperty("authenticated", session.authenticated());
                 hello.addProperty("transport", session.transport());
-                hello.addProperty("gate", gate.getAsBoolean());
+                hello.addProperty("gate", gate.get().isOpen());
                 return hello;
             })
             .register(spec("ping"), (session, params) -> {

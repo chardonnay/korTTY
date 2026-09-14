@@ -170,9 +170,9 @@ public final class ControlApiScenarioFixtures {
      *
      * <p>The transport is whatever this platform would really choose — {@code AF_UNIX} on POSIX,
      * {@code 127.0.0.1} on Windows — so the UDS leg is exercised wherever it exists and the loopback
-     * leg wherever it does not. The gate is a constant {@code true}: {@link ControlApiGate} reads the
-     * settings and policy flags reflectively and answers {@code false} until P6 supplies them, which
-     * would otherwise make every test here silently bind nothing.
+     * leg wherever it does not. The gate is a constant {@link ControlApiGate.Verdict#OPEN}:
+     * {@link ControlApiGate} reads the settings and policy flags reflectively and refuses until P6
+     * supplies them, which would otherwise make every test here silently bind nothing.
      *
      * <p>The caller owns the returned server and must {@code close()} it in an {@code @AfterMethod};
      * a leaked listener keeps a socket file that the next test's {@code deleteTree} cannot remove.
@@ -196,7 +196,7 @@ public final class ControlApiScenarioFixtures {
             instanceId);
         registry.addListener(events.registryListener(surface));
         ControlApiServer server = new ControlApiServer(tempConfigDir, nativeProbe(), methods,
-            () -> true, System::currentTimeMillis, APP_VERSION, instanceId);
+            () -> ControlApiGate.Verdict.OPEN, System::currentTimeMillis, APP_VERSION, instanceId);
         server.applyEnabledState();
         return server;
     }

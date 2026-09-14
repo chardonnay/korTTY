@@ -19,7 +19,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
 /**
  * Assembles a ready-to-run control API out of its parts: the event bus, the verb table and the
@@ -86,14 +86,14 @@ public final class ControlApiWiring {
      *     {@code agent.*} action is audited — and announced — as API input rather than as something
      *     the user did in the Coding Agents panel
      * @param notifier the desktop notifier, or null when the platform has none
-     * @param gate {@link ControlApiGate#shouldRun}, re-evaluated at start, at accept and at dispatch
+     * @param gate {@link ControlApiGate#verdict}, re-evaluated at start, at accept and at dispatch
      * @param appVersion the korTTY version published by {@code ping}, {@code auth} and the endpoint file
      * @return a server that is built but not listening
      */
     public static ControlApiServer create(Path configDir, PlatformProbe probe, ControlSurface surface,
                                           UiDispatcher ui, CodingAgentRegistry registry,
                                           PaneAccess panes, DesktopNotifier notifier,
-                                          BooleanSupplier gate, String appVersion) {
+                                          Supplier<ControlApiGate.Verdict> gate, String appVersion) {
         String instanceId = UUID.randomUUID().toString();
         ControlEventBus events = new ControlEventBus(eventTimer(), System::currentTimeMillis);
         ControlAuditSink sink = auditSink(notifier);

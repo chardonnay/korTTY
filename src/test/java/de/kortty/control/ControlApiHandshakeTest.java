@@ -16,6 +16,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -42,7 +43,8 @@ class ControlApiHandshakeTest {
         root = UdsTestSupport.newTempRoot();
         UdsTestSupport.requireBindableSocketPath(root.resolve(ControlDirectory.DIRECTORY_NAME));
         server = new ControlApiServer(root, UdsTestSupport.posixProbe(),
-            ControlApiServerLifecycleTest.helloRegistry(() -> true), () -> true,
+            ControlApiServerLifecycleTest.helloRegistry(() -> ControlApiGate.Verdict.OPEN),
+            () -> ControlApiGate.Verdict.OPEN,
             System::currentTimeMillis, "3.4.1", "handshake-instance");
         server.applyEnabledState();
         endpoint = server.endpoint().orElseThrow();
@@ -126,7 +128,8 @@ class ControlApiHandshakeTest {
                     SocketChannel accepted = listener.accept()) {
                 ControlConnection connection = new ControlConnection("c-deadline", accepted,
                     EndpointDescriptor.TRANSPORT_UNIX, endpoint.token(),
-                    ControlApiServerLifecycleTest.helloRegistry(() -> true), () -> true,
+                    ControlApiServerLifecycleTest.helloRegistry(() -> ControlApiGate.Verdict.OPEN),
+            () -> ControlApiGate.Verdict.OPEN,
                     System::currentTimeMillis, timer, writers, closedCallback::countDown);
 
                 connection.run();
@@ -147,8 +150,10 @@ class ControlApiHandshakeTest {
     void theGateIsRecheckedAtDispatch() throws Exception {
         server.close();
         AtomicBoolean open = new AtomicBoolean(true);
+        Supplier<ControlApiGate.Verdict> gate = () -> open.get()
+            ? ControlApiGate.Verdict.OPEN : ControlApiGate.Verdict.DISABLED_BY_SETTING;
         server = new ControlApiServer(root, UdsTestSupport.posixProbe(),
-            ControlApiServerLifecycleTest.helloRegistry(open::get), open::get,
+            ControlApiServerLifecycleTest.helloRegistry(gate), gate,
             System::currentTimeMillis, "3.4.1", "handshake-instance");
         server.applyEnabledState();
         endpoint = server.endpoint().orElseThrow();

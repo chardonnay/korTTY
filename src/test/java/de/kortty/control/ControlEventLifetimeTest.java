@@ -39,7 +39,8 @@ class ControlEventLifetimeTest {
         timer = UdsTestSupport.newTimer();
         events = new ControlEventBus(timer, System::currentTimeMillis);
         MethodRegistry methods = eventRegistry(events);
-        server = new ControlApiServer(root, UdsTestSupport.posixProbe(), methods, () -> true,
+        server = new ControlApiServer(root, UdsTestSupport.posixProbe(), methods,
+            () -> ControlApiGate.Verdict.OPEN,
             System::currentTimeMillis, "3.4.1", "events-instance", events);
         server.applyEnabledState();
         endpoint = server.endpoint().orElseThrow();

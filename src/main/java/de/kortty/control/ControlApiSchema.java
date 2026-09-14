@@ -21,19 +21,40 @@ public final class ControlApiSchema {
     /** One short sentence per error code, so a client never has to guess what one means. */
     private static final Map<ControlErrorCode, String> ERROR_DOCS = errorDocs();
 
-    /** The published event catalogue: kind, the fields it carries and one sentence. */
-    private static final List<String[]> EVENT_DOCS = List.of(
-        new String[] {"agent.added", "An agent was registered for a pane."},
-        new String[] {"agent.state_changed", "An agent's effective state changed."},
-        new String[] {"agent.seen", "The user looked at a pane whose agent was done."},
-        new String[] {"agent.alias_changed", "An agent's alias was set or cleared."},
-        new String[] {"agent.removed", "An agent left; the frame carries only the ids."},
-        new String[] {"agent.evidence", "The detection evidence line changed; opt-in and rate-limited."},
-        new String[] {"events.overflow", "Frames were dropped; data.dropped says how many."});
+    /**
+     * The members of every {@code agent.*} frame: {@link ControlEvent}'s components in declaration
+     * order, which is the order Gson writes them.
+     */
+    private static final List<String> AGENT_EVENT_FIELDS = List.of(
+        "kind", "at_millis", "window_id", "tab_id", "pane_id", "agent", "previous_state", "reason");
 
-    /** The fields every agent event frame carries. */
-    private static final List<String> EVENT_FIELDS =
-        List.of("pane_id", "tab_id", "window_id", "agent", "previous_state", "reason");
+    /**
+     * The members of an {@code events.overflow} frame, which the bus builds itself and which shares
+     * not one id with an agent frame — {@code dropped} is the only useful member on it.
+     */
+    private static final List<String> OVERFLOW_EVENT_FIELDS =
+        List.of("kind", "at_millis", "dropped", "subscription_id");
+
+    /**
+     * The published event catalogue.
+     *
+     * <p>The fields live in this table beside their kind, and not in one list shared by every kind,
+     * because a client builds its reader for one kind from one entry: a shared list makes six of the
+     * seven entries a lie the moment any frame carries something else, which is exactly what
+     * {@code events.overflow} does.
+     */
+    private static final List<EventDoc> EVENT_DOCS = List.of(
+        new EventDoc("agent.added", AGENT_EVENT_FIELDS, "An agent was registered for a pane."),
+        new EventDoc("agent.state_changed", AGENT_EVENT_FIELDS, "An agent's effective state changed."),
+        new EventDoc("agent.seen", AGENT_EVENT_FIELDS,
+            "The user looked at a pane whose agent was done."),
+        new EventDoc("agent.alias_changed", AGENT_EVENT_FIELDS, "An agent's alias was set or cleared."),
+        new EventDoc("agent.removed", AGENT_EVENT_FIELDS,
+            "An agent left; agent is null and only the ids are filled in."),
+        new EventDoc("agent.evidence", AGENT_EVENT_FIELDS,
+            "The detection evidence line changed; opt-in and rate-limited."),
+        new EventDoc("events.overflow", OVERFLOW_EVENT_FIELDS,
+            "Frames were dropped; dropped says how many and subscription_id which stream lost them."));
 
     private ControlApiSchema() {
     }
@@ -135,11 +156,11 @@ public final class ControlApiSchema {
 
     private static JsonArray events() {
         JsonArray array = new JsonArray();
-        for (String[] event : EVENT_DOCS) {
+        for (EventDoc event : EVENT_DOCS) {
             JsonObject entry = new JsonObject();
-            entry.addProperty("kind", event[0]);
-            entry.add("fields", ControlJson.toTree(EVENT_FIELDS));
-            entry.addProperty("doc", event[1]);
+            entry.addProperty("kind", event.kind());
+            entry.add("fields", ControlJson.toTree(event.fields()));
+            entry.addProperty("doc", event.doc());
             array.add(entry);
         }
         return array;
@@ -204,12 +225,25 @@ public final class ControlApiSchema {
         docs.put(ControlErrorCode.NOT_CONNECTED, "The pane's connection is down.");
         docs.put(ControlErrorCode.WRITE_FAILED, "The write to the pty failed.");
         docs.put(ControlErrorCode.AGENT_BLOCKED, "Answer the agent's prompt with agent.send_keys first.");
-        docs.put(ControlErrorCode.BUSY, "Rate limited, or a wait is already running on this connection.");
+        docs.put(ControlErrorCode.BUSY,
+            "A rate limit refused the call; notification.show accepts one per 5 s per connection.");
         docs.put(ControlErrorCode.LAST_PANE, "A tab's last pane cannot be closed; close the tab yourself.");
         docs.put(ControlErrorCode.UNSUPPORTED, "Not possible here, or a reserved verb.");
         docs.put(ControlErrorCode.SPLIT_FAILED, "The split aborted before the new pane was connected.");
         docs.put(ControlErrorCode.UI_UNAVAILABLE, "No window is open, or the toolkit is gone.");
         docs.put(ControlErrorCode.TIMEOUT, "A wait or a UI hop exceeded its budget; see data.stage.");
         return Collections.unmodifiableMap(docs);
+    }
+
+    /**
+     * One entry of the event catalogue.
+     *
+     * <p>Kind, fields and prose are declared together so they cannot drift apart.
+     *
+     * @param kind the wire kind, one of {@link ControlEvent#KINDS}
+     * @param fields the members that kind's frame carries, in the order they are written
+     * @param doc one sentence about what the kind means
+     */
+    private record EventDoc(String kind, List<String> fields, String doc) {
     }
 }

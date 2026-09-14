@@ -18,8 +18,8 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +50,7 @@ public final class ControlApiServer implements AutoCloseable {
 
     private final MethodRegistry methods;
 
-    private final BooleanSupplier gate;
+    private final Supplier<ControlApiGate.Verdict> gate;
 
     private final LongSupplier clockMillis;
 
@@ -95,14 +95,14 @@ public final class ControlApiServer implements AutoCloseable {
      * @param configDir the korTTY configuration directory; the server owns {@code configDir/control}
      * @param platformProbe the injected platform facts that choose the transport
      * @param methods the dispatch table, which must carry an {@code auth} verb
-     * @param gate {@link ControlApiGate#shouldRun}, evaluated at start, at accept and at dispatch
+     * @param gate {@link ControlApiGate#verdict}, evaluated at start, at accept and at dispatch
      * @param clockMillis the injected wall clock
      * @param appVersion the korTTY version echoed in {@code endpoint.json} and the hello result
      * @param instanceId the UUID minted for this server run; no wire id survives a restart
      */
     public ControlApiServer(Path configDir, PlatformProbe platformProbe, MethodRegistry methods,
-                            BooleanSupplier gate, LongSupplier clockMillis, String appVersion,
-                            String instanceId) {
+                            Supplier<ControlApiGate.Verdict> gate, LongSupplier clockMillis,
+                            String appVersion, String instanceId) {
         this(configDir, platformProbe, methods, gate, clockMillis, appVersion, instanceId, null);
     }
 
@@ -116,8 +116,8 @@ public final class ControlApiServer implements AutoCloseable {
      *     thread for every registry change for the life of the process
      */
     public ControlApiServer(Path configDir, PlatformProbe platformProbe, MethodRegistry methods,
-                            BooleanSupplier gate, LongSupplier clockMillis, String appVersion,
-                            String instanceId, ControlEventBus events) {
+                            Supplier<ControlApiGate.Verdict> gate, LongSupplier clockMillis,
+                            String appVersion, String instanceId, ControlEventBus events) {
         this.configDir = Objects.requireNonNull(configDir, "configDir");
         this.platformProbe = Objects.requireNonNull(platformProbe, "platformProbe");
         this.methods = Objects.requireNonNull(methods, "methods");
@@ -136,7 +136,7 @@ public final class ControlApiServer implements AutoCloseable {
      */
     public void applyEnabledState() {
         synchronized (lifecycle) {
-            boolean wanted = gate.getAsBoolean();
+            boolean wanted = verdict().isOpen();
             if (wanted && listening) {
                 return;
             }
@@ -151,6 +151,15 @@ public final class ControlApiServer implements AutoCloseable {
             }
             start();
         }
+    }
+
+    /**
+     * The gate's current answer, with a supplier that answers nothing treated as
+     * {@link ControlApiGate.Verdict#NOT_READY} — fail-closed, and retryable for the client.
+     */
+    private ControlApiGate.Verdict verdict() {
+        ControlApiGate.Verdict verdict = gate.get();
+        return verdict == null ? ControlApiGate.Verdict.NOT_READY : verdict;
     }
 
     /** What the server is currently doing. */
@@ -341,8 +350,9 @@ public final class ControlApiServer implements AutoCloseable {
     }
 
     private void admit(SocketChannel channel, String transportKind) {
-        if (!gate.getAsBoolean()) {
-            refuse(channel, ControlErrorCode.CONTROL_API_DISABLED, "The korTTY control API is switched off");
+        ControlApiGate.Verdict verdict = verdict();
+        if (!verdict.isOpen()) {
+            refuse(channel, verdict.errorCode(), verdict.message());
             return;
         }
         if (connections.size() >= ControlApiProtocol.MAX_CONNECTIONS) {

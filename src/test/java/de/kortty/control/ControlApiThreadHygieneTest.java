@@ -42,7 +42,8 @@ class ControlApiThreadHygieneTest {
     @Test(timeOut = 30_000)
     void noControlThreadSurvivesClose() throws Exception {
         server = new ControlApiServer(root, UdsTestSupport.posixProbe(),
-            ControlApiServerLifecycleTest.helloRegistry(() -> true), () -> true,
+            ControlApiServerLifecycleTest.helloRegistry(() -> ControlApiGate.Verdict.OPEN),
+            () -> ControlApiGate.Verdict.OPEN,
             System::currentTimeMillis, "3.4.1", "hygiene-instance");
         server.applyEnabledState();
         EndpointDescriptor endpoint = server.endpoint().orElseThrow();
@@ -69,7 +70,8 @@ class ControlApiThreadHygieneTest {
     @Test(timeOut = 30_000)
     void everyControlThreadIsADaemon() throws Exception {
         server = new ControlApiServer(root, UdsTestSupport.posixProbe(),
-            ControlApiServerLifecycleTest.helloRegistry(() -> true), () -> true,
+            ControlApiServerLifecycleTest.helloRegistry(() -> ControlApiGate.Verdict.OPEN),
+            () -> ControlApiGate.Verdict.OPEN,
             System::currentTimeMillis, "3.4.1", "hygiene-instance");
         server.applyEnabledState();
 

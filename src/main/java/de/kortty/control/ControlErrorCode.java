@@ -73,7 +73,13 @@ public enum ControlErrorCode {
     WRITE_FAILED(-32021, 1, true),
     /** Answer the agent's prompt with {@code agent.send_keys} first. */
     AGENT_BLOCKED(-32023, 1, false),
-    /** Rate limit, or a wait is already running on this connection. */
+    /**
+     * A rate limit refused the call: {@code notification.show} accepts one per 5 s per connection.
+     *
+     * <p>It is deliberately <strong>not</strong> "a wait is already running on this connection":
+     * requests on one connection are executed one at a time, so a wait can never collide with
+     * another request on the same connection.
+     */
     BUSY(-32025, 1, true),
     /** {@code pane.close} refuses a tab's last pane. */
     LAST_PANE(-32030, 1, false),

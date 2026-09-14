@@ -98,7 +98,7 @@ public class ControlApiNotificationContractTest {
             new ControlEventBus(timer, System::currentTimeMillis), (verb, pane, detail) -> { },
             notifier, System::currentTimeMillis, "3.4.1", instanceId);
         server = new ControlApiServer(root, ControlApiScenarioFixtures.nativeProbe(), methods,
-            () -> true, System::currentTimeMillis, "3.4.1", instanceId);
+            () -> ControlApiGate.Verdict.OPEN, System::currentTimeMillis, "3.4.1", instanceId);
         server.applyEnabledState();
         endpoint = server.endpoint().orElseThrow();
     }

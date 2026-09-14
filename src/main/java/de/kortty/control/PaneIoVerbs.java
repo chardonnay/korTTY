@@ -191,8 +191,12 @@ final class PaneIoVerbs {
                         String.valueOf(ControlApiProtocol.WAIT_POLL_MILLIS),
                         "At least " + ControlApiProtocol.WAIT_POLL_MIN_MILLIS + " ms.")),
                 "MatchResult",
+                // No BUSY: PaneOutputWaiter holds no per-connection wait registry and never raises
+                // it, and one connection executes one request at a time, so a wait cannot collide
+                // with another wait either. A declared refusal no request can provoke is a branch
+                // every generated client carries and can never reach.
                 List.of(ControlErrorCode.PANE_NOT_FOUND, ControlErrorCode.INVALID_REGEX,
-                    ControlErrorCode.INVALID_PARAMS, ControlErrorCode.TIMEOUT, ControlErrorCode.BUSY),
+                    ControlErrorCode.INVALID_PARAMS, ControlErrorCode.TIMEOUT),
                 false, true,
                 "kortty-cli pane wait-output <selector> --contains <s>",
                 "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"pane.wait_output\","

@@ -1332,7 +1332,7 @@ public class KorTTYApplication extends Application {
             controlApiServer = de.kortty.control.ControlApiWiring.create(configDir,
                 PlatformProbe.fromSystem(), controlApiUiBridge, controlApiUiBridge, codingAgentRegistry,
                 codingAgentUiBridge, desktopNotifier,
-                () -> de.kortty.control.ControlApiGate.shouldRun(
+                () -> de.kortty.control.ControlApiGate.verdict(
                     globalSettingsManager == null ? null : globalSettingsManager.getSettings(),
                     de.kortty.policy.PolicyManager.effective()),
                 APP_VERSION);

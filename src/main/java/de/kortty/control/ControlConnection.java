@@ -19,8 +19,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +58,7 @@ public final class ControlConnection implements Runnable, AutoCloseable {
 
     private final MethodRegistry methods;
 
-    private final BooleanSupplier gate;
+    private final Supplier<ControlApiGate.Verdict> gate;
 
     private final LongSupplier clockMillis;
 
@@ -103,7 +103,8 @@ public final class ControlConnection implements Runnable, AutoCloseable {
      * @param onClosed run exactly once when the connection is gone, so the server can forget it
      */
     public ControlConnection(String connectionId, SocketChannel channel, String transportKind,
-                             String expectedToken, MethodRegistry methods, BooleanSupplier gate,
+                             String expectedToken, MethodRegistry methods,
+                             Supplier<ControlApiGate.Verdict> gate,
                              LongSupplier clockMillis, ScheduledExecutorService timer,
                              Executor writerExecutor, Runnable onClosed) {
         this.connectionId = Objects.requireNonNull(connectionId, "connectionId");
@@ -267,10 +268,22 @@ public final class ControlConnection implements Runnable, AutoCloseable {
         return true;
     }
 
+    /**
+     * Refuses the request unless the gate is open, with the verdict's <em>own</em> code.
+     *
+     * <p>A managed client has to be able to tell an administrator's decision, which it must not retry
+     * and must report to its user, from the user's own switch, which the user can simply turn on —
+     * and both from a korTTY that has not finished starting, where the identical request succeeds a
+     * moment later. The message names the cause and no configuration detail.
+     */
     private void requireEnabled() throws ControlApiException {
-        if (!gate.getAsBoolean()) {
-            throw new ControlApiException(ControlErrorCode.CONTROL_API_DISABLED,
-                "The korTTY control API is switched off");
+        ControlApiGate.Verdict verdict = gate.get();
+        if (verdict == null) {
+            // A supplier that answers nothing is a half-wired build: fail closed, but retryably.
+            verdict = ControlApiGate.Verdict.NOT_READY;
+        }
+        if (!verdict.isOpen()) {
+            throw new ControlApiException(verdict.errorCode(), verdict.message());
         }
     }
 

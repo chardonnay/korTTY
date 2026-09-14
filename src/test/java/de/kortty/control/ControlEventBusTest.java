@@ -1,7 +1,9 @@
 package de.kortty.control;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import de.kortty.codingagent.AgentProcess;
 import de.kortty.codingagent.CodingAgentEntry;
@@ -212,6 +214,78 @@ class ControlEventBusTest {
         assertThat(overflow).isEqualTo(1);
         assertThat(dropped).isEqualTo(burst - ControlApiProtocol.OUTBOUND_QUEUE_FRAMES);
         assertThat(kinds).hasSize(ControlApiProtocol.OUTBOUND_QUEUE_FRAMES + 1);
+    }
+
+    /**
+     * Why: a client builds its reader for one kind from that kind's {@code fields} entry. One shared
+     * list for every kind made six of the seven entries a guess and the seventh wrong outright —
+     * {@code events.overflow} carries none of the five members the document advertised for it, and
+     * not {@code dropped}, the only useful member on that frame.
+     *
+     * <p>The assertion runs against the FRAMES the bus emits, never against the table under test.
+     */
+    @Test(timeOut = 30_000)
+    void everyKindsPublishedFieldListIsTheFrameThatKindActuallyPutsOnTheWire() {
+        JsonObject schema = ControlApiSchema.document(List.of(), List.of(), "3.4.1");
+
+        for (String kind : ControlEvent.KINDS) {
+            List<String> published = publishedFields(schema, kind);
+            List<String> actual = new ArrayList<>(frameOf(kind).keySet());
+            assertWithMessage("api.schema says a %s frame carries %s, but the frame the server emits"
+                    + " carries %s; a client generated from the schema reads absent members and"
+                    + " misses the ones that are there", kind, published, actual)
+                .that(published).containsExactlyElementsIn(actual).inOrder();
+        }
+    }
+
+    /** The {@code fields} the schema publishes for one kind. */
+    private static List<String> publishedFields(JsonObject schema, String kind) {
+        for (JsonElement element : schema.getAsJsonArray("events")) {
+            JsonObject entry = element.getAsJsonObject();
+            if (kind.equals(entry.get("kind").getAsString())) {
+                List<String> fields = new ArrayList<>();
+                entry.getAsJsonArray("fields").forEach(field -> fields.add(field.getAsString()));
+                return fields;
+            }
+        }
+        throw new AssertionError("api.schema does not describe the event kind " + kind);
+    }
+
+    /**
+     * One real frame of that kind, taken off a live subscription.
+     *
+     * <p>{@code events.overflow} is the bus's own frame and cannot be published: it is provoked the
+     * only way a client ever sees it, by overrunning the queue.
+     */
+    private JsonObject frameOf(String kind) {
+        ControlEventBus ownBus = new ControlEventBus(timer, clock::get);
+        List<ControlFrame> frames = new ArrayList<>();
+        ControlSession reader = new ControlSession("cfields", EndpointDescriptor.TRANSPORT_UNIX, true,
+            "fields", frames::add);
+        try {
+            // Every kind by name: the default set deliberately leaves agent.evidence out.
+            ownBus.subscribe(reader, ControlEvent.KINDS, Set.of(), true);
+            int burst = "events.overflow".equals(kind)
+                ? ControlApiProtocol.OUTBOUND_QUEUE_FRAMES + 1
+                : 1;
+            String published = "events.overflow".equals(kind) ? "agent.added" : kind;
+            for (int i = 0; i < burst; i++) {
+                ownBus.publish(event(published, PANE));
+                // The evidence gate allows one frame per pane per second; move the clock so a burst
+                // is not swallowed by it.
+                clock.addAndGet(ControlApiProtocol.EVIDENCE_MIN_INTERVAL_MILLIS + 1);
+            }
+            timer.runAll();
+            for (ControlFrame frame : frames) {
+                JsonObject params = frame.eventParams();
+                if (kind.equals(params.get("kind").getAsString())) {
+                    return params;
+                }
+            }
+            throw new AssertionError("the bus emitted no " + kind + " frame");
+        } finally {
+            ownBus.closeAll();
+        }
     }
 
     @Test(timeOut = 30_000)
