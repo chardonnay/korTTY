@@ -1,6 +1,5 @@
 package de.kortty.codingagent.desktop;
 
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -21,6 +20,16 @@ public final class DesktopNotifierBackends {
     private static final Path OSASCRIPT = Path.of("/usr/bin/osascript");
     private static final String NOTIFY_SEND = "notify-send";
     private static final String DEFAULT_PATH = "/usr/local/bin:/usr/bin:/bin";
+
+    /**
+     * How a {@code PATH} is split here: always ":", never {@link File#pathSeparator}.
+     *
+     * <p>Everything this class resolves is a Linux tool, and a Linux {@code PATH} is colon-separated
+     * whatever host the JVM happens to run on. Taking the platform's separator would make the split
+     * depend on the machine rather than on the value being parsed — which is why these lookups
+     * returned nothing on the Windows runner while being correct on the system they serve.
+     */
+    private static final String PATH_SEPARATOR = ":";
 
     private DesktopNotifierBackends() {
     }
@@ -86,7 +95,7 @@ public final class DesktopNotifierBackends {
         if (path == null || path.isBlank()) {
             path = DEFAULT_PATH;
         }
-        for (String dir : path.split(File.pathSeparator)) {
+        for (String dir : path.split(PATH_SEPARATOR)) {
             if (dir.isBlank()) {
                 continue;
             }

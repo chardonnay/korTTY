@@ -212,6 +212,10 @@ class NotificationCommandsTest {
             .isEqualTo("notify-send");
     }
 
+    /**
+     * The PATH here is colon-separated on purpose, on every host: these lookups resolve Linux tools,
+     * and a Linux PATH is colon-separated whatever machine reads it.
+     */
     @Test
     void isOnPathWalksTheGivenPathEntries() {
         Map<String, String> env = Map.of("PATH", "/opt/bin::/usr/local/bin:/usr/bin");
