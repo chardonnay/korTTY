@@ -4,6 +4,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static org.testng.Assert.expectThrows;
 
+import de.kortty.control.ControlApiProtocol;
 import java.nio.file.Path;
 import org.testng.annotations.Test;
 
@@ -316,6 +317,42 @@ class CliArgumentsTest {
         assertWithMessage("the five-second default would abandon a split still being performed")
             .that(CliArguments.parse(new String[] {"pane", "split", "--focused"}).timeoutMillis())
             .isGreaterThan(10_000L);
+    }
+
+    @Test
+    void anAgentStartDeadlineCoversEveryBudgetTheServerSpendsAndNotJustTheLastOne() throws Exception {
+        long readyBudget = ControlApiProtocol.AGENT_WAIT_DEFAULT_MILLIS;
+
+        long plain = CliArguments.parse(new String[] {"agent", "start", "--pane", "p1a2b",
+            "--kind", "claude-code"}).timeoutMillis();
+        assertWithMessage("the server waits ready_timeout_ms twice — once for the shell to connect,"
+                + " once for korTTY to register the agent — before it answers at all")
+            .that(plain)
+            .isAtLeast(2L * readyBudget);
+
+        long split = CliArguments.parse(new String[] {"agent", "start", "--split-from", "p1a2b",
+            "--kind", "claude-code"}).timeoutMillis();
+        assertWithMessage("the split form additionally spends the ten-second JavaFX attach budget")
+            .that(split)
+            .isAtLeast(2L * readyBudget + ControlApiProtocol.UI_SPLIT_TIMEOUT_MILLIS);
+
+        long waiting = CliArguments.parse(new String[] {"agent", "start", "--pane", "p1a2b",
+            "--kind", "claude-code", "--wait"}).timeoutMillis();
+        assertWithMessage("--wait adds the post-prompt wait on top of the two ready budgets")
+            .that(waiting)
+            .isAtLeast(2L * readyBudget + CliArguments.AGENT_START_TIMEOUT_MILLIS);
+    }
+
+    @Test
+    void anAgentStartTimeoutMsShrinksNothingTheServerWillStillSpend() throws Exception {
+        long shortWait = CliArguments.parse(new String[] {"agent", "start", "--pane", "p1a2b",
+            "--kind", "claude-code", "--timeout-ms", "1000"}).timeoutMillis();
+
+        assertWithMessage("timeout_ms is the post-prompt wait and the server does not even read it"
+                + " without --wait, so it must not shorten the client deadline below the readiness"
+                + " budgets the server is certainly going to spend")
+            .that(shortWait)
+            .isAtLeast(2L * ControlApiProtocol.AGENT_WAIT_DEFAULT_MILLIS);
     }
 
     @Test

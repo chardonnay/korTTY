@@ -360,11 +360,48 @@ public final class CliArguments {
         if (command.stream()) {
             return 0L;
         }
-        String serverWait = flags.get("timeout-ms");
-        if (serverWait != null) {
-            return Long.parseLong(serverWait.strip()) + WAIT_SLACK_MILLIS;
+        return serverWait(command, flags) + WAIT_SLACK_MILLIS;
+    }
+
+    /**
+     * Everything the server may spend on this command before it answers.
+     *
+     * <p>{@code --timeout-ms} replaces the default of the <em>one</em> wait a command parks on — but
+     * {@code agent start} is three budgets in a row and {@code timeout_ms} is only the last of them,
+     * so it derives its own total.
+     */
+    private static long serverWait(CliCommands.Command command, Map<String, String> flags) {
+        if ("agent start".equals(command.name())) {
+            return agentStartWait(flags);
         }
-        return serverDefaultWait(command, flags) + WAIT_SLACK_MILLIS;
+        String serverWait = flags.get("timeout-ms");
+        return serverWait == null
+            ? serverDefaultWait(command, flags)
+            : Long.parseLong(serverWait.strip());
+    }
+
+    /**
+     * What {@code agent.start} may spend, added up the way {@code AgentStartService} spends it.
+     *
+     * <p>A split hop of ten seconds when the pane is created by this call, then {@code ready_timeout_ms}
+     * twice — once waiting for the new shell to connect and again waiting for korTTY to register the
+     * agent — and only then, and only with {@code --wait}, the post-prompt wait {@code timeout_ms}
+     * names. Deriving the deadline from {@code timeout_ms} alone abandons a start korTTY is still
+     * performing, leaving the user with a live agent, no pane id and an exit code that invites them to
+     * start a second one. The CLI has no {@code --ready-timeout-ms}, so the ready budget is always the
+     * server's own default.
+     */
+    private static long agentStartWait(Map<String, String> flags) {
+        long total = flags.containsKey("split-from") ? ControlApiProtocol.UI_SPLIT_TIMEOUT_MILLIS : 0L;
+        total += 2L * ControlApiProtocol.AGENT_WAIT_DEFAULT_MILLIS;
+        if (!flags.containsKey("wait")) {
+            // The server reads timeout_ms only when wait is set, so neither does this.
+            return total;
+        }
+        String explicit = flags.get("timeout-ms");
+        return total + (explicit == null
+            ? AGENT_START_TIMEOUT_MILLIS
+            : Long.parseLong(explicit.strip()));
     }
 
     /**
@@ -373,6 +410,9 @@ public final class CliArguments {
      * <p>{@code pane split} and {@code pane close} are in the list although they do not wait on
      * anything the caller asked for: their JavaFX hop has a ten-second budget, five times the usual
      * one, so a five-second client deadline would abandon a split the server was still performing.
+     *
+     * <p>{@code agent start} is not here: it spends three budgets rather than one, so
+     * {@link #agentStartWait} adds them up.
      */
     private static long serverDefaultWait(CliCommands.Command command, Map<String, String> flags) {
         return switch (command.name()) {
@@ -381,8 +421,6 @@ public final class CliArguments {
             case "agent wait" -> ControlApiProtocol.AGENT_WAIT_DEFAULT_MILLIS;
             case "agent prompt" -> flags.containsKey("wait-until")
                 ? ControlApiProtocol.AGENT_WAIT_DEFAULT_MILLIS : 0L;
-            case "agent start" -> flags.containsKey("wait")
-                ? AGENT_START_TIMEOUT_MILLIS : ControlApiProtocol.AGENT_WAIT_DEFAULT_MILLIS;
             default -> 0L;
         };
     }
