@@ -13,6 +13,10 @@ import java.util.Properties;
  * resource as the llama.cpp channel, and the cumulative MLX index is signed with the same Ed25519
  * release key; the trust-root handling is therefore deliberately delegated to
  * {@link LlamaRuntimeReleaseConfiguration} instead of duplicating it.
+ *
+ * <p>The index resolves through the immutable latest release. The rolling {@code mlx-stable}
+ * release is a legacy pointer, read only while the latest release predates the combined layout and
+ * publishes no MLX index; a failing or tampered primary index never falls back.
  */
 public final class MlxRuntimeReleaseConfiguration {
 
@@ -20,15 +24,21 @@ public final class MlxRuntimeReleaseConfiguration {
 
     private final URI stableIndexUri;
     private final URI stableSignatureUri;
+    private final URI legacyIndexUri;
+    private final URI legacySignatureUri;
     private final LlamaRuntimeReleaseConfiguration trustConfiguration;
 
     private MlxRuntimeReleaseConfiguration(
         URI stableIndexUri,
         URI stableSignatureUri,
+        URI legacyIndexUri,
+        URI legacySignatureUri,
         LlamaRuntimeReleaseConfiguration trustConfiguration
     ) {
         this.stableIndexUri = requireHttps(stableIndexUri, "mlx.stable.index.uri");
         this.stableSignatureUri = requireHttps(stableSignatureUri, "mlx.stable.signature.uri");
+        this.legacyIndexUri = requireHttps(legacyIndexUri, "mlx.legacy.index.uri");
+        this.legacySignatureUri = requireHttps(legacySignatureUri, "mlx.legacy.signature.uri");
         this.trustConfiguration = Objects.requireNonNull(trustConfiguration, "trustConfiguration");
     }
 
@@ -46,6 +56,8 @@ public final class MlxRuntimeReleaseConfiguration {
         return new MlxRuntimeReleaseConfiguration(
             uri(required(properties, "mlx.stable.index.uri")),
             uri(required(properties, "mlx.stable.signature.uri")),
+            uri(required(properties, "mlx.legacy.index.uri")),
+            uri(required(properties, "mlx.legacy.signature.uri")),
             LlamaRuntimeReleaseConfiguration.loadDefault());
     }
 
@@ -55,6 +67,38 @@ public final class MlxRuntimeReleaseConfiguration {
 
     public URI stableSignatureUri() {
         return stableSignatureUri;
+    }
+
+    public URI legacyIndexUri() {
+        return legacyIndexUri;
+    }
+
+    public URI legacySignatureUri() {
+        return legacySignatureUri;
+    }
+
+    /** Fetches and verifies the stable MLX index, reading the legacy pointer only when none is published. */
+    public MlxRuntimeIndex fetchStableIndex() throws IOException, InterruptedException {
+        PublicKey publicKey = requireTrustedPublicKey();
+        return fetchWithLegacyFallback(
+            () -> new MlxRuntimeIndexClient(stableIndexUri, stableSignatureUri, publicKey).fetch(),
+            () -> new MlxRuntimeIndexClient(legacyIndexUri, legacySignatureUri, publicKey).fetch());
+    }
+
+    static MlxRuntimeIndex fetchWithLegacyFallback(
+        MlxRuntimePackageInstaller.IndexProvider primary,
+        MlxRuntimePackageInstaller.IndexProvider legacy
+    ) throws IOException, InterruptedException {
+        try {
+            return primary.fetch();
+        } catch (MlxRuntimeIndexClient.IndexNotPublishedException notPublished) {
+            try {
+                return legacy.fetch();
+            } catch (IOException legacyFailure) {
+                legacyFailure.addSuppressed(notPublished);
+                throw legacyFailure;
+            }
+        }
     }
 
     /** Returns the shared pinned Ed25519 release key or fails closed before any network request. */

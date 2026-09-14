@@ -94,11 +94,18 @@ val llamaRuntimeIndexUrl =
 val llamaRuntimeSignatureUrl =
     "https://github.com/chardonnay/kortty-llama-runtimes/releases/latest/download/runtime-index-v1.sig"
 
-// The MLX channel is published from the same repository as a rolling `mlx-stable` release whose
-// cumulative index is signed with the same Ed25519 release key as the llama.cpp channel.
+// The MLX channel is published from the same repository and its cumulative index is signed with the
+// same Ed25519 release key as the llama.cpp channel. Every promotion of either channel creates a new
+// immutable release marked latest that carries both signed indexes, so both resolve through
+// releases/latest. The rolling `mlx-stable` release is the legacy pointer older builds still read;
+// it is used only when the latest release predates the combined layout and carries no MLX index.
 val mlxRuntimeIndexUrl =
-    "https://github.com/chardonnay/kortty-llama-runtimes/releases/download/mlx-stable/mlx-runtime-index-v1.json"
+    "https://github.com/chardonnay/kortty-llama-runtimes/releases/latest/download/mlx-runtime-index-v1.json"
 val mlxRuntimeSignatureUrl =
+    "https://github.com/chardonnay/kortty-llama-runtimes/releases/latest/download/mlx-runtime-index-v1.sig"
+val mlxLegacyRuntimeIndexUrl =
+    "https://github.com/chardonnay/kortty-llama-runtimes/releases/download/mlx-stable/mlx-runtime-index-v1.json"
+val mlxLegacyRuntimeSignatureUrl =
     "https://github.com/chardonnay/kortty-llama-runtimes/releases/download/mlx-stable/mlx-runtime-index-v1.sig"
 
 // The Ed25519 public trust root is intentionally tracked so local and packaged builds verify the
@@ -123,6 +130,8 @@ val generateLlamaRuntimeReleaseConfig = tasks.register("generateLlamaRuntimeRele
     inputs.property("signatureUrl", llamaRuntimeSignatureUrl)
     inputs.property("mlxIndexUrl", mlxRuntimeIndexUrl)
     inputs.property("mlxSignatureUrl", mlxRuntimeSignatureUrl)
+    inputs.property("mlxLegacyIndexUrl", mlxLegacyRuntimeIndexUrl)
+    inputs.property("mlxLegacySignatureUrl", mlxLegacyRuntimeSignatureUrl)
     inputs.property("publicKey", llamaRuntimePublicKey.orElse(""))
     inputs.file(llamaRuntimePublicKeyFile)
     outputs.file(outputFile)
@@ -164,6 +173,8 @@ val generateLlamaRuntimeReleaseConfig = tasks.register("generateLlamaRuntimeRele
             appendLine("stable.signatureUrl=${propertyValue(llamaRuntimeSignatureUrl)}")
             appendLine("mlx.stable.index.uri=${propertyValue(mlxRuntimeIndexUrl)}")
             appendLine("mlx.stable.signature.uri=${propertyValue(mlxRuntimeSignatureUrl)}")
+            appendLine("mlx.legacy.index.uri=${propertyValue(mlxLegacyRuntimeIndexUrl)}")
+            appendLine("mlx.legacy.signature.uri=${propertyValue(mlxLegacyRuntimeSignatureUrl)}")
             appendLine("trust.ed25519PublicKey=${propertyValue(configuredKey)}")
         }
         val file = outputFile.get().asFile.toPath()

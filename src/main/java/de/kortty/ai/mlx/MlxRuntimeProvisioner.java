@@ -170,12 +170,6 @@ public final class MlxRuntimeProvisioner {
     }
 
     private static MlxRuntimePackageInstaller.IndexProvider defaultIndexProvider() {
-        return () -> {
-            MlxRuntimeReleaseConfiguration configuration = MlxRuntimeReleaseConfiguration.loadDefault();
-            return new MlxRuntimeIndexClient(
-                configuration.stableIndexUri(),
-                configuration.stableSignatureUri(),
-                configuration.requireTrustedPublicKey()).fetch();
-        };
+        return () -> MlxRuntimeReleaseConfiguration.loadDefault().fetchStableIndex();
     }
 }
