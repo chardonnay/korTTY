@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -185,9 +186,13 @@ public final class LlamaRuntimeProvisioner {
         return result;
     }
 
-    /** Explicit user action: installs/activates the latest compatible stable runtime. */
+    /**
+     * Explicit user action: installs/activates the latest compatible stable runtime. Asking for the
+     * latest runtime ends a pinned version, so the install follows stable updates again.
+     */
     public synchronized LlamaRuntimeInstallation installStable(LlamaBackend backend)
         throws IOException, InterruptedException {
+        installer.unpinRuntime();
         LlamaRuntimeUpdateResult result = checkAndMaybeApply(
             LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE,
             backend != null ? backend : LlamaBackend.AUTO);
@@ -199,6 +204,44 @@ public final class LlamaRuntimeProvisioner {
         }
         return installer.active().orElseThrow(() -> new IOException(
             "The signed stable index contains no compatible llama.cpp runtime for this platform and backend."));
+    }
+
+    /**
+     * Explicit user action: switches to one specific runtime version from the signed index — the
+     * way back to an older version when a newer one causes problems. Verification, health check,
+     * idle-only activation, pending first launch and registry rebinding are those of an update; a
+     * version other than the newest stays pinned until the user chooses the newest again.
+     */
+    public synchronized LlamaRuntimeUpdateResult installVersion(String runtimeId, LlamaBackend backend)
+        throws IOException, InterruptedException {
+        LlamaBackend effectiveBackend = effectiveBackend(
+            backend != null ? backend : LlamaBackend.AUTO,
+            installer.active());
+        LlamaRuntimeUpdateResult result = updateService()
+            .installVersion(runtimeId, effectiveBackend, runtimeIsIdle, healthCheck);
+        if ((result.status() == LlamaRuntimeUpdateResult.Status.ACTIVATED
+                || result.status() == LlamaRuntimeUpdateResult.Status.PENDING_FIRST_LAUNCH)
+            && result.activation() != null) {
+            activateForRegisteredModels(result.activation().installation());
+        }
+        return result;
+    }
+
+    /** Runtime versions offered by the signed index for this platform, build and backend, newest first. */
+    public List<LlamaRuntimePackageDescriptor> availableVersions(LlamaBackend backend)
+        throws IOException, InterruptedException {
+        return updateService().availableVersions(effectiveBackend(
+            backend != null ? backend : LlamaBackend.AUTO,
+            installer.active()));
+    }
+
+    public Optional<String> pinnedRuntimeId() throws IOException {
+        return installer.pinnedRuntimeId();
+    }
+
+    /** Ends a pinned version; the next update check follows the stable channel again. */
+    public synchronized void unpin() throws IOException {
+        installer.unpinRuntime();
     }
 
     /**
@@ -343,14 +386,12 @@ public final class LlamaRuntimeProvisioner {
     }
 
     private LlamaRuntimeUpdateService updateService() throws IOException {
-        LlamaRuntimeIndexVerifier verifier = new LlamaRuntimeIndexVerifier(
-            releaseConfiguration.requireTrustedPublicKey());
-        LlamaRuntimeIndexClient client = new LlamaRuntimeIndexClient(
-            releaseConfiguration.stableIndexUri(),
-            releaseConfiguration.stableSignatureUri(),
-            verifier);
+        if (indexProvider == null) {
+            // Fail closed on a missing trust root before any network request, as before.
+            releaseConfiguration.requireTrustedPublicKey();
+        }
         return new LlamaRuntimeUpdateService(
-            client,
+            this::fetchVerifiedStableIndex,
             new LlamaRuntimeSelector(),
             installer,
             currentVersion,

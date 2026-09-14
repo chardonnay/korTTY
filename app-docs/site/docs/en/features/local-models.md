@@ -171,6 +171,8 @@ The single **Runtime updates (llama.cpp & MLX)** choice controls the automatic c
 
 The **Runtimes** table in **Local Models** shows the installed version and state per runtime. The action button reads **Install runtime** when the selected runtime has no verified package and **Check/install runtime update** otherwise, and checks/installs the stable channel even when the stored automatic policy is **Off** or **Notify me**. Runtime candidates are discovered by a weekly workflow, but promotion remains a deliberate, reviewed release action rather than adopting every upstream tag automatically.
 
+**Other version…** switches the selected runtime to any version the signed stable channel still offers for this computer — typically back to an older one when a newer runtime causes problems. The list marks the newest, the active, and the pinned version; revoked versions are never listed. Choosing a version other than the newest **pins** it: update checks keep that version under every policy, while withdrawals are still enforced, and the Runtimes table shows **Pinned** with the version. Choosing the newest version, **Unpin**, or **Check/install runtime update** follows the stable channel again. If the signed channel revokes a pinned version, korTTY drops the pin so a safe runtime can be installed. A llama.cpp version switch goes through the same health check, idle-only activation, and pending first launch as an update; MLX keeps only the active version on disk, so switching back downloads the verified package again.
+
 ## Files and backup behavior
 
 | Path | Purpose | Included in a korTTY backup? |
@@ -198,6 +200,9 @@ The **Runtimes** table in **Local Models** shows the installed version and state
 
 **The runtime is reported as revoked**
 : Open **AI > AI Manager > Local Models** and install the offered verified replacement. Do not remove the package marker or edit `models.xml`: the durable denylist still blocks the installation, and revoked versions are deliberately ineligible for rollback or reinstallation. If no compatible replacement is listed, local AI stays unavailable until the stable channel publishes one for this platform/backend.
+
+**A new runtime version causes problems**
+: Select the runtime in **AI > AI Manager > Local Models**, choose **Other version…**, and install the previous version. It stays pinned, so update checks do not upgrade it again; choose the newest version or **Unpin** once a fixed release is available.
 
 **A new runtime rolls back on its first model start**
 : The lightweight `--version` check passed, but the first real GGUF-backed authenticated API start failed. korTTY restores the newest healthy non-revoked package when available and reports **Rolled back**; inspect the Local Models error, model/backend compatibility, and memory settings before trying the update again.

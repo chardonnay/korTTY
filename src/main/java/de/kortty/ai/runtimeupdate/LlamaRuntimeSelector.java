@@ -3,6 +3,7 @@ package de.kortty.ai.runtimeupdate;
 import de.kortty.ai.llama.LlamaBackend;
 import de.kortty.update.UpdateVersion;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -21,11 +22,63 @@ public final class LlamaRuntimeSelector {
         int supportedApiContractVersion,
         String currentKorttyVersion
     ) {
+        return select(index, platform, architecture, requestedBackend, supportedApiContractVersion,
+            currentKorttyVersion, descriptor -> true);
+    }
+
+    /** Same backend choice as {@link #select}, restricted to one runtime version. */
+    public Optional<LlamaRuntimePackageDescriptor> selectVersion(
+        LlamaRuntimeIndex index,
+        LlamaRuntimePlatform platform,
+        String architecture,
+        LlamaBackend requestedBackend,
+        int supportedApiContractVersion,
+        String currentKorttyVersion,
+        String runtimeId
+    ) {
+        return select(index, platform, architecture, requestedBackend, supportedApiContractVersion,
+            currentKorttyVersion, descriptor -> descriptor.runtimeId().equals(runtimeId));
+    }
+
+    /**
+     * Every runtime version the user may switch to — compatible and not revoked — as the package
+     * {@link #select} would install for it, newest first.
+     */
+    public List<LlamaRuntimePackageDescriptor> selectableVersions(
+        LlamaRuntimeIndex index,
+        LlamaRuntimePlatform platform,
+        String architecture,
+        LlamaBackend requestedBackend,
+        int supportedApiContractVersion,
+        String currentKorttyVersion
+    ) {
+        if (index == null) {
+            throw new IllegalArgumentException("Runtime selection parameters are required.");
+        }
+        return index.packages().stream()
+            .map(LlamaRuntimePackageDescriptor::runtimeId)
+            .distinct()
+            .map(runtimeId -> selectVersion(index, platform, architecture, requestedBackend,
+                supportedApiContractVersion, currentKorttyVersion, runtimeId))
+            .flatMap(Optional::stream)
+            .sorted(Comparator.comparingLong(LlamaRuntimeSelector::buildSortKey).reversed())
+            .toList();
+    }
+
+    private Optional<LlamaRuntimePackageDescriptor> select(
+        LlamaRuntimeIndex index,
+        LlamaRuntimePlatform platform,
+        String architecture,
+        LlamaBackend requestedBackend,
+        int supportedApiContractVersion,
+        String currentKorttyVersion,
+        Predicate<LlamaRuntimePackageDescriptor> filter
+    ) {
         if (index == null || platform == null || requestedBackend == null) {
             throw new IllegalArgumentException("Runtime selection parameters are required.");
         }
-        Predicate<LlamaRuntimePackageDescriptor> compatible = descriptor -> isCompatible(
-            index, descriptor, platform, architecture, supportedApiContractVersion, currentKorttyVersion);
+        Predicate<LlamaRuntimePackageDescriptor> compatible = filter.and(descriptor -> isCompatible(
+            index, descriptor, platform, architecture, supportedApiContractVersion, currentKorttyVersion));
 
         if (requestedBackend != LlamaBackend.AUTO) {
             return selectBackend(index, compatible, requestedBackend);

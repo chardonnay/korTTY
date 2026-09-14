@@ -171,6 +171,8 @@ Die Einzelauswahl **Laufzeitaktualisierungen (llama.cpp & MLX)** steuert die aut
 
 Die Tabelle **Laufzeiten** in **Lokale Modelle** zeigt die installierte Version und den Status pro Laufzeit. Die Aktionsschaltfläche lautet **Runtime installieren**, wenn die ausgewählte Runtime kein verifiziertes Paket hat, andernfalls **Runtime-Update prüfen/installieren** und prüft/installiert den stabilen Kanal, selbst wenn die gespeicherte automatische Richtlinie **Aus** oder **Benachrichtigen** ist. Laufzeitkandidaten werden durch einen wöchentlichen Workflow entdeckt, die Heraufstufung bleibt jedoch eine bewusste, überprüfte Release-Aktion, anstatt jedes Upstream-Tag automatisch zu übernehmen.
 
+**Andere Version…** stellt die ausgewählte Runtime auf eine beliebige Version um, die der signierte stabile Kanal für diesen Computer noch anbietet – typischerweise zurück auf eine ältere, wenn eine neuere Runtime Probleme verursacht. Die Liste kennzeichnet die neueste, die aktive und die angeheftete Version; zurückgezogene Versionen werden nie aufgeführt. Die Wahl einer anderen als der neuesten Version **heftet** sie an: Update-Prüfungen behalten diese Version unter jeder Richtlinie bei, während Rückrufe weiterhin durchgesetzt werden, und die Tabelle **Laufzeiten** zeigt **Angeheftet** mit der Version an. Die Wahl der neuesten Version, **Anheftung lösen** oder **Runtime-Update prüfen/installieren** folgt wieder dem stabilen Kanal. Zieht der signierte Kanal eine angeheftete Version zurück, entfernt korTTY die Anheftung, damit eine sichere Runtime installiert werden kann. Ein Versionswechsel von llama.cpp durchläuft dieselbe Integritätsprüfung, dieselbe Aktivierung nur im Leerlauf und denselben ausstehenden ersten Start wie ein Update; MLX behält nur die aktive Version auf der Festplatte, daher lädt ein Zurückwechseln das verifizierte Paket erneut herunter.
+
 ## Dateien und Sicherungsverhalten
 
 | Pfad | Zweck | In einem korTTY-Backup enthalten? |
@@ -198,6 +200,9 @@ Die Tabelle **Laufzeiten** in **Lokale Modelle** zeigt die installierte Version 
 
 **Die Laufzeit wird als widerrufen gemeldet**
 : Öffnen Sie **KI > KI-Manager > Lokale Modelle** und installieren Sie den angebotenen verifizierten Ersatz. Entfernen Sie nicht die Paketmarkierung und bearbeiten Sie `models.xml` nicht: Die dauerhafte Sperrliste blockiert weiterhin die Installation und widerrufene Versionen sind absichtlich nicht für ein Rollback oder eine Neuinstallation geeignet. Wenn kein kompatibler Ersatz aufgeführt ist, bleibt die lokale KI nicht verfügbar, bis der stabile Kanal einen für diese Plattform/dieses Backend veröffentlicht.
+
+**Eine neue Runtime-Version verursacht Probleme**
+: Wählen Sie die Runtime unter **KI > KI-Manager > Lokale Modelle** aus, wählen Sie **Andere Version…** und installieren Sie die vorherige Version. Sie bleibt angeheftet, sodass Update-Prüfungen sie nicht erneut aktualisieren; wählen Sie die neueste Version oder **Anheftung lösen**, sobald eine korrigierte Version verfügbar ist.
 
 **Eine neue Laufzeit wird beim ersten Modellstart zurückgesetzt**
 : Die einfache `--version`-Prüfung wurde bestanden, aber der erste echte GGUF-gestützte authentifizierte API-Start schlug fehl. korTTY stellt das neueste fehlerfreie, nicht widerrufene Paket wieder her, sofern verfügbar, und meldet **Rollback**; Überprüfen Sie den Fehler „Lokale Modelle“, die Modell-/Backend-Kompatibilität und die Speichereinstellungen, bevor Sie das Update erneut versuchen.

@@ -199,6 +199,7 @@ The regenerable native-runtime area contains immutable package directories plus 
 - `healthy-history-v1` retains at most the two newest confirmed, non-revoked installations.
 - `revoked-v1` is the durable denylist learned from verified signed indexes; a revoked package also contains `.kortty-runtime-revoked`.
 - `blocked-active-v1` remembers the runtime ID removed from active use by a withdrawal so the UI can explain why local AI remains blocked.
+- `pinned-runtime-v1` holds the runtime ID the user switched to with **Other version…**; while present, update checks keep that version. The MLX runtime area `llm/mlx/runtime/` uses a file of the same name.
 - `packages/` contains extracted verified installations, while `downloads/` is temporary staging protected by the updater lock.
 
 Do not edit or delete the denylist/quarantine markers to re-enable a package. Runtime launches independently enforce them, and a compatible signed replacement must be installed instead. The entire directory is excluded from backup because packages and state can be recreated from the signed stable channel.
