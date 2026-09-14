@@ -1504,7 +1504,11 @@ public class DashboardView extends VBox {
                 DashboardItem.connection(getServerDisplayName(terminalTab), terminalTab, topEntry, rollup));
         TerminalView view = terminalTab.getTerminalView();
         List<SithTermFxWidget> widgets = view == null ? List.of() : orderedWidgets(view);
-        if (widgets.size() >= 2) {
+        // More than one pane is involved when the tab is really split, and also when the registry
+        // knows about more panes than this view can hand out widgets for — a pane whose widget has
+        // already gone, or a harness that registers panes without backing them. Keying on the widget
+        // count alone would drop the rows the registry does know about.
+        if (widgets.size() >= 2 || entries.size() >= 2) {
             for (int i = 0; i < widgets.size(); i++) {
                 SithTermFxWidget widget = widgets.get(i);
                 if (widget == null) {

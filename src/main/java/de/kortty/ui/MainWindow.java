@@ -4140,6 +4140,11 @@ public class MainWindow {
             && aiAgentSidePanel != null && aiAgentSidePanel.getBoundTab() == terminalTab) {
             aiAgentSidePanel.refreshBinding();
         }
+        // Splitting or closing a pane changes the dashboard's tree shape — a split tab carries one
+        // PANE row per pane — and nothing else in the tab's lifecycle fires afterwards, so without
+        // this the new pane stays missing from the dashboard until some unrelated event happens to
+        // rebuild it.
+        updateDashboard();
     }
 
     /** Re-binds the docked side panel to the currently active terminal tab (spotlight model). */
