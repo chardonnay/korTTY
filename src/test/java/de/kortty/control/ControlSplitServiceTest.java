@@ -1,6 +1,7 @@
 package de.kortty.control;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static org.testng.Assert.expectThrows;
 
 import java.util.ArrayList;
@@ -56,6 +57,37 @@ class ControlSplitServiceTest {
         audit = new ArrayList<>();
         splits = new ControlSplitService(surface, ui,
             (verb, pane, detail) -> audit.add(verb + " " + pane + " " + detail));
+    }
+
+    @Test
+    void aSplitIsAuditedFromInsideTheAttachHopSoATimedOutHopStillLeavesARecord() throws Exception {
+        surface.addPane(FakeControlSurface.pane(SOURCE, "t1", "w1", 0, true, true, 4711L));
+        surface.setAttachResult(FakeControlSurface.pane(CREATED, "t1", "w1", 1, true, true, 4712L));
+        List<Boolean> auditedInsideTheHop = new ArrayList<>();
+        splits = new ControlSplitService(surface, ui,
+            (verb, pane, detail) -> auditedInsideTheHop.add(ui.inHop));
+
+        splits.split(SOURCE, "vertical", false);
+
+        assertWithMessage("UiCalls never cancels the attach task, so a hop that missed its budget"
+                + " still attaches a live pane; auditing after the hop would lose that record")
+            .that(auditedInsideTheHop)
+            .containsExactly(Boolean.TRUE);
+    }
+
+    @Test
+    void aCloseIsAuditedFromInsideItsHopSoATimedOutHopStillLeavesARecord() throws Exception {
+        surface.addPane(FakeControlSurface.pane(SOURCE, "t1", "w1", 0, true, true, 4711L));
+        List<Boolean> auditedInsideTheHop = new ArrayList<>();
+        splits = new ControlSplitService(surface, ui,
+            (verb, pane, detail) -> auditedInsideTheHop.add(ui.inHop));
+
+        splits.close(SOURCE);
+
+        assertWithMessage("a close that missed its budget still closes the pane once the toolkit"
+                + " drains, so the audit line must be written inside the hop")
+            .that(auditedInsideTheHop)
+            .containsExactly(Boolean.TRUE);
     }
 
     @Test

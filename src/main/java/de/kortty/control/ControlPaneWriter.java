@@ -18,6 +18,14 @@ import org.slf4j.LoggerFactory;
  * check and the write itself run inside <strong>one</strong> {@link UiDispatcher} hop, so the write
  * has exactly the visibility and ordering guarantees of a user keystroke and nothing can change
  * between the check and the write.
+ *
+ * <p>The audit line is recorded inside that same hop, immediately after the write, and deliberately
+ * <strong>not</strong> after {@link UiCalls#await} returns: {@code await} does not cancel the task
+ * when its budget expires, so a hop that timed out while a nested FX event loop was up still types
+ * the bytes into the pane once the toolkit drains. Auditing on the calling thread would skip that
+ * write's log line altogether — and with it the first-write takeover notification, which
+ * {@code ControlApiWiring}'s sink hangs off the very same call — leaving a write that is neither
+ * logged nor announced.
  */
 public final class ControlPaneWriter {
 
@@ -82,8 +90,11 @@ public final class ControlPaneWriter {
         List<String> normalised = ControlKeyTable.normalise(keyNames);
         byte[] payload = ControlKeyTable.encodeAll(normalised);
         int written = UiCalls.await(ui, ControlApiProtocol.UI_TIMEOUT_MILLIS,
-            () -> unchecked(() -> surface.write(paneId, payload)));
-        record(VERB_SEND_KEYS, paneId, "keys=" + normalised.size() + " bytes=" + written);
+            () -> unchecked(() -> {
+                int bytes = surface.write(paneId, payload);
+                record(VERB_SEND_KEYS, paneId, "keys=" + normalised.size() + " bytes=" + bytes);
+                return bytes;
+            }));
         return new WriteResult(paneId, written, false, false, normalised);
     }
 
@@ -127,10 +138,10 @@ public final class ControlPaneWriter {
             }
             byte[] payload = BracketedPaste.encode(text, bracketed, submit);
             int written = surface.write(paneId, payload);
+            record(verb, paneId, "bytes=" + written + " bracketed=" + bracketed
+                + " submitted=" + submit);
             return new WriteResult(paneId, written, bracketed, submit, List.of());
         }));
-        record(verb, paneId, "bytes=" + result.bytesWritten() + " bracketed=" + result.bracketed()
-            + " submitted=" + result.submitted());
         return result;
     }
 
