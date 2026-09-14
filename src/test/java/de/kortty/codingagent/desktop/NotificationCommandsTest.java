@@ -190,7 +190,8 @@ class NotificationCommandsTest {
         assertWithMessage("handing ProcessBuilder the bare name would search PATH again at exec time,"
                 + " so the file checked here and the file that runs need not be the same one")
             .that(DesktopNotifierBackends.resolveOnPath("notify-send", env,
-                filesPresent("/usr/bin/notify-send")))
+                    filesPresent("/usr/bin/notify-send"))
+                .map(LinuxPathsTestSupport::canonical))
             .hasValue(LinuxPathsTestSupport.canonical("/usr/bin/notify-send"));
         assertThat(DesktopNotifierBackends.resolveOnPath("gdbus", env,
             filesPresent("/usr/bin/notify-send"))).isEmpty();
