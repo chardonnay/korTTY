@@ -930,6 +930,7 @@
 <li><code>healthy-history-v1</code> retains at most the two newest confirmed, non-revoked installations.</li>
 <li><code>revoked-v1</code> is the durable denylist learned from verified signed indexes; a revoked package also contains <code>.kortty-runtime-revoked</code>.</li>
 <li><code>blocked-active-v1</code> remembers the runtime ID removed from active use by a withdrawal so the UI can explain why local AI remains blocked.</li>
+<li><code>pinned-runtime-v1</code> holds the runtime ID the user switched to with <strong>Other version…</strong>; while present, update checks keep that version. The MLX runtime area <code>llm/mlx/runtime/</code> uses a file of the same name.</li>
 <li><code>packages/</code> contains extracted verified installations, while <code>downloads/</code> is temporary staging protected by the updater lock.</li>
 </ul>
 <p>Do not edit or delete the denylist/quarantine markers to re-enable a package. Runtime launches independently enforce them, and a compatible signed replacement must be installed instead. The entire directory is excluded from backup because packages and state can be recreated from the signed stable channel.</p>

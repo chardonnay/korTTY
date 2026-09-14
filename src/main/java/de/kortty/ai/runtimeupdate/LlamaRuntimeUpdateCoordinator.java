@@ -87,6 +87,17 @@ public final class LlamaRuntimeUpdateCoordinator implements AutoCloseable {
         return submit(LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE, backend, true);
     }
 
+    /**
+     * Explicit user request to switch to one specific runtime version, typically an older one; a
+     * version other than the newest stays pinned.
+     */
+    public CompletableFuture<Status> installVersion(String runtimeId, LlamaBackend backend) {
+        Objects.requireNonNull(runtimeId, "runtimeId");
+        return submit(
+            effectiveBackend -> provisioner.installVersion(runtimeId, effectiveBackend),
+            true, LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE, backend, true);
+    }
+
     public Optional<LlamaRuntimeInstallation> activeInstallation() {
         try {
             return provisioner.activeInstallation();
@@ -113,6 +124,19 @@ public final class LlamaRuntimeUpdateCoordinator implements AutoCloseable {
         LlamaBackend backend,
         boolean explicitInstall
     ) {
+        LlamaRuntimeUpdatePolicy effective = policy != null ? policy : LlamaRuntimeUpdatePolicy.NOTIFY;
+        return submit(
+            effectiveBackend -> provisioner.checkAndMaybeApply(effective, effectiveBackend),
+            false, effective, backend, explicitInstall);
+    }
+
+    private CompletableFuture<Status> submit(
+        Operation operation,
+        boolean versionInstall,
+        LlamaRuntimeUpdatePolicy policy,
+        LlamaBackend backend,
+        boolean explicitInstall
+    ) {
         if (closed.get()) {
             return CompletableFuture.failedFuture(new IllegalStateException("Runtime update coordinator is closed."));
         }
@@ -123,12 +147,12 @@ public final class LlamaRuntimeUpdateCoordinator implements AutoCloseable {
                 ? State.INSTALLING : State.CHECKING,
             null, null, activeInstallation().orElse(null)));
         return CompletableFuture.supplyAsync(
-            () -> run(effective, effectiveBackend, explicitInstall), executor);
+            () -> run(operation, versionInstall, effectiveBackend, explicitInstall), executor);
     }
 
-    private Status run(LlamaRuntimeUpdatePolicy policy, LlamaBackend backend, boolean explicitInstall) {
+    private Status run(Operation operation, boolean versionInstall, LlamaBackend backend, boolean explicitInstall) {
         try {
-            LlamaRuntimeUpdateResult result = provisioner.checkAndMaybeApply(policy, backend);
+            LlamaRuntimeUpdateResult result = operation.run(backend);
             Optional<LlamaRuntimeInstallation> active = provisioner.activeInstallation();
             Status next = switch (result.status()) {
                 case DISABLED -> new Status(State.DISABLED, null, null, active.orElse(null));
@@ -165,8 +189,14 @@ public final class LlamaRuntimeUpdateCoordinator implements AutoCloseable {
             };
             publish(next);
             if (next.state() == State.STAGED_UNTIL_IDLE && !closed.get()) {
+                // A version install retries the same version; a plain update check retries as an
+                // automatic stable install, as before.
+                Operation retry = versionInstall
+                    ? operation
+                    : effectiveBackend -> provisioner.checkAndMaybeApply(
+                        LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE, effectiveBackend);
                 executor.schedule(
-                    () -> run(LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE, backend, explicitInstall),
+                    () -> run(retry, versionInstall, backend, explicitInstall),
                     IDLE_RETRY_SECONDS,
                     TimeUnit.SECONDS);
             }
@@ -285,6 +315,11 @@ public final class LlamaRuntimeUpdateCoordinator implements AutoCloseable {
     private static String message(Throwable error) {
         String value = error.getMessage();
         return value != null && !value.isBlank() ? value : error.getClass().getSimpleName();
+    }
+
+    @FunctionalInterface
+    private interface Operation {
+        LlamaRuntimeUpdateResult run(LlamaBackend backend) throws IOException, InterruptedException;
     }
 
     public enum State {

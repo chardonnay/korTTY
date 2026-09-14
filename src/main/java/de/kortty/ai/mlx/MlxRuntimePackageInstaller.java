@@ -65,6 +65,7 @@ public final class MlxRuntimePackageInstaller {
     // Shared with MlxRuntimeLocator so the lease path and the installer read the same files.
     private static final String BLOCKED_ACTIVE_FILE = MlxRuntimeLocator.BLOCKED_ACTIVE_FILE;
     private static final String REVOKED_LIST_FILE = MlxRuntimeLocator.REVOKED_LIST_FILE;
+    private static final String PINNED_RUNTIME_FILE = "pinned-runtime-v1";
     private static final long MAX_POINTER_BYTES = 1024;
     private static final long MAX_DENYLIST_BYTES = 256L * 1024;
     private static final Pattern SAFE_IDENTIFIER = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]{0,127}");
@@ -248,6 +249,7 @@ public final class MlxRuntimePackageInstaller {
         withUpdateLock(() -> {
             stopAllSidecars(manager);
             Files.deleteIfExists(runtimeRoot.resolve(MlxRuntimeLocator.ACTIVE_POINTER_FILE));
+            Files.deleteIfExists(runtimeRoot.resolve(PINNED_RUNTIME_FILE));
             deleteInstalledPackages(null);
             deleteTreeQuietly(downloadsDirectory);
             return null;
@@ -291,18 +293,26 @@ public final class MlxRuntimePackageInstaller {
      */
     public MlxRuntimeInstallation installFromIndex(MlxRuntimeManager manager)
         throws IOException, InterruptedException {
+        return installFromIndex(manager, null);
+    }
+
+    /**
+     * Downloads and installs one runtime version of the Ed25519-verified MLX stable index, or the
+     * newest one when {@code runtimeId} is {@code null}. Revoked and denylisted packages are never
+     * eligible, whichever version is asked for.
+     */
+    public MlxRuntimeInstallation installFromIndex(MlxRuntimeManager manager, String runtimeId)
+        throws IOException, InterruptedException {
         Objects.requireNonNull(manager, "manager");
         requireSupportedPlatform();
         MlxRuntimeIndex index = indexProvider.fetch();
-        Set<String> denylist = readDenylist();
-        MlxRuntimePackageDescriptor entry = index.packages().stream()
-            .filter(MlxRuntimePackageDescriptor::matchesCurrentPlatform)
-            .filter(descriptor -> !index.isRevoked(descriptor))
-            .filter(descriptor -> !isDenylisted(descriptor, denylist))
-            .max(Comparator.comparingLong(MlxRuntimePackageInstaller::versionSortKey)
-                .thenComparing(MlxRuntimePackageDescriptor::runtimeId))
-            .orElseThrow(() -> new IOException(
-                "The signed stable MLX channel contains no compatible runtime package."));
+        List<MlxRuntimePackageDescriptor> selectable = selectableVersions(index);
+        MlxRuntimePackageDescriptor entry = (runtimeId == null
+                ? selectable.stream().findFirst()
+                : selectable.stream().filter(descriptor -> descriptor.runtimeId().equals(runtimeId)).findFirst())
+            .orElseThrow(() -> new IOException(runtimeId == null
+                ? "The signed stable MLX channel contains no compatible runtime package."
+                : "The MLX runtime " + runtimeId + " is not offered for this Mac, or it was revoked."));
         requireOsVersion(entry);
         Files.createDirectories(downloadsDirectory);
         Path partial = downloadsDirectory.resolve(entry.installationId() + "-" + UUID.randomUUID() + ".zip.part");
@@ -312,6 +322,50 @@ public final class MlxRuntimePackageInstaller {
         } finally {
             Files.deleteIfExists(partial);
         }
+    }
+
+    /**
+     * Every package of the verified index this Mac may install — current platform, not revoked, not
+     * on the durable denylist — newest first. The first entry is what an update installs.
+     */
+    public List<MlxRuntimePackageDescriptor> selectableVersions(MlxRuntimeIndex index) throws IOException {
+        Objects.requireNonNull(index, "index");
+        Set<String> denylist = readDenylist();
+        return index.packages().stream()
+            .filter(MlxRuntimePackageDescriptor::matchesCurrentPlatform)
+            .filter(descriptor -> !index.isRevoked(descriptor))
+            .filter(descriptor -> !isDenylisted(descriptor, denylist))
+            .sorted(Comparator.comparingLong(MlxRuntimePackageInstaller::versionSortKey)
+                .thenComparing(MlxRuntimePackageDescriptor::runtimeId)
+                .reversed())
+            .toList();
+    }
+
+    /**
+     * Runtime id the user explicitly chose to stay on, typically an older version after a problem
+     * with a newer one. While it is set, background update checks never switch the runtime.
+     */
+    public Optional<String> pinnedRuntimeId() throws IOException {
+        Path file = runtimeRoot.resolve(PINNED_RUNTIME_FILE);
+        if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS) || Files.size(file) > MAX_POINTER_BYTES) {
+            return Optional.empty();
+        }
+        String value = Files.readString(file, StandardCharsets.UTF_8).trim();
+        return isSafeIdentifier(value) ? Optional.of(value) : Optional.empty();
+    }
+
+    public void pinRuntime(String runtimeId) throws IOException {
+        if (!isSafeIdentifier(runtimeId)) {
+            throw new IllegalArgumentException("Invalid MLX runtime id.");
+        }
+        withUpdateLock(() -> {
+            writeAtomically(PINNED_RUNTIME_FILE, runtimeId);
+            return null;
+        });
+    }
+
+    public void unpinRuntime() throws IOException {
+        Files.deleteIfExists(runtimeRoot.resolve(PINNED_RUNTIME_FILE));
     }
 
     private MlxRuntimeInstallation install(

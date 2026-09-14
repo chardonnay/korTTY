@@ -80,12 +80,23 @@ public final class MlxRuntimeUpdateCoordinator implements AutoCloseable {
 
     /** Runs the configured startup policy. OFF is completed locally without network access. */
     public CompletableFuture<Status> start(LlamaRuntimeUpdatePolicy policy) {
-        return submit(policy, false);
+        LlamaRuntimeUpdatePolicy effective = policy != null ? policy : LlamaRuntimeUpdatePolicy.NOTIFY;
+        return submit(() -> provisioner.checkAndMaybeApply(effective), effective, false);
     }
 
     /** Explicit user request; NOTIFY/OFF do not suppress this stable installation. */
     public CompletableFuture<Status> installStable() {
-        return submit(LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE, true);
+        return submit(provisioner::installStable, LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE, true);
+    }
+
+    /**
+     * Explicit user request to switch to one specific MLX runtime version, typically an older one;
+     * a version other than the newest stays pinned.
+     */
+    public CompletableFuture<Status> installVersion(String runtimeId) {
+        Objects.requireNonNull(runtimeId, "runtimeId");
+        return submit(() -> provisioner.installVersion(runtimeId),
+            LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE, true);
     }
 
     public Optional<MlxRuntimeInstallation> activeInstallation() {
@@ -109,7 +120,11 @@ public final class MlxRuntimeUpdateCoordinator implements AutoCloseable {
         return () -> listeners.remove(required);
     }
 
-    private CompletableFuture<Status> submit(LlamaRuntimeUpdatePolicy policy, boolean explicitInstall) {
+    private CompletableFuture<Status> submit(
+        Operation operation,
+        LlamaRuntimeUpdatePolicy policy,
+        boolean explicitInstall
+    ) {
         if (closed.get()) {
             return CompletableFuture.failedFuture(
                 new IllegalStateException("MLX runtime update coordinator is closed."));
@@ -119,12 +134,12 @@ public final class MlxRuntimeUpdateCoordinator implements AutoCloseable {
             explicitInstall || effective == LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE
                 ? State.INSTALLING : State.CHECKING,
             null, null, activeInstallation().orElse(null)));
-        return CompletableFuture.supplyAsync(() -> run(effective, explicitInstall), executor);
+        return CompletableFuture.supplyAsync(() -> run(operation, explicitInstall), executor);
     }
 
-    private Status run(LlamaRuntimeUpdatePolicy policy, boolean explicitInstall) {
+    private Status run(Operation operation, boolean explicitInstall) {
         try {
-            MlxRuntimeUpdateResult result = provisioner.checkAndMaybeApply(policy);
+            MlxRuntimeUpdateResult result = operation.run();
             Optional<MlxRuntimeInstallation> active = provisioner.activeInstallation();
             Status next = switch (result.status()) {
                 case DISABLED -> new Status(State.DISABLED, null, null, active.orElse(null));
@@ -218,6 +233,11 @@ public final class MlxRuntimeUpdateCoordinator implements AutoCloseable {
     private static String message(Throwable error) {
         String value = error.getMessage();
         return value != null && !value.isBlank() ? value : error.getClass().getSimpleName();
+    }
+
+    @FunctionalInterface
+    private interface Operation {
+        MlxRuntimeUpdateResult run() throws IOException, InterruptedException;
     }
 
     public enum State {

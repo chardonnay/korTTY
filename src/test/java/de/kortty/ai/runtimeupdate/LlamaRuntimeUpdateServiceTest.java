@@ -22,6 +22,7 @@ import java.util.zip.ZipOutputStream;
 import org.testng.annotations.Test;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.testng.Assert.expectThrows;
 
 class LlamaRuntimeUpdateServiceTest {
 
@@ -116,6 +117,124 @@ class LlamaRuntimeUpdateServiceTest {
         } finally {
             deleteTree(root);
         }
+    }
+
+    @Test
+    void installVersionSwitchesBackToAnOlderRuntimeAndPinsItAgainstAutomaticUpdates() throws Exception {
+        Path root = Files.createTempDirectory("kortty-runtime-version-pin-");
+        Map<URI, byte[]> packages = new ConcurrentHashMap<>();
+        AtomicInteger downloads = new AtomicInteger();
+        try {
+            byte[] olderArchive = runtimeZip("older");
+            byte[] newerArchive = runtimeZip("newer");
+            LlamaRuntimePackageDescriptor older = descriptor("llama-b10024-kortty1", olderArchive);
+            LlamaRuntimePackageDescriptor newer = descriptor("llama-b10025-kortty1", newerArchive);
+            packages.put(older.downloadUri(), olderArchive);
+            packages.put(newer.downloadUri(), newerArchive);
+            LlamaRuntimePackageInstaller installer = new LlamaRuntimePackageInstaller(root, uri -> {
+                downloads.incrementAndGet();
+                return new ByteArrayInputStream(packages.get(uri));
+            });
+            installer.installAndActivate(newer, () -> true, installation -> true);
+            installer.confirmPendingFirstLaunch(installer.active().orElseThrow().executable());
+            LlamaRuntimeIndex index = new LlamaRuntimeIndex(1, Instant.now(), List.of(older, newer), Set.of());
+            LlamaRuntimeUpdateService service = service(installer, index);
+
+            assertThat(service.availableVersions(LlamaBackend.CPU)).containsExactly(newer, older).inOrder();
+
+            LlamaRuntimeUpdateResult switched = service.installVersion(
+                older.runtimeId(), LlamaBackend.CPU, () -> true, installation -> true);
+
+            assertThat(switched.status()).isEqualTo(LlamaRuntimeUpdateResult.Status.PENDING_FIRST_LAUNCH);
+            assertThat(installer.active().orElseThrow().descriptor().runtimeId()).isEqualTo(older.runtimeId());
+            assertThat(installer.pinnedRuntimeId()).hasValue(older.runtimeId());
+
+            installer.confirmPendingFirstLaunch(installer.active().orElseThrow().executable());
+            downloads.set(0);
+            LlamaRuntimeUpdateResult background = service.checkAndMaybeApply(
+                LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE, LlamaBackend.CPU, () -> true, installation -> true);
+
+            assertThat(background.status()).isEqualTo(LlamaRuntimeUpdateResult.Status.CURRENT);
+            assertThat(installer.active().orElseThrow().descriptor().runtimeId()).isEqualTo(older.runtimeId());
+            assertThat(downloads.get()).isEqualTo(0);
+        } finally {
+            deleteTree(root);
+        }
+    }
+
+    @Test
+    void installingTheNewestVersionEndsThePin() throws Exception {
+        Path root = Files.createTempDirectory("kortty-runtime-version-unpin-");
+        Map<URI, byte[]> packages = new ConcurrentHashMap<>();
+        try {
+            byte[] olderArchive = runtimeZip("older");
+            byte[] newerArchive = runtimeZip("newer");
+            LlamaRuntimePackageDescriptor older = descriptor("llama-b10024-kortty1", olderArchive);
+            LlamaRuntimePackageDescriptor newer = descriptor("llama-b10025-kortty1", newerArchive);
+            packages.put(older.downloadUri(), olderArchive);
+            packages.put(newer.downloadUri(), newerArchive);
+            LlamaRuntimePackageInstaller installer = new LlamaRuntimePackageInstaller(
+                root, uri -> new ByteArrayInputStream(packages.get(uri)));
+            installer.installAndActivate(older, () -> true, installation -> true);
+            installer.confirmPendingFirstLaunch(installer.active().orElseThrow().executable());
+            installer.pinRuntime(older.runtimeId());
+            LlamaRuntimeIndex index = new LlamaRuntimeIndex(1, Instant.now(), List.of(older, newer), Set.of());
+
+            service(installer, index).installVersion(
+                newer.runtimeId(), LlamaBackend.CPU, () -> true, installation -> true);
+
+            assertThat(installer.active().orElseThrow().descriptor().runtimeId()).isEqualTo(newer.runtimeId());
+            assertThat(installer.pinnedRuntimeId()).isEmpty();
+        } finally {
+            deleteTree(root);
+        }
+    }
+
+    @Test
+    void aRevokedPinIsDroppedSoTheNextCheckInstallsASafeRuntime() throws Exception {
+        Path root = Files.createTempDirectory("kortty-runtime-version-revoked-pin-");
+        Map<URI, byte[]> packages = new ConcurrentHashMap<>();
+        try {
+            byte[] olderArchive = runtimeZip("older");
+            byte[] newerArchive = runtimeZip("newer");
+            LlamaRuntimePackageDescriptor older = descriptor("llama-b10024-kortty1", olderArchive);
+            LlamaRuntimePackageDescriptor newer = descriptor("llama-b10025-kortty1", newerArchive);
+            packages.put(older.downloadUri(), olderArchive);
+            packages.put(newer.downloadUri(), newerArchive);
+            LlamaRuntimePackageInstaller installer = new LlamaRuntimePackageInstaller(
+                root, uri -> new ByteArrayInputStream(packages.get(uri)));
+            installer.installAndActivate(older, () -> true, installation -> true);
+            installer.confirmPendingFirstLaunch(installer.active().orElseThrow().executable());
+            installer.pinRuntime(older.runtimeId());
+            LlamaRuntimeIndex index = new LlamaRuntimeIndex(
+                1, Instant.now(), List.of(older, newer), Set.of(older.runtimeId()));
+            LlamaRuntimeUpdateService service = service(installer, index);
+
+            assertThat(service.availableVersions(LlamaBackend.CPU)).containsExactly(newer);
+            LlamaRuntimeUpdateResult result = service.checkAndMaybeApply(
+                LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE, LlamaBackend.CPU, () -> true, installation -> true);
+
+            assertThat(installer.pinnedRuntimeId()).isEmpty();
+            assertThat(result.status()).isEqualTo(LlamaRuntimeUpdateResult.Status.PENDING_FIRST_LAUNCH);
+            assertThat(installer.active().orElseThrow().descriptor().runtimeId()).isEqualTo(newer.runtimeId());
+            expectThrows(java.io.IOException.class, () -> service.installVersion(
+                older.runtimeId(), LlamaBackend.CPU, () -> true, installation -> true));
+        } finally {
+            deleteTree(root);
+        }
+    }
+
+    private static LlamaRuntimeUpdateService service(
+        LlamaRuntimePackageInstaller installer,
+        LlamaRuntimeIndex index
+    ) {
+        return new LlamaRuntimeUpdateService(
+            () -> index,
+            new LlamaRuntimeSelector(),
+            installer,
+            () -> "2.5.2",
+            1,
+            (verifiedIndex, installation) -> installer.applyRevocations(verifiedIndex));
     }
 
     private static LlamaRuntimePackageDescriptor descriptor(String id, byte[] archive) throws Exception {

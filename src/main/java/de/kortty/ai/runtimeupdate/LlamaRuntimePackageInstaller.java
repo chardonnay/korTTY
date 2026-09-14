@@ -52,6 +52,8 @@ public final class LlamaRuntimePackageInstaller {
     private static final String HISTORY_FILE = "healthy-history-v1";
     private static final String BLOCKED_ACTIVE_FILE = "blocked-active-v1";
     private static final String PENDING_FIRST_LAUNCH_FILE = "pending-first-launch-v1";
+    private static final String PINNED_RUNTIME_FILE = "pinned-runtime-v1";
+    private static final String RUNTIME_ID_PATTERN = "llama-b[0-9]+-kortty[1-9][0-9]*";
     private static final ConcurrentHashMap<Path, ReentrantLock> JVM_UPDATE_LOCKS = new ConcurrentHashMap<>();
 
     @FunctionalInterface
@@ -114,6 +116,7 @@ public final class LlamaRuntimePackageInstaller {
                 Files.deleteIfExists(runtimeRoot.resolve(ACTIVE_FILE));
                 Files.deleteIfExists(runtimeRoot.resolve(PENDING_FIRST_LAUNCH_FILE));
                 Files.deleteIfExists(runtimeRoot.resolve(HISTORY_FILE));
+                Files.deleteIfExists(runtimeRoot.resolve(PINNED_RUNTIME_FILE));
                 if (Files.isDirectory(packagesDirectory)) {
                     try (var stream = Files.list(packagesDirectory)) {
                         for (Path candidate : stream.toList()) {
@@ -373,7 +376,32 @@ public final class LlamaRuntimePackageInstaller {
             return Optional.empty();
         }
         String value = Files.readString(file, StandardCharsets.UTF_8).trim();
-        return value.matches("llama-b[0-9]+-kortty[1-9][0-9]*") ? Optional.of(value) : Optional.empty();
+        return value.matches(RUNTIME_ID_PATTERN) ? Optional.of(value) : Optional.empty();
+    }
+
+    /**
+     * Runtime id the user explicitly chose to stay on, typically an older version after a problem
+     * with a newer one. While it is set, background update checks never switch the runtime.
+     */
+    public Optional<String> pinnedRuntimeId() throws IOException {
+        Path file = runtimeRoot.resolve(PINNED_RUNTIME_FILE);
+        if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS) || Files.size(file) > 1024) {
+            return Optional.empty();
+        }
+        String value = Files.readString(file, StandardCharsets.UTF_8).trim();
+        return value.matches(RUNTIME_ID_PATTERN) ? Optional.of(value) : Optional.empty();
+    }
+
+    public void pinRuntime(String runtimeId) throws IOException {
+        if (runtimeId == null || !runtimeId.matches(RUNTIME_ID_PATTERN)) {
+            throw new IllegalArgumentException("Invalid llama.cpp runtime id.");
+        }
+        Files.createDirectories(runtimeRoot);
+        writePointer(PINNED_RUNTIME_FILE, runtimeId);
+    }
+
+    public void unpinRuntime() throws IOException {
+        Files.deleteIfExists(runtimeRoot.resolve(PINNED_RUNTIME_FILE));
     }
 
     /** Rolls back the currently active package to the newest different healthy package, if any. */

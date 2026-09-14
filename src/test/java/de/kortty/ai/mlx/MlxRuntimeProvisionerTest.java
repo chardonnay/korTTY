@@ -161,6 +161,65 @@ class MlxRuntimeProvisionerTest {
         }
     }
 
+    @Test
+    void installVersionSwitchesBackToAnOlderMlxRuntimeAndPinsIt() throws Exception {
+        Path directory = Files.createTempDirectory("kortty-mlx-provision-version-");
+        Path runtimeRoot = directory.resolve("mlx").resolve("runtime");
+        byte[] archive = runtimeZip();
+        MlxRuntimePackageDescriptor older = descriptor(OLD_INSTALLATION_ID, "mlx-0.31.2", "0.31.2", archive);
+        MlxRuntimePackageDescriptor newer = descriptor(NEW_INSTALLATION_ID, "mlx-0.31.3", "0.31.3", archive);
+        MlxRuntimeIndex index = new MlxRuntimeIndex(1, Instant.now(), List.of(older, newer), Set.of());
+        MlxRuntimePackageInstaller installer = installer(runtimeRoot, () -> index, archive);
+        try (MlxRuntimeManager manager = manager(directory, runtimeRoot)) {
+            MlxRuntimeProvisioner provisioner = new MlxRuntimeProvisioner(
+                installer, () -> index, () -> manager, () -> true, () -> true);
+            provisioner.installStable();
+            assertThat(installer.active().orElseThrow().id()).isEqualTo(NEW_INSTALLATION_ID);
+            assertThat(provisioner.availableVersions()).containsExactly(newer, older).inOrder();
+
+            MlxRuntimeUpdateResult switched = provisioner.installVersion(older.runtimeId());
+
+            assertThat(switched.status()).isEqualTo(MlxRuntimeUpdateResult.Status.ACTIVATED);
+            assertThat(installer.active().orElseThrow().id()).isEqualTo(OLD_INSTALLATION_ID);
+            assertThat(installer.pinnedRuntimeId()).hasValue(older.runtimeId());
+
+            MlxRuntimeUpdateResult background =
+                provisioner.checkAndMaybeApply(LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE);
+            assertThat(background.status()).isEqualTo(MlxRuntimeUpdateResult.Status.CURRENT);
+            assertThat(installer.active().orElseThrow().id()).isEqualTo(OLD_INSTALLATION_ID);
+
+            provisioner.installStable();
+            assertThat(installer.active().orElseThrow().id()).isEqualTo(NEW_INSTALLATION_ID);
+            assertThat(installer.pinnedRuntimeId()).isEmpty();
+        }
+    }
+
+    @Test
+    void aRevokedMlxPinIsDroppedAndCannotBeInstalled() throws Exception {
+        Path directory = Files.createTempDirectory("kortty-mlx-provision-revoked-pin-");
+        Path runtimeRoot = directory.resolve("mlx").resolve("runtime");
+        byte[] archive = runtimeZip();
+        MlxRuntimePackageDescriptor older = descriptor(OLD_INSTALLATION_ID, "mlx-0.31.2", "0.31.2", archive);
+        MlxRuntimePackageDescriptor newer = descriptor(NEW_INSTALLATION_ID, "mlx-0.31.3", "0.31.3", archive);
+        MlxRuntimeIndex index = new MlxRuntimeIndex(
+            1, Instant.now(), List.of(older, newer), Set.of(older.runtimeId()));
+        MlxRuntimePackageInstaller installer = installer(runtimeRoot, () -> index, archive);
+        try (MlxRuntimeManager manager = manager(directory, runtimeRoot)) {
+            MlxRuntimeProvisioner provisioner = new MlxRuntimeProvisioner(
+                installer, () -> index, () -> manager, () -> true, () -> true);
+            installer.pinRuntime(older.runtimeId());
+
+            MlxRuntimeUpdateResult result =
+                provisioner.checkAndMaybeApply(LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE);
+
+            assertThat(installer.pinnedRuntimeId()).isEmpty();
+            assertThat(result.status()).isEqualTo(MlxRuntimeUpdateResult.Status.ACTIVATED);
+            assertThat(installer.active().orElseThrow().id()).isEqualTo(NEW_INSTALLATION_ID);
+            assertThat(provisioner.availableVersions()).containsExactly(newer);
+            expectThrows(IOException.class, () -> provisioner.installVersion(older.runtimeId()));
+        }
+    }
+
     private static MlxRuntimePackageInstaller installer(
         Path runtimeRoot,
         MlxRuntimePackageInstaller.IndexProvider indexProvider,

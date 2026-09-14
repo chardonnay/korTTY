@@ -3,7 +3,7 @@ package de.kortty.ai.mlx;
 import de.kortty.ai.mlx.MlxRuntimeLocator.MlxRuntimeInstallation;
 import de.kortty.model.LlamaRuntimeUpdatePolicy;
 import java.io.IOException;
-import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
@@ -95,9 +95,31 @@ public final class MlxRuntimeProvisioner {
         // Withdrawals also block later reinstallation of any package the index has revoked.
         installer.applyRevocations(index);
         String revokedRuntimeId = installer.blockedActiveRuntimeId().orElse(null);
-
-        Optional<MlxRuntimePackageDescriptor> selected = selectNewest(index);
+        List<MlxRuntimePackageDescriptor> selectable = installer.selectableVersions(index);
         Optional<MlxRuntimeInstallation> active = installer.active();
+
+        // A pinned version keeps an installed runtime where it is. A pin the index no longer offers
+        // (revoked, or gone) is dropped so it cannot keep the user off a safe runtime.
+        Optional<String> pinned = installer.pinnedRuntimeId();
+        if (pinned.isPresent()) {
+            Optional<MlxRuntimePackageDescriptor> pinnedPackage = selectable.stream()
+                .filter(descriptor -> descriptor.runtimeId().equals(pinned.get()))
+                .findFirst();
+            if (pinnedPackage.isEmpty()) {
+                installer.unpinRuntime();
+            } else if (active.isPresent()) {
+                return new MlxRuntimeUpdateResult(
+                    revokedRuntimeId != null
+                        ? MlxRuntimeUpdateResult.Status.REVOKED
+                        : MlxRuntimeUpdateResult.Status.CURRENT,
+                    null,
+                    revokedRuntimeId);
+            } else {
+                return offerOrInstall(effective, pinnedPackage.get(), revokedRuntimeId);
+            }
+        }
+
+        Optional<MlxRuntimePackageDescriptor> selected = selectable.stream().findFirst();
         if (selected.isEmpty()) {
             return new MlxRuntimeUpdateResult(
                 revokedRuntimeId != null
@@ -118,7 +140,15 @@ public final class MlxRuntimeProvisioner {
         if (active.isPresent() && !isNewerThanActive(candidate, active.get(), index)) {
             return new MlxRuntimeUpdateResult(MlxRuntimeUpdateResult.Status.CURRENT, null, revokedRuntimeId);
         }
-        if (effective == LlamaRuntimeUpdatePolicy.NOTIFY) {
+        return offerOrInstall(effective, candidate, revokedRuntimeId);
+    }
+
+    private MlxRuntimeUpdateResult offerOrInstall(
+        LlamaRuntimeUpdatePolicy policy,
+        MlxRuntimePackageDescriptor candidate,
+        String revokedRuntimeId
+    ) throws IOException, InterruptedException {
+        if (policy == LlamaRuntimeUpdatePolicy.NOTIFY) {
             return new MlxRuntimeUpdateResult(
                 revokedRuntimeId != null
                     ? MlxRuntimeUpdateResult.Status.REVOKED
@@ -131,7 +161,7 @@ public final class MlxRuntimeProvisioner {
             return new MlxRuntimeUpdateResult(MlxRuntimeUpdateResult.Status.CURRENT, candidate, revokedRuntimeId);
         }
         try {
-            installer.installFromIndex(manager.get());
+            installer.installFromIndex(manager.get(), candidate.runtimeId());
         } catch (MlxRuntimePackageInstaller.MlxRuntimeBusyException busy) {
             // A local request started between the idle check and the switch; defer without failing.
             return new MlxRuntimeUpdateResult(MlxRuntimeUpdateResult.Status.CURRENT, candidate, revokedRuntimeId);
@@ -139,19 +169,72 @@ public final class MlxRuntimeProvisioner {
         return new MlxRuntimeUpdateResult(MlxRuntimeUpdateResult.Status.ACTIVATED, candidate, revokedRuntimeId);
     }
 
-    /** Explicit user action: forces an idle-gated install of the newest compatible stable package. */
+    /**
+     * Explicit user action: forces an idle-gated install of the newest compatible stable package.
+     * Asking for the newest runtime ends a pinned version.
+     */
     public synchronized MlxRuntimeUpdateResult installStable() throws IOException, InterruptedException {
+        installer.unpinRuntime();
         return checkAndMaybeApply(LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE);
     }
 
-    private Optional<MlxRuntimePackageDescriptor> selectNewest(MlxRuntimeIndex index) {
-        // Identical selection to MlxRuntimePackageInstaller.installFromIndex so what is offered here
-        // is exactly what the install path would activate.
-        return index.packages().stream()
-            .filter(MlxRuntimePackageDescriptor::matchesCurrentPlatform)
-            .filter(descriptor -> !index.isRevoked(descriptor))
-            .max(Comparator.comparingLong(MlxRuntimePackageInstaller::versionSortKey)
-                .thenComparing(MlxRuntimePackageDescriptor::runtimeId));
+    /**
+     * Explicit user action: switches to one specific MLX runtime version from the signed index — the
+     * way back to an older version when a newer one causes problems. Choosing the newest version
+     * follows stable updates again; any other version is pinned.
+     */
+    public synchronized MlxRuntimeUpdateResult installVersion(String runtimeId)
+        throws IOException, InterruptedException {
+        Objects.requireNonNull(runtimeId, "runtimeId");
+        if (!platformSupported.getAsBoolean()) {
+            throw new IOException("The embedded MLX runtime is available only on Apple-Silicon macOS.");
+        }
+        MlxRuntimeIndex index = indexProvider.fetch();
+        installer.applyRevocations(index);
+        List<MlxRuntimePackageDescriptor> selectable = installer.selectableVersions(index);
+        MlxRuntimePackageDescriptor candidate = selectable.stream()
+            .filter(descriptor -> descriptor.runtimeId().equals(runtimeId))
+            .findFirst()
+            .orElseThrow(() -> new IOException(
+                "The MLX runtime " + runtimeId + " is not offered for this Mac, or it was revoked."));
+        boolean alreadyActive = installer.active()
+            .map(active -> active.id().equals(candidate.installationId()))
+            .orElse(false);
+        if (!alreadyActive) {
+            if (!runtimeIsIdle.getAsBoolean()) {
+                throw new MlxRuntimePackageInstaller.MlxRuntimeBusyException(
+                    "The MLX runtime cannot be switched while a local AI request is running.");
+            }
+            installer.installFromIndex(manager.get(), runtimeId);
+        }
+        if (selectable.get(0).runtimeId().equals(runtimeId)) {
+            installer.unpinRuntime();
+        } else {
+            installer.pinRuntime(runtimeId);
+        }
+        return new MlxRuntimeUpdateResult(
+            alreadyActive ? MlxRuntimeUpdateResult.Status.CURRENT : MlxRuntimeUpdateResult.Status.ACTIVATED,
+            candidate,
+            installer.blockedActiveRuntimeId().orElse(null));
+    }
+
+    /** MLX runtime versions this Mac may switch to, newest first. */
+    public List<MlxRuntimePackageDescriptor> availableVersions() throws IOException, InterruptedException {
+        if (!platformSupported.getAsBoolean()) {
+            return List.of();
+        }
+        MlxRuntimeIndex index = indexProvider.fetch();
+        installer.applyRevocations(index);
+        return installer.selectableVersions(index);
+    }
+
+    public Optional<String> pinnedRuntimeId() throws IOException {
+        return installer.pinnedRuntimeId();
+    }
+
+    /** Ends a pinned version; the next update check follows the stable channel again. */
+    public synchronized void unpin() throws IOException {
+        installer.unpinRuntime();
     }
 
     private static boolean isNewerThanActive(

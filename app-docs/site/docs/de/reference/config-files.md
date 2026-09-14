@@ -199,6 +199,7 @@ Der regenerierbare native Laufzeitbereich enthält unveränderliche Paketverzeic
 - `healthy-history-v1` behält höchstens die beiden neuesten bestätigten, nicht widerrufenen Installationen.
 - `revoked-v1` ist die dauerhafte Denylist, die aus verifizierten signierten Indizes gelernt wurde. Ein widerrufenes Paket enthält auch `.kortty-runtime-revoked`.
 - `blocked-active-v1` merkt sich die Laufzeit-ID, die durch eine Auszahlung aus der aktiven Nutzung entfernt wurde, sodass die Benutzeroberfläche erklären kann, warum die lokale KI blockiert bleibt.
+- `pinned-runtime-v1` enthält die Runtime-ID, auf die der Benutzer mit **Andere Version…** gewechselt hat; solange sie vorhanden ist, behalten Update-Prüfungen diese Version bei. Der MLX-Runtime-Bereich `llm/mlx/runtime/` verwendet eine gleichnamige Datei.
 - `packages/` enthält extrahierte verifizierte Installationen, während `downloads/` ein temporäres Staging ist, das durch die Updater-Sperre geschützt ist.
 
 Bearbeiten oder löschen Sie die Sperrlisten-/Quarantänemarkierungen nicht, um ein Paket erneut zu aktivieren. Laufzeitstarts erzwingen sie unabhängig voneinander, und stattdessen muss ein kompatibler signierter Ersatz installiert werden. Das gesamte Verzeichnis ist von der Sicherung ausgeschlossen, da Pakete und Status aus dem signierten stabilen Kanal neu erstellt werden können.
