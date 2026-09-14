@@ -33,6 +33,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import javafx.application.Platform;
@@ -351,9 +354,41 @@ public final class ControlApiUiBridge implements ControlSurface, UiDispatcher {
 
     // ---- split and close ----------------------------------------------------------------------
 
-    /** ANY THREAD: a non-blocking connector state read, used by {@code agent.start}'s readiness poll. */
+    /**
+     * ANY THREAD: the readiness read {@code agent.start} polls every 50 ms from a connection thread.
+     *
+     * <p>The one {@link ControlSurface} method that marshals instead of refusing. What it reads is
+     * FX-confined like everything else here — the live {@code MainWindow.getOpenWindows()} list, a
+     * tab's {@code TabPane.getTabs()} and the split tree rebuilt on every split and close — so an
+     * off-thread read does not merely go stale: it races {@code ArrayList} and {@code ObservableList}
+     * mutations and can throw, or report a freshly attached pane as unconnected for a whole ready
+     * budget. Refusing is not an option either, because the port is declared ANY THREAD and the poll
+     * loop has nowhere to put an exception.
+     *
+     * <p>A toolkit that is absent or does not answer within the usual UI budget yields {@code false}
+     * rather than an exception: the caller is a poll loop with its own deadline, and "not connected
+     * yet" is the honest answer for a toolkit that is not talking.
+     */
     @Override
     public boolean isPaneConnected(String paneId) {
+        if (Platform.isFxApplicationThread()) {
+            return connectedNow(paneId);
+        }
+        try {
+            return submit(() -> connectedNow(paneId))
+                .get(de.kortty.control.ControlApiProtocol.UI_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        } catch (ExecutionException | TimeoutException | IllegalStateException e) {
+            logger.debug("control-api: isPaneConnected({}) could not reach the toolkit: {}", paneId,
+                e.toString());
+            return false;
+        }
+    }
+
+    /** The read itself; only ever called on the JavaFX application thread. */
+    private boolean connectedNow(String paneId) {
         Located located = locate(paneId).orElse(null);
         if (located == null) {
             return false;

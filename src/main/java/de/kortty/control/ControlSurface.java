@@ -98,7 +98,14 @@ public interface ControlSurface {
     /** The Stage-1/2 handle for the {@code agent.*} verbs; empty when the pane is not open. */
     Optional<PaneRef> paneRefOf(String paneId);
 
-    /** ANY THREAD. Non-blocking connector state, used by {@code agent.start} readiness polling. */
+    /**
+     * ANY THREAD: the connector state {@code agent.start}'s readiness poll asks for.
+     *
+     * <p>An implementation whose state is UI-confined marshals — briefly, and bounded by
+     * {@link ControlApiProtocol#UI_TIMEOUT_MILLIS} — rather than reading across threads; it answers
+     * {@code false} when it cannot reach the UI, because the caller is a poll loop with its own
+     * deadline and has nowhere to put an exception.
+     */
     boolean isPaneConnected(String paneId);
 
     /**

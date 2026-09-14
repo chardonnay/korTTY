@@ -99,6 +99,25 @@ class ControlApiUiBridgeTest {
     }
 
     @Test
+    void isPaneConnectedMarshalsRatherThanReadingTheLiveWindowListFromAConnectionThread() {
+        java.util.concurrent.atomic.AtomicReference<String> readOn =
+            new java.util.concurrent.atomic.AtomicReference<>();
+        ControlApiUiBridge marshalling = new ControlApiUiBridge(() -> {
+            readOn.set(Thread.currentThread().getName());
+            return List.of();
+        }, CodingAgentRegistry.forTests(FocusOracle.NEVER, () -> 0L), null, () -> 0L);
+        Thread.currentThread().setName("kortty-control-rx-1");
+
+        assertThat(marshalling.isPaneConnected("p1a2b3c4d")).isFalse();
+
+        assertWithMessage("MainWindow.getOpenWindows() hands out the live list and the split tree is"
+                + " rebuilt on FX, so agent.start's 50 ms poll must never read either from its"
+                + " connection thread")
+            .that(readOn.get())
+            .isNull();
+    }
+
+    @Test
     void prepareLocalShellSplitConnectorRefusesTheJavaFxThreadAndNotThisOne() throws Exception {
         // Off the FX thread it is allowed to run, and without a toolkit it degrades to ui_unavailable
         // rather than to a thread refusal: the connector preparation is documented ANY THREAD.
