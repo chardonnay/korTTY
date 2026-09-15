@@ -1,0 +1,259 @@
+name: Runtime channel canary
+
+# Probes the signed AI-runtime update channels exactly as an installed korTTY does, and opens
+# ONE tracking issue when a channel stops answering.
+#
+# Why this exists: the index URLs below are baked into every shipped build and resolve through
+# GitHub's repository-wide `releases/latest` pointer. A release of the OTHER channel can take
+# that pointer, and the URL then answers HTTP 404 while every workflow in both repositories
+# stays green — the llama.cpp channel failed this way for weeks without anything noticing,
+# because nothing in CI ever fetches the URLs the app fetches. This job does.
+#
+# The URLs are parsed out of build.gradle.kts rather than repeated here, so the canary follows
+# the channel the app actually ships; a renamed `val` fails the run instead of probing a stale
+# address. The trust root is the same pinned public key the app verifies with.
+#
+# No signing secrets are available to this workflow: it only reads and verifies.
+
+on:
+  schedule:
+    - cron: "17 6 * * 2" # weekly, Tuesday 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TRUST_ROOT: config/trust/llama-runtime-ed25519-public.pem
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          submodules: false
+
+      - name: Probe the signed runtime channels
+        id: probe
+        run: |
+          set -uo pipefail
+
+          # --- the addresses the app ships -------------------------------------
+          # The URL sits on the line AFTER its `val`, so parse a two-line window. `|| true`
+          # keeps an unmatched grep from killing the step under the runner's own `bash -e`;
+          # a missing URL is reported by `require` below instead.
+          url_of() {
+            grep -A1 "^val ${1}[[:space:]]*=" build.gradle.kts | grep -oE 'https://[^"]+' | head -n1 || true
+          }
+          MISSING=0
+          require() {
+            if [ -z "$2" ]; then
+              echo "::error::No URL parsed for ${1} in build.gradle.kts. The channel was renamed or reshaped — update the parser in this workflow."
+              MISSING=1
+            fi
+          }
+
+          LLAMA_INDEX="$(url_of llamaRuntimeIndexUrl)"
+          LLAMA_SIG="$(url_of llamaRuntimeSignatureUrl)"
+          MLX_INDEX="$(url_of mlxRuntimeIndexUrl)"
+          MLX_SIG="$(url_of mlxRuntimeSignatureUrl)"
+          MLX_LEGACY_INDEX="$(url_of mlxLegacyRuntimeIndexUrl)"
+          MLX_LEGACY_SIG="$(url_of mlxLegacyRuntimeSignatureUrl)"
+
+          require llamaRuntimeIndexUrl "$LLAMA_INDEX"
+          require llamaRuntimeSignatureUrl "$LLAMA_SIG"
+          require mlxRuntimeIndexUrl "$MLX_INDEX"
+          require mlxRuntimeSignatureUrl "$MLX_SIG"
+          # The legacy MLX pointer is optional: builds after the combined release layout may drop it.
+          [ "$MISSING" = 0 ] || exit 1
+
+          if [ ! -s "$TRUST_ROOT" ]; then
+            echo "::error::The pinned trust root $TRUST_ROOT is missing; the canary cannot verify any index."
+            exit 1
+          fi
+
+          mkdir -p canary
+
+          # --- helpers ---------------------------------------------------------
+          # Prints the HTTP status; 000 marks a transport failure (DNS, TLS, connection).
+          http_get() { # http_get <url> <outfile>
+            local code
+            code="$(curl -sS -o "$2" -w '%{http_code}' -L --retry 3 --retry-delay 5 --max-time 60 "$1" 2>/dev/null)" \
+              || code="${code:-000}"
+            printf '%s' "${code:-000}"
+          }
+          # Ed25519 over the exact index bytes, against the key the app pins.
+          verify_sig() { # verify_sig <index file> <base64 sig file>
+            base64 --decode "$2" >"$2.raw" 2>/dev/null || return 1
+            openssl pkeyutl -verify -pubin -inkey "$TRUST_ROOT" -rawin \
+              -in "$1" -sigfile "$2.raw" >/dev/null 2>&1 || return 1
+          }
+          sane_index() { # sane_index <index file>
+            jq -e '.schemaVersion == 1 and (.packages | type) == "array" and (.packages | length) > 0' \
+              "$1" >/dev/null 2>&1 || return 1
+          }
+
+          # Probes one index+signature pair. Sets PROBE_STATE to ok | missing | broken and
+          # PROBE_DETAIL to a human-readable reason.
+          probe_pair() { # probe_pair <name> <index url> <sig url>
+            local name="$1" index_url="$2" sig_url="$3"
+            local index="canary/${name}.json" sig="canary/${name}.sig"
+            local index_code sig_code
+            index_code="$(http_get "$index_url" "$index")"
+            if [ "$index_code" = "404" ]; then
+              PROBE_STATE=missing
+              PROBE_DETAIL="HTTP 404 — the index is not served at this address."
+              return
+            fi
+            if [ "$index_code" != "200" ]; then
+              PROBE_STATE=broken
+              PROBE_DETAIL="HTTP ${index_code} for the index."
+              return
+            fi
+            sig_code="$(http_get "$sig_url" "$sig")"
+            if [ "$sig_code" != "200" ]; then
+              PROBE_STATE=broken
+              PROBE_DETAIL="index served, but HTTP ${sig_code} for its signature."
+              return
+            fi
+            if ! verify_sig "$index" "$sig"; then
+              PROBE_STATE=broken
+              PROBE_DETAIL="**Ed25519 signature does not verify** against the pinned trust root."
+              return
+            fi
+            if ! sane_index "$index"; then
+              PROBE_STATE=broken
+              PROBE_DETAIL="signature verifies, but the index is malformed or lists no packages."
+              return
+            fi
+            PROBE_STATE=ok
+            local packages revoked generated
+            packages="$(jq -r '.packages | length' "$index")"
+            revoked="$(jq -r '.revokedRuntimeIds | length' "$index")"
+            generated="$(jq -r '.generatedAt' "$index")"
+            PROBE_DETAIL="${packages} packages, ${revoked} revoked, generated ${generated}."
+          }
+
+          ROWS=""
+          BROKEN=0
+          NOTES=""
+          row() { ROWS="${ROWS}| ${1} | ${2} | ${3} |"$'\n'; }
+
+          # --- llama.cpp: no fallback, this address must answer ------------------
+          probe_pair llama "$LLAMA_INDEX" "$LLAMA_SIG"
+          case "$PROBE_STATE" in
+            ok) row "llama.cpp" "✅ healthy" "$PROBE_DETAIL" ;;
+            *)
+              BROKEN=1
+              row "llama.cpp" "❌ broken" "$PROBE_DETAIL"
+              ;;
+          esac
+
+          # --- MLX: releases/latest first, legacy mlx-stable as the documented fallback ---
+          probe_pair mlx "$MLX_INDEX" "$MLX_SIG"
+          MLX_PRIMARY="$PROBE_STATE"
+          MLX_PRIMARY_DETAIL="$PROBE_DETAIL"
+
+          MLX_LEGACY=skipped
+          MLX_LEGACY_DETAIL="not shipped in build.gradle.kts."
+          if [ -n "$MLX_LEGACY_INDEX" ] && [ -n "$MLX_LEGACY_SIG" ]; then
+            probe_pair mlx-legacy "$MLX_LEGACY_INDEX" "$MLX_LEGACY_SIG"
+            MLX_LEGACY="$PROBE_STATE"
+            MLX_LEGACY_DETAIL="$PROBE_DETAIL"
+          fi
+
+          case "$MLX_PRIMARY" in
+            ok) row "MLX (releases/latest)" "✅ healthy" "$MLX_PRIMARY_DETAIL" ;;
+            missing)
+              # Tolerated only while the legacy pointer still carries the channel — that is exactly
+              # the fallback shipped builds rely on. Both gone means MLX has no index at all.
+              if [ "$MLX_LEGACY" = ok ]; then
+                row "MLX (releases/latest)" "⚠️ absent" "$MLX_PRIMARY_DETAIL Served by the legacy \`mlx-stable\` pointer instead."
+                NOTES="${NOTES}- The latest release carries no MLX index, so the channel rests entirely on the legacy \`mlx-stable\` pointer. The next promotion of either channel should restore the combined layout."$'\n'
+              else
+                BROKEN=1
+                row "MLX (releases/latest)" "❌ broken" "$MLX_PRIMARY_DETAIL No working fallback."
+              fi
+              ;;
+            *)
+              BROKEN=1
+              row "MLX (releases/latest)" "❌ broken" "$MLX_PRIMARY_DETAIL"
+              ;;
+          esac
+
+          case "$MLX_LEGACY" in
+            ok) row "MLX (legacy \`mlx-stable\`)" "✅ healthy" "$MLX_LEGACY_DETAIL" ;;
+            skipped) : ;;
+            *)
+              # Every build up to and including v2.17.0 reads MLX from this address only.
+              BROKEN=1
+              row "MLX (legacy \`mlx-stable\`)" "❌ broken" "$MLX_LEGACY_DETAIL"
+              ;;
+          esac
+
+          # --- report ----------------------------------------------------------
+          {
+            echo "Weekly probe of the signed AI-runtime update channels, fetched from the exact URLs"
+            echo "\`build.gradle.kts\` ships and verified against \`${TRUST_ROOT}\`."
+            echo
+            echo "| Channel | State | Detail |"
+            echo "| --- | --- | --- |"
+            printf '%s' "$ROWS"
+            echo
+            if [ "$BROKEN" = 1 ]; then
+              echo "A broken channel means installed korTTY builds get a failed runtime update check at every"
+              echo "application start, receive no runtime updates, and — because the signed index is also the"
+              echo "revocation channel — cannot be told to withdraw a runtime."
+              echo
+              echo "Usual cause: \`releases/latest\` in \`chardonnay/kortty-llama-runtimes\` points at a release"
+              echo "that does not carry this index. Check which release holds the pointer and whether it was"
+              echo "published with both signed indexes attached."
+            fi
+            if [ -n "$NOTES" ]; then
+              echo
+              printf '%s' "$NOTES"
+            fi
+            echo
+            echo "<sub>Generated by \`.github/workflows/runtime-channel-canary.yml\` (run \`${GITHUB_RUN_ID}\`).</sub>"
+          } > body.md
+
+          cat body.md >> "$GITHUB_STEP_SUMMARY"
+          if [ "$BROKEN" = 1 ]; then echo "broken=true" >> "$GITHUB_OUTPUT"; else echo "broken=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Open or refresh the outage issue
+        if: steps.probe.outputs.broken == 'true'
+        env:
+          TITLE: "🚨 AI runtime channel: a signed index is unreachable"
+        run: |
+          set -uo pipefail
+          gh label create runtime-channel --color B60205 --description "Signed AI-runtime update channel" 2>/dev/null || true
+          gh label create security --color D93F0B --description "Security-relevant change" 2>/dev/null || true
+
+          existing="$(gh issue list --state open --label runtime-channel \
+            --search "in:title $TITLE" --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --body-file body.md
+            echo "Refreshed existing outage issue #$existing."
+          else
+            gh issue create --title "$TITLE" --label security --label runtime-channel --body-file body.md
+          fi
+
+      - name: Close the outage issue once every channel answers again
+        if: steps.probe.outputs.broken == 'false'
+        env:
+          TITLE: "🚨 AI runtime channel: a signed index is unreachable"
+        run: |
+          set -uo pipefail
+          existing="$(gh issue list --state open --label runtime-channel \
+            --search "in:title $TITLE" --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file body.md
+            gh issue close "$existing" --reason completed \
+              --comment "Every signed runtime index is served and verifies again; closing."
+            echo "Closed recovered outage issue #$existing."
+          fi
