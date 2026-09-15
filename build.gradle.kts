@@ -365,9 +365,10 @@ dependencies {
     implementation("org.apache.sshd:sshd-core:2.19.0")
     implementation("org.apache.sshd:sshd-common:2.19.0")
     implementation("org.apache.sshd:sshd-sftp:2.19.0")
-    implementation("org.bouncycastle:bcprov-jdk18on:1.85.2")
-    // bcpkix has no 1.85.2 release; stay on 1.85 (it resolves bcprov up to 1.85.2 transitively).
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.85")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.86")
+    // 1.86 is the first release since 1.85 that ships both artifacts, so the version skew the
+    // 1.85.2 bcprov-only patch forced is gone; keep them on the same version from here.
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.86")
 
     // ED25519 (EdDSA) key support for SSH is supplied by BouncyCastle above, via MINA SSHD's
     // BouncyCastleEdDSASupport backend. Do NOT add net.i2p.crypto:eddsa back: MINA prefers the
@@ -788,7 +789,7 @@ val bundledFormatterDir = layout.buildDirectory.dir("bundled-formatters")
 val bundledMosh4jDir = layout.buildDirectory.dir("bundled-mosh4j")
 val slimRuntimeJarDir = layout.buildDirectory.dir("slim-runtime-jars")
 val monacoBuildNodeDir = layout.buildDirectory.dir("monaco-node")
-val formatterNodeVersion = "24.20.0"
+val formatterNodeVersion = "24.21.0"
 val formatterShfmtVersion = "3.13.1"
 val formatterPrettierVersion = "3.6.2"
 val formatterPrettierSha256 = "bc81ab83674f175a8601b7d013786f48ec2507dd4a5fcf3415831ff13a875bdf"
@@ -1232,8 +1233,8 @@ tasks.named<ProcessResources>("processResources") {
 // Monaco Node/esbuild workspace because JavaFX 21 WebKit cannot parse the upstream target. Node
 // remains a build-only tool. Mermaid and MathJax stay separate runtime resources so each hidden
 // WebView extracts only the library it needs.
-val mermaidVersion = "11.17.2"
-val mermaidSha256 = "6ad2f42c3fc26bbf9e45cbb6d11898972573ea52b33a5f4ff51952899f950ffd"
+val mermaidVersion = "12.0.0"
+val mermaidSha256 = "7df1e7de572d26ea7aca5eaa7b0e77f5caacb63567006f4077c2753d730ffd9d"
 val chatRenderMathJaxVersion = "3.2.2"
 val chatRenderMathJaxSha256 = "1b9c0a1c44df864e915690558e72adb9cc5203360daefd385084ced3b6c64c09"
 
@@ -1805,7 +1806,7 @@ tasks.register<Sync>("prepareJpackage") {
             libsDir.resolve("formatters/node"),
             libsDir.resolve("formatters/prettier"),
             libsDir.resolve("formatters/sql-formatter"),
-            libsDir.resolve("mosh4j/deps/bcprov-jdk18on-1.85.2.jar")
+            libsDir.resolve("mosh4j/deps/bcprov-jdk18on-1.86.jar")
         ).filter { it.exists() }
         if (forbidden.isNotEmpty()) {
             throw GradleException("Oversized or duplicate package inputs remain: ${forbidden.joinToString()}")
