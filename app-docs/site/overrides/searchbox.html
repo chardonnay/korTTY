@@ -27,7 +27,7 @@
 	<form id="rtd-search-form" class="wy-form kt-search-form" action="{{ base_url }}/search.html" method="get">
 		<input type="text" name="q"{% if live %} id="mkdocs-search-query"{% endif %}
 		class="kt-search-input drac-input drac-input-search drac-input-white drac-text-white drac-bg-black-secondary"
-		placeholder="{{ "Anleitung durchsuchen" if de else "Search docs" }}"
+		placeholder="{{ "Durchsuchen" if de else "Search" }}"
 		autocomplete="off" title="Type search term here" />
 		{%- if live %}
 		{#- type="button": inside the form, a default-type button would submit it and
