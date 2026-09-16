@@ -1407,7 +1407,9 @@ jobs:
           python3 scripts/update_release_download_guide.py \
             --repository "$GITHUB_REPOSITORY" --tag "$TAG" --version "$VERSION" \
             --pacman-pkgrel "$PACMAN_PKGREL" --body "$body" --assets "$assets" --output "$body"
-          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file "$body"
+          # The release title is the bare tag ("v2.18.0"), never a prefixed name like "korTTY v2.18.0":
+          # releases were created by hand with inconsistent titles, so the build normalises it here.
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file "$body" --title "$TAG"
 
   upload-release:
     needs: [build, build-pacman, docs-render]
@@ -1512,4 +1514,6 @@ jobs:
           python3 scripts/update_release_download_guide.py \
             --repository "$GITHUB_REPOSITORY" --tag "$TAG" --version "$VERSION" \
             --pacman-pkgrel auto --body "$body" --assets "$assets" --output "$body"
-          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file "$body"
+          # The release title is the bare tag ("v2.18.0"), never a prefixed name like "korTTY v2.18.0":
+          # releases were created by hand with inconsistent titles, so the build normalises it here.
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file "$body" --title "$TAG"

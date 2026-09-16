@@ -237,7 +237,7 @@ KorTTY relies on carefully curated, production-tested dependencies:
 | **Category** | **Library** | **Version** | **Purpose** |
 |---|---|---|---|
 | **SSH** | Apache SSHD (core, common, sftp) | 2.19.0 | SSH protocol implementation |
-| | BouncyCastle (bcprov, bcpkix) | 1.85 | Cryptographic provider, SSH key parsing and Ed25519/EdDSA key support |
+| | BouncyCastle (bcprov, bcpkix) | 1.86 | Cryptographic provider, SSH key parsing and Ed25519/EdDSA key support |
 | **Terminal** | SithTermFX (core, ui) | 1.2.2 plus pinned korTTY boundary and shortcut-chord patches | Terminal emulator engine |
 | | Lanterna | 3.1.5 | Text-based UI components |
 | | pty4j (JetBrains) | 0.12.25 | PTY allocation for Mosh |
@@ -253,12 +253,12 @@ KorTTY relies on carefully curated, production-tested dependencies:
 | **UI** | JavaFX | 21.0.12 | Application framework |
 | | AtlantaFX Base | 2.1.0 | Seven selectable Primer, Nord, Cupertino and Dracula JavaFX user-agent themes; its transitive OpenJFX dependency is excluded |
 | | Monaco Editor | 0.56.0 | Code editor component |
-| | Mermaid | 11.17.2 | Local diagram parsing, SVG rendering, and PNG rasterization |
+| | Mermaid | 12.0.0 | Local diagram parsing, SVG rendering, and PNG rasterization |
 | | MathJax | 3.2.2 | Local AI-chat formula rendering |
 | | google-java-format | 1.36.1 | Java code formatting |
 | **Utilities** | jfiglet | 0.0.9 | ASCII art banners |
 | | zxcvbn | 1.9.0 | Password strength (offline) |
-| **Logging** | SLF4J / Logback | 2.0.18 / 1.6.3 | Structured logging |
+| **Logging** | SLF4J / Logback | 2.0.19 / 1.6.3 | Structured logging |
 | **Optional** | mosh4j | 2.0.2 | Mosh protocol (dynamically loaded) |
 | **Local AI** | llama.cpp `llama-server` | Source-pinned runtime package | Local GGUF chat-completions and embeddings sidecar |
 
