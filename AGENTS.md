@@ -21,6 +21,8 @@ build time — no version literals appear in any Markdown page.
 
 Every published GitHub release must include a clear **Downloads** section grouped by operating system and architecture, with links to every published package. `build-release.yml` generates and appends this section between the `kortty-download-guide` markers; do not remove or bypass that step when preparing a release.
 
+The release **title is exactly the tag**, e.g. `v2.18.0` — never `korTTY v2.18.0` or `Version 2.18.0` (`gh release create "$TAG" --title "$TAG"`). `build-release.yml` resets the title to the tag whenever it updates the Downloads section.
+
 ## Documentation system
 
 The user-facing guide is a **MkDocs Material** site under `app-docs/site/`,

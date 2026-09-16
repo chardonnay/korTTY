@@ -237,7 +237,7 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 | **Kategorie** | **Bibliothek** | **Version** | **Zweck** |
 |---|---|---|---|
 | **SSH** | Apache SSHD (Core, Common, SFTP) | 2.19.0 | SSH-Protokollimplementierung |
-| | BouncyCastle (bcprov, bcpkix) | 1.85 | Kryptografieanbieter, SSH-Schlüsselanalyse und Ed25519/EdDSA-Schlüsselunterstützung |
+| | BouncyCastle (bcprov, bcpkix) | 1.86 | Kryptografieanbieter, SSH-Schlüsselanalyse und Ed25519/EdDSA-Schlüsselunterstützung |
 | **Terminal** | SithTermFX (Kern, UI) | 1.2.2 plus angeheftete KorTTY-Grenz- und Shortcut-Akkord-Patches | Terminal-Emulator-Engine |
 | | Lanterna | 3.1.5 | Textbasierte UI-Komponenten |
 | | pty4j (JetBrains) | 0,12,25 | PTY-Zuweisung für Mosh |
@@ -253,12 +253,12 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 | **UI** | JavaFX | 21.0.12 | Anwendungsframework |
 | | AtlantaFX Base | 2.1.0 | Sieben wählbare Primer-, Nord-, Cupertino- und Dracula-JavaFX-Benutzeragententhemen; seine transitive OpenJFX-Abhängigkeit ist ausgeschlossen |
 | | Monaco-Editor | 0.56.0 | Code-Editor-Komponente |
-| | Mermaid | 11.17.2 | Lokale Diagrammanalyse, SVG-Rendering und PNG-Rasterisierung |
+| | Mermaid | 12.0.0 | Lokale Diagrammanalyse, SVG-Rendering und PNG-Rasterisierung |
 | | MathJax | 3.2.2 | Lokales AI-Chat-Formel-Rendering |
 | | google-java-format | 1.36.1 | Java-Codeformatierung |
 | **Dienstprogramme** | jfiglet | 0.0.9 | ASCII-Art-Banner |
 | | zxcvbn | 1.9.0 | Passwortstärke (offline) |
-| **Protokollierung** | SLF4J / Logback | 2.0.18 / 1.6.3 | Strukturierte Protokollierung |
+| **Protokollierung** | SLF4J / Logback | 2.0.19 / 1.6.3 | Strukturierte Protokollierung |
 | **Optional** | mosh4j | 2.0.2 | Mosh-Protokoll (dynamisch geladen) |
 | **Lokale KI** | llama.cpp `llama-server` | Quellfixiertes Laufzeitpaket | Lokaler GGUF-Chat-Vervollständigungs- und Einbettungs-Sidecar |
 
