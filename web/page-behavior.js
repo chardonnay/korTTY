@@ -1,14 +1,29 @@
-// — latest-release sync: version labels + direct-download links follow the newest GitHub release —
+// — latest-release sync: version labels, direct-download links and the "What's new" cards follow the
+//   newest *published* GitHub release, so a version only appears once its release exists —
 (() => {
+  let latest = null;
+  const cmp = (a, b) => {
+    const x = a.split('.').map(Number), y = b.split('.').map(Number);
+    for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); }
+    return 0;
+  };
   const apply = (tag) => {
     if (!/^v?\d+\.\d+/.test(tag)) return;
+    latest = tag;
     const ver = tag.replace(/^v/, '');
     document.querySelectorAll('[data-ver]').forEach(el => { el.textContent = 'v' + ver; });
     document.querySelectorAll('a[data-asset]').forEach(a => {
       a.href = 'https://github.com/chardonnay/korTTY/releases/download/' + tag + '/' +
         a.dataset.asset.split('{v}').join(ver);
     });
+    // Show the card group of the newest release that is not newer than the published one: cards
+    // prepared for an upcoming version stay hidden until GitHub has that release.
+    const cards = [...document.querySelectorAll('#release [data-release]')];
+    const shown = cards.map(c => c.dataset.release).filter(r => cmp(r, ver) <= 0).sort(cmp).pop();
+    if (shown) cards.forEach(c => { c.hidden = c.dataset.release !== shown; });
   };
+  // A language switch rewrites translated labels, including the version inside the "What's new" kicker.
+  document.addEventListener('kortty:lang', () => { if (latest) apply(latest); });
   const KEY = 'kortty-latest-tag';
   try { const c = JSON.parse(localStorage.getItem(KEY) || 'null'); if (c && c.tag) apply(c.tag); } catch (_) {}
   fetch('https://api.github.com/repos/chardonnay/korTTY/releases/latest')

@@ -180,6 +180,10 @@ body {
      title and first copy line share one baseline across the row */
   padding: calc(1.5 * var(--leading)) 0; }
 .feature + .feature { border: 0; position: relative; }
+/* release cards of versions that are not the newest published release are hidden; the first visible
+   card after hidden ones is the top row and takes no separator */
+.feature[hidden] { display: none; }
+.feature[hidden] + .feature:not([hidden])::before { content: none; }
 .feature + .feature::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
   background: linear-gradient(to right, transparent, var(--color-neutral-700) 48px calc(100% - 48px), transparent); }
   /* in-content structural rules take neutral-700, the ink the deck's quadrant
@@ -653,7 +657,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <a href="#download" data-i18n="nav.download">Download</a>
   <a data-guide href="guide/index.html" target="_blank" rel="noopener" data-i18n="nav.guide">Guide</a>
   <select id="lang-sel" aria-label="Language"><option value="en">English</option><option value="de">Deutsch</option><option value="es">Español</option><option value="fr">Français</option><option value="hr">Hrvatski</option><option value="it">Italiano</option><option value="nl">Nederlands</option><option value="pt">Português</option><option value="ru">Русский</option><option value="zh">中文</option><option value="ja">日本語</option><option value="ko">한국어</option><option value="th">ไทย</option><option value="af">Afrikaans</option><option value="fil">Filipino</option></select>
-  <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.7.0</span></a>
+  <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.17.0</span></a>
 </nav>
 <div class="wrap">
 
@@ -663,7 +667,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
         <h1 class="display" data-i18n="hero.h1"><span class="line">SSH connect.</span> <span class="line">Prompt.</span> <span class="line dim">Chill.</span></h1>
         <p class="sub" data-i18n="hero.sub">korTTY puts AI agents inside your SSH session — they inspect the box, plan safe commands, ask before anything scary, and fix it. LLMs run in-process; nothing extra gets installed on your machine or your servers.</p>
         <div class="row">
-          <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.7.0</span></a>
+          <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.17.0</span></a>
           <a class="btn btn-ghost" href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" data-i18n="w.viewgh">View on GitHub</a>
           <span class="meta" data-i18n="hero.meta">macOS · Windows · Linux — open source, MIT</span>
         </div>
@@ -688,7 +692,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <section class="stats" aria-label="korTTY, by the numbers" data-screen-label="Stat band">
     <div class="wrap">
       <div class="grid">
-        <div><p class="stat-num" data-ver>v2.7.0</p><p class="stat-label" data-i18n="st.rel">Current release</p></div>
+        <div><p class="stat-num" data-ver>v2.17.0</p><p class="stat-label" data-i18n="st.rel">Current release</p></div>
         <div><p class="stat-num">3</p><p class="stat-label" data-i18n="st.plat">Platforms — macOS · Win · Linux</p></div>
         <div><p class="stat-num">0 €</p><p class="stat-label" data-i18n="st.mit">Open source, MIT</p></div>
         <div><p class="stat-num">8</p><p class="stat-label" data-i18n="st.lang">Built-in languages</p></div>
@@ -1367,62 +1371,75 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     <div class="plats">
       <div class="card"><p class="card-kicker">macOS</p><h3 class="card-title">DMG / ZIP</h3><p class="card-body" data-i18n="dl.mac">Apple Silicon (aarch64) and Intel (x86_64) as separate builds. Metal-accelerated local models.</p>
         <div class="dl-rows">
-          <div class="dl-row"><span class="dl-arch">Apple Silicon</span><span class="dl-links"><a data-asset="korTTY-macOS-{v}-aarch64.dmg" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-macOS-2.7.0-aarch64.dmg">DMG</a><a data-asset="korTTY-macOS-{v}-aarch64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-macOS-2.7.0-aarch64.zip">ZIP</a></span></div>
-          <div class="dl-row"><span class="dl-arch">Intel</span><span class="dl-links"><a data-asset="korTTY-macOS-{v}-x86_64.dmg" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-macOS-2.7.0-x86_64.dmg">DMG</a><a data-asset="korTTY-macOS-{v}-x86_64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-macOS-2.7.0-x86_64.zip">ZIP</a></span></div>
+          <div class="dl-row"><span class="dl-arch">Apple Silicon</span><span class="dl-links"><a data-asset="korTTY-macOS-{v}-aarch64.dmg" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/korTTY-macOS-2.17.0-aarch64.dmg">DMG</a><a data-asset="korTTY-macOS-{v}-aarch64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/korTTY-macOS-2.17.0-aarch64.zip">ZIP</a></span></div>
+          <div class="dl-row"><span class="dl-arch">Intel</span><span class="dl-links"><a data-asset="korTTY-macOS-{v}-x86_64.dmg" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/korTTY-macOS-2.17.0-x86_64.dmg">DMG</a><a data-asset="korTTY-macOS-{v}-x86_64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/korTTY-macOS-2.17.0-x86_64.zip">ZIP</a></span></div>
         </div></div>
       <div class="card"><p class="card-kicker">Windows</p><h3 class="card-title">MSI / ZIP</h3><p class="card-body" data-i18n="dl.win">x86_64 — runs on Windows-on-ARM via x64 emulation. PowerShell, cmd, WSL and Git Bash as local shells.</p>
         <div class="dl-rows">
-          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="korTTY-Windows-{v}-x86_64.msi" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-Windows-2.7.0-x86_64.msi">MSI</a><a data-asset="korTTY-Windows-{v}-x86_64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-Windows-2.7.0-x86_64.zip">ZIP</a></span></div>
+          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="korTTY-Windows-{v}-x86_64.msi" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/korTTY-Windows-2.17.0-x86_64.msi">MSI</a><a data-asset="korTTY-Windows-{v}-x86_64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/korTTY-Windows-2.17.0-x86_64.zip">ZIP</a></span></div>
         </div></div>
       <div class="card"><p class="card-kicker">Linux</p><h3 class="card-title">DEB / RPM / Flatpak / tar.gz</h3><p class="card-body" data-i18n="dl.lin">x86_64 and aarch64, the Flatpak bundle included. Vulkan fallback for local models where the GPU cooperates.</p>
         <div class="dl-rows">
-          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="kortty-Linux-{v}-x86_64.deb" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-x86_64.deb">DEB</a><a data-asset="kortty-Linux-{v}-x86_64.rpm" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-x86_64.rpm">RPM</a><a data-asset="kortty-Linux-{v}-x86_64.flatpak" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-x86_64.flatpak">Flatpak</a><a data-asset="kortty-Linux-{v}-x86_64.tar.gz" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-x86_64.tar.gz">tar.gz</a></span></div>
-          <div class="dl-row"><span class="dl-arch">aarch64</span><span class="dl-links"><a data-asset="kortty-Linux-{v}-aarch64.deb" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-aarch64.deb">DEB</a><a data-asset="kortty-Linux-{v}-aarch64.rpm" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-aarch64.rpm">RPM</a><a data-asset="kortty-Linux-{v}-aarch64.flatpak" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-aarch64.flatpak">Flatpak</a><a data-asset="kortty-Linux-{v}-aarch64.tar.gz" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-aarch64.tar.gz">tar.gz</a></span></div>
+          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="kortty-Linux-{v}-x86_64.deb" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-x86_64.deb">DEB</a><a data-asset="kortty-Linux-{v}-x86_64.rpm" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-x86_64.rpm">RPM</a><a data-asset="kortty-Linux-{v}-x86_64.flatpak" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-x86_64.flatpak">Flatpak</a><a data-asset="kortty-Linux-{v}-x86_64.tar.gz" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-x86_64.tar.gz">tar.gz</a></span></div>
+          <div class="dl-row"><span class="dl-arch">aarch64</span><span class="dl-links"><a data-asset="kortty-Linux-{v}-aarch64.deb" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-aarch64.deb">DEB</a><a data-asset="kortty-Linux-{v}-aarch64.rpm" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-aarch64.rpm">RPM</a><a data-asset="kortty-Linux-{v}-aarch64.flatpak" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-aarch64.flatpak">Flatpak</a><a data-asset="kortty-Linux-{v}-aarch64.tar.gz" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-aarch64.tar.gz">tar.gz</a></span></div>
         </div></div>
       <div class="card"><p class="card-kicker">Arch Linux</p><h3 class="card-title">pacman pkg</h3><p class="card-body" data-i18n="dl.aur">.pkg.tar.zst for x86_64 — because you were going to mention it anyway. btw.</p>
         <div class="dl-rows">
-          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="kortty-{v}-1-x86_64.pkg.tar.zst" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-2.7.0-1-x86_64.pkg.tar.zst">pkg.tar.zst</a></span></div>
+          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="kortty-{v}-1-x86_64.pkg.tar.zst" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-2.17.0-1-x86_64.pkg.tar.zst">pkg.tar.zst</a></span></div>
         </div></div>
     </div>
     <p class="figcap" style="margin-top: var(--leading)" data-i18n="fc.mig">Migrating? korTTY imports connections from MTPuTTY, MobaXterm and PuTTY Connection Manager — then encrypts them properly.</p>
   </section>
 
-  <section class="sec" id="release" data-screen-label="Release 2.17">
+  <section class="sec" id="release" data-screen-label="Release">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k16">19 — What's new in v2.17.0</span>
+      <span class="kicker" data-i18n="k16">19 — What's new in <span data-ver>v2.17.0</span></span>
       <h2 class="sec-title" data-i18n="t16">Fresh off the pipeline</h2>
     </div>
-    <div class="feature">
-      <p class="f-num">2.17</p>
+    <!-- One group of cards per release (data-release). page-behavior.js shows only the group of the newest
+         release that is actually published on GitHub, so cards for an upcoming version stay hidden until
+         its release exists. Without JavaScript the currently published release's cards are shown. -->
+    <div class="feature" data-release="2.18.0" hidden>
+      <p class="f-num">2.18</p>
       <h3 class="f-title" data-i18n="ca.rl1t">Coding agents, detected</h3>
       <p class="f-copy" data-i18n="ca.rl1c">Claude Code, Codex and Gemini CLI are recognised in local shell tabs, with a dockable <a href="#agents">Coding Agents panel</a>, dashboard chips, a status strip, an app-icon badge and desktop notifications.</p>
     </div>
-    <div class="feature">
-      <p class="f-num">2.17</p>
+    <div class="feature" data-release="2.18.0" hidden>
+      <p class="f-num">2.18</p>
       <h3 class="f-title" data-i18n="ca.rl2t">Control API and kortty-cli</h3>
       <p class="f-copy" data-i18n="ca.rl2c">A local socket lets a script — or another coding agent — list your windows, read any pane, type into it and drive a detected agent. Off by default.</p>
     </div>
-    <div class="feature">
-      <p class="f-num">2.7</p>
-      <h3 class="f-title" data-i18n="rl1t">Full code analysis</h3>
-      <p class="f-copy" data-i18n="rl1c">The Snippet Editor's AI opens a non-modal analysis window: plain-language summary, dependency review, tickable Security/Optimization/Design improvements, and an auto-generated flow diagram that highlights source lines on hover.</p>
+    <div class="feature" data-release="2.18.0" hidden>
+      <p class="f-num">2.18</p>
+      <h3 class="f-title" data-i18n="rl18at">Roll back a runtime</h3>
+      <p class="f-copy" data-i18n="rl18ac">If a new llama.cpp or MLX runtime misbehaves, pick an older signed version in Local Models. It stays pinned until you choose the newest one again.</p>
     </div>
-    <div class="feature">
-      <p class="f-num">2.7</p>
-      <h3 class="f-title" data-i18n="rl2t">One local Mermaid renderer</h3>
-      <p class="f-copy" data-i18n="rl2c">Snippet diagrams, code analysis, workflow generation and AI-chat Mermaid blocks share one SHA-256-pinned Mermaid 11.16 renderer — no Graphviz subprocess, no first-use download.</p>
+    <div class="feature" data-release="2.18.0" hidden>
+      <p class="f-num">2.18</p>
+      <h3 class="f-title" data-i18n="rl18bt">Dialogs open faster</h3>
+      <p class="f-copy" data-i18n="rl18bc">WebKit loads in the background and heavy tabs are built on first visit: the first AI Manager open dropped from about 1.4 s to under 0.1 s.</p>
     </div>
-    <div class="feature">
-      <p class="f-num">2.7</p>
-      <h3 class="f-title" data-i18n="rl3t">Explained security fixes</h3>
-      <p class="f-copy" data-i18n="rl3c">Security checks now show a side-by-side diff; hovering a changed block names the findings it addresses, with every rationale listed as a card below.</p>
+    <div class="feature" data-release="2.17.0">
+      <p class="f-num">2.17</p>
+      <h3 class="f-title" data-i18n="rl1t">AI pictures in seconds</h3>
+      <p class="f-copy" data-i18n="rl1c">The ASCII Art tool now asks the model for a small vector drawing and converts it itself, so AI pictures match their subject and arrive in seconds instead of minutes.</p>
     </div>
-    <div class="feature">
-      <p class="f-num">2.7</p>
-      <h3 class="f-title" data-i18n="rl4t">Transparent terminals, quieter tabs</h3>
-      <p class="f-copy" data-i18n="rl4c">A 0–100 % background-transparency slider keeps text sharp while the terminal sees through to the desktop — and closing an idle tab finally stops asking if you're sure.</p>
+    <div class="feature" data-release="2.17.0">
+      <p class="f-num">2.17</p>
+      <h3 class="f-title" data-i18n="rl2t">ASCII art from any image</h3>
+      <p class="f-copy" data-i18n="rl2c">The new Image File tab turns a PNG, JPEG, GIF or BMP into characters, with size, brightness, contrast and invert controls.</p>
     </div>
-    <p class="figcap" data-i18n="fc.rel"><a href="https://github.com/chardonnay/korTTY/blob/main/app-docs/RELEASE_NOTES.adoc" target="_blank" rel="noopener">Full release notes on GitHub</a></p>
+    <div class="feature" data-release="2.17.0">
+      <p class="f-num">2.17</p>
+      <h3 class="f-title" data-i18n="rl3t">Copy ASCII art as code</h3>
+      <p class="f-copy" data-i18n="rl3c">Copy as prefixes every line with your language's comment marker, or wraps the picture in ready print statements for 16 languages, from Bash to Rust.</p>
+    </div>
+    <div class="feature" data-release="2.17.0">
+      <p class="f-num">2.17</p>
+      <h3 class="f-title" data-i18n="rl4t">The tmux cursor stays put</h3>
+      <p class="f-copy" data-i18n="rl4c">A narrowed scrolling region no longer drags the cursor or scrolls text away, so tmux panes show the cursor on the prompt line again.</p>
+    </div>
+    <p class="figcap" data-i18n="fc.rel"><a href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener">Full release notes on GitHub</a></p>
   </section>
 
   <section class="sec" id="faq" data-screen-label="FAQ">
@@ -1466,7 +1483,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     <h3 data-i18n="t18">Point an agent at it.</h3>
     <p class="sub" data-i18n="cl.sub">korTTY is built in the open — MIT-licensed, signed releases, public docs, and release notes that read like release notes. If it saves your on-call night, a star is the accepted currency.</p>
     <div class="signup" style="max-width: none">
-      <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.7.0</span></a>
+      <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.17.0</span></a>
       <a class="btn btn-ghost" href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" data-i18n="cl.star">Star on GitHub</a>
       <a class="btn btn-ghost" data-guide href="guide/index.html" target="_blank" rel="noopener" data-i18n="cl.guide">Read the user guide</a>
     </div>
