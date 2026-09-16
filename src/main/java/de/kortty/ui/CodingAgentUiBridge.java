@@ -149,6 +149,7 @@ public final class CodingAgentUiBridge implements FocusOracle, PaneLocator, Pane
             Notification notification = buildNotification(entry, state, locate(entry.pane()).orElse(null), messages);
             if (notifier != null) {
                 notifier.notify(notification.title(), notification.body());
+                de.kortty.telemetry.CodingAgentUsage.get().notificationShown(entry, state);
             }
         };
     }

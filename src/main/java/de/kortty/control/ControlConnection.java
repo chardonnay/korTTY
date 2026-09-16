@@ -296,6 +296,7 @@ public final class ControlConnection implements Runnable, AutoCloseable {
                 return false;
             }
             JsonElement result = methods.dispatch(session, new ControlRequest(id, method, params));
+            de.kortty.telemetry.CodingAgentUsage.get().controlRequestHandled(method, session.client());
             send(id, result);
             return true;
         } catch (ControlApiException e) {
