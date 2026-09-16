@@ -827,6 +827,14 @@ public class KorTTYApplication extends Application {
             }
             props.put("window_count", MainWindow.getOpenWindowCount());
             props.put("terminal_tab_count", MainWindow.getOpenTerminalTabCount());
+            props.put("coding_agent_detection_enabled", settings.isCodingAgentDetectionEnabled());
+            props.put("coding_agent_notifications_enabled", settings.isCodingAgentNotificationsEnabled());
+            props.put("coding_agent_app_badge_enabled", settings.isCodingAgentAppBadgeEnabled());
+            props.put("control_api_enabled", settings.isControlApiEnabled());
+            if (codingAgentRegistry != null && Platform.isFxApplicationThread()) {
+                props.put("coding_agent_count", codingAgentRegistry.entries().size());
+            }
+            de.kortty.telemetry.CodingAgentUsage.get().putSnapshotProps(props);
             Telemetry.track(TelemetryEvents.USAGE_SNAPSHOT, props);
         } catch (Exception e) {
             logger.debug("Usage snapshot failed: {}", e.toString());
@@ -1228,6 +1236,7 @@ public class KorTTYApplication extends Application {
             codingAgentRegistry = new CodingAgentRegistry(FocusOracle.NEVER, System::currentTimeMillis,
                 Platform::isFxApplicationThread);
             codingAgentService.addListener(codingAgentRegistry::onEvent);
+            codingAgentRegistry.addListener(de.kortty.telemetry.CodingAgentUsage.get());
             java.util.concurrent.atomic.AtomicReference<CodingAgentUiBridge> bridgeRef =
                 new java.util.concurrent.atomic.AtomicReference<>();
             PlatformProbe probe = PlatformProbe.fromSystem();

@@ -14,6 +14,8 @@ import de.kortty.codingagent.PaneLocation;
 import de.kortty.codingagent.PaneLocator;
 import de.kortty.codingagent.PaneRef;
 import de.kortty.codingagent.RegistryChange;
+import de.kortty.telemetry.Telemetry;
+import de.kortty.telemetry.TelemetryEvents;
 import javafx.animation.AnimationTimer;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
@@ -580,6 +582,7 @@ public class CodingAgentPanel extends BorderPane {
         }
         boolean sent = runAction(target, () -> actions.prompt(target.pane(), text), text, true);
         if (sent) {
+            Telemetry.track(TelemetryEvents.CODING_AGENT_ACTION, Map.of("action", "panel_prompt"));
             promptArea.clear();
         }
     }
@@ -591,7 +594,9 @@ public class CodingAgentPanel extends BorderPane {
     }
 
     private void sendKey(CodingAgentEntry entry, KeyChord chord) {
-        runAction(entry, () -> actions.sendKey(entry.pane(), chord), null, true);
+        if (runAction(entry, () -> actions.sendKey(entry.pane(), chord), null, true)) {
+            Telemetry.track(TelemetryEvents.CODING_AGENT_ACTION, Map.of("action", "panel_send_key"));
+        }
     }
 
     private void toggleExplain(CodingAgentEntry entry) {

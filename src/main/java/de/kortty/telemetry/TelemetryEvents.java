@@ -39,6 +39,9 @@ public final class TelemetryEvents {
     public static final String JOURNAL_LIVE_PANEL_TOGGLED = "journal_live_panel_toggled";
     public static final String CODING_AGENT_PANEL_TOGGLED = "coding_agent_panel_toggled";
     public static final String CODING_AGENT_ACTION = "coding_agent_action";
+    public static final String CODING_AGENT_DETECTED = "coding_agent_detected";
+    public static final String CODING_AGENT_NOTIFICATION = "coding_agent_notification";
+    public static final String CONTROL_API_USED = "control_api_used";
     public static final String JOURNAL_AI_ASK = "journal_ai_ask";
     public static final String JOURNAL_AI_CROSS_SEARCH = "journal_ai_cross_search";
 
