@@ -1,45 +1,45 @@
 {
   "schema_version": 1,
-  "release": "v2.17.0",
+  "release": "v2.18.0",
   "minimum_reduction_percent": 15,
   "budget_tolerance_percent": 2,
   "artifacts": {
     "macos-aarch64-dmg": {
       "baseline_bytes": 189860684,
-      "verified_bytes": 144493014,
+      "verified_bytes": 144722886,
       "budget_bytes": 148897792
     },
     "macos-x86_64-dmg": {
       "baseline_exempt": true,
-      "verified_bytes": 147447434,
+      "verified_bytes": 147627328,
       "budget_bytes": 152043520
     },
     "windows-x86_64-msi": {
       "baseline_bytes": 194954284,
-      "verified_bytes": 149650024,
+      "verified_bytes": 150040608,
       "budget_bytes": 154140672
     },
     "linux-x86_64-deb": {
       "baseline_bytes": 193980040,
-      "verified_bytes": 153407776,
+      "verified_bytes": 153147704,
       "budget_bytes": 158334976
     },
     "linux-x86_64-rpm": {
       "baseline_bytes": 223063636,
-      "verified_bytes": 161166714,
+      "verified_bytes": 161560355,
       "budget_bytes": 165675008
     },
     "linux-aarch64-deb": {
       "baseline_bytes": 191136540,
-      "verified_bytes": 151333834,
+      "verified_bytes": 151100372,
       "budget_bytes": 156237824
     },
     "linux-aarch64-rpm": {
       "baseline_bytes": 219836583,
-      "verified_bytes": 158891148,
+      "verified_bytes": 159293210,
       "budget_bytes": 163577856
     }
   },
-  "verified_release": "2.17.0",
-  "verified_source_run": "34334749945"
+  "verified_release": "2.18.0",
+  "verified_source_run": "35146804433"
 }
