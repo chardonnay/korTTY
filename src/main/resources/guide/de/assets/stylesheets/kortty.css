@@ -428,7 +428,12 @@ article h6:hover .headerlink {
 .kt-search-form {
   position: relative;
 }
+/* Dracula leaves the field at the browser's default width, which next to the
+   Previous/Next buttons cut the placeholder off mid-word. The width fits the short
+   placeholder ("Durchsuchen" is the longer one) plus the reset button's room. */
 .kt-search .kt-search-input {
+  width: 13rem;
+  max-width: 100%;
   padding-right: 1.9rem;
 }
 .kt-search-clear {
