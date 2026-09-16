@@ -180,6 +180,10 @@ body {
      title and first copy line share one baseline across the row */
   padding: calc(1.5 * var(--leading)) 0; }
 .feature + .feature { border: 0; position: relative; }
+/* release cards of versions that are not the newest published release are hidden; the first visible
+   card after hidden ones is the top row and takes no separator */
+.feature[hidden] { display: none; }
+.feature[hidden] + .feature:not([hidden])::before { content: none; }
 .feature + .feature::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
   background: linear-gradient(to right, transparent, var(--color-neutral-700) 48px calc(100% - 48px), transparent); }
   /* in-content structural rules take neutral-700, the ink the deck's quadrant
@@ -588,6 +592,55 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   html:not(.js) .demo-static .ln, html:not(.js) .bc-cmd, html:not(.js) .bc-out,
   html:not(.js) .orb, html:not(.js) #mc-fill, html:not(.js) .themer-body, html:not(.js) .themer-body .tp { animation: none; opacity: 1; }
 }
+/* — coding-agents panel + status strip mockups — */
+.capanel { background: #0d1117; border: 1px solid #262c38; border-radius: var(--radius-md);
+  box-shadow: var(--win-shadow); overflow: hidden; color: #d6dae2; }
+.ca-head { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #1a1e27;
+  border-bottom: 1px solid #262c38; font-size: 12.5px; color: #8b93a3; }
+.ca-head b { color: #e6edf3; font-weight: 500; }
+.ca-next { margin-left: auto; border: 1px solid #3a4150; border-radius: 6px; padding: 3px 9px;
+  font-size: 11.5px; color: #9aa4b5; white-space: nowrap; }
+.ca-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 10px;
+  padding: 12px 14px; border-top: 1px solid #1c212b; position: relative; }
+.ca-row.sel { background: #12161f; }
+.ca-row.sel::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--color-accent); }
+.ca-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 6px; background: #6b7484; flex: none; }
+.ca-row.working .ca-dot { background: #2f81f7; }
+.ca-row.done .ca-dot { background: #3fb950; }
+.ca-row.blocked .ca-dot { background: #d29922; animation: cawait 1.5s ease-in-out infinite; }
+@keyframes cawait { 0%, 100% { box-shadow: 0 0 0 0 rgba(210,153,34,.5); } 50% { box-shadow: 0 0 0 5px rgba(210,153,34,0); } }
+.ca-name { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; font-size: 13.5px; }
+.ca-name b { color: #e6edf3; font-weight: 500; }
+.ca-chip { font-size: 11.5px; padding: 2px 8px; border-radius: 5px; border: 1px solid #3a4150;
+  color: #9aa4b5; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ca-row.blocked .ca-chip { color: #e8c67c; border-color: rgba(210,153,34,.55); background: rgba(210,153,34,.12); }
+.ca-row.working .ca-chip { color: #9cc2f2; border-color: rgba(47,129,247,.55); background: rgba(47,129,247,.12); }
+.ca-row.done .ca-chip { color: #8ddb9f; border-color: rgba(63,185,80,.5); background: rgba(63,185,80,.12); }
+.ca-loc, .ca-ev { grid-column: 2; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ca-loc { font-size: 11.5px; color: #8b93a3; }
+.ca-ev { font-size: 12px; color: #a7b0c0; }
+.ca-keys { grid-column: 2; display: flex; gap: 6px; flex-wrap: wrap; margin-top: 3px; }
+.ca-key { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 11px;
+  color: #8b93a3; border: 1px solid #2c323e; border-radius: 5px; padding: 3px 8px; }
+.ca-key.on { color: #f0d9a4; border-color: rgba(210,153,34,.6); background: rgba(210,153,34,.14); }
+.ca-prompt { border-top: 1px solid #262c38; padding: 11px 14px; background: #12161f;
+  display: flex; flex-direction: column; gap: 8px; }
+.ca-input { border: 1px solid #2c323e; border-radius: 6px; padding: 9px 11px; background: #0d1117;
+  color: #6f7787; font-size: 12.5px; }
+.ca-status { font-size: 11.5px; color: #8b93a3; min-height: 1.2em; }
+.ca-status.ok { color: #8ddb9f; }
+.ca-bar { display: flex; align-items: center; gap: 16px; padding: 9px 14px; background: #1a1e27;
+  border: 1px solid #262c38; border-radius: var(--radius-md); box-shadow: var(--win-shadow);
+  font-size: 12px; color: #8b93a3; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+.ca-strip { margin-left: auto; display: flex; align-items: center; gap: 9px;
+  font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ca-sc { display: inline-flex; align-items: center; gap: 6px; }
+.ca-sc.wait { color: #e8c67c; } .ca-sc.work { color: #9cc2f2; } .ca-sc.fin { color: #8ddb9f; }
+.ca-sd { width: 7px; height: 7px; border-radius: 50%; background: #d29922; animation: cawait 1.5s ease-in-out infinite; }
+.ca-sep { color: #4d5462; }
+@media (max-width: 560px) { .ca-bar { flex-wrap: wrap; } .ca-strip { margin-left: 0; } }
+@media (prefers-reduced-motion: reduce) { .ca-row.blocked .ca-dot, .ca-sd { animation: none; } }
 </style>
 </head>
 <body>
@@ -596,6 +649,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 <nav class="nav">
   <span class="nav-brand"><img src="assets/kortty-icon.png" alt="" />korTTY</span>
   <a href="#ai-agent" aria-current="location">AI</a>
+  <a href="#agents" data-i18n="nav.agents">Agents</a>
   <a href="#terminal" data-i18n="nav.terminal">Terminal</a>
   <a href="#files" data-i18n="nav.tooling">Tooling</a>
   <a href="#automation" data-i18n="nav.automation">Automation</a>
@@ -603,7 +657,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <a href="#download" data-i18n="nav.download">Download</a>
   <a data-guide href="guide/index.html" target="_blank" rel="noopener" data-i18n="nav.guide">Guide</a>
   <select id="lang-sel" aria-label="Language"><option value="en">English</option><option value="de">Deutsch</option><option value="es">Español</option><option value="fr">Français</option><option value="hr">Hrvatski</option><option value="it">Italiano</option><option value="nl">Nederlands</option><option value="pt">Português</option><option value="ru">Русский</option><option value="zh">中文</option><option value="ja">日本語</option><option value="ko">한국어</option><option value="th">ไทย</option><option value="af">Afrikaans</option><option value="fil">Filipino</option></select>
-  <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.7.0</span></a>
+  <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.17.0</span></a>
 </nav>
 <div class="wrap">
 
@@ -613,7 +667,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
         <h1 class="display" data-i18n="hero.h1"><span class="line">SSH connect.</span> <span class="line">Prompt.</span> <span class="line dim">Chill.</span></h1>
         <p class="sub" data-i18n="hero.sub">korTTY puts AI agents inside your SSH session — they inspect the box, plan safe commands, ask before anything scary, and fix it. LLMs run in-process; nothing extra gets installed on your machine or your servers.</p>
         <div class="row">
-          <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.7.0</span></a>
+          <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.17.0</span></a>
           <a class="btn btn-ghost" href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" data-i18n="w.viewgh">View on GitHub</a>
           <span class="meta" data-i18n="hero.meta">macOS · Windows · Linux — open source, MIT</span>
         </div>
@@ -638,7 +692,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <section class="stats" aria-label="korTTY, by the numbers" data-screen-label="Stat band">
     <div class="wrap">
       <div class="grid">
-        <div><p class="stat-num" data-ver>v2.7.0</p><p class="stat-label" data-i18n="st.rel">Current release</p></div>
+        <div><p class="stat-num" data-ver>v2.17.0</p><p class="stat-label" data-i18n="st.rel">Current release</p></div>
         <div><p class="stat-num">3</p><p class="stat-label" data-i18n="st.plat">Platforms — macOS · Win · Linux</p></div>
         <div><p class="stat-num">0 €</p><p class="stat-label" data-i18n="st.mit">Open source, MIT</p></div>
         <div><p class="stat-num">8</p><p class="stat-label" data-i18n="st.lang">Built-in languages</p></div>
@@ -693,10 +747,92 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     <p class="figcap" data-i18n="fc.swarm">The real status strip, recreated: one orb per agent, adaptive slow-run detection, click an orb to jump to its row. Pause, resume, restart or stop one agent — or the whole swarm.</p>
   </section>
 
+  <section class="sec" id="agents" data-screen-label="Coding Agents">
+    <div class="sec-head">
+      <span class="kicker" data-i18n="ca.k">03 — Coding Agents</span>
+      <h2 class="sec-title" data-i18n="ca.t">Claude Code is waiting for an answer. korTTY tells you.</h2>
+      <p class="lead" data-i18n="ca.l">korTTY recognises Claude Code, Codex and Gemini CLI in your local shell tabs and tracks what each one is doing: working, blocked on a question, done, or idle at its prompt. Every split pane is tracked on its own, and the screen is read inside korTTY, on your machine.</p>
+      <div class="chipline" data-i18n="ca.chip">
+        <span class="kbd">Claude Code</span><span class="kbd">Codex</span><span class="kbd">Gemini CLI</span><span class="kbd">View → Coding Agents</span>
+      </div>
+    </div>
+    <div class="capanel" id="capanel" aria-label="Animated mockup of the Coding Agents panel" style="margin-top: calc(1.5 * var(--leading))">
+      <div class="ca-head"><b>Coding Agents</b><span class="ca-count">3 agents · 2 windows</span><span class="ca-next">Next blocked</span></div>
+      <div class="ca-row blocked sel">
+        <span class="ca-dot"></span>
+        <span class="ca-name"><b>Claude Code</b><span class="ca-chip">Waiting for you · 2:14</span></span>
+        <span class="ca-loc">Window 1 › api › Pane 2 · ~/proj/api</span>
+        <span class="ca-ev">Do you want to proceed? › 1. Yes</span>
+        <span class="ca-keys"><span class="ca-key">Focus</span><span class="ca-key on" data-ans="1">y</span><span class="ca-key on" data-ans="1">n</span><span class="ca-key on" data-ans="1">Enter</span><span class="ca-key on" data-ans="1">Esc</span><span class="ca-key">↑</span><span class="ca-key">↓</span><span class="ca-key">Ctrl+C</span><span class="ca-key">Explain</span><span class="ca-key">Rename…</span></span>
+      </div>
+      <div class="ca-row working">
+        <span class="ca-dot"></span>
+        <span class="ca-name"><b>Codex</b><span class="ca-chip">Working · 0:38</span></span>
+        <span class="ca-loc">Window 1 › infra · ~/proj/infra</span>
+        <span class="ca-ev">✳ Editing terraform/main.tf… (esc to interrupt)</span>
+      </div>
+      <div class="ca-row done">
+        <span class="ca-dot"></span>
+        <span class="ca-name"><b>Gemini CLI</b><span class="ca-chip">Done · 1:02</span></span>
+        <span class="ca-loc">Window 2 › web · ~/proj/web</span>
+        <span class="ca-ev">✓ 3 files changed, tests pass</span>
+      </div>
+      <div class="ca-prompt">
+        <span class="ca-input">Prompt the selected agent — Enter sends, Shift+Enter breaks the line</span>
+        <span class="ca-status">Claude Code needs a decision — answer with y, n, Enter or Esc</span>
+      </div>
+    </div>
+    <p class="figcap" data-i18n="ca.cap">The Coding Agents panel, recreated: agents waiting for you sort to the top, every row carries the screen line that produced its state, and the quick keys answer the dialog without switching tabs.</p>
+    <div class="ca-bar" aria-label="Mockup of the coding-agent status strip" style="margin-top: calc(2 * var(--leading))">
+      <span>web01 · xterm-256color · UTF-8 · 198 × 52</span>
+      <span class="ca-strip" id="ca-strip"><span class="ca-sc wait"><span class="ca-sd"></span>✋ 1</span><span class="ca-sep">·</span><span class="ca-sc work">⚡ 1</span><span class="ca-sep">·</span><span class="ca-sc fin">✓ 1</span></span>
+    </div>
+    <p class="figcap" data-i18n="ca.scap">The status strip at the right end of the status bar: waiting, working and done counts — one click from the agent that needs you.</p>
+    <div class="subhead"><h3 data-i18n="ca.sh">Five states, ordered by urgency</h3></div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th data-i18n="ca.th1">State</th><th data-i18n="ca.th2">What it means</th></tr></thead>
+        <tbody>
+          <tr><td><span class="kbd">BLOCKED</span></td><td data-i18n="ca.s1">Waiting for you — a permission dialog, a question picker or a <span class="kbd">(y/n)</span> prompt is on screen.</td></tr>
+          <tr><td><span class="kbd">DONE</span></td><td data-i18n="ca.s2">Finished. Stays marked ✓ until you look at the pane.</td></tr>
+          <tr><td><span class="kbd">WORKING</span></td><td data-i18n="ca.s3">Thinking, running a tool or streaming output.</td></tr>
+          <tr><td><span class="kbd">IDLE</span></td><td data-i18n="ca.s4">Running, prompt empty, waiting for your next instruction.</td></tr>
+          <tr><td><span class="kbd">UNKNOWN</span></td><td data-i18n="ca.s5">The process is there, but no rule matches and the rule file asks for a strict result.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="feature">
+      <p class="f-num">01</p>
+      <h3 class="f-title" data-i18n="ca.1t">Two observations, or nothing</h3>
+      <p class="f-copy" data-i18n="ca.1c">Detection needs both: the pane's process tree must contain a known agent — directly, through <span class="kbd">npx</span>, or as a node, bun or deno script — and the visible screen must match that agent's rule file. A stray <span class="kbd">claude</span> in a shell script raises no alarm. The rules are small JSON files you can override per agent.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">02</p>
+      <h3 class="f-title" data-i18n="ca.2t">Marked where you already look</h3>
+      <p class="f-copy" data-i18n="ca.2c">Every dashboard row hosting an agent shows a chip after the protocol badge (<span class="kbd">✋ claude 2:14</span>) and an accent bar on its left edge — amber waiting, blue working, green done. Group rows carry a rollup such as <span class="kbd">✋ 1 · ⚡ 2</span>, so a waiting agent stays visible inside a collapsed group, and split tabs grow one row per pane.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">03</p>
+      <h3 class="f-title" data-i18n="ca.3t">A strip in the status bar</h3>
+      <p class="f-copy" data-i18n="ca.3c">While at least one agent is known, the right end of the status bar counts them: up to three chips, the waiting dot pulsing while the window is in front. A click jumps to the next agent waiting for you, and the tab title carries the same glyph.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">04</p>
+      <h3 class="f-title" data-i18n="ca.4t">The screen stays on this machine</h3>
+      <p class="f-copy" data-i18n="ca.4c">Screen text is analysed only inside korTTY, in memory. Nothing is sent to a service, written to disk or handed to the AI assistant — detection is pattern matching against local rule files, and it switches off under Settings → Terminal → Coding agents.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">05</p>
+      <h3 class="f-title" data-i18n="ca.5t">Or let a script do the herding</h3>
+      <p class="f-copy" data-i18n="ca.5c">Everything the panel does is reachable from korTTY's control API and its <span class="kbd">kortty-cli</span> client: list agents, read their state, prompt them, answer their questions, start a new one in a split pane, or subscribe to their state changes as a JSON event stream. The socket is local and off by default.</p>
+    </div>
+    <p class="figcap" style="margin-top: var(--leading)" data-i18n="ca.note">One exception: in the <a href="#download">Flatpak package</a> the local shell runs on the host through <span class="kbd">flatpak-spawn</span>, so the agent's process tree is out of reach and no agent is detected there. The DEB, RPM, pacman and tar.gz builds see it. SSH and Mosh tabs are never analysed either — the agent runs on the other machine.</p>
+  </section>
+
   <section class="sec" id="local-llm" data-screen-label="Local LLMs">
     <div class="split" style="padding: 0; align-items: start">
       <div class="split-copy">
-        <span class="kicker" data-i18n="k3">03 — LLMs, in-process</span>
+        <span class="kicker" data-i18n="k3">04 — LLMs, in-process</span>
         <h2 class="split-title" data-i18n="t3">No Ollama. No LM Studio. No excuses.</h2>
         <p class="note" data-i18n="n3a">korTTY is the only terminal that runs GGUF models itself: an integrated llama.cpp runtime starts one authenticated, loopback-only <span class="kbd">llama-server</span> per model — offline, on <span class="kbd">127.0.0.1</span>, with a generated API key. Several models run concurrently; idle tensors unload after a configurable timeout.</p>
         <p class="note" data-i18n="n3b">The Hugging Face manager searches GGUF repos with quantization, license, context and hardware estimates, downloads immutable revisions with pause/resume, and verifies every byte with SHA-256. A beginner assistant sets up Text, Coding and embedding slots and runs a real local chat test before it saves anything.</p>
@@ -720,7 +856,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="rag" data-screen-label="Knowledge Stores">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k4">04 — Local RAG</span>
+      <span class="kicker" data-i18n="k4">05 — Local RAG</span>
       <h2 class="sec-title" data-i18n="t4">Your runbooks, indexed. Never uploaded.</h2>
       <p class="lead" data-i18n="l4">Knowledge stores index files and folders into a local HNSW vector store after an allowlist preview. Retrieval sends only bounded excerpts — at most six, two per source, capped at 4,000 tokens — wrapped as explicitly untrusted context and cited as <span class="kbd">[R1]</span> in answers. The complete store never leaves the machine; autonomous agent runs need explicit RAG opt-in.</p>
     </div>
@@ -733,7 +869,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <section class="sec" id="skills" data-screen-label="AI Skills and Profiles">
     <div class="split" style="padding: 0; align-items: center">
       <div class="split-copy">
-        <span class="kicker" data-i18n="k5">05 — Skills &amp; Profiles</span>
+        <span class="kicker" data-i18n="k5">06 — Skills &amp; Profiles</span>
         <h2 class="split-title" data-i18n="t5">Teach it your house rules</h2>
         <p class="note" data-i18n="n5a">AI Skills are reusable local instruction blocks — "we deploy with systemd, never Docker" — attached to Chat, Agent, or both, imported and exported as Markdown, and optionally filtered so only skills matching the current request are sent.</p>
         <p class="note" data-i18n="n5b">AI Profiles route work to the right brain: per-profile endpoint, model and key — OpenAI-compatible, native Anthropic, LM Studio auto-mode or the integrated local runtime — with role routing for Text vs. Coding, reasoning effort, token budgets and quotas. A setup wizard does the boring part.</p>
@@ -747,7 +883,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="ai-manager" data-screen-label="AI Manager">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k6">06 — AI Manager</span>
+      <span class="kicker" data-i18n="k6">07 — AI Manager</span>
       <h2 class="sec-title" data-i18n="t6">Chats that render like a lab notebook</h2>
       <p class="lead" data-i18n="l6">AI answers render Mermaid diagrams, LaTeX math, sanitized SVG and inline images locally — no remote renderer. Follow up, switch profile per chat, save generated scripts straight into the Snippet Manager, and export conversations to PDF or Markdown. The modeless manager (<span class="kbd">Ctrl/Cmd+Shift+Y</span>) keeps every saved chat one focus away.</p>
     </div>
@@ -759,7 +895,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="terminal" data-screen-label="Terminal core">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k7">07 — The terminal itself</span>
+      <span class="kicker" data-i18n="k7">08 — The terminal itself</span>
       <h2 class="sec-title" data-i18n="t7">A proper terminal first. The brain is a bonus.</h2>
       <p class="lead" data-i18n="l7">Tabs, multi-window with drag-to-move sessions, Mosh for flaky links, and local shells — PowerShell, cmd.exe, WSL, Git Bash or your <span class="kbd">$SHELL</span> — in the same tabs, with the same AI, logging and recording.</p>
     </div>
@@ -787,7 +923,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="emulations" data-screen-label="Terminal emulations">
     <div class="sec-head">
-      <span class="kicker" data-i18n="te.k">08 — Terminal emulations</span>
+      <span class="kicker" data-i18n="te.k">09 — Terminal emulations</span>
       <h2 class="sec-title" data-i18n="te.t">One terminal that speaks 21 dialects</h2>
       <p class="lead" data-i18n="te.l">Under the hood, the SithTermFX engine emulates 21 terminals — from today's <span class="kbd">xterm-256color</span> across five decades of DEC, IBM, Wyse, TeleVideo and HP hardware down to PETSCII. Set it per connection or in QuickConnect: korTTY requests the matching PTY type over SSH and exports <span class="kbd">TERM</span>, so the host sends exactly the sequences the emulator renders. In the app the picker is searchable; try it here:</p>
     </div>
@@ -894,7 +1030,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="journal" data-screen-label="Session journal">
     <div class="sec-head">
-      <span class="kicker" data-i18n="sj.k">09 — Session journal</span>
+      <span class="kicker" data-i18n="sj.k">10 — Session journal</span>
       <h2 class="sec-title" data-i18n="sj.t">The session writes its own report</h2>
       <p class="lead" data-i18n="sj.l">Every terminal tab can keep a journal: server output and typed commands go into an append-only capture log, an AI condenses the activity into a readable timeline, and screenshots and notes drop in from the journal bar. Enable it per connection, or mid-session with <span class="kbd">Ctrl/Cmd+Alt+T</span> — the existing scrollback is imported first, so the timeline covers what already happened.</p>
     </div>
@@ -947,7 +1083,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="broadcast" data-screen-label="Split-screen broadcast">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k8">10 — Split-screen broadcast</span>
+      <span class="kicker" data-i18n="k8">11 — Split-screen broadcast</span>
       <h2 class="sec-title" data-i18n="t8">Type once, land everywhere</h2>
       <p class="lead" data-i18n="l8">Split a tab horizontally or vertically, put a different connection in every pane, and flip on broadcast: keystrokes go to all visible panes simultaneously. The fastest way to run one command on three boxes — and the second-fastest way to run it on the wrong three.</p>
     </div>
@@ -968,7 +1104,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <section class="sec" id="themes" data-screen-label="Themes and designs">
     <div class="split" style="padding: 0; align-items: center">
       <div class="split-copy">
-        <span class="kicker" data-i18n="k9">11 — Themes &amp; designs</span>
+        <span class="kicker" data-i18n="k9">12 — Themes &amp; designs</span>
         <h2 class="split-title" data-i18n="t9">Dress the whole app, not just the text</h2>
         <p class="note" data-i18n="n9a">Terminal theme profiles — IntelliJ-inspired presets, live preview, fully editable — stay separate from app designs, which restyle every window and dialog: Default, Matrix Terminal, Holographic Interface, Klingon Tactical, Elegant Dark, Amber CRT, Synthwave '84, Gruvbox Retro, Nord Arctic, Dracula.</p>
         <p class="note" data-i18n="n9b">On top: terminal-effect plugins per pane — Digital Rain, VHS 1987, Deep Space Radar, or the MU/TH/UR 6000 reference effect — with animated previews and a plugin SPI for writing your own.</p>
@@ -989,7 +1125,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="files" data-screen-label="SFTP and Snippets">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k10">12 — Files &amp; snippets</span>
+      <span class="kicker" data-i18n="k10">13 — Files &amp; snippets</span>
       <h2 class="sec-title" data-i18n="t10">The toolbox around the terminal</h2>
       <p class="lead" data-i18n="l10">An SFTP manager with user/group columns, remote editing through the Snippet Editor, and archive jobs with exclude patterns — next to a Snippet Manager with Monaco highlighting, categories, script arguments, and ZIP/GPG-encrypted exports.</p>
     </div>
@@ -1066,7 +1202,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <section class="sec" id="automation" data-screen-label="JobScheduler">
     <div class="split" style="padding: 0; align-items: center">
       <div class="split-copy">
-        <span class="kicker" data-i18n="k11">13 — JobScheduler</span>
+        <span class="kicker" data-i18n="k11">14 — JobScheduler</span>
         <h2 class="sec-title" style="font-size: clamp(28px, 3.2vw, 40px)" data-i18n="t11">Automation that survives closed tabs</h2>
         <p class="note" data-i18n="n11a">Schedule background jobs against saved connections and groups — weekdays, fixed times, date ranges, intervals — no terminal tab required. Actions: remote commands, Snippet scripts with argv, SFTP transfers, rsync syncs, headless AI agents, and whole AI swarms with per-job parallelism.</p>
         <p class="note" data-i18n="n11b">A journal records every run — redacted or full, searchable with wildcards, auto-pruned after 14 days — and korTTY warns before quitting while jobs run, then drains cleanly. Host keys must be pinned before anything runs unattended.</p>
@@ -1089,7 +1225,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="security" data-screen-label="Security">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k12">14 — Security</span>
+      <span class="kicker" data-i18n="k12">15 — Security</span>
       <h2 class="sec-title" data-i18n="t12">Paranoid by default. We checked.</h2>
       <p class="lead" data-i18n="l12">Built for people whose servers matter — and audited along the way by pipelines with trust issues.</p>
     </div>
@@ -1175,7 +1311,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <section class="sec" id="languages" data-screen-label="Languages">
     <div class="split" style="padding: 0; align-items: center">
       <div class="split-copy">
-        <span class="kicker" data-i18n="k13">15 — Languages</span>
+        <span class="kicker" data-i18n="k13">16 — Languages</span>
         <h2 class="sec-title" style="font-size: clamp(28px, 3.2vw, 40px)" data-i18n="t13">Eight languages built in. The rest, generated.</h2>
         <p class="note" data-i18n="n13">English, German, Italian, Spanish, Portuguese, French, Croatian and Dutch ship in the box. Need Klingon adjacent? Settings → Translation generates full language files for any language via Google Translate, DeepL, LibreTranslate, Microsoft or Yandex.</p>
       </div>
@@ -1198,7 +1334,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="compare" data-screen-label="Comparison">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k14">16 — The obligatory table</span>
+      <span class="kicker" data-i18n="k14">17 — The obligatory table</span>
       <h2 class="sec-title" data-i18n="t14">Against the usual suspects</h2>
       <p class="lead" data-i18n="l14">All fine tools. None of them puts an agent on your servers.</p>
     </div>
@@ -1209,9 +1345,14 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
           <tr><td data-i18n="cmp1">AI agent working on the server</td><td class="tick">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
           <tr><td data-i18n="cmp2">LLMs in-process (no extra software)</td><td class="tick">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
           <tr><td data-i18n="cmp3">Multi-server AI swarm</td><td class="tick">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+          <tr><td data-i18n="cmp10">Coding-agent management (Claude Code, Codex, Gemini CLI)</td><td class="tick">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
           <tr><td data-i18n="cmp4">Tabs, splits &amp; broadcast input</td><td class="tick">✓</td><td class="no">—</td><td class="tick">✓</td><td class="tick">✓</td></tr>
+          <tr><td data-i18n="cmp13">Connection manager with import &amp; export</td><td class="tick">✓</td><td class="half" data-i18n="cmp.reg">registry</td><td class="tick">✓</td><td class="half" data-i18n="cmp.prof">profiles</td></tr>
+          <tr><td data-i18n="cmp14">Team-shared connections (Git or shared file)</td><td class="tick">✓</td><td class="no">—</td><td class="half" data-i18n="cmp.teamed">team edition</td><td class="no">—</td></tr>
           <tr><td data-i18n="cmp5">Built-in SFTP tooling</td><td class="tick">✓</td><td class="half">psftp CLI</td><td class="tick">✓</td><td class="no">—</td></tr>
+          <tr><td data-i18n="cmp11">Code snippet editor with AI review</td><td class="tick">✓</td><td class="no">—</td><td class="half" data-i18n="cmp.macros">macros</td><td class="half" data-i18n="cmp.snip">snippets</td></tr>
           <tr><td data-i18n="cmp6">Background job scheduler</td><td class="tick">✓</td><td class="no">—</td><td class="half" data-i18n="cmp.macros">macros</td><td class="half" data-i18n="cmp.trig">triggers</td></tr>
+          <tr><td data-i18n="cmp12">Auto-documented sessions (AI journal)</td><td class="tick">✓</td><td class="half" data-i18n="cmp.log">log only</td><td class="half" data-i18n="cmp.log">log only</td><td class="half" data-i18n="cmp.log">log only</td></tr>
           <tr><td data-i18n="cmp7">Encrypted credential vault</td><td class="tick">✓</td><td class="no">—</td><td class="half" data-i18n="cmp.mpw">master pw</td><td class="half">Keychain</td></tr>
           <tr><td>macOS · Windows · Linux</td><td class="tick">✓</td><td class="half" data-i18n="cmp.winf">Win-first</td><td class="no">Windows</td><td class="no">macOS</td></tr>
           <tr><td data-i18n="cmp9">Open source &amp; free</td><td class="tick">MIT</td><td class="tick">MIT</td><td class="half">freemium</td><td class="tick">GPL</td></tr>
@@ -1223,64 +1364,87 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="download" data-screen-label="Download">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k15">17 — Download</span>
-      <h2 class="sec-title" data-i18n="t15">Pick your poison</h2>
+      <span class="kicker" data-i18n="k15">18 — Download</span>
+      <h2 class="sec-title" data-i18n="t15">Pick your build. We signed them all.</h2>
       <p class="lead" data-i18n="l15">Direct downloads per platform and CPU — self-contained, trimmed runtime included, no Java installation needed. All assets also on <a href="https://github.com/chardonnay/korTTY/releases" target="_blank" rel="noopener">GitHub Releases</a> with Ed25519 signatures.</p>
     </div>
     <div class="plats">
       <div class="card"><p class="card-kicker">macOS</p><h3 class="card-title">DMG / ZIP</h3><p class="card-body" data-i18n="dl.mac">Apple Silicon (aarch64) and Intel (x86_64) as separate builds. Metal-accelerated local models.</p>
         <div class="dl-rows">
-          <div class="dl-row"><span class="dl-arch">Apple Silicon</span><span class="dl-links"><a data-asset="korTTY-macOS-{v}-aarch64.dmg" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-macOS-2.7.0-aarch64.dmg">DMG</a><a data-asset="korTTY-macOS-{v}-aarch64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-macOS-2.7.0-aarch64.zip">ZIP</a></span></div>
-          <div class="dl-row"><span class="dl-arch">Intel</span><span class="dl-links"><a data-asset="korTTY-macOS-{v}-x86_64.dmg" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-macOS-2.7.0-x86_64.dmg">DMG</a><a data-asset="korTTY-macOS-{v}-x86_64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-macOS-2.7.0-x86_64.zip">ZIP</a></span></div>
+          <div class="dl-row"><span class="dl-arch">Apple Silicon</span><span class="dl-links"><a data-asset="korTTY-macOS-{v}-aarch64.dmg" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/korTTY-macOS-2.17.0-aarch64.dmg">DMG</a><a data-asset="korTTY-macOS-{v}-aarch64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/korTTY-macOS-2.17.0-aarch64.zip">ZIP</a></span></div>
+          <div class="dl-row"><span class="dl-arch">Intel</span><span class="dl-links"><a data-asset="korTTY-macOS-{v}-x86_64.dmg" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/korTTY-macOS-2.17.0-x86_64.dmg">DMG</a><a data-asset="korTTY-macOS-{v}-x86_64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/korTTY-macOS-2.17.0-x86_64.zip">ZIP</a></span></div>
         </div></div>
       <div class="card"><p class="card-kicker">Windows</p><h3 class="card-title">MSI / ZIP</h3><p class="card-body" data-i18n="dl.win">x86_64 — runs on Windows-on-ARM via x64 emulation. PowerShell, cmd, WSL and Git Bash as local shells.</p>
         <div class="dl-rows">
-          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="korTTY-Windows-{v}-x86_64.msi" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-Windows-2.7.0-x86_64.msi">MSI</a><a data-asset="korTTY-Windows-{v}-x86_64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-Windows-2.7.0-x86_64.zip">ZIP</a></span></div>
+          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="korTTY-Windows-{v}-x86_64.msi" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/korTTY-Windows-2.17.0-x86_64.msi">MSI</a><a data-asset="korTTY-Windows-{v}-x86_64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/korTTY-Windows-2.17.0-x86_64.zip">ZIP</a></span></div>
         </div></div>
-      <div class="card"><p class="card-kicker">Linux</p><h3 class="card-title">DEB / RPM / tar.gz</h3><p class="card-body" data-i18n="dl.lin">x86_64 and aarch64. Vulkan fallback for local models where the GPU cooperates.</p>
+      <div class="card"><p class="card-kicker">Linux</p><h3 class="card-title">DEB / RPM / Flatpak / tar.gz</h3><p class="card-body" data-i18n="dl.lin">x86_64 and aarch64, the Flatpak bundle included. Vulkan fallback for local models where the GPU cooperates.</p>
         <div class="dl-rows">
-          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="kortty-Linux-{v}-x86_64.deb" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-x86_64.deb">DEB</a><a data-asset="kortty-Linux-{v}-x86_64.rpm" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-x86_64.rpm">RPM</a><a data-asset="kortty-Linux-{v}-x86_64.tar.gz" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-x86_64.tar.gz">tar.gz</a></span></div>
-          <div class="dl-row"><span class="dl-arch">aarch64</span><span class="dl-links"><a data-asset="kortty-Linux-{v}-aarch64.deb" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-aarch64.deb">DEB</a><a data-asset="kortty-Linux-{v}-aarch64.rpm" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-aarch64.rpm">RPM</a><a data-asset="kortty-Linux-{v}-aarch64.tar.gz" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-aarch64.tar.gz">tar.gz</a></span></div>
+          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="kortty-Linux-{v}-x86_64.deb" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-x86_64.deb">DEB</a><a data-asset="kortty-Linux-{v}-x86_64.rpm" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-x86_64.rpm">RPM</a><a data-asset="kortty-Linux-{v}-x86_64.flatpak" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-x86_64.flatpak">Flatpak</a><a data-asset="kortty-Linux-{v}-x86_64.tar.gz" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-x86_64.tar.gz">tar.gz</a></span></div>
+          <div class="dl-row"><span class="dl-arch">aarch64</span><span class="dl-links"><a data-asset="kortty-Linux-{v}-aarch64.deb" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-aarch64.deb">DEB</a><a data-asset="kortty-Linux-{v}-aarch64.rpm" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-aarch64.rpm">RPM</a><a data-asset="kortty-Linux-{v}-aarch64.flatpak" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-aarch64.flatpak">Flatpak</a><a data-asset="kortty-Linux-{v}-aarch64.tar.gz" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-aarch64.tar.gz">tar.gz</a></span></div>
         </div></div>
       <div class="card"><p class="card-kicker">Arch Linux</p><h3 class="card-title">pacman pkg</h3><p class="card-body" data-i18n="dl.aur">.pkg.tar.zst for x86_64 — because you were going to mention it anyway. btw.</p>
         <div class="dl-rows">
-          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="kortty-{v}-1-x86_64.pkg.tar.zst" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-2.7.0-1-x86_64.pkg.tar.zst">pkg.tar.zst</a></span></div>
+          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="kortty-{v}-1-x86_64.pkg.tar.zst" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-2.17.0-1-x86_64.pkg.tar.zst">pkg.tar.zst</a></span></div>
         </div></div>
     </div>
     <p class="figcap" style="margin-top: var(--leading)" data-i18n="fc.mig">Migrating? korTTY imports connections from MTPuTTY, MobaXterm and PuTTY Connection Manager — then encrypts them properly.</p>
   </section>
 
-  <section class="sec" id="release" data-screen-label="Release 2.7">
+  <section class="sec" id="release" data-screen-label="Release">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k16">18 — What's new in v2.7.0</span>
+      <span class="kicker" data-i18n="k16">19 — What's new in <span data-ver>v2.17.0</span></span>
       <h2 class="sec-title" data-i18n="t16">Fresh off the pipeline</h2>
     </div>
-    <div class="feature">
-      <p class="f-num">2.7</p>
-      <h3 class="f-title" data-i18n="rl1t">Full code analysis</h3>
-      <p class="f-copy" data-i18n="rl1c">The Snippet Editor's AI opens a non-modal analysis window: plain-language summary, dependency review, tickable Security/Optimization/Design improvements, and an auto-generated flow diagram that highlights source lines on hover.</p>
+    <!-- One group of cards per release (data-release). page-behavior.js shows only the group of the newest
+         release that is actually published on GitHub, so cards for an upcoming version stay hidden until
+         its release exists. Without JavaScript the currently published release's cards are shown. -->
+    <div class="feature" data-release="2.18.0" hidden>
+      <p class="f-num">2.18</p>
+      <h3 class="f-title" data-i18n="ca.rl1t">Coding agents, detected</h3>
+      <p class="f-copy" data-i18n="ca.rl1c">Claude Code, Codex and Gemini CLI are recognised in local shell tabs, with a dockable <a href="#agents">Coding Agents panel</a>, dashboard chips, a status strip, an app-icon badge and desktop notifications.</p>
     </div>
-    <div class="feature">
-      <p class="f-num">2.7</p>
-      <h3 class="f-title" data-i18n="rl2t">One local Mermaid renderer</h3>
-      <p class="f-copy" data-i18n="rl2c">Snippet diagrams, code analysis, workflow generation and AI-chat Mermaid blocks share one SHA-256-pinned Mermaid 11.16 renderer — no Graphviz subprocess, no first-use download.</p>
+    <div class="feature" data-release="2.18.0" hidden>
+      <p class="f-num">2.18</p>
+      <h3 class="f-title" data-i18n="ca.rl2t">Control API and kortty-cli</h3>
+      <p class="f-copy" data-i18n="ca.rl2c">A local socket lets a script — or another coding agent — list your windows, read any pane, type into it and drive a detected agent. Off by default.</p>
     </div>
-    <div class="feature">
-      <p class="f-num">2.7</p>
-      <h3 class="f-title" data-i18n="rl3t">Explained security fixes</h3>
-      <p class="f-copy" data-i18n="rl3c">Security checks now show a side-by-side diff; hovering a changed block names the findings it addresses, with every rationale listed as a card below.</p>
+    <div class="feature" data-release="2.18.0" hidden>
+      <p class="f-num">2.18</p>
+      <h3 class="f-title" data-i18n="rl18at">Roll back a runtime</h3>
+      <p class="f-copy" data-i18n="rl18ac">If a new llama.cpp or MLX runtime misbehaves, pick an older signed version in Local Models. It stays pinned until you choose the newest one again.</p>
     </div>
-    <div class="feature">
-      <p class="f-num">2.7</p>
-      <h3 class="f-title" data-i18n="rl4t">Transparent terminals, quieter tabs</h3>
-      <p class="f-copy" data-i18n="rl4c">A 0–100 % background-transparency slider keeps text sharp while the terminal sees through to the desktop — and closing an idle tab finally stops asking if you're sure.</p>
+    <div class="feature" data-release="2.18.0" hidden>
+      <p class="f-num">2.18</p>
+      <h3 class="f-title" data-i18n="rl18bt">Dialogs open faster</h3>
+      <p class="f-copy" data-i18n="rl18bc">WebKit loads in the background and heavy tabs are built on first visit: the first AI Manager open dropped from about 1.4 s to under 0.1 s.</p>
     </div>
-    <p class="figcap" data-i18n="fc.rel"><a href="https://github.com/chardonnay/korTTY/blob/main/app-docs/RELEASE_NOTES.adoc" target="_blank" rel="noopener">Full release notes on GitHub</a></p>
+    <div class="feature" data-release="2.17.0">
+      <p class="f-num">2.17</p>
+      <h3 class="f-title" data-i18n="rl1t">AI pictures in seconds</h3>
+      <p class="f-copy" data-i18n="rl1c">The ASCII Art tool now asks the model for a small vector drawing and converts it itself, so AI pictures match their subject and arrive in seconds instead of minutes.</p>
+    </div>
+    <div class="feature" data-release="2.17.0">
+      <p class="f-num">2.17</p>
+      <h3 class="f-title" data-i18n="rl2t">ASCII art from any image</h3>
+      <p class="f-copy" data-i18n="rl2c">The new Image File tab turns a PNG, JPEG, GIF or BMP into characters, with size, brightness, contrast and invert controls.</p>
+    </div>
+    <div class="feature" data-release="2.17.0">
+      <p class="f-num">2.17</p>
+      <h3 class="f-title" data-i18n="rl3t">Copy ASCII art as code</h3>
+      <p class="f-copy" data-i18n="rl3c">Copy as prefixes every line with your language's comment marker, or wraps the picture in ready print statements for 16 languages, from Bash to Rust.</p>
+    </div>
+    <div class="feature" data-release="2.17.0">
+      <p class="f-num">2.17</p>
+      <h3 class="f-title" data-i18n="rl4t">The tmux cursor stays put</h3>
+      <p class="f-copy" data-i18n="rl4c">A narrowed scrolling region no longer drags the cursor or scrolls text away, so tmux panes show the cursor on the prompt line again.</p>
+    </div>
+    <p class="figcap" data-i18n="fc.rel"><a href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener">Full release notes on GitHub</a></p>
   </section>
 
   <section class="sec" id="faq" data-screen-label="FAQ">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k17">19 — FAQ</span>
+      <span class="kicker" data-i18n="k17">20 — FAQ</span>
       <h2 class="sec-title" data-i18n="t17">Questions people actually ask</h2>
     </div>
     <div class="faq" style="margin-top: calc(1.5 * var(--leading))">
@@ -1308,14 +1472,18 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
         <summary data-i18n="q6">korTTY is a Java app — do I need to install Java?</summary>
         <p data-i18n="a6">No. Every download ships a trimmed Java runtime inside the package, so there is nothing to install, no <span class="kbd">JAVA_HOME</span> to set, and no version conflict with whatever your system already has. Install the DMG, MSI, DEB, RPM or pacman package and start it like any other native app — the only exception is the optional plain-Java ZIP for people who explicitly want to run it on their own JVM.</p>
       </details>
+      <details class="faq-item">
+        <summary data-i18n="q7">Isn't korTTY with all those AI functions too risky for a corporate network?</summary>
+        <p data-i18n="a7">That is exactly what the <a href="#security">enterprise policy</a> is for: one signed TOML file in a machine-owned location decides what the AI is allowed to do — agent execution off, cloud providers denied, only your internal endpoint permitted, the control API forbidden, journal patterns redacted — and nobody can switch it back on locally. A broken policy file locks korTTY down rather than opening it up. Third-party components ride the fast lane for security updates, and anything that stops being maintained gets removed instead of quietly carried along. The rest is deliberately boring: signed releases, a test suite that has to agree before anything ships, and an AI that is optional — the terminal is not.</p>
+      </details>
     </div>
 
   <section class="close" id="opensource" data-screen-label="Open source close">
-    <span class="kicker" data-i18n="k18">20 — Open source</span>
+    <span class="kicker" data-i18n="k18">21 — Open source</span>
     <h3 data-i18n="t18">Point an agent at it.</h3>
     <p class="sub" data-i18n="cl.sub">korTTY is built in the open — MIT-licensed, signed releases, public docs, and release notes that read like release notes. If it saves your on-call night, a star is the accepted currency.</p>
     <div class="signup" style="max-width: none">
-      <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.7.0</span></a>
+      <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.17.0</span></a>
       <a class="btn btn-ghost" href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" data-i18n="cl.star">Star on GitHub</a>
       <a class="btn btn-ghost" data-guide href="guide/index.html" target="_blank" rel="noopener" data-i18n="cl.guide">Read the user guide</a>
     </div>

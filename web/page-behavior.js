@@ -1,14 +1,29 @@
-// — latest-release sync: version labels + direct-download links follow the newest GitHub release —
+// — latest-release sync: version labels, direct-download links and the "What's new" cards follow the
+//   newest *published* GitHub release, so a version only appears once its release exists —
 (() => {
+  let latest = null;
+  const cmp = (a, b) => {
+    const x = a.split('.').map(Number), y = b.split('.').map(Number);
+    for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); }
+    return 0;
+  };
   const apply = (tag) => {
     if (!/^v?\d+\.\d+/.test(tag)) return;
+    latest = tag;
     const ver = tag.replace(/^v/, '');
     document.querySelectorAll('[data-ver]').forEach(el => { el.textContent = 'v' + ver; });
     document.querySelectorAll('a[data-asset]').forEach(a => {
       a.href = 'https://github.com/chardonnay/korTTY/releases/download/' + tag + '/' +
         a.dataset.asset.split('{v}').join(ver);
     });
+    // Show the card group of the newest release that is not newer than the published one: cards
+    // prepared for an upcoming version stay hidden until GitHub has that release.
+    const cards = [...document.querySelectorAll('#release [data-release]')];
+    const shown = cards.map(c => c.dataset.release).filter(r => cmp(r, ver) <= 0).sort(cmp).pop();
+    if (shown) cards.forEach(c => { c.hidden = c.dataset.release !== shown; });
   };
+  // A language switch rewrites translated labels, including the version inside the "What's new" kicker.
+  document.addEventListener('kortty:lang', () => { if (latest) apply(latest); });
   const KEY = 'kortty-latest-tag';
   try { const c = JSON.parse(localStorage.getItem(KEY) || 'null'); if (c && c.tag) apply(c.tag); } catch (_) {}
   fetch('https://api.github.com/repos/chardonnay/korTTY/releases/latest')
@@ -246,6 +261,64 @@
           else if (s <= 0) s = 132;
         }, 1000),
         () => T.clear());
+    }
+  }
+
+  // — coding-agents panel: states cycle, timers tick, quick keys light up while blocked —
+  const capanel = document.getElementById('capanel');
+  if (capanel) {
+    const rows = [...capanel.querySelectorAll('.ca-row')];
+    const statusEl = capanel.querySelector('.ca-status');
+    const strip = document.getElementById('ca-strip');
+    const EV = {
+      blocked: ['Do you want to proceed? › 1. Yes', 'Allow Bash(npm test)? › 1. Yes, 2. No', 'Enter to confirm · Esc to cancel'],
+      working: ['✳ Editing terraform/main.tf… (esc to interrupt)', '⎿ Running… (esc to interrupt)', '✻ Reading 24 files… (esc to interrupt)'],
+      done: ['✓ 3 files changed, tests pass', '✓ Done — 2 commits staged'],
+      idle: ['❯  · ? for shortcuts', '❯']
+    };
+    const LBL = { blocked: 'Waiting for you', working: 'Working', done: 'Done', idle: 'Idle' };
+    // one scene per step: the three agents' states plus the panel's status line
+    const SCENES = [
+      { st: ['working', 'working', 'done'],    msg: '', hold: 5 },
+      { st: ['blocked', 'working', 'idle'],    msg: 'Claude Code needs a decision — answer with y, n, Enter or Esc', hold: 7 },
+      { st: ['working', 'working', 'idle'],    msg: 'Sent Enter to Claude Code', hold: 5 },
+      { st: ['working', 'blocked', 'working'], msg: 'Codex needs a decision — answer with y, n, Enter or Esc', hold: 6 },
+      { st: ['done', 'working', 'working'],    msg: 'Sent y to Codex', hold: 5 },
+      { st: ['idle', 'done', 'blocked'],       msg: 'Gemini CLI needs a decision', hold: 6 }
+    ];
+    let si = 0, t = 0, secs = [134, 38, 62], ev = [0, 0, 0];
+    const fmt = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+    const paint = () => {
+      const sc = SCENES[si];
+      rows.forEach((r, i) => {
+        const st = sc.st[i];
+        r.className = 'ca-row ' + st + (i === 0 ? ' sel' : '');
+        r.querySelector('.ca-chip').textContent = LBL[st] + (st === 'idle' ? '' : ' · ' + fmt(secs[i]));
+        r.querySelector('.ca-ev').textContent = EV[st][ev[i] % EV[st].length];
+        r.querySelectorAll('.ca-key[data-ans]').forEach(k => k.classList.toggle('on', st === 'blocked'));
+      });
+      statusEl.textContent = sc.msg;
+      statusEl.classList.toggle('ok', /^Sent/.test(sc.msg));
+      if (strip) {
+        const c = { blocked: 0, working: 0, done: 0 };
+        sc.st.forEach(s => { if (s in c) c[s]++; });
+        const parts = [];
+        if (c.blocked) parts.push('<span class="ca-sc wait"><span class="ca-sd"></span>✋ ' + c.blocked + '</span>');
+        if (c.working) parts.push('<span class="ca-sc work">⚡ ' + c.working + '</span>');
+        if (c.done) parts.push('<span class="ca-sc fin">✓ ' + c.done + '</span>');
+        strip.innerHTML = parts.join('<span class="ca-sep">·</span>');
+      }
+    };
+    { const T = timers();
+      const tick = () => {
+        t++; secs = secs.map(s => s + 1);
+        if (t >= SCENES[si].hold) {
+          const prev = SCENES[si].st; t = 0; si = (si + 1) % SCENES.length;
+          SCENES[si].st.forEach((s, i) => { if (s !== prev[i]) { secs[i] = 0; ev[i]++; } });
+        }
+        paint();
+      };
+      gate(capanel, () => { si = 0; t = 0; paint(); T.iv(tick, 1000); }, () => T.clear());
     }
   }
 })();
