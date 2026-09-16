@@ -88,6 +88,7 @@ import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
@@ -363,11 +364,10 @@ final class LocalModelManagerPane extends VBox {
         version.setMinWidth(110);
         version.setMaxWidth(160);
         runtimeTable.getColumns().addAll(List.of(runtime, version, backend, state));
-        // Two fixed rows (one per runtime kind); the table must not grab vertical space from the
-        // model tables below.
-        runtimeTable.setPrefHeight(MlxPlatform.isSupported() ? 96 : 68);
-        runtimeTable.setMinHeight(runtimeTable.getPrefHeight());
-        runtimeTable.setMaxHeight(runtimeTable.getPrefHeight());
+        // One row per runtime kind, all of them visible; the table must not grab vertical space from
+        // the model tables below. The height follows the rendered header and row heights, which grow
+        // with the UI font scale, instead of a pixel constant that only fits the default font.
+        fitHeightToRows(runtimeTable, MlxPlatform.isSupported() ? 2 : 1);
         runtimeTable.getSelectionModel().selectedItemProperty()
             .addListener((obs, oldValue, row) -> updateRuntimeActionState());
 
@@ -386,6 +386,44 @@ final class LocalModelManagerPane extends VBox {
         HBox buttons = new HBox(8, runtimeAction, runtimeVersions, runtimeImport, runtimeRemove);
         buttons.setAlignment(Pos.CENTER_LEFT);
         return new VBox(7, title, runtimeTable, buttons);
+    }
+
+    /**
+     * Sizes a table to show exactly {@code rows} rows without a scroll bar. Header and row heights are
+     * only known once the skin has laid them out, so the height is re-measured after every layout
+     * pulse of the scene the table lives in; it only changes when the measured target does, so this
+     * settles after one extra pulse.
+     */
+    static void fitHeightToRows(TableView<?> table, int rows) {
+        double fallback = 28 + rows * 24 + 4;
+        table.setPrefHeight(fallback);
+        table.setMinHeight(fallback);
+        table.setMaxHeight(fallback);
+        Runnable refit = () -> {
+            if (!(table.lookup(".column-header-background") instanceof Region header)
+                || !(table.lookup(".table-row-cell") instanceof Region row)
+                || header.getHeight() <= 0 || row.getHeight() <= 0) {
+                return;
+            }
+            double target = Math.ceil(header.getHeight() + rows * row.getHeight()
+                + table.snappedTopInset() + table.snappedBottomInset());
+            if (Math.abs(target - table.getPrefHeight()) >= 1) {
+                table.setPrefHeight(target);
+                table.setMinHeight(target);
+                table.setMaxHeight(target);
+            }
+        };
+        table.sceneProperty().addListener((observable, oldScene, newScene) -> {
+            if (oldScene != null) {
+                oldScene.removePostLayoutPulseListener(refit);
+            }
+            if (newScene != null) {
+                newScene.addPostLayoutPulseListener(refit);
+            }
+        });
+        if (table.getScene() != null) {
+            table.getScene().addPostLayoutPulseListener(refit);
+        }
     }
 
     private RuntimeKind selectedRuntimeKind() {
