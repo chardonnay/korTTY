@@ -248,6 +248,64 @@
         () => T.clear());
     }
   }
+
+  // — coding-agents panel: states cycle, timers tick, quick keys light up while blocked —
+  const capanel = document.getElementById('capanel');
+  if (capanel) {
+    const rows = [...capanel.querySelectorAll('.ca-row')];
+    const statusEl = capanel.querySelector('.ca-status');
+    const strip = document.getElementById('ca-strip');
+    const EV = {
+      blocked: ['Do you want to proceed? › 1. Yes', 'Allow Bash(npm test)? › 1. Yes, 2. No', 'Enter to confirm · Esc to cancel'],
+      working: ['✳ Editing terraform/main.tf… (esc to interrupt)', '⎿ Running… (esc to interrupt)', '✻ Reading 24 files… (esc to interrupt)'],
+      done: ['✓ 3 files changed, tests pass', '✓ Done — 2 commits staged'],
+      idle: ['❯  · ? for shortcuts', '❯']
+    };
+    const LBL = { blocked: 'Waiting for you', working: 'Working', done: 'Done', idle: 'Idle' };
+    // one scene per step: the three agents' states plus the panel's status line
+    const SCENES = [
+      { st: ['working', 'working', 'done'],    msg: '', hold: 5 },
+      { st: ['blocked', 'working', 'idle'],    msg: 'Claude Code needs a decision — answer with y, n, Enter or Esc', hold: 7 },
+      { st: ['working', 'working', 'idle'],    msg: 'Sent Enter to Claude Code', hold: 5 },
+      { st: ['working', 'blocked', 'working'], msg: 'Codex needs a decision — answer with y, n, Enter or Esc', hold: 6 },
+      { st: ['done', 'working', 'working'],    msg: 'Sent y to Codex', hold: 5 },
+      { st: ['idle', 'done', 'blocked'],       msg: 'Gemini CLI needs a decision', hold: 6 }
+    ];
+    let si = 0, t = 0, secs = [134, 38, 62], ev = [0, 0, 0];
+    const fmt = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+    const paint = () => {
+      const sc = SCENES[si];
+      rows.forEach((r, i) => {
+        const st = sc.st[i];
+        r.className = 'ca-row ' + st + (i === 0 ? ' sel' : '');
+        r.querySelector('.ca-chip').textContent = LBL[st] + (st === 'idle' ? '' : ' · ' + fmt(secs[i]));
+        r.querySelector('.ca-ev').textContent = EV[st][ev[i] % EV[st].length];
+        r.querySelectorAll('.ca-key[data-ans]').forEach(k => k.classList.toggle('on', st === 'blocked'));
+      });
+      statusEl.textContent = sc.msg;
+      statusEl.classList.toggle('ok', /^Sent/.test(sc.msg));
+      if (strip) {
+        const c = { blocked: 0, working: 0, done: 0 };
+        sc.st.forEach(s => { if (s in c) c[s]++; });
+        const parts = [];
+        if (c.blocked) parts.push('<span class="ca-sc wait"><span class="ca-sd"></span>✋ ' + c.blocked + '</span>');
+        if (c.working) parts.push('<span class="ca-sc work">⚡ ' + c.working + '</span>');
+        if (c.done) parts.push('<span class="ca-sc fin">✓ ' + c.done + '</span>');
+        strip.innerHTML = parts.join('<span class="ca-sep">·</span>');
+      }
+    };
+    { const T = timers();
+      const tick = () => {
+        t++; secs = secs.map(s => s + 1);
+        if (t >= SCENES[si].hold) {
+          const prev = SCENES[si].st; t = 0; si = (si + 1) % SCENES.length;
+          SCENES[si].st.forEach((s, i) => { if (s !== prev[i]) { secs[i] = 0; ev[i]++; } });
+        }
+        paint();
+      };
+      gate(capanel, () => { si = 0; t = 0; paint(); T.iv(tick, 1000); }, () => T.clear());
+    }
+  }
 })();
 
 // — click-to-zoom lightbox for framed screenshots —
