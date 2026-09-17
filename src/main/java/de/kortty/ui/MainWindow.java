@@ -1999,6 +1999,10 @@ public class MainWindow {
             if ((percent > 0) != transparentWindowMode) {
                 // Enabling/disabling see-through mode changes the stage style, which needs a restart.
                 updateStatus(I18n.get("menu.view.backgroundTransparency.restart"));
+            } else if (percent > 0 && !isBackgroundTransparencyVisible()) {
+                // Without an active terminal tab, or in fullscreen, the window stays solid on purpose;
+                // say so, otherwise the slider looks broken.
+                updateStatus(I18n.get("menu.view.backgroundTransparency.terminalOnly"));
             }
         });
 
@@ -3094,6 +3098,11 @@ public class MainWindow {
         boolean transparencyActive = transparentWindowMode && !stage.isFullScreen();
         view.setBackgroundTransparent(transparencyActive);
         view.setBackgroundTransparency(transparencyActive ? currentBackgroundTransparencyPercent() : 0);
+    }
+
+    /** Whether the see-through window currently shows the terminal background transparency at all. */
+    private boolean isBackgroundTransparencyVisible() {
+        return tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab && !stage.isFullScreen();
     }
 
     /** Live-applies the current background transparency to every open terminal tab (used by the slider). */
