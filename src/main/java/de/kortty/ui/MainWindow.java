@@ -691,6 +691,8 @@ public class MainWindow {
             // Transparent mode: the scene fill must be clear so the desktop shows through the terminal.
             scene.setFill(Color.TRANSPARENT);
         }
+        // The theme was applied before sceneRoot existed; give the wrapper its see-through style now.
+        refreshTransparentModeContainers();
         
         // Mark this as a korTTY base-themed surface. The helper keeps terminal.css for Modena and
         // existing designs, but swaps it for component-only CSS when AtlantaFX owns native controls.
@@ -3024,12 +3026,21 @@ public class MainWindow {
     private void applyTransparentModeContainerBackgrounds(String bg) {
         Tab active = tabPane.getSelectionModel().getSelectedItem();
         if (active instanceof TerminalTab && !stage.isFullScreen()) {
+            // The scene root wrapper matches the design's `.root` rule, which paints an opaque
+            // background behind the whole window and would hide the desktop again.
+            if (sceneRoot != null) {
+                sceneRoot.setStyle("-fx-background-color: transparent;");
+            }
             root.setStyle("-fx-background-color: transparent;");
             mainContentBox.setStyle("-fx-background-color: transparent;");
             tabPane.setStyle("-fx-background-color: transparent; -fx-control-inner-background: transparent;");
         } else {
             String c = (bg != null && !bg.isEmpty()) ? bg : "#1e1e1e";
             String bgStyle = "-fx-background-color: " + c + ";";
+            if (sceneRoot != null) {
+                // Back to the stylesheet, so terminal-only fullscreen keeps its backdrop colour.
+                sceneRoot.setStyle(null);
+            }
             root.setStyle(bgStyle);
             mainContentBox.setStyle(bgStyle);
             tabPane.setStyle(bgStyle + " -fx-control-inner-background: " + c + ";");
