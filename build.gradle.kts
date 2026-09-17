@@ -3888,6 +3888,14 @@ tasks.register<JavaExec>("generatePrivacyTabScreenshot") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("generateTerminalTabScreenshot") {
+    group = "build"
+    description = "Renders the Settings > Terminal tab screenshot for the manual via Scene.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.TerminalTabScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.jar {
     val implementationTitle = project.name
     val implementationVersion = project.version
