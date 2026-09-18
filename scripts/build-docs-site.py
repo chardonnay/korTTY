@@ -65,8 +65,11 @@ def stage_assets(lang: str) -> None:
         if dst.exists():
             shutil.rmtree(dst)
         shutil.copytree(SCREENSHOTS_SRC, dst)
-    # Generated languages mirror EN's committed assets (CSS, JS, logo image +
-    # video, favicon) so they aren't duplicated in git — stage them from docs/en.
+    # Generated languages mirror EN's committed assets (CSS, JS, logo image and
+    # video, favicon) so each language tree stays self-contained — this is what
+    # GuideTranslationGenerator also relies on when it stages a runtime-generated
+    # language locally: every page's asset references resolve inside its own
+    # language directory. Stage them from docs/en.
     if lang != "en":
         en_assets = SITE_DIR / "docs" / "en" / "assets"
         for sub in ("stylesheets", "javascripts", "images"):
@@ -75,11 +78,7 @@ def stage_assets(lang: str) -> None:
                 dst = docs_assets / sub
                 if dst.exists():
                     shutil.rmtree(dst)
-                # The hero video is half a megabyte of incompressible bytes; translated
-                # trees reference EN's copy relatively (../en/assets/…) instead of
-                # shipping their own.
-                shutil.copytree(src, dst,
-                                ignore=shutil.ignore_patterns("kortty-logo.mp4"))
+                shutil.copytree(src, dst)
 
 
 def lang_has_content(lang: str) -> bool:
