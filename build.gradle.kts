@@ -407,7 +407,7 @@ dependencies {
     implementation("com.nulab-inc:zxcvbn:1.9.0")
     
     // TOML parsing for the enterprise admin policy file (kortty-policy.toml)
-    implementation("org.tomlj:tomlj:1.1.1")
+    implementation("org.tomlj:tomlj:1.3.0")
 
     // JSON parsing for translation API responses
     implementation("com.google.code.gson:gson:2.14.0")
