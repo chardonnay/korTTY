@@ -24,7 +24,7 @@
 deep-translator==1.11.4
 mkdocs-dracula-theme==1.1.0
 mkdocs==1.6.1
-pymdown-extensions==11.0.2
+pymdown-extensions==12.0.1
 
 # Transitive, pinned for a reproducible build (resolved from the four above)
 beautifulsoup4==4.15.0
