@@ -1545,9 +1545,9 @@ val mosh4jReleaseUrl = "https://github.com/chardonnay/mosh4j/releases/download/$
 val mosh4jModules = listOf("protocol", "crypto", "transport", "terminal", "core")
 // The protobuf runtime that ships next to the mosh4j jars. Kept as one version value: the download
 // URL and the file name are built from it, so a bump cannot leave them disagreeing.
-val mosh4jProtobufVersion = "4.36.1"
+val mosh4jProtobufVersion = "4.36.2"
 val mosh4jProtobufJar = "protobuf-java-$mosh4jProtobufVersion.jar"
-val mosh4jProtobufSha256 = "26434a93561a1a44bf7157b2630fa73a5b4d8df20e94df167bc03fcd14abd7e4"
+val mosh4jProtobufSha256 = "0773e72eaf375e1285df330575bfec5bda5da674d544d0e142a17f89c8f754da"
 val mosh4jSha256 = mapOf(
     "amd64" to mapOf(
         "core" to "c84e0a370417b9e6aea02506d8328458e4645926791765d87993e0848618f0f8",
