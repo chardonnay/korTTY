@@ -27,4 +27,23 @@ class AiInternetPromptSupportTest {
             assertThat(AiInternetPromptSupport.isInternetEligible(new AiRequest(action, "code", null, "en"))).isFalse();
         }
     }
+
+    @Test
+    void researchAndDocumentationWordsMakeAgentTasksInternetEligible() {
+        assertThat(AiInternetPromptSupport.isPromptInternetEligible(
+            "User task: recherchiere die Nginx Doku zu rate limiting\nConnection: box")).isTrue();
+        assertThat(AiInternetPromptSupport.isPromptInternetEligible(
+            "User task: read the changelog on www.example.org\nConnection: box")).isTrue();
+        assertThat(AiInternetPromptSupport.isPromptInternetEligible(
+            "User task: zeige die groesste xml datei\nConnection: box")).isFalse();
+    }
+
+    @Test
+    void offerForEveryAgentTaskOnlyWidensAgentPrompts() {
+        String agentPrompt = "User task: zeige die groesste xml datei\nConnection: box";
+        assertThat(AiInternetPromptSupport.isPromptInternetEligible(agentPrompt, false)).isFalse();
+        assertThat(AiInternetPromptSupport.isPromptInternetEligible(agentPrompt, true)).isTrue();
+        // Non-agent prompts (translation, journal, …) carry no "User task:" line and stay gated.
+        assertThat(AiInternetPromptSupport.isPromptInternetEligible("Translate this text to German.", true)).isFalse();
+    }
 }

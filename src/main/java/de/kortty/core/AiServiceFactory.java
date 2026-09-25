@@ -118,7 +118,8 @@ public final class AiServiceFactory {
                 if (tavilyApiKey == null) {
                     throw new IllegalStateException("Tavily API key must be configured for internet mode " + mode + ".");
                 }
-                webSearchTool = new TavilyWebSearchTool(tavilyApiKey);
+                webSearchTool = new TavilyWebSearchTool(
+                    tavilyApiKey, effectiveConfig.offerWebToolsForEveryAgentTask());
             }
             return decorate(profile, embeddedModelId, effectiveReasoningEffort(profile, reasoningEffortOverride), new EmbeddedLlamaAiService(
                 embeddedModelId,
@@ -152,7 +153,8 @@ public final class AiServiceFactory {
                 if (tavilyApiKey == null) {
                     throw new IllegalStateException("Tavily API key must be configured for internet mode " + mode + ".");
                 }
-                webSearchTool = new TavilyWebSearchTool(tavilyApiKey);
+                webSearchTool = new TavilyWebSearchTool(
+                    tavilyApiKey, effectiveConfig.offerWebToolsForEveryAgentTask());
             }
             return decorate(profile, embeddedModelId, effectiveReasoningEffort(profile, reasoningEffortOverride), new EmbeddedMlxAiService(
                 embeddedModelId,
@@ -235,7 +237,7 @@ public final class AiServiceFactory {
             if (tavilyApiKey == null) {
                 throw new IllegalStateException("Tavily API key must be configured for internet mode " + mode + ".");
             }
-            webSearchTool = new TavilyWebSearchTool(tavilyApiKey);
+            webSearchTool = new TavilyWebSearchTool(tavilyApiKey, effectiveConfig.offerWebToolsForEveryAgentTask());
         }
         if (modelSelectionMode == AiModelSelectionMode.MANUAL && model == null) {
             throw new IllegalStateException(CLOUD_MODEL_REQUIRED_MESSAGE);

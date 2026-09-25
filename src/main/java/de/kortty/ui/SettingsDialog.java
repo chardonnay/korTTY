@@ -298,6 +298,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final PasswordField aiBraveSearchApiKeyField;
     private final CheckBox aiClearBraveSearchApiKeyCheck;
     private final TextField aiSearxngUrlField;
+    private final CheckBox aiAgentAlwaysOfferWebToolsCheck;
     private final TextField aiTavilyMcpServerLabelField;
     private final TextField aiBrightDataMcpServerLabelField;
     private final TextField aiBraveSearchMcpPluginIdField;
@@ -2177,6 +2178,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiLmStudioToolpackMcpPluginIdField.setPromptText("mcp/<server_label>");
         aiInternetGrid.add(new Label(I18n.get("settings.ai.internet.toolpackPluginId")), 0, internetRow);
         aiInternetGrid.add(aiLmStudioToolpackMcpPluginIdField, 1, internetRow++);
+
+        aiAgentAlwaysOfferWebToolsCheck = new CheckBox(I18n.get("settings.ai.internet.agentAlwaysOfferWebTools"));
+        aiAgentAlwaysOfferWebToolsCheck.setSelected(globalSettings != null && globalSettings.isAiAgentAlwaysOfferWebTools());
+        aiAgentAlwaysOfferWebToolsCheck.setWrapText(true);
+        aiAgentAlwaysOfferWebToolsCheck.setTooltip(new Tooltip(I18n.get("settings.ai.internet.agentAlwaysOfferWebTools.tooltip")));
+        aiInternetGrid.add(aiAgentAlwaysOfferWebToolsCheck, 1, internetRow++);
 
         VBox aiInternetBox = new VBox(
             8,
@@ -5530,6 +5537,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         globalSettings.setAiRequestTimeoutMinutes(
             aiGlobalRequestTimeoutSpinner.getValue() != null ? aiGlobalRequestTimeoutSpinner.getValue() : 0);
         globalSettings.setAiSearxngUrl(trimToNull(aiSearxngUrlField.getText()));
+        globalSettings.setAiAgentAlwaysOfferWebTools(aiAgentAlwaysOfferWebToolsCheck.isSelected());
         globalSettings.setAiTavilyMcpServerLabel(aiTavilyMcpServerLabelField.getText());
         globalSettings.setAiBrightDataMcpServerLabel(aiBrightDataMcpServerLabelField.getText());
         globalSettings.setAiBraveSearchMcpPluginId(aiBraveSearchMcpPluginIdField.getText());
@@ -5713,7 +5721,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             aiBrightDataMcpServerLabelField.getText(),
             aiBraveSearchMcpPluginIdField.getText(),
             aiSearxngMcpPluginIdField.getText(),
-            aiLmStudioToolpackMcpPluginIdField.getText());
+            aiLmStudioToolpackMcpPluginIdField.getText(),
+            aiAgentAlwaysOfferWebToolsCheck.isSelected());
     }
 
     private String readPlainInternetSecret(PasswordField field, CheckBox clearCheck, String encryptedValue) {

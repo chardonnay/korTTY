@@ -77,7 +77,7 @@ Der Internetzugang wird pro AI-Profil konfiguriert. Vorhandene und neue Profile 
 | Modus | Verhalten |
 |------|----------|
 | **Deaktiviert** | Es werden keine Web-Tools oder MCP-Integrationen mit AI-Anfragen gesendet. |
-| **KorTTY Tavily Tool** | korTTY fügt berechtigten OpenAI-kompatiblen `/v1/chat/completions`-Anfragen ein `web_search`-Tool hinzu. Werkzeugaufrufe werden von korTTY über `POST https://api.tavily.com/search` ausgeführt. |
+| **KorTTY Tavily Tool** | korTTY fügt berechtigten OpenAI-kompatiblen `/v1/chat/completions`-Anfragen die Tools `web_search` und `web_extract` hinzu. Werkzeugaufrufe werden von korTTY ausgeführt: Suchen über `POST https://api.tavily.com/search` (5 Treffer mit kurzen Auszügen), Seitenabrufe über `POST https://api.tavily.com/extract`, das den Text einer Webseite oder eines Online-Dokuments liefert, begrenzt auf 12.000 Zeichen. |
 | **LM Studio Tavily MCP** | korTTY sendet eine LM Studio native `/api/v1/chat`-Anfrage mit einer Tavily MCP-Integration. |
 | **Bright Data Web MCP** | korTTY sendet eine native LM Studio `/api/v1/chat`-Anfrage mit einer Bright Data MCP-Integration. |
 | **Brave Search MCP** | korTTY sendet eine LM Studio native `/api/v1/chat`-Anfrage mit einer konfigurierten Brave Search MCP-Plugin-ID. |
@@ -89,11 +89,13 @@ Die erforderliche Provider-Konfiguration wird unter **Einstellungen > AI > Inter
 Wichtiges Verhalten:
 
 * Snippet AI, Textkorrektur, Übersetzung, Snippet-Beschreibungen, alternative Lösungsanfragen und AI ASCII-Art-Generierung nutzen keinen Internetzugang.
-* Direct korTTY-Webtools haben ein Verbindungs-Timeout von 5 Sekunden, ein Anfrage-Timeout von 20 Sekunden und maximal zwei Web-Tool-Runden pro KI-Anfrage.
+* Direct korTTY-Webtools haben ein Verbindungs-Timeout von 5 Sekunden, ein Anfrage-Timeout von 20 Sekunden (40 Sekunden beim Lesen von Seiten) und maximal zwei Web-Tool-Runden mit je bis zu drei Tool-Aufrufen pro KI-Anfrage.
+* Ein Modus lässt sich in einem Profil erst auswählen, wenn die zugehörige globale Einstellung (zum Beispiel der Tavily-API-Schlüssel) unter **Einstellungen > KI > Internet-Tool-Konfiguration** gespeichert ist; andernfalls erklärt der KI-Manager, wo der Wert hingehört, und behält den bisherigen Modus. Das Feld **API-Schlüssel** im Profil gilt nur für den KI-Anbieter selbst.
+* Die Internetnutzung wird dort angezeigt, wo sie passiert. Im KI-Chat fasst eine eingeklappte Zeile **Internetrecherche** über der Antwort die Suchen, gelesenen Seiten und Fehlschläge zusammen; aufgeklappt listet sie jede Suchanfrage, gelesene URL, Quelle und jeden Fehler. Sie wird mit gespeicherten Chats gesichert. Im Terminal-KI-Agenten erhält jeder Schritt, der das Internet genutzt hat, eine Aktivitätszeile **Web research** mit denselben Details. Bei den LM-Studio-MCP-Modi zeigt korTTY die von LM Studio gemeldeten Tool-Aufrufe mit den URLs aus deren Ausgabe.
 * LM Studio MCP-Anfragen mit Internetzugang nutzen ein längeres Gesamtanfrage-Timeout, da der MCP-Server hinter LM Studio läuft.
 * Das Abbrechen einer laufenden Anfrage unterbricht die Java-HTTP-Anfrage, wenn der aktive Anbieter eine Unterbrechung unterstützt.
 * Tool-Fehler werden als strukturierte Daten an das Modell zurückgegeben. Wenn das Web-Tool das Zeitlimit überschreitet, die Authentifizierung fehlschlägt, keine Ergebnisse zurückgibt oder das Tool-Runden-Limit erreicht, wird das Modell angewiesen, dies explizit zu sagen und keine Web-Fakten zu erfinden.
-* Für die Terminal-Agent-JSON-Planung bietet korTTY Web-Tools nur dann an, wenn die Benutzeraufgabe eindeutig nach aktuellen oder externen Informationen fragt. Lokale Datei-/Skriptüberprüfungsaufgaben sollten durch Shell-Befehle wie `sed`, `cat`, `find` oder Testbefehle und nicht durch die Websuche erledigt werden.
+* Für die Terminal-Agent-JSON-Planung bietet korTTY seine direkten Web-Tools nur dann an, wenn die Benutzeraufgabe ein Web-Signalwort (zum Beispiel aktuell, neueste, suche, recherchiere, Doku, Changelog, CVE, Webseite, herunterladen, Version) oder eine URL enthält. Lokale Datei-/Skriptüberprüfungsaufgaben sollten durch Shell-Befehle wie `sed`, `cat`, `find` oder Testbefehle und nicht durch die Websuche erledigt werden. Mit **KI-Agent: Internetrecherche bei jedem Schritt anbieten** unter **Einstellungen > KI > Internet-Tool-Konfiguration** werden die Tools bei jedem Agent-Schritt angeboten und das Modell entscheidet selbst; das verbraucht mehr Tavily-Credits und Tokens. Die LM-Studio-MCP-Modi hängen ihre Integration immer an Agent-Schritte an.
 
 ## AI-Fähigkeiten
 

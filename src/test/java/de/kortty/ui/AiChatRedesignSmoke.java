@@ -99,7 +99,9 @@ public final class AiChatRedesignSmoke {
 
         messagesBox.getChildren().add(assistantBlock(ASSISTANT_MD, false, REASONING_MD));
         messagesBox.getChildren().add(userRow(true));
-        messagesBox.getChildren().add(assistantBlock(ASSISTANT_MD_2, false, null));
+        VBox researched = assistantBlock(ASSISTANT_MD_2, false, null);
+        appendWebActivityDisclosure(researched);
+        messagesBox.getChildren().add(researched);
 
         ScrollPane scroll = new ScrollPane(messagesBox);
         scroll.getStyleClass().add("ai-chat-scroll");
@@ -156,6 +158,33 @@ public final class AiChatRedesignSmoke {
         toggle.getStyleClass().add("ai-chat-reasoning-toggle");
         toggle.setFocusTraversable(false);
         target.getChildren().addAll(toggle, bodyBox);
+    }
+
+    /**
+     * Mirrors {@code AiResultTab.appendWebActivityDisclosure} with the real summary/detail text from
+     * {@link AiWebActivitySupport}, placed between role label and answer and rendered expanded.
+     */
+    private static void appendWebActivityDisclosure(VBox block) {
+        java.util.List<de.kortty.model.SavedAiWebToolCall> calls = AiWebActivitySupport.toSaved(java.util.List.of(
+            new de.kortty.core.AiWebToolCall(de.kortty.core.AiWebToolCall.Kind.SEARCH, "web_search",
+                "jenkins pipeline retry", true, null,
+                java.util.List.of(
+                    new de.kortty.core.AiWebToolCall.Source("Pipeline Syntax – Jenkins", "https://www.jenkins.io/doc/book/pipeline/syntax/"),
+                    new de.kortty.core.AiWebToolCall.Source("retry step", "https://www.jenkins.io/doc/pipeline/steps/workflow-basic-steps/")),
+                0, false),
+            new de.kortty.core.AiWebToolCall(de.kortty.core.AiWebToolCall.Kind.EXTRACT, "web_extract",
+                "https://www.jenkins.io/doc/book/pipeline/syntax/", true, null,
+                java.util.List.of(new de.kortty.core.AiWebToolCall.Source("", "https://www.jenkins.io/doc/book/pipeline/syntax/")),
+                12000, true)));
+        Label body = new Label(AiWebActivitySupport.detail(calls));
+        body.getStyleClass().add("ai-chat-text");
+        body.setWrapText(true);
+        VBox bodyBox = new VBox(body);
+        bodyBox.getStyleClass().addAll("ai-chat-reasoning", "ai-chat-web-activity");
+        javafx.scene.control.Button toggle = new javafx.scene.control.Button("▾ " + AiWebActivitySupport.summary(calls));
+        toggle.getStyleClass().addAll("ai-chat-reasoning-toggle", "ai-chat-web-activity-toggle");
+        toggle.setFocusTraversable(false);
+        block.getChildren().addAll(1, java.util.List.of(toggle, bodyBox));
     }
 
     /** Right-indented user bubble; {@code highlight} outlines just the bubble as the current hit. */

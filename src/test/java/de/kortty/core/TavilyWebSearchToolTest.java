@@ -66,6 +66,83 @@ class TavilyWebSearchToolTest {
         assertThat(client.callCount()).isEqualTo(0);
     }
 
+    @Test
+    void searchSuccessRecordsQueryAndSourcesForDisplay() {
+        TavilyHttpClientTestDouble client = new TavilyHttpClientTestDouble(200, """
+            {"results":[
+              {"title":"korTTY","url":"https://example.test/kortty","content":"SSH client","score":0.9},
+              {"title":"Docs","url":"https://example.test/docs","content":"Guide"}
+            ],"request_id":"r1"}
+            """);
+        TavilyWebSearchTool tool = new TavilyWebSearchTool("tavily-key", client);
+
+        TavilyWebSearchTool.ToolExecution execution = tool.search("kortty ssh");
+
+        assertThat(JsonParser.parseString(execution.toolResult()).getAsJsonObject().get("status").getAsString())
+            .isEqualTo("ok");
+        AiWebToolCall call = execution.call();
+        assertThat(call.kind()).isEqualTo(AiWebToolCall.Kind.SEARCH);
+        assertThat(call.tool()).isEqualTo(TavilyWebSearchTool.SEARCH_TOOL_NAME);
+        assertThat(call.input()).isEqualTo("kortty ssh");
+        assertThat(call.success()).isTrue();
+        assertThat(call.sources()).containsExactly(
+            new AiWebToolCall.Source("korTTY", "https://example.test/kortty"),
+            new AiWebToolCall.Source("Docs", "https://example.test/docs")).inOrder();
+    }
+
+    @Test
+    void extractReturnsBoundedPageContentAndRecordsTheRead() {
+        String longContent = "x".repeat(TavilyWebSearchTool.MAX_EXTRACT_CHARS + 500);
+        TavilyHttpClientTestDouble client = new TavilyHttpClientTestDouble(200, """
+            {"results":[{"url":"https://example.test/manual.pdf","raw_content":"%s"}],"failed_results":[]}
+            """.formatted(longContent));
+        TavilyWebSearchTool tool = new TavilyWebSearchTool("tavily-key", client);
+
+        TavilyWebSearchTool.ToolExecution execution = tool.extract("https://example.test/manual.pdf");
+
+        JsonObject result = JsonParser.parseString(execution.toolResult()).getAsJsonObject();
+        assertThat(result.get("status").getAsString()).isEqualTo("ok");
+        assertThat(result.get("content").getAsString()).hasLength(TavilyWebSearchTool.MAX_EXTRACT_CHARS);
+        assertThat(result.get("truncated").getAsBoolean()).isTrue();
+        assertThat(result.get("originalLength").getAsInt()).isEqualTo(longContent.length());
+        assertThat(client.lastUri()).isEqualTo(URI.create("https://api.tavily.com/extract"));
+        assertThat(client.lastTimeout()).isEqualTo(Optional.of(TavilyWebSearchTool.EXTRACT_REQUEST_TIMEOUT));
+        AiWebToolCall call = execution.call();
+        assertThat(call.kind()).isEqualTo(AiWebToolCall.Kind.EXTRACT);
+        assertThat(call.success()).isTrue();
+        assertThat(call.contentChars()).isEqualTo(TavilyWebSearchTool.MAX_EXTRACT_CHARS);
+        assertThat(call.truncated()).isTrue();
+    }
+
+    @Test
+    void extractReportsTavilyFailureReasonToModelAndDisplay() {
+        TavilyHttpClientTestDouble client = new TavilyHttpClientTestDouble(200, """
+            {"results":[],"failed_results":[{"url":"https://example.test/private","error":"403 Forbidden"}]}
+            """);
+        TavilyWebSearchTool tool = new TavilyWebSearchTool("tavily-key", client);
+
+        TavilyWebSearchTool.ToolExecution execution = tool.extract("https://example.test/private");
+
+        JsonObject result = JsonParser.parseString(execution.toolResult()).getAsJsonObject();
+        assertThat(result.get("status").getAsString()).isEqualTo("error");
+        assertThat(result.get("errorType").getAsString()).isEqualTo("no_content");
+        assertThat(result.get("message").getAsString()).contains("403 Forbidden");
+        assertThat(execution.call().success()).isFalse();
+        assertThat(execution.call().message()).contains("403 Forbidden");
+    }
+
+    @Test
+    void extractRejectsNonHttpUrlWithoutCallingHttpClient() {
+        TavilyHttpClientTestDouble client = new TavilyHttpClientTestDouble(200, "{}");
+        TavilyWebSearchTool tool = new TavilyWebSearchTool("tavily-key", client);
+
+        TavilyWebSearchTool.ToolExecution execution = tool.extract("file:///etc/passwd");
+
+        assertThat(JsonParser.parseString(execution.toolResult()).getAsJsonObject().get("errorType").getAsString())
+            .isEqualTo("invalid_request");
+        assertThat(client.callCount()).isEqualTo(0);
+    }
+
     /** Test double for deterministic Tavily HTTP behavior. */
     private static final class TavilyHttpClientTestDouble extends HttpClient {
         private final int statusCode;
@@ -73,6 +150,7 @@ class TavilyWebSearchToolTest {
         private final IOException error;
         private int callCount;
         private Optional<Duration> lastTimeout = Optional.empty();
+        private URI lastUri;
 
         private TavilyHttpClientTestDouble(int statusCode, String body) {
             this.statusCode = statusCode;
@@ -90,6 +168,7 @@ class TavilyWebSearchToolTest {
         public <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler) throws IOException {
             callCount++;
             lastTimeout = request.timeout();
+            lastUri = request.uri();
             if (error != null) {
                 throw error;
             }
@@ -159,6 +238,10 @@ class TavilyWebSearchToolTest {
 
         private int callCount() {
             return callCount;
+        }
+
+        private URI lastUri() {
+            return lastUri;
         }
 
         private Optional<Duration> lastTimeout() {

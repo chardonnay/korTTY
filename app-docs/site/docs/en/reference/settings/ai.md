@@ -93,6 +93,9 @@ The same fields are edited in **AI > AI Manager > Profiles**, where the whole fo
 | Brave Search MCP plugin ID | text | — | — | `aiBraveSearchMcpPluginId` |
 | SearXNG MCP plugin ID | text | — | — | `aiSearxngMcpPluginId` |
 | LM Studio Toolpack MCP plugin ID | text | — | — | `aiLmStudioToolpackMcpPluginId` |
+| AI agent: offer internet research on every step | toggle | — | Off | `aiAgentAlwaysOfferWebTools` |
+
+**AI agent: offer internet research on every step** only affects the **KorTTY Tavily Tool** mode. When off, a Terminal AI Agent step gets the web tools only if its task contains a web signal word or a URL; when on, every step gets them and the model decides whether to search or read a page.
 
 ## Notes
 

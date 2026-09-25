@@ -493,6 +493,13 @@ public class GlobalSettings {
     @XmlElement
     private String aiSearxngUrl;
 
+    /**
+     * Offer KorTTY's web tools (Tavily search/extract) on every KI-agent step instead of only when
+     * the task contains a web signal word or a URL.
+     */
+    @XmlElement
+    private boolean aiAgentAlwaysOfferWebTools;
+
     /** LM Studio server label for the ephemeral Tavily MCP integration. */
     @XmlElement
     private String aiTavilyMcpServerLabel = "tavily";
@@ -2231,6 +2238,14 @@ public class GlobalSettings {
 
     public String getAiSearxngUrl() {
         return aiSearxngUrl;
+    }
+
+    public boolean isAiAgentAlwaysOfferWebTools() {
+        return aiAgentAlwaysOfferWebTools;
+    }
+
+    public void setAiAgentAlwaysOfferWebTools(boolean aiAgentAlwaysOfferWebTools) {
+        this.aiAgentAlwaysOfferWebTools = aiAgentAlwaysOfferWebTools;
     }
 
     public void setAiSearxngUrl(String aiSearxngUrl) {
