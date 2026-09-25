@@ -325,6 +325,50 @@ class LmStudioNativeAiServiceTest {
     }
 
     @Test
+    void executeRecordsMcpToolCallsForDisplayWithoutMixingThemIntoTheAnswer() throws Exception {
+        StringHttpClientTestDouble client = new StringHttpClientTestDouble();
+        client.chatResponse("""
+            {
+              "output": [
+                {"type": "tool_call", "tool": "tavily-search", "arguments": {"query": "kortty release"},
+                 "output": "Results: https://example.test/a, https://example.test/b.",
+                 "provider_info": {"type": "ephemeral_mcp", "server_label": "tavily"}},
+                {"type": "tool_call", "tool": "tavily-extract", "arguments": {"urls": ["https://example.test/a"]},
+                 "output": "Full page text", "provider_info": {"type": "ephemeral_mcp", "server_label": "tavily"}},
+                {"type": "invalid_tool_call", "tool": "tavily-search", "reason": "bad arguments"},
+                {"type": "message", "content": "final answer"}
+              ],
+              "stats": {"input_tokens": 3, "total_output_tokens": 2}
+            }
+            """);
+        LmStudioNativeAiService service = new LmStudioNativeAiService(
+            "http://127.0.0.1:1234/api/v1/chat",
+            "local-model",
+            "",
+            AiReasoningEffort.DISABLED,
+            config(AiInternetAccessMode.DISABLED),
+            client);
+
+        AiExecutionResult result = service.executePrompt("system", "user");
+
+        assertThat(result.content()).isEqualTo("final answer");
+        assertThat(result.webToolCalls()).hasSize(3);
+        AiWebToolCall search = result.webToolCalls().get(0);
+        assertThat(search.kind()).isEqualTo(AiWebToolCall.Kind.SEARCH);
+        assertThat(search.input()).isEqualTo("kortty release");
+        assertThat(search.sources()).containsExactly(
+            new AiWebToolCall.Source("", "https://example.test/a"),
+            new AiWebToolCall.Source("", "https://example.test/b")).inOrder();
+        AiWebToolCall extract = result.webToolCalls().get(1);
+        assertThat(extract.kind()).isEqualTo(AiWebToolCall.Kind.EXTRACT);
+        assertThat(extract.input()).contains("https://example.test/a");
+        assertThat(extract.contentChars()).isEqualTo("Full page text".length());
+        AiWebToolCall invalid = result.webToolCalls().get(2);
+        assertThat(invalid.success()).isFalse();
+        assertThat(invalid.message()).isEqualTo("bad arguments");
+    }
+
+    @Test
     void executeMarksNativeResponseAtItsActionLimitAsTruncated() throws Exception {
         StringHttpClientTestDouble client = new StringHttpClientTestDouble();
         client.chatResponse("""

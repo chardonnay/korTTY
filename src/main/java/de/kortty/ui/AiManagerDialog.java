@@ -147,6 +147,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private boolean updatingDefaultProfileSelection;
     /** Set while the editor form is being populated; suppresses form-driven writes back into the profile. */
     private boolean loadingProfile;
+    /** Set while an internet-mode selection is rolled back because its global secret is missing. */
+    private boolean revertingInternetMode;
     /** Discovery key of the automatic metadata lookup that is scheduled or running, or {@code null}. */
     private String pendingReasoningDiscoveryKey;
     /** Keys already looked up automatically, so an endpoint that cannot answer is asked only once. */
@@ -193,6 +195,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         refreshReasoningButton.setAccessibleText(I18n.get("settings.ai.reasoning.refresh"));
         internetAccessModeCombo = new ComboBox<>();
         apiKeyField = new PasswordField();
+        apiKeyField.setTooltip(new Tooltip(I18n.get("ai.manager.profile.apiKey.tooltip")));
         clearApiKeyCheck = new CheckBox(I18n.get("settings.ai.clearApiKey"));
         cliProviderCombo = new ComboBox<>();
         cliExecutableField = new TextField();
@@ -558,6 +561,10 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         de.kortty.policy.PolicyUiSupport.lockIfManaged(
             internetAccessModeCombo, de.kortty.policy.ManagedSetting.AI_INTERNET);
         internetAccessModeCombo.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (selectedProfile != null && !loadingProfile && !revertingInternetMode
+                && rejectInternetModeWithoutGlobalSetting(oldValue, newValue)) {
+                return;
+            }
             if (selectedProfile != null) {
                 selectedProfile.setInternetAccessMode(newValue);
                 profileListView.refresh();
@@ -1957,14 +1964,91 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         if (profile == null || !profile.getInternetAccessMode().isEnabled()) {
             return true;
         }
+        AiInternetAccessConfiguration config = buildInternetAccessConfiguration(profile);
+        String missingSettingKey = missingInternetSettingLabelKey(config);
+        if (missingSettingKey != null) {
+            statusLabel.setText(I18n.get("settings.ai.error.testFailed"));
+            showSimpleAlert(Alert.AlertType.ERROR, missingInternetSettingMessage(
+                "ai.manager.internet.missingGlobalSetting", config.mode(), missingSettingKey));
+            return false;
+        }
         try {
-            buildInternetAccessConfiguration(profile).validate();
+            config.validate();
             return true;
         } catch (IllegalStateException ex) {
             statusLabel.setText(I18n.get("settings.ai.error.testFailed"));
             showSimpleAlert(Alert.AlertType.ERROR, ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName());
             return false;
         }
+    }
+
+    /**
+     * The internet-tool secrets live in the global settings, not in the profile's
+     * API-key field, so point the user at the exact settings row that is empty.
+     */
+    static String missingInternetSettingLabelKey(AiInternetAccessConfiguration config) {
+        return switch (config.mode()) {
+            case DISABLED -> null;
+            case KORTTY_TAVILY_TOOL, LM_STUDIO_TAVILY_MCP ->
+                config.tavilyApiKey() == null ? "settings.ai.internet.tavilyKey" : null;
+            case BRIGHT_DATA_WEB_MCP ->
+                config.brightDataApiToken() == null ? "settings.ai.internet.brightDataToken" : null;
+            case BRAVE_SEARCH_MCP ->
+                config.braveSearchMcpPluginId() == null ? "settings.ai.internet.bravePluginId" : null;
+            case SEARXNG_MCP -> config.searxngMcpPluginId() == null
+                ? "settings.ai.internet.searxngPluginId"
+                : (config.searxngUrl() == null ? "settings.ai.internet.searxngUrl" : null);
+            case LM_STUDIO_TOOLPACK ->
+                config.lmStudioToolpackMcpPluginId() == null ? "settings.ai.internet.toolpackPluginId" : null;
+        };
+    }
+
+    /**
+     * An internet mode is only selectable once its global secret is stored in the settings;
+     * otherwise every AI request of the profile would fail. Rolls the combo back and tells the
+     * user where the value belongs. Returns true when the selection was rejected.
+     */
+    private boolean rejectInternetModeWithoutGlobalSetting(
+        AiInternetAccessMode oldValue, AiInternetAccessMode newValue) {
+
+        if (newValue == null || !newValue.isEnabled()) {
+            return false;
+        }
+        String missingSettingKey = missingInternetSettingLabelKey(buildInternetAccessConfiguration(newValue));
+        if (missingSettingKey == null) {
+            return false;
+        }
+        AiInternetAccessMode fallback = oldValue != null
+            && missingInternetSettingLabelKey(buildInternetAccessConfiguration(oldValue)) == null
+                ? oldValue
+                : AiInternetAccessMode.DISABLED;
+        // Changing the value from inside its own change listener is not reliable in JavaFX.
+        Platform.runLater(() -> {
+            revertingInternetMode = true;
+            try {
+                internetAccessModeCombo.setValue(fallback);
+            } finally {
+                revertingInternetMode = false;
+            }
+            showSimpleAlert(Alert.AlertType.WARNING, missingInternetSettingMessage(
+                "ai.manager.internet.missingGlobalSettingForSelection", newValue, missingSettingKey));
+        });
+        return true;
+    }
+
+    private static String missingInternetSettingMessage(
+        String templateKey, AiInternetAccessMode mode, String missingSettingKey) {
+
+        return I18n.get(
+            templateKey,
+            stripTrailingColon(I18n.get(missingSettingKey)),
+            I18n.get("settings.ai.internet.mode." + mode.messageKeySuffix()),
+            I18n.get("settings.title") + " → " + I18n.get("settings.tab.ai")
+                + " → " + I18n.get("settings.ai.internet.configuration"));
+    }
+
+    private static String stripTrailingColon(String label) {
+        return label.replaceFirst("\\s*:\\s*$", "");
     }
 
     private boolean requiresModelForTest(AiProfile profile) {
@@ -2044,14 +2128,20 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     }
 
     private AiInternetAccessConfiguration buildInternetAccessConfiguration(AiProfile profile) {
+        return profile == null
+            ? AiInternetAccessConfiguration.disabled()
+            : buildInternetAccessConfiguration(profile.getInternetAccessMode());
+    }
+
+    private AiInternetAccessConfiguration buildInternetAccessConfiguration(AiInternetAccessMode mode) {
         GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
             ? app.getGlobalSettingsManager().getSettings()
             : null;
-        if (settings == null || profile == null || !profile.getInternetAccessMode().isEnabled()) {
+        if (settings == null || mode == null || !mode.isEnabled()) {
             return AiInternetAccessConfiguration.disabled();
         }
         return new AiInternetAccessConfiguration(
-            profile.getInternetAccessMode(),
+            mode,
             decryptGlobalSecret(settings.getEncryptedAiTavilyApiKey()),
             decryptGlobalSecret(settings.getEncryptedAiBrightDataApiToken()),
             decryptGlobalSecret(settings.getEncryptedAiBraveSearchApiKey()),
@@ -2060,7 +2150,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             settings.getAiBrightDataMcpServerLabel(),
             settings.getAiBraveSearchMcpPluginId(),
             settings.getAiSearxngMcpPluginId(),
-            settings.getAiLmStudioToolpackMcpPluginId());
+            settings.getAiLmStudioToolpackMcpPluginId(),
+            settings.isAiAgentAlwaysOfferWebTools());
     }
 
     private String decryptGlobalSecret(String encryptedValue) {

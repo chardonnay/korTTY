@@ -6104,7 +6104,7 @@ public class MainWindow {
         resultTab.attachRunningTask(task, thread, I18n.get("ai.result.loading"));
         task.setOnSucceeded(e -> {
             AiExecutionResult result = task.getValue();
-            resultTab.showResult(result != null ? result.content() : "", result != null ? result.reasoning() : null);
+            resultTab.showResult(result);
             recordAiUsage(effectiveProfile, request, result);
             updateStatus(I18n.get("ai.status.finished", getAiActionLabel(action)));
         });
@@ -6271,7 +6271,8 @@ public class MainWindow {
             brightDataMcpServerLabel,
             braveSearchMcpPluginId,
             searxngMcpPluginId,
-            lmStudioToolpackMcpPluginId);
+            lmStudioToolpackMcpPluginId,
+            settings.isAiAgentAlwaysOfferWebTools());
     }
 
     private String decryptGlobalSecret(String encryptedValue, String label) {
@@ -7838,7 +7839,7 @@ public class MainWindow {
         resultTab.attachRunningTask(task, thread, I18n.get("ai.result.loading"));
         task.setOnSucceeded(event -> {
             AiExecutionResult result = task.getValue();
-            resultTab.showResult(result != null ? result.content() : "", result != null ? result.reasoning() : null);
+            resultTab.showResult(result);
             recordAiUsageForProfile(profile, request, result);
         });
         task.setOnCancelled(event -> resultTab.showCancelled());

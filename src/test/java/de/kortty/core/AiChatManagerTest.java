@@ -2,6 +2,7 @@ package de.kortty.core;
 
 import de.kortty.model.SavedAiChat;
 import de.kortty.model.SavedAiChatMessage;
+import de.kortty.model.SavedAiWebToolCall;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -75,6 +76,44 @@ class AiChatManagerTest {
 
         assertThat(reloaded.deleteChat(updated.getId())).isTrue();
         assertThat(reloaded.getAllChats().isEmpty()).isTrue();
+    }
+
+    @Test
+    void webToolCallsOfAnAssistantReplySurviveSaveAndReload() throws Exception {
+        AiChatManager manager = new AiChatManager(tempDir);
+        manager.load();
+        SavedAiWebToolCall search = new SavedAiWebToolCall();
+        search.setKind("SEARCH");
+        search.setTool("web_search");
+        search.setInput("kortty release");
+        search.setSuccess(true);
+        search.setSources(List.of(new SavedAiWebToolCall.Source("korTTY", "https://example.test/kortty")));
+        SavedAiWebToolCall read = new SavedAiWebToolCall();
+        read.setKind("EXTRACT");
+        read.setTool("web_extract");
+        read.setInput("https://example.test/manual.pdf");
+        read.setSuccess(false);
+        read.setMessage("HTTP 403");
+        SavedAiChatMessage answer = message(SavedAiChatMessage.ROLE_ASSISTANT, "Antwort", "GPT Support");
+        answer.setWebToolCalls(List.of(search, read));
+        SavedAiChat chat = chat("Recherche");
+        chat.setMessages(List.of(message(SavedAiChatMessage.ROLE_USER, "Was ist neu?", null), answer));
+
+        SavedAiChat saved = manager.saveChat(chat);
+        AiChatManager reloaded = new AiChatManager(tempDir);
+        reloaded.load();
+        SavedAiChat persisted = reloaded.findById(saved.getId()).orElseThrow();
+
+        assertThat(persisted.getMessages().get(0).getWebToolCalls()).isEmpty();
+        List<SavedAiWebToolCall> calls = persisted.getMessages().get(1).getWebToolCalls();
+        assertThat(calls).hasSize(2);
+        assertThat(calls.get(0).getInput()).isEqualTo("kortty release");
+        assertThat(calls.get(0).isSuccess()).isTrue();
+        assertThat(calls.get(0).getSources()).hasSize(1);
+        assertThat(calls.get(0).getSources().get(0).getUrl()).isEqualTo("https://example.test/kortty");
+        assertThat(calls.get(1).getKind()).isEqualTo("EXTRACT");
+        assertThat(calls.get(1).isSuccess()).isFalse();
+        assertThat(calls.get(1).getMessage()).isEqualTo("HTTP 403");
     }
 
     @Test

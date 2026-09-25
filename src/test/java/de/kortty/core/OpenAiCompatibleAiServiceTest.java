@@ -1661,9 +1661,13 @@ class OpenAiCompatibleAiServiceTest {
 
         JsonArray tools = askBody.getAsJsonArray("tools");
         assertThat(tools).isNotNull();
-        assertThat(tools.size()).isEqualTo(1);
+        assertThat(tools.size()).isEqualTo(2);
         JsonObject function = tools.get(0).getAsJsonObject().getAsJsonObject("function");
         assertThat(function.get("name").getAsString()).isEqualTo("web_search");
+        JsonObject extractFunction = tools.get(1).getAsJsonObject().getAsJsonObject("function");
+        assertThat(extractFunction.get("name").getAsString()).isEqualTo("web_extract");
+        assertThat(extractFunction.getAsJsonObject("parameters").getAsJsonArray("required").get(0).getAsString())
+            .isEqualTo("url");
         assertThat(askBody.get("tool_choice").getAsString()).isEqualTo("auto");
         assertThat(askBody.getAsJsonArray("messages").get(0).getAsJsonObject().get("content").getAsString())
             .contains("do not invent web facts");
@@ -1776,6 +1780,114 @@ class OpenAiCompatibleAiServiceTest {
         assertThat(client.requestBodies().get(3)).contains("Do not call any more tools.");
         assertThat(client.requestBodies().get(3)).doesNotContain("\"tools\"");
         assertThat(client.requestBodies().get(3)).doesNotContain("\"tool_choice\"");
+        assertThat(result.webToolCalls()).hasSize(3);
+        assertThat(result.webToolCalls().get(0).input()).isEqualTo("jenkins repository");
+        assertThat(result.webToolCalls().get(0).success()).isTrue();
+        assertThat(result.webToolCalls().get(1).success()).isTrue();
+        assertThat(result.webToolCalls().get(2).input()).isEqualTo("jenkins repo alternatives");
+        assertThat(result.webToolCalls().get(2).success()).isFalse();
+        assertThat(result.webToolCalls().get(2).message()).contains("Not run");
+    }
+
+    @Test
+    void executeWithWebExtractToolReadsPageAndRecordsTheCall() throws Exception {
+        TavilyToolTestDouble tavilyTool = new TavilyToolTestDouble("""
+            {"status":"ok","provider":"tavily","results":[]}
+            """);
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            """
+                {
+                  "choices": [
+                    {
+                      "message": {
+                        "role": "assistant",
+                        "content": null,
+                        "tool_calls": [
+                          {
+                            "id": "call_extract",
+                            "type": "function",
+                            "function": {
+                              "name": "web_extract",
+                              "arguments": "{\\"url\\":\\"https://example.test/manual.pdf\\"}"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}
+                }
+                """,
+            """
+                {
+                  "choices": [
+                    {"message": {"role": "assistant", "content": "The manual says: Page body (https://example.test/manual.pdf)."}}
+                  ],
+                  "usage": {"prompt_tokens": 3, "completion_tokens": 3, "total_tokens": 6}
+                }
+                """);
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "gpt-test",
+            "secret-token",
+            AiReasoningEffort.DISABLED,
+            client,
+            tavilyTool);
+
+        AiExecutionResult result = service.executeWithClient(
+            new AiRequest(AiAction.ASK, "", "qa-box", "en", "Summarize https://example.test/manual.pdf"),
+            client,
+            Duration.ofSeconds(30));
+
+        assertThat(tavilyTool.queries()).containsExactly("extract:https://example.test/manual.pdf");
+        assertThat(client.requestBodies().get(1)).contains("Page body");
+        assertThat(result.webToolCalls()).hasSize(1);
+        AiWebToolCall call = result.webToolCalls().get(0);
+        assertThat(call.kind()).isEqualTo(AiWebToolCall.Kind.EXTRACT);
+        assertThat(call.input()).isEqualTo("https://example.test/manual.pdf");
+        assertThat(call.success()).isTrue();
+    }
+
+    @Test
+    void executeJsonPromptOffersWebToolOnEveryAgentStepWhenEnabled() throws Exception {
+        TavilyToolTestDouble tavilyTool = new TavilyToolTestDouble("""
+            {"status":"ok","provider":"tavily","results":[]}
+            """, true);
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient("""
+            {
+              "choices": [
+                {
+                  "message": {
+                    "role": "assistant",
+                    "content": "{\\"status\\":\\"done\\",\\"summary\\":\\"ok\\",\\"userMessage\\":\\"ok\\",\\"commands\\":[],\\"needsReprobe\\":false}"
+                  }
+                }
+              ],
+              "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+            }
+            """);
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://example.test/v1/chat/completions",
+            "gpt-test",
+            "secret-token",
+            AiReasoningEffort.DISABLED,
+            client,
+            tavilyTool);
+
+        service.executePromptWithClient(
+            "You are the planner for a remote SSH terminal automation helper.",
+            """
+            User task: zeige mir die groesste xml datei im ordner
+            Connection: Fedora44
+            Previous command results:
+            []
+            """,
+            client,
+            Duration.ofSeconds(30),
+            true);
+
+        assertThat(client.requestBodies().get(0)).contains("\"tools\"");
+        assertThat(client.requestBodies().get(0)).contains("web_extract");
     }
 
     @Test
@@ -2372,14 +2484,31 @@ class OpenAiCompatibleAiServiceTest {
         private final List<String> queries = new ArrayList<>();
 
         private TavilyToolTestDouble(String result) {
-            super("test-key");
+            this(result, false);
+        }
+
+        private TavilyToolTestDouble(String result, boolean offerForEveryAgentTask) {
+            super("test-key", offerForEveryAgentTask);
             this.result = result;
         }
 
         @Override
-        public String searchAsToolResult(String query) {
+        public ToolExecution search(String query) {
             queries.add(query);
-            return result;
+            boolean ok = result.replace(" ", "").contains("\"status\":\"ok\"");
+            return new ToolExecution(result, ok
+                ? new AiWebToolCall(AiWebToolCall.Kind.SEARCH, SEARCH_TOOL_NAME, query, true, null,
+                    List.of(new AiWebToolCall.Source("Result", "https://example.test/result")), 0, false)
+                : AiWebToolCall.failed(AiWebToolCall.Kind.SEARCH, SEARCH_TOOL_NAME, query, "search failed"));
+        }
+
+        @Override
+        public ToolExecution extract(String url) {
+            queries.add("extract:" + url);
+            return new ToolExecution(
+                "{\"status\":\"ok\",\"provider\":\"tavily\",\"url\":\"" + url + "\",\"content\":\"Page body\",\"truncated\":false}",
+                new AiWebToolCall(AiWebToolCall.Kind.EXTRACT, EXTRACT_TOOL_NAME, url, true, null,
+                    List.of(new AiWebToolCall.Source("", url)), 9, false));
         }
 
         private List<String> queries() {

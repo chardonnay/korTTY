@@ -389,6 +389,7 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
         JsonArray output = root.getAsJsonArray("output");
         StringBuilder builder = new StringBuilder();
         StringBuilder reasoning = new StringBuilder();
+        java.util.List<AiWebToolCall> webToolCalls = new java.util.ArrayList<>();
         if (output != null) {
             for (JsonElement element : output) {
                 if (!element.isJsonObject()) {
@@ -398,6 +399,10 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
                 String type = stringField(item, "type");
                 if ("reasoning".equals(type)) {
                     appendReasoningItem(reasoning, item);
+                    continue;
+                }
+                if ("tool_call".equals(type) || "invalid_tool_call".equals(type)) {
+                    webToolCalls.add(toWebToolCall(item, "tool_call".equals(type)));
                     continue;
                 }
                 if (!"message".equals(type) || !item.has("content")) {
@@ -417,7 +422,56 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
             // LM Studio reports one fewer generated token than max_output_tokens when the native
             // endpoint stops at its limit; its response currently carries no separate stop reason.
             && usage.completionTokens() >= Math.max(1L, (long) maxOutputTokens - 1L);
-        return new AiExecutionResult(builder.toString().trim(), usage, reasoningText, outputTruncated);
+        return new AiExecutionResult(builder.toString().trim(), usage, reasoningText, outputTruncated, false, webToolCalls);
+    }
+
+    private static final java.util.regex.Pattern OUTPUT_URL =
+        java.util.regex.Pattern.compile("https?://[^\\s\"'<>)\\]}]+");
+    private static final int MAX_MCP_SOURCES = 10;
+
+    /**
+     * Maps an LM Studio MCP {@code tool_call} / {@code invalid_tool_call} output item to the display
+     * record. MCP tools return free-form output, so sources are the URLs found in it.
+     */
+    static AiWebToolCall toWebToolCall(JsonObject item, boolean success) {
+        String tool = stringField(item, "tool");
+        JsonElement arguments = item.get("arguments");
+        String input = "";
+        if (arguments != null && arguments.isJsonObject()) {
+            JsonObject args = arguments.getAsJsonObject();
+            for (String key : new String[] {"query", "url", "urls", "q"}) {
+                JsonElement value = args.get(key);
+                if (value == null || value.isJsonNull()) {
+                    continue;
+                }
+                input = value.isJsonPrimitive() ? value.getAsString() : value.toString();
+                break;
+            }
+            if (input.isBlank()) {
+                input = args.toString();
+            }
+        } else if (arguments != null && arguments.isJsonPrimitive()) {
+            input = arguments.getAsString();
+        }
+        String outputText = item.has("output") && item.get("output").isJsonPrimitive()
+            ? item.get("output").getAsString()
+            : (item.has("output") ? item.get("output").toString() : "");
+        java.util.LinkedHashSet<String> urls = new java.util.LinkedHashSet<>();
+        java.util.regex.Matcher matcher = OUTPUT_URL.matcher(outputText);
+        while (matcher.find() && urls.size() < MAX_MCP_SOURCES) {
+            urls.add(matcher.group().replaceAll("[.,;:]+$", ""));
+        }
+        java.util.List<AiWebToolCall.Source> sources = new java.util.ArrayList<>();
+        for (String url : urls) {
+            sources.add(new AiWebToolCall.Source("", url));
+        }
+        AiWebToolCall.Kind kind = AiWebToolCall.kindOfTool(tool);
+        if (!success) {
+            String reason = firstNonBlank(stringField(item, "reason"), stringField(item, "error"), stringField(item, "message"));
+            return AiWebToolCall.failed(kind, tool, input, reason.isBlank() ? "Invalid tool call." : reason);
+        }
+        return new AiWebToolCall(
+            kind, tool, input, true, null, sources, kind == AiWebToolCall.Kind.EXTRACT ? outputText.length() : 0, false);
     }
 
     private void appendReasoningItem(StringBuilder reasoning, JsonObject item) {
@@ -509,7 +563,7 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
         return URLEncoder.encode(value != null ? value : "", StandardCharsets.UTF_8);
     }
 
-    private String stringField(JsonObject object, String name) {
+    private static String stringField(JsonObject object, String name) {
         if (object != null && object.has(name) && object.get(name).isJsonPrimitive()) {
             return object.get(name).getAsString();
         }
