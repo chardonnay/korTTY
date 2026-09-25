@@ -17,6 +17,27 @@ public class RemoteTextFileSelectionSupportTest {
             .isEqualTo("notes final.txt");
     }
 
+    @Test
+    void plausibleFileNameAcceptsSingleTokensAndQuotedNamesWithSpaces() {
+        assertThat(RemoteTextFileSelectionSupport.isPlausibleFileName("notes.txt")).isTrue();
+        assertThat(RemoteTextFileSelectionSupport.isPlausibleFileName("  Makefile  ")).isTrue();
+        assertThat(RemoteTextFileSelectionSupport.isPlausibleFileName("\"notes final.txt\"")).isTrue();
+        assertThat(RemoteTextFileSelectionSupport.isPlausibleFileName("'my file.log'")).isTrue();
+    }
+
+    @Test
+    void plausibleFileNameRejectsProseCommandsPathsAndOversizedNames() {
+        assertThat(RemoteTextFileSelectionSupport.isPlausibleFileName("notes final.txt")).isFalse();
+        assertThat(RemoteTextFileSelectionSupport.isPlausibleFileName("error: connection refused")).isFalse();
+        assertThat(RemoteTextFileSelectionSupport.isPlausibleFileName("one.txt\ntwo.txt")).isFalse();
+        assertThat(RemoteTextFileSelectionSupport.isPlausibleFileName("../secret.txt")).isFalse();
+        assertThat(RemoteTextFileSelectionSupport.isPlausibleFileName("src/main")).isFalse();
+        assertThat(RemoteTextFileSelectionSupport.isPlausibleFileName("..")).isFalse();
+        assertThat(RemoteTextFileSelectionSupport.isPlausibleFileName("")).isFalse();
+        assertThat(RemoteTextFileSelectionSupport.isPlausibleFileName(null)).isFalse();
+        assertThat(RemoteTextFileSelectionSupport.isPlausibleFileName("x".repeat(256))).isFalse();
+    }
+
     @Test(expectedExceptions = IllegalArgumentException.class)
     void rejectsMultilineSelection() {
         RemoteTextFileSelectionSupport.normalizeSelectedFileName("one.txt\ntwo.txt");

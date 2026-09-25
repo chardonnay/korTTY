@@ -11,6 +11,7 @@ import de.kortty.core.AiChatExportContext;
 import de.kortty.core.AiChatExportService;
 import de.kortty.core.AiChatShareService;
 import de.kortty.core.AiExecutionResult;
+import de.kortty.core.AiFileAttachment;
 import de.kortty.core.AiMarkdownTableSupport;
 import de.kortty.core.AiPdfExportOptions;
 import de.kortty.core.AiSnippetMetadataSupport;
@@ -18,6 +19,7 @@ import de.kortty.core.AiSvgContentSupport;
 import de.kortty.core.AiRequest;
 import de.kortty.core.AiResponseSanitizer;
 import de.kortty.core.SnippetAiResponseSupport;
+import de.kortty.core.SnippetDiagramSupport;
 import de.kortty.core.AiService;
 import de.kortty.core.SnippetAiWorkflowSupport;
 import de.kortty.core.SnippetLanguageSupport;
@@ -126,6 +128,8 @@ public class AiResultTab extends Tab {
     private final AiChatShareService shareService;
     private final String selectedText;
     private final String connectionDisplayName;
+    /** Text file sent along with every request of this chat (see {@link #setFileAttachment}). */
+    private AiFileAttachment fileAttachment;
     private String languageCode;
     private final List<SavedAiChatMessage> messageEntries = new ArrayList<>();
     private final StringBuilder plainTranscript = new StringBuilder();
@@ -156,6 +160,8 @@ public class AiResultTab extends Tab {
     // Parallel to messageEntries: the top-level node (used to scroll a match into view) and the node
     // that gets the search-hit outline (the user bubble, not its full-width row).
     private final List<Node> messageNodes = new ArrayList<>();
+    /** Buttons rendered beside the attachment notice; disabled while a request runs. */
+    private final List<Button> attachmentActionButtons = new ArrayList<>();
     private final List<Node> highlightNodes = new ArrayList<>();
     // Every rendered Monaco/WebView node registers its dispose here; rebuilds and tab close
     // release the native WebKit engines instead of orphaning them (each holds tens of MB).
@@ -274,7 +280,7 @@ public class AiResultTab extends Tab {
 
         currentFontSize = loadPersistedFontSize();
         fontSizeLabel = new Label();
-        fontSizeLabel.setStyle("-fx-text-fill: #202020; -fx-font-weight: bold;");
+        fontSizeLabel.setStyle("-fx-font-weight: bold;");
 
         Button copyButton = new Button(I18n.get("ai.result.copy"));
         copyButton.setOnAction(e -> copyContent());
@@ -434,6 +440,138 @@ public class AiResultTab extends Tab {
         appendConversationMessage(SavedAiChatMessage.ROLE_USER, prompt, null, null, false);
     }
 
+    /**
+     * Attaches a text file to this chat: it is shown as a notice above the messages, re-sent with
+     * every follow-up so the model keeps it in context, and persisted with a saved chat.
+     */
+    public void setFileAttachment(AiFileAttachment attachment) {
+        this.fileAttachment = attachment != null && !attachment.content().isBlank() ? attachment : null;
+        rebuildMessages();
+        persistBoundChatQuietly();
+    }
+
+    public AiFileAttachment getFileAttachment() {
+        return fileAttachment;
+    }
+
+    private void renderFileAttachmentNotice() {
+        if (fileAttachment == null) {
+            return;
+        }
+        Label notice = new Label(I18n.get(
+            "ai.result.attachment",
+            fileAttachment.fileName(),
+            String.format(java.util.Locale.ROOT, "%,d", fileAttachment.length())));
+        notice.getStyleClass().add("ai-chat-attachment");
+        notice.setWrapText(true);
+        notice.setMaxWidth(Double.MAX_VALUE);
+        notice.setFont(Font.font(Math.max(MIN_FONT_SIZE, currentFontSize - 1)));
+        notice.setStyle("-fx-opacity: 0.8; -fx-font-style: italic;");
+        notice.setTooltip(new Tooltip(fileAttachment.sourcePath()));
+        HBox.setHgrow(notice, Priority.ALWAYS);
+
+        Button flowchartButton = new Button(I18n.get("ai.result.attachment.flowchart"));
+        flowchartButton.setTooltip(new Tooltip(I18n.get("ai.result.attachment.flowchart.tooltip")));
+        flowchartButton.setDisable(busy || readOnlyMode);
+        flowchartButton.setOnAction(e -> generateAttachmentFlowchart());
+        attachmentActionButtons.add(flowchartButton);
+
+        HBox row = new HBox(10, notice, flowchartButton);
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.getStyleClass().add("ai-chat-attachment-row");
+        messagesBox.getChildren().add(row);
+    }
+
+    /**
+     * Asks the active profile for a Mermaid flowchart of the attached file (the same
+     * logical-structure generation the Snippet Editor uses) and appends it as an assistant message,
+     * which the chat renders as a diagram. Falls back to the deterministic local flowchart when the
+     * model's answer is unusable, so the button always yields a picture for a parseable script.
+     */
+    private void generateAttachmentFlowchart() {
+        AiFileAttachment attachment = fileAttachment;
+        AiProfile selectedProfile = profileComboBox.getSelectionModel().getSelectedItem();
+        if (attachment == null || busy || readOnlyMode || selectedProfile == null) {
+            return;
+        }
+        AiService aiService = ownerWindow.createAiServiceForProfile(selectedProfile);
+        if (aiService == null) {
+            showErrorAlert(I18n.get("ai.error.title"), I18n.get("ai.error.notConfigured"));
+            return;
+        }
+        String language = SnippetLanguageSupport.detectFileLanguage(attachment.fileName(), attachment.content());
+        String responseLanguage = languageCode;
+        String connection = connectionDisplayName;
+        appendUserMessage(I18n.get("ai.result.attachment.flowchart.request", attachment.fileName()));
+
+        Task<String> task = new Task<>() {
+            @Override
+            protected String call() throws Exception {
+                SnippetAiResponseSupport.MermaidDiagram diagram = null;
+                String failure = null;
+                try {
+                    diagram = SnippetAiWorkflowSupport.generateSnippetMermaid(
+                        aiService,
+                        (request, result) -> ownerWindow.recordAiUsageForProfile(selectedProfile, request, result),
+                        de.kortty.model.SnippetDiagramType.LOGICAL_STRUCTURE,
+                        attachment.content(),
+                        language,
+                        connection,
+                        responseLanguage,
+                        "");
+                } catch (Exception e) {
+                    failure = e.getMessage();
+                }
+                String title;
+                String mermaid;
+                if (diagram != null && diagram.isUsable()) {
+                    title = diagram.title();
+                    mermaid = diagram.mermaid();
+                } else {
+                    // Same safety net as the Snippet Editor: a local structural flowchart.
+                    mermaid = SnippetDiagramSupport.buildFallbackLogicalStructureMermaid(attachment.content(), language);
+                    title = null;
+                    if (failure != null) {
+                        throw new IllegalStateException(failure);
+                    }
+                    if (mermaid == null || mermaid.isBlank()) {
+                        throw new IllegalStateException(diagram != null && diagram.rejectionReason() != null
+                            ? diagram.rejectionReason()
+                            : I18n.get("ai.result.error"));
+                    }
+                }
+                StringBuilder content = new StringBuilder();
+                content.append("**")
+                    .append(title != null && !title.isBlank()
+                        ? title.trim()
+                        : I18n.get("ai.result.attachment.flowchart.title", attachment.fileName()))
+                    .append("**\n\n```mermaid\n")
+                    .append(mermaid.strip())
+                    .append("\n```");
+                return content.toString();
+            }
+        };
+        task.setOnSucceeded(event -> {
+            appendAssistantMessage(task.getValue(), null);
+            stopWaiting();
+            statusLabel.setText(I18n.get("ai.result.ready"));
+            updateSendAvailability();
+        });
+        task.setOnCancelled(event -> showCancelled());
+        task.setOnFailed(event -> {
+            Throwable error = task.getException();
+            String message = error != null && error.getMessage() != null ? error.getMessage() : I18n.get("ai.result.error");
+            appendAssistantMessage(I18n.get("ai.result.errorMessage", message));
+            stopWaiting();
+            statusLabel.setText(I18n.get("ai.result.error"));
+            updateSendAvailability();
+        });
+        Thread thread = new Thread(task, "ai-chat-attachment-flowchart");
+        thread.setDaemon(true);
+        attachRunningTask(task, thread, I18n.get("snippets.ai.diagram.generating"));
+        thread.start();
+    }
+
     public void attachRunningTask(Task<?> task, Thread thread, String waitingText) {
         this.activeTask = task;
         this.activeThread = thread;
@@ -481,6 +619,12 @@ public class AiResultTab extends Tab {
                 }
             }
         }
+        if (savedChat.hasAttachment()) {
+            fileAttachment = new AiFileAttachment(
+                savedChat.getAttachmentFileName(),
+                savedChat.getAttachmentSourcePath(),
+                savedChat.getAttachmentContent());
+        }
         refreshPlainTranscript();
         rebuildMessages();
         statusLabel.setText(readOnlyMode ? I18n.get("ai.result.readOnly") : I18n.get("ai.result.ready"));
@@ -501,7 +645,7 @@ public class AiResultTab extends Tab {
         button.skinProperty().addListener((obs, oldSkin, newSkin) -> {
             Labeled internalLabel = (Labeled) button.lookup(".label");
             if (internalLabel != null) {
-                internalLabel.setStyle("-fx-text-fill: #111111; -fx-font-weight: bold;");
+                internalLabel.setStyle("-fx-font-weight: bold;");
             }
         });
         button.getItems().addAll(pdfItem, markdownItem, textItem);
@@ -782,7 +926,8 @@ public class AiResultTab extends Tab {
             connectionDisplayName,
             languageCode,
             prompt,
-            priorConversation);
+            priorConversation)
+            .withFileAttachment(fileAttachment);
 
         Task<AiExecutionResult> task = new Task<>() {
             @Override
@@ -941,6 +1086,9 @@ public class AiResultTab extends Tab {
         profileComboBox.setDisable(busy || readOnlyMode || profileComboBox.getItems().isEmpty());
         languageComboBox.setDisable(busy || readOnlyMode || languageComboBox.getItems().isEmpty());
         saveButton.setDisable(messageEntries.isEmpty());
+        for (Button button : attachmentActionButtons) {
+            button.setDisable(busy || readOnlyMode);
+        }
     }
 
     private void startWaiting(String baseText) {
@@ -1053,6 +1201,8 @@ public class AiResultTab extends Tab {
         messagesBox.getChildren().clear();
         messageNodes.clear();
         highlightNodes.clear();
+        attachmentActionButtons.clear();
+        renderFileAttachmentNotice();
         for (SavedAiChatMessage entry : messageEntries) {
             renderMessage(entry);
         }
@@ -2282,6 +2432,11 @@ public class AiResultTab extends Tab {
         chat.setSelectedText(selectedText);
         chat.setConnectionDisplayName(connectionDisplayName);
         chat.setResponseLanguageCode(languageCode);
+        if (fileAttachment != null) {
+            chat.setAttachmentFileName(fileAttachment.fileName());
+            chat.setAttachmentSourcePath(fileAttachment.sourcePath());
+            chat.setAttachmentContent(fileAttachment.content());
+        }
         AiProfile selectedProfile = profileComboBox.getSelectionModel().getSelectedItem();
         chat.setActiveAiProfileId(selectedProfile != null ? selectedProfile.getId() : activeProfileId);
         chat.setActiveAiProfileName(selectedProfile != null ? getAiProfileDisplayName(selectedProfile) : activeProfileName);

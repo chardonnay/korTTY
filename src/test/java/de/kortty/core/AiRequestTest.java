@@ -15,6 +15,8 @@ class AiRequestTest {
 
     private static final AsciiArtRequestOptions PICTURE_OPTIONS =
         AsciiArtRequestOptions.svg(AsciiArtPictureSize.XL).withRepairFeedback("Too small.");
+    private static final AiFileAttachment ATTACHMENT =
+        new AiFileAttachment("notes.txt", "/home/daniel/notes.txt", "line one\nline two");
 
     /** A request with every component set to a distinct, non-default value. */
     private static AiRequest fullyPopulated() {
@@ -30,7 +32,8 @@ class AiRequestTest {
             "<retrieved_context/>",
             CodeTextLanguage.keep("fr"),
             SnippetDiagramType.STATE,
-            PICTURE_OPTIONS);
+            PICTURE_OPTIONS,
+            ATTACHMENT);
     }
 
     // ---- with… methods keep every other component ----
@@ -44,6 +47,37 @@ class AiRequestTest {
 
         assertThat(changed.asciiArtOptions()).isSameInstanceAs(replacement);
         assertThat(changed.withAsciiArtOptions(PICTURE_OPTIONS)).isEqualTo(original);
+    }
+
+    @Test
+    void withFileAttachmentKeepsEveryOtherComponent() {
+        AiRequest original = fullyPopulated();
+
+        AiRequest detached = original.withFileAttachment(null);
+
+        assertThat(detached.fileAttachment()).isNull();
+        assertThat(detached.hasFileAttachment()).isFalse();
+        assertThat(detached.asciiArtOptions()).isSameInstanceAs(PICTURE_OPTIONS);
+        assertThat(detached.withFileAttachment(ATTACHMENT)).isEqualTo(original);
+        assertThat(original.hasFileAttachment()).isTrue();
+    }
+
+    @Test
+    void blankAttachmentContentCountsAsNoAttachment() {
+        AiRequest request = new AiRequest(AiAction.ASK, "ls", "box", "en")
+            .withFileAttachment(new AiFileAttachment("empty.txt", null, "   "));
+
+        assertThat(request.hasFileAttachment()).isFalse();
+    }
+
+    @Test
+    void twelveArgumentConstructorLeavesAttachmentUnset() {
+        AiRequest request = new AiRequest(
+            AiAction.ASK, "text", "box", "en", null, null, true, AiPromptPreset.GENERIC,
+            null, null, null, PICTURE_OPTIONS);
+
+        assertThat(request.fileAttachment()).isNull();
+        assertThat(request.asciiArtOptions()).isSameInstanceAs(PICTURE_OPTIONS);
     }
 
     @Test

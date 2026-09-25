@@ -44,6 +44,16 @@ public class SavedAiChat {
     @XmlElement
     private String activeAiProfileName;
 
+    /** Optional text file attached to the chat's first request (name as selected in the terminal). */
+    @XmlElement
+    private String attachmentFileName;
+
+    @XmlElement
+    private String attachmentSourcePath;
+
+    @XmlElement
+    private String attachmentContent;
+
     @XmlElementWrapper(name = "messages")
     @XmlElement(name = "message")
     private List<SavedAiChatMessage> messages = new ArrayList<>();
@@ -72,6 +82,9 @@ public class SavedAiChat {
         this.responseLanguageCode = source.responseLanguageCode;
         this.activeAiProfileId = source.activeAiProfileId;
         this.activeAiProfileName = source.activeAiProfileName;
+        this.attachmentFileName = source.attachmentFileName;
+        this.attachmentSourcePath = source.attachmentSourcePath;
+        this.attachmentContent = source.attachmentContent;
         setMessages(source.messages);
     }
 
@@ -145,6 +158,36 @@ public class SavedAiChat {
 
     public void setActiveAiProfileName(String activeAiProfileName) {
         this.activeAiProfileName = activeAiProfileName;
+    }
+
+    public String getAttachmentFileName() {
+        return attachmentFileName;
+    }
+
+    public void setAttachmentFileName(String attachmentFileName) {
+        this.attachmentFileName = attachmentFileName;
+    }
+
+    public String getAttachmentSourcePath() {
+        return attachmentSourcePath;
+    }
+
+    public void setAttachmentSourcePath(String attachmentSourcePath) {
+        this.attachmentSourcePath = attachmentSourcePath;
+    }
+
+    public String getAttachmentContent() {
+        return attachmentContent;
+    }
+
+    public void setAttachmentContent(String attachmentContent) {
+        this.attachmentContent = attachmentContent;
+    }
+
+    /** True when a file attachment with a name and non-empty content is stored. */
+    public boolean hasAttachment() {
+        return attachmentFileName != null && !attachmentFileName.isBlank()
+            && attachmentContent != null && !attachmentContent.isEmpty();
     }
 
     public List<SavedAiChatMessage> getMessages() {

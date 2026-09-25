@@ -34,6 +34,39 @@ public final class RemoteTextFileSelectionSupport {
         return normalized;
     }
 
+    /** Longest file-name component POSIX filesystems and NTFS accept. */
+    private static final int MAX_FILE_NAME_LENGTH = 255;
+
+    /**
+     * Cheap, offline heuristic for "the user selected a file name" (as opposed to a command line,
+     * an error message or a paragraph). It only decides whether a file attachment is <em>offered</em>;
+     * whether the name really exists as a readable text file is verified on the target system
+     * afterwards. A plausible name is a single line without path separators of at most 255
+     * characters that contains no whitespace — unless the whole selection was quoted, which is how a
+     * name with spaces appears in {@code ls} output and shell commands.
+     */
+    public static boolean isPlausibleFileName(String selectedText) {
+        String normalized;
+        try {
+            normalized = normalizeSelectedFileName(selectedText);
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+        if (normalized.length() > MAX_FILE_NAME_LENGTH) {
+            return false;
+        }
+        boolean quoted = !normalized.equals(selectedText.trim());
+        if (quoted) {
+            return true;
+        }
+        for (int i = 0; i < normalized.length(); i++) {
+            if (Character.isWhitespace(normalized.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static String resolveRemoteFilePath(String workingDirectory, String selectedFileName, String sftpStartDirectory) {
         String fileName = normalizeSelectedFileName(selectedFileName);
         String directory = resolveRemoteDirectory(workingDirectory, sftpStartDirectory);
