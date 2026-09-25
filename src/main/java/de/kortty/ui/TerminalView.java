@@ -154,9 +154,19 @@ public class TerminalView extends BorderPane {
         }
     }
 
+    /**
+     * Handler for the Summarize / Solve / Ask context-menu entries. {@code runContext} identifies
+     * the pane the menu was opened on (connector + tracked working directory) so the handler can
+     * offer the selected file name's content as a chat attachment; it is {@code null} when the
+     * pane has no connected session.
+     */
     @FunctionalInterface
     public interface AiSelectionHandler {
-        void handle(AiAction action, @Nullable AiProfile profile, String selectedText);
+        void handle(
+            AiAction action,
+            @Nullable AiProfile profile,
+            String selectedText,
+            @Nullable TerminalAgentRunContext runContext);
     }
 
     @FunctionalInterface
@@ -557,9 +567,9 @@ public class TerminalView extends BorderPane {
                 }
                 if (hasSelectedText) {
                     aiMenu.getItems().addAll(
-                        createAiProfileMenu(I18n.get("terminal.contextMenu.ai.summarize"), AiAction.SUMMARIZE, aiProfiles, selectedText),
-                        createAiProfileMenu(I18n.get("terminal.contextMenu.ai.solve"), AiAction.SOLVE_PROBLEM, aiProfiles, selectedText),
-                        createAiProfileMenu(I18n.get("terminal.contextMenu.ai.ask"), AiAction.ASK, aiProfiles, selectedText)
+                        createAiProfileMenu(I18n.get("terminal.contextMenu.ai.summarize"), AiAction.SUMMARIZE, aiProfiles, selectedText, widget),
+                        createAiProfileMenu(I18n.get("terminal.contextMenu.ai.solve"), AiAction.SOLVE_PROBLEM, aiProfiles, selectedText, widget),
+                        createAiProfileMenu(I18n.get("terminal.contextMenu.ai.ask"), AiAction.ASK, aiProfiles, selectedText, widget)
                     );
                 }
                 items.add(aiMenu);
@@ -1539,7 +1549,8 @@ public class TerminalView extends BorderPane {
         String title,
         AiAction action,
         List<AiProfile> profiles,
-        String selectedText) {
+        String selectedText,
+        SithTermFxWidget widget) {
         javafx.scene.control.Menu actionMenu = new javafx.scene.control.Menu(title);
         for (AiProfile profile : profiles) {
             javafx.scene.control.MenuItem profileItem = new javafx.scene.control.MenuItem();
@@ -1553,7 +1564,9 @@ public class TerminalView extends BorderPane {
             profileItem.setGraphic(profileLabel);
             profileItem.setOnAction(e -> {
                 if (aiSelectionHandler != null) {
-                    aiSelectionHandler.handle(action, profile, selectedText);
+                    // Resolved at click time like the agent entries: the run context carries the
+                    // pane's connector and tracked directory for the optional file attachment.
+                    aiSelectionHandler.handle(action, profile, selectedText, createTerminalAgentRunContext(widget));
                 }
             });
             actionMenu.getItems().add(profileItem);

@@ -9,7 +9,9 @@ import de.kortty.model.SnippetDiagramType;
  * <p>{@code diagramType} is only meaningful for {@link AiAction#GENERATE_SNIPPET_MERMAID}; a
  * {@code null} value means the default logical-structure flowchart. {@code asciiArtOptions} is only
  * meaningful for {@link AiAction#GENERATE_ASCII_ART}; {@code null} means the default SVG contract on
- * the default picture size.</p>
+ * the default picture size. {@code fileAttachment} is an optional text file sent along with the
+ * selected terminal text (e.g. the file whose name was selected in the terminal); {@code null} means
+ * no attachment.</p>
  *
  * <p>Wrappers that derive a request from another one must use the {@code with…} methods rather than
  * a shorter constructor, so that action-specific components such as {@code diagramType} and
@@ -27,7 +29,8 @@ public record AiRequest(
     String retrievedContext,
     CodeTextLanguage codeTextLanguage,
     SnippetDiagramType diagramType,
-    AsciiArtRequestOptions asciiArtOptions) {
+    AsciiArtRequestOptions asciiArtOptions,
+    AiFileAttachment fileAttachment) {
 
     public AiRequest {
         promptPreset = promptPreset != null ? promptPreset : AiPromptPreset.GENERIC;
@@ -42,35 +45,66 @@ public record AiRequest(
     public AiRequest withCodeTextLanguage(CodeTextLanguage codeTextLanguage) {
         return new AiRequest(action, selectedText, connectionDisplayName, responseLanguageCode,
             userPrompt, conversationContext, includeAiSkills, promptPreset, retrievedContext,
-            codeTextLanguage, diagramType, asciiArtOptions);
+            codeTextLanguage, diagramType, asciiArtOptions, fileAttachment);
     }
 
     /** The same request for one diagram family; only {@code GENERATE_SNIPPET_MERMAID} uses it. */
     public AiRequest withDiagramType(SnippetDiagramType diagramType) {
         return new AiRequest(action, selectedText, connectionDisplayName, responseLanguageCode,
             userPrompt, conversationContext, includeAiSkills, promptPreset, retrievedContext,
-            codeTextLanguage, diagramType, asciiArtOptions);
+            codeTextLanguage, diagramType, asciiArtOptions, fileAttachment);
     }
 
     /** The same request with the ASCII-art options; only {@code GENERATE_ASCII_ART} uses them. */
     public AiRequest withAsciiArtOptions(AsciiArtRequestOptions asciiArtOptions) {
         return new AiRequest(action, selectedText, connectionDisplayName, responseLanguageCode,
             userPrompt, conversationContext, includeAiSkills, promptPreset, retrievedContext,
-            codeTextLanguage, diagramType, asciiArtOptions);
+            codeTextLanguage, diagramType, asciiArtOptions, fileAttachment);
     }
 
     /** The same request with the model-specific prompt preset resolved by the profile. */
     public AiRequest withPromptPreset(AiPromptPreset promptPreset) {
         return new AiRequest(action, selectedText, connectionDisplayName, responseLanguageCode,
             userPrompt, conversationContext, includeAiSkills, promptPreset, retrievedContext,
-            codeTextLanguage, diagramType, asciiArtOptions);
+            codeTextLanguage, diagramType, asciiArtOptions, fileAttachment);
     }
 
     /** The same request with knowledge-store context retrieved for it. */
     public AiRequest withRetrievedContext(String retrievedContext) {
         return new AiRequest(action, selectedText, connectionDisplayName, responseLanguageCode,
             userPrompt, conversationContext, includeAiSkills, promptPreset, retrievedContext,
-            codeTextLanguage, diagramType, asciiArtOptions);
+            codeTextLanguage, diagramType, asciiArtOptions, fileAttachment);
+    }
+
+    /** The same request with a text file attached ({@code null} removes the attachment). */
+    public AiRequest withFileAttachment(AiFileAttachment fileAttachment) {
+        return new AiRequest(action, selectedText, connectionDisplayName, responseLanguageCode,
+            userPrompt, conversationContext, includeAiSkills, promptPreset, retrievedContext,
+            codeTextLanguage, diagramType, asciiArtOptions, fileAttachment);
+    }
+
+    /** True when a non-empty text file is attached to this request. */
+    public boolean hasFileAttachment() {
+        return fileAttachment != null && !fileAttachment.content().isBlank();
+    }
+
+    public AiRequest(
+        AiAction action,
+        String selectedText,
+        String connectionDisplayName,
+        String responseLanguageCode,
+        String userPrompt,
+        String conversationContext,
+        boolean includeAiSkills,
+        AiPromptPreset promptPreset,
+        String retrievedContext,
+        CodeTextLanguage codeTextLanguage,
+        SnippetDiagramType diagramType,
+        AsciiArtRequestOptions asciiArtOptions) {
+
+        this(action, selectedText, connectionDisplayName, responseLanguageCode, userPrompt,
+            conversationContext, includeAiSkills, promptPreset, retrievedContext,
+            codeTextLanguage, diagramType, asciiArtOptions, null);
     }
 
     public AiRequest(

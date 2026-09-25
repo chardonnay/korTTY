@@ -29,6 +29,7 @@ import de.kortty.core.swarm.SwarmCallback;
 import de.kortty.core.swarm.SwarmModels;
 import de.kortty.core.swarm.SwarmOrchestrator;
 import de.kortty.core.swarm.SwarmTarget;
+import de.kortty.core.AiFileAttachment;
 import de.kortty.core.AiRequest;
 import de.kortty.core.AiService;
 import de.kortty.core.AiServiceFactory;
@@ -120,6 +121,7 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
 import javafx.stage.WindowEvent;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.sshd.sftp.client.SftpClient;
@@ -5965,7 +5967,12 @@ public class MainWindow {
         statusLabel.setText(message);
     }
 
-    private void handleAiSelectionAction(TerminalTab terminalTab, AiAction action, AiProfile profile, String selectedText) {
+    private void handleAiSelectionAction(
+        TerminalTab terminalTab,
+        AiAction action,
+        AiProfile profile,
+        String selectedText,
+        TerminalView.TerminalAgentRunContext runContext) {
         if (!isAiFeaturesEnabled()) {
             return;
         }
@@ -6004,11 +6011,45 @@ public class MainWindow {
         }
         String connectionName = terminalTab.getConnection() != null ? terminalTab.getConnection().getDisplayName() : null;
         String languageCode = LanguageManager.getInstance().getCurrentLanguageCode();
-        Optional<AiRequestDraft> confirmedDraft = maybeConfirmAiRequest(action, effectiveProfile, selectedText, connectionName, languageCode);
-        if (confirmedDraft.isEmpty()) {
+        // When the selection looks like a file name in the pane's current directory, the file's
+        // content can travel with the request as an attachment. The candidate is only an offer;
+        // existence, readability, text-ness and size are verified on the target before anything
+        // is attached (see loadAiAttachmentAsync).
+        AiAttachmentCandidate attachmentCandidate =
+            resolveAiAttachmentCandidate(terminalTab, runContext, selectedText, maxSelectionChars);
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        boolean confirmBeforeSend = action == AiAction.ASK || settings == null || settings.isAiConfirmBeforeSend();
+        if (confirmBeforeSend) {
+            confirmAiRequest(action, effectiveProfile, selectedText, connectionName, languageCode, attachmentCandidate, maxSelectionChars)
+                .ifPresent(draft -> startAiSelectionRequest(
+                    action, effectiveProfile, aiService, draft, connectionName, languageCode, maxSelectionChars));
             return;
         }
-        AiRequestDraft draft = confirmedDraft.get();
+        if (attachmentCandidate == null) {
+            startAiSelectionRequest(action, effectiveProfile, aiService,
+                new AiRequestDraft(selectedText, null, null), connectionName, languageCode, maxSelectionChars);
+            return;
+        }
+        // No confirmation dialog: attach the file when it validates, otherwise send the selection
+        // alone and say why in the status bar.
+        updateStatus(I18n.get("ai.confirm.attachment.checking", attachmentCandidate.fileName()));
+        loadAiAttachmentAsync(attachmentCandidate, maxSelectionChars, outcome -> {
+            if (outcome.attachment() == null) {
+                updateStatus(I18n.get("ai.attachment.skipped", attachmentCandidate.fileName(), outcome.failureText()));
+            }
+            startAiSelectionRequest(action, effectiveProfile, aiService,
+                new AiRequestDraft(selectedText, null, outcome.attachment()), connectionName, languageCode, maxSelectionChars);
+        });
+    }
+
+    private void startAiSelectionRequest(
+        AiAction action,
+        AiProfile effectiveProfile,
+        AiService aiService,
+        AiRequestDraft draft,
+        String connectionName,
+        String languageCode,
+        int maxSelectionChars) {
         String requestText = draft.selectedText();
         if (requestText.trim().isEmpty()) {
             return;
@@ -6017,12 +6058,21 @@ public class MainWindow {
             showError(I18n.get("ai.error.title"), I18n.get("ai.error.selectionTooLarge", maxSelectionChars));
             return;
         }
+        AiFileAttachment fileAttachment = draft.fileAttachment();
+        if (fileAttachment != null && !fileAttachment.fitsWithin(requestText, maxSelectionChars)) {
+            // The preview is editable: the selection may have grown after the file was validated.
+            showError(I18n.get("ai.error.title"),
+                I18n.get("ai.attachment.tooLarge", maxSelectionChars, fileAttachment.sourcePath()));
+            return;
+        }
 
-        AiRequest request = new AiRequest(action, requestText, connectionName, languageCode, draft.userPrompt());
+        AiRequest request = new AiRequest(action, requestText, connectionName, languageCode, draft.userPrompt())
+            .withFileAttachment(fileAttachment);
         Map<String, Object> aiChatProps = new java.util.LinkedHashMap<>(TelemetryProps.aiProfileProps(effectiveProfile));
         aiChatProps.put("first", true);
         aiChatProps.put("broadcast", false);
         aiChatProps.put("action", action.name().toLowerCase(Locale.ROOT));
+        aiChatProps.put("attachment", fileAttachment != null);
         Telemetry.track(TelemetryEvents.AI_CHAT_MESSAGE, aiChatProps);
         String tabTitle = I18n.get("ai.tab.title", getAiActionLabel(action));
         AiResultTab resultTab = new AiResultTab(
@@ -6034,6 +6084,9 @@ public class MainWindow {
             languageCode,
             null,
             false);
+        if (fileAttachment != null) {
+            resultTab.setFileAttachment(fileAttachment);
+        }
         if (action == AiAction.ASK && draft.userPrompt() != null && !draft.userPrompt().isBlank()) {
             resultTab.appendUserMessage(draft.userPrompt());
         }
@@ -6253,25 +6306,14 @@ public class MainWindow {
         }
     }
 
-    private Optional<AiRequestDraft> maybeConfirmAiRequest(
-        AiAction action,
-        AiProfile profile,
-        String selectedText,
-        String connectionName,
-        String languageCode) {
-        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
-        if (action != AiAction.ASK && settings != null && !settings.isAiConfirmBeforeSend()) {
-            return Optional.of(new AiRequestDraft(selectedText, null));
-        }
-        return confirmAiRequest(action, profile, selectedText, connectionName, languageCode);
-    }
-
     private Optional<AiRequestDraft> confirmAiRequest(
         AiAction action,
         AiProfile profile,
         String selectedText,
         String connectionName,
-        String languageCode) {
+        String languageCode,
+        @Nullable AiAttachmentCandidate attachmentCandidate,
+        int maxSelectionChars) {
         String model = aiModelDisplayText(profile);
         String apiUrl = profile != null && profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI
             ? de.kortty.core.AiCliProviderRegistry.find(profile.getCliProviderId())
@@ -6284,7 +6326,7 @@ public class MainWindow {
         dialog.setHeaderText(I18n.get("ai.confirm.header", getAiActionLabel(action)));
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
 
-        Label summaryLabel = new Label(buildAiConfirmSummary(action, profile, model, apiUrl, selectedText, connectionName, languageCode, promptAreaInitialValue(action)));
+        Label summaryLabel = new Label(buildAiConfirmSummary(action, profile, model, apiUrl, selectedText, connectionName, languageCode, promptAreaInitialValue(action), null));
         summaryLabel.setWrapText(true);
         AiQuotaBar quotaBar = new AiQuotaBar();
         quotaBar.setPrefWidth(420);
@@ -6344,21 +6386,40 @@ public class MainWindow {
 
         Label statusLabel = new Label();
         statusLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
-        updateAiConfirmQuotaBar(quotaBar, profile, buildAiConfirmTokenEstimate(action, profile, selectedText, connectionName, languageCode, promptArea.getText()));
+
+        // Optional file attachment: offered when the selection looks like a file name in the pane's
+        // directory. The file is validated in the background while the dialog is open; the user
+        // keeps the last word via the checkbox, and OK waits for a pending check only while the
+        // checkbox is selected.
+        CheckBox attachmentCheck = new CheckBox();
+        Label attachmentStatus = new Label();
+        attachmentStatus.setWrapText(true);
+        attachmentStatus.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
+        VBox attachmentBox = new VBox(4);
+        attachmentBox.setVisible(attachmentCandidate != null);
+        attachmentBox.setManaged(attachmentCandidate != null);
+        java.util.concurrent.atomic.AtomicReference<AiFileAttachment> loadedAttachment =
+            new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicBoolean attachmentPending =
+            new java.util.concurrent.atomic.AtomicBoolean(attachmentCandidate != null);
+        java.util.function.Supplier<AiFileAttachment> effectiveAttachment =
+            () -> attachmentCheck.isSelected() ? loadedAttachment.get() : null;
+
+        Runnable refreshSummary = () -> {
+            AiFileAttachment attachment = effectiveAttachment.get();
+            long requestTokens = buildAiConfirmTokenEstimate(
+                action, profile, preview.getText(), connectionName, languageCode, promptArea.getText(), attachment);
+            summaryLabel.setText(buildAiConfirmSummary(
+                action, profile, model, apiUrl, preview.getText(), connectionName, languageCode, promptArea.getText(), attachment));
+            updateAiConfirmQuotaBar(quotaBar, profile, requestTokens);
+        };
+        refreshSummary.run();
 
         if (action == AiAction.ASK) {
-            promptArea.textProperty().addListener((obs, oldValue, newValue) -> {
-                long requestTokens = buildAiConfirmTokenEstimate(action, profile, preview.getText(), connectionName, languageCode, newValue);
-                summaryLabel.setText(buildAiConfirmSummary(action, profile, model, apiUrl, preview.getText(), connectionName, languageCode, newValue));
-                updateAiConfirmQuotaBar(quotaBar, profile, requestTokens);
-            });
+            promptArea.textProperty().addListener((obs, oldValue, newValue) -> refreshSummary.run());
         }
-
-        preview.textProperty().addListener((obs, oldValue, newValue) -> {
-            long requestTokens = buildAiConfirmTokenEstimate(action, profile, newValue, connectionName, languageCode, promptArea.getText());
-            summaryLabel.setText(buildAiConfirmSummary(action, profile, model, apiUrl, newValue, connectionName, languageCode, promptArea.getText()));
-            updateAiConfirmQuotaBar(quotaBar, profile, requestTokens);
-        });
+        preview.textProperty().addListener((obs, oldValue, newValue) -> refreshSummary.run());
+        attachmentCheck.selectedProperty().addListener((obs, oldValue, newValue) -> refreshSummary.run());
 
         Button findNextButton = new Button(I18n.get("editor.search.next"));
         findNextButton.setOnAction(e -> findNextInTextArea(preview, searchField.getText(), statusLabel));
@@ -6382,7 +6443,7 @@ public class MainWindow {
         replaceGrid.add(replaceField, 1, 1);
         replaceGrid.add(new HBox(8, replaceButton, replaceAllButton), 2, 1);
 
-        VBox content = new VBox(10, summaryLabel, quotaBar, replaceGrid, preview, promptBox, statusLabel);
+        VBox content = new VBox(10, summaryLabel, quotaBar, replaceGrid, preview, attachmentBox, promptBox, statusLabel);
         content.setPadding(new Insets(5, 0, 0, 0));
         dialog.getDialogPane().setContent(content);
         dialog.getDialogPane().setPrefWidth(900);
@@ -6397,10 +6458,39 @@ public class MainWindow {
         });
 
         final Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
+        Runnable updateOkButton = () -> {
+            boolean promptMissing = action == AiAction.ASK
+                && (promptArea.getText() == null || promptArea.getText().trim().isEmpty());
+            boolean waitingForAttachment = attachmentCheck.isSelected() && attachmentPending.get();
+            okButton.setDisable(promptMissing || waitingForAttachment);
+        };
+        updateOkButton.run();
         if (action == AiAction.ASK) {
-            okButton.setDisable(promptArea.getText() == null || promptArea.getText().trim().isEmpty());
-            promptArea.textProperty().addListener((obs, oldValue, newValue) ->
-                okButton.setDisable(newValue == null || newValue.trim().isEmpty()));
+            promptArea.textProperty().addListener((obs, oldValue, newValue) -> updateOkButton.run());
+        }
+        attachmentCheck.selectedProperty().addListener((obs, oldValue, newValue) -> updateOkButton.run());
+
+        if (attachmentCandidate != null) {
+            String fileName = attachmentCandidate.fileName();
+            attachmentCheck.setText(I18n.get("ai.confirm.attachment.checkbox", fileName));
+            attachmentCheck.setSelected(true);
+            attachmentStatus.setText(I18n.get("ai.confirm.attachment.checking", fileName));
+            attachmentBox.getChildren().addAll(attachmentCheck, attachmentStatus);
+            updateOkButton.run();
+            loadAiAttachmentAsync(attachmentCandidate, maxSelectionChars, outcome -> {
+                attachmentPending.set(false);
+                if (outcome.attachment() != null) {
+                    loadedAttachment.set(outcome.attachment());
+                    attachmentStatus.setText(I18n.get("ai.confirm.attachment.ready",
+                        fileName, String.format(Locale.ROOT, "%,d", outcome.attachment().length())));
+                } else {
+                    attachmentCheck.setSelected(false);
+                    attachmentCheck.setDisable(true);
+                    attachmentStatus.setText(I18n.get("ai.confirm.attachment.unavailable", outcome.failureText()));
+                }
+                refreshSummary.run();
+                updateOkButton.run();
+            });
         }
         dialog.setResultConverter(buttonType -> {
             if (buttonType != ButtonType.OK) {
@@ -6418,9 +6508,84 @@ public class MainWindow {
                     }
                 }
             }
-            return new AiRequestDraft(preview.getText(), promptText);
+            return new AiRequestDraft(preview.getText(), promptText, effectiveAttachment.get());
         });
         return dialog.showAndWait();
+    }
+
+    /**
+     * Turns a terminal selection into an attachment offer: the selection must look like a file
+     * name, the pane must have a connected SSH or local-shell session that is not suspected to be a
+     * different identity (after su/ssh), and the profile's selection limit must leave room for the
+     * file. Returns {@code null} when no attachment should be offered. Runs on the JavaFX thread.
+     */
+    private @Nullable AiAttachmentCandidate resolveAiAttachmentCandidate(
+        TerminalTab terminalTab,
+        @Nullable TerminalView.TerminalAgentRunContext runContext,
+        String selectedText,
+        int maxSelectionChars) {
+        if (terminalTab == null || runContext == null
+            || !RemoteTextFileSelectionSupport.isPlausibleFileName(selectedText)) {
+            return null;
+        }
+        String fileName = RemoteTextFileSelectionSupport.normalizeSelectedFileName(selectedText);
+        if (terminalTab.getTerminalView().isForeignSessionActive(runContext)) {
+            return null;
+        }
+        // The selection itself stays in the request, so the file may only use the remaining budget.
+        // Bytes bound characters for UTF-8, so checking the size against the character budget
+        // before the transfer is a safe (conservative) pre-check.
+        long maxBytes = (long) maxSelectionChars - selectedText.length();
+        if (maxBytes <= 0) {
+            return null;
+        }
+        Callable<TerminalRemoteTextFile> reader = createTerminalSelectionFileReader(
+            terminalTab, runContext, fileName, false, maxBytes, maxBytes);
+        return reader != null ? new AiAttachmentCandidate(fileName, reader) : null;
+    }
+
+    /**
+     * Reads and validates the candidate file off the JavaFX thread and reports the outcome back on
+     * it: either a ready attachment, or the user-facing reason why the file cannot be attached
+     * (missing, not a regular file, binary / not UTF-8, too large for the context, ...).
+     */
+    private void loadAiAttachmentAsync(
+        AiAttachmentCandidate candidate,
+        int maxSelectionChars,
+        Consumer<AiAttachmentOutcome> onDone) {
+        Task<AiFileAttachment> task = new Task<>() {
+            @Override
+            protected AiFileAttachment call() throws Exception {
+                TerminalRemoteTextFile file = candidate.reader().call();
+                return new AiFileAttachment(file.fileName(), file.remotePath(), file.content());
+            }
+        };
+        task.setOnSucceeded(event -> onDone.accept(new AiAttachmentOutcome(task.getValue(), null)));
+        task.setOnFailed(event -> {
+            Throwable failure = task.getException();
+            logger.info("Selected file '{}' was not attached to the AI request: {}",
+                candidate.fileName(), failure != null ? failure.getMessage() : "unknown error");
+            onDone.accept(new AiAttachmentOutcome(null, describeAiAttachmentFailure(candidate.fileName(), failure, maxSelectionChars)));
+        });
+        Thread thread = new Thread(task, "ai-attachment-loader");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private String describeAiAttachmentFailure(String fileName, Throwable failure, int maxSelectionChars) {
+        if (failure instanceof TerminalTextFileLoadException loadFailure
+            && loadFailure.reason() == TerminalTextFileLoadFailure.TOO_LARGE) {
+            return I18n.get("ai.attachment.tooLarge", maxSelectionChars, loadFailure.remotePath());
+        }
+        return terminalTextFileLoadFailureText(fileName, failure);
+    }
+
+    /** A selected file name that may be attached to an AI request, plus the validated reader for it. */
+    private record AiAttachmentCandidate(String fileName, Callable<TerminalRemoteTextFile> reader) {
+    }
+
+    /** Result of {@link #loadAiAttachmentAsync}: exactly one of the two components is non-null. */
+    private record AiAttachmentOutcome(@Nullable AiFileAttachment attachment, @Nullable String failureText) {
     }
 
     private String promptAreaInitialValue(AiAction action) {
@@ -6464,17 +6629,19 @@ public class MainWindow {
         String text,
         String connectionName,
         String languageCode,
-        String userPrompt) {
+        String userPrompt,
+        @Nullable AiFileAttachment fileAttachment) {
         String safeText = text != null ? text : "";
-        long requestTokens = buildAiConfirmTokenEstimate(action, profile, safeText, connectionName, languageCode, userPrompt);
+        long requestTokens = buildAiConfirmTokenEstimate(action, profile, safeText, connectionName, languageCode, userPrompt, fileAttachment);
         long remainingTokens = AiTokenUsageManager.remainingAfter(profile, requestTokens);
         AiTokenWarningLevel warningLevel = AiTokenUsageManager.determineProjectedWarningLevel(profile, requestTokens);
+        long characterCount = safeText.length() + (fileAttachment != null ? fileAttachment.length() : 0);
         return I18n.get(
             "ai.confirm.summary",
             getAiProfileDisplayName(profile),
             model,
             apiUrl,
-            safeText.length(),
+            characterCount,
             requestTokens,
             formatRemainingTokens(remainingTokens),
             I18n.get("settings.ai.token.warning." + warningLevel.name().toLowerCase(Locale.ROOT)));
@@ -6486,8 +6653,10 @@ public class MainWindow {
         String text,
         String connectionName,
         String languageCode,
-        String userPrompt) {
-        AiRequest request = new AiRequest(action, text != null ? text : "", connectionName, languageCode, userPrompt);
+        String userPrompt,
+        @Nullable AiFileAttachment fileAttachment) {
+        AiRequest request = new AiRequest(action, text != null ? text : "", connectionName, languageCode, userPrompt)
+            .withFileAttachment(fileAttachment);
         return countAiRequestTokens(profile, request);
     }
 
@@ -6657,8 +6826,8 @@ public class MainWindow {
         // context-menu items disappear entirely (TerminalView builds items from handler presence).
         de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
         if (policy.aiChatAllowed()) {
-            terminalTab.getTerminalView().setAiSelectionHandler((action, profile, selectedText) ->
-                handleAiSelectionAction(terminalTab, action, profile, selectedText));
+            terminalTab.getTerminalView().setAiSelectionHandler((action, profile, selectedText, runContext) ->
+                handleAiSelectionAction(terminalTab, action, profile, selectedText, runContext));
         }
         if (policy.loadIntoSnippetEditor() != de.kortty.policy.LoadIntoEditorMode.DENY) {
             terminalTab.getTerminalView().setTerminalTextFileLoadHandler((runContext, selectedText) ->
@@ -6734,21 +6903,54 @@ public class MainWindow {
         // context-menu item is already disabled then, this guards every other invocation path.
         boolean foreignSession =
             terminalTab.getTerminalView().isForeignSessionActive(resolvedContext);
+        Callable<TerminalRemoteTextFile> reader = createTerminalSelectionFileReader(
+            terminalTab, resolvedContext, selectedFileName, foreignSession,
+            Long.MAX_VALUE, MAX_LOCAL_TEXT_FILE_LOAD_BYTES);
+        if (reader == null) {
+            showError(I18n.get("error.title"), I18n.get("terminal.loadTextFile.notConnected"));
+            return;
+        }
+        if (contextConnector instanceof SshTtyConnector connector) {
+            runTerminalTextFileLoadTask(selectedFileName, reader,
+                remoteFile -> openTerminalRemoteTextFileInSnippetEditor(terminalTab, connector, remoteFile));
+        } else {
+            runTerminalTextFileLoadTask(selectedFileName, reader,
+                localFile -> openTerminalLocalTextFileInSnippetEditor(terminalTab, localFile));
+        }
+    }
+
+    /**
+     * Builds the background reader that resolves {@code selectedFileName} against the pane's current
+     * directory and returns its validated UTF-8 text content — over SFTP for SSH sessions, from the
+     * local filesystem for local-shell tabs. Shared by "Open in Snippet Editor" and the AI chat
+     * attachment. Returns {@code null} when the pane has no usable connection. {@code foreignSession}
+     * must have been evaluated on the JavaFX thread beforehand; the reader itself must run off it.
+     *
+     * @param maxRemoteBytes size limit for SFTP reads ({@code Long.MAX_VALUE} for none)
+     * @param maxLocalBytes  size limit for local reads
+     */
+    private @Nullable Callable<TerminalRemoteTextFile> createTerminalSelectionFileReader(
+        TerminalTab terminalTab,
+        @Nullable TerminalView.TerminalAgentRunContext resolvedContext,
+        String selectedFileName,
+        boolean foreignSession,
+        long maxRemoteBytes,
+        long maxLocalBytes
+    ) {
+        ObservableTtyConnector contextConnector = resolvedContext != null ? resolvedContext.connector() : null;
         if (contextConnector instanceof SshTtyConnector connector
             && connector.isConnected()
             && connector.getSession() != null) {
             String workingDirectory = resolvedContext.workingDirectory() != null && !resolvedContext.workingDirectory().isBlank()
                 ? resolvedContext.workingDirectory()
                 : connector.getCurrentRemoteDirectory();
-            runTerminalTextFileLoadTask(selectedFileName, () -> {
+            return () -> {
                 if (foreignSession) {
                     throw new TerminalTextFileLoadException(
                         TerminalTextFileLoadFailure.FOREIGN_SESSION, selectedFileName);
                 }
-                return readTerminalRemoteTextFile(connector, workingDirectory, selectedFileName);
-            },
-                remoteFile -> openTerminalRemoteTextFileInSnippetEditor(terminalTab, connector, remoteFile));
-            return;
+                return readTerminalRemoteTextFile(connector, workingDirectory, selectedFileName, maxRemoteBytes);
+            };
         }
         if (contextConnector instanceof LocalShellTtyConnector localConnector && localConnector.isConnected()) {
             // The prompt-derived directory is the JAT-safe fallback; capture it now. The live OS-level
@@ -6757,60 +6959,57 @@ public class MainWindow {
             String promptWorkingDirectory = resolvedContext.workingDirectory();
             String startDirectory = localConnector.getStartDirectory();
             String homeDirectory = localConnector.getHomeRemoteDirectory();
-            runTerminalTextFileLoadTask(selectedFileName,
-                () -> {
-                    if (foreignSession) {
-                        throw new TerminalTextFileLoadException(
-                            TerminalTextFileLoadFailure.FOREIGN_SESSION, selectedFileName);
-                    }
-                    // Ground truth first: the shell's live OS cwd, which reflects every cd and beats the
-                    // prompt-derived directory (null whenever the prompt shows only the folder basename,
-                    // the macOS zsh default). Native Windows shells use their absolute prompt path. A
-                    // previously observed directory-change command makes the start directory unsafe as a
-                    // fallback until either source confirms the new cwd.
-                    String liveWorkingDirectory = localConnector.refreshCurrentWorkingDirectory();
-                    String workingDirectory;
-                    if (liveWorkingDirectory != null && !liveWorkingDirectory.isBlank()) {
-                        workingDirectory = liveWorkingDirectory;
-                    } else {
-                        if (promptWorkingDirectory != null && !promptWorkingDirectory.isBlank()) {
-                            String trustedPromptDirectory = LocalShellTtyConnector
-                                .normalizeTrustedLocalDirectory(promptWorkingDirectory);
-                            if (trustedPromptDirectory == null
-                                && TerminalView.isAbsoluteWorkingDirectorySyntax(promptWorkingDirectory)) {
-                                throw new TerminalTextFileLoadException(
-                                    TerminalTextFileLoadFailure.UNMAPPABLE_WORKING_DIRECTORY,
-                                    promptWorkingDirectory);
-                            }
-                            localConnector.updateCurrentWorkingDirectoryHint(trustedPromptDirectory);
-                        }
-                        if (localConnector.hasUnresolvedWorkingDirectoryChange()) {
+            return () -> {
+                if (foreignSession) {
+                    throw new TerminalTextFileLoadException(
+                        TerminalTextFileLoadFailure.FOREIGN_SESSION, selectedFileName);
+                }
+                // Ground truth first: the shell's live OS cwd, which reflects every cd and beats the
+                // prompt-derived directory (null whenever the prompt shows only the folder basename,
+                // the macOS zsh default). Native Windows shells use their absolute prompt path. A
+                // previously observed directory-change command makes the start directory unsafe as a
+                // fallback until either source confirms the new cwd.
+                String liveWorkingDirectory = localConnector.refreshCurrentWorkingDirectory();
+                String workingDirectory;
+                if (liveWorkingDirectory != null && !liveWorkingDirectory.isBlank()) {
+                    workingDirectory = liveWorkingDirectory;
+                } else {
+                    if (promptWorkingDirectory != null && !promptWorkingDirectory.isBlank()) {
+                        String trustedPromptDirectory = LocalShellTtyConnector
+                            .normalizeTrustedLocalDirectory(promptWorkingDirectory);
+                        if (trustedPromptDirectory == null
+                            && TerminalView.isAbsoluteWorkingDirectorySyntax(promptWorkingDirectory)) {
                             throw new TerminalTextFileLoadException(
-                                TerminalTextFileLoadFailure.WORKING_DIRECTORY_UNKNOWN,
-                                selectedFileName);
+                                TerminalTextFileLoadFailure.UNMAPPABLE_WORKING_DIRECTORY,
+                                promptWorkingDirectory);
                         }
-                        workingDirectory = localConnector.getCurrentWorkingDirectory();
+                        localConnector.updateCurrentWorkingDirectoryHint(trustedPromptDirectory);
                     }
-                    Path filePath;
-                    try {
-                        filePath = RemoteTextFileSelectionSupport.resolveLocalFilePath(
-                            workingDirectory,
-                            selectedFileName,
-                            startDirectory,
-                            homeDirectory);
-                    } catch (RemoteTextFileSelectionSupport.UnmappableWorkingDirectoryException e) {
+                    if (localConnector.hasUnresolvedWorkingDirectoryChange()) {
                         throw new TerminalTextFileLoadException(
-                            TerminalTextFileLoadFailure.UNMAPPABLE_WORKING_DIRECTORY, e.workingDirectory(), e);
-                    } catch (IllegalArgumentException e) {
-                        throw new TerminalTextFileLoadException(
-                            TerminalTextFileLoadFailure.INVALID_SELECTION, selectedFileName, e);
+                            TerminalTextFileLoadFailure.WORKING_DIRECTORY_UNKNOWN,
+                            selectedFileName);
                     }
-                    return readTerminalLocalTextFile(filePath, selectedFileName);
-                },
-                localFile -> openTerminalLocalTextFileInSnippetEditor(terminalTab, localFile));
-            return;
+                    workingDirectory = localConnector.getCurrentWorkingDirectory();
+                }
+                Path filePath;
+                try {
+                    filePath = RemoteTextFileSelectionSupport.resolveLocalFilePath(
+                        workingDirectory,
+                        selectedFileName,
+                        startDirectory,
+                        homeDirectory);
+                } catch (RemoteTextFileSelectionSupport.UnmappableWorkingDirectoryException e) {
+                    throw new TerminalTextFileLoadException(
+                        TerminalTextFileLoadFailure.UNMAPPABLE_WORKING_DIRECTORY, e.workingDirectory(), e);
+                } catch (IllegalArgumentException e) {
+                    throw new TerminalTextFileLoadException(
+                        TerminalTextFileLoadFailure.INVALID_SELECTION, selectedFileName, e);
+                }
+                return readTerminalLocalTextFile(filePath, selectedFileName, maxLocalBytes);
+            };
         }
-        showError(I18n.get("error.title"), I18n.get("terminal.loadTextFile.notConnected"));
+        return null;
     }
 
     private void runTerminalTextFileLoadTask(
@@ -6840,15 +7039,19 @@ public class MainWindow {
     // against accidentally selecting a huge file (e.g. a multi-GB log), so guard it explicitly.
     private static final long MAX_LOCAL_TEXT_FILE_LOAD_BYTES = 10L * 1024 * 1024;
 
-    private TerminalRemoteTextFile readTerminalLocalTextFile(Path filePath, String selectedFileName) throws Exception {
+    private TerminalRemoteTextFile readTerminalLocalTextFile(Path filePath, String selectedFileName, long maxBytes)
+        throws Exception {
         if (!Files.exists(filePath)) {
             throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.NOT_FOUND, filePath.toString());
         }
         if (!Files.isRegularFile(filePath)) {
             throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.NOT_REGULAR_FILE, filePath.toString());
         }
-        if (Files.size(filePath) > MAX_LOCAL_TEXT_FILE_LOAD_BYTES) {
+        if (Files.size(filePath) > maxBytes) {
             throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.TOO_LARGE, filePath.toString());
+        }
+        if (!Files.isReadable(filePath)) {
+            throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.NOT_READABLE, filePath.toString());
         }
         byte[] bytes = Files.readAllBytes(filePath);
         String content;
@@ -6863,7 +7066,8 @@ public class MainWindow {
     private TerminalRemoteTextFile readTerminalRemoteTextFile(
         SshTtyConnector connector,
         String workingDirectory,
-        String selectedFileName
+        String selectedFileName,
+        long maxBytes
     ) throws Exception {
         try (SftpClient sftp = SftpClientFactory.instance().createSftpClient(connector.getSession())) {
             String sftpStartDirectory = resolveSftpStartDirectory(sftp);
@@ -6874,6 +7078,10 @@ public class MainWindow {
             SftpClient.Attributes attributes = statTerminalRemotePath(sftp, remotePath);
             if (!attributes.isRegularFile()) {
                 throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.NOT_REGULAR_FILE, remotePath);
+            }
+            if (attributes.getSize() > maxBytes) {
+                // Checked before the transfer so an oversized file never travels over the wire.
+                throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.TOO_LARGE, remotePath);
             }
             byte[] bytes = readTerminalRemoteFileBytes(sftp, remotePath);
             String content;
@@ -6893,15 +7101,23 @@ public class MainWindow {
             if (e.getStatus() == SftpConstants.SSH_FX_NO_SUCH_FILE) {
                 throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.NOT_FOUND, remotePath, e);
             }
+            if (e.getStatus() == SftpConstants.SSH_FX_PERMISSION_DENIED) {
+                throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.NOT_READABLE, remotePath, e);
+            }
             throw e;
         }
     }
 
-    private byte[] readTerminalRemoteFileBytes(SftpClient sftp, String remotePath) throws IOException {
+    private byte[] readTerminalRemoteFileBytes(SftpClient sftp, String remotePath) throws Exception {
         try (InputStream input = sftp.read(remotePath);
              ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             input.transferTo(output);
             return output.toByteArray();
+        } catch (SftpException e) {
+            if (e.getStatus() == SftpConstants.SSH_FX_PERMISSION_DENIED) {
+                throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.NOT_READABLE, remotePath, e);
+            }
+            throw e;
         }
     }
 
@@ -7158,11 +7374,19 @@ public class MainWindow {
     }
 
     private void showTerminalTextFileLoadFailure(String selectedFileName, Throwable failure) {
+        String message = terminalTextFileLoadFailureText(selectedFileName, failure);
+        showError(I18n.get("error.title"), message);
+        updateStatus(message);
+    }
+
+    /** The user-facing explanation for a failed terminal-selection file read. */
+    private String terminalTextFileLoadFailureText(String selectedFileName, Throwable failure) {
         if (failure instanceof TerminalTextFileLoadException loadFailure) {
             String remotePath = loadFailure.remotePath();
-            String message = switch (loadFailure.reason()) {
+            return switch (loadFailure.reason()) {
                 case NOT_FOUND -> I18n.get("terminal.loadTextFile.notFound", remotePath);
                 case NOT_REGULAR_FILE -> I18n.get("terminal.loadTextFile.notRegularFile", remotePath);
+                case NOT_READABLE -> I18n.get("terminal.loadTextFile.notReadable", remotePath);
                 case BINARY_OR_NON_TEXT -> I18n.get("terminal.loadTextFile.binary", remotePath);
                 case TOO_LARGE -> I18n.get("terminal.loadTextFile.tooLarge", remotePath);
                 case UNMAPPABLE_WORKING_DIRECTORY ->
@@ -7171,16 +7395,11 @@ public class MainWindow {
                 case FOREIGN_SESSION -> I18n.get("terminal.loadTextFile.foreignSession");
                 case INVALID_SELECTION -> I18n.get("terminal.loadTextFile.invalidSelection");
             };
-            showError(I18n.get("error.title"), message);
-            updateStatus(message);
-            return;
         }
         String detail = failure != null && failure.getMessage() != null
             ? failure.getMessage()
             : I18n.get("terminal.loadTextFile.unknownError");
-        String message = I18n.get("terminal.loadTextFile.failed", selectedFileName, detail);
-        showError(I18n.get("error.title"), message);
-        updateStatus(message);
+        return I18n.get("terminal.loadTextFile.failed", selectedFileName, detail);
     }
 
     private record TerminalRemoteTextFile(String fileName, String remotePath, String content) {
@@ -7189,6 +7408,7 @@ public class MainWindow {
     private enum TerminalTextFileLoadFailure {
         NOT_FOUND,
         NOT_REGULAR_FILE,
+        NOT_READABLE,
         BINARY_OR_NON_TEXT,
         TOO_LARGE,
         UNMAPPABLE_WORKING_DIRECTORY,
@@ -7516,6 +7736,8 @@ public class MainWindow {
 
         if (request.queryOnly()) {
             openDirectAiAskTab(
+                terminalTab,
+                runContext,
                 profile,
                 request.userPrompt(),
                 askSelectedText,
@@ -7544,6 +7766,8 @@ public class MainWindow {
     }
 
     private void openDirectAiAskTab(
+        TerminalTab terminalTab,
+        @Nullable TerminalView.TerminalAgentRunContext runContext,
         AiProfile profile,
         String prompt,
         String selectedText,
@@ -7552,18 +7776,42 @@ public class MainWindow {
         if (prompt == null || prompt.isBlank()) {
             return;
         }
+        int maxSelectionChars = getMaxAiSelectionChars(profile);
+        if (selectedText != null && !selectedText.isBlank() && selectedText.length() > maxSelectionChars) {
+            showError(I18n.get("ai.error.title"), I18n.get("ai.error.selectionTooLarge", maxSelectionChars));
+            return;
+        }
+        // "Ask Agent…" has no preview dialog (the question was already entered in the agent
+        // dialog), so a selected file name is attached automatically when it validates; when it
+        // does not, the question is sent about the bare selection and the status bar says why.
+        AiAttachmentCandidate attachmentCandidate =
+            resolveAiAttachmentCandidate(terminalTab, runContext, selectedText, maxSelectionChars);
+        if (attachmentCandidate == null) {
+            openDirectAiAskTab(profile, prompt, selectedText, connectionDisplayName, connection, null);
+            return;
+        }
+        updateStatus(I18n.get("ai.confirm.attachment.checking", attachmentCandidate.fileName()));
+        loadAiAttachmentAsync(attachmentCandidate, maxSelectionChars, outcome -> {
+            if (outcome.attachment() == null) {
+                updateStatus(I18n.get("ai.attachment.skipped", attachmentCandidate.fileName(), outcome.failureText()));
+            }
+            openDirectAiAskTab(profile, prompt, selectedText, connectionDisplayName, connection, outcome.attachment());
+        });
+    }
+
+    private void openDirectAiAskTab(
+        AiProfile profile,
+        String prompt,
+        String selectedText,
+        String connectionDisplayName,
+        ServerConnection connection,
+        @Nullable AiFileAttachment fileAttachment) {
         // Answer the question about the terminal selection when one was captured; without a
         // selection the question itself stays the request text (previous behavior).
         String requestText = askRequestText(selectedText, prompt);
-        if (selectedText != null && !selectedText.isBlank()) {
-            int maxSelectionChars = getMaxAiSelectionChars(profile);
-            if (selectedText.length() > maxSelectionChars) {
-                showError(I18n.get("ai.error.title"), I18n.get("ai.error.selectionTooLarge", maxSelectionChars));
-                return;
-            }
-        }
         String languageCode = LanguageManager.getInstance().getCurrentLanguageCode();
-        AiRequest request = new AiRequest(AiAction.ASK, requestText, connectionDisplayName, languageCode, prompt);
+        AiRequest request = new AiRequest(AiAction.ASK, requestText, connectionDisplayName, languageCode, prompt)
+            .withFileAttachment(fileAttachment);
         AiResultTab resultTab = new AiResultTab(
             this,
             I18n.get("ai.agent.ask.tabTitle"),
@@ -7573,6 +7821,9 @@ public class MainWindow {
             languageCode,
             null,
             false);
+        if (fileAttachment != null) {
+            resultTab.setFileAttachment(fileAttachment);
+        }
         resultTab.appendUserMessage(prompt);
         insertTemporaryTab(resultTab);
 
@@ -8046,7 +8297,7 @@ public class MainWindow {
         }
     }
 
-    private record AiRequestDraft(String selectedText, String userPrompt) {
+    private record AiRequestDraft(String selectedText, String userPrompt, @Nullable AiFileAttachment fileAttachment) {
     }
 
     private String getAiProfileDisplayName(AiProfile profile) {

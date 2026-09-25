@@ -156,6 +156,17 @@ When an AI Agent run uses one or more skills, the terminal-agent activity panel 
 6. Use **Save** in the AI tab to store the conversation under a custom title.
 7. Reopen saved conversations later via **Tools > AI Manager** or ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ on macOS).
 
+### Attaching a selected file to the chat
+
+When the selection looks like a single file name — for example a name from `ls` output, quoted if it contains spaces — korTTY offers to send that file's content along with the request, so the model can take the file into account instead of only its name. The file is resolved against the pane's current directory, over SFTP in SSH tabs and from the local filesystem in local-shell tabs, exactly like **Open in Snippet Editor**.
+
+* The confirmation dialog shows an **Attach file** checkbox with the file name. It is pre-selected, and you can clear it to send only the selected text. While the file is being checked, **OK** waits; clear the checkbox to send without waiting.
+* Before anything is attached, korTTY verifies that the file exists in the current directory, is a regular file, is readable with your permissions, decodes as UTF-8 text, and fits into the profile's **Max characters** limit (see [AI settings](../reference/settings/ai.md)) together with the selected text. Binary files, oversized files, and files that fail any check are not attached; the dialog states the reason and the checkbox is disabled.
+* When the confirmation dialog is disabled for **Summarize** and **Solve Problem**, and always for **Ask Agent…** (which has no preview dialog), the file is attached automatically if it passes the checks; otherwise the request is sent without it and the status bar says why.
+* No attachment is offered after an identity switch inside the session (`su`, an inner `ssh`), because the file would be resolved against the wrong login — the same rule that greys out **Open in Snippet Editor**.
+* The attached file is listed above the chat messages, stays in context for every follow-up prompt, and is stored with a saved chat so a reopened conversation keeps it.
+* The **Flowchart** button beside the attachment asks the active profile for a Mermaid flowchart of the attached script (the same logical-structure diagram the Snippet Editor generates) and shows it as a rendered diagram in the chat. If the model's answer is unusable, korTTY draws the local structural flowchart instead.
+
 ### AI result tab features
 
 * The conversation transcript is read-only and not included in saved project/session state.
