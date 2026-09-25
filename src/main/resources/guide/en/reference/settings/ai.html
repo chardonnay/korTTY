@@ -1182,8 +1182,16 @@
 <td>—</td>
 <td><code>aiLmStudioToolpackMcpPluginId</code></td>
 </tr>
+<tr>
+<td>AI agent: offer internet research on every step</td>
+<td>toggle</td>
+<td>—</td>
+<td>Off</td>
+<td><code>aiAgentAlwaysOfferWebTools</code></td>
+</tr>
 </tbody>
 </table>
+<p><strong>AI agent: offer internet research on every step</strong> only affects the <strong>KorTTY Tavily Tool</strong> mode. When off, a Terminal AI Agent step gets the web tools only if its task contains a web signal word or a URL; when on, every step gets them and the model decides whether to search or read a page.</p>
 <h2 id="notes">Notes<a class="headerlink" href="#notes" title="Permanent link">&para;</a></h2>
 <h3 id="ai-profiles_1">AI Profiles<a class="headerlink" href="#ai-profiles_1" title="Permanent link">&para;</a></h3>
 <p>KorTTY stores multiple named AI profiles, each with its own model, connection method, reasoning settings, prompt preset, and optional knowledge stores. Each profile tracks its own token usage separately. Profiles support three connection modes:</p>

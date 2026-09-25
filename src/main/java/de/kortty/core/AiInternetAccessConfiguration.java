@@ -15,7 +15,24 @@ public record AiInternetAccessConfiguration(
     String brightDataMcpServerLabel,
     String braveSearchMcpPluginId,
     String searxngMcpPluginId,
-    String lmStudioToolpackMcpPluginId) {
+    String lmStudioToolpackMcpPluginId,
+    boolean offerWebToolsForEveryAgentTask) {
+
+    /** Configuration that offers KorTTY's web tools to agent steps only on web signal words. */
+    public AiInternetAccessConfiguration(
+        AiInternetAccessMode mode,
+        String tavilyApiKey,
+        String brightDataApiToken,
+        String braveSearchApiKey,
+        String searxngUrl,
+        String tavilyMcpServerLabel,
+        String brightDataMcpServerLabel,
+        String braveSearchMcpPluginId,
+        String searxngMcpPluginId,
+        String lmStudioToolpackMcpPluginId) {
+        this(mode, tavilyApiKey, brightDataApiToken, braveSearchApiKey, searxngUrl, tavilyMcpServerLabel,
+            brightDataMcpServerLabel, braveSearchMcpPluginId, searxngMcpPluginId, lmStudioToolpackMcpPluginId, false);
+    }
 
     public AiInternetAccessConfiguration {
         mode = mode != null ? mode : AiInternetAccessMode.DISABLED;

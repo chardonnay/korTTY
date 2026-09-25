@@ -210,7 +210,8 @@ public class AiAgentRunTab extends Tab {
             if (activity == null) {
                 return;
             }
-            if (!"AI Skills".equals(activity.title())) {
+            if (!"AI Skills".equals(activity.title())
+                && !TerminalAgentService.WEB_RESEARCH_ACTIVITY_TITLE.equals(activity.title())) {
                 return;
             }
             String summary = activity.summary() != null && !activity.summary().isBlank()

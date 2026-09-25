@@ -38,6 +38,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -50,7 +51,11 @@ public class TerminalAgentService {
 
     private static final Logger logger = LoggerFactory.getLogger(TerminalAgentService.class);
     private static final Gson GSON = new Gson();
+
+    private final AtomicLong webActivitySequence = new AtomicLong();
     private static final int MAX_AGENT_TURNS = 8;
+    /** Title of the agent activity row that lists a step's internet research. */
+    public static final String WEB_RESEARCH_ACTIVITY_TITLE = "Web research";
     private static final int MAX_COMMANDS_PER_TURN = 3;
     public static final int MAX_SUDO_PASSWORD_RETRIES = 3;
     private static final int COMMAND_TITLE_PREVIEW_CHARS = 96;
@@ -1035,6 +1040,7 @@ public class TerminalAgentService {
             false);
         AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
         publishUsedSkillActivity(ui, runId, aiService);
+        publishWebToolActivity(ui, runId, result);
         recordTokenUsage(ui, result);
         try {
             AgentDecision decision = parseAndValidateAgentDecision(result.content(), probe, request.queryOnly());
@@ -1068,6 +1074,7 @@ public class TerminalAgentService {
                 systemPrompt,
                 buildAgentDecisionRepairPrompt(userPrompt, result.content(), firstFailure.getMessage()));
             publishUsedSkillActivity(ui, runId, aiService);
+            publishWebToolActivity(ui, runId, repaired);
             recordTokenUsage(ui, repaired);
             try {
                 AgentDecision decision = parseAndValidateAgentDecision(repaired.content(), probe, request.queryOnly());
@@ -1116,6 +1123,7 @@ public class TerminalAgentService {
             false);
         AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
         publishUsedSkillActivity(ui, runId, aiService);
+        publishWebToolActivity(ui, runId, result);
         recordTokenUsage(ui, result);
         try {
             AgentDecision decision = parseFinalAgentDecision(result.content());
@@ -1155,6 +1163,7 @@ public class TerminalAgentService {
                 false);
             AiExecutionResult repaired = executeAgentJsonPrompt(aiService, systemPrompt, buildAgentRepairPrompt(userPrompt, result.content()));
             publishUsedSkillActivity(ui, runId, aiService);
+            publishWebToolActivity(ui, runId, repaired);
             recordTokenUsage(ui, repaired);
             AgentDecision decision;
             try {
@@ -1240,6 +1249,97 @@ public class TerminalAgentService {
             0L,
             true,
             true));
+    }
+
+    /**
+     * Shows the internet research behind one agent step (searches, page reads, MCP tools) as its
+     * own activity row, so web use is visible instead of hidden inside the model's decision.
+     */
+    private void publishWebToolActivity(RunUi ui, String runId, AiExecutionResult result) {
+        if (ui == null || result == null || result.webToolCalls().isEmpty()) {
+            return;
+        }
+        List<AiWebToolCall> calls = result.webToolCalls();
+        long failed = calls.stream().filter(call -> !call.success()).count();
+        ui.publishActivity(new TerminalAgentModels.AgentActivity(
+            runId + ":web:" + webActivitySequence.incrementAndGet(),
+            TerminalAgentModels.AgentActivityType.MESSAGE,
+            failed == calls.size()
+                ? TerminalAgentModels.AgentActivityStatus.FAILED
+                : TerminalAgentModels.AgentActivityStatus.COMPLETED,
+            WEB_RESEARCH_ACTIVITY_TITLE,
+            webToolSummary(calls),
+            webToolDetail(calls),
+            TerminalAgentModels.AgentActivityTokenUsage.unknown(),
+            0L,
+            true,
+            true));
+    }
+
+    static String webToolSummary(List<AiWebToolCall> calls) {
+        if (calls.size() == 1) {
+            AiWebToolCall call = calls.get(0);
+            String action = webToolAction(call);
+            if (!call.success()) {
+                return action + " failed";
+            }
+            return call.kind() == AiWebToolCall.Kind.SEARCH
+                ? action + " (" + call.sources().size() + " results)"
+                : action;
+        }
+        long searches = calls.stream().filter(call -> call.success() && call.kind() == AiWebToolCall.Kind.SEARCH).count();
+        long reads = calls.stream().filter(call -> call.success() && call.kind() == AiWebToolCall.Kind.EXTRACT).count();
+        long others = calls.stream().filter(call -> call.success() && call.kind() == AiWebToolCall.Kind.OTHER).count();
+        long failed = calls.stream().filter(call -> !call.success()).count();
+        List<String> parts = new ArrayList<>();
+        if (searches > 0) {
+            parts.add(searches + (searches == 1 ? " search" : " searches"));
+        }
+        if (reads > 0) {
+            parts.add(reads + (reads == 1 ? " page read" : " pages read"));
+        }
+        if (others > 0) {
+            parts.add(others + (others == 1 ? " tool call" : " tool calls"));
+        }
+        if (failed > 0) {
+            parts.add(failed + " failed");
+        }
+        return "Used the internet: " + String.join(", ", parts);
+    }
+
+    static String webToolDetail(List<AiWebToolCall> calls) {
+        StringBuilder detail = new StringBuilder();
+        for (AiWebToolCall call : calls) {
+            if (detail.length() > 0) {
+                detail.append('\n');
+            }
+            detail.append("- ").append(webToolAction(call));
+            if (!call.success()) {
+                detail.append(" — failed: ").append(nonBlank(call.message(), "unknown error"));
+                continue;
+            }
+            if (call.kind() == AiWebToolCall.Kind.SEARCH) {
+                detail.append(" — ").append(call.sources().size()).append(" results");
+            } else if (call.kind() == AiWebToolCall.Kind.EXTRACT && call.contentChars() > 0) {
+                detail.append(" — ").append(call.contentChars()).append(" characters")
+                    .append(call.truncated() ? " (truncated)" : "");
+            }
+            for (AiWebToolCall.Source source : call.sources()) {
+                if (call.kind() == AiWebToolCall.Kind.EXTRACT && source.url().equalsIgnoreCase(call.input())) {
+                    continue;
+                }
+                detail.append("\n    ").append(blank(source.title()) ? source.url() : source.title() + " — " + source.url());
+            }
+        }
+        return detail.toString();
+    }
+
+    private static String webToolAction(AiWebToolCall call) {
+        return switch (call.kind()) {
+            case SEARCH -> "Web search \"" + call.input() + "\"";
+            case EXTRACT -> "Read page " + call.input();
+            case OTHER -> "Tool " + nonBlank(call.tool(), "?") + (blank(call.input()) ? "" : " " + call.input());
+        };
     }
 
     private List<AiSkillPromptSupport.SkillUsage> uniqueSkillUsages(List<AiSkillPromptSupport.SkillUsage> usages) {
@@ -2857,7 +2957,7 @@ public class TerminalAgentService {
         }
     }
 
-    private boolean blank(String value) {
+    private static boolean blank(String value) {
         return value == null || value.isBlank();
     }
 
@@ -2878,7 +2978,7 @@ public class TerminalAgentService {
         return line;
     }
 
-    private String nonBlank(String value, String fallback) {
+    private static String nonBlank(String value, String fallback) {
         return blank(value) ? fallback : value.trim();
     }
 

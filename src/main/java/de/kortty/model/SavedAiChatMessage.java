@@ -3,7 +3,11 @@ package de.kortty.model;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElementWrapper;
 import jakarta.xml.bind.annotation.XmlRootElement;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * One persisted message within a saved AI chat.
@@ -34,6 +38,11 @@ public class SavedAiChatMessage {
     @XmlElement
     private String reasoning;
 
+    /** Internet tool calls (web search, page reads) behind an assistant reply; display-only. */
+    @XmlElementWrapper(name = "webToolCalls")
+    @XmlElement(name = "webToolCall")
+    private List<SavedAiWebToolCall> webToolCalls;
+
     public SavedAiChatMessage() {
         this.createdAt = System.currentTimeMillis();
     }
@@ -49,6 +58,12 @@ public class SavedAiChatMessage {
         this.aiProfileId = source.aiProfileId;
         this.aiProfileName = source.aiProfileName;
         this.reasoning = source.reasoning;
+        if (source.webToolCalls != null && !source.webToolCalls.isEmpty()) {
+            this.webToolCalls = new ArrayList<>();
+            for (SavedAiWebToolCall call : source.webToolCalls) {
+                this.webToolCalls.add(new SavedAiWebToolCall(call));
+            }
+        }
     }
 
     public String getRole() {
@@ -97,5 +112,14 @@ public class SavedAiChatMessage {
 
     public void setReasoning(String reasoning) {
         this.reasoning = reasoning != null && !reasoning.isBlank() ? reasoning : null;
+    }
+
+    public List<SavedAiWebToolCall> getWebToolCalls() {
+        return webToolCalls != null ? webToolCalls : List.of();
+    }
+
+    /** Stores the calls; an empty list is kept as {@code null} so chats without web use stay unchanged on disk. */
+    public void setWebToolCalls(List<SavedAiWebToolCall> webToolCalls) {
+        this.webToolCalls = webToolCalls != null && !webToolCalls.isEmpty() ? new ArrayList<>(webToolCalls) : null;
     }
 }

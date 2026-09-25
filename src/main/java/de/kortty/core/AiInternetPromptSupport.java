@@ -51,6 +51,19 @@ public final class AiInternetPromptSupport {
     }
 
     public static boolean isPromptInternetEligible(String userPrompt) {
+        return isPromptInternetEligible(userPrompt, false);
+    }
+
+    /**
+     * Decides whether a free-form prompt (KI-agent steps, job scheduler, …) gets the web tools.
+     *
+     * @param offerForEveryAgentTask when set, every KI-agent step (a prompt carrying a
+     *     {@code User task:} line) is eligible; other prompts still need a web signal word or URL
+     */
+    public static boolean isPromptInternetEligible(String userPrompt, boolean offerForEveryAgentTask) {
+        if (offerForEveryAgentTask && hasAgentTaskLine(userPrompt)) {
+            return true;
+        }
         String task = extractPrimaryTask(userPrompt);
         if (task.isBlank()) {
             return false;
@@ -58,6 +71,7 @@ public final class AiInternetPromptSupport {
         String lower = task.toLowerCase(java.util.Locale.ROOT);
         return lower.contains("http://")
             || lower.contains("https://")
+            || lower.contains("www.")
             || containsAnyWord(lower,
                 "aktuell",
                 "aktuelle",
@@ -88,7 +102,45 @@ public final class AiInternetPromptSupport {
                 "repos",
                 "download",
                 "release",
-                "version");
+                "version",
+                "recherche",
+                "recherchiere",
+                "recherchieren",
+                "research",
+                "nachschlagen",
+                "look up",
+                "lookup",
+                "webseite",
+                "website",
+                "homepage",
+                "url",
+                "link",
+                "links",
+                "dokumentation",
+                "doku",
+                "docs",
+                "documentation",
+                "handbuch",
+                "manual",
+                "changelog",
+                "cve",
+                "advisory",
+                "sicherheitslücke",
+                "vulnerability",
+                "herunterladen",
+                "pdf");
+    }
+
+    private static boolean hasAgentTaskLine(String userPrompt) {
+        if (userPrompt == null || userPrompt.isBlank()) {
+            return false;
+        }
+        for (String line : userPrompt.replace("\r\n", "\n").replace('\r', '\n').split("\n")) {
+            if (line.trim().regionMatches(true, 0, "User task:", 0, "User task:".length())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String extractPrimaryTask(String userPrompt) {

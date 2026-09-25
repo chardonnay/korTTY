@@ -93,6 +93,9 @@ Die gleichen Felder werden unter **KI > KI-Manager > Profiles** bearbeitet, wo d
 | Brave Search MCP plugin ID | text | — | — | `aiBraveSearchMcpPluginId` |
 | SearXNG MCP-Plugin-ID | Text | – | – | `aiSearxngMcpPluginId` |
 | LM Studio Toolpack MCP-Plugin-ID | Text | – | – | `aiLmStudioToolpackMcpPluginId` |
+| KI-Agent: Internetrecherche bei jedem Schritt anbieten | umschalten | – | Aus | `aiAgentAlwaysOfferWebTools` |
+
+**KI-Agent: Internetrecherche bei jedem Schritt anbieten** wirkt nur im Modus **KorTTY Tavily Tool**. Ist die Option aus, bekommt ein Schritt des Terminal-KI-Agenten die Web-Tools nur, wenn seine Aufgabe ein Web-Signalwort oder eine URL enthält; ist sie an, bekommt jeder Schritt sie und das Modell entscheidet, ob es sucht oder eine Seite liest.
 
 ## Hinweise
 

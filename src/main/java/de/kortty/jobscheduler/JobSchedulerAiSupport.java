@@ -195,7 +195,8 @@ public class JobSchedulerAiSupport {
             brightDataMcpServerLabel,
             braveSearchMcpPluginId,
             searxngMcpPluginId,
-            lmStudioToolpackMcpPluginId);
+            lmStudioToolpackMcpPluginId,
+            settings.isAiAgentAlwaysOfferWebTools());
     }
 
     private String decryptSecret(String encryptedValue, String label) {

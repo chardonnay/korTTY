@@ -11,6 +11,7 @@ import de.kortty.core.AiChatExportContext;
 import de.kortty.core.AiChatExportService;
 import de.kortty.core.AiChatShareService;
 import de.kortty.core.AiExecutionResult;
+import de.kortty.core.AiWebToolCall;
 import de.kortty.core.AiMarkdownTableSupport;
 import de.kortty.core.AiPdfExportOptions;
 import de.kortty.core.AiSnippetMetadataSupport;
@@ -34,6 +35,7 @@ import de.kortty.model.TerminalAgentModels;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.SavedAiChat;
 import de.kortty.model.SavedAiChatMessage;
+import de.kortty.model.SavedAiWebToolCall;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
 import de.kortty.core.GlobalSettingsManager;
@@ -411,8 +413,20 @@ public class AiResultTab extends Tab {
     }
 
     public void showResult(String content, String reasoning) {
+        showResult(content, reasoning, List.of());
+    }
+
+    /** Shows a finished reply including its reasoning and the internet research behind it. */
+    public void showResult(AiExecutionResult result) {
+        showResult(
+            result != null ? result.content() : "",
+            result != null ? result.reasoning() : null,
+            result != null ? result.webToolCalls() : List.of());
+    }
+
+    private void showResult(String content, String reasoning, List<AiWebToolCall> webToolCalls) {
         stopWaiting();
-        appendAssistantMessage(content, reasoning);
+        appendAssistantMessage(content, reasoning, webToolCalls);
         statusLabel.setText(I18n.get("ai.result.ready"));
         updateSendAvailability();
     }
@@ -698,6 +712,10 @@ public class AiResultTab extends Tab {
     }
 
     private void appendAssistantMessage(String content, String reasoning) {
+        appendAssistantMessage(content, reasoning, List.of());
+    }
+
+    private void appendAssistantMessage(String content, String reasoning, List<AiWebToolCall> webToolCalls) {
         AiProfile profile = profileComboBox.getSelectionModel().getSelectedItem();
         appendConversationMessage(
             SavedAiChatMessage.ROLE_ASSISTANT,
@@ -705,15 +723,22 @@ public class AiResultTab extends Tab {
             profile != null ? profile.getId() : activeProfileId,
             profile != null ? getAiProfileDisplayName(profile) : activeProfileName,
             reasoning,
+            AiWebActivitySupport.toSaved(webToolCalls),
             true);
     }
 
     private void appendConversationMessage(String role, String content, String profileId, String profileName, boolean scrollToEnd) {
-        appendConversationMessage(role, content, profileId, profileName, null, scrollToEnd);
+        appendConversationMessage(role, content, profileId, profileName, null, List.of(), scrollToEnd);
     }
 
     private void appendConversationMessage(
-        String role, String content, String profileId, String profileName, String reasoning, boolean scrollToEnd) {
+        String role,
+        String content,
+        String profileId,
+        String profileName,
+        String reasoning,
+        List<SavedAiWebToolCall> webToolCalls,
+        boolean scrollToEnd) {
         if (content == null || content.isBlank()) {
             return;
         }
@@ -723,6 +748,7 @@ public class AiResultTab extends Tab {
         message.setAiProfileId(profileId);
         message.setAiProfileName(profileName);
         message.setReasoning(reasoning);
+        message.setWebToolCalls(webToolCalls);
         messageEntries.add(message);
         appendToPlainTranscript(message);
         renderMessage(message);
@@ -793,7 +819,9 @@ public class AiResultTab extends Tab {
         task.setOnSucceeded(event -> {
             AiExecutionResult result = task.getValue();
             appendAssistantMessage(
-                result != null ? result.content() : "", result != null ? result.reasoning() : null);
+                result != null ? result.content() : "",
+                result != null ? result.reasoning() : null,
+                result != null ? result.webToolCalls() : List.of());
             if (result != null) {
                 ownerWindow.recordAiUsageForProfile(selectedProfile, request, result);
                 refreshAvailableProfiles(selectedProfile);
@@ -1076,6 +1104,7 @@ public class AiResultTab extends Tab {
             roleLabel.setFont(Font.font(currentFontSize));
             block.getChildren().add(roleLabel);
 
+            appendWebActivityDisclosure(block, entry);
             appendAssistantContent(block, entry);
             appendReasoningDisclosure(block, entry);
             topNode = block;
@@ -1132,6 +1161,36 @@ public class AiResultTab extends Tab {
             bodyBox.setVisible(show);
             bodyBox.setManaged(show);
             toggle.setText(reasoningToggleText(show));
+        });
+        target.getChildren().addAll(toggle, bodyBox);
+    }
+
+    /**
+     * Shows above an assistant reply that (and how) the model used the internet: a collapsed
+     * one-line summary of the searches and page reads, expandable to the queries, URLs and errors.
+     */
+    private void appendWebActivityDisclosure(VBox target, SavedAiChatMessage entry) {
+        List<SavedAiWebToolCall> calls = entry.getWebToolCalls();
+        if (calls.isEmpty()) {
+            return;
+        }
+        String summary = AiWebActivitySupport.summary(calls);
+        Node body = createSelectableTextBlock(AiWebActivitySupport.detail(calls));
+        VBox bodyBox = new VBox(body);
+        bodyBox.getStyleClass().addAll("ai-chat-reasoning", "ai-chat-web-activity");
+        bodyBox.setVisible(false);
+        bodyBox.setManaged(false);
+
+        Button toggle = new Button("▸ " + summary);
+        toggle.getStyleClass().addAll("ai-chat-reasoning-toggle", "ai-chat-web-activity-toggle");
+        toggle.setFont(Font.font(Math.max(MIN_FONT_SIZE, currentFontSize - 1)));
+        toggle.setFocusTraversable(false);
+        toggle.setTooltip(new Tooltip(I18n.get("ai.result.web.tooltip")));
+        toggle.setOnAction(event -> {
+            boolean show = !bodyBox.isVisible();
+            bodyBox.setVisible(show);
+            bodyBox.setManaged(show);
+            toggle.setText((show ? "▾ " : "▸ ") + summary);
         });
         target.getChildren().addAll(toggle, bodyBox);
     }

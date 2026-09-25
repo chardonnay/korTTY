@@ -77,7 +77,7 @@ Internet access is configured per AI profile. Existing and new profiles default 
 | Mode | Behavior |
 |------|----------|
 | **Disabled** | No web tools or MCP integrations are sent with AI requests. |
-| **KorTTY Tavily Tool** | korTTY adds a `web_search` tool to eligible OpenAI-compatible `/v1/chat/completions` requests. Tool calls are executed by korTTY through `POST https://api.tavily.com/search`. |
+| **KorTTY Tavily Tool** | korTTY adds a `web_search` and a `web_extract` tool to eligible OpenAI-compatible `/v1/chat/completions` requests. Tool calls are executed by korTTY: searches through `POST https://api.tavily.com/search` (5 results with short snippets), page reads through `POST https://api.tavily.com/extract`, which returns the text of one web page or online document, capped at 12,000 characters. |
 | **LM Studio Tavily MCP** | korTTY sends an LM Studio native `/api/v1/chat` request with a Tavily MCP integration. |
 | **Bright Data Web MCP** | korTTY sends an LM Studio native `/api/v1/chat` request with a Bright Data MCP integration. |
 | **Brave Search MCP** | korTTY sends an LM Studio native `/api/v1/chat` request with a configured Brave Search MCP plugin ID. |
@@ -89,11 +89,13 @@ Required provider configuration is entered under **Settings > AI > Internet tool
 Important behavior:
 
 * Snippet AI, text correction, translation, snippet descriptions, alternative-solution requests, and AI ASCII-art generation do not use internet access.
-* Direct korTTY web tools have a 5-second connect timeout, a 20-second request timeout, and a maximum of two web-tool rounds per AI request.
+* Direct korTTY web tools have a 5-second connect timeout, a 20-second request timeout (40 seconds for page reads), and a maximum of two web-tool rounds with up to three tool calls each per AI request.
+* A mode can only be selected in a profile once its required global setting (for example the Tavily API key) is stored under **Settings > AI > Internet tool configuration**; otherwise the AI Manager explains where the value belongs and keeps the previous mode. The profile's own **API Key** field is only for the AI provider itself.
+* Internet use is shown where it happens. In the AI chat, a collapsed **Internet research** line above the reply summarizes the searches, page reads and failures; expanding it lists every query, read URL, source and error. It is stored with saved chats. In the Terminal AI Agent, each step that used the internet gets a **Web research** activity row with the same details. For LM Studio MCP modes korTTY shows the tool calls LM Studio reports, with the URLs found in their output.
 * LM Studio MCP requests with internet access use a longer total request timeout because the MCP server runs behind LM Studio.
 * Canceling a running request interrupts the Java HTTP request where the active provider supports interruption.
 * Tool errors are returned to the model as structured data. If the web tool times out, fails authentication, returns no results, or reaches the tool-round limit, the model is instructed to say that explicitly and not invent web facts.
-* For terminal-agent JSON planning, korTTY offers web tools only when the user task clearly asks for current or external information. Local file/script review tasks should be handled by shell commands such as `sed`, `cat`, `find`, or test commands, not by web search.
+* For terminal-agent JSON planning, korTTY offers its direct web tools only when the user task contains a web signal word (for example current, latest, search, research, docs, changelog, CVE, website, download, version) or a URL. Local file/script review tasks should be handled by shell commands such as `sed`, `cat`, `find`, or test commands, not by web search. Enable **AI agent: offer internet research on every step** under **Settings > AI > Internet tool configuration** to offer the tools on every agent step and let the model decide; this uses more Tavily credits and tokens. LM Studio MCP modes always attach their integration to agent steps.
 
 ## AI Skills
 

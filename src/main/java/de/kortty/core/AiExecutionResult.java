@@ -16,13 +16,29 @@ package de.kortty.core;
  * only an interruption is transient and worth retrying — a token limit recurs deterministically.
  * An interrupted result therefore always sets {@code outputTruncated} as well, so a caller that
  * only asks "is this complete?" keeps its existing behaviour.
+ *
+ * <p>{@code webToolCalls} lists the internet tool calls (web search, page extraction, MCP tools)
+ * made while producing the answer, in call order. It is display-only and never {@code null}.
  */
 public record AiExecutionResult(
     String content,
     AiTokenUsage usage,
     String reasoning,
     boolean outputTruncated,
-    boolean streamInterrupted) {
+    boolean streamInterrupted,
+    java.util.List<AiWebToolCall> webToolCalls) {
+
+    public AiExecutionResult {
+        webToolCalls = webToolCalls != null ? java.util.List.copyOf(webToolCalls) : java.util.List.of();
+    }
+
+    /**
+     * Convenience constructor for a result without internet tool calls.
+     */
+    public AiExecutionResult(
+        String content, AiTokenUsage usage, String reasoning, boolean outputTruncated, boolean streamInterrupted) {
+        this(content, usage, reasoning, outputTruncated, streamInterrupted, java.util.List.of());
+    }
 
     /**
      * Convenience constructor for a result whose incompleteness, if any, is not an interruption.
