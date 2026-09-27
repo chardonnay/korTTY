@@ -196,6 +196,27 @@ class SnippetManagerTest {
     }
 
     @Test
+    void updateSnippetRecordsLastModifiedAndPersistsIt() throws Exception {
+        SnippetManager manager = new SnippetManager(tempDir);
+        Snippet snippet = new Snippet("deploy.sh", "echo first", "bash");
+        snippet.setCreatedAt(1_000L);
+        manager.addSnippet(snippet);
+        assertThat(snippet.getLastModified()).isEqualTo(1_000L);
+
+        long before = System.currentTimeMillis();
+        snippet.setContent("echo changed");
+        manager.updateSnippet(snippet);
+        assertThat(snippet.getLastModified()).isAtLeast(before);
+        manager.save();
+
+        SnippetManager reloaded = new SnippetManager(tempDir);
+        reloaded.load();
+        Snippet loaded = reloaded.findById(snippet.getId()).orElseThrow();
+        assertThat(loaded.getModifiedAt()).isEqualTo(snippet.getModifiedAt());
+        assertThat(loaded.getLineCount()).isEqualTo(1);
+    }
+
+    @Test
     void exportToPlainTextDirectoryUsesSnippetNamesAndKeepsExportsInsideTargetDirectory() throws Exception {
         SnippetManager manager = new SnippetManager(tempDir);
         Snippet first = new Snippet("backup_script.sh", "echo first", "bash");

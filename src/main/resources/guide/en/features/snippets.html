@@ -763,7 +763,9 @@
 <p>The Snippet Manager includes the following features:</p>
 <ul>
 <li><strong>System (OS) column</strong> — A sortable operating-system column for each snippet (Any, Linux, macOS, Windows). Auto-set when a snippet is created via <em>Generate Workflow Script</em>.</li>
-<li><strong>Sortable columns</strong> — All columns (Name, Language, Category, System, Tags) are sortable.</li>
+<li><strong>Sortable columns</strong> — All columns (Name, Language, Category, System, Tags, Lines, Last modified, Used) are sortable.</li>
+<li><strong>Lines and Last modified</strong> — <strong>Lines</strong> shows the number of lines in the snippet, <strong>Last modified</strong> the date and time of its last change (the creation time for a snippet that was never edited).</li>
+<li><strong>Resizable columns</strong> — Every column can be resized by dragging its header border; korTTY remembers the widths across sessions.</li>
 <li><strong>Script-Header category</strong> — A fixed, non-deletable category containing reusable header templates for workflow-script generation.</li>
 </ul>
 <h2 id="opening-the-snippet-manager">Opening the Snippet Manager<a class="headerlink" href="#opening-the-snippet-manager" title="Permanent link">&para;</a></h2>
@@ -1062,6 +1064,12 @@
 <li>KorTTY checks the Variable Manager for stored values</li>
 <li>Variables without stored values prompt for input</li>
 </ul>
+<h3 id="variable-manager">Variable Manager<a class="headerlink" href="#variable-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Variables...</strong> in the Snippet Manager opens the Variable Manager, where stored values are added, edited and deleted. The add/edit dialog explains both fields: the <strong>Name</strong> is what a snippet references as <code>${name}</code>, the <strong>Value</strong> is the stored default inserted for it. Several variables can be selected at once for deleting or exporting.</p>
+<ul>
+<li><strong>Export...</strong> — Saves the selected variables, or all variables when none is selected, as JSON, XML or YAML.</li>
+<li><strong>Import...</strong> — Reads variables from a JSON, XML or YAML file (the stored <code>snippet-variables.xml</code> can be imported directly). When imported variables already exist, you choose whether to overwrite their values or keep the existing ones.</li>
+</ul>
 <h2 id="sending-snippets-to-the-terminal">Sending snippets to the terminal<a class="headerlink" href="#sending-snippets-to-the-terminal" title="Permanent link">&para;</a></h2>
 <p>The Snippet Manager can send a selected snippet directly to the active terminal.</p>
 <h3 id="send-to-terminal">Send to Terminal<a class="headerlink" href="#send-to-terminal" title="Permanent link">&para;</a></h3>
@@ -1088,7 +1096,7 @@
 <h2 id="import-and-export">Import and export<a class="headerlink" href="#import-and-export" title="Permanent link">&para;</a></h2>
 <p>Snippets can be imported and exported in multiple formats.</p>
 <h3 id="data-format-exports">Data format exports<a class="headerlink" href="#data-format-exports" title="Permanent link">&para;</a></h3>
-<p>Use <strong>Export</strong> to save selected snippets, or all snippets when nothing is selected. Use <strong>Import</strong> to merge snippets from a file.</p>
+<p>Use <strong>Export</strong> to save selected snippets, or all snippets when nothing is selected. The format dialog proposes <strong>Plain text script files</strong> first. Use <strong>Import</strong> to merge snippets from a file.</p>
 <table>
 <thead>
 <tr>
@@ -1115,6 +1123,8 @@
 </tr>
 </tbody>
 </table>
+<h3 id="importing-text-files">Importing text files<a class="headerlink" href="#importing-text-files" title="Permanent link">&para;</a></h3>
+<p><strong>Import</strong> also accepts plain text files such as <code>data_test.pl</code>, <code>deploy.sh</code> or <code>notes.txt</code>, and several files can be selected at once. Each file becomes one snippet named after the file, and korTTY fills in the language from the file extension (for example <code>.pl</code> → Perl, <code>.py</code> → Python, <code>.sh</code> → Bash), falling back to the shebang line. A <code>.json</code>, <code>.xml</code> or <code>.yaml</code> file is imported as a snippet export only when it contains a snippet collection; any other such file is imported as a text snippet. Binary files and files larger than 5 MB are skipped and listed in the result message. An existing snippet name gets a numbered suffix such as <code>deploy.sh (2)</code>.</p>
 <h3 id="script-focused-exports">Script-focused exports<a class="headerlink" href="#script-focused-exports" title="Permanent link">&para;</a></h3>
 <p>For script-specific exports, choose:</p>
 <h4 id="plain-text-script-files">Plain text script files<a class="headerlink" href="#plain-text-script-files" title="Permanent link">&para;</a></h4>
