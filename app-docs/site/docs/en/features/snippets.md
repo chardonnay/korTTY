@@ -11,7 +11,9 @@ The Snippet Manager lets you store, organize, and quickly insert reusable code s
 The Snippet Manager includes the following features:
 
 - **System (OS) column** — A sortable operating-system column for each snippet (Any, Linux, macOS, Windows). Auto-set when a snippet is created via *Generate Workflow Script*.
-- **Sortable columns** — All columns (Name, Language, Category, System, Tags) are sortable.
+- **Sortable columns** — All columns (Name, Language, Category, System, Tags, Lines, Last modified, Used) are sortable.
+- **Lines and Last modified** — **Lines** shows the number of lines in the snippet, **Last modified** the date and time of its last change (the creation time for a snippet that was never edited).
+- **Resizable columns** — Every column can be resized by dragging its header border; korTTY remembers the widths across sessions.
 - **Script-Header category** — A fixed, non-deletable category containing reusable header templates for workflow-script generation.
 
 ## Opening the Snippet Manager
@@ -353,6 +355,13 @@ Any `${variableName}` not in the built-in list is treated as a custom variable. 
 - KorTTY checks the Variable Manager for stored values
 - Variables without stored values prompt for input
 
+### Variable Manager
+
+**Variables...** in the Snippet Manager opens the Variable Manager, where stored values are added, edited and deleted. The add/edit dialog explains both fields: the **Name** is what a snippet references as `${name}`, the **Value** is the stored default inserted for it. Several variables can be selected at once for deleting or exporting.
+
+- **Export...** — Saves the selected variables, or all variables when none is selected, as JSON, XML or YAML.
+- **Import...** — Reads variables from a JSON, XML or YAML file (the stored `snippet-variables.xml` can be imported directly). When imported variables already exist, you choose whether to overwrite their values or keep the existing ones.
+
 ## Sending snippets to the terminal
 
 The Snippet Manager can send a selected snippet directly to the active terminal.
@@ -387,13 +396,17 @@ Snippets can be imported and exported in multiple formats.
 
 ### Data format exports
 
-Use **Export** to save selected snippets, or all snippets when nothing is selected. Use **Import** to merge snippets from a file.
+Use **Export** to save selected snippets, or all snippets when nothing is selected. The format dialog proposes **Plain text script files** first. Use **Import** to merge snippets from a file.
 
 | Format | Extension | Use case |
 |--------|-----------|----------|
 | JSON | `.json` | Data interchange, programmatic access |
 | XML | `.xml` | Structured data, tool integration |
 | YAML | `.yaml` | Human-readable, configuration-friendly |
+
+### Importing text files
+
+**Import** also accepts plain text files such as `data_test.pl`, `deploy.sh` or `notes.txt`, and several files can be selected at once. Each file becomes one snippet named after the file, and korTTY fills in the language from the file extension (for example `.pl` → Perl, `.py` → Python, `.sh` → Bash), falling back to the shebang line. A `.json`, `.xml` or `.yaml` file is imported as a snippet export only when it contains a snippet collection; any other such file is imported as a text snippet. Binary files and files larger than 5 MB are skipped and listed in the result message. An existing snippet name gets a numbered suffix such as `deploy.sh (2)`.
 
 ### Script-focused exports
 

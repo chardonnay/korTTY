@@ -889,6 +889,9 @@ public class GlobalSettings {
     private Double snippetManagerPreviewDividerPosition; // Vertical table/preview divider position
 
     @XmlElement
+    private String snippetManagerColumnWidths; // "columnId=width;..." of user-resized snippet table columns
+
+    @XmlElement
     private Integer snippetHistoryMaxSize = 30; // Max number of history entries per snippet (default: 30, max: 99)
 
     // Snippet dialog geometries
@@ -3504,6 +3507,48 @@ public class GlobalSettings {
             return;
         }
         this.snippetManagerPreviewDividerPosition = Math.max(0.35, Math.min(0.9, snippetManagerPreviewDividerPosition));
+    }
+
+    /** User-resized snippet table column widths by column id (empty when never resized). */
+    public java.util.Map<String, Double> getSnippetManagerColumnWidths() {
+        java.util.Map<String, Double> widths = new java.util.LinkedHashMap<>();
+        if (snippetManagerColumnWidths == null || snippetManagerColumnWidths.isBlank()) {
+            return widths;
+        }
+        for (String entry : snippetManagerColumnWidths.split(";")) {
+            int separator = entry.indexOf('=');
+            if (separator <= 0) {
+                continue;
+            }
+            try {
+                double width = Double.parseDouble(entry.substring(separator + 1).trim());
+                if (width > 0 && Double.isFinite(width)) {
+                    widths.put(entry.substring(0, separator).trim(), width);
+                }
+            } catch (NumberFormatException ignored) {
+                // skip a corrupt entry, keep the rest
+            }
+        }
+        return widths;
+    }
+
+    public void setSnippetManagerColumnWidths(java.util.Map<String, Double> widths) {
+        if (widths == null || widths.isEmpty()) {
+            this.snippetManagerColumnWidths = null;
+            return;
+        }
+        StringBuilder encoded = new StringBuilder();
+        widths.forEach((id, width) -> {
+            if (id == null || id.isBlank() || id.contains("=") || id.contains(";")
+                || width == null || width <= 0 || !Double.isFinite(width)) {
+                return;
+            }
+            if (encoded.length() > 0) {
+                encoded.append(';');
+            }
+            encoded.append(id.trim()).append('=').append(Math.round(width));
+        });
+        this.snippetManagerColumnWidths = encoded.length() > 0 ? encoded.toString() : null;
     }
 
     public int getSnippetHistoryMaxSize() {
