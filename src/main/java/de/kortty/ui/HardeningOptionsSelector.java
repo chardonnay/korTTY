@@ -13,7 +13,9 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
 import java.util.EnumMap;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -32,6 +34,7 @@ public final class HardeningOptionsSelector extends VBox {
 
     private final Map<HardeningOption, CheckBox> checks = new EnumMap<>(HardeningOption.class);
     private final Button saveButton;
+    private final List<Runnable> selectionListeners = new ArrayList<>();
     private Runnable onSelectionChanged;
 
     public HardeningOptionsSelector() {
@@ -95,9 +98,34 @@ public final class HardeningOptionsSelector extends VBox {
         this.onSelectionChanged = callback;
     }
 
+    /**
+     * Adds a further listener for selection changes, next to the one set via
+     * {@link #setOnSelectionChanged(Runnable)} (typically the host's "(N)" counter) — an embedded
+     * host also persists the choice. Runs on the JavaFX thread.
+     */
+    public void addSelectionListener(Runnable listener) {
+        if (listener != null) {
+            selectionListeners.add(listener);
+        }
+    }
+
+    /**
+     * Ticks exactly {@code options} (a restored choice); {@code null} means "no stored choice" and
+     * leaves the current selection alone. Listeners fire for each box that changes.
+     */
+    public void setSelectedOptions(EnumSet<HardeningOption> options) {
+        if (options == null) {
+            return;
+        }
+        checks.forEach((option, check) -> check.setSelected(options.contains(option)));
+    }
+
     private void fireSelectionChanged() {
         if (onSelectionChanged != null) {
             onSelectionChanged.run();
+        }
+        for (Runnable listener : List.copyOf(selectionListeners)) {
+            listener.run();
         }
     }
 

@@ -158,7 +158,7 @@ public final class SnippetAiDialogsSmoke {
         List<de.kortty.model.AiSkill> analysisSkills = List.of(
             smokeSkill("skill-bash", "Bash hardening", "Adds strict mode, traps and safe expansions"),
             smokeSkill("skill-posix", "POSIX portability", "Prefers POSIX-compliant constructs"));
-        SnippetCodeAnalysisDialog.SkillContext skillContext = new SnippetCodeAnalysisDialog.SkillContext(
+        SnippetAnalysisPanel.SkillContext skillContext = new SnippetAnalysisPanel.SkillContext(
             analysisSkills,
             new java.util.LinkedHashSet<>(List.of("skill-bash")),
             true,
@@ -176,9 +176,19 @@ public final class SnippetAiDialogsSmoke {
             analysisDialog.getDialogPane(), "snippet-analysis-profile-using", Label.class);
         verifySelectAllImprovementPlacement(selectAllImprovements, profileUsing);
         WebEngine analysisEngine = findingsWebView(analysisDialog).getEngine();
+        // The page reports user changes back through a per-panel bridge; select-all is one of them.
+        java.util.concurrent.atomic.AtomicInteger selectionEvents = new java.util.concurrent.atomic.AtomicInteger();
+        analysisDialog.panel().addSelectionListener(selectionEvents::incrementAndGet);
         onLoadSuccess(analysisEngine, () -> {
             try {
                 verifyImprovementBulkSelection(selectAllImprovements, analysisEngine);
+                // A restored selection ticks exactly the named findings and reads back unchanged.
+                analysisDialog.panel().setSelectedFindings(List.of("imp:OPT-1", "dep:D1"));
+                List<String> restored = analysisDialog.panel().selectedFindingTokens();
+                if (!restored.equals(List.of("imp:OPT-1", "dep:D1"))) {
+                    throw new AssertionError("Restored finding selection read back as " + restored);
+                }
+                analysisDialog.panel().setSelectedFindings(List.of());
                 analysisSelectionVerified.set(true);
             } catch (Throwable e) {
                 failure.compareAndSet(null, "SnippetCodeAnalysisDialog selection check failed: " + e);
@@ -203,7 +213,7 @@ public final class SnippetAiDialogsSmoke {
             throw new AssertionError("SnippetCodeAnalysisDialog is missing the Apply-selected button");
         }
         HardeningOptionsSelector hardeningSelector = field(
-            analysisDialog, "hardeningSelector", HardeningOptionsSelector.class);
+            analysisDialog.panel(), "hardeningSelector", HardeningOptionsSelector.class);
         if (!hardeningSelector.selectedOptions().equals(
                 de.kortty.core.WorkflowScriptSupport.HardeningOption.defaults())) {
             throw new AssertionError("Hardening selector did not expose the all-on default option set");
@@ -241,7 +251,7 @@ public final class SnippetAiDialogsSmoke {
         }
 
         InputHardeningSelector declarativeSelector = field(
-            dependenciesOnlyDialog, "inputHardeningSelector", InputHardeningSelector.class);
+            dependenciesOnlyDialog.panel(), "inputHardeningSelector", InputHardeningSelector.class);
         if (declarativeSelector.isSupported() || !declarativeSelector.isDisable()
                 || declarativeSelector.currentConfig().isEnabled()) {
             throw new AssertionError("YAML analysis must disable input hardening instead of silently ignoring it");
@@ -308,6 +318,10 @@ public final class SnippetAiDialogsSmoke {
                 if (!analysisSelectionVerified.get()) {
                     failure.compareAndSet(null,
                         "SnippetCodeAnalysisDialog selection page did not finish loading within the wait");
+                }
+                if (analysisSelectionVerified.get() && selectionEvents.get() == 0) {
+                    failure.compareAndSet(null,
+                        "The analysis page never reported a selection change through its bridge");
                 }
                 try {
                     verifyAiTextLanguage.run();
@@ -952,7 +966,7 @@ public final class SnippetAiDialogsSmoke {
             new SnippetAiResponseSupport.ScriptImprovement(
                 "SEC-1", "security", "high", "Quote variable", "Expansion is unquoted.",
                 "Quote the expansion.", 2);
-        SnippetCodeAnalysisDialog.ApplySelection selection = new SnippetCodeAnalysisDialog.ApplySelection(
+        SnippetAnalysisPanel.ApplySelection selection = new SnippetAnalysisPanel.ApplySelection(
             List.of(improvement),
             List.of(),
             EnumSet.of(de.kortty.core.WorkflowScriptSupport.HardeningOption.SAFE_MODE),
@@ -968,7 +982,7 @@ public final class SnippetAiDialogsSmoke {
                 invoke(
                     dialog,
                     "runImprovementFixes",
-                    new Class<?>[] {SnippetCodeAnalysisDialog.ApplySelection.class},
+                    new Class<?>[] {SnippetAnalysisPanel.ApplySelection.class},
                     selection);
             } catch (Exception e) {
                 throw new IllegalStateException("Could not start the apply-language smoke probe", e);
@@ -1181,9 +1195,9 @@ public final class SnippetAiDialogsSmoke {
 
     private static WebView findingsWebView(SnippetCodeAnalysisDialog dialog) {
         try {
-            Field field = SnippetCodeAnalysisDialog.class.getDeclaredField("findingsView");
+            Field field = SnippetAnalysisPanel.class.getDeclaredField("findingsView");
             field.setAccessible(true);
-            return (WebView) field.get(dialog);
+            return (WebView) field.get(dialog.panel());
         } catch (ReflectiveOperationException e) {
             throw new AssertionError("SnippetCodeAnalysisDialog is missing its findings WebView", e);
         }

@@ -269,6 +269,29 @@ final class SnippetDiagramView extends VBox {
         }
     }
 
+    /**
+     * Shows an already known diagram (a persisted one) without asking the supplier: any pending
+     * source request is dropped and the view counts as loaded, so {@link #loadIfNeeded()} does not
+     * generate a new one. {@link #reload()} (Regenerate) still goes to the supplier.
+     */
+    void showCached(DiagramSource source) {
+        if (disposed) {
+            return;
+        }
+        sourceGeneration++;
+        cancelSource();
+        loadedOnce = true;
+        cancelRender();
+        renderedSvg = null;
+        renderedPng = null;
+        currentHotspots = List.of();
+        setNotice(null);
+        diagramScroll.setVisible(false);
+        diagramScroll.setManaged(false);
+        showSpinner(I18n.get("snippets.ai.analysis.diagram.loading"));
+        onSourceReady(source, null);
+    }
+
     void clear() {
         sourceGeneration++;
         cancelSource();

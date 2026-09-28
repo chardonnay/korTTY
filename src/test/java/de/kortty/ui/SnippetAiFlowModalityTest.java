@@ -36,6 +36,12 @@ class SnippetAiFlowModalityTest {
         "SnippetAiDiffDialog.java",
         "SnippetAiApplyProgressWindow.java");
 
+    /** The flow's content, extracted so a host can embed it instead of opening a window. */
+    private static final List<String> EMBEDDABLE_PANES = List.of(
+        "SnippetAnalysisPanel.java",
+        "SnippetAiDiffPane.java",
+        "SnippetAiApplyProgressPane.java");
+
     private static final Pattern NON_MODAL = Pattern.compile(
         "initModality\\(\\s*(?:javafx\\.stage\\.)?Modality\\.NONE\\s*\\)");
 
@@ -55,6 +61,24 @@ class SnippetAiFlowModalityTest {
         assertWithMessage(
             "These windows never call initModality(Modality.NONE). JavaFX then makes them "
                 + "APPLICATION_MODAL, which freezes every terminal session while the AI works")
+            .that(offenders).isEmpty();
+    }
+
+    /**
+     * The embeddable panes live inside whatever hosts them — a window today, the editor itself
+     * later. A pane that opened its own window or blocked in {@code showAndWait} would drag the
+     * modality problem above into every host.
+     */
+    @Test
+    void theEmbeddablePanesNeverOpenOrBlockOnAWindow() throws IOException {
+        List<String> offenders = new ArrayList<>();
+        for (String name : EMBEDDABLE_PANES) {
+            String source = code(UI_ROOT.resolve(name));
+            if (source.contains("new Stage(") || source.contains("showAndWait(")) {
+                offenders.add(name);
+            }
+        }
+        assertWithMessage("These panes open a Stage or block in showAndWait()")
             .that(offenders).isEmpty();
     }
 

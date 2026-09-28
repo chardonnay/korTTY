@@ -3789,11 +3789,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
      * runtime options here, so the next re-run picks them up. Returns {@code null} when the skill picker does
      * not apply (no skills, or a profile that cannot enforce the selection).
      */
-    private SnippetCodeAnalysisDialog.SkillContext buildAnalysisSkillContext() {
+    private SnippetAnalysisPanel.SkillContext buildAnalysisSkillContext() {
         if (!aiSkillPickerShouldShow()) {
             return null;
         }
-        return new SnippetCodeAnalysisDialog.SkillContext(
+        return new SnippetAnalysisPanel.SkillContext(
             enabledAiSkills(),
             new LinkedHashSet<>(selectedAiSkillIds),
             !aiSkillsUserEdited,
@@ -4893,13 +4893,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     }
 
     /** Applies the user-selected analysis improvements + dependency suggestions (mirror of {@link #runSecurityFixes}). */
-    private void runImprovementFixes(SnippetCodeAnalysisDialog.ApplySelection selection) {
+    private void runImprovementFixes(SnippetAnalysisPanel.ApplySelection selection) {
         runImprovementFixes(selection, null);
     }
 
     /** Applies the selection while keeping its Full-code-analysis window open for docked progress. */
     private void runImprovementFixes(
-            SnippetCodeAnalysisDialog.ApplySelection selection,
+            SnippetAnalysisPanel.ApplySelection selection,
             SnippetCodeAnalysisDialog analysisDialog) {
         runImprovementFixes(selection, analysisDialog, null, null);
     }
@@ -4910,7 +4910,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
      * content travels with the checkpoint instead of being re-read from the editor.
      */
     private void runImprovementFixes(
-            SnippetCodeAnalysisDialog.ApplySelection selection,
+            SnippetAnalysisPanel.ApplySelection selection,
             SnippetCodeAnalysisDialog analysisDialog,
             SnippetAiWorkflowSupport.ImprovementApplyCheckpoint resumeFrom,
             String resumeOriginalContent) {
@@ -5281,7 +5281,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
 
     /** Offers resume / partial preview / discard after an aborted staged apply left completed work behind. */
     private void maybeOfferAbortRecovery(
-            SnippetCodeAnalysisDialog.ApplySelection selection,
+            SnippetAnalysisPanel.ApplySelection selection,
             SnippetCodeAnalysisDialog analysisDialog,
             SnippetAiWorkflowSupport.ImprovementApplyCheckpoint checkpoint,
             boolean silentCancel,
@@ -5366,7 +5366,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
      * stages that never ran are missing by definition — but keeps the degenerate-replacement guard.
      */
     private void previewPartialImprovementFix(
-            SnippetCodeAnalysisDialog.ApplySelection selection,
+            SnippetAnalysisPanel.ApplySelection selection,
             SnippetCodeAnalysisDialog analysisDialog,
             SnippetAiWorkflowSupport.ImprovementApplyCheckpoint checkpoint,
             String originalContent) {
@@ -5437,7 +5437,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
 
     /** Prepends the analysis dialog's chosen script header (if any) to {@code content}, using the editor's
      *  language to place it after an existing shebang / lead line (reusing the workflow-script injector). */
-    private String injectSelectedHeader(SnippetCodeAnalysisDialog.ApplySelection selection, String content) {
+    private String injectSelectedHeader(SnippetAnalysisPanel.ApplySelection selection, String content) {
         if (selection == null || !selection.hasHeader()) {
             return content;
         }
@@ -5448,7 +5448,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
 
     /** Applies a chosen script header alone (no findings/hardening ticked): a deterministic prepend, still
      *  routed through the diff dialog so the user reviews and confirms the change. */
-    private void applyScriptHeaderOnly(SnippetCodeAnalysisDialog.ApplySelection selection, String originalContent) {
+    private void applyScriptHeaderOnly(SnippetAnalysisPanel.ApplySelection selection, String originalContent) {
         String updated = injectSelectedHeader(selection, originalContent);
         if (updated.equals(originalContent)) {
             setStatus(I18n.get("snippets.ai.analysis.fix.empty"));

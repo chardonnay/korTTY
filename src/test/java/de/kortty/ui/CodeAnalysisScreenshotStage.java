@@ -206,7 +206,7 @@ public final class CodeAnalysisScreenshotStage {
         AiSkill shell = new AiSkill();
         shell.setId("shell");
         shell.setName("Bourne-Shell (sh, POSIX)");
-        SnippetCodeAnalysisDialog.SkillContext skills = new SnippetCodeAnalysisDialog.SkillContext(
+        SnippetAnalysisPanel.SkillContext skills = new SnippetAnalysisPanel.SkillContext(
             List.of(perl, shell), Set.of("perl", "shell"), true, ids -> { });
 
         return new SnippetCodeAnalysisDialog(
@@ -225,9 +225,9 @@ public final class CodeAnalysisScreenshotStage {
     private static void expandDependencies(SnippetCodeAnalysisDialog dialog) {
         try {
             java.lang.reflect.Field field =
-                SnippetCodeAnalysisDialog.class.getDeclaredField("findingsView");
+                SnippetAnalysisPanel.class.getDeclaredField("findingsView");
             field.setAccessible(true);
-            javafx.scene.web.WebView view = (javafx.scene.web.WebView) field.get(dialog);
+            javafx.scene.web.WebView view = (javafx.scene.web.WebView) field.get(dialog.panel());
             view.getEngine().executeScript(
                 "document.querySelectorAll('details.dep-group').forEach(function (d) { d.open = true; });");
         } catch (Exception e) {

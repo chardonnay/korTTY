@@ -126,6 +126,30 @@ public final class InputHardeningSelectorSmoke {
                         || !selector.currentConfig().isEnabled() || selector.selectedCount() == 0) {
                     throw new AssertionError("F: supported target must restore the saved per-run selection");
                 }
+
+                // --- G: a restored config shows exactly its sub-options and limit; extra listeners fire. ---
+                AtomicInteger extraFired = new AtomicInteger();
+                selector.addSelectionListener(extraFired::incrementAndGet);
+                selector.applyConfig(new InputHardeningConfig(
+                    java.util.EnumSet.of(InputHardeningOption.PARAM_VALIDATION, InputHardeningOption.FILE_SIZE_LIMIT),
+                    3L * 1_048_576L));
+                config = selector.currentConfig();
+                System.out.println("G: options=" + config.options() + " bytes=" + config.maxFileSizeBytes());
+                if (!config.options().equals(java.util.EnumSet.of(
+                        InputHardeningOption.PARAM_VALIDATION, InputHardeningOption.FILE_SIZE_LIMIT))
+                        || config.maxFileSizeBytes() != 3L * 1_048_576L) {
+                    throw new AssertionError("G: applyConfig must restore the sub-options and the size limit");
+                }
+                if (extraFired.get() == 0) {
+                    throw new AssertionError("G: an added selection listener must fire next to the counter");
+                }
+                selector.applyConfig(InputHardeningConfig.disabled());
+                if (selector.currentConfig().isEnabled() || enableCheck.isSelected()) {
+                    throw new AssertionError("G: a disabled config must clear the master toggle");
+                }
+                if (!checks.get(InputHardeningOption.PARAM_VALIDATION).isSelected()) {
+                    throw new AssertionError("G: a disabled config must keep the sub-options as they were");
+                }
             } catch (Throwable t) {
                 failure.compareAndSet(null, String.valueOf(t));
             } finally {
