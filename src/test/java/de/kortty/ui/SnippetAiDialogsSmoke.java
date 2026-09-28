@@ -95,7 +95,7 @@ public final class SnippetAiDialogsSmoke {
             }
         });
 
-        boolean finished = done.await(180, TimeUnit.SECONDS);
+        boolean finished = done.await(240, TimeUnit.SECONDS);
         Platform.exit();
         if (!finished) {
             System.err.println("Smoke timed out");
@@ -629,7 +629,7 @@ public final class SnippetAiDialogsSmoke {
             stop(poller);
             shown.closeWithoutPrompt();
             PauseTransition cleanupPause = new PauseTransition(Duration.seconds(2));
-            cleanupPause.setOnFinished(cleanup -> done.countDown());
+            cleanupPause.setOnFinished(cleanup -> runStopAndRetryLeg(failure, done));
             cleanupPause.play();
         };
         Timeline timeline = new Timeline(new KeyFrame(Duration.millis(100), event -> {
@@ -689,6 +689,357 @@ public final class SnippetAiDialogsSmoke {
         timeline.setCycleCount(Timeline.INDEFINITE);
         poller.set(timeline);
         timeline.play();
+    }
+
+    /**
+     * Stop and Retry for every kind of snippet AI work, against slow fake providers: a code
+     * improvement on a selection (Stop in the hint bar, Retry re-selects the same range and sends
+     * the same text), the Full-code analysis (Stop in the panel banner; the provider ignores the
+     * interrupt and answers late, which must never be stored; Retry stores the next answer) and a
+     * diagram generation (stopped with Esc, retried from the hint bar), plus the analysis panel's
+     * diagram view (Stop/Retry in the view). After every stop nothing may keep running, no error
+     * may be reported and the UI must be idle. Ends the harness.
+     */
+    private static void runStopAndRetryLeg(AtomicReference<String> failure, CountDownLatch done) {
+        String original = "#!/bin/bash\n# Greets the caller\nname=$1\necho \"Hello $name\"\n";
+        String selected = "name=$1";
+        int selectionStart = original.indexOf(selected);
+        java.util.concurrent.atomic.AtomicInteger improveCalls = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicInteger analysisCalls = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicInteger diagramCalls = new java.util.concurrent.atomic.AtomicInteger();
+        List<String> improveSelections = java.util.Collections.synchronizedList(new ArrayList<>());
+        List<String> analysisContents = java.util.Collections.synchronizedList(new ArrayList<>());
+        AtomicBoolean improveInterrupted = new AtomicBoolean();
+        AtomicBoolean lateAnalysisReturned = new AtomicBoolean();
+        // Only the first diagram request after the editor's own generation starts is slow: the
+        // analysis panel may ask for its diagram too, and that one must not get in the way.
+        AtomicBoolean nextDiagramSlow = new AtomicBoolean();
+        java.util.concurrent.atomic.AtomicInteger diagramBaseline = new java.util.concurrent.atomic.AtomicInteger();
+        AtomicReference<Timeline> poller = new AtomicReference<>();
+        java.util.concurrent.atomic.AtomicInteger phase = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicLong phaseStarted = new java.util.concurrent.atomic.AtomicLong(System.nanoTime());
+        long started = System.nanoTime();
+        SnippetAiResponseSupport.ScriptAnalysis analysis = new SnippetAiResponseSupport.ScriptAnalysis(
+            "Greets the caller.", List.of(),
+            List.of(new SnippetAiResponseSupport.ScriptImprovement("SEC-1", "security", "high",
+                "Quote $1", "", "", 3)));
+        SnippetEditDialog.AiAssist assist = new SnippetEditDialog.AiAssist(
+            null, null, null, null, null, null, null, null,
+            request -> {
+                improveSelections.add(request.selectedText());
+                if (improveCalls.incrementAndGet() == 1) {
+                    // A slow model: only a stop ends this call.
+                    try {
+                        Thread.sleep(60_000L);
+                    } catch (InterruptedException e) {
+                        improveInterrupted.set(true);
+                        throw e;
+                    }
+                }
+                return new SnippetAiResponseSupport.CodeImprovement("name=\"$1\"", "Quoted.");
+            },
+            null, null, null, null, null,
+            request -> {
+                diagramCalls.incrementAndGet();
+                if (nextDiagramSlow.compareAndSet(true, false)) {
+                    Thread.sleep(60_000L);
+                }
+                return new SnippetAiResponseSupport.MermaidDiagram("Flow", "flowchart TD\n  A[Start] --> B[End]");
+            },
+            request -> {
+                analysisContents.add(request.fullContent());
+                if (analysisCalls.incrementAndGet() == 1) {
+                    // A provider that ignores the stop and answers anyway, a second later.
+                    long until = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(1_200);
+                    while (System.nanoTime() < until) {
+                        try {
+                            Thread.sleep(50L);
+                        } catch (InterruptedException ignored) {
+                            // deliberately ignored
+                        }
+                    }
+                    lateAnalysisReturned.set(true);
+                }
+                return analysis;
+            },
+            applyRequest -> new SnippetAiResponseSupport.SnippetSecurityFix(original, "Unchanged.", List.of()),
+            false,
+            null);
+        Snippet snippet = new Snippet("stop-retry-smoke.sh", original, "bash");
+        snippet.setCodeTextLanguageCode("en");
+        SnippetEditDialog editorDialog;
+        try {
+            editorDialog = new SnippetEditDialog(snippet, List.of(), assist);
+            editorDialog.show();
+        } catch (Throwable e) {
+            failure.compareAndSet(null, "Stop/Retry leg could not start: " + e);
+            done.countDown();
+            return;
+        }
+        SnippetEditDialog shown = editorDialog;
+        MonacoEditorPane editor = field(shown, "contentArea", MonacoEditorPane.class);
+        Runnable finish = () -> {
+            stop(poller);
+            for (Window window : new ArrayList<>(Window.getWindows())) {
+                if (window instanceof Stage stage && stage.isShowing()
+                        && I18n.get("snippets.ai.diagram.title").equals(stage.getTitle())) {
+                    stage.close();
+                }
+            }
+            shown.closeWithoutPrompt();
+            PauseTransition cleanupPause = new PauseTransition(Duration.seconds(2));
+            cleanupPause.setOnFinished(cleanup -> done.countDown());
+            cleanupPause.play();
+        };
+        Timeline timeline = new Timeline(new KeyFrame(Duration.millis(100), event -> {
+            try {
+                if (System.nanoTime() - started > 90_000_000_000L) {
+                    throw new AssertionError("timed out");
+                }
+                switch (phase.get()) {
+                    case 0 -> {
+                        if (!editor.isReady()) {
+                            return;
+                        }
+                        verifyDiagramViewStopAndRetry();
+                        editor.selectRange(selectionStart, selectionStart + selected.length());
+                        invoke(shown, "runCodeImprovement", new Class<?>[] {String.class, String.class, boolean.class},
+                            "readability", null, false);
+                        phase.set(1);
+                    }
+                    case 1 -> {
+                        Button stopButton = (Button) requireInEditor(shown, "#snippet-ai-stop");
+                        Label elapsed = (Label) requireInEditor(shown, "#snippet-ai-elapsed");
+                        if (improveCalls.get() < 1 || !stopButton.isVisible() || stopButton.isDisabled()) {
+                            return;
+                        }
+                        if (!elapsed.isVisible() || !elapsed.getText().matches("\\d+:\\d{2}")) {
+                            throw new AssertionError("The running request shows no elapsed time: " + elapsed.getText());
+                        }
+                        snapshotNode(stopButton.getParent(), "snippet-ai-stop-running.png");
+                        long stopAt = System.nanoTime();
+                        click(stopButton);
+                        if (isAiBusy(shown)) {
+                            throw new AssertionError("Stop left the editor busy");
+                        }
+                        Button retry = (Button) requireInEditor(shown, "#snippet-ai-retry");
+                        if (!retry.isVisible() || retry.isDisabled()) {
+                            throw new AssertionError("The stopped improvement offers no Retry");
+                        }
+                        snapshotNode(retry.getParent(), "snippet-ai-stop-retry.png");
+                        if (shown.aiChangeReviewPane() != null) {
+                            throw new AssertionError("A stopped improvement opened a review");
+                        }
+                        phaseStarted.set(stopAt);
+                        // Move the caret away: Retry must restore the selection by itself.
+                        editor.selectRange(0, 0);
+                        phase.set(2);
+                    }
+                    case 2 -> {
+                        if (!improveInterrupted.get()) {
+                            if (System.nanoTime() - phaseStarted.get() > 1_500_000_000L) {
+                                throw new AssertionError("Stop did not interrupt the provider call within 1.5 s");
+                            }
+                            return;
+                        }
+                        click((Button) requireInEditor(shown, "#snippet-ai-retry"));
+                        phase.set(3);
+                    }
+                    case 3 -> {
+                        SnippetAiDiffPane review = shown.aiChangeReviewPane();
+                        if (review == null || review.getScene() == null) {
+                            return;
+                        }
+                        if (improveCalls.get() != 2 || !selected.equals(improveSelections.get(1))) {
+                            throw new AssertionError("Retry did not repeat the request on the same selection: "
+                                + improveSelections);
+                        }
+                        ((Button) requireInEditor(shown, "#snippet-ai-diff-reject")).fire();
+                        phase.set(4);
+                    }
+                    case 4 -> {
+                        if (shown.aiChangeReviewPane() != null || isAiBusy(shown)) {
+                            return;
+                        }
+                        if (!original.equals(editor.getText())) {
+                            throw new AssertionError("Reject changed the content");
+                        }
+                        shown.analysisController().showPanel();
+                        shown.analysisController().runAnalysis(null);
+                        phase.set(5);
+                    }
+                    case 5 -> {
+                        Node stopNode = shown.getDialogPane().lookup("#snippet-analysis-stop");
+                        if (analysisCalls.get() < 1 || stopNode == null || !stopNode.isVisible()) {
+                            return;
+                        }
+                        if (shown.getDialogPane().lookup("#snippet-analysis-elapsed") == null) {
+                            throw new AssertionError("The running analysis banner shows no elapsed time");
+                        }
+                        if (stopNode.isDisabled()) {
+                            Node p = stopNode;
+                            StringBuilder chain = new StringBuilder();
+                            while (p != null) {
+                                chain.append(p.getClass().getSimpleName()).append('#').append(p.getId())
+                                    .append(p.isDisable() ? "(DISABLED)" : "").append(" < ");
+                                p = p.getParent();
+                            }
+                            throw new AssertionError("The analysis Stop button is disabled: " + chain);
+                        }
+                        snapshotNode(shown.getDialogPane().lookup("#" + SnippetAnalysisController.BANNERS_ID),
+                            "snippet-analysis-stop-running.png");
+                        click((Button) stopNode);
+                        if (shown.analysisController().isAnalysisRunning() || isAiBusy(shown)) {
+                            Object action = field(shown, "snippetAiActionTask", Object.class);
+                            throw new AssertionError("Stopping the analysis left it running (analysis="
+                                + shown.analysisController().isAnalysisRunning() + ", action=" + action
+                                + (action instanceof javafx.concurrent.Task<?> t ? " " + t.getState() : "") + ")");
+                        }
+                        if (shown.analysisController().analysisOutcome() == null
+                                || !shown.analysisController().analysisOutcome().stopped()) {
+                            throw new AssertionError("The stopped analysis offers no Retry");
+                        }
+                        phase.set(6);
+                    }
+                    case 6 -> {
+                        // The provider answers after the stop; that answer must go nowhere.
+                        if (!lateAnalysisReturned.get()) {
+                            return;
+                        }
+                        phaseStarted.set(System.nanoTime());
+                        phase.set(7);
+                    }
+                    case 7 -> {
+                        if (System.nanoTime() - phaseStarted.get() < 500_000_000L) {
+                            return;
+                        }
+                        de.kortty.core.SnippetAnalysisHistory stored =
+                            de.kortty.core.SnippetAnalysisStore.shared().cached(snippet.getId());
+                        if (stored != null && !stored.isEmpty()) {
+                            throw new AssertionError("The late answer of a stopped analysis was stored");
+                        }
+                        Node retry = shown.getDialogPane().lookup("#snippet-analysis-retry");
+                        if (retry == null || !retry.isVisible() || retry.isDisabled()) {
+                            throw new AssertionError("The analysis panel offers no Retry after the stop");
+                        }
+                        snapshotNode(shown.getDialogPane().lookup("#" + SnippetAnalysisController.BANNERS_ID),
+                            "snippet-analysis-stop-retry.png");
+                        click((Button) retry);
+                        phase.set(8);
+                    }
+                    case 8 -> {
+                        de.kortty.core.SnippetAnalysisHistory stored =
+                            de.kortty.core.SnippetAnalysisStore.shared().cached(snippet.getId());
+                        if (stored == null || stored.isEmpty() || shown.analysisController().isAnalysisRunning()) {
+                            return;
+                        }
+                        if (analysisCalls.get() != 2 || !analysisContents.get(0).equals(analysisContents.get(1))) {
+                            throw new AssertionError("Retry did not repeat the analysis with the same input");
+                        }
+                        if (shown.analysisController().analysisOutcome() != null
+                                || shown.getDialogPane().lookup("#snippet-analysis-retry") != null) {
+                            throw new AssertionError("The Retry banner stayed after the analysis arrived");
+                        }
+                        shown.analysisController().hidePanel();
+                        diagramBaseline.set(diagramCalls.get());
+                        nextDiagramSlow.set(true);
+                        invoke(shown, "startDiagramGeneration",
+                            new Class<?>[] {de.kortty.model.SnippetDiagram.class, de.kortty.model.SnippetDiagramType.class,
+                                Class.forName("de.kortty.ui.SnippetEditDialog$DiagramScope")},
+                            null, de.kortty.model.SnippetDiagramType.LOGICAL_STRUCTURE, null);
+                        phase.set(9);
+                    }
+                    case 9 -> {
+                        if (diagramCalls.get() < diagramBaseline.get() + 1 || !isAiBusy(shown)) {
+                            return;
+                        }
+                        // Esc in the code editor stops it; the window must stay open.
+                        javafx.scene.input.KeyEvent esc = new javafx.scene.input.KeyEvent(
+                            javafx.scene.input.KeyEvent.KEY_PRESSED, "", "", javafx.scene.input.KeyCode.ESCAPE,
+                            false, false, false, false);
+                        javafx.event.Event.fireEvent(editor, esc);
+                        if (isAiBusy(shown)) {
+                            throw new AssertionError("Esc did not stop the diagram generation");
+                        }
+                        if (!shown.getDialogPane().getScene().getWindow().isShowing()) {
+                            throw new AssertionError("Esc closed the editor instead of stopping the AI request");
+                        }
+                        Node retry = requireInEditor(shown, "#snippet-ai-retry");
+                        if (!retry.isVisible()) {
+                            throw new AssertionError("The stopped diagram offers no Retry");
+                        }
+                        click((Button) retry);
+                        phase.set(10);
+                    }
+                    case 10 -> {
+                        if (diagramCalls.get() < diagramBaseline.get() + 2 || isAiBusy(shown)) {
+                            return;
+                        }
+                        Method copy = shown.getClass().getDeclaredMethod("copyDiagrams");
+                        copy.setAccessible(true);
+                        List<?> saved = (List<?>) copy.invoke(shown);
+                        if (saved.isEmpty()) {
+                            throw new AssertionError("The retried diagram was not saved: "
+                                + field(shown, "statusLabel", Label.class).getText());
+                        }
+                        phase.set(11);
+                        finish.run();
+                    }
+                    default -> stop(poller);
+                }
+            } catch (Throwable e) {
+                Throwable cause = e instanceof java.lang.reflect.InvocationTargetException ite && ite.getCause() != null
+                    ? ite.getCause() : e;
+                failure.compareAndSet(null, "Stop/Retry failed in phase " + phase.get() + ": " + cause);
+                phase.set(99);
+                finish.run();
+            }
+        }));
+        timeline.setCycleCount(Timeline.INDEFINITE);
+        poller.set(timeline);
+        timeline.play();
+    }
+
+    private static boolean isAiBusy(SnippetEditDialog editor) {
+        try {
+            Method method = SnippetEditDialog.class.getDeclaredMethod("isAnyAiTaskRunning");
+            method.setAccessible(true);
+            return (Boolean) method.invoke(editor);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    /** The analysis panel's diagram view: Stop drops the generation (and tells the owner), Retry asks again. */
+    private static void verifyDiagramViewStopAndRetry() {
+        List<CompletableFuture<SnippetDiagramView.DiagramSource>> requests = new ArrayList<>();
+        AtomicBoolean ownerStopped = new AtomicBoolean();
+        SnippetDiagramView view = new SnippetDiagramView(() -> {
+            CompletableFuture<SnippetDiagramView.DiagramSource> request = new CompletableFuture<>();
+            requests.add(request);
+            return request;
+        }, true);
+        view.setStopHandler(() -> ownerStopped.set(true));
+        view.reload();
+        Node stopNode = view.lookup("#snippet-diagram-stop");
+        if (!view.isGenerating() || stopNode == null || !stopNode.isVisible()) {
+            view.dispose();
+            throw new AssertionError("The generating diagram view shows no Stop");
+        }
+        ((Button) stopNode).fire();
+        Node retryNode = view.lookup("#snippet-diagram-retry");
+        boolean ok = !view.isGenerating() && ownerStopped.get() && requests.get(0).isCancelled()
+            && retryNode != null && retryNode.isVisible() && !stopNode.isVisible();
+        if (ok) {
+            // A late answer of the stopped request must not show.
+            ((Button) retryNode).fire();
+            ok = requests.size() == 2 && view.isGenerating() && !retryNode.isVisible();
+        }
+        view.dispose();
+        if (!ok) {
+            throw new AssertionError("Stop/Retry in the diagram view did not work (requests=" + requests.size()
+                + ", ownerStopped=" + ownerStopped.get() + ")");
+        }
     }
 
     /**

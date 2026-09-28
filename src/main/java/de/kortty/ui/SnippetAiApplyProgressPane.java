@@ -79,7 +79,7 @@ final class SnippetAiApplyProgressPane extends VBox {
     private final Label summaryRetries = new Label();
     private final VBox recoveryBox = new VBox(6);
     private final Button reviewChangesButton = new Button(I18n.get("snippets.ai.analysis.progress.reopenPreview"));
-    private final Button cancelButton = new Button(I18n.get("dialog.cancel"));
+    private final Button cancelButton = AiStopRetrySupport.stopButton(null);
     private final Button copySummaryButton = new Button(I18n.get("snippets.ai.analysis.progress.summary.copy"));
     private final HBox leadingActions = new HBox(6);
     private final HBox actionBar = new HBox(6);
@@ -371,7 +371,13 @@ final class SnippetAiApplyProgressPane extends VBox {
                 setVisibleManaged(recoveryBox, false);
                 return;
             }
-            Label header = new Label(I18n.get(recovery.cancelled()
+            // Nothing finished yet: there is nothing to resume or preview, only the run to repeat.
+            boolean nothingCompleted = recovery.completedStages() <= 0;
+            Label header = new Label(nothingCompleted
+                ? I18n.get(recovery.cancelled()
+                    ? "snippets.ai.analysis.fix.recovery.header.cancelledEarly"
+                    : "snippets.ai.analysis.fix.recovery.header.failedEarly")
+                : I18n.get(recovery.cancelled()
                     ? "snippets.ai.analysis.fix.recovery.header.cancelled"
                     : "snippets.ai.analysis.fix.recovery.header.failed",
                 recovery.completedStages(), recovery.totalStages()));
@@ -383,9 +389,19 @@ final class SnippetAiApplyProgressPane extends VBox {
             HBox buttons = new HBox(6);
             buttons.setAlignment(Pos.CENTER_LEFT);
             addRecoveryButton(buttons, "snippets.ai.analysis.fix.recovery.resume", recovery.onResume());
+            if (recovery.onRetry() != null) {
+                Button retry = AiStopRetrySupport.retryButton(recovery.onRetry());
+                retry.setId("snippet-analysis-apply-retry");
+                retry.setText(AiStopRetrySupport.RETRY_PREFIX
+                    + I18n.get(nothingCompleted ? "snippets.ai.retry" : "snippets.ai.analysis.fix.recovery.restart"));
+                buttons.getChildren().add(retry);
+            }
             addRecoveryButton(buttons, "snippets.ai.analysis.fix.recovery.partial", recovery.onPreviewPartial());
             addRecoveryButton(buttons, "snippets.ai.analysis.fix.recovery.discard", recovery.onDiscard());
-            recoveryBox.getChildren().setAll(header, content);
+            recoveryBox.getChildren().setAll(header);
+            if (!nothingCompleted) {
+                recoveryBox.getChildren().add(content);
+            }
             if (recovery.note() != null && !recovery.note().isBlank()) {
                 Label note = new Label(recovery.note());
                 note.setId("snippet-analysis-recovery-note");
@@ -407,14 +423,24 @@ final class SnippetAiApplyProgressPane extends VBox {
         target.getChildren().add(button);
     }
 
-    /** What an interrupted run offers; a {@code null} action leaves its button out. */
+    /**
+     * What an interrupted run offers; a {@code null} action leaves its button out. {@code onRetry}
+     * repeats the whole run from the first stage with the same selection.
+     */
     record Recovery(int completedStages, int totalStages, boolean cancelled,
-                    Runnable onResume, Runnable onPreviewPartial, Runnable onDiscard, String note) {
+                    Runnable onResume, Runnable onPreviewPartial, Runnable onDiscard, String note,
+                    Runnable onRetry) {
 
-        /** Without a note. */
+        /** Without Retry. */
+        Recovery(int completedStages, int totalStages, boolean cancelled,
+                 Runnable onResume, Runnable onPreviewPartial, Runnable onDiscard, String note) {
+            this(completedStages, totalStages, cancelled, onResume, onPreviewPartial, onDiscard, note, null);
+        }
+
+        /** Without a note or Retry. */
         Recovery(int completedStages, int totalStages, boolean cancelled,
                  Runnable onResume, Runnable onPreviewPartial, Runnable onDiscard) {
-            this(completedStages, totalStages, cancelled, onResume, onPreviewPartial, onDiscard, null);
+            this(completedStages, totalStages, cancelled, onResume, onPreviewPartial, onDiscard, null, null);
         }
     }
 

@@ -118,6 +118,16 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     private final ProgressIndicator snippetAiProgressIndicator;
     private final Label snippetAiHintLabel;
     private final Button cancelSnippetAiActionButton;
+    private final Label snippetAiElapsedLabel;
+    private final Button retrySnippetAiActionButton;
+    private final Button dismissSnippetAiRetryButton;
+    private final javafx.animation.Timeline snippetAiElapsedTicker;
+    private long snippetAiStartedNanos;
+    /** How to repeat each running AI task (by identity); a task without an entry offers no Retry. */
+    private final Map<Task<?>, AiRetry> aiRetries = new java.util.IdentityHashMap<>();
+    /** The Retry the hint bar offers after a stop, a failure or a timeout; {@code null} = none. */
+    private AiRetry offeredAiRetry;
+    private String offeredAiRetryText;
     private final MonacoEditorPane contentArea;
     private final SnippetColumnRuler columnRuler;
     private final ToggleButton markupPreviewToggleButton;
@@ -323,6 +333,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         + " -fx-border-width: 1;"
         + " -fx-border-radius: 8;"
         + " -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.30), 8, 0, 0, 2);";
+    /** A stopped or failed action waiting for Retry: amber, like the analysis panel's warnings. */
+    private static final String SNIPPET_AI_HINT_OUTCOME_STYLE = "-fx-background-color: rgba(245,158,11,0.22);"
+        + " -fx-background-radius: 8;"
+        + " -fx-border-color: rgba(245,158,11,0.70);"
+        + " -fx-border-width: 1;"
+        + " -fx-border-radius: 8;";
     private static final String SNIPPET_AI_HINT_IDLE_STYLE = "-fx-background-color: transparent;"
         + " -fx-background-radius: 8;"
         + " -fx-border-color: transparent;"
@@ -1014,14 +1030,28 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         snippetAiHintLabel.setWrapText(true);
         snippetAiHintLabel.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(snippetAiHintLabel, Priority.ALWAYS);
-        cancelSnippetAiActionButton = new Button(I18n.get("dialog.cancel"));
-        cancelSnippetAiActionButton.setOnAction(e -> cancelSnippetAiActionTask());
+        cancelSnippetAiActionButton = AiStopRetrySupport.stopButton(this::cancelSnippetAiActionTask);
+        cancelSnippetAiActionButton.setId("snippet-ai-stop");
         cancelSnippetAiActionButton.setDisable(true);
+        snippetAiElapsedLabel = new Label();
+        snippetAiElapsedLabel.setId("snippet-ai-elapsed");
+        snippetAiElapsedLabel.setStyle(SNIPPET_AI_HINT_TEXT_STYLE + " -fx-font-weight: normal; -fx-opacity: 0.85;");
+        snippetAiElapsedLabel.setMinWidth(Region.USE_PREF_SIZE);
+        snippetAiElapsedTicker = AiStopRetrySupport.ticker(this::refreshSnippetAiElapsed);
+        retrySnippetAiActionButton = AiStopRetrySupport.retryButton(this::runOfferedAiRetry);
+        retrySnippetAiActionButton.setId("snippet-ai-retry");
+        dismissSnippetAiRetryButton = new Button("\u2715");
+        dismissSnippetAiRetryButton.setId("snippet-ai-retry-dismiss");
+        dismissSnippetAiRetryButton.setTooltip(new Tooltip(I18n.get("snippets.ai.retry.dismiss")));
+        dismissSnippetAiRetryButton.setOnAction(e -> dismissAiRetry());
         snippetAiHintBox = new HBox(
             12,
             snippetAiProgressIndicator,
             snippetAiHintLabel,
-            cancelSnippetAiActionButton);
+            snippetAiElapsedLabel,
+            cancelSnippetAiActionButton,
+            retrySnippetAiActionButton,
+            dismissSnippetAiRetryButton);
         snippetAiHintBox.setAlignment(Pos.CENTER_LEFT);
         snippetAiHintBox.setPadding(new Insets(10, 12, 10, 12));
         snippetAiHintBox.setMaxWidth(Double.MAX_VALUE);
@@ -1031,6 +1061,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         snippetAiProgressIndicator.setVisible(false);
         cancelSnippetAiActionButton.setManaged(false);
         cancelSnippetAiActionButton.setVisible(false);
+        setShown(snippetAiElapsedLabel, false);
+        setShown(retrySnippetAiActionButton, false);
+        setShown(dismissSnippetAiRetryButton, false);
         
         // Content area with syntax highlighting – use saved editor settings
         contentArea = MonacoEditorWarmup.acquire();
@@ -1440,6 +1473,15 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         HBox.setHgrow(editorAreaStack, Priority.ALWAYS);
         analysisWorkbench = new HBox(editorAreaStack);
         analysisWorkbench.setId("snippet-editor-workbench");
+        // Esc stops the running AI request of this editor (form, Monaco or analysis panel). A filter,
+        // so it wins over Monaco and the dialog's Cancel — but only while something runs, and never
+        // for a change review, which keeps its own Esc handling.
+        analysisWorkbench.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.ESCAPE && !event.isShortcutDown() && !event.isAltDown()
+                    && !isInsideChangeReview(event.getTarget()) && stopRunningAiByKeyboard()) {
+                event.consume();
+            }
+        });
         analysisWorkbench.setFillHeight(true);
         analysisDivider = buildAnalysisDivider();
 
@@ -3387,7 +3429,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         aiCodeMenu.setDisable(busy || !hasContent || (!hasCompletionProvider() && !hasCodeReviewProvider()
             && !hasCodeImprovementProvider() && !hasSecurityProviders() && !hasDiagramProvider()));
         // A completion request is cancellable too, but it blocks nothing else (busy stays as it is).
-        boolean cancellable = snippetActionRunning || completionTask != null;
+        boolean cancellable = snippetActionRunning || completionTask != null
+            || isMetadataTaskRunning() || isDescriptionCorrectionRunning();
         cancelSnippetAiActionButton.setDisable(!cancellable);
         toggleLastAiChangeButton.setDisable(lastAiChangeSnapshot == null || busy);
         updateLastAiToggleTooltip();
@@ -4202,7 +4245,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                     instructions));
             }
         };
-        beginSnippetAiAction(task);
+        beginSnippetAiAction(task, retryOnSelection(() -> runSelectionTextTransform(provider,
+            captureSelectionTextTransformTarget(), targetLanguageCode, runningStatus, successStatus, failedStatus,
+            actionLabel)));
         task.setOnRunning(event -> {
             showSnippetAiHint(runningStatus);
             setStatus(runningStatus);
@@ -4288,7 +4333,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                     aiProfileId));
             }
         };
-        beginSnippetAiAction(task);
+        beginSnippetAiAction(task, retryOnSelection(() -> runSnippetDescription(aiProfileId)));
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.description.generating"));
             setStatus(I18n.get("snippets.ai.description.generating"));
@@ -4788,11 +4833,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
      * Every heavy AI action starts here: it takes the flow over from completion, so a debounced ghost
      * request cannot fire into the analysis and a visible ghost text does not linger over its result.
      */
-    private void beginSnippetAiAction(Task<?> task) {
+    private void beginSnippetAiAction(Task<?> task, AiRetry retry) {
         cancelCompletionRequest();
         autoCompletionDelay.stop();
         contentArea.clearGhostCompletions();
+        // A new run replaces an offered Retry: the bar shows what runs now.
+        offeredAiRetry = null;
+        offeredAiRetryText = null;
         snippetAiActionTask = task;
+        if (retry != null) {
+            aiRetries.put(task, retry);
+        }
     }
 
     /** A completion status is transient: it is cleared again when its list closes. */
@@ -5311,7 +5362,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         if (!applyCodeTextLanguage(true)) {
             return;
         }
-        beginSnippetAiAction(task);
+        beginSnippetAiAction(task, wholeSnippet
+            ? retryOf(() -> runCodeImprovement(theme, aiProfileId, true))
+            : retryOnSelection(() -> runCodeImprovement(theme, aiProfileId, false)));
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.improve.running"));
             setStatus(I18n.get("snippets.ai.improve.running"));
@@ -5426,7 +5479,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                     aiProfileId));
             }
         };
-        beginSnippetAiAction(task);
+        beginSnippetAiAction(task, retryOf(() -> runLanguageMigration(plan, aiProfileId)));
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.migrate.running"));
             setStatus(I18n.get("snippets.ai.migrate.running"));
@@ -5584,7 +5637,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         if (!applyCodeTextLanguage(true)) {
             return;
         }
-        beginSnippetAiAction(task);
+        beginSnippetAiAction(task, retryOnSelection(() -> runCodeAssistant(assistantPrompt, aiProfileId)));
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.assistant.running"));
             setStatus(I18n.get("snippets.ai.assistant.running"));
@@ -5726,7 +5779,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                     additionalInstructions()));
             }
         };
-        beginSnippetAiAction(task);
+        beginSnippetAiAction(task, retryOf(this::runSecurityCheck));
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.security.running"));
             setStatus(I18n.get("snippets.ai.security.running"));
@@ -5779,7 +5832,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         if (!applyCodeTextLanguage(true)) {
             return;
         }
-        beginSnippetAiAction(task);
+        // The findings describe this exact content, so Retry is only offered while it is unchanged.
+        beginSnippetAiAction(task, new AiRetry(() -> runSecurityFixes(selection),
+            () -> java.util.Objects.equals(contentArea.getText(), originalContent)
+                ? null
+                : I18n.get("snippets.ai.retry.contentChanged")));
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.security.fix.running"));
             setStatus(I18n.get("snippets.ai.security.fix.running"));
@@ -5899,7 +5956,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         }
     }
 
-    private int lineStartOffset(String content, int lineNumber) {
+    private static int lineStartOffset(String content, int lineNumber) {
         String value = content != null ? content : "";
         if (lineNumber <= 1) {
             return 0;
@@ -5916,7 +5973,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         return value.length();
     }
 
-    private int lineEndOffset(String content, int lineNumber) {
+    private static int lineEndOffset(String content, int lineNumber) {
         String value = content != null ? content : "";
         int startOffset = lineStartOffset(value, lineNumber);
         int endOffset = value.indexOf('\n', startOffset);
@@ -5968,6 +6025,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             return null;
         }
         return new DiagramScope(text, startLine, endLine);
+    }
+
+    /** The text of lines {@code startLine..endLine} as {@link #captureDiagramScope()} cuts it, or "". */
+    static String diagramScopeText(String content, int startLine, int endLine) {
+        String value = content != null ? content : "";
+        if (startLine < 1 || endLine < startLine) {
+            return "";
+        }
+        int startOffset = lineStartOffset(value, startLine);
+        int endOffset = Math.min(lineEndOffset(value, endLine), value.length());
+        return startOffset <= endOffset ? value.substring(startOffset, endOffset) : "";
     }
 
     /** Regenerates an existing diagram in place, keeping its family and selection scope. */
@@ -6091,7 +6159,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                 return new DiagramGenerationResult(diagram, syntaxCheck, renderCheck, outputLimitReached);
             }
         };
-        beginSnippetAiAction(task);
+        beginSnippetAiAction(task, new AiRetry(() -> startDiagramGeneration(existingDiagram, diagramType, scope),
+            () -> scope == null || scope.text().equals(diagramScopeText(contentArea.getText(), scope.startLine(), scope.endLine()))
+                ? null
+                : I18n.get("snippets.ai.retry.selectionChanged")));
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.diagram.generating"));
             setStatus(I18n.get("snippets.ai.diagram.generating"));
@@ -6449,8 +6520,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             return;
         }
         cancelMetadataTask();
+        offeredAiRetry = null;
+        offeredAiRetryText = null;
         showMetadataHint(I18n.get("snippets.ai.metadata.generating"));
-        showSnippetAiHint(I18n.get("snippets.ai.metadata.generating"), false);
+        showSnippetAiHint(I18n.get("snippets.ai.metadata.generating"), true);
         setStatus(I18n.get("snippets.ai.metadata.generating"));
         Task<SuggestedSnippetMetadata> task = new Task<>() {
             @Override
@@ -6460,8 +6533,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             }
         };
         metadataTask = task;
+        aiRetries.put(task, retryOf(() -> beginMetadataGeneration(overwriteExisting)));
         task.setOnRunning(event -> {
-            showSnippetAiHint(I18n.get("snippets.ai.metadata.generating"), false);
+            showSnippetAiHint(I18n.get("snippets.ai.metadata.generating"), true);
             updateAiActionAvailability();
         });
         task.setOnSucceeded(event -> {
@@ -6474,8 +6548,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             if (failure != null) {
                 logger.warn("Snippet AI metadata suggestion failed", failure);
             }
+            AiRetry retry = aiRetries.remove(task);
             finishMetadataTask(task);
             setStatus(I18n.get("snippets.ai.metadata.generateFailed"));
+            offerAiRetry(retry, I18n.get("snippets.ai.retry.failed", I18n.get("snippets.ai.metadata.generateFailed")));
         });
         task.setOnCancelled(event -> finishMetadataTask(task));
         AiTaskRunner.start(task, "snippet-metadata-suggestion");
@@ -6528,7 +6604,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             return;
         }
         cancelDescriptionCorrectionTask();
-        showSnippetAiHint(I18n.get("snippets.ai.description.correcting"), false);
+        offeredAiRetry = null;
+        offeredAiRetryText = null;
+        showSnippetAiHint(I18n.get("snippets.ai.description.correcting"), true);
         setStatus(I18n.get("snippets.ai.description.correcting"));
         Task<String> task = new Task<>() {
             @Override
@@ -6539,8 +6617,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             }
         };
         descriptionCorrectionTask = task;
+        aiRetries.put(task, retryOf(this::runDescriptionCorrection));
         task.setOnRunning(event -> {
-            showSnippetAiHint(I18n.get("snippets.ai.description.correcting"), false);
+            showSnippetAiHint(I18n.get("snippets.ai.description.correcting"), true);
             updateAiActionAvailability();
         });
         task.setOnSucceeded(event -> {
@@ -6561,8 +6640,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             if (failure != null) {
                 logger.warn("Snippet AI description correction failed", failure);
             }
+            AiRetry retry = aiRetries.remove(task);
             finishDescriptionCorrectionTask(task);
             setStatus(I18n.get("snippets.ai.description.correctFailed"));
+            offerAiRetry(retry, I18n.get("snippets.ai.retry.failed", I18n.get("snippets.ai.description.correctFailed")));
         });
         task.setOnCancelled(event -> finishDescriptionCorrectionTask(task));
         AiTaskRunner.start(task, "snippet-description-correction");
@@ -6598,6 +6679,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         if (metadataTask == task) {
             metadataTask = null;
         }
+        aiRetries.remove(task);
         hideMetadataHint();
         hideSnippetAiHintIfIdle();
         updateAiActionAvailability();
@@ -6607,6 +6689,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         if (descriptionCorrectionTask == task) {
             descriptionCorrectionTask = null;
         }
+        aiRetries.remove(task);
         hideSnippetAiHintIfIdle();
         updateAiActionAvailability();
     }
@@ -6615,20 +6698,82 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         cancelSnippetAiActionTask(true);
     }
 
-    private void cancelSnippetAiActionTask(boolean updateStatus) {
-        // The hint bar's Cancel button also serves a ghost-text request, which is not a snippet action.
+    /**
+     * Stops what the hint bar shows as running. {@code userStop} is the Stop button or Esc: the
+     * stopped action then offers Retry in the hint bar and the status says it was stopped. The
+     * editor closing or another action taking over cancels silently.
+     */
+    private void cancelSnippetAiActionTask(boolean userStop) {
+        // The hint bar's Stop button also serves a ghost-text request, which is not a snippet action.
         boolean completionCancelled = cancelCompletionRequest();
+        String runningText = snippetAiHintLabel.getText();
+        AiRetry retry = null;
+        boolean stopped = false;
         if (snippetAiActionTask != null) {
-            snippetAiActionTask.cancel(true);
+            Task<?> task = snippetAiActionTask;
+            retry = aiRetries.remove(task);
+            task.cancel(true);
             snippetAiActionTask = null;
-            hideSnippetAiHintIfIdle();
-            if (updateStatus) {
-                setStatus(I18n.get("ai.result.cancelled"));
+            stopped = true;
+        }
+        if (userStop) {
+            // Metadata and description correction run beside the actions; Stop ends them too.
+            if (metadataTask != null) {
+                AiRetry metadataRetry = aiRetries.remove(metadataTask);
+                retry = retry != null ? retry : metadataRetry;
+                cancelMetadataTask();
+                stopped = true;
             }
+            if (descriptionCorrectionTask != null) {
+                AiRetry correctionRetry = aiRetries.remove(descriptionCorrectionTask);
+                retry = retry != null ? retry : correctionRetry;
+                cancelDescriptionCorrectionTask();
+                stopped = true;
+            }
+        }
+        if (stopped) {
+            if (userStop) {
+                String stoppedText = I18n.get("snippets.ai.stop.stopped", stripEllipsis(runningText));
+                setStatus(I18n.get("ai.result.cancelled"));
+                offerAiRetry(retry, stoppedText);
+            }
+            hideSnippetAiHintIfIdle();
             updateAiActionAvailability();
-        } else if (completionCancelled && updateStatus) {
+        } else if (completionCancelled && userStop) {
             setStatus(I18n.get("ai.result.cancelled"));
         }
+    }
+
+    /**
+     * Esc in the editor or its analysis panel stops the running AI operation — the snippet action
+     * (including a running Full-code analysis or apply), metadata generation, description
+     * correction, or else a diagram the analysis panel is generating. A ghost-text request is left
+     * to Monaco, which uses Esc to dismiss it. {@code true} = something was stopped.
+     */
+    private static boolean isInsideChangeReview(Object target) {
+        for (javafx.scene.Node node = target instanceof javafx.scene.Node n ? n : null; node != null;
+                node = node.getParent()) {
+            if (node instanceof SnippetAiDiffPane) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    boolean stopRunningAiByKeyboard() {
+        if (isAnyAiTaskRunning()) {
+            cancelSnippetAiActionTask(true);
+            return true;
+        }
+        return analysisController != null && analysisController.stopRunningDiagram();
+    }
+
+    private static String stripEllipsis(String text) {
+        String value = text != null ? text.strip() : "";
+        while (value.endsWith("…") || value.endsWith(".")) {
+            value = value.substring(0, value.length() - 1).strip();
+        }
+        return value;
     }
 
     private void showMetadataHint(String text) {
@@ -6648,18 +6793,34 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     }
 
     private void showSnippetAiHint(String text, boolean cancellable) {
+        if (!snippetAiHintBox.isVisible() || !snippetAiProgressIndicator.isVisible()) {
+            // A new run: the clock starts now (a message update of a running one keeps it going).
+            snippetAiStartedNanos = System.nanoTime();
+        }
         snippetAiHintLabel.setText(text != null ? text : "");
         snippetAiHintBox.setManaged(true);
         snippetAiHintBox.setVisible(true);
         snippetAiProgressIndicator.setProgress(ProgressIndicator.INDETERMINATE_PROGRESS);
+        snippetAiProgressIndicator.setManaged(true);
         snippetAiProgressIndicator.setVisible(true);
         cancelSnippetAiActionButton.setDisable(!cancellable);
         cancelSnippetAiActionButton.setManaged(cancellable);
         cancelSnippetAiActionButton.setVisible(cancellable);
+        setShown(retrySnippetAiActionButton, false);
+        setShown(dismissSnippetAiRetryButton, false);
+        setShown(snippetAiElapsedLabel, true);
+        refreshSnippetAiElapsed();
+        snippetAiElapsedTicker.play();
         snippetAiHintBox.setStyle(SNIPPET_AI_HINT_ACTIVE_STYLE);
     }
 
+    /** Hides the running state; an offered Retry keeps the bar, as its stopped/failed strip. */
     private void hideSnippetAiHint() {
+        snippetAiElapsedTicker.stop();
+        if (offeredAiRetry != null) {
+            showAiRetryStrip();
+            return;
+        }
         snippetAiHintLabel.setText("");
         snippetAiHintBox.setManaged(false);
         snippetAiHintBox.setVisible(false);
@@ -6667,6 +6828,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         cancelSnippetAiActionButton.setDisable(true);
         cancelSnippetAiActionButton.setManaged(false);
         cancelSnippetAiActionButton.setVisible(false);
+        setShown(snippetAiElapsedLabel, false);
+        setShown(retrySnippetAiActionButton, false);
+        setShown(dismissSnippetAiRetryButton, false);
         snippetAiHintBox.setStyle(SNIPPET_AI_HINT_IDLE_STYLE);
     }
 
@@ -6676,10 +6840,139 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         }
     }
 
+    private void refreshSnippetAiElapsed() {
+        snippetAiElapsedLabel.setText(AiStopRetrySupport.formatElapsed(
+            (System.nanoTime() - snippetAiStartedNanos) / 1_000_000L));
+    }
+
+    /**
+     * After a stop, a failure or a timeout: "Stopped: … / Failed: …" with Retry in the hint bar.
+     * {@code retry} {@code null} (an action that offers its own way forward, e.g. an apply run with
+     * its recovery strip) leaves the bar alone.
+     */
+    private void offerAiRetry(AiRetry retry, String text) {
+        if (retry == null || editorClosed) {
+            return;
+        }
+        offeredAiRetry = retry;
+        offeredAiRetryText = text;
+        if (!isAnyAiTaskRunning() && completionTask == null) {
+            showAiRetryStrip();
+        }
+    }
+
+    private void showAiRetryStrip() {
+        AiRetry retry = offeredAiRetry;
+        if (retry == null) {
+            return;
+        }
+        String blocked = retry.blockedReason();
+        snippetAiHintLabel.setText(blocked != null
+            ? offeredAiRetryText + " – " + blocked
+            : offeredAiRetryText);
+        snippetAiHintBox.setManaged(true);
+        snippetAiHintBox.setVisible(true);
+        setShown(snippetAiProgressIndicator, false);
+        cancelSnippetAiActionButton.setDisable(true);
+        cancelSnippetAiActionButton.setManaged(false);
+        cancelSnippetAiActionButton.setVisible(false);
+        setShown(snippetAiElapsedLabel, false);
+        setShown(retrySnippetAiActionButton, true);
+        retrySnippetAiActionButton.setDisable(blocked != null || isAnyAiTaskRunning() || isAiChangeReviewOpen());
+        setShown(dismissSnippetAiRetryButton, true);
+        snippetAiHintBox.setStyle(SNIPPET_AI_HINT_OUTCOME_STYLE);
+    }
+
+    /** Retry: runs the stopped/failed action again with the inputs it had (re-selecting its range). */
+    private void runOfferedAiRetry() {
+        AiRetry retry = offeredAiRetry;
+        if (retry == null) {
+            return;
+        }
+        String blocked = retry.blockedReason();
+        if (blocked != null) {
+            setStatus(blocked);
+            showAiRetryStrip();
+            return;
+        }
+        if (isAnyAiTaskRunning() || isAiChangeReviewOpen()) {
+            setStatus(I18n.get("snippets.ai.analysis.panel.busy"));
+            return;
+        }
+        dismissAiRetry();
+        retry.action().run();
+    }
+
+    private void dismissAiRetry() {
+        offeredAiRetry = null;
+        offeredAiRetryText = null;
+        if (!isAnyAiTaskRunning() && completionTask == null) {
+            hideSnippetAiHint();
+        }
+    }
+
+    /** The Retry currently offered by the hint bar (test seam). */
+    AiRetry offeredAiRetry() {
+        return offeredAiRetry;
+    }
+
+    private static void setShown(javafx.scene.Node node, boolean shown) {
+        node.setVisible(shown);
+        node.setManaged(shown);
+    }
+
+    /**
+     * How to repeat an AI action exactly as it ran: {@code action} re-runs it with the inputs it
+     * captured; {@code blockedCheck} (optional) says why that is no longer possible — the text it
+     * worked on changed — or returns {@code null} when Retry may run.
+     */
+    record AiRetry(Runnable action, Supplier<String> blockedCheck) {
+        AiRetry {
+            java.util.Objects.requireNonNull(action, "action");
+        }
+
+        String blockedReason() {
+            return blockedCheck != null ? blockedCheck.get() : null;
+        }
+    }
+
+    /** A Retry for an action on the whole snippet: it runs on the current content. */
+    private static AiRetry retryOf(Runnable action) {
+        return new AiRetry(action, null);
+    }
+
+    /**
+     * A Retry for an action on the current selection (or caret): it selects the same range again
+     * first, and is blocked once the text in that range changed.
+     */
+    private AiRetry retryOnSelection(Runnable action) {
+        IndexRange range = contentArea.getSelection();
+        String content = contentArea.getText() != null ? contentArea.getText() : "";
+        int start = range != null ? Math.max(0, Math.min(range.getStart(), content.length())) : 0;
+        int end = range != null ? Math.max(start, Math.min(range.getEnd(), content.length())) : 0;
+        String selected = content.substring(start, end);
+        return new AiRetry(() -> {
+            contentArea.selectRange(start, end);
+            action.run();
+        }, () -> selectionStillMatches(contentArea.getText(), start, end, selected)
+            ? null
+            : I18n.get("snippets.ai.retry.selectionChanged"));
+    }
+
+    /** Whether {@code content} still holds {@code expected} at {@code [start, end)}. */
+    static boolean selectionStillMatches(String content, int start, int end, String expected) {
+        String value = content != null ? content : "";
+        if (start < 0 || end < start || end > value.length()) {
+            return false;
+        }
+        return value.substring(start, end).equals(expected != null ? expected : "");
+    }
+
     private void finishSnippetAiAction(Task<?> task) {
         if (snippetAiActionTask == task) {
             snippetAiActionTask = null;
         }
+        aiRetries.remove(task);
         hideSnippetAiHintIfIdle();
         updateAiActionAvailability();
         updateOneLinerButtonState();
@@ -6692,42 +6985,43 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
      * error left NO trace in the log and only a generic "…failed" status. When the cause carries a
      * message it is surfaced to the user (e.g. the configuration error that breaks every AI function)
      * instead of the bare generic status. The typed output-limit failure is mapped to its own
-     * localized message so the core exception text never becomes UI copy.
+     * localized message so the core exception text never becomes UI copy. Every failure — a timeout
+     * included — offers Retry in the hint bar; a stop that surfaced as a failure is reported as a stop.
      */
     private void handleSnippetAiActionFailure(Task<?> task, String genericFailedStatus) {
         Throwable failure = task != null ? task.getException() : null;
+        AiRetry retry = task != null ? aiRetries.remove(task) : null;
+        if (failure instanceof de.kortty.core.AiCancelledException) {
+            setStatus(I18n.get("ai.result.cancelled"));
+            finishSnippetAiAction(task);
+            offerAiRetry(retry, I18n.get("snippets.ai.stop.stopped", stripEllipsis(snippetAiHintLabel.getText())));
+            return;
+        }
         if (failure != null) {
             logger.warn("Snippet AI action failed ({})", genericFailedStatus, failure);
         }
+        String status;
         if (isResponseStreamInterruptedFailure(failure)) {
-            setStatus(I18n.get("snippets.ai.streamInterrupted"));
-            finishSnippetAiAction(task);
-            return;
-        }
-        if (isOutputTokenLimitFailure(failure)) {
-            setStatus(I18n.get("snippets.ai.outputLimitReached"));
-            finishSnippetAiAction(task);
-            return;
-        }
-        if (isFullReplacementRejectedFailure(failure)) {
-            setStatus(I18n.get("snippets.ai.fix.degenerate"));
-            finishSnippetAiAction(task);
-            return;
-        }
-        if (isIncompleteMandatoryRequirementsFailure(failure)) {
-            setStatus(I18n.get(
+            status = I18n.get("snippets.ai.streamInterrupted");
+        } else if (isOutputTokenLimitFailure(failure)) {
+            status = I18n.get("snippets.ai.outputLimitReached");
+        } else if (isFullReplacementRejectedFailure(failure)) {
+            status = I18n.get("snippets.ai.fix.degenerate");
+        } else if (isIncompleteMandatoryRequirementsFailure(failure)) {
+            status = I18n.get(
                 "snippets.ai.analysis.fix.incompleteHardening",
-                String.join("; ", incompleteMandatoryRequirementLabels(failure))));
-            finishSnippetAiAction(task);
-            return;
+                String.join("; ", incompleteMandatoryRequirementLabels(failure)));
+        } else {
+            String detail = failure != null && failure.getMessage() != null && !failure.getMessage().isBlank()
+                ? failure.getMessage().strip()
+                : null;
+            status = detail != null
+                ? I18n.get("snippets.ai.actionFailed", shortenStatusMessage(detail))
+                : genericFailedStatus;
         }
-        String detail = failure != null && failure.getMessage() != null && !failure.getMessage().isBlank()
-            ? failure.getMessage().strip()
-            : null;
-        setStatus(detail != null
-            ? I18n.get("snippets.ai.actionFailed", shortenStatusMessage(detail))
-            : genericFailedStatus);
+        setStatus(status);
         finishSnippetAiAction(task);
+        offerAiRetry(retry, I18n.get("snippets.ai.retry.failed", status));
     }
 
     static boolean isResponseStreamInterruptedFailure(Throwable failure) {
@@ -6853,7 +7147,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         if (!applyCodeTextLanguage(true)) {
             return;
         }
-        beginSnippetAiAction(task);
+        beginSnippetAiAction(task, retryOf(() -> runCompactOneLinerGeneration(text, lang)));
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.oneliner.generating"));
             setStatus(I18n.get("snippets.oneliner.generating"));
@@ -7124,7 +7418,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         if (!applyCodeTextLanguage(true)) {
             return;
         }
-        beginSnippetAiAction(task);
+        beginSnippetAiAction(task, scope == AiFormatScope.SELECTION
+            ? retryOnSelection(() -> runAiFormat(maxLineLength, scope, aiProfileId))
+            : retryOf(() -> runAiFormat(maxLineLength, scope, aiProfileId)));
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.format.running"));
             setStatus(I18n.get("snippets.ai.format.running"));
@@ -7269,7 +7565,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                     aiProfileId));
             }
         };
-        beginSnippetAiAction(task);
+        beginSnippetAiAction(task, retryOf(() -> runAiSyntaxCheck(aiProfileId)));
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.lint.running"));
             setStatus(I18n.get("snippets.ai.lint.running"));
@@ -7972,7 +8268,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
 
         @Override
         public void beginAiAction(Task<?> task) {
-            beginSnippetAiAction(task);
+            beginSnippetAiAction(task, null);
+            updateAiActionAvailability();
+        }
+
+        @Override
+        public void beginAiAction(Task<?> task, Runnable retry) {
+            beginSnippetAiAction(task, retry != null ? retryOf(retry) : null);
             updateAiActionAvailability();
         }
 

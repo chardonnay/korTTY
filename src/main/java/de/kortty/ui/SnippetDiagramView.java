@@ -162,6 +162,14 @@ final class SnippetDiagramView extends VBox {
     private CompletableFuture<DiagramSource> sourceFuture;
     private CompletableFuture<MermaidRenderService.RenderResult> renderFuture;
     private boolean loadedOnce;
+    // Stop / Retry / elapsed time while the AI generates the diagram source.
+    private final Label elapsedLabel = new Label();
+    private final Button stopButton = AiStopRetrySupport.stopButton(this::stopGeneration);
+    private final Button retryButton = AiStopRetrySupport.retryButton(this::reload);
+    private final javafx.animation.Timeline elapsedTicker = AiStopRetrySupport.ticker(this::refreshElapsed);
+    private long generationStartedNanos;
+    /** Also runs on Stop: the owner cancels a shared generation job the view only holds a copy of. */
+    private Runnable stopHandler;
 
     SnippetDiagramView(Supplier<CompletableFuture<DiagramSource>> diagramSupplier, boolean showRegenerate) {
         this(diagramSupplier, showRegenerate, null);
@@ -253,6 +261,9 @@ final class SnippetDiagramView extends VBox {
             return;
         }
         sourceFuture = future;
+        if (!future.isDone()) {
+            showGenerating();
+        }
         future.whenComplete((source, error) -> Platform.runLater(() -> {
             if (sourceFuture == future) {
                 sourceFuture = null;
@@ -312,6 +323,7 @@ final class SnippetDiagramView extends VBox {
 
     void dispose() {
         disposed = true;
+        elapsedTicker.stop();
         zoomRenderTrailer.stop();
         sourceGeneration++;
         clear();
@@ -330,8 +342,14 @@ final class SnippetDiagramView extends VBox {
     }
 
     private void onSourceReady(DiagramSource source, Throwable error) {
+        stopElapsed();
         if (error != null) {
-            showError(error.getMessage());
+            if (de.kortty.core.AiCancellation.isCancellation(error)) {
+                // Stopped elsewhere (Esc in the editor, the owner's job was cancelled).
+                showStopped();
+            } else {
+                showError(error.getMessage());
+            }
             return;
         }
         if (source == null || source.mermaid() == null || source.mermaid().isBlank()) {
@@ -371,6 +389,77 @@ final class SnippetDiagramView extends VBox {
             sourceFuture.cancel(true);
             sourceFuture = null;
         }
+        stopElapsed();
+    }
+
+    /** Runs on Stop in addition to dropping the view's own request; {@code null} removes it. */
+    void setStopHandler(Runnable handler) {
+        this.stopHandler = handler;
+    }
+
+    /** Whether the AI is generating this view's diagram source right now. */
+    boolean isGenerating() {
+        return sourceFuture != null && !sourceFuture.isDone();
+    }
+
+    /**
+     * Stop: the pending generation is dropped (its late answer is ignored) and cancelled, and the
+     * view offers Retry. {@code true} when there was something to stop.
+     */
+    boolean stopGeneration() {
+        if (disposed || !isGenerating()) {
+            return false;
+        }
+        sourceGeneration++;
+        cancelSource();
+        if (stopHandler != null) {
+            stopHandler.run();
+        }
+        showStopped();
+        return true;
+    }
+
+    private void showGenerating() {
+        generationStartedNanos = System.nanoTime();
+        refreshElapsed();
+        setShown(elapsedLabel, true);
+        setShown(stopButton, true);
+        setShown(retryButton, false);
+        elapsedTicker.play();
+    }
+
+    private void stopElapsed() {
+        elapsedTicker.stop();
+        setShown(elapsedLabel, false);
+        setShown(stopButton, false);
+    }
+
+    private void refreshElapsed() {
+        elapsedLabel.setText(AiStopRetrySupport.formatElapsed((System.nanoTime() - generationStartedNanos) / 1_000_000L));
+    }
+
+    /** "Stopped" with Retry in the diagram area. */
+    private void showStopped() {
+        diagramScroll.setVisible(false);
+        diagramScroll.setManaged(false);
+        hideIndicator();
+        statusLabel.setText(I18n.get("snippets.ai.diagram.stopped"));
+        stopElapsed();
+        setShown(retryButton, diagramSupplier != null);
+        spinnerBox.setVisible(true);
+        spinnerBox.setManaged(true);
+    }
+
+    private void hideIndicator() {
+        spinnerBox.getChildren().stream()
+            .filter(ProgressIndicator.class::isInstance)
+            .map(ProgressIndicator.class::cast)
+            .forEach(indicator -> { indicator.setVisible(false); indicator.setManaged(false); });
+    }
+
+    private static void setShown(javafx.scene.Node node, boolean shown) {
+        node.setVisible(shown);
+        node.setManaged(shown);
     }
 
     private void onRendered(MermaidRenderService.RenderResult result, boolean resetZoom) {
@@ -612,13 +701,23 @@ final class SnippetDiagramView extends VBox {
         indicator.setMaxSize(38, 38);
         statusLabel.setStyle("-fx-text-fill: gray;");
         statusLabel.setWrapText(true);
-        VBox box = new VBox(10, indicator, statusLabel);
+        elapsedLabel.setId("snippet-diagram-elapsed");
+        elapsedLabel.setStyle("-fx-text-fill: gray;");
+        stopButton.setId("snippet-diagram-stop");
+        retryButton.setId("snippet-diagram-retry");
+        HBox controls = new HBox(8, elapsedLabel, stopButton, retryButton);
+        controls.setAlignment(Pos.CENTER);
+        setShown(elapsedLabel, false);
+        setShown(stopButton, false);
+        setShown(retryButton, false);
+        VBox box = new VBox(10, indicator, statusLabel, controls);
         box.setAlignment(Pos.CENTER);
         box.setPadding(new Insets(20));
         return box;
     }
 
     private void showSpinner(String message) {
+        setShown(retryButton, false);
         spinnerBox.getChildren().stream()
             .filter(ProgressIndicator.class::isInstance)
             .map(ProgressIndicator.class::cast)
@@ -630,6 +729,8 @@ final class SnippetDiagramView extends VBox {
 
     /** Shows a plain status message (no spinner, no error prefix) in the diagram area. */
     void showNotice(String message) {
+        stopElapsed();
+        setShown(retryButton, false);
         diagramScroll.setVisible(false);
         diagramScroll.setManaged(false);
         spinnerBox.getChildren().stream()
@@ -642,6 +743,9 @@ final class SnippetDiagramView extends VBox {
     }
 
     private void showError(String message) {
+        stopElapsed();
+        // A failed generation (or render) can be repeated right here.
+        setShown(retryButton, diagramSupplier != null);
         diagramScroll.setVisible(false);
         diagramScroll.setManaged(false);
         spinnerBox.getChildren().stream()

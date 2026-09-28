@@ -96,6 +96,10 @@ final class SnippetAnalysisController {
     static final String STALE_BANNER_ID = "snippet-analysis-stale-banner";
     static final String REVIEW_BANNER_ID = "snippet-analysis-review-banner";
     static final String RERUNNING_BANNER_ID = "snippet-analysis-rerunning-banner";
+    /** Shown while an analysis runs (first run, re-run or verification), with Stop and the elapsed time. */
+    static final String RUNNING_BANNER_ID = "snippet-analysis-running-banner";
+    /** A stopped or failed analysis, with Retry. */
+    static final String OUTCOME_BANNER_ID = "snippet-analysis-outcome-banner";
     static final String NOT_PERSISTED_BANNER_ID = "snippet-analysis-not-persisted-banner";
     static final String VERIFY_BUTTON_ID = "snippet-analysis-verify";
     static final String VERIFY_BANNER_ID = "snippet-analysis-verify-banner";
@@ -164,6 +168,11 @@ final class SnippetAnalysisController {
         boolean isAnyAiTaskRunning();
 
         void beginAiAction(Task<?> task);
+
+        /** Like {@link #beginAiAction(Task)}, with how to repeat the run for the editor's Retry. */
+        default void beginAiAction(Task<?> task, Runnable retry) {
+            beginAiAction(task);
+        }
 
         void finishAiAction(Task<?> task);
 
@@ -241,6 +250,10 @@ final class SnippetAnalysisController {
                               SnippetAiWorkflowSupport.ImprovementApplyCheckpoint checkpoint) {
     }
 
+    /** A stopped or failed analysis run and how to repeat it with the same inputs. */
+    record AnalysisOutcome(boolean stopped, String message, Runnable retry) {
+    }
+
     /** An Apply that waits for the user's answer to "the analysis is older than the content". */
     private record StalePrompt(String recordId, SnippetAnalysisPanel.ApplySelection selection) {
     }
@@ -294,6 +307,11 @@ final class SnippetAnalysisController {
 
     // ---- work ----
     private Task<SnippetAiResponseSupport.ScriptAnalysis> analysisTask;
+    private long analysisStartedNanos;
+    private Label analysisElapsedLabel;
+    private final javafx.animation.Timeline analysisElapsedTicker = AiStopRetrySupport.ticker(this::refreshAnalysisElapsed);
+    /** The last analysis that was stopped or failed, with its Retry; {@code null} = none to offer. */
+    private AnalysisOutcome analysisOutcome;
     /** Why {@link #analysisTask} runs (a verification shows its own banner). */
     private SnippetAnalysisRecord.Purpose analysisPurpose;
     private ActiveRun activeRun;
@@ -379,6 +397,7 @@ final class SnippetAnalysisController {
             activeRun = null;
         }
         disposed = true;
+        analysisElapsedTicker.stop();
         if (analysisTask != null && !analysisTask.isDone()) {
             analysisTask.cancel(true);
         }
@@ -628,7 +647,11 @@ final class SnippetAnalysisController {
         };
         analysisTask = task;
         analysisPurpose = purpose;
-        host.beginAiAction(task);
+        analysisOutcome = null;
+        analysisStartedNanos = System.nanoTime();
+        analysisElapsedTicker.play();
+        Runnable retry = () -> runAnalysis(aiProfileId, purpose, previousRecordId);
+        host.beginAiAction(task, retry);
         task.setOnRunning(event -> {
             host.showAiHint(I18n.get("snippets.ai.review.running"));
             host.setStatus(I18n.get("snippets.ai.review.running"));
@@ -638,12 +661,14 @@ final class SnippetAnalysisController {
             host.finishAiAction(task);
             analysisTask = null;
             analysisPurpose = null;
+            analysisElapsedTicker.stop();
             if (disposed) {
                 return;
             }
             SnippetAiResponseSupport.ScriptAnalysis result = task.getValue();
             if (result == null || !result.isUsable()) {
                 host.setStatus(I18n.get("snippets.ai.review.failed"));
+                analysisOutcome = new AnalysisOutcome(false, I18n.get("snippets.ai.review.failed"), retry);
                 refreshState();
                 return;
             }
@@ -655,17 +680,82 @@ final class SnippetAnalysisController {
         task.setOnFailed(event -> {
             analysisTask = null;
             analysisPurpose = null;
+            analysisElapsedTicker.stop();
             host.handleAiActionFailure(task, I18n.get("snippets.ai.review.failed"));
+            if (!disposed) {
+                Throwable failure = task.getException();
+                boolean stopped = de.kortty.core.AiCancellation.isCancellation(failure);
+                String detail = failure != null && failure.getMessage() != null && !failure.getMessage().isBlank()
+                    ? failure.getMessage().strip()
+                    : I18n.get("snippets.ai.review.failed");
+                analysisOutcome = new AnalysisOutcome(stopped, stopped ? null : detail, retry);
+            }
             refreshState();
         });
         task.setOnCancelled(event -> {
             analysisTask = null;
             analysisPurpose = null;
+            analysisElapsedTicker.stop();
             host.finishAiAction(task);
+            if (!disposed) {
+                analysisOutcome = new AnalysisOutcome(true, null, retry);
+            }
             refreshState();
         });
         refreshState();
         AiTaskRunner.start(task, "snippet-ai-analysis");
+    }
+
+    /** Stop from the panel's running banner (the editor's hint bar and Esc stop the same task). */
+    void stopAnalysis() {
+        Task<?> task = analysisTask;
+        if (task != null && !task.isDone()) {
+            task.cancel(true);
+            host.setStatus(I18n.get("ai.result.cancelled"));
+        }
+    }
+
+    boolean isAnalysisRunning() {
+        return analysisTask != null;
+    }
+
+    /** The stopped or failed analysis waiting for Retry (test seam). */
+    AnalysisOutcome analysisOutcome() {
+        return analysisOutcome;
+    }
+
+    /** Retry from the outcome banner: the same profile, purpose and compared record as before. */
+    void retryAnalysis() {
+        AnalysisOutcome outcome = analysisOutcome;
+        if (outcome == null || outcome.retry() == null) {
+            return;
+        }
+        if (host.isAnyAiTaskRunning() || activeRun != null) {
+            host.setStatus(I18n.get("snippets.ai.analysis.panel.busy"));
+            return;
+        }
+        analysisOutcome = null;
+        outcome.retry().run();
+        refreshState();
+    }
+
+    private void refreshAnalysisElapsed() {
+        if (analysisElapsedLabel != null) {
+            analysisElapsedLabel.setText(AiStopRetrySupport.formatElapsed(
+                (System.nanoTime() - analysisStartedNanos) / 1_000_000L));
+        }
+    }
+
+    /** Esc / Stop for the diagram the panel is generating; {@code true} when one was stopped. */
+    boolean stopRunningDiagram() {
+        return analysisPanel != null && analysisPanel.diagramView().stopGeneration();
+    }
+
+    private void cancelDiagramJob(String recordId) {
+        CompletableFuture<SnippetDiagramView.DiagramSource> job = diagramJobs.remove(recordId);
+        if (job != null) {
+            job.cancel(true);
+        }
     }
 
     private void storeAnalysis(SnippetAiResponseSupport.ScriptAnalysis result, String content, String language,
@@ -1160,10 +1250,28 @@ final class SnippetAnalysisController {
 
     private void offerRecovery(String recordId, String runId, SnippetAiApplyProgressPane pane,
                                SnippetAiWorkflowSupport.ImprovementApplyCheckpoint checkpoint, boolean cancelled) {
-        if (!SnippetEditDialog.shouldOfferImprovementApplyRecovery(checkpoint, false, disposed)) {
+        if (disposed) {
             return;
         }
         RunContext context = runContexts.get(runId);
+        // Retry repeats the whole run with the same selection, even when no stage finished — a run
+        // stopped because it took too long must be repeatable without choosing everything again.
+        Runnable onRetry = context != null && context.selection() != null
+            ? () -> retryApply(runId)
+            : null;
+        if (!SnippetEditDialog.shouldOfferImprovementApplyRecovery(checkpoint, false, disposed)) {
+            if (onRetry != null) {
+                pane.setRecovery(new SnippetAiApplyProgressPane.Recovery(
+                    0, checkpoint != null ? checkpoint.totalStages() : 0, cancelled,
+                    null, null,
+                    () -> {
+                        dismissedRecoveries.add(runId);
+                        pane.setRecovery(null);
+                    },
+                    null, onRetry));
+            }
+            return;
+        }
         Runnable onResume = context != null && SnippetEditDialog.improvementApplyResumeOffered(checkpoint)
             ? () -> resume(runId)
             : null;
@@ -1174,7 +1282,25 @@ final class SnippetAnalysisController {
             () -> {
                 dismissedRecoveries.add(runId);
                 pane.setRecovery(null);
-            }));
+            },
+            null, onRetry));
+    }
+
+    /** Retry of a stopped/failed apply: the same selection again, from the first stage. */
+    private void retryApply(String runId) {
+        RunContext context = runContexts.get(runId);
+        if (context == null || context.selection() == null) {
+            return;
+        }
+        if (host.isAnyAiTaskRunning() || activeRun != null) {
+            host.setStatus(I18n.get("snippets.ai.analysis.panel.busy"));
+            return;
+        }
+        SnippetAiApplyProgressPane old = livePanes.remove(runId);
+        if (old != null) {
+            old.setRecovery(null);
+        }
+        apply(context.selection());
     }
 
     private void resume(String runId) {
@@ -1881,6 +2007,7 @@ final class SnippetAnalysisController {
             record.selection() != null && record.selection().codeTextLanguageCode() != null
                 ? record.selection().codeTextLanguageCode()
                 : host.codeTextFallbackLanguageCode());
+        panel.diagramView().setStopHandler(() -> cancelDiagramJob(recordId));
         panel.setExportSubjectSupplier(() -> exportSubject(recordId));
         panel.setExportListener((kind, runId, format, file) -> {
             boolean after = kind == SnippetAnalysisReport.Kind.POST_APPLY;
@@ -1954,10 +2081,14 @@ final class SnippetAnalysisController {
         } else {
             pendingConfirm = null;
         }
-        if (analysisTask != null && record != null) {
-            banners.add(banner(RERUNNING_BANNER_ID, I18n.get(analysisPurpose == SnippetAnalysisRecord.Purpose.VERIFY
-                ? "snippets.ai.analysis.verify.running"
-                : "snippets.ai.analysis.rerunning"), BannerKind.INFO));
+        if (analysisTask != null) {
+            banners.add(runningBanner(record));
+        } else {
+            analysisElapsedLabel = null;
+            AnalysisOutcome outcome = analysisOutcome;
+            if (outcome != null) {
+                banners.add(outcomeBanner(outcome));
+            }
         }
         VerifySummary summary = record != null ? verifySummary(record) : null;
         if (summary != null) {
@@ -2027,6 +2158,42 @@ final class SnippetAnalysisController {
     }
 
     private enum BannerKind { INFO, WARNING }
+
+    /** "Analysing… 0:12 ■ Stop" — for the first run, a re-run (id kept for the re-run) and a verification. */
+    private Node runningBanner(SnippetAnalysisRecord record) {
+        String text = I18n.get(analysisPurpose == SnippetAnalysisRecord.Purpose.VERIFY
+            ? "snippets.ai.analysis.verify.running"
+            : record != null ? "snippets.ai.analysis.rerunning" : "snippets.ai.review.running");
+        Label elapsed = new Label();
+        elapsed.setId("snippet-analysis-elapsed");
+        elapsed.setMinWidth(Region.USE_PREF_SIZE);
+        elapsed.setStyle("-fx-opacity: 0.8;");
+        analysisElapsedLabel = elapsed;
+        refreshAnalysisElapsed();
+        Button stop = AiStopRetrySupport.stopButton(this::stopAnalysis);
+        stop.setId("snippet-analysis-stop");
+        Node row = banner(record != null ? RERUNNING_BANNER_ID : RUNNING_BANNER_ID, text, BannerKind.INFO, stop);
+        ((HBox) row).getChildren().add(1, elapsed);
+        return row;
+    }
+
+    /** "Analysis stopped / failed: … ↻ Retry ✕". */
+    private Node outcomeBanner(AnalysisOutcome outcome) {
+        String text = outcome.stopped()
+            ? I18n.get("snippets.ai.analysis.stopped")
+            : I18n.get("snippets.ai.analysis.failedRetry", outcome.message() != null ? outcome.message() : "");
+        Button retry = AiStopRetrySupport.retryButton(this::retryAnalysis);
+        retry.setId("snippet-analysis-retry");
+        retry.setDisable(host.isAnyAiTaskRunning() || activeRun != null || !aiAllowed()
+            || !host.hasCodeAnalysisProviders());
+        Button dismiss = new Button("\u2715");
+        dismiss.setTooltip(new Tooltip(I18n.get("snippets.ai.retry.dismiss")));
+        dismiss.setOnAction(event -> {
+            analysisOutcome = null;
+            refreshState();
+        });
+        return banner(OUTCOME_BANNER_ID, text, BannerKind.WARNING, retry, dismiss);
+    }
 
     private static Node banner(String id, String text, BannerKind kind, Button... actions) {
         Label label = new Label(text);
