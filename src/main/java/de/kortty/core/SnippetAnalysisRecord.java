@@ -117,9 +117,14 @@ public record SnippetAnalysisRecord(
         }
     }
 
-    /** Which profile, model and skills actually produced a result (reported by the AI assist). */
+    /**
+     * Which profile, model and skills actually produced a result (reported by the AI assist), what
+     * it cost ({@code usage}) and how long the request took ({@code durationMillis}, 0 = unknown,
+     * e.g. in files written before it was recorded).
+     */
     public record Provenance(String profileId, String profileName, String model, List<String> skillIds,
-                             List<String> skillNames, String additionalInstructions, Usage usage) {
+                             List<String> skillNames, String additionalInstructions, Usage usage,
+                             long durationMillis) {
         public static final Provenance EMPTY = new Provenance(null, null, null, null, null, null, null);
 
         public Provenance {
@@ -130,14 +135,27 @@ public record SnippetAnalysisRecord(
             skillNames = copyStrings(skillNames);
             additionalInstructions = additionalInstructions != null ? additionalInstructions : "";
             usage = usage != null ? usage : Usage.ZERO;
+            durationMillis = Math.max(0L, durationMillis);
+        }
+
+        /** Without a known duration. */
+        public Provenance(String profileId, String profileName, String model, List<String> skillIds,
+                          List<String> skillNames, String additionalInstructions, Usage usage) {
+            this(profileId, profileName, model, skillIds, skillNames, additionalInstructions, usage, 0L);
         }
 
         public Provenance withUsage(Usage value) {
-            return new Provenance(profileId, profileName, model, skillIds, skillNames, additionalInstructions, value);
+            return new Provenance(profileId, profileName, model, skillIds, skillNames, additionalInstructions, value,
+                durationMillis);
         }
 
         public Provenance withAdditionalInstructions(String value) {
-            return new Provenance(profileId, profileName, model, skillIds, skillNames, value, usage);
+            return new Provenance(profileId, profileName, model, skillIds, skillNames, value, usage, durationMillis);
+        }
+
+        public Provenance withDurationMillis(long value) {
+            return new Provenance(profileId, profileName, model, skillIds, skillNames, additionalInstructions, usage,
+                value);
         }
     }
 

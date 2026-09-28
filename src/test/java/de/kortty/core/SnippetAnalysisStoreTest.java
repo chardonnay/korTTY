@@ -480,6 +480,63 @@ public class SnippetAnalysisStoreTest {
         }
     }
 
+    @Test
+    public void overviewsReadFilesWithoutCachingThem() throws Exception {
+        SnippetAnalysisStore writer = store(5);
+        writer.addAnalysis("a", record("r1", 1L));
+        writer.addAnalysis("a", record("r2", 2L).withPinned(true));
+        writer.addAnalysis("b", record("r3", 3L));
+        writer.flush(Duration.ofSeconds(5));
+
+        SnippetAnalysisStore reader = store(5);
+        java.util.Map<String, SnippetAnalysisOverview> overviews =
+            reader.overviews(List.of("a", "b", "missing", "a")).get(5, java.util.concurrent.TimeUnit.SECONDS);
+
+        assertThat(overviews.keySet()).containsExactly("a", "b");
+        assertThat(overviews.get("a").recordCount()).isEqualTo(2);
+        assertThat(overviews.get("a").unprotectedCount()).isEqualTo(1);
+        assertThat(overviews.get("a").analyzedAt()).isEqualTo(2L);
+        // Summaries only: nothing was loaded into the cache, and no file was touched.
+        assertThat(reader.cached("a")).isNull();
+        assertThat(reader.cached("b")).isNull();
+        assertThat(filesIn(dir)).containsExactly("a.json", "b.json");
+
+        assertThat(reader.allOverviews().get(5, java.util.concurrent.TimeUnit.SECONDS).keySet())
+            .containsExactly("a", "b");
+    }
+
+    @Test
+    public void overviewsPreferTheHistoryInMemoryAndSkipUnreadableFiles() throws Exception {
+        Files.createDirectories(dir);
+        Files.writeString(dir.resolve("broken.json"), "{ not json", StandardCharsets.UTF_8);
+        SnippetAnalysisStore store = store(id -> !id.equals("draft"), 5);
+        store.addAnalysis("draft", record("r1", 1L));
+
+        java.util.Map<String, SnippetAnalysisOverview> overviews =
+            store.overviews(List.of("draft", "broken")).get(5, java.util.concurrent.TimeUnit.SECONDS);
+
+        assertThat(overviews.keySet()).containsExactly("draft");
+        // A summary never quarantines: the broken file is only moved aside when its snippet is opened.
+        assertThat(filesIn(dir)).containsExactly("broken.json");
+    }
+
+    @Test
+    public void changeListenersHearEveryChangeUntilClosed() {
+        SnippetAnalysisStore store = store(5);
+        List<String> changed = new ArrayList<>();
+        SnippetAnalysisStore.Subscription subscription = store.addChangeListener(changed::add);
+
+        store.addAnalysis("s", record("r1", 1L));
+        store.update("s", h -> h.update("r1", r -> r.withPinned(true)));
+        store.discardRecord("s", "r1");
+        store.discardAll("t");
+        store.invalidateAll();
+        subscription.close();
+        store.addAnalysis("s", record("r2", 2L));
+
+        assertThat(changed).containsExactly("s", "s", "s", "t", null).inOrder();
+    }
+
     private static List<String> ids(SnippetAnalysisHistory history) {
         return history.records().stream().map(SnippetAnalysisRecord::id).toList();
     }

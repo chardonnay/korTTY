@@ -131,6 +131,7 @@ public final class SnippetAnalysisStore implements AutoCloseable {
     private final Map<String, SnippetAnalysisHistory> pendingWrites = new LinkedHashMap<>();
     private final Set<String> scheduledWrites = new HashSet<>();
     private final Consumer<SnippetManager.Change> snippetChangeListener = this::onSnippetsChanged;
+    private final List<Consumer<String>> changeListeners = new CopyOnWriteArrayList<>();
     private SnippetManager attachedManager;
     private long generation;
     private volatile boolean warnOffFxThread;
@@ -278,6 +279,56 @@ public final class SnippetAnalysisStore implements AutoCloseable {
         return testPersistable(snippetId);
     }
 
+    /**
+     * The {@linkplain SnippetAnalysisOverview overviews} of {@code snippetIds} that have stored
+     * analyses, computed on the store thread (ordered after every queued write) without caching
+     * anything: a history already in memory is summarised from there, any other is read from its
+     * file and dropped again. A file that cannot be read is skipped here (it is quarantined when the
+     * snippet is opened). Ids without analyses are absent from the map.
+     */
+    public CompletableFuture<Map<String, SnippetAnalysisOverview>> overviews(java.util.Collection<String> snippetIds) {
+        List<String> ids = snippetIds == null ? List.of() : snippetIds.stream()
+            .filter(id -> id != null && !id.isBlank())
+            .distinct()
+            .toList();
+        if (directory == null || closed) {
+            return CompletableFuture.completedFuture(cachedOverviews(ids));
+        }
+        try {
+            return CompletableFuture.supplyAsync(() -> readOverviews(ids), executor);
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            return CompletableFuture.completedFuture(cachedOverviews(ids));
+        }
+    }
+
+    /**
+     * The overviews of every snippet with stored analyses (the files in {@link #directory()} plus
+     * the histories in memory), keyed by snippet id; computed on the store thread like
+     * {@link #overviews}.
+     */
+    public CompletableFuture<Map<String, SnippetAnalysisOverview>> allOverviews() {
+        if (directory == null || closed) {
+            return CompletableFuture.completedFuture(cachedOverviews(null));
+        }
+        try {
+            return CompletableFuture.supplyAsync(this::readAllOverviews, executor);
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            return CompletableFuture.completedFuture(cachedOverviews(null));
+        }
+    }
+
+    /**
+     * Notifies {@code listener} with the snippet id after every change of any history, or with
+     * {@code null} when every history may have changed (a backup restore). Like subscribers: on the
+     * mutating thread for mutations, on the FX thread (when it runs) for loads and write results.
+     * For overviews such as the library's status column.
+     */
+    public Subscription addChangeListener(Consumer<String> listener) {
+        Objects.requireNonNull(listener, "listener");
+        changeListeners.add(listener);
+        return () -> changeListeners.remove(listener);
+    }
+
     // ---- Mutations (FX thread) ----
 
     /**
@@ -390,6 +441,7 @@ public final class SnippetAnalysisStore implements AutoCloseable {
         if (targetQueued) {
             scheduleDelete(source);
         }
+        notifyChangeListeners(source);
         notifyNow(target);
         return cached(target);
     }
@@ -459,6 +511,7 @@ public final class SnippetAnalysisStore implements AutoCloseable {
             }
         }
         reload.forEach(this::load);
+        notifyChangeListeners(null);
     }
 
     // ---- Subscriptions and run claims ----
@@ -708,6 +761,132 @@ public final class SnippetAnalysisStore implements AutoCloseable {
         }
     }
 
+    /** Overviews of the loaded histories among {@code ids} ({@code null} = all), non-empty only. */
+    private Map<String, SnippetAnalysisOverview> cachedOverviews(List<String> ids) {
+        Map<String, SnippetAnalysisOverview> result = new LinkedHashMap<>();
+        synchronized (lock) {
+            if (ids == null) {
+                entries.forEach((id, entry) -> putOverview(result, id, entry));
+            } else {
+                for (String id : ids) {
+                    putOverview(result, id, entries.get(id));
+                }
+            }
+        }
+        return result;
+    }
+
+    private void putOverview(Map<String, SnippetAnalysisOverview> result, String id, Entry entry) {
+        if (entry != null && entry.loaded && !entry.history.isEmpty()) {
+            result.put(id, SnippetAnalysisOverview.of(entry.history));
+        }
+    }
+
+    private Map<String, SnippetAnalysisOverview> readOverviews(List<String> ids) {
+        Set<String> files = listFileNames();
+        Map<String, SnippetAnalysisOverview> result = new LinkedHashMap<>();
+        for (String id : ids) {
+            Entry entry;
+            synchronized (lock) {
+                entry = entries.get(id);
+                if (entry != null && entry.loaded) {
+                    putOverview(result, id, entry);
+                    continue;
+                }
+            }
+            String name;
+            try {
+                name = fileNameFor(id);
+            } catch (RuntimeException e) {
+                continue;
+            }
+            if (!files.contains(name)) {
+                continue;
+            }
+            SnippetAnalysisHistory peeked = peekFile(directory.resolve(name));
+            if (peeked != null && id.equals(peeked.snippetId()) && !peeked.isEmpty()) {
+                result.put(id, SnippetAnalysisOverview.of(peeked));
+            }
+        }
+        return result;
+    }
+
+    private Map<String, SnippetAnalysisOverview> readAllOverviews() {
+        Map<String, SnippetAnalysisOverview> result = new LinkedHashMap<>();
+        for (String name : listFileNames()) {
+            SnippetAnalysisHistory peeked = peekFile(directory.resolve(name));
+            if (peeked != null && !peeked.snippetId().isBlank() && !peeked.isEmpty()) {
+                result.put(peeked.snippetId(), SnippetAnalysisOverview.of(peeked));
+            }
+        }
+        // What is in memory is newer than (or not yet in) the files.
+        synchronized (lock) {
+            entries.forEach((id, entry) -> {
+                if (entry.loaded) {
+                    result.remove(id);
+                    putOverview(result, id, entry);
+                }
+            });
+        }
+        return result;
+    }
+
+    /** The {@code *.json} file names in the directory (a missing directory has none). */
+    private Set<String> listFileNames() {
+        Set<String> names = new HashSet<>();
+        if (directory == null || !Files.isDirectory(directory)) {
+            return names;
+        }
+        try (var stream = Files.newDirectoryStream(directory, "*" + FILE_SUFFIX)) {
+            for (Path file : stream) {
+                names.add(file.getFileName().toString());
+            }
+        } catch (IOException | RuntimeException e) {
+            logger.warn("Could not list the snippet analyses in {}: {}", directory, e.toString());
+        }
+        return names;
+    }
+
+    /** Parses a file read-only (never quarantines or writes); {@code null} when it cannot be used. */
+    private static SnippetAnalysisHistory peekFile(Path file) {
+        try {
+            if (!Files.isRegularFile(file) || Files.size(file) > MAX_FILE_BYTES) {
+                return null;
+            }
+            SnippetAnalysisHistory parsed = fromJson(Files.readString(file, StandardCharsets.UTF_8));
+            return parsed != null ? parsed.normalizeAfterLoad() : null;
+        } catch (IOException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    /** Synchronously on the mutating thread (like subscribers of a mutation). */
+    private void notifyChangeListeners(String id) {
+        notifyChangeListeners(id, true);
+    }
+
+    /** {@code now}: on this thread; else one FX pulse later (results of background work). */
+    private void notifyChangeListeners(String id, boolean now) {
+        if (changeListeners.isEmpty()) {
+            return;
+        }
+        List<Consumer<String>> listeners = List.copyOf(changeListeners);
+        Runnable delivery = () -> {
+            for (Consumer<String> listener : listeners) {
+                try {
+                    listener.accept(id);
+                } catch (RuntimeException e) {
+                    logger.error("Snippet analysis change listener failed", e);
+                }
+            }
+        };
+        if (now) {
+            delivery.run();
+        } else {
+            runOnFxLater(delivery);
+        }
+    }
+
     // ---- Internals ----
 
     private Entry entry(String id) {
@@ -855,6 +1034,7 @@ public final class SnippetAnalysisStore implements AutoCloseable {
     }
 
     private void notifyNow(String id) {
+        notifyChangeListeners(id);
         SnippetAnalysisHistory current;
         List<Consumer<SnippetAnalysisHistory>> listeners;
         synchronized (lock) {
@@ -869,6 +1049,7 @@ public final class SnippetAnalysisStore implements AutoCloseable {
     }
 
     private void notifyLater(String id, SnippetAnalysisHistory history) {
+        notifyChangeListeners(id, false);
         List<Consumer<SnippetAnalysisHistory>> listeners;
         synchronized (lock) {
             Entry entry = entries.get(id);

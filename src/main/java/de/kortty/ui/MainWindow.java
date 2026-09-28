@@ -9473,7 +9473,6 @@ public class MainWindow {
      * @param snippetIdOrNull a snippet to open pinned in the workspace, or {@code null}
      */
     void showSnippetWorkspace(String snippetIdOrNull) {
-        Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "snippet_manager"));
         logger.info("showSnippetWorkspace() called - Opening Snippet Manager");
         try {
             de.kortty.core.SnippetManager mgr = app.getSnippetManager();
@@ -9482,16 +9481,22 @@ public class MainWindow {
                 return;
             }
             SnippetWorkspaceDialog workspace = snippetWorkspace;
+            // "tab" or "window": how the workspace is shown (an open one keeps its form).
+            String mode;
             if (workspace != null) {
+                mode = "window";
                 bringDialogToFront(workspace);
             } else {
                 DialogHostTab existing = findAndSelectToolTab(SnippetWorkspaceDialog.TOOL_ID);
                 if (existing != null && existing.getHostedDialog() instanceof SnippetWorkspaceDialog hosted) {
+                    mode = "tab";
                     workspace = hosted;
                 } else if (toolTabsEnabled()) {
+                    mode = "tab";
                     workspace = new SnippetWorkspaceDialog(mgr, this);
                     hostToolTab(SnippetWorkspaceDialog.TOOL_ID, workspace, null);
                 } else {
+                    mode = "window";
                     SnippetWorkspaceDialog windowed = new SnippetWorkspaceDialog(mgr, this);
                     windowed.initOwner(stage);
                     windowed.setOnTornDown(() -> {
@@ -9504,6 +9509,7 @@ public class MainWindow {
                     workspace = windowed;
                 }
             }
+            Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "snippet_manager", "mode", mode));
             if (snippetIdOrNull != null) {
                 workspace.openSnippetById(snippetIdOrNull, true);
             } else {

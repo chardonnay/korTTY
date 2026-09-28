@@ -212,7 +212,8 @@ public class SnippetAnalysisRecordTest {
                   "completionTokens": 0,
                   "totalTokens": 0,
                   "cachedPromptTokens": 0
-                }
+                },
+                "durationMillis": 0
               },
               "summary": "Prints its argument.",
               "improvements": [
@@ -383,7 +384,8 @@ public class SnippetAnalysisRecordTest {
                       "completionTokens": 5,
                       "totalTokens": 15,
                       "cachedPromptTokens": 2
-                    }
+                    },
+                    "durationMillis": 0
                   },
                   "acceptedContentSha256": "77190c368ce9e84805d1cfa0293555f56d6ae4df6345b86e587a4afbd54eb8ff",
                   "savedToSnippetAt": 3500

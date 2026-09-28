@@ -119,6 +119,27 @@ public class SnippetAnalysisPanel extends VBox {
     }
 
 
+    /**
+     * What a Verify record adds to the report: a "still open (was X)" chip per persisting finding
+     * (current id → id in the verified analysis), a "new" chip per new finding, and the findings of
+     * the verified analysis that are gone. Matched heuristically ({@code SnippetAnalysisComparison}).
+     *
+     * @param previousKnown whether the verified analysis is still stored (else resolved items carry bare ids)
+     */
+    record VerificationView(Map<String, String> persistingCurrentToPrevious, Set<String> newIds,
+                            List<ResolvedFinding> resolved, boolean previousKnown) {
+        VerificationView {
+            persistingCurrentToPrevious = persistingCurrentToPrevious == null ? Map.of()
+                : java.util.Collections.unmodifiableMap(new LinkedHashMap<>(persistingCurrentToPrevious));
+            newIds = newIds == null ? Set.of() : java.util.Collections.unmodifiableSet(new java.util.LinkedHashSet<>(newIds));
+            resolved = resolved == null ? List.of() : List.copyOf(resolved);
+        }
+    }
+
+    /** A finding of the verified analysis that the verification no longer found. */
+    record ResolvedFinding(String id, String title, String severity, String category) {
+    }
+
     private final SnippetAiResponseSupport.ScriptAnalysis analysis;
     private final String scriptName;
     private final String activeProfileId;
@@ -151,6 +172,9 @@ public class SnippetAnalysisPanel extends VBox {
     private String pendingSelectedCsv;
     /** Finding ids to mark "applied" once the page has loaded; {@code null} = nothing pending. */
     private String pendingAppliedCsv;
+    /** The last applied marks, re-applied when the page is rebuilt. */
+    private String lastAppliedCsv;
+    private VerificationView verification;
     private int fontSize;
 
     private final SnippetDiagramView diagramView;
@@ -570,7 +594,32 @@ public class SnippetAnalysisPanel extends VBox {
         pendingAppliedCsv = findingIds == null ? "" : String.join(",", findingIds.stream()
             .filter(id -> id != null && !id.isBlank())
             .toList());
+        lastAppliedCsv = pendingAppliedCsv;
         applyPendingApplied();
+    }
+
+    /**
+     * Shows (or removes, with {@code null}) the verification chips and the "Resolved" list. The page
+     * is rebuilt; ticked findings and applied marks carry over. Does not fire the selection listeners.
+     */
+    void setVerification(VerificationView view) {
+        if (disposed || java.util.Objects.equals(view, verification)) {
+            return;
+        }
+        verification = view;
+        if (pageReady && pendingSelectedCsv == null) {
+            pendingSelectedCsv = String.join(",", selectedFindingTokens());
+        }
+        if (pendingAppliedCsv == null) {
+            pendingAppliedCsv = lastAppliedCsv;
+        }
+        pageReady = false;
+        findingsView.getEngine().loadContent(buildAnalysisHtml());
+    }
+
+    /** The verification shown, or {@code null}. */
+    VerificationView verification() {
+        return verification;
     }
 
     private void applyPendingApplied() {
@@ -990,6 +1039,9 @@ public class SnippetAnalysisPanel extends VBox {
         if (!analysis.summary().isBlank()) {
             body.append("<div class=\"summary\">").append(SnippetAiDialogSupport.escapeHtml(analysis.summary())).append("</div>");
         }
+        if (verification != null) {
+            body.append(renderResolvedSection(recommendationLabel));
+        }
 
         if (!analysis.improvements().isEmpty()) {
             for (String category : CATEGORY_ORDER) {
@@ -1048,7 +1100,7 @@ public class SnippetAnalysisPanel extends VBox {
             card.append("<span class=\"loc\">").append(SnippetAiDialogSupport.escapeHtml(I18n.get("common.line")))
                 .append(' ').append(item.line()).append("</span>");
         }
-        card.append("</span></div>");
+        card.append("</span>").append(verifyChip(item.id())).append("</div>");
         if (!item.detail().isBlank()) {
             card.append("<p class=\"impact\">").append(SnippetAiDialogSupport.escapeHtml(item.detail())).append("</p>");
         }
@@ -1077,13 +1129,62 @@ public class SnippetAnalysisPanel extends VBox {
             card.append("<span class=\"dep-meta\">").append(purposeLabel).append(' ')
                 .append(SnippetAiDialogSupport.escapeHtml(dependency.purpose())).append("</span>");
         }
-        card.append("</span></div>");
+        card.append("</span>").append(verifyChip(dependency.id())).append("</div>");
         if (!dependency.suggestion().isBlank()) {
             card.append("<div class=\"rec\"><span class=\"rec-label\">").append(suggestionLabel).append("</span>")
                 .append(SnippetAiDialogSupport.escapeHtml(dependency.suggestion())).append("</div>");
         }
         card.append("</div>");
         return card.toString();
+    }
+
+    /** The verification chip of a finding ("still open (was X)" / "new"), or nothing. */
+    private String verifyChip(String findingId) {
+        if (verification == null || findingId == null) {
+            return "";
+        }
+        String previousId = verification.persistingCurrentToPrevious().get(findingId);
+        if (previousId != null) {
+            return "<span class=\"verify-chip v-persist\">" + SnippetAiDialogSupport.escapeHtml(
+                I18n.get("snippets.ai.analysis.verify.chip.persisting", previousId)) + "</span>";
+        }
+        if (verification.newIds().contains(findingId)) {
+            return "<span class=\"verify-chip v-new\">" + SnippetAiDialogSupport.escapeHtml(
+                I18n.get("snippets.ai.analysis.verify.chip.new")) + "</span>";
+        }
+        return "";
+    }
+
+    /** The collapsible "Resolved" list (findings of the verified analysis that are gone) and the heuristic note. */
+    private String renderResolvedSection(String recommendationLabel) {
+        StringBuilder html = new StringBuilder();
+        html.append("<div class=\"verify-note\" id=\"verify-note\">")
+            .append(SnippetAiDialogSupport.escapeHtml(I18n.get("snippets.ai.analysis.verify.heuristic")))
+            .append("</div>");
+        List<ResolvedFinding> resolved = verification.resolved();
+        html.append("<details class=\"resolved-group\" id=\"verify-resolved\"><summary class=\"section-title sec-resolved\">✓ ")
+            .append(SnippetAiDialogSupport.escapeHtml(I18n.get("snippets.ai.analysis.verify.resolved")))
+            .append(" <span class=\"cat-count\">(").append(resolved.size()).append(")</span></summary>");
+        if (!verification.previousKnown() && !resolved.isEmpty()) {
+            html.append("<div class=\"empty\">")
+                .append(SnippetAiDialogSupport.escapeHtml(I18n.get("snippets.ai.analysis.verify.previousMissing")))
+                .append("</div>");
+        }
+        for (ResolvedFinding item : resolved) {
+            html.append("<div class=\"card resolved-card\"><div class=\"card-head\">");
+            if (item.severity() != null && !item.severity().isBlank()) {
+                html.append("<span class=\"pill ").append(SnippetAiDialogSupport.severityCssClass(item.severity()))
+                    .append("\">").append(SnippetAiDialogSupport.escapeHtml(item.severity())).append("</span>");
+            }
+            html.append("<span class=\"title\"><span class=\"finding-id\">")
+                .append(SnippetAiDialogSupport.escapeHtml(item.id())).append("</span>")
+                .append(SnippetAiDialogSupport.escapeHtml(item.title() != null ? item.title() : ""))
+                .append("</span><span class=\"verify-chip v-resolved\">")
+                .append(SnippetAiDialogSupport.escapeHtml(I18n.get("snippets.ai.analysis.verify.resolved")))
+                .append("</span></div></div>");
+        }
+        html.append("</details>");
+        return html.toString();
     }
 
     private static String extraCss() {
@@ -1104,7 +1205,17 @@ public class SnippetAnalysisPanel extends VBox {
             + "details.dep-group>summary{cursor:pointer;list-style:none;}"
             + "details.dep-group>summary::-webkit-details-marker{display:none;}"
             + ".applied-chip{margin-left:8px;padding:1px 7px;border-radius:9px;font-size:.78em;font-weight:600;"
-            + "background:rgba(34,197,94,.18);color:#22c55e;white-space:nowrap;}";
+            + "background:rgba(34,197,94,.18);color:#22c55e;white-space:nowrap;}"
+            + ".verify-chip{margin-left:8px;padding:1px 7px;border-radius:9px;font-size:.78em;font-weight:600;"
+            + "white-space:nowrap;}"
+            + ".verify-chip.v-persist{background:rgba(245,158,11,.18);color:#f59e0b;}"
+            + ".verify-chip.v-new{background:rgba(59,130,246,.18);color:#3b82f6;}"
+            + ".verify-chip.v-resolved{background:rgba(34,197,94,.18);color:#22c55e;}"
+            + ".verify-note{opacity:.72;font-size:.85em;margin:8px 0 2px;}"
+            + ".section-title.sec-resolved{color:#22c55e;opacity:1;}"
+            + "details.resolved-group>summary{cursor:pointer;list-style:none;}"
+            + "details.resolved-group>summary::-webkit-details-marker{display:none;}"
+            + ".resolved-card{opacity:.75;}";
     }
 
     /** The section glyph shown before a section title (shared inline SVG; see {@link SnippetAiDialogSupport}). */

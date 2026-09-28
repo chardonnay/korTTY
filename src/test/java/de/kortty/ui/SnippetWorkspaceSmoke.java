@@ -41,7 +41,9 @@ import java.util.concurrent.atomic.AtomicReference;
  *   <li>a CANCEL answer vetoes the inner tab close and the workspace close; DISCARD closes,</li>
  *   <li>a standalone editor (other entry points) is revealed instead of pinned a second time, and
  *       the main window's close guards ask it (veto keeps it, approval closes nothing),</li>
- *   <li>closing the outer (main-window) tab tears the nested editors down.</li>
+ *   <li>closing the outer (main-window) tab tears the nested editors down,</li>
+ *   <li>the library's analysis column and filter follow the stored analyses (read off the FX
+ *       thread at open, live after every change).</li>
  * </ul>
  */
 public final class SnippetWorkspaceSmoke {
@@ -52,6 +54,9 @@ public final class SnippetWorkspaceSmoke {
     public static void main(String[] args) throws Exception {
         Path isolatedHome = Files.createTempDirectory("kortty-snippet-workspace-smoke");
         System.setProperty("user.home", isolatedHome.toString());
+        // The library's analysis column reads real files from this throwaway store.
+        System.setProperty(de.kortty.core.SnippetAnalysisStore.DIRECTORY_PROPERTY,
+            isolatedHome.resolve("snippet-analyses").toString());
         Locale.setDefault(Locale.ENGLISH);
 
         CountDownLatch done = new CountDownLatch(1);
@@ -150,6 +155,15 @@ public final class SnippetWorkspaceSmoke {
         manager.addSnippet(gamma);
         manager.save();
 
+        // Stored analyses before the workspace opens: alpha has open findings, gamma a result that
+        // waits for review, beta none. Flushed, so the library reads them from disk.
+        de.kortty.core.SnippetAnalysisStore analyses = de.kortty.core.SnippetAnalysisStore.shared();
+        analyses.addAnalysis(alpha.getId(), analysisOf(alpha, "a1", alpha.getContent()));
+        analyses.addAnalysis(gamma.getId(), analysisOf(gamma, "g1", gamma.getContent())
+            .withRun(de.kortty.core.SnippetAnalysisRecord.ApplyRun.started("run", 1L, null, List.of(), null)
+                .withOutcome(de.kortty.core.SnippetAnalysisRecord.RunOutcome.PENDING_REVIEW, 2L)));
+        analyses.flush(java.time.Duration.ofSeconds(5));
+
         TabPane mainTabs = new TabPane();
         Stage stage = new Stage();
         stage.setScene(new Scene(mainTabs, 1400, 900));
@@ -183,6 +197,41 @@ public final class SnippetWorkspaceSmoke {
             .then(400, "hosted workspace fills its tab", () -> {
                 check(workspace.isHostedInTab(), "workspace must be hosted in the main tab");
                 check(workspace.openEditorCount() == 0, "no editor may exist before anything is opened");
+            })
+            .then(600, "the analysis column shows the stored analyses", () -> {
+                SnippetLibraryPane library = workspace.library();
+                check(library.table().getColumns().stream()
+                        .anyMatch(column -> SnippetLibraryPane.ANALYSIS_COLUMN_ID.equals(column.getId())),
+                    "the library must have the analysis status column");
+                de.kortty.core.SnippetAnalysisOverview.Status alphaStatus = library.analysisStatus(alpha);
+                check(alphaStatus.kind() == de.kortty.core.SnippetAnalysisOverview.Kind.OPEN_FINDINGS
+                        && alphaStatus.openFindings() == 2 && !alphaStatus.stale(),
+                    "alpha must show two open findings, got " + alphaStatus);
+                check(SnippetLibraryPane.analysisStatusText(alphaStatus).startsWith("\u26A0"),
+                    "open findings are marked with the warning sign");
+                check(library.analysisStatus(gamma).kind() == de.kortty.core.SnippetAnalysisOverview.Kind.REVIEW_PENDING,
+                    "gamma must show the pending review, got " + library.analysisStatus(gamma));
+                check(!library.analysisStatus(beta).hasAnalysis(), "beta has no analysis");
+            })
+            .then(50, "the analysis filter narrows the library", () -> {
+                SnippetLibraryPane library = workspace.library();
+                library.analysisFilter().setValue(de.kortty.core.SnippetAnalysisOverview.Filter.OPEN_FINDINGS);
+                // gamma's pending result has not been applied either, so its findings are still open.
+                check(new java.util.HashSet<>(library.table().getItems()).equals(java.util.Set.of(alpha, gamma)),
+                    "Open findings must list alpha and gamma, got " + library.table().getItems());
+                library.analysisFilter().setValue(de.kortty.core.SnippetAnalysisOverview.Filter.REVIEW_PENDING);
+                check(library.table().getItems().equals(List.of(gamma)),
+                    "Review pending must list gamma only, got " + library.table().getItems());
+                library.analysisFilter().setValue(de.kortty.core.SnippetAnalysisOverview.Filter.STALE);
+                check(library.table().getItems().isEmpty(), "nothing is stale yet");
+                // A new analysis of beta that describes older content arrives while the filter is on.
+                analyses.addAnalysis(beta.getId(), analysisOf(beta, "b1", "echo older beta\n"));
+                check(library.table().getItems().equals(List.of(beta)),
+                    "the stale filter must pick up beta's new analysis live, got " + library.table().getItems());
+                analyses.discardAll(beta.getId());
+                check(library.table().getItems().isEmpty(), "discarding beta's analyses must drop it from the filter");
+                library.analysisFilter().setValue(de.kortty.core.SnippetAnalysisOverview.Filter.ALL);
+                check(library.table().getItems().size() == 3, "All must list every snippet again");
             })
             .then(50, "browse alpha", () -> selectRow(workspace, alpha))
             .then(400, "preview shows alpha", () -> {
@@ -403,6 +452,20 @@ public final class SnippetWorkspaceSmoke {
                 check(SnippetEditorRegistry.find(alpha.getId()).isEmpty(), "alpha must be released");
             })
             .start();
+    }
+
+    /** An analysis of {@code analysedContent} with two findings (SEC-1 and the dependency D1). */
+    private static de.kortty.core.SnippetAnalysisRecord analysisOf(Snippet snippet, String id, String analysedContent) {
+        de.kortty.core.SnippetAiResponseSupport.ScriptAnalysis analysis =
+            new de.kortty.core.SnippetAiResponseSupport.ScriptAnalysis("Prints a word.",
+                List.of(new de.kortty.core.SnippetAiResponseSupport.ScriptDependency(
+                    "D1", "echo", "builtin", "output", "")),
+                List.of(new de.kortty.core.SnippetAiResponseSupport.ScriptImprovement(
+                    "SEC-1", "security", "low", "Quote the word", "", "", 1)));
+        return de.kortty.core.SnippetAnalysisRecord.fromAnalysis(id, snippet.getId(), analysis,
+            de.kortty.core.SnippetAnalysisRecord.Source.of(analysedContent, "bash", "en", "en", snippet.getName()),
+            de.kortty.core.SnippetAnalysisRecord.Provenance.EMPTY,
+            de.kortty.core.SnippetAnalysisRecord.Purpose.ANALYSIS, null, System.currentTimeMillis());
     }
 
     private static Snippet snippet(String name, String content) {

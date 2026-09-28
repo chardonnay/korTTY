@@ -185,4 +185,85 @@ class SnippetAnalysisControllerTest {
             SnippetAnalysisController.selectionFromSnapshot(record(), stored);
         assertThat(selection.inputHardening().isEnabled()).isTrue();
     }
+
+    @Test
+    void historyEntryShowsDateProfileStatusTokensAndDuration() {
+        SnippetAnalysisRecord plain = record();
+        String label = SnippetAnalysisController.historyEntryLabel(plain, "T", "open");
+        assertThat(label).isEqualTo("T · Local · open");
+
+        SnippetAnalysisRecord costed = plain.withProvenance(plain.provenance()
+            .withUsage(new SnippetAnalysisRecord.Usage(1000, 234, 1234, 0))
+            .withDurationMillis(65_400L))
+            .withPinned(true);
+        String full = SnippetAnalysisController.historyEntryLabel(costed, "T", "applied");
+        assertThat(full).startsWith(SnippetAnalysisController.PIN_MARKER + " T · Local · applied · ");
+        assertThat(full).contains(java.text.NumberFormat.getIntegerInstance().format(1234));
+        assertThat(full).endsWith(" · 01:05");
+    }
+
+    @Test
+    void verifySummaryAndChipsOnlyForAVerifyRecord() {
+        SnippetAnalysisRecord analysed = record();
+        SnippetAiResponseSupport.ScriptAnalysis again = new SnippetAiResponseSupport.ScriptAnalysis(
+            "Prints and lists.", List.of(),
+            List.of(
+                new SnippetAiResponseSupport.ScriptImprovement("OPT-7", "optimization", "low",
+                    "Quote $2", "", "", 3),
+                new SnippetAiResponseSupport.ScriptImprovement("DES-1", "design", "low",
+                    "Add a usage message", "", "", 1)));
+        SnippetAnalysisRecord rerun = SnippetAnalysisController.newRecord("r2", "snippet-1", again,
+            Source.of(SOURCE, "bash", "en", "en", "demo"), analysed.provenance(), analysed, false, 2_000L);
+        assertThat(rerun.purpose()).isEqualTo(Purpose.RERUN);
+        assertThat(SnippetAnalysisController.verifySummary(rerun)).isNull();
+        assertThat(SnippetAnalysisController.verificationView(rerun, null)).isNull();
+
+        SnippetAnalysisRecord verify = SnippetAnalysisController.newRecord("r3", "snippet-1", again,
+            Source.of(SOURCE, "bash", "en", "en", "demo"), analysed.provenance(), analysed, true, 3_000L);
+        assertThat(verify.purpose()).isEqualTo(Purpose.VERIFY);
+        assertThat(verify.previousRecordId()).isEqualTo("r1");
+        assertThat(SnippetAnalysisController.verifySummary(verify))
+            .isEqualTo(new SnippetAnalysisController.VerifySummary(2, 1, 1));
+
+        de.kortty.core.SnippetAnalysisHistory history = de.kortty.core.SnippetAnalysisHistory.empty("snippet-1")
+            .withRecords(List.of(verify, analysed));
+        SnippetAnalysisPanel.VerificationView view = SnippetAnalysisController.verificationView(verify, history);
+        assertThat(view.persistingCurrentToPrevious()).containsExactly("OPT-7", "OPT-1");
+        assertThat(view.newIds()).containsExactly("DES-1");
+        assertThat(view.previousKnown()).isTrue();
+        assertThat(view.resolved()).containsExactly(
+            new SnippetAnalysisPanel.ResolvedFinding("SEC-1", "Quote $1", "high", "security"),
+            new SnippetAnalysisPanel.ResolvedFinding("D1", "ls", "", "dependencies")).inOrder();
+
+        // The verified analysis was discarded meanwhile: the resolved list keeps the bare ids.
+        SnippetAnalysisPanel.VerificationView orphan = SnippetAnalysisController.verificationView(verify,
+            de.kortty.core.SnippetAnalysisHistory.empty("snippet-1").withRecords(List.of(verify)));
+        assertThat(orphan.previousKnown()).isFalse();
+        assertThat(orphan.resolved().getFirst().title()).isEmpty();
+    }
+
+    @Test
+    void theAfterApplyReportFindsTheVerification() {
+        String applied = "#!/bin/bash\necho \"$1\"\nls \"$2\"\n";
+        ApplyRun run = ApplyRun.started("run-1", 1_100L, request(SOURCE), List.of(), null)
+            .withOutcome(RunOutcome.PENDING_REVIEW, 1_200L)
+            .accepted(1_300L, List.of("SEC-1", "OPT-1", "D1"), applied);
+        SnippetAnalysisRecord analysed = record().withRun(run);
+        SnippetAiResponseSupport.ScriptAnalysis again = new SnippetAiResponseSupport.ScriptAnalysis(
+            "Prints and lists.", List.of(), List.of(new SnippetAiResponseSupport.ScriptImprovement(
+                "DES-1", "design", "low", "Add a usage message", "", "", 1)));
+        // Verify analyses the editor content right after the accept: exactly the accepted content.
+        SnippetAnalysisRecord verify = SnippetAnalysisController.newRecord("r2", "snippet-1", again,
+            Source.of(applied, "bash", "en", "en", "demo"), analysed.provenance(), analysed, true, 2_000L);
+
+        de.kortty.core.SnippetAnalysisReport report = de.kortty.core.SnippetAnalysisReports.postApply(
+            analysed, "run-1", List.of(verify, analysed),
+            new de.kortty.core.SnippetAnalysisReports.ReportContext("demo", "bash", applied));
+
+        assertThat(report.verification()).isNotNull();
+        assertThat(report.verification().resolved().stream()
+            .map(de.kortty.core.SnippetAnalysisReport.DeltaItem::id).toList())
+            .containsExactly("SEC-1", "OPT-1", "D1").inOrder();
+        assertThat(report.verification().introduced().getFirst().id()).isEqualTo("DES-1");
+    }
 }

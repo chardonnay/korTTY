@@ -20,6 +20,8 @@ import de.kortty.core.WorkflowScriptSupport.InputHardeningConfig;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetDiagramType;
+import de.kortty.telemetry.Telemetry;
+import de.kortty.telemetry.TelemetryEvents;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -30,6 +32,9 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
@@ -51,6 +56,7 @@ import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -91,6 +97,17 @@ final class SnippetAnalysisController {
     static final String REVIEW_BANNER_ID = "snippet-analysis-review-banner";
     static final String RERUNNING_BANNER_ID = "snippet-analysis-rerunning-banner";
     static final String NOT_PERSISTED_BANNER_ID = "snippet-analysis-not-persisted-banner";
+    static final String VERIFY_BUTTON_ID = "snippet-analysis-verify";
+    static final String VERIFY_BANNER_ID = "snippet-analysis-verify-banner";
+    static final String HISTORY_ACTIONS_ID = "snippet-analysis-history-actions";
+    static final String HISTORY_PIN_ID = "snippet-analysis-history-pin";
+    static final String HISTORY_DISCARD_ID = "snippet-analysis-history-discard";
+    static final String HISTORY_DELETE_ALL_ID = "snippet-analysis-history-delete-all";
+    static final String CONFIRM_STRIP_ID = "snippet-analysis-confirm-strip";
+    static final String CONFIRM_YES_ID = "snippet-analysis-confirm-yes";
+    static final String CONFIRM_NO_ID = "snippet-analysis-confirm-no";
+    /** Marks a pinned entry in the history picker. */
+    static final String PIN_MARKER = "\uD83D\uDCCC";
 
     static final String BADGE_OPEN = "●";
     static final String BADGE_STALE = "⚠";
@@ -228,6 +245,13 @@ final class SnippetAnalysisController {
     private record StalePrompt(String recordId, SnippetAnalysisPanel.ApplySelection selection) {
     }
 
+    /** A destructive history action waiting for its inline confirmation ({@code recordId} null = all). */
+    private record PendingConfirm(String recordId) {
+        boolean deletesAll() {
+            return recordId == null;
+        }
+    }
+
     /** The change review currently replacing the editor area. */
     private record Review(String recordId, String runId, String baseContent, String replacement,
                           boolean partial, List<String> appliedFindingIds, SnippetAiDiffPane pane,
@@ -249,10 +273,13 @@ final class SnippetAnalysisController {
     private ScrollPane bannerScroll;
     private ComboBox<String> historyCombo;
     private boolean updatingHistoryCombo;
+    private List<String> renderedHistoryLabels = List.of();
     private StackPane contentHolder;
     private VBox progressHolder;
     private Button applyButton;
     private Button plainRerunButton;
+    private Button verifyButton;
+    private MenuButton historyActions;
     private Label headerStatusLabel;
     private SnippetAnalysisPanel analysisPanel;
     private String renderedRecordId;
@@ -262,8 +289,13 @@ final class SnippetAnalysisController {
     private final PauseTransition selectionDebounce = new PauseTransition(Duration.millis(500));
     private final PauseTransition contentDebounce = new PauseTransition(Duration.millis(400));
 
+    /** A Discard / Delete all waiting for the inline confirmation strip; {@code null} = none. */
+    private PendingConfirm pendingConfirm;
+
     // ---- work ----
     private Task<SnippetAiResponseSupport.ScriptAnalysis> analysisTask;
+    /** Why {@link #analysisTask} runs (a verification shows its own banner). */
+    private SnippetAnalysisRecord.Purpose analysisPurpose;
     private ActiveRun activeRun;
     /** Finished in-session runs by id: the live pane (with its recovery offer) and how to resume. */
     private final Map<String, SnippetAiApplyProgressPane> livePanes = new HashMap<>();
@@ -509,11 +541,15 @@ final class SnippetAnalysisController {
         bannerBox = null;
         bannerScroll = null;
         historyCombo = null;
+        renderedHistoryLabels = List.of();
         contentHolder = null;
         progressHolder = null;
         applyButton = null;
         plainRerunButton = null;
+        verifyButton = null;
+        historyActions = null;
         headerStatusLabel = null;
+        pendingConfirm = null;
     }
 
     // =====================================================================================
@@ -525,6 +561,30 @@ final class SnippetAnalysisController {
      * the new one arrives; the new one then becomes current and the old one stays in the history.
      */
     void runAnalysis(String aiProfileId) {
+        runAnalysis(aiProfileId, null, null);
+    }
+
+    /**
+     * Verify: analyses the editor's current content again and stores the result with its
+     * {@link SnippetAnalysisComparison comparison} against {@code recordId} (the analysis whose
+     * changes were accepted), so the panel and the after-apply report show what was resolved.
+     */
+    void verify(String recordId) {
+        SnippetAnalysisRecord verified = findRecord(recordId);
+        if (disposed || verified == null) {
+            return;
+        }
+        trackAction("code_review_verify", Map.of());
+        runAnalysis(blankToNull(verified.provenance().profileId()), SnippetAnalysisRecord.Purpose.VERIFY,
+            verified.id());
+    }
+
+    /**
+     * @param purpose           {@code VERIFY} for a verification, else {@code null} (derived:
+     *                          {@code ANALYSIS} for the first record, {@code RERUN} after it)
+     * @param previousRecordId  the record a verification compares against
+     */
+    private void runAnalysis(String aiProfileId, SnippetAnalysisRecord.Purpose purpose, String previousRecordId) {
         if (disposed) {
             return;
         }
@@ -553,14 +613,21 @@ final class SnippetAnalysisController {
         SnippetEditDialog.AiAssist assist = host.aiAssist();
         AtomicReference<SnippetAnalysisRecord.Provenance> provenance = new AtomicReference<>();
 
+        java.util.concurrent.atomic.AtomicLong elapsedMillis = new java.util.concurrent.atomic.AtomicLong();
         Task<SnippetAiResponseSupport.ScriptAnalysis> task = new Task<>() {
             @Override
             protected SnippetAiResponseSupport.ScriptAnalysis call() throws Exception {
-                return assist.codeAnalysisProvider().analyze(new SnippetEditDialog.CodeAnalysisRequest(
-                    content, language, reportLanguage, extra, aiProfileId, provenance::set));
+                long started = System.nanoTime();
+                try {
+                    return assist.codeAnalysisProvider().analyze(new SnippetEditDialog.CodeAnalysisRequest(
+                        content, language, reportLanguage, extra, aiProfileId, provenance::set));
+                } finally {
+                    elapsedMillis.set((System.nanoTime() - started) / 1_000_000L);
+                }
             }
         };
         analysisTask = task;
+        analysisPurpose = purpose;
         host.beginAiAction(task);
         task.setOnRunning(event -> {
             host.showAiHint(I18n.get("snippets.ai.review.running"));
@@ -570,6 +637,7 @@ final class SnippetAnalysisController {
         task.setOnSucceeded(event -> {
             host.finishAiAction(task);
             analysisTask = null;
+            analysisPurpose = null;
             if (disposed) {
                 return;
             }
@@ -579,17 +647,20 @@ final class SnippetAnalysisController {
                 refreshState();
                 return;
             }
+            SnippetAnalysisRecord.Provenance reported = provenance.get();
             storeAnalysis(result, content, language, reportLanguage, codeTextLanguage, name, extra,
-                aiProfileId, provenance.get());
+                aiProfileId, reported, elapsedMillis.get(), purpose, previousRecordId);
             host.setStatus(I18n.get("snippets.ai.review.ready"));
         });
         task.setOnFailed(event -> {
             analysisTask = null;
+            analysisPurpose = null;
             host.handleAiActionFailure(task, I18n.get("snippets.ai.review.failed"));
             refreshState();
         });
         task.setOnCancelled(event -> {
             analysisTask = null;
+            analysisPurpose = null;
             host.finishAiAction(task);
             refreshState();
         });
@@ -601,9 +672,13 @@ final class SnippetAnalysisController {
 
     private void storeAnalysis(SnippetAiResponseSupport.ScriptAnalysis result, String content, String language,
                                String reportLanguage, String codeTextLanguage, String name, String extra,
-                               String requestedProfileId, SnippetAnalysisRecord.Provenance reported) {
+                               String requestedProfileId, SnippetAnalysisRecord.Provenance reported,
+                               long elapsedMillis, SnippetAnalysisRecord.Purpose requestedPurpose,
+                               String verifiedRecordId) {
         SnippetAnalysisHistory before = key != null ? store.cached(key) : null;
-        SnippetAnalysisRecord previous = before != null ? before.current() : null;
+        boolean verifying = requestedPurpose == SnippetAnalysisRecord.Purpose.VERIFY;
+        SnippetAnalysisRecord previous = before == null ? null
+            : verifying && before.find(verifiedRecordId) != null ? before.find(verifiedRecordId) : before.current();
         SnippetAnalysisRecord.Provenance provenance = reported != null
             ? reported
             : new SnippetAnalysisRecord.Provenance(requestedProfileId,
@@ -614,12 +689,30 @@ final class SnippetAnalysisController {
                 provenance.model(), provenance.skillIds(), provenance.skillNames(),
                 provenance.additionalInstructions(), provenance.usage());
         }
-        long now = System.currentTimeMillis();
-        SnippetAnalysisRecord record = SnippetAnalysisRecord.fromAnalysis(
-            UUID.randomUUID().toString(), key, result,
+        if (elapsedMillis > 0 && provenance.durationMillis() <= 0) {
+            provenance = provenance.withDurationMillis(elapsedMillis);
+        }
+        SnippetAnalysisRecord record = newRecord(UUID.randomUUID().toString(), key, result,
             SnippetAnalysisRecord.Source.of(content, language, reportLanguage, codeTextLanguage, name),
-            provenance,
-            previous != null ? SnippetAnalysisRecord.Purpose.RERUN : SnippetAnalysisRecord.Purpose.ANALYSIS,
+            provenance, previous, verifying, System.currentTimeMillis());
+        shownRecordId = null;
+        store.addAnalysis(key, record);
+        showPanel();
+    }
+
+    /**
+     * The record of a fresh analysis: {@code VERIFY} (against {@code previous}, the analysis whose
+     * changes were accepted) when {@code verifying}, else {@code RERUN} after an earlier record or
+     * {@code ANALYSIS} for the first one. Every follow-up carries its comparison with
+     * {@code previous}, which the panel and the after-apply report render.
+     */
+    static SnippetAnalysisRecord newRecord(String id, String snippetId, SnippetAiResponseSupport.ScriptAnalysis result,
+                                           SnippetAnalysisRecord.Source source,
+                                           SnippetAnalysisRecord.Provenance provenance,
+                                           SnippetAnalysisRecord previous, boolean verifying, long now) {
+        SnippetAnalysisRecord record = SnippetAnalysisRecord.fromAnalysis(id, snippetId, result, source, provenance,
+            verifying && previous != null ? SnippetAnalysisRecord.Purpose.VERIFY
+                : previous != null ? SnippetAnalysisRecord.Purpose.RERUN : SnippetAnalysisRecord.Purpose.ANALYSIS,
             previous != null ? previous.id() : null,
             now);
         if (previous != null) {
@@ -629,9 +722,7 @@ final class SnippetAnalysisController {
                 logger.debug("Could not compare the new analysis with the previous one", e);
             }
         }
-        shownRecordId = null;
-        store.addAnalysis(key, record);
-        showPanel();
+        return record;
     }
 
     // =====================================================================================
@@ -1153,6 +1244,7 @@ final class SnippetAnalysisController {
             host.setStatus(I18n.get("snippets.ai.analysis.review.unavailable"));
             return;
         }
+        trackAction("code_review_reopen", Map.of());
         RunContext context = runContexts.get(runId);
         List<String> applied = run.partial()
             ? run.completedWorkItemIds().stream().filter(record.allFindingIds()::contains).toList()
@@ -1275,6 +1367,7 @@ final class SnippetAnalysisController {
                 host.setStatus(I18n.get("snippets.ai.analysis.review.rejected"));
             }
             case REVIEW_LATER -> {
+                trackAction("code_review_review_later", Map.of("stored", shown.recordId() != null));
                 closeReview();
                 host.setStatus(I18n.get(shown.recordId() != null
                     ? "snippets.ai.analysis.review.later"
@@ -1481,11 +1574,12 @@ final class SnippetAnalysisController {
             SnippetAnalysisRecord record = shownRecord();
             runAnalysis(record != null ? blankToNull(record.provenance().profileId()) : null);
         });
+        historyActions = buildHistoryActions();
         Button closeButton = new Button("✕");
         closeButton.setId("snippet-analysis-close");
         closeButton.setTooltip(new Tooltip(I18n.get("snippets.ai.analysis.panel.hide")));
         closeButton.setOnAction(event -> hidePanel());
-        HBox header = new HBox(8, title, historyCombo, plainRerunButton, closeButton);
+        HBox header = new HBox(8, title, historyCombo, historyActions, plainRerunButton, closeButton);
         header.setAlignment(Pos.CENTER_LEFT);
 
         bannerBox = new VBox(6);
@@ -1515,9 +1609,19 @@ final class SnippetAnalysisController {
         applyButton.setId(APPLY_BUTTON_ID);
         applyButton.setOnAction(event -> applyFromPanel());
         applyButton.setMinWidth(Region.USE_PREF_SIZE);
+        verifyButton = new Button(SnippetAiDialogSupport.AI_ACTION_PREFIX + I18n.get("snippets.ai.analysis.verify"));
+        verifyButton.setId(VERIFY_BUTTON_ID);
+        verifyButton.setTooltip(new Tooltip(I18n.get("snippets.ai.analysis.verify.tooltip")));
+        verifyButton.setMinWidth(Region.USE_PREF_SIZE);
+        verifyButton.setOnAction(event -> {
+            SnippetAnalysisRecord record = shownRecord();
+            if (record != null) {
+                verify(record.id());
+            }
+        });
         Region footerSpacer = new Region();
         HBox.setHgrow(footerSpacer, Priority.ALWAYS);
-        HBox footer = new HBox(8, headerStatusLabel, footerSpacer, applyButton);
+        HBox footer = new HBox(8, headerStatusLabel, footerSpacer, verifyButton, applyButton);
         footer.setAlignment(Pos.CENTER_LEFT);
 
         sidePanel = new VBox(8, header, bannerScroll, contentHolder, progressHolder, footer);
@@ -1541,10 +1645,33 @@ final class SnippetAnalysisController {
         if (record == null) {
             return "";
         }
+        return historyEntryLabel(record, formatTime(record.analyzedAt()), statusText(statusOf(record)));
+    }
+
+    /**
+     * One history picker entry: "date · profile · status · tokens · duration"; tokens and duration
+     * only when they were reported, and a pin marker in front of a pinned record.
+     */
+    static String historyEntryLabel(SnippetAnalysisRecord record, String time, String status) {
+        StringBuilder label = new StringBuilder();
+        if (record.pinned()) {
+            label.append(PIN_MARKER).append(' ');
+        }
         String profile = record.provenance().profileName().isBlank()
             ? I18n.get("snippets.ai.profile.default")
             : record.provenance().profileName();
-        return formatTime(record.analyzedAt()) + " · " + profile + " · " + statusText(statusOf(record));
+        label.append(time).append(" · ").append(profile).append(" · ").append(status);
+        long tokens = record.provenance().usage().totalTokens();
+        if (tokens > 0) {
+            label.append(" · ").append(I18n.get("snippets.ai.analysis.history.tokens",
+                java.text.NumberFormat.getIntegerInstance().format(tokens)));
+        }
+        long millis = record.provenance().durationMillis();
+        if (millis > 0) {
+            label.append(" · ").append(de.kortty.core.AnalysisRunFormatting.formatDuration(
+                Math.max(1L, Math.round(millis / 1000.0))));
+        }
+        return label.toString();
     }
 
     private RecordStatus statusOf(SnippetAnalysisRecord record) {
@@ -1574,8 +1701,12 @@ final class SnippetAnalysisController {
             List<String> ids = history != null
                 ? history.records().stream().map(SnippetAnalysisRecord::id).toList()
                 : List.of();
-            if (!historyCombo.getItems().equals(ids)) {
+            // The entries carry derived text (status, pin marker): re-set them when that changes too,
+            // so the open list never shows a stale label.
+            List<String> labels = ids.stream().map(this::historyLabel).toList();
+            if (!historyCombo.getItems().equals(ids) || !labels.equals(renderedHistoryLabels)) {
                 historyCombo.getItems().setAll(ids);
+                renderedHistoryLabels = labels;
             }
             SnippetAnalysisRecord shown = shownRecord();
             historyCombo.setValue(shown != null ? shown.id() : null);
@@ -1635,12 +1766,19 @@ final class SnippetAnalysisController {
                 ? record.selection().codeTextLanguageCode()
                 : host.codeTextFallbackLanguageCode());
         panel.setExportSubjectSupplier(() -> exportSubject(recordId));
-        panel.setExportListener((kind, runId, format, file) -> updateRecord(recordId, r -> r.withExport(
-            new SnippetAnalysisRecord.ExportEntry(System.currentTimeMillis(), format.name(),
-                kind == SnippetAnalysisReport.Kind.POST_APPLY
-                    ? SnippetAnalysisRecord.ExportEntry.PHASE_AFTER_APPLY
-                    : SnippetAnalysisRecord.ExportEntry.PHASE_BEFORE_APPLY,
-                runId, file.getFileName().toString()))));
+        panel.setExportListener((kind, runId, format, file) -> {
+            boolean after = kind == SnippetAnalysisReport.Kind.POST_APPLY;
+            trackAction("code_review_export", Map.of(
+                "format", format.name().toLowerCase(java.util.Locale.ROOT),
+                "phase", after ? "after" : "before"));
+            updateRecord(recordId, r -> r.withExport(
+                new SnippetAnalysisRecord.ExportEntry(System.currentTimeMillis(), format.name(),
+                    after
+                        ? SnippetAnalysisRecord.ExportEntry.PHASE_AFTER_APPLY
+                        : SnippetAnalysisRecord.ExportEntry.PHASE_BEFORE_APPLY,
+                    runId, file.getFileName().toString())));
+        });
+        panel.setVerification(verificationView(record, history));
         analysisPanel = panel;
         renderedRecordId = recordId;
         restoringSelection = true;
@@ -1693,8 +1831,24 @@ final class SnippetAnalysisController {
             return;
         }
         List<Node> banners = new ArrayList<>();
+        PendingConfirm confirm = pendingConfirm;
+        if (confirm != null && history != null
+                && (confirm.deletesAll() ? !history.isEmpty() : history.find(confirm.recordId()) != null)) {
+            banners.add(confirmStrip(confirm));
+        } else {
+            pendingConfirm = null;
+        }
         if (analysisTask != null && record != null) {
-            banners.add(banner(RERUNNING_BANNER_ID, I18n.get("snippets.ai.analysis.rerunning"), BannerKind.INFO));
+            banners.add(banner(RERUNNING_BANNER_ID, I18n.get(analysisPurpose == SnippetAnalysisRecord.Purpose.VERIFY
+                ? "snippets.ai.analysis.verify.running"
+                : "snippets.ai.analysis.rerunning"), BannerKind.INFO));
+        }
+        VerifySummary summary = record != null ? verifySummary(record) : null;
+        if (summary != null) {
+            SnippetAnalysisRecord verified = findRecord(record.verification().previousRecordId());
+            banners.add(banner(VERIFY_BANNER_ID, I18n.get("snippets.ai.analysis.verify.banner",
+                verified != null ? formatTime(verified.analyzedAt()) : "–",
+                summary.resolved(), summary.persisting(), summary.introduced()), BannerKind.INFO));
         }
         if (record != null && history != null && !history.current().id().equals(record.id())) {
             Button back = new Button(I18n.get("snippets.ai.analysis.history.showCurrent"));
@@ -1889,6 +2043,13 @@ final class SnippetAnalysisController {
             applyButton.setVisible(record != null);
             applyButton.setManaged(record != null);
         }
+        if (verifyButton != null) {
+            boolean show = record != null && record.applyRuns().stream().anyMatch(ApplyRun::isAccepted);
+            verifyButton.setVisible(show);
+            verifyButton.setManaged(show);
+            verifyButton.setDisable(busy || !aiUsable || review != null);
+        }
+        refreshHistoryActions(record, busy);
         if (plainRerunButton != null) {
             boolean show = record != null && !host.profileSwitchingSupported();
             plainRerunButton.setVisible(show);
@@ -1908,6 +2069,185 @@ final class SnippetAnalysisController {
         if (run != null) {
             run.setDisable(busy || !aiUsable);
         }
+    }
+
+    // =====================================================================================
+    // History actions: pin, discard, delete all (inline confirmation, never an Alert)
+    // =====================================================================================
+
+    private MenuButton buildHistoryActions() {
+        MenuItem pin = new MenuItem(I18n.get("snippets.ai.analysis.history.pin"));
+        pin.setId(HISTORY_PIN_ID);
+        pin.setOnAction(event -> togglePinned());
+        MenuItem discard = new MenuItem(I18n.get("snippets.ai.analysis.history.discard"));
+        discard.setId(HISTORY_DISCARD_ID);
+        discard.setOnAction(event -> {
+            SnippetAnalysisRecord record = shownRecord();
+            if (record != null) {
+                requestConfirm(new PendingConfirm(record.id()));
+            }
+        });
+        MenuItem deleteAll = new MenuItem(I18n.get("snippets.ai.analysis.history.deleteAll"));
+        deleteAll.setId(HISTORY_DELETE_ALL_ID);
+        deleteAll.setOnAction(event -> requestConfirm(new PendingConfirm(null)));
+        MenuButton button = new MenuButton("⋯");
+        button.setId(HISTORY_ACTIONS_ID);
+        button.setTooltip(new Tooltip(I18n.get("snippets.ai.analysis.history.actions")));
+        button.getItems().setAll(pin, discard, new SeparatorMenuItem(), deleteAll);
+        button.setMinWidth(Region.USE_PREF_SIZE);
+        return button;
+    }
+
+    private void refreshHistoryActions(SnippetAnalysisRecord record, boolean busy) {
+        MenuButton button = historyActions;
+        if (button == null) {
+            return;
+        }
+        boolean show = record != null;
+        button.setVisible(show);
+        button.setManaged(show);
+        boolean readOnly = history == null || history.isReadOnly() || key == null;
+        boolean recordInUse = record != null && ((activeRun != null && activeRun.recordId.equals(record.id()))
+            || (review != null && record.id().equals(review.recordId())));
+        for (MenuItem item : button.getItems()) {
+            if (HISTORY_PIN_ID.equals(item.getId())) {
+                item.setText(I18n.get(record != null && record.pinned()
+                    ? "snippets.ai.analysis.history.unpin"
+                    : "snippets.ai.analysis.history.pin"));
+                item.setDisable(readOnly || record == null);
+            } else if (HISTORY_DISCARD_ID.equals(item.getId())) {
+                item.setDisable(readOnly || record == null || recordInUse);
+            } else if (HISTORY_DELETE_ALL_ID.equals(item.getId())) {
+                item.setDisable(readOnly || busy || review != null);
+            }
+        }
+    }
+
+    /** Pins or unpins the shown record: a pinned record is never removed by retention. */
+    void togglePinned() {
+        SnippetAnalysisRecord record = shownRecord();
+        if (record == null || disposed) {
+            return;
+        }
+        boolean pinned = !record.pinned();
+        updateRecord(record.id(), r -> r.withPinned(pinned));
+        host.setStatus(I18n.get(pinned
+            ? "snippets.ai.analysis.history.pinned.status"
+            : "snippets.ai.analysis.history.unpinned.status"));
+    }
+
+    private void requestConfirm(PendingConfirm confirm) {
+        pendingConfirm = confirm;
+        render();
+    }
+
+    private Node confirmStrip(PendingConfirm confirm) {
+        Button yes = new Button(I18n.get(confirm.deletesAll()
+            ? "snippets.ai.analysis.history.confirm.deleteAll"
+            : "snippets.ai.analysis.history.confirm.discard"));
+        yes.setId(CONFIRM_YES_ID);
+        yes.setOnAction(event -> confirmPending());
+        Button no = new Button(I18n.get("snippets.ai.analysis.history.confirm.cancel"));
+        no.setId(CONFIRM_NO_ID);
+        no.setOnAction(event -> requestConfirm(null));
+        String text;
+        if (confirm.deletesAll()) {
+            text = I18n.get("snippets.ai.analysis.history.deleteAll.confirm", history.records().size());
+        } else {
+            SnippetAnalysisRecord record = history.find(confirm.recordId());
+            text = I18n.get("snippets.ai.analysis.history.discard.confirm",
+                formatTime(record != null ? record.analyzedAt() : 0L));
+        }
+        return banner(CONFIRM_STRIP_ID, text, BannerKind.WARNING, yes, no);
+    }
+
+    /** The user confirmed the pending Discard / Delete all. */
+    private void confirmPending() {
+        PendingConfirm confirm = pendingConfirm;
+        pendingConfirm = null;
+        if (confirm == null || key == null || disposed) {
+            render();
+            return;
+        }
+        flushSelection();
+        if (confirm.deletesAll()) {
+            trackAction("code_review_discard", Map.of("scope", "all"));
+            shownRecordId = null;
+            store.discardAll(key);
+            host.setStatus(I18n.get("snippets.ai.analysis.history.deletedAll"));
+        } else {
+            trackAction("code_review_discard", Map.of("scope", "record"));
+            if (confirm.recordId().equals(shownRecordId)) {
+                shownRecordId = null;
+            }
+            store.discardRecord(key, confirm.recordId());
+            host.setStatus(I18n.get("snippets.ai.analysis.history.discarded"));
+        }
+        render();
+    }
+
+    // =====================================================================================
+    // Verification
+    // =====================================================================================
+
+    /** The counts of a verification: resolved, still open, new. */
+    record VerifySummary(int resolved, int persisting, int introduced) {
+    }
+
+    /** The counts shown for a Verify record; {@code null} for any other record. */
+    static VerifySummary verifySummary(SnippetAnalysisRecord record) {
+        if (record == null || record.purpose() != SnippetAnalysisRecord.Purpose.VERIFY
+                || record.verification() == null) {
+            return null;
+        }
+        SnippetAnalysisRecord.Verification verification = record.verification();
+        return new VerifySummary(verification.resolvedPreviousIds().size(),
+            verification.persistingCurrentToPrevious().size(), verification.newIds().size());
+    }
+
+    /**
+     * What the report page marks for a Verify record: "still open (was X)" and "new" chips on its
+     * findings, and the findings of the verified record that are gone. {@code null} for any other
+     * record. A verified record that is no longer stored leaves the resolved list with bare ids.
+     */
+    static SnippetAnalysisPanel.VerificationView verificationView(SnippetAnalysisRecord record,
+                                                                  SnippetAnalysisHistory history) {
+        if (verifySummary(record) == null) {
+            return null;
+        }
+        SnippetAnalysisRecord.Verification verification = record.verification();
+        SnippetAnalysisRecord previous = history != null ? history.find(verification.previousRecordId()) : null;
+        List<SnippetAnalysisPanel.ResolvedFinding> resolved = new ArrayList<>();
+        for (String id : verification.resolvedPreviousIds()) {
+            resolved.add(resolvedFinding(previous, id));
+        }
+        return new SnippetAnalysisPanel.VerificationView(new LinkedHashMap<>(verification.persistingCurrentToPrevious()),
+            new LinkedHashSet<>(verification.newIds()), resolved, previous != null);
+    }
+
+    private static SnippetAnalysisPanel.ResolvedFinding resolvedFinding(SnippetAnalysisRecord previous, String id) {
+        if (previous != null) {
+            for (SnippetAnalysisRecord.Finding finding : previous.improvements()) {
+                if (finding.id().equals(id)) {
+                    return new SnippetAnalysisPanel.ResolvedFinding(id, finding.title(), finding.severity(),
+                        finding.category());
+                }
+            }
+            for (SnippetAnalysisRecord.DependencyFinding dependency : previous.dependencies()) {
+                if (dependency.id().equals(id)) {
+                    return new SnippetAnalysisPanel.ResolvedFinding(id, dependency.name(), "", "dependencies");
+                }
+            }
+        }
+        return new SnippetAnalysisPanel.ResolvedFinding(id, "", "", "");
+    }
+
+    /** One {@code snippet_ai_action} event; props are enum/number/bool literals only, never content. */
+    private static void trackAction(String action, Map<String, ?> props) {
+        Map<String, Object> all = new LinkedHashMap<>();
+        all.put("action", action);
+        all.putAll(props);
+        Telemetry.track(TelemetryEvents.SNIPPET_AI_ACTION, all);
     }
 
     // =====================================================================================

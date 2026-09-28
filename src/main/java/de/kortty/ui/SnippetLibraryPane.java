@@ -1,7 +1,10 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.SnippetAnalysisHistory;
+import de.kortty.core.SnippetAnalysisOverview;
 import de.kortty.core.SnippetAnalysisStore;
+import de.kortty.core.SnippetDiagramSupport;
 import de.kortty.core.SnippetDiffSelectionSupport;
 import de.kortty.core.SnippetManager;
 import de.kortty.core.SnippetOneLiner;
@@ -11,8 +14,10 @@ import de.kortty.model.GPGKey;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
 import javafx.animation.PauseTransition;
+import javafx.application.Platform;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleLongProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -165,6 +170,7 @@ final class SnippetLibraryPane extends BorderPane {
     private final TableView<Snippet> snippetTable;
     private final TextField searchField;
     private final ComboBox<String> categoryFilter;
+    private final ComboBox<SnippetAnalysisOverview.Filter> analysisFilter;
     private final ObservableList<Snippet> snippetList;
     private final FilteredList<Snippet> filteredList;
     private final EditorSettingsHelper.Settings editorSettings;
@@ -172,9 +178,28 @@ final class SnippetLibraryPane extends BorderPane {
     /** Set while the host syncs the row to its active tab: that selection must not re-preview. */
     private boolean suppressPreview;
 
+    // ---- Analysis overview (status column + filter), loaded off the FX thread ----
+    static final String ANALYSIS_COLUMN_ID = "analysisStatus";
+    static final String ANALYSIS_FILTER_ID = "snippet-library-analysis-filter";
+    private final SnippetAnalysisStore analysisStore;
+    private final Map<String, SnippetAnalysisOverview> analysisOverviews = new HashMap<>();
+    private final Set<String> overviewRequested = new HashSet<>();
+    /** Snippet id → {content, sha}: the saved content's hash, recomputed only when the content changes. */
+    private final Map<String, String[]> contentHashes = new HashMap<>();
+    /** Per id, the change counter of its last store change: an older in-flight read never wins. */
+    private final Map<String, Long> overviewChangedAt = new HashMap<>();
+    private long analysisChangeCounter;
+    private SnippetAnalysisStore.Subscription analysisSubscription;
+    private boolean disposed;
+
     SnippetLibraryPane(SnippetManager snippetManager, Host host) {
+        this(snippetManager, host, SnippetAnalysisStore.shared());
+    }
+
+    SnippetLibraryPane(SnippetManager snippetManager, Host host, SnippetAnalysisStore analysisStore) {
         this.snippetManager = snippetManager;
         this.host = host;
+        this.analysisStore = analysisStore != null ? analysisStore : SnippetAnalysisStore.shared();
         this.editorSettings = EditorSettingsHelper.loadSnippetSettings();
         getStyleClass().add("snippet-library-pane");
 
@@ -192,7 +217,26 @@ final class SnippetLibraryPane extends BorderPane {
         categoryFilter.setTooltip(new Tooltip(I18n.get("snippets.category")));
         searchField.setPrefWidth(160);
         searchField.setMinWidth(80);
-        HBox searchBar = new HBox(8, searchField, categoryFilter);
+
+        // The "inbox" for stored analyses: open findings, stale analyses, results waiting for review.
+        analysisFilter = new ComboBox<>(FXCollections.observableArrayList(SnippetAnalysisOverview.Filter.values()));
+        analysisFilter.setId(ANALYSIS_FILTER_ID);
+        analysisFilter.setValue(SnippetAnalysisOverview.Filter.ALL);
+        analysisFilter.setPrefWidth(140);
+        analysisFilter.setMinWidth(80);
+        analysisFilter.setTooltip(new Tooltip(I18n.get("snippets.workspace.analysis.filter.tooltip")));
+        analysisFilter.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(SnippetAnalysisOverview.Filter filter) {
+                return analysisFilterLabel(filter);
+            }
+
+            @Override
+            public SnippetAnalysisOverview.Filter fromString(String text) {
+                return null;
+            }
+        });
+        HBox searchBar = new HBox(8, searchField, categoryFilter, analysisFilter);
         searchBar.setAlignment(Pos.CENTER_LEFT);
         searchBar.setPadding(new Insets(5, 0, 5, 0));
         
@@ -210,6 +254,31 @@ final class SnippetLibraryPane extends BorderPane {
         favCol.setPrefWidth(30);
         favCol.setStyle("-fx-alignment: CENTER;");
         
+        TableColumn<Snippet, SnippetAnalysisOverview.Status> analysisCol =
+                new TableColumn<>(I18n.get("snippets.workspace.analysis.column"));
+        analysisCol.setId(ANALYSIS_COLUMN_ID);
+        analysisCol.setPrefWidth(62);
+        analysisCol.setCellValueFactory(cd -> new SimpleObjectProperty<>(analysisStatus(cd.getValue())));
+        analysisCol.setComparator(Comparator.comparingInt(SnippetLibraryPane::analysisSortRank));
+        analysisCol.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(SnippetAnalysisOverview.Status status, boolean empty) {
+                super.updateItem(status, empty);
+                if (empty || status == null || !status.hasAnalysis()) {
+                    setText(null);
+                    setTooltip(null);
+                    setStyle(null);
+                    return;
+                }
+                setText(analysisStatusText(status));
+                setStyle("-fx-alignment: CENTER; -fx-text-fill: " + analysisStatusColor(status) + ";");
+                Tooltip tip = new Tooltip(analysisStatusTooltip(status));
+                tip.setWrapText(true);
+                tip.setMaxWidth(420);
+                setTooltip(tip);
+            }
+        });
+
         TableColumn<Snippet, String> nameCol = new TableColumn<>(I18n.get("snippets.name"));
         nameCol.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().getName()));
         nameCol.setId("name");
@@ -276,7 +345,7 @@ final class SnippetLibraryPane extends BorderPane {
         });
 
         snippetTable.getColumns().addAll(java.util.List.of(
-                favCol, nameCol, langCol, catCol, osCol, tagsCol, linesCol, modifiedCol, usedCol));
+                favCol, nameCol, analysisCol, langCol, catCol, osCol, tagsCol, linesCol, modifiedCol, usedCol));
         installPersistentColumnWidths();
         installSnippetTableTooltipColumns(nameCol, langCol, catCol, tagsCol);
         snippetTable.setContextMenu(createTableContextMenu());
@@ -313,6 +382,7 @@ final class SnippetLibraryPane extends BorderPane {
         // Search filter
         searchField.textProperty().addListener((obs, oldVal, newVal) -> updateFilter());
         categoryFilter.setOnAction(e -> updateFilter());
+        analysisFilter.setOnAction(e -> updateFilter());
         
         // Enter pins the selected snippet (opens it in an editor tab); Esc in the search field
         // clears the search instead of reaching the window.
@@ -448,6 +518,11 @@ final class SnippetLibraryPane extends BorderPane {
 
         // Enable export button if there are snippets
         exportBtn.setDisable(snippetList.isEmpty());
+
+        // Status column and filter: summarised on the store thread, cells update when they arrive
+        // and whenever any analysis changes.
+        analysisSubscription = this.analysisStore.addChangeListener(this::onAnalysisChanged);
+        requestOverviews(snippetList.stream().map(Snippet::getId).toList(), false);
     }
 
     /** Moves focus into the search field and selects its text. */
@@ -504,7 +579,191 @@ final class SnippetLibraryPane extends BorderPane {
 
     /** Stops pending timers; the workspace calls this on teardown. */
     void dispose() {
+        disposed = true;
         previewDebounce.stop();
+        if (analysisSubscription != null) {
+            analysisSubscription.close();
+            analysisSubscription = null;
+        }
+    }
+
+    // ---- Analysis overview ----
+
+    /** The analysis filter (tests). */
+    ComboBox<SnippetAnalysisOverview.Filter> analysisFilter() {
+        return analysisFilter;
+    }
+
+    /** The analysis status of {@code snippet} against its saved content ({@link SnippetAnalysisOverview.Status#NONE} while unknown). */
+    SnippetAnalysisOverview.Status analysisStatus(Snippet snippet) {
+        if (snippet == null || snippet.getId() == null) {
+            return SnippetAnalysisOverview.Status.NONE;
+        }
+        SnippetAnalysisOverview overview = analysisOverviews.get(snippet.getId());
+        if (overview == null) {
+            return SnippetAnalysisOverview.Status.NONE;
+        }
+        return overview.statusFor(savedContentSha(snippet));
+    }
+
+    private String savedContentSha(Snippet snippet) {
+        String content = snippet.getContent() != null ? snippet.getContent() : "";
+        String[] cached = contentHashes.get(snippet.getId());
+        if (cached != null && cached[0].equals(content)) {
+            return cached[1];
+        }
+        String sha = SnippetDiagramSupport.contentHash(content);
+        contentHashes.put(snippet.getId(), new String[] {content, sha});
+        return sha;
+    }
+
+    /**
+     * Summarises the stored analyses of {@code ids} on the store thread; {@code force} re-reads ids
+     * that were read before.
+     */
+    private void requestOverviews(Collection<String> ids, boolean force) {
+        List<String> wanted = ids.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .filter(id -> force || !overviewRequested.contains(id))
+                .distinct()
+                .toList();
+        if (wanted.isEmpty() || disposed) {
+            return;
+        }
+        overviewRequested.addAll(wanted);
+        long requestedAt = analysisChangeCounter;
+        analysisStore.overviews(wanted).whenComplete((result, error) -> runOnFx(() -> {
+            if (disposed) {
+                return;
+            }
+            if (error != null) {
+                logger.warn("Could not read the stored analyses for the snippet library", error);
+                return;
+            }
+            boolean changed = false;
+            for (String id : wanted) {
+                if (overviewChangedAt.getOrDefault(id, -1L) >= requestedAt) {
+                    continue; // a store change after this read already updated the row
+                }
+                changed |= putOverview(id, result.get(id));
+            }
+            if (changed) {
+                onOverviewsChanged();
+            }
+        }));
+    }
+
+    private void onAnalysisChanged(String snippetId) {
+        if (disposed) {
+            return;
+        }
+        if (snippetId == null) {
+            // Every file may have changed (a backup restore): read everything again.
+            analysisChangeCounter++;
+            requestOverviews(snippetList.stream().map(Snippet::getId).toList(), true);
+            return;
+        }
+        overviewChangedAt.put(snippetId, analysisChangeCounter++);
+        SnippetAnalysisHistory cached = analysisStore.cached(snippetId);
+        if (cached == null) {
+            requestOverviews(List.of(snippetId), true);
+            return;
+        }
+        if (putOverview(snippetId, cached.isEmpty() ? null : SnippetAnalysisOverview.of(cached))) {
+            onOverviewsChanged();
+        }
+    }
+
+    /** @return whether the overview of {@code id} changed */
+    private boolean putOverview(String id, SnippetAnalysisOverview overview) {
+        SnippetAnalysisOverview before = overview == null || overview.isEmpty()
+                ? analysisOverviews.remove(id)
+                : analysisOverviews.put(id, overview);
+        return !Objects.equals(before, overview == null || overview.isEmpty() ? null : overview);
+    }
+
+    private void onOverviewsChanged() {
+        snippetTable.refresh();
+        if (analysisFilter.getValue() != null && analysisFilter.getValue() != SnippetAnalysisOverview.Filter.ALL) {
+            updateFilter();
+        }
+    }
+
+    static String analysisStatusText(SnippetAnalysisOverview.Status status) {
+        String text = switch (status.kind()) {
+            case NONE -> "";
+            case REVIEW_PENDING -> "\u25F7";
+            case OPEN_FINDINGS -> "\u26A0 " + status.openFindings();
+            case APPLIED, CLEAN -> "\u2713";
+        };
+        return status.stale() ? text + " \u21BB" : text;
+    }
+
+    private static String analysisStatusColor(SnippetAnalysisOverview.Status status) {
+        return switch (status.kind()) {
+            case REVIEW_PENDING -> "#3b82f6";
+            case OPEN_FINDINGS -> "#d97706";
+            case APPLIED, CLEAN -> "#16a34a";
+            case NONE -> "inherit";
+        };
+    }
+
+    static String analysisStatusTooltip(SnippetAnalysisOverview.Status status) {
+        List<String> lines = new ArrayList<>();
+        switch (status.kind()) {
+            case REVIEW_PENDING -> {
+                lines.add(I18n.get("snippets.workspace.analysis.pending"));
+                if (status.openFindings() > 0) {
+                    lines.add(I18n.get("snippets.workspace.analysis.open", status.openFindings()));
+                }
+            }
+            case OPEN_FINDINGS -> lines.add(I18n.get("snippets.workspace.analysis.open", status.openFindings()));
+            case APPLIED -> lines.add(I18n.get("snippets.workspace.analysis.applied"));
+            case CLEAN -> lines.add(I18n.get("snippets.workspace.analysis.clean"));
+            case NONE -> {
+                return "";
+            }
+        }
+        String when = formatTimestamp(status.analyzedAt());
+        if (status.stale()) {
+            lines.add(I18n.get("snippets.workspace.analysis.stale", when));
+        }
+        lines.add(I18n.get("snippets.workspace.analysis.analyzedAt", when));
+        return String.join("\n", lines);
+    }
+
+    /** Sort order of the status column: pending reviews, then most open findings, then the rest. */
+    static int analysisSortRank(SnippetAnalysisOverview.Status status) {
+        if (status == null || !status.hasAnalysis()) {
+            return Integer.MAX_VALUE;
+        }
+        return switch (status.kind()) {
+            case REVIEW_PENDING -> 0;
+            case OPEN_FINDINGS -> 1_000_000 - Math.min(status.openFindings(), 999_999);
+            case APPLIED -> 2_000_000;
+            case CLEAN -> 2_000_001;
+            case NONE -> Integer.MAX_VALUE;
+        };
+    }
+
+    static String analysisFilterLabel(SnippetAnalysisOverview.Filter filter) {
+        if (filter == null) {
+            return "";
+        }
+        return I18n.get(switch (filter) {
+            case ALL -> "snippets.workspace.analysis.filter.all";
+            case OPEN_FINDINGS -> "snippets.workspace.analysis.filter.open";
+            case STALE -> "snippets.workspace.analysis.filter.stale";
+            case REVIEW_PENDING -> "snippets.workspace.analysis.filter.pending";
+        });
+    }
+
+    private static void runOnFx(Runnable action) {
+        if (Platform.isFxApplicationThread()) {
+            action.run();
+        } else {
+            Platform.runLater(action);
+        }
     }
     
     private static String formatTimestamp(long epochMillis) {
@@ -609,13 +868,16 @@ final class SnippetLibraryPane extends BorderPane {
         boolean allCategories = selectedCategory == null
                 || selectedCategory.isEmpty()
                 || selectedCategory.equals(I18n.get("snippets.allCategories"));
+        SnippetAnalysisOverview.Filter analysis = analysisFilter.getValue() != null
+                ? analysisFilter.getValue() : SnippetAnalysisOverview.Filter.ALL;
         
         filteredList.setPredicate(snippet -> {
             boolean matchesSearch = query == null || query.isBlank()
                     || matchesQuery(snippet, query.trim());
             boolean matchesCategory = allCategories
                     || (snippet.getCategory() != null && snippet.getCategory().equalsIgnoreCase(selectedCategory));
-            return matchesSearch && matchesCategory;
+            return matchesSearch && matchesCategory
+                    && (analysis == SnippetAnalysisOverview.Filter.ALL || analysis.matches(analysisStatus(snippet)));
         });
     }
     
@@ -809,7 +1071,6 @@ final class SnippetLibraryPane extends BorderPane {
                 refreshCategoryFilter();
                 if (saved) {
                     // Cascade only after the removal reached the disk: removeSnippet alone persists nothing.
-                    SnippetAnalysisStore analysisStore = SnippetAnalysisStore.shared();
                     for (Snippet s : selected) {
                         if (s.getId() != null && !s.getId().isBlank()) {
                             analysisStore.discardAll(s.getId());
@@ -1773,6 +2034,7 @@ final class SnippetLibraryPane extends BorderPane {
         List<Snippet> ordered = ObservableListSync.reconcileOrder(
                 snippetList, sortedSnippets(), Snippet::getId, resort);
         ObservableListSync.sync(snippetList, ordered, Snippet::getId);
+        requestOverviews(ordered.stream().map(Snippet::getId).toList(), false);
         if (!selectedIds.isEmpty()) {
             List<Snippet> reselect = snippetTable.getItems().stream()
                     .filter(s -> selectedIds.contains(s.getId()))

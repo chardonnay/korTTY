@@ -812,7 +812,12 @@ public final class SnippetAiDialogsSmoke {
      *       editor text stays unchanged; "Review later" keeps a PENDING_REVIEW run;</li>
      *   <li>the editor is closed and the snippet reopened: the stored analysis, its diagram and the
      *       ticked findings come back without any provider call, the stored file carries the pending
-     *       run, and "Review changes" reopens it — Accept replaces the text and stores ACCEPTED.</li>
+     *       run, and "Review changes" reopens it — Accept replaces the text and stores ACCEPTED;</li>
+     *   <li>Verify analyses the accepted content again: the new VERIFY record carries the comparison
+     *       (resolved / still open / new), the panel shows its banner, chips and "Resolved" list, and
+     *       the after-apply report finds it;</li>
+     *   <li>history actions: pinning is stored, viewing an older entry never changes the current
+     *       one, Discard and Delete all ask inline (Cancel keeps everything) and then remove.</li>
      * </ol>
      */
     private static Runnable exerciseFullAnalysisApplyPreview(
@@ -838,6 +843,22 @@ public final class SnippetAiDialogsSmoke {
         SnippetAiResponseSupport.ScriptAnalysis fullAnalysis =
             new SnippetAiResponseSupport.ScriptAnalysis(
                 "Prints one value.", List.of(), List.of(improvement, optimization));
+        // What Verify reports for the applied script: SEC-1 is gone, the parsing finding persists
+        // under a new id, and one design finding is new.
+        SnippetAiResponseSupport.ScriptAnalysis verifyAnalysis =
+            new SnippetAiResponseSupport.ScriptAnalysis(
+                "Prints one value, quoted.", List.of(), List.of(
+                    new SnippetAiResponseSupport.ScriptImprovement(
+                        "OPT-2", "optimization", "medium", "Avoid repeated parsing", "The value is parsed twice.",
+                        "Parse the value once and reuse it.", 3),
+                    new SnippetAiResponseSupport.ScriptImprovement(
+                        "DES-9", "design", "low", "Add a usage message", "Callers get no help.",
+                        "Print a usage line when no value is given.", 1)));
+        java.util.concurrent.atomic.AtomicInteger verifyCalls = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicInteger callsAtAccept = new java.util.concurrent.atomic.AtomicInteger(-1);
+        AtomicBoolean verified = new AtomicBoolean();
+        AtomicBoolean historyActionsDone = new AtomicBoolean();
+        AtomicReference<String> analysedRecordId = new AtomicReference<>();
         AtomicBoolean diagramProviderCalled = new AtomicBoolean();
         AtomicBoolean applyProviderCalled = new AtomicBoolean();
         AtomicBoolean applyClicked = new AtomicBoolean();
@@ -914,8 +935,9 @@ public final class SnippetAiDialogsSmoke {
                 return new SnippetAiResponseSupport.MermaidDiagram("Flow", "");
             },
             request -> {
-                reopenedProviderCalls.incrementAndGet();
-                return fullAnalysis;
+                // Only Verify may analyse again; it gets the follow-up result.
+                verifyCalls.incrementAndGet();
+                return verifyAnalysis;
             },
             request -> {
                 reopenedProviderCalls.incrementAndGet();
@@ -1075,7 +1097,40 @@ public final class SnippetAiDialogsSmoke {
                             throw new AssertionError("Accept stored " + run.outcome() + " / " + run.appliedFindingIds());
                         }
                         accepted.set(true);
+                        callsAtAccept.set(reopenedProviderCalls.get() + verifyCalls.get());
+                        analysedRecordId.set(store.cached(snippetId).current().id());
                         phase.set(6);
+                    }
+                    case 6 -> {
+                        // Verify is offered once a run was accepted, and analyses the applied content.
+                        SnippetEditDialog again = reopened.get();
+                        Button verify = (Button) requireInEditor(again, "#" + SnippetAnalysisController.VERIFY_BUTTON_ID);
+                        if (!verify.isVisible() || verify.isDisabled()) {
+                            return; // the accept is still being recorded
+                        }
+                        phase.set(7);
+                        click(verify);
+                    }
+                    case 7 -> {
+                        SnippetEditDialog again = reopened.get();
+                        de.kortty.core.SnippetAnalysisHistory stored = store.cached(snippetId);
+                        de.kortty.core.SnippetAnalysisRecord current = stored.current();
+                        if (current.purpose() != de.kortty.core.SnippetAnalysisRecord.Purpose.VERIFY) {
+                            return;
+                        }
+                        SnippetAnalysisPanel panel = again.analysisController().analysisPanel();
+                        if (panel == null || !panel.isPageReady() || panel.verification() == null) {
+                            return;
+                        }
+                        verifyVerification(again, panel, stored, current, analysedRecordId.get(), replacement);
+                        snapshotNode(again.analysisController().sidePanel(), "snippet-analysis-verify.png");
+                        verified.set(true);
+                        phase.set(8);
+                    }
+                    case 8 -> {
+                        exerciseHistoryActions(reopened.get(), store, snippetId, analysedRecordId.get());
+                        historyActionsDone.set(true);
+                        phase.set(9);
                         stop(poller);
                         // The editor is closed with the others at the end of the run.
                         flowDone.set(true);
@@ -1126,12 +1181,25 @@ public final class SnippetAiDialogsSmoke {
                     throw new AssertionError("The reopened editor did not show the stored analysis (phase "
                         + phase.get() + ")");
                 }
-                if (reopenedProviderCalls.get() != 0) {
+                if (callsAtAccept.get() != 0) {
                     throw new AssertionError("Reopening a stored analysis called an AI provider "
-                        + reopenedProviderCalls.get() + " time(s)");
+                        + callsAtAccept.get() + " time(s)");
                 }
                 if (!accepted.get()) {
                     throw new AssertionError("The reopened review was not accepted into the editor");
+                }
+                if (verifyCalls.get() != 1 || !verified.get()) {
+                    Node verifyButton = reopened.get() != null
+                        ? reopened.get().getDialogPane().lookup("#" + SnippetAnalysisController.VERIFY_BUTTON_ID) : null;
+                    throw new AssertionError("Verify did not run exactly one follow-up analysis (calls "
+                        + verifyCalls.get() + ", verified " + verified.get() + ", phase " + phase.get()
+                        + ", button " + (verifyButton == null ? "missing"
+                            : "visible=" + verifyButton.isVisible() + " disabled=" + verifyButton.isDisabled())
+                        + ", status " + (reopened.get() != null ? field(reopened.get(), "statusLabel", Label.class).getText() : "")
+                        + ")");
+                }
+                if (!historyActionsDone.get()) {
+                    throw new AssertionError("The history actions (pin, discard, delete all) were not exercised");
                 }
             } finally {
                 Platform.runLater(() -> {
@@ -1142,6 +1210,108 @@ public final class SnippetAiDialogsSmoke {
                 });
             }
         };
+    }
+
+    /** The stored comparison, the panel's banner, chips and "Resolved" list, and the report's lookup. */
+    private static void verifyVerification(SnippetEditDialog editor, SnippetAnalysisPanel panel,
+                                           de.kortty.core.SnippetAnalysisHistory stored,
+                                           de.kortty.core.SnippetAnalysisRecord verify, String analysedId,
+                                           String appliedContent) {
+        de.kortty.core.SnippetAnalysisRecord.Verification verification = verify.verification();
+        if (verification == null || !analysedId.equals(verify.previousRecordId())
+                || !analysedId.equals(verification.previousRecordId())) {
+            throw new AssertionError("The Verify record does not reference the analysed record: " + verification);
+        }
+        if (!verification.resolvedPreviousIds().equals(List.of("SEC-1"))
+                || !"OPT-1".equals(verification.persistingCurrentToPrevious().get("OPT-2"))
+                || !verification.newIds().equals(List.of("DES-9"))) {
+            throw new AssertionError("Unexpected verification " + verification);
+        }
+        if (!verify.source().sha256().equals(de.kortty.core.SnippetDiagramSupport.contentHash(appliedContent))) {
+            throw new AssertionError("Verify must analyse the accepted content");
+        }
+        Node banner = requireInEditor(editor, "#" + SnippetAnalysisController.VERIFY_BANNER_ID);
+        String bannerText = ((Label) ((HBox) banner).getChildren().getFirst()).getText();
+        String template = I18n.get("snippets.ai.analysis.verify.banner", "\u0000", 1, 1, 1);
+        String expectedSuffix = template.substring(template.indexOf('\u0000') + 1);
+        if (!bannerText.endsWith(expectedSuffix)) {
+            throw new AssertionError("Unexpected verify banner: " + bannerText);
+        }
+        WebEngine engine = findingsWebView(panel).getEngine();
+        Object persisting = engine.executeScript("document.querySelectorAll('.verify-chip.v-persist').length");
+        Object introduced = engine.executeScript("document.querySelectorAll('.verify-chip.v-new').length");
+        Object resolved = engine.executeScript("document.querySelectorAll('#verify-resolved .resolved-card').length");
+        if (((Number) persisting).intValue() != 1 || ((Number) introduced).intValue() != 1
+                || ((Number) resolved).intValue() != 1) {
+            throw new AssertionError("Verification chips: persisting " + persisting + ", new " + introduced
+                + ", resolved " + resolved);
+        }
+        de.kortty.core.SnippetAnalysisRecord analysed = stored.find(analysedId);
+        de.kortty.core.SnippetAnalysisRecord.ApplyRun run = lastRun(analysed);
+        de.kortty.core.SnippetAnalysisReport report = de.kortty.core.SnippetAnalysisReports.postApply(
+            analysed, run.id(), stored.records(),
+            new de.kortty.core.SnippetAnalysisReports.ReportContext("smoke", "bash", appliedContent));
+        if (report.verification() == null || report.verification().resolved().size() != 1) {
+            throw new AssertionError("The after-apply report did not find the verification");
+        }
+    }
+
+    /**
+     * Pin, view an older entry, Discard (Cancel first) and Delete all, through the panel's history
+     * menu and its inline confirmation strip.
+     */
+    private static void exerciseHistoryActions(SnippetEditDialog editor, de.kortty.core.SnippetAnalysisStore store,
+                                               String snippetId, String analysedId) {
+        SnippetAnalysisController controller = editor.analysisController();
+        String currentId = store.cached(snippetId).current().id();
+        javafx.scene.control.MenuButton actions = (javafx.scene.control.MenuButton) requireInEditor(editor,
+            "#" + SnippetAnalysisController.HISTORY_ACTIONS_ID);
+        historyItem(actions, SnippetAnalysisController.HISTORY_PIN_ID).fire();
+        if (!store.cached(snippetId).current().pinned()) {
+            throw new AssertionError("Pin was not stored");
+        }
+        // Looking at the older entry is UI state only.
+        controller.selectRecord(analysedId);
+        if (!store.cached(snippetId).current().id().equals(currentId)) {
+            throw new AssertionError("Viewing an older entry changed the current record");
+        }
+        historyItem(actions, SnippetAnalysisController.HISTORY_DISCARD_ID).fire();
+        requireInEditor(editor, "#" + SnippetAnalysisController.CONFIRM_STRIP_ID);
+        click((Button) requireInEditor(editor, "#" + SnippetAnalysisController.CONFIRM_NO_ID));
+        if (editor.getDialogPane().lookup("#" + SnippetAnalysisController.CONFIRM_STRIP_ID) != null
+                || store.cached(snippetId).find(analysedId) == null) {
+            throw new AssertionError("Cancel must keep the analysis and close the confirmation strip");
+        }
+        historyItem(actions, SnippetAnalysisController.HISTORY_DISCARD_ID).fire();
+        click((Button) requireInEditor(editor, "#" + SnippetAnalysisController.CONFIRM_YES_ID));
+        de.kortty.core.SnippetAnalysisHistory after = store.cached(snippetId);
+        if (after.find(analysedId) != null || after.records().size() != 1
+                || !after.current().id().equals(currentId) || !after.current().pinned()) {
+            throw new AssertionError("Discard must remove exactly the viewed analysis, got " + after.records());
+        }
+        historyItem(actions, SnippetAnalysisController.HISTORY_DELETE_ALL_ID).fire();
+        click((Button) requireInEditor(editor, "#" + SnippetAnalysisController.CONFIRM_YES_ID));
+        if (!store.cached(snippetId).isEmpty()) {
+            throw new AssertionError("Delete all must remove every analysis of the snippet");
+        }
+        requireInEditor(editor, "#" + SnippetAnalysisController.EMPTY_STATE_ID);
+    }
+
+    /**
+     * Like a mouse click: the button takes the focus first. The editor swallows button actions
+     * while its code area has the focus (its Enter guard), so a bare fire() after an Accept would
+     * be ignored.
+     */
+    private static void click(Button button) {
+        button.requestFocus();
+        button.fire();
+    }
+
+    private static MenuItem historyItem(javafx.scene.control.MenuButton actions, String id) {
+        return actions.getItems().stream()
+            .filter(item -> id.equals(item.getId()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("History menu has no " + id));
     }
 
     /** The progress checklist of the apply run, now inside the editor's analysis panel. */
@@ -1656,6 +1826,21 @@ public final class SnippetAiDialogsSmoke {
     private static void realize(DialogPane pane) {
         pane.applyCss();
         pane.layout();
+    }
+
+    /** A snapshot of a node as it is laid out in its scene (best effort: a failure only logs). */
+    private static void snapshotNode(Node node, String fileName) {
+        try {
+            SnapshotParameters params = new SnapshotParameters();
+            params.setFill(Color.web("#1e1e1e"));
+            WritableImage image = node.snapshot(params, null);
+            File out = new File("build/smoke/" + fileName);
+            out.getParentFile().mkdirs();
+            ImageIO.write(SwingFXUtils.fromFXImage(image, null), "png", out);
+            System.out.println("Snapshot written: " + out.getAbsolutePath());
+        } catch (Exception e) {
+            System.out.println("Snapshot " + fileName + " failed: " + e);
+        }
     }
 
     private static void snapshotPane(DialogPane pane, String fileName, double minWidth) throws Exception {
