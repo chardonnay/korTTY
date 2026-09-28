@@ -321,6 +321,7 @@ public class SnippetManager {
         ensureUniqueSnippetName(snippet, snippet.getId());
         int index = snippets.indexOf(snippet);
         if (index >= 0) {
+            snippet.markModified();
             snippets.set(index, snippet);
             logger.info("Updated snippet: {}", snippet.getName());
         }

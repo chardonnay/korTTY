@@ -4,12 +4,14 @@ import de.kortty.KorTTYApplication;
 import de.kortty.core.SnippetDiffSelectionSupport;
 import de.kortty.core.SnippetManager;
 import de.kortty.core.SnippetOneLiner;
+import de.kortty.core.SnippetTextFileImport;
 import de.kortty.core.SnippetVariableManager;
 import de.kortty.model.GPGKey;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -38,6 +40,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -169,39 +175,43 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         // ---- Table with MULTIPLE selection mode ----
         snippetTable = new TableView<>();
         snippetTable.setPrefHeight(250);
-        snippetTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        // Unconstrained: every column is freely resizable and keeps its width (persisted per column id);
+        // a constrained policy made capped columns like "Used" unreadable and the tags column static.
+        snippetTable.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
         snippetTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         
         TableColumn<Snippet, String> favCol = new TableColumn<>("");
         favCol.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().isFavorite() ? "\u2605" : ""));
+        favCol.setId("favorite");
         favCol.setPrefWidth(30);
-        favCol.setMaxWidth(35);
         favCol.setStyle("-fx-alignment: CENTER;");
         
         TableColumn<Snippet, String> nameCol = new TableColumn<>(I18n.get("snippets.name"));
         nameCol.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().getName()));
+        nameCol.setId("name");
         nameCol.setPrefWidth(180);
         
         TableColumn<Snippet, String> langCol = new TableColumn<>(I18n.get("snippets.language"));
         langCol.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().getLanguage()));
+        langCol.setId("language");
         langCol.setPrefWidth(90);
-        langCol.setMaxWidth(110);
         
         TableColumn<Snippet, String> tagsCol = new TableColumn<>(I18n.get("snippets.tags"));
         tagsCol.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().getTagsAsString()));
-        tagsCol.setPrefWidth(150);
+        tagsCol.setId("tags");
+        tagsCol.setPrefWidth(170);
         
         TableColumn<Snippet, String> catCol = new TableColumn<>(I18n.get("snippets.category"));
         catCol.setCellValueFactory(cd -> new SimpleStringProperty(
                 cd.getValue().getCategory() != null ? cd.getValue().getCategory() : ""));
+        catCol.setId("category");
         catCol.setPrefWidth(100);
-        catCol.setMaxWidth(130);
 
         TableColumn<Snippet, String> osCol = new TableColumn<>(I18n.get("snippets.operatingSystem"));
         osCol.setCellValueFactory(cd -> new SimpleStringProperty(
                 cd.getValue().getOperatingSystem() != null ? cd.getValue().getOperatingSystem() : ""));
+        osCol.setId("operatingSystem");
         osCol.setPrefWidth(95);
-        osCol.setMaxWidth(130);
         osCol.setCellFactory(col -> new TableCell<>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -219,11 +229,31 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
 
         TableColumn<Snippet, Number> usedCol = new TableColumn<>(I18n.get("snippets.usageCount"));
         usedCol.setCellValueFactory(cd -> new SimpleIntegerProperty(cd.getValue().getUsageCount()));
-        usedCol.setPrefWidth(55);
-        usedCol.setMaxWidth(65);
+        usedCol.setId("usageCount");
+        usedCol.setPrefWidth(75);
         usedCol.setStyle("-fx-alignment: CENTER-RIGHT;");
 
-        snippetTable.getColumns().addAll(java.util.List.of(favCol, nameCol, langCol, catCol, osCol, tagsCol, usedCol));
+        TableColumn<Snippet, Number> linesCol = new TableColumn<>(I18n.get("snippets.lineCount"));
+        linesCol.setCellValueFactory(cd -> new SimpleIntegerProperty(cd.getValue().getLineCount()));
+        linesCol.setId("lineCount");
+        linesCol.setPrefWidth(65);
+        linesCol.setStyle("-fx-alignment: CENTER-RIGHT;");
+
+        TableColumn<Snippet, Number> modifiedCol = new TableColumn<>(I18n.get("snippets.lastModified"));
+        modifiedCol.setCellValueFactory(cd -> new SimpleLongProperty(cd.getValue().getLastModified()));
+        modifiedCol.setId("lastModified");
+        modifiedCol.setPrefWidth(135);
+        modifiedCol.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(Number item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : formatTimestamp(item.longValue()));
+            }
+        });
+
+        snippetTable.getColumns().addAll(java.util.List.of(
+                favCol, nameCol, langCol, catCol, osCol, tagsCol, linesCol, modifiedCol, usedCol));
+        installPersistentColumnWidths();
         installSnippetTableTooltipColumns(nameCol, langCol, catCol, tagsCol);
         snippetTable.setContextMenu(createTableContextMenu());
         
@@ -408,7 +438,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         
         getDialogPane().setContent(layout);
         getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-        getDialogPane().setPrefWidth(850);
+        getDialogPane().setPrefWidth(960);
         getDialogPane().setPrefHeight(700);
         
         // Enable export button if there are snippets
@@ -470,6 +500,66 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         });
     }
     
+    private static String formatTimestamp(long epochMillis) {
+        if (epochMillis <= 0) {
+            return "";
+        }
+        Locale locale;
+        try {
+            locale = de.kortty.core.LanguageManager.getInstance().getCurrentLocale();
+        } catch (Exception e) {
+            locale = Locale.getDefault();
+        }
+        return DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)
+                .withLocale(locale != null ? locale : Locale.getDefault())
+                .format(Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()));
+    }
+
+    /** Restores user-resized column widths and persists every later resize (by column id). */
+    private void installPersistentColumnWidths() {
+        Map<String, Double> saved = loadColumnWidths();
+        for (TableColumn<Snippet, ?> column : snippetTable.getColumns()) {
+            Double width = saved.get(column.getId());
+            if (width != null) {
+                column.setPrefWidth(Math.max(column.getMinWidth(), width));
+            }
+            column.widthProperty().addListener((obs, oldWidth, newWidth) -> {
+                // The table's initial layout reports the preferred width; only real resizes are saved.
+                if (column.getTableView() != null && column.getTableView().getSkin() != null
+                        && oldWidth.doubleValue() > 0
+                        && Math.abs(newWidth.doubleValue() - oldWidth.doubleValue()) >= 1) {
+                    saveColumnWidths();
+                }
+            });
+        }
+    }
+
+    private Map<String, Double> loadColumnWidths() {
+        try {
+            return KorTTYApplication.getInstance().getGlobalSettingsManager()
+                    .getSettings().getSnippetManagerColumnWidths();
+        } catch (Exception e) {
+            logger.debug("Could not load snippet table column widths", e);
+            return Map.of();
+        }
+    }
+
+    private void saveColumnWidths() {
+        try {
+            var manager = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            Map<String, Double> widths = new LinkedHashMap<>();
+            for (TableColumn<Snippet, ?> column : snippetTable.getColumns()) {
+                if (column.getId() != null) {
+                    widths.put(column.getId(), column.getWidth());
+                }
+            }
+            manager.getSettings().setSnippetManagerColumnWidths(widths);
+            manager.scheduleSave();
+        } catch (Exception e) {
+            logger.debug("Could not save snippet table column widths", e);
+        }
+    }
+
     private void restoreGeometry() {
         DialogGeometrySupport.restore(this, settings -> settings.getSnippetManagerGeometry());
     }
@@ -1317,38 +1407,85 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(I18n.get("snippets.import"));
         fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter(I18n.get("snippets.format.allImportable"), "*.*"),
                 new FileChooser.ExtensionFilter(I18n.get("snippets.format.all"), "*.json", "*.xml", "*.yaml", "*.yml"),
                 new FileChooser.ExtensionFilter("JSON (*.json)", "*.json"),
                 new FileChooser.ExtensionFilter("XML (*.xml)", "*.xml"),
                 new FileChooser.ExtensionFilter("YAML (*.yaml, *.yml)", "*.yaml", "*.yml")
         );
-        
-        File file = fileChooser.showOpenDialog(getDialogPane().getScene().getWindow());
-        if (file == null) return;
-        
+
+        List<File> files = fileChooser.showOpenMultipleDialog(getDialogPane().getScene().getWindow());
+        if (files == null || files.isEmpty()) return;
+
+        List<Snippet> exported = new ArrayList<>();
+        List<Snippet> textFiles = new ArrayList<>();
+        List<String> rejected = new ArrayList<>();
         try {
-            String fileName = file.getName().toLowerCase();
-            List<Snippet> imported;
-            
-            if (fileName.endsWith(".xml")) {
-                imported = snippetManager.importFromXml(file.toPath());
-            } else if (fileName.endsWith(".yaml") || fileName.endsWith(".yml")) {
-                imported = snippetManager.importFromYaml(file.toPath());
-            } else {
-                imported = snippetManager.importFromJson(file.toPath());
+            for (File file : files) {
+                Path path = file.toPath();
+                if (SnippetTextFileImport.isSnippetExport(path)) {
+                    exported.addAll(importSnippetExport(path));
+                    continue;
+                }
+                try {
+                    textFiles.add(SnippetTextFileImport.importFile(path));
+                } catch (SnippetTextFileImport.NotATextFileException e) {
+                    rejected.add(file.getName() + " (" + e.getMessage() + ")");
+                }
             }
-            ensureImportedSnippetNamesAreUnique(imported);
-            
+            ensureImportedSnippetNamesAreUnique(exported);
+            makeTextFileSnippetNamesUnique(textFiles, exported);
+            List<Snippet> imported = new ArrayList<>(exported);
+            imported.addAll(textFiles);
+
             for (Snippet s : imported) {
                 snippetManager.addSnippet(s);
             }
             saveAndRefresh();
-            
-            showInfo(I18n.get("snippets.importSuccess", imported.size()));
-            logger.info("Imported {} snippets from {}", imported.size(), file.getPath());
+
+            logger.info("Imported {} snippets from {} file(s)", imported.size(), files.size());
+            String rejectedMessage = I18n.get("snippets.importRejectedBinary", String.join("\n", rejected));
+            if (rejected.isEmpty()) {
+                showInfo(I18n.get("snippets.importSuccess", imported.size()));
+            } else if (imported.isEmpty()) {
+                showError(rejectedMessage);
+            } else {
+                showInfo(I18n.get("snippets.importSuccess", imported.size()) + "\n\n" + rejectedMessage);
+            }
         } catch (Exception e) {
             logger.error("Failed to import snippets", e);
             showError(I18n.get("snippets.importFailed", e.getMessage()));
+        }
+    }
+
+    private List<Snippet> importSnippetExport(Path file) throws Exception {
+        String fileName = file.getFileName().toString().toLowerCase(Locale.ROOT);
+        if (fileName.endsWith(".xml")) {
+            return snippetManager.importFromXml(file);
+        }
+        if (fileName.endsWith(".yaml") || fileName.endsWith(".yml")) {
+            return snippetManager.importFromYaml(file);
+        }
+        return snippetManager.importFromJson(file);
+    }
+
+    /**
+     * A text file becomes a snippet named after the file; re-importing the same file name gets a
+     * numbered suffix ("deploy.sh (2)") instead of failing the whole import.
+     */
+    private void makeTextFileSnippetNamesUnique(List<Snippet> textFiles, List<Snippet> alsoImported) {
+        Set<String> taken = new HashSet<>();
+        alsoImported.forEach(snippet -> taken.add(normalizeSnippetName(snippet.getName())));
+        for (Snippet snippet : textFiles) {
+            String baseName = snippet.getName();
+            String candidate = baseName;
+            int counter = 2;
+            while (snippetManager.hasSnippetName(candidate, snippet.getId())
+                    || taken.contains(normalizeSnippetName(candidate))) {
+                candidate = baseName + " (" + counter++ + ")";
+            }
+            snippet.setName(candidate);
+            taken.add(normalizeSnippetName(candidate));
         }
     }
 
@@ -1401,12 +1538,12 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
 
     private Optional<SnippetExportFormat> chooseExportFormat() {
         ChoiceDialog<SnippetExportFormat> dialog = new ChoiceDialog<>(
-                SnippetExportFormat.JSON,
+                SnippetExportFormat.PLAIN_TEXT,
                 List.of(
+                        SnippetExportFormat.PLAIN_TEXT,
                         SnippetExportFormat.JSON,
                         SnippetExportFormat.XML,
                         SnippetExportFormat.YAML,
-                        SnippetExportFormat.PLAIN_TEXT,
                         SnippetExportFormat.ZIP
                 )
         );

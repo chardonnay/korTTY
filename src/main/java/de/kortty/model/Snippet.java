@@ -63,6 +63,10 @@ public class Snippet {
     @XmlElement
     private long createdAt;
 
+    /** Last time the snippet was changed (0 = never since creation, see {@link #getLastModified()}). */
+    @XmlElement
+    private long modifiedAt;
+
     @XmlElementWrapper(name = "history")
     @XmlElement(name = "entry")
     private List<SnippetHistoryEntry> history = new ArrayList<>();
@@ -143,6 +147,26 @@ public class Snippet {
     
     public long getCreatedAt() { return createdAt; }
     public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+
+    public long getModifiedAt() { return modifiedAt; }
+    public void setModifiedAt(long modifiedAt) { this.modifiedAt = modifiedAt; }
+
+    /** Last change timestamp, falling back to the creation time for never-edited snippets. */
+    public long getLastModified() {
+        return modifiedAt > 0 ? modifiedAt : createdAt;
+    }
+
+    public void markModified() {
+        this.modifiedAt = System.currentTimeMillis();
+    }
+
+    /** Number of lines in the content; a trailing newline does not add an empty line. */
+    public int getLineCount() {
+        if (content == null || content.isEmpty()) {
+            return 0;
+        }
+        return (int) content.lines().count();
+    }
 
     public List<SnippetHistoryEntry> getHistory() {
         if (history == null) {

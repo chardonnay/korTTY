@@ -992,6 +992,34 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void snippetManagerColumnWidthsPersistAndIgnoreCorruptEntries() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-snippet-columns");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertThat(manager.getSettings().getSnippetManagerColumnWidths()).isEmpty();
+
+            java.util.Map<String, Double> widths = new java.util.LinkedHashMap<>();
+            widths.put("name", 212.4);
+            widths.put("usageCount", 88.0);
+            widths.put("bad;id", 50.0);
+            manager.getSettings().setSnippetManagerColumnWidths(widths);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().getSnippetManagerColumnWidths())
+                .containsExactly("name", 212.0, "usageCount", 88.0).inOrder();
+
+            reloaded.getSettings().setSnippetManagerColumnWidths(null);
+            assertThat(reloaded.getSettings().getSnippetManagerColumnWidths()).isEmpty();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void snippetManagerPreviewDividerPositionDefaultClampAndPersist() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings-snippet-manager-preview");
         try {

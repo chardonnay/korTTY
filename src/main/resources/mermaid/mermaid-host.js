@@ -191,10 +191,14 @@
     }).filter(item => item.nodeId && item.width > 0 && item.height > 0);
   }
 
-  function rasterize(svgText, width, height) {
+  // `rasterScale` is the caller's canvas pixels per SVG unit (2 for print-sharp report exports).
+  // The 16-megapixel cap applies to the scaled canvas, so a large diagram at 2x is scaled back
+  // exactly as far as it needs to be and no further.
+  function rasterize(svgText, width, height, rasterScale) {
     return new Promise((resolve, reject) => {
-      const pixels = Math.max(1, width * height);
-      const scale = pixels > MAX_RASTER_PIXELS ? Math.sqrt(MAX_RASTER_PIXELS / pixels) : 1;
+      const requested = Number.isFinite(rasterScale) && rasterScale > 0 ? rasterScale : 1;
+      const pixels = Math.max(1, width * height * requested * requested);
+      const scale = requested * (pixels > MAX_RASTER_PIXELS ? Math.sqrt(MAX_RASTER_PIXELS / pixels) : 1);
       const rasterWidth = Math.max(1, Math.round(width * scale));
       const rasterHeight = Math.max(1, Math.round(height * scale));
       const image = new Image();
@@ -226,7 +230,7 @@
     }
   }
 
-  async function render(requestId, source, dark, background, includePng) {
+  async function render(requestId, source, dark, background, includePng, rasterScale) {
     try {
       const renderer = api();
       renderer.initialize(config(Boolean(dark), background));
@@ -240,7 +244,7 @@
       insertBackground(svg, box, background || (dark ? "#111827" : "#FFFFFF"));
       const bounds = nodeBounds(svg, box);
       const svgText = new XMLSerializer().serializeToString(svg);
-      const png = includePng ? await rasterize(svgText, box.width, box.height) : "";
+      const png = includePng ? await rasterize(svgText, box.width, box.height, rasterScale) : "";
       javaBridge.renderSucceeded(
         requestId,
         svgText,
