@@ -1,18 +1,12 @@
 package de.kortty.ui;
 
-import javafx.event.ActionEvent;
 import javafx.event.Event;
-import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
-import javafx.scene.control.DialogEvent;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.StackPane;
+import javafx.stage.Stage;
+import javafx.stage.Window;
 
 /**
  * Hosts a {@link ThemeAwareDialog}'s pane as a tab in a main window's tab pane instead of a separate
@@ -30,22 +24,20 @@ import javafx.scene.layout.StackPane;
  * Child dialogs opened by the hosted pane resolve their owner via
  * {@code getDialogPane().getScene().getWindow()}, which inside the tab is the main window's stage —
  * exactly the desired owner. Theming travels with the pane ({@link DialogThemeHelper} styles the
- * pane itself).
+ * pane itself). The embedding mechanics live in {@link DialogPaneAdoption}, shared with the
+ * snippet workspace's inner editor tabs.
  */
-public class DialogHostTab extends Tab {
+public class DialogHostTab extends Tab implements DialogPaneHost {
 
     /** Dedupe key for tool tabs (one per main window); {@code null} for multi-instance tools. */
     private final String toolId;
     private final ThemeAwareDialog<?> dialog;
-    private final Runnable afterClosed;
-    /** {@code DIALOG_HIDDEN} was observed — either fired by us or by the dialog's own close path. */
-    private boolean hiddenSeen;
-    private boolean closeFinished;
+    private final DialogPaneAdoption adoption;
 
     private DialogHostTab(String toolId, ThemeAwareDialog<?> dialog, Runnable afterClosed) {
         this.toolId = toolId;
         this.dialog = dialog;
-        this.afterClosed = afterClosed;
+        this.adoption = new DialogPaneAdoption(dialog, this, afterClosed, false);
     }
 
     /**
@@ -65,139 +57,59 @@ public class DialogHostTab extends Tab {
     }
 
     private void adoptPane() {
-        DialogPane pane = dialog.getDialogPane();
-        detachFromDialogWindow(pane);
-        dialog.setHostTab(this);
-        // Dialog.setResult(non-null) runs the dialog's own close machinery, which fires
-        // DIALOG_HIDDEN itself even for a never-shown dialog. Track it so finishClose() fires
-        // the event only when the dialog's own path didn't.
-        dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> hiddenSeen = true);
-        String title = dialog.getTitle();
-        setText(title != null && !title.isBlank() ? title : "…");
-        setContent(buildHolder(pane));
-        interceptButtons(pane);
+        setContent(adoption.adopt());
+        // Follow the dialog's title (an editor names its snippet, a workspace marks unsaved work).
+        // A listener rather than a binding: tab text stays settable for any code that renames tabs.
+        applyTitle(dialog.getTitle());
+        dialog.titleProperty().addListener((obs, oldTitle, newTitle) -> applyTitle(newTitle));
         setOnCloseRequest(this::onTabCloseRequest);
-        setOnClosed(event -> finishClose());
+        setOnClosed(event -> adoption.finishClose());
     }
 
-    /**
-     * Wraps the pane so it reliably fills the tab. {@code DialogPane.layoutChildren} RESIZES ITSELF
-     * to its pref/min height bounded by its dialog window's scene height — sane as a window root,
-     * but hosted in a tab the never-shown dialog window reports height 0, so every layout pass the
-     * pane shrinks itself to its min height while the tab content area stretches it back: a per-pulse
-     * tug-of-war that renders as constant flicker and clipped/overlapping controls. Keeping the
-     * pane's min and pref sizes equal to the holder's size makes the pane's own resize land exactly
-     * on the tab area in every branch of that logic, ending the war.
-     */
-    private static StackPane buildHolder(DialogPane pane) {
-        StackPane holder = new StackPane(pane);
-        holder.widthProperty().addListener((obs, oldWidth, width) -> {
-            pane.setMinWidth(width.doubleValue());
-            pane.setPrefWidth(width.doubleValue());
-        });
-        holder.heightProperty().addListener((obs, oldHeight, height) -> {
-            pane.setMinHeight(height.doubleValue());
-            pane.setPrefHeight(height.doubleValue());
-        });
-        pane.setMaxWidth(Double.MAX_VALUE);
-        pane.setMaxHeight(Double.MAX_VALUE);
-        // The holder must not report the size it just pinned on the pane back up to the tab: that
-        // minimum would keep the tab area from ever getting smaller, the listeners above would
-        // never fire again, and the pane would stay at its largest size while the window shrinks —
-        // pushing the dialog's button bar out of the window with no way to reach it.
-        holder.setMinSize(0, 0);
-        return holder;
-    }
-
-    /**
-     * Detaches the pane from the never-shown dialog window's scene. {@code Dialog} attaches its pane
-     * as that scene's root at construction time; a node cannot be a scene root and a tab's content at
-     * once. Swapping the root out (rather than {@code dialog.setDialogPane(...)}) keeps
-     * {@code dialog.getDialogPane()} — which the hosted classes use heavily — intact.
-     */
-    private static void detachFromDialogWindow(DialogPane pane) {
-        Scene scene = pane.getScene();
-        if (scene != null && scene.getRoot() == pane) {
-            scene.setRoot(new Pane());
-        }
-    }
-
-    private void interceptButtons(DialogPane pane) {
-        for (ButtonType buttonType : pane.getButtonTypes()) {
-            if (!(pane.lookupButton(buttonType) instanceof Button button)) {
-                continue;
-            }
-            // Registered after any filters the dialog itself installed (e.g. save-without-closing
-            // buttons that consume the event), so those keep full control.
-            button.addEventFilter(ActionEvent.ACTION, event -> {
-                if (event.isConsumed()) {
-                    return;
-                }
-                event.consume();
-                applyResult(buttonType);
-                closeProgrammatically();
-            });
-        }
+    private void applyTitle(String title) {
+        setText(title != null && !title.isBlank() ? title : "\u2026");
     }
 
     private void onTabCloseRequest(Event tabEvent) {
-        DialogEvent closeRequest = new DialogEvent(dialog, DialogEvent.DIALOG_CLOSE_REQUEST);
-        Event.fireEvent(dialog, closeRequest);
-        if (closeRequest.isConsumed()) {
+        if (!adoption.requestClose()) {
             tabEvent.consume();
-            return;
         }
-        applyResult(cancelButtonType());
-    }
-
-    /** Runs the result converter for {@code buttonType} and publishes the result on the dialog. */
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    private void applyResult(ButtonType buttonType) {
-        var converter = dialog.getResultConverter();
-        if (converter == null || buttonType == null) {
-            return;
-        }
-        Object result = converter.call(buttonType);
-        ((Dialog) dialog).setResult(result);
-    }
-
-    private ButtonType cancelButtonType() {
-        for (ButtonType buttonType : dialog.getDialogPane().getButtonTypes()) {
-            ButtonBar.ButtonData data = buttonType.getButtonData();
-            if (data != null && data.isCancelButton()) {
-                return buttonType;
-            }
-        }
-        return null;
     }
 
     /** Closes the tab as if the dialog were closed programmatically (e.g. {@code close()}). */
-    void closeProgrammatically() {
+    @Override
+    public void closeProgrammatically() {
         // Resolve the pane the tab currently lives in — tabs can be dragged between windows.
         TabPane currentPane = getTabPane();
         if (currentPane != null) {
             currentPane.getTabs().remove(this);
         }
-        finishClose();
+        adoption.finishClose();
     }
 
-    /** Ensures {@code DIALOG_HIDDEN} was delivered exactly once, then runs the post-close callback. */
-    private void finishClose() {
-        if (closeFinished) {
+    @Override
+    public boolean isAttached() {
+        return getTabPane() != null;
+    }
+
+    @Override
+    public void reveal() {
+        TabPane currentPane = getTabPane();
+        if (currentPane == null) {
             return;
         }
-        closeFinished = true;
-        if (!hiddenSeen) {
-            Event.fireEvent(dialog, new DialogEvent(dialog, DialogEvent.DIALOG_HIDDEN));
-        }
-        if (afterClosed != null) {
-            afterClosed.run();
+        currentPane.getSelectionModel().select(this);
+        Window window = currentPane.getScene() != null ? currentPane.getScene().getWindow() : null;
+        if (window instanceof Stage stage) {
+            stage.setIconified(false);
+            stage.toFront();
+            stage.requestFocus();
         }
     }
 
     /** Releases the hosted pane's resources without touching the tab list (window teardown). */
     void disposeOnWindowClose() {
-        finishClose();
+        adoption.finishClose();
     }
 
     String getToolId() {

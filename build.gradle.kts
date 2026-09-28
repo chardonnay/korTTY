@@ -3518,6 +3518,15 @@ tasks.register<JavaExec>("toolTabRenderSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("snippetWorkspaceSmoke") {
+    group = "verification"
+    description = "Drives the snippet workspace: preview without editor boot, promote by typing, " +
+        "dedupe across workspaces, Shortcut+S save, Esc, and vetoed/discarded closes."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SnippetWorkspaceSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("agentCompletionPopupSmoke") {
     group = "verification"
     description = "Shows the terminal AI-agent TAB history popup to verify it renders without throwing."

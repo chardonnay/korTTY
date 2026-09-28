@@ -21,9 +21,21 @@ The Snippet Manager includes the following features:
 - **Menu:** Tools → Snippet Manager
 - **Shortcut:** ++ctrl+shift+s++ (++cmd+shift+s++ on macOS)
 
+The Snippet Manager is one workspace: the snippet library (search, category filter, the snippet table and its actions) on the left, and the snippets you work on as tabs on the right. Each main window has one Snippet Manager — a window of its own, or a tab when **Open tool windows as tabs** is on. Opening it again brings the existing one to the front and puts the cursor in the search field.
+
+- **Browse** — Click a row, or move through the list with the arrow keys, to show the snippet in the read-only **Preview** tab. There is only one preview tab; browsing replaces its content and never starts an editor or an AI action.
+- **Edit** — Double-click a row, press ++enter++ in the list, click **Edit**, or simply start typing in the preview. The snippet then opens in its own editor tab, and the character you typed goes into it. A snippet is open in at most one editor tab, across all main windows; opening it again selects that tab. A snippet that is already open in another main window shows a **Go to editor** banner in the preview instead.
+- **Tabs** — Tabs with unsaved changes show a dot (●) after the name, a small spinner shows that an AI action is running in that tab. Right-click a tab for **Close**, **Close others**, **Close all** and **Show in list**.
+- **Actions** — **Save** saves the active tab (also ++ctrl+s++, ++cmd+s++ on macOS), **Save as new snippet** stores the active tab's form as a new snippet and leaves the original unchanged, **Close tab** closes it (also ++ctrl+w++, ++cmd+w++ on macOS) and asks about unsaved changes. The ☰ button (++ctrl+b++, ++cmd+b++ on macOS) hides the library so the editor gets the full width, and brings it back.
+- **Closing** — ++esc++ never closes the Snippet Manager. Closing it (window close button, ++ctrl+q++, or the × of its main-window tab) asks once for everything that is unsaved: the editor's own question for one snippet, or **Save all** / **Discard all** / **Cancel** for several.
+- **Deleting** — A snippet with unsaved changes in an open editor cannot be deleted; korTTY shows that editor instead. The editor tab of a deleted snippet without unsaved changes closes.
+
+!!! note
+    Snippets opened from other places — the SFTP Manager, the local file browser, the terminal, the AI chat, the AI agent and the swarm window — still open in their own editor window (or main-window tab), exactly as before.
+
 ## Creating and editing snippets
 
-1. Click **Add** (or **Edit** to modify an existing snippet).
+1. Click **Add** in the library for a new snippet (it opens in a new editor tab), or open an existing snippet as described above.
 2. Fill in the fields:
    - **Name** — A descriptive name.
    - **Code language** — Select the programming language (Bash, Python, Java, JavaScript, TypeScript, SQL, XML, JSON, YAML, and more). Enables syntax highlighting. The add (**+**) button next to the list adds a language that is not offered yet: type its name once and it is stored and offered in every future snippet editor. A self-added language is used for the AI prompts and the file extension; syntax highlighting falls back to plain text unless korTTY happens to ship a grammar for it.
@@ -33,7 +45,7 @@ The Snippet Manager includes the following features:
    - **Tags** — Comma-separated keywords for searching (e.g., `docker, deploy, backup`).
    - **Description** — Optional free-text description of the snippet.
    - **Content** — The snippet code. The editor provides live syntax highlighting based on the selected language.
-3. Click **OK**. If the snippet content changed, KorTTY saves the edited snippet while closing the dialog. When editing an existing entry, **Save as new snippet** stores the current content as a new snippet with a new ID and leaves the original unchanged.
+3. Click **Save** (or press ++ctrl+s++, ++cmd+s++ on macOS). The tab stays open, and the library row updates in place and stays selected. When editing an existing entry, **Save as new snippet** stores the current content as a new snippet with a new ID and leaves the original unchanged; the new snippet replaces the original in the tab.
 
 ### Editor toolbar and features
 

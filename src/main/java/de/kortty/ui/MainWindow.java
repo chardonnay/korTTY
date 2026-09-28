@@ -3475,6 +3475,8 @@ public class MainWindow {
     private static boolean guideTranslationUpdatePrompted;
     /** The "your snippets file was moved aside" notice is shown once per run, not once per window. */
     private static boolean snippetLoadFailureNoticeShown;
+    /** This window's snippet workspace while it is open as a window (window mode). */
+    private SnippetWorkspaceDialog snippetWorkspace;
 
     /**
      * After a release that changed the guide, offers to refresh a locally translated one.
@@ -9288,27 +9290,53 @@ public class MainWindow {
         updateStatus(I18n.get("terminal.recording.error.noTerminal"));
     }
     
-    /**
-     * Shows SFTP Manager dialog. If a connection is selected, opens it directly.
-     * Otherwise, shows a dialog to select a connection.
-     */
     private void showSnippetManager() {
+        showSnippetWorkspace(null);
+    }
+
+    /**
+     * Opens the snippet workspace (Snippet Manager) of this window, or brings the open one forward
+     * and focuses its search. One workspace per main window: a tool tab in tab mode, a window
+     * otherwise. An open instance of either kind is reused, even after the tab setting changed.
+     *
+     * @param snippetIdOrNull a snippet to open pinned in the workspace, or {@code null}
+     */
+    void showSnippetWorkspace(String snippetIdOrNull) {
         Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "snippet_manager"));
-        logger.info("showSnippetManager() called - Opening Snippet Manager");
+        logger.info("showSnippetWorkspace() called - Opening Snippet Manager");
         try {
             de.kortty.core.SnippetManager mgr = app.getSnippetManager();
             if (mgr == null) {
                 showError(I18n.get("error.title"), "Snippet Manager not initialized");
                 return;
             }
-            if (toolTabsEnabled()) {
-                if (findAndSelectToolTab("snippets") == null) {
-                    hostToolTab("snippets", new SnippetManagementDialog(mgr, this), null);
-                }
+            SnippetWorkspaceDialog workspace = snippetWorkspace;
+            if (workspace != null) {
+                bringDialogToFront(workspace);
             } else {
-                SnippetManagementDialog dialog = new SnippetManagementDialog(mgr, this);
-                dialog.initOwner(stage);
-                dialog.show();
+                DialogHostTab existing = findAndSelectToolTab(SnippetWorkspaceDialog.TOOL_ID);
+                if (existing != null && existing.getHostedDialog() instanceof SnippetWorkspaceDialog hosted) {
+                    workspace = hosted;
+                } else if (toolTabsEnabled()) {
+                    workspace = new SnippetWorkspaceDialog(mgr, this);
+                    hostToolTab(SnippetWorkspaceDialog.TOOL_ID, workspace, null);
+                } else {
+                    SnippetWorkspaceDialog windowed = new SnippetWorkspaceDialog(mgr, this);
+                    windowed.initOwner(stage);
+                    windowed.setOnTornDown(() -> {
+                        if (snippetWorkspace == windowed) {
+                            snippetWorkspace = null;
+                        }
+                    });
+                    snippetWorkspace = windowed;
+                    windowed.show();
+                    workspace = windowed;
+                }
+            }
+            if (snippetIdOrNull != null) {
+                workspace.openSnippetById(snippetIdOrNull, true);
+            } else {
+                workspace.focusSearch();
             }
             showSnippetLoadFailureNoticeOnce(mgr);
         } catch (Exception e) {

@@ -15,6 +15,7 @@ import de.kortty.model.AiProfile;
 import de.kortty.model.ServerConnection;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 final class SnippetAiAssistFactory {
 
@@ -26,9 +27,29 @@ final class SnippetAiAssistFactory {
     }
 
     static SnippetEditDialog.AiAssist create(MainWindow ownerWindow, ServerConnection connection) {
-        if (ownerWindow == null || ownerWindow.getAvailableAiProfiles().isEmpty()) {
+        return create(() -> ownerWindow, connection);
+    }
+
+    /**
+     * Like {@link #create(MainWindow)}, but resolves the main window per request: an editor tab can
+     * be dragged into another main window, whose AI profiles and usage accounting then apply.
+     * Returns {@code null} when no main window with AI profiles is available right now.
+     */
+    static SnippetEditDialog.AiAssist create(Supplier<MainWindow> ownerWindowSupplier) {
+        return create(ownerWindowSupplier, null);
+    }
+
+    private static SnippetEditDialog.AiAssist create(Supplier<MainWindow> ownerWindowSupplier,
+                                                     ServerConnection connection) {
+        MainWindow initialOwner = ownerWindowSupplier != null ? ownerWindowSupplier.get() : null;
+        if (initialOwner == null || initialOwner.getAvailableAiProfiles().isEmpty()) {
             return null;
         }
+        // Falls back to the window the editor was opened from when the supplier has nothing better.
+        Supplier<MainWindow> owner = () -> {
+            MainWindow current = ownerWindowSupplier.get();
+            return current != null ? current : initialOwner;
+        };
         String connectionDisplayName = connection != null ? connection.getDisplayName() : null;
         String contextDisplayName = connectionDisplayName != null && !connectionDisplayName.isBlank()
             ? connectionDisplayName.trim()
@@ -38,26 +59,26 @@ final class SnippetAiAssistFactory {
         SnippetAiRuntimeOptions runtimeOptions = new SnippetAiRuntimeOptions();
         return new SnippetEditDialog.AiAssist(
             (content, language, responseLanguageCode) -> generateSnippetMetadata(
-                ownerWindow, connection, content, language, responseLanguageCode,
+                owner.get(), connection, content, language, responseLanguageCode,
                 contextDisplayName, runtimeOptions),
             (content, language, description, responseLanguageCode) -> correctSnippetDescription(
-                ownerWindow, connection, content, language, description, responseLanguageCode,
+                owner.get(), connection, content, language, description, responseLanguageCode,
                 contextDisplayName, runtimeOptions),
-            request -> correctSnippetSelectionText(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> translateSnippetSelectionText(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> describeSnippet(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> generateAlternativeSolutions(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> completeSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> reviewSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> improveSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> migrateSnippetLanguage(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> assistSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> reviewSnippetSecurity(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> applySnippetSecurityFixes(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> generateCompactOneLiner(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> generateSnippetMermaid(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> analyzeSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> applySnippetImprovements(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
+            request -> correctSnippetSelectionText(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> translateSnippetSelectionText(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> describeSnippet(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> generateAlternativeSolutions(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> completeSnippetCode(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> reviewSnippetCode(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> improveSnippetCode(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> migrateSnippetLanguage(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> assistSnippetCode(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> reviewSnippetSecurity(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> applySnippetSecurityFixes(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> generateCompactOneLiner(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> generateSnippetMermaid(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> analyzeSnippetCode(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> applySnippetImprovements(owner.get(), connection, request, contextDisplayName, runtimeOptions),
             true,
             runtimeOptions);
     }

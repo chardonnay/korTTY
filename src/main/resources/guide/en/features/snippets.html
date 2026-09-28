@@ -773,9 +773,22 @@
 <li><strong>Menu:</strong> Tools → Snippet Manager</li>
 <li><strong>Shortcut:</strong> <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-s">S</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-s">S</kbd></span> on macOS)</li>
 </ul>
+<p>The Snippet Manager is one workspace: the snippet library (search, category filter, the snippet table and its actions) on the left, and the snippets you work on as tabs on the right. Each main window has one Snippet Manager — a window of its own, or a tab when <strong>Open tool windows as tabs</strong> is on. Opening it again brings the existing one to the front and puts the cursor in the search field.</p>
+<ul>
+<li><strong>Browse</strong> — Click a row, or move through the list with the arrow keys, to show the snippet in the read-only <strong>Preview</strong> tab. There is only one preview tab; browsing replaces its content and never starts an editor or an AI action.</li>
+<li><strong>Edit</strong> — Double-click a row, press <span class="keys"><kbd class="key-enter">Enter</kbd></span> in the list, click <strong>Edit</strong>, or simply start typing in the preview. The snippet then opens in its own editor tab, and the character you typed goes into it. A snippet is open in at most one editor tab, across all main windows; opening it again selects that tab. A snippet that is already open in another main window shows a <strong>Go to editor</strong> banner in the preview instead.</li>
+<li><strong>Tabs</strong> — Tabs with unsaved changes show a dot (●) after the name, a small spinner shows that an AI action is running in that tab. Right-click a tab for <strong>Close</strong>, <strong>Close others</strong>, <strong>Close all</strong> and <strong>Show in list</strong>.</li>
+<li><strong>Actions</strong> — <strong>Save</strong> saves the active tab (also <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-s">S</kbd></span>, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-s">S</kbd></span> on macOS), <strong>Save as new snippet</strong> stores the active tab's form as a new snippet and leaves the original unchanged, <strong>Close tab</strong> closes it (also <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-w">W</kbd></span>, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-w">W</kbd></span> on macOS) and asks about unsaved changes. The ☰ button (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-b">B</kbd></span>, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-b">B</kbd></span> on macOS) hides the library so the editor gets the full width, and brings it back.</li>
+<li><strong>Closing</strong> — <span class="keys"><kbd class="key-escape">Esc</kbd></span> never closes the Snippet Manager. Closing it (window close button, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-q">Q</kbd></span>, or the × of its main-window tab) asks once for everything that is unsaved: the editor's own question for one snippet, or <strong>Save all</strong> / <strong>Discard all</strong> / <strong>Cancel</strong> for several.</li>
+<li><strong>Deleting</strong> — A snippet with unsaved changes in an open editor cannot be deleted; korTTY shows that editor instead. The editor tab of a deleted snippet without unsaved changes closes.</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Snippets opened from other places — the SFTP Manager, the local file browser, the terminal, the AI chat, the AI agent and the swarm window — still open in their own editor window (or main-window tab), exactly as before.</p>
+</div>
 <h2 id="creating-and-editing-snippets">Creating and editing snippets<a class="headerlink" href="#creating-and-editing-snippets" title="Permanent link">&para;</a></h2>
 <ol>
-<li>Click <strong>Add</strong> (or <strong>Edit</strong> to modify an existing snippet).</li>
+<li>Click <strong>Add</strong> in the library for a new snippet (it opens in a new editor tab), or open an existing snippet as described above.</li>
 <li>Fill in the fields:</li>
 <li><strong>Name</strong> — A descriptive name.</li>
 <li><strong>Code language</strong> — Select the programming language (Bash, Python, Java, JavaScript, TypeScript, SQL, XML, JSON, YAML, and more). Enables syntax highlighting. The add (<strong>+</strong>) button next to the list adds a language that is not offered yet: type its name once and it is stored and offered in every future snippet editor. A self-added language is used for the AI prompts and the file extension; syntax highlighting falls back to plain text unless korTTY happens to ship a grammar for it.</li>
@@ -785,7 +798,7 @@
 <li><strong>Tags</strong> — Comma-separated keywords for searching (e.g., <code>docker, deploy, backup</code>).</li>
 <li><strong>Description</strong> — Optional free-text description of the snippet.</li>
 <li><strong>Content</strong> — The snippet code. The editor provides live syntax highlighting based on the selected language.</li>
-<li>Click <strong>OK</strong>. If the snippet content changed, KorTTY saves the edited snippet while closing the dialog. When editing an existing entry, <strong>Save as new snippet</strong> stores the current content as a new snippet with a new ID and leaves the original unchanged.</li>
+<li>Click <strong>Save</strong> (or press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-s">S</kbd></span>, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-s">S</kbd></span> on macOS). The tab stays open, and the library row updates in place and stays selected. When editing an existing entry, <strong>Save as new snippet</strong> stores the current content as a new snippet with a new ID and leaves the original unchanged; the new snippet replaces the original in the tab.</li>
 </ol>
 <h3 id="editor-toolbar-and-features">Editor toolbar and features<a class="headerlink" href="#editor-toolbar-and-features" title="Permanent link">&para;</a></h3>
 <p>The snippet editor toolbar provides:</p>

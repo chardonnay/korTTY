@@ -56,6 +56,23 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | ++f12++ | Toggle Fullscreen |
 | ++ctrl+shift+f++ | Toggle Terminal-only Fullscreen |
 
+## Snippet Manager
+
+These keys work in the Snippet Manager (library and editor tabs); see [Opening the Snippet Manager](../features/snippets.md#opening-the-snippet-manager).
+
+| Shortcut | Action |
+| --- | --- |
+| ++ctrl+shift+s++ | Open the Snippet Manager, or focus its search field when it is already open |
+| ++up++ / ++down++ (list) | Browse: show the selected snippet in the read-only preview tab |
+| ++enter++ (list) | Open the selected snippet in an editor tab |
+| Typing (preview tab) | Open the previewed snippet in an editor tab; the typed character is kept |
+| ++ctrl+s++ | Save the active editor tab (also in a standalone snippet editor window) |
+| ++ctrl+w++ | Close the active editor tab (asks about unsaved changes) |
+| ++ctrl+b++ | Hide or show the library, giving the editor tabs the full width |
+| ++esc++ (search field) | Clear the search; ++esc++ never closes the Snippet Manager |
+
+If the focus is on the Snippet Manager's own tab header in the main window (tab mode), ++ctrl+s++ still saves the project.
+
 ## Snippet editor
 
 These keys work inside the snippet editor's code field; see [AI Code completions](../features/snippets.md#ai-code-completions).

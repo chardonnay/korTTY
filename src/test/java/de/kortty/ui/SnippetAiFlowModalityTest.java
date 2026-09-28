@@ -31,6 +31,7 @@ class SnippetAiFlowModalityTest {
     /** Every window the staged apply flow puts on screen, plus the editor that hosts it. */
     private static final List<String> FLOW_WINDOWS = List.of(
         "SnippetEditDialog.java",
+        "SnippetWorkspaceDialog.java",
         "SnippetCodeAnalysisDialog.java",
         "SnippetAiDiffDialog.java",
         "SnippetAiApplyProgressWindow.java");

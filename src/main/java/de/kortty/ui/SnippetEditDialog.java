@@ -23,6 +23,7 @@ import de.kortty.core.MermaidRenderService;
 import de.kortty.core.SnippetDiagramSupport;
 import de.kortty.core.ScriptLanguageMixSupport;
 import de.kortty.core.SnippetLanguageSupport;
+import de.kortty.core.SnippetManager;
 import de.kortty.core.WorkflowScriptSupport;
 import de.kortty.core.WorkflowScriptSupport.HardeningOption;
 import de.kortty.core.SnippetOneLiner;
@@ -37,6 +38,9 @@ import de.kortty.model.SnippetHistoryEntry;
 import de.kortty.model.WindowGeometry;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyBooleanWrapper;
+import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -76,10 +80,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -160,6 +166,19 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private final Button saveButton;
     private Button okButton;
     private final Snippet existingSnippet;
+    /**
+     * Set when the editor's pane is embedded in the snippet workspace (never shown as a window):
+     * no dialog buttons, no geometry, a close guard that saves before unmounting.
+     */
+    private final SnippetEditorEmbedding embedding;
+    /** Stable id of a never-saved snippet, so hosts can key the editor before the first save. */
+    private final String draftSnippetId;
+    private final ReadOnlyBooleanWrapper unsavedChanges = new ReadOnlyBooleanWrapper(this, "unsavedChanges");
+    private final ReadOnlyBooleanWrapper savable = new ReadOnlyBooleanWrapper(this, "savable");
+    private final ReadOnlyBooleanWrapper aiBusy = new ReadOnlyBooleanWrapper(this, "aiBusy");
+    private boolean hostedAttachHandled;
+    /** Test seam: replaces the host-close unsaved-changes prompt (smokes cannot answer an Alert). */
+    private static Function<SnippetEditDialog, UnsavedContentChoice> hostUnsavedPrompter;
     private final ExternalFileActionConfig externalFileActionConfig;
     private final boolean saveAsNewSnippetEnabled;
     private Button overwriteFileButton;
@@ -732,7 +751,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     public SnippetEditDialog(Snippet snippet, List<String> existingCategories, AiAssist aiAssist) {
-        this(snippet, existingCategories, aiAssist, null);
+        this(snippet, existingCategories, aiAssist, (ExternalFileActionConfig) null);
     }
 
     public SnippetEditDialog(
@@ -753,13 +772,40 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         this(snippet, existingCategories, aiAssist, externalFileActionConfig, false);
     }
 
+    /**
+     * Creates an editor whose pane the snippet workspace embeds in an inner tab (never shown as a
+     * window). {@code snippet} may be {@code null} for a new snippet, keyed by {@link #snippetId()}.
+     */
+    SnippetEditDialog(
+        Snippet snippet,
+        List<String> existingCategories,
+        AiAssist aiAssist,
+        SnippetEditorEmbedding embedding) {
+
+        this(snippet, existingCategories, aiAssist, null, snippet != null,
+            java.util.Objects.requireNonNull(embedding, "embedding"));
+    }
+
     private SnippetEditDialog(
         Snippet snippet,
         List<String> existingCategories,
         AiAssist aiAssist,
         ExternalFileActionConfig externalFileActionConfig,
         boolean saveAsNewSnippetEnabled) {
+
+        this(snippet, existingCategories, aiAssist, externalFileActionConfig, saveAsNewSnippetEnabled, null);
+    }
+
+    private SnippetEditDialog(
+        Snippet snippet,
+        List<String> existingCategories,
+        AiAssist aiAssist,
+        ExternalFileActionConfig externalFileActionConfig,
+        boolean saveAsNewSnippetEnabled,
+        SnippetEditorEmbedding embedding) {
         this.existingSnippet = snippet;
+        this.embedding = embedding;
+        this.draftSnippetId = snippet == null ? UUID.randomUUID().toString() : null;
         this.aiAssist = aiAssist;
         this.aiCodeTextLanguageCode = loadConfiguredAiCodeTextLanguageCode();
         this.externalFileActionConfig = externalFileActionConfig;
@@ -1106,7 +1152,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         lintBtn.setOnAction(e -> runLint());
 
         undoItem = new MenuItem(I18n.get("editor.context.undo"));
-        undoItem.setAccelerator(UNDO_SHORTCUT);
+        // An embedded editor shares its scene with the workspace and every other editor tab: a
+        // scene-wide accelerator would undo in whichever editor registered last. The Monaco key
+        // filter handles Shortcut+Z for the focused editor anyway.
+        if (embedding == null) {
+            undoItem.setAccelerator(UNDO_SHORTCUT);
+        }
         undoItem.setOnAction(e -> undoContentChange());
 
         // History slider UI
@@ -1317,6 +1368,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             validationButton = null;
             assignedSaveButton = null;
             cancelButton = (Button) getDialogPane().lookupButton(closeButtonType);
+        } else if (embedding != null) {
+            // The workspace's action bar saves; no dialog buttons means no default button for
+            // Enter, no Cancel for Esc and no silent discard.
+            validationButton = null;
+            assignedSaveButton = null;
+            cancelButton = null;
         } else {
             ButtonType saveButtonType = new ButtonType(I18n.get("dialog.save"), ButtonBar.ButtonData.APPLY);
             ButtonType saveAsNewButtonType = new ButtonType(I18n.get("snippets.saveAsNew"), ButtonBar.ButtonData.APPLY);
@@ -1467,9 +1524,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         updateExternalFileButtonState();
         installUnsavedContentCloseGuard(cancelButton);
         
-        // Restore saved geometry
-        restoreGeometry();
-        enforceMinimumWindowSize();
+        // Restore saved geometry (an embedded pane has no window of its own)
+        if (embedding == null) {
+            restoreGeometry();
+            enforceMinimumWindowSize();
+        }
+        installSaveShortcut();
 
         // Result converter (also saves geometry)
         setResultConverter(buttonType -> {
@@ -1549,10 +1609,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         return MainWindow.findByStage(getOwner());
     }
 
-    private void saveSnippetWithoutClosing() {
+    private boolean saveSnippetWithoutClosing() {
         if (!isSnippetFormValid()) {
             updateSaveButtonState();
-            return;
+            return false;
         }
         String ignoredSnippetId = existingSnippet != null
             ? existingSnippet.getId()
@@ -1560,15 +1620,16 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (!validateUniqueSnippetNameBeforeSave(ignoredSnippetId)) {
             updateSaveButtonState();
             updateExternalFileButtonState();
-            return;
+            return false;
         }
 
         flushPendingHistory();
         saveGeometry();
 
+        boolean created = existingSnippet == null && liveSavedSnippet == null;
         Snippet saved = existingSnippet != null
             ? existingSnippet
-            : liveSavedSnippet != null ? liveSavedSnippet : new Snippet();
+            : liveSavedSnippet != null ? liveSavedSnippet : newDraftSnippet();
         applyFormValues(saved);
 
         boolean firstLiveSave = existingSnippet == null && liveSavedSnippet == null && liveSaveHandler != null;
@@ -1587,7 +1648,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (!savedSuccessfully) {
             updateSaveButtonState();
             updateExternalFileButtonState();
-            return;
+            return false;
         }
 
         liveSavedSnippet = saved;
@@ -1601,6 +1662,28 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         updateHistorySliderState();
         updateSaveButtonState();
         updateExternalFileButtonState();
+        if (embedding != null) {
+            embedding.snippetPersisted(this, saved, created);
+        }
+        return true;
+    }
+
+    /** A new snippet carrying the draft id, so the key hosts used before the first save survives it. */
+    private Snippet newDraftSnippet() {
+        Snippet snippet = new Snippet();
+        if (draftSnippetId != null) {
+            snippet.setId(draftSnippetId);
+        }
+        return snippet;
+    }
+
+    /** The embedding's manager (injected, test-isolated), or the application's. */
+    private SnippetManager resolveSnippetManager() {
+        if (embedding != null) {
+            return embedding.snippetManager();
+        }
+        KorTTYApplication app = KorTTYApplication.getInstance();
+        return app != null ? app.getSnippetManager() : null;
     }
 
     private boolean persistSnippet(Snippet snippet) {
@@ -1608,7 +1691,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             return false;
         }
         try {
-            var snippetManager = KorTTYApplication.getInstance().getSnippetManager();
+            var snippetManager = resolveSnippetManager();
+            if (snippetManager == null) {
+                throw new IllegalStateException(I18n.get("snippets.error.unknown"));
+            }
             // A category typed into the editable combo must exist as a category too, or the
             // manager's filter and every other editor would never offer it.
             snippetManager.ensureCategory(snippet.getCategory());
@@ -1638,6 +1724,21 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         // Only window close (X) should prompt for unsaved changes
 
         setOnCloseRequest(event -> {
+            if (embedding != null) {
+                // Embedded: decide (and save) BEFORE the pane is unmounted; on success close
+                // ourselves, otherwise the tab stays open with the edits intact.
+                if (allowCloseWithoutUnsavedPrompt) {
+                    return;
+                }
+                event.consume();
+                if (isAnyAiTaskRunning() && !confirmCloseWhileAiRunning()) {
+                    return;
+                }
+                if (confirmCloseFromHost()) {
+                    closeWithoutPrompt();
+                }
+                return;
+            }
             // Only prompt if closing via window X button, not from Cancel/OK buttons
             if (allowCloseWithoutUnsavedPrompt || !hasUnsavedContentChanges()) {
                 return;
@@ -1715,6 +1816,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private void updateSaveButtonState() {
         boolean formValid = isSnippetFormValid();
         boolean hasUnsavedChanges = hasUnsavedContentChanges();
+        unsavedChanges.set(hasUnsavedChanges);
+        savable.set(formValid);
         if (saveButton != null) {
             boolean visible = hasUnsavedChanges;
             saveButton.setVisible(visible);
@@ -2008,12 +2111,205 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         closeDialogOrHostTab();
     }
 
-    private boolean validateUniqueSnippetNameBeforeSave(String ignoredSnippetId) {
-        var app = KorTTYApplication.getInstance();
-        if (app == null || app.getSnippetManager() == null) {
+    // ---- Hosting API (snippet workspace) ----
+
+    private static final KeyCombination SAVE_SHORTCUT =
+        new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN);
+
+    /**
+     * Shortcut+S saves without closing. A scene-wide accelerator would fire for whichever editor
+     * registered last (and in tab mode lose to "Save project"), so this is a key filter on the
+     * pane: it only sees keys while focus is inside this editor, and consuming the event stops
+     * the host window's accelerators.
+     */
+    private void installSaveShortcut() {
+        if (externalFileActionConfig != null) {
+            return;
+        }
+        getDialogPane().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (!SAVE_SHORTCUT.match(event)) {
+                return;
+            }
+            event.consume();
+            if (hasUnsavedContentChanges() && isSnippetFormValid()) {
+                saveSnippetWithoutClosing();
+            }
+        });
+    }
+
+    @Override
+    protected void onHostedAttached() {
+        // setOnShown never fires for a hosted pane; run the "opened" work here instead.
+        if (hostedAttachHandled) {
+            return;
+        }
+        hostedAttachHandled = true;
+        autoDetectAiSkills();
+    }
+
+    /** Saves the form in place (no close); {@code false} when validation or persistence failed. */
+    boolean saveFromHost() {
+        return saveSnippetWithoutClosing();
+    }
+
+    /**
+     * "Save as new" for an embedded editor: persists a copy of the form as a new snippet and
+     * returns it, leaving this editor's own snippet untouched. {@code null} when not possible.
+     */
+    Snippet saveAsNewFromHost() {
+        if (!saveAsNewSnippetEnabled || !isSnippetFormValid()) {
+            updateSaveButtonState();
+            return null;
+        }
+        if (!validateUniqueSnippetNameBeforeSave(null)) {
+            updateSaveButtonState();
+            return null;
+        }
+        flushPendingHistory();
+        Snippet copy = buildNewResultSnippet();
+        if (!persistSnippet(copy)) {
+            return null;
+        }
+        trackSnippetSaved(copy);
+        return copy;
+    }
+
+    /** Whether "Save as new" applies (an existing snippet, not an external file). */
+    boolean canSaveAsNew() {
+        return saveAsNewSnippetEnabled;
+    }
+
+    /**
+     * Asks about unsaved changes without closing: Save (saves, {@code true} on success), Discard
+     * ({@code true}) or Cancel ({@code false}). Clean editors return {@code true} without asking.
+     */
+    boolean confirmCloseFromHost() {
+        if (!hasUnsavedContentChanges()) {
             return true;
         }
-        if (!app.getSnippetManager().hasSnippetName(nameField.getText(), ignoredSnippetId)) {
+        UnsavedContentChoice choice = hostUnsavedPrompter != null
+            ? hostUnsavedPrompter.apply(this)
+            : promptForUnsavedContentChoice();
+        if (choice == null || choice == UnsavedContentChoice.CANCEL) {
+            return false;
+        }
+        if (choice == UnsavedContentChoice.SAVE) {
+            return saveFromHost();
+        }
+        return true;
+    }
+
+    /** Closes the editor without any prompt (the host already asked); unsaved edits are dropped. */
+    void closeWithoutPrompt() {
+        allowCloseWithoutUnsavedPrompt = true;
+        closeDialogOrHostTab();
+    }
+
+    /** Closing cancels running AI work; asks first. {@code true} means close anyway. */
+    private boolean confirmCloseWhileAiRunning() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.applyTheme(alert);
+        alert.setTitle(getTitle());
+        alert.setHeaderText(I18n.get("snippets.workspace.close.aiRunning.header"));
+        alert.setContentText(I18n.get("snippets.workspace.close.aiRunning.content"));
+        Window owner = resolveAlertOwner();
+        if (owner != null) {
+            alert.initOwner(owner);
+            alert.initModality(Modality.WINDOW_MODAL);
+        }
+        return alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
+    }
+
+    /** Test seam: answers the host-close unsaved prompt instead of an Alert; {@code null} restores it. */
+    static void setHostUnsavedPrompterForTesting(Function<SnippetEditDialog, UnsavedContentChoice> prompter) {
+        hostUnsavedPrompter = prompter;
+    }
+
+    /** The edited snippet's id; a never-saved snippet reports its stable draft id (never null). */
+    String snippetId() {
+        if (existingSnippet != null) {
+            return existingSnippet.getId();
+        }
+        if (liveSavedSnippet != null) {
+            return liveSavedSnippet.getId();
+        }
+        return draftSnippetId;
+    }
+
+    /** The snippet this editor has persisted to, or {@code null} for an unsaved draft. */
+    Snippet persistedSnippet() {
+        return existingSnippet != null ? existingSnippet : liveSavedSnippet;
+    }
+
+    boolean hasUnsavedChanges() {
+        return hasUnsavedContentChanges();
+    }
+
+    ReadOnlyBooleanProperty unsavedChangesProperty() {
+        return unsavedChanges.getReadOnlyProperty();
+    }
+
+    /** Whether the form is complete enough to save (name and content present). */
+    ReadOnlyBooleanProperty savableProperty() {
+        return savable.getReadOnlyProperty();
+    }
+
+    ReadOnlyBooleanProperty aiBusyProperty() {
+        return aiBusy.getReadOnlyProperty();
+    }
+
+    boolean isAiWorkRunning() {
+        return isAnyAiTaskRunning();
+    }
+
+    ReadOnlyStringProperty snippetNameProperty() {
+        return nameField.textProperty();
+    }
+
+    /** Refreshes the category choices in place (keeps what the user typed into the combo). */
+    void updateCategoryChoices(List<String> fresh) {
+        String typed = categoryCombo.getValue();
+        String editorText = categoryCombo.getEditor().getText();
+        ObservableListSync.sync(categoryCombo.getItems(), fresh != null ? fresh : List.of(), Function.identity());
+        if (!java.util.Objects.equals(typed, categoryCombo.getValue())) {
+            categoryCombo.setValue(typed);
+        }
+        if (!java.util.Objects.equals(editorText, categoryCombo.getEditor().getText())) {
+            categoryCombo.getEditor().setText(editorText);
+        }
+    }
+
+    /** Focuses the name field for a new snippet, the code editor otherwise. */
+    void focusEditor() {
+        if (existingSnippet == null && liveSavedSnippet == null
+            && (nameField.getText() == null || nameField.getText().isBlank())
+            && safeContentText().isEmpty()) {
+            nameField.requestFocus();
+            return;
+        }
+        contentArea.requestEditorFocus();
+    }
+
+    /**
+     * Replays the keystroke that promoted a read-only preview to this editor: inserts
+     * {@code text} at {@code caret} (clamped) and places the caret after it.
+     */
+    void applyInitialKeystroke(int caret, String text) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+        int position = Math.max(0, Math.min(caret, safeContentText().length()));
+        contentArea.insertText(position, text);
+        contentArea.moveTo(position + text.length());
+        updateSaveButtonState();
+    }
+
+    private boolean validateUniqueSnippetNameBeforeSave(String ignoredSnippetId) {
+        SnippetManager manager = resolveSnippetManager();
+        if (manager == null) {
+            return true;
+        }
+        if (!manager.hasSnippetName(nameField.getText(), ignoredSnippetId)) {
             return true;
         }
         String snippetName = normalizedFieldValue(nameField.getText());
@@ -2021,7 +2317,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         return false;
     }
 
-    private enum UnsavedContentChoice {
+    enum UnsavedContentChoice {
         SAVE,
         DISCARD,
         CANCEL
@@ -2095,7 +2391,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private Snippet buildResultSnippet() {
         Snippet result = existingSnippet != null
             ? existingSnippet
-            : liveSavedSnippet != null ? liveSavedSnippet : new Snippet();
+            : liveSavedSnippet != null ? liveSavedSnippet : newDraftSnippet();
         applyFormValues(result);
         return result;
     }
@@ -2159,7 +2455,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void saveGeometry() {
-        if (isHostedInTab()) {
+        if (embedding != null || isHostedInTab()) {
             return; // the pane's window is the main window's stage, not this dialog's geometry
         }
         DialogGeometrySupport.persist(this, (settings, geometry) -> settings.setSnippetEditGeometry(geometry));
@@ -2812,6 +3108,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         boolean correctionRunning = isDescriptionCorrectionRunning();
         boolean snippetActionRunning = isSnippetAiActionRunning();
         boolean busy = metadataRunning || correctionRunning || snippetActionRunning;
+        aiBusy.set(busy);
         if (aiCodeTextLanguageCombo != null) {
             aiCodeTextLanguageCombo.setDisable(busy);
         }
@@ -3147,7 +3444,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
         existingSnippet.setCodeTextLanguageCode(languageCode);
         try {
-            var manager = KorTTYApplication.getInstance().getSnippetManager();
+            var manager = resolveSnippetManager();
             if (manager != null && manager.findById(existingSnippet.getId()).isPresent()) {
                 manager.updateSnippet(existingSnippet);
                 manager.save();
@@ -7300,6 +7597,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
      * {@code getDialogPane().getScene()} is {@code null} at that point.
      */
     private javafx.stage.Window resolveAlertOwner() {
+        // A hosted pane can be dragged to another main window with its tab; the window it is shown
+        // in now beats the owner captured when it was opened.
+        if (isHostedInTab() && getDialogPane().getScene() != null
+            && getDialogPane().getScene().getWindow() != null) {
+            return getDialogPane().getScene().getWindow();
+        }
         javafx.stage.Window owner = getOwner();
         if (owner == null) {
             javafx.scene.Scene scene = getDialogPane().getScene();

@@ -1020,6 +1020,34 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void snippetWorkspaceLibraryDividerPositionDefaultClampAndPersist() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-snippet-workspace-divider");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertThat(manager.getSettings().getSnippetWorkspaceLibraryDividerPosition()).isWithin(0.0001).of(0.28);
+
+            manager.getSettings().setSnippetWorkspaceLibraryDividerPosition(0.42);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            assertThat(reloaded.getSettings().getSnippetWorkspaceLibraryDividerPosition()).isWithin(0.0001).of(0.42);
+
+            reloaded.getSettings().setSnippetWorkspaceLibraryDividerPosition(0.05);
+            assertThat(reloaded.getSettings().getSnippetWorkspaceLibraryDividerPosition()).isWithin(0.0001).of(0.15);
+
+            reloaded.getSettings().setSnippetWorkspaceLibraryDividerPosition(0.9);
+            assertThat(reloaded.getSettings().getSnippetWorkspaceLibraryDividerPosition()).isWithin(0.0001).of(0.6);
+
+            reloaded.getSettings().setSnippetWorkspaceLibraryDividerPosition(null);
+            assertThat(reloaded.getSettings().getSnippetWorkspaceLibraryDividerPosition()).isWithin(0.0001).of(0.28);
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void snippetManagerPreviewDividerPositionDefaultClampAndPersist() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings-snippet-manager-preview");
         try {

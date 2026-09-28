@@ -51,7 +51,8 @@ import java.util.function.Supplier;
  *
  * <p>System properties: {@code kortty.perf.iterations} (default 5), {@code kortty.perf.settleMs}
  * (time a dialog stays open before closing, default 3000 — long enough for a Monaco boot),
- * {@code kortty.perf.dialogs} (comma list of {@code alert,settings,connection,ai,snippet}),
+ * {@code kortty.perf.dialogs} (comma list of {@code alert,settings,connection,ai,snippet}, plus the
+ * opt-in {@code snippetWorkspace}),
  * {@code kortty.perf.design} (an {@link AppDesign} name), {@code kortty.perf.fontScale} (percent),
  * {@code kortty.perf.startupSettleMs} (pause after the main window shows, default 5000),
  * {@code kortty.perf.sample} (sample the FX thread's stack every 2 ms from construction to the first
@@ -154,6 +155,12 @@ public final class DialogOpenPerfSmoke {
         factories.put("ai", () -> new AiManagerDialog(window));
         factories.put("snippet", () -> {
             SnippetEditDialog dialog = new SnippetEditDialog(snippet, List.of("General"));
+            dialog.initOwner(stage);
+            return dialog;
+        });
+        // Opt-in (not in the default list): the snippet workspace, library + preview, no editor.
+        factories.put("snippetWorkspace", () -> {
+            SnippetWorkspaceDialog dialog = new SnippetWorkspaceDialog(app.getSnippetManager(), window);
             dialog.initOwner(stage);
             return dialog;
         });

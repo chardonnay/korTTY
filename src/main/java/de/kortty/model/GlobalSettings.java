@@ -886,7 +886,10 @@ public class GlobalSettings {
     private boolean snippetEditorPrewarmEnabled = true;
 
     @XmlElement
-    private Double snippetManagerPreviewDividerPosition; // Vertical table/preview divider position
+    private Double snippetManagerPreviewDividerPosition; // Deprecated: the preview moved into the snippet workspace
+
+    @XmlElement
+    private Double snippetWorkspaceLibraryDividerPosition; // Library | editor-tabs divider of the snippet workspace
 
     @XmlElement
     private String snippetManagerColumnWidths; // "columnId=width;..." of user-resized snippet table columns
@@ -3507,6 +3510,24 @@ public class GlobalSettings {
             return;
         }
         this.snippetManagerPreviewDividerPosition = Math.max(0.35, Math.min(0.9, snippetManagerPreviewDividerPosition));
+    }
+
+    /** Snippet workspace: share of the width given to the library column (0.15..0.6, default 0.28). */
+    public double getSnippetWorkspaceLibraryDividerPosition() {
+        if (snippetWorkspaceLibraryDividerPosition == null
+            || snippetWorkspaceLibraryDividerPosition <= 0.0
+            || snippetWorkspaceLibraryDividerPosition >= 1.0) {
+            return 0.28;
+        }
+        return Math.max(0.15, Math.min(0.6, snippetWorkspaceLibraryDividerPosition));
+    }
+
+    public void setSnippetWorkspaceLibraryDividerPosition(Double position) {
+        if (position == null || position.isNaN()) {
+            this.snippetWorkspaceLibraryDividerPosition = null;
+            return;
+        }
+        this.snippetWorkspaceLibraryDividerPosition = Math.max(0.15, Math.min(0.6, position));
     }
 
     /** User-resized snippet table column widths by column id (empty when never resized). */
