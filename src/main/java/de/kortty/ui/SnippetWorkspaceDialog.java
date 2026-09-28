@@ -309,6 +309,11 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
         return true;
     }
 
+    @Override
+    public boolean needsCloseConfirmation() {
+        return editorTabs().stream().anyMatch(tab -> tab.hasUnsavedChanges() || tab.editor().isAiWorkRunning());
+    }
+
     /**
      * Test seam: answers the unsaved-changes prompts (a single editor's and the bulk one, which is
      * asked with a {@code null} editor) instead of showing alerts; {@code null} restores the alerts.

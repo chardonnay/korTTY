@@ -780,11 +780,12 @@
 <li><strong>Tabs</strong> — Tabs with unsaved changes show a dot (●) after the name, a small spinner shows that an AI action is running in that tab. Right-click a tab for <strong>Close</strong>, <strong>Close others</strong>, <strong>Close all</strong> and <strong>Show in list</strong>.</li>
 <li><strong>Actions</strong> — <strong>Save</strong> saves the active tab (also <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-s">S</kbd></span>, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-s">S</kbd></span> on macOS), <strong>Save as new snippet</strong> stores the active tab's form as a new snippet and leaves the original unchanged, <strong>Close tab</strong> closes it (also <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-w">W</kbd></span>, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-w">W</kbd></span> on macOS) and asks about unsaved changes. The ☰ button (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-b">B</kbd></span>, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-b">B</kbd></span> on macOS) hides the library so the editor gets the full width, and brings it back.</li>
 <li><strong>Closing</strong> — <span class="keys"><kbd class="key-escape">Esc</kbd></span> never closes the Snippet Manager. Closing it (window close button, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-q">Q</kbd></span>, or the × of its main-window tab) asks once for everything that is unsaved: the editor's own question for one snippet, or <strong>Save all</strong> / <strong>Discard all</strong> / <strong>Cancel</strong> for several.</li>
+<li><strong>Unsaved changes are never lost silently</strong> — Every other way of closing asks the same question before anything closes: <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-w">W</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-w">W</kbd></span> on macOS) on the Snippet Manager's or a snippet editor's main-window tab, <strong>Close all tabs</strong>, opening a project, closing the main window and quitting korTTY. <strong>Cancel</strong> keeps everything open. Quitting also asks snippet editor windows that belong to no main window, for example the one opened from the swarm window.</li>
 <li><strong>Deleting</strong> — A snippet with unsaved changes in an open editor cannot be deleted; korTTY shows that editor instead. The editor tab of a deleted snippet without unsaved changes closes.</li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Snippets opened from other places — the SFTP Manager, the local file browser, the terminal, the AI chat, the AI agent and the swarm window — still open in their own editor window (or main-window tab), exactly as before.</p>
+<p>Snippets opened from other places — the SFTP Manager, the local file browser, the terminal, the AI chat, the AI agent and the swarm window — still open in their own editor window (or main-window tab), exactly as before. A snippet that is open in such an editor is not opened a second time in the Snippet Manager; korTTY brings that editor to the front instead.</p>
 </div>
 <h2 id="creating-and-editing-snippets">Creating and editing snippets<a class="headerlink" href="#creating-and-editing-snippets" title="Permanent link">&para;</a></h2>
 <ol>
@@ -808,7 +809,7 @@
 <li><strong>AI Text</strong> — Correct spelling, translate, or generate technical descriptions.</li>
 <li><strong>AI Code</strong> — Complete code, run a full code analysis, improve a selection (readability, robustness, performance, comments, or a custom instruction), migrate the snippet into a single language, check security, or generate diagrams.</li>
 <li><strong>One-liner</strong> — Export as a terminal one-liner.</li>
-<li><strong>Editor zoom</strong> — Adjust text size with <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-plus">+</kbd></span> and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-minus">-</kbd></span>.</li>
+<li><strong>Editor zoom</strong> — Adjust text size with <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-plus">+</kbd></span> and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-minus">-</kbd></span>, also when the editor is a main-window tab or a Snippet Manager tab.</li>
 <li><strong>Editor profiles</strong> — Switch between built-in IntelliJ-inspired profiles and custom color schemes.</li>
 <li><strong>Background brightness</strong> — Adjust editor background.</li>
 <li><strong>Word Wrap</strong> — Toggle line wrapping.</li>
@@ -1084,7 +1085,7 @@
 <li><strong>Import...</strong> — Reads variables from a JSON, XML or YAML file (the stored <code>snippet-variables.xml</code> can be imported directly). When imported variables already exist, you choose whether to overwrite their values or keep the existing ones.</li>
 </ul>
 <h2 id="sending-snippets-to-the-terminal">Sending snippets to the terminal<a class="headerlink" href="#sending-snippets-to-the-terminal" title="Permanent link">&para;</a></h2>
-<p>The Snippet Manager can send a selected snippet directly to the active terminal.</p>
+<p>The Snippet Manager can send a selected snippet directly to a terminal of its main window: the selected terminal tab, or — when the Snippet Manager is itself the selected tab — the terminal tab you used last (or the only one that is open). korTTY then switches to that tab and shows <strong>Sent to …</strong> in the status bar. <strong>Insert into editor</strong> picks the file editor tab the same way.</p>
 <h3 id="send-to-terminal">Send to Terminal<a class="headerlink" href="#send-to-terminal" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Keeps existing behavior</li>

@@ -25,12 +25,14 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Headless-ish smoke harness for {@link DialogHostTab}: verifies the dialog-pane detach, button
  * interception (result converter + {@code DIALOG_HIDDEN} exactly once), the close-request veto on
- * tab close, and {@code closeDialogOrHostTab()} from inside the hosted dialog.
+ * tab close, {@code closeDialogOrHostTab()} from inside the hosted dialog, the tab title following
+ * the dialog title, and the main-window close guard ({@link DialogHostTab#confirmClose()},
+ * {@link HostedCloseGuards#confirmTabs}): a veto keeps everything, an approval disposes nothing.
  */
 public final class DialogHostTabSmoke {
 
     /** Minimal stand-in with the same shape as the hosted management dialogs. */
-    private static final class ProbeDialog extends ThemeAwareDialog<Boolean> {
+    private static class ProbeDialog extends ThemeAwareDialog<Boolean> {
         final AtomicInteger hiddenCount = new AtomicInteger();
         final AtomicInteger converterOkCount = new AtomicInteger();
         boolean vetoClose;
@@ -56,6 +58,24 @@ public final class DialogHostTabSmoke {
 
         void closeFromInside() {
             closeDialogOrHostTab();
+        }
+    }
+
+    /** A hosted dialog with unsaved work: answers the main window's close guard as told. */
+    private static final class GuardProbeDialog extends ProbeDialog implements HostedCloseGuard {
+        final AtomicInteger asked = new AtomicInteger();
+        boolean dirty = true;
+        boolean approve;
+
+        @Override
+        public boolean confirmHostedClose() {
+            asked.incrementAndGet();
+            return !dirty || approve;
+        }
+
+        @Override
+        public boolean needsCloseConfirmation() {
+            return dirty;
         }
     }
 
@@ -144,6 +164,54 @@ public final class DialogHostTabSmoke {
             cancelButton.fireEvent(new ActionEvent(cancelButton, cancelButton));
             check(closedCallback.get() == 1, "afterClosed must run exactly once");
             check(cbProbe.hiddenCount.get() == 1, "cancel must fire DIALOG_HIDDEN once");
+
+            // 6) The tab title follows the dialog title (an editor renames its tab, a workspace
+            //    marks unsaved work).
+            ProbeDialog titled = new ProbeDialog();
+            DialogHostTab titledTab = DialogHostTab.host(tabPane, null, titled, null);
+            check("Probe".equals(titledTab.getText()), "tab text must start as the dialog title: " + titledTab.getText());
+            titled.setTitle("Renamed •");
+            check("Renamed •".equals(titledTab.getText()), "tab text must follow the dialog title: " + titledTab.getText());
+            titled.setTitle("");
+            check(!titledTab.getText().isBlank(), "a blank dialog title must not blank the tab");
+            check(titledTab.confirmClose(), "a dialog without a close guard never vetoes the main window");
+            titledTab.closeProgrammatically();
+
+            // 7) Close guard veto: the main window's Cmd+W / close all / window close ask first; a
+            //    veto keeps the tab, its dialog and everything in it.
+            GuardProbeDialog dirtyProbe = new GuardProbeDialog();
+            DialogHostTab dirtyTab = DialogHostTab.host(tabPane, "dirty", dirtyProbe, null);
+            GuardProbeDialog cleanProbe = new GuardProbeDialog();
+            cleanProbe.dirty = false;
+            DialogHostTab cleanTab = DialogHostTab.host(tabPane, "clean", cleanProbe, null);
+            check(tabPane.getSelectionModel().getSelectedItem() == cleanTab, "the last hosted tab starts selected");
+            check(dirtyTab.needsCloseConfirmation() && !cleanTab.needsCloseConfirmation(),
+                "only the dirty dialog needs to be asked");
+            check(!dirtyTab.confirmClose(), "a vetoing guard must veto confirmClose");
+            check(tabPane.getTabs().contains(dirtyTab) && dirtyProbe.hiddenCount.get() == 0,
+                "a veto must not close or dispose anything");
+            dirtyProbe.asked.set(0);
+            check(!HostedCloseGuards.confirmTabs(tabPane.getTabs(), tab -> tabPane.getSelectionModel().select(tab)),
+                "close all must stop at the veto");
+            check(dirtyProbe.asked.get() == 1 && cleanProbe.asked.get() == 0,
+                "only the dialog with unsaved work is asked (dirty=" + dirtyProbe.asked.get()
+                    + ", clean=" + cleanProbe.asked.get() + ")");
+            check(tabPane.getSelectionModel().getSelectedItem() == dirtyTab,
+                "the tab that asks must be brought to the front first");
+            check(tabPane.getTabs().contains(dirtyTab) && tabPane.getTabs().contains(cleanTab),
+                "a vetoed close all keeps every tab");
+
+            // 8) Approval has no side effects: the caller disposes only after all its prompts passed.
+            dirtyProbe.approve = true;
+            check(dirtyTab.confirmClose(), "an approving guard must allow the close");
+            check(HostedCloseGuards.confirmTabs(tabPane.getTabs(), null), "all guards approve");
+            check(tabPane.getTabs().contains(dirtyTab) && dirtyProbe.hiddenCount.get() == 0,
+                "an approval alone must not close or dispose the tab");
+            dirtyTab.closeProgrammatically();
+            cleanTab.closeProgrammatically();
+            check(dirtyProbe.hiddenCount.get() == 1 && cleanProbe.hiddenCount.get() == 1,
+                "disposing after the approval runs the hidden lifecycle once");
+            check(dirtyTab.confirmClose(), "a closed tab never vetoes");
 
             stage.hide();
         } catch (Throwable error) {

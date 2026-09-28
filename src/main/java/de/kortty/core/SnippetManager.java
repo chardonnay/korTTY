@@ -327,6 +327,24 @@ public class SnippetManager {
         }
     }
 
+    /**
+     * Adds {@code snippet}, or updates it when a snippet with the same id is already stored. Result
+     * handlers use this so saving the same editor twice (a live save, then the final save on close)
+     * does not trip the duplicate-name check against the snippet's own first save.
+     *
+     * @return {@code true} when the snippet was added, {@code false} when it was updated
+     */
+    public boolean addOrUpdateSnippet(Snippet snippet) {
+        Objects.requireNonNull(snippet, "snippet");
+        if (findById(snippet.getId()).isEmpty()) {
+            addSnippet(snippet);
+            return true;
+        }
+        // updateSnippet matches by id and replaces the stored instance with this one.
+        updateSnippet(snippet);
+        return false;
+    }
+
     private static void requireNotPolicyManaged(Snippet snippet) {
         if (snippet != null && snippet.isPolicyManaged()) {
             throw new de.kortty.policy.PolicyRestrictionException(

@@ -56,6 +56,8 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | ++f12++ | Toggle Fullscreen |
 | ++ctrl+shift+f++ | Toggle Terminal-only Fullscreen |
 
+The zoom keys (++ctrl++ or ++alt++ with ++plus++ / ++minus++ / ++0++; ++cmd++ on macOS) zoom the terminal only while a terminal tab is selected. In a snippet editor or file editor tab they reach the editor, and ++alt-graph+plus++ types its character there.
+
 ## Snippet Manager
 
 These keys work in the Snippet Manager (library and editor tabs); see [Opening the Snippet Manager](../features/snippets.md#opening-the-snippet-manager).
@@ -71,7 +73,7 @@ These keys work in the Snippet Manager (library and editor tabs); see [Opening t
 | ++ctrl+b++ | Hide or show the library, giving the editor tabs the full width |
 | ++esc++ (search field) | Clear the search; ++esc++ never closes the Snippet Manager |
 
-If the focus is on the Snippet Manager's own tab header in the main window (tab mode), ++ctrl+s++ still saves the project.
+If the focus is on the Snippet Manager's own tab header in the main window (tab mode), ++ctrl+s++ still saves the project, and ++ctrl+w++ closes the Snippet Manager tab after asking about unsaved changes.
 
 ## Snippet editor
 

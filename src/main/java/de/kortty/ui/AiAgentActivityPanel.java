@@ -835,7 +835,8 @@ public class AiAgentActivityPanel extends VBox {
         dialog.showNonBlocking(savedSnippet -> {
             try {
                 ensureSnippetCategoryExists(savedSnippet.getCategory());
-                snippetManager.addSnippet(savedSnippet);
+                // Add-or-update: a live save already stored this snippet; saving again updates it.
+                snippetManager.addOrUpdateSnippet(savedSnippet);
                 snippetManager.save();
             } catch (Exception e) {
                 logger.warn("Could not save terminal agent activity as snippet", e);

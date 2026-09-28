@@ -28,10 +28,11 @@ The Snippet Manager is one workspace: the snippet library (search, category filt
 - **Tabs** — Tabs with unsaved changes show a dot (●) after the name, a small spinner shows that an AI action is running in that tab. Right-click a tab for **Close**, **Close others**, **Close all** and **Show in list**.
 - **Actions** — **Save** saves the active tab (also ++ctrl+s++, ++cmd+s++ on macOS), **Save as new snippet** stores the active tab's form as a new snippet and leaves the original unchanged, **Close tab** closes it (also ++ctrl+w++, ++cmd+w++ on macOS) and asks about unsaved changes. The ☰ button (++ctrl+b++, ++cmd+b++ on macOS) hides the library so the editor gets the full width, and brings it back.
 - **Closing** — ++esc++ never closes the Snippet Manager. Closing it (window close button, ++ctrl+q++, or the × of its main-window tab) asks once for everything that is unsaved: the editor's own question for one snippet, or **Save all** / **Discard all** / **Cancel** for several.
+- **Unsaved changes are never lost silently** — Every other way of closing asks the same question before anything closes: ++ctrl+w++ (++cmd+w++ on macOS) on the Snippet Manager's or a snippet editor's main-window tab, **Close all tabs**, opening a project, closing the main window and quitting korTTY. **Cancel** keeps everything open. Quitting also asks snippet editor windows that belong to no main window, for example the one opened from the swarm window.
 - **Deleting** — A snippet with unsaved changes in an open editor cannot be deleted; korTTY shows that editor instead. The editor tab of a deleted snippet without unsaved changes closes.
 
 !!! note
-    Snippets opened from other places — the SFTP Manager, the local file browser, the terminal, the AI chat, the AI agent and the swarm window — still open in their own editor window (or main-window tab), exactly as before.
+    Snippets opened from other places — the SFTP Manager, the local file browser, the terminal, the AI chat, the AI agent and the swarm window — still open in their own editor window (or main-window tab), exactly as before. A snippet that is open in such an editor is not opened a second time in the Snippet Manager; korTTY brings that editor to the front instead.
 
 ## Creating and editing snippets
 
@@ -56,7 +57,7 @@ The snippet editor toolbar provides:
 - **AI Text** — Correct spelling, translate, or generate technical descriptions.
 - **AI Code** — Complete code, run a full code analysis, improve a selection (readability, robustness, performance, comments, or a custom instruction), migrate the snippet into a single language, check security, or generate diagrams.
 - **One-liner** — Export as a terminal one-liner.
-- **Editor zoom** — Adjust text size with ++ctrl+plus++ and ++ctrl+minus++.
+- **Editor zoom** — Adjust text size with ++ctrl+plus++ and ++ctrl+minus++, also when the editor is a main-window tab or a Snippet Manager tab.
 - **Editor profiles** — Switch between built-in IntelliJ-inspired profiles and custom color schemes.
 - **Background brightness** — Adjust editor background.
 - **Word Wrap** — Toggle line wrapping.
@@ -376,7 +377,7 @@ Any `${variableName}` not in the built-in list is treated as a custom variable. 
 
 ## Sending snippets to the terminal
 
-The Snippet Manager can send a selected snippet directly to the active terminal.
+The Snippet Manager can send a selected snippet directly to a terminal of its main window: the selected terminal tab, or — when the Snippet Manager is itself the selected tab — the terminal tab you used last (or the only one that is open). korTTY then switches to that tab and shows **Sent to …** in the status bar. **Insert into editor** picks the file editor tab the same way.
 
 ### Send to Terminal
 

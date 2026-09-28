@@ -2175,7 +2175,8 @@ public class AiResultTab extends Tab {
         dialog.showNonBlocking(savedSnippet -> {
             try {
                 ensureSnippetCategoryExists(savedSnippet.getCategory());
-                snippetManager.addSnippet(savedSnippet);
+                // Add-or-update: a live save already stored this snippet; saving again updates it.
+                snippetManager.addOrUpdateSnippet(savedSnippet);
                 snippetManager.save();
                 statusLabel.setText(I18n.get("ai.result.saveSnippet.success", savedSnippet.getName()));
                 ownerWindow.updateStatusMessage(I18n.get("ai.result.saveSnippet.success", savedSnippet.getName()));

@@ -1071,14 +1071,16 @@ final class SnippetLibraryPane extends BorderPane {
         String resolved = resolveAndPrompt(selected);
         if (resolved == null) return;
         
-        // Find active FileEditorTab in MainWindow
+        // The file editor tab of the workspace's main window (the last selected one in tab mode,
+        // where the workspace tab itself is the selected tab).
         try {
             MainWindow mainWindow = getMainWindow();
             if (mainWindow == null) return;
             
-            Tab activeTab = mainWindow.getActiveTab();
-            if (activeTab instanceof FileEditorTab editorTab) {
+            FileEditorTab editorTab = mainWindow.snippetInsertTarget(FileEditorTab.class);
+            if (editorTab != null) {
                 editorTab.insertTextAtCursor(resolved);
+                mainWindow.revealSnippetInsertTarget(editorTab);
                 logger.info("Snippet '{}' inserted into editor", selected.getName());
             } else {
                 showInfo(I18n.get("snippets.noEditorOpen"));
@@ -1106,14 +1108,15 @@ final class SnippetLibraryPane extends BorderPane {
             return;
         }
         
-        // Find active TerminalTab in MainWindow
+        // The terminal tab of the workspace's main window (the last selected one in tab mode).
         try {
             MainWindow mainWindow = getMainWindow();
             if (mainWindow == null) return;
             
-            Tab activeTab = mainWindow.getActiveTab();
-            if (activeTab instanceof TerminalTab terminalTab) {
+            TerminalTab terminalTab = mainWindow.snippetInsertTarget(TerminalTab.class);
+            if (terminalTab != null) {
                 sendSnippetPayloadToTerminal(terminalTab, toSend, SnippetOneLiner.isEmbeddedSupported(selected.getLanguage()));
+                mainWindow.revealSnippetInsertTarget(terminalTab);
                 logger.info("Snippet '{}' sent to terminal (one-liner where supported)", selected.getName());
             } else {
                 showInfo(I18n.get("snippets.noTerminalOpen"));
@@ -1153,12 +1156,13 @@ final class SnippetLibraryPane extends BorderPane {
             MainWindow mainWindow = getMainWindow();
             if (mainWindow == null) return;
 
-            Tab activeTab = mainWindow.getActiveTab();
-            if (activeTab instanceof TerminalTab terminalTab) {
+            TerminalTab terminalTab = mainWindow.snippetInsertTarget(TerminalTab.class);
+            if (terminalTab != null) {
                 sendSnippetPayloadToTerminal(terminalTab, toSend, SnippetOneLiner.isEmbeddedSupported(selected.getLanguage()));
                 snippetManager.incrementUsage(selected);
                 saveQuietly();
                 refreshTable(false);
+                mainWindow.revealSnippetInsertTarget(terminalTab);
                 logger.info("Snippet '{}' sent to terminal with {} argument(s)", selected.getName(), input.arguments().size());
             } else {
                 showInfo(I18n.get("snippets.noTerminalOpen"));

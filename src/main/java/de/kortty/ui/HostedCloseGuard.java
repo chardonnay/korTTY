@@ -10,4 +10,12 @@ package de.kortty.ui;
 interface HostedCloseGuard {
 
     boolean confirmHostedClose();
+
+    /**
+     * Whether {@link #confirmHostedClose()} would ask anything right now (unsaved or running work).
+     * Hosts use it to bring only those dialogs forward before asking; it must not prompt.
+     */
+    default boolean needsCloseConfirmation() {
+        return true;
+    }
 }

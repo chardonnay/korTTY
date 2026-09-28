@@ -9,6 +9,7 @@ import javafx.application.Platform;
 import javafx.event.Event;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.input.KeyCode;
@@ -22,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -37,6 +39,8 @@ import java.util.concurrent.atomic.AtomicReference;
  *   <li>Shortcut+B collapses and restores the library,</li>
  *   <li>Esc does not close a windowed workspace,</li>
  *   <li>a CANCEL answer vetoes the inner tab close and the workspace close; DISCARD closes,</li>
+ *   <li>a standalone editor (other entry points) is revealed instead of pinned a second time, and
+ *       the main window's close guards ask it (veto keeps it, approval closes nothing),</li>
  *   <li>closing the outer (main-window) tab tears the nested editors down.</li>
  * </ul>
  */
@@ -161,11 +165,15 @@ public final class SnippetWorkspaceSmoke {
         SnippetWorkspaceDialog other = new SnippetWorkspaceDialog(manager, null);
         DialogHostTab otherTab = DialogHostTab.host(otherTabs, SnippetWorkspaceDialog.TOOL_ID, other, null);
         AtomicReference<SnippetWorkspaceDialog> windowed = new AtomicReference<>();
+        AtomicReference<SnippetEditDialog> standalone = new AtomicReference<>();
 
         Runnable cleanup = () -> {
             SnippetWorkspaceDialog.setUnsavedPrompterForTesting(null);
             if (windowed.get() != null && windowed.get().isShowing()) {
                 windowed.get().closeWithoutPrompt();
+            }
+            if (standalone.get() != null && standalone.get().isShowing()) {
+                standalone.get().closeWithoutPrompt();
             }
             stage.hide();
             otherStage.hide();
@@ -301,6 +309,65 @@ public final class SnippetWorkspaceSmoke {
                 Event.fireEvent(workspaceTab, new Event(workspaceTab, workspaceTab, Tab.TAB_CLOSE_REQUEST_EVENT));
                 check(mainTabs.getTabs().contains(workspaceTab), "CANCEL must keep the workspace tab open");
                 check(workspace.openEditorCount() == 1, "a vetoed workspace close keeps its editors");
+            })
+            .then(50, "open gamma in a standalone editor", () -> {
+                SnippetEditDialog editor = new SnippetEditDialog(gamma, List.of());
+                editor.initOwner(otherStage);
+                standalone.set(editor);
+                editor.showNonBlocking(null);
+            })
+            .then(800, "the workspace reveals the standalone editor instead of pinning gamma", () -> {
+                SnippetEditDialog editor = standalone.get();
+                check(editor.isShowing(), "the standalone editor must be showing");
+                SnippetEditorRegistry.OpenEditor entry = SnippetEditorRegistry.find(gamma.getId()).orElse(null);
+                check(entry instanceof SnippetEditDialog.StandaloneRegistration registration
+                        && registration.editor() == editor,
+                    "the standalone editor must claim gamma in the registry, got " + entry);
+                int before = workspace.openEditorCount();
+                workspace.openSnippetById(gamma.getId(), true);
+                check(workspace.openEditorCount() == before,
+                    "a snippet open in a standalone editor must not be pinned a second time");
+                check(HostedCloseGuards.standaloneEditorsOwnedBy(otherStage).contains(entry),
+                    "closing its owner window must guard the standalone editor");
+                check(!HostedCloseGuards.standaloneEditorsOwnedBy(stage).contains(entry),
+                    "another window must not guard it");
+                check(HostedCloseGuards.standaloneEditorsOutside(List.of(stage)).contains(entry)
+                        && HostedCloseGuards.standaloneEditorsOutside(List.of(stage, otherStage)).isEmpty(),
+                    "quit must ask editors no closing window owns, and only those");
+
+                editor.applyInitialKeystroke(0, "q");
+                check(entry.hasUnsavedChanges(), "the standalone editor must be dirty");
+                SnippetWorkspaceDialog.setUnsavedPrompterForTesting(prompted -> SnippetEditDialog.UnsavedContentChoice.CANCEL);
+                check(!HostedCloseGuards.confirmEditors(HostedCloseGuards.standaloneEditorsOwnedBy(otherStage)),
+                    "CANCEL must veto the window close");
+                check(editor.isShowing() && entry.hasUnsavedChanges(), "a veto must keep the editor and its edits");
+                SnippetWorkspaceDialog.setUnsavedPrompterForTesting(prompted -> SnippetEditDialog.UnsavedContentChoice.DISCARD);
+                check(HostedCloseGuards.confirmEditors(HostedCloseGuards.standaloneEditorsOwnedBy(otherStage)),
+                    "DISCARD must approve the window close");
+                check(editor.isShowing(), "an approval alone must not close the editor");
+                entry.closeWithoutPrompt();
+            })
+            .then(300, "closing the standalone editor releases gamma", () -> {
+                check(!standalone.get().isShowing(), "closeWithoutPrompt must close the standalone editor");
+                check(SnippetEditorRegistry.find(gamma.getId()).isEmpty(), "gamma must be released");
+                check(SnippetEditorRegistry.all().stream()
+                        .noneMatch(editor -> editor instanceof SnippetEditDialog.StandaloneRegistration),
+                    "the standalone editor must leave the registry");
+                check(gamma.getContent().equals("echo gamma\n"), "discarded edits must not be saved: " + gamma.getContent());
+            })
+            .then(50, "a standalone editor hosted as a main tab drops the scene-wide undo accelerator", () -> {
+                SnippetEditDialog windowedEditor = new SnippetEditDialog(alpha, List.of());
+                MenuItem windowedUndo = field(windowedEditor, "undoItem", MenuItem.class);
+                check(windowedUndo.getAccelerator() != null, "a windowed editor keeps its Shortcut+Z accelerator");
+                SnippetEditDialog tabEditor = new SnippetEditDialog(alpha, List.of());
+                DialogHostTab hostTab = DialogHostTab.host(mainTabs, null, tabEditor, null);
+                MenuItem tabUndo = field(tabEditor, "undoItem", MenuItem.class);
+                check(tabUndo.getAccelerator() == null,
+                    "a tab-hosted editor must not register Shortcut+Z on the main window's scene");
+                check(!hostTab.needsCloseConfirmation() && hostTab.confirmClose(),
+                    "a clean hosted editor never asks the main window's close guard");
+                hostTab.closeProgrammatically();
+                mainTabs.getSelectionModel().select(workspaceTab);
             })
             .then(50, "several dirty editors: one bulk answer", () -> {
                 workspace.openSnippetById(gamma.getId(), true);

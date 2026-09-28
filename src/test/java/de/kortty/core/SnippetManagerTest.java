@@ -390,4 +390,27 @@ class SnippetManagerTest {
         }
         assertThat(Files.readString(snippetsFile)).isEqualTo(garbage);
     }
+
+    @Test
+    void addOrUpdateSnippetAddsOnceThenUpdatesTheSameSnippet() {
+        SnippetManager manager = new SnippetManager(tempDir);
+        Snippet draft = new Snippet("deploy.sh", "echo one", "bash");
+
+        assertThat(manager.addOrUpdateSnippet(draft)).isTrue();
+        draft.setContent("echo two");
+        // The second save of the same editor must not trip the duplicate-name check on itself.
+        assertThat(manager.addOrUpdateSnippet(draft)).isFalse();
+
+        assertThat(manager.getAllSnippets()).containsExactly(draft);
+        assertThat(manager.findById(draft.getId()).orElseThrow().getContent()).isEqualTo("echo two");
+    }
+
+    @Test
+    void addOrUpdateSnippetStillRejectsAnotherSnippetWithTheSameName() {
+        SnippetManager manager = new SnippetManager(tempDir);
+        manager.addOrUpdateSnippet(new Snippet("deploy.sh", "echo one", "bash"));
+
+        expectThrows(IllegalArgumentException.class,
+            () -> manager.addOrUpdateSnippet(new Snippet("deploy.sh", "echo other", "bash")));
+    }
 }

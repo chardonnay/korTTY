@@ -107,6 +107,29 @@ public class DialogHostTab extends Tab implements DialogPaneHost {
         }
     }
 
+    /**
+     * Asks the hosted dialog whether the main window may dispose this tab on a path that bypasses
+     * the tab's own close request (Cmd+W, close all, loading a project, window close, quit). Only
+     * dialogs with unsaved work ({@link HostedCloseGuard}) are asked; the answer has no side effect
+     * beyond saving when the user chose Save — the caller disposes the tab afterwards, and only
+     * once all of its other prompts passed.
+     *
+     * @return {@code true} when the tab may be disposed
+     */
+    boolean confirmClose() {
+        if (adoption.isCloseFinished() || !(dialog instanceof HostedCloseGuard guard)) {
+            return true;
+        }
+        return guard.confirmHostedClose();
+    }
+
+    /** Whether {@link #confirmClose()} would ask anything right now. */
+    boolean needsCloseConfirmation() {
+        return !adoption.isCloseFinished()
+            && dialog instanceof HostedCloseGuard guard
+            && guard.needsCloseConfirmation();
+    }
+
     /** Releases the hosted pane's resources without touching the tab list (window teardown). */
     void disposeOnWindowClose() {
         adoption.finishClose();

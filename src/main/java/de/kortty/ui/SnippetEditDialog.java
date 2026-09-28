@@ -97,7 +97,7 @@ import org.slf4j.LoggerFactory;
  * Provides form fields for name, language, category, tags, and
  * a syntax-highlighted content editor with placeholder help.
  */
-public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
+public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements HostedCloseGuard {
 
     private static final Logger logger = LoggerFactory.getLogger(SnippetEditDialog.class);
 
@@ -177,6 +177,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private final ReadOnlyBooleanWrapper savable = new ReadOnlyBooleanWrapper(this, "savable");
     private final ReadOnlyBooleanWrapper aiBusy = new ReadOnlyBooleanWrapper(this, "aiBusy");
     private boolean hostedAttachHandled;
+    /**
+     * This editor's entry in {@link SnippetEditorRegistry} while it is open as a standalone editor
+     * ({@link #showNonBlocking}); {@code null} for the workspace's embedded editors, whose tab is
+     * their entry.
+     */
+    private StandaloneRegistration standaloneRegistration;
+    /** The diagram window opened from this editor; closed with the editor so it never outlives it. */
+    private SnippetDiagramDialog openDiagramDialog;
     /** Test seam: replaces the host-close unsaved-changes prompt (smokes cannot answer an Alert). */
     private static Function<SnippetEditDialog, UnsavedContentChoice> hostUnsavedPrompter;
     private final ExternalFileActionConfig externalFileActionConfig;
@@ -1542,6 +1550,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
         setOnHidden(event -> {
             cancelAiTasks();
+            closeDiagramDialog();
             // Tear down the Monaco WebView (page, JS bridge, boot retries) on close instead of leaking it.
             contentArea.dispose();
             // Same for the markup preview's WebKit engine, if the preview was ever shown.
@@ -1561,6 +1570,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     public void showNonBlocking(Consumer<Snippet> resultHandler) {
         this.liveSaveHandler = resultHandler;
+        registerStandalone();
         if (resultHandler != null) {
             addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
                 // Deliver the final result at most once. A button whose ACTION filter consumes the event and
@@ -1588,6 +1598,43 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             return;
         }
         show();
+    }
+
+    /**
+     * Lists this standalone editor in {@link SnippetEditorRegistry}: the close/quit guards then ask
+     * about its unsaved edits (also when it has no owner window), and the snippet workspace reveals
+     * it instead of opening the same snippet a second time. Released when the editor is hidden.
+     */
+    private void registerStandalone() {
+        if (standaloneRegistration != null || embedding != null) {
+            return;
+        }
+        StandaloneRegistration registration = new StandaloneRegistration();
+        standaloneRegistration = registration;
+        SnippetEditorRegistry.track(registration);
+        claimPersistedSnippetId();
+        addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
+            SnippetEditorRegistry.release(registration);
+            if (standaloneRegistration == registration) {
+                standaloneRegistration = null;
+            }
+        });
+    }
+
+    /**
+     * Binds this standalone editor to the snippet it edits, once there is one: a snippet it was
+     * opened with, or the one its first save created. File editors edit a file, not a snippet, and
+     * only stay tracked. A snippet already open in another editor stays with that one.
+     */
+    private void claimPersistedSnippetId() {
+        StandaloneRegistration registration = standaloneRegistration;
+        Snippet persisted = persistedSnippet();
+        if (registration == null || externalFileActionConfig != null || persisted == null || persisted.getId() == null) {
+            return;
+        }
+        if (!SnippetEditorRegistry.claim(persisted.getId(), registration)) {
+            logger.debug("Snippet {} is already open in another editor; this editor stays unclaimed", persisted.getId());
+        }
     }
 
     /**
@@ -1665,6 +1712,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (embedding != null) {
             embedding.snippetPersisted(this, saved, created);
         }
+        claimPersistedSnippetId();
         return true;
     }
 
@@ -2144,6 +2192,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             return;
         }
         hostedAttachHandled = true;
+        // A hosted pane shares the main window's (or workspace's) scene with other editors: a
+        // scene-wide Shortcut+Z accelerator would undo in whichever editor registered last. The
+        // Monaco key filter handles Shortcut+Z for the focused editor anyway.
+        undoItem.setAccelerator(null);
         autoDetectAiSkills();
     }
 
@@ -2197,6 +2249,28 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             return saveFromHost();
         }
         return true;
+    }
+
+    /**
+     * The host's close guard (main-window Cmd+W, close all, window close, quit): asks before
+     * cancelling running AI work, then about unsaved changes (Save / Discard / Cancel). Brings the
+     * editor forward first when it has to ask. Never closes; {@code false} vetoes.
+     */
+    @Override
+    public boolean confirmHostedClose() {
+        if (!needsCloseConfirmation()) {
+            return true;
+        }
+        revealDialogOrHost();
+        if (isAnyAiTaskRunning() && !confirmCloseWhileAiRunning()) {
+            return false;
+        }
+        return confirmCloseFromHost();
+    }
+
+    @Override
+    public boolean needsCloseConfirmation() {
+        return isAnyAiTaskRunning() || hasUnsavedContentChanges();
     }
 
     /** Closes the editor without any prompt (the host already asked); unsaved edits are dropped. */
@@ -6116,7 +6190,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             startDiagramGeneration(null, SnippetDiagramType.LOGICAL_STRUCTURE, null);
             return;
         }
-        new SnippetDiagramDialog(
+        // One diagram window per editor: a new one replaces the old (it shows the current code).
+        closeDiagramDialog();
+        SnippetDiagramDialog dialog = new SnippetDiagramDialog(
             getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
             copyDiagrams(),
             contentArea.getText(),
@@ -6124,7 +6200,26 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             this::runDiagramGeneration,
             type -> startDiagramGeneration(null, type, null),
             this::deleteDiagram,
-            this::navigateToDiagramCodeReference).show();
+            this::navigateToDiagramCodeReference);
+        openDiagramDialog = dialog;
+        dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, hidden -> {
+            if (openDiagramDialog == dialog) {
+                openDiagramDialog = null;
+            }
+        });
+        dialog.show();
+    }
+
+    /**
+     * Closes the diagram window opened from this editor. It calls back into the editor (navigate
+     * to code, delete a diagram), so it must not outlive it.
+     */
+    private void closeDiagramDialog() {
+        SnippetDiagramDialog dialog = openDiagramDialog;
+        openDiagramDialog = null;
+        if (dialog != null && dialog.isShowing()) {
+            dialog.close();
+        }
     }
 
     private void deleteDiagram(SnippetDiagram diagram) {
@@ -7649,6 +7744,57 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private void applyHighlighting() {
         if (contentArea != null && languageCombo != null) {
             contentArea.setLanguage(languageCombo.getValue());
+        }
+    }
+
+    /**
+     * A standalone editor's entry in {@link SnippetEditorRegistry} (window, or a main-window tab
+     * via "tool windows as tabs"). The embedded workspace editors are listed by their tab instead.
+     */
+    final class StandaloneRegistration implements SnippetEditorRegistry.OpenEditor {
+
+        SnippetEditDialog editor() {
+            return SnippetEditDialog.this;
+        }
+
+        /** Whether the editor lives in a main-window tab, whose own close guard asks for it. */
+        boolean isHostedInMainTab() {
+            return isHostedInTab();
+        }
+
+        @Override
+        public String snippetId() {
+            Snippet persisted = persistedSnippet();
+            return externalFileActionConfig == null && persisted != null ? persisted.getId() : null;
+        }
+
+        @Override
+        public void reveal() {
+            revealDialogOrHost();
+            focusEditor();
+        }
+
+        @Override
+        public boolean hasUnsavedChanges() {
+            return hasUnsavedContentChanges();
+        }
+
+        @Override
+        public Window ownerStage() {
+            if (isHostedInTab()) {
+                return getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
+            }
+            return getOwner();
+        }
+
+        @Override
+        public boolean confirmCloseFromHost() {
+            return confirmHostedClose();
+        }
+
+        @Override
+        public void closeWithoutPrompt() {
+            SnippetEditDialog.this.closeWithoutPrompt();
         }
     }
 }
