@@ -5,6 +5,7 @@ import de.kortty.core.SnippetManager;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
+import de.kortty.model.WindowGeometry;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -220,6 +221,7 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
         getDialogPane().setContent(splitPane);
         getDialogPane().setPrefWidth(1280);
         getDialogPane().setPrefHeight(820);
+        installGeometryPersistence();
         // The window X, Ctrl+Q and the outer tab's × need a cancel-type button to be allowed to
         // close; the button itself stays invisible and is NOT a cancel button, so Esc (which fires
         // the cancel button) never closes the workspace, and there is no default button for Enter.
@@ -1024,6 +1026,7 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
             quickOpen.hide();
         }
         unsubscribe();
+        persistGeometry();
         persistDividerPosition();
         library.dispose();
         // Each editor fires its own DIALOG_HIDDEN: AI work cancelled, Monaco disposed, registry released.
@@ -1035,6 +1038,64 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
         if (onTornDown != null) {
             onTornDown.run();
         }
+    }
+
+    // ---- window geometry ------------------------------------------------------------------------
+
+    /**
+     * Remembers where the user put the workspace window and how large they made it, under the
+     * Snippet Manager's own setting (so a size stored by the old manager window carries over).
+     * Written again shortly after every move or resize, not only on close, so quitting korTTY
+     * or a crash keeps it too. A hosted workspace shares the main window and stores nothing.
+     */
+    private void installGeometryPersistence() {
+        // Marks the geometry as handled here, which turns the class-keyed automatic persistence off.
+        DialogGeometrySupport.restore(this, (WindowGeometry) null);
+        addEventHandler(DialogEvent.DIALOG_SHOWING, event -> {
+            WindowGeometry stored = storedGeometry();
+            if (stored != null && !isHostedInTab() && DialogGeometrySupport.uiFontScaleMatchesStoredGeometry()) {
+                setWidth(Math.max(MIN_WINDOW_WIDTH, stored.getWidth()));
+                setHeight(Math.max(MIN_WINDOW_HEIGHT, stored.getHeight()));
+            }
+        });
+        addEventHandler(DialogEvent.DIALOG_SHOWN, event -> {
+            WindowGeometry stored = storedGeometry();
+            if (!(hostWindow() instanceof Stage stage) || isHostedInTab()) {
+                return;
+            }
+            if (stored != null) {
+                stage.setX(stored.getX());
+                stage.setY(stored.getY());
+            }
+            geometrySaveDelay.setOnFinished(done -> persistGeometry());
+            javafx.beans.InvalidationListener changed = obs -> {
+                if (!tornDown) {
+                    geometrySaveDelay.playFromStart();
+                }
+            };
+            stage.xProperty().addListener(changed);
+            stage.yProperty().addListener(changed);
+            stage.widthProperty().addListener(changed);
+            stage.heightProperty().addListener(changed);
+        });
+    }
+
+    private final javafx.animation.PauseTransition geometrySaveDelay =
+        new javafx.animation.PauseTransition(javafx.util.Duration.millis(600));
+
+    private static WindowGeometry storedGeometry() {
+        GlobalSettings settings = currentSettings();
+        return settings != null
+            ? DialogGeometrySupport.sanitize(settings.getSnippetManagerGeometry(), DialogGeometrySupport.visualScreenBounds())
+            : null;
+    }
+
+    private void persistGeometry() {
+        geometrySaveDelay.stop();
+        if (isHostedInTab()) {
+            return;
+        }
+        DialogGeometrySupport.persist(this, (settings, geometry) -> settings.setSnippetManagerGeometry(geometry));
     }
 
     // ---- change events --------------------------------------------------------------------------
