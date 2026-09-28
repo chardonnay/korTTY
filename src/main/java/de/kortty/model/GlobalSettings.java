@@ -908,6 +908,14 @@ public class GlobalSettings {
     @XmlElement
     private Boolean snippetAnalysisPanelVisible;
 
+    /** The folder the last code-analysis report was exported to; unset = the chooser's default. */
+    @XmlElement
+    private String snippetAnalysisExportDirectory;
+
+    /** Whether code-analysis report exports append the full script (default: off). */
+    @XmlElement
+    private Boolean snippetAnalysisExportIncludeCode;
+
     // Snippet dialog geometries
     @XmlElement
     private WindowGeometry snippetManagerGeometry;
@@ -3622,6 +3630,24 @@ public class GlobalSettings {
 
     public void setSnippetAnalysisPanelVisible(boolean snippetAnalysisPanelVisible) {
         this.snippetAnalysisPanelVisible = snippetAnalysisPanelVisible;
+    }
+
+    public String getSnippetAnalysisExportDirectory() {
+        return snippetAnalysisExportDirectory != null && !snippetAnalysisExportDirectory.isBlank()
+            ? snippetAnalysisExportDirectory : null;
+    }
+
+    public void setSnippetAnalysisExportDirectory(String snippetAnalysisExportDirectory) {
+        this.snippetAnalysisExportDirectory = snippetAnalysisExportDirectory != null
+            && !snippetAnalysisExportDirectory.isBlank() ? snippetAnalysisExportDirectory : null;
+    }
+
+    public boolean isSnippetAnalysisExportIncludeCode() {
+        return Boolean.TRUE.equals(snippetAnalysisExportIncludeCode);
+    }
+
+    public void setSnippetAnalysisExportIncludeCode(boolean snippetAnalysisExportIncludeCode) {
+        this.snippetAnalysisExportIncludeCode = snippetAnalysisExportIncludeCode;
     }
 
     // ---- Snippet Dialog Geometries ----

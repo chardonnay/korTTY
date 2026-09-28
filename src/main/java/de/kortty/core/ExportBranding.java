@@ -6,7 +6,8 @@ import de.kortty.ui.I18n;
 import java.awt.Color;
 
 /**
- * Watermark and footer settings shared by every korTTY PDF export (session journals, AI chats).
+ * Watermark and footer settings shared by every korTTY PDF export (session journals, AI chats, code
+ * analysis reports).
  *
  * <p>The watermark is off by default — it belongs on documents the user wants marked, not on every
  * export. The footer is on by default because a document that says where it came from is useful

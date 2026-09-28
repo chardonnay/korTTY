@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
@@ -102,6 +103,21 @@ class SnippetAiFlowModalityTest {
         }
         assertWithMessage("The integrated analysis flow opens a window, an alert or blocks")
             .that(offenders).isEmpty();
+    }
+
+    /**
+     * The report export may ask exactly one question — whether a Markdown export replaces the
+     * diagram PNG next to it — and only modally for its own window, without a nested event loop.
+     * Its result is reported inline by the panel.
+     */
+    @Test
+    void reportExportAsksWithoutBlocking() throws IOException {
+        String source = code(UI_ROOT.resolve("SnippetAnalysisExportController.java"));
+        assertThat(countOf(source, "new Alert(")).isEqualTo(1);
+        assertThat(source).contains("initModality(Modality.WINDOW_MODAL)");
+        assertThat(source).doesNotContain("showAndWait(");
+        assertThat(source).doesNotContain("APPLICATION_MODAL");
+        assertThat(source).doesNotContain("java.awt.Desktop");
     }
 
     /**

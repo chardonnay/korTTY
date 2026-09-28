@@ -6,7 +6,7 @@ import de.kortty.core.ScriptLanguageMixSupport;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.SnippetAiWorkflowSupport;
 import de.kortty.core.SnippetAnalysisComparison;
-import de.kortty.core.SnippetAnalysisExportService;
+import de.kortty.core.SnippetAnalysisReport;
 import de.kortty.core.SnippetAnalysisHistory;
 import de.kortty.core.SnippetAnalysisRecord;
 import de.kortty.core.SnippetAnalysisRecord.ApplyRun;
@@ -1634,15 +1634,13 @@ final class SnippetAnalysisController {
             record.selection() != null && record.selection().codeTextLanguageCode() != null
                 ? record.selection().codeTextLanguageCode()
                 : host.codeTextFallbackLanguageCode());
-        panel.setReportTimestamp(LocalDateTime.ofInstant(Instant.ofEpochMilli(record.analyzedAt()), ZoneId.systemDefault()));
-        panel.setExportListener(new SnippetAnalysisPanel.ExportListener() {
-            @Override
-            public void exported(SnippetAnalysisExportService.Format format, String fileName) {
-                updateRecord(recordId, r -> r.withExport(new SnippetAnalysisRecord.ExportEntry(
-                    System.currentTimeMillis(), format.name(), SnippetAnalysisRecord.ExportEntry.PHASE_BEFORE_APPLY,
-                    null, fileName)));
-            }
-        });
+        panel.setExportSubjectSupplier(() -> exportSubject(recordId));
+        panel.setExportListener((kind, runId, format, file) -> updateRecord(recordId, r -> r.withExport(
+            new SnippetAnalysisRecord.ExportEntry(System.currentTimeMillis(), format.name(),
+                kind == SnippetAnalysisReport.Kind.POST_APPLY
+                    ? SnippetAnalysisRecord.ExportEntry.PHASE_AFTER_APPLY
+                    : SnippetAnalysisRecord.ExportEntry.PHASE_BEFORE_APPLY,
+                runId, file.getFileName().toString()))));
         analysisPanel = panel;
         renderedRecordId = recordId;
         restoringSelection = true;
@@ -1951,6 +1949,28 @@ final class SnippetAnalysisController {
             && Objects.equals(a.migrationTargetLanguage(), b.migrationTargetLanguage())
             && Objects.equals(a.migrationTargetHostFormat(), b.migrationTargetHostFormat())
             && Objects.equals(a.codeTextLanguageCode(), b.codeTextLanguageCode());
+    }
+
+    // =====================================================================================
+    // Export
+    // =====================================================================================
+
+    /**
+     * The immutable copy an export works from, taken at click time: the stored record with the
+     * selection the user just made (flushed first), the whole history and the editor's content.
+     */
+    private SnippetAnalysisExportController.ExportSubject exportSubject(String recordId) {
+        flushSelection();
+        SnippetAnalysisHistory latest = key != null ? store.cached(key) : null;
+        if (latest == null) {
+            latest = history;
+        }
+        SnippetAnalysisRecord record = latest != null ? latest.find(recordId) : null;
+        if (record == null) {
+            return null;
+        }
+        return new SnippetAnalysisExportController.ExportSubject(host.snippetName(), host.snippetLanguage(), record,
+            latest.records(), host.currentContent());
     }
 
     // =====================================================================================

@@ -7,7 +7,6 @@ import de.kortty.core.ScriptLanguageMixSupport.HostFormat;
 import de.kortty.core.ScriptLanguageMixSupport.LanguageMix;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.SnippetAiWorkflowSupport;
-import de.kortty.core.SnippetAnalysisExportService;
 import de.kortty.core.SnippetAnalysisRecord;
 import de.kortty.core.WorkflowScriptSupport;
 import de.kortty.core.WorkflowScriptSupport.HardeningOption;
@@ -18,7 +17,6 @@ import de.kortty.model.AiSkill;
 import de.kortty.model.GlobalSettings;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
-import javafx.concurrent.Task;
 import javafx.concurrent.Worker;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
@@ -28,7 +26,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
-import javafx.scene.control.MenuItem;
+import javafx.scene.control.Hyperlink;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
@@ -38,14 +36,12 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
-import javafx.stage.FileChooser;
 import javafx.stage.Window;
 import javafx.util.Duration;
 import netscape.javascript.JSObject;
 
-import java.io.File;
 import java.lang.ref.WeakReference;
-import java.time.LocalDateTime;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -122,13 +118,6 @@ public class SnippetAnalysisPanel extends VBox {
                                Consumer<Set<String>> onSelectionChanged) {
     }
 
-    /** Told about a finished export, so a host can record it; called on the JavaFX thread. */
-    interface ExportListener {
-        void exported(SnippetAnalysisExportService.Format format, String fileName);
-
-        default void failed(String message) {
-        }
-    }
 
     private final SnippetAiResponseSupport.ScriptAnalysis analysis;
     private final String scriptName;
@@ -149,10 +138,13 @@ public class SnippetAnalysisPanel extends VBox {
     private final WebView findingsView = new WebView();
     private final Label fontSizeLabel = new Label();
     private final Label exportResultLabel = new Label();
+    private final Hyperlink exportOpenLink = new Hyperlink(I18n.get("snippets.ai.analysis.export.open"));
+    private final Hyperlink exportFolderLink = new Hyperlink(I18n.get("snippets.ai.analysis.export.showInFolder"));
+    private final HBox exportResultBox = new HBox(8);
+    private final SnippetAnalysisExportController exportController;
+    private Supplier<SnippetAnalysisExportController.ExportSubject> exportSubjectSupplier;
     private MenuButton exportButton;
-    private ExportListener exportListener;
-    private LocalDateTime reportTimestamp;
-    private boolean exportRunning;
+    private Path lastExportFile;
     private boolean pageReady;
     private boolean disposed;
     /** A finding selection to apply once the report page has loaded; {@code null} = none pending. */
@@ -190,6 +182,8 @@ public class SnippetAnalysisPanel extends VBox {
         initTextLanguageCombo(codeTextLanguageCode);
         this.fontSize = clampFontSize(loadPersistedFontSize());
         indexItems();
+        this.exportController = new SnippetAnalysisExportController(this::ownerWindow, this::exportSubject,
+            this::showExportResult);
 
         Label infoLabel = new Label(I18n.get("snippets.ai.analysis.info"));
         infoLabel.setWrapText(true);
@@ -264,9 +258,17 @@ public class SnippetAnalysisPanel extends VBox {
         exportResultLabel.setWrapText(true);
         exportResultLabel.setMaxWidth(Double.MAX_VALUE);
         exportResultLabel.setMinHeight(Region.USE_PREF_SIZE);
-        exportResultLabel.setVisible(false);
-        exportResultLabel.setManaged(false);
-        getChildren().addAll(exportResultLabel, splitPane, headerChooser,
+        HBox.setHgrow(exportResultLabel, Priority.ALWAYS);
+        exportOpenLink.setId("snippet-analysis-export-open");
+        exportOpenLink.setOnAction(event -> SnippetAnalysisExportController.open(lastExportFile));
+        exportFolderLink.setId("snippet-analysis-export-folder");
+        exportFolderLink.setOnAction(event -> SnippetAnalysisExportController.showInFolder(lastExportFile));
+        exportResultBox.setId("snippet-analysis-export-result-box");
+        exportResultBox.setAlignment(Pos.CENTER_LEFT);
+        exportResultBox.getChildren().addAll(exportResultLabel, exportOpenLink, exportFolderLink);
+        exportResultBox.setVisible(false);
+        exportResultBox.setManaged(false);
+        getChildren().addAll(exportResultBox, splitPane, headerChooser,
             textLanguageRow, buildHardeningPane(), buildInputHardeningPane());
         // Only added when there is something to offer. Toggling `managed` inside a ScrollPane does
         // not trigger a relayout, so an empty pane would leave a visible gap instead of vanishing.
@@ -329,6 +331,7 @@ public class SnippetAnalysisPanel extends VBox {
             return;
         }
         disposed = true;
+        exportController.dispose();
         diagramView.dispose();
         // Unload the findings page so its WebKit engine releases its native memory.
         findingsView.getEngine().loadContent("");
@@ -388,17 +391,7 @@ public class SnippetAnalysisPanel extends VBox {
     }
 
     private MenuButton buildExportButton() {
-        MenuButton button = new MenuButton(I18n.get("snippets.ai.analysis.export"));
-        button.setId("snippet-analysis-export");
-        button.setTooltip(new Tooltip(I18n.get("snippets.ai.analysis.export.tooltip")));
-        MenuItem pdfItem = new MenuItem(I18n.get("snippets.ai.analysis.export.pdf"));
-        pdfItem.setOnAction(event -> exportReport(SnippetAnalysisExportService.Format.PDF));
-        MenuItem htmlItem = new MenuItem(I18n.get("snippets.ai.analysis.export.html"));
-        htmlItem.setOnAction(event -> exportReport(SnippetAnalysisExportService.Format.HTML));
-        MenuItem markdownItem = new MenuItem(I18n.get("snippets.ai.analysis.export.markdown"));
-        markdownItem.setOnAction(event -> exportReport(SnippetAnalysisExportService.Format.MARKDOWN));
-        button.getItems().addAll(pdfItem, htmlItem, markdownItem);
-        return button;
+        return exportController.buildExportButton();
     }
 
     private static List<String> includedSkillNames(SkillContext context) {
@@ -415,95 +408,73 @@ public class SnippetAnalysisPanel extends VBox {
      * Receives the outcome of every export (the host records it with the analysis); {@code null}
      * removes the listener. The result is also shown inline above the report.
      */
-    void setExportListener(ExportListener listener) {
-        this.exportListener = listener;
+    void setExportListener(SnippetAnalysisExportController.Listener listener) {
+        exportController.setListener(listener);
     }
 
     /**
-     * The date the report states as "generated"; {@code null} uses the export time. A persisted
-     * analysis passes the time it was produced, so a re-opened result does not claim to be new.
+     * Where exports take their data from: a host with a stored analysis passes the stored record
+     * (so a report after applying is possible); without one the panel exports what it shows.
      */
-    void setReportTimestamp(LocalDateTime timestamp) {
-        this.reportTimestamp = timestamp;
+    void setExportSubjectSupplier(Supplier<SnippetAnalysisExportController.ExportSubject> supplier) {
+        this.exportSubjectSupplier = supplier;
+        exportController.rebuildMenu();
     }
 
-    private void refreshExportButton() {
-        if (exportButton != null) {
-            exportButton.setDisable(exportRunning);
+    /** The export controller (tests and the smoke drive its menu). */
+    SnippetAnalysisExportController exportController() {
+        return exportController;
+    }
+
+    private SnippetAnalysisExportController.ExportSubject exportSubject() {
+        if (exportSubjectSupplier != null) {
+            return exportSubjectSupplier.get();
         }
+        return liveExportSubject();
     }
 
     /**
-     * Exports the report (summary + findings + dependencies + diagram) to the chosen file. The diagram is
-     * the one this panel shows (a cached diagram included), rendered from Mermaid during the export, so the
-     * work runs off the FX thread; the outcome is reported inline and to the {@link ExportListener}.
+     * Without a stored analysis the report is built from what this panel shows: the analysis, the
+     * current finding selection and the diagram source the viewer holds.
      */
-    private void exportReport(SnippetAnalysisExportService.Format format) {
-        if (exportRunning) {
-            return;
+    private SnippetAnalysisExportController.ExportSubject liveExportSubject() {
+        long now = System.currentTimeMillis();
+        SnippetAnalysisRecord.Source source = new SnippetAnalysisRecord.Source(
+            null, null, null, selectedCodeTextLanguageCode(), null, false, 0, scriptName);
+        SnippetAnalysisRecord.Provenance provenance = new SnippetAnalysisRecord.Provenance(activeProfileId,
+            SnippetAiDialogSupport.resolveProfileDisplayName(activeProfileId), null, null, includedSkillNames, null,
+            null);
+        SnippetAnalysisRecord record = SnippetAnalysisRecord.fromAnalysis("live", "", analysis, source, provenance,
+            SnippetAnalysisRecord.Purpose.ANALYSIS, null, now);
+        if (pageReady) {
+            record = record.withSelection(selectionState(now));
         }
-        FileChooser chooser = new FileChooser();
-        chooser.setTitle(I18n.get("snippets.ai.analysis.export"));
-        String base = (scriptName != null && !scriptName.isBlank() ? scriptName.trim() : "code-analysis")
-            .replaceAll("[^A-Za-z0-9._-]", "_");
-        chooser.setInitialFileName(base + format.getExtension());
-        chooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter(I18n.get(format.getFilterKey()), "*" + format.getExtension()));
-        Window owner = ownerWindow();
-        File target = chooser.showSaveDialog(owner);
-        if (target == null) {
-            return;
+        de.kortty.core.MermaidRenderService.RenderRequest diagram = diagramView.currentRenderRequest(false);
+        if (diagram != null) {
+            record = record.withDiagram(new SnippetAnalysisRecord.AnalysisDiagram(
+                diagram.generatedType() != null ? diagram.generatedType().id() : null, diagram.source(), null, null,
+                false, null, null, now));
         }
-        SnippetAnalysisExportService.Context context = new SnippetAnalysisExportService.Context(
-            scriptName,
-            SnippetAiDialogSupport.resolveProfileDisplayName(activeProfileId),
-            reportTimestamp != null ? reportTimestamp : LocalDateTime.now(),
-            includedSkillNames);
-        de.kortty.core.MermaidRenderService.RenderRequest diagramRequest = diagramView.currentRenderRequest(true);
-        Task<Void> task = new Task<>() {
-            @Override
-            protected Void call() throws Exception {
-                new SnippetAnalysisExportService().export(target.toPath(), format, analysis, context, diagramRequest);
-                return null;
-            }
-        };
-        exportRunning = true;
-        refreshExportButton();
-        task.setOnSucceeded(event -> {
-            exportRunning = false;
-            refreshExportButton();
-            showExportResult(I18n.get("snippets.ai.analysis.export.success", target.getName()), true);
-            if (exportListener != null) {
-                exportListener.exported(format, target.getName());
-            }
-        });
-        task.setOnFailed(event -> {
-            exportRunning = false;
-            refreshExportButton();
-            Throwable ex = task.getException();
-            String message = I18n.get("snippets.ai.analysis.export.failed",
-                ex != null && ex.getMessage() != null ? ex.getMessage() : "?");
-            showExportResult(message, false);
-            if (exportListener != null) {
-                exportListener.failed(message);
-            }
-        });
-        Thread thread = new Thread(task, "snippet-analysis-export");
-        thread.setDaemon(true);
-        thread.start();
+        return new SnippetAnalysisExportController.ExportSubject(scriptName, null, record, List.of(record), null);
     }
 
     /** The export outcome as an inline line above the report; never a window of its own. */
-    private void showExportResult(String message, boolean success) {
+    private void showExportResult(String message, boolean success, Path file) {
         if (disposed) {
             return;
         }
+        lastExportFile = file;
         exportResultLabel.setText(message);
-        exportResultLabel.setStyle(success
-            ? "-fx-background-color: rgba(34,197,94,0.14); -fx-background-radius: 6; -fx-padding: 6 8 6 8;"
-            : "-fx-background-color: rgba(229,72,77,0.16); -fx-background-radius: 6; -fx-padding: 6 8 6 8;");
-        exportResultLabel.setVisible(true);
-        exportResultLabel.setManaged(true);
+        exportResultBox.setStyle(success
+            ? "-fx-background-color: rgba(34,197,94,0.14); -fx-background-radius: 6; -fx-padding: 4 8 4 8;"
+            : "-fx-background-color: rgba(229,72,77,0.16); -fx-background-radius: 6; -fx-padding: 4 8 4 8;");
+        boolean openable = success && file != null;
+        exportOpenLink.setVisible(openable);
+        exportOpenLink.setManaged(openable);
+        exportFolderLink.setVisible(openable);
+        exportFolderLink.setManaged(openable);
+        exportResultBox.setVisible(true);
+        exportResultBox.setManaged(true);
     }
 
     private Window ownerWindow() {

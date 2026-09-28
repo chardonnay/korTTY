@@ -3442,6 +3442,18 @@ tasks.register<JavaExec>("mermaidRendererSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("snippetAnalysisReportSamples") {
+    group = "verification"
+    description = "Writes sample before/after code-analysis reports (PDF/HTML/Markdown/JSON + page PNGs) for design review."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.core.SnippetAnalysisReportSamples")
+    classpath = sourceSets.test.get().runtimeClasspath
+    args(
+        (project.findProperty("samplesDir") as String?)
+            ?: layout.buildDirectory.dir("snippet-analysis-report-samples").get().asFile.absolutePath,
+        (project.findProperty("samplesLocale") as String?) ?: "en")
+}
+
 tasks.register<JavaExec>("dialogHostTabSmoke") {
     group = "verification"
     description = "Hosts a dialog pane as a main-window tab and verifies the DialogHostTab lifecycle."

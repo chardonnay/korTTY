@@ -9,7 +9,6 @@ import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -148,36 +147,70 @@ public final class MermaidRenderServiceSmoke {
                   class start_1,stop_1 setup
                   class work_1 work
                 """;
-            MermaidRenderService.RenderRequest request =
-                MermaidRenderService.RenderRequest.generatedFlow(
-                    source, MermaidRenderService.Theme.LIGHT, "#F8FAFC", true);
+            // The export renders LIGHT on white at 2x from the stored source, whatever the view shows.
+            MermaidRenderService.RenderResult reference = MermaidRenderService.render(
+                    MermaidRenderService.RenderRequest.generatedFlow(
+                        source, MermaidRenderService.Theme.LIGHT, "#FFFFFF", true))
+                .get(45, TimeUnit.SECONDS);
+            if (!reference.success()) {
+                throw new AssertionError("Reference diagram did not render: " + reference.message());
+            }
             SnippetAiResponseSupport.ScriptAnalysis analysis =
                 new SnippetAiResponseSupport.ScriptAnalysis("Analyzes code.", List.of(), List.of());
-            SnippetAnalysisExportService.Context context = new SnippetAnalysisExportService.Context(
-                "smoke.sh", "Smoke profile", LocalDateTime.of(2026, 7, 12, 0, 0), List.of());
+            SnippetAnalysisRecord record = SnippetAnalysisRecord.fromAnalysis("smoke", "smoke", analysis,
+                    SnippetAnalysisRecord.Source.of("echo smoke\n", "bash", "en", "en", "smoke.sh"),
+                    SnippetAnalysisRecord.Provenance.EMPTY, SnippetAnalysisRecord.Purpose.ANALYSIS, null,
+                    System.currentTimeMillis())
+                .withDiagram(new SnippetAnalysisRecord.AnalysisDiagram("logical-structure", source, List.of(), "",
+                    false, "", "", System.currentTimeMillis()));
+            SnippetAnalysisReport report = SnippetAnalysisReports.preApply(record,
+                new SnippetAnalysisReports.ReportContext("smoke.sh", "bash", "echo smoke\n"));
             SnippetAnalysisExportService exporter = new SnippetAnalysisExportService();
+            SnippetAnalysisExportService.ExportOptions options = SnippetAnalysisExportService.ExportOptions.defaults();
 
             Path html = directory.resolve("analysis.html");
-            exporter.export(html, SnippetAnalysisExportService.Format.HTML, analysis, context, request);
-            if (!Files.readString(html).contains("data:image/png;base64,")) {
-                throw new AssertionError("HTML analysis export did not embed the Mermaid PNG");
+            SnippetAnalysisExportService.ExportResult htmlResult =
+                exporter.export(html, SnippetAnalysisExportService.Format.HTML, report, options);
+            if (htmlResult.diagram().status() != SnippetAnalysisExportService.DiagramOutcome.Status.RENDERED
+                || !Files.readString(html).contains("data:image/png;base64,")) {
+                throw new AssertionError("HTML analysis export did not embed the Mermaid PNG: " + htmlResult.diagram());
             }
 
             Path markdown = directory.resolve("analysis.md");
-            exporter.export(markdown, SnippetAnalysisExportService.Format.MARKDOWN, analysis, context, request);
+            exporter.export(markdown, SnippetAnalysisExportService.Format.MARKDOWN, report, options);
             Path markdownPng = directory.resolve("analysis.diagram.png");
             byte[] markdownBytes = Files.readAllBytes(markdownPng);
-            if (!Files.readString(markdown).contains("analysis.diagram.png")
+            String markdownText = Files.readString(markdown);
+            if (!markdownText.contains("analysis.diagram.png") || !markdownText.contains("```mermaid\n")
                 || markdownBytes.length < 8
                 || !new String(markdownBytes, 1, 3, StandardCharsets.ISO_8859_1).equals("PNG")) {
-                throw new AssertionError("Markdown analysis export did not write its Mermaid PNG");
+                throw new AssertionError("Markdown analysis export did not write its Mermaid fence and PNG");
+            }
+            BufferedImage exported = ImageIO.read(new ByteArrayInputStream(markdownBytes));
+            long expectedWidth = 2L * Math.round(reference.width());
+            if (Math.abs(exported.getWidth() - expectedWidth) > 2) {
+                throw new AssertionError("Report diagram is not rendered at 2x: " + exported.getWidth()
+                    + " px for " + reference.width() + " units");
+            }
+            if (!isCloseOpaqueColor(exported.getRGB(1, 1), 0xFFFFFF, 6)) {
+                throw new AssertionError(String.format(
+                    "Report diagram background is not white (LIGHT theme): #%06X", exported.getRGB(1, 1) & 0xFFFFFF));
             }
 
             Path pdf = directory.resolve("analysis.pdf");
-            exporter.export(pdf, SnippetAnalysisExportService.Format.PDF, analysis, context, request);
+            exporter.export(pdf, SnippetAnalysisExportService.Format.PDF, report, options);
             try (org.apache.pdfbox.pdmodel.PDDocument document = Loader.loadPDF(pdf.toFile())) {
                 if (document.getNumberOfPages() < 2) {
                     throw new AssertionError("PDF analysis export did not add a Mermaid diagram page");
+                }
+                boolean image = false;
+                for (org.apache.pdfbox.pdmodel.PDPage page : document.getPages()) {
+                    for (org.apache.pdfbox.cos.COSName name : page.getResources().getXObjectNames()) {
+                        image |= page.getResources().isImageXObject(name);
+                    }
+                }
+                if (!image) {
+                    throw new AssertionError("PDF analysis export has no diagram image");
                 }
             }
         } finally {

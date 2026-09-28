@@ -2,43 +2,56 @@ package de.kortty.core;
 
 import org.testng.annotations.Test;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
- * {@link AnalysisSeverity#fromLabel} replaces the exporter's private {@code severityRank}/
- * {@code severityClass} pair. Until the exporter is migrated both exist, so these tests read the
- * exporter's mapping by reflection and require the enum to agree label for label — a drift would
- * sort a finding differently in the report than in the window.
+ * {@link AnalysisSeverity#fromLabel} is the one severity mapping of the analysis window and every
+ * report export. The golden table below is the mapping the exporter always used (its former
+ * private {@code severityRank}/{@code severityClass}), so a finding keeps sorting the same.
  */
 class AnalysisSeverityTest {
 
-    private static final List<String> LABELS = List.of(
-        "critical", "Critical", "CRITICAL", " crit ", "crit",
-        "high", "HIGH", " High",
-        "medium", "Medium", "moderate", "MODERATE", "med",
-        "low", "Low", "LOW ",
-        "info", "informational", "urgent", "blocker", "", "  ", "null-ish");
+    /** label -> expected rank, the exporter's historic mapping. */
+    private static final Map<String, Integer> LEGACY_RANKS = legacyRanks();
+
+    private static Map<String, Integer> legacyRanks() {
+        Map<String, Integer> ranks = new LinkedHashMap<>();
+        for (String label : List.of("critical", "Critical", "CRITICAL", " crit ", "crit")) {
+            ranks.put(label, 0);
+        }
+        for (String label : List.of("high", "HIGH", " High")) {
+            ranks.put(label, 1);
+        }
+        for (String label : List.of("medium", "Medium", "moderate", "MODERATE", "med")) {
+            ranks.put(label, 2);
+        }
+        for (String label : List.of("low", "Low", "LOW ")) {
+            ranks.put(label, 3);
+        }
+        for (String label : List.of("info", "informational", "urgent", "blocker", "", "  ", "null-ish")) {
+            ranks.put(label, 4);
+        }
+        return ranks;
+    }
+
+    private static final List<String> CSS_BY_RANK = List.of(
+        "sev-critical", "sev-high", "sev-medium", "sev-low", "sev-info");
 
     @Test
-    void labelMappingMatchesTheExporter() throws Exception {
-        Method rank = SnippetAnalysisExportService.class.getDeclaredMethod("severityRank", String.class);
-        rank.setAccessible(true);
-        Method cssClass = SnippetAnalysisExportService.class.getDeclaredMethod("severityClass", String.class);
-        cssClass.setAccessible(true);
-
-        for (String label : LABELS) {
+    void labelMappingMatchesTheLegacyExporter() {
+        LEGACY_RANKS.forEach((label, rank) -> {
             AnalysisSeverity severity = AnalysisSeverity.fromLabel(label);
-            assertWithMessage("rank of '%s'", label).that(severity.rank()).isEqualTo(rank.invoke(null, label));
-            assertWithMessage("css class of '%s'", label).that(severity.cssClass()).isEqualTo(cssClass.invoke(null, label));
-        }
+            assertWithMessage("rank of '%s'", label).that(severity.rank()).isEqualTo(rank);
+            assertWithMessage("css class of '%s'", label).that(severity.cssClass()).isEqualTo(CSS_BY_RANK.get(rank));
+        });
         assertThat(AnalysisSeverity.fromLabel(null)).isEqualTo(AnalysisSeverity.INFO);
-        assertThat(rank.invoke(null, (Object) null)).isEqualTo(AnalysisSeverity.INFO.rank());
     }
 
     @Test
@@ -57,20 +70,12 @@ class AnalysisSeverityTest {
     }
 
     @Test
-    void sortingByRankMatchesTheExporterOrdering() throws Exception {
-        Method rank = SnippetAnalysisExportService.class.getDeclaredMethod("severityRank", String.class);
-        rank.setAccessible(true);
-        List<String> byEnum = new ArrayList<>(LABELS);
-        byEnum.sort(Comparator.comparingInt(label -> AnalysisSeverity.fromLabel(label).rank()));
-        List<String> byExporter = new ArrayList<>(LABELS);
-        byExporter.sort(Comparator.comparingInt(label -> {
-            try {
-                return (int) rank.invoke(null, label);
-            } catch (ReflectiveOperationException e) {
-                throw new AssertionError(e);
-            }
-        }));
-        assertThat(byEnum).isEqualTo(byExporter);
+    void sortingByRankIsStableAndMostSevereFirst() {
+        List<String> labels = new ArrayList<>(LEGACY_RANKS.keySet());
+        labels.sort(Comparator.comparingInt(label -> AnalysisSeverity.fromLabel(label).rank()));
+        List<String> expected = new ArrayList<>(LEGACY_RANKS.keySet());
+        expected.sort(Comparator.comparingInt(LEGACY_RANKS::get));
+        assertThat(labels).isEqualTo(expected);
 
         assertThat(AnalysisSeverity.CRITICAL.rank()).isEqualTo(0);
         assertThat(AnalysisSeverity.HIGH.rank()).isEqualTo(1);

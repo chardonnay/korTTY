@@ -273,11 +273,18 @@ At most one repair attempt is also allowed when a complete response fails to con
 
 **Export the report:**
 
-The **Export** button saves the full report — summary, categorized improvements, dependencies and the flow diagram — as a self-contained file in an attractive, print-friendly design. The export header records the script name, the AI profile used, the date, and the AI skills that were included: The export uses the diagram the panel shows — a stored diagram included — and states the time the analysis was produced, so a result reopened days later exports without a new AI request. The outcome is reported in a line above the report, and every successful export is recorded with the stored analysis.
+The **Export** menu in the analysis panel saves the stored analysis as a self-contained report. Every export is built from what korTTY stored — the findings, your selection, the diagram and every apply run — so a result reopened days later exports without a new AI request, and switching snippets or editing while the export runs does not change it. The outcome is reported in a line above the report with **Open** and **Show in folder**, and every successful export is recorded with the stored analysis.
 
-- **PDF** — A paginated document with the diagram embedded as an image.
-- **HTML** — A single self-contained web page (the diagram is embedded inline) that opens in any browser.
-- **Markdown** — A `.md` file, with the diagram saved next to it as a PNG.
+- **Before applying** — The analysis as it stands: summary, findings grouped into Security, Optimization and Design (most severe first), dependencies, the flow diagram, and which findings are ticked for applying. Each finding carries its ID, its severity and the analysed code around its line.
+- **After applying** — One report per apply run (with several runs, pick the run: newest first, with date and outcome). It adds the run's outcome (accepted, partially applied, proposed and still awaiting review, rejected, failed), the AI profile, duration, token usage, retries, work items and hardening options, a status for every finding (applied, not selected, not reached, unconfirmed, rejected, failed), the AI's reason for each change, and the changes to the script as a coloured diff. When a later analysis of the applied code exists, a **Verification** section lists which findings were resolved, which are still present and which are new — matched by title and text similarity, so treat it as a guide. The entry is disabled until the analysis has an apply run.
+- **Include the full script** — Appends the analysed script (before applying) or the resulting script (after applying). The choice is remembered, as is the folder of the last export.
+
+Each report is available in four formats:
+
+- **PDF** — A paginated A4 document: a cover with the script name, the analysis, apply and export times, key figures, a findings-by-category-and-severity chart and a linked table of contents, then one card per finding. Bookmarks mirror the sections and findings. The flow diagram is always drawn light on white at twice the resolution, on a landscape page when it is wide and split across pages when it is tall; if it cannot be drawn, the report says so instead of leaving it out. The footer and the optional diagonal watermark follow the [Export settings](../reference/settings/export.md).
+- **HTML** — A single self-contained web page with the same content, in the language of the user interface, with a table of contents and print-friendly styling.
+- **Markdown** — A `.md` file with escaped text, a status table and the diff as a `diff` block. The diagram is written both as a `mermaid` block — which GitHub and GitLab render — and as a PNG next to the report. If that PNG already exists, korTTY asks before replacing it.
+- **JSON** — The complete report as structured data (schema `kortty.snippetAnalysisReport/1`) for other tools.
 
 #### Security Check
 

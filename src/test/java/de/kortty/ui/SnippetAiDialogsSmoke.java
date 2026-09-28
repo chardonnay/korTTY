@@ -205,12 +205,13 @@ public final class SnippetAiDialogsSmoke {
             throw new AssertionError("SnippetAnalysisPanel is missing the report/diagram split");
         }
         assertControls("SnippetAnalysisPanel", analysisPane, rerunText);
-        boolean hasExport = findNodes(analysisPane, javafx.scene.control.MenuButton.class).stream()
-            .anyMatch(node -> I18n.get("snippets.ai.analysis.export")
-                .equals(((javafx.scene.control.MenuButton) node).getText()));
-        if (!hasExport) {
-            throw new AssertionError("SnippetAnalysisPanel is missing the Export button");
-        }
+        javafx.scene.control.MenuButton exportButton = findNodes(analysisPane, javafx.scene.control.MenuButton.class)
+            .stream()
+            .map(javafx.scene.control.MenuButton.class::cast)
+            .filter(node -> I18n.get("snippets.ai.analysis.export").equals(node.getText()))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("SnippetAnalysisPanel is missing the Export button"));
+        verifyExportMenu(exportButton);
         snapshotPane(analysisPane, "snippet-code-analysis.png", 560);
         HardeningOptionsSelector hardeningSelector = field(
             analysisPanel, "hardeningSelector", HardeningOptionsSelector.class);
@@ -1544,6 +1545,50 @@ public final class SnippetAiDialogsSmoke {
     }
 
     /** A bare DialogPane around a node, so the pane-based helpers can walk and snapshot it. */
+    /**
+     * The Export menu: "Before applying" and "After applying" submenus with every format; without a
+     * stored apply run "After applying" is disabled and the button's tooltip says why; the
+     * "Include the full script" toggle is a CheckMenuItem.
+     */
+    private static void verifyExportMenu(javafx.scene.control.MenuButton exportButton) {
+        List<javafx.scene.control.Menu> submenus = exportButton.getItems().stream()
+            .filter(javafx.scene.control.Menu.class::isInstance)
+            .map(javafx.scene.control.Menu.class::cast)
+            .toList();
+        if (submenus.size() != 2) {
+            throw new AssertionError("Export menu must offer two submenus (before/after), found " + submenus.size());
+        }
+        javafx.scene.control.Menu before = submenus.stream()
+            .filter(menu -> I18n.get("snippets.ai.analysis.export.before").equals(menu.getText()))
+            .findFirst().orElseThrow(() -> new AssertionError("Export menu is missing 'Before applying'"));
+        javafx.scene.control.Menu after = submenus.stream()
+            .filter(menu -> I18n.get("snippets.ai.analysis.export.after").equals(menu.getText()))
+            .findFirst().orElseThrow(() -> new AssertionError("Export menu is missing 'After applying'"));
+        List<String> formats = before.getItems().stream().map(javafx.scene.control.MenuItem::getText).toList();
+        for (de.kortty.core.SnippetAnalysisExportService.Format format
+                : de.kortty.core.SnippetAnalysisExportService.Format.values()) {
+            if (!formats.contains(I18n.get(format.getMenuKey()))) {
+                throw new AssertionError("'Before applying' is missing " + format + ": " + formats);
+            }
+        }
+        if (before.isDisable()) {
+            throw new AssertionError("'Before applying' must be enabled for a shown analysis");
+        }
+        if (!after.isDisable()) {
+            throw new AssertionError("'After applying' must be disabled while no apply run exists");
+        }
+        String tooltip = exportButton.getTooltip() != null ? exportButton.getTooltip().getText() : "";
+        if (!tooltip.contains(I18n.get("snippets.ai.analysis.export.after.unavailable"))) {
+            throw new AssertionError("The Export tooltip does not explain why 'After applying' is disabled: " + tooltip);
+        }
+        boolean includeCode = exportButton.getItems().stream()
+            .anyMatch(item -> item instanceof javafx.scene.control.CheckMenuItem
+                && I18n.get("snippets.ai.analysis.export.includeCode").equals(item.getText()));
+        if (!includeCode) {
+            throw new AssertionError("Export menu is missing the 'Include the full script' CheckMenuItem");
+        }
+    }
+
     private static DialogPane hostPane(Node content) {
         DialogPane pane = new DialogPane();
         pane.setContent(content);
