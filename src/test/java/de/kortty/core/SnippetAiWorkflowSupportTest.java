@@ -1996,7 +1996,7 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
-    void mermaidRequestRejectsLoggedStyleOverDetailedChainWithoutRetry() throws Exception {
+    void mermaidRequestRejectsLoggedStyleOverDetailedChainAfterOneRetry() throws Exception {
         StringBuilder mermaid = new StringBuilder("flowchart TD\n    start_1([\"Start\"])\n");
         JsonArray references = new JsonArray();
         for (int index = 1; index <= 40; index++) {
@@ -2035,7 +2035,7 @@ class SnippetAiWorkflowSupportTest {
         assertThat(diagram.isUsable()).isFalse();
         assertThat(diagram.rejectionReason())
             .contains("at most 12 non-terminal nodes for this snippet (36 tolerated), but 40 were declared");
-        assertThat(aiService.executionCount).isEqualTo(1);
+        assertThat(aiService.executionCount).isEqualTo(2);
     }
 
     @Test
@@ -2188,6 +2188,99 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void aNemotronChainThroughStopIsAcceptedEndToEnd() throws Exception {
+        // Seen live from Nvidia Nemotron via LM Studio: the answer used to be rejected for
+        // "stop_1 must not have an outgoing edge" and replaced by the generic local fallback.
+        String answer = """
+            {
+              "title": "Serverauslastung Logischer Ablauf",
+              "mermaid": "flowchart TD\\nstart_1[\\"Start\\"] --> setup[\\"Setup: Konstanten definieren\\"] --> work[\\"Work: Load Average abrufen\\"] --> decision{ \\"Load verfügbar?\\" } -->|yes| success[\\"Success: Aktuelle Werte drucken\\"] --> stop_1[\\"Stop\\"] -->|no| failure[\\"Failure: Warnung, keine Daten\\"] --> stop_1\\nwork --> decision{ \\"CPU mpstat verfügbar?\\" } -->|yes| success --> stop_1 -->|no| failure --> stop_1\\nsuccess --> work --> decision{ \\"Historische Daten vorhanden?\\" } -->|yes| success --> stop_1 -->|no| failure --> stop_1\\nfailure --> stop_1\\nstop_1[\\"Ende\\"]",
+              "codeReferences": [
+                {"nodeId": "setup", "label": "Setup: Konstanten definieren", "startLine": 13, "endLine": 17},
+                {"nodeId": "work", "label": "Work: Load Average abrufen", "startLine": 20, "endLine": 28},
+                {"nodeId": "success", "label": "Success: Aktuelle Werte drucken", "startLine": 96, "endLine": 127},
+                {"nodeId": "failure", "label": "Failure: Warnung, keine Daten", "startLine": 20, "endLine": 28}
+              ]
+            }""";
+
+        SnippetAiResponseSupport.MermaidDiagram diagram = SnippetAiWorkflowSupport.generateSnippetMermaid(
+            new CapturingAiService(answer), null, "echo line\n".repeat(130), "bash", null, "de", null);
+
+        assertThat(diagram.rejectionReason()).isNull();
+        assertThat(diagram.isUsable()).isTrue();
+        assertThat(diagram.mermaid()).contains("decision -->|nein| failure");
+        assertThat(diagram.mermaid()).doesNotContain("stop_1 -->");
+    }
+
+    @Test
+    void aDerailedDiagramAnswerKeepsWhatCanBeReadWithoutAnotherRequest() throws Exception {
+        // Seen live from gpt-oss-20b via LM Studio: three nodes, then debris and no edge at all.
+        // The local repair reads the round shape, leaves out the unreadable line and wires the
+        // one remaining step between start_1 and stop_1, so no second request is needed.
+        String derailed = "{\"title\":\"Serverauslastung\",\"mermaid\":\"flowchart TD\\nstart_1((\\\"Start\\\"))"
+            + "\\nstop_1((\\\"Stop\\\"))\\nsetup_start(\\\"Setup\\\" )\\nwork?1(\\\"Ausgabe ??..\\\\?\\\\i\\\\k..\"}";
+        String sound = "{\"title\": \"Runtime flow\", \"mermaid\": \"flowchart TD\\n"
+            + "start_1([\\\"Start\\\"]) --> work_1[\\\"Run\\\"] --> stop_1([\\\"Stop\\\"])\"}";
+        SequencedCapturingAiService service = new SequencedCapturingAiService(derailed, sound);
+
+        SnippetAiResponseSupport.MermaidDiagram diagram = SnippetAiWorkflowSupport.generateSnippetMermaid(
+            service, null, "line\n".repeat(40), "plain", null, "de", null);
+
+        assertThat(diagram.isUsable()).isTrue();
+        assertThat(diagram.mermaid()).contains("setup_start --> stop_1");
+        assertThat(service.requests).hasSize(1);
+    }
+
+    @Test
+    void anOversizedDiagramIsRequestedOnceMoreFromScratchWithTheRejectionReason() throws Exception {
+        // Not a slip a repair round can fix, but a second sample usually respects the limit: the
+        // model is asked again from scratch, naming the reason, before the local fallback.
+        StringBuilder mermaid = new StringBuilder("flowchart TD\n    start_1([\"Start\"])\n");
+        for (int index = 1; index <= 40; index++) {
+            mermaid.append("    work_").append(index).append("[\"Step ").append(index).append("\"]\n");
+        }
+        mermaid.append("    stop_1([\"Stop\"])\n    start_1 --> work_1\n");
+        for (int index = 1; index < 40; index++) {
+            mermaid.append("    work_").append(index).append(" --> work_").append(index + 1).append('\n');
+        }
+        mermaid.append("    work_40 --> stop_1\n");
+        JsonObject oversized = new JsonObject();
+        oversized.addProperty("title", "Every line");
+        oversized.addProperty("mermaid", mermaid.toString());
+        String sound = "{\"title\": \"Runtime flow\", \"mermaid\": \"flowchart TD\\n"
+            + "start_1([\\\"Start\\\"]) --> work_1[\\\"Run\\\"] --> stop_1([\\\"Stop\\\"])\"}";
+        SequencedCapturingAiService service = new SequencedCapturingAiService(oversized.toString(), sound);
+
+        SnippetAiResponseSupport.MermaidDiagram diagram = SnippetAiWorkflowSupport.generateSnippetMermaid(
+            service, null, "line\n".repeat(40), "plain", null, "de", null);
+
+        assertThat(diagram.isUsable()).isTrue();
+        assertThat(diagram.mermaid()).contains("work_1 --> stop_1");
+        assertThat(service.requests).hasSize(2);
+        String retryPrompt = service.requests.get(1).userPrompt();
+        assertThat(retryPrompt).contains("Your previous diagram answer was rejected");
+        assertThat(retryPrompt).contains("40 were declared");
+        assertThat(retryPrompt).contains("Answer again from scratch");
+    }
+
+    @Test
+    void aDiagramRejectedTwiceKeepsTheFirstReason() throws Exception {
+        // Two steps and no connection between them. (An edge into start_1, which this test used
+        // before, is now dropped by the repairs and no longer rejects a diagram.)
+        String unconnected = "{\"title\": \"Runtime flow\", \"mermaid\": \"flowchart TD\\n"
+            + "load_1[\\\"Load\\\"]\\nwork_1[\\\"Run\\\"]\\n"
+            + "class work_1 work\"}";
+        SequencedCapturingAiService service = new SequencedCapturingAiService(unconnected, "no diagram at all");
+
+        SnippetAiResponseSupport.MermaidDiagram diagram = SnippetAiWorkflowSupport.generateSnippetMermaid(
+            service, null, "line\n".repeat(40), "plain", null, "en", null);
+
+        assertThat(diagram.isUsable()).isFalse();
+        assertThat(diagram.rejectionReason()).contains("no connections");
+        assertThat(service.requests).hasSize(2);
+    }
+
+    @Test
     void aRejectedDiagramAnswerIsArchivedWhole() throws Exception {
         // A rejection names one broken rule and the log carries only its first line; whether the
         // grammar could learn the shorthand the model wrote is decidable on the whole answer alone.
@@ -2309,7 +2402,7 @@ class SnippetAiWorkflowSupportTest {
         // JSON complaint the reader cannot act on.
         assertThat(diagram.isUsable()).isFalse();
         assertThat(diagram.rejectionReason()).contains("(36 tolerated), but 40 were declared");
-        assertThat(aiService.executionCount).isEqualTo(1);
+        assertThat(aiService.executionCount).isEqualTo(2);
     }
 
     @Test
@@ -2363,7 +2456,7 @@ class SnippetAiWorkflowSupportTest {
 
         assertThat(diagram.isUsable()).isFalse();
         assertThat(diagram.rejectionReason()).contains("no JSON object");
-        assertThat(aiService.executionCount).isEqualTo(1);
+        assertThat(aiService.executionCount).isEqualTo(2);
     }
 
     @Test

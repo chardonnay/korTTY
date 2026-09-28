@@ -5,9 +5,10 @@ import java.util.Locale;
 /**
  * Why an AI diagram could not be used, in the few categories a reader can act on. The rejection
  * reasons themselves are precise English sentences for the log; the interface shows the category,
- * localized, and keeps the sentence for the tooltip. The category also decides whether asking the
- * model once more can help: a syntax or structure slip can be fixed, an oversized or unsafe
- * diagram, or a prose answer without any diagram, cannot by "fix only the syntax".
+ * localized, and keeps the sentence for the tooltip. The category also decides what the one
+ * second request asks for: a syntax or structure slip is repaired ("fix only the syntax, keep the
+ * structure"), while an oversized or unsafe diagram, or a prose answer without any diagram, is
+ * requested again from scratch.
  */
 public enum SnippetDiagramRejection {
     /** The answer carried no diagram at all (prose, no JSON, no mermaid value). */
@@ -43,7 +44,7 @@ public enum SnippetDiagramRejection {
         return STRUCTURE;
     }
 
-    /** Whether one repair round ("fix only the syntax, keep the structure") can help. */
+    /** Whether the second request repairs the model's own diagram rather than starting from scratch. */
     public boolean repairable() {
         return this == SYNTAX || this == STRUCTURE;
     }

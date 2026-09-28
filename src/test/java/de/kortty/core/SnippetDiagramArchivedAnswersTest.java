@@ -114,7 +114,7 @@ public class SnippetDiagramArchivedAnswersTest {
         assertThat(result.diagram().rejectionReason()).contains("no connections");
         assertThat(result.requests()).isEqualTo(2);
         String repairPrompt = result.lastRequest().userPrompt();
-        assertThat(repairPrompt).contains("Your previous diagram could not be used");
+        assertThat(repairPrompt).contains("Your previous diagram answer was rejected");
         assertThat(repairPrompt).contains("no connections");
         assertThat(repairPrompt).contains("setup_init");
     }

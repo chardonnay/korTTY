@@ -332,8 +332,12 @@ public final class SnippetDiagramSupport {
         // once as a decision on its own line) was counted twice here, while the parser keeps the
         // first declaration; comparing the two counts then read as if the repairs had thrown the
         // diagram away.
+        //
+        // The same holds for edges: a repeated identical edge is a stutter the parser keeps once
+        // (seen live: Nemotron restating its whole chain on three lines, 19 edges for 8 distinct
+        // ones), and counting it every time made a complete diagram look hollowed out.
         Map<String, NodeType> types = new LinkedHashMap<>();
-        int edges = 0;
+        Set<EdgeDefinition> edges = new LinkedHashSet<>();
         for (String rawLine : normalizeMermaid(mermaidSource).split("\\R")) {
             String line = normalizeShapeShorthand(rawLine.trim());
             Matcher nodeMatcher = NODE_PATTERN.matcher(line);
@@ -345,7 +349,7 @@ public final class SnippetDiagramSupport {
             } else {
                 EdgeStatement statement = parseEdgeStatement(line);
                 if (statement != null) {
-                    edges += statement.edges().size();
+                    edges.addAll(statement.edges());
                     for (NodeDefinition node : statement.declaredNodes()) {
                         types.putIfAbsent(node.id(), node.type());
                     }
@@ -358,7 +362,7 @@ public final class SnippetDiagramSupport {
         types.remove("stop_1");
         int actionNodes = (int) types.values().stream().filter(type -> type == NodeType.ACTION).count();
         int decisionNodes = (int) types.values().stream().filter(type -> type == NodeType.DECISION).count();
-        return new FlowchartStatistics(actionNodes, decisionNodes, edges);
+        return new FlowchartStatistics(actionNodes, decisionNodes, edges.size());
     }
 
     /**

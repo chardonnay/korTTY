@@ -77,7 +77,7 @@ pages:
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/ui/DashboardView.java]
     diagrams: [architecture.svg, mainwindow-layout.svg]
     screenshots: [main/main-window.png]
-    last_synced_ref: "e5e27ec7"
+    last_synced_ref: "a4a2351c"
 
   # ---- Reference: menus & shortcuts ------------------------------------------
   - path: app-docs/site/docs/en/reference/menu.md
@@ -87,11 +87,11 @@ pages:
       - main/menu-tools.png
       - main/menu-ai.png
       - ai/ai-manager.png
-    last_synced_ref: "e5e27ec7"
+    last_synced_ref: "a4a2351c"
   - path: app-docs/site/docs/en/reference/keyboard-shortcuts.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java, src/monaco/completion.js]
-    last_synced_ref: "e5e27ec7"
+    last_synced_ref: "a4a2351c"
 
   # ---- Reference: settings (one page per tab; each owns its settings.<tab>.) --
   # NOTE: these pages are being authored in the content build-out. Until a page
@@ -104,7 +104,7 @@ pages:
       - settings/terminal.png
       - settings/backup.png
       - settings/ai.png
-    last_synced_ref: "e5e27ec7"
+    last_synced_ref: "a4a2351c"
   - path: app-docs/site/docs/en/reference/settings/appearance.md
     owns_i18n: [settings.appearance., settings.font., theme.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/core/ThemeManager.java, src/main/java/de/kortty/model/AppDesign.java, src/main/java/de/kortty/ui/AppDesignStyleSupport.java, src/main/java/de/kortty/ui/AppDesignNavigation.java, src/main/java/de/kortty/ui/ChatColorProfileSupport.java, src/main/java/de/kortty/ui/UiFontScaleSupport.java, src/main/java/de/kortty/ui/GuideViewer.java, src/main/java/de/kortty/model/ConnectionSettings.java, src/main/java/de/kortty/model/GlobalSettings.java]
@@ -130,7 +130,7 @@ pages:
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/ui/DialogGeometrySupport.java, src/main/java/de/kortty/ui/MainWindowGeometrySupport.java, src/main/java/de/kortty/ui/DialogThemeHelper.java, src/main/java/de/kortty/model/NamedWindowGeometry.java]
     screenshots:
       - settings/window.png
-    last_synced_ref: "e5e27ec7"
+    last_synced_ref: "a4a2351c"
   - path: app-docs/site/docs/en/reference/settings/resources.md
     owns_i18n: [settings.resources.]
     owns_code: [src/main/java/de/kortty/model/JvmResourceProfile.java, src/main/java/de/kortty/JvmRelauncher.java]
@@ -149,7 +149,7 @@ pages:
       - src/main/java/de/kortty/core/ExportBranding.java
       - src/main/java/de/kortty/core/PdfWatermarkSupport.java
       - src/main/java/de/kortty/core/AiChatExportService.java
-    last_synced_ref: "e5e27ec7"
+    last_synced_ref: "a4a2351c"
   - path: app-docs/site/docs/en/reference/settings/backup.md
     owns_i18n: [settings.backup.]
     owns_code: [src/main/java/de/kortty/core/BackupManager.java]
@@ -220,7 +220,7 @@ pages:
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/core/SnippetCompletionShortcut.java]
     screenshots:
       - settings/snippet-editor.png
-    last_synced_ref: "e5e27ec7"
+    last_synced_ref: "a4a2351c"
   # ---- Features --------------------------------------------------------------
   - path: app-docs/site/docs/en/features/connections.md
     owns_i18n: [menu.connections., connEdit.tag, connManager.assignTag, connManager.removeTag, connExport.selection, quickConnect.tag]
@@ -255,7 +255,7 @@ pages:
     owns_code: [src/main/java/de/kortty/core/SnippetManager.java, src/main/java/de/kortty/core/SnippetDraftStore.java, src/main/java/de/kortty/ui/SnippetDraftAutosave.java, src/main/java/de/kortty/ui/SnippetQuickOpenPopup.java, src/main/java/de/kortty/core/SnippetFuzzyMatcher.java, src/main/java/de/kortty/core/SnippetAnalysisBatchExport.java, src/main/java/de/kortty/ui/SnippetAnalysisBatchExportDialog.java, src/main/java/de/kortty/core/SnippetTextFileImport.java, src/main/java/de/kortty/core/SnippetVariableExchange.java, src/main/java/de/kortty/ui/SnippetLibraryPane.java, src/main/java/de/kortty/ui/SnippetWorkspaceDialog.java, src/main/java/de/kortty/ui/SnippetEditorRegistry.java, src/main/java/de/kortty/ui/HostedCloseGuard.java, src/main/java/de/kortty/ui/HostedCloseGuards.java, src/main/java/de/kortty/ui/DialogPaneHost.java, src/main/java/de/kortty/core/CorruptFileQuarantine.java, src/main/java/de/kortty/core/SnippetAnalysisComparison.java, src/main/java/de/kortty/core/AnalysisSeverity.java, src/main/java/de/kortty/core/AnalysisRunFormatting.java, src/main/java/de/kortty/ui/SnippetPreviewTab.java, src/main/java/de/kortty/ui/SnippetEditorTab.java, src/main/java/de/kortty/ui/SnippetEditorTabPolicy.java, src/main/java/de/kortty/ui/SnippetEditorEmbedding.java, src/main/java/de/kortty/ui/DialogPaneAdoption.java, src/main/java/de/kortty/ui/SnippetVariableManagementDialog.java, src/main/java/de/kortty/core/SnippetDiagramSupport.java, src/main/java/de/kortty/core/SnippetDiagramOutline.java, src/main/java/de/kortty/core/AiAnswerArchive.java, src/main/java/de/kortty/core/SnippetAnalysisExportService.java, src/main/java/de/kortty/core/SnippetAnalysisReport.java, src/main/java/de/kortty/core/SnippetAnalysisReports.java, src/main/java/de/kortty/core/SnippetAnalysisReportText.java, src/main/java/de/kortty/core/SnippetAnalysisDiagramRasterizer.java, src/main/java/de/kortty/core/SnippetAnalysisPdfWriter.java, src/main/java/de/kortty/core/SnippetAnalysisHtmlWriter.java, src/main/java/de/kortty/core/SnippetAnalysisMarkdownWriter.java, src/main/java/de/kortty/core/SnippetAnalysisJsonWriter.java, src/main/java/de/kortty/core/ReportTextBlocks.java, src/main/java/de/kortty/ui/SnippetAnalysisExportController.java, src/main/java/de/kortty/core/SnippetAiResponseSupport.java, src/main/java/de/kortty/core/SnippetAiWorkflowSupport.java, src/main/java/de/kortty/core/AiAction.java, src/main/java/de/kortty/core/AiExecutionResult.java, src/main/java/de/kortty/core/AiPromptBuilder.java, src/main/java/de/kortty/core/AiActionSkillPromptSupport.java, src/main/java/de/kortty/core/AiReasoningSupport.java, src/main/java/de/kortty/core/AiOutputTokenLimitSupport.java, src/main/java/de/kortty/core/AiSkillPromptSupport.java, src/main/java/de/kortty/core/AiSkillRelevanceSelector.java, src/main/java/de/kortty/core/AnthropicAiService.java, src/main/java/de/kortty/core/LocalAiReplySupport.java, src/main/java/de/kortty/core/OpenAiCompatibleAiService.java, src/main/java/de/kortty/core/LmStudioNativeAiService.java, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/core/MermaidRenderService.java, src/main/java/de/kortty/core/CodeFormatterService.java, src/main/java/de/kortty/core/WebFormatterBackend.java, src/main/java/de/kortty/core/WebFormatterResourceBundle.java, src/main/java/de/kortty/ai/llama/EmbeddedLlamaAiService.java, src/main/java/de/kortty/ai/mlx/EmbeddedMlxAiService.java, src/main/java/de/kortty/model/SnippetDiagram.java, src/main/java/de/kortty/model/SnippetDiagramType.java, src/main/java/de/kortty/core/SnippetTypedDiagramSupport.java, src/main/java/de/kortty/core/SnippetDiagramRejection.java, src/main/java/de/kortty/ui/SnippetDiagramFallbackText.java, src/main/java/de/kortty/ui/SnippetDiagramView.java, src/main/java/de/kortty/ui/SnippetDiagramZoomWindow.java, src/main/java/de/kortty/ui/SnippetDiagramDialog.java, src/main/java/de/kortty/ui/SnippetEditDialog.java, src/main/java/de/kortty/ui/SnippetAnalysisController.java, src/main/java/de/kortty/ui/SnippetAnalysisPanel.java, src/main/java/de/kortty/ui/SnippetAiApplyProgressPane.java, src/main/java/de/kortty/ui/SnippetAiDiffPane.java, src/main/java/de/kortty/core/SnippetAnalysisStore.java, src/main/java/de/kortty/core/SnippetAnalysisRecord.java, src/main/java/de/kortty/core/SnippetAnalysisHistory.java, src/main/java/de/kortty/core/SnippetAnalysisOverview.java, src/main/java/de/kortty/ui/SnippetAiDiffDialog.java, src/main/java/de/kortty/ui/SnippetAiAssistFactory.java, src/main/java/de/kortty/ui/SnippetAiRuntimeOptions.java, src/main/java/de/kortty/ui/AiStopRetrySupport.java, src/main/java/de/kortty/ui/AiTaskRunner.java, src/main/java/de/kortty/core/AiCancellation.java, src/main/java/de/kortty/ui/AlternativeSnippetSolutionsDialog.java, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-mermaid.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-sequence.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-state.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-class.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-er.md, src/main/resources/META-INF/native-image/resource-config.json, src/main/java/de/kortty/ui/MonacoEditorPane.java, src/main/java/de/kortty/ui/MonacoCompletionPayloads.java, src/main/java/de/kortty/core/SnippetCompletionSupport.java, src/main/java/de/kortty/core/SnippetCompletionIdioms.java, src/monaco/host.js, src/monaco/completion.js]
     diagrams: [snippet-editor-workflow.svg]
     screenshots: [tools/snippet-manager.png, tools/full-code-analysis.png]
-    last_synced_ref: "e5e27ec7"
+    last_synced_ref: "a4a2351c"
   - path: app-docs/site/docs/en/features/jobscheduler.md
     owns_i18n: [jobscheduler.dialog., jobscheduler.menu., jobscheduler.quit.]
     owns_code: [src/main/java/de/kortty/jobscheduler, src/main/java/de/kortty/ui/JobSchedulerDialog.java, src/main/java/de/kortty/ui/JobSchedulerTargetSelectionDialog.java, src/main/java/de/kortty/ui/JobSchedulerRemoteDirectoryDialog.java]
@@ -308,7 +308,7 @@ pages:
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/BackupManager.java]
     diagrams: [backup-restore.svg]
-    last_synced_ref: "e5e27ec7"
+    last_synced_ref: "a4a2351c"
   - path: app-docs/site/docs/en/features/recording.md
     owns_i18n: [recording., terminal.recording.]
     owns_code:
@@ -445,7 +445,7 @@ pages:
   - path: app-docs/site/docs/en/reference/config-files.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/persistence, src/main/java/de/kortty/model/ServerConnection.java, src/main/java/de/kortty/model/SnippetDiagram.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ai/llama/LlamaModelRegistry.java, src/main/java/de/kortty/rag/RagConfigurationManager.java]
-    last_synced_ref: "e5e27ec7"
+    last_synced_ref: "a4a2351c"
   - path: app-docs/site/docs/en/reference/control-api.md
     owns_i18n: [settings.controlApi., controlApi.]
     owns_code:
@@ -478,19 +478,19 @@ pages:
     owns_code: [src/main/java/de/kortty/core/WorkflowScriptSupport.java, src/main/java/de/kortty/ui/HardeningOptionsSelector.java, src/main/java/de/kortty/ui/WorkflowScriptDialog.java, src/main/java/de/kortty/ui/SwarmWorkflowScriptDialog.java, src/main/java/de/kortty/ui/SnippetEditDialog.java, src/main/java/de/kortty/ui/SnippetAnalysisPanel.java]
     diagrams: []
     screenshots: []
-    last_synced_ref: "e5e27ec7"
+    last_synced_ref: "a4a2351c"
   - path: app-docs/site/docs/en/reference/language-migration.md
     owns_i18n: [ai.migration., snippets.ai.migrate., snippets.ai.code.migrate, ai.workflow.singleLanguage]
     owns_code: [src/main/java/de/kortty/core/ScriptLanguageMixSupport.java, src/main/java/de/kortty/ui/TargetLanguageSelector.java, src/main/java/de/kortty/core/SnippetAiWorkflowSupport.java, src/main/java/de/kortty/ui/SnippetEditDialog.java, src/main/java/de/kortty/ui/SnippetAnalysisPanel.java, src/main/java/de/kortty/ui/SnippetSecurityReportDialog.java]
     diagrams: []
     screenshots: []
-    last_synced_ref: "e5e27ec7"
+    last_synced_ref: "a4a2351c"
   - path: app-docs/site/docs/en/reference/input-hardening.md
     owns_i18n: [ai.inputHardening.]
     owns_code: [src/main/java/de/kortty/core/WorkflowScriptSupport.java, src/main/java/de/kortty/ui/InputHardeningSelector.java, src/main/java/de/kortty/ui/WorkflowScriptDialog.java, src/main/java/de/kortty/ui/SwarmWorkflowScriptDialog.java, src/main/java/de/kortty/ui/SnippetEditDialog.java, src/main/java/de/kortty/ui/SnippetAnalysisPanel.java]
     diagrams: []
     screenshots: []
-    last_synced_ref: "e5e27ec7"
+    last_synced_ref: "a4a2351c"
 
   # ---- About: anonymous usage statistics --------------------------------------
   - path: app-docs/site/docs/en/about/anonymous-data.md

@@ -271,7 +271,7 @@ val jpackageExecutable = packagingJavaLauncher.map { launcher ->
 // runs as part of `test` on macOS, and verifyJpackageStaging re-checks the staged jars at packaging.
 val javaFxVersion = "21.0.12"
 val javaFxJsObjectVersion = "25.0.2"
-val atlantaFxVersion = "2.1.0"
+val atlantaFxVersion = "3.0.0"
 val javaFxPlatform = when {
     isWindows -> "win"
     isMac && System.getProperty("os.arch", "").lowercase() in setOf("aarch64", "arm64") -> "mac-aarch64"
@@ -444,7 +444,7 @@ dependencies {
     // OS/arch inside the jar; prepareSlimRuntimeJars strips foreign platforms and the retained
     // macOS dylib is re-signed by signMacBundledNativeLibraries — an unsigned bundled .dylib
     // fails Apple notarization (same story as the pty4j pin above).
-    implementation("com.github.luben:zstd-jni:1.5.7-17")
+    implementation("com.github.luben:zstd-jni:1.5.7-20")
 
     // Native desktop power-management integration. pty4j already brings these transitively, but
     // korTTY uses their APIs directly, so keep the compile/runtime contract explicit and pinned.
@@ -452,8 +452,8 @@ dependencies {
     implementation("net.java.dev.jna:jna-platform:5.19.1")
 
     // Logging
-    implementation("org.slf4j:slf4j-api:2.0.19")
-    implementation("ch.qos.logback:logback-classic:1.6.3")
+    implementation("org.slf4j:slf4j-api:2.0.20")
+    implementation("ch.qos.logback:logback-classic:1.6.4")
     
     // Testing
     testImplementation("com.google.truth:truth:1.4.5")
@@ -796,8 +796,8 @@ val formatterPrettierSha256 = "bc81ab83674f175a8601b7d013786f48ec2507dd4a5fcf341
 val formatterSqlFormatterVersion = "15.7.3"
 val formatterSqlFormatterSha256 = "5ec54da8958d4ad9f6c948a8032ce55a2444361a9a9223766f8b4e75d2b29819"
 val formatterPerlTidyVersion = "20260204"
-val monacoEditorVersion = "0.56.0"
-val monacoEditorSha256 = "b74bc4437205c194b779b0f21e5e7fcd3b4e9acbf3f7c8732a545d2059fb7412"
+val monacoEditorVersion = "0.57.0"
+val monacoEditorSha256 = "3ea1712fbacd3290cf4751007e3a5b57cc279767607812d4c3e57925fb0b05c2"
 val monacoEsbuildVersion = "0.28.0"
 
 fun formatterArch(): String = when (System.getProperty("os.arch", "").lowercase()) {

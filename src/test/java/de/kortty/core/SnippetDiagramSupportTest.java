@@ -966,6 +966,54 @@ class SnippetDiagramSupportTest {
     }
 
     @Test
+    void aChainRunningOnPastStopListsTheBranchesOfItsDecision() {
+        // Seen live from Nvidia Nemotron via LM Studio: every branch of the decision written in one
+        // chain through stop_1, which used to reject the diagram ("stop_1 must not have an
+        // outgoing edge") for the generic fallback.
+        String nemotron = "flowchart TD\n"
+            + "start_1[\"Start\"] --> setup[\"Setup: Konstanten definieren\"] --> work[\"Work: Load Average abrufen\"]"
+            + " --> decision{ \"Load verfügbar?\" } -->|yes| success[\"Success: Aktuelle Werte drucken\"]"
+            + " --> stop_1[\"Stop\"] -->|no| failure[\"Failure: Warnung, keine Daten\"] --> stop_1\n"
+            + "work --> decision{ \"CPU mpstat verfügbar?\" } -->|yes| success --> stop_1 -->|no| failure --> stop_1\n"
+            + "success --> work --> decision{ \"Historische Daten vorhanden?\" } -->|yes| success --> stop_1"
+            + " -->|no| failure --> stop_1\n"
+            + "failure --> stop_1\n"
+            + "stop_1[\"Ende\"]";
+
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(nemotron, 12, "de").valid()).isTrue();
+        String canonical = SnippetDiagramSupport.canonicalizeGeneratedFlowchart(nemotron, "de");
+        assertThat(canonical).contains("decision -->|ja| success");
+        assertThat(canonical).contains("decision -->|nein| failure");
+        assertThat(canonical).contains("failure --> stop_1");
+        assertThat(canonical).doesNotContain("stop_1 -->");
+    }
+
+    @Test
+    void aQuotedRoundShapeIsAnAction() {
+        // Seen from gpt-oss-20b: `setup_start("Setup" )`, with the space before the parenthesis.
+        String rounded = """
+            flowchart TD
+                start_1(("Start"))
+                setup_start("Setup" )
+                start_1 --> setup_start --> stop_1(["Stop"])
+            """;
+
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(rounded).valid()).isTrue();
+        assertThat(SnippetDiagramSupport.canonicalizeGeneratedFlowchart(rounded)).contains("setup_start[\"Setup\"]");
+    }
+
+    @Test
+    void anUnlabelledEdgeOutOfStopIsDropped() {
+        String trailing = """
+            flowchart TD
+                start_1(["Start"]) --> work_1["Run"] --> stop_1(["Stop"]) --> work_1
+            """;
+
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(trailing).valid()).isTrue();
+        assertThat(SnippetDiagramSupport.canonicalizeGeneratedFlowchart(trailing)).doesNotContain("stop_1 -->");
+    }
+
+    @Test
     void presentationStatementsAreStrippedOnlyFromFreshAnswersNotFromPersistedDiagrams() {
         String decorated = """
             flowchart TD

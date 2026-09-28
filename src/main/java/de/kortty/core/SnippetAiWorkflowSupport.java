@@ -1831,28 +1831,41 @@ public final class SnippetAiWorkflowSupport {
         if (firstDiagram.isUsable()) {
             return firstDiagram;
         }
-        SnippetDiagramRejection category = SnippetDiagramRejection.classify(firstDiagram.rejectionReason());
-        boolean carriesDiagram = first.answer() != null && first.answer().toLowerCase(java.util.Locale.ROOT)
-            .contains(SnippetTypedDiagramSupport.header(type).toLowerCase(java.util.Locale.ROOT));
-        // Only a slip the model can fix by correcting its own diagram earns the repair round: an
-        // oversized or unsafe diagram, or a prose answer without one, is not a syntax problem.
-        if (!category.repairable() && !(category == SnippetDiagramRejection.NO_DIAGRAM && carriesDiagram)) {
-            return firstDiagram;
-        }
+        // Exactly one more request before the generic local fallback; a truncated or interrupted
+        // answer never gets here, it is thrown in attemptSnippetMermaid. What the second request asks
+        // for depends on the rejection: a syntax or structure slip in a diagram the model did write
+        // is repaired — the exact error and its own diagram go back with "fix only that" — while an
+        // oversized or unsafe diagram, or an answer without one, is requested again from scratch,
+        // naming the reason. A sampled answer can derail on its own (seen live from gpt-oss-20b via
+        // LM Studio: three nodes, then backslash and question-mark debris and no edge at all), and
+        // a second sample is usually sound.
         if (Thread.currentThread().isInterrupted() || AiCancellation.isCancelled()) {
             throw new AiCancelledException("Snippet diagram generation was cancelled.", null);
         }
-        String previous = first.mermaidValue() != null ? first.mermaidValue() : first.answer();
-        logger.info("AI diagram repair round: asking the model once more to fix its diagram [type={}, reason={}]",
-            type, firstDiagram.rejectionReason());
+        SnippetDiagramRejection category = SnippetDiagramRejection.classify(firstDiagram.rejectionReason());
+        boolean carriesDiagram = first.answer() != null && first.answer().toLowerCase(java.util.Locale.ROOT)
+            .contains(SnippetTypedDiagramSupport.header(type).toLowerCase(java.util.Locale.ROOT));
+        boolean repair = category.repairable() || (category == SnippetDiagramRejection.NO_DIAGRAM && carriesDiagram);
+        String secondInstructions;
+        if (repair) {
+            String previous = first.mermaidValue() != null ? first.mermaidValue() : first.answer();
+            secondInstructions = diagramRepairInstructions(
+                additionalInstructions, firstDiagram.rejectionReason(), previous);
+        } else {
+            secondInstructions = retryInstructions(type, additionalInstructions, firstDiagram.rejectionReason());
+        }
+        logger.info("AI diagram {} once after a rejection: {} [type={}]",
+            repair ? "repair round" : "retried from scratch", firstDiagram.rejectionReason(), type);
         DiagramAttempt second = attemptSnippetMermaid(aiService, usageRecorder, type, scopedContent,
-            snippetLanguage, connectionDisplayName, fallbackLanguageCode,
-            diagramRepairInstructions(additionalInstructions, firstDiagram.rejectionReason(), previous));
+            snippetLanguage, connectionDisplayName, fallbackLanguageCode, secondInstructions);
         SnippetAiResponseSupport.MermaidDiagram secondDiagram = checkedBySyntaxGate(second, gate, type);
         if (secondDiagram.isUsable()) {
-            logger.info("AI diagram accepted after the repair round [type={}]", type);
+            logger.info("AI diagram accepted after the second request [type={}]", type);
+            return secondDiagram;
         }
-        return secondDiagram;
+        // Both unusable: the first rejection is the one the reader can act on — the second answer
+        // is often "no diagram at all", which says nothing about what went wrong.
+        return firstDiagram;
     }
 
     /** One diagram request: the model's raw answer, its raw mermaid value, and what korTTY made of it. */
@@ -1876,6 +1889,30 @@ public final class SnippetAiWorkflowSupport {
         return SnippetAiResponseSupport.MermaidDiagram.rejected(type, reason);
     }
 
+    /**
+     * The from-scratch retry's instructions: the user's own, then the rejection reason, with the
+     * reminder of the shapes a flowchart may use. Used when the first answer carried nothing a
+     * repair could start from (no diagram, an oversized or unsafe one).
+     */
+    static String retryInstructions(
+        de.kortty.model.SnippetDiagramType type, String additionalInstructions, String rejectionReason) {
+
+        StringBuilder instructions = new StringBuilder();
+        if (additionalInstructions != null && !additionalInstructions.isBlank()) {
+            instructions.append(additionalInstructions.strip()).append("\n\n");
+        }
+        instructions.append("Your previous diagram answer was rejected");
+        if (rejectionReason != null && !rejectionReason.isBlank()) {
+            instructions.append(": ").append(rejectionReason.strip());
+        }
+        instructions.append("\nAnswer again from scratch with exactly one JSON object. Keep every label short plain text.");
+        if (type == de.kortty.model.SnippetDiagramType.LOGICAL_STRUCTURE) {
+            instructions.append(" Use only the shapes id[\"Action\"], id{\"Question?\"}, start_1([\"Start\"]) and "
+                + "stop_1([\"Stop\"]); nothing leads out of stop_1.");
+        }
+        return instructions.toString();
+    }
+
     /** The largest share of the previous answer a repair request quotes back to the model. */
     private static final int MAX_DIAGRAM_REPAIR_ECHO_CHARS = 8_000;
 
@@ -1892,7 +1929,7 @@ public final class SnippetAiWorkflowSupport {
         if (previous.length() > MAX_DIAGRAM_REPAIR_ECHO_CHARS) {
             previous = previous.substring(0, MAX_DIAGRAM_REPAIR_ECHO_CHARS) + "\n…";
         }
-        builder.append("Your previous diagram could not be used: ")
+        builder.append("Your previous diagram answer was rejected: ")
             .append(reason != null && !reason.isBlank() ? reason.strip() : "it was not valid.")
             .append("\nFix only the Mermaid syntax and the problem named above. Keep the same nodes, labels, ")
             .append("connections and codeReferences, write every label in double quotes, close every bracket, ")
