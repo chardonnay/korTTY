@@ -73,6 +73,25 @@ class PdfReportKitTest {
     }
 
     @Test
+    void wrapParagraphHardBreaksAnOverLongTokenThatOpensALine() throws Exception {
+        try (PDDocument document = new PDDocument()) {
+            Fonts fonts = PdfReportKit.loadFonts(document);
+            String url = "https://example.invalid/" + "segment/".repeat(22) + "index.html";
+            assertThat(url.length()).isAtLeast(200);
+            String text = url + " is the endpoint\n    - " + url;
+
+            List<String> lines = PdfReportKit.wrapParagraph(text, fonts.sans(), 10f, 150f);
+
+            assertThat(lines.size()).isAtLeast(4);
+            for (String line : lines) {
+                assertWithMessage("'%s'", line).that(PdfReportKit.textWidth(fonts.sans(), 10f, line)).isAtMost(150f);
+            }
+            assertThat(String.join("", lines).replace(" ", "")).contains(url.replace(" ", ""));
+            assertThat(lines.getFirst()).startsWith("https://example.invalid/");
+        }
+    }
+
+    @Test
     void prepareTextUsesFallbackFontsForSymbolsInsteadOfQuestionMarks() throws Exception {
         try (PDDocument document = new PDDocument()) {
             Fonts fonts = PdfReportKit.loadFonts(document);

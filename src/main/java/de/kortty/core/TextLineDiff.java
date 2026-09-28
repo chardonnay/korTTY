@@ -14,8 +14,9 @@ import java.util.Objects;
  * <p>The algorithm is greedy forward Myers (O(ND)) run on the middle that remains after the common
  * prefix and suffix are trimmed — AI rewrites keep most lines, so the middle is usually short.
  * Lines are interned to {@code int} ids first, so the inner loop compares integers. The trace keeps
- * one {@code V} row per edit step, which is O(D²) memory (about 4 MB at D=1000); the edit cap
- * bounds both work and memory, and a diff that needs more edits than the cap comes back as
+ * one {@code V} row per edit step, which is O(D²) memory (about 4 MB at the default cap of 1000
+ * edits, 64 MB at 4000); the edit cap bounds both work and memory, and a diff that needs more
+ * edits than the cap comes back as
  * {@link Result#tooLarge()} with the line counts only.</p>
  *
  * <p>Line endings are normalised ({@code CRLF}/{@code CR} become {@code LF}) and a trailing newline
@@ -25,7 +26,7 @@ import java.util.Objects;
 public final class TextLineDiff {
 
     public static final int DEFAULT_CONTEXT = 3;
-    public static final int DEFAULT_MAX_EDITS = 4000;
+    public static final int DEFAULT_MAX_EDITS = 1000;
 
     private TextLineDiff() {
     }

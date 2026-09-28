@@ -83,6 +83,13 @@ class AnalysisSeverityTest {
     void keysColoursAndClasses() {
         assertThat(AnalysisSeverity.HIGH.i18nKey()).isEqualTo("snippets.ai.analysis.report.severity.high");
         assertThat(AnalysisSeverity.INFO.i18nKey()).isEqualTo("snippets.ai.analysis.report.severity.info");
+        // Every key resolves to a label in the bundle rather than to the missing-key fallback.
+        for (AnalysisSeverity severity : AnalysisSeverity.values()) {
+            String label = de.kortty.ui.I18n.get(severity.i18nKey());
+            assertWithMessage(severity.name()).that(label).isNotEmpty();
+            assertWithMessage(severity.name()).that(label).isNotEqualTo(severity.i18nKey());
+            assertWithMessage(severity.name()).that(label).doesNotContain("!");
+        }
         assertThat(AnalysisSeverity.CRITICAL.cssClass()).isEqualTo("sev-critical");
         assertThat(AnalysisSeverity.MEDIUM.cssClass()).isEqualTo("sev-medium");
 

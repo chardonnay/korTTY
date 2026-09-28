@@ -307,12 +307,15 @@ public final class PdfReportKit {
         for (String rawWord : words) {
             String word = prepareText(family, rawWord);
             String candidate = currentLine.isEmpty() ? word : currentLine + " " + word;
-            if (currentLine.isEmpty() || textWidth(family, fontSize, candidate) <= maxWidth) {
+            if (textWidth(family, fontSize, candidate) <= maxWidth) {
                 currentLine = candidate;
                 continue;
             }
 
-            wrappedLines.add(currentLine);
+            if (!currentLine.isEmpty()) {
+                wrappedLines.add(currentLine);
+            }
+            // A token wider than the column is hard-broken even when it opens the line.
             if (textWidth(family, fontSize, word) <= maxWidth) {
                 currentLine = word;
                 continue;
