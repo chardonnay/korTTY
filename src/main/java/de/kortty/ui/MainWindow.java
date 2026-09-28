@@ -3473,6 +3473,8 @@ public class MainWindow {
 
     /** Shown at most once per run of the application, not once per window. */
     private static boolean guideTranslationUpdatePrompted;
+    /** The "your snippets file was moved aside" notice is shown once per run, not once per window. */
+    private static boolean snippetLoadFailureNoticeShown;
 
     /**
      * After a release that changed the guide, offers to refresh a locally translated one.
@@ -7319,10 +7321,15 @@ public class MainWindow {
     private boolean saveTerminalDraftAsSnippet(Snippet draft) throws Exception {
         SnippetManager snippetManager = app.getSnippetManager();
         Snippet snippet = copyTerminalSnippetForManager(draft);
-        ensureTerminalSnippetCategoryExists(snippetManager, snippet.getCategory());
-        snippetManager.addSnippet(snippet);
-        snippetManager.save();
-        return true;
+        // The editor runs this on a worker thread; the SnippetManager is FX-thread state (its
+        // lists are read by open dialogs and its change listeners expect FX), so mutate and save
+        // there and let any failure propagate unchanged.
+        return callOnFxThread(() -> {
+            snippetManager.ensureCategory(snippet.getCategory());
+            snippetManager.addSnippet(snippet);
+            snippetManager.save();
+            return true;
+        });
     }
 
     private Snippet copyTerminalSnippetForManager(Snippet draft) {
@@ -7341,16 +7348,6 @@ public class MainWindow {
         }
         snippet.setDiagrams(diagrams);
         return snippet;
-    }
-
-    private void ensureTerminalSnippetCategoryExists(SnippetManager snippetManager, String categoryName) {
-        if (categoryName == null || categoryName.isBlank()) {
-            return;
-        }
-        String normalized = categoryName.trim();
-        if (snippetManager.findCategoryByName(normalized).isEmpty()) {
-            snippetManager.addCategory(new SnippetCategory(normalized));
-        }
     }
 
     private <T> T callOnFxThread(Callable<T> action) throws Exception {
@@ -9308,15 +9305,47 @@ public class MainWindow {
                 if (findAndSelectToolTab("snippets") == null) {
                     hostToolTab("snippets", new SnippetManagementDialog(mgr, this), null);
                 }
-                return;
+            } else {
+                SnippetManagementDialog dialog = new SnippetManagementDialog(mgr, this);
+                dialog.initOwner(stage);
+                dialog.show();
             }
-            SnippetManagementDialog dialog = new SnippetManagementDialog(mgr, this);
-            dialog.initOwner(stage);
-            dialog.show();
+            showSnippetLoadFailureNoticeOnce(mgr);
         } catch (Exception e) {
             logger.error("Failed to open Snippet Manager", e);
             showError(I18n.get("error.title"), e.getMessage());
         }
+    }
+
+    /**
+     * Tells the user once per session where an unreadable {@code snippets.xml} /
+     * {@code snippet-variables.xml} was moved aside at startup (the manager they just opened looks
+     * empty otherwise, with no hint that nothing was lost). Non-modal, so the manager stays usable.
+     */
+    private void showSnippetLoadFailureNoticeOnce(de.kortty.core.SnippetManager mgr) {
+        if (snippetLoadFailureNoticeShown) {
+            return;
+        }
+        List<java.nio.file.Path> backups = new ArrayList<>();
+        mgr.getLoadFailureBackup().ifPresent(backups::add);
+        de.kortty.core.SnippetVariableManager variableManager = app.getSnippetVariableManager();
+        if (variableManager != null) {
+            variableManager.getLoadFailureBackup().ifPresent(backups::add);
+        }
+        if (backups.isEmpty()) {
+            return;
+        }
+        snippetLoadFailureNoticeShown = true;
+        String paths = backups.stream().map(java.nio.file.Path::toString)
+            .collect(java.util.stream.Collectors.joining("\n"));
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        DialogThemeHelper.applyTheme(alert);
+        alert.setTitle(I18n.get("snippets.loadFailed.title"));
+        alert.setHeaderText(I18n.get("snippets.loadFailed.header"));
+        alert.setContentText(I18n.get("snippets.loadFailed.content", paths));
+        alert.initOwner(stage);
+        alert.initModality(javafx.stage.Modality.NONE);
+        alert.show();
     }
 
     private void showJobScheduler() {

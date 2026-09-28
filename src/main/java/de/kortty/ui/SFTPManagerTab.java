@@ -3401,10 +3401,15 @@ public class SFTPManagerTab extends Tab {
     private boolean saveDraftAsSnippet(Snippet draft) throws Exception {
         SnippetManager snippetManager = app.getSnippetManager();
         Snippet snippet = copySnippetForManager(draft);
-        ensureSnippetCategoryExists(snippetManager, snippet.getCategory());
-        snippetManager.addSnippet(snippet);
-        snippetManager.save();
-        return true;
+        // The editor runs this on a worker thread; the SnippetManager is FX-thread state (its
+        // lists are read by open dialogs and its change listeners expect FX), so mutate and save
+        // there and let any failure propagate unchanged.
+        return callOnFxThread(() -> {
+            snippetManager.ensureCategory(snippet.getCategory());
+            snippetManager.addSnippet(snippet);
+            snippetManager.save();
+            return true;
+        });
     }
 
     private Snippet copySnippetForManager(Snippet draft) {
@@ -3423,16 +3428,6 @@ public class SFTPManagerTab extends Tab {
         }
         snippet.setDiagrams(diagramCopies);
         return snippet;
-    }
-
-    private void ensureSnippetCategoryExists(SnippetManager snippetManager, String categoryName) {
-        if (categoryName == null || categoryName.isBlank()) {
-            return;
-        }
-        String normalized = categoryName.trim();
-        if (snippetManager.findCategoryByName(normalized).isEmpty()) {
-            snippetManager.addCategory(new SnippetCategory(normalized));
-        }
     }
 
     private boolean remoteFileExists(String remotePath) {

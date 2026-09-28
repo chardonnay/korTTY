@@ -1609,6 +1609,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
         try {
             var snippetManager = KorTTYApplication.getInstance().getSnippetManager();
+            // A category typed into the editable combo must exist as a category too, or the
+            // manager's filter and every other editor would never offer it.
+            snippetManager.ensureCategory(snippet.getCategory());
             if (snippetManager.findById(snippet.getId()).isPresent()) {
                 snippetManager.updateSnippet(snippet);
             } else {

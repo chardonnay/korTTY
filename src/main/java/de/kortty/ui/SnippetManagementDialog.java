@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -132,7 +133,13 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     private final CheckBox wordWrapCheckBox;
     private final CheckBox lineNumbersCheckBox;
     private final SplitPane contentSplitPane;
-    
+    /** Refreshes table, filter and preview when anyone else saves through the shared SnippetManager. */
+    private final Consumer<SnippetManager.Change> snippetChangeListener = this::onSnippetsChanged;
+    private boolean changeListenerRegistered;
+    /** Set while this dialog saves its own change: it refreshes explicitly, so that event is skipped. */
+    private volatile boolean savingOwnChange;
+    private volatile boolean externalRefreshScheduled;
+
     public SnippetManagementDialog(SnippetManager snippetManager, MainWindow ownerWindow) {
         this.snippetManager = snippetManager;
         this.ownerWindow = ownerWindow;
@@ -415,6 +422,52 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         setResultConverter(bt -> { saveGeometry(); return null; });
         // Release the preview Monaco's native WebKit engine on close.
         setOnHidden(event -> previewArea.dispose());
+
+        // Saves from an editor window, another main window or a save-as-snippet flow arrive as
+        // SnippetManager change events; listen only while open (hosted tabs attach via
+        // onHostedAttached, since a hosted dialog never fires DIALOG_SHOWN).
+        addEventHandler(DialogEvent.DIALOG_SHOWN, event -> subscribeToSnippetChanges());
+        addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> unsubscribeFromSnippetChanges());
+    }
+
+    @Override
+    protected void onHostedAttached() {
+        subscribeToSnippetChanges();
+    }
+
+    private void subscribeToSnippetChanges() {
+        if (!changeListenerRegistered) {
+            snippetManager.addChangeListener(snippetChangeListener);
+            changeListenerRegistered = true;
+        }
+    }
+
+    private void unsubscribeFromSnippetChanges() {
+        if (changeListenerRegistered) {
+            snippetManager.removeChangeListener(snippetChangeListener);
+            changeListenerRegistered = false;
+        }
+    }
+
+    /**
+     * Runs on the saver's thread. Coalesces bursts into one FX refresh that keeps row order (a
+     * foreign save must not reshuffle the list under the user), selection and scroll position, and
+     * re-renders the preview because editors mutate the shared Snippet objects in place.
+     */
+    private void onSnippetsChanged(SnippetManager.Change change) {
+        if (savingOwnChange || externalRefreshScheduled) {
+            return;
+        }
+        externalRefreshScheduled = true;
+        Platform.runLater(() -> {
+            externalRefreshScheduled = false;
+            if (!changeListenerRegistered) {
+                return; // closed in the meantime
+            }
+            refreshTable(false);
+            refreshCategoryFilter();
+            updatePreview(snippetTable.getSelectionModel().getSelectedItem());
+        });
     }
     
     private void restoreGeometry() {
@@ -811,7 +864,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             return;
         }
         ensureUniqueSnippetName(snippet);
-        ensureCategory(snippet.getCategory());
+        snippetManager.ensureCategory(snippet.getCategory());
         if (selectedSnippet != null && Objects.equals(selectedSnippet.getId(), snippet.getId())) {
             snippetManager.updateSnippet(snippet);
         } else {
@@ -895,7 +948,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         }
         snippetManager.incrementUsage(snippet);
         saveQuietly();
-        refreshTable();
+        refreshTable(false);
         return text;
     }
 
@@ -944,7 +997,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         // Track usage
         snippetManager.incrementUsage(snippet);
         saveQuietly();
-        refreshTable();
+        refreshTable(false);
         
         return text;
     }
@@ -1204,7 +1257,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
                 sendSnippetPayloadToTerminal(terminalTab, toSend, SnippetOneLiner.isEmbeddedSupported(selected.getLanguage()));
                 snippetManager.incrementUsage(selected);
                 saveQuietly();
-                refreshTable();
+                refreshTable(false);
                 logger.info("Snippet '{}' sent to terminal with {} argument(s)", selected.getName(), input.arguments().size());
             } else {
                 showInfo(I18n.get("snippets.noTerminalOpen"));
@@ -1704,31 +1757,53 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     }
     
     // ---- Helpers ----
-    
-    private void ensureCategory(String categoryName) {
-        if (categoryName != null && !categoryName.isBlank()) {
-            if (snippetManager.findCategoryByName(categoryName).isEmpty()) {
-                snippetManager.addCategory(new SnippetCategory(categoryName));
-            }
-        }
-    }
-    
+
     private void saveAndRefresh() {
         saveQuietly();
-        refreshTable();
+        refreshTable(true);
         refreshCategoryFilter();
     }
-    
+
     private void saveQuietly() {
+        savingOwnChange = true;
         try {
             snippetManager.save();
         } catch (Exception e) {
             logger.error("Failed to save snippets", e);
+        } finally {
+            savingOwnChange = false;
         }
     }
-    
-    private void refreshTable() {
-        snippetList.setAll(sortedSnippets());
+
+    /**
+     * Re-reads the snippets into the table. Without {@code resort} surviving rows keep their
+     * position (a usage bump after copy/insert must not make the row jump away); with it the default
+     * order is re-applied. Rows are patched in place rather than replaced wholesale, and the
+     * selection is re-applied by id, so selection and scroll position survive either way.
+     */
+    private void refreshTable(boolean resort) {
+        Set<String> selectedIds = snippetTable.getSelectionModel().getSelectedItems().stream()
+                .filter(Objects::nonNull)
+                .map(Snippet::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        List<Snippet> ordered = ObservableListSync.reconcileOrder(
+                snippetList, sortedSnippets(), Snippet::getId, resort);
+        ObservableListSync.sync(snippetList, ordered, Snippet::getId);
+        if (!selectedIds.isEmpty()) {
+            List<Snippet> reselect = snippetTable.getItems().stream()
+                    .filter(s -> selectedIds.contains(s.getId()))
+                    .toList();
+            Set<Snippet> stillSelected = new HashSet<>(snippetTable.getSelectionModel().getSelectedItems());
+            if (!stillSelected.equals(new HashSet<>(reselect))) {
+                snippetTable.getSelectionModel().clearSelection();
+                for (Snippet snippet : reselect) {
+                    snippetTable.getSelectionModel().select(snippet);
+                }
+            }
+        }
+        // Cells read their values from the (possibly mutated in place) Snippet objects.
+        snippetTable.refresh();
     }
 
     /** Snippets in the default order (favorites first, then usage desc); column header clicks override this. */
@@ -1787,7 +1862,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
                 saveQuietly();
                 list.setItems(FXCollections.observableArrayList(snippetManager.getOperatingSystems()));
                 addField.clear();
-                refreshTable();
+                refreshTable(false);
             }
         };
         addButton.setOnAction(e -> addAction.run());
@@ -1799,7 +1874,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
                 snippetManager.removeOperatingSystem(selected);
                 saveQuietly();
                 list.setItems(FXCollections.observableArrayList(snippetManager.getOperatingSystems()));
-                refreshTable();
+                refreshTable(false);
             }
         });
         HBox addRow = new HBox(6, addField, addButton);

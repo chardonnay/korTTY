@@ -20,6 +20,17 @@ public class ThemeAwareDialog<R> extends Dialog<R> {
 
     void setHostTab(DialogHostTab hostTab) {
         this.hostTab = hostTab;
+        if (hostTab != null) {
+            onHostedAttached();
+        }
+    }
+
+    /**
+     * Called once when this dialog's pane has been adopted by a {@link DialogHostTab}. A hosted
+     * dialog is never shown, so {@code setOnShown}/{@code DIALOG_SHOWN} never fire; subclasses that
+     * start work "when opened" (subscriptions, focus) do it here as well.
+     */
+    protected void onHostedAttached() {
     }
 
     /** Whether this dialog's pane is embedded as a main-window tab instead of an own window. */

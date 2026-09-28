@@ -377,48 +377,97 @@ public class KorTTYApplication extends Application {
             // Load configuration
             configManager.load(masterPasswordManager.getDerivedKey());
             
-            // Load GPG keys, credentials, and SSH keys
+            // Load the per-feature stores one by one: a corrupt file in one of them must not skip
+            // the unrelated managers behind it (the shared try block used to do exactly that).
             try {
                 gpgKeyManager.load();
+            } catch (Exception e) {
+                logger.warn("Failed to load GPG keys", e);
+            }
+            try {
                 credentialManager.load();
+            } catch (Exception e) {
+                logger.warn("Failed to load credentials", e);
+            }
+            try {
                 sshKeyManager.load();
+            } catch (Exception e) {
+                logger.warn("Failed to load SSH keys", e);
+            }
+            try {
                 snippetManager.load();
+            } catch (Exception e) {
+                logger.warn("Failed to load snippets", e);
+            }
+            try {
                 snippetVariableManager.load();
+            } catch (Exception e) {
+                logger.warn("Failed to load snippet variables", e);
+            }
+            try {
                 aiChatManager.load();
+            } catch (Exception e) {
+                logger.warn("Failed to load AI chats", e);
+            }
+            try {
                 swarmChatManager.load();
-                // Reload global settings to ensure we have the latest version
-                // Note: This reload should preserve the language setting from the file
+            } catch (Exception e) {
+                logger.warn("Failed to load AI swarm chats", e);
+            }
+            // Reload global settings to ensure we have the latest version
+            // Note: This reload should preserve the language setting from the file
+            try {
                 globalSettingsManager.load();
                 AppDesignStyleSupport.initializeGlobalStyling(
                     globalSettingsManager.getSettings().getAppDesign());
+            } catch (Exception e) {
+                logger.warn("Failed to reload global settings", e);
+            }
+            try {
                 themeManager.load();
-                
+            } catch (Exception e) {
+                logger.warn("Failed to load themes", e);
+            }
+
+            // getSettings() never returns null: a failed reload keeps the settings loaded earlier.
+            GlobalSettings loadedSettings = globalSettingsManager.getSettings();
+            try {
                 // Re-initialize language manager with the loaded settings
                 // This ensures the language from the saved settings is applied
-                GlobalSettings loadedSettings = globalSettingsManager.getSettings();
                 logger.info("Re-initializing language manager with language: '{}'", loadedSettings.getLanguage());
                 de.kortty.core.LanguageManager.getInstance().initialize(loadedSettings);
                 applyLoggingSettings();
                 applyPersistedPowerManagementSetting(loadedSettings);
+            } catch (Exception e) {
+                logger.warn("Failed to apply the loaded global settings (language, logging, power management)", e);
+            }
 
-                // Sync the bundled AI skill catalog into the settings (add new, auto-update
-                // unmodified built-ins). Must never prevent startup.
-                try {
-                    de.kortty.core.BuiltinAiSkillProvisioner.provision(globalSettingsManager);
-                } catch (Exception e) {
-                    logger.warn("Failed to provision built-in AI skills", e);
-                }
+            // Sync the bundled AI skill catalog into the settings (add new, auto-update
+            // unmodified built-ins). Must never prevent startup.
+            try {
+                de.kortty.core.BuiltinAiSkillProvisioner.provision(globalSettingsManager);
+            } catch (Exception e) {
+                logger.warn("Failed to provision built-in AI skills", e);
+            }
 
-
-                // Sync ConfigurationManager with persisted terminal settings
-                // so that all components reading from configManager see the saved values
+            // Sync ConfigurationManager with persisted terminal settings
+            // so that all components reading from configManager see the saved values
+            try {
                 ConnectionSettings savedTermSettings = loadedSettings.getDefaultTerminalSettings();
                 if (savedTermSettings != null) {
                     configManager.setGlobalSettings(new ConnectionSettings(savedTermSettings));
                 }
-                
-                // Initialize BackupManager after settings are loaded
+            } catch (Exception e) {
+                logger.warn("Failed to apply the persisted terminal settings", e);
+            }
+
+            // Initialize BackupManager after settings are loaded
+            try {
                 backupManager = new BackupManager(getConfigDirectory(), globalSettingsManager.getSettings());
+            } catch (Exception e) {
+                logger.warn("Failed to initialize the backup manager", e);
+            }
+            try {
                 jobSchedulerService = new JobSchedulerService(this, getConfigDirectory());
                 jobSchedulerService.load();
                 schedulerPowerStateListener = this::syncSchedulerPowerState;
@@ -426,7 +475,7 @@ public class KorTTYApplication extends Application {
                 syncSchedulerPowerState();
                 jobSchedulerService.start();
             } catch (Exception e) {
-                logger.warn("Failed to load GPG keys or credentials", e);
+                logger.warn("Failed to start the job scheduler", e);
             }
 
             // RAG startup reconciliation is independent of credentials, snippets, and scheduler
