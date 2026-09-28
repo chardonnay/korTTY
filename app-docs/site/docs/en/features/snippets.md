@@ -277,7 +277,8 @@ The **Export** menu in the analysis panel saves the stored analysis as a self-co
 
 - **Before applying** — The analysis as it stands: summary, findings grouped into Security, Optimization and Design (most severe first), dependencies, the flow diagram, and which findings are ticked for applying. Each finding carries its ID, its severity and the analysed code around its line.
 - **After applying** — One report per apply run (with several runs, pick the run: newest first, with date and outcome). It adds the run's outcome (accepted, partially applied, proposed and still awaiting review, rejected, failed), the AI profile, duration, token usage, retries, work items and hardening options, a status for every finding (applied, not selected, not reached, unconfirmed, rejected, failed), the AI's reason for each change, and the changes to the script as a coloured diff. When a later analysis of the applied code exists, a **Verification** section lists which findings were resolved, which are still present and which are new — matched by title and text similarity, so treat it as a guide. The entry is disabled until the analysis has an apply run.
-- **Include the full script** — Appends the analysed script (before applying) or the resulting script (after applying). The choice is remembered, as is the folder of the last export.
+- **Append the full script to the report** — Off by default, so a long script does not bloat the PDF. When switched on, the report appends the analysed script (before applying) or the resulting script (after applying). The choice is remembered, as is the folder of the last export.
+- **Analysed script as plain text…** / **Final script as plain text…** — Saves just the script, unchanged, as its own file. The name keeps the snippet's extension (for example `deploy.final.sh`). The final script is offered per apply run; the entry is disabled when the text was not stored.
 
 Each report is available in four formats:
 

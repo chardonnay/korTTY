@@ -60,6 +60,8 @@ final class SnippetAnalysisExportController {
     static final String BEFORE_MENU_ID = "snippet-analysis-export-before";
     static final String AFTER_MENU_ID = "snippet-analysis-export-after";
     static final String INCLUDE_CODE_ID = "snippet-analysis-export-include-code";
+    static final String ANALYSED_SCRIPT_ID = "snippet-analysis-export-analysed-script";
+    static final String FINAL_SCRIPT_ID = "snippet-analysis-export-final-script";
     static final String THREAD_NAME = "snippet-analysis-export";
 
     private static final Logger logger = LoggerFactory.getLogger(SnippetAnalysisExportController.class);
@@ -167,6 +169,9 @@ final class SnippetAnalysisExportController {
         Menu before = new Menu(I18n.get("snippets.ai.analysis.export.before"));
         before.setId(BEFORE_MENU_ID);
         before.getItems().setAll(formatItems(SnippetAnalysisReport.Kind.PRE_APPLY, null));
+        before.getItems().addAll(new SeparatorMenuItem(),
+            scriptItem(ANALYSED_SCRIPT_ID, "snippets.ai.analysis.export.analysedScript",
+                subject != null ? analysedScript(subject.record()) : null, subject, false));
         before.setDisable(subject == null);
 
         Menu after = new Menu(I18n.get("snippets.ai.analysis.export.after"));
@@ -178,12 +183,14 @@ final class SnippetAnalysisExportController {
             after.getItems().setAll(new MenuItem(I18n.get("snippets.ai.analysis.export.after.unavailable")));
         } else if (runs.size() == 1) {
             after.getItems().setAll(formatItems(SnippetAnalysisReport.Kind.POST_APPLY, runs.getFirst().id()));
+            after.getItems().addAll(new SeparatorMenuItem(), finalScriptItem(subject, runs.getFirst()));
         } else {
             List<MenuItem> perRun = new ArrayList<>();
             for (int index = runs.size() - 1; index >= 0; index--) {
                 ApplyRun run = runs.get(index);
                 Menu runMenu = new Menu(runLabel(index + 1, run));
                 runMenu.getItems().setAll(formatItems(SnippetAnalysisReport.Kind.POST_APPLY, run.id()));
+                runMenu.getItems().addAll(new SeparatorMenuItem(), finalScriptItem(subject, run));
                 perRun.add(runMenu);
             }
             after.getItems().setAll(perRun);
@@ -223,6 +230,96 @@ final class SnippetAnalysisExportController {
             items.add(item);
         }
         return items;
+    }
+
+    private MenuItem finalScriptItem(ExportSubject subject, ApplyRun run) {
+        return scriptItem(FINAL_SCRIPT_ID, "snippets.ai.analysis.export.finalScript",
+            finalScript(run, subject != null ? subject.currentContent() : null), subject, true);
+    }
+
+    /**
+     * A plain-text export of the script itself — kept separate from the reports so a long script
+     * never has to be appended to a PDF just to take it along. Disabled when the text was not stored.
+     */
+    private MenuItem scriptItem(String id, String labelKey, String script, ExportSubject subject, boolean post) {
+        MenuItem item = new MenuItem(I18n.get(labelKey));
+        item.setId(id);
+        item.setDisable(script == null);
+        item.setOnAction(event -> exportScript(subject, script, post));
+        return item;
+    }
+
+    /** The analysed text, when the record stored it (it is dropped above the content cap). */
+    static String analysedScript(SnippetAnalysisRecord record) {
+        if (record == null || record.source() == null) {
+            return null;
+        }
+        String content = record.source().content();
+        return content != null && !content.isEmpty() ? content : null;
+    }
+
+    /**
+     * The script an apply run produced: its stored result, or — for an accepted run whose result
+     * text was not kept — the editor content when it is still exactly what was accepted.
+     */
+    static String finalScript(ApplyRun run, String currentContent) {
+        if (run == null) {
+            return null;
+        }
+        if (run.resultContent() != null && !run.resultContent().isEmpty()) {
+            return run.resultContent();
+        }
+        String accepted = run.acceptedContentSha256();
+        if (currentContent != null && accepted != null && !accepted.isBlank()
+                && accepted.equals(de.kortty.core.SnippetDiagramSupport.contentHash(currentContent))) {
+            return currentContent;
+        }
+        return null;
+    }
+
+    /** Saves {@code script} as-is to a file the user picks; the name keeps the snippet's own extension. */
+    private void exportScript(ExportSubject subject, String script, boolean post) {
+        if (script == null || disposed) {
+            return;
+        }
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle(I18n.get(post ? "snippets.ai.analysis.export.finalScript"
+            : "snippets.ai.analysis.export.analysedScript"));
+        chooser.setInitialFileName(scriptFileName(subject != null ? subject.snippetName() : null, post));
+        chooser.getExtensionFilters().add(
+            new FileChooser.ExtensionFilter(I18n.get("snippets.ai.analysis.export.file.text"), "*.*"));
+        File directory = rememberedDirectory();
+        if (directory != null) {
+            chooser.setInitialDirectory(directory);
+        }
+        File chosen = chooser.showSaveDialog(owner.get());
+        if (chosen == null || disposed) {
+            return;
+        }
+        Path target = chosen.toPath();
+        try {
+            de.kortty.core.AtomicFileWriter.writeStringAtomically(target, script);
+            rememberDirectory(target);
+            sink.show(I18n.get("snippets.ai.analysis.export.success", target.getFileName().toString()), true, target);
+        } catch (Exception e) {
+            logger.warn("Script export to {} failed", target, e);
+            sink.show(I18n.get("snippets.ai.analysis.export.failed",
+                e.getMessage() != null ? e.getMessage() : "?"), false, null);
+        }
+    }
+
+    /** "deploy.sh" → "deploy.final.sh" / "deploy.analysed.sh"; a name without extension gets ".txt". */
+    static String scriptFileName(String snippetName, boolean post) {
+        String raw = snippetName != null ? snippetName.strip() : "";
+        String safe = raw.replaceAll("[^\\p{L}\\p{N}._-]+", "_").replaceAll("^[._]+|[._]+$", "");
+        if (safe.isBlank()) {
+            safe = "script";
+        }
+        String suffix = post ? ".final" : ".analysed";
+        int dot = safe.lastIndexOf('.');
+        return dot > 0 && dot < safe.length() - 1
+            ? safe.substring(0, dot) + suffix + safe.substring(dot)
+            : safe + suffix + ".txt";
     }
 
     private static String runLabel(int number, ApplyRun run) {
