@@ -35,7 +35,59 @@ final class SnippetAnalysisHtmlWriter {
     private record TocEntry(String anchor, String title, List<TocEntry> children) {
     }
 
+    /**
+     * The pieces of one rendered report: {@code main} is everything inside {@code <main>} (header,
+     * contents, sections), {@code footer} and {@code watermark} may be empty.
+     */
+    record Parts(String title, String main, String footer, String watermark) {
+    }
+
     static String render(SnippetAnalysisReport report, ExportOptions options, RasterizedDiagram diagram) {
+        Parts parts = parts(report, options, diagram);
+        return "<!doctype html><html lang=\"" + esc(options.locale().toLanguageTag()) + "\"><head><meta charset=\"UTF-8\">"
+            + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+            + "<meta name=\"generator\" content=\"korTTY\">"
+            + "<title>" + esc(parts.title()) + "</title><style>" + css()
+            + "</style></head><body>" + parts.watermark() + "<main>" + parts.main() + "</main>" + parts.footer()
+            + "</body></html>\n";
+    }
+
+    /**
+     * One report as an {@code <article>} for a combined document: every anchor and in-page link is
+     * prefixed with {@code prefix}, so several reports can share one page.
+     */
+    static String renderArticle(SnippetAnalysisReport report, ExportOptions options, RasterizedDiagram diagram,
+                                String prefix) {
+        String main = parts(report, options, diagram).main();
+        String prefixed = main.replace(" id=\"", " id=\"" + prefix + "-").replace("href=\"#", "href=\"#" + prefix + "-");
+        return "<article class=\"report\" id=\"" + prefix + "\">" + prefixed + "</article>";
+    }
+
+    /** The page footer for {@code options}' branding (empty when switched off). */
+    static String footer(ExportOptions options) {
+        ExportBranding branding = options.branding() != null ? options.branding() : ExportBranding.defaults();
+        StringBuilder footer = new StringBuilder();
+        if (branding.footerEnabled()) {
+            footer.append("<footer>").append(esc(branding.footerText()));
+            if (branding.footerUsesDefaultText()) {
+                footer.append(" · <a href=\"").append(ExportBranding.REPOSITORY_URL).append("\">")
+                    .append(esc(ExportBranding.REPOSITORY_URL)).append("</a>");
+            }
+            footer.append("</footer>");
+        }
+        return footer.toString();
+    }
+
+    /** The watermark for {@code options}' branding (empty when switched off). */
+    static String watermark(ExportOptions options) {
+        ExportBranding branding = options.branding() != null ? options.branding() : ExportBranding.defaults();
+        return branding.watermarkEnabled()
+            ? "<div class=\"watermark\" style=\"color:" + ExportBranding.toHex(branding.watermarkColor()) + "\">"
+                + esc(branding.watermarkText()) + "</div>"
+            : "";
+    }
+
+    static Parts parts(SnippetAnalysisReport report, ExportOptions options, RasterizedDiagram diagram) {
         List<TocEntry> toc = new ArrayList<>();
         StringBuilder body = new StringBuilder();
 
@@ -152,18 +204,6 @@ final class SnippetAnalysisHtmlWriter {
             body.append("</section>");
         }
 
-        // ---- footer ----
-        ExportBranding branding = options.branding() != null ? options.branding() : ExportBranding.defaults();
-        StringBuilder footer = new StringBuilder();
-        if (branding.footerEnabled()) {
-            footer.append("<footer>").append(esc(branding.footerText()));
-            if (branding.footerUsesDefaultText()) {
-                footer.append(" · <a href=\"").append(ExportBranding.REPOSITORY_URL).append("\">")
-                    .append(esc(ExportBranding.REPOSITORY_URL)).append("</a>");
-            }
-            footer.append("</footer>");
-        }
-
         StringBuilder nav = new StringBuilder("<nav class=\"toc\"><h2>").append(esc(r("contents"))).append("</h2><ol>");
         for (TocEntry entry : toc) {
             nav.append("<li><a href=\"#").append(entry.anchor()).append("\">").append(esc(entry.title())).append("</a>");
@@ -179,17 +219,9 @@ final class SnippetAnalysisHtmlWriter {
         }
         nav.append("</ol></nav>");
 
-        String watermark = branding.watermarkEnabled()
-            ? "<div class=\"watermark\" style=\"color:" + ExportBranding.toHex(branding.watermarkColor()) + "\">"
-                + esc(branding.watermarkText()) + "</div>"
-            : "";
         int headerEnd = body.indexOf("</section>") + "</section>".length();
-        return "<!doctype html><html lang=\"" + esc(options.locale().toLanguageTag()) + "\"><head><meta charset=\"UTF-8\">"
-            + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-            + "<meta name=\"generator\" content=\"korTTY\">"
-            + "<title>" + esc(SnippetAnalysisReportText.documentTitle(report)) + "</title><style>" + css()
-            + "</style></head><body>" + watermark + "<main>" + body.substring(0, headerEnd) + nav
-            + body.substring(headerEnd) + "</main>" + footer + "</body></html>\n";
+        return new Parts(SnippetAnalysisReportText.documentTitle(report),
+            body.substring(0, headerEnd) + nav + body.substring(headerEnd), footer(options), watermark(options));
     }
 
     // ---- sections ----
@@ -592,7 +624,7 @@ final class SnippetAnalysisHtmlWriter {
         return out.toString();
     }
 
-    private static String css() {
+    static String css() {
         StringBuilder css = new StringBuilder();
         css.append("*{box-sizing:border-box}")
             .append("body{margin:0;background:#fff;color:#1f2937;font-family:-apple-system,'Segoe UI',Roboto,")

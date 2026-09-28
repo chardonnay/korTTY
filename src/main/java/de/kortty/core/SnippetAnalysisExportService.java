@@ -213,6 +213,30 @@ public final class SnippetAnalysisExportService {
     }
 
     /**
+     * Exports the reports of several snippets as one combined file or a ZIP with one report each;
+     * see {@link SnippetAnalysisBatchExport}. Blocking, off the JavaFX thread.
+     *
+     * @throws FileAlreadyExistsException when a combined Markdown export would replace a diagram
+     *                                    image and {@code options.overwriteAssets()} is false
+     * @throws java.util.concurrent.CancellationException when {@code cancelled} turned true
+     */
+    public SnippetAnalysisBatchExport.Result exportBatch(Path target, Format format,
+                                                         SnippetAnalysisBatchExport.Packaging packaging,
+                                                         List<SnippetAnalysisBatchExport.Item> items,
+                                                         List<SnippetAnalysisBatchExport.Skipped> skipped,
+                                                         ExportOptions options,
+                                                         SnippetAnalysisBatchExport.Progress progress,
+                                                         java.util.function.BooleanSupplier cancelled) throws IOException {
+        ExportOptions safe = options != null ? options : ExportOptions.defaults();
+        if (safe.branding() == null) {
+            safe = new ExportOptions(safe.includeFullCode(), safe.overwriteAssets(), safe.locale(), safe.zone(),
+                safe.exportedAt(), brandingOverride != null ? brandingOverride : resolveBranding());
+        }
+        return SnippetAnalysisBatchExport.export(rasterizer, target, format, packaging, items, skipped, safe,
+            progress, cancelled);
+    }
+
+    /**
      * The files an export writes next to {@code target}: for Markdown with a stored diagram the PNG
      * {@code <base>.diagram.png}; nothing for the other formats.
      */

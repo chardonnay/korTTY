@@ -545,6 +545,56 @@ public final class SnippetWorkspaceSmoke {
                 SnippetEditorTab active = (SnippetEditorTab) workspace.editorTabPane().getSelectionModel().getSelectedItem();
                 check(active != null && active.snippetId().equals(gamma.getId()), "the chosen snippet is pinned and active");
             })
+            .then(50, "batch export: the library exports the selected snippets' analyses", () -> {
+                var selection = workspace.library().table().getSelectionModel();
+                selection.clearSelection();
+                selection.select(alpha);
+                selection.select(beta);
+                selection.select(gamma);
+                check(workspace.library().table().getContextMenu().getItems().stream()
+                        .anyMatch(item -> SnippetLibraryPane.BATCH_EXPORT_ITEM_ID.equals(item.getId())),
+                    "the library's context menu offers the batch export");
+                SnippetAnalysisBatchExportDialog dialog = workspace.library().exportAnalysisReports();
+                check(dialog != null, "a selection opens the batch export");
+                workspace.getDialogPane().getProperties().put("smoke.batch", dialog);
+            })
+            .then(400, "batch export writes one combined HTML page and names the skipped snippet", () -> {
+                SnippetAnalysisBatchExportDialog dialog =
+                    (SnippetAnalysisBatchExportDialog) workspace.getDialogPane().getProperties().get("smoke.batch");
+                check(dialog.isLoaded(), "the stored analyses must be looked up");
+                Path target = isolatedHome.resolve("batch-export.html");
+                AtomicReference<de.kortty.core.SnippetAnalysisBatchExport.Result> finished = new AtomicReference<>();
+                dialog.setOnFinishedForTesting(finished::set);
+                dialog.exportTo(target, de.kortty.core.SnippetAnalysisExportService.Format.HTML,
+                    de.kortty.core.SnippetAnalysisBatchExport.Packaging.COMBINED, false);
+                check(dialog.isRunning(), "the export runs in the background");
+                workspace.getDialogPane().getProperties().put("smoke.batchResult", finished);
+                workspace.getDialogPane().getProperties().put("smoke.batchTarget", target);
+            })
+            .then(1500, "batch export result", () -> {
+                SnippetAnalysisBatchExportDialog dialog =
+                    (SnippetAnalysisBatchExportDialog) workspace.getDialogPane().getProperties().get("smoke.batch");
+                @SuppressWarnings("unchecked")
+                AtomicReference<de.kortty.core.SnippetAnalysisBatchExport.Result> finished =
+                    (AtomicReference<de.kortty.core.SnippetAnalysisBatchExport.Result>)
+                        workspace.getDialogPane().getProperties().get("smoke.batchResult");
+                Path target = (Path) workspace.getDialogPane().getProperties().get("smoke.batchTarget");
+                check(!dialog.isRunning() && finished.get() != null, "the export must finish: " + dialog.resultText());
+                check(finished.get().exported() == 2, "alpha and gamma have analyses, got " + finished.get().exported());
+                check(finished.get().skipped().size() == 1
+                        && finished.get().skipped().getFirst().snippetName().equals("beta.sh"),
+                    "beta has no analysis and is skipped");
+                String html;
+                try {
+                    html = Files.readString(target);
+                } catch (java.io.IOException e) {
+                    throw new IllegalStateException(e);
+                }
+                check(html.contains("alpha.sh") && html.contains("gamma.sh") && html.contains("beta.sh"),
+                    "the page lists both reports and the skipped snippet");
+                check(!dialog.resultText().isBlank(), "the dialog reports the result");
+                dialog.close();
+            })
             .then(50, "several dirty editors: one bulk answer", () -> {
                 workspace.openSnippetById(gamma.getId(), true);
                 check(workspace.openEditorCount() == 2, "gamma must be pinned");

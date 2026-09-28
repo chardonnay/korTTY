@@ -993,6 +993,13 @@
 <li><strong>Markdown</strong> — A <code>.md</code> file with escaped text, a status table and the diff as a <code>diff</code> block. The diagram is written both as a <code>mermaid</code> block — which GitHub and GitLab render — and as a PNG next to the report. If that PNG already exists, korTTY asks before replacing it.</li>
 <li><strong>JSON</strong> — The complete report as structured data (schema <code>kortty.snippetAnalysisReport/1</code>) for other tools.</li>
 </ul>
+<p><strong>Export the reports of several snippets:</strong></p>
+<p>Select snippets in the library, right-click and choose <strong>Export analysis reports…</strong>. The dialog says how many of them have a stored analysis and names the ones that will be skipped because they have none. Choose the format — <strong>PDF</strong>, <strong>HTML</strong>, <strong>Markdown</strong> or <strong>JSON</strong> — and the output:</p>
+<ul>
+<li><strong>One combined file</strong> — <strong>PDF</strong>: a cover with a linked table of contents (one line per snippet with its page, followed by the skipped snippets), then each snippet's report as its own chapter with its own bookmarks entry. <strong>HTML</strong>: one self-contained page with a table of contents and one section per snippet, diagrams embedded as images. <strong>Markdown</strong>: one <code>.md</code> file with a section per snippet; each diagram is written as a PNG next to it (<code>&lt;name&gt;.01-diagram.png</code>, …) and as a <code>mermaid</code> block, and korTTY asks before replacing existing images. <strong>JSON</strong>: an array with one report per snippet, each in the single-report schema.</li>
+<li><strong>ZIP archive with one report per snippet</strong> — Each report as its own file in the chosen format (Markdown with its diagram PNG), numbered in selection order, plus <code>skipped.txt</code> listing the snippets without an analysis.</li>
+</ul>
+<p>Each snippet contributes its current analysis: the report after its newest accepted apply run when there is one (a verification made after it is included), otherwise the report before applying. <strong>Append the full script to the report</strong> works as in the single export. The export runs in the background with a progress bar and <strong>Cancel</strong> (a cancelled export writes nothing); when it is done, the dialog shows how many reports were written, with <strong>Open</strong> and <strong>Show in folder</strong>.</p>
 <h4 id="security-check">Security Check<a class="headerlink" href="#security-check" title="Permanent link">&para;</a></h4>
 <p>The <strong>Security Check</strong> report window lists each finding with a colour-coded severity badge (findings are sorted most-severe first). From this window you can:</p>
 <ul>

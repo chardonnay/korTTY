@@ -308,6 +308,15 @@ Each report is available in four formats:
 - **Markdown** — A `.md` file with escaped text, a status table and the diff as a `diff` block. The diagram is written both as a `mermaid` block — which GitHub and GitLab render — and as a PNG next to the report. If that PNG already exists, korTTY asks before replacing it.
 - **JSON** — The complete report as structured data (schema `kortty.snippetAnalysisReport/1`) for other tools.
 
+**Export the reports of several snippets:**
+
+Select snippets in the library, right-click and choose **Export analysis reports…**. The dialog says how many of them have a stored analysis and names the ones that will be skipped because they have none. Choose the format — **PDF**, **HTML**, **Markdown** or **JSON** — and the output:
+
+- **One combined file** — **PDF**: a cover with a linked table of contents (one line per snippet with its page, followed by the skipped snippets), then each snippet's report as its own chapter with its own bookmarks entry. **HTML**: one self-contained page with a table of contents and one section per snippet, diagrams embedded as images. **Markdown**: one `.md` file with a section per snippet; each diagram is written as a PNG next to it (`<name>.01-diagram.png`, …) and as a `mermaid` block, and korTTY asks before replacing existing images. **JSON**: an array with one report per snippet, each in the single-report schema.
+- **ZIP archive with one report per snippet** — Each report as its own file in the chosen format (Markdown with its diagram PNG), numbered in selection order, plus `skipped.txt` listing the snippets without an analysis.
+
+Each snippet contributes its current analysis: the report after its newest accepted apply run when there is one (a verification made after it is included), otherwise the report before applying. **Append the full script to the report** works as in the single export. The export runs in the background with a progress bar and **Cancel** (a cancelled export writes nothing); when it is done, the dialog shows how many reports were written, with **Open** and **Show in folder**.
+
 #### Security Check
 
 The **Security Check** report window lists each finding with a colour-coded severity badge (findings are sorted most-severe first). From this window you can:

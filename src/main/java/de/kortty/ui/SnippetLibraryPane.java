@@ -181,6 +181,7 @@ final class SnippetLibraryPane extends BorderPane {
     // ---- Analysis overview (status column + filter), loaded off the FX thread ----
     static final String ANALYSIS_COLUMN_ID = "analysisStatus";
     static final String ANALYSIS_FILTER_ID = "snippet-library-analysis-filter";
+    static final String BATCH_EXPORT_ITEM_ID = "snippet-library-export-reports";
     private final SnippetAnalysisStore analysisStore;
     private final Map<String, SnippetAnalysisOverview> analysisOverviews = new HashMap<>();
     private final Set<String> overviewRequested = new HashSet<>();
@@ -976,6 +977,9 @@ final class SnippetLibraryPane extends BorderPane {
         favItem.setOnAction(e -> toggleFavorite());
         MenuItem exportItem = new MenuItem("\uD83D\uDCE4 " + I18n.get("snippets.export"));
         exportItem.setOnAction(e -> exportSnippets());
+        MenuItem exportReportsItem = new MenuItem(I18n.get("snippets.batchExport.menu"));
+        exportReportsItem.setId(BATCH_EXPORT_ITEM_ID);
+        exportReportsItem.setOnAction(e -> exportAnalysisReports());
         menu.getItems().addAll(
                 editItem,
                 deleteItem,
@@ -984,7 +988,7 @@ final class SnippetLibraryPane extends BorderPane {
                 new SeparatorMenuItem(),
                 copyItem, insertEditorItem, insertTerminalItem, insertTerminalWithParamsItem,
                 new SeparatorMenuItem(),
-                favItem, exportItem
+                favItem, exportItem, exportReportsItem
         );
         menu.setOnShowing(e -> {
             ObservableList<Snippet> selected = snippetTable.getSelectionModel().getSelectedItems();
@@ -1001,8 +1005,21 @@ final class SnippetLibraryPane extends BorderPane {
             insertTerminalWithParamsItem.setDisable(!hasSingle);
             favItem.setDisable(!hasSelection || policyManaged);
             exportItem.setDisable(!hasSelection && snippetList.isEmpty());
+            exportReportsItem.setDisable(!hasSelection);
         });
         return menu;
+    }
+
+    /** Right-click → "Export analysis reports…": the stored analyses of the selected snippets. */
+    SnippetAnalysisBatchExportDialog exportAnalysisReports() {
+        List<Snippet> selected = new ArrayList<>(snippetTable.getSelectionModel().getSelectedItems());
+        if (selected.isEmpty()) {
+            return null;
+        }
+        SnippetAnalysisBatchExportDialog dialog = new SnippetAnalysisBatchExportDialog(ownerWindow(), selected,
+            analysisStore);
+        dialog.show();
+        return dialog;
     }
 
     private static boolean anyPolicyManaged(List<Snippet> snippets) {
