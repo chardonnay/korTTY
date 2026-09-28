@@ -1933,7 +1933,7 @@ class SnippetAiWorkflowSupportTest {
                 null);
 
         assertThat(diagram.isUsable()).isFalse();
-        assertThat(aiService.executionCount).isEqualTo(1);
+        assertThat(aiService.executionCount).isEqualTo(2);
     }
 
     @Test
@@ -1993,7 +1993,7 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
-    void mermaidRequestRejectsLoggedStyleOverDetailedChainWithoutRetry() throws Exception {
+    void mermaidRequestRejectsLoggedStyleOverDetailedChainAfterOneRetry() throws Exception {
         StringBuilder mermaid = new StringBuilder("flowchart TD\n    start_1([\"Start\"])\n");
         JsonArray references = new JsonArray();
         for (int index = 1; index <= 40; index++) {
@@ -2032,7 +2032,7 @@ class SnippetAiWorkflowSupportTest {
         assertThat(diagram.isUsable()).isFalse();
         assertThat(diagram.rejectionReason())
             .contains("at most 12 non-terminal nodes for this snippet (36 tolerated), but 40 were declared");
-        assertThat(aiService.executionCount).isEqualTo(1);
+        assertThat(aiService.executionCount).isEqualTo(2);
     }
 
     @Test
@@ -2179,6 +2179,64 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
+    void aNemotronChainThroughStopIsAcceptedEndToEnd() throws Exception {
+        // Seen live from Nvidia Nemotron via LM Studio: the answer used to be rejected for
+        // "stop_1 must not have an outgoing edge" and replaced by the generic local fallback.
+        String answer = """
+            {
+              "title": "Serverauslastung Logischer Ablauf",
+              "mermaid": "flowchart TD\\nstart_1[\\"Start\\"] --> setup[\\"Setup: Konstanten definieren\\"] --> work[\\"Work: Load Average abrufen\\"] --> decision{ \\"Load verfügbar?\\" } -->|yes| success[\\"Success: Aktuelle Werte drucken\\"] --> stop_1[\\"Stop\\"] -->|no| failure[\\"Failure: Warnung, keine Daten\\"] --> stop_1\\nwork --> decision{ \\"CPU mpstat verfügbar?\\" } -->|yes| success --> stop_1 -->|no| failure --> stop_1\\nsuccess --> work --> decision{ \\"Historische Daten vorhanden?\\" } -->|yes| success --> stop_1 -->|no| failure --> stop_1\\nfailure --> stop_1\\nstop_1[\\"Ende\\"]",
+              "codeReferences": [
+                {"nodeId": "setup", "label": "Setup: Konstanten definieren", "startLine": 13, "endLine": 17},
+                {"nodeId": "work", "label": "Work: Load Average abrufen", "startLine": 20, "endLine": 28},
+                {"nodeId": "success", "label": "Success: Aktuelle Werte drucken", "startLine": 96, "endLine": 127},
+                {"nodeId": "failure", "label": "Failure: Warnung, keine Daten", "startLine": 20, "endLine": 28}
+              ]
+            }""";
+
+        SnippetAiResponseSupport.MermaidDiagram diagram = SnippetAiWorkflowSupport.generateSnippetMermaid(
+            new CapturingAiService(answer), null, "echo line\n".repeat(130), "bash", null, "de", null);
+
+        assertThat(diagram.rejectionReason()).isNull();
+        assertThat(diagram.isUsable()).isTrue();
+        assertThat(diagram.mermaid()).contains("decision -->|nein| failure");
+        assertThat(diagram.mermaid()).doesNotContain("stop_1 -->");
+    }
+
+    @Test
+    void aDerailedDiagramAnswerIsRetriedOnceWithTheRejectionReason() throws Exception {
+        // Seen live from gpt-oss-20b via LM Studio: three nodes, then debris and no edge at all.
+        String derailed = "{\"title\":\"Serverauslastung\",\"mermaid\":\"flowchart TD\\nstart_1((\\\"Start\\\"))"
+            + "\\nstop_1((\\\"Stop\\\"))\\nsetup_start(\\\"Setup\\\" )\\nwork?1(\\\"Ausgabe ??..\\\\?\\\\i\\\\k..\"}";
+        String sound = "{\"title\": \"Runtime flow\", \"mermaid\": \"flowchart TD\\n"
+            + "start_1([\\\"Start\\\"]) --> work_1[\\\"Run\\\"] --> stop_1([\\\"Stop\\\"])\"}";
+        SequencedCapturingAiService service = new SequencedCapturingAiService(derailed, sound);
+
+        SnippetAiResponseSupport.MermaidDiagram diagram = SnippetAiWorkflowSupport.generateSnippetMermaid(
+            service, null, "line\n".repeat(40), "plain", null, "de", null);
+
+        assertThat(diagram.isUsable()).isTrue();
+        assertThat(diagram.mermaid()).contains("work_1 --> stop_1");
+        assertThat(service.requests).hasSize(2);
+        assertThat(service.requests.get(1).userPrompt()).contains("Your previous diagram answer was rejected");
+    }
+
+    @Test
+    void aDiagramRejectedTwiceKeepsTheFirstReason() throws Exception {
+        String backwardStart = "{\"title\": \"Runtime flow\", \"mermaid\": \"flowchart TD\\n"
+            + "start_1([\\\"Start\\\"]) --> work_1[\\\"Run\\\"]\\n"
+            + "work_1 --> stop_1([\\\"Stop\\\"])\\nstart_1 --> work_1 --> start_1\"}";
+        SequencedCapturingAiService service = new SequencedCapturingAiService(backwardStart, "no diagram at all");
+
+        SnippetAiResponseSupport.MermaidDiagram diagram = SnippetAiWorkflowSupport.generateSnippetMermaid(
+            service, null, "line\n".repeat(40), "plain", null, "en", null);
+
+        assertThat(diagram.isUsable()).isFalse();
+        assertThat(diagram.rejectionReason()).contains("start_1");
+        assertThat(service.requests).hasSize(2);
+    }
+
+    @Test
     void aRejectedDiagramAnswerIsArchivedWhole() throws Exception {
         // A rejection names one broken rule and the log carries only its first line; whether the
         // grammar could learn the shorthand the model wrote is decidable on the whole answer alone.
@@ -2187,7 +2245,7 @@ class SnippetAiWorkflowSupportTest {
         java.nio.file.Path logDirectory = java.nio.file.Files.createTempDirectory("kortty-diagram-archive");
         String answer = "{\"title\": \"Runtime flow\", \"mermaid\": \"flowchart TD\\n"
             + "start_1([\\\"Start\\\"]) --> work_1[\\\"Run\\\"]\\n"
-            + "work_1 --> stop_1([\\\"Stop\\\"])\\nstop_1 --> work_1\\n"
+            + "work_1 --> stop_1([\\\"Stop\\\"])\\nstart_1 --> work_1 --> start_1\\n"
             + "class start_1,stop_1 setup\\nclass work_1 work\"}";
         try {
             System.setProperty(LoggingConfiguration.LOG_DIR_PROPERTY, logDirectory.toString());
@@ -2197,11 +2255,12 @@ class SnippetAiWorkflowSupportTest {
                 new CapturingAiService(answer), null, "line\n".repeat(40), "plain", null, "en", null);
 
             assertThat(diagram.isUsable()).isFalse();
-            assertThat(diagram.rejectionReason()).contains("stop_1");
+            assertThat(diagram.rejectionReason()).contains("start_1");
             java.nio.file.Path archive = logDirectory.resolve(AiAnswerArchive.DIRECTORY_NAME);
             try (java.util.stream.Stream<java.nio.file.Path> files = java.nio.file.Files.list(archive)) {
                 java.util.List<java.nio.file.Path> archived = files.toList();
-                assertThat(archived).hasSize(1);
+                // The rejected answer and the rejected retry, each kept whole.
+                assertThat(archived).hasSize(2);
                 assertThat(archived.get(0).getFileName().toString()).contains("generate-snippet-mermaid-rejected-diagram");
                 assertThat(java.nio.file.Files.readString(archived.get(0))).isEqualTo(answer);
             }
@@ -2263,7 +2322,7 @@ class SnippetAiWorkflowSupportTest {
         assertThat(diagram.rejectionReason()).contains("would drop");
         assertThat(diagram.rejectionReason()).contains("edges");
         assertThat(messages.stream().filter(message -> message.startsWith("AI diagram accepted"))).isEmpty();
-        assertThat(messages.stream().filter(message -> message.startsWith("AI diagram rejected"))).hasSize(1);
+        assertThat(messages.stream().filter(message -> message.startsWith("AI diagram rejected"))).hasSize(2);
     }
 
     @Test
@@ -2297,7 +2356,7 @@ class SnippetAiWorkflowSupportTest {
         // JSON complaint the reader cannot act on.
         assertThat(diagram.isUsable()).isFalse();
         assertThat(diagram.rejectionReason()).contains("(36 tolerated), but 40 were declared");
-        assertThat(aiService.executionCount).isEqualTo(1);
+        assertThat(aiService.executionCount).isEqualTo(2);
     }
 
     @Test
@@ -2351,7 +2410,7 @@ class SnippetAiWorkflowSupportTest {
 
         assertThat(diagram.isUsable()).isFalse();
         assertThat(diagram.rejectionReason()).contains("no JSON object");
-        assertThat(aiService.executionCount).isEqualTo(1);
+        assertThat(aiService.executionCount).isEqualTo(2);
     }
 
     @Test
