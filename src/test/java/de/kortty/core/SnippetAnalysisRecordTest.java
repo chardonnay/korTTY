@@ -154,6 +154,26 @@ public class SnippetAnalysisRecordTest {
     }
 
     @Test
+    public void verificationKeepsTheAnalysisItVerifiesEvenAtLimitOne() {
+        SnippetAnalysisRecord analysed = SnippetAnalysisTestData.simpleRecord("r1", "snip-1", 1000L);
+        SnippetAnalysisRecord verify = SnippetAnalysisRecord.fromAnalysis("r2", "snip-1",
+            SnippetAnalysisTestData.analysis(),
+            SnippetAnalysisRecord.Source.of(SnippetAnalysisTestData.RESULT, "bash", "en", "en", "demo"),
+            SnippetAnalysisRecord.Provenance.EMPTY, SnippetAnalysisRecord.Purpose.VERIFY, "r1", 2000L);
+        SnippetAnalysisHistory history = SnippetAnalysisHistory.empty("snip-1")
+            .withNewCurrent(analysed, 1).withNewCurrent(verify, 1);
+        assertThat(history.records().stream().map(SnippetAnalysisRecord::id).toList())
+            .containsExactly("r2", "r1").inOrder();
+
+        SnippetAnalysisRecord rerun = SnippetAnalysisRecord.fromAnalysis("r3", "snip-1",
+            SnippetAnalysisTestData.analysis(),
+            SnippetAnalysisRecord.Source.of(SnippetAnalysisTestData.RESULT, "bash", "en", "en", "demo"),
+            SnippetAnalysisRecord.Provenance.EMPTY, SnippetAnalysisRecord.Purpose.RERUN, "r2", 3000L);
+        assertThat(history.withNewCurrent(rerun, 1).records().stream().map(SnippetAnalysisRecord::id).toList())
+            .containsExactly("r3");
+    }
+
+    @Test
     public void onlyTheNewestRunsKeepTheirContent() {
         SnippetAnalysisRecord record = SnippetAnalysisTestData.simpleRecord("r", "s", 1L);
         for (int i = 0; i < SnippetAnalysisRecord.MAX_RUNS_WITH_CONTENT + 2; i++) {

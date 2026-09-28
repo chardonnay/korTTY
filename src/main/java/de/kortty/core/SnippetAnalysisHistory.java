@@ -149,7 +149,8 @@ public record SnippetAnalysisHistory(
     /**
      * Prepends {@code record} as the new current record and applies retention: while more than
      * {@code limit} records exist, the oldest record that is neither the new one nor
-     * {@linkplain SnippetAnalysisRecord#isProtectedFromRetention() protected} is dropped. Retention
+     * {@linkplain SnippetAnalysisRecord#isProtectedFromRetention() protected} (nor, for a
+     * {@link SnippetAnalysisRecord.Purpose#VERIFY} record, the analysis it verifies) is dropped. Retention
      * runs only here, when a new analysis arrives, never on any other change.
      */
     public SnippetAnalysisHistory withNewCurrent(SnippetAnalysisRecord record, int limit) {
@@ -162,8 +163,11 @@ public record SnippetAnalysisHistory(
             }
         }
         int max = Math.max(1, limit);
+        // A verification is only meaningful next to the analysis it verified: keep that one too.
+        String verified = record.purpose() == SnippetAnalysisRecord.Purpose.VERIFY ? record.previousRecordId() : null;
         for (int i = next.size() - 1; i >= 1 && next.size() > max; i--) {
-            if (!next.get(i).isProtectedFromRetention()) {
+            SnippetAnalysisRecord candidate = next.get(i);
+            if (!candidate.isProtectedFromRetention() && !candidate.id().equals(verified)) {
                 next.remove(i);
             }
         }
