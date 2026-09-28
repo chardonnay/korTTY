@@ -37,6 +37,7 @@ authored in **English Markdown** (`docs/en/**`, the source of truth). German
 | `app-docs/screenshots/<area>/*.png` | Live UI screenshots |
 | `app-docs/doc-manifest.yaml` | **The contract**: page ↔ code ↔ i18n ↔ visuals |
 | `scripts/build-docs-site.py` | Builds the offline bilingual site into `build/guide` |
+| `scripts/translate_docs.py` · `translate_benchmark.py` | Generate `docs/de` (`--backend google\|lmstudio\|libretranslate`) · benchmark a translation model — see update-docs step 10 |
 | `scripts/sync-version.py` · `doc-coverage.py` · `doc-links.py` · `external-api-check.py` | Validators |
 | `README.adoc` | Stays AsciiDoc — the GitHub repo landing page |
 

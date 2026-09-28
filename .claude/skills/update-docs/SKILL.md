@@ -121,6 +121,23 @@ for a second look costs one diff; a dead ref costs every future check.
 .venv-docs/bin/python scripts/translate_docs.py
 ```
 
+Always `git diff --numstat -- app-docs/site/docs/de` afterwards: only the pages whose English changed (plus anchor-only rewrites) may move.
+
+**Backends.** `--backend google` (default, deep_translator) can be rate-limited (`TooManyRequests`, google.com/sorry). `--backend lmstudio` uses a local OpenAI-compatible server (LM Studio on `http://localhost:1234/v1`, `--base-url` to change) with `--model` (default `openai/gpt-oss-20b`), `--concurrency N` parallel requests and `--batch-lines N` lines per request; `--concurrency 8 --batch-lines 4` was fastest for gpt-oss-20b with the model loaded as `lms load openai/gpt-oss-20b -c 16384 --parallel 8`. The prompt carries the formal "Sie" register, the placeholder rules and, per request, the German UI labels (`messages_de.properties`) and glossary terms (`i18n/glossary/de.json`) that occur in the lines. `--backend libretranslate` posts to a LibreTranslate server's `/translate` (`LIBRETRANSLATE_API_KEY` if required; untested in CI).
+
+**Useful options.** `--changed-since <ref>` translates only pages whose English changed since `ref`; `--dry-run` prints how many lines each page would send; `--memory-from-git` rebuilds the line memory from the English version the committed German page was generated from — use it on a branch that edited English over several commits without regenerating German (HEAD's English is then no longer line-aligned and every line would be re-translated), e.g. `.venv-docs/bin/python scripts/translate_docs.py --backend lmstudio --concurrency 8 --batch-lines 4 --memory-from-git --changed-since $(git merge-base HEAD origin/main)`.
+
+**Failures are not cached.** A line whose placeholders do not survive is retried once, then translated fragment by fragment; a line nothing can translate keeps its English text, is listed as FAILED, the run exits 1, and the page is not marked done — re-run the same command to retry only those lines. Recurring wrong wording belongs in `src/main/resources/i18n/glossary/de.json` (shared with the runtime translator; longer terms first), not in hand edits of `docs/de`.
+
+**Choosing a model.** `scripts/translate_benchmark.py` runs a fixed sample of ~110 guide lines (`scripts/translate_benchmark_samples.json`, references = the committed German) through the same pipeline and reports load/warm-up time, wall time, lines/min, latency (mean/median/p95), tokens/s, first-pass placeholder survival, UI-term adherence, chrF++ against the reference, failures, and the extrapolated time for this branch's changed lines and for a full re-translation. Reports land in `build/translate-benchmark/<timestamp>-<model>.{md,json}`:
+
+```bash
+.venv-docs/bin/python scripts/translate_benchmark.py --backend lmstudio \
+    --model openai/gpt-oss-20b --model qwen/qwen3-4b-2507 --concurrency 8 --batch-lines 4
+```
+
+A model that is not loaded is loaded with `lms load` (timed; `--context-length`, `--unload-after`, `--no-load`). chrF++ measures closeness to the current, machine-translated German, so a better translation of a weak reference can score lower — read the lowest-scoring lines in the report. Regenerate the sample file only deliberately (`--make-fixture`), or results stop being comparable.
+
 ## Output
 Summarize: dirty pages touched, new/removed keys, diagrams/screenshots refreshed,
 new release-notes bullets, and the new `last_synced_ref`.
