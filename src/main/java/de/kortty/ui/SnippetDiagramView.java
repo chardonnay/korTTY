@@ -23,6 +23,9 @@ import javafx.scene.control.Slider;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.FlowPane;
@@ -183,6 +186,17 @@ final class SnippetDiagramView extends VBox {
     private long generationStartedNanos;
     /** Also runs on Stop: the owner cancels a shared generation job the view only holds a copy of. */
     private Runnable stopHandler;
+    /** The source currently shown, for a zoom window that must show the same diagram without the AI. */
+    private DiagramSource currentSource;
+    /** Opens the shown diagram in the zoom window; {@code null} hides the button and the click. */
+    private Runnable expandHandler;
+    private final Button expandButton = new Button("⤢ " + I18n.get("snippets.ai.diagram.zoomWindow.open"));
+    private final Button actualSizeButton = new Button(I18n.get("snippets.ai.diagram.zoom.actualSize"));
+    /** Where the last diagram HTML placed the image, for telling a hotspot click from a diagram click. */
+    private double lastImageLeft;
+    private double lastImageTop;
+    private double lastScaleX = 1.0;
+    private double lastScaleY = 1.0;
 
     SnippetDiagramView(Supplier<CompletableFuture<DiagramSource>> diagramSupplier, boolean showRegenerate) {
         this(diagramSupplier, showRegenerate, null);
@@ -213,6 +227,25 @@ final class SnippetDiagramView extends VBox {
         diagramScroll.setVisible(false);
         diagramScroll.setManaged(false);
         diagramScroll.viewportBoundsProperty().addListener((obs, oldValue, newValue) -> renderDiagramToFitViewport());
+        // Ctrl/Cmd + mouse wheel zooms, as in every image viewer; a plain wheel still scrolls.
+        diagramScroll.addEventFilter(ScrollEvent.SCROLL, event -> {
+            if (event.isShortcutDown() && renderedSvg != null && event.getDeltaY() != 0) {
+                if (event.getDeltaY() > 0) {
+                    zoomIn();
+                } else {
+                    zoomOut();
+                }
+                event.consume();
+            }
+        });
+        // A click on the diagram — not on a code-reference hotspot, and not the end of a drag that
+        // panned it — opens it in the zoom window.
+        diagramView.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
+            if (expandHandler != null && renderedSvg != null && event.getButton() == MouseButton.PRIMARY
+                && event.isStillSincePress() && !isOnHotspot(event.getX(), event.getY())) {
+                expandHandler.run();
+            }
+        });
         zoomRenderTrailer.setOnFinished(event -> {
             if (!disposed) {
                 lastZoomRenderNanos = System.nanoTime();
@@ -263,6 +296,7 @@ final class SnippetDiagramView extends VBox {
         cancelRender();
         renderedSvg = null;
         renderedPng = null;
+        expandButton.setDisable(true);
         currentHotspots = List.of();
         setNotice(null);
         diagramScroll.setVisible(false);
@@ -314,6 +348,7 @@ final class SnippetDiagramView extends VBox {
         cancelRender();
         renderedSvg = null;
         renderedPng = null;
+        expandButton.setDisable(true);
         currentHotspots = List.of();
         setNotice(null);
         diagramScroll.setVisible(false);
@@ -327,11 +362,13 @@ final class SnippetDiagramView extends VBox {
         cancelSource();
         cancelRender();
         currentMermaid = null;
+        currentSource = null;
         currentContent = "";
         currentSourceReferences = List.of();
         currentHotspots = List.of();
         renderedSvg = null;
         renderedPng = null;
+        expandButton.setDisable(true);
         setNotice(null);
         diagramScroll.setVisible(false);
         diagramScroll.setManaged(false);
@@ -380,6 +417,7 @@ final class SnippetDiagramView extends VBox {
         currentDiagramType = source.diagramType();
         currentSourceReferences = source.codeReferences() != null ? List.copyOf(source.codeReferences()) : List.of();
         setNotice(source.notice(), source.noticeDetail());
+        currentSource = source;
         renderAsync(true);
     }
 
@@ -409,6 +447,73 @@ final class SnippetDiagramView extends VBox {
             sourceFuture = null;
         }
         stopElapsed();
+    }
+
+    /**
+     * Makes the rendered diagram open in a larger window: a click on the diagram and the
+     * "Enlarge" button run {@code handler}. {@code null} removes both.
+     */
+    void setExpandHandler(Runnable handler) {
+        this.expandHandler = handler;
+        setShown(expandButton, handler != null);
+        // No tooltip over the whole diagram: it would cover the code-reference tooltips of the
+        // nodes. The hint goes to assistive technology, the button carries the visible one.
+        diagramScroll.setAccessibleHelp(handler != null ? I18n.get("snippets.ai.diagram.zoomWindow.clickHint") : null);
+    }
+
+    /** The button that opens the zoom window (tests). */
+    Button expandButton() {
+        return expandButton;
+    }
+
+    /** Shows the "100 %" button beside Fit — the zoom window has room for it. */
+    void showActualSizeButton() {
+        setShown(actualSizeButton, true);
+    }
+
+    /** The source currently shown, or {@code null} before the first diagram arrived. */
+    DiagramSource currentSource() {
+        return currentSource;
+    }
+
+    /** One zoom step in, like the + button. */
+    void zoomIn() {
+        setZoomFactor(zoomFactor + 0.15);
+    }
+
+    /** One zoom step out, like the − button. */
+    void zoomOut() {
+        setZoomFactor(zoomFactor - 0.15);
+    }
+
+    /** Back to the size that shows the whole diagram, like Fit. */
+    void zoomToFit() {
+        setZoomFactor(1.0);
+    }
+
+    /** The diagram at its natural size, one diagram pixel per screen pixel (as far as the zoom range allows). */
+    void zoomToActualSize() {
+        Bounds viewport = diagramScroll.getViewportBounds();
+        if (viewport.getWidth() <= 1.0 || viewport.getHeight() <= 1.0 || baseWidth <= 0 || baseHeight <= 0) {
+            return;
+        }
+        double fitZoom = Math.min(viewport.getWidth() / baseWidth, viewport.getHeight() / baseHeight);
+        if (fitZoom > 0) {
+            setZoomFactor(1.0 / fitZoom);
+        }
+    }
+
+    /** Whether the point (in the diagram view's own coordinates) lies on a code-reference hotspot. */
+    private boolean isOnHotspot(double x, double y) {
+        for (SvgHotspot hotspot : currentHotspots) {
+            double left = lastImageLeft + hotspot.x() * lastScaleX;
+            double top = lastImageTop + hotspot.y() * lastScaleY;
+            if (x >= left && x <= left + hotspot.width() * lastScaleX
+                && y >= top && y <= top + hotspot.height() * lastScaleY) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Runs on Stop in addition to dropping the view's own request; {@code null} removes it. */
@@ -488,6 +593,7 @@ final class SnippetDiagramView extends VBox {
         }
         renderedSvg = result.svg();
         renderedPng = result.png();
+        expandButton.setDisable(false);
         if (resetZoom) {
             applyZoomFactor(1.0);
         }
@@ -584,6 +690,10 @@ final class SnippetDiagramView extends VBox {
         double imageTop = Math.max(0.0, (canvasHeight - displayHeight) / 2.0);
         double scaleX = displayWidth / Math.max(1.0, baseWidth);
         double scaleY = displayHeight / Math.max(1.0, baseHeight);
+        lastImageLeft = imageLeft;
+        lastImageTop = imageTop;
+        lastScaleX = scaleX;
+        lastScaleY = scaleY;
         return "<!doctype html><html><head><meta charset=\"UTF-8\">"
             + "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'\">"
             + "<style>html,body{margin:0;width:" + fmt(canvasWidth) + "px;height:" + fmt(canvasHeight)
@@ -659,19 +769,31 @@ final class SnippetDiagramView extends VBox {
         copyMermaid.setOnAction(event -> copyMermaid());
         Button zoomOut = new Button("−");
         zoomOut.setTooltip(new Tooltip(I18n.get("menu.view.zoomOut")));
-        zoomOut.setOnAction(event -> setZoomFactor(zoomFactor - 0.15));
+        zoomOut.setOnAction(event -> zoomOut());
         Button zoomFit = new Button(I18n.get("snippets.ai.diagram.zoom.fit"));
-        zoomFit.setOnAction(event -> setZoomFactor(1.0));
+        zoomFit.setOnAction(event -> zoomToFit());
         Button zoomIn = new Button("+");
         zoomIn.setTooltip(new Tooltip(I18n.get("menu.view.zoomIn")));
-        zoomIn.setOnAction(event -> setZoomFactor(zoomFactor + 0.15));
+        zoomIn.setOnAction(event -> zoomIn());
+        actualSizeButton.setTooltip(new Tooltip(I18n.get("snippets.ai.diagram.zoom.actualSize.tooltip")));
+        actualSizeButton.setOnAction(event -> zoomToActualSize());
+        setShown(actualSizeButton, false);
+        expandButton.setId("snippet-diagram-expand");
+        expandButton.setTooltip(new Tooltip(I18n.get("snippets.ai.diagram.zoomWindow.open.tooltip")));
+        expandButton.setOnAction(event -> {
+            if (expandHandler != null) {
+                expandHandler.run();
+            }
+        });
+        expandButton.setDisable(true);
+        setShown(expandButton, false);
         buildZoomSlider();
         zoomLabel.setMinWidth(Region.USE_PREF_SIZE);
         // One box, so the wrapping toolbar never puts the slider on a row of its own with the
         // button that belongs beside it left behind on the previous one.
-        HBox zoomBox = new HBox(6, zoomOut, zoomSlider, zoomIn, zoomLabel, zoomFit);
+        HBox zoomBox = new HBox(6, zoomOut, zoomSlider, zoomIn, zoomLabel, zoomFit, actualSizeButton);
         zoomBox.setAlignment(Pos.CENTER_LEFT);
-        toolbar.getChildren().addAll(saveSvg, savePng, copyImage, copyMermaid, zoomBox);
+        toolbar.getChildren().addAll(saveSvg, savePng, copyImage, copyMermaid, zoomBox, expandButton);
         return toolbar;
     }
 

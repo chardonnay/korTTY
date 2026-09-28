@@ -224,6 +224,10 @@ final class SnippetAnalysisController {
 
         /** An external file or a policy-managed snippet: its analyses are never written to disk. */
         boolean isTransientSnippet();
+
+        /** Selects and reveals the given 1-based line range in the editor (a diagram's code reference). */
+        default void navigateToCode(int startLine, int endLine) {
+        }
     }
 
     /** The one apply run of this editor that is in flight. */
@@ -288,6 +292,8 @@ final class SnippetAnalysisController {
     private boolean updatingHistoryCombo;
     private List<String> renderedHistoryLabels = List.of();
     private StackPane contentHolder;
+    /** The analysis diagram, large; one per editor, closed with it. */
+    private SnippetDiagramZoomWindow zoomWindow;
     private VBox progressHolder;
     private Button applyButton;
     private Button plainRerunButton;
@@ -397,6 +403,7 @@ final class SnippetAnalysisController {
             activeRun = null;
         }
         disposed = true;
+        closeDiagramZoomWindow();
         analysisElapsedTicker.stop();
         if (analysisTask != null && !analysisTask.isDone()) {
             analysisTask.cancel(true);
@@ -2008,6 +2015,7 @@ final class SnippetAnalysisController {
                 ? record.selection().codeTextLanguageCode()
                 : host.codeTextFallbackLanguageCode());
         panel.diagramView().setStopHandler(() -> cancelDiagramJob(recordId));
+        panel.diagramView().setExpandHandler(() -> openDiagramZoomWindow(panel.diagramView().currentSource()));
         panel.setExportSubjectSupplier(() -> exportSubject(recordId));
         panel.setExportListener((kind, runId, format, file) -> {
             boolean after = kind == SnippetAnalysisReport.Kind.POST_APPLY;
@@ -2051,6 +2059,42 @@ final class SnippetAnalysisController {
             panel.diagramView().loadIfNeeded();
         } else {
             panel.startDiagramIfAutoEnabled();
+        }
+    }
+
+    /**
+     * Opens the shown analysis diagram in its zoom window — or brings the open one to the front
+     * with this diagram. The window is owned by the editor's current window (a window or the main
+     * window when the editor is a tab); after the editor moved, the next open re-creates it there.
+     * It renders the cached source offline and never asks the AI again.
+     */
+    void openDiagramZoomWindow(SnippetDiagramView.DiagramSource source) {
+        if (disposed || source == null) {
+            return;
+        }
+        javafx.stage.Window owner = contentHolder != null && contentHolder.getScene() != null
+            ? contentHolder.getScene().getWindow() : null;
+        if (zoomWindow != null && (!zoomWindow.isShowing() || zoomWindow.getOwner() != owner)) {
+            zoomWindow.close();
+            zoomWindow = null;
+        }
+        if (zoomWindow == null) {
+            zoomWindow = new SnippetDiagramZoomWindow(owner,
+                target -> host.navigateToCode(target.startLine(), target.endLine()));
+        }
+        zoomWindow.showDiagram(source);
+        trackAction("code_review_diagram_zoom", Map.of());
+    }
+
+    /** The zoom window, while it exists (tests). */
+    SnippetDiagramZoomWindow diagramZoomWindow() {
+        return zoomWindow;
+    }
+
+    private void closeDiagramZoomWindow() {
+        if (zoomWindow != null) {
+            zoomWindow.close();
+            zoomWindow = null;
         }
     }
 

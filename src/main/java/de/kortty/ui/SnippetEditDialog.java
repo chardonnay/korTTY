@@ -8399,6 +8399,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             return externalFileActionConfig != null
                 || existingSnippet != null && existingSnippet.isPolicyManaged();
         }
+
+        @Override
+        public void navigateToCode(int startLine, int endLine) {
+            navigateToDiagramCodeReference(new SnippetDiagramDialog.CodeNavigationTarget(startLine, endLine));
+        }
     }
 
     /**

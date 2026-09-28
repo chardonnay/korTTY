@@ -3824,6 +3824,14 @@ tasks.register<JavaExec>("snippetAiDialogsSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("snippetDiagramZoomSmoke") {
+    group = "verification"
+    description = "Opens the Full-code-analysis diagram in its zoom window by clicking it and via the Enlarge button, checks the keyboard zoom, that the AI is not asked again, and that the window closes with the editor."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SnippetDiagramZoomWindowSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("asciiArtDialogSmoke") {
     group = "verification"
     description = "Builds the ASCII Art dialog owner-less, fills both previews (FIGlet banner, locally rendered AI picture), exercises the copy-format row and snapshots the pane to build/smoke/ascii-art-*.png."
