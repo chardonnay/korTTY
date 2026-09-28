@@ -2,6 +2,7 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiTokenUsage;
+import de.kortty.core.AnalysisRunFormatting;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.SnippetAiWorkflowSupport;
 import de.kortty.core.WorkflowScriptSupport;
@@ -36,7 +37,6 @@ import javafx.util.Duration;
 import java.text.NumberFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -375,15 +375,7 @@ final class SnippetAiApplyProgressWindow {
 
     /** "Tokens: 1,204 prompt / 388 completion / 1,592 total", or the honest "not reported". */
     static String tokenSummaryText(AiTokenUsage usage) {
-        if (usage == null) {
-            return I18n.get("snippets.ai.analysis.progress.tokens",
-                I18n.get("snippets.ai.analysis.progress.tokensUnavailable"));
-        }
-        NumberFormat format = NumberFormat.getIntegerInstance();
-        return I18n.get("snippets.ai.analysis.progress.summary.tokens",
-            format.format(usage.promptTokens()),
-            format.format(usage.completionTokens()),
-            format.format(usage.totalTokens()));
+        return AnalysisRunFormatting.tokenSummary(usage);
     }
 
     /**
@@ -501,13 +493,7 @@ final class SnippetAiApplyProgressWindow {
 
     /** {@code mm:ss}, growing to {@code h:mm:ss} only once the run actually passed an hour. */
     static String formatDuration(long seconds) {
-        long safe = Math.max(0L, seconds);
-        long hours = safe / 3_600L;
-        long minutes = (safe % 3_600L) / 60L;
-        long remaining = safe % 60L;
-        return hours > 0
-            ? String.format(Locale.ROOT, "%d:%02d:%02d", hours, minutes, remaining)
-            : String.format(Locale.ROOT, "%02d:%02d", minutes, remaining);
+        return AnalysisRunFormatting.formatDuration(seconds);
     }
 
     private void refreshTokens(AiTokenUsage usage) {

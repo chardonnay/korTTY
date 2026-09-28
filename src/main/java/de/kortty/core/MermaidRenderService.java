@@ -67,22 +67,56 @@ public final class MermaidRenderService {
         DARK
     }
 
+    /**
+     * @param rasterScale canvas pixels per SVG unit for the PNG; 1 is the on-screen default, the
+     *                    report exports ask for 2 so the diagram prints sharp. Clamped to
+     *                    [{@value #MIN_RASTER_SCALE}, {@value #MAX_RASTER_SCALE}]; the host page
+     *                    still caps the raster at 16 megapixels.
+     */
     public record RenderRequest(
         String source,
         Theme theme,
         String backgroundColor,
         boolean includePng,
-        SnippetDiagramType generatedType) {
+        SnippetDiagramType generatedType,
+        double rasterScale) {
+
+        public static final double MIN_RASTER_SCALE = 1.0;
+        public static final double MAX_RASTER_SCALE = 3.0;
 
         public RenderRequest {
             source = source != null ? source : "";
             theme = theme != null ? theme : Theme.LIGHT;
             backgroundColor = normalizeBackground(backgroundColor, theme);
+            rasterScale = normalizeRasterScale(rasterScale);
+        }
+
+        /** The pre-{@code rasterScale} shape: renders the PNG at 1 canvas pixel per SVG unit. */
+        public RenderRequest(
+            String source,
+            Theme theme,
+            String backgroundColor,
+            boolean includePng,
+            SnippetDiagramType generatedType) {
+
+            this(source, theme, backgroundColor, includePng, generatedType, MIN_RASTER_SCALE);
         }
 
         /** True for the AI-generated snippet path, which validates against a restricted dialect. */
         public boolean generated() {
             return generatedType != null;
+        }
+
+        public RenderRequest withRasterScale(double rasterScale) {
+            return new RenderRequest(source, theme, backgroundColor, includePng, generatedType, rasterScale);
+        }
+
+        /** NaN and non-positive values mean "unspecified" and fall back to 1. */
+        private static double normalizeRasterScale(double rasterScale) {
+            if (Double.isNaN(rasterScale) || rasterScale <= 0) {
+                return MIN_RASTER_SCALE;
+            }
+            return Math.max(MIN_RASTER_SCALE, Math.min(MAX_RASTER_SCALE, rasterScale));
         }
 
         public static RenderRequest generatedFlow(
@@ -244,7 +278,8 @@ public final class MermaidRenderService {
             request.theme(),
             request.backgroundColor(),
             request.includePng(),
-            request.generatedType());
+            request.generatedType(),
+            request.rasterScale());
         return Holder.INSTANCE.enqueueRender(styled);
     }
 
@@ -434,7 +469,8 @@ public final class MermaidRenderService {
                     request.source(),
                     request.theme() == Theme.DARK,
                     request.backgroundColor(),
-                    request.includePng());
+                    request.includePng(),
+                    request.rasterScale());
             }
         } catch (RuntimeException e) {
             logger.warn("Could not dispatch Mermaid request", e);

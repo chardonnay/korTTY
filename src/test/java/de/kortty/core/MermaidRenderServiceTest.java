@@ -120,6 +120,40 @@ class MermaidRenderServiceTest {
     }
 
     @Test
+    void rasterScaleDefaultsToOneAndIsClamped() {
+        // The five-argument shape every existing caller uses renders at 1 pixel per SVG unit.
+        MermaidRenderService.RenderRequest legacy = new MermaidRenderService.RenderRequest(
+            "flowchart TD\nA-->B", MermaidRenderService.Theme.LIGHT, "#FFFFFF", true, null);
+        assertThat(legacy.rasterScale()).isEqualTo(1.0);
+        assertThat(MermaidRenderService.RenderRequest.chat("flowchart TD\nA-->B", MermaidRenderService.Theme.DARK)
+            .rasterScale()).isEqualTo(1.0);
+        assertThat(MermaidRenderService.RenderRequest.generatedFlow(
+            "flowchart TD\nA-->B", MermaidRenderService.Theme.LIGHT, "#FFFFFF", true).rasterScale())
+            .isEqualTo(1.0);
+
+        MermaidRenderService.RenderRequest sharp = legacy.withRasterScale(2.0);
+        assertThat(sharp.rasterScale()).isEqualTo(2.0);
+        assertThat(sharp.source()).isEqualTo(legacy.source());
+        assertThat(sharp.theme()).isEqualTo(legacy.theme());
+        assertThat(sharp.backgroundColor()).isEqualTo(legacy.backgroundColor());
+        assertThat(sharp.includePng()).isEqualTo(legacy.includePng());
+        assertThat(sharp.generatedType()).isEqualTo(legacy.generatedType());
+        // The original is untouched; the request stays a value.
+        assertThat(legacy.rasterScale()).isEqualTo(1.0);
+
+        assertThat(legacy.withRasterScale(0.5).rasterScale()).isEqualTo(1.0);
+        assertThat(legacy.withRasterScale(0).rasterScale()).isEqualTo(1.0);
+        assertThat(legacy.withRasterScale(-3).rasterScale()).isEqualTo(1.0);
+        assertThat(legacy.withRasterScale(Double.NaN).rasterScale()).isEqualTo(1.0);
+        assertThat(legacy.withRasterScale(Double.NEGATIVE_INFINITY).rasterScale()).isEqualTo(1.0);
+        assertThat(legacy.withRasterScale(7).rasterScale()).isEqualTo(3.0);
+        assertThat(legacy.withRasterScale(Double.POSITIVE_INFINITY).rasterScale()).isEqualTo(3.0);
+        assertThat(legacy.withRasterScale(1.5).rasterScale()).isEqualTo(1.5);
+        assertThat(new MermaidRenderService.RenderRequest(
+            "flowchart TD\nA-->B", null, null, true, null, 2.5).rasterScale()).isEqualTo(2.5);
+    }
+
+    @Test
     void renderResultDefensivelyCopiesPng() {
         byte[] png = {1, 2, 3};
         MermaidRenderService.RenderResult result = new MermaidRenderService.RenderResult(
