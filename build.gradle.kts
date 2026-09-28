@@ -271,7 +271,7 @@ val jpackageExecutable = packagingJavaLauncher.map { launcher ->
 // runs as part of `test` on macOS, and verifyJpackageStaging re-checks the staged jars at packaging.
 val javaFxVersion = "21.0.12"
 val javaFxJsObjectVersion = "25.0.2"
-val atlantaFxVersion = "2.1.0"
+val atlantaFxVersion = "3.0.0"
 val javaFxPlatform = when {
     isWindows -> "win"
     isMac && System.getProperty("os.arch", "").lowercase() in setOf("aarch64", "arm64") -> "mac-aarch64"
