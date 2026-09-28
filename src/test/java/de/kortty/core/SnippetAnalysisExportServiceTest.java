@@ -108,13 +108,13 @@ class SnippetAnalysisExportServiceTest {
 
     private static String pdfText(Path pdf) throws IOException {
         try (PDDocument document = Loader.loadPDF(pdf.toFile())) {
-            return new PDFTextStripper().getText(document);
+            return lfStripper().getText(document);
         }
     }
 
     private static List<String> pageTexts(PDDocument document) throws IOException {
         List<String> pages = new ArrayList<>();
-        PDFTextStripper stripper = new PDFTextStripper();
+        PDFTextStripper stripper = lfStripper();
         for (int page = 1; page <= document.getNumberOfPages(); page++) {
             stripper.setStartPage(page);
             stripper.setEndPage(page);
@@ -145,7 +145,7 @@ class SnippetAnalysisExportServiceTest {
         try (PDDocument document = Loader.loadPDF(pdf.toFile())) {
             assertThat(document.getNumberOfPages()).isAtLeast(2);
             assertThat(result.pageCount()).isEqualTo(document.getNumberOfPages());
-            String text = new PDFTextStripper().getText(document);
+            String text = lfStripper().getText(document);
             assertThat(text).contains("SEC-1");
             assertThat(text).contains("Unquoted variable expansion in rm -rf");
             assertThat(text).contains("Contents");
@@ -558,5 +558,12 @@ class SnippetAnalysisExportServiceTest {
         String longName = "x".repeat(200);
         assertThat(SnippetAnalysisExportService.suggestFileName(longName, false, null, Format.PDF, ZoneOffset.UTC))
             .isEqualTo("x".repeat(80) + "-analysis.pdf");
+    }
+
+    /** PDFTextStripper ends lines with the platform separator; the assertions expect "\n" on every OS. */
+    private static PDFTextStripper lfStripper() throws java.io.IOException {
+        PDFTextStripper stripper = new PDFTextStripper();
+        stripper.setLineSeparator("\n");
+        return stripper;
     }
 }

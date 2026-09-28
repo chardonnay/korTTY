@@ -120,7 +120,7 @@ class SnippetAnalysisBatchExportTest {
         assertThat(result.skipped()).hasSize(1);
         try (PDDocument document = Loader.loadPDF(directory.resolve("combined.pdf").toFile())) {
             assertThat(result.pageCount()).isEqualTo(document.getNumberOfPages());
-            PDFTextStripper stripper = new PDFTextStripper();
+            PDFTextStripper stripper = lfStripper();
             stripper.setStartPage(1);
             stripper.setEndPage(1);
             String cover = stripper.getText(document);
@@ -141,7 +141,7 @@ class SnippetAnalysisBatchExportTest {
                 chapters.add(child.getTitle());
             }
             assertThat(chapters).containsExactly("deploy_release.sh", "cleanup.sh").inOrder();
-            String all = new PDFTextStripper().getText(document);
+            String all = lfStripper().getText(document);
             assertThat(all).contains("REPORT BEFORE APPLYING");
             assertThat(all).contains("REPORT AFTER APPLYING");
         }
@@ -255,5 +255,12 @@ class SnippetAnalysisBatchExportTest {
             }
         }
         return names;
+    }
+
+    /** PDFTextStripper ends lines with the platform separator; the assertions expect "\n" on every OS. */
+    private static PDFTextStripper lfStripper() throws java.io.IOException {
+        PDFTextStripper stripper = new PDFTextStripper();
+        stripper.setLineSeparator("\n");
+        return stripper;
     }
 }
