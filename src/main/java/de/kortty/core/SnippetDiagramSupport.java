@@ -131,6 +131,9 @@ public final class SnippetDiagramSupport {
      */
     private static final Pattern QUOTED_EXOTIC_SHAPE = Pattern.compile(
         "(?:\\[\\[|\\[\\(|\\[[/\\\\]|\\(\\(\\(?|\\{\\{|>)\\s*(\"(?:\\\\.|[^\"\\\\])*\")\\s*(?:]]|\\)]|[/\\\\]]|\\)\\)\\)?|}}|])");
+    /** The rounded box with a quoted label, {@code id("Setup" )} (seen from gpt-oss): an action. */
+    private static final Pattern QUOTED_ROUND = Pattern.compile(
+        "(?<=[A-Za-z0-9_])\\(\\s*(\"(?:\\\\.|[^\"\\\\])*\")\\s*\\)(?!\\))");
     private static final Pattern UNQUOTED_EXOTIC_SHAPE = Pattern.compile(
         "(?:\\[\\[|\\[\\(|\\[[/\\\\]|\\(\\(\\(?|\\{\\{|>)\\s*([^\\[\\](){}|\"/\\\\>]+?)\\s*(?:]]|\\)]|[/\\\\]]|\\)\\)\\)?|}}|])");
     private static final Pattern CLASS_PATTERN = Pattern.compile(
@@ -307,8 +310,12 @@ public final class SnippetDiagramSupport {
         // once as a decision on its own line) was counted twice here, while the parser keeps the
         // first declaration; comparing the two counts then read as if the repairs had thrown the
         // diagram away.
+        //
+        // The same holds for edges: a repeated identical edge is a stutter the parser keeps once
+        // (seen live: Nemotron restating its whole chain on three lines, 19 edges for 8 distinct
+        // ones), and counting it every time made a complete diagram look hollowed out.
         Map<String, NodeType> types = new LinkedHashMap<>();
-        int edges = 0;
+        Set<EdgeDefinition> edges = new LinkedHashSet<>();
         for (String rawLine : normalizeMermaid(mermaidSource).split("\\R")) {
             String line = normalizeShapeShorthand(rawLine.trim());
             Matcher nodeMatcher = NODE_PATTERN.matcher(line);
@@ -320,16 +327,19 @@ public final class SnippetDiagramSupport {
             } else {
                 EdgeStatement statement = parseEdgeStatement(line);
                 if (statement != null) {
-                    edges += statement.edges().size();
+                    edges.addAll(statement.edges());
                     for (NodeDefinition node : statement.declaredNodes()) {
                         types.putIfAbsent(node.id(), node.type());
                     }
                 }
             }
         }
+        // The stable ids are terminals by contract, whatever shape the model gave them.
+        types.remove("start_1");
+        types.remove("stop_1");
         int actionNodes = (int) types.values().stream().filter(type -> type == NodeType.ACTION).count();
         int decisionNodes = (int) types.values().stream().filter(type -> type == NodeType.DECISION).count();
-        return new FlowchartStatistics(actionNodes, decisionNodes, edges);
+        return new FlowchartStatistics(actionNodes, decisionNodes, edges.size());
     }
 
     /**
@@ -945,7 +955,23 @@ public final class SnippetDiagramSupport {
                     }
                     classes.putIfAbsent(inlineClass.getKey(), inlineClass.getValue());
                 }
-                for (EdgeDefinition edge : statement.edges()) {
+                // Nothing continues after stop_1. A chain that runs on past it lists the branches
+                // of its decision one after another — `check -->|yes| ok --> stop_1 -->|no| fail
+                // --> stop_1` (seen from Nemotron) — so a labelled edge out of stop_1 is the next
+                // outcome of the last decision in the chain; any other edge out of it is dropped.
+                String lastDecision = null;
+                for (EdgeDefinition drawn : statement.edges()) {
+                    EdgeDefinition edge = drawn;
+                    NodeDefinition origin = nodes.get(edge.from());
+                    if (origin != null && origin.type() == NodeType.DECISION) {
+                        lastDecision = origin.id();
+                    }
+                    if ("stop_1".equals(edge.from())) {
+                        if (lastDecision == null || edge.label().isBlank()) {
+                            continue;
+                        }
+                        edge = new EdgeDefinition(lastDecision, edge.label(), edge.to());
+                    }
                     // A repeated identical edge is a model stutter, not a second path.
                     if (!edges.contains(edge)) {
                         edges.add(edge);
@@ -1400,6 +1426,7 @@ public final class SnippetDiagramSupport {
         unclosed.appendTail(closed);
         value = closed.toString();
         value = QUOTED_EXOTIC_SHAPE.matcher(value).replaceAll("[$1]");
+        value = QUOTED_ROUND.matcher(value).replaceAll("[$1]");
         StringBuilder result = new StringBuilder(value.length() + 8);
         StringBuilder outside = new StringBuilder();
         boolean inString = false;

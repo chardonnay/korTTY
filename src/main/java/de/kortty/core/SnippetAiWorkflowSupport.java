@@ -1770,6 +1770,53 @@ public final class SnippetAiWorkflowSupport {
         de.kortty.model.SnippetDiagramType type = diagramType != null
             ? diagramType
             : de.kortty.model.SnippetDiagramType.LOGICAL_STRUCTURE;
+        SnippetAiResponseSupport.MermaidDiagram diagram = attemptSnippetMermaid(
+            aiService, usageRecorder, type, scopedContent, snippetLanguage, connectionDisplayName,
+            fallbackLanguageCode, additionalInstructions);
+        if (diagram.isUsable()) {
+            return diagram;
+        }
+        // One more attempt before the generic local fallback. A sampled answer can derail on its
+        // own — seen live from gpt-oss-20b via LM Studio: three nodes, then a long run of backslash
+        // and question-mark debris and no edge at all — and a second sample is usually sound. The retry names the
+        // rejection so a model that broke a rule can avoid it; a truncated or interrupted answer
+        // never gets here, it is thrown above.
+        logger.info("AI diagram retried once after a rejection: {} [type={}]", diagram.rejectionReason(), type);
+        SnippetAiResponseSupport.MermaidDiagram retried = attemptSnippetMermaid(
+            aiService, usageRecorder, type, scopedContent, snippetLanguage, connectionDisplayName,
+            fallbackLanguageCode, retryInstructions(type, additionalInstructions, diagram.rejectionReason()));
+        return retried.isUsable() ? retried : diagram;
+    }
+
+    static String retryInstructions(
+        de.kortty.model.SnippetDiagramType type, String additionalInstructions, String rejectionReason) {
+
+        StringBuilder instructions = new StringBuilder();
+        if (additionalInstructions != null && !additionalInstructions.isBlank()) {
+            instructions.append(additionalInstructions.strip()).append("\n\n");
+        }
+        instructions.append("Your previous diagram answer was rejected");
+        if (rejectionReason != null && !rejectionReason.isBlank()) {
+            instructions.append(": ").append(rejectionReason.strip());
+        }
+        instructions.append("\nAnswer again from scratch with exactly one JSON object. Keep every label short plain text.");
+        if (type == de.kortty.model.SnippetDiagramType.LOGICAL_STRUCTURE) {
+            instructions.append(" Use only the shapes id[\"Action\"], id{\"Question?\"}, start_1([\"Start\"]) and "
+                + "stop_1([\"Stop\"]); nothing leads out of stop_1.");
+        }
+        return instructions.toString();
+    }
+
+    private static SnippetAiResponseSupport.MermaidDiagram attemptSnippetMermaid(
+        AiService aiService,
+        UsageRecorder usageRecorder,
+        de.kortty.model.SnippetDiagramType type,
+        String scopedContent,
+        String snippetLanguage,
+        String connectionDisplayName,
+        String fallbackLanguageCode,
+        String additionalInstructions) throws Exception {
+
         AiRequest request = new AiRequest(
             AiAction.GENERATE_SNIPPET_MERMAID,
             scopedContent,
