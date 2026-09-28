@@ -119,6 +119,7 @@ final class SnippetAnalysisController {
 
     /** Default and minimum width of the side panel, in px. */
     static final double DEFAULT_PANEL_WIDTH = 520;
+    static final String HEADER_ID = "snippet-analysis-header";
     static final double MIN_PANEL_WIDTH = 360;
 
     private static final DateTimeFormatter HISTORY_TIME =
@@ -1829,7 +1830,13 @@ final class SnippetAnalysisController {
         closeButton.setTooltip(new Tooltip(I18n.get("snippets.ai.analysis.panel.hide")));
         closeButton.setOnAction(event -> hidePanel());
         HBox header = new HBox(8, title, historyCombo, historyActions, plainRerunButton, closeButton);
+        header.setId(HEADER_ID);
         header.setAlignment(Pos.CENTER_LEFT);
+        // Only the history chooser gives way in a narrow panel; an HBox would otherwise shrink every
+        // child evenly and cut the title and the buttons short.
+        for (Region fixed : List.of(title, historyActions, plainRerunButton, closeButton)) {
+            fixed.setMinWidth(Region.USE_PREF_SIZE);
+        }
 
         bannerBox = new VBox(6);
         bannerBox.setId(BANNERS_ID);
@@ -2724,7 +2731,10 @@ final class SnippetAnalysisController {
         if (panel == null || !panelVisible || panel.getWidth() < MIN_PANEL_WIDTH - 1) {
             return;
         }
-        double width = panel.getWidth();
+        // The width the user chose (stored or dragged), not the laid-out one: a narrow window caps
+        // the panel for now, and that cap must not become the remembered width.
+        double chosen = panel.getPrefWidth();
+        double width = chosen >= MIN_PANEL_WIDTH ? chosen : panel.getWidth();
         updateSettings(settings -> settings.setSnippetAnalysisPanelWidth(width));
     }
 

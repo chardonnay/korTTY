@@ -21,6 +21,7 @@ import javafx.concurrent.Worker;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
@@ -30,6 +31,7 @@ import javafx.scene.control.Hyperlink;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -361,7 +363,13 @@ public class SnippetAnalysisPanel extends VBox {
         findingsView.getEngine().loadContent("");
     }
 
-    private HBox buildToolbar(String activeProfileId) {
+    /**
+     * The row above the report. It lives in a side column that may be as narrow as the panel's
+     * minimum, so it wraps onto further lines instead of cutting its labels short.
+     */
+    private static final double PROFILE_NOTE_INDENT = 8;
+
+    private FlowPane buildToolbar(String activeProfileId) {
         Button zoomOutButton = new Button(I18n.get("editor.zoomOut"));
         zoomOutButton.setTooltip(new Tooltip(I18n.get("menu.view.zoomOut")));
         zoomOutButton.setOnAction(event -> changeFontSize(-1));
@@ -378,24 +386,66 @@ public class SnippetAnalysisPanel extends VBox {
         Button copyButton = new Button(I18n.get("snippets.copyClipboard"));
         copyButton.setOnAction(event -> copyAnalysis(copyButton));
 
-        Region spacer = new Region();
-        HBox toolbar = new HBox(8);
+        FlowPane toolbar = new FlowPane(8, 6);
         toolbar.setId("snippet-analysis-toolbar");
         toolbar.setAlignment(Pos.CENTER_LEFT);
+        toolbar.setMinWidth(0);
+        toolbar.setPrefWrapLength(1);
 
         // Always surface which AI profile the analysis used. The re-run picker below only shows the literal
         // "Default profile" for the null selection, never the default's actual name — this label fills that gap.
+        // A long profile name wraps within the row rather than ending in an ellipsis.
         Label profileUsing = new Label(I18n.get("snippets.ai.analysis.profile.using",
             SnippetAiDialogSupport.resolveProfileDisplayName(activeProfileId)));
         profileUsing.setId("snippet-analysis-profile-using");
         profileUsing.setStyle("-fx-opacity: 0.85;");
-        profileUsing.setMinWidth(0);
-        HBox.setMargin(profileUsing, new Insets(0, 0, 0, 16));
-        toolbar.getChildren().addAll(selectAll, profileUsing);
+        profileUsing.setWrapText(true);
+        profileUsing.maxWidthProperty().bind(toolbar.widthProperty().subtract(PROFILE_NOTE_INDENT));
+        // Visibly apart from the select-all checkbox (together with the row gap: 16 px).
+        FlowPane.setMargin(profileUsing, new Insets(0, 0, 0, PROFILE_NOTE_INDENT));
         exportButton = buildExportButton();
-        toolbar.getChildren().addAll(spacer, zoomOutButton, fontSizeLabel, zoomInButton, copyButton, exportButton);
-        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox zoomGroup = new HBox(4, zoomOutButton, fontSizeLabel, zoomInButton);
+        zoomGroup.setAlignment(Pos.CENTER_LEFT);
+        for (javafx.scene.control.Labeled labeled
+                : List.of(selectAll, zoomOutButton, fontSizeLabel, zoomInButton, copyButton, exportButton)) {
+            labeled.setMinWidth(Region.USE_PREF_SIZE);
+        }
+        Region spacer = new Region();
+        spacer.setMinWidth(0);
+        List<Node> leading = List.of(selectAll, profileUsing);
+        List<Node> actions = List.of(zoomGroup, copyButton, exportButton);
+        toolbar.widthProperty().addListener((obs, was, width) -> arrangeToolbar(toolbar, leading, spacer, actions));
+        arrangeToolbar(toolbar, leading, spacer, actions);
         return toolbar;
+    }
+
+    /**
+     * One line when everything fits: selection and profile on the left, the actions pushed to the
+     * right. Otherwise the actions come first, so they stay on the first line (right below the panel
+     * header, never behind its footer in a short window) and the selection and profile note wrap.
+     */
+    private static void arrangeToolbar(FlowPane toolbar, List<Node> leading, Region spacer, List<Node> actions) {
+        double width = toolbar.getWidth() - toolbar.getInsets().getLeft() - toolbar.getInsets().getRight();
+        double needed = toolbar.getHgap() * (leading.size() + actions.size()) + PROFILE_NOTE_INDENT;
+        for (Node node : leading) {
+            needed += node.prefWidth(-1);
+        }
+        for (Node node : actions) {
+            needed += node.prefWidth(-1);
+        }
+        List<Node> order = new ArrayList<>();
+        if (width > 0 && needed + 1 <= width) {
+            spacer.setPrefWidth(Math.floor(width - needed - 1));
+            order.addAll(leading);
+            order.add(spacer);
+            order.addAll(actions);
+        } else {
+            order.addAll(actions);
+            order.addAll(leading);
+        }
+        if (!toolbar.getChildren().equals(order)) {
+            toolbar.getChildren().setAll(order);
+        }
     }
 
     /** The profile picker and Re-run, on their own row so the narrow side panel keeps both readable. */

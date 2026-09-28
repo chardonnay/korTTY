@@ -120,7 +120,6 @@ public final class CodeAnalysisScreenshotStage {
         SnippetEditDialog editor = buildEditor(app, window);
         window.hostMultiInstanceToolTab(editor);
         editor.analysisController().showPanel();
-        relaxEditorWidth(editor);
 
         // Both panes are WebViews that render asynchronously; announcing before they paint would
         // capture an empty report next to a spinner.
@@ -232,20 +231,6 @@ public final class CodeAnalysisScreenshotStage {
                 "document.querySelectorAll('details.dep-group').forEach(function (d) { d.open = true; });");
         } catch (Exception e) {
             System.err.println("could not expand the dependencies section: " + e);
-        }
-    }
-
-    /**
-     * The editor form's preferred width would make the HBox squeeze the panel below the stored width;
-     * the code area grows back into what is left.
-     */
-    private static void relaxEditorWidth(SnippetEditDialog editor) {
-        try {
-            java.lang.reflect.Field stack = SnippetEditDialog.class.getDeclaredField("editorAreaStack");
-            stack.setAccessible(true);
-            ((javafx.scene.layout.Region) stack.get(editor)).setPrefWidth(400);
-        } catch (ReflectiveOperationException e) {
-            System.err.println("could not relax the editor width: " + e);
         }
     }
 

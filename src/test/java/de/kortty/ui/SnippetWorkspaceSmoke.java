@@ -327,6 +327,75 @@ public final class SnippetWorkspaceSmoke {
                 Event.fireEvent(workspace.getDialogPane(), shortcut(KeyCode.B));
                 check(workspace.isLibraryVisible(), "Shortcut+B again must restore the library");
             })
+            .then(50, "a wide window", () -> {
+                // The window manager applies a new size asynchronously: open the panel afterwards.
+                stage.setWidth(2100);
+                stage.setHeight(1060);
+            })
+            .then(400, "the analysis panel opens beside the library", () -> {
+                field(workspace, "splitPane", javafx.scene.control.SplitPane.class).setDividerPositions(0.27);
+                analyses.addAnalysis(beta.getId(), analysisOf(beta, "b2", beta.getContent()));
+                workspace.editorTabs().getFirst().editor().analysisController().showPanel();
+            })
+            .then(600, "the panel keeps its stored width next to the library", () -> {
+                SnippetEditDialog editor = workspace.editorTabs().getFirst().editor();
+                check(workspace.isLibraryVisible(), "a " + Math.round(stage.getWidth())
+                    + " px window has room for library, code and panel — the library must stay");
+                SnippetAnalysisLayoutProbe.Measurement stored = SnippetAnalysisLayoutProbe.measure(editor);
+                System.out.println("  " + Math.round(stage.getWidth()) + " px window, stored width: " + stored);
+                check(stored.problems().isEmpty(), "beside the library: " + stored);
+                // The docs demo width: the editor form's wide preferred size must not squeeze it.
+                SnippetAnalysisLayoutProbe.panelOf(editor).setPrefWidth(740);
+                SnippetAnalysisLayoutProbe.Measurement wide = SnippetAnalysisLayoutProbe.measure(editor);
+                System.out.println("  " + Math.round(stage.getWidth()) + " px window, dragged to 740: " + wide);
+                check(wide.problems().isEmpty(), "a 740 px panel beside the library: " + wide);
+                check(Math.abs(wide.panelWidth() - 740) <= 1, "the panel must get its 740 px, got " + wide);
+                check(workspace.isLibraryVisible(), "the library must still be shown");
+            })
+            .then(50, "the window narrows to 1400 px", () -> {
+                stage.setWidth(1400);
+                stage.setHeight(900);
+            })
+            .then(600, "the library folds away for the panel", () -> {
+                SnippetEditDialog editor = workspace.editorTabs().getFirst().editor();
+                check(!workspace.isLibraryVisible() && workspace.isLibraryAutoCollapsed(),
+                    "at 1400 px the code would keep too little beside library and a 740 px panel");
+                SnippetAnalysisLayoutProbe.Measurement folded = SnippetAnalysisLayoutProbe.measure(editor);
+                System.out.println("  1400 px window, library folded: " + folded);
+                check(folded.problems().isEmpty(), "with the library folded: " + folded);
+                // The user wants the library back anyway: that choice wins over the fold.
+                Event.fireEvent(workspace.getDialogPane(), shortcut(KeyCode.B));
+                check(workspace.isLibraryVisible(), "Shortcut+B must bring the library back");
+            })
+            .then(600, "a library shown by hand stays, the panel keeps its minimum", () -> {
+                SnippetEditDialog editor = workspace.editorTabs().getFirst().editor();
+                check(workspace.isLibraryVisible(), "the library shown by hand must not fold away again");
+                SnippetAnalysisLayoutProbe.Measurement shared = SnippetAnalysisLayoutProbe.measure(editor);
+                System.out.println("  1400 px window, library shown by hand: " + shared);
+                check(shared.problems().isEmpty(), "library shown beside the panel: " + shared);
+                editor.analysisController().hidePanel();
+                check(workspace.isLibraryVisible(), "closing the panel keeps the library");
+            })
+            .then(50, "a narrow window folds the library when the panel opens", () -> {
+                stage.setWidth(1000);
+                stage.setHeight(800);
+            })
+            .then(400, "open the panel at 1000 px", () ->
+                workspace.editorTabs().getFirst().editor().analysisController().showPanel())
+            .then(600, "the library folded away at 1000 px", () -> {
+                SnippetEditDialog editor = workspace.editorTabs().getFirst().editor();
+                check(!workspace.isLibraryVisible() && workspace.isLibraryAutoCollapsed(),
+                    "at 1000 px the library must fold away for the panel");
+                SnippetAnalysisLayoutProbe.Measurement narrow = SnippetAnalysisLayoutProbe.measure(editor);
+                System.out.println("  1000 px window: " + narrow);
+                check(narrow.problems().isEmpty(), "in a 1000 px window: " + narrow);
+                editor.analysisController().hidePanel();
+                check(workspace.isLibraryVisible() && !workspace.isLibraryAutoCollapsed(),
+                    "closing the panel must bring the folded library back");
+                analyses.discardAll(beta.getId());
+                stage.setWidth(1400);
+                stage.setHeight(900);
+            })
             .then(50, "Esc does not close a windowed workspace", () -> {
                 SnippetWorkspaceDialog window = new SnippetWorkspaceDialog(manager, null);
                 window.initOwner(stage);

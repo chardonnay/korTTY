@@ -107,6 +107,8 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
     /** The library was folded away for an analysis panel (not by the user); it comes back with the panel. */
     private boolean autoCollapsedLibrary;
     private boolean autoTogglingLibrary;
+    /** The user toggled the library while an analysis panel was open: no more automatic folding. */
+    private boolean libraryChosenManually;
     private SnippetQuickOpenPopup quickOpen;
     private final Button quickOpenButton = new Button("\u2315");
     /** Hides the library to give the editor the full width (focus mode); Shortcut+B. */
@@ -127,7 +129,7 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
 
         @Override
         public void analysisPanelShown(SnippetEditDialog editor, double panelWidth) {
-            onAnalysisPanelShown(panelWidth);
+            onAnalysisPanelShown(editor, panelWidth);
         }
 
         @Override
@@ -196,6 +198,7 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
         libraryToggle.selectedProperty().addListener((obs, was, visible) -> {
             if (!autoTogglingLibrary) {
                 autoCollapsedLibrary = false;
+                libraryChosenManually = true;
             }
             setLibraryVisible(visible);
         });
@@ -213,6 +216,10 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
 
         splitPane = new SplitPane(library, editorArea);
         SplitPane.setResizableWithParent(library, false);
+        // A window that gets narrower while an analysis panel is open may leave the code too little
+        // room: check again once the new width is laid out.
+        splitPane.widthProperty().addListener((obs, oldWidth, newWidth) ->
+            Platform.runLater(this::refoldLibraryForAnalysisPanel));
         double divider = loadDividerPosition();
         libraryDividerPosition = divider;
         splitPane.setDividerPositions(divider);
@@ -573,6 +580,9 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
 
     private void onTabSelected(Tab tab) {
         updateActionBar();
+        if (tab instanceof SnippetEditorTab) {
+            Platform.runLater(this::refoldLibraryForAnalysisPanel);
+        }
         if (syncingSelection || tab == null) {
             return;
         }
@@ -832,11 +842,40 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
     // ---- library and analysis panel ------------------------------------------------------------------
 
     /** An editor opened its analysis panel: fold the library away when the code would get too narrow. */
-    private void onAnalysisPanelShown(double panelWidth) {
-        if (tornDown || !isLibraryVisible()) {
+    private void onAnalysisPanelShown(SnippetEditDialog editor, double panelWidth) {
+        // A panel opened anew: an earlier manual library choice was about the previous one.
+        libraryChosenManually = false;
+        foldLibraryIfCodeTooNarrow(editor, panelWidth);
+    }
+
+    /** The window was resized or another tab came up: re-check the active editor's panel. */
+    private void refoldLibraryForAnalysisPanel() {
+        SnippetEditorTab tab = activeEditorTab();
+        if (tab == null || !tab.editor().isAnalysisSidePanelShown()) {
             return;
         }
-        if (shouldAutoCollapseLibrary(splitPane.getWidth(), library.getWidth(), panelWidth)) {
+        foldLibraryIfCodeTooNarrow(tab.editor(), tab.editor().analysisSidePanelPreferredWidth());
+    }
+
+    /**
+     * Folds the library away when the code of {@code editor} would keep less than
+     * {@link #MIN_EDITOR_WIDTH_BESIDE_PANEL} beside its panel — measured on the laid-out widths. A
+     * library the user toggled by hand while the panel is open stays as it is.
+     */
+    private void foldLibraryIfCodeTooNarrow(SnippetEditDialog editor, double panelWidth) {
+        if (tornDown || !isLibraryVisible() || libraryChosenManually || editor == null) {
+            return;
+        }
+        // Measure the current geometry, not the one of the last pulse (a window resized in the
+        // same event would otherwise be judged by its old width).
+        if (splitPane.getScene() != null && splitPane.getScene().getRoot() != null) {
+            splitPane.getScene().getRoot().layout();
+        }
+        double workbenchWidth = editor.workbenchWidth();
+        if (workbenchWidth <= 0) {
+            workbenchWidth = editorArea.getWidth();
+        }
+        if (shouldAutoCollapseLibrary(workbenchWidth, panelWidth)) {
             autoTogglingLibrary = true;
             try {
                 setLibraryVisible(false);
@@ -850,6 +889,7 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
 
     /** The panel closed again: a library folded away for it comes back (a manual toggle is kept). */
     private void onAnalysisPanelHidden() {
+        libraryChosenManually = false;
         if (tornDown || !autoCollapsedLibrary || isLibraryVisible()) {
             return;
         }
@@ -863,15 +903,17 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
     }
 
     /**
-     * Whether the library should fold away for an analysis panel {@code panelWidth} wide: the code
-     * would keep less than {@link #MIN_EDITOR_WIDTH_BESIDE_PANEL} next to library and panel.
-     * An unknown (not laid out) width never collapses anything.
+     * Whether the library should fold away for an analysis panel that asks for {@code panelWidth}:
+     * in an editor row {@code workbenchWidth} wide (what the library leaves over) the code would
+     * keep less than {@link #MIN_EDITOR_WIDTH_BESIDE_PANEL}. An unknown (not laid out) width never
+     * collapses anything.
      */
-    static boolean shouldAutoCollapseLibrary(double workspaceWidth, double libraryWidth, double panelWidth) {
-        if (workspaceWidth <= 0 || libraryWidth <= 0 || panelWidth <= 0) {
+    static boolean shouldAutoCollapseLibrary(double workbenchWidth, double panelWidth) {
+        if (workbenchWidth <= 0 || panelWidth <= 0) {
             return false;
         }
-        return workspaceWidth - libraryWidth - panelWidth - 12 < MIN_EDITOR_WIDTH_BESIDE_PANEL;
+        return SnippetEditorWorkbench.codeWidth(workbenchWidth, panelWidth, SnippetAnalysisController.MIN_PANEL_WIDTH)
+            < MIN_EDITOR_WIDTH_BESIDE_PANEL;
     }
 
     boolean isLibraryAutoCollapsed() {

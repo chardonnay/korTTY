@@ -144,15 +144,6 @@ public final class SnippetManagerScreenshotStage {
                 controller.hidePanel();
                 settings.setSnippetAnalysisPanelWidth(740.0);
                 controller.showPanel();
-                // The editor form's preferred width would otherwise make the HBox squeeze the panel
-                // below the width the demo asks for; the code area grows back into what is left.
-                try {
-                    java.lang.reflect.Field stack = SnippetEditDialog.class.getDeclaredField("editorAreaStack");
-                    stack.setAccessible(true);
-                    ((javafx.scene.layout.Region) stack.get(tabs.getFirst().editor())).setPrefWidth(400);
-                } catch (ReflectiveOperationException ex) {
-                    System.err.println("could not relax the editor width: " + ex);
-                }
             }
         });
         openPanel.play();

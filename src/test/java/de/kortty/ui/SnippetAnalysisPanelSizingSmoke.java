@@ -122,6 +122,29 @@ public final class SnippetAnalysisPanelSizingSmoke {
         Node export = onFx(() -> lookup(editor, "#snippet-analysis-export"));
         require(export != null, "the Export button is missing from the analysis panel");
 
+        // Width: the panel gets its stored width beside the code, and at its minimum width the
+        // toolbar wraps instead of cutting labels short.
+        SnippetAnalysisLayoutProbe.Measurement stored = onFx(() -> SnippetAnalysisLayoutProbe.measure(editor));
+        System.out.println("  stored width: " + stored);
+        require(stored.problems().isEmpty(), "at the stored panel width: " + stored);
+        require(Math.abs(stored.panelWidth() - SnippetAnalysisController.DEFAULT_PANEL_WIDTH) <= 1,
+            "the panel must open at its stored width, got " + stored);
+        SnippetAnalysisLayoutProbe.Measurement narrow = onFx(() -> {
+            SnippetAnalysisLayoutProbe.panelOf(editor).setPrefWidth(SnippetAnalysisController.MIN_PANEL_WIDTH);
+            return SnippetAnalysisLayoutProbe.measure(editor);
+        });
+        System.out.println("  minimum width: " + narrow);
+        require(narrow.problems().isEmpty(), "at the minimum panel width: " + narrow);
+        SnippetAnalysisLayoutProbe.Measurement wide = onFx(() -> {
+            SnippetAnalysisLayoutProbe.panelOf(editor).setPrefWidth(4000);
+            return SnippetAnalysisLayoutProbe.measure(editor);
+        });
+        System.out.println("  wider than the row: " + wide);
+        require(wide.editorWidth() >= SnippetEditorWorkbench.MIN_EDITOR_WIDTH - 0.5,
+            "a panel wider than the row must leave the code its minimum: " + wide);
+        onFxRun(() -> SnippetAnalysisLayoutProbe.panelOf(editor)
+            .setPrefWidth(SnippetAnalysisController.DEFAULT_PANEL_WIDTH));
+
         for (double height : PROBE_HEIGHTS) {
             onFxRun(() -> {
                 Stage stage = hostStage;

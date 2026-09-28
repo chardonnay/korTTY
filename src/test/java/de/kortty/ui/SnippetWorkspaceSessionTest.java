@@ -26,11 +26,16 @@ class SnippetWorkspaceSessionTest {
 
     @Test
     void theLibraryFoldsAwayOnlyWhenTheCodeWouldGetTooNarrow() {
-        assertThat(SnippetWorkspaceDialog.shouldAutoCollapseLibrary(1280, 360, 460)).isTrue();
-        assertThat(SnippetWorkspaceDialog.shouldAutoCollapseLibrary(1900, 360, 460)).isFalse();
+        // Editor row 920 px (what the library leaves over): a 520 px panel leaves the code 394 px.
+        assertThat(SnippetWorkspaceDialog.shouldAutoCollapseLibrary(920, 520)).isTrue();
+        // 1540 px row (2100 px window, 0.27 library): 1540 - 6 - 740 = 794 px of code stay.
+        assertThat(SnippetWorkspaceDialog.shouldAutoCollapseLibrary(1540, 740)).isFalse();
+        // Measured on what the panel really gets, not on its wish: at 700 px the panel is capped
+        // to its minimum, and the 334 px of code left are still too narrow.
+        assertThat(SnippetWorkspaceDialog.shouldAutoCollapseLibrary(700, 1200)).isTrue();
         // Not laid out yet: never fold anything.
-        assertThat(SnippetWorkspaceDialog.shouldAutoCollapseLibrary(0, 360, 460)).isFalse();
-        assertThat(SnippetWorkspaceDialog.shouldAutoCollapseLibrary(1280, 0, 460)).isFalse();
+        assertThat(SnippetWorkspaceDialog.shouldAutoCollapseLibrary(0, 520)).isFalse();
+        assertThat(SnippetWorkspaceDialog.shouldAutoCollapseLibrary(1280, 0)).isFalse();
     }
 
     @Test

@@ -2128,17 +2128,20 @@ public final class SnippetAiDialogsSmoke {
                     + expectedText + "')"));
     }
 
-    /** Keeps the bulk selector at the far-left edge of the Full-code-analysis toolbar. */
+    /**
+     * Keeps the bulk selector at the far-left edge of its line in the Full-code-analysis toolbar
+     * (the toolbar wraps in a narrow panel, the actions then come first), the used-profile note
+     * right after it and visibly apart.
+     */
     private static void verifySelectAllImprovementPlacement(CheckBox bulkCheck, Label profileUsing) {
-        if (!(bulkCheck.getParent() instanceof HBox toolbar)
-                || toolbar.getChildren().isEmpty()
-                || toolbar.getChildren().getFirst() != bulkCheck) {
-            throw new AssertionError("Select-all-improvements must be the leftmost toolbar control");
+        if (!(bulkCheck.getParent() instanceof javafx.scene.layout.FlowPane toolbar)
+                || Math.abs(bulkCheck.getLayoutX() - toolbar.snappedLeftInset()) > 1) {
+            throw new AssertionError("Select-all-improvements must be the leftmost control of its toolbar line");
         }
+        javafx.geometry.Insets margin = javafx.scene.layout.FlowPane.getMargin(profileUsing);
         if (profileUsing.getParent() != toolbar
-                || toolbar.getChildren().indexOf(profileUsing) != 1
-                || HBox.getMargin(profileUsing) == null
-                || HBox.getMargin(profileUsing).getLeft() < 16) {
+                || toolbar.getChildren().indexOf(profileUsing) != toolbar.getChildren().indexOf(bulkCheck) + 1
+                || (margin == null ? 0 : margin.getLeft()) + toolbar.getHgap() < 16) {
             throw new AssertionError(
                 "The used-profile label must be visibly separated from select-all-improvements");
         }

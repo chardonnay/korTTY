@@ -226,10 +226,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     private final MenuItem analysisPanelItem;
     /**
      * The dialog content: the editor area, and while it is shown, a drag divider plus the analysis
-     * panel beside it. A plain HBox rather than a SplitPane: the editor area (with its Monaco page)
-     * never changes parent when the panel comes and goes, and every node stays a real child.
+     * panel beside it. Not a SplitPane: the editor area (with its Monaco page) never changes parent
+     * when the panel comes and goes, and every node stays a real child. The panel keeps its width;
+     * the editor area is the one that flexes.
      */
-    private final HBox analysisWorkbench;
+    private final SnippetEditorWorkbench analysisWorkbench;
     private final Region analysisDivider;
     private final StackPane editorAreaStack;
     private final VBox editorFormLayout;
@@ -1470,8 +1471,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         // is only a child of the workbench while it is shown.
         editorAreaStack = new StackPane(rootLayout);
         editorAreaStack.setMinWidth(0);
-        HBox.setHgrow(editorAreaStack, Priority.ALWAYS);
-        analysisWorkbench = new HBox(editorAreaStack);
+        analysisDivider = buildAnalysisDivider();
+        analysisWorkbench = new SnippetEditorWorkbench(editorAreaStack, analysisDivider);
         analysisWorkbench.setId("snippet-editor-workbench");
         // Esc stops the running AI request of this editor (form, Monaco or analysis panel). A filter,
         // so it wins over Monaco and the dialog's Cancel — but only while something runs, and never
@@ -1482,8 +1483,6 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                 event.consume();
             }
         });
-        analysisWorkbench.setFillHeight(true);
-        analysisDivider = buildAnalysisDivider();
 
         getDialogPane().setContent(analysisWorkbench);
         getDialogPane().setPrefWidth(700);
@@ -7695,15 +7694,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
 
     /** Adds the analysis side panel beside the editor area (once), at its remembered width. */
     private void showAnalysisSidePanel(Region panel) {
-        if (analysisWorkbench.getChildren().contains(panel)) {
+        if (analysisWorkbench.panel() == panel) {
             return;
         }
-        analysisWorkbench.getChildren().removeIf(child -> child != editorAreaStack);
         double width = SnippetAnalysisController.storedPanelWidth();
         panel.setPrefWidth(width);
         panel.setMaxWidth(Region.USE_PREF_SIZE);
-        HBox.setHgrow(panel, Priority.NEVER);
-        analysisWorkbench.getChildren().addAll(analysisDivider, panel);
+        analysisWorkbench.setPanel(panel);
         widenWindowForAnalysisPanel(width);
         if (embedding != null) {
             embedding.analysisPanelShown(this, width);
@@ -7711,8 +7708,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     }
 
     private void hideAnalysisSidePanel() {
-        boolean shown = analysisWorkbench.getChildren().size() > 1;
-        analysisWorkbench.getChildren().removeIf(child -> child != editorAreaStack);
+        boolean shown = analysisWorkbench.isPanelShown();
+        analysisWorkbench.setPanel(null);
         if (shown && embedding != null && !editorClosed) {
             embedding.analysisPanelHidden(this);
         }
@@ -7722,9 +7719,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     private Region buildAnalysisDivider() {
         Region divider = new Region();
         divider.setId("snippet-analysis-divider");
-        divider.setMinWidth(6);
-        divider.setPrefWidth(6);
-        divider.setMaxWidth(6);
+        divider.setMinWidth(SnippetEditorWorkbench.DIVIDER_WIDTH);
+        divider.setPrefWidth(SnippetEditorWorkbench.DIVIDER_WIDTH);
+        divider.setMaxWidth(SnippetEditorWorkbench.DIVIDER_WIDTH);
         divider.setCursor(javafx.scene.Cursor.H_RESIZE);
         divider.setStyle("-fx-background-color: rgba(128,128,128,0.22);");
         double[] drag = new double[2];
@@ -7738,8 +7735,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             if (panel == null) {
                 return;
             }
-            double maximum = Math.max(SnippetAnalysisController.MIN_PANEL_WIDTH,
-                analysisWorkbench.getWidth() - 320);
+            double maximum = analysisWorkbench.maximumPanelWidth(SnippetAnalysisController.MIN_PANEL_WIDTH);
             double width = drag[1] - (event.getScreenX() - drag[0]);
             panel.setPrefWidth(Math.max(SnippetAnalysisController.MIN_PANEL_WIDTH, Math.min(maximum, width)));
         });
@@ -7747,12 +7743,23 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     }
 
     private Region analysisSidePanelNode() {
-        for (Node child : analysisWorkbench.getChildren()) {
-            if (child != editorAreaStack && child != analysisDivider && child instanceof Region region) {
-                return region;
-            }
-        }
-        return null;
+        return analysisWorkbench.panel();
+    }
+
+    /** Whether the analysis side panel currently sits beside the editor area. */
+    boolean isAnalysisSidePanelShown() {
+        return analysisWorkbench.isPanelShown();
+    }
+
+    /** The width the analysis panel asks for (stored or dragged); 0 while it is hidden. */
+    double analysisSidePanelPreferredWidth() {
+        Region panel = analysisWorkbench.panel();
+        return panel != null ? panel.getPrefWidth() : 0;
+    }
+
+    /** The laid-out width of the editor's content row (editor area plus panel); 0 before layout. */
+    double workbenchWidth() {
+        return analysisWorkbench.getWidth();
     }
 
     /**
