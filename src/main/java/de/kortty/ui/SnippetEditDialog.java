@@ -575,12 +575,33 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         }
     }
 
+    /**
+     * Told which AI profile and model actually served a request, and the token usage accumulated so
+     * far. Called from the AI worker thread: once when the profile is resolved, then after every AI
+     * call. Must not throw (failures are logged and ignored).
+     */
+    @FunctionalInterface
+    public interface AiProvenanceListener {
+        void onProvenance(de.kortty.core.SnippetAnalysisRecord.Provenance provenance);
+    }
+
+    /** @param provenanceListener optional; told the resolved profile/model and the usage */
     public record CodeAnalysisRequest(
         String fullContent,
         String snippetLanguage,
         String fallbackLanguageCode,
         String additionalInstructions,
-        String aiProfileId) {
+        String aiProfileId,
+        AiProvenanceListener provenanceListener) {
+
+        public CodeAnalysisRequest(
+            String fullContent,
+            String snippetLanguage,
+            String fallbackLanguageCode,
+            String additionalInstructions,
+            String aiProfileId) {
+            this(fullContent, snippetLanguage, fallbackLanguageCode, additionalInstructions, aiProfileId, null);
+        }
     }
 
     public record ImprovementApplyRequest(
@@ -596,7 +617,27 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         SnippetAiWorkflowSupport.ImprovementApplyCheckpointListener checkpointListener,
         SnippetAiWorkflowSupport.ImprovementApplyCheckpoint resumeFrom,
         String aiProfileId,
-        SnippetAiWorkflowSupport.MigrationPlan migration) {
+        SnippetAiWorkflowSupport.MigrationPlan migration,
+        AiProvenanceListener provenanceListener) {
+
+        public ImprovementApplyRequest(
+            String fullContent,
+            String snippetLanguage,
+            String fallbackLanguageCode,
+            List<SnippetAiResponseSupport.ScriptImprovement> improvements,
+            List<SnippetAiResponseSupport.ScriptDependency> dependencies,
+            String additionalInstructions,
+            String classicHardeningInstructions,
+            String inputHardeningInstructions,
+            SnippetAiWorkflowSupport.ImprovementApplyProgressListener progressListener,
+            SnippetAiWorkflowSupport.ImprovementApplyCheckpointListener checkpointListener,
+            SnippetAiWorkflowSupport.ImprovementApplyCheckpoint resumeFrom,
+            String aiProfileId,
+            SnippetAiWorkflowSupport.MigrationPlan migration) {
+            this(fullContent, snippetLanguage, fallbackLanguageCode, improvements, dependencies,
+                additionalInstructions, classicHardeningInstructions, inputHardeningInstructions,
+                progressListener, checkpointListener, resumeFrom, aiProfileId, migration, null);
+        }
 
         /** Compatibility view used by callers that only need to inspect the complete selected contract. */
         public String mandatoryHardeningInstructions() {

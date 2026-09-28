@@ -99,6 +99,7 @@ public class KorTTYApplication extends Application {
     private EnvironmentManager environmentManager;
     private SSHKeyManager sshKeyManager;
     private SnippetManager snippetManager;
+    private de.kortty.core.SnippetAnalysisStore snippetAnalysisStore;
     private SnippetVariableManager snippetVariableManager;
     private GlobalSettingsManager globalSettingsManager;
     private ThemeManager themeManager;
@@ -222,6 +223,16 @@ public class KorTTYApplication extends Application {
         globalSettingsManager = new GlobalSettingsManager(configDir);
         globalSettingsManager.setPolicyClamp(
             new de.kortty.policy.PolicyClamp(policyManager.getEffective()));
+        // Stored Full-code analyses: built right after the snippet manager, outside the fragile load
+        // block below, so a failed snippets load can never leave the store missing. Only saved,
+        // non-policy snippets are written; drafts stay in memory until their first save.
+        snippetAnalysisStore = new de.kortty.core.SnippetAnalysisStore(
+            configDir.resolve(de.kortty.core.SnippetAnalysisStore.DIRECTORY_NAME),
+            id -> snippetManager.findById(id).filter(snippet -> !snippet.isPolicyManaged()).isPresent(),
+            () -> globalSettingsManager.getSettings().getSnippetAnalysisHistoryMaxSize());
+        snippetAnalysisStore.attachTo(snippetManager);
+        snippetAnalysisStore.warnOnMutationsOffFxThread();
+        de.kortty.core.SnippetAnalysisStore.installApplicationStore(snippetAnalysisStore);
         powerManagementCoordinator = PowerManagementCoordinator.createDefault();
         themeManager = new ThemeManager(configDir);
         terminalEffectPluginManager = new TerminalEffectPluginManager(configDir);
@@ -717,6 +728,12 @@ public class KorTTYApplication extends Application {
         }
         if (snippetManager != null) {
             shutdownStep("save snippets", snippetManager::save);
+        }
+        if (snippetAnalysisStore != null) {
+            // After the snippets save (which can make a pending draft analysis persistable);
+            // halt(0) skips shutdown hooks, so the queued writes must land here.
+            shutdownStep("flush snippet analyses",
+                () -> snippetAnalysisStore.flush(Duration.ofSeconds(2)));
         }
         if (snippetVariableManager != null) {
             shutdownStep("save snippet variables", snippetVariableManager::save);
@@ -1248,6 +1265,11 @@ public class KorTTYApplication extends Application {
         return sshKeyManager;
     }
     
+    /** The store of persisted snippet analyses; see {@link de.kortty.core.SnippetAnalysisStore#shared()}. */
+    public de.kortty.core.SnippetAnalysisStore getSnippetAnalysisStore() {
+        return snippetAnalysisStore;
+    }
+
     public SnippetManager getSnippetManager() {
         return snippetManager;
     }

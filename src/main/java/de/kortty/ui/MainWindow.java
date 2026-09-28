@@ -10454,6 +10454,17 @@ public class MainWindow {
             } catch (Exception ex) {
                 logger.error("Failed to reload managers after backup import", ex);
             }
+            // The restored snippets.xml and snippet analyses replace what is in memory; without the
+            // reload the stale snippet list and the store's cache would overwrite them on the next save.
+            try {
+                de.kortty.core.SnippetAnalysisStore analysisStore = app.getSnippetAnalysisStore();
+                if (analysisStore != null) {
+                    analysisStore.invalidateAll();
+                }
+                app.getSnippetManager().load();
+            } catch (Exception ex) {
+                logger.error("Failed to reload snippets after backup import", ex);
+            }
             
             updateStatus(I18n.get("backup.import.successHeader") + ": " + filesImported + " " + I18n.get("backup.import.files"));
         });

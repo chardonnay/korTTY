@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.SnippetAnalysisStore;
 import de.kortty.core.SnippetDiffSelectionSupport;
 import de.kortty.core.SnippetManager;
 import de.kortty.core.SnippetOneLiner;
@@ -803,7 +804,18 @@ final class SnippetLibraryPane extends BorderPane {
                 for (Snippet s : selected) {
                     snippetManager.removeSnippet(s);
                 }
-                saveAndRefresh();
+                boolean saved = saveOrReport();
+                refreshTable(true);
+                refreshCategoryFilter();
+                if (saved) {
+                    // Cascade only after the removal reached the disk: removeSnippet alone persists nothing.
+                    SnippetAnalysisStore analysisStore = SnippetAnalysisStore.shared();
+                    for (Snippet s : selected) {
+                        if (s.getId() != null && !s.getId().isBlank()) {
+                            analysisStore.discardAll(s.getId());
+                        }
+                    }
+                }
             }
         });
     }
@@ -1718,12 +1730,15 @@ final class SnippetLibraryPane extends BorderPane {
         refreshCategoryFilter();
     }
 
-    private void saveOrReport() {
+    /** @return whether the save succeeded (a failure was reported to the user) */
+    private boolean saveOrReport() {
         try {
             snippetManager.save();
+            return true;
         } catch (Exception e) {
             logger.error("Failed to save snippets", e);
             showError(I18n.get("snippets.workspace.saveFailed", e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
+            return false;
         }
     }
 

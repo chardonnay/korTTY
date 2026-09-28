@@ -897,6 +897,9 @@ public class GlobalSettings {
     @XmlElement
     private Integer snippetHistoryMaxSize = 30; // Max number of history entries per snippet (default: 30, max: 99)
 
+    @XmlElement
+    private Integer snippetAnalysisHistoryMaxSize = 5; // Stored Full-code analyses kept per snippet (default: 5, 1..20)
+
     // Snippet dialog geometries
     @XmlElement
     private WindowGeometry snippetManagerGeometry;
@@ -3585,6 +3588,25 @@ public class GlobalSettings {
             return;
         }
         this.snippetHistoryMaxSize = Math.max(1, Math.min(99, snippetHistoryMaxSize));
+    }
+
+    /**
+     * How many stored Full-code analyses a snippet keeps. Trimming only happens when a new analysis
+     * arrives and never removes pinned, running, pending or resumable records.
+     */
+    public int getSnippetAnalysisHistoryMaxSize() {
+        if (snippetAnalysisHistoryMaxSize == null || snippetAnalysisHistoryMaxSize <= 0) {
+            return 5;
+        }
+        return Math.min(20, snippetAnalysisHistoryMaxSize);
+    }
+
+    public void setSnippetAnalysisHistoryMaxSize(Integer snippetAnalysisHistoryMaxSize) {
+        if (snippetAnalysisHistoryMaxSize == null) {
+            this.snippetAnalysisHistoryMaxSize = 5;
+            return;
+        }
+        this.snippetAnalysisHistoryMaxSize = Math.max(1, Math.min(20, snippetAnalysisHistoryMaxSize));
     }
 
     // ---- Snippet Dialog Geometries ----

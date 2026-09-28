@@ -49,6 +49,32 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void snippetAnalysisHistoryMaxSizeRoundTripsAndIsClamped() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-analyses");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertThat(manager.getSettings().getSnippetAnalysisHistoryMaxSize()).isEqualTo(5);
+            manager.getSettings().setSnippetAnalysisHistoryMaxSize(12);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            GlobalSettings settings = reloaded.getSettings();
+            assertThat(settings.getSnippetAnalysisHistoryMaxSize()).isEqualTo(12);
+
+            settings.setSnippetAnalysisHistoryMaxSize(0);
+            assertThat(settings.getSnippetAnalysisHistoryMaxSize()).isEqualTo(1);
+            settings.setSnippetAnalysisHistoryMaxSize(500);
+            assertThat(settings.getSnippetAnalysisHistoryMaxSize()).isEqualTo(20);
+            settings.setSnippetAnalysisHistoryMaxSize(null);
+            assertThat(settings.getSnippetAnalysisHistoryMaxSize()).isEqualTo(5);
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void saveAndLoadPreservesTheSessionJournalAiScreenshotAnalysisFlag() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings-shots");
         try {

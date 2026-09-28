@@ -10,6 +10,7 @@ import de.kortty.core.CodeTextLanguageAiService;
 import de.kortty.core.AiSnippetMetadataSupport;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.SnippetAiWorkflowSupport;
+import de.kortty.core.SnippetAnalysisRecord;
 import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.model.AiProfile;
 import de.kortty.model.ServerConnection;
@@ -112,6 +113,49 @@ final class SnippetAiAssistFactory {
     }
 
     private record ResolvedProfile(AiProfile profile, AiService service) {
+    }
+
+    /**
+     * Reports the profile and model that actually served a stored analysis or apply run, then the
+     * usage after each AI call. A missing or failing listener never affects the AI request.
+     */
+    static final class ProvenanceReporter {
+        private final SnippetEditDialog.AiProvenanceListener listener;
+        private final SnippetAnalysisRecord.Provenance base;
+        private SnippetAnalysisRecord.Usage usage = SnippetAnalysisRecord.Usage.ZERO;
+
+        ProvenanceReporter(SnippetEditDialog.AiProvenanceListener listener, AiProfile profile,
+                           SnippetAiRuntimeOptions options, String additionalInstructions) {
+            this.listener = listener;
+            List<String> skillIds = options != null
+                ? options.forcedSkillIds().stream().sorted().toList()
+                : List.of();
+            this.base = new SnippetAnalysisRecord.Provenance(
+                profile != null ? profile.getId() : null,
+                profile != null ? profile.getName() : null,
+                profile != null ? profile.getModel() : null,
+                skillIds, List.of(), additionalInstructions, null);
+            report();
+        }
+
+        synchronized void recordUsage(AiExecutionResult result) {
+            if (result != null && result.usage() != null) {
+                usage = usage.plus(SnippetAnalysisRecord.Usage.from(result.usage()));
+            }
+            report();
+        }
+
+        private void report() {
+            if (listener == null) {
+                return;
+            }
+            try {
+                listener.onProvenance(base.withUsage(usage));
+            } catch (RuntimeException e) {
+                org.slf4j.LoggerFactory.getLogger(SnippetAiAssistFactory.class)
+                    .warn("AI provenance listener failed: {}", e.toString());
+            }
+        }
     }
 
     private static SnippetEditDialog.SuggestedSnippetMetadata generateSnippetMetadata(
@@ -315,9 +359,14 @@ final class SnippetAiAssistFactory {
         ResolvedProfile resolved = resolve(
             ownerWindow, connection, AiAction.ANALYZE_SNIPPET_CODE,
             request.aiProfileId(), options);
+        ProvenanceReporter provenance = new ProvenanceReporter(
+            request.provenanceListener(), resolved.profile(), options, request.additionalInstructions());
         return SnippetAiWorkflowSupport.analyzeSnippetCode(
             resolved.service(),
-            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
+            (aiRequest, result) -> {
+                ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result);
+                provenance.recordUsage(result);
+            },
             request.fullContent(),
             request.snippetLanguage(),
             connectionDisplayName,
@@ -335,9 +384,14 @@ final class SnippetAiAssistFactory {
         ResolvedProfile resolved = resolve(
             ownerWindow, connection, AiAction.APPLY_SNIPPET_IMPROVEMENTS,
             request.aiProfileId(), options);
+        ProvenanceReporter provenance = new ProvenanceReporter(
+            request.provenanceListener(), resolved.profile(), options, request.additionalInstructions());
         return SnippetAiWorkflowSupport.applySnippetImprovements(
             resolved.service(),
-            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
+            (aiRequest, result) -> {
+                ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result);
+                provenance.recordUsage(result);
+            },
             request.fullContent(),
             request.snippetLanguage(),
             connectionDisplayName,
