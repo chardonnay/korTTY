@@ -665,9 +665,7 @@ final class SnippetAnalysisController {
             refreshState();
         });
         refreshState();
-        Thread thread = new Thread(task, "snippet-ai-analysis");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-analysis");
     }
 
     private void storeAnalysis(SnippetAiResponseSupport.ScriptAnalysis result, String content, String language,
@@ -1041,9 +1039,7 @@ final class SnippetAnalysisController {
             refreshState();
         });
         refreshState();
-        Thread thread = new Thread(task, "snippet-ai-improvement-fix");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-improvement-fix");
     }
 
     /** Cancels the running apply (the progress pane's Cancel); the recovery offer follows inline. */

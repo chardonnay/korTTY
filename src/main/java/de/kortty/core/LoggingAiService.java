@@ -208,16 +208,39 @@ final class LoggingAiService implements AiPromptService, AiSkillUsageTracker {
         AiExecutionResult run() throws Exception;
     }
 
+    /**
+     * Every AI call of every provider passes here, which makes it the one place a stopped run is
+     * enforced: a stopped run sends no further request (a workflow's repair or retry would
+     * otherwise start one after the interrupt flag was cleared), a result that arrives after the
+     * stop is discarded instead of returned, and the stop is logged as such, not as a failure.
+     */
     private AiExecutionResult logged(String action, int inputChars, Call call) throws Exception {
+        if (AiCancellation.isCancelled()) {
+            LOG.info("AI request skipped: action={} model='{}' — the run was stopped", action, model);
+            throw new AiCancelledException("AI request was stopped before it was sent.", null);
+        }
         LOG.info("AI request sent: action={} provider={} model='{}' profile='{}' reasoningEffort={} inputChars={}",
             action, provider, model, profile, reasoning, inputChars);
         long startNanos = System.nanoTime();
         try {
             AiExecutionResult result = call.run();
+            if (AiCancellation.isCancelled()) {
+                LOG.info("AI request stopped: action={} model='{}' after {} ms — late result discarded",
+                    action, model, elapsedMillis(startNanos));
+                throw new AiCancelledException("AI request was stopped; its result was discarded.", null);
+            }
             LOG.info("AI request done: action={} model='{}' in {} ms, {}, reasoning={}",
                 action, model, elapsedMillis(startNanos), tokenSummary(result), reasoningFlag(result));
             return result;
+        } catch (AiCancelledException stopped) {
+            throw stopped;
         } catch (Exception failure) {
+            if (AiCancellation.isCancelled()
+                    || (AiCancellation.current() != null && AiCancellation.isCancellation(failure))) {
+                LOG.info("AI request stopped: action={} model='{}' after {} ms",
+                    action, model, elapsedMillis(startNanos));
+                throw new AiCancelledException("AI request was stopped.", failure);
+            }
             // The message carries the model's own error text (the server's error.message, or the raw
             // body when it is not JSON). Walking the cause chain keeps that text visible when a
             // wrapper exception replaced it — that detail is the only way to tell a rejected

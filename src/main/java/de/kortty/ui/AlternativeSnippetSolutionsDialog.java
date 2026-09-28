@@ -226,9 +226,7 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
             setBusy(false);
             statusLabel.setText(I18n.get("snippets.ai.alternatives.failed"));
         });
-        Thread thread = new Thread(loadTask, "snippet-alternative-solutions");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(loadTask, "snippet-alternative-solutions");
     }
 
     private SolutionCard createSolutionCard(SnippetAiResponseSupport.AlternativeSolution solution) {

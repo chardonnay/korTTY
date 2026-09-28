@@ -294,6 +294,8 @@ public class LmStudioNativeAiService implements AiPromptService, AiSkillUsageTra
         HttpRequest request = buildJsonPostRequest(
             buildRequestBody(systemPrompt, userPrompt, includeInternet, effectiveModel, maxOutputTokens),
             timeout);
+        // send() is interruptible (a stop aborts the exchange); a stopped run must not start one.
+        AiCancellation.throwIfCancelled();
         HttpResponse<String> response = AiPowerManagementScope.call(
             () -> httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)));
         if (response.statusCode() < 200 || response.statusCode() >= 300) {

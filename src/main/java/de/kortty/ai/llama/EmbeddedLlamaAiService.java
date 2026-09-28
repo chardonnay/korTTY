@@ -213,6 +213,8 @@ public final class EmbeddedLlamaAiService implements AiPromptService, AiSkillUsa
     }
 
     private <T> T callWithLease(LlamaRuntimeManager manager, DelegateCall<T> call) throws Exception {
+        // A stopped run must not start (or wait for) a model load.
+        de.kortty.core.AiCancellation.throwIfCancelled();
         try (LlamaRuntimeManager.RuntimeLease lease = manager.acquire(modelId)) {
             if (lease.purpose() != LlamaModelPurpose.CHAT) {
                 throw new LlamaRuntimeException(

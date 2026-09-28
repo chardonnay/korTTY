@@ -4221,9 +4221,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         });
         task.setOnFailed(event -> handleSnippetAiActionFailure(task, failedStatus));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
-        Thread thread = new Thread(task, "snippet-ai-selection-transform");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-selection-transform");
     }
 
     private SelectionTextTransformTarget captureSelectionTextTransformTarget() {
@@ -4324,9 +4322,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         task.setOnFailed(event ->
             handleSnippetAiActionFailure(task, I18n.get("snippets.ai.description.generateFailed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
-        Thread thread = new Thread(task, "snippet-ai-description");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-description");
     }
 
     private void runAlternativeSolutions() {
@@ -4713,9 +4709,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             finishCompletionTask(task);
         });
         completionTimeout.playFromStart();
-        Thread thread = new Thread(task, "snippet-ai-complete-" + requestId);
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-complete-" + requestId);
         updateAiActionAvailability();
     }
 
@@ -4913,8 +4907,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                             new DiagramRequest(fullContent, language, fallback, "", aiProfileId))
                         : null;
                 } catch (Exception e) {
-                    if (isCancelled()) {
-                        return null;
+                    if (isCancelled() || e instanceof de.kortty.core.AiCancelledException) {
+                        throw e;
                     }
                     failure = isOutputTokenLimitFailure(e)
                         ? I18n.get("snippets.ai.diagram.outputLimitReached")
@@ -4947,9 +4941,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         task.setOnFailed(event -> future.completeExceptionally(task.getException()));
         task.setOnCancelled(event -> future.cancel(false));
         cancelTaskWhenDiagramFutureIsCancelled(future, task);
-        Thread thread = new Thread(task, "snippet-analysis-diagram");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-analysis-diagram");
         return future;
     }
 
@@ -5357,9 +5349,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         task.setOnFailed(event ->
             handleSnippetAiActionFailure(task, I18n.get("snippets.ai.improve.failed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
-        Thread thread = new Thread(task, "snippet-ai-improve");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-improve");
     }
 
     // ---------------------------------------------------------------- language migration
@@ -5470,9 +5460,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         });
         task.setOnFailed(event -> handleMigrationFailure(task, plan));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
-        Thread thread = new Thread(task, "snippet-ai-migrate");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-migrate");
     }
 
     /** Puts the notes above the diff for a platform conversion, where they are the actual to-do list. */
@@ -5631,9 +5619,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         task.setOnFailed(event ->
             handleSnippetAiActionFailure(task, I18n.get("snippets.ai.assistant.failed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
-        Thread thread = new Thread(task, "snippet-ai-assistant");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-assistant");
     }
 
     private Optional<CodeAssistantPrompt> promptCodeAssistantInstruction() {
@@ -5767,9 +5753,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         task.setOnFailed(event ->
             handleSnippetAiActionFailure(task, I18n.get("snippets.ai.security.failed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
-        Thread thread = new Thread(task, "snippet-ai-security-review");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-security-review");
     }
 
     private void runSecurityFixes(SnippetSecurityReportDialog.FixSelection selection) {
@@ -5831,9 +5815,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         task.setOnFailed(event ->
             handleSnippetAiActionFailure(task, I18n.get("snippets.ai.security.fix.failed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
-        Thread thread = new Thread(task, "snippet-ai-security-fix");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-security-fix");
     }
 
     private void openOrCreateDiagram() {
@@ -6055,6 +6037,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                         scope != null ? scope.startLine() : 0,
                         scope != null ? scope.endLine() : 0));
                 } catch (Exception e) {
+                    if (isCancelled() || e instanceof de.kortty.core.AiCancelledException) {
+                        // A stopped generation is not a failure: no local fallback is built for it.
+                        throw e;
+                    }
                     outputLimitReached = isOutputTokenLimitFailure(e);
                     failureMessage = outputLimitReached
                         ? I18n.get("snippets.ai.diagram.outputLimitReached")
@@ -6154,9 +6140,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         task.setOnFailed(event ->
             handleSnippetAiActionFailure(task, I18n.get("snippets.ai.diagram.failed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
-        Thread thread = new Thread(task, "snippet-ai-diagram");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-diagram");
     }
 
     /**
@@ -6494,9 +6478,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             setStatus(I18n.get("snippets.ai.metadata.generateFailed"));
         });
         task.setOnCancelled(event -> finishMetadataTask(task));
-        Thread thread = new Thread(task, "snippet-metadata-suggestion");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-metadata-suggestion");
     }
 
     private void applySuggestedMetadata(SuggestedSnippetMetadata metadata, boolean overwriteExisting) {
@@ -6583,9 +6565,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             setStatus(I18n.get("snippets.ai.description.correctFailed"));
         });
         task.setOnCancelled(event -> finishDescriptionCorrectionTask(task));
-        Thread thread = new Thread(task, "snippet-description-correction");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-description-correction");
     }
 
     private void cancelAiTasks() {
@@ -6892,9 +6872,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         task.setOnFailed(event ->
             handleSnippetAiActionFailure(task, I18n.get("snippets.oneliner.generateFailed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
-        Thread thread = new Thread(task, "snippet-ai-one-liner");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-one-liner");
     }
 
     private void copyOneLinerToClipboard(String line) {
@@ -7193,9 +7171,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             finishSnippetAiAction(task);
             updateFormatLintButtonState();
         });
-        Thread thread = new Thread(task, "snippet-ai-format");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-format");
     }
 
     private void setFormatSuccessStatus(String formatted, Integer maxLineLength) {
@@ -7325,9 +7301,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             finishSnippetAiAction(task);
             updateFormatLintButtonState();
         });
-        Thread thread = new Thread(task, "snippet-ai-syntax-check");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-syntax-check");
     }
 
     private void showAlert(String message) {

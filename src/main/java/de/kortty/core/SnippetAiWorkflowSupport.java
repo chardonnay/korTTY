@@ -1732,7 +1732,7 @@ public final class SnippetAiWorkflowSupport {
     }
 
     private static void checkImprovementApplyInterrupted() throws InterruptedException {
-        if (Thread.currentThread().isInterrupted()) {
+        if (Thread.currentThread().isInterrupted() || AiCancellation.isCancelled()) {
             throw new InterruptedException("Full-code-analysis apply was cancelled.");
         }
     }

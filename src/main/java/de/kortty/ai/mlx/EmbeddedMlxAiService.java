@@ -204,6 +204,8 @@ public final class EmbeddedMlxAiService implements AiPromptService, AiSkillUsage
     }
 
     private <T> T callWithLease(MlxRuntimeManager manager, DelegateCall<T> call) throws Exception {
+        // A stopped run must not start (or wait for) a model load.
+        de.kortty.core.AiCancellation.throwIfCancelled();
         try (MlxRuntimeManager.RuntimeLease lease = manager.acquire(modelId)) {
             // The request body must NOT name a model: mlx-lm loads the request's "model" value as
             // a path or Hugging Face id, and the sidecar runs offline with the one directory it
