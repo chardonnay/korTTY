@@ -69,7 +69,19 @@ final class SnippetDiagramView extends VBox {
         String content,
         List<SnippetDiagramSupport.SourceCodeReference> codeReferences,
         SnippetDiagramType diagramType,
-        String notice) {
+        String notice,
+        String noticeDetail) {
+
+        /** {@code noticeDetail} is the technical reason behind a notice, shown as its tooltip. */
+        public DiagramSource(
+            String mermaid,
+            String content,
+            List<SnippetDiagramSupport.SourceCodeReference> codeReferences,
+            SnippetDiagramType diagramType,
+            String notice) {
+
+            this(mermaid, content, codeReferences, diagramType, notice, null);
+        }
 
         public DiagramSource(
             String mermaid,
@@ -91,6 +103,7 @@ final class SnippetDiagramView extends VBox {
         public DiagramSource {
             diagramType = diagramType != null ? diagramType : SnippetDiagramType.LOGICAL_STRUCTURE;
             notice = notice != null && !notice.isBlank() ? notice.trim() : null;
+            noticeDetail = notice != null && noticeDetail != null && !noticeDetail.isBlank() ? noticeDetail.trim() : null;
         }
     }
 
@@ -223,8 +236,14 @@ final class SnippetDiagramView extends VBox {
 
     /** Shows (or, for {@code null}, hides) the notice above the diagram area. */
     private void setNotice(String notice) {
+        setNotice(notice, null);
+    }
+
+    /** Shows the notice with the technical {@code detail} as its tooltip (none for {@code null}). */
+    private void setNotice(String notice, String detail) {
         boolean visible = notice != null && !notice.isBlank();
         noticeLabel.setText(visible ? notice : "");
+        noticeLabel.setTooltip(visible && detail != null && !detail.isBlank() ? new Tooltip(detail) : null);
         noticeLabel.setVisible(visible);
         noticeLabel.setManaged(visible);
     }
@@ -360,7 +379,7 @@ final class SnippetDiagramView extends VBox {
         currentContent = source.content() != null ? source.content() : "";
         currentDiagramType = source.diagramType();
         currentSourceReferences = source.codeReferences() != null ? List.copyOf(source.codeReferences()) : List.of();
-        setNotice(source.notice());
+        setNotice(source.notice(), source.noticeDetail());
         renderAsync(true);
     }
 

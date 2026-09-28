@@ -1,0 +1,30 @@
+{
+  "title": "Serverauslastung Logischer Ablauf",
+  "mermaid": "flowchart TD\nstart_1[\"Start\"] --> setup[\"Setup: Konstanten definieren\"] --> work[\"Work: Load Average abrufen\"] --> decision{ \"Load verfügbar?\" } -->|yes| success[\"Success: Aktuelle Werte drucken\"] --> stop_1[\"Stop\"] -->|no| failure[\"Failure: Warnung, keine Daten\"] --> stop_1\nwork --> decision{ \"CPU mpstat verfügbar?\" } -->|yes| success --> stop_1 -->|no| failure --> stop_1\nsuccess --> work --> decision{ \"Historische Daten vorhanden?\" } -->|yes| success --> stop_1 -->|no| failure --> stop_1\nfailure --> stop_1\nstop_1[\"Ende\"]",
+  "codeReferences": [
+    {
+      "nodeId": "setup",
+      "label": "Setup: Konstanten definieren",
+      "startLine": 13,
+      "endLine": 17
+    },
+    {
+      "nodeId": "work",
+      "label": "Work: Load Average abrufen",
+      "startLine": 20,
+      "endLine": 28
+    },
+    {
+      "nodeId": "success",
+      "label": "Success: Aktuelle Werte drucken",
+      "startLine": 96,
+      "endLine": 127
+    },
+    {
+      "nodeId": "failure",
+      "label": "Failure: Warnung, keine Daten",
+      "startLine": 20,
+      "endLine": 28
+    }
+  ]
+}

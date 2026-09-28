@@ -32,6 +32,7 @@ public final class MermaidRenderServiceSmoke {
                     verifyDiagramReportExports();
                     verifySupportedDiagramFamilies();
                     verifyGeneratedDiagramFamilies();
+                    verifyArchivedModelAnswersRender();
                     verifySyntaxError();
                     verifyRendererRecoversAfterFailure();
                     verifyCancellationRestartsEngine();
@@ -269,6 +270,67 @@ public final class MermaidRenderServiceSmoke {
     }
 
     /** The typed generated snippet path must render every family the AI can now produce. */
+    /**
+     * The archived answers of small local models korTTY used to reject for the local fallback
+     * (see {@code SnippetDiagramArchivedAnswersTest}): after the local repair they are accepted,
+     * and the bundled Mermaid parses and renders what korTTY would show — with the gate that asks
+     * the real parser switched on, exactly as the editor runs it.
+     */
+    private static void verifyArchivedModelAnswersRender() throws Exception {
+        String[] answers = {
+            "nemotron-fan-out-and-loops.json",
+            "nemotron-chain-past-stop.json",
+            "nemotron-redeclared-decisions.json",
+            "gpt-oss-unclosed-multiline-label.json",
+        };
+        for (String resource : answers) {
+            String answer = SnippetDiagramArchivedAnswersTest.read(resource);
+            int[] requests = {0};
+            AiService service = new AiService() {
+                @Override
+                public AiExecutionResult execute(AiRequest request) {
+                    requests[0]++;
+                    return new AiExecutionResult(answer, null, null);
+                }
+
+                @Override
+                public boolean testConnection() {
+                    return true;
+                }
+            };
+            SnippetAiResponseSupport.MermaidDiagram diagram = SnippetAiWorkflowSupport.generateSnippetMermaid(
+                service, null, de.kortty.model.SnippetDiagramType.LOGICAL_STRUCTURE, "echo line\n".repeat(130),
+                "bash", null, "de", "", SnippetAiWorkflowSupport.bundledMermaidSyntaxGate());
+            if (!diagram.isUsable() || requests[0] != 1) {
+                throw new IllegalStateException("Archived answer " + resource + " was not accepted at once: "
+                    + diagram.rejectionReason() + " (requests: " + requests[0] + ")");
+            }
+            MermaidRenderService.SyntaxCheckResult syntax = MermaidRenderService.checkSyntax(diagram.mermaid())
+                .get(45, TimeUnit.SECONDS);
+            if (!syntax.available() || !syntax.valid()) {
+                throw new IllegalStateException("Mermaid rejected the repaired " + resource + ": " + syntax.message());
+            }
+            for (MermaidRenderService.Theme theme : MermaidRenderService.Theme.values()) {
+                MermaidRenderService.RenderResult result = MermaidRenderService.render(
+                    MermaidRenderService.RenderRequest.generated(
+                        diagram.mermaid(), de.kortty.model.SnippetDiagramType.LOGICAL_STRUCTURE, theme,
+                        theme == MermaidRenderService.Theme.DARK ? "#1E1E1E" : "#FFFFFF", false))
+                    .get(45, TimeUnit.SECONDS);
+                if (!result.success() || !result.svg().contains("<svg")) {
+                    throw new IllegalStateException("Repaired " + resource + " did not render: " + result.message());
+                }
+                long drawnNodes = result.nodeBounds().size();
+                long expected = SnippetDiagramSupport.flowchartStatistics(diagram.mermaid()).nonterminalNodes() + 2;
+                if (drawnNodes < expected) {
+                    throw new IllegalStateException("Repaired " + resource + " rendered " + drawnNodes
+                        + " node bounds, expected " + expected);
+                }
+            }
+            System.out.println("Archived answer " + resource + " renders: "
+                + SnippetDiagramSupport.flowchartStatistics(diagram.mermaid()));
+        }
+    }
+
     private static void verifyGeneratedDiagramFamilies() throws Exception {
         record TypedSource(de.kortty.model.SnippetDiagramType type, String source) {
         }

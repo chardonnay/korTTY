@@ -270,12 +270,25 @@ class SnippetTypedDiagramSupportTest {
     }
 
     @Test
-    void sequenceRequiresDeclaredParticipantsAndBalancedBlocks() {
+    void sequenceCreatesParticipantsOnFirstUseAndRequiresBalancedBlocks() {
+        // Mermaid creates a participant on its first message; an undeclared id, a repeated
+        // declaration, a plain %% comment and the other arrow kinds all render, and used to cost
+        // the whole diagram.
         assertThat(SnippetTypedDiagramSupport.validate(SnippetDiagramType.SEQUENCE, """
             sequenceDiagram
             participant a as Script
+            participant a as Script
+            %% the server answers asynchronously
             a ->> ghost: Undeclared target
-            """).message()).contains("declared participant");
+            ghost --) a: Async reply
+            a -x ghost: Cancel
+            a -> ghost: Plain line
+            note over ghost: Implicit
+            """).valid()).isTrue();
+        assertThat(SnippetTypedDiagramSupport.declaredElementIds(SnippetDiagramType.SEQUENCE, """
+            sequenceDiagram
+            a ->> ghost: Hi
+            """)).containsExactly("a", "ghost");
         assertThat(SnippetTypedDiagramSupport.validate(SnippetDiagramType.SEQUENCE, """
             sequenceDiagram
             participant a as Script
@@ -314,11 +327,17 @@ class SnippetTypedDiagramSupportTest {
     }
 
     @Test
-    void stateRequiresInitialTransitionAndStaysFlat() {
+    void stateNeedsNoInitialTransitionButStaysFlat() {
+        // Mermaid draws a state diagram without an initial [*] transition; requiring one cost
+        // complete diagrams.
         assertThat(SnippetTypedDiagramSupport.validate(SnippetDiagramType.STATE, """
             stateDiagram-v2
             idle --> running
-            """).message()).contains("initial [*]");
+            """).valid()).isTrue();
+        assertThat(SnippetTypedDiagramSupport.validate(SnippetDiagramType.STATE, """
+            stateDiagram-v2
+            state "Idle" as idle
+            """).message()).contains("at least one state and one transition");
         assertThat(SnippetTypedDiagramSupport.validate(SnippetDiagramType.STATE, """
             stateDiagram-v2
             [*] --> outer

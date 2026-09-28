@@ -1933,7 +1933,10 @@ class SnippetAiWorkflowSupportTest {
                 null);
 
         assertThat(diagram.isUsable()).isFalse();
-        assertThat(aiService.executionCount).isEqualTo(1);
+        // A diagram of the wrong family is a slip the model can fix: one repair round names the
+        // header it has to start with.
+        assertThat(aiService.executionCount).isEqualTo(2);
+        assertThat(aiService.lastRequest.userPrompt()).contains("stateDiagram-v2");
     }
 
     @Test
@@ -2132,10 +2135,10 @@ class SnippetAiWorkflowSupportTest {
     }
 
     @Test
-    void aDiagramWhoseEdgesTheRepairsMostlyDropIsRejected() throws Exception {
-        // Seen live: 3 of 5 nodes survived but only 4 of 10 edges, and what the window would have
-        // shown is a straight line of five boxes for a 4,000-line script. A diagram's structure is
-        // in its edges, so losing most of them is a hollowing even when the nodes remain.
+    void aFannedOutDiagramIsKeptAsDrawn() throws Exception {
+        // The single-path dialect cut a dispatcher's branches down to one and then rejected the
+        // diagram because most of its edges were gone (seen live: 4 of 10 edges left). Mermaid
+        // draws fan-out, so every branch stays now and the diagram is used.
         StringBuilder mermaid = new StringBuilder(
             "flowchart TD\n    start_1([\"Start\"])\n    w0[\"Dispatch\"]\n    stop_1([\"Stop\"])\n");
         for (int index = 1; index <= 3; index++) {
@@ -2151,18 +2154,23 @@ class SnippetAiWorkflowSupportTest {
         response.addProperty("title", "Fanned out");
         response.addProperty("mermaid", mermaid.toString());
 
+        CapturingAiService fanned = new CapturingAiService(response.toString());
         SnippetAiResponseSupport.MermaidDiagram diagram = SnippetAiWorkflowSupport.generateSnippetMermaid(
-            new CapturingAiService(response.toString()), null, "line\n".repeat(4009), "bash", null, "en", null);
+            fanned, null, "line\n".repeat(4009), "bash", null, "en", null);
 
-        assertThat(diagram.isUsable()).isFalse();
-        assertThat(diagram.rejectionReason()).contains("edges");
+        assertThat(diagram.isUsable()).isTrue();
+        assertThat(fanned.executionCount).isEqualTo(1);
+        assertThat(diagram.mermaid()).contains("w0 --> w1");
+        assertThat(diagram.mermaid()).contains("w0 --> w3");
+        assertThat(SnippetDiagramSupport.flowchartStatistics(diagram.mermaid()).edges()).isEqualTo(7);
     }
 
     @Test
     void aDiagramWhoseNodesAreDeclaredTwiceIsTrimmedRatherThanDiscarded() throws Exception {
         // The archived answer of a live run: every node declared once as a box in a chain and once
         // as a decision, plus one node used in edges but never declared. The repairs keep the first
-        // declaration and drop the undeclared node — a trim, and the diagram is kept.
+        // declaration; the undeclared node is drawn with its id as label, as Mermaid does, and the
+        // branch to it is kept now that fan-out is allowed.
         CapturingAiService aiService = new CapturingAiService("""
             {"title": "Execution flow",
              "mermaid": "flowchart TD\\nstart_1[\\"Start\\"] --> setup[\\"Setup variables\\"] --> work[\\"Main loop\\"] --> success[\\"Success\\"] --> stop_1[\\"Stop\\"]\\nsetup{ \\"Check dependencies\\" }\\nwork{ \\"Parse arguments\\" }\\nsuccess{ \\"Certificate obtained\\" }\\nstop_1{ \\"Exit program\\" }\\nsetup --> work\\nwork --> success\\nwork --> failure\\nfailure --> stop_1\\n",
@@ -2174,7 +2182,8 @@ class SnippetAiWorkflowSupportTest {
 
         assertThat(diagram.isUsable()).isTrue();
         assertThat(diagram.mermaid()).contains("setup[\"Setup variables\"]");
-        assertThat(diagram.mermaid()).doesNotContain("failure");
+        assertThat(diagram.mermaid()).contains("work --> failure");
+        assertThat(diagram.mermaid()).contains("failure[\"failure\"]");
         assertThat(diagram.mermaid()).contains("class start_1,stop_1 setup");
     }
 
@@ -2185,10 +2194,10 @@ class SnippetAiWorkflowSupportTest {
         String previousArchive = System.getProperty(AiAnswerArchive.ENABLED_PROPERTY);
         String previousLogDir = System.getProperty(LoggingConfiguration.LOG_DIR_PROPERTY);
         java.nio.file.Path logDirectory = java.nio.file.Files.createTempDirectory("kortty-diagram-archive");
+        // Two steps and no connection between them: nothing a flowchart can show.
         String answer = "{\"title\": \"Runtime flow\", \"mermaid\": \"flowchart TD\\n"
-            + "start_1([\\\"Start\\\"]) --> work_1[\\\"Run\\\"]\\n"
-            + "work_1 --> stop_1([\\\"Stop\\\"])\\nstop_1 --> work_1\\n"
-            + "class start_1,stop_1 setup\\nclass work_1 work\"}";
+            + "load_1[\\\"Load\\\"]\\nwork_1[\\\"Run\\\"]\\n"
+            + "class work_1 work\"}";
         try {
             System.setProperty(LoggingConfiguration.LOG_DIR_PROPERTY, logDirectory.toString());
             System.setProperty(AiAnswerArchive.ENABLED_PROPERTY, "on");
@@ -2197,13 +2206,16 @@ class SnippetAiWorkflowSupportTest {
                 new CapturingAiService(answer), null, "line\n".repeat(40), "plain", null, "en", null);
 
             assertThat(diagram.isUsable()).isFalse();
-            assertThat(diagram.rejectionReason()).contains("stop_1");
+            assertThat(diagram.rejectionReason()).contains("no connections");
             java.nio.file.Path archive = logDirectory.resolve(AiAnswerArchive.DIRECTORY_NAME);
             try (java.util.stream.Stream<java.nio.file.Path> files = java.nio.file.Files.list(archive)) {
+                // One answer per round: the first and the repair round's (here the same text).
                 java.util.List<java.nio.file.Path> archived = files.toList();
-                assertThat(archived).hasSize(1);
-                assertThat(archived.get(0).getFileName().toString()).contains("generate-snippet-mermaid-rejected-diagram");
-                assertThat(java.nio.file.Files.readString(archived.get(0))).isEqualTo(answer);
+                assertThat(archived).isNotEmpty();
+                for (java.nio.file.Path file : archived) {
+                    assertThat(file.getFileName().toString()).contains("generate-snippet-mermaid-rejected-diagram");
+                    assertThat(java.nio.file.Files.readString(file)).isEqualTo(answer);
+                }
             }
         } finally {
             restoreProperty(AiAnswerArchive.ENABLED_PROPERTY, previousArchive);
@@ -2226,17 +2238,16 @@ class SnippetAiWorkflowSupportTest {
     void aDiagramRejectedByTheRepairsIsNeverLoggedAsAcceptedFirst() throws Exception {
         // Seen live from a weaker model: "AI diagram accepted" and "AI diagram rejected" one
         // millisecond apart, because the acceptance was logged before the last gate.
-        // A work node fanning out into parallel branches: valid Mermaid the strict dialect cannot
-        // show, so the repairs keep one branch and the diagram is hollowed out.
+        // One connected step and four more that nothing leads to: the repairs leave out the
+        // unreachable chain, and a diagram that lost most of its steps is rejected.
         StringBuilder mermaid = new StringBuilder(
             "flowchart TD\n    start_1([\"Start\"])\n    w0[\"Dispatch\"]\n    stop_1([\"Stop\"])\n");
         for (int index = 1; index <= 4; index++) {
             mermaid.append("    w").append(index).append("[\"Branch ").append(index).append("\"]\n");
         }
-        mermaid.append("    start_1 --> w0\n");
-        for (int index = 1; index <= 4; index++) {
-            mermaid.append("    w0 --> w").append(index).append('\n');
-            mermaid.append("    w").append(index).append(" --> stop_1\n");
+        mermaid.append("    start_1 --> w0\n    w0 --> stop_1\n");
+        for (int index = 1; index < 4; index++) {
+            mermaid.append("    w").append(index).append(" --> w").append(index + 1).append('\n');
         }
         mermaid.append("    class start_1,stop_1 setup\n    class w0,w1,w2,w3,w4 work\n");
         JsonObject response = new JsonObject();
@@ -2260,10 +2271,11 @@ class SnippetAiWorkflowSupportTest {
 
         List<String> messages = events.list.stream().map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage).toList();
         assertThat(diagram.isUsable()).isFalse();
-        assertThat(diagram.rejectionReason()).contains("would drop");
-        assertThat(diagram.rejectionReason()).contains("edges");
+        assertThat(diagram.rejectionReason()).contains("Only 1 of the flowchart's 5 steps");
         assertThat(messages.stream().filter(message -> message.startsWith("AI diagram accepted"))).isEmpty();
-        assertThat(messages.stream().filter(message -> message.startsWith("AI diagram rejected"))).hasSize(1);
+        // One rejection per round: the answer and the repair round's (the same) answer.
+        assertThat(messages.stream().filter(message -> message.startsWith("AI diagram rejected"))).hasSize(2);
+        assertThat(aiService.executionCount).isEqualTo(2);
     }
 
     @Test

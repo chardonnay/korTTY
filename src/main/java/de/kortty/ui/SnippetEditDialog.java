@@ -4952,6 +4952,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             protected SnippetDiagramView.DiagramSource call() throws Exception {
                 SnippetAiResponseSupport.MermaidDiagram diagram = null;
                 String failure = null;
+                String failureDetail = null;
                 try {
                     diagram = aiAssist.diagramProvider() != null
                         ? aiAssist.diagramProvider().generate(
@@ -4962,8 +4963,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                         throw e;
                     }
                     failure = isOutputTokenLimitFailure(e)
-                        ? I18n.get("snippets.ai.diagram.outputLimitReached")
-                        : shortenStatusMessage(String.valueOf(e.getMessage()));
+                        ? I18n.get("snippets.ai.diagram.rejection.outputLimit")
+                        : I18n.get("snippets.ai.diagram.rejection.requestFailed");
+                    failureDetail = shortenStatusMessage(String.valueOf(e.getMessage()));
                     logger.warn("AI diagram generation failed; using the local Mermaid fallback", e);
                 }
                 if (isCancelled()) {
@@ -4974,18 +4976,22 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                 }
                 // The fallback looks like a real diagram, so it is labelled: without the notice a
                 // discarded AI answer was indistinguishable from a merely poor one.
-                String reason = failure != null
-                    ? failure
+                // The notice names the reason in a few localized words; the precise English
+                // rejection sentence stays in the log and in the notice's tooltip.
+                String detail = failure != null
+                    ? failureDetail
                     : diagram != null ? diagram.rejectionReason() : null;
-                if (failure == null && reason != null) {
-                    logger.warn("AI diagram was rejected ({}); using the local Mermaid fallback", reason);
+                if (failure == null && detail != null) {
+                    logger.warn("AI diagram was rejected ({}); using the local Mermaid fallback", detail);
                 }
-                String notice = reason != null
-                    ? I18n.get("snippets.ai.analysis.diagram.fallback", reason)
+                String shortReason = failure != null ? failure
+                    : detail != null ? SnippetDiagramFallbackText.shortReason(detail) : null;
+                String notice = shortReason != null
+                    ? I18n.get("snippets.ai.analysis.diagram.fallback", shortReason)
                     : I18n.get("snippets.ai.analysis.diagram.fallback.generic");
                 String mermaid = SnippetDiagramSupport.buildFallbackLogicalStructureMermaid(fullContent, language);
                 return new SnippetDiagramView.DiagramSource(
-                    mermaid, fullContent, List.of(), SnippetDiagramType.LOGICAL_STRUCTURE, notice);
+                    mermaid, fullContent, List.of(), SnippetDiagramType.LOGICAL_STRUCTURE, notice, detail);
             }
         };
         task.setOnSucceeded(event -> future.complete(task.getValue()));
@@ -6126,18 +6132,26 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                 }
                 if (allowFallback
                     && (diagram == null || !diagram.isUsable() || renderCheck == null || !renderCheck.success())) {
-                    String fallbackReason = failureMessage != null
+                    String fallbackDetail = failureMessage != null
                         ? failureMessage
                         : diagram == null
                             ? null
                             : !diagram.isUsable()
                                 ? diagram.rejectionReason()
                                 : renderCheck != null && !renderCheck.success()
-                                    ? shortenStatusMessage(renderCheck.message())
+                                    ? "Mermaid could not parse the diagram: " + shortenStatusMessage(renderCheck.message())
                                     : null;
-                    if (failureMessage == null && fallbackReason != null) {
-                        logger.warn("AI diagram was rejected ({}); using the local Mermaid fallback", fallbackReason);
+                    if (failureMessage == null && fallbackDetail != null) {
+                        logger.warn("AI diagram was rejected ({}); using the local Mermaid fallback", fallbackDetail);
                     }
+                    // The status line names the reason in a few localized words; the precise
+                    // rejection sentence is in the log.
+                    String fallbackReason = fallbackDetail == null ? null
+                        : failureMessage != null
+                            ? I18n.get(outputLimitReached
+                                ? "snippets.ai.diagram.rejection.outputLimit"
+                                : "snippets.ai.diagram.rejection.requestFailed")
+                            : SnippetDiagramFallbackText.shortReason(fallbackDetail);
                     String fallbackSource = SnippetDiagramSupport.buildFallbackLogicalStructureMermaid(fullContent, snippetLanguage);
                     String fallbackTitle = diagram != null && diagram.title() != null && !diagram.title().isBlank()
                         ? diagram.title()
@@ -6176,7 +6190,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                 setStatus(result != null && result.outputLimitReached()
                     ? I18n.get("snippets.ai.diagram.outputLimitReached")
                     : generated != null && generated.rejectionReason() != null
-                        ? I18n.get("snippets.ai.diagram.rejected", generated.rejectionReason())
+                        ? I18n.get("snippets.ai.diagram.rejected",
+                            SnippetDiagramFallbackText.shortReason(generated.rejectionReason()))
                         : I18n.get("snippets.ai.diagram.failed"));
                 return;
             }

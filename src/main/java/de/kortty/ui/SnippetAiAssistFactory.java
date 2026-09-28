@@ -534,7 +534,10 @@ final class SnippetAiAssistFactory {
             request.snippetLanguage(),
             connectionDisplayName,
             request.fallbackLanguageCode(),
-            request.additionalInstructions());
+            request.additionalInstructions(),
+            // Mermaid's own parser is the final gate: a diagram it cannot parse gets the one
+            // repair round with the parser's error instead of an error box in the viewer.
+            SnippetAiWorkflowSupport.bundledMermaidSyntaxGate());
     }
 
     private static SnippetAiResponseSupport.OneLinerSuggestion generateCompactOneLiner(

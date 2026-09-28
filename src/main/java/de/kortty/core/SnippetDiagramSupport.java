@@ -66,6 +66,24 @@ public final class SnippetDiagramSupport {
         "nl", List.of("ja", "nee"),
         "pt", List.of("sim", "não"));
     private static final Pattern HEADER_PATTERN = Pattern.compile("(?i)^flowchart\\s+TD\\s*;?$");
+    /** The headers a model writes for the same flowchart; the repair rewrites them to {@code flowchart TD}. */
+    private static final Pattern LENIENT_HEADER_PATTERN = Pattern.compile(
+        "(?i)^(?:flowchart|graph)(?:\\s+(?:TD|TB|BT|LR|RL))?\\s*;?$");
+    private static final Pattern HTML_LINE_BREAK_PATTERN = Pattern.compile("(?i)<\\s*br\\s*/?\\s*>");
+    /** How many following lines the repair joins onto a statement whose label was broken across lines. */
+    private static final int MAX_CONTINUATION_LINES = 8;
+    private static final Pattern STRAY_BACKSLASH_AT_SHAPE_EDGE = Pattern.compile(
+        "(?<=[\\[{(])\\\\(?=\")|\\\\(?=[\\]})])");
+    /** Two quoted parts of one label, separated only by whitespace: {@code "Lade 60 Min" "ergebnis?"}. */
+    private static final Pattern ADJACENT_QUOTED_PARTS = Pattern.compile("\"([^\"]*)\"\\s+\"([^\"]*)\"");
+    /** A node whose shape is still open at the end of its line; groups: id, opener, quoted or bare label. */
+    private static final Pattern UNCLOSED_TRAILING_SHAPE = Pattern.compile(
+        "^([A-Za-z][A-Za-z0-9_]{0,63}(?:-[A-Za-z0-9_]{1,63})*)\\s*(\\(\\[|\\[\\[|\\[\\(|\\(\\(|\\[|\\(|\\{\\{|\\{)"
+            + "\\s*(?:\"([^\"]*)\"?|([^\"\\[\\](){}]+))\\s*$");
+    /** The longest node label the canonical form keeps; a longer one is cut with an ellipsis. */
+    static final int MAX_CANONICAL_LABEL_CHARS = 160;
+    /** The longest edge label the canonical form keeps. */
+    static final int MAX_CANONICAL_EDGE_LABEL_CHARS = 60;
     // A hyphen inside an id must be followed by a word character, so `a-->b` written without
     // spaces still parses as an edge from `a` rather than an id that swallowed the arrow.
     private static final String NODE_ID = "[A-Za-z][A-Za-z0-9_]{0,63}(?:-[A-Za-z0-9_]{1,63})*";
@@ -117,6 +135,13 @@ public final class SnippetDiagramSupport {
     private static final Pattern DOUBLED_LABEL_QUOTES = Pattern.compile("(\\(\\[|\\[|\\{)\"\"([^\"]*)\"\"(]\\)|]|})");
     /** MiniMax-M3's recurring slip on the stadium shape: {@code (["Start")]} for {@code (["Start"])}. */
     private static final Pattern MISPLACED_STADIUM_CLOSE = Pattern.compile("\\(\\[\"((?:\\\\.|[^\"\\\\])*)\"\\)]");
+    /**
+     * Mermaid's rounded shape with a quoted label, {@code id("Setup")} — also with the space models
+     * leave before the closing parenthesis. Not the stadium {@code (["…"])}, the circle
+     * {@code (("…"))} or a parenthesis inside a label.
+     */
+    private static final Pattern QUOTED_ROUND = Pattern.compile(
+        "(?<=[A-Za-z0-9_])\\s*\\((?![(\\[])\\s*(\"(?:\\\\.|[^\"\\\\])*\")\\s*\\)(?![)\\]])");
     // Unquoted shapes, applied only to the parts of a line outside quotes so a quoted label is
     // never touched and a freshly quoted one is never wrapped twice.
     private static final Pattern UNQUOTED_STADIUM = Pattern.compile("\\(\\[\\s*([^\\[\\]()|\"]+?)\\s*]\\)");
@@ -327,6 +352,10 @@ public final class SnippetDiagramSupport {
                 }
             }
         }
+        // The stable terminals are no steps, whatever shape the model drew them in (a circle or a
+        // box for start_1 used to count as an action and made a complete diagram look trimmed).
+        types.remove("start_1");
+        types.remove("stop_1");
         int actionNodes = (int) types.values().stream().filter(type -> type == NodeType.ACTION).count();
         int decisionNodes = (int) types.values().stream().filter(type -> type == NodeType.DECISION).count();
         return new FlowchartStatistics(actionNodes, decisionNodes, edges);
@@ -357,6 +386,156 @@ public final class SnippetDiagramSupport {
             kept.append(line);
         }
         return kept.toString();
+    }
+
+    /**
+     * What {@link #repairGeneratedFlowchart} made of a freshly generated flowchart: the source the
+     * parser can read, and the lines it had to leave out because nothing in them could be read.
+     */
+    public record FlowchartRepair(String source, List<String> droppedLines) {
+        public FlowchartRepair {
+            source = source != null ? source : "";
+            droppedLines = droppedLines != null ? List.copyOf(droppedLines) : List.of();
+        }
+    }
+
+    /**
+     * Repairs the syntax slips small models make in a generated flowchart before it is validated,
+     * so a renderable diagram is not thrown away for one broken line.
+     *
+     * <ul>
+     *   <li>{@code graph TD} and the other directions become the {@code flowchart TD} header;</li>
+     *   <li>a label continued on the next line ({@code n["Load 60 min"} / {@code "result?"]}) is
+     *       joined, and several quoted parts of one label become one label;</li>
+     *   <li>a shape left open at the end of its line is closed, a stray backslash at a shape edge
+     *       is removed, and {@code <br>} inside a label becomes a space;</li>
+     *   <li>a line that still cannot be read — a bare id, an id with a space in it, a subgraph,
+     *       an unknown directive — is left out, and reported.</li>
+     * </ul>
+     *
+     * <p>Nothing here adds capability: what remains is validated afterwards by the unchanged
+     * security screen and grammar, and only the canonical form rebuilt from the parsed structure
+     * is ever rendered or saved. A source without a flowchart header is returned unchanged, so
+     * validation still names the real problem.</p>
+     */
+    public static FlowchartRepair repairGeneratedFlowchart(String source) {
+        String original = HTML_LINE_BREAK_PATTERN.matcher(normalizeMermaid(source)).replaceAll(" ");
+        // A presentation statement is stripped below — but one that carries a URL, a script or
+        // markup is an injection attempt, and the whole diagram is refused for it.
+        if (FORBIDDEN_URL_PATTERN.matcher(original).find() || FORBIDDEN_MEDIA_PATTERN.matcher(original).find()
+            || FORBIDDEN_HTML_PATTERN.matcher(original).find()) {
+            return new FlowchartRepair(original, List.of());
+        }
+        String value = stripPresentationStatements(original);
+        if (value.isBlank()) {
+            return new FlowchartRepair("", List.of());
+        }
+        // Unsafe syntax is refused, never quietly cut away: a source that fails the security
+        // screen is returned as it is, so validation names the reason and the diagram is rejected.
+        if (!validateCommonSecurity(value).valid()) {
+            return new FlowchartRepair(value, List.of());
+        }
+        String[] lines = value.split("\\R", -1);
+        int headerIndex = 0;
+        while (headerIndex < lines.length && lines[headerIndex].isBlank()) {
+            headerIndex++;
+        }
+        if (headerIndex >= lines.length || !LENIENT_HEADER_PATTERN.matcher(lines[headerIndex].trim()).matches()) {
+            return new FlowchartRepair(value, List.of());
+        }
+        List<String> kept = new ArrayList<>();
+        List<String> dropped = new ArrayList<>();
+        kept.add("flowchart TD");
+        for (int index = headerIndex + 1; index < lines.length; index++) {
+            String line = lines[index].trim();
+            int joined = 0;
+            while (isUnbalancedStatement(line) && index + 1 < lines.length
+                && joined < MAX_CONTINUATION_LINES && isContinuationLine(lines[index + 1])) {
+                line = line + " " + lines[++index].trim();
+                joined++;
+            }
+            line = repairStatement(line);
+            if (line.isBlank()) {
+                continue;
+            }
+            if (isReadableStatement(line)) {
+                kept.add(line);
+            } else if (!isEnvelopeDebris(line)) {
+                dropped.add(excerpt(line));
+            }
+        }
+        return new FlowchartRepair(String.join("\n", kept), dropped);
+    }
+
+    /** Whether a line opens a quote or a shape it does not close. */
+    private static boolean isUnbalancedStatement(String line) {
+        int depth = 0;
+        boolean inString = false;
+        for (int index = 0; index < line.length(); index++) {
+            char character = line.charAt(index);
+            if (character == '"') {
+                inString = !inString;
+            } else if (!inString && (character == '[' || character == '(' || character == '{')) {
+                depth++;
+            } else if (!inString && (character == ']' || character == ')' || character == '}')) {
+                depth--;
+            }
+        }
+        return inString || depth > 0;
+    }
+
+    /** A line that can only be the rest of the previous one: it starts inside a label or with a closer. */
+    private static boolean isContinuationLine(String line) {
+        String trimmed = line.trim();
+        return !trimmed.isEmpty() && "\"])}".indexOf(trimmed.charAt(0)) >= 0;
+    }
+
+    /** A line of JSON envelope or quote debris, which is not worth reporting as a dropped statement. */
+    private static boolean isEnvelopeDebris(String line) {
+        return line.chars().noneMatch(Character::isLetterOrDigit);
+    }
+
+    private static String repairStatement(String line) {
+        String value = STRAY_BACKSLASH_AT_SHAPE_EDGE.matcher(line).replaceAll("");
+        // `["Lade 60 Min" "ergebnis?"]`: one label written in parts; parts without a letter or digit
+        // (a model's "..", "?") are decoration and go.
+        Matcher parts = ADJACENT_QUOTED_PARTS.matcher(value);
+        while (parts.find()) {
+            String first = parts.group(1).trim();
+            String second = parts.group(2).trim();
+            String merged = !hasWordCharacter(second) ? first
+                : !hasWordCharacter(first) ? second
+                : first + " " + second;
+            value = value.substring(0, parts.start()) + "\"" + merged + "\"" + value.substring(parts.end());
+            parts = ADJACENT_QUOTED_PARTS.matcher(value);
+        }
+        Matcher open = UNCLOSED_TRAILING_SHAPE.matcher(value);
+        if (open.matches()) {
+            String opener = open.group(2);
+            String label = open.group(3) != null ? open.group(3) : open.group(4);
+            label = label != null ? label.trim() : "";
+            if (!label.isEmpty()) {
+                value = open.group(1) + (opener.startsWith("{") ? "{\"" + label + "\"}"
+                    : opener.equals("([") ? "([\"" + label + "\"])"
+                    : "[\"" + label + "\"]");
+            }
+        }
+        return value.trim();
+    }
+
+    private static boolean hasWordCharacter(String value) {
+        return value.chars().anyMatch(Character::isLetterOrDigit);
+    }
+
+    /** Whether the flowchart parser reads the line as a statement (or deliberately skips it). */
+    private static boolean isReadableStatement(String rawLine) {
+        String line = normalizeShapeShorthand(rawLine.trim());
+        if (line.isBlank() || line.startsWith("%%") || line.startsWith("class ")) {
+            return true;
+        }
+        return NODE_PATTERN.matcher(line).matches()
+            || BARE_INLINE_CLASS_PATTERN.matcher(line).matches()
+            || parseEdgeStatement(line) != null;
     }
 
     /** How many presentation statements {@link #stripPresentationStatements} would remove from an answer. */
@@ -393,7 +572,7 @@ public final class SnippetDiagramSupport {
         StringBuilder builder = new StringBuilder("flowchart TD\n");
         for (NodeDefinition node : parsed.nodes().values()) {
             builder.append("    ").append(node.id());
-            String label = escapeLabel(node.label());
+            String label = escapeLabel(capLabel(node.label(), MAX_CANONICAL_LABEL_CHARS));
             switch (node.type()) {
                 case DECISION -> builder.append("{\"").append(label).append("\"}");
                 case TERMINAL -> builder.append("([\"").append(label).append("\"])");
@@ -402,8 +581,9 @@ public final class SnippetDiagramSupport {
             builder.append('\n');
         }
         for (EdgeDefinition edge : parsed.edges()) {
+            String label = sanitizeEdgeLabel(edge.label());
             builder.append("    ").append(edge.from())
-                .append(edge.label().isBlank() ? " --> " : " -->|" + edge.label() + "| ")
+                .append(label.isBlank() ? " --> " : " -->|" + label + "| ")
                 .append(edge.to()).append('\n');
         }
         Map<String, List<String>> byClass = new LinkedHashMap<>();
@@ -417,6 +597,24 @@ public final class SnippetDiagramSupport {
             }
         });
         return builder.toString().stripTrailing();
+    }
+
+    /**
+     * An edge label as the canonical form writes it between pipes: only text, no character that
+     * could end the label or open a shape, and short. The labels are plain text a model wrote on an
+     * arrow ("yes", "retry", "per line"); nothing a reader needs is lost.
+     */
+    static String sanitizeEdgeLabel(String label) {
+        String value = normalizeDiagramLabel(label)
+            .replaceAll("[|\"\\[\\](){}<>#;&`]", " ")
+            .replaceAll("\\s+", " ")
+            .trim();
+        return capLabel(value, MAX_CANONICAL_EDGE_LABEL_CHARS);
+    }
+
+    private static String capLabel(String label, int maxChars) {
+        String value = label != null ? label : "";
+        return value.length() > maxChars ? value.substring(0, maxChars - 1).trim() + "…" : value;
     }
 
     public static String contentHash(String content) {
@@ -721,9 +919,11 @@ public final class SnippetDiagramSupport {
             if (sourceReference == null || usedNodeIds.contains(sourceReference.nodeId())) {
                 continue;
             }
+            // The node id is the key; a label the model shortened or reworded in its mapping
+            // ("Failure: …" vs. "Failure: … or invalid CPU value") still means that node. An id
+            // the diagram does not declare is simply dropped.
             NodeDefinition node = diagram.nodes().get(sourceReference.nodeId());
-            if (node == null || node.type() == NodeType.TERMINAL
-                || !normalizeDiagramLabel(node.label()).equals(normalizeDiagramLabel(sourceReference.label()))) {
+            if (node == null || node.type() == NodeType.TERMINAL) {
                 continue;
             }
             int startLine = sourceReference.startLine();
@@ -744,7 +944,7 @@ public final class SnippetDiagramSupport {
     }
 
     /**
-     * Filters an AI mapping to declared non-terminal nodes with exact labels and structurally valid
+     * Filters an AI mapping to declared non-terminal nodes (keyed by node id) with structurally valid
      * positive line ranges. Bounds against the actual snippet are checked later when references are built.
      */
     static List<SourceCodeReference> filterValidSourceReferences(
@@ -765,7 +965,6 @@ public final class SnippetDiagramSupport {
             }
             NodeDefinition node = diagram.nodes().get(reference.nodeId());
             if (node == null || node.type() == NodeType.TERMINAL
-                || !normalizeDiagramLabel(node.label()).equals(normalizeDiagramLabel(reference.label()))
                 || reference.startLine() < 1 || reference.endLine() < reference.startLine()) {
                 continue;
             }
@@ -945,10 +1144,23 @@ public final class SnippetDiagramSupport {
                     }
                     classes.putIfAbsent(inlineClass.getKey(), inlineClass.getValue());
                 }
+                String lastDecision = null;
                 for (EdgeDefinition edge : statement.edges()) {
+                    EdgeDefinition effective = edge;
+                    if ("stop_1".equals(edge.from())) {
+                        // A chain that runs on past its end — `c{"Ok?"} -->|yes| done --> stop_1
+                        // -->|no| failure` — meant the other outcome of the decision before it. An
+                        // unlabelled edge out of stop_1 names no such branch and is left out.
+                        if (edge.label().isBlank() || lastDecision == null) {
+                            continue;
+                        }
+                        effective = new EdgeDefinition(lastDecision, edge.label(), edge.to());
+                    } else if (nodes.get(edge.from()) != null && nodes.get(edge.from()).type() == NodeType.DECISION) {
+                        lastDecision = edge.from();
+                    }
                     // A repeated identical edge is a model stutter, not a second path.
-                    if (!edges.contains(edge)) {
-                        edges.add(edge);
+                    if (!edges.contains(effective)) {
+                        edges.add(effective);
                     }
                 }
                 if (edges.size() > MAX_MERMAID_EDGES) {
@@ -1002,167 +1214,119 @@ public final class SnippetDiagramSupport {
                 entry.setValue(new NodeDefinition(node.id(), label, NodeType.TERMINAL, node.semanticClass()));
             }
         }
-        // A flow without the stable ids still has an entry and exits. When exactly one node has
-        // no incoming edge, start_1 leads to it; when nodes dead-end, stop_1 collects them.
-        // A start_1 that is missing, or declared and never connected — both leave the flow's real
-        // entry without a source. Among the nodes nothing leads to, the one that reaches most of
-        // the diagram is the entry (a model's own "Start" first of all); a mistyped orphan beside
-        // it is pruned below.
-        boolean startNeedsEntry = !nodes.containsKey("start_1")
-            || edges.stream().noneMatch(edge -> edge.from().equals("start_1"));
-        if (startNeedsEntry) {
-            Set<String> withIncoming = new LinkedHashSet<>();
-            edges.forEach(edge -> withIncoming.add(edge.to()));
-            List<String> candidates = nodes.keySet().stream()
-                .filter(id -> !withIncoming.contains(id) && !"start_1".equals(id) && !"stop_1".equals(id))
-                .toList();
-            String entry = null;
-            if (candidates.size() == 1) {
-                entry = candidates.get(0);
-            } else if (candidates.size() > 1) {
-                Map<String, List<String>> forwardEdges = new LinkedHashMap<>();
-                edges.forEach(edge -> forwardEdges.computeIfAbsent(edge.from(), key -> new ArrayList<>()).add(edge.to()));
-                long bestScore = -1;
-                for (String candidate : candidates) {
-                    long score = reachableNodes(candidate, forwardEdges).size() * 2L
-                        + (nodes.get(candidate).label().equalsIgnoreCase("start") ? 1 : 0);
-                    if (score > bestScore) {
-                        entry = candidate;
-                        bestScore = score;
-                    }
+        // The flow's own ends: nothing leads into start_1 and nothing leaves stop_1. Mermaid would
+        // draw either edge, but a backward edge into the start or out of the end is a slip, and
+        // dropping it loses nothing — whatever only it reached is connected again below.
+        edges.removeIf(edge -> "start_1".equals(edge.to()) || "stop_1".equals(edge.from()));
+        List<String> steps = nodes.keySet().stream()
+            .filter(id -> !"start_1".equals(id) && !"stop_1".equals(id)).toList();
+        boolean stepsConnected = edges.stream().anyMatch(edge -> steps.contains(edge.from()) || steps.contains(edge.to()));
+        if (!stepsConnected && steps.size() > 1) {
+            return ParsedDiagram.failure("The flowchart declares " + steps.size()
+                + " steps but draws no connections between them.");
+        }
+        if (stepsConnected) {
+            // A step the model declared and never connected — a mistyped id with its own
+            // declaration, a phase it forgot — cannot be placed in the flow; it goes alone.
+            Set<String> touched = new LinkedHashSet<>();
+            edges.forEach(edge -> { touched.add(edge.from()); touched.add(edge.to()); });
+            steps.stream().filter(id -> !touched.contains(id)).forEach(nodes::remove);
+        }
+        // An action whose branches all carry yes/no labels is a decision drawn in the wrong shape;
+        // a diamond with one exit (or none) is an action.
+        for (Map.Entry<String, NodeDefinition> entry : nodes.entrySet()) {
+            NodeDefinition node = entry.getValue();
+            if (node.type() == NodeType.TERMINAL) {
+                continue;
+            }
+            List<EdgeDefinition> outgoing = edges.stream().filter(edge -> edge.from().equals(node.id())).toList();
+            if (node.type() == NodeType.ACTION && outgoing.size() >= 2
+                && outgoing.stream().allMatch(edge -> isOutcomeWord(edge.label()))) {
+                entry.setValue(new NodeDefinition(node.id(), node.label(), NodeType.DECISION, node.semanticClass()));
+            } else if (node.type() == NodeType.DECISION && outgoing.size() <= 1) {
+                entry.setValue(new NodeDefinition(node.id(), node.label(), NodeType.ACTION, node.semanticClass()));
+                if (outgoing.size() == 1) {
+                    EdgeDefinition only = outgoing.get(0);
+                    edges.set(edges.indexOf(only), new EdgeDefinition(only.from(), "", only.to()));
                 }
             }
-            if (entry != null) {
-                if (!nodes.containsKey("start_1")) {
-                    Map<String, NodeDefinition> reordered = new LinkedHashMap<>();
-                    reordered.put("start_1", new NodeDefinition("start_1", "Start", NodeType.TERMINAL, ""));
-                    reordered.putAll(nodes);
-                    nodes.clear();
-                    nodes.putAll(reordered);
+        }
+        // A start_1 that is missing, or declared and never connected — both leave the flow's real
+        // entry without a source. Among the nodes nothing leads to, the one that reaches most of
+        // the diagram is the entry (a model's own "Start" first of all).
+        boolean startNeedsEntry = !nodes.containsKey("start_1")
+            || edges.stream().noneMatch(edge -> edge.from().equals("start_1"));
+        if (!nodes.containsKey("start_1")) {
+            Map<String, NodeDefinition> reordered = new LinkedHashMap<>();
+            reordered.put("start_1", new NodeDefinition("start_1", "Start", NodeType.TERMINAL, ""));
+            reordered.putAll(nodes);
+            nodes.clear();
+            nodes.putAll(reordered);
+        }
+        if (startNeedsEntry) {
+            Map<String, List<String>> forward = forwardEdges(edges);
+            Set<String> withIncoming = new LinkedHashSet<>();
+            edges.forEach(edge -> withIncoming.add(edge.to()));
+            String entry = null;
+            long bestScore = -1;
+            for (String candidate : nodes.keySet()) {
+                if (withIncoming.contains(candidate) || "start_1".equals(candidate) || "stop_1".equals(candidate)) {
+                    continue;
                 }
+                long score = reachableNodes(candidate, forward).size() * 2L
+                    + (nodes.get(candidate).label().equalsIgnoreCase("start") ? 1 : 0);
+                if (score > bestScore) {
+                    entry = candidate;
+                    bestScore = score;
+                }
+            }
+            if (entry == null) {
+                // Every step has a predecessor: the flow is one loop. Its first declared step is the entry.
+                entry = nodes.keySet().stream()
+                    .filter(id -> !"start_1".equals(id) && !"stop_1".equals(id)).findFirst().orElse(null);
+            }
+            if (entry != null) {
                 edges.add(0, new EdgeDefinition("start_1", "", entry));
             }
         }
-        if (!nodes.containsKey("stop_1")) {
-            Set<String> withOutgoing = new LinkedHashSet<>();
-            edges.forEach(edge -> withOutgoing.add(edge.from()));
-            List<String> exits = nodes.values().stream()
-                .filter(node -> node.type() != NodeType.DECISION && !withOutgoing.contains(node.id()))
-                .map(NodeDefinition::id).toList();
-            if (!exits.isEmpty()) {
-                nodes.put("stop_1", new NodeDefinition("stop_1", "Stop", NodeType.TERMINAL, ""));
-                exits.forEach(id -> edges.add(new EdgeDefinition(id, "", "stop_1")));
+        // A second node nothing leads to — a mistyped id that got its own declaration and an edge,
+        // a phase the model forgot to connect — cannot be placed in the flow; it is left out with
+        // its outgoing edges (and whatever only it reached) rather than drawn as a second start.
+        // Fan-out, merges and loops are not touched: everything reachable from start_1 stays.
+        Set<String> reachable = reachableNodes("start_1", forwardEdges(edges));
+        for (String id : List.copyOf(nodes.keySet())) {
+            if (!"start_1".equals(id) && !"stop_1".equals(id) && !reachable.contains(id)) {
+                nodes.remove(id);
+                edges.removeIf(edge -> edge.from().equals(id) || edge.to().equals(id));
             }
         }
-        if (isTerminalNode(nodes.get("stop_1"))) {
-            Set<String> withOutgoing = new LinkedHashSet<>();
-            edges.forEach(edge -> withOutgoing.add(edge.from()));
-            for (NodeDefinition node : nodes.values()) {
-                if (!"stop_1".equals(node.id()) && node.type() != NodeType.DECISION && !withOutgoing.contains(node.id())) {
-                    edges.add(new EdgeDefinition(node.id(), "", "stop_1"));
-                }
-            }
-        }
-        // Parallel branches out of one action cannot be drawn in this dialect. Rather than lose the
-        // diagram, the branch that reaches the most of it stands for the path and the others go;
-        // whatever only they reached is pruned below, and the caller logs the difference.
-        Map<String, List<String>> forward = new LinkedHashMap<>();
-        edges.forEach(edge -> forward.computeIfAbsent(edge.from(), key -> new ArrayList<>()).add(edge.to()));
-        Set<EdgeDefinition> keptFanOut = new LinkedHashSet<>();
-        List<String> outcomes = ORDERED_OUTCOME_LABELS.getOrDefault(
-            normalizeLanguageCode(languageCode), ORDERED_OUTCOME_LABELS.get("en"));
-        for (Map.Entry<String, NodeDefinition> entry : nodes.entrySet()) {
-            NodeDefinition node = entry.getValue();
-            List<EdgeDefinition> outgoing = edges.stream().filter(edge -> edge.from().equals(node.id())).toList();
-            if (node.type() == NodeType.DECISION || outgoing.size() < 2) {
-                continue;
-            }
-            // A loop head drawn as an action ("Read the log line by line" going on to the body and
-            // on to the report) is a loop condition in the wrong shape. Keeping only the branch that
-            // reaches most would keep the body — which reaches everything through the loop — and cut
-            // the exit, leaving the loop with no way to stop_1. It becomes the decision it meant.
-            if (outgoing.size() == 2) {
-                boolean firstLoops = reachableNodes(outgoing.get(0).to(), forward).contains(node.id());
-                boolean secondLoops = reachableNodes(outgoing.get(1).to(), forward).contains(node.id());
-                if (firstLoops != secondLoops) {
-                    EdgeDefinition body = firstLoops ? outgoing.get(0) : outgoing.get(1);
-                    EdgeDefinition exit = firstLoops ? outgoing.get(1) : outgoing.get(0);
-                    entry.setValue(new NodeDefinition(node.id(), node.label(), NodeType.DECISION, node.semanticClass()));
-                    edges.set(edges.indexOf(body), new EdgeDefinition(body.from(), outcomes.get(0), body.to()));
-                    edges.set(edges.indexOf(exit), new EdgeDefinition(exit.from(), outcomes.get(1), exit.to()));
-                    continue;
-                }
-            }
-            EdgeDefinition best = outgoing.get(0);
-            int bestReach = -1;
-            for (EdgeDefinition candidate : outgoing) {
-                int reach = reachableNodes(candidate.to(), forward).size();
-                if (reach > bestReach) {
-                    best = candidate;
-                    bestReach = reach;
-                }
-            }
-            keptFanOut.add(best);
-            EdgeDefinition chosen = best;
-            edges.removeIf(edge -> edge.from().equals(node.id()) && !edge.equals(chosen));
-        }
-        // A node nothing leads to — a mistyped id that got its own declaration, a stray phase —
-        // cannot be placed in the flow; it is dropped with its outgoing edges rather than costing
-        // the whole diagram. start_1 is the flow's source and is never pruned.
-        boolean pruned = true;
-        while (pruned) {
-            pruned = false;
-            Set<String> withIncoming = new LinkedHashSet<>();
-            edges.forEach(edge -> withIncoming.add(edge.to()));
-            for (String id : List.copyOf(nodes.keySet())) {
-                if (!"start_1".equals(id) && !withIncoming.contains(id)) {
-                    nodes.remove(id);
-                    edges.removeIf(edge -> edge.from().equals(id));
-                    pruned = true;
-                }
-            }
-        }
-        // A diamond with a single exit is an action drawn in the wrong shape, not a decision.
-        for (Map.Entry<String, NodeDefinition> entry : nodes.entrySet()) {
-            NodeDefinition node = entry.getValue();
-            if (node.type() != NodeType.DECISION) {
-                continue;
-            }
-            List<EdgeDefinition> outgoing = edges.stream().filter(edge -> edge.from().equals(node.id())).toList();
-            if (outgoing.size() == 1) {
-                entry.setValue(new NodeDefinition(node.id(), node.label(), NodeType.ACTION, node.semanticClass()));
-                EdgeDefinition only = outgoing.get(0);
-                edges.set(edges.indexOf(only), new EdgeDefinition(only.from(), "", only.to()));
-            }
+        // Every dead end continues to stop_1 — which is what a reader assumes of an ending anyway.
+        // Fan-out, merges and loops stay exactly as drawn. A flow that never ends (every step has
+        // a way on) keeps no stop_1 it cannot reach.
+        Set<String> withOutgoing = new LinkedHashSet<>();
+        edges.forEach(edge -> withOutgoing.add(edge.from()));
+        List<String> deadEnds = nodes.keySet().stream()
+            .filter(id -> !"stop_1".equals(id) && !withOutgoing.contains(id)).toList();
+        if (!deadEnds.isEmpty()) {
+            nodes.putIfAbsent("stop_1", new NodeDefinition("stop_1", "Stop", NodeType.TERMINAL, ""));
+            deadEnds.forEach(id -> edges.add(new EdgeDefinition(id, "", "stop_1")));
+        } else if (nodes.containsKey("stop_1") && edges.stream().noneMatch(edge -> "stop_1".equals(edge.to()))) {
+            nodes.remove("stop_1");
         }
         inferMissingOutcomeLabels(nodes, edges, languageCode);
         rewriteNonBinaryDecisions(nodes, edges, languageCode);
-        // A label on an action's edge ("done", "next") names nothing the dialect draws; dropped.
-        for (int index = 0; index < edges.size(); index++) {
-            EdgeDefinition edge = edges.get(index);
-            NodeDefinition origin = nodes.get(edge.from());
-            if (!edge.label().isBlank() && origin != null && origin.type() != NodeType.DECISION) {
-                edges.set(index, new EdgeDefinition(edge.from(), "", edge.to()));
-            }
-        }
-        if (!isTerminalNode(nodes.get("start_1")) || !isTerminalNode(nodes.get("stop_1"))) {
-            Set<String> incomingIds = new LinkedHashSet<>();
-            edges.forEach(edge -> incomingIds.add(edge.to()));
-            return ParsedDiagram.failure(
-                "Snippet flowcharts must declare stable start_1 and stop_1 terminal nodes (missing: "
-                    + (isTerminalNode(nodes.get("start_1")) ? "" : "start_1 ")
-                    + (isTerminalNode(nodes.get("stop_1")) ? "" : "stop_1")
-                    + "; entry nodes: " + nodes.keySet().stream().filter(id -> !incomingIds.contains(id)).toList()
-                    + "; nodes: " + nodes.size() + ", edges: " + edges.size() + ").");
+        translateOutcomeLabels(edges, languageCode);
+        if (!isTerminalNode(nodes.get("start_1"))
+            || (nodes.containsKey("stop_1") && !isTerminalNode(nodes.get("stop_1")))) {
+            return ParsedDiagram.failure("Snippet flowcharts must use start_1 and stop_1 as terminal nodes.");
         }
         for (EdgeDefinition edge : edges) {
             if (!nodes.containsKey(edge.from()) || !nodes.containsKey(edge.to())) {
                 return ParsedDiagram.failure("Mermaid edges must reference declared node ids.");
             }
         }
-        if (edges.stream().noneMatch(edge -> "start_1".equals(edge.from()))
-            || edges.stream().noneMatch(edge -> "stop_1".equals(edge.to()))) {
-            return ParsedDiagram.failure("Snippet flowcharts must connect start_1 and stop_1.");
+        if (edges.stream().noneMatch(edge -> "start_1".equals(edge.from()))) {
+            return ParsedDiagram.failure("Snippet flowcharts must connect start_1 to the flow.");
         }
         // The semantic class only colors a node. A class assigned to an id that was never declared
         // and a node the model forgot to class are both model slips that leave the structure
@@ -1279,6 +1443,29 @@ public final class SnippetDiagramSupport {
         }
         nodes.clear();
         nodes.putAll(rewritten);
+    }
+
+    /**
+     * A yes/no word on any other edge (an action whose branches the model labelled, beside an
+     * unlabelled one) is written in the diagram's language like the decisions' outcomes.
+     */
+    private static void translateOutcomeLabels(List<EdgeDefinition> edges, String languageCode) {
+        List<String> target = ORDERED_OUTCOME_LABELS.getOrDefault(
+            normalizeLanguageCode(languageCode), ORDERED_OUTCOME_LABELS.get("en"));
+        for (int index = 0; index < edges.size(); index++) {
+            EdgeDefinition edge = edges.get(index);
+            String label = normalizeDiagramLabel(edge.label()).toLowerCase(Locale.ROOT);
+            if (label.isEmpty() || target.contains(label)) {
+                continue;
+            }
+            for (List<String> pair : ORDERED_OUTCOME_LABELS.values()) {
+                int position = pair.indexOf(label);
+                if (position >= 0) {
+                    edges.set(index, new EdgeDefinition(edge.from(), target.get(position), edge.to()));
+                    break;
+                }
+            }
+        }
     }
 
     private static List<String> knownPairContaining(List<String> labels) {
@@ -1400,6 +1587,7 @@ public final class SnippetDiagramSupport {
         unclosed.appendTail(closed);
         value = closed.toString();
         value = QUOTED_EXOTIC_SHAPE.matcher(value).replaceAll("[$1]");
+        value = QUOTED_ROUND.matcher(value).replaceAll("[$1]");
         StringBuilder result = new StringBuilder(value.length() + 8);
         StringBuilder outside = new StringBuilder();
         boolean inString = false;
@@ -1442,26 +1630,25 @@ public final class SnippetDiagramSupport {
             : "'" + value + "'";
     }
 
+    /**
+     * The shape rules a generated flowchart must meet after the parser's repairs. They describe
+     * what Mermaid draws and a reader can follow — one entry, decisions with two labelled
+     * outcomes, no dead ends, every step reachable — not a structured-programming dialect: fan-out,
+     * merges, loops and self-loops are ordinary flowcharts and pass.
+     */
     private static String validateFlowTopology(
         Map<String, NodeDefinition> nodes,
         List<EdgeDefinition> edges) {
 
         Map<String, List<EdgeDefinition>> outgoing = new LinkedHashMap<>();
         Map<String, List<EdgeDefinition>> incoming = new LinkedHashMap<>();
-        Map<String, List<String>> forward = new LinkedHashMap<>();
-        Map<String, List<String>> reverse = new LinkedHashMap<>();
         for (String nodeId : nodes.keySet()) {
             outgoing.put(nodeId, new ArrayList<>());
             incoming.put(nodeId, new ArrayList<>());
-            forward.put(nodeId, new ArrayList<>());
-            reverse.put(nodeId, new ArrayList<>());
         }
 
         Set<String> uniqueEdges = new LinkedHashSet<>();
         for (EdgeDefinition edge : edges) {
-            if (edge.from().equals(edge.to())) {
-                return "Mermaid flowcharts must not contain self-edges.";
-            }
             String edgeKey = edge.from() + "\u0000" + edge.label().toLowerCase(Locale.ROOT)
                 + "\u0000" + edge.to();
             if (!uniqueEdges.add(edgeKey)) {
@@ -1469,21 +1656,21 @@ public final class SnippetDiagramSupport {
             }
             outgoing.get(edge.from()).add(edge);
             incoming.get(edge.to()).add(edge);
-            forward.get(edge.from()).add(edge.to());
-            reverse.get(edge.to()).add(edge.from());
         }
 
         if (!incoming.get("start_1").isEmpty()) {
             return "Snippet flowchart start_1 must not have an incoming edge.";
         }
-        if (outgoing.get("start_1").size() != 1) {
-            return "Snippet flowchart start_1 must have exactly one outgoing edge.";
+        if (outgoing.get("start_1").isEmpty()) {
+            return "Snippet flowchart start_1 must have an outgoing edge.";
         }
-        if (!outgoing.get("stop_1").isEmpty()) {
-            return "Snippet flowchart stop_1 must not have an outgoing edge.";
-        }
-        if (incoming.get("stop_1").isEmpty()) {
-            return "Snippet flowchart stop_1 must have at least one incoming edge.";
+        if (nodes.containsKey("stop_1")) {
+            if (!outgoing.get("stop_1").isEmpty()) {
+                return "Snippet flowchart stop_1 must not have an outgoing edge.";
+            }
+            if (incoming.get("stop_1").isEmpty()) {
+                return "Snippet flowchart stop_1 must have at least one incoming edge.";
+            }
         }
 
         for (NodeDefinition node : nodes.values()) {
@@ -1494,10 +1681,8 @@ public final class SnippetDiagramSupport {
             if (node.type() == NodeType.DECISION) {
                 List<EdgeDefinition> decisionEdges = outgoing.get(node.id());
                 Set<String> labels = new LinkedHashSet<>();
-                Set<String> targets = new LinkedHashSet<>();
                 for (EdgeDefinition edge : decisionEdges) {
                     labels.add(edge.label().toLowerCase(Locale.ROOT));
-                    targets.add(edge.to());
                 }
                 labels.remove("");
                 // Both outcomes may lead to the same node — a decision whose branches converge
@@ -1505,22 +1690,29 @@ public final class SnippetDiagramSupport {
                 if (decisionEdges.size() != 2 || labels.size() != 2) {
                     return "Every Mermaid decision must have two distinctly labeled outgoing paths.";
                 }
-            } else if (!"stop_1".equals(node.id())) {
-                if (outgoing.get(node.id()).size() != 1) {
-                    return "Every non-decision Mermaid node except stop_1 must have exactly one outgoing edge.";
-                }
+            } else if (!"stop_1".equals(node.id()) && outgoing.get(node.id()).isEmpty()) {
+                return "Every Mermaid node except stop_1 must have an outgoing edge.";
             }
         }
 
-        Set<String> reachableFromStart = reachableNodes("start_1", forward);
-        if (!reachableFromStart.containsAll(nodes.keySet())) {
+        Map<String, List<String>> forward = new LinkedHashMap<>();
+        edges.forEach(edge -> forward.computeIfAbsent(edge.from(), key -> new ArrayList<>()).add(edge.to()));
+        if (!reachableNodes("start_1", forward).containsAll(nodes.keySet())) {
             return "Every Mermaid node must be reachable from start_1.";
         }
-        Set<String> leadingToStop = reachableNodes("stop_1", reverse);
-        if (!leadingToStop.containsAll(nodes.keySet())) {
-            return "Every Mermaid node must have a path to stop_1.";
-        }
         return null;
+    }
+
+    private static Map<String, List<String>> forwardEdges(List<EdgeDefinition> edges) {
+        Map<String, List<String>> forward = new LinkedHashMap<>();
+        edges.forEach(edge -> forward.computeIfAbsent(edge.from(), key -> new ArrayList<>()).add(edge.to()));
+        return forward;
+    }
+
+    /** Whether an edge label is a yes/no word of any supported language. */
+    private static boolean isOutcomeWord(String label) {
+        String value = normalizeDiagramLabel(label).toLowerCase(Locale.ROOT);
+        return !value.isEmpty() && DECISION_OUTCOME_LABELS.values().stream().anyMatch(pair -> pair.contains(value));
     }
 
     private static Set<String> reachableNodes(String startId, Map<String, List<String>> adjacency) {
