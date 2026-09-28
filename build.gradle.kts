@@ -3507,6 +3507,19 @@ tasks.register<JavaExec>("codeAnalysisScreenshotStage") {
     }
 }
 
+tasks.register<JavaExec>("snippetManagerScreenshotStage") {
+    group = "documentation"
+    description = "Shows the Snippet Manager workspace (demo library, an editor tab and its analysis panel) " +
+        "for the docs screenshot capture."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SnippetManagerScreenshotStage")
+    classpath = sourceSets.test.get().runtimeClasspath
+    args = listOf((findProperty("kortty.captureDoneFlag") as String?) ?: "")
+    listOf("kortty.workspaceWidth", "kortty.workspaceHeight", "kortty.screenshotHome").forEach { key ->
+        (findProperty(key) as String?)?.let { systemProperty(key, it) }
+    }
+}
+
 tasks.register<JavaExec>("mainWindowScreenshotStage") {
     group = "documentation"
     description = "Shows the main window (optionally with a menu open) for the docs screenshot " +

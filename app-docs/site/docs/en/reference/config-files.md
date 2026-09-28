@@ -27,6 +27,8 @@ KorTTY stores all application data and configuration under the `~/.kortty/` dire
 ├── ai-chats.xml                       # Saved AI conversations
 ├── snippets.xml                       # Code snippets and scripts
 ├── snippet-variables.xml              # Snippet variable storage
+├── snippet-analyses/                  # Stored Full code analyses, one <snippet-id>.json per snippet
+├── snippet-drafts/                    # Unsaved snippet-editor forms (owner-only; not backed up)
 ├── job-scheduler.xml                  # JobScheduler jobs, host-key pins, sudo secrets, journal
 ├── ssh-host-keys.properties           # Interactive Terminal/SFTP/Mosh host-key pins
 ├── ssh-host-keys.properties.lock      # Transient cross-process writer lock (not backed up)

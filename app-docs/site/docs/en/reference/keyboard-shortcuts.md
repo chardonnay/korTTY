@@ -73,6 +73,7 @@ These keys work in the Snippet Manager (library and editor tabs); see [Opening t
 | ++ctrl+b++ | Hide or show the library, giving the editor tabs the full width |
 | ++ctrl+p++ | Quick open: find a snippet by part of its name or a tag and open it in an editor tab (++up++ / ++down++ choose, ++enter++ opens, ++esc++ closes) |
 | ++esc++ (search field) | Clear the search; ++esc++ never closes the Snippet Manager |
+| ++down++ (search field) | Move to the snippet list (selects the first snippet when none is selected) |
 
 If the focus is on the Snippet Manager's own tab header in the main window (tab mode), ++ctrl+s++ still saves the project, and ++ctrl+w++ closes the Snippet Manager tab after asking about unsaved changes.
 
@@ -92,6 +93,19 @@ These keys work inside the snippet editor's code field; see [AI Code completions
 | ++alt+bracket-right++ / ++alt+bracket-left++ (ghost text visible) | Next / previous ghost-text candidate (physical `]` and `[` keys of a US layout) |
 | ++tab++ (inside an inserted idiom template) | Jump to the next placeholder |
 | ++shift+tab++ (anywhere else, or when another combination is configured) | Outdent the line, as before |
+| ++ctrl+enter++ (change review shown) | **Accept & apply** the reviewed AI change (see [Reviewing an AI change](../features/snippets.md#reviewing-an-ai-change)); ++esc++ does nothing there |
+| ++ctrl+plus++ / ++ctrl+minus++ (change review shown) | Zoom the review's code font |
+
+## Diagram zoom window
+
+These keys work in the zoom window of the Full code analysis flow diagram; see [Full code analysis](../features/snippets.md#full-code-analysis).
+
+| Shortcut | Action |
+| --- | --- |
+| ++ctrl+plus++ / ++ctrl+minus++ | Zoom in / out |
+| ++ctrl+0++ | Fit the diagram into the window |
+| ++ctrl+1++ | Show the diagram at 100 % |
+| ++ctrl++ + mouse wheel | Zoom (++cmd++ + wheel on macOS) |
 
 ## Terminal AI agent
 

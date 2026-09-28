@@ -11,7 +11,7 @@ KorTTY creates encrypted backups of all your settings, connections, credentials,
 ## Features
 
 * **Encrypted backups** — All backups are encrypted using either password-protected ZIP or GPG encryption
-* **Configuration backup** — Includes connections, credentials, SSH/GPG keys, trusted interactive SSH host keys, global settings, JobScheduler configuration, snippets, AI chat history, local-model registrations, and knowledge-store source metadata
+* **Configuration backup** — Includes connections, credentials, SSH/GPG keys, trusted interactive SSH host keys, global settings, JobScheduler configuration, snippets and their stored code analyses, AI chat history, local-model registrations, and knowledge-store source metadata
 * **Regenerable local AI data excluded** — GGUF weights, native llama.cpp runtimes, signed-catalog cache, temporary sidecar files, and HNSW snapshots are intentionally not copied into the archive
 * **Projects directory** — All saved project workspaces are included in the backup
 * **Automatic rotation** — Old backups are automatically moved to an `old-backups` subdirectory with timestamps
@@ -40,6 +40,7 @@ The backup includes:
 | JobScheduler jobs | All scheduled jobs, host-key pins, and encrypted sudo passwords |
 | Snippets | Code snippets and script templates with metadata |
 | Snippet variables | Custom variables for snippet substitution |
+| Snippet analyses | The stored [Full code analyses](snippets.md#full-code-analysis) of every snippet, with their apply runs and diagrams |
 | AI chats | Saved AI conversation histories and profiles |
 | Local AI configuration | Local GGUF registrations and typed launch settings, Text/Coding roles, preferred runtime backend/update policy, and encrypted Hugging Face token |
 | Knowledge-store configuration | Store metadata and source paths, filters, sync modes, and embedding configuration; not the HNSW vectors |
@@ -98,6 +99,7 @@ Both `.zip` and `.gpg` backups contain the same files:
 * `job-scheduler.xml` — JobScheduler jobs, host-key pins, encrypted sudo passwords
 * `snippets.xml` — Code snippets and templates
 * `snippet-variables.xml` — Custom snippet variables
+* `snippet-analyses/` — Stored Full code analyses, one file per snippet. An import merges them: analyses that exist only locally are kept, missing ones are added, and with **Overwrite** a local file is replaced only when the backup's copy is newer. Unsaved snippet drafts (`snippet-drafts/`) are not included
 * `ai-chats.xml` — Saved AI conversations
 * `master.key` — Hash of your master password (for verification on import)
 * `llm/models.xml` — Local GGUF registrations and runtime settings (model weights are not included)
