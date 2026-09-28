@@ -24,7 +24,6 @@ import java.util.List;
 public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
 
     private final SnippetAiDiffPane pane;
-    private boolean dockedWidthOnly;
 
     public SnippetAiDiffDialog(Window owner, String title, String summary, String originalText, String replacementText) {
         this(owner, title, summary, originalText, replacementText, null, EditorSettingsHelper.loadSnippetSettings(), null);
@@ -92,32 +91,11 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         }
         Double moved = pane.movedSummaryDividerPosition();
         DialogGeometrySupport.persist(this, (settings, geometry) -> {
-            // While docked, position and height belong to the dock, not to the reviewer — storing
-            // them as the free geometry would teleport the next undocked review to the anchor's
-            // edge. Only the width is theirs, and it comes back on the next docked run.
-            if (dockedWidthOnly) {
-                settings.setAiDiffDialogDockedWidth(geometry.getWidth());
-            } else {
-                settings.setAiDiffDialogGeometry(geometry);
-            }
+            settings.setAiDiffDialogGeometry(geometry);
             if (moved != null) {
                 settings.setAiDiffDialogSummaryDividerPosition(moved);
             }
         });
-    }
-
-    /**
-     * Marks this preview as docked: it keeps following its dock group's position and height, and on
-     * close it remembers only the width the reviewer gave it.
-     */
-    public void setDockedWidthOnly(boolean dockedWidthOnly) {
-        this.dockedWidthOnly = dockedWidthOnly;
-        if (dockedWidthOnly) {
-            // The constructor arranged for the stored free geometry to be applied on show; docked,
-            // the dock places the window in that same pulse, and two sizes written to one window
-            // at once is how a scene ends up narrower than its window.
-            DialogGeometrySupport.suppressRestore(this);
-        }
     }
 
     private static GlobalSettings currentSettings() {
@@ -128,7 +106,7 @@ public class SnippetAiDiffDialog extends ThemeAwareDialog<Boolean> {
         }
     }
 
-    /** Keeps a newly opened review window above its non-modal editor/analysis window on macOS. */
+    /** Keeps a newly opened review window above its non-modal editor window on macOS. */
     private void bringToFront() {
         Window window = getDialogPane().getScene() != null
             ? getDialogPane().getScene().getWindow()

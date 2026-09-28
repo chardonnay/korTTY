@@ -73,6 +73,8 @@ public class SnippetAiDiffPane extends VBox {
     private final SplitPane summarySplit;
     private final Region summaryContent;
     private final Label blockingNotice = new Label();
+    private final Button blockingActionButton = new Button();
+    private final HBox blockingNoticeRow = new HBox(8);
     private final Button acceptButton;
     private ComboBox<String> findingFilterCombo;
     private Button previousFindingButton;
@@ -179,25 +181,34 @@ public class SnippetAiDiffPane extends VBox {
         blockingNotice.setMaxWidth(Double.MAX_VALUE);
         blockingNotice.setStyle("-fx-background-color: rgba(245,158,11,0.16); -fx-background-radius: 6;"
             + " -fx-padding: 8 10 8 10;");
-        setVisibleManaged(blockingNotice, false);
+        blockingActionButton.setId("snippet-ai-diff-blocking-action");
+        HBox.setHgrow(blockingNotice, Priority.ALWAYS);
+        blockingNoticeRow.getChildren().setAll(blockingNotice, blockingActionButton);
+        blockingNoticeRow.setAlignment(Pos.CENTER_LEFT);
+        setVisibleManaged(blockingActionButton, false);
+        setVisibleManaged(blockingNoticeRow, false);
 
         if (withDecisionBar) {
             Button laterButton = new Button(I18n.get("snippets.ai.diff.decision.later"));
+            laterButton.setId("snippet-ai-diff-later");
             laterButton.setOnAction(event -> decide(Decision.REVIEW_LATER));
             Button rejectButton = new Button(I18n.get("snippets.ai.diff.decision.reject"));
+            rejectButton.setId("snippet-ai-diff-reject");
             rejectButton.setOnAction(event -> decide(Decision.REJECT));
             acceptButton = new Button(I18n.get("snippets.ai.diff.decision.accept"));
+            acceptButton.setId("snippet-ai-diff-accept");
+            acceptButton.setDefaultButton(false);
             acceptButton.setOnAction(event -> decide(Decision.ACCEPT));
             Region decisionSpacer = new Region();
             HBox.setHgrow(decisionSpacer, Priority.ALWAYS);
             HBox decisionBar = new HBox(8, decisionSpacer, laterButton, rejectButton, acceptButton);
             decisionBar.setId("snippet-ai-diff-decision-bar");
             decisionBar.setAlignment(Pos.CENTER_RIGHT);
-            getChildren().addAll(blockingNotice, decisionBar);
+            getChildren().addAll(blockingNoticeRow, decisionBar);
             addEventFilter(KeyEvent.KEY_PRESSED, this::handleKeyboardShortcut);
         } else {
             acceptButton = null;
-            getChildren().add(blockingNotice);
+            getChildren().add(blockingNoticeRow);
         }
     }
 
@@ -211,9 +222,21 @@ public class SnippetAiDiffPane extends VBox {
      * since the run started) and disables Accept; {@code null} or blank clears the notice again.
      */
     public void showBlockingNotice(String message) {
+        showBlockingNotice(message, null, null);
+    }
+
+    /**
+     * Like {@link #showBlockingNotice(String)}, with a way forward next to the notice (e.g. "re-plan
+     * on the current content"); a {@code null} action shows the notice alone.
+     */
+    public void showBlockingNotice(String message, String actionLabel, Runnable action) {
         boolean visible = message != null && !message.isBlank();
         blockingNotice.setText(visible ? message : "");
-        setVisibleManaged(blockingNotice, visible);
+        setVisibleManaged(blockingNoticeRow, visible);
+        boolean withAction = visible && action != null && actionLabel != null && !actionLabel.isBlank();
+        blockingActionButton.setText(withAction ? actionLabel : "");
+        blockingActionButton.setOnAction(withAction ? event -> action.run() : null);
+        setVisibleManaged(blockingActionButton, withAction);
         if (acceptButton != null) {
             acceptButton.setDisable(visible);
         }
@@ -221,7 +244,7 @@ public class SnippetAiDiffPane extends VBox {
 
     /** Whether a blocking notice currently prevents Accept. */
     public boolean isAcceptBlocked() {
-        return blockingNotice.isVisible();
+        return blockingNoticeRow.isVisible();
     }
 
     public String originalText() {
@@ -333,6 +356,11 @@ public class SnippetAiDiffPane extends VBox {
             () -> SnippetAiDialogSupport.selectedProfileId(profileCombo), onRerun, beforeRerun);
         toolbar.getChildren().addAll(0, List.of(
             SnippetAiDialogSupport.profileLabel(), profileCombo, rerunButton));
+    }
+
+    /** Whether the side-by-side diff editor has booted (tests; a human needs longer anyway). */
+    boolean isDiffReady() {
+        return diffPane.isReady();
     }
 
     /** Releases the diff editor and the explanations page. Safe to call more than once. */

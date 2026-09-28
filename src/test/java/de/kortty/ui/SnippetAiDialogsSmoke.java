@@ -70,13 +70,23 @@ public final class SnippetAiDialogsSmoke {
     }
 
     public static void main(String[] args) throws Exception {
+        // The integrated analysis writes through to the shared store; give this run its own
+        // throwaway directory (every id is persistable there), so the persistence leg reads real files.
+        if (System.getProperty(de.kortty.core.SnippetAnalysisStore.DIRECTORY_PROPERTY) == null) {
+            System.setProperty(de.kortty.core.SnippetAnalysisStore.DIRECTORY_PROPERTY,
+                java.nio.file.Files.createTempDirectory("kortty-smoke-analyses").toString());
+        }
         CountDownLatch done = new CountDownLatch(1);
         AtomicReference<String> failure = new AtomicReference<>();
+
         Thread.setDefaultUncaughtExceptionHandler((t, e) ->
             failure.compareAndSet(null, "Uncaught on " + t.getName() + ": " + e));
 
         Platform.startup(() -> {
             try {
+                // The integrated leg closes and reopens its editor; with implicit exit, closing the
+                // only open window would shut the toolkit down in the middle of the run.
+                Platform.setImplicitExit(false);
                 LanguageManager.getInstance().initialize(new GlobalSettings());
                 render(failure, done);
             } catch (Throwable e) {
@@ -85,7 +95,7 @@ public final class SnippetAiDialogsSmoke {
             }
         });
 
-        boolean finished = done.await(60, TimeUnit.SECONDS);
+        boolean finished = done.await(120, TimeUnit.SECONDS);
         Platform.exit();
         if (!finished) {
             System.err.println("Smoke timed out");
@@ -163,57 +173,47 @@ public final class SnippetAiDialogsSmoke {
             new java.util.LinkedHashSet<>(List.of("skill-bash")),
             true,
             ids -> { });
-        SnippetCodeAnalysisDialog analysisDialog = new SnippetCodeAnalysisDialog(
-            null, "server_monitor_stats.pl", "perl", analysis, diagramLoader, null, id -> { }, skillContext,
+        SnippetAnalysisPanel analysisPanel = new SnippetAnalysisPanel(
+            "server_monitor_stats.pl", "perl", analysis, diagramLoader, null, id -> { }, null, skillContext,
             de.kortty.core.ScriptLanguageMixSupport.detect("perl", "#!/usr/bin/env perl\nprint 1;\n"), "de");
-        // The dialog's content is wrapped in a ScrollPane so a short window cannot push the button
-        // bar off screen. A ScrollPane exposes its content through its skin, which only exists after
-        // a layout pass — realize the pane before walking it for controls.
-        realize(analysisDialog.getDialogPane());
+        DialogPane analysisPane = hostPane(analysisPanel);
+        realize(analysisPane);
         AtomicBoolean analysisSelectionVerified = new AtomicBoolean();
-        CheckBox selectAllImprovements = selectAllImprovementsCheckBox(analysisDialog.getDialogPane());
-        Label profileUsing = nodeById(
-            analysisDialog.getDialogPane(), "snippet-analysis-profile-using", Label.class);
+        CheckBox selectAllImprovements = selectAllImprovementsCheckBox(analysisPane);
+        Label profileUsing = nodeById(analysisPane, "snippet-analysis-profile-using", Label.class);
         verifySelectAllImprovementPlacement(selectAllImprovements, profileUsing);
-        WebEngine analysisEngine = findingsWebView(analysisDialog).getEngine();
+        WebEngine analysisEngine = findingsWebView(analysisPanel).getEngine();
         // The page reports user changes back through a per-panel bridge; select-all is one of them.
         java.util.concurrent.atomic.AtomicInteger selectionEvents = new java.util.concurrent.atomic.AtomicInteger();
-        analysisDialog.panel().addSelectionListener(selectionEvents::incrementAndGet);
+        analysisPanel.addSelectionListener(selectionEvents::incrementAndGet);
         onLoadSuccess(analysisEngine, () -> {
             try {
                 verifyImprovementBulkSelection(selectAllImprovements, analysisEngine);
                 // A restored selection ticks exactly the named findings and reads back unchanged.
-                analysisDialog.panel().setSelectedFindings(List.of("imp:OPT-1", "dep:D1"));
-                List<String> restored = analysisDialog.panel().selectedFindingTokens();
+                analysisPanel.setSelectedFindings(List.of("imp:OPT-1", "dep:D1"));
+                List<String> restored = analysisPanel.selectedFindingTokens();
                 if (!restored.equals(List.of("imp:OPT-1", "dep:D1"))) {
                     throw new AssertionError("Restored finding selection read back as " + restored);
                 }
-                analysisDialog.panel().setSelectedFindings(List.of());
+                analysisPanel.setSelectedFindings(List.of());
                 analysisSelectionVerified.set(true);
             } catch (Throwable e) {
-                failure.compareAndSet(null, "SnippetCodeAnalysisDialog selection check failed: " + e);
+                failure.compareAndSet(null, "SnippetAnalysisPanel selection check failed: " + e);
             }
         });
-        if (findNodes(analysisDialog.getDialogPane(), SplitPane.class).isEmpty()) {
-            throw new AssertionError("SnippetCodeAnalysisDialog is missing the split pane");
+        if (findNodes(analysisPane, SplitPane.class).isEmpty()) {
+            throw new AssertionError("SnippetAnalysisPanel is missing the report/diagram split");
         }
-        assertControls("SnippetCodeAnalysisDialog", analysisDialog.getDialogPane(), rerunText);
-        boolean hasExport = findNodes(analysisDialog.getDialogPane(), javafx.scene.control.MenuButton.class).stream()
+        assertControls("SnippetAnalysisPanel", analysisPane, rerunText);
+        boolean hasExport = findNodes(analysisPane, javafx.scene.control.MenuButton.class).stream()
             .anyMatch(node -> I18n.get("snippets.ai.analysis.export")
                 .equals(((javafx.scene.control.MenuButton) node).getText()));
         if (!hasExport) {
-            throw new AssertionError("SnippetCodeAnalysisDialog is missing the Export button");
+            throw new AssertionError("SnippetAnalysisPanel is missing the Export button");
         }
-        // Snapshot first: applyCss()/layout() realizes the DialogPane button bar so the Apply button is traversable.
-        snapshotPane(analysisDialog.getDialogPane(), "snippet-code-analysis.png", 1160);
-        boolean hasApply = findNodes(analysisDialog.getDialogPane(), Button.class).stream()
-            .anyMatch(b -> ((Button) b).getText() != null
-                && ((Button) b).getText().contains(I18n.get("snippets.ai.analysis.applySelected")));
-        if (!hasApply) {
-            throw new AssertionError("SnippetCodeAnalysisDialog is missing the Apply-selected button");
-        }
+        snapshotPane(analysisPane, "snippet-code-analysis.png", 560);
         HardeningOptionsSelector hardeningSelector = field(
-            analysisDialog.panel(), "hardeningSelector", HardeningOptionsSelector.class);
+            analysisPanel, "hardeningSelector", HardeningOptionsSelector.class);
         if (!hardeningSelector.selectedOptions().equals(
                 de.kortty.core.WorkflowScriptSupport.HardeningOption.defaults())) {
             throw new AssertionError("Hardening selector did not expose the all-on default option set");
@@ -241,17 +241,18 @@ public final class SnippetAiDialogsSmoke {
         // Dependencies alone must not enable the JavaFX bulk selector: it controls improvements only.
         SnippetAiResponseSupport.ScriptAnalysis dependenciesOnly = new SnippetAiResponseSupport.ScriptAnalysis(
             "Calls curl.", analysis.dependencies(), List.of());
-        SnippetCodeAnalysisDialog dependenciesOnlyDialog = new SnippetCodeAnalysisDialog(
-            null, "dependency_only.yml", "yaml", dependenciesOnly, diagramLoader, null, null, null,
+        SnippetAnalysisPanel dependenciesOnlyPanel = new SnippetAnalysisPanel(
+            "dependency_only.yml", "yaml", dependenciesOnly, diagramLoader, null, null, null, null,
             de.kortty.core.ScriptLanguageMixSupport.detect("yaml", "key: value\n"), "de");
-        realize(dependenciesOnlyDialog.getDialogPane());
-        CheckBox dependenciesOnlyBulkCheck = selectAllImprovementsCheckBox(dependenciesOnlyDialog.getDialogPane());
+        DialogPane dependenciesOnlyPane = hostPane(dependenciesOnlyPanel);
+        realize(dependenciesOnlyPane);
+        CheckBox dependenciesOnlyBulkCheck = selectAllImprovementsCheckBox(dependenciesOnlyPane);
         if (!dependenciesOnlyBulkCheck.isDisable()) {
             throw new AssertionError("Select-all-improvements must be disabled when only dependencies exist");
         }
 
         InputHardeningSelector declarativeSelector = field(
-            dependenciesOnlyDialog.panel(), "inputHardeningSelector", InputHardeningSelector.class);
+            dependenciesOnlyPanel, "inputHardeningSelector", InputHardeningSelector.class);
         if (declarativeSelector.isSupported() || !declarativeSelector.isDisable()
                 || declarativeSelector.currentConfig().isEnabled()) {
             throw new AssertionError("YAML analysis must disable input hardening instead of silently ignoring it");
@@ -261,7 +262,6 @@ public final class SnippetAiDialogsSmoke {
         // real editor controls and defer checking the asynchronous provider calls until the final pause.
         Runnable verifyAiTextLanguage = exerciseSnippetEditorAiTextLanguageSelection();
         Runnable verifyAnalysisLanguages = exerciseSnippetAnalysisLanguageRouting();
-        Runnable verifyAnalysisApplyPreview = exerciseFullAnalysisApplyPreview(failure);
 
         // 4) Diff / "review changes" dialog with a re-run handler (improve/assist flow). Capture the
         //    MonacoDiffPane logger while its WebView loads to assert the Java bridge installs cleanly.
@@ -301,47 +301,97 @@ public final class SnippetAiDialogsSmoke {
 
         // Let the FX event loop pump so the diff editor loads and installBridge() runs, then verify.
         PauseTransition pause = new PauseTransition(Duration.seconds(8));
-        pause.setOnFinished(event -> {
-            try {
-                boolean bridgeError = diffLog.list.stream().anyMatch(e ->
-                    e.getLevel() == Level.ERROR && String.valueOf(e.getMessage()).contains("Monaco diff Java bridge"));
-                boolean bridgeInstalled = diffLog.list.stream().anyMatch(e ->
-                    String.valueOf(e.getMessage()).contains("Installed Monaco diff Java bridge"));
-                if (bridgeError) {
-                    failure.compareAndSet(null, "MonacoDiffPane Java bridge failed to install (regression)");
-                } else if (bridgeInstalled) {
-                    System.out.println("MonacoDiffPane bridge installed cleanly (public JSObject).");
-                } else {
-                    System.out.println("MonacoDiffPane bridge did not report within the wait "
-                        + "(WebView likely did not finish loading headless); no error was logged.");
-                }
-                if (!analysisSelectionVerified.get()) {
-                    failure.compareAndSet(null,
-                        "SnippetCodeAnalysisDialog selection page did not finish loading within the wait");
-                }
-                if (analysisSelectionVerified.get() && selectionEvents.get() == 0) {
-                    failure.compareAndSet(null,
-                        "The analysis page never reported a selection change through its bridge");
-                }
-                try {
-                    verifyAiTextLanguage.run();
-                    verifyAnalysisLanguages.run();
-                    verifyAnalysisApplyPreview.run();
-                } catch (Throwable e) {
-                    failure.compareAndSet(null, "SnippetEditDialog AI flow check failed: " + e);
-                }
-            } finally {
-                diffLogger.detachAppender(diffLog);
-                diffLogger.setLevel(previousLevel);
-                // Closing the modal diff unwinds a nested JavaFX event loop and then disposes the
-                // analysis WebViews. Give macOS WebKit one pulse to release its native scenes before
-                // the harness calls Platform.exit(); immediate shutdown can crash in objc_msgSend.
-                PauseTransition cleanupPause = new PauseTransition(Duration.seconds(1));
-                cleanupPause.setOnFinished(cleanup -> done.countDown());
-                cleanupPause.play();
-            }
-        });
+        pause.setOnFinished(event -> finishSmoke(failure, done, diffLog, diffLogger, previousLevel,
+            analysisSelectionVerified, selectionEvents, verifyAiTextLanguage, verifyAnalysisLanguages));
         pause.play();
+    }
+
+    private static void finishSmoke(
+            AtomicReference<String> failure, CountDownLatch done, ListAppender<ILoggingEvent> diffLog,
+            Logger diffLogger, Level previousLevel, AtomicBoolean analysisSelectionVerified,
+            java.util.concurrent.atomic.AtomicInteger selectionEvents, Runnable verifyAiTextLanguage,
+            Runnable verifyAnalysisLanguages) {
+        boolean runFlow = false;
+        try {
+            boolean bridgeError = diffLog.list.stream().anyMatch(e ->
+                e.getLevel() == Level.ERROR && String.valueOf(e.getMessage()).contains("Monaco diff Java bridge"));
+            boolean bridgeInstalled = diffLog.list.stream().anyMatch(e ->
+                String.valueOf(e.getMessage()).contains("Installed Monaco diff Java bridge"));
+            if (bridgeError) {
+                failure.compareAndSet(null, "MonacoDiffPane Java bridge failed to install (regression)");
+            } else if (bridgeInstalled) {
+                System.out.println("MonacoDiffPane bridge installed cleanly (public JSObject).");
+            } else {
+                System.out.println("MonacoDiffPane bridge did not report within the wait "
+                    + "(WebView likely did not finish loading headless); no error was logged.");
+            }
+            if (!analysisSelectionVerified.get()) {
+                failure.compareAndSet(null,
+                    "SnippetAnalysisPanel selection page did not finish loading within the wait");
+            }
+            if (analysisSelectionVerified.get() && selectionEvents.get() == 0) {
+                failure.compareAndSet(null,
+                    "The analysis page never reported a selection change through its bridge");
+            }
+            try {
+                verifyAiTextLanguage.run();
+                verifyAnalysisLanguages.run();
+            } catch (Throwable e) {
+                failure.compareAndSet(null, "SnippetEditDialog AI flow check failed: " + e);
+            }
+            runFlow = true;
+        } finally {
+            diffLogger.detachAppender(diffLog);
+            diffLogger.setLevel(previousLevel);
+            if (runFlow) {
+                // The integrated analysis leg runs on its own once the other editors are gone: it
+                // opens, closes and reopens editors, and WebKit copes badly with many pages booting
+                // at once in one headless harness.
+                PauseTransition settle = new PauseTransition(Duration.seconds(2));
+                settle.setOnFinished(event -> runIntegratedAnalysisLeg(failure, done));
+                settle.play();
+                return;
+            }
+            // Closing the editors disposes their analysis and diff WebViews. Give macOS WebKit one
+            // pulse to release its native scenes before the harness calls Platform.exit();
+            // immediate shutdown can crash in objc_msgSend.
+            PauseTransition cleanupPause = new PauseTransition(Duration.seconds(1));
+            cleanupPause.setOnFinished(cleanup -> done.countDown());
+            cleanupPause.play();
+        }
+    }
+
+    /** Runs the integrated Full-code-analysis leg, then verifies it and ends the harness. */
+    private static void runIntegratedAnalysisLeg(AtomicReference<String> failure, CountDownLatch done) {
+        AtomicBoolean flowDone = new AtomicBoolean();
+        Runnable verify;
+        try {
+            verify = exerciseFullAnalysisApplyPreview(failure, flowDone);
+        } catch (Throwable e) {
+            failure.compareAndSet(null, "Integrated Full-code-analysis leg could not start: " + e);
+            done.countDown();
+            return;
+        }
+        long started = System.nanoTime();
+        Timeline wait = new Timeline();
+        wait.getKeyFrames().add(new KeyFrame(Duration.millis(250), tick -> {
+            if (!flowDone.get() && System.nanoTime() - started < 60_000_000_000L) {
+                return;
+            }
+            wait.stop();
+            try {
+                verify.run();
+            } catch (Throwable e) {
+                failure.compareAndSet(null, "Integrated Full-code-analysis check failed: " + e);
+            }
+            // Closing the editors disposes their analysis and diff WebViews. Give macOS WebKit a
+            // moment to release its native scenes before the harness calls Platform.exit().
+            PauseTransition cleanupPause = new PauseTransition(Duration.seconds(2));
+            cleanupPause.setOnFinished(cleanup -> done.countDown());
+            cleanupPause.play();
+        }));
+        wait.setCycleCount(Animation.INDEFINITE);
+        wait.play();
     }
 
     /**
@@ -582,10 +632,19 @@ public final class SnippetAiDialogsSmoke {
     }
 
     /**
-     * Drives the real Full-code-analysis window through Apply selected and proves that the generated
-     * replacement is surfaced in the review-diff window before the editor content can change.
+     * Drives the integrated Full-code analysis of a real editor end to end, and then its persistence:
+     * <ol>
+     *   <li>Full code analysis shows its result in the editor's side panel (no extra window), the
+     *       dedicated diagram request runs, a pending auto-completion is discarded;</li>
+     *   <li>Apply selected shows the progress in the panel and the review in the editor area; the
+     *       editor text stays unchanged; "Review later" keeps a PENDING_REVIEW run;</li>
+     *   <li>the editor is closed and the snippet reopened: the stored analysis, its diagram and the
+     *       ticked findings come back without any provider call, the stored file carries the pending
+     *       run, and "Review changes" reopens it — Accept replaces the text and stores ACCEPTED.</li>
+     * </ol>
      */
-    private static Runnable exerciseFullAnalysisApplyPreview(AtomicReference<String> failure) throws Exception {
+    private static Runnable exerciseFullAnalysisApplyPreview(
+            AtomicReference<String> failure, AtomicBoolean flowDone) throws Exception {
         // Real comments, because the apply flow now keeps whatever language the script is written
         // in and asks the user when it cannot tell. A bare two-line fixture is exactly the
         // "cannot tell" case and would stop this harness on a question nobody can answer.
@@ -611,8 +670,14 @@ public final class SnippetAiDialogsSmoke {
         AtomicBoolean applyProviderCalled = new AtomicBoolean();
         AtomicBoolean applyClicked = new AtomicBoolean();
         AtomicBoolean previewShown = new AtomicBoolean();
+        AtomicBoolean reopenedFromStore = new AtomicBoolean();
+        AtomicBoolean accepted = new AtomicBoolean();
         AtomicBoolean autoCompletionProviderCalled = new AtomicBoolean();
+        java.util.concurrent.atomic.AtomicInteger reopenedProviderCalls = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicInteger phase = new java.util.concurrent.atomic.AtomicInteger();
         AtomicReference<Timeline> poller = new AtomicReference<>();
+        AtomicReference<SnippetEditDialog> reopened = new AtomicReference<>();
+        java.util.concurrent.atomic.AtomicLong closedAt = new java.util.concurrent.atomic.AtomicLong();
 
         SnippetEditDialog.AiAssist assist = new SnippetEditDialog.AiAssist(
             null,
@@ -669,10 +734,30 @@ public final class SnippetAiDialogsSmoke {
             },
             false,
             null);
-        SnippetEditDialog editorDialog = new SnippetEditDialog(
-            new Snippet("analysis-preview-smoke.sh", original, "bash"), List.of(), assist);
+        // The reopened editor must never ask a provider: everything it shows comes from the store.
+        SnippetEditDialog.AiAssist countingAssist = new SnippetEditDialog.AiAssist(
+            null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+            request -> {
+                reopenedProviderCalls.incrementAndGet();
+                return new SnippetAiResponseSupport.MermaidDiagram("Flow", "");
+            },
+            request -> {
+                reopenedProviderCalls.incrementAndGet();
+                return fullAnalysis;
+            },
+            request -> {
+                reopenedProviderCalls.incrementAndGet();
+                return new SnippetAiResponseSupport.SnippetSecurityFix("", "", List.of());
+            },
+            false,
+            null);
+        Snippet snippet = new Snippet("analysis-preview-smoke.sh", original, "bash");
+        String snippetId = snippet.getId();
+        de.kortty.core.SnippetAnalysisStore store = de.kortty.core.SnippetAnalysisStore.shared();
+        SnippetEditDialog editorDialog = new SnippetEditDialog(snippet, List.of(), assist);
         MonacoEditorPane editor = field(editorDialog, "contentArea", MonacoEditorPane.class);
         editorDialog.show();
+        long baselineWindows = showingStages();
 
         // Reproduce the reported race: an edit has queued auto-completion, then Full code analysis starts
         // before the 900 ms debounce expires. The analysis must own the AI flow and discard that queue.
@@ -687,158 +772,153 @@ public final class SnippetAiDialogsSmoke {
 
         Timeline timeline = new Timeline(new KeyFrame(Duration.millis(100), event -> {
             try {
-                Stage preview = findShowingStage(I18n.get("snippets.ai.analysis.diff.title"));
-                if (preview != null) {
-                    Stage analysis = findShowingStage(I18n.get("snippets.ai.analysis.title"));
-                    Stage progress = Window.getWindows().stream()
-                        .filter(Window::isShowing)
-                        .filter(Stage.class::isInstance)
-                        .map(Stage.class::cast)
-                        .filter(candidate -> candidate.getTitle() != null
-                            && candidate.getTitle().startsWith(I18n.get("snippets.ai.analysis.progress.title")))
-                        .filter(candidate -> candidate.getOwner() == analysis)
-                        .findFirst()
-                        .orElse(null);
-                    if (analysis == null || progress == null) {
-                        throw new AssertionError("Analysis and its docked AI-processing window must remain visible");
+                switch (phase.get()) {
+                    case 0 -> {
+                        // The result lands in the editor's own side panel.
+                        SnippetAnalysisController controller = editorDialog.analysisController();
+                        SnippetAnalysisPanel panel = controller.analysisPanel();
+                        if (panel == null || !panel.isPageReady()) {
+                            return;
+                        }
+                        requireInEditor(editorDialog, "#" + SnippetAnalysisController.SIDE_PANEL_ID);
+                        if (showingStages() != baselineWindows) {
+                            throw new AssertionError("Full code analysis opened a window of its own");
+                        }
+                        WebEngine findings = findingsWebView(panel).getEngine();
+                        setChecked(findings, "imp", "SEC-1", true);
+                        setChecked(findings, "imp", "OPT-1", true);
+                        Button apply = (Button) requireInEditor(editorDialog,
+                            "#" + SnippetAnalysisController.APPLY_BUTTON_ID);
+                        applyClicked.set(true);
+                        phase.set(1);
+                        apply.fire();
                     }
-                    ProgressBar improvementsProgress = nodeById(
-                        progress.getScene().getRoot(),
-                        "snippet-analysis-progress-improvements",
-                        ProgressBar.class);
-                    ProgressBar hardeningProgress = nodeById(
-                        progress.getScene().getRoot(),
-                        "snippet-analysis-progress-hardening",
-                        ProgressBar.class);
-                    if (!improvementsProgress.isVisible() || !hardeningProgress.isVisible()
-                            || improvementsProgress.getProgress() != 1.0
-                            || hardeningProgress.getProgress() != 1.0) {
-                        throw new AssertionError(
-                            "AI-processing window did not keep separate completed progress bars");
+                    case 1 -> {
+                        SnippetAiDiffPane review = editorDialog.analysisController().reviewPane();
+                        if (review == null || review.getScene() == null || !review.isDiffReady()) {
+                            return;
+                        }
+                        if (showingStages() != baselineWindows) {
+                            throw new AssertionError("The apply opened an extra window instead of using the editor");
+                        }
+                        if (!original.equals(editor.getText())) {
+                            throw new AssertionError("Editor content changed before the review was decided");
+                        }
+                        verifyProgressPane((javafx.scene.Parent) requireInEditor(editorDialog,
+                            "#snippet-analysis-progress-pane"), longImprovementTitle);
+                        previewShown.set(true);
+                        phase.set(2);
+                        ((Button) requireInEditor(editorDialog, "#snippet-ai-diff-later")).fire();
                     }
-                    boolean completedCheckVisible = findNodes(progress.getScene().getRoot(), Label.class).stream()
-                        .map(Label.class::cast)
-                        .anyMatch(label -> "✓".equals(label.getText()));
-                    if (!completedCheckVisible) {
-                        throw new AssertionError("AI-processing window did not mark the completed step");
+                    case 2 -> {
+                        de.kortty.core.SnippetAnalysisRecord record = store.cached(snippetId).current();
+                        if (record == null || record.diagram() == null) {
+                            return; // wait for the diagram job to store its result
+                        }
+                        if (!editor.isReady()) {
+                            return; // let the editor finish booting before it is closed
+                        }
+                        if (editorDialog.analysisController().isReviewShowing()) {
+                            throw new AssertionError("Review later did not give the editor area back");
+                        }
+                        if (!original.equals(editor.getText())) {
+                            throw new AssertionError("Review later changed the editor content");
+                        }
+                        de.kortty.core.SnippetAnalysisRecord.ApplyRun run = lastRun(record);
+                        if (run.outcome() != de.kortty.core.SnippetAnalysisRecord.RunOutcome.PENDING_REVIEW) {
+                            throw new AssertionError("Review later stored " + run.outcome() + " instead of PENDING_REVIEW");
+                        }
+                        if (record.selection() == null
+                                || !record.selection().improvementIds().containsAll(List.of("SEC-1", "OPT-1"))) {
+                            throw new AssertionError("Apply did not store the ticked findings: " + record.selection());
+                        }
+                        // Close the editor; the analysis lives on in the store. WebKit gets a moment
+                        // to release the closed editor's pages before the next editor boots its own.
+                        editorDialog.close();
+                        closedAt.set(System.nanoTime());
+                        phase.set(20);
                     }
-                    boolean reportedTokensVisible = findNodes(progress.getScene().getRoot(), Label.class).stream()
-                        .map(Label.class::cast)
-                        .map(Label::getText)
-                        .anyMatch(text -> text != null && text.contains("120"));
-                    if (!reportedTokensVisible) {
-                        throw new AssertionError("AI-processing window did not show provider-reported token usage");
+                    case 20 -> {
+                        if (System.nanoTime() - closedAt.get() < 1_500_000_000L) {
+                            return;
+                        }
+                        store.flush(java.time.Duration.ofSeconds(5));
+                        SnippetEditDialog again = new SnippetEditDialog(snippet, List.of(), countingAssist);
+                        reopened.set(again);
+                        again.show();
+                        again.analysisController().showPanel();
+                        phase.set(3);
                     }
-                    HBox improvementRow = findNodes(progress.getScene().getRoot(), HBox.class).stream()
-                        .map(HBox.class::cast)
-                        .filter(row -> "SEC-1".equals(row.getUserData()))
-                        .findFirst()
-                        .orElseThrow(() -> new AssertionError(
-                            "AI-processing window did not expose the SEC-1 work row"));
-                    List<String> progressTexts = findNodes(improvementRow, Label.class).stream()
-                        .map(Label.class::cast)
-                        .map(Label::getText)
-                        .filter(java.util.Objects::nonNull)
-                        .toList();
-                    String improvementClassification =
-                        I18n.get("snippets.ai.analysis.section.security") + " · high";
-                    if (progressTexts.contains(improvementClassification)) {
-                        throw new AssertionError(
-                            "AI-processing window still showed category and severity as right-side text");
+                    case 3 -> {
+                        SnippetEditDialog again = reopened.get();
+                        SnippetAnalysisPanel panel = again.analysisController().analysisPanel();
+                        if (panel == null || !panel.isPageReady()) {
+                            return;
+                        }
+                        List<String> restored = panel.selectedFindingTokens();
+                        if (!restored.containsAll(List.of("imp:SEC-1", "imp:OPT-1"))) {
+                            throw new AssertionError("The reopened analysis did not restore the selection: " + restored);
+                        }
+                        if (panel.diagramView().currentNotice() == null
+                                && panel.diagramView().currentRenderRequest(false) == null) {
+                            return; // cached diagram still rendering
+                        }
+                        // A second store instance reads what is on disk, exactly as after a restart.
+                        de.kortty.core.SnippetAnalysisStore fresh = new de.kortty.core.SnippetAnalysisStore(
+                            store.directory(), id -> true, () -> 5);
+                        de.kortty.core.SnippetAnalysisHistory onDisk = fresh.load(snippetId).get(10, TimeUnit.SECONDS);
+                        fresh.close();
+                        if (onDisk.current() == null || lastRun(onDisk.current()).outcome()
+                                != de.kortty.core.SnippetAnalysisRecord.RunOutcome.PENDING_REVIEW) {
+                            throw new AssertionError("The analysis file does not carry the pending review");
+                        }
+                        Button reviewOpen = (Button) requireInEditor(again, "#snippet-analysis-review-open");
+                        reopenedFromStore.set(true);
+                        phase.set(4);
+                        reviewOpen.fire();
                     }
-                    SVGPath categoryIcon = findNodes(improvementRow, SVGPath.class).stream()
-                        .map(SVGPath.class::cast)
-                        .findFirst()
-                        .orElseThrow(() -> new AssertionError(
-                            "AI-processing improvement row did not show its category icon"));
-                    if (!SnippetAiDialogSupport.sectionIconPath("security").equals(categoryIcon.getContent())
-                            || !Color.web(SnippetAiDialogSupport.sectionColor("security"))
-                                .equals(categoryIcon.getFill())
-                            || !(categoryIcon.getParent() instanceof HBox identifierLine)
-                            || identifierLine.getChildren().indexOf(categoryIcon) != 1
-                            || !(identifierLine.getChildren().getFirst() instanceof Label identifier)
-                            || !"SEC-1".equals(identifier.getText())) {
-                        throw new AssertionError(
-                            "AI-processing category icon was not coloured and placed beside its identifier");
+                    case 4 -> {
+                        SnippetEditDialog again = reopened.get();
+                        SnippetAiDiffPane review = again.analysisController().reviewPane();
+                        if (review == null || review.getScene() == null || !review.isDiffReady()) {
+                            return;
+                        }
+                        MonacoEditorPane againEditor = field(again, "contentArea", MonacoEditorPane.class);
+                        if (!original.equals(againEditor.getText())) {
+                            throw new AssertionError("The reopened editor changed before Accept");
+                        }
+                        phase.set(5);
+                        ((Button) requireInEditor(again, "#snippet-ai-diff-accept")).fire();
                     }
-                    Label clampedDescription = findNodes(improvementRow, Label.class).stream()
-                        .map(Label.class::cast)
-                        .filter(label -> label.getStyleClass()
-                            .contains("snippet-analysis-progress-description"))
-                        .findFirst()
-                        .orElseThrow(() -> new AssertionError(
-                            "AI-processing improvement row did not expose its bounded description"));
-                    if (!longImprovementTitle.equals(clampedDescription.getText())
-                            || !clampedDescription.isWrapText()
-                            || clampedDescription.getTextOverrun() != OverrunStyle.ELLIPSIS
-                            || clampedDescription.getHeight() > clampedDescription.getMaxHeight() + 0.5
-                            || clampedDescription.getHeight() < clampedDescription.getMaxHeight() - 0.5) {
-                        throw new AssertionError(
-                            "AI-processing description was not visually clamped to its three-line height");
+                    case 5 -> {
+                        SnippetEditDialog again = reopened.get();
+                        MonacoEditorPane againEditor = field(again, "contentArea", MonacoEditorPane.class);
+                        if (!replacement.equals(againEditor.getText())) {
+                            throw new AssertionError("Accept did not put the reviewed result into the editor");
+                        }
+                        de.kortty.core.SnippetAnalysisRecord.ApplyRun run =
+                            lastRun(store.cached(snippetId).current());
+                        if (run.outcome() != de.kortty.core.SnippetAnalysisRecord.RunOutcome.ACCEPTED
+                                || !run.appliedFindingIds().containsAll(List.of("SEC-1", "OPT-1"))) {
+                            throw new AssertionError("Accept stored " + run.outcome() + " / " + run.appliedFindingIds());
+                        }
+                        accepted.set(true);
+                        phase.set(6);
+                        stop(poller);
+                        // The editor is closed with the others at the end of the run.
+                        flowDone.set(true);
                     }
-                    SVGPath optimizationIcon = findNodes(progress.getScene().getRoot(), HBox.class).stream()
-                        .map(HBox.class::cast)
-                        .filter(row -> "OPT-1".equals(row.getUserData()))
-                        .flatMap(row -> findNodes(row, SVGPath.class).stream())
-                        .map(SVGPath.class::cast)
-                        .findFirst()
-                        .orElseThrow(() -> new AssertionError(
-                            "AI-processing optimization row did not show its lightning icon"));
-                    if (!SnippetAiDialogSupport.sectionIconPath("optimization")
-                            .equals(optimizationIcon.getContent())
-                            || !Color.web(SnippetAiDialogSupport.sectionColor("optimization"))
-                                .equals(optimizationIcon.getFill())) {
-                        throw new AssertionError(
-                            "AI-processing optimization row did not use the coloured lightning icon");
-                    }
-                    boolean hardeningRowHasClassification = findNodes(
-                            progress.getScene().getRoot(), HBox.class).stream()
-                        .map(HBox.class::cast)
-                        .filter(row -> row.getUserData() instanceof String id && id.startsWith("HARDENING-"))
-                        .findFirst()
-                        .map(row -> findNodes(row, Label.class).size() > 3
-                            || !findNodes(row, SVGPath.class).isEmpty())
-                        .orElseThrow(() -> new AssertionError(
-                            "AI-processing window did not expose a hardening work row"));
-                    if (hardeningRowHasClassification) {
-                        throw new AssertionError(
-                            "AI-processing hardening row still showed a redundant right-side classification");
-                    }
-                    previewShown.set(true);
-                    Timeline active = poller.get();
-                    if (active != null) {
-                        active.stop();
-                    }
-                    return;
+                    default -> stop(poller);
                 }
-                if (applyClicked.get()) {
-                    return;
-                }
-                Stage analysis = findShowingStage(I18n.get("snippets.ai.analysis.title"));
-                if (analysis == null || analysis.getScene() == null) {
-                    return;
-                }
-                WebEngine findings = analysisFindingsEngine(analysis);
-                if (findings == null) {
-                    return;
-                }
-                setChecked(findings, "imp", "SEC-1", true);
-                setChecked(findings, "imp", "OPT-1", true);
-                Button apply = findNodes(analysis.getScene().getRoot(), Button.class).stream()
-                    .map(Button.class::cast)
-                    .filter(button -> button.getText() != null
-                        && button.getText().contains(I18n.get("snippets.ai.analysis.applySelected")))
-                    .findFirst()
-                    .orElseThrow(() -> new AssertionError("Full-code-analysis Apply-selected button is missing"));
-                applyClicked.set(true);
-                apply.fire();
             } catch (Throwable e) {
-                failure.compareAndSet(null, "Full-code-analysis preview flow failed: " + e);
-                Timeline active = poller.get();
-                if (active != null) {
-                    active.stop();
+                failure.compareAndSet(null, "Integrated Full-code-analysis flow failed in phase "
+                    + phase.get() + ": " + e);
+                stop(poller);
+                editorDialog.closeWithoutPrompt();
+                if (reopened.get() != null) {
+                    reopened.get().closeWithoutPrompt();
                 }
-                editorDialog.close();
+                flowDone.set(true);
             }
         }));
         timeline.setCycleCount(Timeline.INDEFINITE);
@@ -855,7 +935,7 @@ public final class SnippetAiDialogsSmoke {
             timeline.stop();
             try {
                 if (!applyClicked.get()) {
-                    throw new AssertionError("Full-code-analysis selection was not applied from its real dialog");
+                    throw new AssertionError("Full-code-analysis selection was not applied from the side panel");
                 }
                 if (!applyProviderCalled.get()) {
                     throw new AssertionError("Full-code-analysis apply provider was not invoked");
@@ -864,53 +944,142 @@ public final class SnippetAiDialogsSmoke {
                     throw new AssertionError("Full-code-analysis did not run the dedicated diagram request on open");
                 }
                 if (!previewShown.get()) {
-                    throw new AssertionError("Full-code-analysis did not show the review-diff window");
+                    throw new AssertionError("Full-code-analysis did not show the review in the editor area");
                 }
                 if (autoCompletionProviderCalled.get()) {
                     throw new AssertionError(
                         "Full-code-analysis allowed a pending auto-completion popup to run");
                 }
-                if (!original.equals(editor.getText())) {
-                    throw new AssertionError("Editor content changed before the review-diff was confirmed");
+                if (!reopenedFromStore.get()) {
+                    throw new AssertionError("The reopened editor did not show the stored analysis (phase "
+                        + phase.get() + ")");
+                }
+                if (reopenedProviderCalls.get() != 0) {
+                    throw new AssertionError("Reopening a stored analysis called an AI provider "
+                        + reopenedProviderCalls.get() + " time(s)");
+                }
+                if (!accepted.get()) {
+                    throw new AssertionError("The reopened review was not accepted into the editor");
                 }
             } finally {
-                Stage preview = findShowingStage(I18n.get("snippets.ai.analysis.diff.title"));
-                if (preview != null) {
-                    // Close only after Monaco has had the smoke's full wait interval to finish loading.
-                    preview.close();
-                }
-                Platform.runLater(editorDialog::close);
+                Platform.runLater(() -> {
+                    editorDialog.closeWithoutPrompt();
+                    if (reopened.get() != null) {
+                        reopened.get().closeWithoutPrompt();
+                    }
+                });
             }
         };
     }
 
-    private static Stage findShowingStage(String titlePrefix) {
-        return Window.getWindows().stream()
-            .filter(Window::isShowing)
-            .filter(Stage.class::isInstance)
-            .map(Stage.class::cast)
-            .filter(stage -> stage.getTitle() != null && stage.getTitle().startsWith(titlePrefix))
+    /** The progress checklist of the apply run, now inside the editor's analysis panel. */
+    private static void verifyProgressPane(javafx.scene.Parent progress, String longImprovementTitle) {
+        ProgressBar improvementsProgress = nodeById(
+            progress, "snippet-analysis-progress-improvements", ProgressBar.class);
+        ProgressBar hardeningProgress = nodeById(
+            progress, "snippet-analysis-progress-hardening", ProgressBar.class);
+        if (!improvementsProgress.isVisible() || !hardeningProgress.isVisible()
+                || improvementsProgress.getProgress() != 1.0
+                || hardeningProgress.getProgress() != 1.0) {
+            throw new AssertionError("AI-processing pane did not keep separate completed progress bars");
+        }
+        boolean completedCheckVisible = findNodes(progress, Label.class).stream()
+            .map(Label.class::cast)
+            .anyMatch(label -> "✓".equals(label.getText()));
+        if (!completedCheckVisible) {
+            throw new AssertionError("AI-processing pane did not mark the completed step");
+        }
+        boolean reportedTokensVisible = findNodes(progress, Label.class).stream()
+            .map(Label.class::cast)
+            .map(Label::getText)
+            .anyMatch(text -> text != null && text.contains("120"));
+        if (!reportedTokensVisible) {
+            throw new AssertionError("AI-processing pane did not show provider-reported token usage");
+        }
+        HBox improvementRow = findNodes(progress, HBox.class).stream()
+            .map(HBox.class::cast)
+            .filter(row -> "SEC-1".equals(row.getUserData()))
             .findFirst()
-            .orElse(null);
+            .orElseThrow(() -> new AssertionError("AI-processing pane did not expose the SEC-1 work row"));
+        List<String> progressTexts = findNodes(improvementRow, Label.class).stream()
+            .map(Label.class::cast)
+            .map(Label::getText)
+            .filter(java.util.Objects::nonNull)
+            .toList();
+        String improvementClassification =
+            I18n.get("snippets.ai.analysis.section.security") + " · high";
+        if (progressTexts.contains(improvementClassification)) {
+            throw new AssertionError("AI-processing pane still showed category and severity as right-side text");
+        }
+        SVGPath categoryIcon = findNodes(improvementRow, SVGPath.class).stream()
+            .map(SVGPath.class::cast)
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("AI-processing improvement row did not show its category icon"));
+        if (!SnippetAiDialogSupport.sectionIconPath("security").equals(categoryIcon.getContent())
+                || !Color.web(SnippetAiDialogSupport.sectionColor("security")).equals(categoryIcon.getFill())
+                || !(categoryIcon.getParent() instanceof HBox identifierLine)
+                || identifierLine.getChildren().indexOf(categoryIcon) != 1
+                || !(identifierLine.getChildren().getFirst() instanceof Label identifier)
+                || !"SEC-1".equals(identifier.getText())) {
+            throw new AssertionError("AI-processing category icon was not coloured and placed beside its identifier");
+        }
+        Label clampedDescription = findNodes(improvementRow, Label.class).stream()
+            .map(Label.class::cast)
+            .filter(label -> label.getStyleClass().contains("snippet-analysis-progress-description"))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError(
+                "AI-processing improvement row did not expose its bounded description"));
+        if (!longImprovementTitle.equals(clampedDescription.getText())
+                || !clampedDescription.isWrapText()
+                || clampedDescription.getTextOverrun() != OverrunStyle.ELLIPSIS) {
+            throw new AssertionError("AI-processing description was not set up as a clamped, wrapping label");
+        }
+        SVGPath optimizationIcon = findNodes(progress, HBox.class).stream()
+            .map(HBox.class::cast)
+            .filter(row -> "OPT-1".equals(row.getUserData()))
+            .flatMap(row -> findNodes(row, SVGPath.class).stream())
+            .map(SVGPath.class::cast)
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("AI-processing optimization row did not show its lightning icon"));
+        if (!SnippetAiDialogSupport.sectionIconPath("optimization").equals(optimizationIcon.getContent())
+                || !Color.web(SnippetAiDialogSupport.sectionColor("optimization")).equals(optimizationIcon.getFill())) {
+            throw new AssertionError("AI-processing optimization row did not use the coloured lightning icon");
+        }
+        boolean hardeningRowHasClassification = findNodes(progress, HBox.class).stream()
+            .map(HBox.class::cast)
+            .filter(row -> row.getUserData() instanceof String id && id.startsWith("HARDENING-"))
+            .findFirst()
+            .map(row -> findNodes(row, Label.class).size() > 3 || !findNodes(row, SVGPath.class).isEmpty())
+            .orElseThrow(() -> new AssertionError("AI-processing pane did not expose a hardening work row"));
+        if (hardeningRowHasClassification) {
+            throw new AssertionError("AI-processing hardening row still showed a redundant right-side classification");
+        }
     }
 
-    private static WebEngine analysisFindingsEngine(Stage analysisStage) {
-        for (Node node : findNodes(analysisStage.getScene().getRoot(), WebView.class)) {
-            WebEngine engine = ((WebView) node).getEngine();
-            if (engine.getLoadWorker().getState() != Worker.State.SUCCEEDED) {
-                continue;
-            }
-            try {
-                Object found = engine.executeScript(
-                    "document.querySelector(\"input.analysis-check[data-kind='imp'][data-id='SEC-1']\") !== null");
-                if (Boolean.TRUE.equals(found)) {
-                    return engine;
-                }
-            } catch (RuntimeException ignored) {
-                // This is another WebView in the analysis window (for example the Mermaid renderer).
-            }
+    private static de.kortty.core.SnippetAnalysisRecord.ApplyRun lastRun(de.kortty.core.SnippetAnalysisRecord record) {
+        if (record == null || record.applyRuns().isEmpty()) {
+            throw new AssertionError("The stored analysis has no apply run");
         }
-        return null;
+        return record.applyRuns().get(record.applyRuns().size() - 1);
+    }
+
+    private static Node requireInEditor(SnippetEditDialog editor, String selector) {
+        Node node = editor.getDialogPane().lookup(selector);
+        if (node == null) {
+            throw new AssertionError("The editor scene has no " + selector);
+        }
+        return node;
+    }
+
+    private static long showingStages() {
+        return Window.getWindows().stream().filter(Window::isShowing).filter(Stage.class::isInstance).count();
+    }
+
+    private static void stop(AtomicReference<Timeline> poller) {
+        Timeline active = poller.get();
+        if (active != null) {
+            active.stop();
+        }
     }
 
     /** Verifies the editor forwards GUI/report language and code language through the two analysis actions. */
@@ -1137,7 +1306,7 @@ public final class SnippetAiDialogsSmoke {
             .filter(checkBox -> expectedText.equals(checkBox.getText()))
             .findFirst()
             .orElseThrow(() -> new AssertionError(
-                "SnippetCodeAnalysisDialog is missing the select-all-improvements checkbox ('"
+                "SnippetAnalysisPanel is missing the select-all-improvements checkbox ('"
                     + expectedText + "')"));
     }
 
@@ -1193,14 +1362,21 @@ public final class SnippetAiDialogsSmoke {
         method.invoke(target, arguments);
     }
 
-    private static WebView findingsWebView(SnippetCodeAnalysisDialog dialog) {
+    private static WebView findingsWebView(SnippetAnalysisPanel panel) {
         try {
             Field field = SnippetAnalysisPanel.class.getDeclaredField("findingsView");
             field.setAccessible(true);
-            return (WebView) field.get(dialog.panel());
+            return (WebView) field.get(panel);
         } catch (ReflectiveOperationException e) {
-            throw new AssertionError("SnippetCodeAnalysisDialog is missing its findings WebView", e);
+            throw new AssertionError("SnippetAnalysisPanel is missing its findings WebView", e);
         }
+    }
+
+    /** A bare DialogPane around a node, so the pane-based helpers can walk and snapshot it. */
+    private static DialogPane hostPane(Node content) {
+        DialogPane pane = new DialogPane();
+        pane.setContent(content);
+        return pane;
     }
 
     private static void setChecked(WebEngine engine, String kind, String id, boolean checked) {

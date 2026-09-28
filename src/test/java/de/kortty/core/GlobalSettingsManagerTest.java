@@ -152,28 +152,31 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
-    void saveAndLoadPreservesSnippetCodeAnalysisDialogGeometry() throws Exception {
+    void saveAndLoadPreservesTheSnippetAnalysisPanelLayout() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings");
         try {
             GlobalSettingsManager manager = new GlobalSettingsManager(dir);
-            manager.getSettings().setSnippetCodeAnalysisDialogGeometry(
-                new WindowGeometry(120.0, 80.0, 1400.0, 900.0));
+            manager.getSettings().setSnippetAnalysisPanelWidth(612.0);
+            manager.getSettings().setSnippetAnalysisPanelVisible(true);
             manager.save();
 
             GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
             reloaded.load();
-            WindowGeometry geometry = reloaded.getSettings().getSnippetCodeAnalysisDialogGeometry();
-            assertThat(geometry).isNotNull();
-            assertThat(geometry.getX()).isEqualTo(120.0);
-            assertThat(geometry.getY()).isEqualTo(80.0);
-            assertThat(geometry.getWidth()).isEqualTo(1400.0);
-            assertThat(geometry.getHeight()).isEqualTo(900.0);
+            assertThat(reloaded.getSettings().getSnippetAnalysisPanelWidth()).isEqualTo(612.0);
+            assertThat(reloaded.getSettings().isSnippetAnalysisPanelVisible()).isTrue();
 
-            // A settings file written before this element existed must still load, with no geometry.
+            // Junk widths read as "unset", tiny ones are raised to the panel's minimum.
+            reloaded.getSettings().setSnippetAnalysisPanelWidth(-4.0);
+            assertThat(reloaded.getSettings().getSnippetAnalysisPanelWidth()).isNull();
+            reloaded.getSettings().setSnippetAnalysisPanelWidth(12.0);
+            assertThat(reloaded.getSettings().getSnippetAnalysisPanelWidth()).isEqualTo(360.0);
+
+            // A settings file written before these elements existed loads with the defaults.
             GlobalSettingsManager legacy = new GlobalSettingsManager(Files.createTempDirectory("kortty-legacy"));
             legacy.save();
             legacy.load();
-            assertThat(legacy.getSettings().getSnippetCodeAnalysisDialogGeometry()).isNull();
+            assertThat(legacy.getSettings().getSnippetAnalysisPanelWidth()).isNull();
+            assertThat(legacy.getSettings().isSnippetAnalysisPanelVisible()).isFalse();
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);

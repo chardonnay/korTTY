@@ -3787,11 +3787,11 @@ tasks.register<JavaExec>("updateDownloadCompleteSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
-tasks.register<JavaExec>("snippetCodeAnalysisDialogSizingSmoke") {
+tasks.register<JavaExec>("snippetAnalysisPanelSizingSmoke") {
     group = "verification"
-    description = "Shrinks the Full-code-analysis window and verifies its Apply/Close buttons stay on screen."
+    description = "Shrinks a snippet editor with its Full-code-analysis side panel open (window and tab mode) and verifies Apply selected and Export stay on screen."
     dependsOn("testClasses", "processResources")
-    mainClass.set("de.kortty.ui.SnippetCodeAnalysisDialogSizingSmoke")
+    mainClass.set("de.kortty.ui.SnippetAnalysisPanelSizingSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
     environment("TEST_MODE_KORTTY", "1")
 }
@@ -3802,15 +3802,6 @@ tasks.register<JavaExec>("analysisCategoryIconRender") {
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.AnalysisCategoryIconRender")
     classpath = sourceSets.test.get().runtimeClasspath
-}
-
-tasks.register<JavaExec>("snippetAnalysisDockSmoke") {
-    group = "verification"
-    description = "Docks the AI-processing and change-preview windows to a Full-code-analysis anchor and verifies they take opposite sides, follow it, stay on screen and undock when dragged away."
-    dependsOn("testClasses", "processResources")
-    mainClass.set("de.kortty.ui.SnippetAnalysisDockSmoke")
-    classpath = sourceSets.test.get().runtimeClasspath
-    environment("TEST_MODE_KORTTY", "1")
 }
 
 tasks.register<JavaExec>("snippetAiDialogsSmoke") {

@@ -4,7 +4,6 @@ import de.kortty.KorTTYApplication;
 import de.kortty.core.LanguageManager;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.SnippetDiagramSupport;
-import de.kortty.model.AiSkill;
 import de.kortty.model.GlobalSettings;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
@@ -19,14 +18,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Stages the Full-code-analysis window inside the real main window for the guide screenshot,
+ * Stages a snippet editor with its Full-code-analysis side panel open inside the real main window
+ * for the guide screenshot,
  * prints {@code READY x y w h} for the region to capture, and holds it until the capture-done flag
  * appears. The sibling of {@link MainWindowScreenshotStage}, which it borrows its bootstrap from.
  *
@@ -35,7 +33,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * or updated deterministically; and a screenshot is documentation, so it should show one finding of
  * every category — the guide describes all four, and a real script rarely triggers all four at
  * once. The flow diagram uses korTTY's own deterministic local fallback, so no AI request is made
- * here at all.</p>
+ * here at all. The analysis is seeded into the store the way a finished run leaves it, so the panel
+ * shows it exactly as it appears when a snippet with a stored analysis is reopened.</p>
  *
  * <p>Runs against an isolated, empty home in English, so nothing from the developer's own
  * installation can reach a published image.</p>
@@ -117,15 +116,15 @@ public final class CodeAnalysisScreenshotStage {
         stage.setAlwaysOnTop(true);
         stage.toFront();
 
-        SnippetCodeAnalysisDialog dialog = buildDialog();
-        window.hostMultiInstanceToolTab(dialog);
-        dialog.startDiagramIfAutoEnabled();
+        SnippetEditDialog editor = buildEditor(app);
+        window.hostMultiInstanceToolTab(editor);
+        editor.analysisController().showPanel();
 
         // Both panes are WebViews that render asynchronously; announcing before they paint would
         // capture an empty report next to a spinner.
         PauseTransition settle = new PauseTransition(Duration.millis(4500));
         settle.setOnFinished(e -> {
-            expandDependencies(dialog);
+            expandDependencies(editor);
             announce(stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
         });
         settle.play();
@@ -148,7 +147,7 @@ public final class CodeAnalysisScreenshotStage {
      * One finding per category, so every section icon the guide describes is actually visible, plus
      * a dependency with a reduce/replace suggestion.
      */
-    private static SnippetCodeAnalysisDialog buildDialog() {
+    private static SnippetEditDialog buildEditor(KorTTYApplication app) {
         SnippetAiResponseSupport.ScriptAnalysis analysis = new SnippetAiResponseSupport.ScriptAnalysis(
             "The script reads a system log file (defaulting to /var/log/messages), parses each line to "
                 + "extract host, process, and message, classifies the message severity (CRITICAL, ERROR, "
@@ -195,23 +194,19 @@ public final class CodeAnalysisScreenshotStage {
             "close($fh);",
             "print_findings_table();",
             "");
-        java.util.function.Supplier<CompletableFuture<SnippetDiagramView.DiagramSource>> diagram =
-            () -> CompletableFuture.completedFuture(new SnippetDiagramView.DiagramSource(
-                SnippetDiagramSupport.buildFallbackLogicalStructureMermaid(script, "perl"),
-                script, List.of()));
-
-        AiSkill perl = new AiSkill();
-        perl.setId("perl");
-        perl.setName("Perl (Perl 5)");
-        AiSkill shell = new AiSkill();
-        shell.setId("shell");
-        shell.setName("Bourne-Shell (sh, POSIX)");
-        SnippetAnalysisPanel.SkillContext skills = new SnippetAnalysisPanel.SkillContext(
-            List.of(perl, shell), Set.of("perl", "shell"), true, ids -> { });
-
-        return new SnippetCodeAnalysisDialog(
-            null, SCRIPT_NAME, "perl", analysis, diagram, null, id -> { }, skills,
-            de.kortty.core.ScriptLanguageMixSupport.detect("perl", ""), null);
+        de.kortty.model.Snippet snippet = new de.kortty.model.Snippet(SCRIPT_NAME, script, "perl");
+        app.getSnippetManager().addSnippet(snippet);
+        de.kortty.core.SnippetAnalysisRecord record = de.kortty.core.SnippetAnalysisRecord.fromAnalysis(
+            "demo-analysis", snippet.getId(), analysis,
+            de.kortty.core.SnippetAnalysisRecord.Source.of(script, "perl", "en", "en", SCRIPT_NAME),
+            new de.kortty.core.SnippetAnalysisRecord.Provenance(null, "Default profile", null,
+                List.of("perl", "shell"), List.of("Perl (Perl 5)", "Bourne-Shell (sh, POSIX)"), "", null),
+            de.kortty.core.SnippetAnalysisRecord.Purpose.ANALYSIS, null, System.currentTimeMillis())
+            .withDiagram(new de.kortty.core.SnippetAnalysisRecord.AnalysisDiagram("logical-structure",
+                SnippetDiagramSupport.buildFallbackLogicalStructureMermaid(script, "perl"), List.of(), "",
+                true, SnippetDiagramSupport.contentHash(script), null, System.currentTimeMillis()));
+        de.kortty.core.SnippetAnalysisStore.shared().addAnalysis(snippet.getId(), record);
+        return new SnippetEditDialog(snippet, List.of());
     }
 
     /**
@@ -222,12 +217,13 @@ public final class CodeAnalysisScreenshotStage {
      * though the feature were broken. The screenshot shows it open for the same reason the
      * hardening panel is shown open: a picture of a collapsed strip documents nothing.</p>
      */
-    private static void expandDependencies(SnippetCodeAnalysisDialog dialog) {
+    private static void expandDependencies(SnippetEditDialog editor) {
         try {
             java.lang.reflect.Field field =
                 SnippetAnalysisPanel.class.getDeclaredField("findingsView");
             field.setAccessible(true);
-            javafx.scene.web.WebView view = (javafx.scene.web.WebView) field.get(dialog.panel());
+            javafx.scene.web.WebView view =
+                (javafx.scene.web.WebView) field.get(editor.analysisController().analysisPanel());
             view.getEngine().executeScript(
                 "document.querySelectorAll('details.dep-group').forEach(function (d) { d.open = true; });");
         } catch (Exception e) {

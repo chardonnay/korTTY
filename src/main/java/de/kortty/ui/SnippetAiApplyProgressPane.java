@@ -44,7 +44,7 @@ import java.util.Map;
  * <p>This is only a view. It can be dropped and rebuilt at any time (an embedded host disposes it
  * when its panel hides), so a host that needs the run's state keeps it itself and rebuilds the view
  * from it — {@link #restored(SnippetAnalysisRecord.ApplyRun)} does exactly that for a persisted
- * run. The pane never opens a window; {@link SnippetAiApplyProgressWindow} hosts it in one.</p>
+ * run. The pane never opens a window; the snippet editor's analysis panel hosts it.</p>
  *
  * <p>Token usage is rendered exactly as the provider reported it and never guessed — a run against
  * a backend that reports nothing says so rather than showing an estimate that looks like a fact.</p>

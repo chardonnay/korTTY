@@ -28,19 +28,24 @@ class SnippetAiFlowModalityTest {
 
     private static final Path UI_ROOT = Path.of("src/main/java/de/kortty/ui");
 
-    /** Every window the staged apply flow puts on screen, plus the editor that hosts it. */
+    /**
+     * The windows around the flow: the editor that hosts the integrated analysis, the workspace that
+     * embeds editors, and the diff window the other AI flows still use.
+     */
     private static final List<String> FLOW_WINDOWS = List.of(
         "SnippetEditDialog.java",
         "SnippetWorkspaceDialog.java",
-        "SnippetCodeAnalysisDialog.java",
-        "SnippetAiDiffDialog.java",
-        "SnippetAiApplyProgressWindow.java");
+        "SnippetAiDiffDialog.java");
 
-    /** The flow's content, extracted so a host can embed it instead of opening a window. */
+    /**
+     * The integrated Full-code-analysis flow: the analysis side panel, the progress and diff panes
+     * inside the editor, and the controller that drives them.
+     */
     private static final List<String> EMBEDDABLE_PANES = List.of(
         "SnippetAnalysisPanel.java",
         "SnippetAiDiffPane.java",
-        "SnippetAiApplyProgressPane.java");
+        "SnippetAiApplyProgressPane.java",
+        "SnippetAnalysisController.java");
 
     private static final Pattern NON_MODAL = Pattern.compile(
         "initModality\\(\\s*(?:javafx\\.stage\\.)?Modality\\.NONE\\s*\\)");
@@ -65,21 +70,44 @@ class SnippetAiFlowModalityTest {
     }
 
     /**
-     * The embeddable panes live inside whatever hosts them — a window today, the editor itself
-     * later. A pane that opened its own window or blocked in {@code showAndWait} would drag the
-     * modality problem above into every host.
+     * The integrated flow lives inside the editor. A pane (or the controller) that opened its own
+     * window, raised an alert or blocked in {@code showAndWait} would bring back the satellite
+     * windows and the modality problem above — inline banners and the in-editor review exist so
+     * that it never has to.
      */
     @Test
-    void theEmbeddablePanesNeverOpenOrBlockOnAWindow() throws IOException {
+    void integratedAnalysisFlowOpensNoWindows() throws IOException {
         List<String> offenders = new ArrayList<>();
         for (String name : EMBEDDABLE_PANES) {
             String source = code(UI_ROOT.resolve(name));
-            if (source.contains("new Stage(") || source.contains("showAndWait(")) {
-                offenders.add(name);
+            for (String forbidden : List.of("new Stage(", "new Alert(", "showAndWait(", "initOwner(")) {
+                if (source.contains(forbidden)) {
+                    offenders.add(name + " uses " + forbidden);
+                }
             }
         }
-        assertWithMessage("These panes open a Stage or block in showAndWait()")
+        assertWithMessage("The integrated analysis flow opens a window, an alert or blocks")
             .that(offenders).isEmpty();
+    }
+
+    /** The removed satellite windows stay removed. */
+    @Test
+    void theFlowHasNoSatelliteWindowsAnyMore() {
+        for (String removed : List.of("SnippetCodeAnalysisDialog.java", "SnippetAiApplyProgressWindow.java",
+                "WindowDockGroup.java")) {
+            assertWithMessage(removed + " came back").that(Files.exists(UI_ROOT.resolve(removed))).isFalse();
+        }
+    }
+
+    /** A question raised by the flow blocks nothing while the editor lives in a tab of the main window. */
+    @Test
+    void theFlowsQuestionsAreNonModalWhenHosted() throws IOException {
+        String source = code(UI_ROOT.resolve("SnippetEditDialog.java"));
+        assertWithMessage("aiFlowAlertModality() must exist and return NONE when hosted")
+            .that(source).containsMatch(
+                "private Modality aiFlowAlertModality\\(\\)\\s*\\{\\s*return isHostedInTab\\(\\)[^;]*Modality\\.NONE");
+        assertWithMessage("the code-text language question uses aiFlowAlertModality()")
+            .that(source).contains("initModality(aiFlowAlertModality())");
     }
 
     /**

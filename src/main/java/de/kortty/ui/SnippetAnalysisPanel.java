@@ -21,8 +21,8 @@ import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.concurrent.Worker;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
@@ -63,11 +63,11 @@ import java.util.function.Supplier;
  * The embeddable Full-code-analysis view: a themed, checkbox-selectable report (summary,
  * categorized improvements, external dependencies) beside an asynchronously rendered
  * activity/flow diagram, plus the header, text-language, hardening, input-hardening and migration
- * selectors that shape what "Apply selected" does. {@link SnippetCodeAnalysisDialog} hosts it in its
- * own window; an editor can host it directly.
+ * selectors that shape what "Apply selected" does. The snippet editor hosts it in its analysis side
+ * panel ({@link SnippetAnalysisController}), which is narrow, so the report sits above the diagram.
  *
- * <p>The pane never opens a window of its own apart from the export's file chooser and its result
- * notice. Every choice the user makes can be read back ({@link #readSelection()},
+ * <p>The pane never opens a window of its own apart from the export's file chooser; the export
+ * result is reported inline. Every choice the user makes can be read back ({@link #readSelection()},
  * {@link #selectionState(long)}), restored ({@link #applySelectionState}) and observed
  * ({@link #addSelectionListener(Runnable)}), so a host can persist it.</p>
  */
@@ -122,6 +122,14 @@ public class SnippetAnalysisPanel extends VBox {
                                Consumer<Set<String>> onSelectionChanged) {
     }
 
+    /** Told about a finished export, so a host can record it; called on the JavaFX thread. */
+    interface ExportListener {
+        void exported(SnippetAnalysisExportService.Format format, String fileName);
+
+        default void failed(String message) {
+        }
+    }
+
     private final SnippetAiResponseSupport.ScriptAnalysis analysis;
     private final String scriptName;
     private final String activeProfileId;
@@ -140,10 +148,17 @@ public class SnippetAnalysisPanel extends VBox {
 
     private final WebView findingsView = new WebView();
     private final Label fontSizeLabel = new Label();
+    private final Label exportResultLabel = new Label();
+    private MenuButton exportButton;
+    private ExportListener exportListener;
+    private LocalDateTime reportTimestamp;
+    private boolean exportRunning;
     private boolean pageReady;
     private boolean disposed;
     /** A finding selection to apply once the report page has loaded; {@code null} = none pending. */
     private String pendingSelectedCsv;
+    /** Finding ids to mark "applied" once the page has loaded; {@code null} = nothing pending. */
+    private String pendingAppliedCsv;
     private int fontSize;
 
     private final SnippetDiagramView diagramView;
@@ -187,6 +202,7 @@ public class SnippetAnalysisPanel extends VBox {
                 // Re-installed on every load: a reload creates a fresh JS window without the member.
                 installSelectionBridge(findingsView.getEngine());
                 applyPendingSelection();
+                applyPendingApplied();
             }
         });
         findingsView.getEngine().loadContent(buildAnalysisHtml());
@@ -210,16 +226,20 @@ public class SnippetAnalysisPanel extends VBox {
         diagramHeader.setAlignment(Pos.CENTER_LEFT);
         VBox rightPane = new VBox(6, diagramHeader, diagramView);
         VBox.setVgrow(diagramView, Priority.ALWAYS);
-        rightPane.setPadding(new Insets(0, 0, 0, 4));
 
+        // The panel lives in a narrow side column of the editor, so the report sits above the
+        // diagram rather than beside it.
+        rightPane.setPadding(new Insets(4, 0, 0, 0));
         SplitPane splitPane = new SplitPane(findingsView, rightPane);
-        splitPane.setDividerPositions(0.52);
+        splitPane.setOrientation(Orientation.VERTICAL);
+        splitPane.setDividerPositions(0.58);
         SplitPane.setResizableWithParent(rightPane, true);
         VBox.setVgrow(splitPane, Priority.ALWAYS);
         // The report/diagram area is what a short window should give up first — without a low
         // minimum it keeps its own height and the whole content starts scrolling far too early.
-        splitPane.setMinHeight(120);
-        Platform.runLater(() -> splitPane.setDividerPositions(0.52));
+        splitPane.setMinHeight(160);
+        splitPane.setPrefHeight(620);
+        Platform.runLater(() -> splitPane.setDividerPositions(0.58));
 
         setSpacing(10);
         getChildren().add(infoLabel);
@@ -235,14 +255,25 @@ public class SnippetAnalysisPanel extends VBox {
         HBox textLanguageRow = new HBox(8,
             new Label(I18n.get("snippets.textLanguage") + ":"), textLanguageCombo);
         textLanguageRow.setAlignment(Pos.CENTER_LEFT);
-        getChildren().addAll(buildToolbar(activeProfileId, onRerun, beforeRerun), splitPane, headerChooser,
+        getChildren().addAll(buildToolbar(activeProfileId));
+        HBox rerunRow = buildRerunRow(activeProfileId, onRerun, beforeRerun);
+        if (rerunRow != null) {
+            getChildren().add(rerunRow);
+        }
+        exportResultLabel.setId("snippet-analysis-export-result");
+        exportResultLabel.setWrapText(true);
+        exportResultLabel.setMaxWidth(Double.MAX_VALUE);
+        exportResultLabel.setMinHeight(Region.USE_PREF_SIZE);
+        exportResultLabel.setVisible(false);
+        exportResultLabel.setManaged(false);
+        getChildren().addAll(exportResultLabel, splitPane, headerChooser,
             textLanguageRow, buildHardeningPane(), buildInputHardeningPane());
         // Only added when there is something to offer. Toggling `managed` inside a ScrollPane does
         // not trigger a relayout, so an empty pane would leave a visible gap instead of vanishing.
         if (migrationSelector.hasAnythingToOffer()) {
             getChildren().add(buildMigrationPane());
         }
-        setPadding(new Insets(14));
+        setPadding(new Insets(10));
 
         hardeningSelector.addSelectionListener(this::fireSelectionChanged);
         inputHardeningSelector.addSelectionListener(this::fireSelectionChanged);
@@ -303,7 +334,7 @@ public class SnippetAnalysisPanel extends VBox {
         findingsView.getEngine().loadContent("");
     }
 
-    private HBox buildToolbar(String activeProfileId, Consumer<String> onRerun, Runnable beforeRerun) {
+    private HBox buildToolbar(String activeProfileId) {
         Button zoomOutButton = new Button(I18n.get("editor.zoomOut"));
         zoomOutButton.setTooltip(new Tooltip(I18n.get("menu.view.zoomOut")));
         zoomOutButton.setOnAction(event -> changeFontSize(-1));
@@ -322,6 +353,7 @@ public class SnippetAnalysisPanel extends VBox {
 
         Region spacer = new Region();
         HBox toolbar = new HBox(8);
+        toolbar.setId("snippet-analysis-toolbar");
         toolbar.setAlignment(Pos.CENTER_LEFT);
 
         // Always surface which AI profile the analysis used. The re-run picker below only shows the literal
@@ -330,24 +362,34 @@ public class SnippetAnalysisPanel extends VBox {
             SnippetAiDialogSupport.resolveProfileDisplayName(activeProfileId)));
         profileUsing.setId("snippet-analysis-profile-using");
         profileUsing.setStyle("-fx-opacity: 0.85;");
+        profileUsing.setMinWidth(0);
         HBox.setMargin(profileUsing, new Insets(0, 0, 0, 16));
         toolbar.getChildren().addAll(selectAll, profileUsing);
-
-        if (onRerun != null) {
-            ComboBox<SnippetAiDialogSupport.ProfileChoice> profileCombo =
-                SnippetAiDialogSupport.buildProfileCombo(activeProfileId);
-            Button rerunButton = SnippetAiDialogSupport.buildRerunButton(
-                () -> SnippetAiDialogSupport.selectedProfileId(profileCombo), onRerun, beforeRerun);
-            toolbar.getChildren().addAll(SnippetAiDialogSupport.profileLabel(), profileCombo, rerunButton);
-        }
-        toolbar.getChildren().addAll(spacer, zoomOutButton, fontSizeLabel, zoomInButton, copyButton,
-            buildExportButton());
+        exportButton = buildExportButton();
+        toolbar.getChildren().addAll(spacer, zoomOutButton, fontSizeLabel, zoomInButton, copyButton, exportButton);
         HBox.setHgrow(spacer, Priority.ALWAYS);
         return toolbar;
     }
 
+    /** The profile picker and Re-run, on their own row so the narrow side panel keeps both readable. */
+    private HBox buildRerunRow(String activeProfileId, Consumer<String> onRerun, Runnable beforeRerun) {
+        if (onRerun == null) {
+            return null;
+        }
+        ComboBox<SnippetAiDialogSupport.ProfileChoice> profileCombo =
+            SnippetAiDialogSupport.buildProfileCombo(activeProfileId);
+        Button rerunButton = SnippetAiDialogSupport.buildRerunButton(
+            () -> SnippetAiDialogSupport.selectedProfileId(profileCombo), onRerun, beforeRerun);
+        rerunButton.setId("snippet-analysis-rerun");
+        HBox row = new HBox(8, SnippetAiDialogSupport.profileLabel(), profileCombo, rerunButton);
+        row.setId("snippet-analysis-rerun-row");
+        row.setAlignment(Pos.CENTER_LEFT);
+        return row;
+    }
+
     private MenuButton buildExportButton() {
         MenuButton button = new MenuButton(I18n.get("snippets.ai.analysis.export"));
+        button.setId("snippet-analysis-export");
         button.setTooltip(new Tooltip(I18n.get("snippets.ai.analysis.export.tooltip")));
         MenuItem pdfItem = new MenuItem(I18n.get("snippets.ai.analysis.export.pdf"));
         pdfItem.setOnAction(event -> exportReport(SnippetAnalysisExportService.Format.PDF));
@@ -370,11 +412,36 @@ public class SnippetAnalysisPanel extends VBox {
     }
 
     /**
+     * Receives the outcome of every export (the host records it with the analysis); {@code null}
+     * removes the listener. The result is also shown inline above the report.
+     */
+    void setExportListener(ExportListener listener) {
+        this.exportListener = listener;
+    }
+
+    /**
+     * The date the report states as "generated"; {@code null} uses the export time. A persisted
+     * analysis passes the time it was produced, so a re-opened result does not claim to be new.
+     */
+    void setReportTimestamp(LocalDateTime timestamp) {
+        this.reportTimestamp = timestamp;
+    }
+
+    private void refreshExportButton() {
+        if (exportButton != null) {
+            exportButton.setDisable(exportRunning);
+        }
+    }
+
+    /**
      * Exports the report (summary + findings + dependencies + diagram) to the chosen file. The diagram is
-     * rendered from Mermaid during export, so the work runs off the FX thread; the outcome is surfaced
-     * via a lightweight alert owned by the window that hosts this panel.
+     * the one this panel shows (a cached diagram included), rendered from Mermaid during the export, so the
+     * work runs off the FX thread; the outcome is reported inline and to the {@link ExportListener}.
      */
     private void exportReport(SnippetAnalysisExportService.Format format) {
+        if (exportRunning) {
+            return;
+        }
         FileChooser chooser = new FileChooser();
         chooser.setTitle(I18n.get("snippets.ai.analysis.export"));
         String base = (scriptName != null && !scriptName.isBlank() ? scriptName.trim() : "code-analysis")
@@ -390,7 +457,7 @@ public class SnippetAnalysisPanel extends VBox {
         SnippetAnalysisExportService.Context context = new SnippetAnalysisExportService.Context(
             scriptName,
             SnippetAiDialogSupport.resolveProfileDisplayName(activeProfileId),
-            LocalDateTime.now(),
+            reportTimestamp != null ? reportTimestamp : LocalDateTime.now(),
             includedSkillNames);
         de.kortty.core.MermaidRenderService.RenderRequest diagramRequest = diagramView.currentRenderRequest(true);
         Task<Void> task = new Task<>() {
@@ -400,25 +467,43 @@ public class SnippetAnalysisPanel extends VBox {
                 return null;
             }
         };
-        task.setOnSucceeded(event ->
-            showExportResult(I18n.get("snippets.ai.analysis.export.success", target.getName()), true));
+        exportRunning = true;
+        refreshExportButton();
+        task.setOnSucceeded(event -> {
+            exportRunning = false;
+            refreshExportButton();
+            showExportResult(I18n.get("snippets.ai.analysis.export.success", target.getName()), true);
+            if (exportListener != null) {
+                exportListener.exported(format, target.getName());
+            }
+        });
         task.setOnFailed(event -> {
+            exportRunning = false;
+            refreshExportButton();
             Throwable ex = task.getException();
-            showExportResult(I18n.get("snippets.ai.analysis.export.failed",
-                ex != null && ex.getMessage() != null ? ex.getMessage() : "?"), false);
+            String message = I18n.get("snippets.ai.analysis.export.failed",
+                ex != null && ex.getMessage() != null ? ex.getMessage() : "?");
+            showExportResult(message, false);
+            if (exportListener != null) {
+                exportListener.failed(message);
+            }
         });
         Thread thread = new Thread(task, "snippet-analysis-export");
         thread.setDaemon(true);
         thread.start();
     }
 
+    /** The export outcome as an inline line above the report; never a window of its own. */
     private void showExportResult(String message, boolean success) {
-        Alert alert = new Alert(success ? Alert.AlertType.INFORMATION : Alert.AlertType.ERROR);
-        alert.setTitle(I18n.get("snippets.ai.analysis.title"));
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.initOwner(ownerWindow());
-        alert.show();
+        if (disposed) {
+            return;
+        }
+        exportResultLabel.setText(message);
+        exportResultLabel.setStyle(success
+            ? "-fx-background-color: rgba(34,197,94,0.14); -fx-background-radius: 6; -fx-padding: 6 8 6 8;"
+            : "-fx-background-color: rgba(229,72,77,0.16); -fx-background-radius: 6; -fx-padding: 6 8 6 8;");
+        exportResultLabel.setVisible(true);
+        exportResultLabel.setManaged(true);
     }
 
     private Window ownerWindow() {
@@ -504,6 +589,27 @@ public class SnippetAnalysisPanel extends VBox {
             .toList());
         pendingSelectedCsv = csv;
         applyPendingSelection();
+    }
+
+    /**
+     * Marks the findings with the given ids (improvements and dependencies alike) as already applied:
+     * a "✓ Applied" chip on the card. Does not tick or untick anything.
+     */
+    void setAppliedFindings(Collection<String> findingIds) {
+        pendingAppliedCsv = findingIds == null ? "" : String.join(",", findingIds.stream()
+            .filter(id -> id != null && !id.isBlank())
+            .toList());
+        applyPendingApplied();
+    }
+
+    private void applyPendingApplied() {
+        if (!pageReady || pendingAppliedCsv == null) {
+            return;
+        }
+        String csv = pendingAppliedCsv;
+        pendingAppliedCsv = null;
+        executeIfReady("window.korttyAnalysis.markApplied(" + jsString(csv) + ","
+            + jsString(I18n.get("snippets.ai.analysis.applied.badge")) + ");");
     }
 
     private void applyPendingSelection() {
@@ -1025,7 +1131,9 @@ public class SnippetAnalysisPanel extends VBox {
             + ".cat-count{opacity:.5;font-weight:400;font-size:0.8em;}"
             + ".dep-meta{opacity:.72;font-size:0.85em;margin-left:6px;}"
             + "details.dep-group>summary{cursor:pointer;list-style:none;}"
-            + "details.dep-group>summary::-webkit-details-marker{display:none;}";
+            + "details.dep-group>summary::-webkit-details-marker{display:none;}"
+            + ".applied-chip{margin-left:8px;padding:1px 7px;border-radius:9px;font-size:.78em;font-weight:600;"
+            + "background:rgba(34,197,94,.18);color:#22c55e;white-space:nowrap;}";
     }
 
     /** The section glyph shown before a section title (shared inline SVG; see {@link SnippetAiDialogSupport}). */
@@ -1042,7 +1150,12 @@ public class SnippetAnalysisPanel extends VBox {
             + "setSelected:function(csv){var w={};(csv||'').split(',').forEach(function(t){if(t)w[t]=true;});"
             + "document.querySelectorAll('input.analysis-check').forEach(function(b){"
             + "b.checked=!!w[b.getAttribute('data-kind')+':'+b.getAttribute('data-id')];mark(b);});},"
-            + "setFontSize:function(p){document.body.style.fontSize=p+'px';}"
+            + "setFontSize:function(p){document.body.style.fontSize=p+'px';},"
+            + "markApplied:function(csv,label){var w={};(csv||'').split(',').forEach(function(t){if(t)w[t]=true;});"
+            + "document.querySelectorAll('.applied-chip').forEach(function(c){c.remove();});"
+            + "document.querySelectorAll('input.analysis-check').forEach(function(b){"
+            + "if(w[b.getAttribute('data-id')]){var t=b.closest('.card-head');if(t){var c=document.createElement('span');"
+            + "c.className='applied-chip';c.textContent=label;t.appendChild(c);}}});}"
             + "};"
             + "function mark(b){var c=b.closest('.card');if(c){c.classList.toggle('selected',b.checked);}}"
             // A programmatic `checked=` fires no change event, so every user path reports itself.

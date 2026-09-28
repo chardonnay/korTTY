@@ -900,6 +900,14 @@ public class GlobalSettings {
     @XmlElement
     private Integer snippetAnalysisHistoryMaxSize = 5; // Stored Full-code analyses kept per snippet (default: 5, 1..20)
 
+    /** Width of the Full-code-analysis side panel inside the snippet editor; unset = default. */
+    @XmlElement
+    private Double snippetAnalysisPanelWidth;
+
+    /** Whether the analysis side panel was left open, so an editor with a stored analysis reopens it. */
+    @XmlElement
+    private Boolean snippetAnalysisPanelVisible;
+
     // Snippet dialog geometries
     @XmlElement
     private WindowGeometry snippetManagerGeometry;
@@ -939,10 +947,6 @@ public class GlobalSettings {
     @XmlElement
     private WindowGeometry alternativeSnippetSolutionsDialogGeometry;
 
-    /** Last window geometry of the snippet "AI code analysis" dialog. */
-    @XmlElement
-    private WindowGeometry snippetCodeAnalysisDialogGeometry;
-
     /** Last window geometry of the AI change-review (diff) window. */
     @XmlElement
     private WindowGeometry aiDiffDialogGeometry;
@@ -953,18 +957,6 @@ public class GlobalSettings {
      */
     @XmlElement
     private Double aiDiffDialogSummaryDividerPosition;
-
-    /**
-     * Width the reviewer gave the change-review window while it was docked beside the Full-code
-     * analysis window. Kept apart from {@link #aiDiffDialogGeometry} because a docked window's
-     * position and height belong to the dock, not to the reviewer.
-     */
-    @XmlElement
-    private Double aiDiffDialogDockedWidth;
-
-    /** Width the reviewer gave the AI-processing window while it was docked. */
-    @XmlElement
-    private Double aiApplyProgressDockedWidth;
 
     /** Last window geometry of the Generate Workflow Script dialog. */
     @XmlElement
@@ -3609,6 +3601,29 @@ public class GlobalSettings {
         this.snippetAnalysisHistoryMaxSize = Math.max(1, Math.min(20, snippetAnalysisHistoryMaxSize));
     }
 
+    /** The analysis side panel width, or {@code null} for the default; junk values read as unset. */
+    public Double getSnippetAnalysisPanelWidth() {
+        if (snippetAnalysisPanelWidth == null || snippetAnalysisPanelWidth.isNaN() || snippetAnalysisPanelWidth <= 0) {
+            return null;
+        }
+        return Math.max(360.0, Math.min(1600.0, snippetAnalysisPanelWidth));
+    }
+
+    public void setSnippetAnalysisPanelWidth(Double snippetAnalysisPanelWidth) {
+        this.snippetAnalysisPanelWidth = snippetAnalysisPanelWidth == null || snippetAnalysisPanelWidth.isNaN()
+            || snippetAnalysisPanelWidth <= 0
+            ? null
+            : Math.max(360.0, Math.min(1600.0, snippetAnalysisPanelWidth));
+    }
+
+    public boolean isSnippetAnalysisPanelVisible() {
+        return Boolean.TRUE.equals(snippetAnalysisPanelVisible);
+    }
+
+    public void setSnippetAnalysisPanelVisible(boolean snippetAnalysisPanelVisible) {
+        this.snippetAnalysisPanelVisible = snippetAnalysisPanelVisible;
+    }
+
     // ---- Snippet Dialog Geometries ----
     
     public WindowGeometry getSnippetManagerGeometry() { return snippetManagerGeometry; }
@@ -3654,11 +3669,6 @@ public class GlobalSettings {
         this.alternativeSnippetSolutionsDialogGeometry = alternativeSnippetSolutionsDialogGeometry;
     }
 
-    public WindowGeometry getSnippetCodeAnalysisDialogGeometry() { return snippetCodeAnalysisDialogGeometry; }
-    public void setSnippetCodeAnalysisDialogGeometry(WindowGeometry snippetCodeAnalysisDialogGeometry) {
-        this.snippetCodeAnalysisDialogGeometry = snippetCodeAnalysisDialogGeometry;
-    }
-
     public WindowGeometry getAiDiffDialogGeometry() { return aiDiffDialogGeometry; }
     public void setAiDiffDialogGeometry(WindowGeometry aiDiffDialogGeometry) {
         this.aiDiffDialogGeometry = aiDiffDialogGeometry;
@@ -3667,16 +3677,6 @@ public class GlobalSettings {
     public Double getAiDiffDialogSummaryDividerPosition() { return aiDiffDialogSummaryDividerPosition; }
     public void setAiDiffDialogSummaryDividerPosition(Double aiDiffDialogSummaryDividerPosition) {
         this.aiDiffDialogSummaryDividerPosition = aiDiffDialogSummaryDividerPosition;
-    }
-
-    public Double getAiDiffDialogDockedWidth() { return aiDiffDialogDockedWidth; }
-    public void setAiDiffDialogDockedWidth(Double aiDiffDialogDockedWidth) {
-        this.aiDiffDialogDockedWidth = aiDiffDialogDockedWidth;
-    }
-
-    public Double getAiApplyProgressDockedWidth() { return aiApplyProgressDockedWidth; }
-    public void setAiApplyProgressDockedWidth(Double aiApplyProgressDockedWidth) {
-        this.aiApplyProgressDockedWidth = aiApplyProgressDockedWidth;
     }
 
     public WindowGeometry getWorkflowScriptDialogGeometry() { return workflowScriptDialogGeometry; }
