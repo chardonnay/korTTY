@@ -13,6 +13,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
+import javafx.stage.Modality;
 import javafx.stage.Window;
 
 import java.util.UUID;
@@ -46,6 +47,9 @@ public class SnippetEditorProfileDialog extends ThemeAwareDialog<SnippetEditorPr
         setTitle(this.editExisting
             ? I18n.get("snippets.editor.profile.edit.title")
             : I18n.get("snippets.editor.profile.new.title"));
+        // Explicitly non-modal: a Dialog with an owner defaults to APPLICATION_MODAL, which froze every
+        // terminal tab while a profile was edited. The editor reads the result from DIALOG_HIDDEN.
+        initModality(Modality.NONE);
         if (owner != null) {
             initOwner(owner);
         }

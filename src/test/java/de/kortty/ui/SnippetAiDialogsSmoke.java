@@ -95,7 +95,7 @@ public final class SnippetAiDialogsSmoke {
             }
         });
 
-        boolean finished = done.await(120, TimeUnit.SECONDS);
+        boolean finished = done.await(180, TimeUnit.SECONDS);
         Platform.exit();
         if (!finished) {
             System.err.println("Smoke timed out");
@@ -385,13 +385,184 @@ public final class SnippetAiDialogsSmoke {
                 failure.compareAndSet(null, "Integrated Full-code-analysis check failed: " + e);
             }
             // Closing the editors disposes their analysis and diff WebViews. Give macOS WebKit a
-            // moment to release its native scenes before the harness calls Platform.exit().
+            // moment to release its native scenes before the next editor boots its own.
             PauseTransition cleanupPause = new PauseTransition(Duration.seconds(2));
-            cleanupPause.setOnFinished(cleanup -> done.countDown());
+            cleanupPause.setOnFinished(cleanup -> runInEditorChangeReviewLeg(failure, done));
             cleanupPause.play();
         }));
         wait.setCycleCount(Animation.INDEFINITE);
         wait.play();
+    }
+
+    /**
+     * The ad-hoc AI flows (improve, migrate, assistant, security fix, format) review their change in
+     * the editor area, not in a window that blocks in a nested event loop. Driven through language
+     * migration: an edit made while the AI works blocks Accept and offers a re-run on the current
+     * content, no second AI action starts while the review is open, Accept applies, and Reject of the
+     * line-width format preview leaves the content alone. Ends the harness.
+     */
+    private static void runInEditorChangeReviewLeg(AtomicReference<String> failure, CountDownLatch done) {
+        String original = "#!/bin/bash\necho \"$1\"\n";
+        String migrated = "#!/usr/bin/env python3\nimport sys\nprint(sys.argv[1])\n";
+        String edit = "# edited while the AI works\n";
+        CountDownLatch firstCallGate = new CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicInteger migrationCalls = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicInteger phase = new java.util.concurrent.atomic.AtomicInteger();
+        AtomicReference<SnippetAiDiffPane> firstReview = new AtomicReference<>();
+        AtomicBoolean accepted = new AtomicBoolean();
+        AtomicBoolean rejected = new AtomicBoolean();
+        AtomicReference<Timeline> poller = new AtomicReference<>();
+        java.util.concurrent.atomic.AtomicLong started = new java.util.concurrent.atomic.AtomicLong(System.nanoTime());
+
+        SnippetEditDialog.AiAssist assist = new SnippetEditDialog.AiAssist(
+            null, null, null, null, null, null, null, null, null,
+            request -> {
+                if (migrationCalls.incrementAndGet() == 1) {
+                    firstCallGate.await(30, TimeUnit.SECONDS);
+                }
+                return new SnippetAiResponseSupport.LanguageMigration(migrated, "Ported to Python.", List.of());
+            },
+            null, null, null, null, null, null, null,
+            false,
+            null);
+        SnippetEditDialog editorDialog;
+        try {
+            editorDialog = new SnippetEditDialog(new Snippet("in-editor-review-smoke.sh", original, "bash"),
+                List.of(), assist);
+            editorDialog.show();
+        } catch (Throwable e) {
+            failure.compareAndSet(null, "In-editor AI change leg could not start: " + e);
+            done.countDown();
+            return;
+        }
+        MonacoEditorPane editor = field(editorDialog, "contentArea", MonacoEditorPane.class);
+        MenuItem migrateItem = field(editorDialog, "migrateLanguageItem", MenuItem.class);
+        SnippetAiWorkflowSupport.MigrationPlan plan = new SnippetAiWorkflowSupport.MigrationPlan(null, null, null);
+        Class<?>[] migrationSignature = {SnippetAiWorkflowSupport.MigrationPlan.class, String.class};
+        long baselineWindows = showingStages();
+
+        Runnable finish = () -> {
+            stop(poller);
+            editorDialog.closeWithoutPrompt();
+            PauseTransition cleanupPause = new PauseTransition(Duration.seconds(2));
+            cleanupPause.setOnFinished(cleanup -> done.countDown());
+            cleanupPause.play();
+        };
+        Timeline timeline = new Timeline(new KeyFrame(Duration.millis(100), event -> {
+            try {
+                if (System.nanoTime() - started.get() > 60_000_000_000L) {
+                    throw new AssertionError("timed out");
+                }
+                switch (phase.get()) {
+                    case 0 -> {
+                        if (!editor.isReady()) {
+                            return;
+                        }
+                        phase.set(1);
+                        invoke(editorDialog, "runLanguageMigration", migrationSignature, plan, null);
+                        // The user keeps typing while the AI works; then the AI answers.
+                        editor.replaceText(edit + original);
+                        firstCallGate.countDown();
+                    }
+                    case 1 -> {
+                        SnippetAiDiffPane review = editorDialog.aiChangeReviewPane();
+                        if (review == null || review.getScene() == null || !review.isDiffReady()) {
+                            return;
+                        }
+                        if (showingStages() != baselineWindows) {
+                            throw new AssertionError("The migration preview opened a window instead of using the editor");
+                        }
+                        if (requireInEditor(editorDialog, "#snippet-ai-diff-later").isVisible()) {
+                            throw new AssertionError("An ad-hoc change offers Review later, which it cannot keep");
+                        }
+                        if (!review.isAcceptBlocked()
+                                || !requireInEditor(editorDialog, "#snippet-ai-diff-accept").isDisabled()) {
+                            throw new AssertionError("Accept stayed enabled although the snippet changed meanwhile");
+                        }
+                        if (!migrateItem.isDisable()) {
+                            throw new AssertionError("AI actions stayed enabled while a change waits for review");
+                        }
+                        invoke(editorDialog, "runLanguageMigration", migrationSignature, plan, null);
+                        if (migrationCalls.get() != 1 || editorDialog.aiChangeReviewPane() != review) {
+                            throw new AssertionError("A second AI action started on top of the open review");
+                        }
+                        Node rerun = requireInEditor(editorDialog, "#snippet-ai-diff-blocking-action");
+                        if (!rerun.isVisible()) {
+                            throw new AssertionError("The blocked review offers no re-run on the current content");
+                        }
+                        firstReview.set(review);
+                        phase.set(2);
+                        ((Button) rerun).fire();
+                    }
+                    case 2 -> {
+                        SnippetAiDiffPane review = editorDialog.aiChangeReviewPane();
+                        if (review == null || review == firstReview.get() || review.getScene() == null
+                                || !review.isDiffReady()) {
+                            return;
+                        }
+                        if (migrationCalls.get() != 2) {
+                            throw new AssertionError("The re-run did not ask the AI again: " + migrationCalls.get());
+                        }
+                        if (!(edit + original).equals(review.originalText())) {
+                            throw new AssertionError("The re-run did not work on the current content");
+                        }
+                        if (review.isAcceptBlocked()) {
+                            throw new AssertionError("Accept is blocked although the content is unchanged");
+                        }
+                        phase.set(3);
+                        ((Button) requireInEditor(editorDialog, "#snippet-ai-diff-accept")).fire();
+                    }
+                    case 3 -> {
+                        if (!migrated.equals(editor.getText())) {
+                            throw new AssertionError("Accept did not put the migration into the editor");
+                        }
+                        if (editorDialog.aiChangeReviewPane() != null
+                                || editorDialog.getDialogPane().lookup("#snippet-ai-diff-pane") != null) {
+                            throw new AssertionError("Accept did not give the editor area back");
+                        }
+                        if (migrateItem.isDisable()) {
+                            throw new AssertionError("AI actions stayed disabled after the review was decided");
+                        }
+                        accepted.set(true);
+                        phase.set(4);
+                        invoke(editorDialog, "showLineWidthFormatPreview",
+                            new Class<?>[] {String.class, String.class, String.class, String.class, int.class,
+                                boolean.class, int.class, int.class},
+                            migrated, migrated, migrated + "# wrapped\n", "python", 40, false, 0, 0);
+                    }
+                    case 4 -> {
+                        SnippetAiDiffPane review = editorDialog.aiChangeReviewPane();
+                        if (review == null || review.getScene() == null) {
+                            return;
+                        }
+                        phase.set(5);
+                        ((Button) requireInEditor(editorDialog, "#snippet-ai-diff-reject")).fire();
+                    }
+                    case 5 -> {
+                        if (!migrated.equals(editor.getText())) {
+                            throw new AssertionError("Reject changed the editor content");
+                        }
+                        if (editorDialog.aiChangeReviewPane() != null) {
+                            throw new AssertionError("Reject did not close the review");
+                        }
+                        rejected.set(true);
+                        phase.set(6);
+                        finish.run();
+                    }
+                    default -> stop(poller);
+                }
+            } catch (Throwable e) {
+                Throwable cause = e instanceof java.lang.reflect.InvocationTargetException ite && ite.getCause() != null
+                    ? ite.getCause() : e;
+                failure.compareAndSet(null, "In-editor AI change review failed in phase " + phase.get() + ": " + cause);
+                firstCallGate.countDown();
+                phase.set(99);
+                finish.run();
+            }
+        }));
+        timeline.setCycleCount(Timeline.INDEFINITE);
+        poller.set(timeline);
+        timeline.play();
     }
 
     /**

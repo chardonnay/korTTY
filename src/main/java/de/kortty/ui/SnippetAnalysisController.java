@@ -179,9 +179,14 @@ final class SnippetAnalysisController {
 
         void hideSidePanel();
 
+        /**
+         * Shows the review instead of the editor form. While another review holds the editor area,
+         * the host keeps this one waiting and shows it once that one is decided.
+         */
         void showInEditorArea(SnippetAiDiffPane pane);
 
-        void restoreEditorArea();
+        /** The review is decided: gives the editor area back (or drops it from the waiting line). */
+        void restoreEditorArea(SnippetAiDiffPane pane);
 
         EditorSettingsHelper.Settings editorSettings();
 
@@ -1283,7 +1288,7 @@ final class SnippetAnalysisController {
         Review shown = review;
         review = null;
         if (shown != null) {
-            host.restoreEditorArea();
+            host.restoreEditorArea(shown.pane());
             shown.pane().dispose();
         }
     }

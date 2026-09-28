@@ -75,9 +75,11 @@ import javafx.util.Duration;
 
 import de.kortty.telemetry.Telemetry;
 import de.kortty.telemetry.TelemetryEvents;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -221,6 +223,25 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     private final VBox editorFormLayout;
     /** The change review currently shown instead of the editor form, or {@code null}. */
     private SnippetAiDiffPane editorAreaOverlay;
+    /**
+     * Reviews that arrived while another one held the editor area, shown in order once it is
+     * decided. A result is never allowed to silently replace the review the user is looking at.
+     */
+    private final ArrayDeque<SnippetAiDiffPane> waitingEditorAreaPanes = new ArrayDeque<>();
+    /**
+     * The ad-hoc AI change (improve, migrate, assistant, security fix, format) waiting for Accept or
+     * Reject in the editor area, or {@code null}. New AI actions stay disabled while it is open.
+     */
+    private SnippetAiDiffPane aiChangeReviewPane;
+    /** Re-checks {@link #aiChangeReviewPane} against the current content whenever it comes on screen. */
+    private Runnable aiChangeReviewGuard;
+    /**
+     * The non-modal result windows of this editor (security report, description, alternatives, AI
+     * syntax check, editor profile), one per kind. They call back into the editor, so they are
+     * closed with it.
+     */
+    private final Map<Class<?>, Dialog<?>> childWindows = new HashMap<>();
+    private boolean editorClosed;
     private boolean widenedForAnalysisPanel;
     private boolean rememberCodeTextLanguageAnswer = true;
     private boolean programmaticNameUpdate;
@@ -1645,8 +1666,18 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         setOnHidden(event -> {
             // First: a running apply is recorded as interrupted before cancelAiTasks() cancels it.
             analysisController.dispose();
+            editorClosed = true;
             cancelAiTasks();
             closeDiagramDialog();
+            closeChildWindows();
+            // An ad-hoc change nobody decided is simply dropped with the editor, like the old window.
+            SnippetAiDiffPane openReview = aiChangeReviewPane;
+            aiChangeReviewPane = null;
+            aiChangeReviewGuard = null;
+            waitingEditorAreaPanes.clear();
+            if (openReview != null) {
+                openReview.dispose();
+            }
             // Tear down the Monaco WebView (page, JS bridge, boot retries) on close instead of leaking it.
             contentArea.dispose();
             // Same for the markup preview's WebKit engine, if the preview was ever shown.
@@ -2770,14 +2801,21 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                 editorSettings.cursorStyle(),
                 editorSettings.cursorColor());
         SnippetEditorProfileDialog dialog = new SnippetEditorProfileDialog(
-            getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+            childWindowOwner(),
             baseProfile,
             editExisting);
-        dialog.showAndWait().ifPresent(profile -> {
+        // Non-modal, answered through a callback: a nested event loop here would hold up every other
+        // editor tab's dialogs until this one closed.
+        dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, hidden -> {
+            SnippetEditorProfile profile = dialog.getResult();
+            if (profile == null || editorClosed) {
+                return;
+            }
             saveCustomSnippetEditorProfile(profile);
             applySnippetEditorProfile(profile, true);
             setStatus(I18n.get("snippets.editor.profile.saved", profile.getName()));
         });
+        showChildWindow(dialog);
     }
 
     private void applySnippetEditorProfile(SnippetEditorProfile profile, boolean save) {
@@ -3164,7 +3202,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             String lang = languageCombo.getValue();
             String t = contentArea.getText();
             boolean hasContent = t != null && !t.isBlank();
-            boolean aiBusy = isAnyAiTaskRunning();
+            boolean aiBusy = isAnyAiTaskRunning() || isAiChangeReviewOpen();
             formatItem.setDisable(!hasContent || aiBusy || (!CodeFormatterService.isSupported(lang) && !hasCodeImprovementProvider()));
             lintItem.setDisable(!hasContent || aiBusy || (!SnippetLinter.isSupported(lang) && !hasCodeReviewProvider()));
             boolean compactOneLinerOk = hasContent && (SnippetOneLiner.isCompactSupported(lang) || hasOneLinerProvider());
@@ -3282,6 +3320,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         boolean snippetActionRunning = isSnippetAiActionRunning();
         boolean busy = metadataRunning || correctionRunning || snippetActionRunning;
         aiBusy.set(busy);
+        // From here on "busy" also covers an AI change that still waits for Accept or Reject: a new
+        // result must not arrive on top of it (the tab's spinner above only shows real work).
+        busy = busy || isAiChangeReviewOpen();
         if (aiCodeTextLanguageCombo != null) {
             aiCodeTextLanguageCombo.setDisable(busy);
         }
@@ -4113,7 +4154,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         String failedStatus,
         String actionLabel) {
 
-        if (provider == null || target == null) {
+        if (provider == null || target == null || aiActionBlocked()) {
             return;
         }
         if (!ensureSnippetAiDataNoticeAccepted(false)) {
@@ -4198,7 +4239,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     }
 
     private void runSnippetDescription(String aiProfileId) {
-        if (aiAssist == null || aiAssist.snippetDescriptionProvider() == null) {
+        if (aiAssist == null || aiAssist.snippetDescriptionProvider() == null || aiActionBlocked()) {
             return;
         }
         if (!ensureSnippetAiDataNoticeAccepted(false)) {
@@ -4243,15 +4284,18 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             String indentation = wholeSnippet
                 ? SnippetAiTextSupport.findLineIndentation(fullContent, firstContentOffset(fullContent))
                 : SnippetAiTextSupport.findLineIndentation(fullContent, selectionStart);
+            // Non-modal: the editor stays editable while the description is open, so it is only
+            // inserted at the computed line while the content is still what it was written for.
             SnippetDescriptionDialog dialog = new SnippetDescriptionDialog(
-                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+                childWindowOwner(),
                 description,
                 languageCombo.getValue(),
                 indentation,
-                text -> insertTechnicalDescription(text, insertOffset),
+                text -> applyFromResultWindow(fullContent, text,
+                    () -> insertTechnicalDescription(text, insertOffset)),
                 aiProfileId,
                 profileSwitchingSupported() ? this::runSnippetDescription : null);
-            dialog.showAndWait();
+            showChildWindow(dialog);
             setStatus(I18n.get("snippets.ai.description.generated"));
         });
         task.setOnFailed(event ->
@@ -4264,6 +4308,19 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
 
     private void runAlternativeSolutions() {
         if (!hasAlternativeSolutionProvider()) {
+            return;
+        }
+        Dialog<?> open = openChildWindow(AlternativeSnippetSolutionsDialog.class);
+        if (open != null) {
+            // It generates on demand itself; a second window would only run the same requests twice.
+            Window window = open.getDialogPane().getScene() != null ? open.getDialogPane().getScene().getWindow() : null;
+            if (window instanceof Stage stage) {
+                stage.toFront();
+                stage.requestFocus();
+            }
+            return;
+        }
+        if (aiActionBlocked()) {
             return;
         }
         if (!ensureSnippetAiDataNoticeAccepted(false)) {
@@ -4280,7 +4337,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         int replacementEnd = hasSelection ? selection.getEnd() : fullContent.length();
         String targetText = hasSelection ? contentArea.getSelectedText() : fullContent;
         AlternativeSnippetSolutionsDialog dialog = new AlternativeSnippetSolutionsDialog(
-            getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+            childWindowOwner(),
             languageCombo.getValue(),
             (additionalInstructions, aiProfileId) -> aiAssist.alternativeSolutionsProvider().generate(new AlternativeSolutionsRequest(
                 fullContent,
@@ -4293,10 +4350,20 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                 aiProfileId)),
             profileSwitchingSupported(),
             null);
-        dialog.showAndWait().ifPresent(solution -> {
-            applyAiContentChange(replacementStart, replacementEnd, solution.code(), I18n.get("snippets.ai.toggle.action.alternative"));
-            setStatus(I18n.get("snippets.ai.alternatives.applied"));
+        // Non-modal: the chosen solution arrives when the window closes, and only replaces the range
+        // it was generated for while the content is still what it was generated from.
+        dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, hidden -> {
+            SnippetAiResponseSupport.AlternativeSolution solution = dialog.getResult();
+            if (solution == null || editorClosed) {
+                return;
+            }
+            applyFromResultWindow(fullContent, solution.code(), () -> {
+                applyAiContentChange(replacementStart, replacementEnd, solution.code(),
+                    I18n.get("snippets.ai.toggle.action.alternative"));
+                setStatus(I18n.get("snippets.ai.alternatives.applied"));
+            });
         });
+        showChildWindow(dialog);
     }
 
     private void handleAutoCompletionToggle() {
@@ -5189,7 +5256,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     }
 
     private void runCodeImprovement(String theme, String aiProfileId, boolean wholeSnippet) {
-        if (!hasCodeImprovementProvider() || !ensureSnippetAiDataNoticeAccepted(false)) {
+        if (!hasCodeImprovementProvider() || aiActionBlocked() || !ensureSnippetAiDataNoticeAccepted(false)) {
             return;
         }
         String fullContent = contentArea.getText();
@@ -5247,21 +5314,22 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                 setStatus(I18n.get("snippets.ai.fix.degenerate"));
                 return;
             }
-            SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
-                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+            // A selection-scoped re-run is not offered on changed content: the old selection is gone.
+            showAiChangeReview(
                 I18n.get("snippets.ai.diff.title"),
                 improvement.summary(),
+                fullContent,
                 selectedText,
                 improvement.replacement(),
                 languageCombo.getValue(),
-                editorSettings,
-                editorProfile);
-            diffDialog.setRerunHandler(aiProfileId,
-                profileSwitchingSupported() ? id -> runCodeImprovement(theme, id, wholeSnippet) : null);
-            if (diffDialog.showAndWait().orElse(false)) {
-                applyAiContentChange(selectionStart, selectionEnd, improvement.replacement(), I18n.get("snippets.ai.toggle.action.improve"));
-                setStatus(I18n.get("snippets.ai.improve.applied"));
-            }
+                wholeSnippet ? () -> runCodeImprovement(theme, aiProfileId, true) : null,
+                withProfileRerun(aiProfileId,
+                    profileSwitchingSupported() ? id -> runCodeImprovement(theme, id, wholeSnippet) : null),
+                () -> {
+                    applyAiContentChange(selectionStart, selectionEnd, improvement.replacement(),
+                        I18n.get("snippets.ai.toggle.action.improve"));
+                    setStatus(I18n.get("snippets.ai.improve.applied"));
+                });
         });
         task.setOnFailed(event ->
             handleSnippetAiActionFailure(task, I18n.get("snippets.ai.improve.failed")));
@@ -5274,7 +5342,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     // ---------------------------------------------------------------- language migration
 
     private void runLanguageMigration() {
-        if (!hasLanguageMigrationProvider() || !ensureSnippetAiDataNoticeAccepted(false)) {
+        if (!hasLanguageMigrationProvider() || aiActionBlocked() || !ensureSnippetAiDataNoticeAccepted(false)) {
             return;
         }
         String fullContent = contentArea.getText();
@@ -5325,6 +5393,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     }
 
     private void runLanguageMigration(SnippetAiWorkflowSupport.MigrationPlan plan, String aiProfileId) {
+        if (aiActionBlocked()) {
+            return;
+        }
         String fullContent = contentArea.getText();
         if (fullContent == null || fullContent.isBlank()) {
             return;
@@ -5355,25 +5426,24 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                 setStatus(I18n.get("snippets.ai.migrate.empty"));
                 return;
             }
-            SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
-                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+            showAiChangeReview(
                 I18n.get("snippets.ai.migrate.diffTitle"),
                 migrationSummary(plan, migration),
                 fullContent,
+                fullContent,
                 migration.replacement(),
                 lang,
-                editorSettings,
-                editorProfile);
-            diffDialog.setRerunHandler(aiProfileId,
-                profileSwitchingSupported() ? id -> runLanguageMigration(plan, id) : null);
-            if (diffDialog.showAndWait().orElse(false)) {
-                applyAiContentChange(0, fullContent.length(), migration.replacement(),
-                    I18n.get("snippets.ai.code.migrate"));
-                retargetSnippetAfterMigration(plan);
-                setStatus(migration.notes().isEmpty()
-                    ? I18n.get("snippets.ai.migrate.applied")
-                    : I18n.get("snippets.ai.migrate.notes", String.join(" ", migration.notes())));
-            }
+                () -> runLanguageMigration(plan, aiProfileId),
+                withProfileRerun(aiProfileId,
+                    profileSwitchingSupported() ? id -> runLanguageMigration(plan, id) : null),
+                () -> {
+                    applyAiContentChange(0, fullContent.length(), migration.replacement(),
+                        I18n.get("snippets.ai.code.migrate"));
+                    retargetSnippetAfterMigration(plan);
+                    setStatus(migration.notes().isEmpty()
+                        ? I18n.get("snippets.ai.migrate.applied")
+                        : I18n.get("snippets.ai.migrate.notes", String.join(" ", migration.notes())));
+                });
         });
         task.setOnFailed(event -> handleMigrationFailure(task, plan));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
@@ -5454,7 +5524,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     }
 
     private void runCodeAssistant() {
-        if (!hasCodeAssistantProvider()) {
+        if (!hasCodeAssistantProvider() || aiActionBlocked()) {
             return;
         }
         String fullContent = contentArea.getText();
@@ -5469,7 +5539,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     }
 
     private void runCodeAssistant(CodeAssistantPrompt assistantPrompt, String aiProfileId) {
-        if (!hasCodeAssistantProvider() || assistantPrompt == null) {
+        if (!hasCodeAssistantProvider() || assistantPrompt == null || aiActionBlocked()) {
             return;
         }
         String fullContent = contentArea.getText();
@@ -5516,25 +5586,24 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                 setStatus(I18n.get("snippets.ai.assistant.empty"));
                 return;
             }
-            SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
-                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+            showAiChangeReview(
                 I18n.get("snippets.ai.assistant.diffTitle"),
                 improvement.summary(),
                 fullContent,
+                fullContent,
                 improvement.replacement(),
                 snippetLanguage,
-                editorSettings,
-                editorProfile);
-            diffDialog.setRerunHandler(aiProfileId,
-                profileSwitchingSupported() ? id -> runCodeAssistant(assistantPrompt, id) : null);
-            if (diffDialog.showAndWait().orElse(false)) {
-                applyAiContentChange(
-                    0,
-                    fullContent.length(),
-                    improvement.replacement(),
-                    I18n.get("snippets.ai.toggle.action.assistant"));
-                setStatus(I18n.get("snippets.ai.assistant.applied"));
-            }
+                () -> runCodeAssistant(assistantPrompt, aiProfileId),
+                withProfileRerun(aiProfileId,
+                    profileSwitchingSupported() ? id -> runCodeAssistant(assistantPrompt, id) : null),
+                () -> {
+                    applyAiContentChange(
+                        0,
+                        fullContent.length(),
+                        improvement.replacement(),
+                        I18n.get("snippets.ai.toggle.action.assistant"));
+                    setStatus(I18n.get("snippets.ai.assistant.applied"));
+                });
         });
         task.setOnFailed(event ->
             handleSnippetAiActionFailure(task, I18n.get("snippets.ai.assistant.failed")));
@@ -5631,7 +5700,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     }
 
     private void runSecurityCheck() {
-        if (!hasSecurityProviders() || !ensureSnippetAiDataNoticeAccepted(false)) {
+        if (!hasSecurityProviders() || aiActionBlocked() || !ensureSnippetAiDataNoticeAccepted(false)) {
             return;
         }
         String fullContent = contentArea.getText();
@@ -5657,11 +5726,19 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         task.setOnSucceeded(event -> {
             finishSnippetAiAction(task);
             SnippetSecurityReportDialog dialog = new SnippetSecurityReportDialog(
-                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+                childWindowOwner(),
                 task.getValue(),
                 this::runSecurityCheck,
                 ScriptLanguageMixSupport.detect(languageCombo.getValue(), fullContent));
-            dialog.showAndWait().ifPresent(this::runSecurityFixes);
+            // Non-modal: the report stays open beside the editor and its "Apply selected" answers
+            // through this callback instead of a nested event loop.
+            dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, hidden -> {
+                SnippetSecurityReportDialog.FixSelection chosen = dialog.getResult();
+                if (chosen != null && !editorClosed) {
+                    Platform.runLater(() -> runSecurityFixes(chosen));
+                }
+            });
+            showChildWindow(dialog);
             setStatus(I18n.get("snippets.ai.security.ready"));
         });
         task.setOnFailed(event ->
@@ -5673,7 +5750,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     }
 
     private void runSecurityFixes(SnippetSecurityReportDialog.FixSelection selection) {
-        if (selection == null || selection.findings().isEmpty() || !hasSecurityProviders()) {
+        if (selection == null || selection.findings().isEmpty() || !hasSecurityProviders() || aiActionBlocked()) {
             return;
         }
         List<SnippetAiResponseSupport.SecurityFinding> selectedFindings = selection.findings();
@@ -5713,20 +5790,20 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                 setStatus(I18n.get("snippets.ai.fix.degenerate"));
                 return;
             }
-            SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
-                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+            showAiChangeReview(
                 I18n.get("snippets.ai.security.diff.title"),
                 fix.summary(),
                 originalContent,
+                originalContent,
                 fix.replacement(),
                 languageCombo.getValue(),
-                editorSettings,
-                editorProfile);
-            diffDialog.setChangeExplanations(fix.changes());
-            if (diffDialog.showAndWait().orElse(false)) {
-                applyAiContentChange(0, originalContent.length(), fix.replacement(), I18n.get("snippets.ai.toggle.action.security"));
-                setStatus(I18n.get("snippets.ai.security.fix.applied"));
-            }
+                () -> runSecurityFixes(selection),
+                pane -> pane.setChangeExplanations(fix.changes()),
+                () -> {
+                    applyAiContentChange(0, originalContent.length(), fix.replacement(),
+                        I18n.get("snippets.ai.toggle.action.security"));
+                    setStatus(I18n.get("snippets.ai.security.fix.applied"));
+                });
         });
         task.setOnFailed(event ->
             handleSnippetAiActionFailure(task, I18n.get("snippets.ai.security.fix.failed")));
@@ -6816,6 +6893,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     }
 
     private void runFormat(Integer maxLineLength) {
+        if (isAiChangeReviewOpen()) {
+            setStatus(I18n.get("snippets.ai.change.decideFirst"));
+            return;
+        }
         String lang = languageCombo.getValue();
         CodeFormatterService.FormatterInfo formatterInfo = CodeFormatterService.getFormatterInfo(lang);
         if (formatterInfo == null) {
@@ -6852,6 +6933,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         }
         int start = contentArea.getSelection().getStart();
         int end = contentArea.getSelection().getEnd();
+        String baseContent = contentArea.getText();
         String text;
         boolean selectionOnly = maxLineLength == null && (end > start);
         if (selectionOnly) {
@@ -6887,7 +6969,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                 return;
             }
             if (maxLineLength != null) {
-                showLineWidthFormatPreview(text, formatted, lang, maxLineLength, selectionOnly, start, end);
+                showLineWidthFormatPreview(baseContent, text, formatted, lang, maxLineLength, selectionOnly, start, end);
                 return;
             }
             applyFormattedText(selectionOnly, start, end, formatted);
@@ -6906,7 +6988,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         thread.start();
     }
 
+    /**
+     * The line-width format result, reviewed in the editor area like every AI change. It is a local
+     * formatter run, so a re-run on changed content is simply Format again.
+     */
     private void showLineWidthFormatPreview(
+        String baseContent,
         String originalText,
         String formattedText,
         String language,
@@ -6915,21 +7002,19 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         int start,
         int end) {
 
-        SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
-            getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+        showAiChangeReview(
             I18n.get("snippets.ruler.formatPreviewTitle"),
             I18n.get("snippets.ruler.formatPreviewSummary", maxLineLength),
+            baseContent,
             originalText,
             formattedText,
             language,
-            editorSettings,
-            editorProfile);
-        if (diffDialog.showAndWait().orElse(false)) {
-            applyFormattedText(selectionOnly, start, end, formattedText);
-            setFormatSuccessStatus(formattedText, maxLineLength);
-            return;
-        }
-        setStatus(I18n.get("snippets.ruler.formatPreviewCancelled"));
+            null,
+            null,
+            () -> {
+                applyFormattedText(selectionOnly, start, end, formattedText);
+                setFormatSuccessStatus(formattedText, maxLineLength);
+            });
     }
 
     private void applyFormattedText(boolean selectionOnly, int start, int end, String formattedText) {
@@ -7000,6 +7085,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     }
 
     private void runAiFormat(Integer maxLineLength, AiFormatScope scope, String aiProfileId) {
+        if (aiActionBlocked()) {
+            return;
+        }
         String fullContent = contentArea.getText();
         if (fullContent == null || fullContent.isBlank()) {
             return;
@@ -7050,29 +7138,29 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                 setStatus(I18n.get("snippets.ai.format.empty"));
                 return;
             }
-            SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
-                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+            showAiChangeReview(
                 I18n.get("snippets.ai.format.diffTitle"),
                 improvement.summary(),
+                fullContent,
                 targetText,
                 improvement.replacement(),
                 lang,
-                editorSettings,
-                editorProfile);
-            diffDialog.setRerunHandler(aiProfileId,
-                profileSwitchingSupported() ? id -> runAiFormat(maxLineLength, scope, id) : null);
-            if (diffDialog.showAndWait().orElse(false)) {
-                applyAiContentChange(
-                    replacementStart,
-                    replacementEnd,
-                    improvement.replacement(),
-                    I18n.get("snippets.ai.toggle.action.format"));
-                if (maxLineLength != null) {
-                    setFormatSuccessStatus(improvement.replacement(), maxLineLength);
-                } else {
-                    setStatus(I18n.get("snippets.ai.format.applied"));
-                }
-            }
+                // A selection-scoped re-run is not offered on changed content: the old selection is gone.
+                selectionOnly ? null : () -> runAiFormat(maxLineLength, scope, aiProfileId),
+                withProfileRerun(aiProfileId,
+                    profileSwitchingSupported() ? id -> runAiFormat(maxLineLength, scope, id) : null),
+                () -> {
+                    applyAiContentChange(
+                        replacementStart,
+                        replacementEnd,
+                        improvement.replacement(),
+                        I18n.get("snippets.ai.toggle.action.format"));
+                    if (maxLineLength != null) {
+                        setFormatSuccessStatus(improvement.replacement(), maxLineLength);
+                    } else {
+                        setStatus(I18n.get("snippets.ai.format.applied"));
+                    }
+                });
         });
         task.setOnFailed(event -> {
             handleSnippetAiActionFailure(task, I18n.get("snippets.ai.format.failed"));
@@ -7160,7 +7248,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     }
 
     private void runAiSyntaxCheck(String aiProfileId) {
-        if (!hasCodeReviewProvider()) {
+        if (!hasCodeReviewProvider() || aiActionBlocked()) {
             return;
         }
         String fullContent = contentArea.getText();
@@ -7198,12 +7286,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                 setStatus(I18n.get("snippets.ai.lint.noFindings"));
                 return;
             }
-            new SnippetAiReviewDialog(
-                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+            showChildWindow(new SnippetAiReviewDialog(
+                childWindowOwner(),
                 I18n.get("snippets.ai.lint.title"),
                 findings,
                 aiProfileId,
-                profileSwitchingSupported() ? this::runAiSyntaxCheck : null).showAndWait();
+                profileSwitchingSupported() ? this::runAiSyntaxCheck : null));
             setStatus(I18n.get("snippets.ai.lint.ready"));
         });
         task.setOnFailed(event -> {
@@ -7385,35 +7473,262 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     }
 
     /**
-     * Shows a change review instead of the editor form until it is decided. Esc is consumed there:
-     * it would otherwise fire the dialog's Cancel and close the editor without the unsaved prompt.
+     * Shows a change review instead of the editor form until it is decided. Only one review holds the
+     * editor area at a time: one that arrives while another is open waits in line (the status line
+     * says so) and comes on screen when that one is decided — it never silently replaces it.
      */
     private void showInEditorArea(SnippetAiDiffPane pane) {
+        if (pane == null || editorClosed) {
+            return;
+        }
         if (editorAreaOverlay == pane) {
             pane.requestFocus();
             return;
         }
         if (editorAreaOverlay != null) {
-            editorAreaStack.getChildren().remove(editorAreaOverlay);
-        }
-        editorAreaOverlay = pane;
-        pane.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-            if (event.getCode() == KeyCode.ESCAPE) {
-                event.consume();
+            if (!waitingEditorAreaPanes.contains(pane)) {
+                waitingEditorAreaPanes.add(pane);
             }
-        });
-        editorFormLayout.setVisible(false);
-        editorAreaStack.getChildren().add(pane);
-        Platform.runLater(pane::requestFocus);
+            setStatus(I18n.get("snippets.ai.change.queued"));
+            updateAiActionAvailability();
+            return;
+        }
+        displayInEditorArea(pane);
     }
 
-    private void restoreEditorArea() {
+    /**
+     * Puts the review on screen. Esc is consumed there: it would otherwise fire the dialog's Cancel
+     * and close the editor without the unsaved prompt.
+     */
+    private void displayInEditorArea(SnippetAiDiffPane pane) {
+        editorAreaOverlay = pane;
+        if (pane.getProperties().putIfAbsent("kortty.escapeGuard", Boolean.TRUE) == null) {
+            pane.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+                if (event.getCode() == KeyCode.ESCAPE) {
+                    event.consume();
+                }
+            });
+        }
+        editorFormLayout.setVisible(false);
+        editorAreaStack.getChildren().add(pane);
+        if (pane == aiChangeReviewPane && aiChangeReviewGuard != null) {
+            // It may have waited behind another review whose Accept changed the content.
+            aiChangeReviewGuard.run();
+        }
+        Platform.runLater(() -> {
+            pane.fitSummaryHeight();
+            pane.requestFocus();
+        });
+    }
+
+    /** The review is decided: the next waiting one takes the editor area, else the form comes back. */
+    private void restoreEditorArea(SnippetAiDiffPane pane) {
+        if (pane != null && waitingEditorAreaPanes.remove(pane)) {
+            updateAiActionAvailability();
+            return;
+        }
+        if (pane != null && editorAreaOverlay != pane) {
+            return;
+        }
         if (editorAreaOverlay != null) {
             editorAreaStack.getChildren().remove(editorAreaOverlay);
             editorAreaOverlay = null;
         }
+        SnippetAiDiffPane next = waitingEditorAreaPanes.poll();
+        if (next != null && !editorClosed) {
+            displayInEditorArea(next);
+            return;
+        }
         editorFormLayout.setVisible(true);
         Platform.runLater(this::focusEditor);
+    }
+
+    /** Whether an AI change waits for a decision in the editor area (on screen or in line). */
+    private boolean isAiChangeReviewOpen() {
+        return editorAreaOverlay != null || !waitingEditorAreaPanes.isEmpty();
+    }
+
+    /**
+     * Whether a new AI action must not start now, saying why in the status line: another one is
+     * running, or an AI change still waits for Accept or Reject. The result windows (security report,
+     * description, syntax check) are non-modal, so their Apply and Re-run buttons can be pressed at
+     * any time and have to pass this check like the menu items do.
+     */
+    private boolean aiActionBlocked() {
+        if (editorClosed) {
+            return true;
+        }
+        if (isAiChangeReviewOpen()) {
+            setStatus(I18n.get("snippets.ai.change.decideFirst"));
+            if (editorAreaOverlay != null) {
+                editorAreaOverlay.requestFocus();
+            }
+            return true;
+        }
+        if (isAnyAiTaskRunning()) {
+            setStatus(I18n.get("snippets.ai.analysis.panel.busy"));
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Reviews an ad-hoc AI change in the editor area — the side-by-side diff with Accept and Reject —
+     * instead of a window that blocks in a nested event loop. Nothing is applied until Accept, and
+     * Accept only applies while the editor still holds exactly {@code baseContent}, the text the
+     * change was computed from (otherwise it would overwrite the edits made meanwhile; the review then
+     * says so and, when {@code rerunOnCurrent} is given, offers to run the action again).
+     *
+     * @param originalText the part of {@code baseContent} the change replaces (the left diff side)
+     * @param setup        optional extras (explanations, the profile re-run)
+     * @param onAccept     applies the change; runs after the review has given the editor area back
+     */
+    private void showAiChangeReview(
+            String heading,
+            String summary,
+            String baseContent,
+            String originalText,
+            String replacementText,
+            String language,
+            Runnable rerunOnCurrent,
+            Consumer<SnippetAiDiffPane> setup,
+            Runnable onAccept) {
+
+        if (editorClosed) {
+            return;
+        }
+        if (aiChangeReviewPane != null) {
+            // Cannot happen through the menus (they are disabled while a review is open); a late
+            // local-formatter result is the one path left, and it must not replace the open review.
+            logger.debug("An AI change review is already open; dropping the newer result");
+            setStatus(I18n.get("snippets.ai.change.decideFirst"));
+            return;
+        }
+        String base = baseContent != null ? baseContent : "";
+        SnippetAiDiffPane pane = new SnippetAiDiffPane(
+            summary, originalText, replacementText, language, editorSettings, true);
+        pane.setReviewLaterAvailable(false);
+        pane.setHeading(heading);
+        if (setup != null) {
+            setup.accept(pane);
+        }
+        Runnable guard = () -> guardAiChangeReview(pane, base, rerunOnCurrent);
+        aiChangeReviewPane = pane;
+        aiChangeReviewGuard = guard;
+        pane.setOnDecision(decision -> {
+            if (aiChangeReviewPane != pane) {
+                return;
+            }
+            if (decision == SnippetAiDiffPane.Decision.ACCEPT) {
+                if (!contentUnchangedSince(base)) {
+                    guard.run();
+                    return;
+                }
+                closeAiChangeReview(pane);
+                onAccept.run();
+                return;
+            }
+            closeAiChangeReview(pane);
+            setStatus(I18n.get("snippets.ai.change.rejected"));
+        });
+        guard.run();
+        showInEditorArea(pane);
+        updateAiActionAvailability();
+    }
+
+    /** Blocks Accept while the content differs from the text the change was computed from. */
+    private void guardAiChangeReview(SnippetAiDiffPane pane, String baseContent, Runnable rerunOnCurrent) {
+        if (contentUnchangedSince(baseContent)) {
+            pane.showBlockingNotice(null);
+            return;
+        }
+        Runnable rerun = rerunOnCurrent == null ? null : () -> {
+            closeAiChangeReview(pane);
+            Platform.runLater(rerunOnCurrent);
+        };
+        pane.showBlockingNotice(I18n.get("snippets.ai.change.contentChanged"),
+            rerun != null ? I18n.get("snippets.ai.change.rerunOnCurrent") : null, rerun);
+    }
+
+    /** Ends the ad-hoc review without applying anything (decided, re-run, or the editor closes). */
+    private void closeAiChangeReview(SnippetAiDiffPane pane) {
+        if (pane == null || aiChangeReviewPane != pane) {
+            return;
+        }
+        aiChangeReviewPane = null;
+        aiChangeReviewGuard = null;
+        restoreEditorArea(pane);
+        pane.dispose();
+        updateAiActionAvailability();
+    }
+
+    /** The profile re-run of an ad-hoc review: the review is discarded first, then the action runs again. */
+    private Consumer<SnippetAiDiffPane> withProfileRerun(String activeProfileId, Consumer<String> onRerun) {
+        return pane -> {
+            if (onRerun != null) {
+                pane.setRerunHandler(activeProfileId, onRerun, () -> closeAiChangeReview(pane));
+            }
+        };
+    }
+
+    /** The ad-hoc review currently waiting for a decision (tests). */
+    SnippetAiDiffPane aiChangeReviewPane() {
+        return aiChangeReviewPane;
+    }
+
+    /**
+     * Opens a result window of this editor without blocking: non-modal, one per kind (a newer result
+     * replaces the older window), and closed together with the editor it calls back into.
+     */
+    private void showChildWindow(Dialog<?> dialog) {
+        if (editorClosed) {
+            return;
+        }
+        Dialog<?> previous = childWindows.put(dialog.getClass(), dialog);
+        dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> childWindows.remove(dialog.getClass(), dialog));
+        if (previous != null && previous != dialog && previous.isShowing()) {
+            previous.close();
+        }
+        dialog.show();
+    }
+
+    /** The open result window of a kind, or {@code null}. */
+    private Dialog<?> openChildWindow(Class<?> kind) {
+        Dialog<?> dialog = childWindows.get(kind);
+        return dialog != null && dialog.isShowing() ? dialog : null;
+    }
+
+    private void closeChildWindows() {
+        for (Dialog<?> dialog : List.copyOf(childWindows.values())) {
+            if (dialog.isShowing()) {
+                dialog.close();
+            }
+        }
+        childWindows.clear();
+    }
+
+    /** The owner of a result window: this editor's window (the main window while hosted in a tab). */
+    private Window childWindowOwner() {
+        return getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
+    }
+
+    /**
+     * Applies an AI result from a non-modal window. The editor stayed editable while it was open, so
+     * the result is only inserted when the content is still what it was computed from and no AI
+     * change waits for review; otherwise it goes to the clipboard instead of landing at an offset
+     * that no longer means anything.
+     */
+    private boolean applyFromResultWindow(String baseContent, String result, Runnable apply) {
+        // Not under an open review either: its Accept would then refuse the content it was made for.
+        if (!isAiChangeReviewOpen() && contentUnchangedSince(baseContent)) {
+            apply.run();
+            return true;
+        }
+        ClipboardContent clip = new ClipboardContent();
+        clip.putString(result != null ? result : "");
+        Clipboard.getSystemClipboard().setContent(clip);
+        setStatus(I18n.get("snippets.ai.change.contentChangedCopied"));
+        return false;
     }
 
     /** Mirrors a long-running task's message and progress into the hint bar while it is the active action. */
@@ -7500,7 +7815,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
 
         @Override
         public boolean isAnyAiTaskRunning() {
-            return SnippetEditDialog.this.isAnyAiTaskRunning();
+            // An ad-hoc change waiting for Accept/Reject blocks the analysis' own actions too.
+            return SnippetEditDialog.this.isAnyAiTaskRunning() || aiChangeReviewPane != null;
         }
 
         @Override
@@ -7587,8 +7903,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         }
 
         @Override
-        public void restoreEditorArea() {
-            SnippetEditDialog.this.restoreEditorArea();
+        public void restoreEditorArea(SnippetAiDiffPane pane) {
+            SnippetEditDialog.this.restoreEditorArea(pane);
         }
 
         @Override

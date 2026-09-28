@@ -76,6 +76,8 @@ public class SnippetAiDiffPane extends VBox {
     private final Button blockingActionButton = new Button();
     private final HBox blockingNoticeRow = new HBox(8);
     private final Button acceptButton;
+    private final Button laterButton;
+    private Label headingLabel;
     private ComboBox<String> findingFilterCombo;
     private Button previousFindingButton;
     private Button nextFindingButton;
@@ -189,7 +191,7 @@ public class SnippetAiDiffPane extends VBox {
         setVisibleManaged(blockingNoticeRow, false);
 
         if (withDecisionBar) {
-            Button laterButton = new Button(I18n.get("snippets.ai.diff.decision.later"));
+            laterButton = new Button(I18n.get("snippets.ai.diff.decision.later"));
             laterButton.setId("snippet-ai-diff-later");
             laterButton.setOnAction(event -> decide(Decision.REVIEW_LATER));
             Button rejectButton = new Button(I18n.get("snippets.ai.diff.decision.reject"));
@@ -208,8 +210,39 @@ public class SnippetAiDiffPane extends VBox {
             addEventFilter(KeyEvent.KEY_PRESSED, this::handleKeyboardShortcut);
         } else {
             acceptButton = null;
+            laterButton = null;
             getChildren().add(blockingNoticeRow);
         }
+    }
+
+    /**
+     * Hides {@code Review later}: an ad-hoc change (improve, migrate, format, ...) is not stored, so
+     * there is nothing to come back to — Accept or Reject is the whole decision.
+     */
+    public void setReviewLaterAvailable(boolean available) {
+        if (laterButton != null) {
+            setVisibleManaged(laterButton, available);
+        }
+    }
+
+    /** A short title above the review saying which action produced it; {@code null} or blank removes it. */
+    public void setHeading(String heading) {
+        boolean visible = heading != null && !heading.isBlank();
+        if (!visible) {
+            if (headingLabel != null) {
+                getChildren().remove(headingLabel);
+                headingLabel = null;
+            }
+            return;
+        }
+        if (headingLabel == null) {
+            headingLabel = new Label();
+            headingLabel.setId("snippet-ai-diff-heading");
+            headingLabel.setWrapText(true);
+            headingLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 1.1em;");
+            getChildren().add(0, headingLabel);
+        }
+        headingLabel.setText(heading);
     }
 
     /** Receives the decision-bar choice. Only called when the pane was built with the bar. */

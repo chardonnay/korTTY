@@ -30,12 +30,26 @@ class SnippetAiFlowModalityTest {
 
     /**
      * The windows around the flow: the editor that hosts the integrated analysis, the workspace that
-     * embeds editors, and the diff window the other AI flows still use.
+     * embeds editors, the stand-alone diff window (no longer used by the editor, kept for other
+     * hosts) and the result windows the editor opens beside itself.
      */
     private static final List<String> FLOW_WINDOWS = List.of(
         "SnippetEditDialog.java",
         "SnippetWorkspaceDialog.java",
-        "SnippetAiDiffDialog.java");
+        "SnippetAiDiffDialog.java",
+        "SnippetSecurityReportDialog.java",
+        "SnippetDescriptionDialog.java",
+        "AlternativeSnippetSolutionsDialog.java",
+        "SnippetAiReviewDialog.java",
+        "SnippetEditorProfileDialog.java");
+
+    /** The windows the editor opens beside itself; each must be shown without a nested event loop. */
+    private static final List<String> EDITOR_CHILD_WINDOWS = List.of(
+        "SnippetSecurityReportDialog",
+        "SnippetDescriptionDialog",
+        "AlternativeSnippetSolutionsDialog",
+        "SnippetAiReviewDialog",
+        "SnippetEditorProfileDialog");
 
     /**
      * The integrated Full-code-analysis flow: the analysis side panel, the progress and diff panes
@@ -87,6 +101,57 @@ class SnippetAiFlowModalityTest {
             }
         }
         assertWithMessage("The integrated analysis flow opens a window, an alert or blocks")
+            .that(offenders).isEmpty();
+    }
+
+    /**
+     * Every AI change the editor proposes (improve, migrate, assistant, security fix, AI format and
+     * the line-width format preview) is reviewed in the editor area. A blocking diff window nested
+     * event loops across editor tabs: they return in LIFO order, so accepting tab A's change applied
+     * nothing until tab B's window closed.
+     */
+    @Test
+    void theEditorReviewsEveryAiChangeInItsOwnArea() throws IOException {
+        String source = code(UI_ROOT.resolve("SnippetEditDialog.java"));
+        assertWithMessage("SnippetEditDialog opens the blocking diff window again")
+            .that(source).doesNotContain("new SnippetAiDiffDialog(");
+        // The helper itself plus improve, migrate, assistant, security fix, AI format, line width.
+        assertWithMessage("the ad-hoc AI flows review through showAiChangeReview")
+            .that(countOf(source, "showAiChangeReview(")).isAtLeast(7);
+        assertWithMessage("Accept of an ad-hoc change must check the content it was computed from")
+            .that(source).containsMatch(
+                "if \\(decision == SnippetAiDiffPane\\.Decision\\.ACCEPT\\)\\s*\\{\\s*if \\(!contentUnchangedSince\\(");
+    }
+
+    /**
+     * The result windows beside the editor are shown with {@code show()} and answer through a
+     * callback — never {@code showAndWait()}, whose nested event loop is what tangled the tabs.
+     */
+    @Test
+    void theEditorsResultWindowsNeverBlockInShowAndWait() throws IOException {
+        String source = code(UI_ROOT.resolve("SnippetEditDialog.java"));
+        List<String> offenders = new ArrayList<>();
+        for (String window : EDITOR_CHILD_WINDOWS) {
+            Matcher matcher = Pattern.compile("new " + window + "\\(").matcher(source);
+            boolean found = false;
+            while (matcher.find()) {
+                found = true;
+                // showChildWindow(new X(...)) — wrapped in the same statement.
+                int wrapper = source.lastIndexOf("showChildWindow(", matcher.start());
+                if (wrapper >= 0 && wrapper > source.lastIndexOf(';', matcher.start())) {
+                    continue;
+                }
+                int blocking = source.indexOf("showAndWait(", matcher.start());
+                int nonBlocking = source.indexOf("showChildWindow(", matcher.start());
+                if (nonBlocking < 0 || (blocking >= 0 && blocking < nonBlocking)) {
+                    offenders.add(window + " at line " + lineOf(source, matcher.start()));
+                }
+            }
+            if (!found) {
+                offenders.add(window + " is no longer opened by the editor (update this test)");
+            }
+        }
+        assertWithMessage("These editor windows block in showAndWait instead of show() + callback")
             .that(offenders).isEmpty();
     }
 
@@ -205,6 +270,14 @@ class SnippetAiFlowModalityTest {
             backslashes++;
         }
         return backslashes % 2 == 1;
+    }
+
+    private static int countOf(String source, String needle) {
+        int count = 0;
+        for (int i = source.indexOf(needle); i >= 0; i = source.indexOf(needle, i + needle.length())) {
+            count++;
+        }
+        return count;
     }
 
     private static int lineOf(String source, int index) {

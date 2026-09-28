@@ -25,6 +25,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.web.WebView;
+import javafx.stage.Modality;
 import javafx.stage.Window;
 import javafx.util.Duration;
 
@@ -90,6 +91,10 @@ public class SnippetSecurityReportDialog extends ThemeAwareDialog<SnippetSecurit
 
         setTitle(I18n.get("snippets.ai.security.title"));
         setResizable(true);
+        // Explicitly non-modal: a Dialog with an owner defaults to APPLICATION_MODAL, which froze every
+        // terminal tab (and every other editor) while the result was read. The editor opens it with
+        // show() and takes the answer through a callback.
+        initModality(Modality.NONE);
         if (owner != null) {
             initOwner(owner);
         }
