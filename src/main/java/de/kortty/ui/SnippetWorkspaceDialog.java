@@ -89,6 +89,11 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
     private final Button saveAsNewButton;
     private final Button closeTabButton;
     private final SplitPane splitPane;
+    /** Action bar + (banners) + inner tabs; banners are inserted below the action bar. */
+    private final VBox editorArea;
+    /** The "unsaved new snippets" banner, while shown. */
+    private Region orphanDraftBanner;
+    private boolean orphanDraftsChecked;
     /** Hides the library to give the editor the full width (focus mode); Shortcut+B. */
     private final ToggleButton libraryToggle = new ToggleButton("\u2630");
     /** The divider position to restore when the collapsed library comes back. */
@@ -165,7 +170,7 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
         actionBar.setPadding(new Insets(8, 10, 6, 10));
         actionBar.getStyleClass().add("snippet-workspace-action-bar");
 
-        VBox editorArea = new VBox(0, actionBar, editorStack);
+        editorArea = new VBox(0, actionBar, editorStack);
         editorArea.setMinWidth(0);
 
         splitPane = new SplitPane(library, editorArea);
@@ -219,6 +224,7 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
             }
             subscribe();
             Platform.runLater(library::focusSearch);
+            checkOrphanDrafts();
         });
         addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> tearDown());
 
@@ -230,6 +236,7 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
     protected void onHostedAttached() {
         subscribe();
         Platform.runLater(library::focusSearch);
+        checkOrphanDrafts();
     }
 
     // ---- public / package API -------------------------------------------------------------
@@ -654,6 +661,98 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
         if (libraryToggle.isSelected() != visible) {
             libraryToggle.setSelected(visible);
         }
+    }
+
+    // ---- drafts of never-saved snippets -----------------------------------------------------------
+
+    /**
+     * Once per workspace: drafts whose snippet does not exist (a new snippet that was never saved
+     * before a crash) and that no open editor owns are offered in a banner — never restored by
+     * themselves. Drafts of existing snippets are offered by their editor when it opens.
+     */
+    private void checkOrphanDrafts() {
+        if (orphanDraftsChecked || tornDown) {
+            return;
+        }
+        orphanDraftsChecked = true;
+        de.kortty.core.SnippetDraftStore.shared().loadAll().whenComplete((drafts, error) -> Platform.runLater(() -> {
+            if (error != null || drafts == null || tornDown) {
+                return;
+            }
+            List<de.kortty.core.SnippetDraftStore.SnippetDraft> orphans =
+                orphanDrafts(drafts, id -> snippetManager.findById(id).isPresent(), SnippetDraftAutosave.liveIds());
+            if (!orphans.isEmpty()) {
+                showOrphanDraftBanner(orphans);
+            }
+        }));
+    }
+
+    /** The drafts whose snippet does not exist and that no open editor owns, newest first. */
+    static List<de.kortty.core.SnippetDraftStore.SnippetDraft> orphanDrafts(
+            List<de.kortty.core.SnippetDraftStore.SnippetDraft> drafts,
+            java.util.function.Predicate<String> snippetExists, java.util.Set<String> liveIds) {
+        if (drafts == null) {
+            return List.of();
+        }
+        return drafts.stream()
+            .filter(draft -> draft != null && !draft.snippetId().isBlank())
+            .filter(draft -> !snippetExists.test(draft.snippetId()))
+            .filter(draft -> liveIds == null || !liveIds.contains(draft.snippetId()))
+            .sorted(Comparator.comparingLong(de.kortty.core.SnippetDraftStore.SnippetDraft::savedAt).reversed())
+            .toList();
+    }
+
+    private void showOrphanDraftBanner(List<de.kortty.core.SnippetDraftStore.SnippetDraft> orphans) {
+        hideOrphanDraftBanner();
+        Label label = new Label(I18n.get("snippets.draft.orphans.banner", orphans.size(),
+            SnippetDraftAutosave.formatTime(orphans.getFirst().savedAt())));
+        label.setWrapText(true);
+        label.setMaxWidth(Double.MAX_VALUE);
+        label.setMinHeight(Region.USE_PREF_SIZE);
+        HBox.setHgrow(label, Priority.ALWAYS);
+        Button restore = new Button(I18n.get("snippets.draft.restore"));
+        restore.setId(SnippetDraftAutosave.RESTORE_ID);
+        restore.setOnAction(event -> restoreOrphanDrafts(orphans));
+        Button discard = new Button(I18n.get("snippets.draft.discard"));
+        discard.setId(SnippetDraftAutosave.DISCARD_ID);
+        discard.setOnAction(event -> {
+            hideOrphanDraftBanner();
+            orphans.forEach(draft -> de.kortty.core.SnippetDraftStore.shared().delete(draft.snippetId()));
+        });
+        HBox row = new HBox(8, label, restore, discard);
+        row.setId("snippet-workspace-draft-banner");
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.setPadding(new Insets(6, 8, 6, 8));
+        row.setStyle("-fx-background-color: rgba(245,158,11,0.14); -fx-border-color: rgba(245,158,11,0.55);"
+            + " -fx-border-radius: 6; -fx-background-radius: 6;");
+        VBox.setMargin(row, new Insets(0, 10, 6, 10));
+        editorArea.getChildren().add(1, row);
+        orphanDraftBanner = row;
+    }
+
+    private void hideOrphanDraftBanner() {
+        if (orphanDraftBanner != null) {
+            editorArea.getChildren().remove(orphanDraftBanner);
+            orphanDraftBanner = null;
+        }
+    }
+
+    /** Opens one new editor per draft, filled from it; the old draft file goes (the editor keeps its own). */
+    private void restoreOrphanDrafts(List<de.kortty.core.SnippetDraftStore.SnippetDraft> orphans) {
+        hideOrphanDraftBanner();
+        for (de.kortty.core.SnippetDraftStore.SnippetDraft draft : orphans) {
+            pin(null, null, -1);
+            SnippetEditorTab tab = activeEditorTab();
+            if (tab != null) {
+                tab.editor().restoreDraft(draft);
+            }
+            de.kortty.core.SnippetDraftStore.shared().delete(draft.snippetId());
+        }
+    }
+
+    /** The draft banner of the workspace (tests). */
+    Region orphanDraftBanner() {
+        return orphanDraftBanner;
     }
 
     // ---- close & teardown -----------------------------------------------------------------------

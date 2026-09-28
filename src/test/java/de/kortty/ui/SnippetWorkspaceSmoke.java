@@ -57,6 +57,9 @@ public final class SnippetWorkspaceSmoke {
         // The library's analysis column reads real files from this throwaway store.
         System.setProperty(de.kortty.core.SnippetAnalysisStore.DIRECTORY_PROPERTY,
             isolatedHome.resolve("snippet-analyses").toString());
+        // Unsaved-editor drafts go to real files too (crash protection is about files).
+        System.setProperty(de.kortty.core.SnippetDraftStore.DIRECTORY_PROPERTY,
+            isolatedHome.resolve("snippet-drafts").toString());
         Locale.setDefault(Locale.ENGLISH);
 
         CountDownLatch done = new CountDownLatch(1);
@@ -153,7 +156,11 @@ public final class SnippetWorkspaceSmoke {
         manager.addSnippet(alpha);
         manager.addSnippet(beta);
         manager.addSnippet(gamma);
+        Snippet delta = snippet("delta.sh", "echo delta\n");
+        manager.addSnippet(delta);
         manager.save();
+        de.kortty.core.SnippetDraftStore drafts = de.kortty.core.SnippetDraftStore.shared();
+        Path draftDir = isolatedHome.resolve("snippet-drafts");
 
         // Stored analyses before the workspace opens: alpha has open findings, gamma a result that
         // waits for review, beta none. Flushed, so the library reads them from disk.
@@ -231,7 +238,7 @@ public final class SnippetWorkspaceSmoke {
                 analyses.discardAll(beta.getId());
                 check(library.table().getItems().isEmpty(), "discarding beta's analyses must drop it from the filter");
                 library.analysisFilter().setValue(de.kortty.core.SnippetAnalysisOverview.Filter.ALL);
-                check(library.table().getItems().size() == 3, "All must list every snippet again");
+                check(library.table().getItems().size() == 4, "All must list every snippet again");
             })
             .then(50, "browse alpha", () -> selectRow(workspace, alpha))
             .then(400, "preview shows alpha", () -> {
@@ -417,6 +424,86 @@ public final class SnippetWorkspaceSmoke {
                     "a clean hosted editor never asks the main window's close guard");
                 hostTab.closeProgrammatically();
                 mainTabs.getSelectionModel().select(workspaceTab);
+            })
+            .then(50, "draft autosave: typing writes a draft, saving removes it", () -> {
+                workspace.openSnippetById(delta.getId(), true);
+                SnippetEditorTab deltaTab = workspace.editorTabs().stream()
+                    .filter(t -> t.snippetId().equals(delta.getId())).findFirst().orElseThrow();
+                SnippetEditDialog editor = deltaTab.editor();
+                check(editor.draftAutosave() != null, "a snippet editor keeps drafts");
+                editor.applyInitialKeystroke(0, "d");
+                editor.draftAutosave().flushForTesting();
+                drafts.flush(5_000);
+                Path file = draftDir.resolve(delta.getId() + ".json");
+                check(Files.exists(file), "the unsaved edit must be written as a draft: " + file);
+                check(drafts.load(delta.getId()).join().orElseThrow().content().startsWith("decho delta"),
+                    "the draft must hold the edited content");
+                check(editor.saveFromHost(), "saving must work");
+                drafts.flush(5_000);
+                check(!Files.exists(file), "a successful save must delete the draft");
+                editor.applyInitialKeystroke(0, "e");
+                editor.draftAutosave().flushForTesting();
+                drafts.flush(5_000);
+                check(Files.exists(file), "new edits write a new draft");
+                SnippetWorkspaceDialog.setUnsavedPrompterForTesting(e -> SnippetEditDialog.UnsavedContentChoice.DISCARD);
+                check(deltaTab.requestClose(), "DISCARD closes the tab");
+                SnippetWorkspaceDialog.setUnsavedPrompterForTesting(null);
+                drafts.flush(5_000);
+                check(!Files.exists(file), "an explicit discard must delete the draft");
+            })
+            .then(50, "a draft left behind by a crash is offered, never applied", () -> {
+                drafts.save(de.kortty.core.SnippetDraftStore.SnippetDraft.of(delta.getId(), 1_700_000_000_000L, false,
+                    "delta.sh", "bash", "", "", "", "echo restored\n",
+                    de.kortty.core.SnippetDiagramSupport.contentHash(delta.getContent())));
+                drafts.flush(5_000);
+                workspace.openSnippetById(delta.getId(), true);
+            })
+            .then(400, "the banner restores the draft into the editor", () -> {
+                SnippetEditorTab deltaTab = workspace.editorTabs().stream()
+                    .filter(t -> t.snippetId().equals(delta.getId())).findFirst().orElseThrow();
+                SnippetEditDialog editor = deltaTab.editor();
+                check(editor.draftAutosave().isOffering(), "the older draft must be offered");
+                check(editor.draftAutosave().bannerForTesting() != null
+                        && editor.draftAutosave().bannerForTesting().getScene() != null,
+                    "the banner must be shown in the editor");
+                check(!deltaTab.hasUnsavedChanges(), "an offered draft must never be applied by itself");
+                check(delta.getContent().startsWith("decho delta"), "the saved snippet stays as it was");
+                editor.draftAutosave().restoreOffered();
+                check(deltaTab.hasUnsavedChanges(), "a restored draft marks the tab dirty");
+                check(!editor.draftAutosave().isOffering(), "the banner goes after Restore");
+                SnippetWorkspaceDialog.setUnsavedPrompterForTesting(e -> SnippetEditDialog.UnsavedContentChoice.DISCARD);
+                check(deltaTab.requestClose(), "DISCARD closes the tab");
+                SnippetWorkspaceDialog.setUnsavedPrompterForTesting(null);
+                drafts.flush(5_000);
+                check(drafts.load(delta.getId()).join().isEmpty(), "discarding the restored draft deletes it");
+            })
+            .then(50, "a draft of a never-saved snippet is offered by the next workspace", () -> {
+                drafts.save(de.kortty.core.SnippetDraftStore.SnippetDraft.of("never-saved-1", 1_700_000_000_000L,
+                    true, "orphan.sh", "bash", "", "", "", "echo orphan\n", ""));
+                drafts.flush(5_000);
+                SnippetWorkspaceDialog third = new SnippetWorkspaceDialog(manager, null);
+                DialogHostTab thirdTab = DialogHostTab.host(otherTabs, null, third, null);
+                thirdTab.getProperties().put("smoke.workspace", third);
+                otherTabs.getProperties().put("smoke.thirdTab", thirdTab);
+            })
+            .then(400, "Restore opens the orphan draft in a new editor", () -> {
+                DialogHostTab thirdTab = (DialogHostTab) otherTabs.getProperties().get("smoke.thirdTab");
+                SnippetWorkspaceDialog third = (SnippetWorkspaceDialog) thirdTab.getProperties().get("smoke.workspace");
+                check(third.orphanDraftBanner() != null, "the workspace must offer the unsaved new snippet");
+                javafx.scene.control.Button restore = (javafx.scene.control.Button)
+                    third.orphanDraftBanner().lookup("#" + SnippetDraftAutosave.RESTORE_ID);
+                restore.fire();
+                check(third.orphanDraftBanner() == null, "the banner goes after Restore");
+                check(third.openEditorCount() == 1, "one new editor per orphan draft");
+                SnippetEditDialog restored = third.editorTabs().getFirst().editor();
+                check("orphan.sh".equals(restored.snippetNameProperty().get()), "the draft's name is restored");
+                check(third.editorTabs().getFirst().hasUnsavedChanges(), "the restored new snippet is unsaved");
+                drafts.flush(5_000);
+                check(drafts.load("never-saved-1").join().isEmpty(), "the orphan's old draft file goes");
+                SnippetWorkspaceDialog.setUnsavedPrompterForTesting(e -> SnippetEditDialog.UnsavedContentChoice.DISCARD);
+                thirdTab.closeProgrammatically();
+                SnippetWorkspaceDialog.setUnsavedPrompterForTesting(null);
+                otherTabs.getTabs().remove(thirdTab);
             })
             .then(50, "several dirty editors: one bulk answer", () -> {
                 workspace.openSnippetById(gamma.getId(), true);

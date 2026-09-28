@@ -919,6 +919,8 @@ class AiI18nCoverageTest {
         "snippets.ai.analysis.fix.recovery.discard",
         "snippets.ai.analysis.fix.partialApplied",
         "snippets.ai.analysis.fix.resuming",
+        "snippets.ai.analysis.fix.resume.contentChanged",
+        "snippets.ai.analysis.fix.resume.replan",
         "snippets.ai.diff.focus",
         "snippets.ai.diff.focus.all",
         "snippets.ai.diff.focus.previous",

@@ -385,7 +385,15 @@ final class SnippetAiApplyProgressPane extends VBox {
             addRecoveryButton(buttons, "snippets.ai.analysis.fix.recovery.resume", recovery.onResume());
             addRecoveryButton(buttons, "snippets.ai.analysis.fix.recovery.partial", recovery.onPreviewPartial());
             addRecoveryButton(buttons, "snippets.ai.analysis.fix.recovery.discard", recovery.onDiscard());
-            recoveryBox.getChildren().setAll(header, content, buttons);
+            recoveryBox.getChildren().setAll(header, content);
+            if (recovery.note() != null && !recovery.note().isBlank()) {
+                Label note = new Label(recovery.note());
+                note.setId("snippet-analysis-recovery-note");
+                note.setWrapText(true);
+                note.setStyle("-fx-font-size: 0.9231em; -fx-font-style: italic;");
+                recoveryBox.getChildren().add(note);
+            }
+            recoveryBox.getChildren().add(buttons);
             setVisibleManaged(recoveryBox, true);
         });
     }
@@ -401,7 +409,13 @@ final class SnippetAiApplyProgressPane extends VBox {
 
     /** What an interrupted run offers; a {@code null} action leaves its button out. */
     record Recovery(int completedStages, int totalStages, boolean cancelled,
-                    Runnable onResume, Runnable onPreviewPartial, Runnable onDiscard) {
+                    Runnable onResume, Runnable onPreviewPartial, Runnable onDiscard, String note) {
+
+        /** Without a note. */
+        Recovery(int completedStages, int totalStages, boolean cancelled,
+                 Runnable onResume, Runnable onPreviewPartial, Runnable onDiscard) {
+            this(completedStages, totalStages, cancelled, onResume, onPreviewPartial, onDiscard, null);
+        }
     }
 
     /** Ids of the work items that finished, in checklist order (duplicates collapsed). */

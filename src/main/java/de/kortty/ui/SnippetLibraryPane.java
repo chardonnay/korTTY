@@ -1074,6 +1074,7 @@ final class SnippetLibraryPane extends BorderPane {
                     for (Snippet s : selected) {
                         if (s.getId() != null && !s.getId().isBlank()) {
                             analysisStore.discardAll(s.getId());
+                            de.kortty.core.SnippetDraftStore.shared().delete(s.getId());
                         }
                     }
                 }

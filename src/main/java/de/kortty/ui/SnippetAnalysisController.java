@@ -819,6 +819,18 @@ final class SnippetAnalysisController {
     private void startApply(SnippetAnalysisPanel.ApplySelection selection,
                             SnippetAiWorkflowSupport.ImprovementApplyCheckpoint resumeFrom,
                             String resumeBaseContent, boolean staleAccepted) {
+        startApply(selection, resumeFrom, resumeBaseContent, staleAccepted, null);
+    }
+
+    /**
+     * @param storedRequest a resume after a restart: the exact request strings of the stored run
+     *                      (instructions, hardening texts, languages, profile) instead of the
+     *                      editor's current ones, so the plan matches the checkpoint
+     */
+    private void startApply(SnippetAnalysisPanel.ApplySelection selection,
+                            SnippetAiWorkflowSupport.ImprovementApplyCheckpoint resumeFrom,
+                            String resumeBaseContent, boolean staleAccepted,
+                            SnippetAnalysisRecord.ApplyRequestSnapshot storedRequest) {
         if (disposed || selection == null || selection.isEmpty()) {
             host.setStatus(I18n.get("snippets.ai.analysis.panel.nothingSelected"));
             return;
@@ -841,7 +853,9 @@ final class SnippetAnalysisController {
         // The selection is part of the result: keep what was applied with the analysis.
         flushSelection();
 
-        String language = host.snippetLanguage();
+        String language = storedRequest != null && !storedRequest.snippetLanguage().isBlank()
+            ? storedRequest.snippetLanguage()
+            : host.snippetLanguage();
         boolean inputHardeningApplies = selection.inputHardening().isEnabled()
             && WorkflowScriptSupport.supportsInputHardeningForSnippet(language);
         boolean hasAiWork = !selection.improvements().isEmpty()
@@ -860,7 +874,7 @@ final class SnippetAnalysisController {
         }
         // Fix: the question comes first. It used to come after the progress window had opened,
         // so dismissing it left a window stuck on "Preparing…".
-        if (!host.applyCodeTextLanguage(true)) {
+        if (storedRequest == null && !host.applyCodeTextLanguage(true)) {
             refreshControls();
             return;
         }
@@ -873,15 +887,21 @@ final class SnippetAnalysisController {
             && !selection.codeTextLanguageCode().isBlank()
             ? selection.codeTextLanguageCode()
             : host.codeTextFallbackLanguageCode();
-        String extra = host.additionalInstructions();
-        String classicHardening = host.hardeningInstructions(selection.hardening());
-        String inputHardening = host.inputHardeningInstructions(selection.inputHardening());
+        String extra = storedRequest != null ? storedRequest.additionalInstructions() : host.additionalInstructions();
+        String classicHardening = storedRequest != null
+            ? storedRequest.classicHardeningInstructions()
+            : host.hardeningInstructions(selection.hardening());
+        String inputHardening = storedRequest != null
+            ? storedRequest.inputHardeningInstructions()
+            : host.inputHardeningInstructions(selection.inputHardening());
         List<SnippetAiWorkflowSupport.ImprovementApplyProgress> plan =
             SnippetAiWorkflowSupport.planSnippetImprovements(
                 selection.improvements(), selection.dependencies(), classicHardening, inputHardening,
                 selection.migration(), baseContent);
         // Fix: the apply runs on the profile that produced the analysis, not on the default one.
-        String profileId = record != null ? blankToNull(record.provenance().profileId()) : null;
+        String profileId = storedRequest != null && storedRequest.aiProfileId() != null
+            ? storedRequest.aiProfileId()
+            : record != null ? blankToNull(record.provenance().profileId()) : null;
         String profileName = record != null && !record.provenance().profileName().isBlank()
             ? record.provenance().profileName()
             : SnippetAiDialogSupport.resolveProfileDisplayName(profileId);
@@ -992,6 +1012,10 @@ final class SnippetAnalysisController {
         task.setOnFailed(event -> {
             finishRun(run);
             host.handleAiActionFailure(task, I18n.get("snippets.ai.analysis.fix.failed"));
+            if (resumeFrom != null && task.getException() instanceof IllegalArgumentException) {
+                // WF checks that the rebuilt plan still has the checkpoint's stage count.
+                host.setStatus(I18n.get("snippets.ai.analysis.fix.resume.replan"));
+            }
             if (run.silentCancel) {
                 return;
             }
@@ -1169,6 +1193,102 @@ final class SnippetAnalysisController {
         host.setStatus(I18n.get("snippets.ai.analysis.fix.resuming",
             context.checkpoint().completedStages() + 1, context.checkpoint().totalStages()));
         startApply(context.selection(), context.checkpoint(), context.baseContent(), true);
+    }
+
+    /** Why a stored run can (or cannot) be resumed after a restart. */
+    enum ResumeVerdict { OK, NOT_ELIGIBLE, CONTENT_CHANGED, PLAN_CHANGED }
+
+    /**
+     * A stored run rebuilt for resuming: the selection (findings by id, options by name, the
+     * migration re-detected from the base content plus the stored targets), the stored request
+     * strings and the checkpoint. Only {@link ResumeVerdict#OK} carries the parts.
+     */
+    record StoredResume(ResumeVerdict verdict, SnippetAnalysisPanel.ApplySelection selection,
+                        SnippetAnalysisRecord.ApplyRequestSnapshot request,
+                        SnippetAiWorkflowSupport.ImprovementApplyCheckpoint checkpoint, String baseContent) {
+        static StoredResume of(ResumeVerdict verdict) {
+            return new StoredResume(verdict, null, null, null, null);
+        }
+    }
+
+    /**
+     * Whether {@code run} can continue where it stopped: INTERRUPTED/FAILED/CANCELLED between two
+     * stages with its base content stored, the editor holding exactly that base, every selected
+     * finding still in the record and the rebuilt plan having the checkpoint's stage count.
+     */
+    static StoredResume storedResume(SnippetAnalysisRecord record, ApplyRun run, String currentContent) {
+        if (record == null || run == null || !run.isResumable()) {
+            return StoredResume.of(ResumeVerdict.NOT_ELIGIBLE);
+        }
+        if (!resumeAllowed(run, SnippetDiagramSupport.contentHash(currentContent != null ? currentContent : ""))) {
+            return StoredResume.of(ResumeVerdict.CONTENT_CHANGED);
+        }
+        SnippetAnalysisRecord.ApplyRequestSnapshot request = run.request();
+        String base = request.baseContent();
+        SnippetAiWorkflowSupport.MigrationPlan migration;
+        try {
+            migration = migrationFromSnapshot(request, base);
+        } catch (IllegalArgumentException e) {
+            return StoredResume.of(ResumeVerdict.PLAN_CHANGED);
+        }
+        SnippetAnalysisPanel.ApplySelection stored = selectionFromSnapshot(record, run);
+        if (stored == null || stored.improvements().size() != request.improvementIds().size()
+                || stored.dependencies().size() != request.dependencyIds().size()) {
+            return StoredResume.of(ResumeVerdict.PLAN_CHANGED);
+        }
+        SnippetAnalysisPanel.ApplySelection selection = new SnippetAnalysisPanel.ApplySelection(
+            stored.improvements(), stored.dependencies(), stored.hardening(), stored.inputHardening(),
+            stored.headerText(), migration, stored.codeTextLanguageCode());
+        SnippetAiWorkflowSupport.ImprovementApplyCheckpoint checkpoint = run.checkpoint().toCheckpoint();
+        int stages;
+        try {
+            stages = SnippetAiWorkflowSupport.planSnippetImprovements(selection.improvements(),
+                selection.dependencies(), request.classicHardeningInstructions(),
+                request.inputHardeningInstructions(), migration, base).size();
+        } catch (IllegalArgumentException e) {
+            return StoredResume.of(ResumeVerdict.PLAN_CHANGED);
+        }
+        if (stages != checkpoint.totalStages()) {
+            return StoredResume.of(ResumeVerdict.PLAN_CHANGED);
+        }
+        return new StoredResume(ResumeVerdict.OK, selection, request, checkpoint, base);
+    }
+
+    /** The migration order of a stored request: detected from the base content plus the stored targets. */
+    static SnippetAiWorkflowSupport.MigrationPlan migrationFromSnapshot(
+            SnippetAnalysisRecord.ApplyRequestSnapshot request, String baseContent) {
+        if (request == null || (request.migrationTargetLanguage() == null
+                && request.migrationTargetHostFormat() == null)) {
+            return null;
+        }
+        WorkflowScriptSupport.ScriptLanguage target = request.migrationTargetLanguage() != null
+            ? WorkflowScriptSupport.ScriptLanguage.valueOf(request.migrationTargetLanguage())
+            : null;
+        ScriptLanguageMixSupport.HostFormat host = request.migrationTargetHostFormat() != null
+            ? ScriptLanguageMixSupport.HostFormat.valueOf(request.migrationTargetHostFormat())
+            : null;
+        return new SnippetAiWorkflowSupport.MigrationPlan(
+            ScriptLanguageMixSupport.detect(request.snippetLanguage(), baseContent != null ? baseContent : ""),
+            target, host);
+    }
+
+    /** Resume after a restart: rebuilt from the stored request, re-checked right before starting. */
+    private void resumeStored(String recordId, String runId) {
+        SnippetAnalysisRecord record = findRecord(recordId);
+        ApplyRun run = record != null ? record.findRun(runId) : null;
+        StoredResume resume = storedResume(record, run, safe(host.currentContent()));
+        switch (resume.verdict()) {
+            case OK -> {
+                host.setStatus(I18n.get("snippets.ai.analysis.fix.resuming",
+                    resume.checkpoint().completedStages() + 1, resume.checkpoint().totalStages()));
+                trackAction("code_review_resume", Map.of("after_restart", true));
+                startApply(resume.selection(), resume.checkpoint(), resume.baseContent(), true, resume.request());
+            }
+            case CONTENT_CHANGED -> host.setStatus(I18n.get("snippets.ai.analysis.fix.resume.contentChanged"));
+            case PLAN_CHANGED -> host.setStatus(I18n.get("snippets.ai.analysis.fix.resume.replan"));
+            case NOT_ELIGIBLE -> host.setStatus(I18n.get("snippets.ai.analysis.panel.partialUnavailable"));
+        }
+        refreshState();
     }
 
     /**
@@ -1997,7 +2117,11 @@ final class SnippetAnalysisController {
 
     /** A stored run rebuilt as a (static) progress view, with its review or recovery action. */
     private SnippetAiApplyProgressPane restoredPaneFor(SnippetAnalysisRecord record, ApplyRun run) {
-        String paneKey = run.id() + "|" + run.outcome() + "|" + run.decidedAt() + "|" + run.finishedAt();
+        ResumeVerdict verdict = run.isResumable()
+            ? storedResume(record, run, safe(host.currentContent())).verdict()
+            : ResumeVerdict.NOT_ELIGIBLE;
+        String paneKey = run.id() + "|" + run.outcome() + "|" + run.decidedAt() + "|" + run.finishedAt()
+            + "|" + verdict + "|" + (activeRun != null);
         if (restoredPane != null && paneKey.equals(restoredPaneKey)) {
             return restoredPane;
         }
@@ -2015,14 +2139,24 @@ final class SnippetAnalysisController {
                 && stored != null && stored.content() != null && stored.completedStages() >= 1
                 && !dismissedRecoveries.contains(run.id())) {
             SnippetAiWorkflowSupport.ImprovementApplyCheckpoint checkpoint = stored.toCheckpoint();
+            // After a restart the run is resumed from its stored request; the in-session context is gone.
+            Runnable onResume = verdict == ResumeVerdict.OK && activeRun == null
+                ? () -> resumeStored(recordId, run.id())
+                : null;
+            String note = switch (verdict) {
+                case CONTENT_CHANGED -> I18n.get("snippets.ai.analysis.fix.resume.contentChanged");
+                case PLAN_CHANGED -> I18n.get("snippets.ai.analysis.fix.resume.replan");
+                default -> null;
+            };
             pane.setRecovery(new SnippetAiApplyProgressPane.Recovery(
                 stored.completedStages(), stored.totalStages(), run.outcome() != RunOutcome.FAILED,
-                null,
+                onResume,
                 () -> previewPartial(recordId, run.id(), checkpoint, runContexts.get(run.id())),
                 () -> {
                     dismissedRecoveries.add(run.id());
                     pane.setRecovery(null);
-                }));
+                },
+                note));
         }
         restoredPane = pane;
         restoredPaneKey = paneKey;

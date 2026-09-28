@@ -88,6 +88,109 @@ class SnippetAnalysisControllerTest {
         assertThat(SnippetAnalysisController.resumeAllowed(null, SOURCE_SHA)).isFalse();
     }
 
+    /** A request that also migrates to Python: a migration stage plus the analysis stage. */
+    private static ApplyRequestSnapshot migratingRequest(String base) {
+        return new ApplyRequestSnapshot("bash", "en", List.of("SEC-1"), List.of("D1"), "", List.of(),
+            "", List.of(), "", "PYTHON", null, null, null, null, "# header", "profile-1",
+            SnippetDiagramSupport.contentHash(base), base);
+    }
+
+    private static ApplyRun migratingRun(String id, RunOutcome outcome, StoredCheckpoint checkpoint, String base) {
+        return new ApplyRun(id, 10L, 20L, 0L, outcome, false, migratingRequest(base), List.of(), checkpoint,
+            null, null, null, null, null, null, null, null, null, null, null, 0L);
+    }
+
+    private static int plannedStages(String base) {
+        SnippetAnalysisRecord record = record();
+        return SnippetAiWorkflowSupport.planSnippetImprovements(
+            record.improvements().stream().filter(f -> f.id().equals("SEC-1"))
+                .map(SnippetAnalysisRecord.Finding::toImprovement).toList(),
+            record.dependencies().stream().map(SnippetAnalysisRecord.DependencyFinding::toDependency).toList(),
+            "", "", SnippetAnalysisController.migrationFromSnapshot(migratingRequest(base), base), base).size();
+    }
+
+    @Test
+    void aStoredRunIsResumedAfterARestartFromItsSnapshot() {
+        int stages = plannedStages(SOURCE);
+        assertThat(stages).isAtLeast(2);
+        StoredCheckpoint halfway = new StoredCheckpoint(1, stages, "partial", List.of("s1"), List.of(),
+            List.of("SEC-1"), null);
+        SnippetAnalysisRecord record = record();
+        ApplyRun interrupted = migratingRun("a", RunOutcome.INTERRUPTED, halfway, SOURCE);
+
+        SnippetAnalysisController.StoredResume resume =
+            SnippetAnalysisController.storedResume(record, interrupted, SOURCE);
+        assertThat(resume.verdict()).isEqualTo(SnippetAnalysisController.ResumeVerdict.OK);
+        assertThat(resume.baseContent()).isEqualTo(SOURCE);
+        assertThat(resume.checkpoint().completedStages()).isEqualTo(1);
+        assertThat(resume.checkpoint().totalStages()).isEqualTo(stages);
+        assertThat(resume.checkpoint().content()).isEqualTo("partial");
+        assertThat(resume.request()).isSameInstanceAs(interrupted.request());
+        assertThat(resume.selection().improvements().stream()
+            .map(SnippetAiResponseSupport.ScriptImprovement::id).toList()).containsExactly("SEC-1");
+        assertThat(resume.selection().headerText()).isEqualTo("# header");
+        assertThat(resume.selection().migration().targetLanguage())
+            .isEqualTo(WorkflowScriptSupport.ScriptLanguage.PYTHON);
+
+        // FAILED and CANCELLED runs qualify too; accepted or finished ones do not.
+        assertThat(SnippetAnalysisController.storedResume(record, migratingRun("b", RunOutcome.CANCELLED, halfway, SOURCE),
+            SOURCE).verdict()).isEqualTo(SnippetAnalysisController.ResumeVerdict.OK);
+        assertThat(SnippetAnalysisController.storedResume(record, migratingRun("c", RunOutcome.ACCEPTED, halfway, SOURCE),
+            SOURCE).verdict()).isEqualTo(SnippetAnalysisController.ResumeVerdict.NOT_ELIGIBLE);
+        StoredCheckpoint done = new StoredCheckpoint(stages, stages, "x", List.of(), List.of(), List.of(), null);
+        assertThat(SnippetAnalysisController.storedResume(record, migratingRun("d", RunOutcome.FAILED, done, SOURCE),
+            SOURCE).verdict()).isEqualTo(SnippetAnalysisController.ResumeVerdict.NOT_ELIGIBLE);
+        assertThat(SnippetAnalysisController.storedResume(null, interrupted, SOURCE).verdict())
+            .isEqualTo(SnippetAnalysisController.ResumeVerdict.NOT_ELIGIBLE);
+    }
+
+    @Test
+    void aResumeNeedsTheBaseContentAndTheSameStageCount() {
+        int stages = plannedStages(SOURCE);
+        StoredCheckpoint halfway = new StoredCheckpoint(1, stages, "partial", List.of(), List.of(), List.of(), null);
+        ApplyRun interrupted = migratingRun("a", RunOutcome.INTERRUPTED, halfway, SOURCE);
+        assertThat(SnippetAnalysisController.storedResume(record(), interrupted, SOURCE + "# edited\n").verdict())
+            .isEqualTo(SnippetAnalysisController.ResumeVerdict.CONTENT_CHANGED);
+
+        // The stored plan had one more stage than the rebuilt one: re-plan instead of resuming.
+        StoredCheckpoint otherPlan = new StoredCheckpoint(1, stages + 1, "partial", List.of(), List.of(),
+            List.of(), null);
+        assertThat(SnippetAnalysisController.storedResume(record(),
+            migratingRun("b", RunOutcome.INTERRUPTED, otherPlan, SOURCE), SOURCE).verdict())
+            .isEqualTo(SnippetAnalysisController.ResumeVerdict.PLAN_CHANGED);
+
+        // A selected finding the record no longer has also means re-plan.
+        ApplyRequestSnapshot gone = new ApplyRequestSnapshot("bash", "en", List.of("SEC-1", "GONE-9"), List.of("D1"),
+            "", List.of(), "", List.of(), "", "PYTHON", null, null, null, null, "", "profile-1", SOURCE_SHA, SOURCE);
+        ApplyRun missing = new ApplyRun("c", 10L, 20L, 0L, RunOutcome.INTERRUPTED, false, gone, List.of(), halfway,
+            null, null, null, null, null, null, null, null, null, null, null, 0L);
+        assertThat(SnippetAnalysisController.storedResume(record(), missing, SOURCE).verdict())
+            .isEqualTo(SnippetAnalysisController.ResumeVerdict.PLAN_CHANGED);
+    }
+
+    @Test
+    void theMigrationIsRebuiltFromTheBaseContentAndTheStoredTargets() {
+        ApplyRequestSnapshot none = request(SOURCE);
+        assertThat(SnippetAnalysisController.migrationFromSnapshot(none, SOURCE)).isNull();
+
+        String target = WorkflowScriptSupport.ScriptLanguage.values()[0].name();
+        ApplyRequestSnapshot migrating = new ApplyRequestSnapshot("bash", "en", List.of(), List.of(), "",
+            List.of(), "", List.of(), "", target, null, null, null, null, "", null, SOURCE_SHA, SOURCE);
+        SnippetAiWorkflowSupport.MigrationPlan plan = SnippetAnalysisController.migrationFromSnapshot(migrating, SOURCE);
+        assertThat(plan).isNotNull();
+        assertThat(plan.targetLanguage().name()).isEqualTo(target);
+        assertThat(plan.mix()).isEqualTo(de.kortty.core.ScriptLanguageMixSupport.detect("bash", SOURCE));
+
+        // An unknown target (a newer version's enum) makes the run non-resumable instead of failing.
+        ApplyRequestSnapshot unknown = new ApplyRequestSnapshot("bash", "en", List.of("SEC-1"), List.of(), "",
+            List.of(), "", List.of(), "", "COBOL_2099", null, null, null, null, "", null, SOURCE_SHA, SOURCE);
+        StoredCheckpoint halfway = new StoredCheckpoint(1, 3, "partial", List.of(), List.of(), List.of(), null);
+        ApplyRun run = new ApplyRun("u", 10L, 20L, 0L, RunOutcome.FAILED, false, unknown, List.of(), halfway,
+            null, null, null, null, null, null, null, null, null, null, null, 0L);
+        assertThat(SnippetAnalysisController.storedResume(record(), run, SOURCE).verdict())
+            .isEqualTo(SnippetAnalysisController.ResumeVerdict.PLAN_CHANGED);
+    }
+
     @Test
     void onlyAcceptedRunsCountTheirFindingsAsApplied() {
         ApplyRun accepted = run("a", RunOutcome.PENDING_REVIEW, null, SOURCE)

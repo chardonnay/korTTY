@@ -210,6 +210,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
      * with its progress, and the change review that replaces the editor area.
      */
     private SnippetAnalysisController analysisController;
+    /** Crash protection for unsaved edits; {@code null} for file editors and admin-managed snippets. */
+    private SnippetDraftAutosave draftAutosave;
     private final ToggleButton analysisToggleButton;
     private final MenuItem analysisPanelItem;
     /**
@@ -1662,10 +1664,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
 
         analysisController = new SnippetAnalysisController(new AnalysisHost(), SnippetAnalysisStore.shared());
         analysisController.attach();
+        if (externalFileActionConfig == null && (snippet == null || !snippet.isPolicyManaged())) {
+            draftAutosave = new SnippetDraftAutosave(new DraftForm(), de.kortty.core.SnippetDraftStore.shared());
+            draftAutosave.checkForDraft();
+        }
 
         setOnHidden(event -> {
             // First: a running apply is recorded as interrupted before cancelAiTasks() cancels it.
             analysisController.dispose();
+            if (draftAutosave != null) {
+                draftAutosave.dispose();
+            }
             editorClosed = true;
             cancelAiTasks();
             closeDiagramDialog();
@@ -1836,6 +1845,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         updateHistorySliderState();
         updateSaveButtonState();
         updateExternalFileButtonState();
+        if (draftAutosave != null) {
+            draftAutosave.saved();
+        }
         if (embedding != null) {
             embedding.snippetPersisted(this, saved, created);
         }
@@ -2006,6 +2018,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             saveAsNewSnippetButton.setDisable(!formValid);
         }
         updateOkButtonState(hasUnsavedChanges);
+        if (draftAutosave != null) {
+            draftAutosave.formChanged();
+        }
     }
 
     private void updateOkButtonState(boolean hasUnsavedChanges) {
@@ -2285,6 +2300,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             setResult(buildResultSnippet());
         } else {
             setResult(null);
+            if (draftAutosave != null) {
+                draftAutosave.discarded();
+            }
         }
         closeDialogOrHostTab();
     }
@@ -2377,6 +2395,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         }
         if (choice == UnsavedContentChoice.SAVE) {
             return saveFromHost();
+        }
+        if (draftAutosave != null) {
+            draftAutosave.discarded();
         }
         return true;
     }
@@ -7747,6 +7768,100 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     }
 
     /** What {@link SnippetAnalysisController} sees of this editor. */
+    // ---- Draft autosave ----
+
+    /** The draft autosave of this editor, or {@code null} (file editors, admin-managed snippets). */
+    SnippetDraftAutosave draftAutosave() {
+        return draftAutosave;
+    }
+
+    /**
+     * Fills the form from a draft left behind by a never-saved snippet (restored by the workspace);
+     * the editor then has unsaved changes and keeps its own draft from here on.
+     */
+    void restoreDraft(de.kortty.core.SnippetDraftStore.SnippetDraft draft) {
+        if (draft == null) {
+            return;
+        }
+        new DraftForm().restore(draft);
+    }
+
+    private String currentCategoryText() {
+        String typed = categoryCombo.getEditor() != null ? categoryCombo.getEditor().getText() : null;
+        if (typed != null && !typed.isBlank()) {
+            return typed;
+        }
+        return categoryCombo.getValue();
+    }
+
+    /** The editor form seen by {@link SnippetDraftAutosave}. */
+    private final class DraftForm implements SnippetDraftAutosave.Form {
+        @Override
+        public String snippetId() {
+            return SnippetEditDialog.this.snippetId();
+        }
+
+        @Override
+        public boolean isNewSnippet() {
+            return persistedSnippet() == null;
+        }
+
+        @Override
+        public boolean hasUnsavedChanges() {
+            return hasUnsavedContentChanges();
+        }
+
+        @Override
+        public String savedContent() {
+            Snippet persisted = persistedSnippet();
+            return persisted != null ? persisted.getContent() : null;
+        }
+
+        @Override
+        public de.kortty.core.SnippetDraftStore.SnippetDraft capture(long now) {
+            String saved = savedContent();
+            return de.kortty.core.SnippetDraftStore.SnippetDraft.of(
+                SnippetEditDialog.this.snippetId(), now, isNewSnippet(),
+                nameField.getText(), languageCombo.getValue(), currentCategoryText(), tagsField.getText(),
+                descriptionArea.getText(), safeContentText(),
+                saved != null ? SnippetDiagramSupport.contentHash(saved) : "");
+        }
+
+        @Override
+        public void restore(de.kortty.core.SnippetDraftStore.SnippetDraft draft) {
+            nameField.setText(draft.name());
+            if (!draft.language().isBlank()) {
+                if (!languageCombo.getItems().contains(draft.language())) {
+                    languageCombo.getItems().add(draft.language());
+                }
+                languageCombo.setValue(draft.language());
+            }
+            categoryCombo.setValue(draft.category().isBlank() ? null : draft.category());
+            if (categoryCombo.getEditor() != null) {
+                categoryCombo.getEditor().setText(draft.category());
+            }
+            tagsField.setText(draft.tags());
+            descriptionArea.setText(draft.description());
+            if (!draft.content().equals(safeContentText())) {
+                contentArea.replaceText(draft.content());
+            }
+            applyHighlighting();
+            updateSaveButtonState();
+            setStatus(I18n.get("snippets.draft.restored"));
+        }
+
+        @Override
+        public void showBanner(Region banner) {
+            VBox.setMargin(banner, new Insets(8, 10, 0, 10));
+            editorFormLayout.getChildren().add(0, banner);
+        }
+
+        @Override
+        public void hideBanner(Region banner) {
+            editorFormLayout.getChildren().remove(banner);
+        }
+    }
+
     private final class AnalysisHost implements SnippetAnalysisController.Host {
         @Override
         public String snippetId() {

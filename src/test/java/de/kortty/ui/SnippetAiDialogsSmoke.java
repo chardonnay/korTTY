@@ -446,7 +446,7 @@ public final class SnippetAiDialogsSmoke {
             stop(poller);
             editorDialog.closeWithoutPrompt();
             PauseTransition cleanupPause = new PauseTransition(Duration.seconds(2));
-            cleanupPause.setOnFinished(cleanup -> done.countDown());
+            cleanupPause.setOnFinished(cleanup -> runResumeAfterRestartLeg(failure, done));
             cleanupPause.play();
         };
         Timeline timeline = new Timeline(new KeyFrame(Duration.millis(100), event -> {
@@ -557,6 +557,131 @@ public final class SnippetAiDialogsSmoke {
                     ? ite.getCause() : e;
                 failure.compareAndSet(null, "In-editor AI change review failed in phase " + phase.get() + ": " + cause);
                 firstCallGate.countDown();
+                phase.set(99);
+                finish.run();
+            }
+        }));
+        timeline.setCycleCount(Timeline.INDEFINITE);
+        poller.set(timeline);
+        timeline.play();
+    }
+
+    /**
+     * An apply that stopped between two stages in an earlier session (the app quit mid-run) is
+     * offered "Resume" in the panel of a freshly opened editor, and resuming sends the provider the
+     * stored request byte for byte: the checkpoint, the stored instructions and the migration rebuilt
+     * from the stored target. Ends the harness.
+     */
+    private static void runResumeAfterRestartLeg(AtomicReference<String> failure, CountDownLatch done) {
+        String original = "#!/bin/bash\necho $1\n";
+        AtomicReference<SnippetEditDialog.ImprovementApplyRequest> seen = new AtomicReference<>();
+        AtomicReference<Timeline> poller = new AtomicReference<>();
+        java.util.concurrent.atomic.AtomicInteger phase = new java.util.concurrent.atomic.AtomicInteger();
+        long started = System.nanoTime();
+        SnippetEditDialog editorDialog;
+        try {
+            Snippet snippet = new Snippet("resume-after-restart-smoke.sh", original, "bash");
+            SnippetAiResponseSupport.ScriptAnalysis analysis = new SnippetAiResponseSupport.ScriptAnalysis(
+                "Echoes an argument.", List.of(),
+                List.of(new SnippetAiResponseSupport.ScriptImprovement("SEC-1", "security", "high",
+                    "Quote $1", "", "", 2)));
+            de.kortty.core.SnippetAnalysisRecord.ApplyRequestSnapshot request =
+                new de.kortty.core.SnippetAnalysisRecord.ApplyRequestSnapshot("bash", "en", List.of("SEC-1"),
+                    List.of(), "stored extra instructions", List.of(), "", List.of(), "", "PYTHON", null, null,
+                    null, null, "", null, de.kortty.core.SnippetDiagramSupport.contentHash(original), original);
+            int stages = SnippetAiWorkflowSupport.planSnippetImprovements(analysis.improvements(), List.of(), "",
+                "", SnippetAnalysisController.migrationFromSnapshot(request, original), original).size();
+            de.kortty.core.SnippetAnalysisRecord.StoredCheckpoint checkpoint =
+                new de.kortty.core.SnippetAnalysisRecord.StoredCheckpoint(1, stages,
+                    "#!/usr/bin/env python3\nimport sys\nprint(sys.argv[1])\n", List.of("Ported to Python."),
+                    List.of(), List.of(), null);
+            de.kortty.core.SnippetAnalysisRecord.ApplyRun interrupted = new de.kortty.core.SnippetAnalysisRecord.ApplyRun(
+                "resume-run", 10L, 20L, 0L, de.kortty.core.SnippetAnalysisRecord.RunOutcome.INTERRUPTED, false,
+                request, List.of(), checkpoint, null, null, null, null, null, null, null, null, null, null, null, 0L);
+            de.kortty.core.SnippetAnalysisRecord record = de.kortty.core.SnippetAnalysisRecord.fromAnalysis(
+                "resume-record", snippet.getId(), analysis,
+                de.kortty.core.SnippetAnalysisRecord.Source.of(original, "bash", "en", "en", snippet.getName()),
+                de.kortty.core.SnippetAnalysisRecord.Provenance.EMPTY,
+                de.kortty.core.SnippetAnalysisRecord.Purpose.ANALYSIS, null, System.currentTimeMillis())
+                .withRun(interrupted);
+            de.kortty.core.SnippetAnalysisStore.shared().addAnalysis(snippet.getId(), record);
+            SnippetEditDialog.AiAssist assist = new SnippetEditDialog.AiAssist(
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                analyzed -> analysis,
+                applyRequest -> {
+                    seen.set(applyRequest);
+                    return new SnippetAiResponseSupport.SnippetSecurityFix(
+                        "#!/usr/bin/env python3\nimport sys\nprint(\"%s\" % sys.argv[1])\n",
+                        "Quoted.", List.of());
+                },
+                false,
+                null);
+            editorDialog = new SnippetEditDialog(snippet, List.of(), assist);
+            editorDialog.show();
+            editorDialog.analysisController().showPanel();
+        } catch (Throwable e) {
+            failure.compareAndSet(null, "Resume-after-restart leg could not start: " + e);
+            done.countDown();
+            return;
+        }
+        SnippetEditDialog shown = editorDialog;
+        Runnable finish = () -> {
+            stop(poller);
+            shown.closeWithoutPrompt();
+            PauseTransition cleanupPause = new PauseTransition(Duration.seconds(2));
+            cleanupPause.setOnFinished(cleanup -> done.countDown());
+            cleanupPause.play();
+        };
+        Timeline timeline = new Timeline(new KeyFrame(Duration.millis(100), event -> {
+            try {
+                if (System.nanoTime() - started > 60_000_000_000L) {
+                    throw new AssertionError("timed out in phase " + phase.get());
+                }
+                switch (phase.get()) {
+                    case 0 -> {
+                        Node progress = shown.getDialogPane().lookup("#snippet-analysis-progress-pane");
+                        if (progress == null) {
+                            return;
+                        }
+                        String resumeText = I18n.get("snippets.ai.analysis.fix.recovery.resume");
+                        List<Node> nodes = new ArrayList<>();
+                        collect(progress, nodes);
+                        Button resume = nodes.stream()
+                            .filter(node -> node instanceof Button button && resumeText.equals(button.getText()))
+                            .map(Button.class::cast).findFirst().orElse(null);
+                        if (resume == null) {
+                            return;
+                        }
+                        phase.set(1);
+                        resume.fire();
+                    }
+                    case 1 -> {
+                        SnippetEditDialog.ImprovementApplyRequest request = seen.get();
+                        if (request == null) {
+                            return;
+                        }
+                        if (request.resumeFrom() == null || request.resumeFrom().completedStages() != 1) {
+                            throw new AssertionError("Resume did not continue from the stored checkpoint: "
+                                + request.resumeFrom());
+                        }
+                        if (!"stored extra instructions".equals(request.additionalInstructions())) {
+                            throw new AssertionError("Resume did not reuse the stored instructions: "
+                                + request.additionalInstructions());
+                        }
+                        if (request.migration() == null
+                                || request.migration().targetLanguage() != de.kortty.core.WorkflowScriptSupport.ScriptLanguage.PYTHON) {
+                            throw new AssertionError("Resume did not rebuild the stored migration: " + request.migration());
+                        }
+                        if (!original.equals(request.fullContent())) {
+                            throw new AssertionError("Resume did not start from the stored base content");
+                        }
+                        phase.set(2);
+                        finish.run();
+                    }
+                    default -> stop(poller);
+                }
+            } catch (Throwable e) {
+                failure.compareAndSet(null, "Resume after restart failed: " + e);
                 phase.set(99);
                 finish.run();
             }

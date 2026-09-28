@@ -100,6 +100,7 @@ public class KorTTYApplication extends Application {
     private SSHKeyManager sshKeyManager;
     private SnippetManager snippetManager;
     private de.kortty.core.SnippetAnalysisStore snippetAnalysisStore;
+    private de.kortty.core.SnippetDraftStore snippetDraftStore;
     private SnippetVariableManager snippetVariableManager;
     private GlobalSettingsManager globalSettingsManager;
     private ThemeManager themeManager;
@@ -233,6 +234,10 @@ public class KorTTYApplication extends Application {
         snippetAnalysisStore.attachTo(snippetManager);
         snippetAnalysisStore.warnOnMutationsOffFxThread();
         de.kortty.core.SnippetAnalysisStore.installApplicationStore(snippetAnalysisStore);
+        // Unsaved editor drafts (crash protection); not part of the backup, read lazily per editor.
+        snippetDraftStore = new de.kortty.core.SnippetDraftStore(
+            configDir.resolve(de.kortty.core.SnippetDraftStore.DIRECTORY_NAME));
+        de.kortty.core.SnippetDraftStore.installApplicationStore(snippetDraftStore);
         powerManagementCoordinator = PowerManagementCoordinator.createDefault();
         themeManager = new ThemeManager(configDir);
         terminalEffectPluginManager = new TerminalEffectPluginManager(configDir);
@@ -734,6 +739,9 @@ public class KorTTYApplication extends Application {
             // halt(0) skips shutdown hooks, so the queued writes must land here.
             shutdownStep("flush snippet analyses",
                 () -> snippetAnalysisStore.flush(Duration.ofSeconds(2)));
+        }
+        if (snippetDraftStore != null) {
+            shutdownStep("flush snippet drafts", () -> snippetDraftStore.flush(2_000));
         }
         if (snippetVariableManager != null) {
             shutdownStep("save snippet variables", snippetVariableManager::save);
