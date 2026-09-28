@@ -69,4 +69,4 @@ Der Wächter nutzt die eigenen integrierten Funktionen und Standardbibliotheken 
 
 ## Verwaltung der Auswahl
 
-Unterhalb der Unteroptionen aktivieren oder deaktivieren **Alle** und **Löschen** jede Unteroption, und **Speichern** speichert den Master-Schalter, den Unteroptionssatz und die Größenbeschränkung als Ihre Standardeinstellungen – jedes Eingabe-Härtungsfeld wird dann mit dieser Auswahl geöffnet. Der Paneltitel im Fenster „Vollständige Codeanalyse“ zeigt eine Live-Anzahl der tatsächlich aktiven Unteroptionen an, die `0` beträgt, wenn der Hauptschalter ausgeschaltet ist.
+Unterhalb der Unteroptionen markieren **Alle** und **Keine** jede Unteroption bzw. entfernen sie die Markierung, und **Speichern** merkt sich den Hauptschalter, das Unteroptions-Set und die Größenbeschränkung als Ihre Vorgabe – jedes Eingabe-Härtung-Panel öffnet sich dann mit dieser Auswahl. Der Panel-Titel im Vollständige Code-Analyse-Panel zeigt eine live **Anzahl** der tatsächlich aktiven Unteroptionen, die `0` beträgt, während der Hauptschalter ausgeschaltet ist.

@@ -9,6 +9,24 @@
       "note": "U+200B zero-width space. Google MT drops (usually doubled) zero-width spaces into German prose; strip them first so a hidden character can never sit inside a later row's match."
     },
     {
+      "from": "Snippet Manager",
+      "to": "Snippet-Manager",
+      "scope": "markdown",
+      "note": "The guide names the tool Snippet-Manager (page title, headings) even though its window says snippets.title=Snippet-Verwaltung; keeps LLM output from mixing both names on one page. Also given to LLM translators as a required term."
+    },
+    {
+      "from": "Editor-Tabse",
+      "to": "Editor-Tabs",
+      "scope": "markdown",
+      "note": "LLM plural typo of Tab."
+    },
+    {
+      "from": "Editor-Tab-Reiter",
+      "to": "Editor-Tabs",
+      "scope": "markdown",
+      "note": "LLM doubles Tab and Reiter."
+    },
+    {
       "from": "**KI-Verarbeitungsfenster**",
       "to": "Fenster **KI-Verarbeitung**",
       "scope": "markdown",
@@ -1562,6 +1580,180 @@
       "to": "KI-Vervollständigungsanfrage",
       "scope": "markdown",
       "note": "The page says KI everywhere else, and a request is an Anfrage."
+    },
+    {
+      "from": "ein Editor-Tabs pro",
+      "to": "ein Editor-Tab pro",
+      "scope": "markdown",
+      "note": "LLM singular/plural slip after the Editor-Tabse fix."
+    },
+    {
+      "from": "ein Editor-Unsave-Formular",
+      "to": "das nicht gespeicherte Formular eines Editors",
+      "scope": "markdown",
+      "note": "LLM calque of \"an editor's unsaved form\"."
+    },
+    {
+      "from": "den Tab unspeichert",
+      "to": "den Tab als nicht gespeichert markiert",
+      "scope": "markdown",
+      "note": "LLM invented verb for \"leaves the tab unsaved\"."
+    },
+    {
+      "from": "unspeicherten",
+      "to": "nicht gespeicherten",
+      "scope": "markdown",
+      "note": "LLM invented adjective for \"unsaved\"."
+    },
+    {
+      "from": "Gespeicherte Full code analyses",
+      "to": "Gespeicherte vollständige Code-Analysen",
+      "scope": "markdown",
+      "note": "Backup page: UI term Vollständige Code-Analyse left in English. Anchored on the German adjective so the row can never touch the English comments in config-files code blocks."
+    },
+    {
+      "from": "Der gespeicherte [Vollständige Code-Analysen]",
+      "to": "Die gespeicherten [vollständigen Code-Analysen]",
+      "scope": "markdown",
+      "note": "Backup table row; LLM article/adjective agreement."
+    },
+    {
+      "from": "**■ Stop**",
+      "to": "**■ Stopp**",
+      "scope": "markdown",
+      "note": "UI label of the stop button in the snippet editor hint bar."
+    },
+    {
+      "from": "**↻ Retry**",
+      "to": "**↻ Erneut senden**",
+      "scope": "markdown",
+      "note": "UI label of the retry button in the snippet editor hint bar."
+    },
+    {
+      "from": "**↻ Wiederholen**",
+      "to": "**↻ Erneut senden**",
+      "scope": "markdown",
+      "note": "Same retry button; LLM paraphrase."
+    },
+    {
+      "from": "[Snippets senden an das Terminal]",
+      "to": "[Snippets an das Terminal senden]",
+      "scope": "markdown",
+      "note": "Word order of the translated heading link."
+    },
+    {
+      "from": "#### Script header",
+      "to": "#### Skript-Header",
+      "scope": "markdown",
+      "note": "UI term snippets.ai.analysis.report.apply.header=Skript-Header; the heading stayed English."
+    },
+    {
+      "from": "#### Hardening-Optionen",
+      "to": "#### Härtungsoptionen",
+      "scope": "markdown",
+      "note": "Canonical term ai.hardening.title=Härtungsoptionen."
+    },
+    {
+      "from": "Härtungs-Optionen",
+      "to": "Härtungsoptionen",
+      "scope": "markdown",
+      "note": "Canonical term ai.hardening.title=Härtungsoptionen."
+    },
+    {
+      "from": "Hardening-Panels",
+      "to": "Härtungs-Panels",
+      "scope": "markdown",
+      "note": "English leftover in the compound."
+    },
+    {
+      "from": "KI-Fähigkeiten",
+      "to": "KI-Skills",
+      "scope": "markdown",
+      "note": "Canonical product term snippets.ai.skills.picker.label; general form after the bold/heading rows above."
+    },
+    {
+      "from": "*(manual)*",
+      "to": "*(manuell)*",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.skills.manual."
+    },
+    {
+      "from": "*(automatisch ausgewählt)*",
+      "to": "*(automatisch)*",
+      "scope": "markdown",
+      "note": "UI label snippets.ai.analysis.skills.auto."
+    },
+    {
+      "from": "**AI Code →",
+      "to": "**KI-Code →",
+      "scope": "markdown",
+      "note": "Menu snippets.ai.code.menu=KI-Code."
+    },
+    {
+      "from": "Während ein Change auf",
+      "to": "Während eine Änderung auf",
+      "scope": "markdown",
+      "note": "LLM left 'change' untranslated."
+    },
+    {
+      "from": "Der Kontextmenü",
+      "to": "Das Kontextmenü",
+      "scope": "markdown",
+      "note": "Article agreement (das Kontextmenü)."
+    },
+    {
+      "from": "Die gespeicherten [vollständige Code-Analysen]",
+      "to": "Die gespeicherten [vollständigen Code-Analysen]",
+      "scope": "markdown",
+      "note": "Backup table row; adjective agreement after the article."
+    },
+    {
+      "from": "++ (list) |",
+      "to": "++ (Liste) |",
+      "scope": "markdown",
+      "note": "Keyboard-shortcut table: the focus context (list) stayed English."
+    },
+    {
+      "from": "| Manual | ++f1++ |",
+      "to": "| Anleitung | ++f1++ |",
+      "scope": "markdown",
+      "note": "Help menu row; menu.help.guide=Anleitung."
+    },
+    {
+      "from": "Gestagged anwenden",
+      "to": "Gestaffelt anwenden",
+      "scope": "markdown",
+      "note": "LLM calque of 'staged apply'."
+    },
+    {
+      "from": "[AI chats]",
+      "to": "[KI-Chats]",
+      "scope": "markdown",
+      "note": "Link text left in English; established term KI-Chats. Also given to LLM translators as a required term."
+    },
+    {
+      "from": "| number |",
+      "to": "| Nummer |",
+      "scope": "markdown",
+      "note": "Settings-table type column; the other settings pages say Nummer."
+    },
+    {
+      "from": "Diagrammm",
+      "to": "Diagramm",
+      "scope": "markdown",
+      "note": "LLM compound typo (Diagrammmknoten, Diagrammmanfrage)."
+    },
+    {
+      "from": "[pro-connection Terminalprotokolle]",
+      "to": "[Terminalprotokolle pro Verbindung]",
+      "scope": "markdown",
+      "note": "Link text with an English leftover; the terminal page calls them Terminalprotokolle pro Verbindung."
+    },
+    {
+      "from": "**Verwendung:** Eine Datei",
+      "to": "**Zweck:** Eine Datei",
+      "scope": "markdown",
+      "note": "config-files labels every entry **Zweck:** (Purpose)."
     }
   ]
 }

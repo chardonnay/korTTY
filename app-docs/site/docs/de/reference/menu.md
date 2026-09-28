@@ -1,6 +1,6 @@
 # Menüreferenz
 
-Every item in korTTY's menu bar, with its shortcut (where defined) and what it does. The menu bar can be hidden with ++ctrl+shift+l++ and shown again by right-clicking the terminal or status bar.
+Jedes Element in der Menüleiste von korTTY, mit seiner Tastenkombination (falls definiert) und ihrer Funktion. Die Menüleiste kann mit ++ctrl+shift+l++ ausgeblendet und wieder angezeigt werden, indem Sie mit der rechten Maustaste auf das Terminal oder die Statusleiste klicken.
 
 ## Datei
 
@@ -17,7 +17,7 @@ Every item in korTTY's menu bar, with its shortcut (where defined) and what it d
 | Sicherung importieren… | | Wiederherstellung aus einer Sicherungsdatei |
 | Aufhören | ++ctrl+q++ | Beenden Sie korTTY |
 
-Verbindungseinträge (Schnellverbindung, Verbindungen verwalten/importieren/exportieren) befinden sich im Menü [Connections](#verbindungen).
+Verbindungs-Einträge (Schnellverbindung, Verbindungen verwalten/importieren/exportieren) befinden sich im [Verbindungen](#verbindungen)-Menü.
 
 ## Bearbeiten
 
@@ -61,16 +61,16 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 
 | Artikel | Beschreibung |
 | --- | --- |
-| Snippet Manager… | Erstellen, Bearbeiten, Organisieren, Senden und Exportieren von Befehlsausschnitten |
+| Snippet-Manager… | Erstellen, bearbeiten, organisieren, senden und exportieren Sie Befehls-Snippets in einem Arbeitsbereich: die Bibliothek und die Snippets, die Sie als Tabs bearbeiten, jeweils mit ihrer gespeicherten Vollständigen Code-Analyse |
 | JobScheduler… | Hintergrundbefehl/Snippet/AI-Agent/AI-Swarm/SFTP/Rsync-Jobs planen |
 | Videomanager… | Verwalten Sie Terminalaufzeichnungen und exportieren Sie sie über WebM/MKV `ffmpeg` |
 | Terminalaufzeichnung starten/stoppen | Aufzeichnung des aktiven Terminals umschalten (++ctrl+shift+e++) |
 | Sitzungsjournale… | Manage [session journals](../features/session-journal.md): Suchen, Öffnen, Umbenennen, Beschreiben, Exportieren und Löschen sowie Festlegen der Journaloptionen (++ctrl+alt+j++) |
 | Sitzungsjournal starten/stoppen | Toggle the session journal of the active terminal tab; starting mid-session imports the existing scrollback (++ctrl+alt+t++) |
-| Add Journal Screenshot | Snapshot the active terminal into its running session journal (++ctrl+alt+c++) |
-| ASCII Art… | Two tabs in one dialog: **Text Banner** renders text as a FIGlet banner in multiple font styles, **AI Picture** lets an AI profile draw a subject as ASCII art |
+| Journal-Screenshot hinzufügen | Erstellen Sie einen Schnappschuss des aktiven Terminals in das laufende Sitzungsjournal (++ctrl+alt+c++) |
+| ASCII-Art… | Zwei Tabs in einem Dialog: **Text-Banner** rendert Text als FIGlet-Banner in mehreren Schriftstilen, **KI-Bild** lässt ein KI-Profil ein Thema als ASCII-Art zeichnen |
 
-The three session-journal items stay visible but are disabled when an [enterprise policy](../features/session-journal.md#unternehmensrichtlinie) denies the session-journal feature.
+Die drei Session-Journal-Elemente bleiben sichtbar, werden jedoch deaktiviert, wenn eine [Unternehmensrichtlinie](../features/session-journal.md#unternehmensrichtlinie) die Session-Journal-Funktion verweigert.
 
 ## AI
 
@@ -79,7 +79,7 @@ The three session-journal items stay visible but are disabled when an [enterpris
 | Artikel | Beschreibung |
 | --- | --- |
 | KI-Manager… | Manage AI profiles, integrated GGUF models, RAG knowledge stores, the AI Skills library, and Text/Coding roles |
-| Saved Chats… | Open the saved AI chat conversations directly in their own window; invoking it again brings the existing window to the front |
+| Gespeicherte Chats… | Öffnen Sie die gespeicherten KI-Chatgespräche direkt in ihrem eigenen Fenster; ein erneutes Aufrufen bringt das vorhandene Fenster nach vorne |
 | AI Agent… | Öffnen Sie den Terminal AI Agent |
 | KI-Planung… | Öffnen Sie den KI-Planungsworkflow |
 | KI-Schwarm… | Senden Sie eine KI-Aufgabe an viele Server und vergleichen Sie die Antworten (++ctrl+alt+s++) |
@@ -111,9 +111,9 @@ The three session-journal items stay visible but are disabled when an [enterpris
 | Nur Terminal-Vollbild | ++ctrl+shift+f++ | Zeigt das gesamte korTTY-Fenster an – einschließlich Menüs, Registerkarten und Statusleiste – in der vorherigen Fenstergröße und zentriert auf einem leeren Vollbildhintergrund, wodurch der Desktop und andere Fenster ausgeblendet werden |
 | Terminal-Bildlaufleisten im Vollbildmodus ausblenden | | Bildlaufleisten auch im Vollbildmodus ausblenden |
 | AI-Agent-Panel ▸ Unten / Links andocken / Rechts andocken | | Wählen Sie, wo sich das AI-Agent-Aktivitätspanel befindet |
-| Live Journal ▸ Links andocken / Rechts andocken | | Docken Sie an [Live-Journal-Panel](../features/session-journal.md#das-live-journal-panel) neben dem Terminal; Wenn Sie die aktive Seite auswählen, wird sie ausgeblendet |
-| Live Journal ▸ Show/Hide | ++ctrl+alt+l++ | Toggle the live journal panel on its last-used side (right by default) |
-| Coding-Agents ▸ Links andocken / Rechts andocken | | Docken Sie das [Coding-Agents-Panel](../features/coding-agents.md#das-coding-agents-panel) neben dem Terminal an; die Auswahl der aktiven Seite blendet es aus |
+| Live-Journal ▸ Links andocken / Rechts andocken | | Docken Sie das [Live-Journal-Bereich](../features/session-journal.md#das-live-journal-panel) neben dem Terminal; die Auswahl der aktiven Seite versteckt es. |
+| Live-Journal ▸ Anzeigen/Ausblenden | ++ctrl+alt+l++ | Schalten Sie das Live-Journal-Panel auf seiner zuletzt verwendeten Seite (standardmäßig rechts) |
+| Coding-Agents ▸ Links andocken / Rechts andocken | | Andocken Sie das [Coding-Agents-Panel](../features/coding-agents.md#das-coding-agents-panel) neben dem Terminal; die Auswahl der aktiven Seite blendet es aus. |
 | Coding-Agents ▸ Ein-/Ausblenden | ++ctrl+alt+g++ | Blenden Sie das Coding-Agents-Panel auf seiner zuletzt verwendeten Seite ein oder aus (standardmäßig rechts) |
 | Coding-Agents ▸ Nächster wartender Agent | ++ctrl+alt+n++ | Holen Sie den nächsten Coding-Agent, der auf eine Entscheidung wartet, über Fenster hinweg nach vorne |
 
@@ -127,10 +127,10 @@ The three session-journal items stay visible but are disabled when an [enterpris
 
 | Element | Verknüpfung | Beschreibung |
 | --- | --- | --- |
-| Manual | ++f1++ | Open this documentation inside korTTY |
+| Anleitung | ++f1++ | Öffnen Sie diese Dokumentation innerhalb von korTTY |
 | Über korTTY | | Versions- und Projektinformationen |
 
-The manual has its own text-size buttons at the top left of its window: `A-`, der aktuelle Prozentsatz und `A+`. Durch Klicken auf den Prozentsatz wird dieser zurückgesetzt. Für die gleichen drei Aktionen gibt es Tastaturkürzel: ++cmd+plus++, ++cmd+minus++, ++cmd+0++. korTTY remembers the size, and the size covers the whole window — the page and, when it is open, the AI search panel beside it. See [Textgröße der Anleitung](settings/appearance.md#textgroe-der-anleitung).
+Die Anleitung verfügt über eigene Textgrößen-Schaltflächen oben links im Fenster: `A-`, der aktuelle Prozentsatz, und `A+`. Durch Anklicken des Prozentsatzes wird er zurückgesetzt. Die gleichen drei Aktionen haben Tastenkombinationen: ++cmd+plus++, ++cmd+minus++, ++cmd+0++. korTTY merkt sich die Größe, und die Größe deckt das gesamte Fenster ab – die Seite und, wenn sie geöffnet ist, das KI-Suche-Panel daneben. Siehe [Textgröße der Anleitung](settings/appearance.md#textgroe-der-anleitung).
 
 Screenshots und Diagramme werden durch Klicken vergrößert: Das Bild wird über der Seite in der größtmöglichen Größe geöffnet, die das Fenster zulässt, mit den Schaltflächen **−** / ***+** und einem Prozentsatz, der es auf die angepasste Größe zurücksetzt. Zoomen Sie weiter, um eine einzelne Einstellungszeile zu lesen, ziehen Sie das Bild zum Schwenken und schließen Sie es mit *×**, ++esc++ oder einem Klick neben dem Bild. ++ctrl++ und der Radzoom ebenfalls. Dasselbe funktioniert auch im Online-Ratgeber.
 

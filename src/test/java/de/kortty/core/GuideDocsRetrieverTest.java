@@ -47,7 +47,9 @@ class GuideDocsRetrieverTest {
     void offTopicQuestionRetrievesNothing() {
         GuideDocsRetriever.RetrievalResult result = GuideDocsRetriever.retrieve(
             GuideSearchIndex.load("de"), GuideSearchIndex.load("en"),
-            "Wie backe ich einen Kuchen mit Schokolade?", BUDGET, MAX_EXCERPTS);
+            // Not "backe": its 5-char prefix legitimately hits "backed up" in the directory
+            // listing of config-files, whose code block is English on the German page too.
+            "Wie koche ich eine Suppe mit Tomaten?", BUDGET, MAX_EXCERPTS);
         assertWithMessage("off-topic top score below confidence threshold; got "
             + describe(result))
             .that(result.topScore()).isLessThan(GuideDocsRetriever.MIN_CONFIDENT_SCORE);

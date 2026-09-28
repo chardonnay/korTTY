@@ -18,7 +18,7 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++ctrl+q++ | Aufhören |
 | ++ctrl+x++ | Ausschneiden (deaktiviert für Anschlusslaschen) |
 | ++ctrl+c++ | Kopie |
-| ++ctrl+v++ | Paste |
+| ++ctrl+v++ | Einfügen |
 | ++ctrl+f++ | Suchen Sie im aktiven Tab |
 | ++ctrl+k++ | Schnellverbindung |
 | ++ctrl+m++ | Verbindungen verwalten |
@@ -56,9 +56,30 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++f12++ | Vollbild umschalten |
 | ++ctrl+shift+f++ | Schalten Sie den Nur-Terminal-Vollbildmodus um |
 
+Die Zoom-Tasten (++ctrl++ oder ++alt++ mit ++plus++ / ++minus++ / ++0++; ++cmd++ auf macOS) vergrößern das Terminal nur, wenn ein Terminal-Tab ausgewählt ist. In einem Snippet-Editor oder Dateieditor-Tab erreichen sie den Editor, und ++alt-graph+plus++ tippt dort sein Zeichen.
+
+## Snippet-Manager
+
+Diese Tasten funktionieren im Snippet-Manager (Bibliothek und Editor-Tabs); Siehe [Öffnen des Snippet-Managers](../features/snippets.md#offnen-des-snippet-managers).
+
+| Verknüpfung | Aktion |
+| --- | --- |
+| ++ctrl+shift+s++ | Öffnen Sie den Snippet-Manager oder fokussieren Sie sein Suchfeld, wenn er bereits geöffnet ist |
+| ++up++ / ++down++ (Liste) | Durchsuchen: zeigen Sie das ausgewählte Snippet im schreibgeschützten Vorschau-Tab an |
+| ++enter++ (Liste) | Öffnen Sie das ausgewählte Snippet in einem Editor-Tab |
+| Tippen (Vorschau-Tab) | Öffnen Sie das Vorschau-Snippet in einem Editor-Tab; der getippte Charakter bleibt erhalten |
+| ++ctrl+s++ | Speichern Sie den aktiven Editor-Tab (auch in einem eigenständigen Snippet-Editor-Fenster) |
+| ++ctrl+w++ | Schließen Sie den aktiven Editor-Tab (fragt nach nicht gespeicherten Änderungen) |
+| ++ctrl+b++ | Verbergen oder anzeigen Sie die Bibliothek, sodass die Editor-Tabs die volle Breite erhalten |
+| ++ctrl+p++ | Schnell öffnen: ein Snippet anhand eines Teils seines Namens oder eines Tags finden und in einem Editor-Tab öffnen (++up++ / ++down++ wählen, ++enter++ öffnet, ++esc++ schließt) |
+| ++esc++ (Suchfeld) | Die Suche löschen; ++esc++ schließt den Snippet-Manager nie |
+| ++down++ (Suchfeld) | Zum Snippet-Listenfenster wechseln (wählt das erste Snippet, wenn keines ausgewählt ist) |
+
+Wenn der Fokus auf dem eigenen Tab-Header des Snippet-Managers im Hauptfenster (Tab-Modus) liegt, ++ctrl+s++ speichert das Projekt weiterhin, und ++ctrl+w++ schließt den Snippet-Manager-Tab nach einer Nachfrage zu nicht gespeicherten Änderungen.
+
 ## Snippet-Editor
 
-Diese Schlüssel funktionieren im Codefeld des Snippet-Editors. siehe [AI Codevervollständigungen](../features/snippets.md#ai-codevervollstandigungen).
+Diese Tasten funktionieren im Codefeld des Snippet-Editors; Siehe [KI-Code-Vervollständigungen](../features/snippets.md#ai-codevervollstandigungen).
 
 | Verknüpfung | Aktion |
 | --- | --- |
@@ -67,10 +88,24 @@ Diese Schlüssel funktionieren im Codefeld des Snippet-Editors. siehe [AI Codeve
 | ++up++ / ++down++ (Liste offen) | Verschieben Sie die Auswahl. Durch die Eingabe wird die Liste gefiltert |
 | ++tab++ oder ++enter++ (Liste offen) | Den ausgewählten Eintrag einfügen |
 | ++esc++ | Schließen Sie die Liste oder verwerfen Sie Geistertext |
+| ++esc++ (eine KI-Anfrage läuft) | Stoppen Sie die laufende KI-Anfrage dieses Editors — eine KI-Code-Aktion, die Vollständige Code-Analyse oder deren Anwendung, ein Diagramm; funktioniert im gesamten Editor und seinem Analysefenster, schließt den Editor nie (Siehe [Anhalten und erneutes Ausführen von KI-Anfragen](../features/snippets.md#stoppen-und-erneutes-ausfuhren-von-ki-anfragen)) |
 | ++tab++ (Geistertext sichtbar) | Akzeptieren Sie den Geistertext |
 | ++alt+bracket-right++ / ++alt+bracket-left++ (Geistertext sichtbar) | Nächster/vorheriger Ghosttext-Kandidat (physisch `]` Und `[` Tasten eines US-Layouts) |
 | ++tab++ (in einer eingefügten Redewendungsvorlage) | Zum nächsten Platzhalter springen |
 | ++shift+tab++ (an jedem anderen Ort oder wenn eine andere Kombination konfiguriert ist) | Die Zeile wie zuvor einrücken |
+| ++ctrl+enter++ (Änderungsüberprüfung angezeigt) | **Übernehmen & anwenden** die geprüfte KI-Änderung (siehe [Überprüfung einer KI-Änderung](../features/snippets.md#uberprufung-einer-ki-anderung)); ++esc++ tut dort nichts |
+| ++ctrl+plus++ / ++ctrl+minus++ (gezeigte Änderungsüberprüfung) | Zoomen Sie die Schriftgröße des Code-Reviews |
+
+## Diagramm-Zoomfenster
+
+Diese Tasten funktionieren im Zoomfenster des Vollständigen Code-Analyse-Flussdiagramms; Siehe [Vollständige Code-Analyse](../features/snippets.md#vollstandige-code-analyse).
+
+| Verknüpfung | Aktion |
+| --- | --- |
+| ++ctrl+plus++ / ++ctrl+minus++ | Zoomen ein / aus |
+| ++ctrl+0++ | Diagramm in das Fenster einpassen |
+| ++ctrl+1++ | Diagramm bei 100 % anzeigen |
+| ++ctrl++ + Mausrad | Zoom (++cmd++ + Mausrad auf macOS) |
 
 ## Terminal-KI-Agent
 

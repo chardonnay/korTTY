@@ -2,7 +2,7 @@
 <html lang="de" data-bs-theme="dark">
 
 <head>
-        <title>Main window overview - korTTY Anleitung</title>
+        <title>Übersicht des Hauptfensters - korTTY Anleitung</title>
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -106,7 +106,7 @@
         <a href="main-window.html"
             class=" active 
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            Main window overview
+            Übersicht des Hauptfensters
         </a>
     </li>
                     </ul>
@@ -248,7 +248,7 @@
         <a href="../reference/settings/export.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            Export
+            Exportieren
         </a>
     </li>
                     
@@ -757,7 +757,7 @@
             <!-- block content -->
                 <section class="p-md-5 section-content">
     <article>
-        <p><h1 id="main-window-overview">Main window overview<a class="headerlink" href="#main-window-overview" title="Permanent link">&para;</a></h1>
+        <p><h1 id="ubersicht-des-hauptfensters">Übersicht des Hauptfensters<a class="headerlink" href="#ubersicht-des-hauptfensters" title="Permanent link">&para;</a></h1>
 <p><img alt="korTTY main window" src="../assets/screenshots/main/main-window.png" /></p>
 <p><img alt="Main window layout" src="../assets/diagrams/mainwindow-layout.svg" /></p>
 <p>Ein neues korTTY-Fenster: die Menüleiste, der Terminalbereich (in dem Sitzungsregisterkarten und das optionale Dashboard angezeigt werden, sobald Sie eine Verbindung hergestellt haben) und die Statusleiste. Das folgende Diagramm bildet dieselben Regionen ab:</p>
@@ -765,12 +765,12 @@
 <p>Das Hauptfenster von korTTY hat diese Bereiche:</p>
 <ul>
 <li><strong>Menüleiste</strong> – Datei · Bearbeiten · Verbindungen · Konfiguration · Tools · KI · Teamwork · Plugins · Anzeigen · Hilfe. Alle Funktionen sind hier und über erreichbar <a href="../reference/keyboard-shortcuts.html">Tastaturkürzel</a>. Ein Live-Menü <strong>JobScheduler-Status</strong> erscheint nach <em>Hilfe</em>, wenn ein geplanter Eintrag aktiv ist. Während a <a href="../reference/settings/translation.html">Übersetzung des Reiseführers</a> Wenn ausgeführt wird, befindet sich am rechten Ende der Menüleistenzeile eine Fortschrittsanzeige (Balken, Prozentsatz und geschätzte verbleibende Zeit) und bleibt auch dann sichtbar, wenn die Menüleiste selbst ausgeblendet ist.</li>
-<li><strong>Tab-Leiste</strong> – jede SSH/Mosh-Sitzung wird in einem eigenen Tab ausgeführt. <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-t">T</kbd></span> öffnet die Schnellverbindung für eine neue Registerkarte; <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> Tabs wechseln. Wenn <strong>Toolfenster als Registerkarten öffnen</strong> aktiviert ist (<a href="../reference/settings/window.html">Fenstereinstellungen</a>), werden Verwaltungstools wie Snippets, der JobScheduler oder der KI-Manager auch hier als Registerkarten geöffnet – in dem Fenster, dessen Menü Sie verwendet haben – statt als separate Fenster.</li>
+<li><strong>Tab-Leiste</strong> — jede SSH/Mosh-Sitzung läuft in ihrem eigenen Tab. <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-t">T</kbd></span> öffnet Schnellverbindung für einen neuen Tab; <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> wechseln Tabs. Mit aktivierter <strong>Tool-Fenster als Tabs öffnen</strong> (<a href="../reference/settings/window.html">Fenster-Einstellungen</a>) werden Verwaltungstools wie Snippets, der JobScheduler oder der KI-Manager ebenfalls als Tabs in dem Fenster geöffnet, dessen Menü Sie benutzt haben — anstatt separate Fenster zu öffnen. Der <a href="../features/snippets.html">Snippet-Manager</a> speichert die von Ihnen bearbeiteten Snippets als eigene Tabs innerhalb seines eigenen Tabs.</li>
 <li><strong>Dashboard</strong> (umschalten <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-d">D</kbd></span>) – ein Seitenbereich, der jede offene Verbindung mit Statuspunkten, Protokollabzeichen und KI-Agent-Abzeichen auflistet. Siehe <a href="#dashboard">Armaturenbrett</a> unten.</li>
 <li><strong>Dateibrowser</strong> (<strong>Ansicht → Dateibrowser ▸ Links anzeigen / Rechts anzeigen</strong>) – ein andockbarer lokaler Dateimanager mit Navigationssymbolleiste, Pfadleiste, Filter, Typsymbolen und einem Ordner-/Datei-/Auswahlzähler. Beim nächsten Start werden Seite, Breite, Status der versteckten Datei und letztes Verzeichnis wiederhergestellt. Siehe <a href="../features/file-browser.html">Dateibrowser</a>.</li>
-<li><strong>Live-Journal-Panel</strong> (<strong>Ansicht → Live-Journal</strong>, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-l">L</kbd></span>) – Die aktive Registerkarte wird ausgeführt <a href="../features/session-journal.html#das-live-journal-panel">Sitzungsjournal</a> als vollständige Journalseite, angedockt und in Echtzeit aktualisiert; Seite und Breite werden beim nächsten Start wiederhergestellt.</li>
-<li><strong>Terminal area</strong> — the active terminal, with optional split-screen and broadcast input.</li>
-<li><strong>Status bar</strong> — connection state, host/IP, active protocol, temporary SSH-key timer and connection duration.</li>
+<li><strong>Live-Journal-Panel</strong> (<strong>Ansehen → Live-Journal</strong>, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-l">L</kbd></span>) — das laufende <a href="../features/session-journal.html#das-live-journal-panel">Sitzungsjournal</a> des aktiven Tabs als seine vollständige Journalseite, angedockt und in Echtzeit aktualisiert; Seiten- und Breitenposition werden beim nächsten Start wiederhergestellt.</li>
+<li><strong>Terminalbereich</strong> — das aktive Terminal, mit optionaler geteilten Ansicht und Broadcast-Eingabe.</li>
+<li><strong>Statusleiste</strong> — Verbindungsstatus, Host/IP, aktives Protokoll, temporärer SSH-Schlüssel-Timer und Verbindungsdauer.</li>
 </ul>
 <div class="admonition tip">
 <p class="admonition-title">Nur Terminal-Vollbild</p>
@@ -778,7 +778,7 @@
 </div>
 <h2 id="dashboard">Dashboard<a class="headerlink" href="#dashboard" title="Permanent link">&para;</a></h2>
 <p>Schalten Sie das Dashboard mit <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-d">D</kbd></span> oder <strong>Ansicht → Dashboard anzeigen</strong> um. Es wird auf der linken Seite eingeschoben, passt seine Breite an den längsten Eintrag an und folgt den Farben des aktiven App-Designs.</p>
-<p>The header shows the panel title with two buttons: a collapse/expand toggle (collapses everything while any node is open, expands everything otherwise) and a refresh button. Below it, connections are organized as a tree:</p>
+<p>Die Kopfzeile zeigt den Paneltitel mit zwei Schaltflächen: ein Auf-/Zuklapp-Schalter (klappt alles zu, solange ein Knoten geöffnet ist, andernfalls klappt alles auf) und eine Aktualisierungs-Schaltfläche. Darunter werden die Verbindungen als Baum organisiert:</p>
 <ul>
 <li><strong>Hauptfenster</strong> – der Stammknoten mit einer aktiven/Gesamtsitzungsanzahl.</li>
 <li><strong>Umgebungen</strong> – Verbindungen, deren gespeicherte Anmeldeinformationen eine Umgebung haben (z. B. <em>Produktion</em> oder <em>Test</em>), werden unter einem Umgebungsknoten geclustert; Anschlüsse ohne einen befinden sich direkt unter dem Hauptfenster.</li>

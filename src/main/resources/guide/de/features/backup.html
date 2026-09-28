@@ -106,7 +106,7 @@
         <a href="../getting-started/main-window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            Main window overview
+            Übersicht des Hauptfensters
         </a>
     </li>
                     </ul>
@@ -248,7 +248,7 @@
         <a href="../reference/settings/export.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            Export
+            Exportieren
         </a>
     </li>
                     
@@ -763,7 +763,7 @@
 <h2 id="eigenschaften">Eigenschaften<a class="headerlink" href="#eigenschaften" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Verschlüsselte Backups</strong> – Alle Backups werden entweder mit passwortgeschützter ZIP- oder GPG-Verschlüsselung verschlüsselt</li>
-<li><strong>Konfigurationssicherung</strong> – Enthält Verbindungen, Anmeldeinformationen, SSH/GPG-Schlüssel, vertrauenswürdige interaktive SSH-Hostschlüssel, globale Einstellungen, JobScheduler-Konfiguration, Snippets, AI-Chat-Verlauf, lokale Modellregistrierungen und Wissensspeicher-Quellenmetadaten</li>
+<li><strong>Konfigurations-Backup</strong> — Enthält Verbindungen, Anmeldedaten, SSH/GPG-Schlüssel, vertrauenswürdige interaktive SSH-Hostschlüssel, globale Einstellungen, JobScheduler-Konfiguration, Snippets und deren gespeicherte Codeanalysen, KI-Chatverlauf, lokale Modellregistrierungen sowie Metadaten der Wissensspeicher-Quelle</li>
 <li><strong>Regenerierbare lokale KI-Daten ausgeschlossen</strong> – GGUF-Gewichte, native llama.cpp-Laufzeiten, signierter Katalog-Cache, temporäre Sidecar-Dateien und HNSW-Snapshots werden absichtlich nicht in das Archiv kopiert</li>
 <li><strong>Projektverzeichnis</strong> – Alle gespeicherten Projektarbeitsbereiche sind in der Sicherung enthalten</li>
 <li><strong>Automatische Rotation</strong> – Alte Backups werden automatisch mit Zeitstempeln in ein <code>old-backups</code>-Unterverzeichnis verschoben</li>
@@ -822,6 +822,10 @@
 <tr>
 <td>Snippet-Variablen</td>
 <td>Benutzerdefinierte Variablen für die Snippet-Ersetzung</td>
+</tr>
+<tr>
+<td>Snippet-Analysen</td>
+<td>Die gespeicherten Vollcodeanalysen<a href="snippets.html#vollstandige-code-analyse"> jedes Snippets, mit ihren Anwendungsdurchläufen und Diagrammen</a></td>
 </tr>
 <tr>
 <td>KI-Chats</td>
@@ -892,6 +896,7 @@
 <li><code>job-scheduler.xml</code> – JobScheduler-Jobs, Host-Key-Pins, verschlüsselte Sudo-Passwörter</li>
 <li><code>snippets.xml</code> – Codeausschnitte und Vorlagen</li>
 <li><code>snippet-variables.xml</code> – Benutzerdefinierte Snippet-Variablen</li>
+<li><code>snippet-analyses/</code> — Gespeicherte Vollcodeanalysen, eine Datei pro Snippet. Ein Import verschmilzt sie: Analysen, die nur lokal existieren, bleiben erhalten; fehlende werden hinzugefügt, und mit <strong>Überschreiben</strong> wird eine lokale Datei nur ersetzt, wenn die Kopie aus dem Backup neuer ist. Nicht gespeicherte Snippet-Entwürfe (<code>snippet-drafts/</code>) sind nicht enthalten</li>
 <li><code>ai-chats.xml</code> – Gespeicherte KI-Gespräche</li>
 <li><code>master.key</code> – Hash Ihres Master-Passworts (zur Überprüfung beim Import)</li>
 <li><code>llm/models.xml</code> – Lokale GGUF-Registrierungen und Laufzeiteinstellungen (Modellgewichte sind nicht enthalten)</li>
