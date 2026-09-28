@@ -1077,6 +1077,33 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void snippetWorkspaceOpenTabsPersist() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-snippet-workspace-tabs");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertThat(manager.getSettings().getSnippetWorkspaceOpenTabs()).isEmpty();
+            assertThat(manager.getSettings().getSnippetWorkspaceActiveTab()).isNull();
+
+            manager.getSettings().setSnippetWorkspaceOpenTabs(java.util.List.of("a", "b"));
+            manager.getSettings().setSnippetWorkspaceActiveTab("b");
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            assertThat(reloaded.getSettings().getSnippetWorkspaceOpenTabs()).containsExactly("a", "b").inOrder();
+            assertThat(reloaded.getSettings().getSnippetWorkspaceActiveTab()).isEqualTo("b");
+
+            reloaded.getSettings().setSnippetWorkspaceOpenTabs(null);
+            reloaded.getSettings().setSnippetWorkspaceActiveTab(" ");
+            assertThat(reloaded.getSettings().getSnippetWorkspaceOpenTabs()).isEmpty();
+            assertThat(reloaded.getSettings().getSnippetWorkspaceActiveTab()).isNull();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void snippetManagerPreviewDividerPositionDefaultClampAndPersist() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings-snippet-manager-preview");
         try {

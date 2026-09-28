@@ -71,6 +71,12 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
     private static final KeyCombination SAVE_SHORTCUT = new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN);
     private static final KeyCombination CLOSE_TAB_SHORTCUT = new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN);
     private static final KeyCombination TOGGLE_LIBRARY_SHORTCUT = new KeyCodeCombination(KeyCode.B, KeyCombination.SHORTCUT_DOWN);
+    /** Quick open; free in the main window (only Shortcut+Shift+P and Shortcut+Alt+P are taken there). */
+    static final KeyCombination QUICK_OPEN_SHORTCUT = new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN);
+    /** At most this many editor tabs are reopened from the last session (each is a Monaco editor). */
+    static final int MAX_RESTORED_TABS = 12;
+    /** The code keeps at least this width beside an opened analysis panel, else the library folds away. */
+    static final double MIN_EDITOR_WIDTH_BESIDE_PANEL = 640;
     private static final double MIN_WINDOW_WIDTH = 980;
     private static final double MIN_WINDOW_HEIGHT = 560;
 
@@ -94,6 +100,14 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
     /** The "unsaved new snippets" banner, while shown. */
     private Region orphanDraftBanner;
     private boolean orphanDraftsChecked;
+    private boolean sessionTabsRestored;
+    /** Set while the last session's tabs are reopened: tab changes then are not remembered. */
+    private boolean restoringTabs;
+    /** The library was folded away for an analysis panel (not by the user); it comes back with the panel. */
+    private boolean autoCollapsedLibrary;
+    private boolean autoTogglingLibrary;
+    private SnippetQuickOpenPopup quickOpen;
+    private final Button quickOpenButton = new Button("\u2315");
     /** Hides the library to give the editor the full width (focus mode); Shortcut+B. */
     private final ToggleButton libraryToggle = new ToggleButton("\u2630");
     /** The divider position to restore when the collapsed library comes back. */
@@ -108,6 +122,16 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
         @Override
         public void snippetPersisted(SnippetEditDialog editor, Snippet saved, boolean created) {
             onEditorSaved(editor, saved, created);
+        }
+
+        @Override
+        public void analysisPanelShown(SnippetEditDialog editor, double panelWidth) {
+            onAnalysisPanelShown(panelWidth);
+        }
+
+        @Override
+        public void analysisPanelHidden(SnippetEditDialog editor) {
+            onAnalysisPanelHidden();
         }
     };
     private boolean listenerRegistered;
@@ -136,11 +160,15 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
 
         editorTabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.ALL_TABS);
         editorTabPane.getStyleClass().add("snippet-workspace-tabs");
-        editorTabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> onTabSelected(newTab));
+        editorTabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+            onTabSelected(newTab);
+            rememberOpenTabs();
+        });
         editorTabPane.getTabs().addListener((javafx.collections.ListChangeListener<Tab>) change -> {
             updateEmptyState();
             updateActionBar();
             updateTitle();
+            rememberOpenTabs();
         });
 
         emptyLabel.setWrapText(true);
@@ -164,8 +192,17 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
         HBox.setHgrow(spacer, Priority.ALWAYS);
         libraryToggle.setSelected(true);
         libraryToggle.setTooltip(new Tooltip(I18n.get("snippets.workspace.toggleLibrary.tooltip")));
-        libraryToggle.selectedProperty().addListener((obs, was, visible) -> setLibraryVisible(visible));
-        HBox actionBar = new HBox(8, libraryToggle, saveButton, saveAsNewButton, closeTabButton, spacer, statusLabel);
+        libraryToggle.selectedProperty().addListener((obs, was, visible) -> {
+            if (!autoTogglingLibrary) {
+                autoCollapsedLibrary = false;
+            }
+            setLibraryVisible(visible);
+        });
+        quickOpenButton.setId("snippet-workspace-quick-open");
+        quickOpenButton.setTooltip(new Tooltip(I18n.get("snippets.workspace.quickOpen.tooltip")));
+        quickOpenButton.setOnAction(e -> showQuickOpen());
+        HBox actionBar = new HBox(8, libraryToggle, quickOpenButton, saveButton, saveAsNewButton, closeTabButton,
+            spacer, statusLabel);
         actionBar.setAlignment(Pos.CENTER_LEFT);
         actionBar.setPadding(new Insets(8, 10, 6, 10));
         actionBar.getStyleClass().add("snippet-workspace-action-bar");
@@ -225,6 +262,7 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
             subscribe();
             Platform.runLater(library::focusSearch);
             checkOrphanDrafts();
+            restoreSessionTabs();
         });
         addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> tearDown());
 
@@ -237,6 +275,7 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
         subscribe();
         Platform.runLater(library::focusSearch);
         checkOrphanDrafts();
+        restoreSessionTabs();
     }
 
     // ---- public / package API -------------------------------------------------------------
@@ -562,16 +601,18 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
         return tab.editor().saveFromHost();
     }
 
-    private void saveActiveEditorAsNew() {
+    void saveActiveEditorAsNew() {
         SnippetEditorTab tab = activeEditorTab();
         if (tab == null) {
             return;
         }
         int index = editorTabPane.getTabs().indexOf(tab);
+        String originalId = tab.snippetId();
         Snippet copy = tab.editor().saveAsNewFromHost();
         if (copy == null) {
             return;
         }
+        tab.editor().offerAnalysisCopy(originalId, copy);
         library.refresh(true);
         library.refreshCategoryFilter();
         // The copy took the edits; the original keeps its saved state and makes room for the copy.
@@ -625,6 +666,9 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
             } else if (TOGGLE_LIBRARY_SHORTCUT.match(event)) {
                 event.consume();
                 libraryToggle.setSelected(!libraryToggle.isSelected());
+            } else if (QUICK_OPEN_SHORTCUT.match(event)) {
+                event.consume();
+                showQuickOpen();
             } else if (CLOSE_TAB_SHORTCUT.match(event)) {
                 if (editorTabPane.getSelectionModel().getSelectedItem() != null) {
                     event.consume();
@@ -661,6 +705,175 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
         if (libraryToggle.isSelected() != visible) {
             libraryToggle.setSelected(visible);
         }
+    }
+
+    // ---- quick open ------------------------------------------------------------------------------
+
+    /** Shortcut+P: fuzzy search over snippet names and tags; the chosen one opens in an editor tab. */
+    void showQuickOpen() {
+        if (tornDown) {
+            return;
+        }
+        if (quickOpen == null) {
+            quickOpen = new SnippetQuickOpenPopup(
+                () -> new ArrayList<>(snippetManager.getAllSnippets()),
+                snippet -> {
+                    library.selectWithoutPreview(snippet.getId());
+                    openSnippet(snippet, null);
+                });
+        }
+        quickOpen.show(editorArea);
+    }
+
+    SnippetQuickOpenPopup quickOpenPopup() {
+        return quickOpen;
+    }
+
+    // ---- last session's tabs -----------------------------------------------------------------------
+
+    /**
+     * Reopens the editor tabs (and the active one) of the last session once per workspace, after the
+     * caller had the chance to open a snippet of its own (which then stays selected). Deleted,
+     * admin-managed and elsewhere-open snippets are skipped.
+     */
+    private void restoreSessionTabs() {
+        if (sessionTabsRestored || tornDown) {
+            return;
+        }
+        sessionTabsRestored = true;
+        GlobalSettings settings = currentSettings();
+        if (settings == null) {
+            return;
+        }
+        List<String> stored = List.copyOf(settings.getSnippetWorkspaceOpenTabs());
+        String active = settings.getSnippetWorkspaceActiveTab();
+        if (stored.isEmpty()) {
+            return;
+        }
+        Platform.runLater(() -> {
+            if (tornDown) {
+                return;
+            }
+            Tab selectedBefore = editorTabPane.getSelectionModel().getSelectedItem();
+            boolean callerOpenedSomething = !editorTabs().isEmpty();
+            List<String> ids = restorableTabIds(stored, id -> snippetManager.findById(id)
+                .filter(snippet -> !snippet.isPolicyManaged()).isPresent()
+                && findEditorTab(id).isEmpty() && !isOpenElsewhere(id), MAX_RESTORED_TABS);
+            restoringTabs = true;
+            try {
+                for (String id : ids) {
+                    snippetManager.findById(id).ifPresent(snippet -> pin(snippet, null, -1));
+                }
+                if (callerOpenedSomething && selectedBefore != null) {
+                    editorTabPane.getSelectionModel().select(selectedBefore);
+                } else if (active != null) {
+                    findEditorTab(active).ifPresent(tab -> editorTabPane.getSelectionModel().select(tab));
+                }
+            } finally {
+                restoringTabs = false;
+            }
+            rememberOpenTabs();
+        });
+    }
+
+    /** The stored ids that can be reopened: in order, without blanks and duplicates, at most {@code max}. */
+    static List<String> restorableTabIds(List<String> stored, java.util.function.Predicate<String> restorable, int max) {
+        List<String> ids = new ArrayList<>();
+        if (stored == null) {
+            return ids;
+        }
+        for (String id : stored) {
+            if (ids.size() >= max) {
+                break;
+            }
+            if (id != null && !id.isBlank() && !ids.contains(id) && restorable.test(id)) {
+                ids.add(id);
+            }
+        }
+        return ids;
+    }
+
+    /** Remembers the saved snippets open as editor tabs and the active one (not while tearing down). */
+    private void rememberOpenTabs() {
+        if (tornDown || restoringTabs) {
+            return;
+        }
+        GlobalSettings settings = currentSettings();
+        if (settings == null) {
+            return;
+        }
+        List<String> ids = new ArrayList<>();
+        for (SnippetEditorTab tab : editorTabs()) {
+            Snippet persisted = tab.editor().persistedSnippet();
+            if (persisted != null && persisted.getId() != null) {
+                ids.add(persisted.getId());
+            }
+        }
+        SnippetEditorTab active = activeEditorTab();
+        String activeId = active != null && active.editor().persistedSnippet() != null ? active.snippetId() : null;
+        if (ids.equals(settings.getSnippetWorkspaceOpenTabs())
+                && java.util.Objects.equals(activeId, settings.getSnippetWorkspaceActiveTab())) {
+            return;
+        }
+        settings.setSnippetWorkspaceOpenTabs(ids);
+        settings.setSnippetWorkspaceActiveTab(activeId);
+        try {
+            KorTTYApplication app = KorTTYApplication.getInstance();
+            if (app != null && app.getGlobalSettingsManager() != null) {
+                app.getGlobalSettingsManager().scheduleSave();
+            }
+        } catch (Exception e) {
+            logger.debug("Could not remember the snippet workspace tabs", e);
+        }
+    }
+
+    // ---- library and analysis panel ------------------------------------------------------------------
+
+    /** An editor opened its analysis panel: fold the library away when the code would get too narrow. */
+    private void onAnalysisPanelShown(double panelWidth) {
+        if (tornDown || !isLibraryVisible()) {
+            return;
+        }
+        if (shouldAutoCollapseLibrary(splitPane.getWidth(), library.getWidth(), panelWidth)) {
+            autoTogglingLibrary = true;
+            try {
+                setLibraryVisible(false);
+            } finally {
+                autoTogglingLibrary = false;
+            }
+            autoCollapsedLibrary = true;
+            setStatus(I18n.get("snippets.workspace.library.autoCollapsed"));
+        }
+    }
+
+    /** The panel closed again: a library folded away for it comes back (a manual toggle is kept). */
+    private void onAnalysisPanelHidden() {
+        if (tornDown || !autoCollapsedLibrary || isLibraryVisible()) {
+            return;
+        }
+        autoTogglingLibrary = true;
+        try {
+            setLibraryVisible(true);
+        } finally {
+            autoTogglingLibrary = false;
+        }
+        autoCollapsedLibrary = false;
+    }
+
+    /**
+     * Whether the library should fold away for an analysis panel {@code panelWidth} wide: the code
+     * would keep less than {@link #MIN_EDITOR_WIDTH_BESIDE_PANEL} next to library and panel.
+     * An unknown (not laid out) width never collapses anything.
+     */
+    static boolean shouldAutoCollapseLibrary(double workspaceWidth, double libraryWidth, double panelWidth) {
+        if (workspaceWidth <= 0 || libraryWidth <= 0 || panelWidth <= 0) {
+            return false;
+        }
+        return workspaceWidth - libraryWidth - panelWidth - 12 < MIN_EDITOR_WIDTH_BESIDE_PANEL;
+    }
+
+    boolean isLibraryAutoCollapsed() {
+        return autoCollapsedLibrary;
     }
 
     // ---- drafts of never-saved snippets -----------------------------------------------------------
@@ -807,6 +1020,9 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
             return;
         }
         tornDown = true;
+        if (quickOpen != null) {
+            quickOpen.hide();
+        }
         unsubscribe();
         persistDividerPosition();
         library.dispose();

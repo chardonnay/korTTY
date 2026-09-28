@@ -1522,8 +1522,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                     }
                     saveGeometry();
                     flushPendingHistory();
+                    Snippet copy = buildNewResultSnippet();
+                    offerAnalysisCopy(snippetId(), copy);
                     allowCloseWithoutUnsavedPrompt = true;
-                    setResult(buildNewResultSnippet());
+                    setResult(copy);
                     closeDialogOrHostTab();
                 });
             }
@@ -7418,10 +7420,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         HBox.setHgrow(panel, Priority.NEVER);
         analysisWorkbench.getChildren().addAll(analysisDivider, panel);
         widenWindowForAnalysisPanel(width);
+        if (embedding != null) {
+            embedding.analysisPanelShown(this, width);
+        }
     }
 
     private void hideAnalysisSidePanel() {
+        boolean shown = analysisWorkbench.getChildren().size() > 1;
         analysisWorkbench.getChildren().removeIf(child -> child != editorAreaStack);
+        if (shown && embedding != null && !editorClosed) {
+            embedding.analysisPanelHidden(this);
+        }
     }
 
     /** The drag handle between the editor area and the analysis panel; dragging sets the panel width. */
@@ -7768,6 +7777,59 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     }
 
     /** What {@link SnippetAnalysisController} sees of this editor. */
+    // ---- Save as new: take the analysis along ----
+
+    /** Test seam: answers "take the analysis along?" (gets the number of stored analyses); {@code null} asks. */
+    private static java.util.function.IntPredicate analysisCopyPrompter;
+
+    static void setAnalysisCopyPrompterForTesting(java.util.function.IntPredicate prompter) {
+        analysisCopyPrompter = prompter;
+    }
+
+    /**
+     * "Save as new snippet": when the snippet has stored analyses, asks whether the new snippet
+     * should get a copy of them ({@link SnippetAnalysisStore#copy}); the original keeps its own.
+     * A copy for a snippet that is not saved yet waits in memory until its first save.
+     */
+    void offerAnalysisCopy(String fromId, Snippet copy) {
+        if (fromId == null || fromId.isBlank() || copy == null || copy.getId() == null || fromId.equals(copy.getId())) {
+            return;
+        }
+        SnippetAnalysisStore store = SnippetAnalysisStore.shared();
+        de.kortty.core.SnippetAnalysisHistory history = store.cached(fromId);
+        if (history == null || history.isEmpty()) {
+            return;
+        }
+        int count = history.records().size();
+        boolean take = analysisCopyPrompter != null ? analysisCopyPrompter.test(count) : askAnalysisCopy(count);
+        if (!take) {
+            return;
+        }
+        try {
+            store.copy(fromId, copy.getId());
+            setStatus(I18n.get("snippets.saveAsNew.analysisCopied", count));
+        } catch (RuntimeException e) {
+            logger.warn("Could not copy the stored analyses of {} to {}", fromId, copy.getId(), e);
+        }
+    }
+
+    private boolean askAnalysisCopy(int count) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.applyTheme(alert);
+        alert.setTitle(I18n.get("snippets.saveAsNew"));
+        alert.setHeaderText(I18n.get("snippets.saveAsNew.analysis.header"));
+        alert.setContentText(I18n.get("snippets.saveAsNew.analysis.content", count));
+        ButtonType take = new ButtonType(I18n.get("snippets.saveAsNew.analysis.take"), ButtonBar.ButtonData.YES);
+        ButtonType leave = new ButtonType(I18n.get("snippets.saveAsNew.analysis.leave"), ButtonBar.ButtonData.NO);
+        alert.getButtonTypes().setAll(take, leave);
+        Window owner = resolveAlertOwner();
+        if (owner != null) {
+            alert.initOwner(owner);
+            alert.initModality(Modality.WINDOW_MODAL);
+        }
+        return alert.showAndWait().orElse(leave) == take;
+    }
+
     // ---- Draft autosave ----
 
     /** The draft autosave of this editor, or {@code null} (file editors, admin-managed snippets). */

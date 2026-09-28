@@ -71,6 +71,7 @@ These keys work in the Snippet Manager (library and editor tabs); see [Opening t
 | ++ctrl+s++ | Save the active editor tab (also in a standalone snippet editor window) |
 | ++ctrl+w++ | Close the active editor tab (asks about unsaved changes) |
 | ++ctrl+b++ | Hide or show the library, giving the editor tabs the full width |
+| ++ctrl+p++ | Quick open: find a snippet by part of its name or a tag and open it in an editor tab (++up++ / ++down++ choose, ++enter++ opens, ++esc++ closes) |
 | ++esc++ (search field) | Clear the search; ++esc++ never closes the Snippet Manager |
 
 If the focus is on the Snippet Manager's own tab header in the main window (tab mode), ++ctrl+s++ still saves the project, and ++ctrl+w++ closes the Snippet Manager tab after asking about unsaved changes.

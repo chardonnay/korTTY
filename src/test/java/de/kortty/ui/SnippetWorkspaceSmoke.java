@@ -505,6 +505,46 @@ public final class SnippetWorkspaceSmoke {
                 SnippetWorkspaceDialog.setUnsavedPrompterForTesting(null);
                 otherTabs.getTabs().remove(thirdTab);
             })
+            .then(50, "save as new takes the stored analysis along", () -> {
+                SnippetEditorTab alphaTab = other.editorTabs().stream()
+                    .filter(t -> t.snippetId().equals(alpha.getId())).findFirst().orElseThrow();
+                other.editorTabPane().getSelectionModel().select(alphaTab);
+                check(analyses.cached(alpha.getId()) != null && !analyses.cached(alpha.getId()).isEmpty(),
+                    "alpha's analysis must be loaded by its editor");
+                field(alphaTab.editor(), "nameField", javafx.scene.control.TextField.class).setText("alpha-copy.sh");
+                int[] asked = {-1};
+                SnippetEditDialog.setAnalysisCopyPrompterForTesting(count -> {
+                    asked[0] = count;
+                    return true;
+                });
+                try {
+                    other.saveActiveEditorAsNew();
+                } finally {
+                    SnippetEditDialog.setAnalysisCopyPrompterForTesting(null);
+                }
+                check(asked[0] == 1, "save as new must offer the one stored analysis, asked with " + asked[0]);
+                Snippet copy = manager.getAllSnippets().stream()
+                    .filter(candidate -> "alpha-copy.sh".equals(candidate.getName())).findFirst().orElseThrow();
+                check(analyses.cached(copy.getId()) != null && !analyses.cached(copy.getId()).isEmpty(),
+                    "the new snippet must get a copy of the analysis");
+                check(!analyses.cached(alpha.getId()).isEmpty(), "the original keeps its analysis");
+                check(other.editorTabs().stream().anyMatch(t -> t.snippetId().equals(copy.getId())),
+                    "the copy replaces the original in the tab");
+            })
+            .then(50, "quick open finds a snippet by a fuzzy name and pins it", () -> {
+                Event.fireEvent(workspace.getDialogPane(), shortcut(KeyCode.P));
+                SnippetQuickOpenPopup popup = workspace.quickOpenPopup();
+                check(popup != null && popup.isShowing(), "Shortcut+P must open quick open");
+                check(popup.list().getItems().size() == manager.getAllSnippets().size(),
+                    "an empty query lists every snippet");
+                popup.field().setText("gma");
+                check(!popup.list().getItems().isEmpty() && popup.list().getItems().getFirst() == gamma,
+                    "\"gma\" must rank gamma first, got " + popup.list().getItems());
+                popup.choose();
+                check(!popup.isShowing(), "choosing closes quick open");
+                SnippetEditorTab active = (SnippetEditorTab) workspace.editorTabPane().getSelectionModel().getSelectedItem();
+                check(active != null && active.snippetId().equals(gamma.getId()), "the chosen snippet is pinned and active");
+            })
             .then(50, "several dirty editors: one bulk answer", () -> {
                 workspace.openSnippetById(gamma.getId(), true);
                 check(workspace.openEditorCount() == 2, "gamma must be pinned");

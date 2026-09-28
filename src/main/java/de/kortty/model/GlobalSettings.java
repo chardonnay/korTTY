@@ -891,6 +891,14 @@ public class GlobalSettings {
     @XmlElement
     private Double snippetWorkspaceLibraryDividerPosition; // Library | editor-tabs divider of the snippet workspace
 
+    /** Snippet ids of the workspace's editor tabs when it was last closed (reopened next time). */
+    @XmlElementWrapper(name = "snippetWorkspaceOpenTabs")
+    @XmlElement(name = "snippetId")
+    private java.util.List<String> snippetWorkspaceOpenTabs = new java.util.ArrayList<>();
+
+    @XmlElement
+    private String snippetWorkspaceActiveTab; // Snippet id of the workspace's active editor tab at close
+
     @XmlElement
     private String snippetManagerColumnWidths; // "columnId=width;..." of user-resized snippet table columns
 
@@ -3513,6 +3521,29 @@ public class GlobalSettings {
             return;
         }
         this.snippetManagerPreviewDividerPosition = Math.max(0.35, Math.min(0.9, snippetManagerPreviewDividerPosition));
+    }
+
+    /** Snippet workspace: the snippet ids of the editor tabs open at the last close, in tab order. */
+    public java.util.List<String> getSnippetWorkspaceOpenTabs() {
+        if (snippetWorkspaceOpenTabs == null) {
+            snippetWorkspaceOpenTabs = new java.util.ArrayList<>();
+        }
+        return snippetWorkspaceOpenTabs;
+    }
+
+    public void setSnippetWorkspaceOpenTabs(java.util.List<String> snippetIds) {
+        this.snippetWorkspaceOpenTabs = snippetIds != null
+            ? new java.util.ArrayList<>(snippetIds)
+            : new java.util.ArrayList<>();
+    }
+
+    /** Snippet workspace: the snippet id of the active editor tab at the last close, or {@code null}. */
+    public String getSnippetWorkspaceActiveTab() {
+        return snippetWorkspaceActiveTab;
+    }
+
+    public void setSnippetWorkspaceActiveTab(String snippetId) {
+        this.snippetWorkspaceActiveTab = snippetId == null || snippetId.isBlank() ? null : snippetId;
     }
 
     /** Snippet workspace: share of the width given to the library column (0.15..0.6, default 0.28). */

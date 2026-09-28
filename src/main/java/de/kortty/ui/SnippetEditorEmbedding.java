@@ -19,4 +19,12 @@ interface SnippetEditorEmbedding {
      * @param created {@code true} when this save created the snippet (first save of a draft)
      */
     void snippetPersisted(SnippetEditDialog editor, Snippet saved, boolean created);
+
+    /** The editor's analysis side panel opened, {@code panelWidth} wide (the host may make room). */
+    default void analysisPanelShown(SnippetEditDialog editor, double panelWidth) {
+    }
+
+    /** The editor's analysis side panel closed. */
+    default void analysisPanelHidden(SnippetEditDialog editor) {
+    }
 }
