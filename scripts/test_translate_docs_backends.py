@@ -377,5 +377,164 @@ class SampleSelection(unittest.TestCase):
             self.assertTrue(sample["en"].strip() and sample["de"].strip())
 
 
+class QuickAndTimeBoxedBenchmark(unittest.TestCase):
+    FIXTURE = json.loads(tb.FIXTURE.read_text(encoding="utf-8"))["samples"]
+
+    class Args:
+        backend = "lmstudio"
+        concurrency = None
+        batch_lines = None
+        reasoning_effort = None
+        request_timeout = None
+        sweep = None
+        sweep_lines = 24
+        config_timeout = 90.0
+        full = False
+        limit = None
+
+    def _args(self, **kw):
+        a = self.Args()
+        for k, v in kw.items():
+            setattr(a, k, v)
+        return a
+
+    def test_quick_subset_is_deterministic_and_covers_all_kinds(self):
+        a = tb.quick_subset(self.FIXTURE)
+        self.assertEqual(a, tb.quick_subset(list(self.FIXTURE)))
+        self.assertEqual(len(a), 24)
+        self.assertEqual(len({s["id"] for s in a}), 24)
+        kinds = {s["kind"] for s in self.FIXTURE}
+        self.assertEqual({s["kind"] for s in a}, kinds)
+        counts = {k: sum(1 for s in a if s["kind"] == k) for k in kinds}
+        self.assertLessEqual(max(counts.values()) - min(counts.values()), 1)
+        # round-robin: a cut-short run still sees every kind in its first lines
+        self.assertEqual({s["kind"] for s in a[:len(kinds)]}, kinds)
+
+    def test_quick_subset_redistributes_small_kinds_and_handles_tiny_input(self):
+        pool = [{"id": f"a{i}", "kind": "a", "en": "x", "de": "y"} for i in range(30)] + \
+               [{"id": "b0", "kind": "b", "en": "x", "de": "y"}]
+        out = tb.quick_subset(pool, 10)
+        self.assertEqual(len(out), 10)
+        self.assertEqual(sum(1 for s in out if s["kind"] == "b"), 1)
+        self.assertEqual(len(tb.quick_subset(pool[:3], 24)), 3)
+        self.assertEqual(tb.quick_subset([], 24), [])
+
+    def test_fixture_is_untouched_by_quick_mode(self):
+        before = tb.FIXTURE.read_bytes()
+        tb.quick_subset(self.FIXTURE)
+        self.assertEqual(before, tb.FIXTURE.read_bytes())
+
+    def test_parse_sweep(self):
+        self.assertEqual(tb.parse_sweep(["concurrency=4,8", "batch=2,4"]), [(4, 2), (4, 4), (8, 2), (8, 4)])
+        self.assertEqual(tb.parse_sweep(["batch-lines=2"]), [(8, 2)])
+        for bad in (["foo=1"], ["concurrency"], ["batch=x"], ["batch=0"], ["batch="]):
+            with self.assertRaises(ValueError):
+                tb.parse_sweep(bad)
+
+    def test_argument_parsing_defaults_and_overrides(self):
+        ap = tb.build_parser()
+        a = ap.parse_args([])
+        plans, mode = tb.plan_runs(a, self.FIXTURE)
+        self.assertEqual(mode, "quick")
+        self.assertEqual((plans[0]["concurrency"], plans[0]["batch_lines"], len(plans[0]["samples"])), (8, 4, 24))
+        self.assertEqual(a.request_timeout, tb.DEFAULT_REQUEST_TIMEOUT)
+        a = ap.parse_args(["--quick", "--concurrency", "2", "--request-timeout", "30", "--reasoning-effort", "high"])
+        plans, mode = tb.plan_runs(a, self.FIXTURE)
+        self.assertEqual((mode, plans[0]["concurrency"], plans[0]["batch_lines"]), ("quick", 2, 4))
+        self.assertEqual((a.request_timeout, a.reasoning_effort), (30, "high"))
+        plans, mode = tb.plan_runs(ap.parse_args(["--full"]), self.FIXTURE)
+        self.assertEqual((mode, len(plans[0]["samples"])), ("full", len(self.FIXTURE)))
+        plans, mode = tb.plan_runs(ap.parse_args(["--limit", "5", "--concurrency", "3"]), self.FIXTURE)
+        self.assertEqual((mode, len(plans[0]["samples"]), plans[0]["concurrency"]), ("limit", 5, 3))
+        plans, mode = tb.plan_runs(ap.parse_args(["--sweep", "concurrency=4,8", "batch=2",
+                                                  "--sweep-lines", "12", "--config-timeout", "5"]), self.FIXTURE)
+        self.assertEqual((mode, [(p["concurrency"], p["batch_lines"]) for p in plans]), ("sweep", [(4, 2), (8, 2)]))
+        self.assertTrue(all(len(p["samples"]) == 12 and p["timeout"] == 5 for p in plans))
+        with self.assertRaises(ValueError):
+            tb.plan_runs(ap.parse_args(["--sweep", "batch=2", "--full"]), self.FIXTURE)
+        self.assertEqual(ap.parse_args(["--max-seconds", "90"]).max_seconds, 90)
+
+    def test_make_backend_passes_effort_and_timeout(self):
+        b = td.make_backend("lmstudio", "m", None, 2, 3, "high", 45.0)
+        self.assertEqual((b.reasoning_effort, b.timeout, b.concurrency, b.batch_lines), ("high", 45.0, 2, 3))
+        b = td.make_backend("lmstudio", "m")
+        self.assertEqual((b.reasoning_effort, b.timeout), ("low", 600.0))
+
+    def _samples(self, n):
+        return [{"id": f"s{i}", "kind": "prose", "en": f"Open the file number {i} now", "de": f"DE {i}"}
+                for i in range(n)]
+
+    def _run(self, backend, samples, deadline):
+        m = tb.measure(backend, samples, deadline)
+        args = self._args()
+        return tb.build_result(args, backend, "stub", samples, m, TERMS, 100, 1000, None, None)
+
+    def test_complete_run_is_not_partial(self):
+        backend = ScriptedBackend(lambda s, u: _german(u.split("\n\n", 1)[1]))
+        result = self._run(backend, self._samples(4), None)
+        self.assertFalse(result["partial"])
+        self.assertEqual((result["lines_done"], result["lines"], result["failed"]), (4, 4, 0))
+        self.assertIsNotNone(result["eta_changed_min"])
+        self.assertIsNotNone(result["eta_full_min"])
+
+    def test_max_seconds_gives_a_partial_report_with_extrapolation(self):
+        def slow(_system, user):
+            time.sleep(0.05)
+            return _german(user.split("\n\n", 1)[1])
+        backend = ScriptedBackend(slow)
+        samples = self._samples(40)
+        started = time.perf_counter()
+        result = self._run(backend, samples, time.perf_counter() + 0.3)
+        self.assertLess(time.perf_counter() - started, 2.0)  # stopped, did not grind through 40 x 50 ms x retries
+        self.assertTrue(result["partial"])
+        self.assertTrue(0 < result["lines_done"] < 40)
+        self.assertEqual(result["failed"], 0)  # cut-off lines are not counted as failures
+        self.assertEqual(len(result["per_line"]), result["lines_done"])
+        self.assertGreater(result["lines_per_min"], 0)
+        self.assertAlmostEqual(result["eta_full_min"], tb.extrapolate(1000, result["lines_per_min"]))
+        meta = {"changed_lines": 100, "changed_since": "abc", "full_lines": 1000, "partial": True,
+                "measured_wall_s": result["wall_s"], "timestamp": "t", "mode": "quick", "samples": 40,
+                "fixture": "f", "fixture_commit": "c", "backend": "lmstudio", "benchmark_took_s": 1.0}
+        report = tb.markdown_report([result], meta)
+        self.assertIn("PARTIAL", report)
+        self.assertIn("Benchmark took", report)
+        self.assertIn("current worklist", "\n".join(tb.extrapolation_lines([result], meta)))
+
+    def test_expired_budget_yields_zero_lines_without_crashing(self):
+        backend = ScriptedBackend(lambda s, u: u)
+        result = self._run(backend, self._samples(3), time.perf_counter() - 1)
+        self.assertTrue(result["partial"])
+        self.assertEqual(result["lines_done"], 0)
+        self.assertIsNone(result["lines_per_min"])
+        self.assertIsNone(result["eta_full_min"])
+        self.assertIsNone(result["chrf"])
+        self.assertEqual(backend.calls, [])
+
+    def test_sweep_config_timeout_limits_each_configuration(self):
+        calls = {"n": 0}
+
+        def reply(_system, user):
+            calls["n"] += 1
+            time.sleep(0.03)
+            return _german(user.split("\n\n", 1)[1])
+        results = []
+        for conc, batch in [(1, 1), (2, 1)]:
+            backend = ScriptedBackend(reply, batch_lines=batch, concurrency=conc)
+            results.append(self._run(backend, self._samples(60), time.perf_counter() + 0.2))
+        self.assertTrue(all(r["partial"] for r in results))
+        self.assertTrue(all(r["lines_done"] < 60 for r in results))
+        # the box is per configuration: the second run still made progress after the first was cut
+        self.assertGreater(results[1]["lines_done"], 0)
+
+    def test_deadline_caps_the_http_timeout(self):
+        b = td.OpenAICompatBackend("http://unused", "m", terms=TERMS, timeout=600.0)
+        b.deadline = time.perf_counter() + 5
+        self.assertLessEqual(b._remaining_timeout(600.0), 5)
+        b.deadline = time.perf_counter() - 1
+        with self.assertRaises(TimeoutError):
+            b._remaining_timeout(600.0)
+        self.assertTrue(b.deadline_hit)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -129,14 +129,19 @@ Always `git diff --numstat -- app-docs/site/docs/de` afterwards: only the pages 
 
 **Failures are not cached.** A line whose placeholders do not survive is retried once, then translated fragment by fragment; a line nothing can translate keeps its English text, is listed as FAILED, the run exits 1, and the page is not marked done — re-run the same command to retry only those lines. Recurring wrong wording belongs in `src/main/resources/i18n/glossary/de.json` (shared with the runtime translator; longer terms first), not in hand edits of `docs/de`.
 
-**Choosing a model.** `scripts/translate_benchmark.py` runs a fixed sample of ~110 guide lines (`scripts/translate_benchmark_samples.json`, references = the committed German) through the same pipeline and reports load/warm-up time, wall time, lines/min, latency (mean/median/p95), tokens/s, first-pass placeholder survival, UI-term adherence, chrF++ against the reference, failures, and the extrapolated time for this branch's changed lines and for a full re-translation. Reports land in `build/translate-benchmark/<timestamp>-<model>.{md,json}`:
+**Choosing a model.** `scripts/translate_benchmark.py` runs a fixed sample of guide lines (`scripts/translate_benchmark_samples.json`, ~110 lines, references = the committed German) through the same pipeline and reports load/warm-up time, wall time, lines/min, latency (mean/median/p95), tokens/s, first-pass placeholder survival, UI-term adherence, chrF++ against the reference, failures, and the extrapolated time for (a) this branch's worklist (same memory logic as `--dry-run --memory-from-git`) and (b) a full re-translation. It always ends with `benchmark took X s`. Reports land in `build/translate-benchmark/<timestamp>-<model>.{md,json}`. **It is short by default**: with no options it runs `--quick` (24 fixed lines spread evenly over the line kinds, concurrency 8, batch 4, request timeout 120 s; about two minutes for a mid-size model). The full 110-line run needs an explicit `--full` (or `--limit N`).
 
 ```bash
-.venv-docs/bin/python scripts/translate_benchmark.py --backend lmstudio \
-    --model openai/gpt-oss-20b --model qwen/qwen3-4b-2507 --concurrency 8 --batch-lines 4
+.venv-docs/bin/python scripts/translate_benchmark.py --backend lmstudio --model qwen/qwen3-4b-2507           # quick
+.venv-docs/bin/python scripts/translate_benchmark.py --backend lmstudio --model openai/gpt-oss-20b \
+    --max-seconds 120 --request-timeout 60 --reasoning-effort low                                           # time-boxed
+.venv-docs/bin/python scripts/translate_benchmark.py --backend lmstudio --model openai/gpt-oss-20b \
+    --sweep concurrency=4,8,16 batch=2,4,8 --sweep-lines 24 --config-timeout 90                            # compare settings
+.venv-docs/bin/python scripts/translate_benchmark.py --backend lmstudio --full \
+    --model openai/gpt-oss-20b --model qwen/qwen3-4b-2507 --concurrency 8 --batch-lines 4                  # slow, explicit
 ```
 
-A model that is not loaded is loaded with `lms load` (timed; `--context-length`, `--unload-after`, `--no-load`). chrF++ measures closeness to the current, machine-translated German, so a better translation of a weak reference can score lower — read the lowest-scoring lines in the report. Regenerate the sample file only deliberately (`--make-fixture`), or results stop being comparable.
+`--max-seconds N` is a global budget: when it is hit the run stops cleanly (no further requests, the request in flight is cut), the report is flagged **PARTIAL**, only finished lines are scored, the extrapolation uses the lines/min measured so far (a lower bound), and the exit code stays 0. `--sweep` runs the cartesian product of the given `concurrency=`/`batch=` values, each configuration limited to `--sweep-lines` lines and `--config-timeout` seconds. `--reasoning-effort low|medium|high` is passed to reasoning (harmony/gpt-oss) models; `--request-timeout S` caps every request. A model that is not loaded is loaded with `lms load` (timed; `--context-length`, `--unload-after`, `--no-load`). chrF++ measures closeness to the current, machine-translated German, so a better translation of a weak reference can score lower — read the lowest-scoring lines in the report. Regenerate the sample file only deliberately (`--make-fixture`), or results stop being comparable.
 
 ## Output
 Summarize: dirty pages touched, new/removed keys, diagrams/screenshots refreshed,
