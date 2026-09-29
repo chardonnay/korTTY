@@ -96,4 +96,37 @@ class DialogGeometrySupportTest {
         assertThat(DialogGeometrySupport.automaticKey(TerminalEffectPluginManagerDialog.class))
             .isEqualTo("de.kortty.ui.TerminalEffectPluginManagerDialog");
     }
+
+    @Test
+    void aWindowFillingAScreenCountsAsMaximizedButAUserSizedOneDoesNot() {
+        assertThat(DialogGeometrySupport.fillsScreen(geometry(0, 25, 1512, 920), List.of(LAPTOP))).isTrue();
+        assertThat(DialogGeometrySupport.fillsScreen(geometry(1512, 0, 2560, 1440), List.of(LAPTOP, EXTERNAL))).isTrue();
+        assertThat(DialogGeometrySupport.fillsScreen(geometry(130, 100, 1500, 900), List.of(LAPTOP))).isFalse();
+        // Wide enough but not tall enough: not maximized.
+        assertThat(DialogGeometrySupport.fillsScreen(geometry(0, 25, 1512, 700), List.of(LAPTOP))).isFalse();
+        assertThat(DialogGeometrySupport.fillsScreen(null, List.of(LAPTOP))).isFalse();
+        assertThat(DialogGeometrySupport.fillsScreen(geometry(0, 0, 500, 500), List.of())).isFalse();
+    }
+
+    @Test
+    void onlyANormalWindowStateIsRecorded() {
+        assertThat(DialogGeometrySupport.isNormalState(false, false, false)).isTrue();
+        assertThat(DialogGeometrySupport.isNormalState(true, false, false)).isFalse();
+        assertThat(DialogGeometrySupport.isNormalState(false, true, false)).isFalse();
+        assertThat(DialogGeometrySupport.isNormalState(false, false, true)).isFalse();
+    }
+
+    @Test
+    void snippetManagerIgnoresAStoredGeometryBelowItsMinimumOrOffEveryScreen() {
+        assertThat(SnippetWorkspaceDialog.usableStoredGeometry(geometry(200, 120, 1500, 800), List.of(LAPTOP))).isNotNull();
+        // Below the workspace minimum (980 x 560): junk, not a deliberate size.
+        assertThat(SnippetWorkspaceDialog.usableStoredGeometry(geometry(200, 120, 700, 800), List.of(LAPTOP))).isNull();
+        assertThat(SnippetWorkspaceDialog.usableStoredGeometry(geometry(200, 120, 1500, 300), List.of(LAPTOP))).isNull();
+        assertThat(SnippetWorkspaceDialog.usableStoredGeometry(null, List.of(LAPTOP))).isNull();
+        // A second display: kept while attached, moved into reach when it is gone.
+        assertThat(SnippetWorkspaceDialog.usableStoredGeometry(geometry(2954, 167, 1200, 900), List.of(LAPTOP, EXTERNAL)).getX())
+            .isEqualTo(2954.0);
+        assertThat(SnippetWorkspaceDialog.usableStoredGeometry(geometry(2954, 167, 1200, 900), List.of(LAPTOP)).getX())
+            .isLessThan(LAPTOP.getMaxX());
+    }
 }

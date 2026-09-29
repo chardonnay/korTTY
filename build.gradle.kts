@@ -3561,6 +3561,15 @@ tasks.register<JavaExec>("toolTabRenderSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("snippetWorkspaceGeometrySmoke") {
+    group = "verification"
+    description = "Opens the Snippet Manager window through MainWindow, resizes/moves it, closes it, and " +
+        "checks that a new window (and one after an app restart) comes back at the same geometry."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SnippetWorkspaceGeometrySmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("snippetWorkspaceSmoke") {
     group = "verification"
     description = "Drives the snippet workspace: preview without editor boot, promote by typing, " +

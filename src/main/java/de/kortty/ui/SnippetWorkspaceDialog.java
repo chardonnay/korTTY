@@ -1092,12 +1092,17 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
      */
     private void installGeometryPersistence() {
         // Marks the geometry as handled here, which turns the class-keyed automatic persistence off.
+        // Its DIALOG_SHOWN handler also starts the live tracking (which ignores a maximized or
+        // minimized window, so the last normal bounds are what a later close stores).
         DialogGeometrySupport.restore(this, (WindowGeometry) null);
         addEventHandler(DialogEvent.DIALOG_SHOWING, event -> {
             WindowGeometry stored = storedGeometry();
             if (stored != null && !isHostedInTab() && DialogGeometrySupport.uiFontScaleMatchesStoredGeometry()) {
-                setWidth(Math.max(MIN_WINDOW_WIDTH, stored.getWidth()));
-                setHeight(Math.max(MIN_WINDOW_HEIGHT, stored.getHeight()));
+                // The window is sized from the dialog pane's preferred size when it is mapped, and
+                // that overrides Dialog.setWidth/setHeight (the width always came back as the
+                // designed 1280): the stored size therefore has to become the preferred size.
+                getDialogPane().setPrefWidth(stored.getWidth());
+                getDialogPane().setPrefHeight(stored.getHeight());
             }
         });
         addEventHandler(DialogEvent.DIALOG_SHOWN, event -> {
@@ -1106,6 +1111,12 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
                 return;
             }
             if (stored != null) {
+                // Belt and braces after the window exists: JavaFX centres the dialog over its owner
+                // only after SHOWING, so the position can only be applied here.
+                if (DialogGeometrySupport.uiFontScaleMatchesStoredGeometry()) {
+                    stage.setWidth(stored.getWidth());
+                    stage.setHeight(stored.getHeight());
+                }
                 stage.setX(stored.getX());
                 stage.setY(stored.getY());
             }
@@ -1128,8 +1139,22 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
     private static WindowGeometry storedGeometry() {
         GlobalSettings settings = currentSettings();
         return settings != null
-            ? DialogGeometrySupport.sanitize(settings.getSnippetManagerGeometry(), DialogGeometrySupport.visualScreenBounds())
+            ? usableStoredGeometry(settings.getSnippetManagerGeometry(), DialogGeometrySupport.visualScreenBounds())
             : null;
+    }
+
+    /**
+     * The stored geometry when it is worth restoring: reachable on one of the attached screens
+     * (see {@link DialogGeometrySupport#sanitize}) and not below the workspace's own minimum,
+     * which only a corrupt or foreign value can be. {@code null} lets the window open at its
+     * designed size, centred over its owner.
+     */
+    static WindowGeometry usableStoredGeometry(WindowGeometry stored, List<javafx.geometry.Rectangle2D> screens) {
+        WindowGeometry usable = DialogGeometrySupport.sanitize(stored, screens);
+        if (usable == null || usable.getWidth() < MIN_WINDOW_WIDTH || usable.getHeight() < MIN_WINDOW_HEIGHT) {
+            return null;
+        }
+        return usable;
     }
 
     private void persistGeometry() {
