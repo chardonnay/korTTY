@@ -4,7 +4,7 @@ title: Export
 
 # Export
 
-Watermark and footer of the documents korTTY exports — [session journals](../../features/session-journal.md#exporting) and [AI chats](../../features/ai-assistant.md) alike. Open via **Configuration → Global Settings → Export**; stored in `~/.kortty/global-settings.xml`.
+Watermark and footer of the documents korTTY exports — [session journals](../../features/session-journal.md#exporting), [AI chats](../../features/ai-assistant.md) and [code analysis reports](../../features/snippets.md) alike. Open via **Configuration → Global Settings → Export**; stored in `~/.kortty/global-settings.xml`.
 
 AI chat PDFs embed fallback fonts for Unicode symbols and emoji, so characters such as `✓`, `★`, `😀`, and `🚀` remain visible and searchable in the exported document instead of being replaced with question marks.
 

@@ -1,0 +1,785 @@
+{
+ "version": 1,
+ "source_commit": "557074cb",
+ "note": "English guide lines with their committed German line as reference. Selected by scripts/translate_benchmark.py --make-fixture (hash-ordered per line kind, quotas {'prose': 30, 'heading': 12, 'list': 18, 'table': 18, 'admonition': 10, 'inline': 22}). Keep fixed so benchmark runs stay comparable.",
+ "kinds": {
+  "admonition": 10,
+  "heading": 12,
+  "inline": 22,
+  "list": 18,
+  "prose": 30,
+  "table": 18
+ },
+ "samples": [
+  {
+   "id": "s001",
+   "page": "features/teamwork.md",
+   "kind": "admonition",
+   "en": "!!! warning \"Git repositories should not store secrets\"",
+   "de": "!!! warning \"Git-Repositorys sollten keine Geheimnisse speichern\""
+  },
+  {
+   "id": "s002",
+   "page": "getting-started/building-packages.md",
+   "kind": "admonition",
+   "en": "!!! important \"An app image is not one executable file\"",
+   "de": "!!! important \"Ein App-Image ist keine einzelne ausführbare Datei\""
+  },
+  {
+   "id": "s003",
+   "page": "features/i18n.md",
+   "kind": "admonition",
+   "en": "    Yandex Cloud Translate v2 endpoint instead, and a v1.5 key stored in an earlier korTTY version",
+   "de": "    Stattdessen Yandex Cloud Translate v2-Endpunkt und ein v1.5-Schlüssel, der in einer früheren korTTY-Version gespeichert ist"
+  },
+  {
+   "id": "s004",
+   "page": "reference/settings/language.md",
+   "kind": "admonition",
+   "en": "!!! note \"Date and number formats\"",
+   "de": "!!! note \"Datums- und Zahlenformate\""
+  },
+  {
+   "id": "s005",
+   "page": "features/ai-swarm.md",
+   "kind": "admonition",
+   "en": "    Prompt quality decides result quality. Run the swarm interactively first, refine the prompt until the comparison table looks right, then click **Schedule…** — the tuned prompt and target list carry over into the job.",
+   "de": "    Pünktliche Qualität entscheidet über die Ergebnisqualität. Führen Sie den Schwarm zunächst interaktiv aus, verfeinern Sie die Eingabeaufforderung, bis die Vergleichstabelle richtig aussieht, und klicken Sie dann auf **Planen…** – die abgestimmte Eingabeaufforderung und die Zielliste werden in den Job übernommen."
+  },
+  {
+   "id": "s006",
+   "page": "reference/keyboard-shortcuts.md",
+   "kind": "admonition",
+   "en": "    The complete, always-current shortcut list is generated from the application's accelerator definitions. If a shortcut here differs from what the app shows, the app is authoritative.",
+   "de": "    Die vollständige, immer aktuelle Shortcut-Liste wird aus den Beschleunigerdefinitionen der Anwendung generiert. Wenn eine Verknüpfung hier von der in der App angezeigten abweicht, ist die App maßgeblich."
+  },
+  {
+   "id": "s007",
+   "page": "features/i18n.md",
+   "kind": "admonition",
+   "en": "    If **Test API Connection** fails, verify:",
+   "de": "    Wenn **API-Verbindung testen** fehlschlägt, überprüfen Sie Folgendes:"
+  },
+  {
+   "id": "s008",
+   "page": "reference/hardening-options.md",
+   "kind": "admonition",
+   "en": "!!! note \"Not shown for every action\"",
+   "de": "!!! note \"Wird nicht für jede Aktion angezeigt\""
+  },
+  {
+   "id": "s009",
+   "page": "reference/control-api.md",
+   "kind": "admonition",
+   "en": "!!! note \"No id survives a restart\"",
+   "de": "!!! note \"Keine Kennung überlebt einen Neustart\""
+  },
+  {
+   "id": "s010",
+   "page": "features/recording.md",
+   "kind": "admonition",
+   "en": "    Recordings do not continuously capture pixels and do not stream over the network. File size depends on activity level and whether color capture is enabled.",
+   "de": "    Aufnahmen erfassen nicht kontinuierlich Pixel und werden nicht über das Netzwerk gestreamt. Die Dateigröße hängt von der Aktivitätsstufe ab und davon, ob die Farberfassung aktiviert ist."
+  },
+  {
+   "id": "s011",
+   "page": "features/ai-assistant.md",
+   "kind": "heading",
+   "en": "## AI Profile Setup Wizard",
+   "de": "## AI-Profil-Setup-Assistent"
+  },
+  {
+   "id": "s012",
+   "page": "features/session-journal.md",
+   "kind": "heading",
+   "en": "## Asking the AI about a journal",
+   "de": "## Die KI nach einem Journal fragen"
+  },
+  {
+   "id": "s013",
+   "page": "reference/architecture.md",
+   "kind": "heading",
+   "en": "### Classpath and Module Path",
+   "de": "### Classpath und Modulpfad"
+  },
+  {
+   "id": "s014",
+   "page": "reference/architecture.md",
+   "kind": "heading",
+   "en": "### Master Password and Encryption",
+   "de": "### Master-Passwort und Verschlüsselung"
+  },
+  {
+   "id": "s015",
+   "page": "getting-started/building-packages.md",
+   "kind": "heading",
+   "en": "## Common troubleshooting and further reading",
+   "de": "## Allgemeine Fehlerbehebung und weiterführende Literatur"
+  },
+  {
+   "id": "s016",
+   "page": "features/jobscheduler.md",
+   "kind": "heading",
+   "en": "### Host Keys, Sudo, and Secrets",
+   "de": "### Host-Schlüssel, Sudo und Geheimnisse"
+  },
+  {
+   "id": "s017",
+   "page": "features/rag.md",
+   "kind": "heading",
+   "en": "## Automatic and manual synchronization",
+   "de": "## Automatische und manuelle Synchronisierung"
+  },
+  {
+   "id": "s018",
+   "page": "features/teamwork.md",
+   "kind": "heading",
+   "en": "### File path is not recognized (Windows/UNC)",
+   "de": "### Dateipfad wird nicht erkannt (Windows/UNC)"
+  },
+  {
+   "id": "s019",
+   "page": "features/recording.md",
+   "kind": "heading",
+   "en": "## Viewing and managing recordings",
+   "de": "## Aufnahmen ansehen und verwalten"
+  },
+  {
+   "id": "s020",
+   "page": "getting-started/building-packages.md",
+   "kind": "heading",
+   "en": "### Notarize and staple locally",
+   "de": "### Notariell beglaubigen und vor Ort heften"
+  },
+  {
+   "id": "s021",
+   "page": "getting-started/building-packages.md",
+   "kind": "heading",
+   "en": "### Sign the app and DMG",
+   "de": "### Signieren Sie die App und DMG"
+  },
+  {
+   "id": "s022",
+   "page": "features/snippets.md",
+   "kind": "heading",
+   "en": "#### Plain text script files",
+   "de": "#### Einfache Textskriptdateien"
+  },
+  {
+   "id": "s023",
+   "page": "reference/architecture.md",
+   "kind": "inline",
+   "en": "1. Clones SithTermFX at tag `v1.2.2` into `vendor/sithtermfx` (no GitHub token required)",
+   "de": "1. Klont SithTermFX am Tag `v1.2.2` in `vendor/sithtermfx` (kein GitHub-Token erforderlich)"
+  },
+  {
+   "id": "s024",
+   "page": "features/coding-agents.md",
+   "kind": "inline",
+   "en": "On macOS use ++cmd++ where ++ctrl++ is shown.",
+   "de": "Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird."
+  },
+  {
+   "id": "s025",
+   "page": "reference/config-files.md",
+   "kind": "inline",
+   "en": "- `packages/` contains extracted verified installations, while `downloads/` is temporary staging protected by the updater lock.",
+   "de": "- `packages/` enthält extrahierte verifizierte Installationen, während `downloads/` ein temporäres Staging ist, das durch die Updater-Sperre geschützt ist."
+  },
+  {
+   "id": "s026",
+   "page": "reference/architecture.md",
+   "kind": "inline",
+   "en": "2. **SSH keys**: Store in `~/.kortty/ssh-keys/` for backup inclusion; passphrases are encrypted in `ssh-keys.xml`, and the AES-256/GPG-encrypted backup carries the key files",
+   "de": "2. **SSH-Schlüssel**: Zur Einbindung von Backups in `~/.kortty/ssh-keys/` speichern; Passphrasen werden in `ssh-keys.xml` verschlüsselt und das AES-256/GPG-verschlüsselte Backup enthält die Schlüsseldateien"
+  },
+  {
+   "id": "s027",
+   "page": "features/ai-tools.md",
+   "kind": "inline",
+   "en": "The base command name is configurable in **Settings > AI**. If you rename `agent`, KorTTY automatically derives the matching `-ask` and `-plan` commands. The same settings page can:",
+   "de": "Der Basisbefehlsname kann unter **Einstellungen > AI** konfiguriert werden. Wenn Sie `agent` umbenennen, leitet KorTTY automatisch die passenden Befehle `-ask` und `-plan` ab. Die gleiche Einstellungsseite kann:"
+  },
+  {
+   "id": "s028",
+   "page": "features/file-browser.md",
+   "kind": "inline",
+   "en": "- **Rename** — rename inline; a name clash is resolved by appending ` (2)`, ` (3)`, …",
+   "de": "- **Umbenennen** – Inline umbenennen; Ein Namenskonflikt wird durch Anhängen von ` (2)`, ` (3)`, … gelöst."
+  },
+  {
+   "id": "s029",
+   "page": "features/snippets.md",
+   "kind": "inline",
+   "en": "- **GPG-encrypted** — Creates a `.zip.gpg` file; requires local `gpg` command and a usable public key",
+   "de": "- **GPG-verschlüsselt** – Erstellt eine `.zip.gpg`-Datei; erfordert den lokalen Befehl `gpg` und einen verwendbaren öffentlichen Schlüssel"
+  },
+  {
+   "id": "s030",
+   "page": "reference/config-files.md",
+   "kind": "inline",
+   "en": "- All `.xml` configuration files (connections, credentials, SSH key references and passphrases, GPG keys, global settings, JobScheduler, snippets, snippet variables, AI chats)",
+   "de": "- Alle `.xml`-Konfigurationsdateien (Verbindungen, Anmeldeinformationen, SSH-Schlüsselreferenzen und Passphrasen, GPG-Schlüssel, globale Einstellungen, JobScheduler, Snippets, Snippet-Variablen, AI-Chats)"
+  },
+  {
+   "id": "s031",
+   "page": "features/terminal.md",
+   "kind": "inline",
+   "en": "- **Clipboard text is preserved in agent shortcuts.** Typed and pasted text travel through the same terminal-input filter, including bracketed paste and split UTF-8 input, so a pasted file name remains part of the `agent ...` request and Enter dispatches it exactly once.",
+   "de": "- **Zwischenablagetext bleibt in Agentenverknüpfungen erhalten.** Eingegebener und eingefügter Text durchläuft denselben Terminal-Eingabefilter, einschließlich Einfügen in Klammern und geteilter UTF-8-Eingabe, sodass ein eingefügter Dateiname Teil der `agent ...`-Anfrage bleibt und Enter ihn genau einmal versendet."
+  },
+  {
+   "id": "s032",
+   "page": "reference/architecture.md",
+   "kind": "inline",
+   "en": "4. Installs artifacts to the local Maven repo (`mavenLocal()`), including one marker resource per patch that lets Gradle reject an unpatched cached UI JAR",
+   "de": "4. Installiert Artefakte im lokalen Maven-Repository (`mavenLocal()`), einschließlich einer Markierungsressource pro Patch, die es Gradle ermöglicht, ein ungepatchtes zwischengespeichertes UI-JAR abzulehnen"
+  },
+  {
+   "id": "s033",
+   "page": "reference/config-files.md",
+   "kind": "inline",
+   "en": "- `pinned-runtime-v1` holds the runtime ID the user switched to with **Other version…**; while present, update checks keep that version. The MLX runtime area `llm/mlx/runtime/` uses a file of the same name.",
+   "de": "- `pinned-runtime-v1` enthält die Runtime-ID, auf die der Benutzer mit **Andere Version…** gewechselt hat; solange sie vorhanden ist, behalten Update-Prüfungen diese Version bei. Der MLX-Runtime-Bereich `llm/mlx/runtime/` verwendet eine gleichnamige Datei."
+  },
+  {
+   "id": "s034",
+   "page": "features/security.md",
+   "kind": "inline",
+   "en": "- **Sudo Passwords**: Scheduler sudo passwords are encrypted and stored in `~/.kortty/job-scheduler.xml`.",
+   "de": "- **Sudo-Passwörter**: Scheduler-Sudo-Passwörter werden verschlüsselt und in `~/.kortty/job-scheduler.xml` gespeichert."
+  },
+  {
+   "id": "s035",
+   "page": "reference/config-files.md",
+   "kind": "inline",
+   "en": "- `blocked-active-v1` remembers the runtime ID removed from active use by a withdrawal so the UI can explain why local AI remains blocked.",
+   "de": "- `blocked-active-v1` merkt sich die Laufzeit-ID, die durch eine Auszahlung aus der aktiven Nutzung entfernt wurde, sodass die Benutzeroberfläche erklären kann, warum die lokale KI blockiert bleibt."
+  },
+  {
+   "id": "s036",
+   "page": "reference/architecture.md",
+   "kind": "inline",
+   "en": "- **Glob patterns**: Server patterns like `*.example.com` or `10.0.0.*` automatically match connections",
+   "de": "- **Glob-Muster**: Servermuster wie `*.example.com` oder `10.0.0.*` stimmen automatisch mit Verbindungen überein"
+  },
+  {
+   "id": "s037",
+   "page": "getting-started/building-packages.md",
+   "kind": "inline",
+   "en": "Flatpak bundles are built natively on Linux for `x86_64` and `aarch64`. The manifest uses application ID `io.github.chardonnay.korTTY` with the Freedesktop 25.08 runtime and packages the self-contained Linux application image produced by `jpackage`. Install Flatpak, `flatpak-builder` and `appstreamcli`, then run:",
+   "de": "Flatpak-Bundles werden nativ unter Linux für `x86_64` und `aarch64` erstellt. Das Manifest verwendet die Anwendungs-ID `io.github.chardonnay.korTTY` mit der Freedesktop 25.08-Laufzeit und verpackt das eigenständige Linux-Anwendungsimage, das von `jpackage` erstellt wurde. Installieren Sie Flatpak, `flatpak-builder` und `appstreamcli` und führen Sie dann Folgendes aus:"
+  },
+  {
+   "id": "s038",
+   "page": "reference/settings/appearance.md",
+   "kind": "inline",
+   "en": "korTTY's visual configuration spans three tabs: **Appearance** controls the app-level UI design, **Font** configures terminal typeface and size, and **Themes** manages reusable terminal color profiles. All settings persist to `~/.kortty/global-settings.xml`.",
+   "de": "Die visuelle Konfiguration von korTTY umfasst drei Registerkarten: **Darstellung** steuert das UI-Design auf App-Ebene, **Schriftart** konfiguriert die Schriftart und -größe des Terminals und **Themen** verwaltet wiederverwendbare Terminal-Farbprofile. Alle Einstellungen bleiben bis `~/.kortty/global-settings.xml` bestehen."
+  },
+  {
+   "id": "s039",
+   "page": "features/terminal.md",
+   "kind": "inline",
+   "en": "4. Use the replay viewer timeline to scrub, or enter a **Time jump** value such as `5` for minute 5 or `5:30` for minute 5 and 30 seconds.",
+   "de": "4. Verwenden Sie die Replay-Viewer-Timeline zum Scrubben oder geben Sie einen **Zeitsprung**-Wert ein, z. B. `5` für Minute 5 oder `5:30` für Minute 5 und 30 Sekunden."
+  },
+  {
+   "id": "s040",
+   "page": "reference/cli.md",
+   "kind": "inline",
+   "en": "`kortty-cli events` subscribes to korTTY's coding-agent events and prints one JSON object per line, as they happen, until it is told to stop.",
+   "de": "`kortty-cli events` abonniert die Coding-Agent-Ereignisse von korTTY und gibt sie, sobald sie auftreten, als ein JSON-Objekt pro Zeile aus, bis der Strom beendet wird."
+  },
+  {
+   "id": "s041",
+   "page": "features/terminal-effect-plugins.md",
+   "kind": "inline",
+   "en": "- Decorate connectors in `wrapConnector(...)` when output pacing or filtering is needed",
+   "de": "- Dekorieren Sie Anschlüsse in `wrapConnector(...)`, wenn eine Ausgabesteuerung oder -filterung erforderlich ist"
+  },
+  {
+   "id": "s042",
+   "page": "reference/control-api.md",
+   "kind": "inline",
+   "en": "Every action the API takes writes exactly one line to korTTY's log, carrying **byte counts and shapes only** — `bytes=28 bracketed=false submitted=true`, `keys=2`, `orientation=vertical` — never terminal text. The line goes to korTTY's log and only there — the API writes nothing into a tab's session journal.",
+   "de": "Jede Aktion der API schreibt genau eine Zeile in korTTYs Protokoll, und zwar **nur Byte-Anzahlen und Formen** – `bytes=28 bracketed=false submitted=true`, `keys=2`, `orientation=vertical` – niemals Terminaltext. Die Zeile steht in korTTYs Protokoll und nur dort – in das Sitzungsjournal eines Tabs schreibt die API nichts."
+  },
+  {
+   "id": "s043",
+   "page": "features/security.md",
+   "kind": "inline",
+   "en": "The following sensitive and security-related data is stored in `~/.kortty/`; secret values are encrypted, while public verification material is not:",
+   "de": "Die folgenden sensiblen und sicherheitsrelevanten Daten werden in `~/.kortty/` gespeichert; Geheime Werte werden verschlüsselt, während öffentliches Verifizierungsmaterial nicht verschlüsselt ist:"
+  },
+  {
+   "id": "s044",
+   "page": "reference/cli.md",
+   "kind": "inline",
+   "en": "Giving none of them, or more than one, is a syntax error (exit 2) that names the four; a bare `p1a2b3c4d` or `@focused` written where a flag belongs is a syntax error too.",
+   "de": "Keinen oder mehr als einen anzugeben ist ein Syntaxfehler (Code 2), der die vier benennt; ein bloßes `p1a2b3c4d` oder `@focused` an der Stelle einer Option ist ebenfalls ein Syntaxfehler."
+  },
+  {
+   "id": "s045",
+   "page": "reference/architecture.md",
+   "kind": "list",
+   "en": "1. **SithTermFX build**: Cloned and built locally (Maven); its accidentally published JUnit dependency is excluded from the runtime.",
+   "de": "1. **SithTermFX-Build**: Lokal geklont und erstellt (Maven); seine versehentlich veröffentlichte JUnit-Abhängigkeit wird von der Laufzeit ausgeschlossen."
+  },
+  {
+   "id": "s046",
+   "page": "features/terminal.md",
+   "kind": "list",
+   "en": "   - Choose **WebM/VP9** or **MKV/FFV1** format, then select an output path.",
+   "de": "   - Wählen Sie das Format **WebM/VP9** oder **MKV/FFV1** und dann einen Ausgabepfad."
+  },
+  {
+   "id": "s047",
+   "page": "features/recording.md",
+   "kind": "list",
+   "en": "1. Select a replay in **Tools > Video Manager**",
+   "de": "1. Wählen Sie unter **Tools > Video-Manager** eine Wiedergabe aus."
+  },
+  {
+   "id": "s048",
+   "page": "features/terminal-effect-plugins.md",
+   "kind": "list",
+   "en": "- Application-classpath plugins without a source JAR are not exportable",
+   "de": "- Anwendungsklassenpfad-Plugins ohne Quell-JAR können nicht exportiert werden"
+  },
+  {
+   "id": "s049",
+   "page": "features/ai-assistant.md",
+   "kind": "list",
+   "en": "* Commands are limited per turn and must be non-interactive.",
+   "de": "* Befehle sind pro Runde begrenzt und dürfen nicht interaktiv sein."
+  },
+  {
+   "id": "s050",
+   "page": "features/ai-tools.md",
+   "kind": "list",
+   "en": "- Make the command name case-insensitive",
+   "de": "- Machen Sie beim Befehlsnamen keine Berücksichtigung der Groß-/Kleinschreibung"
+  },
+  {
+   "id": "s051",
+   "page": "features/local-models.md",
+   "kind": "list",
+   "en": "- **Reasoning models** (for example Qwen3 conversions) are handled like their GGUF counterparts: korTTY separates the inline chain-of-thought from the answer and retries a reply that contains only reasoning once automatically (except for the dedicated snippet/workflow diagram request, which fails immediately instead).",
+   "de": "- **Reasoning-Modelle** (z. B. Qwen3-Konvertierungen) werden wie ihre GGUF-Gegenstücke behandelt: korTTY trennt die Inline-Gedankenkette von der Antwort und wiederholt automatisch eine Antwort, die nur Reasoning enthält (mit Ausnahme der dedizierten Snippet-/Workflow-Diagramm-Anfrage, die stattdessen sofort fehlschlägt)."
+  },
+  {
+   "id": "s052",
+   "page": "features/ai-assistant.md",
+   "kind": "list",
+   "en": "* Each history row shows the prompt on the left and the date/time it was last run on the right. Prompts longer than 60 characters are shortened with an ellipsis; the full prompt is still inserted when the entry is selected.",
+   "de": "* Jede Verlaufszeile zeigt links die Eingabeaufforderung und rechts das Datum/die Uhrzeit der letzten Ausführung. Eingabeaufforderungen mit mehr als 60 Zeichen werden durch Auslassungspunkte gekürzt. Die vollständige Eingabeaufforderung wird weiterhin eingefügt, wenn der Eintrag ausgewählt wird."
+  },
+  {
+   "id": "s053",
+   "page": "reference/hardening-options.md",
+   "kind": "list",
+   "en": "- **Imperative scripts** — Before doing work, verify required commands, privileges (root/sudo) and connectivity.",
+   "de": "- **Imperative Skripte** – Überprüfen Sie vor der Arbeit die erforderlichen Befehle, Berechtigungen (root/sudo) und Konnektivität."
+  },
+  {
+   "id": "s054",
+   "page": "features/teamwork.md",
+   "kind": "list",
+   "en": "   - Pulls/clones each source (Git) or reads the file (Shared File).",
+   "de": "   - Zieht/klont jede Quelle (Git) oder liest die Datei (Shared File)."
+  },
+  {
+   "id": "s055",
+   "page": "features/recording.md",
+   "kind": "list",
+   "en": "- **Idle pause**: Auto-pause helps reduce file size during long idle periods; enable it unless you need to preserve exact timing",
+   "de": "- **Leerlaufpause**: Die automatische Pause hilft, die Dateigröße bei langen Leerlaufzeiten zu reduzieren; Aktivieren Sie es, es sei denn, Sie müssen das genaue Timing beibehalten"
+  },
+  {
+   "id": "s056",
+   "page": "reference/config-files.md",
+   "kind": "list",
+   "en": "- Local syntax highlighting with Monaco editor",
+   "de": "- Lokale Syntaxhervorhebung mit dem Monaco-Editor"
+  },
+  {
+   "id": "s057",
+   "page": "reference/config-files.md",
+   "kind": "list",
+   "en": "- AI summaries (interval and profile) and the AI screenshot analysis toggle",
+   "de": "- KI-Zusammenfassungen (Intervall und Profil) und der Schalter für die KI-Screenshot-Analyse"
+  },
+  {
+   "id": "s058",
+   "page": "features/session-journal.md",
+   "kind": "list",
+   "en": "- **Analyze screenshots with AI (description and tags)** in the journal manager's **Options** dialog controls the automatic analysis on capture (on by default). It runs only when AI summaries are enabled for the connection and the profile can take images; otherwise the screenshot is simply filed unanalyzed.",
+   "de": "- **Screenshots mit KI analysieren (Beschreibung und Tags)** im Dialogfeld **Optionen** des Journalmanagers steuert die automatische Analyse bei der Erfassung (standardmäßig aktiviert). Es wird nur ausgeführt, wenn KI-Zusammenfassungen für die Verbindung aktiviert sind und das Profil Bilder aufnehmen kann. andernfalls wird der Screenshot einfach unanalysiert abgelegt."
+  },
+  {
+   "id": "s059",
+   "page": "features/terminal.md",
+   "kind": "list",
+   "en": "1. Open or focus an SSH terminal tab.",
+   "de": "1. Öffnen oder fokussieren Sie eine SSH-Terminal-Registerkarte."
+  },
+  {
+   "id": "s060",
+   "page": "reference/config-files.md",
+   "kind": "list",
+   "en": "- Host-key pins (OpenSSH public-key material for unattended execution)",
+   "de": "- Host-Key-Pins (OpenSSH-Public-Key-Material für unbeaufsichtigte Ausführung)"
+  },
+  {
+   "id": "s061",
+   "page": "reference/hardening-options.md",
+   "kind": "list",
+   "en": "- **Imperative scripts** — Hoist all literals (paths, hosts, packages) into a clearly commented configuration block near the top.",
+   "de": "- **Imperative Skripte** – Heben Sie alle Literale (Pfade, Hosts, Pakete) in einen klar kommentierten Konfigurationsblock oben."
+  },
+  {
+   "id": "s062",
+   "page": "features/ai-assistant.md",
+   "kind": "list",
+   "en": "* summarizing command output and explaining findings;",
+   "de": "* Zusammenfassung der Befehlsausgabe und Erläuterung der Ergebnisse;"
+  },
+  {
+   "id": "s063",
+   "page": "features/recording.md",
+   "kind": "prose",
+   "en": "Replay files contain timestamped events in JSONL format (one event per line, gzip-compressed). The decompressed JSONL may contain:",
+   "de": "Wiedergabedateien enthalten zeitgestempelte Ereignisse im JSONL-Format (ein Ereignis pro Zeile, gzip-komprimiert). Das dekomprimierte JSONL kann Folgendes enthalten:"
+  },
+  {
+   "id": "s064",
+   "page": "features/ai-swarm.md",
+   "kind": "prose",
+   "en": "Scheduled swarm jobs run completely headless over background SSH sessions — no terminal tabs are opened. Swarm-specific job fields:",
+   "de": "Geplante Schwarmjobs laufen völlig kopflos über SSH-Hintergrundsitzungen – es werden keine Terminal-Registerkarten geöffnet. Schwarmspezifische Berufsfelder:"
+  },
+  {
+   "id": "s065",
+   "page": "features/ai-assistant.md",
+   "kind": "prose",
+   "en": "The agent is not intended for:",
+   "de": "Das Mittel ist nicht bestimmt für:"
+  },
+  {
+   "id": "s066",
+   "page": "reference/config-files.md",
+   "kind": "prose",
+   "en": "**Note:** AI result tabs are not automatically saved. You must explicitly save them from the AI tab using the *Save* button to add them to this file.",
+   "de": "**Hinweis:** AI-Ergebnisregisterkarten werden nicht automatisch gespeichert. Sie müssen sie explizit auf der Registerkarte „AI“ mit der Schaltfläche „Speichern“ speichern, um sie dieser Datei hinzuzufügen."
+  },
+  {
+   "id": "s067",
+   "page": "features/local-models.md",
+   "kind": "prose",
+   "en": "The built-in bootstrap catalog uses conservative RAM tiers. The table shows the preselected default per role; the selector of an enabled slot additionally offers every other catalog model whose memory requirement the detected tier meets:",
+   "de": "Der integrierte Bootstrap-Katalog verwendet konservative RAM-Stufen. Die Tabelle zeigt den vorausgewählten Standard pro Rolle; Der Selektor eines aktivierten Steckplatzes bietet zusätzlich jedes andere Katalogmodell an, dessen Speicherbedarf die erkannte Stufe erfüllt:"
+  },
+  {
+   "id": "s068",
+   "page": "reference/settings/appearance.md",
+   "kind": "prose",
+   "en": "Create, edit, and manage terminal color themes. Themes define colors (text, background, cursor, ANSI) and styling for all terminal sessions.",
+   "de": "Erstellen, bearbeiten und verwalten Sie Terminal-Farbthemen. Themen definieren Farben (Text, Hintergrund, Cursor, ANSI) und Stil für alle Terminalsitzungen."
+  },
+  {
+   "id": "s069",
+   "page": "features/local-models.md",
+   "kind": "prose",
+   "en": "**No llama.cpp runtime is installed**",
+   "de": "**Es ist keine llama.cpp-Laufzeitumgebung installiert**"
+  },
+  {
+   "id": "s070",
+   "page": "features/session-journal.md",
+   "kind": "prose",
+   "en": "Every archive — including the HTML bundle of a single journal — can be **protected with a password**. The option sits in the export dialog and encrypts the archive with **AES-256**; without it the archive is written unencrypted. Journals contain full terminal transcripts, so an unprotected archive is a deliberate choice.",
+   "de": "Jedes Archiv – einschließlich des HTML-Bundles eines einzelnen Journals – kann **mit einem Passwort geschützt** werden. Die Option befindet sich im Exportdialog und verschlüsselt das Archiv mit **AES-256**; ohne sie wird das Archiv unverschlüsselt geschrieben. Da Journale vollständige Terminal-Mitschriften enthalten, ist die Wahl eines ungeschützten Archivs eine bewusste Wahl."
+  },
+  {
+   "id": "s071",
+   "page": "features/ai-assistant.md",
+   "kind": "prose",
+   "en": "Example prompts that produce rendered answers:",
+   "de": "Beispielaufforderungen, die gerenderte Antworten erzeugen:"
+  },
+  {
+   "id": "s072",
+   "page": "features/ai-tools.md",
+   "kind": "prose",
+   "en": "Use **View → AI Agent Panel** to choose where the activity panel appears:",
+   "de": "Verwenden Sie **Ansicht → AI Agent Panel**, um auszuwählen, wo das Aktivitätsfenster angezeigt wird:"
+  },
+  {
+   "id": "s073",
+   "page": "features/jobscheduler.md",
+   "kind": "prose",
+   "en": "SFTP archive jobs support ZIP, password-protected ZIP, TAR, and TAR.BZ2. Archive sources and exclude patterns accept one path or pattern per line. The archive can optionally be downloaded after creation.",
+   "de": "SFTP-Archivierungsjobs unterstützen ZIP, passwortgeschütztes ZIP, TAR und TAR.BZ2. Archivquellen und Ausschlussmuster akzeptieren einen Pfad oder ein Muster pro Zeile. Das Archiv kann optional nach der Erstellung heruntergeladen werden."
+  },
+  {
+   "id": "s074",
+   "page": "reference/settings/appearance.md",
+   "kind": "prose",
+   "en": "It deliberately does **not** touch surfaces that already have their own size control, so the two never fight each other:",
+   "de": "Es berührt bewusst **keine** Oberflächen, die bereits über eine eigene Größenkontrolle verfügen, sodass die beiden nie gegeneinander antreten:"
+  },
+  {
+   "id": "s075",
+   "page": "features/coding-agents.md",
+   "kind": "prose",
+   "en": "A detected agent is always in exactly one of five states. The list is ordered by urgency: when several panes are summarised, the most urgent state wins.",
+   "de": "Ein erkannter Agent befindet sich immer in genau einem von fünf Zuständen. Die Liste ist nach Dringlichkeit geordnet: Werden mehrere Bereiche zusammengefasst, gewinnt der dringlichste Zustand."
+  },
+  {
+   "id": "s076",
+   "page": "features/jump-server.md",
+   "kind": "prose",
+   "en": "korTTY authenticates to the jump server with the jump server's own credentials, opens a tunnel through it, and then opens the real SSH session to the target host through that tunnel. The target's credentials are used only for the target, and the jump server's credentials only for the jump server — neither host is offered the other's password or key.",
+   "de": "korTTY authentifiziert sich beim Jump-Server mit den eigenen Anmeldeinformationen des Jump-Servers, öffnet einen Tunnel dadurch und öffnet dann die echte SSH-Sitzung zum Zielhost über diesen Tunnel. Die Anmeldeinformationen des Ziels werden nur für das Ziel verwendet, und die Anmeldeinformationen des Jump-Servers werden nur für den Jump-Server verwendet – keinem Host wird das Kennwort oder der Schlüssel des anderen angeboten."
+  },
+  {
+   "id": "s077",
+   "page": "features/coding-agents.md",
+   "kind": "prose",
+   "en": "Each agent's screen rules live in a small JSON file. KorTTY ships one bundled file per agent and lets you replace it with your own copy under your configuration directory:",
+   "de": "Die Bildschirmregeln jedes Agents liegen in einer kleinen JSON-Datei. KorTTY liefert pro Agent eine mitgelieferte Datei und lässt Sie diese durch Ihre eigene Kopie in Ihrem Konfigurationsverzeichnis ersetzen:"
+  },
+  {
+   "id": "s078",
+   "page": "features/snippets.md",
+   "kind": "prose",
+   "en": "For script-specific exports, choose:",
+   "de": "Wählen Sie für skriptspezifische Exporte Folgendes:"
+  },
+  {
+   "id": "s079",
+   "page": "features/i18n.md",
+   "kind": "prose",
+   "en": "To switch to a different built-in language:",
+   "de": "So wechseln Sie zu einer anderen integrierten Sprache:"
+  },
+  {
+   "id": "s080",
+   "page": "features/session-journal.md",
+   "kind": "prose",
+   "en": "The quickest way to mark a single entry is the timeline itself: right-click it and choose **Set marker…**.",
+   "de": "Der schnellste Weg, einen einzelnen Eintrag zu markieren, ist die Zeitleiste selbst: Klicken Sie mit der rechten Maustaste darauf und wählen Sie **Marker setzen…**."
+  },
+  {
+   "id": "s081",
+   "page": "reference/input-hardening.md",
+   "kind": "prose",
+   "en": "With the master check box ticked, five sub-options control what the guard enforces. All five are pre-ticked; untick what you do not want.",
+   "de": "Wenn das Master-Kontrollkästchen aktiviert ist, steuern fünf Unteroptionen, was der Wächter erzwingt. Alle fünf sind bereits angekreuzt; Deaktivieren Sie, was Sie nicht möchten."
+  },
+  {
+   "id": "s082",
+   "page": "features/local-models.md",
+   "kind": "prose",
+   "en": "**A signed runtime check or installation fails**",
+   "de": "**Eine signierte Laufzeitprüfung oder Installation schlägt fehl**"
+  },
+  {
+   "id": "s083",
+   "page": "features/ascii-art.md",
+   "kind": "prose",
+   "en": "Instead of lettering, this tab asks a model to draw the subject as a small vector drawing (a restricted SVG), which korTTY then converts into ASCII characters itself — a model is far better at describing shapes than at typing aligned characters.",
+   "de": "Anstelle von Buchstaben fordert diese Registerkarte ein Modell auf, das Motiv als kleine Vektorzeichnung (eine eingeschränkte SVG-Datei) zu zeichnen, die korTTY dann selbst in ASCII-Zeichen umwandelt – ein Modell kann Formen weitaus besser beschreiben als ausgerichtete Zeichen eingeben."
+  },
+  {
+   "id": "s084",
+   "page": "features/projects.md",
+   "kind": "prose",
+   "en": "When **Auto-Reconnect** is enabled, KorTTY automatically:",
+   "de": "Wenn **Auto-Reconnect** aktiviert ist, führt KorTTY automatisch Folgendes durch:"
+  },
+  {
+   "id": "s085",
+   "page": "features/local-models.md",
+   "kind": "prose",
+   "en": ": If the repository's ETag or immutable file metadata changed, korTTY restarts that file instead of appending incompatible bytes. A checksum mismatch deletes the invalid partial file.",
+   "de": ": Wenn sich das ETag oder die unveränderlichen Dateimetadaten des Repositorys geändert haben, startet korTTY diese Datei neu, anstatt inkompatible Bytes anzuhängen. Bei einer Prüfsummenabweichung wird die ungültige Teildatei gelöscht."
+  },
+  {
+   "id": "s086",
+   "page": "features/ascii-art.md",
+   "kind": "prose",
+   "en": "All tabs share one zoom level, so a banner and a picture are always shown at the same size.",
+   "de": "Alle Registerkarten teilen sich eine Zoomstufe, sodass ein Banner und ein Bild immer in der gleichen Größe angezeigt werden."
+  },
+  {
+   "id": "s087",
+   "page": "features/recording.md",
+   "kind": "prose",
+   "en": "Terminal recording saves session data into compressed JSONL replay files, one per terminal tab session:",
+   "de": "Die Terminalaufzeichnung speichert Sitzungsdaten in komprimierten JSONL-Wiedergabedateien, eine pro Terminal-Tab-Sitzung:"
+  },
+  {
+   "id": "s088",
+   "page": "features/sftp.md",
+   "kind": "prose",
+   "en": "The integrated SFTP Manager provides a graphical file manager for transferring files between your local machine and remote servers via SFTP. It features a dual-panel layout, full file operations support, and seamless integration with the Snippet Editor for remote file editing.",
+   "de": "Der integrierte SFTP-Manager bietet einen grafischen Dateimanager zum Übertragen von Dateien zwischen Ihrem lokalen Computer und Remote-Servern über SFTP. Es verfügt über ein Dual-Panel-Layout, vollständige Unterstützung für Dateivorgänge und eine nahtlose Integration mit dem Snippet-Editor für die Fernbearbeitung von Dateien."
+  },
+  {
+   "id": "s089",
+   "page": "features/tunnels.md",
+   "kind": "prose",
+   "en": "Multiple tunnels can be configured per connection. Disabled tunnels remain in the configuration but are not activated when the connection opens.",
+   "de": "Pro Verbindung können mehrere Tunnel konfiguriert werden. Deaktivierte Tunnel bleiben in der Konfiguration erhalten, werden jedoch beim Verbindungsaufbau nicht aktiviert."
+  },
+  {
+   "id": "s090",
+   "page": "features/local-models.md",
+   "kind": "prose",
+   "en": "Profile resolution follows the most specific available choice: an explicitly selected profile, then a security-specific profile or connection profile where applicable, then the Text/Coding role, then the default profile. The same role mechanism works with embedded, remote HTTP, or local CLI profiles; a role does not force a local model.",
+   "de": "Die Profilauflösung folgt der spezifischsten verfügbaren Auswahl: einem explizit ausgewählten Profil, dann ggf. einem sicherheitsspezifischen Profil oder Verbindungsprofil, dann der Text-/Codierungsrolle und dann dem Standardprofil. Der gleiche Rollenmechanismus funktioniert mit eingebetteten, Remote-HTTP- oder lokalen CLI-Profilen; Eine Rolle erzwingt kein lokales Modell."
+  },
+  {
+   "id": "s091",
+   "page": "features/teamwork.md",
+   "kind": "prose",
+   "en": "Share SSH connections with your team by syncing them from a Git repository or shared file. Teamwork sources are loaded into the Connection Manager alongside your local connections, kept in sync automatically, and safely stripped of inline passwords so credentials come only from your local encrypted storage.",
+   "de": "Teilen Sie SSH-Verbindungen mit Ihrem Team, indem Sie sie aus einem Git-Repository oder einer freigegebenen Datei synchronisieren. Teamwork-Quellen werden zusammen mit Ihren lokalen Verbindungen in den Connection Manager geladen, automatisch synchronisiert und sicher von Inline-Passwörtern befreit, sodass Anmeldeinformationen nur aus Ihrem lokalen verschlüsselten Speicher stammen."
+  },
+  {
+   "id": "s092",
+   "page": "features/ai-assistant.md",
+   "kind": "prose",
+   "en": "Native Anthropic (Claude) API support is included alongside existing OpenAI-compatible endpoints.",
+   "de": "Native Anthropic (Claude) API-Unterstützung ist neben vorhandenen OpenAI-kompatiblen Endpunkten enthalten."
+  },
+  {
+   "id": "s093",
+   "page": "features/ai-swarm.md",
+   "kind": "table",
+   "en": "| **Unusually long** | blue with an amber ping ring | Running far longer than its peers (see below) |",
+   "de": "| **Ungewöhnlich lang** | blau mit einem bernsteinfarbenen Ping-Ring | Läuft viel länger als seine Mitbewerber (siehe unten) |"
+  },
+  {
+   "id": "s094",
+   "page": "reference/architecture.md",
+   "kind": "table",
+   "en": "| **UI** | JavaFX | 21.0.12 | Application framework |",
+   "de": "| **UI** | JavaFX | 21.0.12 | Anwendungsframework |"
+  },
+  {
+   "id": "s095",
+   "page": "reference/architecture.md",
+   "kind": "table",
+   "en": "| | google-java-format | 1.36.1 | Java code formatting |",
+   "de": "| | google-java-format | 1.36.1 | Java-Codeformatierung |"
+  },
+  {
+   "id": "s096",
+   "page": "features/local-models.md",
+   "kind": "table",
+   "en": "| `~/.kortty/llm/runtime/` | Regenerable llama.cpp packages and active-package metadata | No; reinstall a compatible package |",
+   "de": "| `~/.kortty/llm/runtime/` | Regenerierbare llama.cpp-Pakete und Metadaten aktiver Pakete | NEIN; Installieren Sie ein kompatibles Paket neu |"
+  },
+  {
+   "id": "s097",
+   "page": "features/terminal-effect-plugins.md",
+   "kind": "table",
+   "en": "| `pluginId()` | The active plugin ID |",
+   "de": "| `pluginId()` | Die aktive Plugin-ID |"
+  },
+  {
+   "id": "s098",
+   "page": "features/session-journal.md",
+   "kind": "table",
+   "en": "| **HTML bundle (complete)** | A zip archive of the whole journal — `journal.html`, `journal.xml`, the decompressed capture logs and all screenshots — laid out so the page works immediately after unzipping |",
+   "de": "| **HTML-Bundle (vollständig)** | Ein Zip-Archiv des gesamten Journals – `journal.html`, `journal.xml`, die dekomprimierten Aufnahmeprotokolle und alle Screenshots – so angeordnet, dass die Seite sofort nach dem Entpacken funktioniert |"
+  },
+  {
+   "id": "s099",
+   "page": "reference/enterprise-policy.md",
+   "kind": "table",
+   "en": "| `allow-create` | boolean | `false` | Users cannot create AI profiles (buttons and wizard are locked) |",
+   "de": "| `allow-create` | boolean | `false` | Benutzer können keine AI-Profile erstellen (Schaltflächen und Assistent sind gesperrt) |"
+  },
+  {
+   "id": "s100",
+   "page": "reference/settings/resources.md",
+   "kind": "table",
+   "en": "| Resource profile: | dropdown | Balanced, High, Maximum | Balanced | `jvmResourceProfile` |",
+   "de": "| Ressourcenprofil: | Dropdown | Ausbalanciert, Hoch, Maximal | Ausbalanciert | `jvmResourceProfile` |"
+  },
+  {
+   "id": "s101",
+   "page": "reference/cli.md",
+   "kind": "table",
+   "en": "| `--pane p1a2b3c4d` | That pane, which must be unique among the open ones |",
+   "de": "| `--pane p1a2b3c4d` | Dieser Bereich, der unter den offenen eindeutig sein muss |"
+  },
+  {
+   "id": "s102",
+   "page": "reference/architecture.md",
+   "kind": "table",
+   "en": "| `JobExecutor` | Executes individual jobs (SSH command, script, AI agent, SFTP, Rsync) |",
+   "de": "| `JobExecutor` | Führt einzelne Jobs aus (SSH-Befehl, Skript, AI-Agent, SFTP, Rsync) |"
+  },
+  {
+   "id": "s103",
+   "page": "features/security.md",
+   "kind": "table",
+   "en": "| `master.autounlock` | Remembered master password for the optional auto-login | Obfuscated only — not encrypted; owner-only file permissions |",
+   "de": "| `master.autounlock` | Gespeichertes Master-Passwort für die optionale automatische Anmeldung | Nur verschleiert – nicht verschlüsselt; Nur-Eigentümer-Dateiberechtigungen |"
+  },
+  {
+   "id": "s104",
+   "page": "reference/architecture.md",
+   "kind": "table",
+   "en": "| **Data** | Jakarta XML Bind | 4.0.5 (jaxb-runtime 4.0.9) | JAXB serialization |",
+   "de": "| **Daten** | Jakarta XML Bind | 4.0.5 (jaxb-runtime 4.0.9) | JAXB-Serialisierung |"
+  },
+  {
+   "id": "s105",
+   "page": "reference/settings/translation.md",
+   "kind": "table",
+   "en": "| Yandex | Yandex Cloud Translate v2 | A Yandex Cloud **service account API key**, sent as `Api-Key` | `https://translate.api.cloud.yandex.net/translate/v2` |",
+   "de": "| Yandex | Yandex Cloud Translate v2 | Ein Yandex Cloud **Dienstkonto-API-Schlüssel**, gesendet als `Api-Key` | `https://translate.api.cloud.yandex.net/translate/v2` |"
+  },
+  {
+   "id": "s106",
+   "page": "reference/settings/index.md",
+   "kind": "table",
+   "en": "| [Window](window.md) | Window geometry restore, fixed geometry, dashboard state, menu bar |",
+   "de": "| [Fenster](window.md) | Window geometry restore, fixed geometry, dashboard state, menu bar |"
+  },
+  {
+   "id": "s107",
+   "page": "getting-started/building-packages.md",
+   "kind": "table",
+   "en": "| Outbound HTTPS access | The wrapper, Maven/Gradle dependencies, SithTermFX, SHA-256-pinned mosh4j, the Monaco build toolchain, formatter browser bundles and chat-render resources are downloaded during a clean first build |",
+   "de": "| Ausgehender HTTPS-Zugriff | Der Wrapper, Maven/Gradle-Abhängigkeiten, SithTermFX, SHA-256-pinned mosh4j, die Monaco-Build-Toolchain, Formatter-Browser-Bundles und Chat-Render-Ressourcen werden während eines sauberen ersten Builds heruntergeladen |"
+  },
+  {
+   "id": "s108",
+   "page": "features/session-journal.md",
+   "kind": "table",
+   "en": "| AI profile for summaries | Journal manager **Options** or **Settings > Logging > Session Journal** | Default profile |",
+   "de": "| AI-Profil für Zusammenfassungen | Journalmanager **Optionen** oder **Einstellungen > Protokollierung > Sitzungsjournal** | Standardprofil |"
+  },
+  {
+   "id": "s109",
+   "page": "features/snippets.md",
+   "kind": "table",
+   "en": "| YAML | `.yaml` | Human-readable, configuration-friendly |",
+   "de": "| YAML | `.yaml` | Für Menschen lesbares, konfigurationsfreundliches |"
+  },
+  {
+   "id": "s110",
+   "page": "reference/settings/backup.md",
+   "kind": "table",
+   "en": "| GPG Key | dropdown | Available GPG keys | — | `backupGpgKeyId` |",
+   "de": "| GPG-Schlüssel | Dropdown-Liste | Verfügbare GPG-Schlüssel | – | `backupGpgKeyId` |"
+  }
+ ]
+}

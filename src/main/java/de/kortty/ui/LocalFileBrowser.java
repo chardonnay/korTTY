@@ -81,7 +81,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -1112,29 +1114,42 @@ public class LocalFileBrowser extends VBox {
             }
         }
         snippet.setDiagrams(diagramCopies);
-        String categoryName = snippet.getCategory();
-        if (categoryName != null && !categoryName.isBlank()
-            && snippetManager.findCategoryByName(categoryName.trim()).isEmpty()) {
-            snippetManager.addCategory(new SnippetCategory(categoryName.trim()));
-        }
-        snippetManager.addSnippet(snippet);
-        snippetManager.save();
-        return true;
+        // The editor runs this on a worker thread; the SnippetManager is FX-thread state (its
+        // lists are read by open dialogs and its change listeners expect FX), so mutate and save
+        // there and let any failure propagate unchanged.
+        return callOnFxThread(() -> {
+            snippetManager.ensureCategory(snippet.getCategory());
+            snippetManager.addSnippet(snippet);
+            snippetManager.save();
+            return true;
+        });
     }
 
-    private <T> T callOnFxThread(Supplier<T> supplier) throws Exception {
+    /** Runs {@code action} on the FX thread and rethrows its failure as-is (not wrapped). */
+    private <T> T callOnFxThread(Callable<T> action) throws Exception {
         if (Platform.isFxApplicationThread()) {
-            return supplier.get();
+            return action.call();
         }
         CompletableFuture<T> future = new CompletableFuture<>();
         Platform.runLater(() -> {
             try {
-                future.complete(supplier.get());
+                future.complete(action.call());
             } catch (Throwable t) {
                 future.completeExceptionally(t);
             }
         });
-        return future.get();
+        try {
+            return future.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while waiting for UI action", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof Exception exception) {
+                throw exception;
+            }
+            throw new IllegalStateException(cause);
+        }
     }
 
     private TreeItem<FileNode> toTreeItem(FileNode node) {

@@ -106,7 +106,7 @@
         <a href="../../../getting-started/main-window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            Main window overview
+            Übersicht des Hauptfensters
         </a>
     </li>
                     </ul>
@@ -248,7 +248,7 @@
         <a href="../export.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            Export
+            Exportieren
         </a>
     </li>
                     
@@ -758,7 +758,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="snippet-editor">Snippet-Editor<a class="headerlink" href="#snippet-editor" title="Permanent link">&para;</a></h1>
-<p>Schriftart-, Farb- und Cursor-Überschreibungen für den Snippet-Manager und das Dialogfeld „Snippet bearbeiten“. Öffnen über <strong>Konfiguration → Globale Einstellungen → Snippet-Editor</strong>; in <code>~/.kortty/global-settings.xml</code> gespeichert.</p>
+<p>Schriftart, Farbe und Cursor-Überschreibungen für den Snippet-Manager und das Snippet-Editor-Dialogfeld, sowie wie viele Vollcodeanalysen korTTY pro Snippet behält. Öffnen Sie über <strong>Konfiguration → Globale Einstellungen → Snippet-Editor</strong>; gespeichert in <code>~/.kortty/global-settings.xml</code>.</p>
 <p><img alt="Snippet Editor settings tab" src="../../../assets/screenshots/settings/snippet-editor.png" /></p>
 <table>
 <thead>
@@ -827,6 +827,13 @@
 <td>ein</td>
 <td><code>snippetEditorPrewarmEnabled</code></td>
 </tr>
+<tr>
+<td>Gespeicherte Analysen pro Snippet</td>
+<td>Nummer</td>
+<td>1–20</td>
+<td>5</td>
+<td><code>snippetAnalysisHistoryMaxSize</code></td>
+</tr>
 </tbody>
 </table>
 <div class="admonition tip">
@@ -836,6 +843,10 @@
 <div class="admonition note">
 <p class="admonition-title">Vorgewärmter Editor</p>
 <p>Wenn <strong>Einen vorgewärmten Editor bereithalten</strong> aktiviert ist, startet korTTY etwa zwei Sekunden nach dem Öffnen des ersten Snippet-Editors einer Sitzung einen Ersatzeditor im Hintergrund, sodass der nächste Snippet-Bearbeitungsdialog oder die nächste Snippet-Manager-Vorschau mit einem fertigen Editor startet, anstatt Monaco zu laden, während Sie warten. Der Ersatz wird erst erstellt, nachdem Sie einen Editor einmal verwendet haben, und er hält im Leerlauf eine WebKit-Seite im Speicher – schalten Sie die Option auf Computern mit wenig RAM aus, um einen kurzen Start pro Öffnung für diesen Speicher einzutauschen.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Gespeicherte Analysen pro Snippet</p>
+<p>Wie viele <a href="../../../features/snippets.html#vollstandige-code-analyse">Vollständige Code-Analysen</a> korTTY für jedes Snippet behält. Wenn eine neue Analyse eines Snippets eintrifft und die Historie das Limit überschreitet, werden die ältesten Analysen entfernt; angeheftete Analysen, Analysen mit einem Ergebnis, das auf Überprüfung wartet, und Analysen mit einer unterbrochenen Anwendung bleiben immer erhalten, sodass eine Historie mehr als das Limit enthalten kann. Eine Verringerung des Wertes löscht sofort nichts: der Einstellungs-Tab gibt an, wie viele ältere, nicht angeheftete Analysen die nächste Analyse jedes Snippets entfernen würde, und sie werden erst entfernt, wenn diese Analyse eintrifft. Um Analysen jetzt zu entfernen, verwenden Sie <strong>Verwerfen</strong> oder <strong>Alle löschen</strong> im Analyse-Panel.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Erben statt Überschreiben</p>

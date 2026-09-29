@@ -1,6 +1,10 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.SnippetAnalysisHistory;
+import de.kortty.core.SnippetAnalysisOverview;
+import de.kortty.core.SnippetAnalysisStore;
+import de.kortty.core.SnippetDiagramSupport;
 import de.kortty.core.SnippetDiffSelectionSupport;
 import de.kortty.core.SnippetManager;
 import de.kortty.core.SnippetOneLiner;
@@ -9,9 +13,11 @@ import de.kortty.core.SnippetVariableManager;
 import de.kortty.model.GPGKey;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleLongProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -20,21 +26,25 @@ import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
-import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
-import javafx.stage.Modality;
+import javafx.stage.Window;
+import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,13 +58,39 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Dialog for managing code snippets: browse, search, preview, and insert into editor or terminal.
- * Supports multi-selection for batch delete/export operations.
- * Double-click a table row to open the snippet in the edit dialog; use the row context menu for other actions.
+ * The snippet library of the {@link SnippetWorkspaceDialog}: search, category filter, the snippet
+ * table and every list action (favorite, delete, diff, copy/insert, import/export, variables, the
+ * operating-system column). Selecting a row asks the host for a read-only preview; double-click,
+ * Enter or Edit ask it to open the snippet in an editor tab. Supports multi-selection for batch
+ * delete/export/favorite.
  */
-public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
-    
-    private static final Logger logger = LoggerFactory.getLogger(SnippetManagementDialog.class);
+final class SnippetLibraryPane extends BorderPane {
+
+    private static final Logger logger = LoggerFactory.getLogger(SnippetLibraryPane.class);
+
+    /** What the library needs from the workspace around it. */
+    interface Host {
+        /** A single row was selected (debounced); show it read-only. */
+        void previewRequested(Snippet snippet);
+
+        /** Double-click, Enter or Edit: open {@code snippet} in an editor tab. */
+        void openRequested(Snippet snippet);
+
+        /** Add: open a new, empty editor tab. */
+        void newRequested();
+
+        /** Owner for alerts, file choosers and child dialogs (resolved at use time). */
+        Window ownerWindow();
+
+        /** The main window to insert into, or {@code null} (e.g. a render smoke without one). */
+        MainWindow mainWindow();
+
+        /**
+         * Called before {@code snippets} are deleted; {@code false} blocks the delete (an open
+         * editor holds unsaved changes). The host closes clean editors of deleted snippets.
+         */
+        boolean beforeDelete(List<Snippet> snippets);
+    }
 
     private enum SnippetExportFormat {
         JSON("snippets.export.format.json", "json"),
@@ -126,42 +162,82 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         }
     }
     
+    /** Single-row selections settle for this long before the (read-only) preview follows. */
+    private static final Duration PREVIEW_DEBOUNCE = Duration.millis(120);
+
     private final SnippetManager snippetManager;
-    private final MainWindow ownerWindow;
+    private final Host host;
     private final TableView<Snippet> snippetTable;
     private final TextField searchField;
     private final ComboBox<String> categoryFilter;
-    private final MonacoEditorPane previewArea;
+    private final ComboBox<SnippetAnalysisOverview.Filter> analysisFilter;
     private final ObservableList<Snippet> snippetList;
     private final FilteredList<Snippet> filteredList;
     private final EditorSettingsHelper.Settings editorSettings;
-    private final CheckBox wordWrapCheckBox;
-    private final CheckBox lineNumbersCheckBox;
-    private final SplitPane contentSplitPane;
-    
-    public SnippetManagementDialog(SnippetManager snippetManager, MainWindow ownerWindow) {
+    private final PauseTransition previewDebounce = new PauseTransition(PREVIEW_DEBOUNCE);
+    /** Set while the host syncs the row to its active tab: that selection must not re-preview. */
+    private boolean suppressPreview;
+
+    // ---- Analysis overview (status column + filter), loaded off the FX thread ----
+    static final String ANALYSIS_COLUMN_ID = "analysisStatus";
+    static final String ANALYSIS_FILTER_ID = "snippet-library-analysis-filter";
+    static final String BATCH_EXPORT_ITEM_ID = "snippet-library-export-reports";
+    private final SnippetAnalysisStore analysisStore;
+    private final Map<String, SnippetAnalysisOverview> analysisOverviews = new HashMap<>();
+    private final Set<String> overviewRequested = new HashSet<>();
+    /** Snippet id → {content, sha}: the saved content's hash, recomputed only when the content changes. */
+    private final Map<String, String[]> contentHashes = new HashMap<>();
+    /** Per id, the change counter of its last store change: an older in-flight read never wins. */
+    private final Map<String, Long> overviewChangedAt = new HashMap<>();
+    private long analysisChangeCounter;
+    private SnippetAnalysisStore.Subscription analysisSubscription;
+    private boolean disposed;
+
+    SnippetLibraryPane(SnippetManager snippetManager, Host host) {
+        this(snippetManager, host, SnippetAnalysisStore.shared());
+    }
+
+    SnippetLibraryPane(SnippetManager snippetManager, Host host, SnippetAnalysisStore analysisStore) {
         this.snippetManager = snippetManager;
-        this.ownerWindow = ownerWindow;
+        this.host = host;
+        this.analysisStore = analysisStore != null ? analysisStore : SnippetAnalysisStore.shared();
         this.editorSettings = EditorSettingsHelper.loadSnippetSettings();
-        
-        setTitle(I18n.get("snippets.title"));
-        setResizable(true);
-        initModality(Modality.NONE);
-        
+        getStyleClass().add("snippet-library-pane");
+
         // ---- Search bar ----
         searchField = new TextField();
         searchField.setPromptText(I18n.get("snippets.searchPrompt"));
-        searchField.setPrefWidth(300);
         HBox.setHgrow(searchField, Priority.ALWAYS);
         
         categoryFilter = new ComboBox<>();
-        categoryFilter.setPrefWidth(180);
         refreshCategoryFilter();
         
-        HBox searchBar = new HBox(10,
-                new Label(I18n.get("snippets.search") + ":"), searchField,
-                new Label(I18n.get("snippets.category") + ":"), categoryFilter
-        );
+        // A narrow column: the prompt text names the search field, a tooltip the category filter.
+        categoryFilter.setPrefWidth(150);
+        categoryFilter.setMinWidth(90);
+        categoryFilter.setTooltip(new Tooltip(I18n.get("snippets.category")));
+        searchField.setPrefWidth(160);
+        searchField.setMinWidth(80);
+
+        // The "inbox" for stored analyses: open findings, stale analyses, results waiting for review.
+        analysisFilter = new ComboBox<>(FXCollections.observableArrayList(SnippetAnalysisOverview.Filter.values()));
+        analysisFilter.setId(ANALYSIS_FILTER_ID);
+        analysisFilter.setValue(SnippetAnalysisOverview.Filter.ALL);
+        analysisFilter.setPrefWidth(140);
+        analysisFilter.setMinWidth(80);
+        analysisFilter.setTooltip(new Tooltip(I18n.get("snippets.workspace.analysis.filter.tooltip")));
+        analysisFilter.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(SnippetAnalysisOverview.Filter filter) {
+                return analysisFilterLabel(filter);
+            }
+
+            @Override
+            public SnippetAnalysisOverview.Filter fromString(String text) {
+                return null;
+            }
+        });
+        HBox searchBar = new HBox(8, searchField, categoryFilter, analysisFilter);
         searchBar.setAlignment(Pos.CENTER_LEFT);
         searchBar.setPadding(new Insets(5, 0, 5, 0));
         
@@ -179,6 +255,31 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         favCol.setPrefWidth(30);
         favCol.setStyle("-fx-alignment: CENTER;");
         
+        TableColumn<Snippet, SnippetAnalysisOverview.Status> analysisCol =
+                new TableColumn<>(I18n.get("snippets.workspace.analysis.column"));
+        analysisCol.setId(ANALYSIS_COLUMN_ID);
+        analysisCol.setPrefWidth(62);
+        analysisCol.setCellValueFactory(cd -> new SimpleObjectProperty<>(analysisStatus(cd.getValue())));
+        analysisCol.setComparator(Comparator.comparingInt(SnippetLibraryPane::analysisSortRank));
+        analysisCol.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(SnippetAnalysisOverview.Status status, boolean empty) {
+                super.updateItem(status, empty);
+                if (empty || status == null || !status.hasAnalysis()) {
+                    setText(null);
+                    setTooltip(null);
+                    setStyle(null);
+                    return;
+                }
+                setText(analysisStatusText(status));
+                setStyle("-fx-alignment: CENTER; -fx-text-fill: " + analysisStatusColor(status) + ";");
+                Tooltip tip = new Tooltip(analysisStatusTooltip(status));
+                tip.setWrapText(true);
+                tip.setMaxWidth(420);
+                setTooltip(tip);
+            }
+        });
+
         TableColumn<Snippet, String> nameCol = new TableColumn<>(I18n.get("snippets.name"));
         nameCol.setCellValueFactory(cd -> new SimpleStringProperty(cd.getValue().getName()));
         nameCol.setId("name");
@@ -245,7 +346,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         });
 
         snippetTable.getColumns().addAll(java.util.List.of(
-                favCol, nameCol, langCol, catCol, osCol, tagsCol, linesCol, modifiedCol, usedCol));
+                favCol, nameCol, analysisCol, langCol, catCol, osCol, tagsCol, linesCol, modifiedCol, usedCol));
         installPersistentColumnWidths();
         installSnippetTableTooltipColumns(nameCol, langCol, catCol, tagsCol);
         snippetTable.setContextMenu(createTableContextMenu());
@@ -271,7 +372,8 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
                 if (s != null) {
                     snippetTable.getSelectionModel().clearSelection();
                     snippetTable.getSelectionModel().select(s);
-                    editSnippet();
+                    previewDebounce.stop();
+                    host.openRequested(s);
                     event.consume();
                 }
             });
@@ -281,62 +383,54 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         // Search filter
         searchField.textProperty().addListener((obs, oldVal, newVal) -> updateFilter());
         categoryFilter.setOnAction(e -> updateFilter());
+        analysisFilter.setOnAction(e -> updateFilter());
         
-        // ---- Preview Area with scrollbars ----
-        previewArea = MonacoEditorWarmup.acquire();
-        previewArea.setEditable(false);
-        EditorSettingsHelper.applyStyle(previewArea, editorSettings);
-        EditorSettingsHelper.installPersistentCaretStyling(previewArea, editorSettings);
-        
-        // Wrap in Monaco editor for horizontal + vertical scrollbars
-        var previewScrollPane = EditorSettingsHelper.createScrollPane(previewArea);
-        previewScrollPane.setMinHeight(90);
-        
-        // Word wrap checkbox – persistent setting
-        wordWrapCheckBox = new CheckBox(I18n.get("snippets.wordWrap"));
-        boolean savedWordWrap = loadWordWrapSetting();
-        wordWrapCheckBox.setSelected(savedWordWrap);
-        previewArea.setWrapText(savedWordWrap);
-        
-        wordWrapCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
-            previewArea.setWrapText(newVal);
-            saveWordWrapSetting(newVal);
+        // Enter pins the selected snippet (opens it in an editor tab); Esc in the search field
+        // clears the search instead of reaching the window.
+        snippetTable.addEventHandler(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.ENTER && !event.isShortcutDown() && !event.isAltDown()) {
+                previewDebounce.stop();
+                openSelected();
+                event.consume();
+            }
         });
-        
-        lineNumbersCheckBox = new CheckBox(I18n.get("snippets.lineNumbers"));
-        boolean savedLineNumbers = loadLineNumbersSetting();
-        lineNumbersCheckBox.setSelected(savedLineNumbers);
-        EditorSettingsHelper.applyLineNumbers(previewArea, savedLineNumbers, editorSettings);
-        lineNumbersCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
-            EditorSettingsHelper.applyLineNumbers(previewArea, newVal, editorSettings);
-            saveLineNumbersSetting(newVal);
+        searchField.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.ESCAPE) {
+                if (searchField.getText() != null && !searchField.getText().isEmpty()) {
+                    searchField.clear();
+                }
+                event.consume();
+            } else if (event.getCode() == KeyCode.DOWN) {
+                snippetTable.requestFocus();
+                if (snippetTable.getSelectionModel().isEmpty() && !snippetTable.getItems().isEmpty()) {
+                    snippetTable.getSelectionModel().selectFirst();
+                }
+                event.consume();
+            }
         });
-        
-        Label previewLabel = new Label(I18n.get("snippets.preview") + ":");
-        previewLabel.setStyle("-fx-font-weight: bold;");
-        
-        HBox previewHeader = new HBox(10, previewLabel, wordWrapCheckBox, lineNumbersCheckBox);
-        previewHeader.setAlignment(Pos.CENTER_LEFT);
 
-        VBox previewPane = new VBox(6, previewHeader, previewScrollPane);
-        previewPane.setFillWidth(true);
-        VBox.setVgrow(previewScrollPane, Priority.ALWAYS);
-        
-        // Right-click context menu on preview (vim-style quick actions)
-        previewArea.setContextMenu(createPreviewContextMenu());
-        
-        // Update preview when selection changes (show first selected item)
-        snippetTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, newSel) -> {
-            updatePreview(newSel);
+        // Single selections preview after a short settle, so arrow-key browsing stays cheap; the
+        // preview reuses one read-only editor and never starts AI work.
+        previewDebounce.setOnFinished(event -> {
+            ObservableList<Snippet> selected = snippetTable.getSelectionModel().getSelectedItems();
+            if (selected.size() == 1 && selected.getFirst() != null) {
+                host.previewRequested(selected.getFirst());
+            }
         });
-        
+        snippetTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, newSel) -> {
+            if (suppressPreview || newSel == null) {
+                return;
+            }
+            previewDebounce.playFromStart();
+        });
+
         // ---- Buttons (grouped with symbols) ----
         // CRUD + Favorite
         Button addBtn = new Button("\u2795 " + I18n.get("snippets.add"));
-        addBtn.setOnAction(e -> addSnippet());
+        addBtn.setOnAction(e -> host.newRequested());
         
         Button editBtn = new Button("\u270E " + I18n.get("snippets.edit"));
-        editBtn.setOnAction(e -> editSnippet());
+        editBtn.setOnAction(e -> openSelected());
         editBtn.setDisable(true);
         
         Button deleteBtn = new Button("\u2715 " + I18n.get("snippets.delete"));
@@ -377,7 +471,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             SnippetVariableManager varManager = KorTTYApplication.getInstance().getSnippetVariableManager();
             if (varManager != null) {
                 SnippetVariableManagementDialog varDialog = new SnippetVariableManagementDialog(varManager);
-                varDialog.initOwner(getDialogPane().getScene().getWindow());
+                varDialog.initOwner(ownerWindow());
                 varDialog.showAndWait();
             }
         });
@@ -402,49 +496,275 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             exportBtn.setDisable(!hasSelection && snippetList.isEmpty());
         });
         
-        // Row 1: CRUD + Favorite
-        HBox crudButtons = new HBox(8, addBtn, editBtn, deleteBtn, new Separator(), favBtn);
+        // The library column is narrow next to the editor area: the buttons wrap instead of
+        // forcing the column (and the whole window) wider.
+        FlowPane crudButtons = new FlowPane(8, 6, addBtn, editBtn, deleteBtn, favBtn);
         crudButtons.setAlignment(Pos.CENTER_LEFT);
-        
-        // Row 2: Copy / Insert + Import/Export + Variables
-        HBox actionButtons = new HBox(8, copyBtn, insertEditorBtn, insertTermBtn, insertTermWithParamsBtn,
-                new Separator(), importBtn, exportBtn, new Separator(), variablesBtn);
+        FlowPane actionButtons = new FlowPane(8, 6, copyBtn, insertEditorBtn, insertTermBtn, insertTermWithParamsBtn);
         actionButtons.setAlignment(Pos.CENTER_LEFT);
+        FlowPane transferButtons = new FlowPane(8, 6, importBtn, exportBtn, variablesBtn);
+        transferButtons.setAlignment(Pos.CENTER_LEFT);
         
-        contentSplitPane = new SplitPane(snippetTable, previewPane);
-        contentSplitPane.setOrientation(Orientation.VERTICAL);
-        contentSplitPane.setDividerPositions(loadPreviewDividerPosition());
-        SplitPane.setResizableWithParent(snippetTable, true);
-        SplitPane.setResizableWithParent(previewPane, true);
-
-        Platform.runLater(() -> contentSplitPane.setDividerPositions(loadPreviewDividerPosition()));
-
-        // ---- Layout ----
         VBox layout = new VBox(8,
                 searchBar,
-                contentSplitPane,
+                snippetTable,
                 crudButtons,
-                actionButtons
+                actionButtons,
+                transferButtons
         );
         layout.setPadding(new Insets(10));
-        VBox.setVgrow(contentSplitPane, Priority.ALWAYS);
-        
-        getDialogPane().setContent(layout);
-        getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-        getDialogPane().setPrefWidth(960);
-        getDialogPane().setPrefHeight(700);
-        
+        VBox.setVgrow(snippetTable, Priority.ALWAYS);
+        setCenter(layout);
+        setMinWidth(0);
+
         // Enable export button if there are snippets
         exportBtn.setDisable(snippetList.isEmpty());
-        
-        // Restore saved window geometry
-        restoreGeometry();
-        
-        // Save geometry on close
-        setOnCloseRequest(event -> saveGeometry());
-        setResultConverter(bt -> { saveGeometry(); return null; });
-        // Release the preview Monaco's native WebKit engine on close.
-        setOnHidden(event -> previewArea.dispose());
+
+        // Status column and filter: summarised on the store thread, cells update when they arrive
+        // and whenever any analysis changes.
+        analysisSubscription = this.analysisStore.addChangeListener(this::onAnalysisChanged);
+        requestOverviews(snippetList.stream().map(Snippet::getId).toList(), false);
+    }
+
+    /** Moves focus into the search field and selects its text. */
+    void focusSearch() {
+        searchField.requestFocus();
+        searchField.selectAll();
+    }
+
+    /** The table (tests and the workspace's focus handling). */
+    TableView<Snippet> table() {
+        return snippetTable;
+    }
+
+    /**
+     * Selects the row of {@code snippetId} (and only it) without triggering a preview — used to
+     * follow the workspace's active editor tab. A row hidden by the filter stays unselected.
+     */
+    void selectWithoutPreview(String snippetId) {
+        if (snippetId == null) {
+            return;
+        }
+        Snippet current = snippetTable.getSelectionModel().getSelectedItem();
+        if (current != null && snippetId.equals(current.getId())
+                && snippetTable.getSelectionModel().getSelectedItems().size() == 1) {
+            return;
+        }
+        for (Snippet snippet : snippetTable.getItems()) {
+            if (snippetId.equals(snippet.getId())) {
+                suppressPreview = true;
+                try {
+                    previewDebounce.stop();
+                    snippetTable.getSelectionModel().clearSelection();
+                    snippetTable.getSelectionModel().select(snippet);
+                    snippetTable.scrollTo(snippet);
+                } finally {
+                    suppressPreview = false;
+                }
+                return;
+            }
+        }
+    }
+
+    /** Pins the single selected snippet (Edit button, Enter, context menu). */
+    private void openSelected() {
+        ObservableList<Snippet> selected = snippetTable.getSelectionModel().getSelectedItems();
+        if (selected.size() == 1 && selected.getFirst() != null) {
+            host.openRequested(selected.getFirst());
+        }
+    }
+
+    private Window ownerWindow() {
+        return host.ownerWindow();
+    }
+
+    /** Stops pending timers; the workspace calls this on teardown. */
+    void dispose() {
+        disposed = true;
+        previewDebounce.stop();
+        if (analysisSubscription != null) {
+            analysisSubscription.close();
+            analysisSubscription = null;
+        }
+    }
+
+    // ---- Analysis overview ----
+
+    /** The analysis filter (tests). */
+    ComboBox<SnippetAnalysisOverview.Filter> analysisFilter() {
+        return analysisFilter;
+    }
+
+    /** The analysis status of {@code snippet} against its saved content ({@link SnippetAnalysisOverview.Status#NONE} while unknown). */
+    SnippetAnalysisOverview.Status analysisStatus(Snippet snippet) {
+        if (snippet == null || snippet.getId() == null) {
+            return SnippetAnalysisOverview.Status.NONE;
+        }
+        SnippetAnalysisOverview overview = analysisOverviews.get(snippet.getId());
+        if (overview == null) {
+            return SnippetAnalysisOverview.Status.NONE;
+        }
+        return overview.statusFor(savedContentSha(snippet));
+    }
+
+    private String savedContentSha(Snippet snippet) {
+        String content = snippet.getContent() != null ? snippet.getContent() : "";
+        String[] cached = contentHashes.get(snippet.getId());
+        if (cached != null && cached[0].equals(content)) {
+            return cached[1];
+        }
+        String sha = SnippetDiagramSupport.contentHash(content);
+        contentHashes.put(snippet.getId(), new String[] {content, sha});
+        return sha;
+    }
+
+    /**
+     * Summarises the stored analyses of {@code ids} on the store thread; {@code force} re-reads ids
+     * that were read before.
+     */
+    private void requestOverviews(Collection<String> ids, boolean force) {
+        List<String> wanted = ids.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .filter(id -> force || !overviewRequested.contains(id))
+                .distinct()
+                .toList();
+        if (wanted.isEmpty() || disposed) {
+            return;
+        }
+        overviewRequested.addAll(wanted);
+        long requestedAt = analysisChangeCounter;
+        analysisStore.overviews(wanted).whenComplete((result, error) -> runOnFx(() -> {
+            if (disposed) {
+                return;
+            }
+            if (error != null) {
+                logger.warn("Could not read the stored analyses for the snippet library", error);
+                return;
+            }
+            boolean changed = false;
+            for (String id : wanted) {
+                if (overviewChangedAt.getOrDefault(id, -1L) >= requestedAt) {
+                    continue; // a store change after this read already updated the row
+                }
+                changed |= putOverview(id, result.get(id));
+            }
+            if (changed) {
+                onOverviewsChanged();
+            }
+        }));
+    }
+
+    private void onAnalysisChanged(String snippetId) {
+        if (disposed) {
+            return;
+        }
+        if (snippetId == null) {
+            // Every file may have changed (a backup restore): read everything again.
+            analysisChangeCounter++;
+            requestOverviews(snippetList.stream().map(Snippet::getId).toList(), true);
+            return;
+        }
+        overviewChangedAt.put(snippetId, analysisChangeCounter++);
+        SnippetAnalysisHistory cached = analysisStore.cached(snippetId);
+        if (cached == null) {
+            requestOverviews(List.of(snippetId), true);
+            return;
+        }
+        if (putOverview(snippetId, cached.isEmpty() ? null : SnippetAnalysisOverview.of(cached))) {
+            onOverviewsChanged();
+        }
+    }
+
+    /** @return whether the overview of {@code id} changed */
+    private boolean putOverview(String id, SnippetAnalysisOverview overview) {
+        SnippetAnalysisOverview before = overview == null || overview.isEmpty()
+                ? analysisOverviews.remove(id)
+                : analysisOverviews.put(id, overview);
+        return !Objects.equals(before, overview == null || overview.isEmpty() ? null : overview);
+    }
+
+    private void onOverviewsChanged() {
+        snippetTable.refresh();
+        if (analysisFilter.getValue() != null && analysisFilter.getValue() != SnippetAnalysisOverview.Filter.ALL) {
+            updateFilter();
+        }
+    }
+
+    static String analysisStatusText(SnippetAnalysisOverview.Status status) {
+        String text = switch (status.kind()) {
+            case NONE -> "";
+            case REVIEW_PENDING -> "\u25F7";
+            case OPEN_FINDINGS -> "\u26A0 " + status.openFindings();
+            case APPLIED, CLEAN -> "\u2713";
+        };
+        return status.stale() ? text + " \u21BB" : text;
+    }
+
+    private static String analysisStatusColor(SnippetAnalysisOverview.Status status) {
+        return switch (status.kind()) {
+            case REVIEW_PENDING -> "#3b82f6";
+            case OPEN_FINDINGS -> "#d97706";
+            case APPLIED, CLEAN -> "#16a34a";
+            case NONE -> "inherit";
+        };
+    }
+
+    static String analysisStatusTooltip(SnippetAnalysisOverview.Status status) {
+        List<String> lines = new ArrayList<>();
+        switch (status.kind()) {
+            case REVIEW_PENDING -> {
+                lines.add(I18n.get("snippets.workspace.analysis.pending"));
+                if (status.openFindings() > 0) {
+                    lines.add(I18n.get("snippets.workspace.analysis.open", status.openFindings()));
+                }
+            }
+            case OPEN_FINDINGS -> lines.add(I18n.get("snippets.workspace.analysis.open", status.openFindings()));
+            case APPLIED -> lines.add(I18n.get("snippets.workspace.analysis.applied"));
+            case CLEAN -> lines.add(I18n.get("snippets.workspace.analysis.clean"));
+            case NONE -> {
+                return "";
+            }
+        }
+        String when = formatTimestamp(status.analyzedAt());
+        if (status.stale()) {
+            lines.add(I18n.get("snippets.workspace.analysis.stale", when));
+        }
+        lines.add(I18n.get("snippets.workspace.analysis.analyzedAt", when));
+        return String.join("\n", lines);
+    }
+
+    /** Sort order of the status column: pending reviews, then most open findings, then the rest. */
+    static int analysisSortRank(SnippetAnalysisOverview.Status status) {
+        if (status == null || !status.hasAnalysis()) {
+            return Integer.MAX_VALUE;
+        }
+        return switch (status.kind()) {
+            case REVIEW_PENDING -> 0;
+            case OPEN_FINDINGS -> 1_000_000 - Math.min(status.openFindings(), 999_999);
+            case APPLIED -> 2_000_000;
+            case CLEAN -> 2_000_001;
+            case NONE -> Integer.MAX_VALUE;
+        };
+    }
+
+    static String analysisFilterLabel(SnippetAnalysisOverview.Filter filter) {
+        if (filter == null) {
+            return "";
+        }
+        return I18n.get(switch (filter) {
+            case ALL -> "snippets.workspace.analysis.filter.all";
+            case OPEN_FINDINGS -> "snippets.workspace.analysis.filter.open";
+            case STALE -> "snippets.workspace.analysis.filter.stale";
+            case REVIEW_PENDING -> "snippets.workspace.analysis.filter.pending";
+        });
+    }
+
+    private static void runOnFx(Runnable action) {
+        if (Platform.isFxApplicationThread()) {
+            action.run();
+        } else {
+            Platform.runLater(action);
+        }
     }
     
     private static String formatTimestamp(long epochMillis) {
@@ -507,74 +827,6 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         }
     }
 
-    private void restoreGeometry() {
-        DialogGeometrySupport.restore(this, settings -> settings.getSnippetManagerGeometry());
-    }
-    
-    private void saveGeometry() {
-        if (isHostedInTab()) {
-            return; // the pane's window is the main window's stage, not this dialog's geometry
-        }
-        DialogGeometrySupport.persist(this, (settings, geometry) -> settings.setSnippetManagerGeometry(geometry));
-    }
-
-    private double loadPreviewDividerPosition() {
-        try {
-            return KorTTYApplication.getInstance().getGlobalSettingsManager()
-                .getSettings().getSnippetManagerPreviewDividerPosition();
-        } catch (Exception e) {
-            logger.debug("Could not load snippet manager preview divider position", e);
-            return 0.68;
-        }
-    }
-
-    private double currentPreviewDividerPosition() {
-        if (contentSplitPane == null || contentSplitPane.getDividers().isEmpty()) {
-            return loadPreviewDividerPosition();
-        }
-        return contentSplitPane.getDividers().get(0).getPosition();
-    }
-    
-    // ---- Word Wrap persistence ----
-    
-    private boolean loadWordWrapSetting() {
-        try {
-            return KorTTYApplication.getInstance().getGlobalSettingsManager()
-                    .getSettings().isSnippetWordWrap();
-        } catch (Exception e) {
-            return true; // default on
-        }
-    }
-    
-    private void saveWordWrapSetting(boolean enabled) {
-        try {
-            var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
-            gs.setSnippetWordWrap(enabled);
-            KorTTYApplication.getInstance().getGlobalSettingsManager().save();
-        } catch (Exception e) {
-            logger.debug("Could not save word wrap setting", e);
-        }
-    }
-    
-    private boolean loadLineNumbersSetting() {
-        try {
-            return KorTTYApplication.getInstance().getGlobalSettingsManager()
-                    .getSettings().isSnippetLineNumbers();
-        } catch (Exception e) {
-            return false;
-        }
-    }
-    
-    private void saveLineNumbersSetting(boolean enabled) {
-        try {
-            var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
-            gs.setSnippetLineNumbers(enabled);
-            KorTTYApplication.getInstance().getGlobalSettingsManager().save();
-        } catch (Exception e) {
-            logger.debug("Could not save line numbers setting", e);
-        }
-    }
-
     /**
      * Shows the full cell text in a tooltip when hovering (for values wider than the column).
      */
@@ -617,13 +869,16 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         boolean allCategories = selectedCategory == null
                 || selectedCategory.isEmpty()
                 || selectedCategory.equals(I18n.get("snippets.allCategories"));
+        SnippetAnalysisOverview.Filter analysis = analysisFilter.getValue() != null
+                ? analysisFilter.getValue() : SnippetAnalysisOverview.Filter.ALL;
         
         filteredList.setPredicate(snippet -> {
             boolean matchesSearch = query == null || query.isBlank()
                     || matchesQuery(snippet, query.trim());
             boolean matchesCategory = allCategories
                     || (snippet.getCategory() != null && snippet.getCategory().equalsIgnoreCase(selectedCategory));
-            return matchesSearch && matchesCategory;
+            return matchesSearch && matchesCategory
+                    && (analysis == SnippetAnalysisOverview.Filter.ALL || analysis.matches(analysisStatus(snippet)));
         });
     }
     
@@ -698,82 +953,14 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         return false;
     }
     
-    // ---- Preview ----
-    
-    /**
-     * Context menu for the preview area (right-click): Copy, Select All, Word Wrap, Line numbers,
-     * Insert into Editor, Send to Terminal.
-     */
-    private ContextMenu createPreviewContextMenu() {
-        ContextMenu menu = new ContextMenu();
-        
-        MenuItem copyItem = new MenuItem(I18n.get("snippets.copyClipboard"));
-        copyItem.setOnAction(e -> copyPreviewToClipboard());
-        
-        MenuItem selectAllItem = new MenuItem(I18n.get("editor.context.selectAll"));
-        selectAllItem.setOnAction(e -> previewArea.selectAll());
-        
-        CheckMenuItem wordWrapItem = new CheckMenuItem(I18n.get("snippets.wordWrap"));
-        wordWrapItem.setSelected(wordWrapCheckBox.isSelected());
-        wordWrapItem.setOnAction(e -> {
-            boolean on = wordWrapItem.isSelected();
-            wordWrapCheckBox.setSelected(on);
-            previewArea.setWrapText(on);
-            saveWordWrapSetting(on);
-        });
-        
-        CheckMenuItem lineNumbersItem = new CheckMenuItem(I18n.get("snippets.lineNumbers"));
-        lineNumbersItem.setSelected(lineNumbersCheckBox.isSelected());
-        lineNumbersItem.setOnAction(e -> {
-            boolean on = lineNumbersItem.isSelected();
-            lineNumbersCheckBox.setSelected(on);
-            EditorSettingsHelper.applyLineNumbers(previewArea, on, editorSettings);
-            saveLineNumbersSetting(on);
-        });
-        
-        MenuItem insertEditorItem = new MenuItem(I18n.get("snippets.insertEditor"));
-        insertEditorItem.setOnAction(e -> insertIntoEditor());
-        
-        MenuItem insertTerminalItem = new MenuItem(I18n.get("snippets.insertTerminal"));
-        insertTerminalItem.setOnAction(e -> insertIntoTerminal());
-
-        MenuItem insertTerminalWithParamsItem = new MenuItem(I18n.get("snippets.insertTerminal.withParameters"));
-        insertTerminalWithParamsItem.setOnAction(e -> insertIntoTerminalWithParameters());
-        
-        menu.getItems().addAll(
-                copyItem,
-                selectAllItem,
-                new SeparatorMenuItem(),
-                wordWrapItem,
-                lineNumbersItem,
-                new SeparatorMenuItem(),
-                insertEditorItem,
-                insertTerminalItem,
-                insertTerminalWithParamsItem
-        );
-        
-        menu.setOnShowing(e -> {
-            boolean hasText = previewArea.getText() != null && !previewArea.getText().isEmpty();
-            copyItem.setDisable(!hasText);
-            selectAllItem.setDisable(!hasText);
-            wordWrapItem.setSelected(wordWrapCheckBox.isSelected());
-            lineNumbersItem.setSelected(lineNumbersCheckBox.isSelected());
-            Snippet single = snippetTable.getSelectionModel().getSelectedItem();
-            boolean singleSelected = single != null && snippetTable.getSelectionModel().getSelectedItems().size() == 1;
-            insertEditorItem.setDisable(!singleSelected);
-            insertTerminalItem.setDisable(!singleSelected);
-            insertTerminalWithParamsItem.setDisable(!singleSelected);
-        });
-        
-        return menu;
-    }
-    
     /**
      * Context menu for the snippet table (right-click): Delete, Copy, Insert into Editor/Terminal,
      * Toggle Favorite, Export. Open in editor: double-click a row or use the Edit toolbar button.
      */
     private ContextMenu createTableContextMenu() {
         ContextMenu menu = new ContextMenu();
+        MenuItem editItem = new MenuItem("\u270E " + I18n.get("snippets.edit"));
+        editItem.setOnAction(e -> openSelected());
         MenuItem deleteItem = new MenuItem("\u2715 " + I18n.get("snippets.delete"));
         deleteItem.setOnAction(e -> deleteSnippets());
         MenuItem diffItem = new MenuItem(I18n.get("snippets.diff.menu"));
@@ -790,30 +977,53 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         favItem.setOnAction(e -> toggleFavorite());
         MenuItem exportItem = new MenuItem("\uD83D\uDCE4 " + I18n.get("snippets.export"));
         exportItem.setOnAction(e -> exportSnippets());
+        MenuItem exportReportsItem = new MenuItem(I18n.get("snippets.batchExport.menu"));
+        exportReportsItem.setId(BATCH_EXPORT_ITEM_ID);
+        exportReportsItem.setOnAction(e -> exportAnalysisReports());
         menu.getItems().addAll(
+                editItem,
                 deleteItem,
                 new SeparatorMenuItem(),
                 diffItem,
                 new SeparatorMenuItem(),
                 copyItem, insertEditorItem, insertTerminalItem, insertTerminalWithParamsItem,
                 new SeparatorMenuItem(),
-                favItem, exportItem
+                favItem, exportItem, exportReportsItem
         );
         menu.setOnShowing(e -> {
             ObservableList<Snippet> selected = snippetTable.getSelectionModel().getSelectedItems();
             boolean hasSelection = !selected.isEmpty();
             boolean hasSingle = selected.size() == 1;
             boolean hasDiffSelection = SnippetDiffSelectionSupport.canDiff(selected);
-            deleteItem.setDisable(!hasSelection);
+            boolean policyManaged = anyPolicyManaged(selected);
+            editItem.setDisable(!hasSingle || policyManaged);
+            deleteItem.setDisable(!hasSelection || policyManaged);
             diffItem.setDisable(!hasDiffSelection);
             copyItem.setDisable(!hasSingle);
             insertEditorItem.setDisable(!hasSingle);
             insertTerminalItem.setDisable(!hasSingle);
             insertTerminalWithParamsItem.setDisable(!hasSingle);
-            favItem.setDisable(!hasSelection);
+            favItem.setDisable(!hasSelection || policyManaged);
             exportItem.setDisable(!hasSelection && snippetList.isEmpty());
+            exportReportsItem.setDisable(!hasSelection);
         });
         return menu;
+    }
+
+    /** Right-click → "Export analysis reports…": the stored analyses of the selected snippets. */
+    SnippetAnalysisBatchExportDialog exportAnalysisReports() {
+        List<Snippet> selected = new ArrayList<>(snippetTable.getSelectionModel().getSelectedItems());
+        if (selected.isEmpty()) {
+            return null;
+        }
+        SnippetAnalysisBatchExportDialog dialog = new SnippetAnalysisBatchExportDialog(ownerWindow(), selected,
+            analysisStore);
+        dialog.show();
+        return dialog;
+    }
+
+    private static boolean anyPolicyManaged(List<Snippet> snippets) {
+        return snippets.stream().anyMatch(snippet -> snippet != null && snippet.isPolicyManaged());
     }
 
     private void showSnippetDiff() {
@@ -823,13 +1033,13 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             alert.setTitle(I18n.get("snippets.diff.unavailable.title"));
             alert.setHeaderText(I18n.get("snippets.diff.unavailable.header"));
             alert.setContentText(I18n.get("snippets.diff.unavailable.content"));
-            alert.initOwner(getDialogPane().getScene().getWindow());
+            alert.initOwner(ownerWindow());
             alert.showAndWait();
             return;
         }
 
         SnippetDiffDialog dialog = new SnippetDiffDialog(
-                getDialogPane().getScene().getWindow(),
+                ownerWindow(),
                 pair.get().left(),
                 pair.get().right(),
                 editorSettings);
@@ -842,79 +1052,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
                 snippetTable.getSelectionModel().getSelectedItems());
     }
     
-    /** Copies preview content to clipboard: selection if any, otherwise full text. */
-    private void copyPreviewToClipboard() {
-        String text = previewArea.getSelectedText();
-        if (text == null || text.isEmpty()) {
-            text = previewArea.getText();
-        }
-        if (text != null && !text.isEmpty()) {
-            de.kortty.core.KorttyClipboard.setText(text);
-        }
-    }
-    
-    private void updatePreview(Snippet snippet) {
-        if (snippet == null) {
-            previewArea.clear();
-            return;
-        }
-        String content = snippet.getContent() != null ? snippet.getContent() : "";
-        previewArea.replaceText(content);
-        previewArea.setLanguage(snippet.getLanguage());
-    }
-
-    private SnippetEditDialog.AiAssist createSnippetAiAssist() {
-        return SnippetAiAssistFactory.create(ownerWindow);
-    }
-    
     // ---- CRUD ----
-    
-    private void addSnippet() {
-        List<String> categoryNames = snippetManager.getAllCategories().stream()
-                .map(SnippetCategory::getName).collect(Collectors.toList());
-        
-        SnippetEditDialog dialog = new SnippetEditDialog(null, categoryNames, createSnippetAiAssist());
-        dialog.initOwner(getDialogPane().getScene().getWindow());
-
-        dialog.showNonBlocking(snippet -> {
-            saveSnippetFromEditor(snippet, null);
-        });
-    }
-    
-    private void editSnippet() {
-        Snippet selected = snippetTable.getSelectionModel().getSelectedItem();
-        if (selected == null) return;
-        
-        List<String> categoryNames = snippetManager.getAllCategories().stream()
-                .map(SnippetCategory::getName).collect(Collectors.toList());
-        
-        SnippetEditDialog dialog = new SnippetEditDialog(selected, categoryNames, createSnippetAiAssist(), true);
-        dialog.initOwner(getDialogPane().getScene().getWindow());
-
-        dialog.showNonBlocking(snippet -> {
-            saveSnippetFromEditor(snippet, selected);
-        });
-    }
-
-    private void saveSnippetFromEditor(Snippet snippet, Snippet selectedSnippet) {
-        if (snippet == null) {
-            return;
-        }
-        ensureUniqueSnippetName(snippet);
-        ensureCategory(snippet.getCategory());
-        if (selectedSnippet != null && Objects.equals(selectedSnippet.getId(), snippet.getId())) {
-            snippetManager.updateSnippet(snippet);
-        } else {
-            snippetManager.addSnippet(snippet);
-        }
-        saveAndRefresh();
-    }
-
-    private void ensureUniqueSnippetName(Snippet snippet) {
-        if (snippetManager.hasSnippetName(snippet.getName(), snippet.getId())) {
-            throw new IllegalArgumentException(I18n.get("snippets.error.duplicateName", snippet.getName()));
-        }
-    }
     
     /**
      * Deletes all currently selected snippets after confirmation.
@@ -922,11 +1060,13 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     private void deleteSnippets() {
         List<Snippet> selected = new ArrayList<>(snippetTable.getSelectionModel().getSelectedItems());
         if (selected.isEmpty()) return;
+        // Admin-provided script headers are read-only: usable, but never deletable.
+        if (anyPolicyManaged(selected)) return;
         
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
         confirm.setTitle(I18n.get("snippets.deleteConfirm.title"));
         confirm.setHeaderText(I18n.get("snippets.deleteConfirm.header"));
-        confirm.initOwner(getDialogPane().getScene().getWindow());
+        confirm.initOwner(ownerWindow());
         
         if (selected.size() == 1) {
             confirm.setContentText(I18n.get("snippets.deleteConfirm.content", selected.getFirst().getName()));
@@ -936,10 +1076,25 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         
         confirm.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
+                // Open editors of these snippets: a dirty one blocks (and is revealed), clean ones close.
+                if (!host.beforeDelete(selected)) {
+                    return;
+                }
                 for (Snippet s : selected) {
                     snippetManager.removeSnippet(s);
                 }
-                saveAndRefresh();
+                boolean saved = saveOrReport();
+                refreshTable(true);
+                refreshCategoryFilter();
+                if (saved) {
+                    // Cascade only after the removal reached the disk: removeSnippet alone persists nothing.
+                    for (Snippet s : selected) {
+                        if (s.getId() != null && !s.getId().isBlank()) {
+                            analysisStore.discardAll(s.getId());
+                            de.kortty.core.SnippetDraftStore.shared().delete(s.getId());
+                        }
+                    }
+                }
             }
         });
     }
@@ -949,7 +1104,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
      */
     private void toggleFavorite() {
         List<Snippet> selected = new ArrayList<>(snippetTable.getSelectionModel().getSelectedItems());
-        if (selected.isEmpty()) return;
+        if (selected.isEmpty() || anyPolicyManaged(selected)) return;
         
         for (Snippet s : selected) {
             s.setFavorite(!s.isFavorite());
@@ -985,7 +1140,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         }
         snippetManager.incrementUsage(snippet);
         saveQuietly();
-        refreshTable();
+        refreshTable(false);
         return text;
     }
 
@@ -1034,7 +1189,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         // Track usage
         snippetManager.incrementUsage(snippet);
         saveQuietly();
-        refreshTable();
+        refreshTable(false);
         
         return text;
     }
@@ -1086,7 +1241,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     private Map<String, String> promptForVariables(List<String> varNames) {
         Dialog<Map<String, String>> dialog = new Dialog<>();
         dialog.setTitle(I18n.get("snippets.promptVariable"));
-        dialog.initOwner(getDialogPane().getScene().getWindow());
+        dialog.initOwner(ownerWindow());
         
         javafx.scene.layout.GridPane grid = new javafx.scene.layout.GridPane();
         grid.setHgap(10);
@@ -1126,7 +1281,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     private TerminalParameterDialogResult promptForTerminalParameters(List<String> varNames) {
         Dialog<TerminalParameterDialogResult> dialog = new Dialog<>();
         dialog.setTitle(I18n.get("snippets.insertTerminal.parameters.title"));
-        dialog.initOwner(getDialogPane().getScene().getWindow());
+        dialog.initOwner(ownerWindow());
 
         VBox layout = new VBox(10);
         layout.setPadding(new Insets(10));
@@ -1207,14 +1362,16 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         String resolved = resolveAndPrompt(selected);
         if (resolved == null) return;
         
-        // Find active FileEditorTab in MainWindow
+        // The file editor tab of the workspace's main window (the last selected one in tab mode,
+        // where the workspace tab itself is the selected tab).
         try {
             MainWindow mainWindow = getMainWindow();
             if (mainWindow == null) return;
             
-            Tab activeTab = mainWindow.getActiveTab();
-            if (activeTab instanceof FileEditorTab editorTab) {
+            FileEditorTab editorTab = mainWindow.snippetInsertTarget(FileEditorTab.class);
+            if (editorTab != null) {
                 editorTab.insertTextAtCursor(resolved);
+                mainWindow.revealSnippetInsertTarget(editorTab);
                 logger.info("Snippet '{}' inserted into editor", selected.getName());
             } else {
                 showInfo(I18n.get("snippets.noEditorOpen"));
@@ -1242,14 +1399,15 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             return;
         }
         
-        // Find active TerminalTab in MainWindow
+        // The terminal tab of the workspace's main window (the last selected one in tab mode).
         try {
             MainWindow mainWindow = getMainWindow();
             if (mainWindow == null) return;
             
-            Tab activeTab = mainWindow.getActiveTab();
-            if (activeTab instanceof TerminalTab terminalTab) {
+            TerminalTab terminalTab = mainWindow.snippetInsertTarget(TerminalTab.class);
+            if (terminalTab != null) {
                 sendSnippetPayloadToTerminal(terminalTab, toSend, SnippetOneLiner.isEmbeddedSupported(selected.getLanguage()));
+                mainWindow.revealSnippetInsertTarget(terminalTab);
                 logger.info("Snippet '{}' sent to terminal (one-liner where supported)", selected.getName());
             } else {
                 showInfo(I18n.get("snippets.noTerminalOpen"));
@@ -1289,12 +1447,13 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             MainWindow mainWindow = getMainWindow();
             if (mainWindow == null) return;
 
-            Tab activeTab = mainWindow.getActiveTab();
-            if (activeTab instanceof TerminalTab terminalTab) {
+            TerminalTab terminalTab = mainWindow.snippetInsertTarget(TerminalTab.class);
+            if (terminalTab != null) {
                 sendSnippetPayloadToTerminal(terminalTab, toSend, SnippetOneLiner.isEmbeddedSupported(selected.getLanguage()));
                 snippetManager.incrementUsage(selected);
                 saveQuietly();
-                refreshTable();
+                refreshTable(false);
+                mainWindow.revealSnippetInsertTarget(terminalTab);
                 logger.info("Snippet '{}' sent to terminal with {} argument(s)", selected.getName(), input.arguments().size());
             } else {
                 showInfo(I18n.get("snippets.noTerminalOpen"));
@@ -1361,7 +1520,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
                 new FileChooser.ExtensionFilter("YAML (*.yaml, *.yml)", "*.yaml", "*.yml")
         );
 
-        List<File> files = fileChooser.showOpenMultipleDialog(getDialogPane().getScene().getWindow());
+        List<File> files = fileChooser.showOpenMultipleDialog(ownerWindow());
         if (files == null || files.isEmpty()) return;
 
         List<Snippet> exported = new ArrayList<>();
@@ -1494,6 +1653,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
                         SnippetExportFormat.ZIP
                 )
         );
+        dialog.initOwner(ownerWindow());
         dialog.setTitle(I18n.get("snippets.export"));
         dialog.setHeaderText(I18n.get("snippets.export.format.header"));
         dialog.setContentText(I18n.get("snippets.export.format.content"));
@@ -1508,7 +1668,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         );
         fileChooser.setInitialFileName("kortty-snippets." + format.extension());
         
-        File file = fileChooser.showSaveDialog(getDialogPane().getScene().getWindow());
+        File file = fileChooser.showSaveDialog(ownerWindow());
         if (file == null) return;
         
         try {
@@ -1571,7 +1731,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         Dialog<SnippetZipExportOptions> dialog = new Dialog<>();
         dialog.setTitle(I18n.get("snippets.export.zip.title"));
         dialog.setHeaderText(I18n.get("snippets.export.zip.header"));
-        dialog.initOwner(getDialogPane().getScene().getWindow());
+        dialog.initOwner(ownerWindow());
 
         ComboBox<SnippetZipScriptFormat> scriptFormatCombo = new ComboBox<>();
         scriptFormatCombo.getItems().addAll(SnippetZipScriptFormat.values());
@@ -1774,7 +1934,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             fileChooser.setInitialFileName("kortty-snippets.zip");
         }
 
-        File file = fileChooser.showSaveDialog(getDialogPane().getScene().getWindow());
+        File file = fileChooser.showSaveDialog(ownerWindow());
         if (file == null) {
             return Optional.empty();
         }
@@ -1827,7 +1987,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         DirectoryChooser directoryChooser = new DirectoryChooser();
         directoryChooser.setTitle(I18n.get("snippets.exportPlainText.folder"));
 
-        File directory = directoryChooser.showDialog(getDialogPane().getScene().getWindow());
+        File directory = directoryChooser.showDialog(ownerWindow());
         if (directory == null) return;
 
         try {
@@ -1841,21 +2001,27 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     }
     
     // ---- Helpers ----
-    
-    private void ensureCategory(String categoryName) {
-        if (categoryName != null && !categoryName.isBlank()) {
-            if (snippetManager.findCategoryByName(categoryName).isEmpty()) {
-                snippetManager.addCategory(new SnippetCategory(categoryName));
-            }
-        }
-    }
-    
+
+    /** Saves a user-initiated change (reporting a failure) and re-sorts the list. */
     private void saveAndRefresh() {
-        saveQuietly();
-        refreshTable();
+        saveOrReport();
+        refreshTable(true);
         refreshCategoryFilter();
     }
-    
+
+    /** @return whether the save succeeded (a failure was reported to the user) */
+    private boolean saveOrReport() {
+        try {
+            snippetManager.save();
+            return true;
+        } catch (Exception e) {
+            logger.error("Failed to save snippets", e);
+            showError(I18n.get("snippets.workspace.saveFailed", e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
+            return false;
+        }
+    }
+
+    /** Usage bookkeeping (copy/insert counters): a failure is logged, not worth an alert. */
     private void saveQuietly() {
         try {
             snippetManager.save();
@@ -1863,9 +2029,44 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             logger.error("Failed to save snippets", e);
         }
     }
-    
-    private void refreshTable() {
-        snippetList.setAll(sortedSnippets());
+
+    /**
+     * Re-reads the snippets into the table. Without {@code resort} surviving rows keep their
+     * position (a usage bump after copy/insert must not make the row jump away); with it the default
+     * order is re-applied. Rows are patched in place rather than replaced wholesale, and the
+     * selection is re-applied by id, so selection and scroll position survive either way.
+     */
+    /**
+     * Re-reads the snippets (e.g. after a save elsewhere); see {@link #refreshTable(boolean)}.
+     */
+    void refresh(boolean resort) {
+        refreshTable(resort);
+    }
+
+    private void refreshTable(boolean resort) {
+        Set<String> selectedIds = snippetTable.getSelectionModel().getSelectedItems().stream()
+                .filter(Objects::nonNull)
+                .map(Snippet::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        List<Snippet> ordered = ObservableListSync.reconcileOrder(
+                snippetList, sortedSnippets(), Snippet::getId, resort);
+        ObservableListSync.sync(snippetList, ordered, Snippet::getId);
+        requestOverviews(ordered.stream().map(Snippet::getId).toList(), false);
+        if (!selectedIds.isEmpty()) {
+            List<Snippet> reselect = snippetTable.getItems().stream()
+                    .filter(s -> selectedIds.contains(s.getId()))
+                    .toList();
+            Set<Snippet> stillSelected = new HashSet<>(snippetTable.getSelectionModel().getSelectedItems());
+            if (!stillSelected.equals(new HashSet<>(reselect))) {
+                snippetTable.getSelectionModel().clearSelection();
+                for (Snippet snippet : reselect) {
+                    snippetTable.getSelectionModel().select(snippet);
+                }
+            }
+        }
+        // Cells read their values from the (possibly mutated in place) Snippet objects.
+        snippetTable.refresh();
     }
 
     /** Snippets in the default order (favorites first, then usage desc); column header clicks override this. */
@@ -1908,7 +2109,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     /** Small dialog to add/remove the operating systems offered in the System column. */
     private void showManageOperatingSystemsDialog() {
         Dialog<Void> dialog = new ThemeAwareDialog<>();
-        dialog.initOwner(getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null);
+        dialog.initOwner(ownerWindow());
         dialog.setTitle(I18n.get("snippets.os.manage.title"));
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
 
@@ -1921,10 +2122,10 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             String value = addField.getText() != null ? addField.getText().trim() : "";
             if (!value.isEmpty()) {
                 snippetManager.addOperatingSystem(value);
-                saveQuietly();
+                saveOrReport();
                 list.setItems(FXCollections.observableArrayList(snippetManager.getOperatingSystems()));
                 addField.clear();
-                refreshTable();
+                refreshTable(false);
             }
         };
         addButton.setOnAction(e -> addAction.run());
@@ -1934,9 +2135,9 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
             String selected = list.getSelectionModel().getSelectedItem();
             if (selected != null) {
                 snippetManager.removeOperatingSystem(selected);
-                saveQuietly();
+                saveOrReport();
                 list.setItems(FXCollections.observableArrayList(snippetManager.getOperatingSystems()));
-                refreshTable();
+                refreshTable(false);
             }
         });
         HBox addRow = new HBox(6, addField, addButton);
@@ -1948,7 +2149,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         dialog.showAndWait();
     }
     
-    private void refreshCategoryFilter() {
+    void refreshCategoryFilter() {
         String current = categoryFilter.getValue();
         List<String> catNames = new ArrayList<>();
         catNames.add(I18n.get("snippets.allCategories"));
@@ -1965,7 +2166,8 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
     }
     
     private MainWindow getMainWindow() {
-        return MainWindow.getInstance();
+        MainWindow mainWindow = host.mainWindow();
+        return mainWindow != null ? mainWindow : MainWindow.getInstance();
     }
     
     private void showInfo(String message) {
@@ -1973,7 +2175,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         alert.setTitle(I18n.get("snippets.title"));
         alert.setHeaderText(null);
         alert.setContentText(message);
-        alert.initOwner(getDialogPane().getScene().getWindow());
+        alert.initOwner(ownerWindow());
         alert.showAndWait();
     }
     
@@ -1982,7 +2184,7 @@ public class SnippetManagementDialog extends ThemeAwareDialog<Void> {
         alert.setTitle(I18n.get("error.title"));
         alert.setHeaderText(null);
         alert.setContentText(message);
-        alert.initOwner(getDialogPane().getScene().getWindow());
+        alert.initOwner(ownerWindow());
         alert.showAndWait();
     }
 }

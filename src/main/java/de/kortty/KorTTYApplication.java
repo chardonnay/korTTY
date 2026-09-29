@@ -99,6 +99,8 @@ public class KorTTYApplication extends Application {
     private EnvironmentManager environmentManager;
     private SSHKeyManager sshKeyManager;
     private SnippetManager snippetManager;
+    private de.kortty.core.SnippetAnalysisStore snippetAnalysisStore;
+    private de.kortty.core.SnippetDraftStore snippetDraftStore;
     private SnippetVariableManager snippetVariableManager;
     private GlobalSettingsManager globalSettingsManager;
     private ThemeManager themeManager;
@@ -222,6 +224,20 @@ public class KorTTYApplication extends Application {
         globalSettingsManager = new GlobalSettingsManager(configDir);
         globalSettingsManager.setPolicyClamp(
             new de.kortty.policy.PolicyClamp(policyManager.getEffective()));
+        // Stored Full-code analyses: built right after the snippet manager, outside the fragile load
+        // block below, so a failed snippets load can never leave the store missing. Only saved,
+        // non-policy snippets are written; drafts stay in memory until their first save.
+        snippetAnalysisStore = new de.kortty.core.SnippetAnalysisStore(
+            configDir.resolve(de.kortty.core.SnippetAnalysisStore.DIRECTORY_NAME),
+            id -> snippetManager.findById(id).filter(snippet -> !snippet.isPolicyManaged()).isPresent(),
+            () -> globalSettingsManager.getSettings().getSnippetAnalysisHistoryMaxSize());
+        snippetAnalysisStore.attachTo(snippetManager);
+        snippetAnalysisStore.warnOnMutationsOffFxThread();
+        de.kortty.core.SnippetAnalysisStore.installApplicationStore(snippetAnalysisStore);
+        // Unsaved editor drafts (crash protection); not part of the backup, read lazily per editor.
+        snippetDraftStore = new de.kortty.core.SnippetDraftStore(
+            configDir.resolve(de.kortty.core.SnippetDraftStore.DIRECTORY_NAME));
+        de.kortty.core.SnippetDraftStore.installApplicationStore(snippetDraftStore);
         powerManagementCoordinator = PowerManagementCoordinator.createDefault();
         themeManager = new ThemeManager(configDir);
         terminalEffectPluginManager = new TerminalEffectPluginManager(configDir);
@@ -377,48 +393,97 @@ public class KorTTYApplication extends Application {
             // Load configuration
             configManager.load(masterPasswordManager.getDerivedKey());
             
-            // Load GPG keys, credentials, and SSH keys
+            // Load the per-feature stores one by one: a corrupt file in one of them must not skip
+            // the unrelated managers behind it (the shared try block used to do exactly that).
             try {
                 gpgKeyManager.load();
+            } catch (Exception e) {
+                logger.warn("Failed to load GPG keys", e);
+            }
+            try {
                 credentialManager.load();
+            } catch (Exception e) {
+                logger.warn("Failed to load credentials", e);
+            }
+            try {
                 sshKeyManager.load();
+            } catch (Exception e) {
+                logger.warn("Failed to load SSH keys", e);
+            }
+            try {
                 snippetManager.load();
+            } catch (Exception e) {
+                logger.warn("Failed to load snippets", e);
+            }
+            try {
                 snippetVariableManager.load();
+            } catch (Exception e) {
+                logger.warn("Failed to load snippet variables", e);
+            }
+            try {
                 aiChatManager.load();
+            } catch (Exception e) {
+                logger.warn("Failed to load AI chats", e);
+            }
+            try {
                 swarmChatManager.load();
-                // Reload global settings to ensure we have the latest version
-                // Note: This reload should preserve the language setting from the file
+            } catch (Exception e) {
+                logger.warn("Failed to load AI swarm chats", e);
+            }
+            // Reload global settings to ensure we have the latest version
+            // Note: This reload should preserve the language setting from the file
+            try {
                 globalSettingsManager.load();
                 AppDesignStyleSupport.initializeGlobalStyling(
                     globalSettingsManager.getSettings().getAppDesign());
+            } catch (Exception e) {
+                logger.warn("Failed to reload global settings", e);
+            }
+            try {
                 themeManager.load();
-                
+            } catch (Exception e) {
+                logger.warn("Failed to load themes", e);
+            }
+
+            // getSettings() never returns null: a failed reload keeps the settings loaded earlier.
+            GlobalSettings loadedSettings = globalSettingsManager.getSettings();
+            try {
                 // Re-initialize language manager with the loaded settings
                 // This ensures the language from the saved settings is applied
-                GlobalSettings loadedSettings = globalSettingsManager.getSettings();
                 logger.info("Re-initializing language manager with language: '{}'", loadedSettings.getLanguage());
                 de.kortty.core.LanguageManager.getInstance().initialize(loadedSettings);
                 applyLoggingSettings();
                 applyPersistedPowerManagementSetting(loadedSettings);
+            } catch (Exception e) {
+                logger.warn("Failed to apply the loaded global settings (language, logging, power management)", e);
+            }
 
-                // Sync the bundled AI skill catalog into the settings (add new, auto-update
-                // unmodified built-ins). Must never prevent startup.
-                try {
-                    de.kortty.core.BuiltinAiSkillProvisioner.provision(globalSettingsManager);
-                } catch (Exception e) {
-                    logger.warn("Failed to provision built-in AI skills", e);
-                }
+            // Sync the bundled AI skill catalog into the settings (add new, auto-update
+            // unmodified built-ins). Must never prevent startup.
+            try {
+                de.kortty.core.BuiltinAiSkillProvisioner.provision(globalSettingsManager);
+            } catch (Exception e) {
+                logger.warn("Failed to provision built-in AI skills", e);
+            }
 
-
-                // Sync ConfigurationManager with persisted terminal settings
-                // so that all components reading from configManager see the saved values
+            // Sync ConfigurationManager with persisted terminal settings
+            // so that all components reading from configManager see the saved values
+            try {
                 ConnectionSettings savedTermSettings = loadedSettings.getDefaultTerminalSettings();
                 if (savedTermSettings != null) {
                     configManager.setGlobalSettings(new ConnectionSettings(savedTermSettings));
                 }
-                
-                // Initialize BackupManager after settings are loaded
+            } catch (Exception e) {
+                logger.warn("Failed to apply the persisted terminal settings", e);
+            }
+
+            // Initialize BackupManager after settings are loaded
+            try {
                 backupManager = new BackupManager(getConfigDirectory(), globalSettingsManager.getSettings());
+            } catch (Exception e) {
+                logger.warn("Failed to initialize the backup manager", e);
+            }
+            try {
                 jobSchedulerService = new JobSchedulerService(this, getConfigDirectory());
                 jobSchedulerService.load();
                 schedulerPowerStateListener = this::syncSchedulerPowerState;
@@ -426,7 +491,7 @@ public class KorTTYApplication extends Application {
                 syncSchedulerPowerState();
                 jobSchedulerService.start();
             } catch (Exception e) {
-                logger.warn("Failed to load GPG keys or credentials", e);
+                logger.warn("Failed to start the job scheduler", e);
             }
 
             // RAG startup reconciliation is independent of credentials, snippets, and scheduler
@@ -668,6 +733,15 @@ public class KorTTYApplication extends Application {
         }
         if (snippetManager != null) {
             shutdownStep("save snippets", snippetManager::save);
+        }
+        if (snippetAnalysisStore != null) {
+            // After the snippets save (which can make a pending draft analysis persistable);
+            // halt(0) skips shutdown hooks, so the queued writes must land here.
+            shutdownStep("flush snippet analyses",
+                () -> snippetAnalysisStore.flush(Duration.ofSeconds(2)));
+        }
+        if (snippetDraftStore != null) {
+            shutdownStep("flush snippet drafts", () -> snippetDraftStore.flush(2_000));
         }
         if (snippetVariableManager != null) {
             shutdownStep("save snippet variables", snippetVariableManager::save);
@@ -1199,6 +1273,11 @@ public class KorTTYApplication extends Application {
         return sshKeyManager;
     }
     
+    /** The store of persisted snippet analyses; see {@link de.kortty.core.SnippetAnalysisStore#shared()}. */
+    public de.kortty.core.SnippetAnalysisStore getSnippetAnalysisStore() {
+        return snippetAnalysisStore;
+    }
+
     public SnippetManager getSnippetManager() {
         return snippetManager;
     }

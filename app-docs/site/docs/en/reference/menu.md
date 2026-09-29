@@ -61,7 +61,7 @@ See the [Settings reference](settings/index.md) for every individual setting.
 
 | Item | Description |
 | --- | --- |
-| Snippet Manager… | Create, edit, organize, send and export command snippets |
+| Snippet Manager… | Create, edit, organize, send and export command snippets in one workspace: the library and the snippets you edit as tabs, each with its stored Full code analysis |
 | JobScheduler… | Schedule background command / snippet / AI-agent / AI-swarm / SFTP / Rsync jobs |
 | Video Manager… | Manage terminal recordings and export to WebM/MKV via `ffmpeg` |
 | Start/Stop Terminal Recording | Toggle recording of the active terminal (++ctrl+shift+e++) |

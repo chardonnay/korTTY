@@ -23,6 +23,8 @@ import de.kortty.core.MermaidRenderService;
 import de.kortty.core.SnippetDiagramSupport;
 import de.kortty.core.ScriptLanguageMixSupport;
 import de.kortty.core.SnippetLanguageSupport;
+import de.kortty.core.SnippetManager;
+import de.kortty.core.SnippetAnalysisStore;
 import de.kortty.core.WorkflowScriptSupport;
 import de.kortty.core.WorkflowScriptSupport.HardeningOption;
 import de.kortty.core.SnippetOneLiner;
@@ -37,6 +39,9 @@ import de.kortty.model.SnippetHistoryEntry;
 import de.kortty.model.WindowGeometry;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyBooleanWrapper;
+import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -63,23 +68,29 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.web.WebView;
 import javafx.stage.Modality;
+import javafx.stage.Screen;
+import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.Duration;
 
 import de.kortty.telemetry.Telemetry;
 import de.kortty.telemetry.TelemetryEvents;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -91,7 +102,7 @@ import org.slf4j.LoggerFactory;
  * Provides form fields for name, language, category, tags, and
  * a syntax-highlighted content editor with placeholder help.
  */
-public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
+public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements HostedCloseGuard {
 
     private static final Logger logger = LoggerFactory.getLogger(SnippetEditDialog.class);
 
@@ -107,6 +118,16 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private final ProgressIndicator snippetAiProgressIndicator;
     private final Label snippetAiHintLabel;
     private final Button cancelSnippetAiActionButton;
+    private final Label snippetAiElapsedLabel;
+    private final Button retrySnippetAiActionButton;
+    private final Button dismissSnippetAiRetryButton;
+    private final javafx.animation.Timeline snippetAiElapsedTicker;
+    private long snippetAiStartedNanos;
+    /** How to repeat each running AI task (by identity); a task without an entry offers no Retry. */
+    private final Map<Task<?>, AiRetry> aiRetries = new java.util.IdentityHashMap<>();
+    /** The Retry the hint bar offers after a stop, a failure or a timeout; {@code null} = none. */
+    private AiRetry offeredAiRetry;
+    private String offeredAiRetryText;
     private final MonacoEditorPane contentArea;
     private final SnippetColumnRuler columnRuler;
     private final ToggleButton markupPreviewToggleButton;
@@ -160,6 +181,27 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private final Button saveButton;
     private Button okButton;
     private final Snippet existingSnippet;
+    /**
+     * Set when the editor's pane is embedded in the snippet workspace (never shown as a window):
+     * no dialog buttons, no geometry, a close guard that saves before unmounting.
+     */
+    private final SnippetEditorEmbedding embedding;
+    /** Stable id of a never-saved snippet, so hosts can key the editor before the first save. */
+    private final String draftSnippetId;
+    private final ReadOnlyBooleanWrapper unsavedChanges = new ReadOnlyBooleanWrapper(this, "unsavedChanges");
+    private final ReadOnlyBooleanWrapper savable = new ReadOnlyBooleanWrapper(this, "savable");
+    private final ReadOnlyBooleanWrapper aiBusy = new ReadOnlyBooleanWrapper(this, "aiBusy");
+    private boolean hostedAttachHandled;
+    /**
+     * This editor's entry in {@link SnippetEditorRegistry} while it is open as a standalone editor
+     * ({@link #showNonBlocking}); {@code null} for the workspace's embedded editors, whose tab is
+     * their entry.
+     */
+    private StandaloneRegistration standaloneRegistration;
+    /** The diagram window opened from this editor; closed with the editor so it never outlives it. */
+    private SnippetDiagramDialog openDiagramDialog;
+    /** Test seam: replaces the host-close unsaved-changes prompt (smokes cannot answer an Alert). */
+    private static Function<SnippetEditDialog, UnsavedContentChoice> hostUnsavedPrompter;
     private final ExternalFileActionConfig externalFileActionConfig;
     private final boolean saveAsNewSnippetEnabled;
     private Button overwriteFileButton;
@@ -173,11 +215,48 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private Task<SuggestedSnippetMetadata> metadataTask;
     private Task<String> descriptionCorrectionTask;
     private Task<?> snippetAiActionTask;
-    private SnippetAiApplyProgressWindow improvementApplyProgressWindow;
-    private WindowDockGroup improvementApplyDockGroup;
+    /**
+     * The integrated, persisted Full-code analysis of this editor: the side panel, the staged apply
+     * with its progress, and the change review that replaces the editor area.
+     */
+    private SnippetAnalysisController analysisController;
+    /** Crash protection for unsaved edits; {@code null} for file editors and admin-managed snippets. */
+    private SnippetDraftAutosave draftAutosave;
+    private final ToggleButton analysisToggleButton;
+    private final MenuItem analysisPanelItem;
+    /**
+     * The dialog content: the editor area, and while it is shown, a drag divider plus the analysis
+     * panel beside it. Not a SplitPane: the editor area (with its Monaco page) never changes parent
+     * when the panel comes and goes, and every node stays a real child. The panel keeps its width;
+     * the editor area is the one that flexes.
+     */
+    private final SnippetEditorWorkbench analysisWorkbench;
+    private final Region analysisDivider;
+    private final StackPane editorAreaStack;
+    private final VBox editorFormLayout;
+    /** The change review currently shown instead of the editor form, or {@code null}. */
+    private SnippetAiDiffPane editorAreaOverlay;
+    /**
+     * Reviews that arrived while another one held the editor area, shown in order once it is
+     * decided. A result is never allowed to silently replace the review the user is looking at.
+     */
+    private final ArrayDeque<SnippetAiDiffPane> waitingEditorAreaPanes = new ArrayDeque<>();
+    /**
+     * The ad-hoc AI change (improve, migrate, assistant, security fix, format) waiting for Accept or
+     * Reject in the editor area, or {@code null}. New AI actions stay disabled while it is open.
+     */
+    private SnippetAiDiffPane aiChangeReviewPane;
+    /** Re-checks {@link #aiChangeReviewPane} against the current content whenever it comes on screen. */
+    private Runnable aiChangeReviewGuard;
+    /**
+     * The non-modal result windows of this editor (security report, description, alternatives, AI
+     * syntax check, editor profile), one per kind. They call back into the editor, so they are
+     * closed with it.
+     */
+    private final Map<Class<?>, Dialog<?>> childWindows = new HashMap<>();
+    private boolean editorClosed;
+    private boolean widenedForAnalysisPanel;
     private boolean rememberCodeTextLanguageAnswer = true;
-    // Editor teardown cancels AI tasks; the abort-recovery dialog must not pop over a closing editor.
-    private boolean improvementApplyRecoverySuppressed;
     private boolean programmaticNameUpdate;
     private boolean programmaticLanguageUpdate;
     private boolean programmaticAiTextLanguageUpdate;
@@ -255,6 +334,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         + " -fx-border-width: 1;"
         + " -fx-border-radius: 8;"
         + " -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.30), 8, 0, 0, 2);";
+    /** A stopped or failed action waiting for Retry: amber, like the analysis panel's warnings. */
+    private static final String SNIPPET_AI_HINT_OUTCOME_STYLE = "-fx-background-color: rgba(245,158,11,0.22);"
+        + " -fx-background-radius: 8;"
+        + " -fx-border-color: rgba(245,158,11,0.70);"
+        + " -fx-border-width: 1;"
+        + " -fx-border-radius: 8;";
     private static final String SNIPPET_AI_HINT_IDLE_STYLE = "-fx-background-color: transparent;"
         + " -fx-background-radius: 8;"
         + " -fx-border-color: transparent;"
@@ -548,12 +633,33 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
     }
 
+    /**
+     * Told which AI profile and model actually served a request, and the token usage accumulated so
+     * far. Called from the AI worker thread: once when the profile is resolved, then after every AI
+     * call. Must not throw (failures are logged and ignored).
+     */
+    @FunctionalInterface
+    public interface AiProvenanceListener {
+        void onProvenance(de.kortty.core.SnippetAnalysisRecord.Provenance provenance);
+    }
+
+    /** @param provenanceListener optional; told the resolved profile/model and the usage */
     public record CodeAnalysisRequest(
         String fullContent,
         String snippetLanguage,
         String fallbackLanguageCode,
         String additionalInstructions,
-        String aiProfileId) {
+        String aiProfileId,
+        AiProvenanceListener provenanceListener) {
+
+        public CodeAnalysisRequest(
+            String fullContent,
+            String snippetLanguage,
+            String fallbackLanguageCode,
+            String additionalInstructions,
+            String aiProfileId) {
+            this(fullContent, snippetLanguage, fallbackLanguageCode, additionalInstructions, aiProfileId, null);
+        }
     }
 
     public record ImprovementApplyRequest(
@@ -569,7 +675,27 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         SnippetAiWorkflowSupport.ImprovementApplyCheckpointListener checkpointListener,
         SnippetAiWorkflowSupport.ImprovementApplyCheckpoint resumeFrom,
         String aiProfileId,
-        SnippetAiWorkflowSupport.MigrationPlan migration) {
+        SnippetAiWorkflowSupport.MigrationPlan migration,
+        AiProvenanceListener provenanceListener) {
+
+        public ImprovementApplyRequest(
+            String fullContent,
+            String snippetLanguage,
+            String fallbackLanguageCode,
+            List<SnippetAiResponseSupport.ScriptImprovement> improvements,
+            List<SnippetAiResponseSupport.ScriptDependency> dependencies,
+            String additionalInstructions,
+            String classicHardeningInstructions,
+            String inputHardeningInstructions,
+            SnippetAiWorkflowSupport.ImprovementApplyProgressListener progressListener,
+            SnippetAiWorkflowSupport.ImprovementApplyCheckpointListener checkpointListener,
+            SnippetAiWorkflowSupport.ImprovementApplyCheckpoint resumeFrom,
+            String aiProfileId,
+            SnippetAiWorkflowSupport.MigrationPlan migration) {
+            this(fullContent, snippetLanguage, fallbackLanguageCode, improvements, dependencies,
+                additionalInstructions, classicHardeningInstructions, inputHardeningInstructions,
+                progressListener, checkpointListener, resumeFrom, aiProfileId, migration, null);
+        }
 
         /** Compatibility view used by callers that only need to inspect the complete selected contract. */
         public String mandatoryHardeningInstructions() {
@@ -732,7 +858,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     public SnippetEditDialog(Snippet snippet, List<String> existingCategories, AiAssist aiAssist) {
-        this(snippet, existingCategories, aiAssist, null);
+        this(snippet, existingCategories, aiAssist, (ExternalFileActionConfig) null);
     }
 
     public SnippetEditDialog(
@@ -753,13 +879,40 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         this(snippet, existingCategories, aiAssist, externalFileActionConfig, false);
     }
 
+    /**
+     * Creates an editor whose pane the snippet workspace embeds in an inner tab (never shown as a
+     * window). {@code snippet} may be {@code null} for a new snippet, keyed by {@link #snippetId()}.
+     */
+    SnippetEditDialog(
+        Snippet snippet,
+        List<String> existingCategories,
+        AiAssist aiAssist,
+        SnippetEditorEmbedding embedding) {
+
+        this(snippet, existingCategories, aiAssist, null, snippet != null,
+            java.util.Objects.requireNonNull(embedding, "embedding"));
+    }
+
     private SnippetEditDialog(
         Snippet snippet,
         List<String> existingCategories,
         AiAssist aiAssist,
         ExternalFileActionConfig externalFileActionConfig,
         boolean saveAsNewSnippetEnabled) {
+
+        this(snippet, existingCategories, aiAssist, externalFileActionConfig, saveAsNewSnippetEnabled, null);
+    }
+
+    private SnippetEditDialog(
+        Snippet snippet,
+        List<String> existingCategories,
+        AiAssist aiAssist,
+        ExternalFileActionConfig externalFileActionConfig,
+        boolean saveAsNewSnippetEnabled,
+        SnippetEditorEmbedding embedding) {
         this.existingSnippet = snippet;
+        this.embedding = embedding;
+        this.draftSnippetId = snippet == null ? UUID.randomUUID().toString() : null;
         this.aiAssist = aiAssist;
         this.aiCodeTextLanguageCode = loadConfiguredAiCodeTextLanguageCode();
         this.externalFileActionConfig = externalFileActionConfig;
@@ -878,14 +1031,28 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         snippetAiHintLabel.setWrapText(true);
         snippetAiHintLabel.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(snippetAiHintLabel, Priority.ALWAYS);
-        cancelSnippetAiActionButton = new Button(I18n.get("dialog.cancel"));
-        cancelSnippetAiActionButton.setOnAction(e -> cancelSnippetAiActionTask());
+        cancelSnippetAiActionButton = AiStopRetrySupport.stopButton(this::cancelSnippetAiActionTask);
+        cancelSnippetAiActionButton.setId("snippet-ai-stop");
         cancelSnippetAiActionButton.setDisable(true);
+        snippetAiElapsedLabel = new Label();
+        snippetAiElapsedLabel.setId("snippet-ai-elapsed");
+        snippetAiElapsedLabel.setStyle(SNIPPET_AI_HINT_TEXT_STYLE + " -fx-font-weight: normal; -fx-opacity: 0.85;");
+        snippetAiElapsedLabel.setMinWidth(Region.USE_PREF_SIZE);
+        snippetAiElapsedTicker = AiStopRetrySupport.ticker(this::refreshSnippetAiElapsed);
+        retrySnippetAiActionButton = AiStopRetrySupport.retryButton(this::runOfferedAiRetry);
+        retrySnippetAiActionButton.setId("snippet-ai-retry");
+        dismissSnippetAiRetryButton = new Button("\u2715");
+        dismissSnippetAiRetryButton.setId("snippet-ai-retry-dismiss");
+        dismissSnippetAiRetryButton.setTooltip(new Tooltip(I18n.get("snippets.ai.retry.dismiss")));
+        dismissSnippetAiRetryButton.setOnAction(e -> dismissAiRetry());
         snippetAiHintBox = new HBox(
             12,
             snippetAiProgressIndicator,
             snippetAiHintLabel,
-            cancelSnippetAiActionButton);
+            snippetAiElapsedLabel,
+            cancelSnippetAiActionButton,
+            retrySnippetAiActionButton,
+            dismissSnippetAiRetryButton);
         snippetAiHintBox.setAlignment(Pos.CENTER_LEFT);
         snippetAiHintBox.setPadding(new Insets(10, 12, 10, 12));
         snippetAiHintBox.setMaxWidth(Double.MAX_VALUE);
@@ -895,6 +1062,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         snippetAiProgressIndicator.setVisible(false);
         cancelSnippetAiActionButton.setManaged(false);
         cancelSnippetAiActionButton.setVisible(false);
+        setShown(snippetAiElapsedLabel, false);
+        setShown(retrySnippetAiActionButton, false);
+        setShown(dismissSnippetAiRetryButton, false);
         
         // Content area with syntax highlighting – use saved editor settings
         contentArea = MonacoEditorWarmup.acquire();
@@ -1014,6 +1184,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             updateColumnRulerCaret();
             scheduleMarkupPreviewRefresh();
             scheduleAutoCompletion();
+            if (analysisController != null) {
+                analysisController.onContentChanged();
+            }
 
             // Track history changes with debounce (only when user is editing, not when slider is active)
             if (!programmaticContentUpdate && !sliderActive) {
@@ -1106,7 +1279,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         lintBtn.setOnAction(e -> runLint());
 
         undoItem = new MenuItem(I18n.get("editor.context.undo"));
-        undoItem.setAccelerator(UNDO_SHORTCUT);
+        // An embedded editor shares its scene with the workspace and every other editor tab: a
+        // scene-wide accelerator would undo in whichever editor registered last. The Monaco key
+        // filter handles Shortcut+Z for the focused editor anyway.
+        if (embedding == null) {
+            undoItem.setAccelerator(UNDO_SHORTCUT);
+        }
         undoItem.setOnAction(e -> undoContentChange());
 
         // History slider UI
@@ -1166,6 +1344,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         autoCompleteItem.setOnAction(e -> { trackSnippetAiAction("code_autocomplete_toggle"); handleAutoCompletionToggle(); });
         reviewCodeItem = new MenuItem(aiActionLabel("snippets.ai.code.review"));
         reviewCodeItem.setOnAction(e -> { trackSnippetAiAction("code_review"); runCodeReview(); });
+        analysisPanelItem = new MenuItem(I18n.get("snippets.ai.analysis.panel.menu"));
+        analysisPanelItem.setId("snippet-analysis-panel-item");
+        analysisPanelItem.setOnAction(e -> toggleAnalysisPanel());
         improveReadabilityItem = new MenuItem(aiActionLabel("snippets.ai.code.improve.readability"));
         improveReadabilityItem.setOnAction(e -> { trackSnippetAiAction("code_improve_readability"); runCodeImprovement(I18n.get("snippets.ai.code.improve.readability.theme")); });
         improveRobustnessItem = new MenuItem(aiActionLabel("snippets.ai.code.improve.robustness"));
@@ -1188,6 +1369,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             autoCompleteItem,
             new SeparatorMenuItem(),
             reviewCodeItem,
+            analysisPanelItem,
             improveReadabilityItem,
             improveRobustnessItem,
             improvePerformanceItem,
@@ -1238,9 +1420,15 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         backgroundBrightnessValueLabel = new Label(formatBackgroundBrightnessValue());
         backgroundBrightnessMenu = createBackgroundBrightnessMenu();
 
+        analysisToggleButton = new ToggleButton(I18n.get("snippets.ai.analysis.panel.toggle"));
+        analysisToggleButton.setId("snippet-analysis-toggle");
+        analysisToggleButton.setTooltip(new Tooltip(I18n.get("snippets.ai.analysis.panel.toggle.tooltip")));
+        analysisToggleButton.setOnAction(e -> toggleAnalysisPanel());
+
         HBox contentHeader = new HBox(10,
                 new Label(I18n.get("snippets.content") + ":"),
-                editMenu, formatBtn, lintBtn, aiTextMenu, aiCodeMenu, toggleLastAiChangeButton, oneLinerMenu,
+                editMenu, formatBtn, lintBtn, aiTextMenu, aiCodeMenu, analysisToggleButton,
+                toggleLastAiChangeButton, oneLinerMenu,
                 new Separator(), zoomOutButton, fontSizeLabel, zoomInButton, editorProfileMenu, backgroundBrightnessMenu,
                 new Separator(), markupPreviewToggleButton, wordWrapCheckBox, lineNumbersCheckBox);
         contentHeader.setAlignment(Pos.CENTER_LEFT);
@@ -1278,8 +1466,25 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         VBox.setMargin(snippetAiHintBox, new Insets(10, 10, 0, 10));
         VBox rootLayout = new VBox(0, snippetAiHintBox, formGrid, statusLabel);
         VBox.setVgrow(formGrid, Priority.ALWAYS);
+        editorFormLayout = rootLayout;
+        // The editor area can be replaced by a change review; the analysis panel sits beside it and
+        // is only a child of the workbench while it is shown.
+        editorAreaStack = new StackPane(rootLayout);
+        editorAreaStack.setMinWidth(0);
+        analysisDivider = buildAnalysisDivider();
+        analysisWorkbench = new SnippetEditorWorkbench(editorAreaStack, analysisDivider);
+        analysisWorkbench.setId("snippet-editor-workbench");
+        // Esc stops the running AI request of this editor (form, Monaco or analysis panel). A filter,
+        // so it wins over Monaco and the dialog's Cancel — but only while something runs, and never
+        // for a change review, which keeps its own Esc handling.
+        analysisWorkbench.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.ESCAPE && !event.isShortcutDown() && !event.isAltDown()
+                    && !isInsideChangeReview(event.getTarget()) && stopRunningAiByKeyboard()) {
+                event.consume();
+            }
+        });
 
-        getDialogPane().setContent(rootLayout);
+        getDialogPane().setContent(analysisWorkbench);
         getDialogPane().setPrefWidth(700);
         getDialogPane().setPrefHeight(640);
 
@@ -1317,6 +1522,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             validationButton = null;
             assignedSaveButton = null;
             cancelButton = (Button) getDialogPane().lookupButton(closeButtonType);
+        } else if (embedding != null) {
+            // The workspace's action bar saves; no dialog buttons means no default button for
+            // Enter, no Cancel for Esc and no silent discard.
+            validationButton = null;
+            assignedSaveButton = null;
+            cancelButton = null;
         } else {
             ButtonType saveButtonType = new ButtonType(I18n.get("dialog.save"), ButtonBar.ButtonData.APPLY);
             ButtonType saveAsNewButtonType = new ButtonType(I18n.get("snippets.saveAsNew"), ButtonBar.ButtonData.APPLY);
@@ -1352,8 +1563,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     }
                     saveGeometry();
                     flushPendingHistory();
+                    Snippet copy = buildNewResultSnippet();
+                    offerAnalysisCopy(snippetId(), copy);
                     allowCloseWithoutUnsavedPrompt = true;
-                    setResult(buildNewResultSnippet());
+                    setResult(copy);
                     closeDialogOrHostTab();
                 });
             }
@@ -1372,9 +1585,18 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         EventHandler<javafx.event.ActionEvent> enterGuard = event -> {
             if (event.getTarget() instanceof Button) {
                 Button clickedButton = (Button) event.getTarget();
-                Node focusOwner = getDialogPane().getScene().getFocusOwner();
+                Node focusOwner = getDialogPane().getScene() != null
+                    ? getDialogPane().getScene().getFocusOwner()
+                    : null;
                 // If content area or its inner components have focus, don't trigger button
                 if (focusOwner != null && isDescendantOf(focusOwner, contentArea)) {
+                    event.consume();
+                }
+                // Same while a change review replaces the editor: Enter there must not fire the
+                // dialog's default button (its own buttons keep working).
+                SnippetAiDiffPane overlay = editorAreaOverlay;
+                if (overlay != null && focusOwner != null && isDescendantOf(focusOwner, overlay)
+                        && !isDescendantOf(clickedButton, overlay)) {
                     event.consume();
                 }
             }
@@ -1467,9 +1689,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         updateExternalFileButtonState();
         installUnsavedContentCloseGuard(cancelButton);
         
-        // Restore saved geometry
-        restoreGeometry();
-        enforceMinimumWindowSize();
+        // Restore saved geometry (an embedded pane has no window of its own)
+        if (embedding == null) {
+            restoreGeometry();
+            enforceMinimumWindowSize();
+        }
+        installSaveShortcut();
 
         // Result converter (also saves geometry)
         setResultConverter(buttonType -> {
@@ -1480,8 +1705,31 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             return null;
         });
 
+        analysisController = new SnippetAnalysisController(new AnalysisHost(), SnippetAnalysisStore.shared());
+        analysisController.attach();
+        if (externalFileActionConfig == null && (snippet == null || !snippet.isPolicyManaged())) {
+            draftAutosave = new SnippetDraftAutosave(new DraftForm(), de.kortty.core.SnippetDraftStore.shared());
+            draftAutosave.checkForDraft();
+        }
+
         setOnHidden(event -> {
+            // First: a running apply is recorded as interrupted before cancelAiTasks() cancels it.
+            analysisController.dispose();
+            if (draftAutosave != null) {
+                draftAutosave.dispose();
+            }
+            editorClosed = true;
             cancelAiTasks();
+            closeDiagramDialog();
+            closeChildWindows();
+            // An ad-hoc change nobody decided is simply dropped with the editor, like the old window.
+            SnippetAiDiffPane openReview = aiChangeReviewPane;
+            aiChangeReviewPane = null;
+            aiChangeReviewGuard = null;
+            waitingEditorAreaPanes.clear();
+            if (openReview != null) {
+                openReview.dispose();
+            }
             // Tear down the Monaco WebView (page, JS bridge, boot retries) on close instead of leaking it.
             contentArea.dispose();
             // Same for the markup preview's WebKit engine, if the preview was ever shown.
@@ -1501,6 +1749,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     public void showNonBlocking(Consumer<Snippet> resultHandler) {
         this.liveSaveHandler = resultHandler;
+        registerStandalone();
         if (resultHandler != null) {
             addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
                 // Deliver the final result at most once. A button whose ACTION filter consumes the event and
@@ -1531,6 +1780,43 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     /**
+     * Lists this standalone editor in {@link SnippetEditorRegistry}: the close/quit guards then ask
+     * about its unsaved edits (also when it has no owner window), and the snippet workspace reveals
+     * it instead of opening the same snippet a second time. Released when the editor is hidden.
+     */
+    private void registerStandalone() {
+        if (standaloneRegistration != null || embedding != null) {
+            return;
+        }
+        StandaloneRegistration registration = new StandaloneRegistration();
+        standaloneRegistration = registration;
+        SnippetEditorRegistry.track(registration);
+        claimPersistedSnippetId();
+        addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
+            SnippetEditorRegistry.release(registration);
+            if (standaloneRegistration == registration) {
+                standaloneRegistration = null;
+            }
+        });
+    }
+
+    /**
+     * Binds this standalone editor to the snippet it edits, once there is one: a snippet it was
+     * opened with, or the one its first save created. File editors edit a file, not a snippet, and
+     * only stay tracked. A snippet already open in another editor stays with that one.
+     */
+    private void claimPersistedSnippetId() {
+        StandaloneRegistration registration = standaloneRegistration;
+        Snippet persisted = persistedSnippet();
+        if (registration == null || externalFileActionConfig != null || persisted == null || persisted.getId() == null) {
+            return;
+        }
+        if (!SnippetEditorRegistry.claim(persisted.getId(), registration)) {
+            logger.debug("Snippet {} is already open in another editor; this editor stays unclaimed", persisted.getId());
+        }
+    }
+
+    /**
      * The main window to host this editor as a tab, or {@code null} to open a normal window.
      * Tab hosting applies when the global "tool windows as tabs" setting is on AND the owner set
      * by the call site (main window, snippet-manager tab, SFTP tab, file browser, …) is a main
@@ -1549,10 +1835,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         return MainWindow.findByStage(getOwner());
     }
 
-    private void saveSnippetWithoutClosing() {
+    private boolean saveSnippetWithoutClosing() {
         if (!isSnippetFormValid()) {
             updateSaveButtonState();
-            return;
+            return false;
         }
         String ignoredSnippetId = existingSnippet != null
             ? existingSnippet.getId()
@@ -1560,15 +1846,16 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (!validateUniqueSnippetNameBeforeSave(ignoredSnippetId)) {
             updateSaveButtonState();
             updateExternalFileButtonState();
-            return;
+            return false;
         }
 
         flushPendingHistory();
         saveGeometry();
 
+        boolean created = existingSnippet == null && liveSavedSnippet == null;
         Snippet saved = existingSnippet != null
             ? existingSnippet
-            : liveSavedSnippet != null ? liveSavedSnippet : new Snippet();
+            : liveSavedSnippet != null ? liveSavedSnippet : newDraftSnippet();
         applyFormValues(saved);
 
         boolean firstLiveSave = existingSnippet == null && liveSavedSnippet == null && liveSaveHandler != null;
@@ -1587,7 +1874,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (!savedSuccessfully) {
             updateSaveButtonState();
             updateExternalFileButtonState();
-            return;
+            return false;
         }
 
         liveSavedSnippet = saved;
@@ -1601,6 +1888,35 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         updateHistorySliderState();
         updateSaveButtonState();
         updateExternalFileButtonState();
+        if (draftAutosave != null) {
+            draftAutosave.saved();
+        }
+        if (embedding != null) {
+            embedding.snippetPersisted(this, saved, created);
+        }
+        claimPersistedSnippetId();
+        if (analysisController != null) {
+            analysisController.onSnippetSaved(saved);
+        }
+        return true;
+    }
+
+    /** A new snippet carrying the draft id, so the key hosts used before the first save survives it. */
+    private Snippet newDraftSnippet() {
+        Snippet snippet = new Snippet();
+        if (draftSnippetId != null) {
+            snippet.setId(draftSnippetId);
+        }
+        return snippet;
+    }
+
+    /** The embedding's manager (injected, test-isolated), or the application's. */
+    private SnippetManager resolveSnippetManager() {
+        if (embedding != null) {
+            return embedding.snippetManager();
+        }
+        KorTTYApplication app = KorTTYApplication.getInstance();
+        return app != null ? app.getSnippetManager() : null;
     }
 
     private boolean persistSnippet(Snippet snippet) {
@@ -1608,7 +1924,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             return false;
         }
         try {
-            var snippetManager = KorTTYApplication.getInstance().getSnippetManager();
+            var snippetManager = resolveSnippetManager();
+            if (snippetManager == null) {
+                throw new IllegalStateException(I18n.get("snippets.error.unknown"));
+            }
+            // A category typed into the editable combo must exist as a category too, or the
+            // manager's filter and every other editor would never offer it.
+            snippetManager.ensureCategory(snippet.getCategory());
             if (snippetManager.findById(snippet.getId()).isPresent()) {
                 snippetManager.updateSnippet(snippet);
             } else {
@@ -1635,6 +1957,21 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         // Only window close (X) should prompt for unsaved changes
 
         setOnCloseRequest(event -> {
+            if (embedding != null) {
+                // Embedded: decide (and save) BEFORE the pane is unmounted; on success close
+                // ourselves, otherwise the tab stays open with the edits intact.
+                if (allowCloseWithoutUnsavedPrompt) {
+                    return;
+                }
+                event.consume();
+                if (isAnyAiTaskRunning() && !confirmCloseWhileAiRunning()) {
+                    return;
+                }
+                if (confirmCloseFromHost()) {
+                    closeWithoutPrompt();
+                }
+                return;
+            }
             // Only prompt if closing via window X button, not from Cancel/OK buttons
             if (allowCloseWithoutUnsavedPrompt || !hasUnsavedContentChanges()) {
                 return;
@@ -1712,6 +2049,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private void updateSaveButtonState() {
         boolean formValid = isSnippetFormValid();
         boolean hasUnsavedChanges = hasUnsavedContentChanges();
+        unsavedChanges.set(hasUnsavedChanges);
+        savable.set(formValid);
         if (saveButton != null) {
             boolean visible = hasUnsavedChanges;
             saveButton.setVisible(visible);
@@ -1722,6 +2061,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             saveAsNewSnippetButton.setDisable(!formValid);
         }
         updateOkButtonState(hasUnsavedChanges);
+        if (draftAutosave != null) {
+            draftAutosave.formChanged();
+        }
     }
 
     private void updateOkButtonState(boolean hasUnsavedChanges) {
@@ -2001,16 +2343,241 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             setResult(buildResultSnippet());
         } else {
             setResult(null);
+            if (draftAutosave != null) {
+                draftAutosave.discarded();
+            }
         }
         closeDialogOrHostTab();
     }
 
-    private boolean validateUniqueSnippetNameBeforeSave(String ignoredSnippetId) {
-        var app = KorTTYApplication.getInstance();
-        if (app == null || app.getSnippetManager() == null) {
+    // ---- Hosting API (snippet workspace) ----
+
+    private static final KeyCombination SAVE_SHORTCUT =
+        new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN);
+
+    /**
+     * Shortcut+S saves without closing. A scene-wide accelerator would fire for whichever editor
+     * registered last (and in tab mode lose to "Save project"), so this is a key filter on the
+     * pane: it only sees keys while focus is inside this editor, and consuming the event stops
+     * the host window's accelerators.
+     */
+    private void installSaveShortcut() {
+        if (externalFileActionConfig != null) {
+            return;
+        }
+        getDialogPane().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (!SAVE_SHORTCUT.match(event)) {
+                return;
+            }
+            event.consume();
+            if (hasUnsavedContentChanges() && isSnippetFormValid()) {
+                saveSnippetWithoutClosing();
+            }
+        });
+    }
+
+    @Override
+    protected void onHostedAttached() {
+        // setOnShown never fires for a hosted pane; run the "opened" work here instead.
+        if (hostedAttachHandled) {
+            return;
+        }
+        hostedAttachHandled = true;
+        // A hosted pane shares the main window's (or workspace's) scene with other editors: a
+        // scene-wide Shortcut+Z accelerator would undo in whichever editor registered last. The
+        // Monaco key filter handles Shortcut+Z for the focused editor anyway.
+        undoItem.setAccelerator(null);
+        autoDetectAiSkills();
+    }
+
+    /** Saves the form in place (no close); {@code false} when validation or persistence failed. */
+    boolean saveFromHost() {
+        return saveSnippetWithoutClosing();
+    }
+
+    /**
+     * "Save as new" for an embedded editor: persists a copy of the form as a new snippet and
+     * returns it, leaving this editor's own snippet untouched. {@code null} when not possible.
+     */
+    Snippet saveAsNewFromHost() {
+        if (!saveAsNewSnippetEnabled || !isSnippetFormValid()) {
+            updateSaveButtonState();
+            return null;
+        }
+        if (!validateUniqueSnippetNameBeforeSave(null)) {
+            updateSaveButtonState();
+            return null;
+        }
+        flushPendingHistory();
+        Snippet copy = buildNewResultSnippet();
+        if (!persistSnippet(copy)) {
+            return null;
+        }
+        trackSnippetSaved(copy);
+        return copy;
+    }
+
+    /** Whether "Save as new" applies (an existing snippet, not an external file). */
+    boolean canSaveAsNew() {
+        return saveAsNewSnippetEnabled;
+    }
+
+    /**
+     * Asks about unsaved changes without closing: Save (saves, {@code true} on success), Discard
+     * ({@code true}) or Cancel ({@code false}). Clean editors return {@code true} without asking.
+     */
+    boolean confirmCloseFromHost() {
+        if (!hasUnsavedContentChanges()) {
             return true;
         }
-        if (!app.getSnippetManager().hasSnippetName(nameField.getText(), ignoredSnippetId)) {
+        UnsavedContentChoice choice = hostUnsavedPrompter != null
+            ? hostUnsavedPrompter.apply(this)
+            : promptForUnsavedContentChoice();
+        if (choice == null || choice == UnsavedContentChoice.CANCEL) {
+            return false;
+        }
+        if (choice == UnsavedContentChoice.SAVE) {
+            return saveFromHost();
+        }
+        if (draftAutosave != null) {
+            draftAutosave.discarded();
+        }
+        return true;
+    }
+
+    /**
+     * The host's close guard (main-window Cmd+W, close all, window close, quit): asks before
+     * cancelling running AI work, then about unsaved changes (Save / Discard / Cancel). Brings the
+     * editor forward first when it has to ask. Never closes; {@code false} vetoes.
+     */
+    @Override
+    public boolean confirmHostedClose() {
+        if (!needsCloseConfirmation()) {
+            return true;
+        }
+        revealDialogOrHost();
+        if (isAnyAiTaskRunning() && !confirmCloseWhileAiRunning()) {
+            return false;
+        }
+        return confirmCloseFromHost();
+    }
+
+    @Override
+    public boolean needsCloseConfirmation() {
+        return isAnyAiTaskRunning() || hasUnsavedContentChanges();
+    }
+
+    /** Closes the editor without any prompt (the host already asked); unsaved edits are dropped. */
+    void closeWithoutPrompt() {
+        allowCloseWithoutUnsavedPrompt = true;
+        closeDialogOrHostTab();
+    }
+
+    /** Closing cancels running AI work; asks first. {@code true} means close anyway. */
+    private boolean confirmCloseWhileAiRunning() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.applyTheme(alert);
+        alert.setTitle(getTitle());
+        alert.setHeaderText(I18n.get("snippets.workspace.close.aiRunning.header"));
+        alert.setContentText(I18n.get("snippets.workspace.close.aiRunning.content"));
+        Window owner = resolveAlertOwner();
+        if (owner != null) {
+            alert.initOwner(owner);
+            alert.initModality(Modality.WINDOW_MODAL);
+        }
+        return alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
+    }
+
+    /** Test seam: answers the host-close unsaved prompt instead of an Alert; {@code null} restores it. */
+    static void setHostUnsavedPrompterForTesting(Function<SnippetEditDialog, UnsavedContentChoice> prompter) {
+        hostUnsavedPrompter = prompter;
+    }
+
+    /** The edited snippet's id; a never-saved snippet reports its stable draft id (never null). */
+    String snippetId() {
+        if (existingSnippet != null) {
+            return existingSnippet.getId();
+        }
+        if (liveSavedSnippet != null) {
+            return liveSavedSnippet.getId();
+        }
+        return draftSnippetId;
+    }
+
+    /** The snippet this editor has persisted to, or {@code null} for an unsaved draft. */
+    Snippet persistedSnippet() {
+        return existingSnippet != null ? existingSnippet : liveSavedSnippet;
+    }
+
+    boolean hasUnsavedChanges() {
+        return hasUnsavedContentChanges();
+    }
+
+    ReadOnlyBooleanProperty unsavedChangesProperty() {
+        return unsavedChanges.getReadOnlyProperty();
+    }
+
+    /** Whether the form is complete enough to save (name and content present). */
+    ReadOnlyBooleanProperty savableProperty() {
+        return savable.getReadOnlyProperty();
+    }
+
+    ReadOnlyBooleanProperty aiBusyProperty() {
+        return aiBusy.getReadOnlyProperty();
+    }
+
+    boolean isAiWorkRunning() {
+        return isAnyAiTaskRunning();
+    }
+
+    ReadOnlyStringProperty snippetNameProperty() {
+        return nameField.textProperty();
+    }
+
+    /** Refreshes the category choices in place (keeps what the user typed into the combo). */
+    void updateCategoryChoices(List<String> fresh) {
+        String typed = categoryCombo.getValue();
+        String editorText = categoryCombo.getEditor().getText();
+        ObservableListSync.sync(categoryCombo.getItems(), fresh != null ? fresh : List.of(), Function.identity());
+        if (!java.util.Objects.equals(typed, categoryCombo.getValue())) {
+            categoryCombo.setValue(typed);
+        }
+        if (!java.util.Objects.equals(editorText, categoryCombo.getEditor().getText())) {
+            categoryCombo.getEditor().setText(editorText);
+        }
+    }
+
+    /** Focuses the name field for a new snippet, the code editor otherwise. */
+    void focusEditor() {
+        if (existingSnippet == null && liveSavedSnippet == null
+            && (nameField.getText() == null || nameField.getText().isBlank())
+            && safeContentText().isEmpty()) {
+            nameField.requestFocus();
+            return;
+        }
+        contentArea.requestEditorFocus();
+    }
+
+    /**
+     * Replays the keystroke that promoted a read-only preview to this editor: inserts
+     * {@code text} at {@code caret} (clamped) and places the caret after it.
+     */
+    void applyInitialKeystroke(int caret, String text) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+        int position = Math.max(0, Math.min(caret, safeContentText().length()));
+        contentArea.insertText(position, text);
+        contentArea.moveTo(position + text.length());
+        updateSaveButtonState();
+    }
+
+    private boolean validateUniqueSnippetNameBeforeSave(String ignoredSnippetId) {
+        SnippetManager manager = resolveSnippetManager();
+        if (manager == null) {
+            return true;
+        }
+        if (!manager.hasSnippetName(nameField.getText(), ignoredSnippetId)) {
             return true;
         }
         String snippetName = normalizedFieldValue(nameField.getText());
@@ -2018,7 +2585,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         return false;
     }
 
-    private enum UnsavedContentChoice {
+    enum UnsavedContentChoice {
         SAVE,
         DISCARD,
         CANCEL
@@ -2092,7 +2659,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private Snippet buildResultSnippet() {
         Snippet result = existingSnippet != null
             ? existingSnippet
-            : liveSavedSnippet != null ? liveSavedSnippet : new Snippet();
+            : liveSavedSnippet != null ? liveSavedSnippet : newDraftSnippet();
         applyFormValues(result);
         return result;
     }
@@ -2156,7 +2723,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void saveGeometry() {
-        if (isHostedInTab()) {
+        if (embedding != null || isHostedInTab()) {
             return; // the pane's window is the main window's stage, not this dialog's geometry
         }
         DialogGeometrySupport.persist(this, (settings, geometry) -> settings.setSnippetEditGeometry(geometry));
@@ -2298,14 +2865,21 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 editorSettings.cursorStyle(),
                 editorSettings.cursorColor());
         SnippetEditorProfileDialog dialog = new SnippetEditorProfileDialog(
-            getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+            childWindowOwner(),
             baseProfile,
             editExisting);
-        dialog.showAndWait().ifPresent(profile -> {
+        // Non-modal, answered through a callback: a nested event loop here would hold up every other
+        // editor tab's dialogs until this one closed.
+        dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, hidden -> {
+            SnippetEditorProfile profile = dialog.getResult();
+            if (profile == null || editorClosed) {
+                return;
+            }
             saveCustomSnippetEditorProfile(profile);
             applySnippetEditorProfile(profile, true);
             setStatus(I18n.get("snippets.editor.profile.saved", profile.getName()));
         });
+        showChildWindow(dialog);
     }
 
     private void applySnippetEditorProfile(SnippetEditorProfile profile, boolean save) {
@@ -2692,7 +3266,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             String lang = languageCombo.getValue();
             String t = contentArea.getText();
             boolean hasContent = t != null && !t.isBlank();
-            boolean aiBusy = isAnyAiTaskRunning();
+            boolean aiBusy = isAnyAiTaskRunning() || isAiChangeReviewOpen();
             formatItem.setDisable(!hasContent || aiBusy || (!CodeFormatterService.isSupported(lang) && !hasCodeImprovementProvider()));
             lintItem.setDisable(!hasContent || aiBusy || (!SnippetLinter.isSupported(lang) && !hasCodeReviewProvider()));
             boolean compactOneLinerOk = hasContent && (SnippetOneLiner.isCompactSupported(lang) || hasOneLinerProvider());
@@ -2809,6 +3383,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         boolean correctionRunning = isDescriptionCorrectionRunning();
         boolean snippetActionRunning = isSnippetAiActionRunning();
         boolean busy = metadataRunning || correctionRunning || snippetActionRunning;
+        aiBusy.set(busy);
+        // From here on "busy" also covers an AI change that still waits for Accept or Reject: a new
+        // result must not arrive on top of it (the tab's spinner above only shows real work).
+        busy = busy || isAiChangeReviewOpen();
         if (aiCodeTextLanguageCombo != null) {
             aiCodeTextLanguageCombo.setDisable(busy);
         }
@@ -2850,10 +3428,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         aiCodeMenu.setDisable(busy || !hasContent || (!hasCompletionProvider() && !hasCodeReviewProvider()
             && !hasCodeImprovementProvider() && !hasSecurityProviders() && !hasDiagramProvider()));
         // A completion request is cancellable too, but it blocks nothing else (busy stays as it is).
-        boolean cancellable = snippetActionRunning || completionTask != null;
+        boolean cancellable = snippetActionRunning || completionTask != null
+            || isMetadataTaskRunning() || isDescriptionCorrectionRunning();
         cancelSnippetAiActionButton.setDisable(!cancellable);
         toggleLastAiChangeButton.setDisable(lastAiChangeSnapshot == null || busy);
         updateLastAiToggleTooltip();
+        if (analysisController != null) {
+            analysisController.onAvailabilityChanged();
+        }
     }
 
     private boolean isSnippetAiActionRunning() {
@@ -3104,12 +3686,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         ButtonType useButton = new ButtonType(
             I18n.get("snippets.ai.language.ask.use"), ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(useButton, ButtonType.CANCEL);
-        Window owner = aiFlowAlertOwner(null);
+        Window owner = aiFlowAlertOwner();
         if (owner != null) {
             dialog.initOwner(owner);
         }
         // Scoped to the snippet tool: a question about a snippet must not freeze a terminal session.
-        dialog.initModality(Modality.WINDOW_MODAL);
+        dialog.initModality(aiFlowAlertModality());
         dialog.setResultConverter(button -> {
             if (button != useButton) {
                 return null;
@@ -3144,7 +3726,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
         existingSnippet.setCodeTextLanguageCode(languageCode);
         try {
-            var manager = KorTTYApplication.getInstance().getSnippetManager();
+            var manager = resolveSnippetManager();
             if (manager != null && manager.findById(existingSnippet.getId()).isPresent()) {
                 manager.updateSnippet(existingSnippet);
                 manager.save();
@@ -3374,11 +3956,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
      * runtime options here, so the next re-run picks them up. Returns {@code null} when the skill picker does
      * not apply (no skills, or a profile that cannot enforce the selection).
      */
-    private SnippetCodeAnalysisDialog.SkillContext buildAnalysisSkillContext() {
+    private SnippetAnalysisPanel.SkillContext buildAnalysisSkillContext() {
         if (!aiSkillPickerShouldShow()) {
             return null;
         }
-        return new SnippetCodeAnalysisDialog.SkillContext(
+        return new SnippetAnalysisPanel.SkillContext(
             enabledAiSkills(),
             new LinkedHashSet<>(selectedAiSkillIds),
             !aiSkillsUserEdited,
@@ -3637,7 +4219,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         String failedStatus,
         String actionLabel) {
 
-        if (provider == null || target == null) {
+        if (provider == null || target == null || aiActionBlocked()) {
             return;
         }
         if (!ensureSnippetAiDataNoticeAccepted(false)) {
@@ -3662,7 +4244,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     instructions));
             }
         };
-        beginSnippetAiAction(task);
+        beginSnippetAiAction(task, retryOnSelection(() -> runSelectionTextTransform(provider,
+            captureSelectionTextTransformTarget(), targetLanguageCode, runningStatus, successStatus, failedStatus,
+            actionLabel)));
         task.setOnRunning(event -> {
             showSnippetAiHint(runningStatus);
             setStatus(runningStatus);
@@ -3681,9 +4265,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         });
         task.setOnFailed(event -> handleSnippetAiActionFailure(task, failedStatus));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
-        Thread thread = new Thread(task, "snippet-ai-selection-transform");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-selection-transform");
     }
 
     private SelectionTextTransformTarget captureSelectionTextTransformTarget() {
@@ -3722,7 +4304,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void runSnippetDescription(String aiProfileId) {
-        if (aiAssist == null || aiAssist.snippetDescriptionProvider() == null) {
+        if (aiAssist == null || aiAssist.snippetDescriptionProvider() == null || aiActionBlocked()) {
             return;
         }
         if (!ensureSnippetAiDataNoticeAccepted(false)) {
@@ -3750,7 +4332,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     aiProfileId));
             }
         };
-        beginSnippetAiAction(task);
+        beginSnippetAiAction(task, retryOnSelection(() -> runSnippetDescription(aiProfileId)));
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.description.generating"));
             setStatus(I18n.get("snippets.ai.description.generating"));
@@ -3767,27 +4349,41 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             String indentation = wholeSnippet
                 ? SnippetAiTextSupport.findLineIndentation(fullContent, firstContentOffset(fullContent))
                 : SnippetAiTextSupport.findLineIndentation(fullContent, selectionStart);
+            // Non-modal: the editor stays editable while the description is open, so it is only
+            // inserted at the computed line while the content is still what it was written for.
             SnippetDescriptionDialog dialog = new SnippetDescriptionDialog(
-                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+                childWindowOwner(),
                 description,
                 languageCombo.getValue(),
                 indentation,
-                text -> insertTechnicalDescription(text, insertOffset),
+                text -> applyFromResultWindow(fullContent, text,
+                    () -> insertTechnicalDescription(text, insertOffset)),
                 aiProfileId,
                 profileSwitchingSupported() ? this::runSnippetDescription : null);
-            dialog.showAndWait();
+            showChildWindow(dialog);
             setStatus(I18n.get("snippets.ai.description.generated"));
         });
         task.setOnFailed(event ->
             handleSnippetAiActionFailure(task, I18n.get("snippets.ai.description.generateFailed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
-        Thread thread = new Thread(task, "snippet-ai-description");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-description");
     }
 
     private void runAlternativeSolutions() {
         if (!hasAlternativeSolutionProvider()) {
+            return;
+        }
+        Dialog<?> open = openChildWindow(AlternativeSnippetSolutionsDialog.class);
+        if (open != null) {
+            // It generates on demand itself; a second window would only run the same requests twice.
+            Window window = open.getDialogPane().getScene() != null ? open.getDialogPane().getScene().getWindow() : null;
+            if (window instanceof Stage stage) {
+                stage.toFront();
+                stage.requestFocus();
+            }
+            return;
+        }
+        if (aiActionBlocked()) {
             return;
         }
         if (!ensureSnippetAiDataNoticeAccepted(false)) {
@@ -3804,7 +4400,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         int replacementEnd = hasSelection ? selection.getEnd() : fullContent.length();
         String targetText = hasSelection ? contentArea.getSelectedText() : fullContent;
         AlternativeSnippetSolutionsDialog dialog = new AlternativeSnippetSolutionsDialog(
-            getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+            childWindowOwner(),
             languageCombo.getValue(),
             (additionalInstructions, aiProfileId) -> aiAssist.alternativeSolutionsProvider().generate(new AlternativeSolutionsRequest(
                 fullContent,
@@ -3817,10 +4413,20 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 aiProfileId)),
             profileSwitchingSupported(),
             null);
-        dialog.showAndWait().ifPresent(solution -> {
-            applyAiContentChange(replacementStart, replacementEnd, solution.code(), I18n.get("snippets.ai.toggle.action.alternative"));
-            setStatus(I18n.get("snippets.ai.alternatives.applied"));
+        // Non-modal: the chosen solution arrives when the window closes, and only replaces the range
+        // it was generated for while the content is still what it was generated from.
+        dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, hidden -> {
+            SnippetAiResponseSupport.AlternativeSolution solution = dialog.getResult();
+            if (solution == null || editorClosed) {
+                return;
+            }
+            applyFromResultWindow(fullContent, solution.code(), () -> {
+                applyAiContentChange(replacementStart, replacementEnd, solution.code(),
+                    I18n.get("snippets.ai.toggle.action.alternative"));
+                setStatus(I18n.get("snippets.ai.alternatives.applied"));
+            });
         });
+        showChildWindow(dialog);
     }
 
     private void handleAutoCompletionToggle() {
@@ -4147,9 +4753,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             finishCompletionTask(task);
         });
         completionTimeout.playFromStart();
-        Thread thread = new Thread(task, "snippet-ai-complete-" + requestId);
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-complete-" + requestId);
         updateAiActionAvailability();
     }
 
@@ -4228,11 +4832,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
      * Every heavy AI action starts here: it takes the flow over from completion, so a debounced ghost
      * request cannot fire into the analysis and a visible ghost text does not linger over its result.
      */
-    private void beginSnippetAiAction(Task<?> task) {
+    private void beginSnippetAiAction(Task<?> task, AiRetry retry) {
         cancelCompletionRequest();
         autoCompletionDelay.stop();
         contentArea.clearGhostCompletions();
+        // A new run replaces an offered Retry: the bar shows what runs now.
+        offeredAiRetry = null;
+        offeredAiRetryText = null;
         snippetAiActionTask = task;
+        if (retry != null) {
+            aiRetries.put(task, retry);
+        }
     }
 
     /** A completion status is transient: it is cleared again when its list closes. */
@@ -4322,94 +4932,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     /**
-     * The rich "AI Code Review": the provider call returns the summary, dependencies and categorized
-     * improvements surfaced in {@link SnippetCodeAnalysisDialog}; the Mermaid diagram is fetched by a
-     * separate dedicated request when the dialog opens (better diagram quality than a combined request,
-     * and the analysis is visible while the diagram loads). The user's selected improvements/dependency
-     * suggestions are applied via {@link #runImprovementFixes}.
+     * The rich "AI Code Review" (Full code analysis): the provider call returns the summary,
+     * dependencies and categorized improvements, which are stored with the snippet the moment they
+     * arrive and shown in this editor's analysis side panel; the Mermaid diagram is fetched by a
+     * separate dedicated request (better diagram quality than a combined request, and the analysis
+     * is visible while the diagram loads). See {@link SnippetAnalysisController}.
      */
     private void runCodeReview(String aiProfileId) {
-        if (!hasCodeAnalysisProviders() || !ensureSnippetAiDataNoticeAccepted(false)) {
-            return;
-        }
-        String fullContent = contentArea.getText();
-        if (fullContent == null || fullContent.isBlank()) {
-            return;
-        }
-        if (isAnyAiTaskRunning()) {
-            return;
-        }
-        // Preselect the skills relevant to this snippet (unless the user already edited the set) so the
-        // analysis actually uses them and the dialog can show which skills were auto-included. No-op when the
-        // skill picker doesn't apply or the user has taken manual control.
-        autoDetectAiSkills();
-        String language = languageCombo.getValue();
-        String analysisLanguageCode = resolveAnalysisLanguageCode();
-        String extra = additionalInstructions();
-
-        Task<SnippetAiResponseSupport.ScriptAnalysis> task = new Task<>() {
-            @Override
-            protected SnippetAiResponseSupport.ScriptAnalysis call() throws Exception {
-                return aiAssist.codeAnalysisProvider().analyze(new CodeAnalysisRequest(
-                    fullContent, language, analysisLanguageCode, extra, aiProfileId));
-            }
-        };
-        beginSnippetAiAction(task);
-        task.setOnRunning(event -> {
-            showSnippetAiHint(I18n.get("snippets.ai.review.running"));
-            setStatus(I18n.get("snippets.ai.review.running"));
-            updateAiActionAvailability();
-        });
-        task.setOnSucceeded(event -> {
-            finishSnippetAiAction(task);
-            SnippetAiResponseSupport.ScriptAnalysis result = task.getValue();
-            if (result == null || !result.isUsable()) {
-                setStatus(I18n.get("snippets.ai.review.failed"));
-                return;
-            }
-            Supplier<CompletableFuture<SnippetDiagramView.DiagramSource>> diagramLoader = () ->
-                generateDiagramMermaid(fullContent, language, resolveAnalysisLanguageCode(), aiProfileId);
-            SnippetCodeAnalysisDialog dialog = new SnippetCodeAnalysisDialog(
-                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
-                currentSnippetName(),
-                language,
-                result,
-                diagramLoader,
-                aiProfileId,
-                profileSwitchingSupported() ? this::runCodeReview : null,
-                buildAnalysisSkillContext(),
-                ScriptLanguageMixSupport.detect(language, fullContent),
-                resolveAiTextFallbackLanguageCode());
-            // Keep the report open during the staged apply. The narrow companion window is docked to
-            // this analysis window (or its host window in tab mode) until the review preview opens.
-            dialog.setApplyHandler(selection -> {
-                if (isOpenAsDialogOrTab()) {
-                    runImprovementFixes(selection, dialog);
-                } else {
-                    dialog.setApplyProcessing(false);
-                }
-            });
-            // A tab-hosted editor opens the analysis as a NEW tab beside it (one per run); a
-            // windowed editor keeps the classic analysis window. setOnShown never fires for a
-            // hosted pane, so the diagram start is triggered explicitly.
-            MainWindow analysisHost = isHostedInTab()
-                ? MainWindow.findByStage(getDialogPane().getScene() != null
-                    ? getDialogPane().getScene().getWindow() : null)
-                : null;
-            if (analysisHost != null) {
-                analysisHost.hostMultiInstanceToolTab(dialog);
-                dialog.startDiagramIfAutoEnabled();
-            } else {
-                dialog.show();
-            }
-            setStatus(I18n.get("snippets.ai.review.ready"));
-        });
-        task.setOnFailed(event ->
-            handleSnippetAiActionFailure(task, I18n.get("snippets.ai.review.failed")));
-        task.setOnCancelled(event -> finishSnippetAiAction(task));
-        Thread thread = new Thread(task, "snippet-ai-analysis");
-        thread.setDaemon(true);
-        thread.start();
+        analysisController.runAnalysis(aiProfileId);
     }
 
     /** Generates the analysis diagram (initial load and explicit Regenerate), with a local fallback on failure. */
@@ -4421,18 +4951,20 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             protected SnippetDiagramView.DiagramSource call() throws Exception {
                 SnippetAiResponseSupport.MermaidDiagram diagram = null;
                 String failure = null;
+                String failureDetail = null;
                 try {
                     diagram = aiAssist.diagramProvider() != null
                         ? aiAssist.diagramProvider().generate(
                             new DiagramRequest(fullContent, language, fallback, "", aiProfileId))
                         : null;
                 } catch (Exception e) {
-                    if (isCancelled()) {
-                        return null;
+                    if (isCancelled() || e instanceof de.kortty.core.AiCancelledException) {
+                        throw e;
                     }
                     failure = isOutputTokenLimitFailure(e)
-                        ? I18n.get("snippets.ai.diagram.outputLimitReached")
-                        : shortenStatusMessage(String.valueOf(e.getMessage()));
+                        ? I18n.get("snippets.ai.diagram.rejection.outputLimit")
+                        : I18n.get("snippets.ai.diagram.rejection.requestFailed");
+                    failureDetail = shortenStatusMessage(String.valueOf(e.getMessage()));
                     logger.warn("AI diagram generation failed; using the local Mermaid fallback", e);
                 }
                 if (isCancelled()) {
@@ -4443,27 +4975,29 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 }
                 // The fallback looks like a real diagram, so it is labelled: without the notice a
                 // discarded AI answer was indistinguishable from a merely poor one.
-                String reason = failure != null
-                    ? failure
+                // The notice names the reason in a few localized words; the precise English
+                // rejection sentence stays in the log and in the notice's tooltip.
+                String detail = failure != null
+                    ? failureDetail
                     : diagram != null ? diagram.rejectionReason() : null;
-                if (failure == null && reason != null) {
-                    logger.warn("AI diagram was rejected ({}); using the local Mermaid fallback", reason);
+                if (failure == null && detail != null) {
+                    logger.warn("AI diagram was rejected ({}); using the local Mermaid fallback", detail);
                 }
-                String notice = reason != null
-                    ? I18n.get("snippets.ai.analysis.diagram.fallback", reason)
+                String shortReason = failure != null ? failure
+                    : detail != null ? SnippetDiagramFallbackText.shortReason(detail) : null;
+                String notice = shortReason != null
+                    ? I18n.get("snippets.ai.analysis.diagram.fallback", shortReason)
                     : I18n.get("snippets.ai.analysis.diagram.fallback.generic");
                 String mermaid = SnippetDiagramSupport.buildFallbackLogicalStructureMermaid(fullContent, language);
                 return new SnippetDiagramView.DiagramSource(
-                    mermaid, fullContent, List.of(), SnippetDiagramType.LOGICAL_STRUCTURE, notice);
+                    mermaid, fullContent, List.of(), SnippetDiagramType.LOGICAL_STRUCTURE, notice, detail);
             }
         };
         task.setOnSucceeded(event -> future.complete(task.getValue()));
         task.setOnFailed(event -> future.completeExceptionally(task.getException()));
         task.setOnCancelled(event -> future.cancel(false));
         cancelTaskWhenDiagramFutureIsCancelled(future, task);
-        Thread thread = new Thread(task, "snippet-analysis-diagram");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-analysis-diagram");
         return future;
     }
 
@@ -4477,351 +5011,24 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         });
     }
 
-    /** Applies the user-selected analysis improvements + dependency suggestions (mirror of {@link #runSecurityFixes}). */
-    private void runImprovementFixes(SnippetCodeAnalysisDialog.ApplySelection selection) {
-        runImprovementFixes(selection, null);
-    }
-
-    /** Applies the selection while keeping its Full-code-analysis window open for docked progress. */
-    private void runImprovementFixes(
-            SnippetCodeAnalysisDialog.ApplySelection selection,
-            SnippetCodeAnalysisDialog analysisDialog) {
-        runImprovementFixes(selection, analysisDialog, null, null);
-    }
-
     /**
-     * Runs the staged apply, optionally resuming from an abort-recovery checkpoint. A resumed run
-     * keeps diffing and applying against the content its checkpoint chain started from, so that
-     * content travels with the checkpoint instead of being re-read from the editor.
+     * Applies the user-selected analysis improvements + dependency suggestions (mirror of
+     * {@link #runSecurityFixes}); the progress shows in the analysis panel and the result is
+     * reviewed in the editor area before it replaces anything.
      */
-    private void runImprovementFixes(
-            SnippetCodeAnalysisDialog.ApplySelection selection,
-            SnippetCodeAnalysisDialog analysisDialog,
-            SnippetAiWorkflowSupport.ImprovementApplyCheckpoint resumeFrom,
-            String resumeOriginalContent) {
-        if (selection == null || selection.isEmpty()) {
-            if (analysisDialog != null) {
-                analysisDialog.setApplyProcessing(false);
-            }
-            return;
-        }
-        if (isAnyAiTaskRunning()) {
-            if (analysisDialog != null) {
-                analysisDialog.setApplyProcessing(false);
-            }
-            return;
-        }
-        String originalContent = resumeOriginalContent != null ? resumeOriginalContent : contentArea.getText();
-        // Input hardening only counts as AI work when the snippet language can actually receive the
-        // guard rules — for declarative languages the rules render empty, and an otherwise empty
-        // selection would fire a pointless AI request with no work order.
-        boolean inputHardeningApplies = selection.inputHardening().isEnabled()
-            && WorkflowScriptSupport.supportsInputHardeningForSnippet(languageCombo.getValue());
-        boolean hasAiWork = !selection.improvements().isEmpty()
-            || !selection.dependencies().isEmpty()
-            || !selection.hardening().isEmpty()
-            || inputHardeningApplies
-            || selection.migrates();
-        // A chosen script header is a deterministic prepend — apply it locally without an AI round-trip
-        // when no findings/hardening were ticked.
-        if (!hasAiWork) {
-            applyScriptHeaderOnly(selection, originalContent);
-            if (analysisDialog != null) {
-                analysisDialog.setApplyProcessing(false);
-                analysisDialog.closeAfterApply();
-            }
-            return;
-        }
-        if (aiAssist == null || aiAssist.improvementFixProvider() == null) {
-            if (analysisDialog != null) {
-                analysisDialog.setApplyProcessing(false);
-            }
-            return;
-        }
-        // Keep configurable profile instructions separate from the selected hardening contract. The latter
-        // is carried as a numbered mandatory checklist by the workflow so a model cannot treat it as an
-        // optional suggestion when no analysis finding was selected.
-        // The analysis window carries its own text-language choice; fall back to the editor's when a
-        // caller (the header-only path, an older recovery checkpoint) has none.
-        String codeTextLanguageCode = selection.codeTextLanguageCode() != null
-            && !selection.codeTextLanguageCode().isBlank()
-            ? selection.codeTextLanguageCode()
-            : resolveAiTextFallbackLanguageCode();
-        String classicHardeningInstructions = withHardeningRules(null, selection.hardening());
-        String inputHardeningInstructions = withInputHardeningRules(null, selection.inputHardening());
-        List<SnippetAiWorkflowSupport.ImprovementApplyProgress> applyPlan =
-            SnippetAiWorkflowSupport.planSnippetImprovements(
-                selection.improvements(),
-                selection.dependencies(),
-                classicHardeningInstructions,
-                inputHardeningInstructions,
-                selection.migration(),
-                originalContent);
-        if (improvementApplyProgressWindow != null) {
-            improvementApplyProgressWindow.close();
-        }
-        Window progressAnchor = analysisDialog != null ? analysisDialog.displayWindow() : resolveAlertOwner();
-        SnippetAiApplyProgressWindow progressWindow = new SnippetAiApplyProgressWindow(
-            progressAnchor,
-            applyPlan,
-            analysisDialog != null
-                ? SnippetAiDialogSupport.resolveProfileDisplayName(analysisDialog.activeProfileId())
-                : null);
-        improvementApplyProgressWindow = progressWindow;
-        progressWindow.show();
-        WindowDockGroup dockGroup = openImprovementApplyDockGroup(progressAnchor, analysisDialog);
-        if (dockGroup != null) {
-            dockGroup.dock(progressWindow.stage(), WindowDockGroup.Side.RIGHT,
-                storedDockWidth(GlobalSettings::getAiApplyProgressDockedWidth, 360));
-            progressWindow.setTileHandler(dockGroup::tile);
-        }
-        // Worker thread writes after each completed stage, FX thread reads after an abort. Pre-seeding
-        // with the resume checkpoint keeps recovery available when a resumed run aborts again before
-        // completing any further stage.
-        AtomicReference<SnippetAiWorkflowSupport.ImprovementApplyCheckpoint> checkpointRef =
-            new AtomicReference<>(resumeFrom);
-        // Closing the analysis window is a deliberate discard: it cancels the task like the editor's
-        // cancel button, but must not trigger the abort-recovery dialog.
-        AtomicBoolean silentCancel = new AtomicBoolean(false);
-        Task<SnippetAiResponseSupport.SnippetSecurityFix> task = new Task<>() {
-            @Override
-            protected SnippetAiResponseSupport.SnippetSecurityFix call() throws Exception {
-                return aiAssist.improvementFixProvider().applyFixes(new ImprovementApplyRequest(
-                    originalContent,
-                    languageCombo.getValue(),
-                    codeTextLanguageCode,
-                    selection.improvements(),
-                    selection.dependencies(),
-                    additionalInstructions(),
-                    classicHardeningInstructions,
-                    inputHardeningInstructions,
-                    progress -> {
-                        progressWindow.accept(progress);
-                        if (progress.state() != SnippetAiWorkflowSupport.ImprovementApplyProgressState.PENDING) {
-                            updateMessage(improvementApplyProgressText(progress));
-                        }
-                        long completedStages = progress.state()
-                                == SnippetAiWorkflowSupport.ImprovementApplyProgressState.COMPLETED
-                            ? progress.stage()
-                            : progress.stage() - 1L;
-                        updateProgress(completedStages, Math.max(1, progress.totalStages()));
-                    },
-                    checkpointRef::set,
-                    resumeFrom,
-                    null,
-                    selection.migration()));
-            }
-        };
-        if (analysisDialog != null) {
-            analysisDialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, hidden -> {
-                silentCancel.set(true);
-                if (!task.isDone()) {
-                    task.cancel(true);
-                }
-                progressWindow.close();
-                if (improvementApplyProgressWindow == progressWindow) {
-                    improvementApplyProgressWindow = null;
-                }
-                closeImprovementApplyDockGroup();
-            });
-        }
-        task.messageProperty().addListener((observable, oldMessage, message) -> {
-            if (snippetAiActionTask == task && message != null && !message.isBlank()) {
-                snippetAiHintLabel.setText(message);
-                setStatus(message);
-            }
-        });
-        task.progressProperty().addListener((observable, oldProgress, progress) -> {
-            if (snippetAiActionTask == task && progress != null) {
-                snippetAiProgressIndicator.setProgress(progress.doubleValue());
-            }
-        });
-        // The rewrite must not silently translate the snippet's own comments and messages;
-        // an undetectable language is a question for the user, not a guess.
-        if (!applyCodeTextLanguage(true)) {
-            return;
-        }
-        beginSnippetAiAction(task);
-        task.setOnRunning(event -> {
-            String runningMessage = task.getMessage() != null && !task.getMessage().isBlank()
-                ? task.getMessage()
-                : I18n.get("snippets.ai.analysis.fix.running");
-            showSnippetAiHint(runningMessage);
-            setStatus(runningMessage);
-            updateAiActionAvailability();
-        });
-        task.setOnSucceeded(event -> {
-            finishSnippetAiAction(task);
-            SnippetAiResponseSupport.SnippetSecurityFix fix = task.getValue();
-            if (fix == null || !fix.isUsable()) {
-                progressWindow.markFailed();
-                if (analysisDialog != null) {
-                    analysisDialog.setApplyProcessing(false);
-                }
-                setStatus(I18n.get("snippets.ai.analysis.fix.empty"));
-                return;
-            }
-            // Reject incomplete full replacements, including omission comments such as "rest unchanged".
-            if (SnippetAiResponseSupport.isDegenerateFullReplacement(originalContent, fix.replacement())) {
-                progressWindow.markFailed();
-                if (analysisDialog != null) {
-                    analysisDialog.setApplyProcessing(false);
-                }
-                setStatus(I18n.get("snippets.ai.fix.degenerate"));
-                return;
-            }
-            progressWindow.markSucceeded();
-            // Prepend the chosen script header (if any) to the AI-fixed script before review/apply.
-            String replacement = injectSelectedHeader(selection, fix.replacement());
-            // Closing the preview by accident should not cost a whole analysis run.
-            progressWindow.setReopenPreviewHandler(() -> showDockedImprovementPreview(
-                analysisDialog,
-                I18n.get("snippets.ai.analysis.diff.title"),
-                fix.summary(),
-                fix.changes(),
-                originalContent,
-                replacement));
-            if (showDockedImprovementPreview(
-                    analysisDialog,
-                    I18n.get("snippets.ai.analysis.diff.title"),
-                    fix.summary(),
-                    fix.changes(),
-                    originalContent,
-                    replacement)) {
-                setStatus(I18n.get("snippets.ai.analysis.fix.applied"));
-            }
-            // The analysis window and the docked run summary deliberately stay open: what the run
-            // cost and achieved is only useful while it can still be read. Closing the analysis
-            // window is what tears the group down. The deferral survives from the macOS crash
-            // workaround below — see showDockedImprovementPreview.
-            Platform.runLater(() -> {
-                if (analysisDialog != null) {
-                    analysisDialog.setApplyProcessing(false);
-                }
-            });
-        });
-        task.setOnFailed(event -> {
-            progressWindow.markFailed();
-            if (analysisDialog != null) {
-                analysisDialog.setApplyProcessing(false);
-            }
-            handleSnippetAiActionFailure(task, I18n.get("snippets.ai.analysis.fix.failed"));
-            maybeOfferAbortRecovery(
-                selection, analysisDialog, checkpointRef.get(), silentCancel.get(), originalContent, false);
-        });
-        task.setOnCancelled(event -> {
-            progressWindow.markCancelled();
-            if (analysisDialog != null) {
-                analysisDialog.setApplyProcessing(false);
-            }
-            finishSnippetAiAction(task);
-            maybeOfferAbortRecovery(
-                selection, analysisDialog, checkpointRef.get(), silentCancel.get(), originalContent, true);
-        });
-        Thread thread = new Thread(task, "snippet-ai-improvement-fix");
-        thread.setDaemon(true);
-        thread.start();
+    private void runImprovementFixes(SnippetAnalysisPanel.ApplySelection selection) {
+        analysisController.apply(selection);
     }
 
-    /**
-     * Starts a fresh dock group around the analysis window, so the run summary and the change
-     * preview attach to opposite edges of it instead of piling up on top of each other.
-     *
-     * <p>Returns {@code null} when there is nothing sensible to dock to. The anchor may only be
-     * narrowed when it is the analysis window's own stage — in tab mode the anchor is the main
-     * window, and squeezing the user's terminals aside is not this feature's business.</p>
-     */
-    private WindowDockGroup openImprovementApplyDockGroup(
-            Window anchor, SnippetCodeAnalysisDialog analysisDialog) {
-        closeImprovementApplyDockGroup();
-        if (anchor == null) {
-            return null;
-        }
-        boolean ownWindow = analysisDialog != null && !analysisDialog.isHostedInTab();
-        improvementApplyDockGroup = new WindowDockGroup(anchor, ownWindow);
-        return improvementApplyDockGroup;
-    }
-
-    private void closeImprovementApplyDockGroup() {
-        if (improvementApplyDockGroup != null) {
-            improvementApplyDockGroup.dispose();
-            improvementApplyDockGroup = null;
+    private void toggleAnalysisPanel() {
+        if (analysisController != null) {
+            analysisController.togglePanel();
         }
     }
 
-    /** A width the user gave a docked window before, or {@code fallback} on the first run. */
-    private static double storedDockWidth(
-            java.util.function.Function<GlobalSettings, Double> getter, double fallback) {
-        try {
-            GlobalSettings settings = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
-            Double stored = settings != null ? getter.apply(settings) : null;
-            return stored != null && stored > 0 ? stored : fallback;
-        } catch (Exception ignored) {
-            return fallback;
-        }
-    }
-
-    /**
-     * Shows the change preview docked to the free edge of the analysis window and applies the
-     * result when the reviewer accepts it.
-     *
-     * <p>The preview is non-modal, so the terminals — and the run summary docked opposite — stay
-     * usable while it is open. That is also why {@link #contentUnchangedSince} exists: the snippet
-     * itself can now be edited during the review, and a full replacement computed from stale text
-     * would silently drop whatever was typed.</p>
-     *
-     * @return whether the snippet was replaced
-     */
-    private boolean showDockedImprovementPreview(
-            SnippetCodeAnalysisDialog analysisDialog,
-            String title,
-            String summary,
-            List<SnippetAiResponseSupport.SecurityChange> changes,
-            String originalContent,
-            String replacement) {
-
-        SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
-            analysisDialog != null ? analysisDialog.displayWindow()
-                : (getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null),
-            title,
-            summary,
-            originalContent,
-            replacement,
-            languageCombo.getValue(),
-            editorSettings,
-            editorProfile);
-        if (changes != null && !changes.isEmpty()) {
-            diffDialog.setChangeExplanations(changes);
-        }
-        WindowDockGroup dockGroup = improvementApplyDockGroup;
-        if (dockGroup != null) {
-            double dockWidth = storedDockWidth(GlobalSettings::getAiDiffDialogDockedWidth, 720);
-            // The dialog sizes itself to its pane when shown, and that size arrives from the platform
-            // after the dock has placed the window; opening it at the docked size to begin with keeps
-            // the two from disagreeing.
-            Window anchorWindow = analysisDialog != null ? analysisDialog.displayWindow() : null;
-            diffDialog.getDialogPane().setPrefWidth(dockWidth);
-            if (anchorWindow != null && anchorWindow.getHeight() > 0) {
-                diffDialog.getDialogPane().setPrefHeight(anchorWindow.getHeight());
-            }
-            diffDialog.setDockedWidthOnly(true);
-            diffDialog.addEventHandler(DialogEvent.DIALOG_SHOWN, shown -> {
-                if (diffDialog.getDialogPane().getScene() != null
-                        && diffDialog.getDialogPane().getScene().getWindow() instanceof javafx.stage.Stage stage) {
-                    dockGroup.dock(stage, WindowDockGroup.Side.LEFT, dockWidth);
-                }
-            });
-        }
-        if (!diffDialog.showAndWait().orElse(false)) {
-            return false;
-        }
-        if (!contentUnchangedSince(originalContent)) {
-            showAiFlowAlert(I18n.get("snippets.ai.contentChanged"), Alert.AlertType.WARNING, analysisDialog);
-            return false;
-        }
-        applyAiContentChange(0, originalContent.length(), replacement,
-            I18n.get("snippets.ai.toggle.action.improve"));
-        return true;
+    /** The analysis controller of this editor (tests, screenshots). */
+    SnippetAnalysisController analysisController() {
+        return analysisController;
     }
 
     /**
@@ -4834,61 +5041,22 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     /**
-     * The window an alert raised by the AI apply flow may block — never the main window. The
+     * The window a dialog raised by the AI apply flow may block — never the main window. The
      * terminals live there, and the whole point of this flow being non-modal is that they keep
      * working while the AI runs and while its result is reviewed.
      */
-    private Window aiFlowAlertOwner(SnippetCodeAnalysisDialog analysisDialog) {
-        if (analysisDialog != null && !analysisDialog.isHostedInTab()
-                && analysisDialog.displayWindow() != null) {
-            return analysisDialog.displayWindow();
-        }
+    private Window aiFlowAlertOwner() {
         javafx.scene.Scene scene = getDialogPane().getScene();
         Window own = scene != null ? scene.getWindow() : null;
         return own != null ? own : resolveAlertOwner();
     }
 
-    /** An alert scoped to the snippet tool, so it never freezes a terminal session. */
-    private void showAiFlowAlert(
-            String message, Alert.AlertType type, SnippetCodeAnalysisDialog analysisDialog) {
-        Alert alert = new Alert(type);
-        alert.setTitle(I18n.get("snippets.editTitle"));
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        Window owner = aiFlowAlertOwner(analysisDialog);
-        if (owner != null) {
-            alert.initOwner(owner);
-        }
-        alert.initModality(Modality.WINDOW_MODAL);
-        DialogThemeHelper.applyTheme(alert);
-        alert.showAndWait();
-    }
-
-    /** Offers resume / partial preview / discard after an aborted staged apply left completed work behind. */
-    private void maybeOfferAbortRecovery(
-            SnippetCodeAnalysisDialog.ApplySelection selection,
-            SnippetCodeAnalysisDialog analysisDialog,
-            SnippetAiWorkflowSupport.ImprovementApplyCheckpoint checkpoint,
-            boolean silentCancel,
-            String originalContent,
-            boolean cancelled) {
-        if (!shouldOfferImprovementApplyRecovery(checkpoint, silentCancel, improvementApplyRecoverySuppressed)) {
-            return;
-        }
-        switch (promptForImprovementApplyAbortChoice(checkpoint, cancelled, analysisDialog)) {
-            case RESUME -> {
-                if (analysisDialog != null) {
-                    analysisDialog.setApplyProcessing(true);
-                }
-                setStatus(I18n.get("snippets.ai.analysis.fix.resuming",
-                    checkpoint.completedStages() + 1, checkpoint.totalStages()));
-                runImprovementFixes(selection, analysisDialog, checkpoint, originalContent);
-            }
-            case PARTIAL_PREVIEW ->
-                previewPartialImprovementFix(selection, analysisDialog, checkpoint, originalContent);
-            case DISCARD -> {
-            }
-        }
+    /**
+     * How far a dialog raised by the AI flow blocks: only this editor's window, and nothing at all
+     * while the editor is hosted in a tab — there the window is the main window with the terminals.
+     */
+    private Modality aiFlowAlertModality() {
+        return isHostedInTab() || embedding != null ? Modality.NONE : Modality.WINDOW_MODAL;
     }
 
     /** True when an aborted staged apply left recoverable work and the abort was an interactive one. */
@@ -4903,84 +5071,6 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     static boolean improvementApplyResumeOffered(
             SnippetAiWorkflowSupport.ImprovementApplyCheckpoint checkpoint) {
         return checkpoint != null && checkpoint.completedStages() < checkpoint.totalStages();
-    }
-
-    private ImprovementApplyAbortChoice promptForImprovementApplyAbortChoice(
-            SnippetAiWorkflowSupport.ImprovementApplyCheckpoint checkpoint,
-            boolean cancelled,
-            SnippetCodeAnalysisDialog analysisDialog) {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle(I18n.get("snippets.ai.analysis.fix.recovery.title"));
-        alert.setHeaderText(I18n.get(
-            cancelled
-                ? "snippets.ai.analysis.fix.recovery.header.cancelled"
-                : "snippets.ai.analysis.fix.recovery.header.failed",
-            checkpoint.completedStages(), checkpoint.totalStages()));
-        alert.setContentText(I18n.get("snippets.ai.analysis.fix.recovery.content"));
-
-        ButtonType resumeButtonType = new ButtonType(I18n.get("snippets.ai.analysis.fix.recovery.resume"));
-        ButtonType partialButtonType = new ButtonType(I18n.get("snippets.ai.analysis.fix.recovery.partial"));
-        ButtonType discardButtonType = new ButtonType(
-            I18n.get("snippets.ai.analysis.fix.recovery.discard"), ButtonBar.ButtonData.CANCEL_CLOSE);
-        if (improvementApplyResumeOffered(checkpoint)) {
-            alert.getButtonTypes().setAll(resumeButtonType, partialButtonType, discardButtonType);
-        } else {
-            alert.getButtonTypes().setAll(partialButtonType, discardButtonType);
-        }
-        Window owner = aiFlowAlertOwner(analysisDialog);
-        if (owner != null) {
-            alert.initOwner(owner);
-        }
-        // This choice can sit unanswered for as long as the user needs. Application-modal it would
-        // freeze every terminal session in the meantime.
-        alert.initModality(Modality.WINDOW_MODAL);
-        DialogThemeHelper.applyTheme(alert);
-
-        Optional<ButtonType> response = alert.showAndWait();
-        if (response.isEmpty() || response.get() == discardButtonType) {
-            return ImprovementApplyAbortChoice.DISCARD;
-        }
-        return response.get() == resumeButtonType
-            ? ImprovementApplyAbortChoice.RESUME
-            : ImprovementApplyAbortChoice.PARTIAL_PREVIEW;
-    }
-
-    /**
-     * Reviews the checkpoint's partial rewrite in the normal diff preview and applies it on confirm.
-     * The partial fix deliberately skips the cumulative hardening verification — requirements of
-     * stages that never ran are missing by definition — but keeps the degenerate-replacement guard.
-     */
-    private void previewPartialImprovementFix(
-            SnippetCodeAnalysisDialog.ApplySelection selection,
-            SnippetCodeAnalysisDialog analysisDialog,
-            SnippetAiWorkflowSupport.ImprovementApplyCheckpoint checkpoint,
-            String originalContent) {
-        SnippetAiResponseSupport.SnippetSecurityFix partial = checkpoint.toPartialFix();
-        if (!partial.isUsable() || partial.replacement().equals(originalContent)) {
-            setStatus(I18n.get("snippets.ai.analysis.fix.empty"));
-            return;
-        }
-        if (SnippetAiResponseSupport.isDegenerateFullReplacement(originalContent, partial.replacement())) {
-            setStatus(I18n.get("snippets.ai.fix.degenerate"));
-            return;
-        }
-        String replacement = injectSelectedHeader(selection, partial.replacement());
-        if (showDockedImprovementPreview(
-                analysisDialog,
-                I18n.get("snippets.ai.analysis.diff.partialTitle"),
-                partial.summary(),
-                partial.changes(),
-                originalContent,
-                replacement)) {
-            setStatus(I18n.get("snippets.ai.analysis.fix.partialApplied",
-                checkpoint.completedStages(), checkpoint.totalStages()));
-        }
-    }
-
-    private enum ImprovementApplyAbortChoice {
-        RESUME,
-        PARTIAL_PREVIEW,
-        DISCARD
     }
 
     static String improvementApplyProgressText(SnippetAiWorkflowSupport.ImprovementApplyProgress progress) {
@@ -5022,37 +5112,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
 
     /** Prepends the analysis dialog's chosen script header (if any) to {@code content}, using the editor's
      *  language to place it after an existing shebang / lead line (reusing the workflow-script injector). */
-    private String injectSelectedHeader(SnippetCodeAnalysisDialog.ApplySelection selection, String content) {
+    private String injectSelectedHeader(SnippetAnalysisPanel.ApplySelection selection, String content) {
         if (selection == null || !selection.hasHeader()) {
             return content;
         }
         WorkflowScriptSupport.ScriptLanguage language =
             WorkflowScriptSupport.ScriptLanguage.fromId(languageCombo.getValue());
         return WorkflowScriptSupport.injectHeaderOverride(content, language, selection.headerText());
-    }
-
-    /** Applies a chosen script header alone (no findings/hardening ticked): a deterministic prepend, still
-     *  routed through the diff dialog so the user reviews and confirms the change. */
-    private void applyScriptHeaderOnly(SnippetCodeAnalysisDialog.ApplySelection selection, String originalContent) {
-        String updated = injectSelectedHeader(selection, originalContent);
-        if (updated.equals(originalContent)) {
-            setStatus(I18n.get("snippets.ai.analysis.fix.empty"));
-            return;
-        }
-        SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
-            getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
-            I18n.get("snippets.ai.analysis.diff.title"),
-            I18n.get("snippets.ai.analysis.header.applied"),
-            originalContent,
-            updated,
-            languageCombo.getValue(),
-            editorSettings,
-            editorProfile);
-        if (diffDialog.showAndWait().orElse(false)) {
-            applyAiContentChange(0, originalContent.length(), updated,
-                I18n.get("snippets.ai.toggle.action.improve"));
-            setStatus(I18n.get("snippets.ai.analysis.fix.applied"));
-        }
     }
 
     /** "Improve robustness" with the reusable script-hardening options folded into the improvement prompt. */
@@ -5261,7 +5327,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void runCodeImprovement(String theme, String aiProfileId, boolean wholeSnippet) {
-        if (!hasCodeImprovementProvider() || !ensureSnippetAiDataNoticeAccepted(false)) {
+        if (!hasCodeImprovementProvider() || aiActionBlocked() || !ensureSnippetAiDataNoticeAccepted(false)) {
             return;
         }
         String fullContent = contentArea.getText();
@@ -5301,7 +5367,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (!applyCodeTextLanguage(true)) {
             return;
         }
-        beginSnippetAiAction(task);
+        beginSnippetAiAction(task, wholeSnippet
+            ? retryOf(() -> runCodeImprovement(theme, aiProfileId, true))
+            : retryOnSelection(() -> runCodeImprovement(theme, aiProfileId, false)));
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.improve.running"));
             setStatus(I18n.get("snippets.ai.improve.running"));
@@ -5319,34 +5387,33 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 setStatus(I18n.get("snippets.ai.fix.degenerate"));
                 return;
             }
-            SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
-                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+            // A selection-scoped re-run is not offered on changed content: the old selection is gone.
+            showAiChangeReview(
                 I18n.get("snippets.ai.diff.title"),
                 improvement.summary(),
+                fullContent,
                 selectedText,
                 improvement.replacement(),
                 languageCombo.getValue(),
-                editorSettings,
-                editorProfile);
-            diffDialog.setRerunHandler(aiProfileId,
-                profileSwitchingSupported() ? id -> runCodeImprovement(theme, id, wholeSnippet) : null);
-            if (diffDialog.showAndWait().orElse(false)) {
-                applyAiContentChange(selectionStart, selectionEnd, improvement.replacement(), I18n.get("snippets.ai.toggle.action.improve"));
-                setStatus(I18n.get("snippets.ai.improve.applied"));
-            }
+                wholeSnippet ? () -> runCodeImprovement(theme, aiProfileId, true) : null,
+                withProfileRerun(aiProfileId,
+                    profileSwitchingSupported() ? id -> runCodeImprovement(theme, id, wholeSnippet) : null),
+                () -> {
+                    applyAiContentChange(selectionStart, selectionEnd, improvement.replacement(),
+                        I18n.get("snippets.ai.toggle.action.improve"));
+                    setStatus(I18n.get("snippets.ai.improve.applied"));
+                });
         });
         task.setOnFailed(event ->
             handleSnippetAiActionFailure(task, I18n.get("snippets.ai.improve.failed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
-        Thread thread = new Thread(task, "snippet-ai-improve");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-improve");
     }
 
     // ---------------------------------------------------------------- language migration
 
     private void runLanguageMigration() {
-        if (!hasLanguageMigrationProvider() || !ensureSnippetAiDataNoticeAccepted(false)) {
+        if (!hasLanguageMigrationProvider() || aiActionBlocked() || !ensureSnippetAiDataNoticeAccepted(false)) {
             return;
         }
         String fullContent = contentArea.getText();
@@ -5397,6 +5464,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void runLanguageMigration(SnippetAiWorkflowSupport.MigrationPlan plan, String aiProfileId) {
+        if (aiActionBlocked()) {
+            return;
+        }
         String fullContent = contentArea.getText();
         if (fullContent == null || fullContent.isBlank()) {
             return;
@@ -5414,7 +5484,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     aiProfileId));
             }
         };
-        beginSnippetAiAction(task);
+        beginSnippetAiAction(task, retryOf(() -> runLanguageMigration(plan, aiProfileId)));
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.migrate.running"));
             setStatus(I18n.get("snippets.ai.migrate.running"));
@@ -5427,31 +5497,28 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 setStatus(I18n.get("snippets.ai.migrate.empty"));
                 return;
             }
-            SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
-                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+            showAiChangeReview(
                 I18n.get("snippets.ai.migrate.diffTitle"),
                 migrationSummary(plan, migration),
                 fullContent,
+                fullContent,
                 migration.replacement(),
                 lang,
-                editorSettings,
-                editorProfile);
-            diffDialog.setRerunHandler(aiProfileId,
-                profileSwitchingSupported() ? id -> runLanguageMigration(plan, id) : null);
-            if (diffDialog.showAndWait().orElse(false)) {
-                applyAiContentChange(0, fullContent.length(), migration.replacement(),
-                    I18n.get("snippets.ai.code.migrate"));
-                retargetSnippetAfterMigration(plan);
-                setStatus(migration.notes().isEmpty()
-                    ? I18n.get("snippets.ai.migrate.applied")
-                    : I18n.get("snippets.ai.migrate.notes", String.join(" ", migration.notes())));
-            }
+                () -> runLanguageMigration(plan, aiProfileId),
+                withProfileRerun(aiProfileId,
+                    profileSwitchingSupported() ? id -> runLanguageMigration(plan, id) : null),
+                () -> {
+                    applyAiContentChange(0, fullContent.length(), migration.replacement(),
+                        I18n.get("snippets.ai.code.migrate"));
+                    retargetSnippetAfterMigration(plan);
+                    setStatus(migration.notes().isEmpty()
+                        ? I18n.get("snippets.ai.migrate.applied")
+                        : I18n.get("snippets.ai.migrate.notes", String.join(" ", migration.notes())));
+                });
         });
         task.setOnFailed(event -> handleMigrationFailure(task, plan));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
-        Thread thread = new Thread(task, "snippet-ai-migrate");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-migrate");
     }
 
     /** Puts the notes above the diff for a platform conversion, where they are the actual to-do list. */
@@ -5526,7 +5593,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void runCodeAssistant() {
-        if (!hasCodeAssistantProvider()) {
+        if (!hasCodeAssistantProvider() || aiActionBlocked()) {
             return;
         }
         String fullContent = contentArea.getText();
@@ -5541,7 +5608,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void runCodeAssistant(CodeAssistantPrompt assistantPrompt, String aiProfileId) {
-        if (!hasCodeAssistantProvider() || assistantPrompt == null) {
+        if (!hasCodeAssistantProvider() || assistantPrompt == null || aiActionBlocked()) {
             return;
         }
         String fullContent = contentArea.getText();
@@ -5575,7 +5642,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (!applyCodeTextLanguage(true)) {
             return;
         }
-        beginSnippetAiAction(task);
+        beginSnippetAiAction(task, retryOnSelection(() -> runCodeAssistant(assistantPrompt, aiProfileId)));
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.assistant.running"));
             setStatus(I18n.get("snippets.ai.assistant.running"));
@@ -5588,32 +5655,29 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 setStatus(I18n.get("snippets.ai.assistant.empty"));
                 return;
             }
-            SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
-                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+            showAiChangeReview(
                 I18n.get("snippets.ai.assistant.diffTitle"),
                 improvement.summary(),
                 fullContent,
+                fullContent,
                 improvement.replacement(),
                 snippetLanguage,
-                editorSettings,
-                editorProfile);
-            diffDialog.setRerunHandler(aiProfileId,
-                profileSwitchingSupported() ? id -> runCodeAssistant(assistantPrompt, id) : null);
-            if (diffDialog.showAndWait().orElse(false)) {
-                applyAiContentChange(
-                    0,
-                    fullContent.length(),
-                    improvement.replacement(),
-                    I18n.get("snippets.ai.toggle.action.assistant"));
-                setStatus(I18n.get("snippets.ai.assistant.applied"));
-            }
+                () -> runCodeAssistant(assistantPrompt, aiProfileId),
+                withProfileRerun(aiProfileId,
+                    profileSwitchingSupported() ? id -> runCodeAssistant(assistantPrompt, id) : null),
+                () -> {
+                    applyAiContentChange(
+                        0,
+                        fullContent.length(),
+                        improvement.replacement(),
+                        I18n.get("snippets.ai.toggle.action.assistant"));
+                    setStatus(I18n.get("snippets.ai.assistant.applied"));
+                });
         });
         task.setOnFailed(event ->
             handleSnippetAiActionFailure(task, I18n.get("snippets.ai.assistant.failed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
-        Thread thread = new Thread(task, "snippet-ai-assistant");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-assistant");
     }
 
     private Optional<CodeAssistantPrompt> promptCodeAssistantInstruction() {
@@ -5703,7 +5767,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void runSecurityCheck() {
-        if (!hasSecurityProviders() || !ensureSnippetAiDataNoticeAccepted(false)) {
+        if (!hasSecurityProviders() || aiActionBlocked() || !ensureSnippetAiDataNoticeAccepted(false)) {
             return;
         }
         String fullContent = contentArea.getText();
@@ -5720,7 +5784,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     additionalInstructions()));
             }
         };
-        beginSnippetAiAction(task);
+        beginSnippetAiAction(task, retryOf(this::runSecurityCheck));
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.security.running"));
             setStatus(I18n.get("snippets.ai.security.running"));
@@ -5729,23 +5793,29 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         task.setOnSucceeded(event -> {
             finishSnippetAiAction(task);
             SnippetSecurityReportDialog dialog = new SnippetSecurityReportDialog(
-                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+                childWindowOwner(),
                 task.getValue(),
                 this::runSecurityCheck,
                 ScriptLanguageMixSupport.detect(languageCombo.getValue(), fullContent));
-            dialog.showAndWait().ifPresent(this::runSecurityFixes);
+            // Non-modal: the report stays open beside the editor and its "Apply selected" answers
+            // through this callback instead of a nested event loop.
+            dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, hidden -> {
+                SnippetSecurityReportDialog.FixSelection chosen = dialog.getResult();
+                if (chosen != null && !editorClosed) {
+                    Platform.runLater(() -> runSecurityFixes(chosen));
+                }
+            });
+            showChildWindow(dialog);
             setStatus(I18n.get("snippets.ai.security.ready"));
         });
         task.setOnFailed(event ->
             handleSnippetAiActionFailure(task, I18n.get("snippets.ai.security.failed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
-        Thread thread = new Thread(task, "snippet-ai-security-review");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-security-review");
     }
 
     private void runSecurityFixes(SnippetSecurityReportDialog.FixSelection selection) {
-        if (selection == null || selection.findings().isEmpty() || !hasSecurityProviders()) {
+        if (selection == null || selection.findings().isEmpty() || !hasSecurityProviders() || aiActionBlocked()) {
             return;
         }
         List<SnippetAiResponseSupport.SecurityFinding> selectedFindings = selection.findings();
@@ -5767,7 +5837,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (!applyCodeTextLanguage(true)) {
             return;
         }
-        beginSnippetAiAction(task);
+        // The findings describe this exact content, so Retry is only offered while it is unchanged.
+        beginSnippetAiAction(task, new AiRetry(() -> runSecurityFixes(selection),
+            () -> java.util.Objects.equals(contentArea.getText(), originalContent)
+                ? null
+                : I18n.get("snippets.ai.retry.contentChanged")));
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.security.fix.running"));
             setStatus(I18n.get("snippets.ai.security.fix.running"));
@@ -5785,27 +5859,25 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 setStatus(I18n.get("snippets.ai.fix.degenerate"));
                 return;
             }
-            SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
-                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+            showAiChangeReview(
                 I18n.get("snippets.ai.security.diff.title"),
                 fix.summary(),
                 originalContent,
+                originalContent,
                 fix.replacement(),
                 languageCombo.getValue(),
-                editorSettings,
-                editorProfile);
-            diffDialog.setChangeExplanations(fix.changes());
-            if (diffDialog.showAndWait().orElse(false)) {
-                applyAiContentChange(0, originalContent.length(), fix.replacement(), I18n.get("snippets.ai.toggle.action.security"));
-                setStatus(I18n.get("snippets.ai.security.fix.applied"));
-            }
+                () -> runSecurityFixes(selection),
+                pane -> pane.setChangeExplanations(fix.changes()),
+                () -> {
+                    applyAiContentChange(0, originalContent.length(), fix.replacement(),
+                        I18n.get("snippets.ai.toggle.action.security"));
+                    setStatus(I18n.get("snippets.ai.security.fix.applied"));
+                });
         });
         task.setOnFailed(event ->
             handleSnippetAiActionFailure(task, I18n.get("snippets.ai.security.fix.failed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
-        Thread thread = new Thread(task, "snippet-ai-security-fix");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-security-fix");
     }
 
     private void openOrCreateDiagram() {
@@ -5816,7 +5888,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             startDiagramGeneration(null, SnippetDiagramType.LOGICAL_STRUCTURE, null);
             return;
         }
-        new SnippetDiagramDialog(
+        // One diagram window per editor: a new one replaces the old (it shows the current code).
+        closeDiagramDialog();
+        SnippetDiagramDialog dialog = new SnippetDiagramDialog(
             getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
             copyDiagrams(),
             contentArea.getText(),
@@ -5824,7 +5898,26 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             this::runDiagramGeneration,
             type -> startDiagramGeneration(null, type, null),
             this::deleteDiagram,
-            this::navigateToDiagramCodeReference).show();
+            this::navigateToDiagramCodeReference);
+        openDiagramDialog = dialog;
+        dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, hidden -> {
+            if (openDiagramDialog == dialog) {
+                openDiagramDialog = null;
+            }
+        });
+        dialog.show();
+    }
+
+    /**
+     * Closes the diagram window opened from this editor. It calls back into the editor (navigate
+     * to code, delete a diagram), so it must not outlive it.
+     */
+    private void closeDiagramDialog() {
+        SnippetDiagramDialog dialog = openDiagramDialog;
+        openDiagramDialog = null;
+        if (dialog != null && dialog.isShowing()) {
+            dialog.close();
+        }
     }
 
     private void deleteDiagram(SnippetDiagram diagram) {
@@ -5868,7 +5961,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
     }
 
-    private int lineStartOffset(String content, int lineNumber) {
+    private static int lineStartOffset(String content, int lineNumber) {
         String value = content != null ? content : "";
         if (lineNumber <= 1) {
             return 0;
@@ -5885,7 +5978,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         return value.length();
     }
 
-    private int lineEndOffset(String content, int lineNumber) {
+    private static int lineEndOffset(String content, int lineNumber) {
         String value = content != null ? content : "";
         int startOffset = lineStartOffset(value, lineNumber);
         int endOffset = value.indexOf('\n', startOffset);
@@ -5937,6 +6030,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             return null;
         }
         return new DiagramScope(text, startLine, endLine);
+    }
+
+    /** The text of lines {@code startLine..endLine} as {@link #captureDiagramScope()} cuts it, or "". */
+    static String diagramScopeText(String content, int startLine, int endLine) {
+        String value = content != null ? content : "";
+        if (startLine < 1 || endLine < startLine) {
+            return "";
+        }
+        int startOffset = lineStartOffset(value, startLine);
+        int endOffset = Math.min(lineEndOffset(value, endLine), value.length());
+        return startOffset <= endOffset ? value.substring(startOffset, endOffset) : "";
     }
 
     /** Regenerates an existing diagram in place, keeping its family and selection scope. */
@@ -6006,6 +6110,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                         scope != null ? scope.startLine() : 0,
                         scope != null ? scope.endLine() : 0));
                 } catch (Exception e) {
+                    if (isCancelled() || e instanceof de.kortty.core.AiCancelledException) {
+                        // A stopped generation is not a failure: no local fallback is built for it.
+                        throw e;
+                    }
                     outputLimitReached = isOutputTokenLimitFailure(e);
                     failureMessage = outputLimitReached
                         ? I18n.get("snippets.ai.diagram.outputLimitReached")
@@ -6023,18 +6131,26 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 }
                 if (allowFallback
                     && (diagram == null || !diagram.isUsable() || renderCheck == null || !renderCheck.success())) {
-                    String fallbackReason = failureMessage != null
+                    String fallbackDetail = failureMessage != null
                         ? failureMessage
                         : diagram == null
                             ? null
                             : !diagram.isUsable()
                                 ? diagram.rejectionReason()
                                 : renderCheck != null && !renderCheck.success()
-                                    ? shortenStatusMessage(renderCheck.message())
+                                    ? "Mermaid could not parse the diagram: " + shortenStatusMessage(renderCheck.message())
                                     : null;
-                    if (failureMessage == null && fallbackReason != null) {
-                        logger.warn("AI diagram was rejected ({}); using the local Mermaid fallback", fallbackReason);
+                    if (failureMessage == null && fallbackDetail != null) {
+                        logger.warn("AI diagram was rejected ({}); using the local Mermaid fallback", fallbackDetail);
                     }
+                    // The status line names the reason in a few localized words; the precise
+                    // rejection sentence is in the log.
+                    String fallbackReason = fallbackDetail == null ? null
+                        : failureMessage != null
+                            ? I18n.get(outputLimitReached
+                                ? "snippets.ai.diagram.rejection.outputLimit"
+                                : "snippets.ai.diagram.rejection.requestFailed")
+                            : SnippetDiagramFallbackText.shortReason(fallbackDetail);
                     String fallbackSource = SnippetDiagramSupport.buildFallbackLogicalStructureMermaid(fullContent, snippetLanguage);
                     String fallbackTitle = diagram != null && diagram.title() != null && !diagram.title().isBlank()
                         ? diagram.title()
@@ -6056,7 +6172,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 return new DiagramGenerationResult(diagram, syntaxCheck, renderCheck, outputLimitReached);
             }
         };
-        beginSnippetAiAction(task);
+        beginSnippetAiAction(task, new AiRetry(() -> startDiagramGeneration(existingDiagram, diagramType, scope),
+            () -> scope == null || scope.text().equals(diagramScopeText(contentArea.getText(), scope.startLine(), scope.endLine()))
+                ? null
+                : I18n.get("snippets.ai.retry.selectionChanged")));
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.diagram.generating"));
             setStatus(I18n.get("snippets.ai.diagram.generating"));
@@ -6070,7 +6189,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 setStatus(result != null && result.outputLimitReached()
                     ? I18n.get("snippets.ai.diagram.outputLimitReached")
                     : generated != null && generated.rejectionReason() != null
-                        ? I18n.get("snippets.ai.diagram.rejected", generated.rejectionReason())
+                        ? I18n.get("snippets.ai.diagram.rejected",
+                            SnippetDiagramFallbackText.shortReason(generated.rejectionReason()))
                         : I18n.get("snippets.ai.diagram.failed"));
                 return;
             }
@@ -6105,9 +6225,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         task.setOnFailed(event ->
             handleSnippetAiActionFailure(task, I18n.get("snippets.ai.diagram.failed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
-        Thread thread = new Thread(task, "snippet-ai-diagram");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-diagram");
     }
 
     /**
@@ -6416,8 +6534,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             return;
         }
         cancelMetadataTask();
+        offeredAiRetry = null;
+        offeredAiRetryText = null;
         showMetadataHint(I18n.get("snippets.ai.metadata.generating"));
-        showSnippetAiHint(I18n.get("snippets.ai.metadata.generating"), false);
+        showSnippetAiHint(I18n.get("snippets.ai.metadata.generating"), true);
         setStatus(I18n.get("snippets.ai.metadata.generating"));
         Task<SuggestedSnippetMetadata> task = new Task<>() {
             @Override
@@ -6427,8 +6547,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             }
         };
         metadataTask = task;
+        aiRetries.put(task, retryOf(() -> beginMetadataGeneration(overwriteExisting)));
         task.setOnRunning(event -> {
-            showSnippetAiHint(I18n.get("snippets.ai.metadata.generating"), false);
+            showSnippetAiHint(I18n.get("snippets.ai.metadata.generating"), true);
             updateAiActionAvailability();
         });
         task.setOnSucceeded(event -> {
@@ -6441,13 +6562,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             if (failure != null) {
                 logger.warn("Snippet AI metadata suggestion failed", failure);
             }
+            AiRetry retry = aiRetries.remove(task);
             finishMetadataTask(task);
             setStatus(I18n.get("snippets.ai.metadata.generateFailed"));
+            offerAiRetry(retry, I18n.get("snippets.ai.retry.failed", I18n.get("snippets.ai.metadata.generateFailed")));
         });
         task.setOnCancelled(event -> finishMetadataTask(task));
-        Thread thread = new Thread(task, "snippet-metadata-suggestion");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-metadata-suggestion");
     }
 
     private void applySuggestedMetadata(SuggestedSnippetMetadata metadata, boolean overwriteExisting) {
@@ -6497,7 +6618,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             return;
         }
         cancelDescriptionCorrectionTask();
-        showSnippetAiHint(I18n.get("snippets.ai.description.correcting"), false);
+        offeredAiRetry = null;
+        offeredAiRetryText = null;
+        showSnippetAiHint(I18n.get("snippets.ai.description.correcting"), true);
         setStatus(I18n.get("snippets.ai.description.correcting"));
         Task<String> task = new Task<>() {
             @Override
@@ -6508,8 +6631,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             }
         };
         descriptionCorrectionTask = task;
+        aiRetries.put(task, retryOf(this::runDescriptionCorrection));
         task.setOnRunning(event -> {
-            showSnippetAiHint(I18n.get("snippets.ai.description.correcting"), false);
+            showSnippetAiHint(I18n.get("snippets.ai.description.correcting"), true);
             updateAiActionAvailability();
         });
         task.setOnSucceeded(event -> {
@@ -6530,28 +6654,22 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             if (failure != null) {
                 logger.warn("Snippet AI description correction failed", failure);
             }
+            AiRetry retry = aiRetries.remove(task);
             finishDescriptionCorrectionTask(task);
             setStatus(I18n.get("snippets.ai.description.correctFailed"));
+            offerAiRetry(retry, I18n.get("snippets.ai.retry.failed", I18n.get("snippets.ai.description.correctFailed")));
         });
         task.setOnCancelled(event -> finishDescriptionCorrectionTask(task));
-        Thread thread = new Thread(task, "snippet-description-correction");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-description-correction");
     }
 
     private void cancelAiTasks() {
-        improvementApplyRecoverySuppressed = true;
         autoCompletionDelay.stop();
         cancelCompletionRequest();
         contentArea.clearGhostCompletions();
         cancelMetadataTask();
         cancelDescriptionCorrectionTask();
         cancelSnippetAiActionTask(false);
-        if (improvementApplyProgressWindow != null) {
-            improvementApplyProgressWindow.close();
-            improvementApplyProgressWindow = null;
-        }
-        closeImprovementApplyDockGroup();
     }
 
     private void cancelMetadataTask() {
@@ -6575,6 +6693,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (metadataTask == task) {
             metadataTask = null;
         }
+        aiRetries.remove(task);
         hideMetadataHint();
         hideSnippetAiHintIfIdle();
         updateAiActionAvailability();
@@ -6584,6 +6703,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (descriptionCorrectionTask == task) {
             descriptionCorrectionTask = null;
         }
+        aiRetries.remove(task);
         hideSnippetAiHintIfIdle();
         updateAiActionAvailability();
     }
@@ -6592,20 +6712,82 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         cancelSnippetAiActionTask(true);
     }
 
-    private void cancelSnippetAiActionTask(boolean updateStatus) {
-        // The hint bar's Cancel button also serves a ghost-text request, which is not a snippet action.
+    /**
+     * Stops what the hint bar shows as running. {@code userStop} is the Stop button or Esc: the
+     * stopped action then offers Retry in the hint bar and the status says it was stopped. The
+     * editor closing or another action taking over cancels silently.
+     */
+    private void cancelSnippetAiActionTask(boolean userStop) {
+        // The hint bar's Stop button also serves a ghost-text request, which is not a snippet action.
         boolean completionCancelled = cancelCompletionRequest();
+        String runningText = snippetAiHintLabel.getText();
+        AiRetry retry = null;
+        boolean stopped = false;
         if (snippetAiActionTask != null) {
-            snippetAiActionTask.cancel(true);
+            Task<?> task = snippetAiActionTask;
+            retry = aiRetries.remove(task);
+            task.cancel(true);
             snippetAiActionTask = null;
-            hideSnippetAiHintIfIdle();
-            if (updateStatus) {
-                setStatus(I18n.get("ai.result.cancelled"));
+            stopped = true;
+        }
+        if (userStop) {
+            // Metadata and description correction run beside the actions; Stop ends them too.
+            if (metadataTask != null) {
+                AiRetry metadataRetry = aiRetries.remove(metadataTask);
+                retry = retry != null ? retry : metadataRetry;
+                cancelMetadataTask();
+                stopped = true;
             }
+            if (descriptionCorrectionTask != null) {
+                AiRetry correctionRetry = aiRetries.remove(descriptionCorrectionTask);
+                retry = retry != null ? retry : correctionRetry;
+                cancelDescriptionCorrectionTask();
+                stopped = true;
+            }
+        }
+        if (stopped) {
+            if (userStop) {
+                String stoppedText = I18n.get("snippets.ai.stop.stopped", stripEllipsis(runningText));
+                setStatus(I18n.get("ai.result.cancelled"));
+                offerAiRetry(retry, stoppedText);
+            }
+            hideSnippetAiHintIfIdle();
             updateAiActionAvailability();
-        } else if (completionCancelled && updateStatus) {
+        } else if (completionCancelled && userStop) {
             setStatus(I18n.get("ai.result.cancelled"));
         }
+    }
+
+    /**
+     * Esc in the editor or its analysis panel stops the running AI operation — the snippet action
+     * (including a running Full-code analysis or apply), metadata generation, description
+     * correction, or else a diagram the analysis panel is generating. A ghost-text request is left
+     * to Monaco, which uses Esc to dismiss it. {@code true} = something was stopped.
+     */
+    private static boolean isInsideChangeReview(Object target) {
+        for (javafx.scene.Node node = target instanceof javafx.scene.Node n ? n : null; node != null;
+                node = node.getParent()) {
+            if (node instanceof SnippetAiDiffPane) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    boolean stopRunningAiByKeyboard() {
+        if (isAnyAiTaskRunning()) {
+            cancelSnippetAiActionTask(true);
+            return true;
+        }
+        return analysisController != null && analysisController.stopRunningDiagram();
+    }
+
+    private static String stripEllipsis(String text) {
+        String value = text != null ? text.strip() : "";
+        while (value.endsWith("…") || value.endsWith(".")) {
+            value = value.substring(0, value.length() - 1).strip();
+        }
+        return value;
     }
 
     private void showMetadataHint(String text) {
@@ -6625,18 +6807,34 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void showSnippetAiHint(String text, boolean cancellable) {
+        if (!snippetAiHintBox.isVisible() || !snippetAiProgressIndicator.isVisible()) {
+            // A new run: the clock starts now (a message update of a running one keeps it going).
+            snippetAiStartedNanos = System.nanoTime();
+        }
         snippetAiHintLabel.setText(text != null ? text : "");
         snippetAiHintBox.setManaged(true);
         snippetAiHintBox.setVisible(true);
         snippetAiProgressIndicator.setProgress(ProgressIndicator.INDETERMINATE_PROGRESS);
+        snippetAiProgressIndicator.setManaged(true);
         snippetAiProgressIndicator.setVisible(true);
         cancelSnippetAiActionButton.setDisable(!cancellable);
         cancelSnippetAiActionButton.setManaged(cancellable);
         cancelSnippetAiActionButton.setVisible(cancellable);
+        setShown(retrySnippetAiActionButton, false);
+        setShown(dismissSnippetAiRetryButton, false);
+        setShown(snippetAiElapsedLabel, true);
+        refreshSnippetAiElapsed();
+        snippetAiElapsedTicker.play();
         snippetAiHintBox.setStyle(SNIPPET_AI_HINT_ACTIVE_STYLE);
     }
 
+    /** Hides the running state; an offered Retry keeps the bar, as its stopped/failed strip. */
     private void hideSnippetAiHint() {
+        snippetAiElapsedTicker.stop();
+        if (offeredAiRetry != null) {
+            showAiRetryStrip();
+            return;
+        }
         snippetAiHintLabel.setText("");
         snippetAiHintBox.setManaged(false);
         snippetAiHintBox.setVisible(false);
@@ -6644,6 +6842,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         cancelSnippetAiActionButton.setDisable(true);
         cancelSnippetAiActionButton.setManaged(false);
         cancelSnippetAiActionButton.setVisible(false);
+        setShown(snippetAiElapsedLabel, false);
+        setShown(retrySnippetAiActionButton, false);
+        setShown(dismissSnippetAiRetryButton, false);
         snippetAiHintBox.setStyle(SNIPPET_AI_HINT_IDLE_STYLE);
     }
 
@@ -6653,10 +6854,139 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
     }
 
+    private void refreshSnippetAiElapsed() {
+        snippetAiElapsedLabel.setText(AiStopRetrySupport.formatElapsed(
+            (System.nanoTime() - snippetAiStartedNanos) / 1_000_000L));
+    }
+
+    /**
+     * After a stop, a failure or a timeout: "Stopped: … / Failed: …" with Retry in the hint bar.
+     * {@code retry} {@code null} (an action that offers its own way forward, e.g. an apply run with
+     * its recovery strip) leaves the bar alone.
+     */
+    private void offerAiRetry(AiRetry retry, String text) {
+        if (retry == null || editorClosed) {
+            return;
+        }
+        offeredAiRetry = retry;
+        offeredAiRetryText = text;
+        if (!isAnyAiTaskRunning() && completionTask == null) {
+            showAiRetryStrip();
+        }
+    }
+
+    private void showAiRetryStrip() {
+        AiRetry retry = offeredAiRetry;
+        if (retry == null) {
+            return;
+        }
+        String blocked = retry.blockedReason();
+        snippetAiHintLabel.setText(blocked != null
+            ? offeredAiRetryText + " – " + blocked
+            : offeredAiRetryText);
+        snippetAiHintBox.setManaged(true);
+        snippetAiHintBox.setVisible(true);
+        setShown(snippetAiProgressIndicator, false);
+        cancelSnippetAiActionButton.setDisable(true);
+        cancelSnippetAiActionButton.setManaged(false);
+        cancelSnippetAiActionButton.setVisible(false);
+        setShown(snippetAiElapsedLabel, false);
+        setShown(retrySnippetAiActionButton, true);
+        retrySnippetAiActionButton.setDisable(blocked != null || isAnyAiTaskRunning() || isAiChangeReviewOpen());
+        setShown(dismissSnippetAiRetryButton, true);
+        snippetAiHintBox.setStyle(SNIPPET_AI_HINT_OUTCOME_STYLE);
+    }
+
+    /** Retry: runs the stopped/failed action again with the inputs it had (re-selecting its range). */
+    private void runOfferedAiRetry() {
+        AiRetry retry = offeredAiRetry;
+        if (retry == null) {
+            return;
+        }
+        String blocked = retry.blockedReason();
+        if (blocked != null) {
+            setStatus(blocked);
+            showAiRetryStrip();
+            return;
+        }
+        if (isAnyAiTaskRunning() || isAiChangeReviewOpen()) {
+            setStatus(I18n.get("snippets.ai.analysis.panel.busy"));
+            return;
+        }
+        dismissAiRetry();
+        retry.action().run();
+    }
+
+    private void dismissAiRetry() {
+        offeredAiRetry = null;
+        offeredAiRetryText = null;
+        if (!isAnyAiTaskRunning() && completionTask == null) {
+            hideSnippetAiHint();
+        }
+    }
+
+    /** The Retry currently offered by the hint bar (test seam). */
+    AiRetry offeredAiRetry() {
+        return offeredAiRetry;
+    }
+
+    private static void setShown(javafx.scene.Node node, boolean shown) {
+        node.setVisible(shown);
+        node.setManaged(shown);
+    }
+
+    /**
+     * How to repeat an AI action exactly as it ran: {@code action} re-runs it with the inputs it
+     * captured; {@code blockedCheck} (optional) says why that is no longer possible — the text it
+     * worked on changed — or returns {@code null} when Retry may run.
+     */
+    record AiRetry(Runnable action, Supplier<String> blockedCheck) {
+        AiRetry {
+            java.util.Objects.requireNonNull(action, "action");
+        }
+
+        String blockedReason() {
+            return blockedCheck != null ? blockedCheck.get() : null;
+        }
+    }
+
+    /** A Retry for an action on the whole snippet: it runs on the current content. */
+    private static AiRetry retryOf(Runnable action) {
+        return new AiRetry(action, null);
+    }
+
+    /**
+     * A Retry for an action on the current selection (or caret): it selects the same range again
+     * first, and is blocked once the text in that range changed.
+     */
+    private AiRetry retryOnSelection(Runnable action) {
+        IndexRange range = contentArea.getSelection();
+        String content = contentArea.getText() != null ? contentArea.getText() : "";
+        int start = range != null ? Math.max(0, Math.min(range.getStart(), content.length())) : 0;
+        int end = range != null ? Math.max(start, Math.min(range.getEnd(), content.length())) : 0;
+        String selected = content.substring(start, end);
+        return new AiRetry(() -> {
+            contentArea.selectRange(start, end);
+            action.run();
+        }, () -> selectionStillMatches(contentArea.getText(), start, end, selected)
+            ? null
+            : I18n.get("snippets.ai.retry.selectionChanged"));
+    }
+
+    /** Whether {@code content} still holds {@code expected} at {@code [start, end)}. */
+    static boolean selectionStillMatches(String content, int start, int end, String expected) {
+        String value = content != null ? content : "";
+        if (start < 0 || end < start || end > value.length()) {
+            return false;
+        }
+        return value.substring(start, end).equals(expected != null ? expected : "");
+    }
+
     private void finishSnippetAiAction(Task<?> task) {
         if (snippetAiActionTask == task) {
             snippetAiActionTask = null;
         }
+        aiRetries.remove(task);
         hideSnippetAiHintIfIdle();
         updateAiActionAvailability();
         updateOneLinerButtonState();
@@ -6669,42 +6999,43 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
      * error left NO trace in the log and only a generic "…failed" status. When the cause carries a
      * message it is surfaced to the user (e.g. the configuration error that breaks every AI function)
      * instead of the bare generic status. The typed output-limit failure is mapped to its own
-     * localized message so the core exception text never becomes UI copy.
+     * localized message so the core exception text never becomes UI copy. Every failure — a timeout
+     * included — offers Retry in the hint bar; a stop that surfaced as a failure is reported as a stop.
      */
     private void handleSnippetAiActionFailure(Task<?> task, String genericFailedStatus) {
         Throwable failure = task != null ? task.getException() : null;
+        AiRetry retry = task != null ? aiRetries.remove(task) : null;
+        if (failure instanceof de.kortty.core.AiCancelledException) {
+            setStatus(I18n.get("ai.result.cancelled"));
+            finishSnippetAiAction(task);
+            offerAiRetry(retry, I18n.get("snippets.ai.stop.stopped", stripEllipsis(snippetAiHintLabel.getText())));
+            return;
+        }
         if (failure != null) {
             logger.warn("Snippet AI action failed ({})", genericFailedStatus, failure);
         }
+        String status;
         if (isResponseStreamInterruptedFailure(failure)) {
-            setStatus(I18n.get("snippets.ai.streamInterrupted"));
-            finishSnippetAiAction(task);
-            return;
-        }
-        if (isOutputTokenLimitFailure(failure)) {
-            setStatus(I18n.get("snippets.ai.outputLimitReached"));
-            finishSnippetAiAction(task);
-            return;
-        }
-        if (isFullReplacementRejectedFailure(failure)) {
-            setStatus(I18n.get("snippets.ai.fix.degenerate"));
-            finishSnippetAiAction(task);
-            return;
-        }
-        if (isIncompleteMandatoryRequirementsFailure(failure)) {
-            setStatus(I18n.get(
+            status = I18n.get("snippets.ai.streamInterrupted");
+        } else if (isOutputTokenLimitFailure(failure)) {
+            status = I18n.get("snippets.ai.outputLimitReached");
+        } else if (isFullReplacementRejectedFailure(failure)) {
+            status = I18n.get("snippets.ai.fix.degenerate");
+        } else if (isIncompleteMandatoryRequirementsFailure(failure)) {
+            status = I18n.get(
                 "snippets.ai.analysis.fix.incompleteHardening",
-                String.join("; ", incompleteMandatoryRequirementLabels(failure))));
-            finishSnippetAiAction(task);
-            return;
+                String.join("; ", incompleteMandatoryRequirementLabels(failure)));
+        } else {
+            String detail = failure != null && failure.getMessage() != null && !failure.getMessage().isBlank()
+                ? failure.getMessage().strip()
+                : null;
+            status = detail != null
+                ? I18n.get("snippets.ai.actionFailed", shortenStatusMessage(detail))
+                : genericFailedStatus;
         }
-        String detail = failure != null && failure.getMessage() != null && !failure.getMessage().isBlank()
-            ? failure.getMessage().strip()
-            : null;
-        setStatus(detail != null
-            ? I18n.get("snippets.ai.actionFailed", shortenStatusMessage(detail))
-            : genericFailedStatus);
+        setStatus(status);
         finishSnippetAiAction(task);
+        offerAiRetry(retry, I18n.get("snippets.ai.retry.failed", status));
     }
 
     static boolean isResponseStreamInterruptedFailure(Throwable failure) {
@@ -6830,7 +7161,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (!applyCodeTextLanguage(true)) {
             return;
         }
-        beginSnippetAiAction(task);
+        beginSnippetAiAction(task, retryOf(() -> runCompactOneLinerGeneration(text, lang)));
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.oneliner.generating"));
             setStatus(I18n.get("snippets.oneliner.generating"));
@@ -6849,9 +7180,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         task.setOnFailed(event ->
             handleSnippetAiActionFailure(task, I18n.get("snippets.oneliner.generateFailed")));
         task.setOnCancelled(event -> finishSnippetAiAction(task));
-        Thread thread = new Thread(task, "snippet-ai-one-liner");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-one-liner");
     }
 
     private void copyOneLinerToClipboard(String line) {
@@ -6873,6 +7202,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void runFormat(Integer maxLineLength) {
+        if (isAiChangeReviewOpen()) {
+            setStatus(I18n.get("snippets.ai.change.decideFirst"));
+            return;
+        }
         String lang = languageCombo.getValue();
         CodeFormatterService.FormatterInfo formatterInfo = CodeFormatterService.getFormatterInfo(lang);
         if (formatterInfo == null) {
@@ -6909,6 +7242,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         }
         int start = contentArea.getSelection().getStart();
         int end = contentArea.getSelection().getEnd();
+        String baseContent = contentArea.getText();
         String text;
         boolean selectionOnly = maxLineLength == null && (end > start);
         if (selectionOnly) {
@@ -6944,7 +7278,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 return;
             }
             if (maxLineLength != null) {
-                showLineWidthFormatPreview(text, formatted, lang, maxLineLength, selectionOnly, start, end);
+                showLineWidthFormatPreview(baseContent, text, formatted, lang, maxLineLength, selectionOnly, start, end);
                 return;
             }
             applyFormattedText(selectionOnly, start, end, formatted);
@@ -6963,7 +7297,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         thread.start();
     }
 
+    /**
+     * The line-width format result, reviewed in the editor area like every AI change. It is a local
+     * formatter run, so a re-run on changed content is simply Format again.
+     */
     private void showLineWidthFormatPreview(
+        String baseContent,
         String originalText,
         String formattedText,
         String language,
@@ -6972,21 +7311,19 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         int start,
         int end) {
 
-        SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
-            getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+        showAiChangeReview(
             I18n.get("snippets.ruler.formatPreviewTitle"),
             I18n.get("snippets.ruler.formatPreviewSummary", maxLineLength),
+            baseContent,
             originalText,
             formattedText,
             language,
-            editorSettings,
-            editorProfile);
-        if (diffDialog.showAndWait().orElse(false)) {
-            applyFormattedText(selectionOnly, start, end, formattedText);
-            setFormatSuccessStatus(formattedText, maxLineLength);
-            return;
-        }
-        setStatus(I18n.get("snippets.ruler.formatPreviewCancelled"));
+            null,
+            null,
+            () -> {
+                applyFormattedText(selectionOnly, start, end, formattedText);
+                setFormatSuccessStatus(formattedText, maxLineLength);
+            });
     }
 
     private void applyFormattedText(boolean selectionOnly, int start, int end, String formattedText) {
@@ -7057,6 +7394,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void runAiFormat(Integer maxLineLength, AiFormatScope scope, String aiProfileId) {
+        if (aiActionBlocked()) {
+            return;
+        }
         String fullContent = contentArea.getText();
         if (fullContent == null || fullContent.isBlank()) {
             return;
@@ -7092,7 +7432,9 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
         if (!applyCodeTextLanguage(true)) {
             return;
         }
-        beginSnippetAiAction(task);
+        beginSnippetAiAction(task, scope == AiFormatScope.SELECTION
+            ? retryOnSelection(() -> runAiFormat(maxLineLength, scope, aiProfileId))
+            : retryOf(() -> runAiFormat(maxLineLength, scope, aiProfileId)));
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.format.running"));
             setStatus(I18n.get("snippets.ai.format.running"));
@@ -7107,29 +7449,29 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 setStatus(I18n.get("snippets.ai.format.empty"));
                 return;
             }
-            SnippetAiDiffDialog diffDialog = new SnippetAiDiffDialog(
-                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+            showAiChangeReview(
                 I18n.get("snippets.ai.format.diffTitle"),
                 improvement.summary(),
+                fullContent,
                 targetText,
                 improvement.replacement(),
                 lang,
-                editorSettings,
-                editorProfile);
-            diffDialog.setRerunHandler(aiProfileId,
-                profileSwitchingSupported() ? id -> runAiFormat(maxLineLength, scope, id) : null);
-            if (diffDialog.showAndWait().orElse(false)) {
-                applyAiContentChange(
-                    replacementStart,
-                    replacementEnd,
-                    improvement.replacement(),
-                    I18n.get("snippets.ai.toggle.action.format"));
-                if (maxLineLength != null) {
-                    setFormatSuccessStatus(improvement.replacement(), maxLineLength);
-                } else {
-                    setStatus(I18n.get("snippets.ai.format.applied"));
-                }
-            }
+                // A selection-scoped re-run is not offered on changed content: the old selection is gone.
+                selectionOnly ? null : () -> runAiFormat(maxLineLength, scope, aiProfileId),
+                withProfileRerun(aiProfileId,
+                    profileSwitchingSupported() ? id -> runAiFormat(maxLineLength, scope, id) : null),
+                () -> {
+                    applyAiContentChange(
+                        replacementStart,
+                        replacementEnd,
+                        improvement.replacement(),
+                        I18n.get("snippets.ai.toggle.action.format"));
+                    if (maxLineLength != null) {
+                        setFormatSuccessStatus(improvement.replacement(), maxLineLength);
+                    } else {
+                        setStatus(I18n.get("snippets.ai.format.applied"));
+                    }
+                });
         });
         task.setOnFailed(event -> {
             handleSnippetAiActionFailure(task, I18n.get("snippets.ai.format.failed"));
@@ -7139,9 +7481,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             finishSnippetAiAction(task);
             updateFormatLintButtonState();
         });
-        Thread thread = new Thread(task, "snippet-ai-format");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-format");
     }
 
     private void setFormatSuccessStatus(String formatted, Integer maxLineLength) {
@@ -7217,7 +7557,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     }
 
     private void runAiSyntaxCheck(String aiProfileId) {
-        if (!hasCodeReviewProvider()) {
+        if (!hasCodeReviewProvider() || aiActionBlocked()) {
             return;
         }
         String fullContent = contentArea.getText();
@@ -7239,7 +7579,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                     aiProfileId));
             }
         };
-        beginSnippetAiAction(task);
+        beginSnippetAiAction(task, retryOf(() -> runAiSyntaxCheck(aiProfileId)));
         task.setOnRunning(event -> {
             showSnippetAiHint(I18n.get("snippets.ai.lint.running"));
             setStatus(I18n.get("snippets.ai.lint.running"));
@@ -7255,12 +7595,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
                 setStatus(I18n.get("snippets.ai.lint.noFindings"));
                 return;
             }
-            new SnippetAiReviewDialog(
-                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+            showChildWindow(new SnippetAiReviewDialog(
+                childWindowOwner(),
                 I18n.get("snippets.ai.lint.title"),
                 findings,
                 aiProfileId,
-                profileSwitchingSupported() ? this::runAiSyntaxCheck : null).showAndWait();
+                profileSwitchingSupported() ? this::runAiSyntaxCheck : null));
             setStatus(I18n.get("snippets.ai.lint.ready"));
         });
         task.setOnFailed(event -> {
@@ -7271,9 +7611,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
             finishSnippetAiAction(task);
             updateFormatLintButtonState();
         });
-        Thread thread = new Thread(task, "snippet-ai-syntax-check");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(task, "snippet-ai-syntax-check");
     }
 
     private void showAlert(String message) {
@@ -7297,6 +7635,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
      * {@code getDialogPane().getScene()} is {@code null} at that point.
      */
     private javafx.stage.Window resolveAlertOwner() {
+        // A hosted pane can be dragged to another main window with its tab; the window it is shown
+        // in now beats the owner captured when it was opened.
+        if (isHostedInTab() && getDialogPane().getScene() != null
+            && getDialogPane().getScene().getWindow() != null) {
+            return getDialogPane().getScene().getWindow();
+        }
         javafx.stage.Window owner = getOwner();
         if (owner == null) {
             javafx.scene.Scene scene = getDialogPane().getScene();
@@ -7343,6 +7687,780 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> {
     private void applyHighlighting() {
         if (contentArea != null && languageCombo != null) {
             contentArea.setLanguage(languageCombo.getValue());
+        }
+    }
+
+    // ---- Integrated Full-code analysis: side panel and editor-area review ----
+
+    /** Adds the analysis side panel beside the editor area (once), at its remembered width. */
+    private void showAnalysisSidePanel(Region panel) {
+        if (analysisWorkbench.panel() == panel) {
+            return;
+        }
+        double width = SnippetAnalysisController.storedPanelWidth();
+        panel.setPrefWidth(width);
+        panel.setMaxWidth(Region.USE_PREF_SIZE);
+        analysisWorkbench.setPanel(panel);
+        widenWindowForAnalysisPanel(width);
+        if (embedding != null) {
+            embedding.analysisPanelShown(this, width);
+        }
+    }
+
+    private void hideAnalysisSidePanel() {
+        boolean shown = analysisWorkbench.isPanelShown();
+        analysisWorkbench.setPanel(null);
+        if (shown && embedding != null && !editorClosed) {
+            embedding.analysisPanelHidden(this);
+        }
+    }
+
+    /** The drag handle between the editor area and the analysis panel; dragging sets the panel width. */
+    private Region buildAnalysisDivider() {
+        Region divider = new Region();
+        divider.setId("snippet-analysis-divider");
+        divider.setMinWidth(SnippetEditorWorkbench.DIVIDER_WIDTH);
+        divider.setPrefWidth(SnippetEditorWorkbench.DIVIDER_WIDTH);
+        divider.setMaxWidth(SnippetEditorWorkbench.DIVIDER_WIDTH);
+        divider.setCursor(javafx.scene.Cursor.H_RESIZE);
+        divider.setStyle("-fx-background-color: rgba(128,128,128,0.22);");
+        double[] drag = new double[2];
+        divider.setOnMousePressed(event -> {
+            Region panel = analysisSidePanelNode();
+            drag[0] = event.getScreenX();
+            drag[1] = panel != null ? panel.getWidth() : SnippetAnalysisController.DEFAULT_PANEL_WIDTH;
+        });
+        divider.setOnMouseDragged(event -> {
+            Region panel = analysisSidePanelNode();
+            if (panel == null) {
+                return;
+            }
+            double maximum = analysisWorkbench.maximumPanelWidth(SnippetAnalysisController.MIN_PANEL_WIDTH);
+            double width = drag[1] - (event.getScreenX() - drag[0]);
+            panel.setPrefWidth(Math.max(SnippetAnalysisController.MIN_PANEL_WIDTH, Math.min(maximum, width)));
+        });
+        return divider;
+    }
+
+    private Region analysisSidePanelNode() {
+        return analysisWorkbench.panel();
+    }
+
+    /** Whether the analysis side panel currently sits beside the editor area. */
+    boolean isAnalysisSidePanelShown() {
+        return analysisWorkbench.isPanelShown();
+    }
+
+    /** The width the analysis panel asks for (stored or dragged); 0 while it is hidden. */
+    double analysisSidePanelPreferredWidth() {
+        Region panel = analysisWorkbench.panel();
+        return panel != null ? panel.getPrefWidth() : 0;
+    }
+
+    /** The laid-out width of the editor's content row (editor area plus panel); 0 before layout. */
+    double workbenchWidth() {
+        return analysisWorkbench.getWidth();
+    }
+
+    /**
+     * A windowed editor grows once by the panel's width when the screen has room, so opening the
+     * analysis does not squeeze the code. A hosted editor shares its tab instead.
+     */
+    private void widenWindowForAnalysisPanel(double width) {
+        if (widenedForAnalysisPanel || isHostedInTab() || embedding != null) {
+            return;
+        }
+        Window window = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
+        if (!(window instanceof Stage stage) || !stage.isShowing() || stage.isMaximized() || stage.isFullScreen()) {
+            return;
+        }
+        widenedForAnalysisPanel = true;
+        try {
+            javafx.geometry.Rectangle2D bounds = Screen.getScreensForRectangle(
+                    stage.getX(), stage.getY(), Math.max(1, stage.getWidth()), Math.max(1, stage.getHeight()))
+                .stream().findFirst().orElse(Screen.getPrimary()).getVisualBounds();
+            double target = Math.min(stage.getWidth() + width, bounds.getWidth());
+            if (target <= stage.getWidth()) {
+                return;
+            }
+            double x = stage.getX();
+            if (x + target > bounds.getMaxX()) {
+                x = Math.max(bounds.getMinX(), bounds.getMaxX() - target);
+            }
+            stage.setX(x);
+            stage.setWidth(target);
+        } catch (RuntimeException e) {
+            logger.debug("Could not widen the snippet editor for the analysis panel", e);
+        }
+    }
+
+    /**
+     * Shows a change review instead of the editor form until it is decided. Only one review holds the
+     * editor area at a time: one that arrives while another is open waits in line (the status line
+     * says so) and comes on screen when that one is decided — it never silently replaces it.
+     */
+    private void showInEditorArea(SnippetAiDiffPane pane) {
+        if (pane == null || editorClosed) {
+            return;
+        }
+        if (editorAreaOverlay == pane) {
+            pane.requestFocus();
+            return;
+        }
+        if (editorAreaOverlay != null) {
+            if (!waitingEditorAreaPanes.contains(pane)) {
+                waitingEditorAreaPanes.add(pane);
+            }
+            setStatus(I18n.get("snippets.ai.change.queued"));
+            updateAiActionAvailability();
+            return;
+        }
+        displayInEditorArea(pane);
+    }
+
+    /**
+     * Puts the review on screen. Esc is consumed there: it would otherwise fire the dialog's Cancel
+     * and close the editor without the unsaved prompt.
+     */
+    private void displayInEditorArea(SnippetAiDiffPane pane) {
+        editorAreaOverlay = pane;
+        if (pane.getProperties().putIfAbsent("kortty.escapeGuard", Boolean.TRUE) == null) {
+            pane.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+                if (event.getCode() == KeyCode.ESCAPE) {
+                    event.consume();
+                }
+            });
+        }
+        editorFormLayout.setVisible(false);
+        editorAreaStack.getChildren().add(pane);
+        if (pane == aiChangeReviewPane && aiChangeReviewGuard != null) {
+            // It may have waited behind another review whose Accept changed the content.
+            aiChangeReviewGuard.run();
+        }
+        Platform.runLater(() -> {
+            pane.fitSummaryHeight();
+            pane.requestFocus();
+        });
+    }
+
+    /** The review is decided: the next waiting one takes the editor area, else the form comes back. */
+    private void restoreEditorArea(SnippetAiDiffPane pane) {
+        if (pane != null && waitingEditorAreaPanes.remove(pane)) {
+            updateAiActionAvailability();
+            return;
+        }
+        if (pane != null && editorAreaOverlay != pane) {
+            return;
+        }
+        if (editorAreaOverlay != null) {
+            editorAreaStack.getChildren().remove(editorAreaOverlay);
+            editorAreaOverlay = null;
+        }
+        SnippetAiDiffPane next = waitingEditorAreaPanes.poll();
+        if (next != null && !editorClosed) {
+            displayInEditorArea(next);
+            return;
+        }
+        editorFormLayout.setVisible(true);
+        Platform.runLater(this::focusEditor);
+    }
+
+    /** Whether an AI change waits for a decision in the editor area (on screen or in line). */
+    private boolean isAiChangeReviewOpen() {
+        return editorAreaOverlay != null || !waitingEditorAreaPanes.isEmpty();
+    }
+
+    /**
+     * Whether a new AI action must not start now, saying why in the status line: another one is
+     * running, or an AI change still waits for Accept or Reject. The result windows (security report,
+     * description, syntax check) are non-modal, so their Apply and Re-run buttons can be pressed at
+     * any time and have to pass this check like the menu items do.
+     */
+    private boolean aiActionBlocked() {
+        if (editorClosed) {
+            return true;
+        }
+        if (isAiChangeReviewOpen()) {
+            setStatus(I18n.get("snippets.ai.change.decideFirst"));
+            if (editorAreaOverlay != null) {
+                editorAreaOverlay.requestFocus();
+            }
+            return true;
+        }
+        if (isAnyAiTaskRunning()) {
+            setStatus(I18n.get("snippets.ai.analysis.panel.busy"));
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Reviews an ad-hoc AI change in the editor area — the side-by-side diff with Accept and Reject —
+     * instead of a window that blocks in a nested event loop. Nothing is applied until Accept, and
+     * Accept only applies while the editor still holds exactly {@code baseContent}, the text the
+     * change was computed from (otherwise it would overwrite the edits made meanwhile; the review then
+     * says so and, when {@code rerunOnCurrent} is given, offers to run the action again).
+     *
+     * @param originalText the part of {@code baseContent} the change replaces (the left diff side)
+     * @param setup        optional extras (explanations, the profile re-run)
+     * @param onAccept     applies the change; runs after the review has given the editor area back
+     */
+    private void showAiChangeReview(
+            String heading,
+            String summary,
+            String baseContent,
+            String originalText,
+            String replacementText,
+            String language,
+            Runnable rerunOnCurrent,
+            Consumer<SnippetAiDiffPane> setup,
+            Runnable onAccept) {
+
+        if (editorClosed) {
+            return;
+        }
+        if (aiChangeReviewPane != null) {
+            // Cannot happen through the menus (they are disabled while a review is open); a late
+            // local-formatter result is the one path left, and it must not replace the open review.
+            logger.debug("An AI change review is already open; dropping the newer result");
+            setStatus(I18n.get("snippets.ai.change.decideFirst"));
+            return;
+        }
+        String base = baseContent != null ? baseContent : "";
+        SnippetAiDiffPane pane = new SnippetAiDiffPane(
+            summary, originalText, replacementText, language, editorSettings, true);
+        pane.setReviewLaterAvailable(false);
+        pane.setHeading(heading);
+        if (setup != null) {
+            setup.accept(pane);
+        }
+        Runnable guard = () -> guardAiChangeReview(pane, base, rerunOnCurrent);
+        aiChangeReviewPane = pane;
+        aiChangeReviewGuard = guard;
+        pane.setOnDecision(decision -> {
+            if (aiChangeReviewPane != pane) {
+                return;
+            }
+            if (decision == SnippetAiDiffPane.Decision.ACCEPT) {
+                if (!contentUnchangedSince(base)) {
+                    guard.run();
+                    return;
+                }
+                closeAiChangeReview(pane);
+                onAccept.run();
+                return;
+            }
+            closeAiChangeReview(pane);
+            setStatus(I18n.get("snippets.ai.change.rejected"));
+        });
+        guard.run();
+        showInEditorArea(pane);
+        updateAiActionAvailability();
+    }
+
+    /** Blocks Accept while the content differs from the text the change was computed from. */
+    private void guardAiChangeReview(SnippetAiDiffPane pane, String baseContent, Runnable rerunOnCurrent) {
+        if (contentUnchangedSince(baseContent)) {
+            pane.showBlockingNotice(null);
+            return;
+        }
+        Runnable rerun = rerunOnCurrent == null ? null : () -> {
+            closeAiChangeReview(pane);
+            Platform.runLater(rerunOnCurrent);
+        };
+        pane.showBlockingNotice(I18n.get("snippets.ai.change.contentChanged"),
+            rerun != null ? I18n.get("snippets.ai.change.rerunOnCurrent") : null, rerun);
+    }
+
+    /** Ends the ad-hoc review without applying anything (decided, re-run, or the editor closes). */
+    private void closeAiChangeReview(SnippetAiDiffPane pane) {
+        if (pane == null || aiChangeReviewPane != pane) {
+            return;
+        }
+        aiChangeReviewPane = null;
+        aiChangeReviewGuard = null;
+        restoreEditorArea(pane);
+        pane.dispose();
+        updateAiActionAvailability();
+    }
+
+    /** The profile re-run of an ad-hoc review: the review is discarded first, then the action runs again. */
+    private Consumer<SnippetAiDiffPane> withProfileRerun(String activeProfileId, Consumer<String> onRerun) {
+        return pane -> {
+            if (onRerun != null) {
+                pane.setRerunHandler(activeProfileId, onRerun, () -> closeAiChangeReview(pane));
+            }
+        };
+    }
+
+    /** The ad-hoc review currently waiting for a decision (tests). */
+    SnippetAiDiffPane aiChangeReviewPane() {
+        return aiChangeReviewPane;
+    }
+
+    /**
+     * Opens a result window of this editor without blocking: non-modal, one per kind (a newer result
+     * replaces the older window), and closed together with the editor it calls back into.
+     */
+    private void showChildWindow(Dialog<?> dialog) {
+        if (editorClosed) {
+            return;
+        }
+        Dialog<?> previous = childWindows.put(dialog.getClass(), dialog);
+        dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> childWindows.remove(dialog.getClass(), dialog));
+        if (previous != null && previous != dialog && previous.isShowing()) {
+            previous.close();
+        }
+        dialog.show();
+    }
+
+    /** The open result window of a kind, or {@code null}. */
+    private Dialog<?> openChildWindow(Class<?> kind) {
+        Dialog<?> dialog = childWindows.get(kind);
+        return dialog != null && dialog.isShowing() ? dialog : null;
+    }
+
+    private void closeChildWindows() {
+        for (Dialog<?> dialog : List.copyOf(childWindows.values())) {
+            if (dialog.isShowing()) {
+                dialog.close();
+            }
+        }
+        childWindows.clear();
+    }
+
+    /** The owner of a result window: this editor's window (the main window while hosted in a tab). */
+    private Window childWindowOwner() {
+        return getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
+    }
+
+    /**
+     * Applies an AI result from a non-modal window. The editor stayed editable while it was open, so
+     * the result is only inserted when the content is still what it was computed from and no AI
+     * change waits for review; otherwise it goes to the clipboard instead of landing at an offset
+     * that no longer means anything.
+     */
+    private boolean applyFromResultWindow(String baseContent, String result, Runnable apply) {
+        // Not under an open review either: its Accept would then refuse the content it was made for.
+        if (!isAiChangeReviewOpen() && contentUnchangedSince(baseContent)) {
+            apply.run();
+            return true;
+        }
+        ClipboardContent clip = new ClipboardContent();
+        clip.putString(result != null ? result : "");
+        Clipboard.getSystemClipboard().setContent(clip);
+        setStatus(I18n.get("snippets.ai.change.contentChangedCopied"));
+        return false;
+    }
+
+    /** Mirrors a long-running task's message and progress into the hint bar while it is the active action. */
+    private void followTaskProgress(Task<?> task) {
+        task.messageProperty().addListener((observable, oldMessage, message) -> {
+            if (snippetAiActionTask == task && message != null && !message.isBlank()) {
+                snippetAiHintLabel.setText(message);
+                setStatus(message);
+            }
+        });
+        task.progressProperty().addListener((observable, oldProgress, progress) -> {
+            if (snippetAiActionTask == task && progress != null) {
+                snippetAiProgressIndicator.setProgress(progress.doubleValue());
+            }
+        });
+    }
+
+    /** What {@link SnippetAnalysisController} sees of this editor. */
+    // ---- Save as new: take the analysis along ----
+
+    /** Test seam: answers "take the analysis along?" (gets the number of stored analyses); {@code null} asks. */
+    private static java.util.function.IntPredicate analysisCopyPrompter;
+
+    static void setAnalysisCopyPrompterForTesting(java.util.function.IntPredicate prompter) {
+        analysisCopyPrompter = prompter;
+    }
+
+    /**
+     * "Save as new snippet": when the snippet has stored analyses, asks whether the new snippet
+     * should get a copy of them ({@link SnippetAnalysisStore#copy}); the original keeps its own.
+     * A copy for a snippet that is not saved yet waits in memory until its first save.
+     */
+    void offerAnalysisCopy(String fromId, Snippet copy) {
+        if (fromId == null || fromId.isBlank() || copy == null || copy.getId() == null || fromId.equals(copy.getId())) {
+            return;
+        }
+        SnippetAnalysisStore store = SnippetAnalysisStore.shared();
+        de.kortty.core.SnippetAnalysisHistory history = store.cached(fromId);
+        if (history == null || history.isEmpty()) {
+            return;
+        }
+        int count = history.records().size();
+        boolean take = analysisCopyPrompter != null ? analysisCopyPrompter.test(count) : askAnalysisCopy(count);
+        if (!take) {
+            return;
+        }
+        try {
+            store.copy(fromId, copy.getId());
+            setStatus(I18n.get("snippets.saveAsNew.analysisCopied", count));
+        } catch (RuntimeException e) {
+            logger.warn("Could not copy the stored analyses of {} to {}", fromId, copy.getId(), e);
+        }
+    }
+
+    private boolean askAnalysisCopy(int count) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.applyTheme(alert);
+        alert.setTitle(I18n.get("snippets.saveAsNew"));
+        alert.setHeaderText(I18n.get("snippets.saveAsNew.analysis.header"));
+        alert.setContentText(I18n.get("snippets.saveAsNew.analysis.content", count));
+        ButtonType take = new ButtonType(I18n.get("snippets.saveAsNew.analysis.take"), ButtonBar.ButtonData.YES);
+        ButtonType leave = new ButtonType(I18n.get("snippets.saveAsNew.analysis.leave"), ButtonBar.ButtonData.NO);
+        alert.getButtonTypes().setAll(take, leave);
+        Window owner = resolveAlertOwner();
+        if (owner != null) {
+            alert.initOwner(owner);
+            alert.initModality(Modality.WINDOW_MODAL);
+        }
+        return alert.showAndWait().orElse(leave) == take;
+    }
+
+    // ---- Draft autosave ----
+
+    /** The draft autosave of this editor, or {@code null} (file editors, admin-managed snippets). */
+    SnippetDraftAutosave draftAutosave() {
+        return draftAutosave;
+    }
+
+    /**
+     * Fills the form from a draft left behind by a never-saved snippet (restored by the workspace);
+     * the editor then has unsaved changes and keeps its own draft from here on.
+     */
+    void restoreDraft(de.kortty.core.SnippetDraftStore.SnippetDraft draft) {
+        if (draft == null) {
+            return;
+        }
+        new DraftForm().restore(draft);
+    }
+
+    private String currentCategoryText() {
+        String typed = categoryCombo.getEditor() != null ? categoryCombo.getEditor().getText() : null;
+        if (typed != null && !typed.isBlank()) {
+            return typed;
+        }
+        return categoryCombo.getValue();
+    }
+
+    /** The editor form seen by {@link SnippetDraftAutosave}. */
+    private final class DraftForm implements SnippetDraftAutosave.Form {
+        @Override
+        public String snippetId() {
+            return SnippetEditDialog.this.snippetId();
+        }
+
+        @Override
+        public boolean isNewSnippet() {
+            return persistedSnippet() == null;
+        }
+
+        @Override
+        public boolean hasUnsavedChanges() {
+            return hasUnsavedContentChanges();
+        }
+
+        @Override
+        public String savedContent() {
+            Snippet persisted = persistedSnippet();
+            return persisted != null ? persisted.getContent() : null;
+        }
+
+        @Override
+        public de.kortty.core.SnippetDraftStore.SnippetDraft capture(long now) {
+            String saved = savedContent();
+            return de.kortty.core.SnippetDraftStore.SnippetDraft.of(
+                SnippetEditDialog.this.snippetId(), now, isNewSnippet(),
+                nameField.getText(), languageCombo.getValue(), currentCategoryText(), tagsField.getText(),
+                descriptionArea.getText(), safeContentText(),
+                saved != null ? SnippetDiagramSupport.contentHash(saved) : "");
+        }
+
+        @Override
+        public void restore(de.kortty.core.SnippetDraftStore.SnippetDraft draft) {
+            nameField.setText(draft.name());
+            if (!draft.language().isBlank()) {
+                if (!languageCombo.getItems().contains(draft.language())) {
+                    languageCombo.getItems().add(draft.language());
+                }
+                languageCombo.setValue(draft.language());
+            }
+            categoryCombo.setValue(draft.category().isBlank() ? null : draft.category());
+            if (categoryCombo.getEditor() != null) {
+                categoryCombo.getEditor().setText(draft.category());
+            }
+            tagsField.setText(draft.tags());
+            descriptionArea.setText(draft.description());
+            if (!draft.content().equals(safeContentText())) {
+                contentArea.replaceText(draft.content());
+            }
+            applyHighlighting();
+            updateSaveButtonState();
+            setStatus(I18n.get("snippets.draft.restored"));
+        }
+
+        @Override
+        public void showBanner(Region banner) {
+            VBox.setMargin(banner, new Insets(8, 10, 0, 10));
+            editorFormLayout.getChildren().add(0, banner);
+        }
+
+        @Override
+        public void hideBanner(Region banner) {
+            editorFormLayout.getChildren().remove(banner);
+        }
+    }
+
+    private final class AnalysisHost implements SnippetAnalysisController.Host {
+        @Override
+        public String snippetId() {
+            return SnippetEditDialog.this.snippetId();
+        }
+
+        @Override
+        public String snippetName() {
+            return currentSnippetName();
+        }
+
+        @Override
+        public String currentContent() {
+            return contentArea.getText() != null ? contentArea.getText() : "";
+        }
+
+        @Override
+        public String snippetLanguage() {
+            return languageCombo.getValue();
+        }
+
+        @Override
+        public String reportLanguageCode() {
+            return resolveAnalysisLanguageCode();
+        }
+
+        @Override
+        public String codeTextFallbackLanguageCode() {
+            return resolveAiTextFallbackLanguageCode();
+        }
+
+        @Override
+        public String additionalInstructions() {
+            return SnippetEditDialog.this.additionalInstructions();
+        }
+
+        @Override
+        public AiAssist aiAssist() {
+            return aiAssist;
+        }
+
+        @Override
+        public boolean hasCodeAnalysisProviders() {
+            return SnippetEditDialog.this.hasCodeAnalysisProviders();
+        }
+
+        @Override
+        public boolean profileSwitchingSupported() {
+            return SnippetEditDialog.this.profileSwitchingSupported();
+        }
+
+        @Override
+        public SnippetAnalysisPanel.SkillContext skillContext() {
+            return buildAnalysisSkillContext();
+        }
+
+        @Override
+        public void autoDetectAiSkills() {
+            SnippetEditDialog.this.autoDetectAiSkills();
+        }
+
+        @Override
+        public boolean ensureDataNoticeAccepted() {
+            return ensureSnippetAiDataNoticeAccepted(false);
+        }
+
+        @Override
+        public boolean isAnyAiTaskRunning() {
+            // An ad-hoc change waiting for Accept/Reject blocks the analysis' own actions too.
+            return SnippetEditDialog.this.isAnyAiTaskRunning() || aiChangeReviewPane != null;
+        }
+
+        @Override
+        public void beginAiAction(Task<?> task) {
+            beginSnippetAiAction(task, null);
+            updateAiActionAvailability();
+        }
+
+        @Override
+        public void beginAiAction(Task<?> task, Runnable retry) {
+            beginSnippetAiAction(task, retry != null ? retryOf(retry) : null);
+            updateAiActionAvailability();
+        }
+
+        @Override
+        public void finishAiAction(Task<?> task) {
+            finishSnippetAiAction(task);
+        }
+
+        @Override
+        public void handleAiActionFailure(Task<?> task, String genericStatus) {
+            handleSnippetAiActionFailure(task, genericStatus);
+        }
+
+        @Override
+        public void showAiHint(String message) {
+            showSnippetAiHint(message);
+            updateAiActionAvailability();
+        }
+
+        @Override
+        public void followTaskProgress(Task<?> task) {
+            SnippetEditDialog.this.followTaskProgress(task);
+        }
+
+        @Override
+        public void setStatus(String message) {
+            SnippetEditDialog.this.setStatus(message);
+        }
+
+        @Override
+        public boolean applyCodeTextLanguage(boolean mayAsk) {
+            return SnippetEditDialog.this.applyCodeTextLanguage(mayAsk);
+        }
+
+        @Override
+        public String hardeningInstructions(EnumSet<HardeningOption> options) {
+            return withHardeningRules(null, options);
+        }
+
+        @Override
+        public String inputHardeningInstructions(WorkflowScriptSupport.InputHardeningConfig config) {
+            return withInputHardeningRules(null, config);
+        }
+
+        @Override
+        public String injectSelectedHeader(SnippetAnalysisPanel.ApplySelection selection, String content) {
+            return SnippetEditDialog.this.injectSelectedHeader(selection, content);
+        }
+
+        @Override
+        public boolean contentUnchangedSince(String original) {
+            return SnippetEditDialog.this.contentUnchangedSince(original);
+        }
+
+        @Override
+        public void applyFullReplacement(String original, String replacement, String actionLabel) {
+            applyAiContentChange(0, original != null ? original.length() : 0, replacement, actionLabel);
+        }
+
+        @Override
+        public CompletableFuture<SnippetDiagramView.DiagramSource> generateDiagram(
+                String content, String language, String aiProfileId) {
+            return generateDiagramMermaid(content, language, resolveAnalysisLanguageCode(), aiProfileId);
+        }
+
+        @Override
+        public void showSidePanel(Region panel) {
+            showAnalysisSidePanel(panel);
+        }
+
+        @Override
+        public void hideSidePanel() {
+            hideAnalysisSidePanel();
+        }
+
+        @Override
+        public void showInEditorArea(SnippetAiDiffPane pane) {
+            SnippetEditDialog.this.showInEditorArea(pane);
+        }
+
+        @Override
+        public void restoreEditorArea(SnippetAiDiffPane pane) {
+            SnippetEditDialog.this.restoreEditorArea(pane);
+        }
+
+        @Override
+        public EditorSettingsHelper.Settings editorSettings() {
+            return editorSettings;
+        }
+
+        @Override
+        public void panelStateChanged(boolean visible, String badge, String tooltip) {
+            analysisToggleButton.setSelected(visible);
+            String label = I18n.get("snippets.ai.analysis.panel.toggle");
+            analysisToggleButton.setText(badge == null || badge.isBlank() ? label : label + " " + badge);
+            analysisToggleButton.getTooltip().setText(tooltip != null ? tooltip : "");
+        }
+
+        @Override
+        public String savedSnippetContent() {
+            Snippet persisted = persistedSnippet();
+            return persisted != null ? persisted.getContent() : null;
+        }
+
+        @Override
+        public boolean isTransientSnippet() {
+            return externalFileActionConfig != null
+                || existingSnippet != null && existingSnippet.isPolicyManaged();
+        }
+
+        @Override
+        public void navigateToCode(int startLine, int endLine) {
+            navigateToDiagramCodeReference(new SnippetDiagramDialog.CodeNavigationTarget(startLine, endLine));
+        }
+    }
+
+    /**
+     * A standalone editor's entry in {@link SnippetEditorRegistry} (window, or a main-window tab
+     * via "tool windows as tabs"). The embedded workspace editors are listed by their tab instead.
+     */
+    final class StandaloneRegistration implements SnippetEditorRegistry.OpenEditor {
+
+        SnippetEditDialog editor() {
+            return SnippetEditDialog.this;
+        }
+
+        /** Whether the editor lives in a main-window tab, whose own close guard asks for it. */
+        boolean isHostedInMainTab() {
+            return isHostedInTab();
+        }
+
+        @Override
+        public String snippetId() {
+            Snippet persisted = persistedSnippet();
+            return externalFileActionConfig == null && persisted != null ? persisted.getId() : null;
+        }
+
+        @Override
+        public void reveal() {
+            revealDialogOrHost();
+            focusEditor();
+        }
+
+        @Override
+        public boolean hasUnsavedChanges() {
+            return hasUnsavedContentChanges();
+        }
+
+        @Override
+        public Window ownerStage() {
+            if (isHostedInTab()) {
+                return getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
+            }
+            return getOwner();
+        }
+
+        @Override
+        public boolean confirmCloseFromHost() {
+            return confirmHostedClose();
+        }
+
+        @Override
+        public void closeWithoutPrompt() {
+            SnippetEditDialog.this.closeWithoutPrompt();
         }
     }
 }

@@ -5,6 +5,7 @@ import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
 import de.kortty.model.SnippetDiagram;
 import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.Unmarshaller;
 import jakarta.xml.bind.annotation.XmlAccessType;
@@ -31,6 +32,8 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -54,55 +57,145 @@ public class SnippetManager {
             "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
     );
     
+    /**
+     * Shared, thread-safe JAXBContext for the snippets graph. Building it is the expensive part of a
+     * save (annotation scan) and it used to be rebuilt on every load and save — on the FX thread.
+     */
+    private static final JAXBContext JAXB_CONTEXT;
+    static {
+        try {
+            JAXB_CONTEXT = JAXBContext.newInstance(
+                SnippetsWrapper.class, Snippet.class, SnippetCategory.class, SnippetDiagram.class);
+        } catch (JAXBException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
+
+    /**
+     * What changed in a successful {@link #save()} or {@link #load()}. {@code removedSnippetIds} are
+     * the ids removed since the previous successful save; {@code reloaded} means the whole list was
+     * replaced from disk, so listeners must not assume any object identity survived.
+     */
+    public record Change(Set<String> removedSnippetIds, boolean reloaded) {
+        public Change {
+            removedSnippetIds = removedSnippetIds == null ? Set.of() : Set.copyOf(removedSnippetIds);
+        }
+    }
+
     private final Path configDir;
     private final List<Snippet> snippets = new ArrayList<>();
     private final List<SnippetCategory> categories = new ArrayList<>();
     private final List<String> operatingSystems = new ArrayList<>();
-    
+    private final List<Consumer<Change>> changeListeners = new CopyOnWriteArrayList<>();
+    /** Ids removed via {@link #removeSnippet} that no successful save has reported yet. */
+    private final Set<String> pendingRemovedIds = new LinkedHashSet<>();
+    /** Where an unreadable snippets file was moved aside during the last {@link #load()}, if any. */
+    private Path loadFailureBackup;
+    /** Set when the file was unreadable AND could not be moved aside: saving would destroy it. */
+    private boolean saveBlockedByUnreadableFile;
+
     public SnippetManager(Path configDir) {
         this.configDir = configDir;
     }
-    
+
+    // ---- Change notifications ----
+
+    /**
+     * Registers a listener that runs on the thread that called {@link #save()} or {@link #load()},
+     * after the operation succeeded. A failed save fires nothing. Listeners are isolated from each
+     * other: one throwing is logged and the rest still run.
+     */
+    public void addChangeListener(Consumer<Change> listener) {
+        Objects.requireNonNull(listener, "listener");
+        changeListeners.add(listener);
+    }
+
+    public void removeChangeListener(Consumer<Change> listener) {
+        changeListeners.remove(listener);
+    }
+
+    private void fireChange(Change change) {
+        for (Consumer<Change> listener : changeListeners) {
+            try {
+                listener.accept(change);
+            } catch (RuntimeException e) {
+                logger.error("Snippet change listener {} failed", listener, e);
+            }
+        }
+    }
+
+    /**
+     * Path of the {@code snippets.xml.corrupt-<timestamp>} copy the last {@link #load()} moved an
+     * unreadable snippets file to, so the UI can tell the user where their data went.
+     */
+    public Optional<Path> getLoadFailureBackup() {
+        return Optional.ofNullable(loadFailureBackup);
+    }
+
     // ---- Load / Save (XML) ----
-    
+
+    /**
+     * Loads the snippets file. An unreadable file is moved aside (see {@link #getLoadFailureBackup()})
+     * and the manager continues with defaults, so the app keeps working and the next save creates a
+     * fresh file instead of overwriting the user's data. Only when the file can neither be parsed nor
+     * moved aside does this throw — and then {@link #save()} refuses to run.
+     */
     public void load() throws Exception {
         Path file = configDir.resolve(SNIPPETS_FILE);
+        loadFailureBackup = null;
+        saveBlockedByUnreadableFile = false;
+        pendingRemovedIds.clear();
         if (!Files.exists(file)) {
             logger.info("No snippets file found, starting with empty list");
             ensureDefaults();
+            fireChange(new Change(Set.of(), true));
             return;
         }
 
+        SnippetsWrapper wrapper;
         try {
-            JAXBContext context = JAXBContext.newInstance(
-                SnippetsWrapper.class, Snippet.class, SnippetCategory.class, SnippetDiagram.class
-            );
-            Unmarshaller unmarshaller = context.createUnmarshaller();
-            SnippetsWrapper wrapper = (SnippetsWrapper) unmarshaller.unmarshal(file.toFile());
-
+            Unmarshaller unmarshaller = JAXB_CONTEXT.createUnmarshaller();
+            wrapper = (SnippetsWrapper) unmarshaller.unmarshal(file.toFile());
+        } catch (Exception parseFailure) {
+            try {
+                loadFailureBackup = CorruptFileQuarantine.moveAside(file);
+            } catch (IOException quarantineFailure) {
+                saveBlockedByUnreadableFile = true;
+                logger.error("Failed to load snippets from {} and could not move the file aside ({}); "
+                    + "saving is disabled for this session so the file is not overwritten",
+                    file, quarantineFailure.toString(), parseFailure);
+                throw parseFailure;
+            }
+            logger.error("Failed to load snippets from {}; the file was moved to {} and korTTY continues "
+                + "with an empty snippet list", file, loadFailureBackup, parseFailure);
             snippets.clear();
-            if (wrapper.getSnippets() != null) {
-                snippets.addAll(wrapper.getSnippets());
-            }
-            int discardedLegacyDiagrams = discardUnsupportedDiagramSources();
-
             categories.clear();
-            if (wrapper.getCategories() != null) {
-                categories.addAll(wrapper.getCategories());
-            }
-
             operatingSystems.clear();
-            if (wrapper.getOperatingSystems() != null) {
-                operatingSystems.addAll(wrapper.getOperatingSystems());
-            }
             ensureDefaults();
-
-            logger.info("Loaded {} snippets and {} categories from {} (discarded {} legacy diagrams)",
-                snippets.size(), categories.size(), file, discardedLegacyDiagrams);
-        } catch (Exception e) {
-            logger.error("Failed to load snippets from " + file, e);
-            throw e;
+            fireChange(new Change(Set.of(), true));
+            return;
         }
+
+        snippets.clear();
+        if (wrapper.getSnippets() != null) {
+            snippets.addAll(wrapper.getSnippets());
+        }
+        int discardedLegacyDiagrams = discardUnsupportedDiagramSources();
+
+        categories.clear();
+        if (wrapper.getCategories() != null) {
+            categories.addAll(wrapper.getCategories());
+        }
+
+        operatingSystems.clear();
+        if (wrapper.getOperatingSystems() != null) {
+            operatingSystems.addAll(wrapper.getOperatingSystems());
+        }
+        ensureDefaults();
+
+        logger.info("Loaded {} snippets and {} categories from {} (discarded {} legacy diagrams)",
+            snippets.size(), categories.size(), file, discardedLegacyDiagrams);
+        fireChange(new Change(Set.of(), true));
     }
 
     /** Seeds the fixed Script-Header category and the default operating-system list when missing. */
@@ -137,10 +230,18 @@ public class SnippetManager {
         }
     }
     
+    /**
+     * Writes the snippets file atomically (sibling temp file + move), then notifies the change
+     * listeners on the calling thread. Nothing is fired when the write fails.
+     */
     public void save() throws Exception {
         Path file = configDir.resolve(SNIPPETS_FILE);
-        
+
         try {
+            if (saveBlockedByUnreadableFile) {
+                throw new IllegalStateException("Refusing to overwrite the unreadable snippets file " + file
+                    + " — it could not be moved aside during load");
+            }
             discardUnsupportedDiagramSources();
             SnippetsWrapper wrapper = new SnippetsWrapper();
             // Policy-provided script headers never reach the user XML — they are rebuilt from the
@@ -150,21 +251,23 @@ public class SnippetManager {
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new)));
             wrapper.setCategories(new ArrayList<>(categories));
             wrapper.setOperatingSystems(new ArrayList<>(operatingSystems));
-            
-            JAXBContext context = JAXBContext.newInstance(
-                SnippetsWrapper.class, Snippet.class, SnippetCategory.class, SnippetDiagram.class
-            );
-            Marshaller marshaller = context.createMarshaller();
+
+            Marshaller marshaller = JAXB_CONTEXT.createMarshaller();
             marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
-            
+            StringWriter xml = new StringWriter(64 * 1024);
+            marshaller.marshal(wrapper, xml);
+
             Files.createDirectories(configDir);
-            marshaller.marshal(wrapper, file.toFile());
-            
+            AtomicFileWriter.writeStringAtomically(file, xml.toString());
+
             logger.info("Saved {} snippets and {} categories to {}", snippets.size(), categories.size(), file);
         } catch (Exception e) {
             logger.error("Failed to save snippets to " + file, e);
             throw e;
         }
+        Set<String> removed = new LinkedHashSet<>(pendingRemovedIds);
+        pendingRemovedIds.clear();
+        fireChange(new Change(removed, false));
     }
 
     /**
@@ -204,7 +307,11 @@ public class SnippetManager {
 
     public void removeSnippet(Snippet snippet) {
         requireNotPolicyManaged(snippet);
-        snippets.remove(snippet);
+        if (snippets.remove(snippet) && snippet.getId() != null) {
+            // Reported with the next successful save, so listeners only learn about removals that
+            // actually reached the disk.
+            pendingRemovedIds.add(snippet.getId());
+        }
         logger.info("Removed snippet: {}", snippet.getName());
     }
 
@@ -218,6 +325,24 @@ public class SnippetManager {
             snippets.set(index, snippet);
             logger.info("Updated snippet: {}", snippet.getName());
         }
+    }
+
+    /**
+     * Adds {@code snippet}, or updates it when a snippet with the same id is already stored. Result
+     * handlers use this so saving the same editor twice (a live save, then the final save on close)
+     * does not trip the duplicate-name check against the snippet's own first save.
+     *
+     * @return {@code true} when the snippet was added, {@code false} when it was updated
+     */
+    public boolean addOrUpdateSnippet(Snippet snippet) {
+        Objects.requireNonNull(snippet, "snippet");
+        if (findById(snippet.getId()).isEmpty()) {
+            addSnippet(snippet);
+            return true;
+        }
+        // updateSnippet matches by id and replaces the stored instance with this one.
+        updateSnippet(snippet);
+        return false;
     }
 
     private static void requireNotPolicyManaged(Snippet snippet) {
@@ -279,6 +404,21 @@ public class SnippetManager {
     public void addCategory(SnippetCategory category) {
         categories.add(category);
         logger.info("Added snippet category: {}", category.getName());
+    }
+
+    /**
+     * Registers {@code name} as a category unless one already exists under that name (compared
+     * case-insensitively like {@link #findCategoryByName}). Blank names are ignored.
+     *
+     * @return {@code true} when a category was added
+     */
+    public boolean ensureCategory(String name) {
+        String trimmed = name != null ? name.trim() : "";
+        if (trimmed.isEmpty() || findCategoryByName(trimmed).isPresent()) {
+            return false;
+        }
+        addCategory(new SnippetCategory(trimmed));
+        return true;
     }
     
     public void removeCategory(SnippetCategory category) {

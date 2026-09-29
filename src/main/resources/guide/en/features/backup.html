@@ -763,7 +763,7 @@
 <h2 id="features">Features<a class="headerlink" href="#features" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Encrypted backups</strong> — All backups are encrypted using either password-protected ZIP or GPG encryption</li>
-<li><strong>Configuration backup</strong> — Includes connections, credentials, SSH/GPG keys, trusted interactive SSH host keys, global settings, JobScheduler configuration, snippets, AI chat history, local-model registrations, and knowledge-store source metadata</li>
+<li><strong>Configuration backup</strong> — Includes connections, credentials, SSH/GPG keys, trusted interactive SSH host keys, global settings, JobScheduler configuration, snippets and their stored code analyses, AI chat history, local-model registrations, and knowledge-store source metadata</li>
 <li><strong>Regenerable local AI data excluded</strong> — GGUF weights, native llama.cpp runtimes, signed-catalog cache, temporary sidecar files, and HNSW snapshots are intentionally not copied into the archive</li>
 <li><strong>Projects directory</strong> — All saved project workspaces are included in the backup</li>
 <li><strong>Automatic rotation</strong> — Old backups are automatically moved to an <code>old-backups</code> subdirectory with timestamps</li>
@@ -822,6 +822,10 @@
 <tr>
 <td>Snippet variables</td>
 <td>Custom variables for snippet substitution</td>
+</tr>
+<tr>
+<td>Snippet analyses</td>
+<td>The stored <a href="snippets.html#full-code-analysis">Full code analyses</a> of every snippet, with their apply runs and diagrams</td>
 </tr>
 <tr>
 <td>AI chats</td>
@@ -892,6 +896,7 @@
 <li><code>job-scheduler.xml</code> — JobScheduler jobs, host-key pins, encrypted sudo passwords</li>
 <li><code>snippets.xml</code> — Code snippets and templates</li>
 <li><code>snippet-variables.xml</code> — Custom snippet variables</li>
+<li><code>snippet-analyses/</code> — Stored Full code analyses, one file per snippet. An import merges them: analyses that exist only locally are kept, missing ones are added, and with <strong>Overwrite</strong> a local file is replaced only when the backup's copy is newer. Unsaved snippet drafts (<code>snippet-drafts/</code>) are not included</li>
 <li><code>ai-chats.xml</code> — Saved AI conversations</li>
 <li><code>master.key</code> — Hash of your master password (for verification on import)</li>
 <li><code>llm/models.xml</code> — Local GGUF registrations and runtime settings (model weights are not included)</li>

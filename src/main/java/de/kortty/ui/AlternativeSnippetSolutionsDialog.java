@@ -27,6 +27,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
@@ -61,6 +62,14 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
     private final VBox root;
     private final List<SolutionCard> solutionCards = new ArrayList<>();
     private Task<List<SnippetAiResponseSupport.AlternativeSolution>> loadTask;
+    private final Button stopButton = AiStopRetrySupport.stopButton(this::stopLoading);
+    private final Button retryButton = AiStopRetrySupport.retryButton(this::retryLoading);
+    private final Label elapsedLabel = new Label();
+    private final javafx.animation.Timeline elapsedTicker = AiStopRetrySupport.ticker(this::refreshElapsed);
+    private long loadStartedNanos;
+    // The inputs of the last request, so Retry repeats exactly that request.
+    private String lastInstructions;
+    private String lastProfileId;
     private SolutionCard zoomedCard;
     private int previewFontSize;
 
@@ -92,6 +101,10 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
 
         setTitle(I18n.get("snippets.ai.alternatives.title"));
         setResizable(true);
+        // Explicitly non-modal: a Dialog with an owner defaults to APPLICATION_MODAL, which froze every
+        // terminal tab (and every other editor) while the result was read. The editor opens it with
+        // show() and takes the answer through a callback.
+        initModality(Modality.NONE);
         if (owner != null) {
             initOwner(owner);
         }
@@ -117,7 +130,13 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
         statusLabel.setWrapText(true);
         statusLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
 
-        HBox topBar = new HBox(10, instructionsArea, reloadButton, progressIndicator);
+        stopButton.setId("snippet-alternatives-stop");
+        retryButton.setId("snippet-alternatives-retry");
+        elapsedLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
+        showNode(stopButton, false);
+        showNode(retryButton, false);
+        showNode(elapsedLabel, false);
+        HBox topBar = new HBox(10, instructionsArea, reloadButton, progressIndicator, elapsedLabel, stopButton);
         topBar.setAlignment(Pos.TOP_LEFT);
         HBox.setHgrow(instructionsArea, Priority.ALWAYS);
 
@@ -149,7 +168,16 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
         solutionsScrollPane.setFitToHeight(true);
         VBox.setVgrow(solutionsScrollPane, Priority.ALWAYS);
 
-        root = new VBox(10, topBar, controlsBar, statusLabel, solutionsScrollPane);
+        HBox statusRow = new HBox(8, statusLabel, retryButton);
+        statusRow.setAlignment(Pos.CENTER_LEFT);
+        root = new VBox(10, topBar, controlsBar, statusRow, solutionsScrollPane);
+        // Esc stops a running request instead of closing the window.
+        root.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.ESCAPE && isLoading()) {
+                event.consume();
+                stopLoading();
+            }
+        });
         root.setPadding(new Insets(14));
         VBox.setVgrow(solutionsScrollPane, Priority.ALWAYS);
 
@@ -184,12 +212,18 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
         if (loader == null) {
             return;
         }
+        load(instructionsArea.getText(), SnippetAiDialogSupport.selectedProfileId(profileCombo));
+    }
+
+    private void load(String instructions, String profileId) {
         cancelLoadTask();
-        String profileId = SnippetAiDialogSupport.selectedProfileId(profileCombo);
+        lastInstructions = instructions;
+        lastProfileId = profileId;
+        showNode(retryButton, false);
         loadTask = new Task<>() {
             @Override
             protected List<SnippetAiResponseSupport.AlternativeSolution> call() throws Exception {
-                return loader.load(instructionsArea.getText(), profileId);
+                return loader.load(instructions, profileId);
             }
         };
         loadTask.setOnRunning(event -> {
@@ -220,10 +254,9 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
         loadTask.setOnFailed(event -> {
             setBusy(false);
             statusLabel.setText(I18n.get("snippets.ai.alternatives.failed"));
+            showNode(retryButton, true);
         });
-        Thread thread = new Thread(loadTask, "snippet-alternative-solutions");
-        thread.setDaemon(true);
-        thread.start();
+        AiTaskRunner.start(loadTask, "snippet-alternative-solutions");
     }
 
     private SolutionCard createSolutionCard(SnippetAiResponseSupport.AlternativeSolution solution) {
@@ -355,7 +388,47 @@ public class AlternativeSnippetSolutionsDialog extends ThemeAwareDialog<SnippetA
         DialogGeometrySupport.persist(this, (settings, geometry) -> settings.setAlternativeSnippetSolutionsDialogGeometry(geometry));
     }
 
+    private boolean isLoading() {
+        return loadTask != null && !loadTask.isDone();
+    }
+
+    /** Stop: the request is cancelled (its late answer never shows) and Retry is offered. */
+    private void stopLoading() {
+        if (!isLoading()) {
+            return;
+        }
+        cancelLoadTask();
+        statusLabel.setText(I18n.get("snippets.ai.alternatives.stopped"));
+        showNode(retryButton, true);
+    }
+
+    /** Retry: the last request again, with its instructions and profile. */
+    private void retryLoading() {
+        if (loader == null || isLoading()) {
+            return;
+        }
+        load(lastInstructions, lastProfileId);
+    }
+
+    private void refreshElapsed() {
+        elapsedLabel.setText(AiStopRetrySupport.formatElapsed((System.nanoTime() - loadStartedNanos) / 1_000_000L));
+    }
+
+    private static void showNode(javafx.scene.Node node, boolean shown) {
+        node.setVisible(shown);
+        node.setManaged(shown);
+    }
+
     private void setBusy(boolean busy) {
+        if (busy) {
+            loadStartedNanos = System.nanoTime();
+            refreshElapsed();
+            elapsedTicker.play();
+        } else {
+            elapsedTicker.stop();
+        }
+        showNode(stopButton, busy);
+        showNode(elapsedLabel, busy);
         reloadButton.setDisable(busy);
         if (profileCombo != null) {
             profileCombo.setDisable(busy);

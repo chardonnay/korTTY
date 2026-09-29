@@ -361,6 +361,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final ColorPicker snippetCursorColorPicker;
     private final TextField snippetCompletionShortcutField;
     private final CheckBox snippetPrewarmCheck;
+    private final Spinner<Integer> snippetAnalysisHistorySpinner;
     private String selectedGlobalThemeId;
     private ComboBox<Theme> colorProfileCombo;
     private final BooleanProperty applyThemeFontsProperty;
@@ -2893,6 +2894,32 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         snippetPrewarmHint.setMaxWidth(400);
         snippetEditorGrid.add(snippetPrewarmHint, 0, snippetRow++, 2, 1);
 
+        // Full-code analyses kept per snippet. Lowering the limit never deletes anything here: the
+        // store trims only when the next analysis of a snippet arrives, and never pinned or pending work.
+        int savedAnalysisHistory = globalSettings != null ? globalSettings.getSnippetAnalysisHistoryMaxSize() : 5;
+        snippetAnalysisHistorySpinner = new Spinner<>(1, 20, savedAnalysisHistory);
+        snippetAnalysisHistorySpinner.setId("settings-snippet-analysis-history");
+        snippetAnalysisHistorySpinner.setEditable(true);
+        snippetAnalysisHistorySpinner.setPrefWidth(90);
+        snippetAnalysisHistorySpinner.setTooltip(new Tooltip(I18n.get("settings.snippetEditor.analysisHistory.tooltip")));
+        snippetEditorGrid.add(new Label(I18n.get("settings.snippetEditor.analysisHistory")), 0, snippetRow);
+        snippetEditorGrid.add(snippetAnalysisHistorySpinner, 1, snippetRow++);
+        Label snippetAnalysisHistoryHint = new Label(I18n.get("settings.snippetEditor.analysisHistory.hint"));
+        snippetAnalysisHistoryHint.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        snippetAnalysisHistoryHint.setWrapText(true);
+        snippetAnalysisHistoryHint.setMaxWidth(400);
+        snippetEditorGrid.add(snippetAnalysisHistoryHint, 0, snippetRow++, 2, 1);
+        Label snippetAnalysisHistoryLowered = new Label();
+        snippetAnalysisHistoryLowered.setId("settings-snippet-analysis-history-lowered");
+        snippetAnalysisHistoryLowered.setWrapText(true);
+        snippetAnalysisHistoryLowered.setMaxWidth(400);
+        snippetAnalysisHistoryLowered.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: #d97706;");
+        snippetAnalysisHistoryLowered.setVisible(false);
+        snippetAnalysisHistoryLowered.setManaged(false);
+        snippetEditorGrid.add(snippetAnalysisHistoryLowered, 0, snippetRow++, 2, 1);
+        snippetAnalysisHistorySpinner.valueProperty().addListener((obs, was, isNow) ->
+            updateAnalysisHistoryLoweredHint(snippetAnalysisHistoryLowered, savedAnalysisHistory, isNow));
+
         LazyTabContent.defer(snippetEditorTab, () -> snippetEditorGrid);
 
         // Themes tab
@@ -3298,6 +3325,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
             globalSettings.setSnippetEditorPrewarmEnabled(snippetPrewarmCheck.isSelected());
             MonacoEditorWarmup.applyEnabled(snippetPrewarmCheck.isSelected());
+            Integer analysisHistory = snippetAnalysisHistorySpinner.getValue();
+            globalSettings.setSnippetAnalysisHistoryMaxSize(analysisHistory);
         }
         trackChangedSettings(trackedSettingsBefore);
         return true;
@@ -3377,6 +3406,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("ai", "agent_execution_enabled", gs::isTerminalAgentExecutionEnabled, true));
             tracked.add(new TrackedSetting("ai", "confirm_before_send", gs::isAiConfirmBeforeSend, true));
             tracked.add(new TrackedSetting("sftp", "auto_close_minutes", gs::getSftpAutoCloseMinutes, true));
+            tracked.add(new TrackedSetting("snippet_editor", "analysis_history_max",
+                gs::getSnippetAnalysisHistoryMaxSize, true));
         }
         return tracked;
     }
@@ -3540,6 +3571,48 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             alert.initOwner(getDialogPane().getScene().getWindow());
         }
         alert.showAndWait();
+    }
+
+    /**
+     * Below the saved limit: says that nothing is deleted now, and (read on the analysis store's
+     * thread) how many stored analyses the next analysis of each snippet would remove.
+     */
+    private void updateAnalysisHistoryLoweredHint(Label hint, int savedLimit, Integer value) {
+        int limit = value != null ? value : savedLimit;
+        if (limit >= savedLimit) {
+            hint.setVisible(false);
+            hint.setManaged(false);
+            return;
+        }
+        String base = I18n.get("settings.snippetEditor.analysisHistory.lowered", limit);
+        hint.setText(base);
+        hint.setVisible(true);
+        hint.setManaged(true);
+        de.kortty.core.SnippetAnalysisStore.shared().allOverviews().whenComplete((overviews, error) -> {
+            if (error != null || overviews == null) {
+                return;
+            }
+            int analyses = 0;
+            int snippets = 0;
+            for (de.kortty.core.SnippetAnalysisOverview overview : overviews.values()) {
+                int trimmed = overview.trimmableAt(limit);
+                if (trimmed > 0) {
+                    analyses += trimmed;
+                    snippets++;
+                }
+            }
+            int count = analyses;
+            int affected = snippets;
+            javafx.application.Platform.runLater(() -> {
+                Integer current = snippetAnalysisHistorySpinner.getValue();
+                if (current == null || current != limit || !hint.isVisible()) {
+                    return; // the value moved on meanwhile
+                }
+                hint.setText(count > 0
+                    ? base + " " + I18n.get("settings.snippetEditor.analysisHistory.loweredCount", count, affected)
+                    : base);
+            });
+        });
     }
 
     private void updateUpdateIntervalLabel() {

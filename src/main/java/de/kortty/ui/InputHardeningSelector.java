@@ -17,7 +17,9 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
 import java.util.EnumMap;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -38,6 +40,7 @@ public final class InputHardeningSelector extends VBox {
     private final Map<InputHardeningOption, CheckBox> checks = new EnumMap<>(InputHardeningOption.class);
     private final Spinner<Integer> maxFileSizeSpinner;
     private final Button saveButton;
+    private final List<Runnable> selectionListeners = new ArrayList<>();
     private Runnable onSelectionChanged;
     private boolean supported = true;
 
@@ -158,6 +161,45 @@ public final class InputHardeningSelector extends VBox {
     }
 
     /**
+     * Adds a further listener for selection changes, next to the one set via
+     * {@link #setOnSelectionChanged(Runnable)} (typically the host's "(N)" counter) — an embedded
+     * host also persists the choice. Runs on the JavaFX thread.
+     */
+    public void addSelectionListener(Runnable listener) {
+        if (listener != null) {
+            selectionListeners.add(listener);
+        }
+    }
+
+    /**
+     * Shows a restored per-run configuration: a disabled config only clears the master toggle and
+     * keeps the sub-options as they are; an enabled one ticks the toggle, exactly its sub-options
+     * and its size limit (rounded to whole MB, clamped to the spinner's range). {@code null} leaves
+     * the current state alone.
+     */
+    public void applyConfig(InputHardeningConfig config) {
+        if (config == null) {
+            return;
+        }
+        if (!config.isEnabled()) {
+            enableCheck.setSelected(false);
+            return;
+        }
+        EnumSet<InputHardeningOption> options = config.options();
+        checks.forEach((option, check) -> check.setSelected(options.contains(option)));
+        int mb = maxFileSizeMbFor(config.maxFileSizeBytes());
+        maxFileSizeSpinner.getValueFactory().setValue(mb);
+        maxFileSizeSpinner.getEditor().setText(String.valueOf(mb));
+        enableCheck.setSelected(true);
+    }
+
+    /** Bytes → the spinner's whole MB, rounded and clamped to 0..1024. */
+    static int maxFileSizeMbFor(long bytes) {
+        long mb = Math.round(Math.max(0L, bytes) / (double) BYTES_PER_MB);
+        return (int) Math.max(0L, Math.min(1024L, mb));
+    }
+
+    /**
      * Marks whether the current target language can receive an imperative input guard. Unsupported
      * targets are visibly disabled and always yield a disabled effective config, even if a saved
      * default had the master toggle enabled.
@@ -210,6 +252,9 @@ public final class InputHardeningSelector extends VBox {
     private void fireSelectionChanged() {
         if (onSelectionChanged != null) {
             onSelectionChanged.run();
+        }
+        for (Runnable listener : List.copyOf(selectionListeners)) {
+            listener.run();
         }
     }
 

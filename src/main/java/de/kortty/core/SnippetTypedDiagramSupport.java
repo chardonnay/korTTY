@@ -36,8 +36,9 @@ public final class SnippetTypedDiagramSupport {
     private static final Pattern SEQUENCE_HEADER = Pattern.compile("(?i)^sequenceDiagram$");
     private static final Pattern SEQUENCE_PARTICIPANT = Pattern.compile(
         "^(?:participant|actor)\\s+(" + ID + ")(?:\\s+as\\s+" + LABEL_TEXT + ")?$");
+    /** Every arrow Mermaid draws between participants: {@code ->>}, {@code ->}, {@code -x}, {@code -)}, dotted or not. */
     private static final Pattern SEQUENCE_MESSAGE = Pattern.compile(
-        "^(" + ID + ")\\s*--?>>\\s*(" + ID + ")\\s*:\\s*" + LABEL_TEXT + "$");
+        "^(" + ID + ")\\s*--?(?:>>|>|x|\\))\\s*(" + ID + ")\\s*:\\s*" + LABEL_TEXT + "$");
     private static final Pattern SEQUENCE_BLOCK = Pattern.compile(
         "^(?:alt|else|opt|loop|par|and)(?:\\s+" + LABEL_TEXT + ")?$");
     private static final Pattern SEQUENCE_BLOCK_END = Pattern.compile("^end$");
@@ -407,7 +408,10 @@ public final class SnippetTypedDiagramSupport {
         }
         String[] rest = new String[lines.length - headerIndex - 1];
         for (int index = headerIndex + 1; index < lines.length; index++) {
-            rest[index - headerIndex - 1] = lines[index].trim();
+            String line = lines[index].trim();
+            // A plain %% comment renders nothing; the %%{…}%% directive form never gets this far,
+            // the shared security screen refuses it first.
+            rest[index - headerIndex - 1] = line.startsWith("%%") ? "" : line;
         }
         return rest;
     }
@@ -423,16 +427,16 @@ public final class SnippetTypedDiagramSupport {
             }
             Matcher participant = SEQUENCE_PARTICIPANT.matcher(line);
             if (participant.matches()) {
-                if (!participants.add(participant.group(1))) {
-                    return Parsed.failure("Sequence participant id is duplicated: " + participant.group(1));
-                }
+                // A second declaration of the same participant changes nothing Mermaid draws.
+                participants.add(participant.group(1));
                 continue;
             }
             Matcher message = SEQUENCE_MESSAGE.matcher(line);
             if (message.matches()) {
-                if (!participants.contains(message.group(1)) || !participants.contains(message.group(2))) {
-                    return Parsed.failure("Sequence messages must use declared participant ids.");
-                }
+                // Mermaid creates a participant on its first message, and so does this grammar:
+                // an undeclared id used to cost the whole diagram. It still counts against the cap.
+                participants.add(message.group(1));
+                participants.add(message.group(2));
                 messages++;
                 continue;
             }
@@ -452,9 +456,9 @@ public final class SnippetTypedDiagramSupport {
             }
             Matcher note = SEQUENCE_NOTE.matcher(line);
             if (note.matches()) {
-                if (!participants.contains(note.group(1))
-                    || (note.group(2) != null && !participants.contains(note.group(2)))) {
-                    return Parsed.failure("Sequence notes must reference declared participant ids.");
+                participants.add(note.group(1));
+                if (note.group(2) != null) {
+                    participants.add(note.group(2));
                 }
                 continue;
             }
@@ -472,7 +476,6 @@ public final class SnippetTypedDiagramSupport {
     private static Parsed parseState(String[] lines) {
         Set<String> states = new LinkedHashSet<>();
         int transitions = 0;
-        boolean initialSeen = false;
         for (int index = 0; index < lines.length; index++) {
             String line = lines[index];
             if (line.isBlank()) {
@@ -485,9 +488,7 @@ public final class SnippetTypedDiagramSupport {
             }
             Matcher transition = STATE_TRANSITION.matcher(line);
             if (transition.matches()) {
-                if ("[*]".equals(transition.group(1))) {
-                    initialSeen = true;
-                } else {
+                if (!"[*]".equals(transition.group(1))) {
                     states.add(transition.group(1));
                 }
                 if (!"[*]".equals(transition.group(2))) {
@@ -503,8 +504,10 @@ public final class SnippetTypedDiagramSupport {
             }
             return unsupportedLine("state", index);
         }
-        if (states.isEmpty() || transitions == 0 || !initialSeen) {
-            return Parsed.failure("State diagrams need an initial [*] transition and at least one state.");
+        // An initial [*] transition is what the prompt asks for, but Mermaid draws a state diagram
+        // without one just as well; only a diagram without any state or transition is refused.
+        if (states.isEmpty() || transitions == 0) {
+            return Parsed.failure("State diagrams need at least one state and one transition.");
         }
         return Parsed.success(states, transitions);
     }

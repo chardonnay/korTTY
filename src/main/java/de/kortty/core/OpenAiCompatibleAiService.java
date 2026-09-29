@@ -781,9 +781,16 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
 
         // The model generates while the body streams, so the power-management scope must cover
         // the body read as well — the send only delivers the response headers here.
+        AiCancellation.throwIfCancelled();
         return AiPowerManagementScope.call(() -> {
             HttpResponse<InputStream> response = client.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
-            ResponseBody body = readResponseBodyDetailed(response.body(), timeout);
+            ResponseBody body;
+            // A stop closes the stream from the stopping thread, so a read blocked on a silent
+            // connection ends at once and the server sees the disconnect (llama-server and the
+            // MLX sidecar stop generating when the client goes away).
+            try (AiCancellation.Registration ignored = AiCancellation.onCancel(() -> closeQuietly(response.body()))) {
+                body = readResponseBodyDetailed(response.body(), timeout);
+            }
             String responseBody = body.text();
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw apiError(response.statusCode(), responseBody);
@@ -821,9 +828,13 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         HttpClient client,
         boolean returnTruncatedResult) throws Exception {
 
+        AiCancellation.throwIfCancelled();
         HttpResponse<InputStream> response = AiPowerManagementScope.call(
             () -> client.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream()));
-        String responseBody = readResponseBody(response.body());
+        String responseBody;
+        try (AiCancellation.Registration ignored = AiCancellation.onCancel(() -> closeQuietly(response.body()))) {
+            responseBody = readResponseBody(response.body());
+        }
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw apiError(response.statusCode(), responseBody);
         }
@@ -1013,6 +1024,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         List<String> reasoningEntries = new ArrayList<>();
         List<AiWebToolCall> webToolCalls = new ArrayList<>();
         for (int round = 0; round <= MAX_WEB_TOOL_ROUNDS; round++) {
+            AiCancellation.throwIfCancelled();
             String body = buildMessagesRequestBody(messages, 0.2, jsonResponseFormat, true, effectiveModel);
             HttpRequest request = buildJsonPostRequest(body, timeout);
             HttpResponse<InputStream> response = AiPowerManagementScope.call(
@@ -1097,6 +1109,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         List<AiWebToolCall> webToolCalls,
         String effectiveModel) throws Exception {
 
+        AiCancellation.throwIfCancelled();
         String body = buildMessagesRequestBody(messages, 0.2, jsonResponseFormat, false, effectiveModel);
         HttpRequest request = buildJsonPostRequest(body, timeout);
         HttpResponse<InputStream> response = AiPowerManagementScope.call(
@@ -2227,7 +2240,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             while (true) {
                 // Outside the inner try on purpose: the partial-body salvage below catches
                 // IOException, and a cancel must not come back as a "usable" half answer.
-                if (Thread.currentThread().isInterrupted()) {
+                if (Thread.currentThread().isInterrupted() || AiCancellation.isCancelled()) {
                     throw new InterruptedIOException("AI request was cancelled while streaming the response.");
                 }
                 if (timeout != null && System.nanoTime() - deadlineNanos >= 0) {
@@ -2245,7 +2258,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                     // A cancel that lands while blocked inside read() surfaces here: the JDK's
                     // response stream re-sets the interrupt flag and throws an IOException
                     // wrapping the InterruptedException. Same rule as the check above.
-                    if (Thread.currentThread().isInterrupted() || causedByInterrupt(ex)) {
+                    if (Thread.currentThread().isInterrupted() || causedByInterrupt(ex) || AiCancellation.isCancelled()) {
                         InterruptedIOException cancelled = new InterruptedIOException(
                             "AI request cancelled while streaming the response.");
                         cancelled.initCause(ex);
@@ -2259,6 +2272,17 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                 }
             }
             return new ResponseBody(output.toString(StandardCharsets.UTF_8), false);
+        }
+    }
+
+    private static void closeQuietly(InputStream stream) {
+        if (stream == null) {
+            return;
+        }
+        try {
+            stream.close();
+        } catch (IOException | RuntimeException ignored) {
+            // The stream is being abandoned because the run was stopped.
         }
     }
 

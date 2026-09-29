@@ -314,6 +314,11 @@ public class MainWindow {
     private static volatile boolean applicationQuitRequested = false;
     private static volatile boolean schedulerDrainApproved = false;
     private static volatile boolean schedulerDrainInProgress = false;
+    /**
+     * Set while {@link #requestApplicationQuit()} asks every window: each window then guards only
+     * the snippet editors it owns, and the quit path asks the unowned ones once, after all windows.
+     */
+    private static boolean applicationQuitConfirmationInProgress = false;
 
     /** DataFormat for drag-and-drop of tabs between KorTTY windows (value: transfer ID). */
     private static final DataFormat KORTTY_TAB_TRANSFER_FORMAT = new DataFormat("application/x-kortty-tab-transfer");
@@ -472,6 +477,9 @@ public class MainWindow {
             if (newTab instanceof TerminalTab terminalTab) {
                 terminalTab.getTerminalView().setTerminalActive(true);
                 Platform.runLater(() -> terminalTab.getTerminalView().focusTerminal());
+                lastSelectedTerminalTab = terminalTab;
+            } else if (newTab instanceof FileEditorTab fileEditorTab) {
+                lastSelectedFileEditorTab = fileEditorTab;
             }
             updateEditMenuItemsForSelection();
             // See-through mode: only a terminal tab reveals the desktop; other/empty tabs stay opaque.
@@ -498,6 +506,13 @@ public class MainWindow {
                 }
                 if (change.wasRemoved()) {
                     for (Tab removedTab : change.getRemoved()) {
+                        // Closed or dragged into another window: no longer an insert target here.
+                        if (removedTab == lastSelectedTerminalTab) {
+                            lastSelectedTerminalTab = null;
+                        }
+                        if (removedTab == lastSelectedFileEditorTab) {
+                            lastSelectedFileEditorTab = null;
+                        }
                         if (removedTab instanceof TerminalTab terminalTab) {
                             terminalAgentService.clearCachedSudoPassword(terminalTab.getAiSessionId());
                             if (journalLivePanel != null && journalLivePanel.getBoundTab() == terminalTab) {
@@ -750,8 +765,12 @@ public class MainWindow {
             // like |, [, ], {, }, @, ~, \.
             boolean isMac = System.getProperty("os.name", "").toLowerCase().contains("mac");
             boolean zoomModifier = isMac ? event.isMetaDown() : (ctrl || alt);
+            // Terminal zoom only while a terminal tab is selected: other tabs (hosted snippet
+            // editors, file editors) get their own zoom keys, and AltGr+'+' (reported as Ctrl+Alt
+            // on Windows) must reach them as the '~' it types.
+            boolean terminalSelected = tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab;
             
-            if (zoomModifier) {
+            if (zoomModifier && terminalSelected) {
                 // Zoom in: modifier + Plus (various key codes for different keyboards)
                 if (code == KeyCode.PLUS || code == KeyCode.ADD || 
                     code == KeyCode.EQUALS || "+".equals(text) || "+".equals(character)) {
@@ -872,6 +891,9 @@ public class MainWindow {
                 if (guideTranslationIndicator != null) {
                     guideTranslationIndicator.dispose();
                 }
+                // Every prompt passed (confirmClose or the quit approval): only now close the
+                // snippet workspace window and this window's standalone editors without asking.
+                closeSnippetEditorsWithoutPrompt();
                 closeAllTabs();
                 // Deregister file browser manager listener to prevent memory leaks and stale callbacks
                 if (fileBrowserManager != null && fileBrowserPositionListener != null) {
@@ -3231,18 +3253,35 @@ public class MainWindow {
 
         List<MainWindow> windowsToClose = new ArrayList<>(openWindows);
         if (windowsToClose.isEmpty()) {
+            // macOS keep-alive without a window: standalone snippet editors (e.g. the swarm's
+            // "save as snippet" editor) may still hold unsaved work — shutdownAndExit() halts.
+            if (!HostedCloseGuards.confirmEditors(HostedCloseGuards.standaloneEditorsOutside(List.of()))) {
+                clearApplicationQuitState();
+                return;
+            }
             applicationQuitRequested = true;
             KorTTYApplication.getInstance().shutdownAndExit();
             return;
         }
 
         applicationQuitApprovedWindows.clear();
-        for (MainWindow window : windowsToClose) {
-            if (!window.confirmClose()) {
-                clearApplicationQuitState();
-                return;
+        applicationQuitConfirmationInProgress = true;
+        try {
+            for (MainWindow window : windowsToClose) {
+                if (!window.confirmClose()) {
+                    clearApplicationQuitState();
+                    return;
+                }
+                applicationQuitApprovedWindows.add(window);
             }
-            applicationQuitApprovedWindows.add(window);
+        } finally {
+            applicationQuitConfirmationInProgress = false;
+        }
+        // Last: snippet editors no window owns (asked once, after every window agreed).
+        List<Window> windowStages = windowsToClose.stream().map(window -> (Window) window.stage).toList();
+        if (!HostedCloseGuards.confirmEditors(HostedCloseGuards.standaloneEditorsOutside(windowStages))) {
+            clearApplicationQuitState();
+            return;
         }
 
         applicationQuitRequested = true;
@@ -3330,6 +3369,7 @@ public class MainWindow {
     private static void clearApplicationQuitState() {
         applicationQuitRequested = false;
         applicationQuitApprovedWindows.clear();
+        applicationQuitConfirmationInProgress = false;
         if (!schedulerDrainInProgress) {
             schedulerDrainApproved = false;
         }
@@ -3338,6 +3378,10 @@ public class MainWindow {
     private void closeCurrentTab() {
         Tab currentTab = tabPane.getSelectionModel().getSelectedItem();
         if (currentTab != null && currentTab.isClosable()) {
+            // Cmd+W bypasses the tab's close request: a hosted snippet editor/workspace asks here.
+            if (currentTab instanceof DialogHostTab hostTab && !hostTab.confirmClose()) {
+                return;
+            }
             disposeTabContent(currentTab);
             tabPane.getTabs().remove(currentTab);
         }
@@ -3377,7 +3421,7 @@ public class MainWindow {
         boolean skipConfirmation = globalSettings != null
             && globalSettings.isCloseActiveTerminalWindowsWithoutConfirmation();
         if (skipConfirmation) {
-            closeAllTabs();
+            closeAllTabsGuarded();
             return;
         }
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
@@ -3386,7 +3430,59 @@ public class MainWindow {
         alert.setHeaderText(I18n.get("dialog.closeAllTabs.header"));
         alert.setContentText(I18n.get("dialog.closeAllTabs.content"));
         if (alert.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) return;
+        closeAllTabsGuarded();
+    }
+
+    /**
+     * Closes all closable tabs once every hosted snippet editor/workspace agreed (unsaved changes:
+     * Save / Discard / Cancel). A single Cancel keeps every tab open.
+     *
+     * @return {@code true} when the tabs were closed
+     */
+    private boolean closeAllTabsGuarded() {
+        if (!confirmHostedTabsClose()) {
+            return false;
+        }
         closeAllTabs();
+        return true;
+    }
+
+    /** Asks every hosted snippet editor/workspace tab of this window; see {@link HostedCloseGuards}. */
+    private boolean confirmHostedTabsClose() {
+        return HostedCloseGuards.confirmTabs(tabPane.getTabs(), tab -> tabPane.getSelectionModel().select(tab));
+    }
+
+    /**
+     * The snippet part of closing this window, asked last so it follows every other prompt: hosted
+     * tabs, the windowed snippet workspace, then standalone editors this window owns — plus, when
+     * the application ends with this window, the editors no window owns.
+     */
+    private boolean confirmSnippetEditorsClose(boolean includeUnownedEditors) {
+        if (!confirmHostedTabsClose()) {
+            return false;
+        }
+        SnippetWorkspaceDialog workspace = snippetWorkspace;
+        if (workspace != null && workspace.needsCloseConfirmation()) {
+            bringDialogToFront(workspace);
+            if (!workspace.confirmHostedClose()) {
+                return false;
+            }
+        }
+        List<SnippetEditorRegistry.OpenEditor> editors = includeUnownedEditors
+            ? HostedCloseGuards.standaloneEditorsOutside(List.of())
+            : HostedCloseGuards.standaloneEditorsOwnedBy(stage);
+        return HostedCloseGuards.confirmEditors(editors);
+    }
+
+    /** After an approved window close: closes the snippet windows that belong to this window. */
+    private void closeSnippetEditorsWithoutPrompt() {
+        SnippetWorkspaceDialog workspace = snippetWorkspace;
+        if (workspace != null) {
+            workspace.closeWithoutPrompt();
+        }
+        for (SnippetEditorRegistry.OpenEditor editor : HostedCloseGuards.standaloneEditorsOwnedBy(stage)) {
+            editor.closeWithoutPrompt();
+        }
     }
 
     private void closeAllTabs() {
@@ -3401,14 +3497,26 @@ public class MainWindow {
         }
     }
     
+    /**
+     * Asks everything closing this window needs to ask, and closes nothing: the caller disposes the
+     * window only when this returns {@code true}, i.e. after every prompt passed. The snippet
+     * editors are asked last, since their prompt may save.
+     */
     private boolean confirmClose() {
-        if (willCloseApplication() && maybeHandleSchedulerDrainBeforeExit(this, this::fireCloseRequest)) {
+        boolean closesApplication = willCloseApplication();
+        if (closesApplication && maybeHandleSchedulerDrainBeforeExit(this, this::fireCloseRequest)) {
             return false;
         }
-        if (willCloseApplication() && !confirmQuitWhileTranslatingGuide()) {
+        if (closesApplication && !confirmQuitWhileTranslatingGuide()) {
             return false;
         }
+        if (!confirmActiveConnectionsClose()) {
+            return false;
+        }
+        return confirmSnippetEditorsClose(closesApplication && !applicationQuitConfirmationInProgress);
+    }
 
+    private boolean confirmActiveConnectionsClose() {
         GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
         if (globalSettings != null && globalSettings.isCloseActiveTerminalWindowsWithoutConfirmation()) {
             return true;
@@ -3473,6 +3581,13 @@ public class MainWindow {
 
     /** Shown at most once per run of the application, not once per window. */
     private static boolean guideTranslationUpdatePrompted;
+    /** The "your snippets file was moved aside" notice is shown once per run, not once per window. */
+    private static boolean snippetLoadFailureNoticeShown;
+    /** This window's snippet workspace while it is open as a window (window mode). */
+    private SnippetWorkspaceDialog snippetWorkspace;
+    /** Last selected terminal/file-editor tab still in this window: the snippet insert target. */
+    private TerminalTab lastSelectedTerminalTab;
+    private FileEditorTab lastSelectedFileEditorTab;
 
     /**
      * After a release that changed the guide, offers to refresh a locally translated one.
@@ -5072,6 +5187,10 @@ public class MainWindow {
         if (file != null) {
             try {
                 Project project = projectManager.loadProject(file.toPath());
+                // Loading replaces every tab: hosted snippet editors ask about unsaved work first.
+                if (!confirmHostedTabsClose()) {
+                    return;
+                }
                 loadProject(project);
                 Telemetry.track(TelemetryEvents.PROJECT_ACTION, Map.of("action", "open"));
                 updateStatus(I18n.get("status.projectLoaded", project.getName()));
@@ -7319,10 +7438,15 @@ public class MainWindow {
     private boolean saveTerminalDraftAsSnippet(Snippet draft) throws Exception {
         SnippetManager snippetManager = app.getSnippetManager();
         Snippet snippet = copyTerminalSnippetForManager(draft);
-        ensureTerminalSnippetCategoryExists(snippetManager, snippet.getCategory());
-        snippetManager.addSnippet(snippet);
-        snippetManager.save();
-        return true;
+        // The editor runs this on a worker thread; the SnippetManager is FX-thread state (its
+        // lists are read by open dialogs and its change listeners expect FX), so mutate and save
+        // there and let any failure propagate unchanged.
+        return callOnFxThread(() -> {
+            snippetManager.ensureCategory(snippet.getCategory());
+            snippetManager.addSnippet(snippet);
+            snippetManager.save();
+            return true;
+        });
     }
 
     private Snippet copyTerminalSnippetForManager(Snippet draft) {
@@ -7341,16 +7465,6 @@ public class MainWindow {
         }
         snippet.setDiagrams(diagrams);
         return snippet;
-    }
-
-    private void ensureTerminalSnippetCategoryExists(SnippetManager snippetManager, String categoryName) {
-        if (categoryName == null || categoryName.isBlank()) {
-            return;
-        }
-        String normalized = categoryName.trim();
-        if (snippetManager.findCategoryByName(normalized).isEmpty()) {
-            snippetManager.addCategory(new SnippetCategory(normalized));
-        }
     }
 
     private <T> T callOnFxThread(Callable<T> action) throws Exception {
@@ -8962,6 +9076,62 @@ public class MainWindow {
     public Tab getActiveTab() {
         return tabPane.getSelectionModel().getSelectedItem();
     }
+
+    /**
+     * The tab a snippet should be inserted into or sent to: the selected tab when it is a
+     * {@code type}, else the last selected {@code type} tab of this window (the snippet workspace
+     * itself may be the selected tab), else the only open one. {@code null} when there is none.
+     * Supported types: {@link TerminalTab}, {@link FileEditorTab}.
+     */
+    <T extends Tab> T snippetInsertTarget(Class<T> type) {
+        Tab lastOfType = type == TerminalTab.class ? lastSelectedTerminalTab
+            : type == FileEditorTab.class ? lastSelectedFileEditorTab
+            : null;
+        return chooseInsertTarget(type, tabPane.getSelectionModel().getSelectedItem(), lastOfType, tabPane.getTabs());
+    }
+
+    /**
+     * Pure choice behind {@link #snippetInsertTarget(Class)}: the selected tab if it is a
+     * {@code type}; else {@code lastOfType} while it is still open; else the only open
+     * {@code type} tab; else {@code null} (none, or several and no way to tell which).
+     */
+    static <T extends Tab> T chooseInsertTarget(Class<T> type, Tab selected, Tab lastOfType,
+                                                List<? extends Tab> openTabs) {
+        if (type == null || openTabs == null) {
+            return null;
+        }
+        if (type.isInstance(selected) && openTabs.contains(selected)) {
+            return type.cast(selected);
+        }
+        if (type.isInstance(lastOfType) && openTabs.contains(lastOfType)) {
+            return type.cast(lastOfType);
+        }
+        T only = null;
+        for (Tab tab : openTabs) {
+            if (type.isInstance(tab)) {
+                if (only != null) {
+                    return null;
+                }
+                only = type.cast(tab);
+            }
+        }
+        return only;
+    }
+
+    /**
+     * After a snippet was sent to {@code target}: shows that tab and says so in the status bar
+     * (in tab mode the snippet workspace hid the terminal it just typed into).
+     */
+    void revealSnippetInsertTarget(Tab target) {
+        if (target == null || !tabPane.getTabs().contains(target)) {
+            return;
+        }
+        tabPane.getSelectionModel().select(target);
+        String name = target.getText() != null && !target.getText().isBlank()
+            ? target.getText().trim()
+            : I18n.get("snippets.insertTerminal.unnamed");
+        updateStatus(I18n.get("snippets.insert.sentTo", name));
+    }
     
     /**
      * Opens all connections in a group as tabs.
@@ -9291,32 +9461,96 @@ public class MainWindow {
         updateStatus(I18n.get("terminal.recording.error.noTerminal"));
     }
     
-    /**
-     * Shows SFTP Manager dialog. If a connection is selected, opens it directly.
-     * Otherwise, shows a dialog to select a connection.
-     */
     private void showSnippetManager() {
-        Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "snippet_manager"));
-        logger.info("showSnippetManager() called - Opening Snippet Manager");
+        showSnippetWorkspace(null);
+    }
+
+    /**
+     * Opens the snippet workspace (Snippet Manager) of this window, or brings the open one forward
+     * and focuses its search. One workspace per main window: a tool tab in tab mode, a window
+     * otherwise. An open instance of either kind is reused, even after the tab setting changed.
+     *
+     * @param snippetIdOrNull a snippet to open pinned in the workspace, or {@code null}
+     */
+    void showSnippetWorkspace(String snippetIdOrNull) {
+        logger.info("showSnippetWorkspace() called - Opening Snippet Manager");
         try {
             de.kortty.core.SnippetManager mgr = app.getSnippetManager();
             if (mgr == null) {
                 showError(I18n.get("error.title"), "Snippet Manager not initialized");
                 return;
             }
-            if (toolTabsEnabled()) {
-                if (findAndSelectToolTab("snippets") == null) {
-                    hostToolTab("snippets", new SnippetManagementDialog(mgr, this), null);
+            SnippetWorkspaceDialog workspace = snippetWorkspace;
+            // "tab" or "window": how the workspace is shown (an open one keeps its form).
+            String mode;
+            if (workspace != null) {
+                mode = "window";
+                bringDialogToFront(workspace);
+            } else {
+                DialogHostTab existing = findAndSelectToolTab(SnippetWorkspaceDialog.TOOL_ID);
+                if (existing != null && existing.getHostedDialog() instanceof SnippetWorkspaceDialog hosted) {
+                    mode = "tab";
+                    workspace = hosted;
+                } else if (toolTabsEnabled()) {
+                    mode = "tab";
+                    workspace = new SnippetWorkspaceDialog(mgr, this);
+                    hostToolTab(SnippetWorkspaceDialog.TOOL_ID, workspace, null);
+                } else {
+                    mode = "window";
+                    SnippetWorkspaceDialog windowed = new SnippetWorkspaceDialog(mgr, this);
+                    windowed.initOwner(stage);
+                    windowed.setOnTornDown(() -> {
+                        if (snippetWorkspace == windowed) {
+                            snippetWorkspace = null;
+                        }
+                    });
+                    snippetWorkspace = windowed;
+                    windowed.show();
+                    workspace = windowed;
                 }
-                return;
             }
-            SnippetManagementDialog dialog = new SnippetManagementDialog(mgr, this);
-            dialog.initOwner(stage);
-            dialog.show();
+            Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "snippet_manager", "mode", mode));
+            if (snippetIdOrNull != null) {
+                workspace.openSnippetById(snippetIdOrNull, true);
+            } else {
+                workspace.focusSearch();
+            }
+            showSnippetLoadFailureNoticeOnce(mgr);
         } catch (Exception e) {
             logger.error("Failed to open Snippet Manager", e);
             showError(I18n.get("error.title"), e.getMessage());
         }
+    }
+
+    /**
+     * Tells the user once per session where an unreadable {@code snippets.xml} /
+     * {@code snippet-variables.xml} was moved aside at startup (the manager they just opened looks
+     * empty otherwise, with no hint that nothing was lost). Non-modal, so the manager stays usable.
+     */
+    private void showSnippetLoadFailureNoticeOnce(de.kortty.core.SnippetManager mgr) {
+        if (snippetLoadFailureNoticeShown) {
+            return;
+        }
+        List<java.nio.file.Path> backups = new ArrayList<>();
+        mgr.getLoadFailureBackup().ifPresent(backups::add);
+        de.kortty.core.SnippetVariableManager variableManager = app.getSnippetVariableManager();
+        if (variableManager != null) {
+            variableManager.getLoadFailureBackup().ifPresent(backups::add);
+        }
+        if (backups.isEmpty()) {
+            return;
+        }
+        snippetLoadFailureNoticeShown = true;
+        String paths = backups.stream().map(java.nio.file.Path::toString)
+            .collect(java.util.stream.Collectors.joining("\n"));
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        DialogThemeHelper.applyTheme(alert);
+        alert.setTitle(I18n.get("snippets.loadFailed.title"));
+        alert.setHeaderText(I18n.get("snippets.loadFailed.header"));
+        alert.setContentText(I18n.get("snippets.loadFailed.content", paths));
+        alert.initOwner(stage);
+        alert.initModality(javafx.stage.Modality.NONE);
+        alert.show();
     }
 
     private void showJobScheduler() {
@@ -10225,6 +10459,17 @@ public class MainWindow {
                 app.getGlobalSettingsManager().load();
             } catch (Exception ex) {
                 logger.error("Failed to reload managers after backup import", ex);
+            }
+            // The restored snippets.xml and snippet analyses replace what is in memory; without the
+            // reload the stale snippet list and the store's cache would overwrite them on the next save.
+            try {
+                de.kortty.core.SnippetAnalysisStore analysisStore = app.getSnippetAnalysisStore();
+                if (analysisStore != null) {
+                    analysisStore.invalidateAll();
+                }
+                app.getSnippetManager().load();
+            } catch (Exception ex) {
+                logger.error("Failed to reload snippets after backup import", ex);
             }
             
             updateStatus(I18n.get("backup.import.successHeader") + ": " + filesImported + " " + I18n.get("backup.import.files"));

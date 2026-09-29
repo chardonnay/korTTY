@@ -10,11 +10,13 @@ import de.kortty.core.CodeTextLanguageAiService;
 import de.kortty.core.AiSnippetMetadataSupport;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.SnippetAiWorkflowSupport;
+import de.kortty.core.SnippetAnalysisRecord;
 import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.model.AiProfile;
 import de.kortty.model.ServerConnection;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 final class SnippetAiAssistFactory {
 
@@ -26,9 +28,29 @@ final class SnippetAiAssistFactory {
     }
 
     static SnippetEditDialog.AiAssist create(MainWindow ownerWindow, ServerConnection connection) {
-        if (ownerWindow == null || ownerWindow.getAvailableAiProfiles().isEmpty()) {
+        return create(() -> ownerWindow, connection);
+    }
+
+    /**
+     * Like {@link #create(MainWindow)}, but resolves the main window per request: an editor tab can
+     * be dragged into another main window, whose AI profiles and usage accounting then apply.
+     * Returns {@code null} when no main window with AI profiles is available right now.
+     */
+    static SnippetEditDialog.AiAssist create(Supplier<MainWindow> ownerWindowSupplier) {
+        return create(ownerWindowSupplier, null);
+    }
+
+    private static SnippetEditDialog.AiAssist create(Supplier<MainWindow> ownerWindowSupplier,
+                                                     ServerConnection connection) {
+        MainWindow initialOwner = ownerWindowSupplier != null ? ownerWindowSupplier.get() : null;
+        if (initialOwner == null || initialOwner.getAvailableAiProfiles().isEmpty()) {
             return null;
         }
+        // Falls back to the window the editor was opened from when the supplier has nothing better.
+        Supplier<MainWindow> owner = () -> {
+            MainWindow current = ownerWindowSupplier.get();
+            return current != null ? current : initialOwner;
+        };
         String connectionDisplayName = connection != null ? connection.getDisplayName() : null;
         String contextDisplayName = connectionDisplayName != null && !connectionDisplayName.isBlank()
             ? connectionDisplayName.trim()
@@ -38,26 +60,26 @@ final class SnippetAiAssistFactory {
         SnippetAiRuntimeOptions runtimeOptions = new SnippetAiRuntimeOptions();
         return new SnippetEditDialog.AiAssist(
             (content, language, responseLanguageCode) -> generateSnippetMetadata(
-                ownerWindow, connection, content, language, responseLanguageCode,
+                owner.get(), connection, content, language, responseLanguageCode,
                 contextDisplayName, runtimeOptions),
             (content, language, description, responseLanguageCode) -> correctSnippetDescription(
-                ownerWindow, connection, content, language, description, responseLanguageCode,
+                owner.get(), connection, content, language, description, responseLanguageCode,
                 contextDisplayName, runtimeOptions),
-            request -> correctSnippetSelectionText(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> translateSnippetSelectionText(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> describeSnippet(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> generateAlternativeSolutions(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> completeSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> reviewSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> improveSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> migrateSnippetLanguage(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> assistSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> reviewSnippetSecurity(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> applySnippetSecurityFixes(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> generateCompactOneLiner(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> generateSnippetMermaid(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> analyzeSnippetCode(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
-            request -> applySnippetImprovements(ownerWindow, connection, request, contextDisplayName, runtimeOptions),
+            request -> correctSnippetSelectionText(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> translateSnippetSelectionText(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> describeSnippet(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> generateAlternativeSolutions(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> completeSnippetCode(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> reviewSnippetCode(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> improveSnippetCode(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> migrateSnippetLanguage(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> assistSnippetCode(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> reviewSnippetSecurity(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> applySnippetSecurityFixes(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> generateCompactOneLiner(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> generateSnippetMermaid(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> analyzeSnippetCode(owner.get(), connection, request, contextDisplayName, runtimeOptions),
+            request -> applySnippetImprovements(owner.get(), connection, request, contextDisplayName, runtimeOptions),
             true,
             runtimeOptions);
     }
@@ -91,6 +113,49 @@ final class SnippetAiAssistFactory {
     }
 
     private record ResolvedProfile(AiProfile profile, AiService service) {
+    }
+
+    /**
+     * Reports the profile and model that actually served a stored analysis or apply run, then the
+     * usage after each AI call. A missing or failing listener never affects the AI request.
+     */
+    static final class ProvenanceReporter {
+        private final SnippetEditDialog.AiProvenanceListener listener;
+        private final SnippetAnalysisRecord.Provenance base;
+        private SnippetAnalysisRecord.Usage usage = SnippetAnalysisRecord.Usage.ZERO;
+
+        ProvenanceReporter(SnippetEditDialog.AiProvenanceListener listener, AiProfile profile,
+                           SnippetAiRuntimeOptions options, String additionalInstructions) {
+            this.listener = listener;
+            List<String> skillIds = options != null
+                ? options.forcedSkillIds().stream().sorted().toList()
+                : List.of();
+            this.base = new SnippetAnalysisRecord.Provenance(
+                profile != null ? profile.getId() : null,
+                profile != null ? profile.getName() : null,
+                profile != null ? profile.getModel() : null,
+                skillIds, List.of(), additionalInstructions, null);
+            report();
+        }
+
+        synchronized void recordUsage(AiExecutionResult result) {
+            if (result != null && result.usage() != null) {
+                usage = usage.plus(SnippetAnalysisRecord.Usage.from(result.usage()));
+            }
+            report();
+        }
+
+        private void report() {
+            if (listener == null) {
+                return;
+            }
+            try {
+                listener.onProvenance(base.withUsage(usage));
+            } catch (RuntimeException e) {
+                org.slf4j.LoggerFactory.getLogger(SnippetAiAssistFactory.class)
+                    .warn("AI provenance listener failed: {}", e.toString());
+            }
+        }
     }
 
     private static SnippetEditDialog.SuggestedSnippetMetadata generateSnippetMetadata(
@@ -294,9 +359,14 @@ final class SnippetAiAssistFactory {
         ResolvedProfile resolved = resolve(
             ownerWindow, connection, AiAction.ANALYZE_SNIPPET_CODE,
             request.aiProfileId(), options);
+        ProvenanceReporter provenance = new ProvenanceReporter(
+            request.provenanceListener(), resolved.profile(), options, request.additionalInstructions());
         return SnippetAiWorkflowSupport.analyzeSnippetCode(
             resolved.service(),
-            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
+            (aiRequest, result) -> {
+                ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result);
+                provenance.recordUsage(result);
+            },
             request.fullContent(),
             request.snippetLanguage(),
             connectionDisplayName,
@@ -314,9 +384,14 @@ final class SnippetAiAssistFactory {
         ResolvedProfile resolved = resolve(
             ownerWindow, connection, AiAction.APPLY_SNIPPET_IMPROVEMENTS,
             request.aiProfileId(), options);
+        ProvenanceReporter provenance = new ProvenanceReporter(
+            request.provenanceListener(), resolved.profile(), options, request.additionalInstructions());
         return SnippetAiWorkflowSupport.applySnippetImprovements(
             resolved.service(),
-            (aiRequest, result) -> ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result),
+            (aiRequest, result) -> {
+                ownerWindow.recordAiUsageForProfile(resolved.profile(), aiRequest, result);
+                provenance.recordUsage(result);
+            },
             request.fullContent(),
             request.snippetLanguage(),
             connectionDisplayName,
@@ -459,7 +534,10 @@ final class SnippetAiAssistFactory {
             request.snippetLanguage(),
             connectionDisplayName,
             request.fallbackLanguageCode(),
-            request.additionalInstructions());
+            request.additionalInstructions(),
+            // Mermaid's own parser is the final gate: a diagram it cannot parse gets the one
+            // repair round with the parser's error instead of an error box in the viewer.
+            SnippetAiWorkflowSupport.bundledMermaidSyntaxGate());
     }
 
     private static SnippetAiResponseSupport.OneLinerSuggestion generateCompactOneLiner(

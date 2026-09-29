@@ -69,4 +69,4 @@ The guard uses each language's own built-ins and standard library wherever avail
 
 ## Managing the selection
 
-Below the sub-options, **All** and **Clear** tick or untick every sub-option, and **Save** remembers the master toggle, the sub-option set and the size limit as your default — every Input hardening panel then opens with that selection. The panel title in the Full code analysis window shows a live **count** of the effectively active sub-options, which is `0` while the master toggle is off.
+Below the sub-options, **All** and **Clear** tick or untick every sub-option, and **Save** remembers the master toggle, the sub-option set and the size limit as your default — every Input hardening panel then opens with that selection. The panel title in the Full code analysis panel shows a live **count** of the effectively active sub-options, which is `0` while the master toggle is off.

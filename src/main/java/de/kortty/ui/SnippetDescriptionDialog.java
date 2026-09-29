@@ -21,6 +21,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.stage.Modality;
 import javafx.stage.Window;
 
 import java.util.Objects;
@@ -80,6 +81,10 @@ public class SnippetDescriptionDialog extends ThemeAwareDialog<Void> {
 
         setTitle(I18n.get("snippets.ai.describe.dialog.title"));
         setResizable(true);
+        // Explicitly non-modal: a Dialog with an owner defaults to APPLICATION_MODAL, which froze every
+        // terminal tab (and every other editor) while the result was read. The editor opens it with
+        // show() and takes the answer through a callback.
+        initModality(Modality.NONE);
         if (owner != null) {
             initOwner(owner);
         }

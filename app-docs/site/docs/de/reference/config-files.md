@@ -27,6 +27,8 @@ KorTTY speichert alle Anwendungsdaten und Konfigurationen im Verzeichnis `~/.kor
 ├── ai-chats.xml                       # Saved AI conversations
 ├── snippets.xml                       # Code snippets and scripts
 ├── snippet-variables.xml              # Snippet variable storage
+├── snippet-analyses/                  # Stored Full code analyses, one <snippet-id>.json per snippet
+├── snippet-drafts/                    # Unsaved snippet-editor forms (owner-only; not backed up)
 ├── job-scheduler.xml                  # JobScheduler jobs, host-key pins, sudo secrets, journal
 ├── ssh-host-keys.properties           # Interactive Terminal/SFTP/Mosh host-key pins
 ├── ssh-host-keys.properties.lock      # Transient cross-process writer lock (not backed up)
@@ -301,7 +303,7 @@ Textdatei mit den IDs der deaktivierten Terminaleffekt-Plugins (eine pro Zeile).
 ### coding-agents/
 Optionale Benutzerüberschreibungen für die Regeln der Coding-Agent-Erkennung, eine JSON-Datei pro Agent (`claude-code.json`, `codex.json`, `gemini-cli.json`).
 
-**Zweck:** Eine Datei hier ersetzt die mitgelieferte Regeldatei desselben Agents vollständig. Eine ungültige Datei wird im Protokoll als *coding-agents*-Warnung gemeldet, und die mitgelieferten Regeln bleiben in Kraft. Das Verzeichnis existiert erst, wenn Sie es anlegen. Siehe [Coding-Agents → Eigene Regeln](../features/coding-agents.md#eigene-regeln).
+**Zweck:** Eine Datei ersetzt hier die im Paket enthaltene Regeldatei des gleichen Agents vollständig. Eine ungültige Datei wird im Log als *Coding-Agents* Warnung gemeldet und die im Paket enthaltenen Regeln bleiben aktiv. Das Verzeichnis existiert nicht, bis Sie es erstellen. Siehe [Coding-Agents → Custom rules](../features/coding-agents.md#eigene-regeln).
 
 ### kortty.log
 Anwendungsprotokolldatei.
@@ -339,7 +341,7 @@ Komprimierter Terminalsitzungsverlauf.
 Sitzungsjournale – ein eigenständiges Verzeichnis pro Journal (Speicherort konfigurierbar unter **Einstellungen > Protokollierung > Sitzungsjournal**). Jedes Journalverzeichnis enthält `journal.xml` (das kuratierte Dokument: Metadaten, KI-Zusammenfassungen, Markierungen, Notizen, Screenshot-Referenzen), das Nur-Anhängen-Capture-Log `session-log.json` / `.xml` / `.yaml` (standardmäßig JSON Lines) mit zstd-komprimierten gedrehten Teilen (Teilgröße und Teileanzahl sind pro Verbindung auf der Registerkarte „Journal“ konfigurierbar, standardmäßig 25 MB und 20 Teile; Journale aus älteren Versionen behalten ihre gzip-komprimierte `.gz`-Teile), die generierte `journal.html`-Timeline-Seite und `screenshots/*.png`. Siehe [Sitzungsjournal](../features/session-journal.md).
 
 ### terminal-logs/
-Standardzielordner für [Terminalprotokolle pro Verbindung](../features/terminal.md#terminalprotokollierung), wenn das Protokollordnerfeld einer Verbindung leer bleibt. Dateibenennung, tägliche Rotation, Komprimierung und Aufbewahrung richten sich nach der Protokollierungskonfiguration der Verbindung.
+Standardzielordner für [Terminalprotokolle pro Verbindung](../features/terminal.md#terminalprotokollierung), wenn das Logordnerfeld einer Verbindung leer bleibt. Dateibenennung, tägliche Rotation, Kompression und Aufbewahrung folgen der Protokollierungskonfiguration der Verbindung.
 
 ### plugins/
 Vom Benutzer importierte Terminal-Effekt-Plugin-JARs.

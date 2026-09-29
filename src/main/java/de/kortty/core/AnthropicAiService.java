@@ -224,6 +224,8 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker,
         }
         HttpRequest httpRequest = requestBuilder.build();
 
+        // send() is interruptible (a stop aborts the exchange); a stopped run must not start one.
+        AiCancellation.throwIfCancelled();
         HttpResponse<String> response = AiPowerManagementScope.call(
             () -> httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)));
         int status = response.statusCode();

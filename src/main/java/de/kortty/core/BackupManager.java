@@ -58,7 +58,8 @@ public class BackupManager {
      * key files. Raw private keys are why password ZIPs are written with AES-256 rather than
      * legacy ZipCrypto — see {@link #createPasswordEncryptedBackup}.
      */
-    private static final List<String> MANAGED_BACKUP_DIRECTORIES = List.of("projects", "ssh-keys");
+    private static final List<String> MANAGED_BACKUP_DIRECTORIES = List.of(
+        "projects", "ssh-keys", SnippetAnalysisStore.DIRECTORY_NAME);
     
     private final Path configDir;
     private final GlobalSettings settings;
@@ -529,6 +530,7 @@ public class BackupManager {
         }
 
         filesImported[0] += mergeSshKeysDirectory(extractDir, overwriteExisting);
+        filesImported[0] += mergeSnippetAnalysesDirectory(extractDir, overwriteExisting);
 
         return filesImported[0];
     }
@@ -575,6 +577,60 @@ public class BackupManager {
         }
         logger.debug("Imported ssh-keys directory");
         return imported[0];
+    }
+
+    /**
+     * Restores stored snippet analyses by merging, never deleting: an analysis file that exists only
+     * locally survives, a file missing locally is added, and an existing file is only replaced
+     * (with the overwrite flag) when the backup carries a newer {@code revision}. Only the
+     * {@code <id>.json} files are restored, never quarantined copies or temp files.
+     */
+    private int mergeSnippetAnalysesDirectory(Path extractDir, boolean overwriteExisting) throws IOException {
+        Path sourceDir = extractDir.resolve(SnippetAnalysisStore.DIRECTORY_NAME);
+        if (!Files.isDirectory(sourceDir)) {
+            return 0;
+        }
+        Path targetDir = configDir.resolve(SnippetAnalysisStore.DIRECTORY_NAME);
+        int imported = 0;
+        try (var stream = Files.list(sourceDir)) {
+            for (Path source : stream.sorted().toList()) {
+                String name = source.getFileName().toString();
+                if (!Files.isRegularFile(source) || !name.endsWith(SnippetAnalysisStore.FILE_SUFFIX)) {
+                    continue;
+                }
+                Path target = targetDir.resolve(name).normalize();
+                if (!target.startsWith(targetDir)) {
+                    continue;
+                }
+                try {
+                    if (Files.exists(target)) {
+                        if (!overwriteExisting) {
+                            logger.debug("Skipping existing snippet analyses: {}", name);
+                            continue;
+                        }
+                        long backupRevision = SnippetAnalysisStore.readRevision(source).orElse(-1L);
+                        java.util.OptionalLong localRevision = SnippetAnalysisStore.readRevision(target);
+                        if (backupRevision < 0
+                                || (localRevision.isPresent() && localRevision.getAsLong() >= backupRevision)) {
+                            logger.debug("Keeping local snippet analyses {} (not older than the backup)", name);
+                            continue;
+                        }
+                        if (localRevision.isEmpty()) {
+                            // An unreadable local file is kept aside rather than overwritten.
+                            CorruptFileQuarantine.moveAside(target);
+                        }
+                    }
+                    Files.createDirectories(targetDir);
+                    AtomicFileWriter.writeStringAtomically(target,
+                        Files.readString(source, java.nio.charset.StandardCharsets.UTF_8));
+                    imported++;
+                } catch (IOException e) {
+                    logger.warn("Failed to restore snippet analyses file: {}", source, e);
+                }
+            }
+        }
+        logger.debug("Imported snippet-analyses directory");
+        return imported;
     }
 
     static List<String> managedBackupFiles() {

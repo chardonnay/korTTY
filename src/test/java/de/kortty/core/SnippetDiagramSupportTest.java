@@ -293,7 +293,7 @@ class SnippetDiagramSupportTest {
     }
 
     @Test
-    void validationRequiresEveryNodeOnAStartToStopPath() {
+    void validationRequiresEveryNodeReachableFromStart() {
         String unreachable = """
             flowchart TD
                 start_1(["Start"])
@@ -326,23 +326,29 @@ class SnippetDiagramSupportTest {
         // A node nothing leads to is pruned with its edges instead of costing the diagram.
         assertThat(SnippetDiagramSupport.validateGeneratedMermaid(unreachable).valid()).isTrue();
         assertThat(SnippetDiagramSupport.canonicalizeGeneratedFlowchart(unreachable)).doesNotContain("orphan_1");
-        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(deadCycle).message())
-            .contains("path to stop_1");
+        // A loop without an exit (a daemon's main loop) is an ordinary flowchart; it used to be
+        // rejected because not every node had a path to stop_1.
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(deadCycle).valid()).isTrue();
+        assertThat(SnippetDiagramSupport.canonicalizeGeneratedFlowchart(deadCycle)).contains("dead_2 --> dead_1");
     }
 
     @Test
-    void validationRepairsBackwardStopAndRejectsIncomingStart() {
+    void backwardTerminalEdgesAreDroppedAndIncompleteDecisionsRepaired() {
         String backwardStop = VALID_FLOWCHART + "\n    stop_1 --> work_1";
         String incomingStart = VALID_FLOWCHART.replace("    success_1 --> stop_1\n", "    success_1 --> start_1\n");
         // Two branches with the same label are read as one binary question per branch.
         String sameLabels = VALID_FLOWCHART.replace(
             "    decision_1 -->|no| failure_1\n", "    decision_1 -->|yes| failure_1\n");
 
-        // Nothing continues after stop_1: an edge out of it is a model slip and is dropped.
+        // An edge out of stop_1 or into start_1 is a slip: it is left out and the rest of the
+        // diagram stands (a node that only it served continues to stop_1). Both used to cost the
+        // whole diagram.
         assertThat(SnippetDiagramSupport.validateGeneratedMermaid(backwardStop).valid()).isTrue();
         assertThat(SnippetDiagramSupport.canonicalizeGeneratedFlowchart(backwardStop)).doesNotContain("stop_1 -->");
-        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(incomingStart).message())
-            .contains("start_1 must not have an incoming edge");
+        assertThat(SnippetDiagramSupport.validateGeneratedMermaid(incomingStart).valid()).isTrue();
+        String incomingStartCanonical = SnippetDiagramSupport.canonicalizeGeneratedFlowchart(incomingStart);
+        assertThat(incomingStartCanonical).doesNotContain("--> start_1");
+        assertThat(incomingStartCanonical).contains("success_1 --> stop_1");
         assertThat(SnippetDiagramSupport.validateGeneratedMermaid(sameLabels).valid()).isTrue();
         assertThat(SnippetDiagramSupport.canonicalizeGeneratedFlowchart(sameLabels))
             .contains("decision_1{\"Main command succeeds — yes?\"}");
@@ -697,9 +703,10 @@ class SnippetDiagramSupportTest {
     }
 
     @Test
-    void aLoopHeadDrawnAsAnActionBecomesTheLoopDecision() {
+    void aLoopHeadDrawnAsAnActionKeepsItsLoopAndItsExit() {
         // Seen live from qwen3.8-27b: the read loop is a rectangle going on to the body and to the
-        // report. Keeping only the body cut the exit, and the loop lost its way to stop_1.
+        // report. The single-path dialect had to keep one branch (and later guessed a decision
+        // with invented yes/no labels); now the loop and its exit are drawn exactly as the model did.
         String loop = """
             flowchart TD
             start_1(["Start"])
@@ -730,14 +737,18 @@ class SnippetDiagramSupportTest {
         assertThat(SnippetDiagramSupport.validateMermaidForSnippet(loop, "x\n".repeat(110), List.of(), "de").valid())
             .isTrue();
         String canonical = SnippetDiagramSupport.canonicalizeGeneratedFlowchart(loop, "de");
-        assertThat(canonical).contains("read_log{\"Logdatei zeilenweise lesen\"}");
-        assertThat(canonical).contains("read_log -->|ja| parse_line");
-        assertThat(canonical).contains("read_log -->|nein| print_table");
+        assertThat(canonical).contains("read_log[\"Logdatei zeilenweise lesen\"]");
+        assertThat(canonical).contains("read_log --> parse_line");
+        assertThat(canonical).contains("read_log --> print_table");
+        assertThat(canonical).contains("record --> read_log");
+        assertThat(canonical).contains("has_message -->|nein| read_log");
         assertThat(canonical).contains("file_missing --> stop_1");
     }
 
     @Test
-    void parallelBranchesFromAnActionAreReducedToTheFirstPath() {
+    void parallelBranchesFromAnActionAreKeptAsDrawn() {
+        // The dialect used to allow a single path only and kept the branch that reached most;
+        // Mermaid draws fan-out and merges, and so the canonical form keeps every branch now.
         String parallel = """
             flowchart TD
             start_1(["Start"]) --> load_now["Read load"]
@@ -751,9 +762,9 @@ class SnippetDiagramSupportTest {
         assertThat(SnippetDiagramSupport.validateGeneratedMermaid(parallel).valid()).isTrue();
         String canonical = SnippetDiagramSupport.canonicalizeGeneratedFlowchart(parallel);
         assertThat(canonical).contains("start_1 --> load_now");
-        assertThat(canonical).doesNotContain("cpu_now");
-        assertThat(SnippetDiagramSupport.flowchartStatistics(canonical).edges()).isEqualTo(3);
-        // The branch that reaches most of the diagram is the one that stands for the path.
+        assertThat(canonical).contains("start_1 --> cpu_now");
+        assertThat(canonical).contains("cpu_now --> print_now");
+        assertThat(SnippetDiagramSupport.flowchartStatistics(canonical).edges()).isEqualTo(5);
         String longerSecond = """
             flowchart TD
             start_1(["Start"]) --> short["Short"]
@@ -766,7 +777,8 @@ class SnippetDiagramSupportTest {
             """;
         String kept = SnippetDiagramSupport.canonicalizeGeneratedFlowchart(longerSecond);
         assertThat(kept).contains("start_1 --> a");
-        assertThat(kept).doesNotContain("short");
+        assertThat(kept).contains("start_1 --> short");
+        assertThat(kept).contains("short --> stop_1");
         assertThat(SnippetDiagramSupport.normalizeShapeShorthand("x --> check{\"\"Ready?\"\"}"))
             .isEqualTo("x --> check{\"Ready?\"}");
         assertThat(SnippetDiagramSupport.normalizeShapeShorthand("start_1([\"Start\"]) --> h[/\"Print header\"\"/]"))
@@ -1094,7 +1106,8 @@ class SnippetDiagramSupportTest {
 
         SnippetDiagramSupport.FlowchartStatistics statistics = SnippetDiagramSupport.flowchartStatistics(twiceDeclared);
 
-        // setup and work; start_1 and stop_1 are terminals by contract, even drawn as boxes.
+        // setup and work; start_1 and stop_1 are the terminals whatever shape they were drawn in
+        // (counting their boxes as steps made the next complete diagram look trimmed).
         assertThat(statistics.nonterminalNodes()).isEqualTo(2);
         assertThat(statistics.decisionNodes()).isEqualTo(0);
         // The first declaration decides, exactly as the parser resolves it.

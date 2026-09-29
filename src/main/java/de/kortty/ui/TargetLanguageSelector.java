@@ -53,6 +53,7 @@ public final class TargetLanguageSelector extends VBox {
 
     private final boolean armWhenDetected;
     private LanguageMix mix = new LanguageMix(HostFormat.NONE, "plain", List.of());
+    private final List<Runnable> selectionListeners = new ArrayList<>();
     private Runnable onSelectionChanged;
 
     /**
@@ -213,6 +214,37 @@ public final class TargetLanguageSelector extends VBox {
         this.onSelectionChanged = callback;
     }
 
+    /**
+     * Adds a further listener for selection changes, next to the one set via
+     * {@link #setOnSelectionChanged(Runnable)} (typically the host's "(N)" counter) — an embedded
+     * host also persists the choice. Runs on the JavaFX thread.
+     */
+    public void addSelectionListener(Runnable listener) {
+        if (listener != null) {
+            selectionListeners.add(listener);
+        }
+    }
+
+    /**
+     * Shows a restored migration order, applying only what this control currently offers: a
+     * {@code language} is armed only while the language half is shown and lists it, a
+     * {@code hostFormat} only while the platform half is shown and lists it. {@code null} for either
+     * means "not chosen" and resets that half (language disarmed, platform unchanged).
+     */
+    public void restore(ScriptLanguage language, HostFormat hostFormat) {
+        if (language != null && languageRow.isVisible() && languageCombo.getItems().contains(language)) {
+            languageCombo.setValue(language);
+            enableCheck.setSelected(true);
+        } else if (language == null) {
+            enableCheck.setSelected(false);
+        }
+        if (hostFormat != null && platformBox.isVisible() && platformCombo.getItems().contains(hostFormat)) {
+            platformCombo.setValue(hostFormat);
+        } else if (hostFormat == null) {
+            platformCombo.setValue(HostFormat.NONE);
+        }
+    }
+
     // ---------------------------------------------------------------- internals
 
     private String describeDetection(MigrationMode mode) {
@@ -272,6 +304,9 @@ public final class TargetLanguageSelector extends VBox {
     private void fireSelectionChanged() {
         if (onSelectionChanged != null) {
             onSelectionChanged.run();
+        }
+        for (Runnable listener : List.copyOf(selectionListeners)) {
+            listener.run();
         }
     }
 

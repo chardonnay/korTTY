@@ -162,7 +162,32 @@ public class MonacoDiffPane extends StackPane {
             logger.debug("Monaco diff dispose cleanup failed", e);
         }
         // Replacing the page drops the JS-side javaBridge member and the Monaco web workers.
-        engine.loadContent("");
+        unloadWhenIdle(engine);
+    }
+
+    /**
+     * Replaces the page once it is no longer loading. A review closed right after it opened (an
+     * embedded diff can be decided within a second) would otherwise abort the page's in-flight
+     * file loads, and WebKit on macOS crashes in its load-failure callback when that happens.
+     */
+    private static void unloadWhenIdle(WebEngine engine) {
+        Worker.State state = engine.getLoadWorker().getState();
+        if (state != Worker.State.RUNNING && state != Worker.State.SCHEDULED) {
+            engine.loadContent("");
+            return;
+        }
+        javafx.beans.value.ChangeListener<Worker.State> listener = new javafx.beans.value.ChangeListener<>() {
+            @Override
+            public void changed(javafx.beans.value.ObservableValue<? extends Worker.State> observable,
+                                Worker.State oldState, Worker.State newState) {
+                if (newState != Worker.State.RUNNING && newState != Worker.State.SCHEDULED) {
+                    engine.getLoadWorker().stateProperty().removeListener(this);
+                    // Leave WebKit's native load-finished dispatch before replacing the page.
+                    Platform.runLater(() -> engine.loadContent(""));
+                }
+            }
+        };
+        engine.getLoadWorker().stateProperty().addListener(listener);
     }
 
     private void loadEditor() {

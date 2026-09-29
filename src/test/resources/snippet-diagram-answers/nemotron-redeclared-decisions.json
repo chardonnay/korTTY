@@ -1,0 +1,30 @@
+{
+  "title": "Serverauslastung Logischer Ablauf",
+  "mermaid": "flowchart TD\nstart_1[\"Start\"] --> setup[\"Setup: Konstanten, Hilfsfunktionen definieren\"] --> work[\"Work: Hauptprogramm ausführen\"] --> stop_1[\"Stop\"]\nwork{ \"Decision: CPU-Auslastung verfügbar?\" } -->|yes| success[\"Success: Daten sammeln und formatieren\"] --> stop_1\nwork{ \"Decision: Historische Daten vorhanden?\" } -->|yes| success\nwork{ \"Decision: Load Average öffnen?\" } -->|no| failure[\"Failure: Warnung, 0,0,0 zurückgeben\"] --> stop_1\nwork{ \"Decision: mpstat Befehl erfolgreich?\" } -->|no| failure\nsuccess --> stop_1\nfailure --> stop_1\n",
+  "codeReferences": [
+    {
+      "nodeId": "setup",
+      "label": "Setup: Konstanten, Hilfsfunktionen definieren",
+      "startLine": 7,
+      "endLine": 28
+    },
+    {
+      "nodeId": "work",
+      "label": "Work: Hauptprogramm ausführen",
+      "startLine": 96,
+      "endLine": 125
+    },
+    {
+      "nodeId": "success",
+      "label": "Success: Daten sammeln und formatieren",
+      "startLine": 108,
+      "endLine": 124
+    },
+    {
+      "nodeId": "failure",
+      "label": "Failure: Warnung, 0,0,0 zurückgeben",
+      "startLine": 21,
+      "endLine": 73
+    }
+  ]
+}

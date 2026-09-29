@@ -1533,6 +1533,16 @@ public final class SnippetAiResponseSupport {
         return mermaid != null && !mermaid.isBlank();
     }
 
+    /**
+     * The raw {@code mermaid} value of a diagram answer, before any repair or validation — what a
+     * repair request shows the model again. {@code null} when the answer carries none.
+     */
+    public static String extractMermaidValue(String responseText) {
+        JsonObject object = parseJsonObject(responseText);
+        String mermaid = object != null ? firstString(object, "mermaid") : null;
+        return mermaid != null && !mermaid.isBlank() ? mermaid : null;
+    }
+
     public static MermaidDiagram parseMermaidDiagram(String responseText) {
         return parseMermaidDiagram(SnippetDiagramType.LOGICAL_STRUCTURE, responseText);
     }
@@ -1564,6 +1574,13 @@ public final class SnippetAiResponseSupport {
                 ? "The AI answer's JSON envelope could not be parsed, probably because quotes inside "
                     + "the diagram are not escaped."
                 : "The AI answer JSON has no 'mermaid' value.");
+        }
+        if (type == SnippetDiagramType.LOGICAL_STRUCTURE) {
+            // Small local models break a line or a bracket in an otherwise renderable flowchart;
+            // the repair keeps the diagram and only leaves out what cannot be read at all.
+            // It reads the value as the model wrote it: a presentation statement is stripped
+            // there too, unless it carries a URL or script, which refuses the whole diagram.
+            rawMermaid = SnippetDiagramSupport.repairGeneratedFlowchart(firstString(object, "mermaid")).source();
         }
         MermaidDiagram diagram = new MermaidDiagram(
             firstString(object, "title", "name"),

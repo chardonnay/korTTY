@@ -178,11 +178,14 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker, 
         } catch (IOException e) {
             throw new IllegalStateException("AI CLI could not be started: " + safeMessage(e), e);
         }
+        // A stop kills the whole process tree at once: CLIs such as Node-based agents spawn
+        // workers that would otherwise keep running (and keep the pipes open) after the parent died.
+        AiCancellation.Registration stopHook = AiCancellation.onCancel(() -> destroyProcessTree(process));
         CompletableFuture<String> stdout = CompletableFuture.supplyAsync(() -> readStream(process.getInputStream()));
         CompletableFuture<String> stderr = CompletableFuture.supplyAsync(() -> readStream(process.getErrorStream()));
-        writeProcessInput(process, stdin);
         boolean completed;
         try {
+            writeProcessInput(process, stdin);
             // A null timeout is the default: the CLI keeps running until it answers, because a
             // long analysis must not be killed unless the user configured a limit.
             if (timeout == null) {
@@ -192,18 +195,42 @@ public class LocalCliAiService implements AiPromptService, AiSkillUsageTracker, 
                 completed = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
             }
         } catch (InterruptedException e) {
-            process.destroyForcibly();
+            destroyProcessTree(process);
             Thread.currentThread().interrupt();
             throw e;
+        } catch (IOException e) {
+            if (AiCancellation.isCancelled()) {
+                throw new AiCancelledException("AI CLI request was stopped.", e);
+            }
+            throw e;
+        } finally {
+            stopHook.close();
+        }
+        if (AiCancellation.isCancelled()) {
+            destroyProcessTree(process);
+            throw new AiCancelledException("AI CLI request was stopped.", null);
         }
         if (!completed) {
-            process.destroyForcibly();
+            destroyProcessTree(process);
             throw new IllegalStateException("AI CLI request timed out after " + timeout.toSeconds() + " seconds.");
         }
         return new CliProcessResult(
             process.exitValue(),
             stdout.get(5, TimeUnit.SECONDS),
             stderr.get(5, TimeUnit.SECONDS));
+    }
+
+    /** Kills {@code process} and every descendant it spawned; never throws. */
+    static void destroyProcessTree(Process process) {
+        if (process == null) {
+            return;
+        }
+        try {
+            process.descendants().forEach(ProcessHandle::destroyForcibly);
+        } catch (RuntimeException ignored) {
+            // Best effort: the parent is killed below regardless.
+        }
+        process.destroyForcibly();
     }
 
     private static String readStream(InputStream stream) {

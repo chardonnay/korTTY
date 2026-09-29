@@ -31,9 +31,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Renders real tool dialogs (Snippet Manager, Snippet Editor) hosted as {@link DialogHostTab}s in a
- * shown stage, snapshots each tab to {@code build/smoke/tool-tab-*.png} for visual inspection, and
- * counts layout passes over a settle window to detect relayout/flicker loops.
+ * Renders real tool dialogs (the Snippet Manager workspace with a pinned, nested editor tab, and a
+ * standalone Snippet Editor) hosted as {@link DialogHostTab}s in a shown stage, snapshots each tab to
+ * {@code build/smoke/tool-tab-*.png} for visual inspection, and counts layout passes over a settle
+ * window to detect relayout/flicker loops.
  */
 public final class ToolTabRenderSmoke {
 
@@ -81,8 +82,14 @@ public final class ToolTabRenderSmoke {
             stage.setScene(new Scene(tabPane, 1200, 900));
             stage.show();
 
-            SnippetManagementDialog manager = new SnippetManagementDialog(snippetManager, null);
-            DialogHostTab managerTab = DialogHostTab.host(tabPane, "snippets", manager, null);
+            // A null main window: no AI and no insert target, like a workspace without an owner.
+            SnippetWorkspaceDialog manager = new SnippetWorkspaceDialog(snippetManager, null);
+            DialogHostTab managerTab = DialogHostTab.host(tabPane, SnippetWorkspaceDialog.TOOL_ID, manager, null);
+            manager.openSnippetById(snippet.getId(), true);
+            if (manager.openEditorCount() != 1) {
+                throw new IllegalStateException("expected one pinned editor tab, got " + manager.openEditorCount());
+            }
+            SnippetEditDialog nestedEditor = manager.editorTabs().getFirst().editor();
 
             SnippetEditDialog editor = new SnippetEditDialog(snippet,
                 java.util.List.of("General"));
@@ -98,6 +105,7 @@ public final class ToolTabRenderSmoke {
                     public void handle(long now) {
                         if (tabPane.isNeedsLayout()
                             || manager.getDialogPane().isNeedsLayout()
+                            || nestedEditor.getDialogPane().isNeedsLayout()
                             || editor.getDialogPane().isNeedsLayout()) {
                             layoutPasses.incrementAndGet();
                         }
@@ -115,6 +123,9 @@ public final class ToolTabRenderSmoke {
                             describe("manager", manager.getDialogPane());
                             snapshot(manager.getDialogPane(), "tool-tab-snippet-manager.png");
                             assertFills("snippet manager", manager.getDialogPane(), stage);
+                            describe("nested editor", nestedEditor.getDialogPane());
+                            snapshot(nestedEditor.getDialogPane(), "tool-tab-snippet-workspace-editor.png");
+                            assertFills("nested snippet editor", nestedEditor.getDialogPane(), stage, 200);
                         } catch (Throwable error) {
                             failure.compareAndSet(null, stack(error));
                             stage.hide();
@@ -164,7 +175,12 @@ public final class ToolTabRenderSmoke {
     }
 
     private static void assertFills(String label, javafx.scene.control.DialogPane pane, Stage stage) {
-        double expectedMinHeight = stage.getScene().getHeight() - 120;
+        assertFills(label, pane, stage, 120);
+    }
+
+    /** {@code chrome}: vertical space legitimately taken by tab headers and action bars above the pane. */
+    private static void assertFills(String label, javafx.scene.control.DialogPane pane, Stage stage, double chrome) {
+        double expectedMinHeight = stage.getScene().getHeight() - chrome;
         if (pane.getHeight() < expectedMinHeight) {
             throw new IllegalStateException(label + " pane does not fill the tab: "
                 + pane.getHeight() + " < " + expectedMinHeight);

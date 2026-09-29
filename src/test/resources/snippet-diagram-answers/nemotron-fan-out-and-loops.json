@@ -1,0 +1,78 @@
+{
+  "title": "Serverauslastung Logischer Fluss",
+  "mermaid": "flowchart TD\nstart_1[\"Start\"] --> setup[\"Setup: Konstanten, Hilfsfunktionen definieren\"] --> work[\"Work: Hauptprogramm starten\"] --> success[\"Success: Abschluss\"] --> stop_1[\"Stop\"]\nsetup --> get_load_average[\"Load Average parsen\"]\nsetup --> get_cpu_usage_mpstat[\"CPU-Auslastung prüfen\"]\nsetup --> get_historical_load[\"Historische Lastdaten laden\"]\nwork --> check_load_success[\"Check: Load Average gültig?\"] -->|yes| print_current[\"Ausgabe: aktuelle Werte\"] --> work\ncheck_load_success -->|no| failure[\"Failure: Fehler beim Laden\"] --> stop_1\nwork --> check_cpu_valid[\"Check: CPU-Auslastung gültig?\"] -->|yes| print_cpu[\"Ausgabe: CPU-Wert\"] --> work\ncheck_cpu_valid -->|no| failure[\"Failure: Ungültige CPU-Angabe\"] --> stop_1\nwork --> process_historical[\"Process: Historische Daten verarbeiten\"] --> success\nsuccess --> stop_1\nfailure --> stop_1\n",
+  "codeReferences": [
+    {
+      "nodeId": "setup",
+      "label": "Setup: Konstanten, Hilfsfunktionen definieren",
+      "startLine": 7,
+      "endLine": 86
+    },
+    {
+      "nodeId": "work",
+      "label": "Work: Hauptprogramm starten",
+      "startLine": 95,
+      "endLine": 127
+    },
+    {
+      "nodeId": "get_load_average",
+      "label": "Load Average parsen",
+      "startLine": 20,
+      "endLine": 28
+    },
+    {
+      "nodeId": "get_cpu_usage_mpstat",
+      "label": "CPU-Auslastung prüfen",
+      "startLine": 31,
+      "endLine": 38
+    },
+    {
+      "nodeId": "get_historical_load",
+      "label": "Historische Lastdaten laden",
+      "startLine": 41,
+      "endLine": 78
+    },
+    {
+      "nodeId": "check_load_success",
+      "label": "Check: Load Average gültig?",
+      "startLine": 109,
+      "endLine": 112
+    },
+    {
+      "nodeId": "print_current",
+      "label": "Ausgabe: aktuelle Werte",
+      "startLine": 112,
+      "endLine": 112
+    },
+    {
+      "nodeId": "check_cpu_valid",
+      "label": "Check: CPU-Auslastung gültig?",
+      "startLine": 109,
+      "endLine": 112
+    },
+    {
+      "nodeId": "print_cpu",
+      "label": "Ausgabe: CPU-Wert",
+      "startLine": 112,
+      "endLine": 112
+    },
+    {
+      "nodeId": "process_historical",
+      "label": "Process: Historische Daten verarbeiten",
+      "startLine": 114,
+      "endLine": 123
+    },
+    {
+      "nodeId": "success",
+      "label": "Success: Abschluss",
+      "startLine": 95,
+      "endLine": 127
+    },
+    {
+      "nodeId": "failure",
+      "label": "Failure: Fehler beim Laden oder ungültige CPU-Angabe",
+      "startLine": 109,
+      "endLine": 112
+    }
+  ]
+}

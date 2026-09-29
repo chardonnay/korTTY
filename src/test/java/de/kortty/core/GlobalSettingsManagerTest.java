@@ -49,6 +49,32 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void snippetAnalysisHistoryMaxSizeRoundTripsAndIsClamped() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-analyses");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertThat(manager.getSettings().getSnippetAnalysisHistoryMaxSize()).isEqualTo(5);
+            manager.getSettings().setSnippetAnalysisHistoryMaxSize(12);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            GlobalSettings settings = reloaded.getSettings();
+            assertThat(settings.getSnippetAnalysisHistoryMaxSize()).isEqualTo(12);
+
+            settings.setSnippetAnalysisHistoryMaxSize(0);
+            assertThat(settings.getSnippetAnalysisHistoryMaxSize()).isEqualTo(1);
+            settings.setSnippetAnalysisHistoryMaxSize(500);
+            assertThat(settings.getSnippetAnalysisHistoryMaxSize()).isEqualTo(20);
+            settings.setSnippetAnalysisHistoryMaxSize(null);
+            assertThat(settings.getSnippetAnalysisHistoryMaxSize()).isEqualTo(5);
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void saveAndLoadPreservesTheSessionJournalAiScreenshotAnalysisFlag() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings-shots");
         try {
@@ -126,28 +152,31 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
-    void saveAndLoadPreservesSnippetCodeAnalysisDialogGeometry() throws Exception {
+    void saveAndLoadPreservesTheSnippetAnalysisPanelLayout() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings");
         try {
             GlobalSettingsManager manager = new GlobalSettingsManager(dir);
-            manager.getSettings().setSnippetCodeAnalysisDialogGeometry(
-                new WindowGeometry(120.0, 80.0, 1400.0, 900.0));
+            manager.getSettings().setSnippetAnalysisPanelWidth(612.0);
+            manager.getSettings().setSnippetAnalysisPanelVisible(true);
             manager.save();
 
             GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
             reloaded.load();
-            WindowGeometry geometry = reloaded.getSettings().getSnippetCodeAnalysisDialogGeometry();
-            assertThat(geometry).isNotNull();
-            assertThat(geometry.getX()).isEqualTo(120.0);
-            assertThat(geometry.getY()).isEqualTo(80.0);
-            assertThat(geometry.getWidth()).isEqualTo(1400.0);
-            assertThat(geometry.getHeight()).isEqualTo(900.0);
+            assertThat(reloaded.getSettings().getSnippetAnalysisPanelWidth()).isEqualTo(612.0);
+            assertThat(reloaded.getSettings().isSnippetAnalysisPanelVisible()).isTrue();
 
-            // A settings file written before this element existed must still load, with no geometry.
+            // Junk widths read as "unset", tiny ones are raised to the panel's minimum.
+            reloaded.getSettings().setSnippetAnalysisPanelWidth(-4.0);
+            assertThat(reloaded.getSettings().getSnippetAnalysisPanelWidth()).isNull();
+            reloaded.getSettings().setSnippetAnalysisPanelWidth(12.0);
+            assertThat(reloaded.getSettings().getSnippetAnalysisPanelWidth()).isEqualTo(360.0);
+
+            // A settings file written before these elements existed loads with the defaults.
             GlobalSettingsManager legacy = new GlobalSettingsManager(Files.createTempDirectory("kortty-legacy"));
             legacy.save();
             legacy.load();
-            assertThat(legacy.getSettings().getSnippetCodeAnalysisDialogGeometry()).isNull();
+            assertThat(legacy.getSettings().getSnippetAnalysisPanelWidth()).isNull();
+            assertThat(legacy.getSettings().isSnippetAnalysisPanelVisible()).isFalse();
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);
@@ -1013,6 +1042,61 @@ class GlobalSettingsManagerTest {
 
             reloaded.getSettings().setSnippetManagerColumnWidths(null);
             assertThat(reloaded.getSettings().getSnippetManagerColumnWidths()).isEmpty();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void snippetWorkspaceLibraryDividerPositionDefaultClampAndPersist() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-snippet-workspace-divider");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertThat(manager.getSettings().getSnippetWorkspaceLibraryDividerPosition()).isWithin(0.0001).of(0.28);
+
+            manager.getSettings().setSnippetWorkspaceLibraryDividerPosition(0.42);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            assertThat(reloaded.getSettings().getSnippetWorkspaceLibraryDividerPosition()).isWithin(0.0001).of(0.42);
+
+            reloaded.getSettings().setSnippetWorkspaceLibraryDividerPosition(0.05);
+            assertThat(reloaded.getSettings().getSnippetWorkspaceLibraryDividerPosition()).isWithin(0.0001).of(0.15);
+
+            reloaded.getSettings().setSnippetWorkspaceLibraryDividerPosition(0.9);
+            assertThat(reloaded.getSettings().getSnippetWorkspaceLibraryDividerPosition()).isWithin(0.0001).of(0.6);
+
+            reloaded.getSettings().setSnippetWorkspaceLibraryDividerPosition(null);
+            assertThat(reloaded.getSettings().getSnippetWorkspaceLibraryDividerPosition()).isWithin(0.0001).of(0.28);
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void snippetWorkspaceOpenTabsPersist() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-snippet-workspace-tabs");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertThat(manager.getSettings().getSnippetWorkspaceOpenTabs()).isEmpty();
+            assertThat(manager.getSettings().getSnippetWorkspaceActiveTab()).isNull();
+
+            manager.getSettings().setSnippetWorkspaceOpenTabs(java.util.List.of("a", "b"));
+            manager.getSettings().setSnippetWorkspaceActiveTab("b");
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            assertThat(reloaded.getSettings().getSnippetWorkspaceOpenTabs()).containsExactly("a", "b").inOrder();
+            assertThat(reloaded.getSettings().getSnippetWorkspaceActiveTab()).isEqualTo("b");
+
+            reloaded.getSettings().setSnippetWorkspaceOpenTabs(null);
+            reloaded.getSettings().setSnippetWorkspaceActiveTab(" ");
+            assertThat(reloaded.getSettings().getSnippetWorkspaceOpenTabs()).isEmpty();
+            assertThat(reloaded.getSettings().getSnippetWorkspaceActiveTab()).isNull();
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);

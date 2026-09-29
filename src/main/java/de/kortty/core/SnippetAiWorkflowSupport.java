@@ -1732,7 +1732,7 @@ public final class SnippetAiWorkflowSupport {
     }
 
     private static void checkImprovementApplyInterrupted() throws InterruptedException {
-        if (Thread.currentThread().isInterrupted()) {
+        if (Thread.currentThread().isInterrupted() || AiCancellation.isCancelled()) {
             throw new InterruptedException("Full-code-analysis apply was cancelled.");
         }
     }
@@ -1767,27 +1767,133 @@ public final class SnippetAiWorkflowSupport {
         String fallbackLanguageCode,
         String additionalInstructions) throws Exception {
 
+        return generateSnippetMermaid(aiService, usageRecorder, diagramType, scopedContent, snippetLanguage,
+            connectionDisplayName, fallbackLanguageCode, additionalInstructions, DiagramSyntaxGate.NONE);
+    }
+
+    /**
+     * Checks a diagram the local validation accepted with the real Mermaid parser, before it is
+     * shown. Returns {@code null} when the diagram parses (or the parser is not available — the
+     * check must never cost a diagram), otherwise Mermaid's error message.
+     */
+    @FunctionalInterface
+    public interface DiagramSyntaxGate {
+        DiagramSyntaxGate NONE = (type, mermaid) -> null;
+
+        String check(de.kortty.model.SnippetDiagramType type, String mermaid);
+    }
+
+    /** The gate backed by the bundled, offline Mermaid parser ({@link MermaidRenderService}). */
+    public static DiagramSyntaxGate bundledMermaidSyntaxGate() {
+        return (type, mermaid) -> {
+            try {
+                MermaidRenderService.SyntaxCheckResult result = MermaidRenderService.checkSyntax(mermaid)
+                    .get(31, java.util.concurrent.TimeUnit.SECONDS);
+                return result == null || !result.available() || result.valid()
+                    ? null
+                    : result.message() != null && !result.message().isBlank()
+                        ? result.message()
+                        : "Mermaid could not parse the diagram.";
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return null;
+            } catch (Exception e) {
+                logger.debug("Mermaid syntax check unavailable; the diagram is kept", e);
+                return null;
+            }
+        };
+    }
+
+    /**
+     * Generates one diagram and, when the answer cannot be used — the local validation rejects it,
+     * or {@code syntaxGate} reports that Mermaid cannot parse it — asks the model exactly once more,
+     * with the error and its own diagram, to fix only the syntax. A second unusable answer is
+     * returned rejected, and the caller falls back to its local diagram.
+     */
+    public static SnippetAiResponseSupport.MermaidDiagram generateSnippetMermaid(
+        AiService aiService,
+        UsageRecorder usageRecorder,
+        de.kortty.model.SnippetDiagramType diagramType,
+        String scopedContent,
+        String snippetLanguage,
+        String connectionDisplayName,
+        String fallbackLanguageCode,
+        String additionalInstructions,
+        DiagramSyntaxGate syntaxGate) throws Exception {
+
         de.kortty.model.SnippetDiagramType type = diagramType != null
             ? diagramType
             : de.kortty.model.SnippetDiagramType.LOGICAL_STRUCTURE;
-        SnippetAiResponseSupport.MermaidDiagram diagram = attemptSnippetMermaid(
-            aiService, usageRecorder, type, scopedContent, snippetLanguage, connectionDisplayName,
-            fallbackLanguageCode, additionalInstructions);
-        if (diagram.isUsable()) {
-            return diagram;
+        DiagramSyntaxGate gate = syntaxGate != null ? syntaxGate : DiagramSyntaxGate.NONE;
+        DiagramAttempt first = attemptSnippetMermaid(aiService, usageRecorder, type, scopedContent,
+            snippetLanguage, connectionDisplayName, fallbackLanguageCode, additionalInstructions);
+        SnippetAiResponseSupport.MermaidDiagram firstDiagram = checkedBySyntaxGate(first, gate, type);
+        if (firstDiagram.isUsable()) {
+            return firstDiagram;
         }
-        // One more attempt before the generic local fallback. A sampled answer can derail on its
-        // own — seen live from gpt-oss-20b via LM Studio: three nodes, then a long run of backslash
-        // and question-mark debris and no edge at all — and a second sample is usually sound. The retry names the
-        // rejection so a model that broke a rule can avoid it; a truncated or interrupted answer
-        // never gets here, it is thrown above.
-        logger.info("AI diagram retried once after a rejection: {} [type={}]", diagram.rejectionReason(), type);
-        SnippetAiResponseSupport.MermaidDiagram retried = attemptSnippetMermaid(
-            aiService, usageRecorder, type, scopedContent, snippetLanguage, connectionDisplayName,
-            fallbackLanguageCode, retryInstructions(type, additionalInstructions, diagram.rejectionReason()));
-        return retried.isUsable() ? retried : diagram;
+        // Exactly one more request before the generic local fallback; a truncated or interrupted
+        // answer never gets here, it is thrown in attemptSnippetMermaid. What the second request asks
+        // for depends on the rejection: a syntax or structure slip in a diagram the model did write
+        // is repaired — the exact error and its own diagram go back with "fix only that" — while an
+        // oversized or unsafe diagram, or an answer without one, is requested again from scratch,
+        // naming the reason. A sampled answer can derail on its own (seen live from gpt-oss-20b via
+        // LM Studio: three nodes, then backslash and question-mark debris and no edge at all), and
+        // a second sample is usually sound.
+        if (Thread.currentThread().isInterrupted() || AiCancellation.isCancelled()) {
+            throw new AiCancelledException("Snippet diagram generation was cancelled.", null);
+        }
+        SnippetDiagramRejection category = SnippetDiagramRejection.classify(firstDiagram.rejectionReason());
+        boolean carriesDiagram = first.answer() != null && first.answer().toLowerCase(java.util.Locale.ROOT)
+            .contains(SnippetTypedDiagramSupport.header(type).toLowerCase(java.util.Locale.ROOT));
+        boolean repair = category.repairable() || (category == SnippetDiagramRejection.NO_DIAGRAM && carriesDiagram);
+        String secondInstructions;
+        if (repair) {
+            String previous = first.mermaidValue() != null ? first.mermaidValue() : first.answer();
+            secondInstructions = diagramRepairInstructions(
+                additionalInstructions, firstDiagram.rejectionReason(), previous);
+        } else {
+            secondInstructions = retryInstructions(type, additionalInstructions, firstDiagram.rejectionReason());
+        }
+        logger.info("AI diagram {} once after a rejection: {} [type={}]",
+            repair ? "repair round" : "retried from scratch", firstDiagram.rejectionReason(), type);
+        DiagramAttempt second = attemptSnippetMermaid(aiService, usageRecorder, type, scopedContent,
+            snippetLanguage, connectionDisplayName, fallbackLanguageCode, secondInstructions);
+        SnippetAiResponseSupport.MermaidDiagram secondDiagram = checkedBySyntaxGate(second, gate, type);
+        if (secondDiagram.isUsable()) {
+            logger.info("AI diagram accepted after the second request [type={}]", type);
+            return secondDiagram;
+        }
+        // Both unusable: the first rejection is the one the reader can act on — the second answer
+        // is often "no diagram at all", which says nothing about what went wrong.
+        return firstDiagram;
     }
 
+    /** One diagram request: the model's raw answer, its raw mermaid value, and what korTTY made of it. */
+    private record DiagramAttempt(String answer, String mermaidValue, SnippetAiResponseSupport.MermaidDiagram diagram) {
+    }
+
+    private static SnippetAiResponseSupport.MermaidDiagram checkedBySyntaxGate(
+        DiagramAttempt attempt, DiagramSyntaxGate gate, de.kortty.model.SnippetDiagramType type) {
+
+        SnippetAiResponseSupport.MermaidDiagram diagram = attempt.diagram();
+        if (!diagram.isUsable()) {
+            return diagram;
+        }
+        String syntaxError = gate.check(type, diagram.mermaid());
+        if (syntaxError == null) {
+            return diagram;
+        }
+        String reason = "Mermaid could not parse the diagram: " + syntaxError.strip();
+        logger.warn("AI diagram rejected: {} [type={}] Full answer: {}", reason, type,
+            archiveRejectedDiagram(attempt.answer()));
+        return SnippetAiResponseSupport.MermaidDiagram.rejected(type, reason);
+    }
+
+    /**
+     * The from-scratch retry's instructions: the user's own, then the rejection reason, with the
+     * reminder of the shapes a flowchart may use. Used when the first answer carried nothing a
+     * repair could start from (no diagram, an oversized or unsafe one).
+     */
     static String retryInstructions(
         de.kortty.model.SnippetDiagramType type, String additionalInstructions, String rejectionReason) {
 
@@ -1807,7 +1913,34 @@ public final class SnippetAiWorkflowSupport {
         return instructions.toString();
     }
 
-    private static SnippetAiResponseSupport.MermaidDiagram attemptSnippetMermaid(
+    /** The largest share of the previous answer a repair request quotes back to the model. */
+    private static final int MAX_DIAGRAM_REPAIR_ECHO_CHARS = 8_000;
+
+    /**
+     * The repair round's instructions: the user's own, then the exact error and the model's own
+     * diagram, with the one thing to do — fix the syntax and keep the structure.
+     */
+    static String diagramRepairInstructions(String additionalInstructions, String reason, String previousDiagram) {
+        StringBuilder builder = new StringBuilder();
+        if (additionalInstructions != null && !additionalInstructions.isBlank()) {
+            builder.append(additionalInstructions.strip()).append("\n\n");
+        }
+        String previous = previousDiagram != null ? previousDiagram.strip() : "";
+        if (previous.length() > MAX_DIAGRAM_REPAIR_ECHO_CHARS) {
+            previous = previous.substring(0, MAX_DIAGRAM_REPAIR_ECHO_CHARS) + "\n…";
+        }
+        builder.append("Your previous diagram answer was rejected: ")
+            .append(reason != null && !reason.isBlank() ? reason.strip() : "it was not valid.")
+            .append("\nFix only the Mermaid syntax and the problem named above. Keep the same nodes, labels, ")
+            .append("connections and codeReferences, write every label in double quotes, close every bracket, ")
+            .append("and return the complete corrected JSON object.");
+        if (!previous.isEmpty()) {
+            builder.append("\nYour previous diagram:\n").append(AiPromptBuilder.toSafeTextCodeBlock(previous));
+        }
+        return builder.toString();
+    }
+
+    private static DiagramAttempt attemptSnippetMermaid(
         AiService aiService,
         UsageRecorder usageRecorder,
         de.kortty.model.SnippetDiagramType type,
@@ -1844,7 +1977,15 @@ public final class SnippetAiWorkflowSupport {
             throw new OutputTokenLimitReachedException();
         }
         String answer = result != null ? result.content() : null;
+        String mermaidValue = SnippetAiResponseSupport.extractMermaidValue(answer);
         int snippetLines = SnippetDiagramSupport.countLines(scopedContent);
+        if (type == de.kortty.model.SnippetDiagramType.LOGICAL_STRUCTURE && mermaidValue != null) {
+            List<String> droppedLines = SnippetDiagramSupport.repairGeneratedFlowchart(mermaidValue).droppedLines();
+            if (!droppedLines.isEmpty()) {
+                logger.info("AI diagram repair left out {} unreadable line(s): {} [snippet lines={}]",
+                    droppedLines.size(), droppedLines, snippetLines);
+            }
+        }
         SnippetAiResponseSupport.MermaidDiagram diagram =
             SnippetAiResponseSupport.parseMermaidDiagram(type, answer, scopedContent);
         int strippedStatements = SnippetDiagramSupport.countPresentationStatements(answer);
@@ -1867,7 +2008,7 @@ public final class SnippetAiWorkflowSupport {
             logger.warn("AI diagram rejected: {} [type={}, snippet lines={}, answer chars={}, {}] Full answer: {}",
                 diagram.rejectionReason(), type, snippetLines, answer != null ? answer.length() : 0,
                 describeAnswer(type, answer), archiveRejectedDiagram(answer));
-            return diagram;
+            return new DiagramAttempt(answer, mermaidValue, diagram);
         }
         int answerChars = answer != null ? answer.length() : 0;
         if (salvaged) {
@@ -1880,7 +2021,8 @@ public final class SnippetAiWorkflowSupport {
         if (!validation.valid()) {
             logger.warn("AI diagram rejected: {} [type={}, snippet lines={}, {}] Full answer: {}",
                 validation.message(), type, snippetLines, summary, archiveRejectedDiagram(answer));
-            return SnippetAiResponseSupport.MermaidDiagram.rejected(type, validation.message());
+            return new DiagramAttempt(answer, mermaidValue,
+                SnippetAiResponseSupport.MermaidDiagram.rejected(type, validation.message()));
         }
         String acceptedSummary = summary;
         String canonical = null;
@@ -1890,32 +2032,21 @@ public final class SnippetAiWorkflowSupport {
             SnippetDiagramSupport.FlowchartStatistics drawn = SnippetDiagramSupport.flowchartStatistics(diagram.mermaid());
             SnippetDiagramSupport.FlowchartStatistics kept = SnippetDiagramSupport.flowchartStatistics(canonical);
             int droppedNodes = Math.max(0, drawn.nonterminalNodes() - kept.nonterminalNodes());
-            int droppedEdges = Math.max(0, drawn.edges() - kept.edges());
-            // The repairs may trim a diagram, never hollow it out: a start-to-stop stub, or a
-            // diagram that lost more than half of what the model drew, is a rejection with a
-            // reason — the generic fallback says the same thing honestly. This is the last gate,
-            // so nothing may call the diagram accepted before it.
-            //
-            // Nodes and edges both count. A diagram's structure lives in its edges, and a model
-            // that draws branches the dialect cannot show keeps most of its nodes while the
-            // repairs leave a straight chain of them: seen live as 3 of 5 nodes but only 4 of 10
-            // edges, rendered as a five-box line for a 4,000-line script.
-            boolean nodesHollowed = kept.nonterminalNodes() == 0
-                || (drawn.nonterminalNodes() > 0 && kept.nonterminalNodes() * 2 < drawn.nonterminalNodes());
-            boolean edgesHollowed = drawn.edges() > 0 && kept.edges() * 2 < drawn.edges();
-            if (nodesHollowed || edgesHollowed) {
-                String reason = "The diagram's repairs would drop " + droppedNodes + " of " + drawn.nonterminalNodes()
-                    + " nodes and " + droppedEdges + " of " + drawn.edges()
-                    + " edges (parallel branches or unreachable nodes the dialect cannot show); "
-                    + "not enough of the structure remains.";
+            // The repairs no longer reduce a flowchart to a single path: fan-out, merges and loops
+            // stay as drawn, and only steps nothing leads to (or lines nothing could be read from)
+            // are left out. A diagram that lost most of its steps that way is still not the model's
+            // diagram, and goes to the repair round rather than being shown as a stub.
+            if (kept.nonterminalNodes() == 0
+                || (drawn.nonterminalNodes() > 0 && kept.nonterminalNodes() * 2 < drawn.nonterminalNodes())) {
+                String reason = "Only " + kept.nonterminalNodes() + " of the flowchart's "
+                    + drawn.nonterminalNodes() + " steps are connected to its start.";
                 logger.warn("AI diagram rejected: {} [type={}, snippet lines={}, {}] Full answer: {}",
                     reason, type, snippetLines, summary, archiveRejectedDiagram(answer));
-                return SnippetAiResponseSupport.MermaidDiagram.rejected(type, reason);
+                return new DiagramAttempt(answer, mermaidValue, SnippetAiResponseSupport.MermaidDiagram.rejected(type, reason));
             }
-            if (droppedNodes > 0 || droppedEdges > 0) {
-                logger.warn("AI diagram reduced to a single path: {} nodes and {} edges kept, {} nodes and {} edges "
-                        + "dropped; the model drew parallel branches or unreachable nodes the dialect cannot show",
-                    kept.nonterminalNodes(), kept.edges(), droppedNodes, droppedEdges);
+            if (droppedNodes > 0) {
+                logger.info("AI diagram repaired: {} unconnected node(s) left out; {} nodes and {} edges kept",
+                    droppedNodes, kept.nonterminalNodes(), kept.edges());
             }
             // What the diagram window will show, not what the model drew.
             acceptedSummary = SnippetTypedDiagramSupport.summarize(type, canonical);
@@ -1935,9 +2066,10 @@ public final class SnippetAiWorkflowSupport {
             type, snippetLines, SnippetDiagramSupport.maxGeneratedNonterminalNodes(scopedContent), acceptedSummary,
             answerChars);
         if (canonical != null) {
-            return new SnippetAiResponseSupport.MermaidDiagram(diagram.title(), canonical, diagram.codeReferences(), type);
+            return new DiagramAttempt(answer, mermaidValue,
+                new SnippetAiResponseSupport.MermaidDiagram(diagram.title(), canonical, diagram.codeReferences(), type));
         }
-        return diagram;
+        return new DiagramAttempt(answer, mermaidValue, diagram);
     }
 
     /**

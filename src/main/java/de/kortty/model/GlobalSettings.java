@@ -886,13 +886,43 @@ public class GlobalSettings {
     private boolean snippetEditorPrewarmEnabled = true;
 
     @XmlElement
-    private Double snippetManagerPreviewDividerPosition; // Vertical table/preview divider position
+    private Double snippetManagerPreviewDividerPosition; // Deprecated: the preview moved into the snippet workspace
+
+    @XmlElement
+    private Double snippetWorkspaceLibraryDividerPosition; // Library | editor-tabs divider of the snippet workspace
+
+    /** Snippet ids of the workspace's editor tabs when it was last closed (reopened next time). */
+    @XmlElementWrapper(name = "snippetWorkspaceOpenTabs")
+    @XmlElement(name = "snippetId")
+    private java.util.List<String> snippetWorkspaceOpenTabs = new java.util.ArrayList<>();
+
+    @XmlElement
+    private String snippetWorkspaceActiveTab; // Snippet id of the workspace's active editor tab at close
 
     @XmlElement
     private String snippetManagerColumnWidths; // "columnId=width;..." of user-resized snippet table columns
 
     @XmlElement
     private Integer snippetHistoryMaxSize = 30; // Max number of history entries per snippet (default: 30, max: 99)
+
+    @XmlElement
+    private Integer snippetAnalysisHistoryMaxSize = 5; // Stored Full-code analyses kept per snippet (default: 5, 1..20)
+
+    /** Width of the Full-code-analysis side panel inside the snippet editor; unset = default. */
+    @XmlElement
+    private Double snippetAnalysisPanelWidth;
+
+    /** Whether the analysis side panel was left open, so an editor with a stored analysis reopens it. */
+    @XmlElement
+    private Boolean snippetAnalysisPanelVisible;
+
+    /** The folder the last code-analysis report was exported to; unset = the chooser's default. */
+    @XmlElement
+    private String snippetAnalysisExportDirectory;
+
+    /** Whether code-analysis report exports append the full script (default: off). */
+    @XmlElement
+    private Boolean snippetAnalysisExportIncludeCode;
 
     // Snippet dialog geometries
     @XmlElement
@@ -933,10 +963,6 @@ public class GlobalSettings {
     @XmlElement
     private WindowGeometry alternativeSnippetSolutionsDialogGeometry;
 
-    /** Last window geometry of the snippet "AI code analysis" dialog. */
-    @XmlElement
-    private WindowGeometry snippetCodeAnalysisDialogGeometry;
-
     /** Last window geometry of the AI change-review (diff) window. */
     @XmlElement
     private WindowGeometry aiDiffDialogGeometry;
@@ -947,18 +973,6 @@ public class GlobalSettings {
      */
     @XmlElement
     private Double aiDiffDialogSummaryDividerPosition;
-
-    /**
-     * Width the reviewer gave the change-review window while it was docked beside the Full-code
-     * analysis window. Kept apart from {@link #aiDiffDialogGeometry} because a docked window's
-     * position and height belong to the dock, not to the reviewer.
-     */
-    @XmlElement
-    private Double aiDiffDialogDockedWidth;
-
-    /** Width the reviewer gave the AI-processing window while it was docked. */
-    @XmlElement
-    private Double aiApplyProgressDockedWidth;
 
     /** Last window geometry of the Generate Workflow Script dialog. */
     @XmlElement
@@ -3509,6 +3523,47 @@ public class GlobalSettings {
         this.snippetManagerPreviewDividerPosition = Math.max(0.35, Math.min(0.9, snippetManagerPreviewDividerPosition));
     }
 
+    /** Snippet workspace: the snippet ids of the editor tabs open at the last close, in tab order. */
+    public java.util.List<String> getSnippetWorkspaceOpenTabs() {
+        if (snippetWorkspaceOpenTabs == null) {
+            snippetWorkspaceOpenTabs = new java.util.ArrayList<>();
+        }
+        return snippetWorkspaceOpenTabs;
+    }
+
+    public void setSnippetWorkspaceOpenTabs(java.util.List<String> snippetIds) {
+        this.snippetWorkspaceOpenTabs = snippetIds != null
+            ? new java.util.ArrayList<>(snippetIds)
+            : new java.util.ArrayList<>();
+    }
+
+    /** Snippet workspace: the snippet id of the active editor tab at the last close, or {@code null}. */
+    public String getSnippetWorkspaceActiveTab() {
+        return snippetWorkspaceActiveTab;
+    }
+
+    public void setSnippetWorkspaceActiveTab(String snippetId) {
+        this.snippetWorkspaceActiveTab = snippetId == null || snippetId.isBlank() ? null : snippetId;
+    }
+
+    /** Snippet workspace: share of the width given to the library column (0.15..0.6, default 0.28). */
+    public double getSnippetWorkspaceLibraryDividerPosition() {
+        if (snippetWorkspaceLibraryDividerPosition == null
+            || snippetWorkspaceLibraryDividerPosition <= 0.0
+            || snippetWorkspaceLibraryDividerPosition >= 1.0) {
+            return 0.28;
+        }
+        return Math.max(0.15, Math.min(0.6, snippetWorkspaceLibraryDividerPosition));
+    }
+
+    public void setSnippetWorkspaceLibraryDividerPosition(Double position) {
+        if (position == null || position.isNaN()) {
+            this.snippetWorkspaceLibraryDividerPosition = null;
+            return;
+        }
+        this.snippetWorkspaceLibraryDividerPosition = Math.max(0.15, Math.min(0.6, position));
+    }
+
     /** User-resized snippet table column widths by column id (empty when never resized). */
     public java.util.Map<String, Double> getSnippetManagerColumnWidths() {
         java.util.Map<String, Double> widths = new java.util.LinkedHashMap<>();
@@ -3566,6 +3621,66 @@ public class GlobalSettings {
         this.snippetHistoryMaxSize = Math.max(1, Math.min(99, snippetHistoryMaxSize));
     }
 
+    /**
+     * How many stored Full-code analyses a snippet keeps. Trimming only happens when a new analysis
+     * arrives and never removes pinned, running, pending or resumable records.
+     */
+    public int getSnippetAnalysisHistoryMaxSize() {
+        if (snippetAnalysisHistoryMaxSize == null || snippetAnalysisHistoryMaxSize <= 0) {
+            return 5;
+        }
+        return Math.min(20, snippetAnalysisHistoryMaxSize);
+    }
+
+    public void setSnippetAnalysisHistoryMaxSize(Integer snippetAnalysisHistoryMaxSize) {
+        if (snippetAnalysisHistoryMaxSize == null) {
+            this.snippetAnalysisHistoryMaxSize = 5;
+            return;
+        }
+        this.snippetAnalysisHistoryMaxSize = Math.max(1, Math.min(20, snippetAnalysisHistoryMaxSize));
+    }
+
+    /** The analysis side panel width, or {@code null} for the default; junk values read as unset. */
+    public Double getSnippetAnalysisPanelWidth() {
+        if (snippetAnalysisPanelWidth == null || snippetAnalysisPanelWidth.isNaN() || snippetAnalysisPanelWidth <= 0) {
+            return null;
+        }
+        return Math.max(360.0, Math.min(1600.0, snippetAnalysisPanelWidth));
+    }
+
+    public void setSnippetAnalysisPanelWidth(Double snippetAnalysisPanelWidth) {
+        this.snippetAnalysisPanelWidth = snippetAnalysisPanelWidth == null || snippetAnalysisPanelWidth.isNaN()
+            || snippetAnalysisPanelWidth <= 0
+            ? null
+            : Math.max(360.0, Math.min(1600.0, snippetAnalysisPanelWidth));
+    }
+
+    public boolean isSnippetAnalysisPanelVisible() {
+        return Boolean.TRUE.equals(snippetAnalysisPanelVisible);
+    }
+
+    public void setSnippetAnalysisPanelVisible(boolean snippetAnalysisPanelVisible) {
+        this.snippetAnalysisPanelVisible = snippetAnalysisPanelVisible;
+    }
+
+    public String getSnippetAnalysisExportDirectory() {
+        return snippetAnalysisExportDirectory != null && !snippetAnalysisExportDirectory.isBlank()
+            ? snippetAnalysisExportDirectory : null;
+    }
+
+    public void setSnippetAnalysisExportDirectory(String snippetAnalysisExportDirectory) {
+        this.snippetAnalysisExportDirectory = snippetAnalysisExportDirectory != null
+            && !snippetAnalysisExportDirectory.isBlank() ? snippetAnalysisExportDirectory : null;
+    }
+
+    public boolean isSnippetAnalysisExportIncludeCode() {
+        return Boolean.TRUE.equals(snippetAnalysisExportIncludeCode);
+    }
+
+    public void setSnippetAnalysisExportIncludeCode(boolean snippetAnalysisExportIncludeCode) {
+        this.snippetAnalysisExportIncludeCode = snippetAnalysisExportIncludeCode;
+    }
+
     // ---- Snippet Dialog Geometries ----
     
     public WindowGeometry getSnippetManagerGeometry() { return snippetManagerGeometry; }
@@ -3611,11 +3726,6 @@ public class GlobalSettings {
         this.alternativeSnippetSolutionsDialogGeometry = alternativeSnippetSolutionsDialogGeometry;
     }
 
-    public WindowGeometry getSnippetCodeAnalysisDialogGeometry() { return snippetCodeAnalysisDialogGeometry; }
-    public void setSnippetCodeAnalysisDialogGeometry(WindowGeometry snippetCodeAnalysisDialogGeometry) {
-        this.snippetCodeAnalysisDialogGeometry = snippetCodeAnalysisDialogGeometry;
-    }
-
     public WindowGeometry getAiDiffDialogGeometry() { return aiDiffDialogGeometry; }
     public void setAiDiffDialogGeometry(WindowGeometry aiDiffDialogGeometry) {
         this.aiDiffDialogGeometry = aiDiffDialogGeometry;
@@ -3624,16 +3734,6 @@ public class GlobalSettings {
     public Double getAiDiffDialogSummaryDividerPosition() { return aiDiffDialogSummaryDividerPosition; }
     public void setAiDiffDialogSummaryDividerPosition(Double aiDiffDialogSummaryDividerPosition) {
         this.aiDiffDialogSummaryDividerPosition = aiDiffDialogSummaryDividerPosition;
-    }
-
-    public Double getAiDiffDialogDockedWidth() { return aiDiffDialogDockedWidth; }
-    public void setAiDiffDialogDockedWidth(Double aiDiffDialogDockedWidth) {
-        this.aiDiffDialogDockedWidth = aiDiffDialogDockedWidth;
-    }
-
-    public Double getAiApplyProgressDockedWidth() { return aiApplyProgressDockedWidth; }
-    public void setAiApplyProgressDockedWidth(Double aiApplyProgressDockedWidth) {
-        this.aiApplyProgressDockedWidth = aiApplyProgressDockedWidth;
     }
 
     public WindowGeometry getWorkflowScriptDialogGeometry() { return workflowScriptDialogGeometry; }

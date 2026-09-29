@@ -3,6 +3,7 @@ package de.kortty.core;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetDiagram;
 import net.lingala.zip4j.ZipFile;
+import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -10,6 +11,8 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Comparator;
 import java.util.List;
 import static com.google.common.truth.Truth.assertThat;
@@ -293,5 +296,121 @@ class SnippetManagerTest {
             zipFile.extractAll(extractDirectory.toString());
         }
         assertThat(Files.readString(extractDirectory.resolve("deploy.sh"))).isEqualTo("echo deploy");
+    }
+
+    @Test
+    void saveWritesAtomicallyAndLeavesNoTempFileBehind() throws Exception {
+        SnippetManager manager = new SnippetManager(tempDir);
+        Snippet first = new Snippet("first.sh", "echo one", "bash");
+        manager.addSnippet(first);
+        manager.save();
+        // A second save replaces the existing file in place (the move must land on the real file).
+        Snippet second = new Snippet("second.sh", "echo zwei äöü", "bash");
+        manager.addSnippet(second);
+        manager.save();
+
+        List<String> files;
+        try (var listing = Files.list(tempDir)) {
+            files = listing.map(path -> path.getFileName().toString()).sorted().toList();
+        }
+        assertThat(files).containsExactly("snippets.xml");
+
+        SnippetManager reloaded = new SnippetManager(tempDir);
+        reloaded.load();
+        assertThat(reloaded.getAllSnippets().stream().map(Snippet::getName).toList())
+            .containsExactly("first.sh", "second.sh").inOrder();
+        assertThat(reloaded.findById(second.getId()).orElseThrow().getContent()).isEqualTo("echo zwei äöü");
+    }
+
+    @Test
+    void corruptSnippetsFileIsQuarantinedAndNeverOverwritten() throws Exception {
+        Path snippetsFile = tempDir.resolve("snippets.xml");
+        String garbage = "<snippets><snippet><name>half-written";
+        Files.writeString(snippetsFile, garbage);
+        SnippetManager manager = new SnippetManager(tempDir);
+
+        manager.load(); // must not throw: the app keeps working
+
+        Path backup = manager.getLoadFailureBackup().orElseThrow();
+        assertThat(backup.getParent()).isEqualTo(tempDir);
+        assertThat(backup.getFileName().toString()).matches("snippets\\.xml\\.corrupt-\\d{8}-\\d{6}");
+        assertThat(Files.readString(backup)).isEqualTo(garbage);
+        assertThat(Files.exists(snippetsFile)).isFalse();
+        // Defaults are in place: the fixed category, the OS list and (policy) headers.
+        assertThat(manager.findCategoryByName(SnippetManager.SCRIPT_HEADER_CATEGORY)).isPresent();
+        assertThat(manager.getOperatingSystems()).isNotEmpty();
+        assertThat(manager.getAllSnippets().stream().filter(s -> !s.isPolicyManaged()).toList()).isEmpty();
+
+        // The next save creates a fresh file; the quarantined copy stays untouched.
+        manager.addSnippet(new Snippet("fresh.sh", "echo fresh", "bash"));
+        manager.save();
+        assertThat(Files.readString(backup)).isEqualTo(garbage);
+        SnippetManager reloaded = new SnippetManager(tempDir);
+        reloaded.load();
+        assertThat(reloaded.getLoadFailureBackup()).isEmpty();
+        assertThat(reloaded.getAllSnippets().stream().map(Snippet::getName).toList()).containsExactly("fresh.sh");
+    }
+
+    @Test
+    void secondCorruptLoadInTheSameSecondGetsItsOwnBackupName() throws Exception {
+        Path snippetsFile = tempDir.resolve("snippets.xml");
+        Files.writeString(snippetsFile, "<broken");
+        SnippetManager manager = new SnippetManager(tempDir);
+        manager.load();
+        Path firstBackup = manager.getLoadFailureBackup().orElseThrow();
+
+        Files.writeString(snippetsFile, "<broken-again");
+        manager.load();
+        Path secondBackup = manager.getLoadFailureBackup().orElseThrow();
+
+        assertThat(secondBackup).isNotEqualTo(firstBackup);
+        assertThat(Files.readString(firstBackup)).isEqualTo("<broken");
+        assertThat(Files.readString(secondBackup)).isEqualTo("<broken-again");
+    }
+
+    @Test
+    void unreadableFileThatCannotBeMovedAsideBlocksSaving() throws Exception {
+        if (Files.getFileAttributeView(tempDir, PosixFileAttributeView.class) == null
+            || "root".equals(System.getProperty("user.name"))) {
+            throw new SkipException("needs POSIX directory permissions to make the rename fail");
+        }
+        Path snippetsFile = tempDir.resolve("snippets.xml");
+        String garbage = "<snippets><snippet>";
+        Files.writeString(snippetsFile, garbage);
+        Files.setPosixFilePermissions(tempDir, PosixFilePermissions.fromString("r-x------"));
+        SnippetManager manager = new SnippetManager(tempDir);
+        try {
+            expectThrows(Exception.class, manager::load);
+            assertThat(manager.getLoadFailureBackup()).isEmpty();
+
+            manager.addSnippet(new Snippet("late.sh", "echo late", "bash"));
+            expectThrows(IllegalStateException.class, manager::save);
+        } finally {
+            Files.setPosixFilePermissions(tempDir, PosixFilePermissions.fromString("rwx------"));
+        }
+        assertThat(Files.readString(snippetsFile)).isEqualTo(garbage);
+    }
+
+    @Test
+    void addOrUpdateSnippetAddsOnceThenUpdatesTheSameSnippet() {
+        SnippetManager manager = new SnippetManager(tempDir);
+        Snippet draft = new Snippet("deploy.sh", "echo one", "bash");
+
+        assertThat(manager.addOrUpdateSnippet(draft)).isTrue();
+        draft.setContent("echo two");
+        // The second save of the same editor must not trip the duplicate-name check on itself.
+        assertThat(manager.addOrUpdateSnippet(draft)).isFalse();
+
+        assertThat(manager.getAllSnippets()).containsExactly(draft);
+        assertThat(manager.findById(draft.getId()).orElseThrow().getContent()).isEqualTo("echo two");
+    }
+
+    @Test
+    void addOrUpdateSnippetStillRejectsAnotherSnippetWithTheSameName() {
+        SnippetManager manager = new SnippetManager(tempDir);
+        manager.addOrUpdateSnippet(new Snippet("deploy.sh", "echo one", "bash"));
+
+        expectThrows(IllegalArgumentException.class,
+            () -> manager.addOrUpdateSnippet(new Snippet("deploy.sh", "echo other", "bash")));
     }
 }

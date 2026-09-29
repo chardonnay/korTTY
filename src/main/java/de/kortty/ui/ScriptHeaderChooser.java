@@ -30,6 +30,7 @@ final class ScriptHeaderChooser extends HBox {
     }
 
     private final ComboBox<HeaderChoice> combo = new ComboBox<>();
+    private final List<Runnable> selectionListeners = new ArrayList<>();
 
     ScriptHeaderChooser() {
         setSpacing(8);
@@ -46,6 +47,11 @@ final class ScriptHeaderChooser extends HBox {
         }
         combo.getItems().setAll(choices);
         combo.setValue(choices.get(0));
+        combo.valueProperty().addListener((obs, was, isNow) -> {
+            for (Runnable listener : List.copyOf(selectionListeners)) {
+                listener.run();
+            }
+        });
         combo.setTooltip(new Tooltip(I18n.get("snippets.ai.analysis.header.tooltip")));
 
         Label label = new Label(I18n.get("snippets.ai.analysis.header.label"));
@@ -65,5 +71,34 @@ final class ScriptHeaderChooser extends HBox {
             return null;
         }
         return ScriptHeaderSupport.substitutedHeaderById(choice.snippetId());
+    }
+
+    /** The id of the selected header snippet, or {@code null} for "no header". */
+    String selectedHeaderSnippetId() {
+        HeaderChoice choice = combo.getValue();
+        return choice != null ? choice.snippetId() : null;
+    }
+
+    /**
+     * Selects the header snippet with {@code snippetId}; {@code null} selects "no header". An id that
+     * is not offered (the header snippet was deleted since) also falls back to "no header" and
+     * returns {@code false}.
+     */
+    boolean selectHeader(String snippetId) {
+        for (HeaderChoice choice : combo.getItems()) {
+            if (java.util.Objects.equals(choice.snippetId(), snippetId)) {
+                combo.setValue(choice);
+                return true;
+            }
+        }
+        combo.setValue(combo.getItems().get(0));
+        return false;
+    }
+
+    /** Adds a listener fired whenever the chosen header changes. Runs on the JavaFX thread. */
+    void setOnSelectionChanged(Runnable listener) {
+        if (listener != null) {
+            selectionListeners.add(listener);
+        }
     }
 }

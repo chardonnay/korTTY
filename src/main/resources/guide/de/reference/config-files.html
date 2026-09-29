@@ -106,7 +106,7 @@
         <a href="../getting-started/main-window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            Main window overview
+            Übersicht des Hauptfensters
         </a>
     </li>
                     </ul>
@@ -248,7 +248,7 @@
         <a href="settings/export.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            Export
+            Exportieren
         </a>
     </li>
                     
@@ -778,25 +778,27 @@
 </span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>├── ai-chats.xml                       # Saved AI conversations
 </span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>├── snippets.xml                       # Code snippets and scripts
 </span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>├── snippet-variables.xml              # Snippet variable storage
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>├── job-scheduler.xml                  # JobScheduler jobs, host-key pins, sudo secrets, journal
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>├── ssh-host-keys.properties           # Interactive Terminal/SFTP/Mosh host-key pins
-</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>├── ssh-host-keys.properties.lock      # Transient cross-process writer lock (not backed up)
-</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>├── master.key                         # Hashed master password (PBKDF2)
-</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>├── master.autounlock                  # Optional auto-login password (obfuscated; owner-only)
-</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
-</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>├── coding-agents/                     # User overrides for coding-agent detection rules
-</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>├── control/                           # Control API endpoint (owner-only 0700; only while enabled)
-</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>│   ├── control.sock                   # Unix socket (Linux/macOS); absent on Windows
-</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>│   └── endpoint.json                  # Transport, port and access token (0600); deleted on exit
-</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>├── kortty.log                         # Application log file
-</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>├── history/                           # Terminal session history (compressed)
-</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>├── journals/                          # Session journals (one directory per journal)
-</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>├── terminal-logs/                     # Default folder for per-connection terminal logs
-</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>├── plugins/                           # Imported terminal-effect plugin JARs
-</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
-</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>├── projects/                          # Project files (.kortty)
-</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>├── i18n/                              # Generated language files (messages_*.properties)
-</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>└── ssh-keys/                          # Optional copied SSH keys (included in backups)
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>├── snippet-analyses/                  # Stored Full code analyses, one &lt;snippet-id&gt;.json per snippet
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>├── snippet-drafts/                    # Unsaved snippet-editor forms (owner-only; not backed up)
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>├── job-scheduler.xml                  # JobScheduler jobs, host-key pins, sudo secrets, journal
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>├── ssh-host-keys.properties           # Interactive Terminal/SFTP/Mosh host-key pins
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>├── ssh-host-keys.properties.lock      # Transient cross-process writer lock (not backed up)
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>├── master.key                         # Hashed master password (PBKDF2)
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>├── master.autounlock                  # Optional auto-login password (obfuscated; owner-only)
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>├── coding-agents/                     # User overrides for coding-agent detection rules
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>├── control/                           # Control API endpoint (owner-only 0700; only while enabled)
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>│   ├── control.sock                   # Unix socket (Linux/macOS); absent on Windows
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>│   └── endpoint.json                  # Transport, port and access token (0600); deleted on exit
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>├── kortty.log                         # Application log file
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>├── history/                           # Terminal session history (compressed)
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>├── journals/                          # Session journals (one directory per journal)
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>├── terminal-logs/                     # Default folder for per-connection terminal logs
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>├── plugins/                           # Imported terminal-effect plugin JARs
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>├── projects/                          # Project files (.kortty)
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>├── i18n/                              # Generated language files (messages_*.properties)
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>└── ssh-keys/                          # Optional copied SSH keys (included in backups)
 </span></code></pre></div>
 <h2 id="core-konfigurationsdateien">Core-Konfigurationsdateien<a class="headerlink" href="#core-konfigurationsdateien" title="Permanent link">&para;</a></h2>
 <h3 id="connectionsxml">connections.xml<a class="headerlink" href="#connectionsxml" title="Permanent link">&para;</a></h3>
@@ -1010,7 +1012,7 @@
 <p><strong>Zweck:</strong> Wenn Sie ein Terminaleffekt-Plugin über <em>Plugins &gt; Terminaleffekte</em> deaktivieren, wird seine ID in diese Datei geschrieben, sodass es nach dem Neustart deaktiviert bleibt.</p>
 <h3 id="coding-agents">coding-agents/<a class="headerlink" href="#coding-agents" title="Permanent link">&para;</a></h3>
 <p>Optionale Benutzerüberschreibungen für die Regeln der Coding-Agent-Erkennung, eine JSON-Datei pro Agent (<code>claude-code.json</code>, <code>codex.json</code>, <code>gemini-cli.json</code>).</p>
-<p><strong>Zweck:</strong> Eine Datei hier ersetzt die mitgelieferte Regeldatei desselben Agents vollständig. Eine ungültige Datei wird im Protokoll als <em>coding-agents</em>-Warnung gemeldet, und die mitgelieferten Regeln bleiben in Kraft. Das Verzeichnis existiert erst, wenn Sie es anlegen. Siehe <a href="../features/coding-agents.html#eigene-regeln">Coding-Agents → Eigene Regeln</a>.</p>
+<p><strong>Zweck:</strong> Eine Datei ersetzt hier die im Paket enthaltene Regeldatei des gleichen Agents vollständig. Eine ungültige Datei wird im Log als <em>Coding-Agents</em> Warnung gemeldet und die im Paket enthaltenen Regeln bleiben aktiv. Das Verzeichnis existiert nicht, bis Sie es erstellen. Siehe <a href="../features/coding-agents.html#eigene-regeln">Coding-Agents → Custom rules</a>.</p>
 <h3 id="korttylog">kortty.log<a class="headerlink" href="#korttylog" title="Permanent link">&para;</a></h3>
 <p>Anwendungsprotokolldatei.</p>
 <p><strong>Enthält:</strong>
@@ -1039,7 +1041,7 @@
 <h3 id="journals">journals/<a class="headerlink" href="#journals" title="Permanent link">&para;</a></h3>
 <p>Sitzungsjournale – ein eigenständiges Verzeichnis pro Journal (Speicherort konfigurierbar unter <strong>Einstellungen &gt; Protokollierung &gt; Sitzungsjournal</strong>). Jedes Journalverzeichnis enthält <code>journal.xml</code> (das kuratierte Dokument: Metadaten, KI-Zusammenfassungen, Markierungen, Notizen, Screenshot-Referenzen), das Nur-Anhängen-Capture-Log <code>session-log.json</code> / <code>.xml</code> / <code>.yaml</code> (standardmäßig JSON Lines) mit zstd-komprimierten gedrehten Teilen (Teilgröße und Teileanzahl sind pro Verbindung auf der Registerkarte „Journal“ konfigurierbar, standardmäßig 25 MB und 20 Teile; Journale aus älteren Versionen behalten ihre gzip-komprimierte <code>.gz</code>-Teile), die generierte <code>journal.html</code>-Timeline-Seite und <code>screenshots/*.png</code>. Siehe <a href="../features/session-journal.html">Sitzungsjournal</a>.</p>
 <h3 id="terminal-logs">terminal-logs/<a class="headerlink" href="#terminal-logs" title="Permanent link">&para;</a></h3>
-<p>Standardzielordner für <a href="../features/terminal.html#terminalprotokollierung">Terminalprotokolle pro Verbindung</a>, wenn das Protokollordnerfeld einer Verbindung leer bleibt. Dateibenennung, tägliche Rotation, Komprimierung und Aufbewahrung richten sich nach der Protokollierungskonfiguration der Verbindung.</p>
+<p>Standardzielordner für <a href="../features/terminal.html#terminalprotokollierung">Terminalprotokolle pro Verbindung</a>, wenn das Logordnerfeld einer Verbindung leer bleibt. Dateibenennung, tägliche Rotation, Kompression und Aufbewahrung folgen der Protokollierungskonfiguration der Verbindung.</p>
 <h3 id="plugins">plugins/<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h3>
 <p>Vom Benutzer importierte Terminal-Effekt-Plugin-JARs.</p>
 <p><strong>Zweck:</strong> Externe Terminal-Effekt-Plugins, die Sie über <em>Plugins &gt; Terminal-Effekte &gt; Importieren</em> importieren.</p>

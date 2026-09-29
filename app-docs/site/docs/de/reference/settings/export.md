@@ -1,10 +1,10 @@
 ---
-title: Export
+title: Exportieren
 ---
 
 # Export
 
-Wasserzeichen und Fußzeile der von korTTY exportierten Dokumente — für [Sitzungsjournale](../../features/session-journal.md#exportieren) ebenso wie für [KI-Chats](../../features/ai-assistant.md). Öffnen über **Konfiguration → Globale Einstellungen → Export**; in `~/.kortty/global-settings.xml` gespeichert.
+Wasserzeichen und Fußzeile der von korTTY exportierten Dokumente — [Sitzungsjournale](../../features/session-journal.md#exportieren), [KI-Chats](../../features/ai-assistant.md) und [Code-Analyseberichte](../../features/snippets.md) alike. Öffnen Sie über **Konfiguration → Globale Einstellungen → Export**; gespeichert in `~/.kortty/global-settings.xml`.
 
 AI-Chat-PDFs betten Fallback-Schriftarten für Unicode-Symbole und Emojis ein, sodass Zeichen wie `✓`, `★`, `😀` und `🚀` im exportierten Dokument sichtbar und durchsuchbar bleiben, anstatt durch Fragezeichen ersetzt zu werden.
 

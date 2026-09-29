@@ -1,19 +1,17 @@
 package de.kortty.ui;
 
-import de.kortty.KorTTYApplication;
 import de.kortty.core.AiTokenUsage;
-import de.kortty.core.GlobalSettingsManager;
+import de.kortty.core.AnalysisRunFormatting;
 import de.kortty.core.SnippetAiWorkflowSupport;
+import de.kortty.core.SnippetAnalysisRecord;
 import de.kortty.core.WorkflowScriptSupport;
-import de.kortty.model.GlobalSettings;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
-import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Scene;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.OverrunStyle;
@@ -28,38 +26,34 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.FillRule;
 import javafx.scene.shape.SVGPath;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
-import javafx.stage.Window;
 import javafx.util.Duration;
 
 import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 /**
- * Narrow companion window for the staged Full-code-analysis apply workflow. A
- * {@link WindowDockGroup} keeps it beside the analysis window; this class only reports progress.
+ * The progress view of the staged Full-code-analysis apply workflow: a checklist of work items, a
+ * progress bar per phase, the running clock and the token usage, and — once the run ends — a summary
+ * of what was done, how long it took and what it cost.
+ *
+ * <p>This is only a view. It can be dropped and rebuilt at any time (an embedded host disposes it
+ * when its panel hides), so a host that needs the run's state keeps it itself and rebuilds the view
+ * from it — {@link #restored(SnippetAnalysisRecord.ApplyRun)} does exactly that for a persisted
+ * run. The pane never opens a window; the snippet editor's analysis panel hosts it.</p>
  *
  * <p>Token usage is rendered exactly as the provider reported it and never guessed — a run against
  * a backend that reports nothing says so rather than showing an estimate that looks like a fact.</p>
- *
- * <p>When the run ends the window does not close itself. It turns into a summary of what was done,
- * how long it took and what it cost, which is only useful if it is still on screen while the
- * reviewer reads the diff next to it.</p>
  */
-final class SnippetAiApplyProgressWindow {
+final class SnippetAiApplyProgressPane extends VBox {
 
-    private static final double DEFAULT_WIDTH = 360;
-    private static final double MIN_HEIGHT = 420;
-    /** Below this a stored width is junk rather than a deliberately tiny window. */
-    private static final double MIN_USABLE_WIDTH = 200;
     private static final int MAX_DESCRIPTION_LINES = 3;
     private static final double DESCRIPTION_LINE_HEIGHT_FACTOR = 1.35;
 
-    private final Stage stage = new Stage();
     private final ProgressBar improvementsProgressBar = new ProgressBar(0);
     private final Label improvementsProgressLabel = new Label();
     private final VBox improvementsProgressGroup = new VBox(4);
@@ -83,9 +77,11 @@ final class SnippetAiApplyProgressWindow {
     private final Label summaryProfile = new Label();
     private final Label summaryItems = new Label();
     private final Label summaryRetries = new Label();
-    private final Button reopenPreviewButton = new Button(I18n.get("snippets.ai.analysis.progress.reopenPreview"));
-    private final Button tileButton = new Button(I18n.get("snippets.ai.analysis.progress.dock.tile"));
+    private final VBox recoveryBox = new VBox(6);
+    private final Button reviewChangesButton = new Button(I18n.get("snippets.ai.analysis.progress.reopenPreview"));
+    private final Button cancelButton = AiStopRetrySupport.stopButton(null);
     private final Button copySummaryButton = new Button(I18n.get("snippets.ai.analysis.progress.summary.copy"));
+    private final HBox leadingActions = new HBox(6);
     private final HBox actionBar = new HBox(6);
 
     private long startedNanos;
@@ -93,13 +89,15 @@ final class SnippetAiApplyProgressWindow {
     private AiTokenUsage lastUsage;
     private int retries;
     private String lastStatusKey;
+    private boolean running;
     private boolean disposed;
+    private Runnable onCancel;
 
-    SnippetAiApplyProgressWindow(
-            Window anchor,
+    SnippetAiApplyProgressPane(
             List<SnippetAiWorkflowSupport.ImprovementApplyProgress> plan,
             String profileName) {
         this.profileName = profileName;
+        setId("snippet-analysis-progress-pane");
 
         List<SnippetAiWorkflowSupport.ImprovementApplyProgress> safePlan = plan != null ? plan : List.of();
         for (SnippetAiWorkflowSupport.ImprovementApplyProgress progress : safePlan) {
@@ -141,30 +139,21 @@ final class SnippetAiApplyProgressWindow {
         VBox.setVgrow(scroll, Priority.ALWAYS);
 
         configureSummary();
+        configureRecovery();
         buildActionBar();
 
-        VBox root = new VBox(8,
+        setSpacing(8);
+        getChildren().setAll(
             improvementsProgressGroup,
             hardeningProgressGroup,
             metrics,
             currentStepLabel,
             summaryBox,
+            recoveryBox,
             new Separator(),
             scroll,
             actionBar);
-        root.setPadding(new Insets(12));
-
-        Scene scene = new Scene(root, DEFAULT_WIDTH, MIN_HEIGHT);
-        applyTheme(scene);
-        stage.setScene(scene);
-        stage.setTitle(I18n.get("snippets.ai.analysis.progress.title"));
-        stage.setMinWidth(320);
-        stage.setMinHeight(MIN_HEIGHT);
-        stage.initModality(Modality.NONE);
-        if (anchor != null) {
-            stage.initOwner(anchor);
-        }
-        stage.setOnHidden(event -> dispose());
+        setPadding(new Insets(12));
 
         elapsedTimeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> refreshElapsed()));
         elapsedTimeline.setCycleCount(Timeline.INDEFINITE);
@@ -174,18 +163,78 @@ final class SnippetAiApplyProgressWindow {
         currentStepLabel.setText(I18n.get("snippets.ai.analysis.progress.preparing"));
     }
 
-    void show() {
-        if (disposed || stage.isShowing()) {
-            return;
-        }
-        startedNanos = System.nanoTime();
-        elapsedTimeline.playFromStart();
-        stage.show();
+    /**
+     * A finished (or interrupted) run, rebuilt from what was persisted: the checklist with each
+     * item's last state, and the summary with the stored duration, usage, profile and retries. The
+     * clock does not run.
+     */
+    static SnippetAiApplyProgressPane restored(SnippetAnalysisRecord.ApplyRun run) {
+        SnippetAnalysisRecord.ApplyRun safe = run != null
+            ? run
+            : SnippetAnalysisRecord.ApplyRun.started("", 0L, null, List.of(), null);
+        String profile = safe.provenance().profileName();
+        SnippetAiApplyProgressPane pane = new SnippetAiApplyProgressPane(List.of(), profile);
+        pane.restore(safe);
+        return pane;
     }
 
-    /** The window itself, so the host can hand it to a {@link WindowDockGroup}. */
-    Stage stage() {
-        return stage;
+    private void restore(SnippetAnalysisRecord.ApplyRun run) {
+        Map<Integer, Integer> nextIndexPerStage = new HashMap<>();
+        boolean anyStoredState = false;
+        for (SnippetAnalysisRecord.WorkItemState stored : run.items()) {
+            int index = nextIndexPerStage.merge(stored.stage(), 1, Integer::sum) - 1;
+            SnippetAiWorkflowSupport.ImprovementApplyPhase phase = parsePhase(stored.phase());
+            SnippetAiWorkflowSupport.ImprovementApplyWorkItem item = new SnippetAiWorkflowSupport.ImprovementApplyWorkItem(
+                stored.id(), stored.label(), stored.category(), stored.severity());
+            WorkRow row = registerRow(stored.stage(), index, item, phase);
+            SnippetAiWorkflowSupport.ImprovementApplyProgressState state = parseState(stored.state());
+            anyStoredState |= state != null;
+            row.setState(state);
+        }
+        refreshSectionVisibility();
+
+        SnippetAnalysisRecord.RunOutcome outcome = run.outcome();
+        boolean succeeded = outcome == SnippetAnalysisRecord.RunOutcome.PENDING_REVIEW
+            || outcome == SnippetAnalysisRecord.RunOutcome.ACCEPTED
+            || outcome == SnippetAnalysisRecord.RunOutcome.REJECTED;
+        if (succeeded && !anyStoredState) {
+            rows.values().forEach(row -> row.setState(
+                SnippetAiWorkflowSupport.ImprovementApplyProgressState.COMPLETED));
+        }
+        SnippetAnalysisRecord.RunStats stats = run.stats();
+        retries = stats.retries();
+        SnippetAnalysisRecord.Usage usage = stats.usage();
+        refreshTokens(usage != null && usage.totalTokens() > 0 ? usage.toAiTokenUsage() : null);
+        long elapsed = stats.elapsedSeconds();
+        if (elapsed <= 0 && run.finishedAt() > run.startedAt() && run.startedAt() > 0) {
+            elapsed = (run.finishedAt() - run.startedAt()) / 1000L;
+        }
+        finishedSeconds = Math.max(0L, elapsed);
+        refreshProgress();
+        refreshElapsed();
+
+        String statusKey = stats.statusKey();
+        if (statusKey == null) {
+            statusKey = switch (outcome) {
+                case PENDING_REVIEW, ACCEPTED, REJECTED -> "snippets.ai.analysis.progress.complete";
+                case FAILED -> failedStatusKey(rows.values().stream().map(WorkRow::state).toList());
+                default -> "snippets.ai.analysis.progress.cancelled";
+            };
+        }
+        currentStepLabel.setText(I18n.get(statusKey));
+        showSummary(statusKey);
+    }
+
+    /** Starts the clock; the host calls this when the run actually begins. */
+    void start() {
+        if (disposed || running) {
+            return;
+        }
+        running = true;
+        startedNanos = System.nanoTime();
+        finishedSeconds = -1L;
+        elapsedTimeline.playFromStart();
+        refreshCancelButton();
     }
 
     void accept(SnippetAiWorkflowSupport.ImprovementApplyProgress progress) {
@@ -225,7 +274,7 @@ final class SnippetAiApplyProgressWindow {
 
     void markSucceeded() {
         runOnFx(() -> {
-            elapsedTimeline.stop();
+            finishRun();
             rows.values().forEach(row -> row.setState(
                 SnippetAiWorkflowSupport.ImprovementApplyProgressState.COMPLETED));
             refreshProgress();
@@ -237,7 +286,7 @@ final class SnippetAiApplyProgressWindow {
 
     void markFailed() {
         runOnFx(() -> {
-            elapsedTimeline.stop();
+            finishRun();
             freezeElapsed();
             String key = failedStatusKey(rows.values().stream().map(WorkRow::state).toList());
             currentStepLabel.setText(I18n.get(key));
@@ -264,43 +313,197 @@ final class SnippetAiApplyProgressWindow {
 
     void markCancelled() {
         runOnFx(() -> {
-            elapsedTimeline.stop();
+            finishRun();
             freezeElapsed();
             currentStepLabel.setText(I18n.get("snippets.ai.analysis.progress.cancelled"));
             showSummary("snippets.ai.analysis.progress.cancelled");
         });
     }
 
-    void close() {
+    /**
+     * Shows a Cancel button while the run is active; {@code null} removes it. The handler only asks
+     * the host to cancel — the pane reports the outcome once the host calls {@link #markCancelled()}.
+     */
+    void setOnCancel(Runnable handler) {
         runOnFx(() -> {
-            elapsedTimeline.stop();
-            if (stage.isShowing()) {
-                stage.close();
-            } else {
-                dispose();
-            }
+            onCancel = handler;
+            cancelButton.setOnAction(handler == null ? null : event -> handler.run());
+            refreshCancelButton();
         });
     }
 
     /**
-     * Re-opens the change preview after it was closed. The button only appears when the host offers
-     * one — closing the preview by accident should not mean re-running the whole analysis.
+     * Offers "review the changes" once the result is waiting for a decision — closing the preview
+     * by accident should not mean re-running the whole analysis. {@code null} removes the action.
      */
-    void setReopenPreviewHandler(Runnable handler) {
+    void setOnReviewChanges(Runnable handler) {
         runOnFx(() -> {
-            reopenPreviewButton.setOnAction(handler == null ? null : event -> handler.run());
-            setVisibleManaged(reopenPreviewButton, handler != null);
+            reviewChangesButton.setOnAction(handler == null ? null : event -> handler.run());
+            setVisibleManaged(reviewChangesButton, handler != null);
             refreshActionBar();
         });
     }
 
-    /** Enables the "arrange windows" action, which re-tiles the docked trio. */
-    void setTileHandler(Runnable handler) {
+    /**
+     * Puts a host-specific action at the left end of the action bar (the window host's "arrange
+     * windows"); {@code null} removes it.
+     */
+    void setLeadingAction(Node action) {
         runOnFx(() -> {
-            tileButton.setOnAction(handler == null ? null : event -> handler.run());
-            setVisibleManaged(tileButton, handler != null);
+            if (action == null) {
+                leadingActions.getChildren().clear();
+            } else {
+                leadingActions.getChildren().setAll(action);
+            }
+            setVisibleManaged(leadingActions, !leadingActions.getChildren().isEmpty());
             refreshActionBar();
         });
+    }
+
+    /**
+     * An interrupted run's way forward, inline instead of an alert: resume the remaining stages,
+     * review the partial result, or discard it. {@code null} hides the strip.
+     */
+    void setRecovery(Recovery recovery) {
+        runOnFx(() -> {
+            recoveryBox.getChildren().clear();
+            if (recovery == null) {
+                setVisibleManaged(recoveryBox, false);
+                return;
+            }
+            // Nothing finished yet: there is nothing to resume or preview, only the run to repeat.
+            boolean nothingCompleted = recovery.completedStages() <= 0;
+            Label header = new Label(nothingCompleted
+                ? I18n.get(recovery.cancelled()
+                    ? "snippets.ai.analysis.fix.recovery.header.cancelledEarly"
+                    : "snippets.ai.analysis.fix.recovery.header.failedEarly")
+                : I18n.get(recovery.cancelled()
+                    ? "snippets.ai.analysis.fix.recovery.header.cancelled"
+                    : "snippets.ai.analysis.fix.recovery.header.failed",
+                recovery.completedStages(), recovery.totalStages()));
+            header.setWrapText(true);
+            header.setStyle("-fx-font-weight: bold;");
+            Label content = new Label(I18n.get("snippets.ai.analysis.fix.recovery.content"));
+            content.setWrapText(true);
+            content.setStyle("-fx-font-size: 0.9231em; -fx-opacity: 0.85;");
+            HBox buttons = new HBox(6);
+            buttons.setAlignment(Pos.CENTER_LEFT);
+            addRecoveryButton(buttons, "snippets.ai.analysis.fix.recovery.resume", recovery.onResume());
+            if (recovery.onRetry() != null) {
+                Button retry = AiStopRetrySupport.retryButton(recovery.onRetry());
+                retry.setId("snippet-analysis-apply-retry");
+                retry.setText(AiStopRetrySupport.RETRY_PREFIX
+                    + I18n.get(nothingCompleted ? "snippets.ai.retry" : "snippets.ai.analysis.fix.recovery.restart"));
+                buttons.getChildren().add(retry);
+            }
+            addRecoveryButton(buttons, "snippets.ai.analysis.fix.recovery.partial", recovery.onPreviewPartial());
+            addRecoveryButton(buttons, "snippets.ai.analysis.fix.recovery.discard", recovery.onDiscard());
+            recoveryBox.getChildren().setAll(header);
+            if (!nothingCompleted) {
+                recoveryBox.getChildren().add(content);
+            }
+            if (recovery.note() != null && !recovery.note().isBlank()) {
+                Label note = new Label(recovery.note());
+                note.setId("snippet-analysis-recovery-note");
+                note.setWrapText(true);
+                note.setStyle("-fx-font-size: 0.9231em; -fx-font-style: italic;");
+                recoveryBox.getChildren().add(note);
+            }
+            recoveryBox.getChildren().add(buttons);
+            setVisibleManaged(recoveryBox, true);
+        });
+    }
+
+    private static void addRecoveryButton(HBox target, String key, Runnable action) {
+        if (action == null) {
+            return;
+        }
+        Button button = new Button(I18n.get(key));
+        button.setOnAction(event -> action.run());
+        target.getChildren().add(button);
+    }
+
+    /**
+     * What an interrupted run offers; a {@code null} action leaves its button out. {@code onRetry}
+     * repeats the whole run from the first stage with the same selection.
+     */
+    record Recovery(int completedStages, int totalStages, boolean cancelled,
+                    Runnable onResume, Runnable onPreviewPartial, Runnable onDiscard, String note,
+                    Runnable onRetry) {
+
+        /** Without Retry. */
+        Recovery(int completedStages, int totalStages, boolean cancelled,
+                 Runnable onResume, Runnable onPreviewPartial, Runnable onDiscard, String note) {
+            this(completedStages, totalStages, cancelled, onResume, onPreviewPartial, onDiscard, note, null);
+        }
+
+        /** Without a note or Retry. */
+        Recovery(int completedStages, int totalStages, boolean cancelled,
+                 Runnable onResume, Runnable onPreviewPartial, Runnable onDiscard) {
+            this(completedStages, totalStages, cancelled, onResume, onPreviewPartial, onDiscard, null, null);
+        }
+    }
+
+    /** Ids of the work items that finished, in checklist order (duplicates collapsed). */
+    List<String> completedWorkItemIds() {
+        List<String> ids = new ArrayList<>();
+        for (WorkRow row : rows.values()) {
+            if (row.isCompleted() && !row.item().id().isBlank() && !ids.contains(row.item().id())) {
+                ids.add(row.item().id());
+            }
+        }
+        return List.copyOf(ids);
+    }
+
+    /** Every checklist row with its current state, in the shape a persisted run stores. */
+    List<SnippetAnalysisRecord.WorkItemState> workItemStates() {
+        List<SnippetAnalysisRecord.WorkItemState> states = new ArrayList<>();
+        for (Map.Entry<WorkKey, WorkRow> entry : rows.entrySet()) {
+            WorkRow row = entry.getValue();
+            states.add(new SnippetAnalysisRecord.WorkItemState(
+                entry.getKey().stage(),
+                row.phase().name(),
+                row.item().id(),
+                row.item().label(),
+                row.item().category(),
+                row.item().severity(),
+                row.state().name()));
+        }
+        return List.copyOf(states);
+    }
+
+    /** The run's numbers as they stand now (final once a {@code mark…} call ended it). */
+    RunSummary currentSummary() {
+        return currentSummary(lastStatusKey);
+    }
+
+    boolean isRunning() {
+        return running;
+    }
+
+    /** Stops the clock for good; the pane ignores progress afterwards. Safe to call more than once. */
+    void dispose() {
+        if (disposed) {
+            return;
+        }
+        disposed = true;
+        running = false;
+        elapsedTimeline.stop();
+    }
+
+    boolean isDisposed() {
+        return disposed;
+    }
+
+    private void finishRun() {
+        running = false;
+        elapsedTimeline.stop();
+        refreshCancelButton();
+    }
+
+    private void refreshCancelButton() {
+        setVisibleManaged(cancelButton, running && onCancel != null);
+        refreshActionBar();
     }
 
     private void configureSummary() {
@@ -318,14 +521,23 @@ final class SnippetAiApplyProgressWindow {
         setVisibleManaged(summaryBox, false);
     }
 
+    private void configureRecovery() {
+        recoveryBox.setId("snippet-analysis-progress-recovery");
+        recoveryBox.setStyle("-fx-border-color: rgba(245,158,11,0.55); -fx-border-radius: 6;"
+            + " -fx-background-color: rgba(245,158,11,0.10); -fx-background-radius: 6; -fx-padding: 8 10 9 10;");
+        setVisibleManaged(recoveryBox, false);
+    }
+
     private void buildActionBar() {
         copySummaryButton.setOnAction(event -> copySummary());
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        actionBar.getChildren().setAll(tileButton, spacer, reopenPreviewButton, copySummaryButton);
+        leadingActions.setAlignment(Pos.CENTER_LEFT);
+        actionBar.getChildren().setAll(leadingActions, spacer, cancelButton, reviewChangesButton, copySummaryButton);
         actionBar.setAlignment(Pos.CENTER_LEFT);
-        setVisibleManaged(reopenPreviewButton, false);
-        setVisibleManaged(tileButton, false);
+        setVisibleManaged(leadingActions, false);
+        setVisibleManaged(cancelButton, false);
+        setVisibleManaged(reviewChangesButton, false);
         setVisibleManaged(copySummaryButton, false);
         refreshActionBar();
     }
@@ -333,7 +545,8 @@ final class SnippetAiApplyProgressWindow {
     /** Keeps the bar out of the layout entirely while it holds nothing, rather than as a blank strip. */
     private void refreshActionBar() {
         setVisibleManaged(actionBar,
-            tileButton.isManaged() || reopenPreviewButton.isManaged() || copySummaryButton.isManaged());
+            leadingActions.isManaged() || cancelButton.isManaged() || reviewChangesButton.isManaged()
+                || copySummaryButton.isManaged());
     }
 
     /** Swaps the live "current step" line for the finished run's numbers. */
@@ -375,23 +588,15 @@ final class SnippetAiApplyProgressWindow {
 
     /** "Tokens: 1,204 prompt / 388 completion / 1,592 total", or the honest "not reported". */
     static String tokenSummaryText(AiTokenUsage usage) {
-        if (usage == null) {
-            return I18n.get("snippets.ai.analysis.progress.tokens",
-                I18n.get("snippets.ai.analysis.progress.tokensUnavailable"));
-        }
-        NumberFormat format = NumberFormat.getIntegerInstance();
-        return I18n.get("snippets.ai.analysis.progress.summary.tokens",
-            format.format(usage.promptTokens()),
-            format.format(usage.completionTokens()),
-            format.format(usage.totalTokens()));
+        return AnalysisRunFormatting.tokenSummary(usage);
     }
 
     /**
-     * The finished run as plain text for the clipboard — the same numbers the window shows, in the
+     * The finished run as plain text for the clipboard — the same numbers the pane shows, in the
      * order it shows them, so a pasted summary matches what the reviewer was looking at.
      */
     static String summaryText(RunSummary summary) {
-        List<String> lines = new java.util.ArrayList<>();
+        List<String> lines = new ArrayList<>();
         lines.add(I18n.get("snippets.ai.analysis.progress.summary.title"));
         lines.add(I18n.get(summary.statusKey() != null
             ? summary.statusKey()
@@ -425,21 +630,30 @@ final class SnippetAiApplyProgressWindow {
         if (progress == null) {
             return;
         }
-        VBox target = progress.phase() == SnippetAiWorkflowSupport.ImprovementApplyPhase.ANALYSIS_ITEMS
-            ? improvementRows
-            : hardeningRows;
         List<SnippetAiWorkflowSupport.ImprovementApplyWorkItem> items = progress.workItems();
         for (int index = 0; index < items.size(); index++) {
-            SnippetAiWorkflowSupport.ImprovementApplyWorkItem item = items.get(index);
-            WorkKey key = new WorkKey(progress.stage(), rowKeyId(index, item));
-            if (rows.containsKey(key)) {
-                continue;
-            }
-            WorkRow row = new WorkRow(item, progress.phase());
-            rows.put(key, row);
-            target.getChildren().add(row.root());
+            registerRow(progress.stage(), index, items.get(index), progress.phase());
         }
         refreshSectionVisibility();
+    }
+
+    private WorkRow registerRow(
+            int stage,
+            int index,
+            SnippetAiWorkflowSupport.ImprovementApplyWorkItem item,
+            SnippetAiWorkflowSupport.ImprovementApplyPhase phase) {
+        WorkKey key = new WorkKey(stage, rowKeyId(index, item));
+        WorkRow existing = rows.get(key);
+        if (existing != null) {
+            return existing;
+        }
+        VBox target = phase == SnippetAiWorkflowSupport.ImprovementApplyPhase.ANALYSIS_ITEMS
+            ? improvementRows
+            : hardeningRows;
+        WorkRow row = new WorkRow(item, phase);
+        rows.put(key, row);
+        target.getChildren().add(row.root());
+        return row;
     }
 
     private void refreshSectionVisibility() {
@@ -501,13 +715,7 @@ final class SnippetAiApplyProgressWindow {
 
     /** {@code mm:ss}, growing to {@code h:mm:ss} only once the run actually passed an hour. */
     static String formatDuration(long seconds) {
-        long safe = Math.max(0L, seconds);
-        long hours = safe / 3_600L;
-        long minutes = (safe % 3_600L) / 60L;
-        long remaining = safe % 60L;
-        return hours > 0
-            ? String.format(Locale.ROOT, "%d:%02d:%02d", hours, minutes, remaining)
-            : String.format(Locale.ROOT, "%02d:%02d", minutes, remaining);
+        return AnalysisRunFormatting.formatDuration(seconds);
     }
 
     private void refreshTokens(AiTokenUsage usage) {
@@ -520,49 +728,28 @@ final class SnippetAiApplyProgressWindow {
         tokenLabel.setText(I18n.get("snippets.ai.analysis.progress.tokens", value));
     }
 
-    private void dispose() {
-        if (disposed) {
-            return;
+    /** A stored phase name, falling back to the analysis items for anything unknown. */
+    static SnippetAiWorkflowSupport.ImprovementApplyPhase parsePhase(String name) {
+        if (name != null && !name.isBlank()) {
+            try {
+                return SnippetAiWorkflowSupport.ImprovementApplyPhase.valueOf(name.trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ignored) {
+                // unknown (newer) phase: shown with the analysis items
+            }
         }
-        disposed = true;
-        elapsedTimeline.stop();
-        persistDockedWidth();
+        return SnippetAiWorkflowSupport.ImprovementApplyPhase.ANALYSIS_ITEMS;
     }
 
-    /**
-     * Remembers how wide the user made this window, so the next apply run opens it at that width
-     * instead of the designed default. Position and height belong to the dock, not to the user.
-     */
-    private void persistDockedWidth() {
-        double width = stage.getWidth();
-        if (Double.isNaN(width) || width < MIN_USABLE_WIDTH) {
-            return;
+    /** A stored item state, or {@code null} when none (or an unknown one) was stored. */
+    static SnippetAiWorkflowSupport.ImprovementApplyProgressState parseState(String name) {
+        if (name == null || name.isBlank()) {
+            return null;
         }
         try {
-            GlobalSettingsManager manager = KorTTYApplication.getInstance().getGlobalSettingsManager();
-            GlobalSettings settings = manager.getSettings();
-            if (settings != null) {
-                settings.setAiApplyProgressDockedWidth(width);
-                manager.save();
-            }
-        } catch (Exception ignored) {
-            // No application instance (isolated JavaFX tests) or an unwritable profile: the width is
-            // a convenience, never worth failing a window close over.
+            return SnippetAiWorkflowSupport.ImprovementApplyProgressState.valueOf(name.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return null;
         }
-    }
-
-    private static void applyTheme(Scene scene) {
-        AppDesignStyleSupport.registerApplicationBaseStyles(scene);
-        try {
-            String dynamic = ThemeCssSupport.getDynamicStylesheetUrl(
-                ThemeCssSupport.resolveThemeColors(KorTTYApplication.getInstance()));
-            if (dynamic != null) {
-                scene.getStylesheets().add(dynamic);
-            }
-        } catch (RuntimeException ignored) {
-            // The base stylesheet remains available in isolated JavaFX tests without an application instance.
-        }
-        AppDesignStyleSupport.applyToScene(scene);
     }
 
     private static Label sectionHeading(String key) {
@@ -670,11 +857,10 @@ final class SnippetAiApplyProgressWindow {
         };
     }
 
-    private static void setVisibleManaged(javafx.scene.Node node, boolean visible) {
+    private static void setVisibleManaged(Node node, boolean visible) {
         node.setVisible(visible);
         node.setManaged(visible);
     }
-
 
     private static void runOnFx(Runnable action) {
         if (Platform.isFxApplicationThread()) {
@@ -696,6 +882,7 @@ final class SnippetAiApplyProgressWindow {
     private static final class WorkRow {
         private final HBox root;
         private final Label status = new Label("○");
+        private final SnippetAiWorkflowSupport.ImprovementApplyWorkItem item;
         private final SnippetAiWorkflowSupport.ImprovementApplyPhase phase;
         private SnippetAiWorkflowSupport.ImprovementApplyProgressState state =
             SnippetAiWorkflowSupport.ImprovementApplyProgressState.PENDING;
@@ -703,6 +890,7 @@ final class SnippetAiApplyProgressWindow {
         WorkRow(
                 SnippetAiWorkflowSupport.ImprovementApplyWorkItem item,
                 SnippetAiWorkflowSupport.ImprovementApplyPhase phase) {
+            this.item = item;
             this.phase = phase;
             Label identifier = new Label(item.id());
             identifier.setStyle("-fx-font-size: 0.7692em; -fx-opacity: 0.72;");
@@ -735,6 +923,10 @@ final class SnippetAiApplyProgressWindow {
 
         HBox root() {
             return root;
+        }
+
+        SnippetAiWorkflowSupport.ImprovementApplyWorkItem item() {
+            return item;
         }
 
         SnippetAiWorkflowSupport.ImprovementApplyProgressState state() {

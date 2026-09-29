@@ -57,7 +57,8 @@ public class BackupManagerTest {
     public void managedBackupContentCoversSshKeyReferencesAndCopiedKeyFiles() {
         assertThat(BackupManager.managedBackupFiles()).contains("ssh-keys.xml");
         // The copied key FILES are included as a directory, like projects/.
-        assertThat(BackupManager.managedBackupDirectories()).containsExactly("projects", "ssh-keys");
+        assertThat(BackupManager.managedBackupDirectories())
+            .containsExactly("projects", "ssh-keys", SnippetAnalysisStore.DIRECTORY_NAME);
     }
 
     @Test
@@ -163,6 +164,63 @@ public class BackupManagerTest {
             .isEqualTo("local version");
         assertThat(Files.readString(restoreDir.resolve("ssh-keys/id_backup")))
             .isEqualTo("from backup");
+    }
+
+    @Test
+    public void restoreMergesSnippetAnalysesAndTheNewerRevisionWins() throws Exception {
+        Path root = Files.createTempDirectory("kortty-backup-analyses-");
+        Path configDir = Files.createDirectories(root.resolve("config"));
+        writeAnalyses(configDir, "backup-only", 1);
+        writeAnalyses(configDir, "backup-newer", 5);
+        writeAnalyses(configDir, "local-newer", 2);
+        Files.writeString(configDir.resolve("snippet-analyses/stray.json.corrupt-20260101-000000"), "junk");
+
+        char[] masterPassword = "master-pw".toCharArray();
+        CredentialManager credentialManager = new CredentialManager(configDir);
+        StoredCredential credential = new StoredCredential(
+            "backup", "user", StoredCredential.Environment.PRODUCTION);
+        credentialManager.setPassword(credential, "backup-pw", masterPassword);
+        credentialManager.addCredential(credential);
+        GlobalSettings settings = new GlobalSettings();
+        settings.setBackupEncryptionType(GlobalSettings.BackupEncryptionType.PASSWORD);
+        settings.setBackupCredentialId(credential.getId());
+        Path backupZip = new BackupManager(configDir, settings)
+            .createBackup(root.resolve("target"), credentialManager, null, masterPassword);
+
+        Path restoreDir = Files.createDirectories(root.resolve("restore"));
+        writeAnalyses(restoreDir, "backup-newer", 2);
+        writeAnalyses(restoreDir, "local-newer", 9);
+        writeAnalyses(restoreDir, "local-only", 1);
+
+        new BackupManager(restoreDir, new GlobalSettings()).importBackup(backupZip, "backup-pw", true);
+
+        Path analyses = restoreDir.resolve(SnippetAnalysisStore.DIRECTORY_NAME);
+        assertThat(revision(analyses, "backup-only")).isEqualTo(1L);
+        assertThat(revision(analyses, "backup-newer")).isEqualTo(5L);
+        assertThat(revision(analyses, "local-newer")).isEqualTo(9L);
+        assertThat(revision(analyses, "local-only")).isEqualTo(1L);
+        // Quarantined copies are not restored as live data.
+        try (var files = Files.list(analyses)) {
+            assertThat(files.map(p -> p.getFileName().toString()).filter(n -> n.contains("corrupt")).toList())
+                .isEmpty();
+        }
+
+        // Without the overwrite flag, existing files are kept even when the backup is newer.
+        writeAnalyses(restoreDir, "backup-newer", 2);
+        new BackupManager(restoreDir, new GlobalSettings()).importBackup(backupZip, "backup-pw", false);
+        assertThat(revision(analyses, "backup-newer")).isEqualTo(2L);
+    }
+
+    private static void writeAnalyses(Path configDir, String snippetId, long revision) throws Exception {
+        SnippetAnalysisHistory history = SnippetAnalysisHistory.empty(snippetId)
+            .withNewCurrent(SnippetAnalysisTestData.simpleRecord("r" + revision, snippetId, revision), 5)
+            .withRevision(revision, revision);
+        Path directory = Files.createDirectories(configDir.resolve(SnippetAnalysisStore.DIRECTORY_NAME));
+        Files.writeString(directory.resolve(snippetId + ".json"), SnippetAnalysisStore.toJson(history));
+    }
+
+    private static long revision(Path directory, String snippetId) {
+        return SnippetAnalysisStore.readRevision(directory.resolve(snippetId + ".json")).orElse(-1L);
     }
 
     @Test

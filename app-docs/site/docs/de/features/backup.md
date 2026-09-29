@@ -11,7 +11,7 @@ KorTTY erstellt verschlüsselte Backups aller Ihrer Einstellungen, Verbindungen,
 ## Eigenschaften
 
 * **Verschlüsselte Backups** – Alle Backups werden entweder mit passwortgeschützter ZIP- oder GPG-Verschlüsselung verschlüsselt
-* **Konfigurationssicherung** – Enthält Verbindungen, Anmeldeinformationen, SSH/GPG-Schlüssel, vertrauenswürdige interaktive SSH-Hostschlüssel, globale Einstellungen, JobScheduler-Konfiguration, Snippets, AI-Chat-Verlauf, lokale Modellregistrierungen und Wissensspeicher-Quellenmetadaten
+* **Konfigurations-Backup** — Enthält Verbindungen, Anmeldedaten, SSH/GPG-Schlüssel, vertrauenswürdige interaktive SSH-Hostschlüssel, globale Einstellungen, JobScheduler-Konfiguration, Snippets und deren gespeicherte Codeanalysen, KI-Chatverlauf, lokale Modellregistrierungen sowie Metadaten der Wissensspeicher-Quelle
 * **Regenerierbare lokale KI-Daten ausgeschlossen** – GGUF-Gewichte, native llama.cpp-Laufzeiten, signierter Katalog-Cache, temporäre Sidecar-Dateien und HNSW-Snapshots werden absichtlich nicht in das Archiv kopiert
 * **Projektverzeichnis** – Alle gespeicherten Projektarbeitsbereiche sind in der Sicherung enthalten
 * **Automatische Rotation** – Alte Backups werden automatisch mit Zeitstempeln in ein `old-backups`-Unterverzeichnis verschoben
@@ -40,6 +40,7 @@ Das Backup umfasst:
 | JobScheduler-Jobs | Alle geplanten Jobs, Hostschlüssel-Pins und verschlüsselten Sudo-Passwörter |
 | Snippets | Code-Snippets und Skriptvorlagen mit Metadaten |
 | Snippet-Variablen | Benutzerdefinierte Variablen für die Snippet-Ersetzung |
+| Snippet-Analysen | Die gespeicherten Vollcodeanalysen[ jedes Snippets, mit ihren Anwendungsdurchläufen und Diagrammen](snippets.md#vollstandige-code-analyse) |
 | KI-Chats | Gespeicherte KI-Gesprächsverläufe und -Profile |
 | Lokale KI-Konfiguration | Lokale GGUF-Registrierungen und eingegebene Starteinstellungen, Text-/Codierungsrollen, bevorzugte Laufzeit-Backend-/Update-Richtlinie und verschlüsseltes Hugging Face-Token |
 | Wissensspeicherkonfiguration | Speichermetadaten und Quellpfade, Filter, Synchronisierungsmodi und Einbettungskonfiguration; nicht die HNSW-Vektoren |
@@ -98,6 +99,7 @@ Sowohl `.zip`- als auch `.gpg`-Backups enthalten dieselben Dateien:
 * `job-scheduler.xml` – JobScheduler-Jobs, Host-Key-Pins, verschlüsselte Sudo-Passwörter
 * `snippets.xml` – Codeausschnitte und Vorlagen
 * `snippet-variables.xml` – Benutzerdefinierte Snippet-Variablen
+* `snippet-analyses/` — Gespeicherte Vollcodeanalysen, eine Datei pro Snippet. Ein Import verschmilzt sie: Analysen, die nur lokal existieren, bleiben erhalten; fehlende werden hinzugefügt, und mit **Überschreiben** wird eine lokale Datei nur ersetzt, wenn die Kopie aus dem Backup neuer ist. Nicht gespeicherte Snippet-Entwürfe (`snippet-drafts/`) sind nicht enthalten
 * `ai-chats.xml` – Gespeicherte KI-Gespräche
 * `master.key` – Hash Ihres Master-Passworts (zur Überprüfung beim Import)
 * `llm/models.xml` – Lokale GGUF-Registrierungen und Laufzeiteinstellungen (Modellgewichte sind nicht enthalten)

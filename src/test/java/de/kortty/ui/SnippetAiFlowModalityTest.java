@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
@@ -28,12 +29,38 @@ class SnippetAiFlowModalityTest {
 
     private static final Path UI_ROOT = Path.of("src/main/java/de/kortty/ui");
 
-    /** Every window the staged apply flow puts on screen, plus the editor that hosts it. */
+    /**
+     * The windows around the flow: the editor that hosts the integrated analysis, the workspace that
+     * embeds editors, the stand-alone diff window (no longer used by the editor, kept for other
+     * hosts) and the result windows the editor opens beside itself.
+     */
     private static final List<String> FLOW_WINDOWS = List.of(
         "SnippetEditDialog.java",
-        "SnippetCodeAnalysisDialog.java",
+        "SnippetWorkspaceDialog.java",
         "SnippetAiDiffDialog.java",
-        "SnippetAiApplyProgressWindow.java");
+        "SnippetSecurityReportDialog.java",
+        "SnippetDescriptionDialog.java",
+        "AlternativeSnippetSolutionsDialog.java",
+        "SnippetAiReviewDialog.java",
+        "SnippetEditorProfileDialog.java");
+
+    /** The windows the editor opens beside itself; each must be shown without a nested event loop. */
+    private static final List<String> EDITOR_CHILD_WINDOWS = List.of(
+        "SnippetSecurityReportDialog",
+        "SnippetDescriptionDialog",
+        "AlternativeSnippetSolutionsDialog",
+        "SnippetAiReviewDialog",
+        "SnippetEditorProfileDialog");
+
+    /**
+     * The integrated Full-code-analysis flow: the analysis side panel, the progress and diff panes
+     * inside the editor, and the controller that drives them.
+     */
+    private static final List<String> EMBEDDABLE_PANES = List.of(
+        "SnippetAnalysisPanel.java",
+        "SnippetAiDiffPane.java",
+        "SnippetAiApplyProgressPane.java",
+        "SnippetAnalysisController.java");
 
     private static final Pattern NON_MODAL = Pattern.compile(
         "initModality\\(\\s*(?:javafx\\.stage\\.)?Modality\\.NONE\\s*\\)");
@@ -55,6 +82,113 @@ class SnippetAiFlowModalityTest {
             "These windows never call initModality(Modality.NONE). JavaFX then makes them "
                 + "APPLICATION_MODAL, which freezes every terminal session while the AI works")
             .that(offenders).isEmpty();
+    }
+
+    /**
+     * The integrated flow lives inside the editor. A pane (or the controller) that opened its own
+     * window, raised an alert or blocked in {@code showAndWait} would bring back the satellite
+     * windows and the modality problem above — inline banners and the in-editor review exist so
+     * that it never has to.
+     */
+    @Test
+    void integratedAnalysisFlowOpensNoWindows() throws IOException {
+        List<String> offenders = new ArrayList<>();
+        for (String name : EMBEDDABLE_PANES) {
+            String source = code(UI_ROOT.resolve(name));
+            for (String forbidden : List.of("new Stage(", "new Alert(", "showAndWait(", "initOwner(")) {
+                if (source.contains(forbidden)) {
+                    offenders.add(name + " uses " + forbidden);
+                }
+            }
+        }
+        assertWithMessage("The integrated analysis flow opens a window, an alert or blocks")
+            .that(offenders).isEmpty();
+    }
+
+    /**
+     * The report export may ask exactly one question — whether a Markdown export replaces the
+     * diagram PNG next to it — and only modally for its own window, without a nested event loop.
+     * Its result is reported inline by the panel.
+     */
+    @Test
+    void reportExportAsksWithoutBlocking() throws IOException {
+        String source = code(UI_ROOT.resolve("SnippetAnalysisExportController.java"));
+        assertThat(countOf(source, "new Alert(")).isEqualTo(1);
+        assertThat(source).contains("initModality(Modality.WINDOW_MODAL)");
+        assertThat(source).doesNotContain("showAndWait(");
+        assertThat(source).doesNotContain("APPLICATION_MODAL");
+        assertThat(source).doesNotContain("java.awt.Desktop");
+    }
+
+    /**
+     * Every AI change the editor proposes (improve, migrate, assistant, security fix, AI format and
+     * the line-width format preview) is reviewed in the editor area. A blocking diff window nested
+     * event loops across editor tabs: they return in LIFO order, so accepting tab A's change applied
+     * nothing until tab B's window closed.
+     */
+    @Test
+    void theEditorReviewsEveryAiChangeInItsOwnArea() throws IOException {
+        String source = code(UI_ROOT.resolve("SnippetEditDialog.java"));
+        assertWithMessage("SnippetEditDialog opens the blocking diff window again")
+            .that(source).doesNotContain("new SnippetAiDiffDialog(");
+        // The helper itself plus improve, migrate, assistant, security fix, AI format, line width.
+        assertWithMessage("the ad-hoc AI flows review through showAiChangeReview")
+            .that(countOf(source, "showAiChangeReview(")).isAtLeast(7);
+        assertWithMessage("Accept of an ad-hoc change must check the content it was computed from")
+            .that(source).containsMatch(
+                "if \\(decision == SnippetAiDiffPane\\.Decision\\.ACCEPT\\)\\s*\\{\\s*if \\(!contentUnchangedSince\\(");
+    }
+
+    /**
+     * The result windows beside the editor are shown with {@code show()} and answer through a
+     * callback — never {@code showAndWait()}, whose nested event loop is what tangled the tabs.
+     */
+    @Test
+    void theEditorsResultWindowsNeverBlockInShowAndWait() throws IOException {
+        String source = code(UI_ROOT.resolve("SnippetEditDialog.java"));
+        List<String> offenders = new ArrayList<>();
+        for (String window : EDITOR_CHILD_WINDOWS) {
+            Matcher matcher = Pattern.compile("new " + window + "\\(").matcher(source);
+            boolean found = false;
+            while (matcher.find()) {
+                found = true;
+                // showChildWindow(new X(...)) — wrapped in the same statement.
+                int wrapper = source.lastIndexOf("showChildWindow(", matcher.start());
+                if (wrapper >= 0 && wrapper > source.lastIndexOf(';', matcher.start())) {
+                    continue;
+                }
+                int blocking = source.indexOf("showAndWait(", matcher.start());
+                int nonBlocking = source.indexOf("showChildWindow(", matcher.start());
+                if (nonBlocking < 0 || (blocking >= 0 && blocking < nonBlocking)) {
+                    offenders.add(window + " at line " + lineOf(source, matcher.start()));
+                }
+            }
+            if (!found) {
+                offenders.add(window + " is no longer opened by the editor (update this test)");
+            }
+        }
+        assertWithMessage("These editor windows block in showAndWait instead of show() + callback")
+            .that(offenders).isEmpty();
+    }
+
+    /** The removed satellite windows stay removed. */
+    @Test
+    void theFlowHasNoSatelliteWindowsAnyMore() {
+        for (String removed : List.of("SnippetCodeAnalysisDialog.java", "SnippetAiApplyProgressWindow.java",
+                "WindowDockGroup.java")) {
+            assertWithMessage(removed + " came back").that(Files.exists(UI_ROOT.resolve(removed))).isFalse();
+        }
+    }
+
+    /** A question raised by the flow blocks nothing while the editor lives in a tab of the main window. */
+    @Test
+    void theFlowsQuestionsAreNonModalWhenHosted() throws IOException {
+        String source = code(UI_ROOT.resolve("SnippetEditDialog.java"));
+        assertWithMessage("aiFlowAlertModality() must exist and return NONE when hosted")
+            .that(source).containsMatch(
+                "private Modality aiFlowAlertModality\\(\\)\\s*\\{\\s*return isHostedInTab\\(\\)[^;]*Modality\\.NONE");
+        assertWithMessage("the code-text language question uses aiFlowAlertModality()")
+            .that(source).contains("initModality(aiFlowAlertModality())");
     }
 
     /**
@@ -152,6 +286,14 @@ class SnippetAiFlowModalityTest {
             backslashes++;
         }
         return backslashes % 2 == 1;
+    }
+
+    private static int countOf(String source, String needle) {
+        int count = 0;
+        for (int i = source.indexOf(needle); i >= 0; i = source.indexOf(needle, i + needle.length())) {
+            count++;
+        }
+        return count;
     }
 
     private static int lineOf(String source, int index) {

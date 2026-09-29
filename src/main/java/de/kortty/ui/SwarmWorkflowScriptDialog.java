@@ -293,7 +293,8 @@ public final class SwarmWorkflowScriptDialog {
                     && snippetManager.findCategoryByName(category.trim()).isEmpty()) {
                     snippetManager.addCategory(new SnippetCategory(category.trim()));
                 }
-                snippetManager.addSnippet(saved);
+                // Add-or-update: a live save already stored this snippet; saving again updates it.
+                snippetManager.addOrUpdateSnippet(saved);
                 snippetManager.save();
                 status.setText(I18n.get("ai.result.saveSnippet.success", saved.getName()));
             } catch (Exception ex) {

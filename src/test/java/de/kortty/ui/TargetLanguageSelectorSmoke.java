@@ -167,6 +167,37 @@ public final class TargetLanguageSelectorSmoke {
                 if (!planE.changesHostFormat() || planE.isNoOp()) {
                     throw new AssertionError("E: an explicit platform choice must produce a conversion");
                 }
+
+                // --- G: a restored order applies only what the control currently offers. ---
+                java.util.concurrent.atomic.AtomicInteger extraFired = new java.util.concurrent.atomic.AtomicInteger();
+                unarmed.addSelectionListener(extraFired::incrementAndGet);
+                unarmed.setDetectedMix(ScriptLanguageMixSupport.detect("bash", MIXED_BASH));
+                int firedBeforeRestore = extraFired.get();
+                unarmed.restore(ScriptLanguage.PYTHON, HostFormat.GITHUB_ACTIONS);
+                System.out.println("G: target=" + unarmed.selectedTarget()
+                    + " host=" + unarmed.selectedHostFormat());
+                if (unarmed.selectedTarget() != ScriptLanguage.PYTHON) {
+                    throw new AssertionError("G: an offered target must be restored and armed");
+                }
+                if (unarmed.selectedHostFormat() != null) {
+                    throw new AssertionError("G: a plain script offers no platform; it must not be restored");
+                }
+                if (extraFired.get() <= firedBeforeRestore) {
+                    throw new AssertionError("G: an added selection listener must fire on restore");
+                }
+                unarmed.restore(null, null);
+                if (unarmed.isEnabled() || !unarmed.buildPlan().isNoOp()) {
+                    throw new AssertionError("G: restoring 'nothing chosen' must disarm the migration");
+                }
+                unarmed.setDetectedMix(ScriptLanguageMixSupport.detect("yaml", MIXED_PIPELINE));
+                unarmed.restore(ScriptLanguage.APPLESCRIPT, HostFormat.GITHUB_ACTIONS);
+                if (unarmed.isEnabled()) {
+                    throw new AssertionError("G: a target the pipeline does not offer must be skipped");
+                }
+                if (unarmed.selectedHostFormat() != HostFormat.GITHUB_ACTIONS) {
+                    throw new AssertionError("G: an offered platform must be restored, was "
+                        + unarmed.selectedHostFormat());
+                }
             } catch (Throwable t) {
                 failure.compareAndSet(null, String.valueOf(t));
             } finally {

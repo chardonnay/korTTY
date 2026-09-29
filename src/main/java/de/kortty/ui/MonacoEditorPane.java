@@ -379,6 +379,13 @@ public class MonacoEditorPane extends StackPane {
         executeWhenReady("window.korttyMonaco.clearGhost();");
     }
 
+    /** Moves keyboard focus into the editor page (the WebView); a no-op before activation. */
+    public void requestEditorFocus() {
+        if (webView != null) {
+            webView.requestFocus();
+        }
+    }
+
     /**
      * Opens the completion list as if Shift+TAB/Ctrl+Space had been pressed. The WebView is focused
      * first and the JS call deferred one pulse, because a JavaFX menu popup only hands focus back after

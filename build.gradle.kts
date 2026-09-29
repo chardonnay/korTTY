@@ -3332,6 +3332,24 @@ val translateDocsMaskingTest = tasks.register<Exec>("translateDocsMaskingTest") 
     }
 }
 
+val translateDocsBackendTest = tasks.register<Exec>("translateDocsBackendTest") {
+    group = "verification"
+    description = "Runs the docs translator's backend/batching and translation-benchmark tests."
+    inputs.files(
+        "scripts/translate_docs.py",
+        "scripts/translate_benchmark.py",
+        "scripts/translate_benchmark_samples.json",
+        "scripts/test_translate_docs_backends.py"
+    )
+    workingDir(projectDir)
+    val tests = listOf("-m", "unittest", "scripts.test_translate_docs_backends")
+    if (isWindows) {
+        commandLine(listOf("py", "-3") + tests)
+    } else {
+        commandLine(listOf("python3") + tests)
+    }
+}
+
 val backfillI18nKeysTest = tasks.register<Exec>("backfillI18nKeysTest") {
     group = "verification"
     description = "Runs the i18n backfill script's additions-only regression tests."
@@ -3372,7 +3390,7 @@ val pacmanWorkflowContractTest = tasks.register<Exec>("pacmanWorkflowContractTes
 
 tasks.named("check") {
     dependsOn(verifyJpackageStaging, "slimNativeRuntimeSmoke", packageSizeReportTest,
-        guideSegmentExtractorTest, translateDocsMaskingTest, backfillI18nKeysTest,
+        guideSegmentExtractorTest, translateDocsMaskingTest, translateDocsBackendTest, backfillI18nKeysTest,
         pacmanWorkflowContractTest, verifyJavaFxDependencyAlignment)
 }
 
@@ -3442,6 +3460,18 @@ tasks.register<JavaExec>("mermaidRendererSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("snippetAnalysisReportSamples") {
+    group = "verification"
+    description = "Writes sample before/after code-analysis reports (PDF/HTML/Markdown/JSON + page PNGs) for design review."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.core.SnippetAnalysisReportSamples")
+    classpath = sourceSets.test.get().runtimeClasspath
+    args(
+        (project.findProperty("samplesDir") as String?)
+            ?: layout.buildDirectory.dir("snippet-analysis-report-samples").get().asFile.absolutePath,
+        (project.findProperty("samplesLocale") as String?) ?: "en")
+}
+
 tasks.register<JavaExec>("dialogHostTabSmoke") {
     group = "verification"
     description = "Hosts a dialog pane as a main-window tab and verifies the DialogHostTab lifecycle."
@@ -3495,6 +3525,19 @@ tasks.register<JavaExec>("codeAnalysisScreenshotStage") {
     }
 }
 
+tasks.register<JavaExec>("snippetManagerScreenshotStage") {
+    group = "documentation"
+    description = "Shows the Snippet Manager workspace (demo library, an editor tab and its analysis panel) " +
+        "for the docs screenshot capture."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SnippetManagerScreenshotStage")
+    classpath = sourceSets.test.get().runtimeClasspath
+    args = listOf((findProperty("kortty.captureDoneFlag") as String?) ?: "")
+    listOf("kortty.workspaceWidth", "kortty.workspaceHeight", "kortty.screenshotHome").forEach { key ->
+        (findProperty(key) as String?)?.let { systemProperty(key, it) }
+    }
+}
+
 tasks.register<JavaExec>("mainWindowScreenshotStage") {
     group = "documentation"
     description = "Shows the main window (optionally with a menu open) for the docs screenshot " +
@@ -3515,6 +3558,15 @@ tasks.register<JavaExec>("toolTabRenderSmoke") {
     description = "Hosts the snippet manager/editor as tabs, snapshots them and detects layout loops."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.ToolTabRenderSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("snippetWorkspaceSmoke") {
+    group = "verification"
+    description = "Drives the snippet workspace: preview without editor boot, promote by typing, " +
+        "dedupe across workspaces, Shortcut+S save, Esc, and vetoed/discarded closes."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SnippetWorkspaceSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
@@ -3778,11 +3830,11 @@ tasks.register<JavaExec>("updateDownloadCompleteSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
-tasks.register<JavaExec>("snippetCodeAnalysisDialogSizingSmoke") {
+tasks.register<JavaExec>("snippetAnalysisPanelSizingSmoke") {
     group = "verification"
-    description = "Shrinks the Full-code-analysis window and verifies its Apply/Close buttons stay on screen."
+    description = "Shrinks a snippet editor with its Full-code-analysis side panel open (window and tab mode) and verifies Apply selected and Export stay on screen."
     dependsOn("testClasses", "processResources")
-    mainClass.set("de.kortty.ui.SnippetCodeAnalysisDialogSizingSmoke")
+    mainClass.set("de.kortty.ui.SnippetAnalysisPanelSizingSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
     environment("TEST_MODE_KORTTY", "1")
 }
@@ -3795,20 +3847,19 @@ tasks.register<JavaExec>("analysisCategoryIconRender") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
-tasks.register<JavaExec>("snippetAnalysisDockSmoke") {
-    group = "verification"
-    description = "Docks the AI-processing and change-preview windows to a Full-code-analysis anchor and verifies they take opposite sides, follow it, stay on screen and undock when dragged away."
-    dependsOn("testClasses", "processResources")
-    mainClass.set("de.kortty.ui.SnippetAnalysisDockSmoke")
-    classpath = sourceSets.test.get().runtimeClasspath
-    environment("TEST_MODE_KORTTY", "1")
-}
-
 tasks.register<JavaExec>("snippetAiDialogsSmoke") {
     group = "verification"
     description = "Builds the unified snippet AI dialogs (review, describe, alternatives, diff) with the profile picker and re-run enabled and snapshots each to build/smoke/snippet-ai-*.png."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.SnippetAiDialogsSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("snippetDiagramZoomSmoke") {
+    group = "verification"
+    description = "Opens the Full-code-analysis diagram in its zoom window by clicking it and via the Enlarge button, checks the keyboard zoom, that the AI is not asked again, and that the window closes with the editor."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SnippetDiagramZoomWindowSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
