@@ -55,6 +55,12 @@ public final class DialogGeometrySupport {
      */
     static final String TRACKED_KEY = "kortty.dialogGeometry.tracked";
 
+    /** Slack, in pixels, when deciding that a window fills a screen. */
+    private static final double FILL_TOLERANCE = 2;
+
+    /** How long window events must be quiet before the geometry is recorded. */
+    private static final double SETTLE_MILLIS = 150;
+
     /** Explicit per-dialog geometry fields take precedence over automatic named persistence. */
     private static final String EXPLICIT_KEY = "kortty.dialogGeometry.explicit";
 
@@ -283,19 +289,47 @@ public final class DialogGeometrySupport {
         return manager != null ? manager.getSettings() : null;
     }
 
-    /** Records every move and resize, so closing never has to ask a stage that already forgot. */
+    /**
+     * Records every move and resize, so closing never has to ask a stage that already forgot.
+     *
+     * <p>The recording is debounced: maximizing reports the new bounds a moment <em>before</em> the
+     * stage flags itself maximized, so recording each event as it arrives would store the maximized
+     * bounds as if the user had chosen them (on macOS the flag even flips back to false while the
+     * zoom animation runs). Waiting until the events settle lets the state be judged on the final
+     * picture, and a maximized, full-screen or minimized window keeps the last normal bounds. A
+     * pending recording is deliberately not forced at capture time: it would judge a mid-animation
+     * state.</p>
+     */
     private static void track(Dialog<?> dialog, Stage stage) {
         Runnable record = () -> {
-            WindowGeometry current = read(stage);
-            if (current != null) {
-                dialog.getDialogPane().getProperties().put(TRACKED_KEY, current);
+            if (!isNormalState(stage.isMaximized(), stage.isFullScreen(), stage.isIconified())) {
+                return;
             }
+            WindowGeometry current = read(stage);
+            if (current == null) {
+                return;
+            }
+            // The maximized flag is not reliable everywhere (macOS clears it while the zoom
+            // animation runs and may keep it cleared): a window that exactly fills a screen is
+            // treated as maximized too, once there is a normal geometry to fall back to.
+            if (dialog.getDialogPane().getProperties().get(TRACKED_KEY) instanceof WindowGeometry
+                && fillsScreen(current, visualScreenBounds())) {
+                return;
+            }
+            dialog.getDialogPane().getProperties().put(TRACKED_KEY, current);
         };
         record.run();
-        stage.xProperty().addListener((obs, old, value) -> record.run());
-        stage.yProperty().addListener((obs, old, value) -> record.run());
-        stage.widthProperty().addListener((obs, old, value) -> record.run());
-        stage.heightProperty().addListener((obs, old, value) -> record.run());
+        javafx.animation.PauseTransition settle =
+            new javafx.animation.PauseTransition(javafx.util.Duration.millis(SETTLE_MILLIS));
+        settle.setOnFinished(event -> record.run());
+        javafx.beans.InvalidationListener changed = obs -> settle.playFromStart();
+        stage.xProperty().addListener(changed);
+        stage.yProperty().addListener(changed);
+        stage.widthProperty().addListener(changed);
+        stage.heightProperty().addListener(changed);
+        stage.maximizedProperty().addListener(changed);
+        stage.iconifiedProperty().addListener(changed);
+        stage.fullScreenProperty().addListener(changed);
     }
 
     /**
@@ -332,6 +366,28 @@ public final class DialogGeometrySupport {
                 onClose.accept(captured);
             }
         });
+    }
+
+    /** Whether a window's current bounds are its user-chosen ones (not maximized, full screen or minimized). */
+    static boolean isNormalState(boolean maximized, boolean fullScreen, boolean iconified) {
+        return !maximized && !fullScreen && !iconified;
+    }
+
+    /**
+     * Whether the window covers a whole screen's usable area (what maximizing produces). Pure, so
+     * it is testable without a display.
+     */
+    static boolean fillsScreen(WindowGeometry geometry, List<Rectangle2D> screens) {
+        if (geometry == null || screens == null) {
+            return false;
+        }
+        for (Rectangle2D screen : screens) {
+            if (geometry.getWidth() >= screen.getWidth() - FILL_TOLERANCE
+                && geometry.getHeight() >= screen.getHeight() - FILL_TOLERANCE) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** A stage's bounds, or {@code null} when it never had usable ones. */
