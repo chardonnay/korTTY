@@ -1,6 +1,6 @@
 package de.kortty.ui;
 
-import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBase;
 import javafx.scene.shape.SVGPath;
 
 /**
@@ -52,6 +52,11 @@ final class ButtonIcons {
         + "L14 14.71 V15.5 L19 20.49 L20.49 19 Z M9.5 14 C7.01 14 5 11.99 5 9.5 C5 7.01 7.01 5 9.5 5 "
         + "C11.99 5 14 7.01 14 9.5 C14 11.99 11.99 14 9.5 14 Z";
     static final String MORE = "M7.41 7.84 L12 12.42 L16.59 7.84 L18 9.25 L12 15.25 L6 9.25 Z";
+    /** Three dots stacked vertically: the usual "more actions" glyph, drawn as circles. */
+    static final String MORE_ACTIONS =
+        "M12 4 C13.1 4 14 4.9 14 6 C14 7.1 13.1 8 12 8 C10.9 8 10 7.1 10 6 C10 4.9 10.9 4 12 4 Z "
+        + "M12 10 C13.1 10 14 10.9 14 12 C14 13.1 13.1 14 12 14 C10.9 14 10 13.1 10 12 C10 10.9 10.9 10 12 10 Z "
+        + "M12 16 C13.1 16 14 16.9 14 18 C14 19.1 13.1 20 12 20 C10.9 20 10 19.1 10 18 C10 16.9 10.9 16 12 16 Z";
     static final String PAUSE = "M6 5 H10 V19 H6 Z M14 5 H18 V19 H14 Z";
     static final String CANCEL =
         "M19 6.41 L17.59 5 L12 10.59 L6.41 5 L5 6.41 L10.59 12 L5 17.59 L6.41 19 L12 13.41 "
@@ -63,7 +68,7 @@ final class ButtonIcons {
     private ButtonIcons() {
     }
 
-    static void apply(Button button, String svgPathData) {
+    static void apply(ButtonBase button, String svgPathData) {
         SVGPath icon = new SVGPath();
         icon.setContent(svgPathData);
         // Match the button text color (terminal.css .button) so icons stay visible on the dark theme.

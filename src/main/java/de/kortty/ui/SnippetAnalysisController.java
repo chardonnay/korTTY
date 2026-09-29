@@ -2438,7 +2438,9 @@ final class SnippetAnalysisController {
         MenuItem deleteAll = new MenuItem(I18n.get("snippets.ai.analysis.history.deleteAll"));
         deleteAll.setId(HISTORY_DELETE_ALL_ID);
         deleteAll.setOnAction(event -> requestConfirm(new PendingConfirm(null)));
-        MenuButton button = new MenuButton("⋯");
+        // A glyph, not the text "⋯": the UI font renders it as a bare "...".
+        MenuButton button = new MenuButton();
+        ButtonIcons.apply(button, ButtonIcons.MORE_ACTIONS);
         button.setId(HISTORY_ACTIONS_ID);
         button.setTooltip(new Tooltip(I18n.get("snippets.ai.analysis.history.actions")));
         button.getItems().setAll(pin, discard, new SeparatorMenuItem(), deleteAll);
