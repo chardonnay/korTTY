@@ -514,6 +514,75 @@ class PolicyLoaderTest {
     }
 
     @Test
+    void parsesTheSnippetAnalysisStoredContentCap() throws IOException {
+        PolicyLoadResult capped = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+              [rule.snippets]
+              allow-custom-script-headers = false
+              analysis-max-stored-content-bytes = 2_097_152
+            """));
+        assertThat(capped.errors()).isEmpty();
+        PolicyRule rule = capped.file().rules().get(0);
+        assertThat(rule.snippetAnalysisMaxStoredContentBytes()).isEqualTo(2_097_152L);
+        assertThat(rule.allowCustomScriptHeaders()).isFalse();
+
+        PolicyLoadResult forbidden = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+              [rule.snippets]
+              analysis-max-stored-content-bytes = 0
+            """));
+        assertThat(forbidden.errors()).isEmpty();
+        assertThat(forbidden.file().rules().get(0).snippetAnalysisMaxStoredContentBytes()).isEqualTo(0L);
+        assertThat(forbidden.file().rules().get(0).allowCustomScriptHeaders()).isNull();
+    }
+
+    @Test
+    void snippetAnalysisStoredContentCapIsNullWhenUnset() throws IOException {
+        PolicyLoadResult unset = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+              [rule.snippets]
+              allow-custom-script-headers = true
+            """));
+        assertThat(unset.errors()).isEmpty();
+        assertThat(unset.file().rules().get(0).snippetAnalysisMaxStoredContentBytes()).isNull();
+    }
+
+    @Test
+    void invalidSnippetAnalysisStoredContentCapsAreErrors() throws IOException {
+        PolicyLoadResult negative = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+              [rule.snippets]
+              analysis-max-stored-content-bytes = -1
+            """));
+        assertThat(negative.errors()).hasSize(1);
+        assertThat(negative.errors().get(0)).contains("analysis-max-stored-content-bytes");
+
+        PolicyLoadResult text = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+              [rule.snippets]
+              analysis-max-stored-content-bytes = "5 MB"
+            """));
+        assertThat(text.errors()).hasSize(1);
+        assertThat(text.errors().get(0)).contains("analysis-max-stored-content-bytes");
+        assertThat(text.file()).isNull();
+    }
+
+    @Test
     void maxLogPartsIsNullWhenUnsetAndRejectsZero() throws IOException {
         PolicyLoadResult unset = PolicyLoader.load(write("""
             [meta]

@@ -24,5 +24,6 @@ public enum ManagedSetting {
     CLIPBOARD,
     LOGGING,
     SESSION_JOURNAL,
-    CONTROL_API
+    CONTROL_API,
+    SNIPPET_ANALYSIS_CONTENT
 }

@@ -1587,7 +1587,7 @@ final class SnippetAnalysisController {
             }
             case CONTENT_CHANGED -> host.setStatus(I18n.get("snippets.ai.analysis.fix.resume.contentChanged"));
             case PLAN_CHANGED -> host.setStatus(I18n.get("snippets.ai.analysis.fix.resume.replan"));
-            case NOT_ELIGIBLE -> host.setStatus(I18n.get("snippets.ai.analysis.panel.partialUnavailable"));
+            case NOT_ELIGIBLE -> host.setStatus(withStorageHint(I18n.get("snippets.ai.analysis.panel.partialUnavailable")));
         }
         refreshState();
     }
@@ -1604,7 +1604,7 @@ final class SnippetAnalysisController {
         }
         String base = context != null ? context.baseContent() : baseContentOf(recordId, runId);
         if (base == null) {
-            host.setStatus(I18n.get("snippets.ai.analysis.panel.partialUnavailable"));
+            host.setStatus(withStorageHint(I18n.get("snippets.ai.analysis.panel.partialUnavailable")));
             return;
         }
         SnippetAiResponseSupport.SnippetSecurityFix partial = checkpoint.toPartialFix();
@@ -1657,12 +1657,12 @@ final class SnippetAnalysisController {
         SnippetAnalysisRecord record = findRecord(recordId);
         ApplyRun run = record != null ? record.findRun(runId) : null;
         if (run == null || run.outcome() != RunOutcome.PENDING_REVIEW || run.resultContent() == null) {
-            host.setStatus(I18n.get("snippets.ai.analysis.review.unavailable"));
+            host.setStatus(withStorageHint(I18n.get("snippets.ai.analysis.review.unavailable")));
             return;
         }
         String base = baseContentOf(recordId, runId);
         if (base == null) {
-            host.setStatus(I18n.get("snippets.ai.analysis.review.unavailable"));
+            host.setStatus(withStorageHint(I18n.get("snippets.ai.analysis.review.unavailable")));
             return;
         }
         trackAction("code_review_reopen", Map.of());
@@ -1732,7 +1732,7 @@ final class SnippetAnalysisController {
         }
         String base = baseContentOf(recordId, runId);
         if (run.resultContent() == null || base == null) {
-            host.setStatus(I18n.get("snippets.ai.analysis.preview.unavailable"));
+            host.setStatus(withStorageHint(I18n.get("snippets.ai.analysis.preview.unavailable")));
             return;
         }
         if (review != null) {
@@ -1946,6 +1946,24 @@ final class SnippetAnalysisController {
             }
         }
         refreshState();
+    }
+
+    /**
+     * Appends why the script text of an analysis may be missing: the limit in force, that it is Off,
+     * or that the enterprise policy forbids storing it.
+     */
+    static String withStorageHint(String message) {
+        var limits = de.kortty.core.SnippetAnalysisContentLimit.limits();
+        String hint;
+        if (limits.forbiddenByPolicy()) {
+            hint = I18n.get("snippets.ai.analysis.contentNotStored.policy");
+        } else if (limits.effective() == 0) {
+            hint = I18n.get("snippets.ai.analysis.contentNotStored.off");
+        } else {
+            hint = I18n.get("snippets.ai.analysis.contentNotStored.limit",
+                SnippetAnalysisContentLimitControl.format(limits.effective()));
+        }
+        return message + " " + hint;
     }
 
     private void closeReview() {

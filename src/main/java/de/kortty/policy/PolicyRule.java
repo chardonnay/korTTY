@@ -35,6 +35,10 @@ import java.util.Set;
  * @param loadIntoSnippetEditor      mode for the terminal "load into snippet editor" feature, or null
  * @param logging                    admin log configuration from {@code [rule.logging]}, or null
  * @param sessionJournal             session journal mandates from {@code [rule.session-journal]}, or null
+ * @param snippetAnalysisMaxStoredContentBytes upper bound in bytes of UTF-8 for the script text
+ *                                   stored with each Full-code analysis ({@code [rule.snippets]
+ *                                   analysis-max-stored-content-bytes}); 0 forbids storing script
+ *                                   text, null leaves it to the user
  */
 public record PolicyRule(
     String name,
@@ -60,7 +64,8 @@ public record PolicyRule(
     String updateFeedUrl,
     LoadIntoEditorMode loadIntoSnippetEditor,
     LoggingRule logging,
-    SessionJournalRule sessionJournal) {
+    SessionJournalRule sessionJournal,
+    Long snippetAnalysisMaxStoredContentBytes) {
 
     public PolicyRule {
         users = Set.copyOf(users);
@@ -173,6 +178,7 @@ public record PolicyRule(
         private LoadIntoEditorMode loadIntoSnippetEditor;
         private LoggingRule logging;
         private SessionJournalRule sessionJournal;
+        private Long snippetAnalysisMaxStoredContentBytes;
 
         public Builder name(String value) { this.name = value; return this; }
         public Builder users(Set<String> value) { this.users = value; return this; }
@@ -198,13 +204,18 @@ public record PolicyRule(
         public Builder loadIntoSnippetEditor(LoadIntoEditorMode value) { this.loadIntoSnippetEditor = value; return this; }
         public Builder logging(LoggingRule value) { this.logging = value; return this; }
         public Builder sessionJournal(SessionJournalRule value) { this.sessionJournal = value; return this; }
+        public Builder snippetAnalysisMaxStoredContentBytes(Long value) {
+            this.snippetAnalysisMaxStoredContentBytes = value;
+            return this;
+        }
 
         public PolicyRule build() {
             return new PolicyRule(name, users, groups, servers, features, agentExecution,
                 requireMasterPassword, enforceHostKeyCheck, clipboardMode, allowTelemetry, allowTerminalRecording,
                 allowCustomTeamworkSources, allowCustomScriptHeaders, aiProfileAllowCreate,
                 aiProfileAllowEdit, aiProfileAllowInternet, allowRuntimeDownloads, allowModelDownloads, allowUserModels,
-                updatesEnabled, updateFeedUrl, loadIntoSnippetEditor, logging, sessionJournal);
+                updatesEnabled, updateFeedUrl, loadIntoSnippetEditor, logging, sessionJournal,
+                snippetAnalysisMaxStoredContentBytes);
         }
     }
 }

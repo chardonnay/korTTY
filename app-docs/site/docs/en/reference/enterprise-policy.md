@@ -142,6 +142,7 @@ Patterns match the host string exactly as configured in the connection — korTT
 | --- | --- | --- | --- |
 | `allow-custom-sources` | boolean | `false` | Users cannot add teamwork sources; only `[[teamwork-source]]` entries remain |
 | `allow-custom-script-headers` | boolean | `false` | Users cannot create script headers; only `[[script-header]]` entries remain |
+| `analysis-max-stored-content-bytes` | integer | ≥ 0 (bytes of UTF-8) | Upper bound for the script text stored with each Full code analysis; `0` forbids storing script text — see below |
 | `allow-create` | boolean | `false` | Users cannot create AI profiles (buttons and wizard are locked) |
 | `allow-edit` | boolean | `false` | Users cannot edit their existing AI profiles either |
 | `allow-internet` | boolean | `false` | Forbids every AI internet-access mode — see below |
@@ -163,6 +164,29 @@ Patterns match the host string exactly as configured in the connection — korTT
     This is about the search backends only. It does not stop a *cloud* AI profile from reaching its
     own provider — for that, deny the `ai` feature or provision `[[ai-profile]]` entries that point
     at an internal endpoint.
+
+### Stored script text of analyses
+
+A [Full code analysis](../features/snippets.md#stored-script-text) stores the script text it worked on — the analysed script, the text an apply started from, the proposed result and the accepted text — so the code preview, **View changes**, the script export, the report appendix, **Restore intermediate state** and resuming after a restart keep working. Users choose the size themselves under **Settings → Snippet Editor → Stored script size per analysis** (default 1 MB, maximum 5 MB, or **Off**); `analysis-max-stored-content-bytes` in `[rule.snippets]` is an upper bound on top of that choice:
+
+```toml
+[[rule]]
+name = "Keep script text small"
+  [rule.snippets]
+  analysis-max-stored-content-bytes = 524_288      # at most 512 KB per stored text
+
+[[rule]]
+name = "Compliance team: no script text in analyses"
+groups = ["compliance"]
+  [rule.snippets]
+  analysis-max-stored-content-bytes = 0            # findings and reports only
+```
+
+- **Effective limit** — The smaller of the user's own value (default 1 MB), the fixed 5 MB maximum and this key. A value above 5 MB therefore changes nothing, and a user's lower value stays in force. Any positive value is accepted, also one below the 256 KB minimum users can pick.
+- **`0`** — No script text is stored at all: the analysis keeps its findings, summary, diagram and reports, but not the script, so **View changes**, the older entries' code preview, the script export, the report appendix, **Restore intermediate state** and resuming after a restart are unavailable, and the panel says the organization does not allow storing script text. The analysis itself, applying findings and the immediate change review in the editor work as before. Text stored earlier is dropped from the stored analyses the next time they are written.
+- **Settings dialog** — The dropdown only offers sizes up to the cap, shows the cap beneath it and is locked (with the "Managed by your organization" hint) when the value is `0`. The user's own choice is not overwritten by the cap: it applies again when the policy is lifted.
+- **Tiers** — Like every setting the most specific tier that sets the key wins (user, then group, then all); rules of the same tier take the smaller value, so `0` beats every positive cap. The key is not a `0`-means-unlimited value.
+- **Invalid values** — A negative number or a non-integer (for example `"5 MB"`) is a policy error like any other malformed value, so the whole file is rejected and the lockdown fallback applies; the fallback forbids storing script text too. Write bytes, optionally with TOML digit separators (`5_242_880`).
 
 ### `[rule.ai-runtime]`
 

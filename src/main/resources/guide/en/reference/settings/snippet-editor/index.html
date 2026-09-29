@@ -758,7 +758,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="snippet-editor">Snippet Editor<a class="headerlink" href="#snippet-editor" title="Permanent link">&para;</a></h1>
-<p>Font, color and cursor overrides for the Snippet Manager and the Snippet Edit dialog, plus how many Full code analyses korTTY keeps per snippet. Open via <strong>Configuration → Global Settings → Snippet Editor</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
+<p>Font, color and cursor overrides for the Snippet Manager and the Snippet Edit dialog, plus how many Full code analyses korTTY keeps per snippet and how large a script's text may be to be stored with them. Open via <strong>Configuration → Global Settings → Snippet Editor</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
 <p><img alt="Snippet Editor settings tab" src="../../../assets/screenshots/settings/snippet-editor.png" /></p>
 <table>
 <thead>
@@ -834,6 +834,13 @@
 <td>5</td>
 <td><code>snippetAnalysisHistoryMaxSize</code></td>
 </tr>
+<tr>
+<td>Stored script size per analysis</td>
+<td>dropdown</td>
+<td>Off, 256 KB, 512 KB, 1 MB, 2 MB, 5 MB</td>
+<td>1 MB</td>
+<td><code>snippetAnalysisMaxStoredContentBytes</code></td>
+</tr>
 </tbody>
 </table>
 <div class="admonition tip">
@@ -847,6 +854,10 @@
 <div class="admonition note">
 <p class="admonition-title">Stored analyses per snippet</p>
 <p>How many <a href="../../../features/snippets.html#full-code-analysis">Full code analyses</a> korTTY keeps for each snippet. When a new analysis of a snippet arrives and its history is over the limit, the oldest analyses are removed; pinned analyses, analyses with a result waiting for review and analyses with an interrupted apply are always kept, so a history can hold more than the limit. Lowering the value deletes nothing right away: the settings tab says how many older, unpinned analyses the next analysis of each snippet would remove, and they only go when that analysis arrives. To remove analyses now, use <strong>Discard</strong> or <strong>Delete all</strong> in the analysis panel.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Stored script size per analysis</p>
+<p>The largest script text — measured in bytes of UTF-8 — that korTTY stores with a <a href="../../../features/snippets.html#stored-script-text">Full code analysis</a>. Every analysis can hold several copies of the script (the analysed text, the text an apply started from, the proposed result and the accepted text); each copy up to this size is stored completely, identical copies only once. The default is <strong>1 MB</strong>, the maximum is <strong>5 MB</strong>, and <strong>Off</strong> stores no script text at all — findings, the diagram and the reports stay. A larger script is still analysed and can still be applied and reviewed in the editor; only its stored copies are missing afterwards, so <strong>View changes</strong>, the code preview of an older entry, the plain-text script export, the report appendix, <strong>Restore intermediate state</strong> and resuming an interrupted apply after a restart are not available for it, and the panel says why. Lowering the value deletes nothing: text that is already stored stays, and the new limit applies to analyses made from then on. A larger value uses more disk space in <code>~/.kortty/snippet-analyses/</code>; a file that would grow beyond 60 MB sheds the stored text of the oldest analyses first. An administrator can cap the value or forbid storing script text with the <a href="../../enterprise-policy.html#stored-script-text-of-analyses">enterprise policy</a>; the dropdown then only offers what the policy allows, says so beneath it and is locked when the policy forbids storing script text.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Inheriting instead of overriding</p>

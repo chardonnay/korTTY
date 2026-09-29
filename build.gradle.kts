@@ -3872,6 +3872,14 @@ tasks.register<JavaExec>("snippetAiDialogsSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("snippetAnalysisContentLimitSmoke") {
+    group = "verification"
+    description = "Builds the Snippet Editor settings control for the stored script size per analysis with real JavaFX controls for no policy, a policy cap and a policy ban, and checks the offered sizes, the lock and what would be stored."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SnippetAnalysisContentLimitControlSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("snippetDiagramZoomSmoke") {
     group = "verification"
     description = "Opens the Full-code-analysis diagram in its zoom window by clicking it and via the Enlarge button, checks the keyboard zoom, that the AI is not asked again, and that the window closes with the editor."

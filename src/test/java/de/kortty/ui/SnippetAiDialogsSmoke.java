@@ -2043,6 +2043,177 @@ public final class SnippetAiDialogsSmoke {
                 List.of(), List.of(finding), de.kortty.core.SnippetAnalysisRecord.RunStats.EMPTY, null);
     }
 
+    /** ASCII script of exactly {@code bytes} bytes; every {@code changeEvery}th line differs (0 = none). */
+    private static String bigScript(long bytes, int changeEvery) {
+        StringBuilder text = new StringBuilder((int) bytes + 100);
+        int line = 0;
+        while (text.length() < bytes) {
+            boolean changed = changeEvery > 0 && line % changeEvery == 0;
+            text.append("echo \"line ").append(line++).append(' ').append(changed ? "edit" : "same")
+                .append(" of a generated script\"\n");
+        }
+        text.setLength((int) bytes);
+        return text.toString();
+    }
+
+    /**
+     * A 5 MB script (the stored-content maximum): a stored analysis with an accepted-but-unsaved
+     * result keeps every text completely, survives a reload from disk, its overview is read without
+     * the blobs, and in the editor "View changes" opens the read-only diff of the two 5 MB texts and
+     * "Restore" puts the 5 MB accepted text back. Logs the timings; then starts {@code next}.
+     */
+    private static void runLargeScriptLeg(AtomicReference<String> failure, CountDownLatch done, Runnable next) {
+        long mb = 1024L * 1024;
+        de.kortty.core.SnippetAnalysisContentLimit.install(
+            () -> de.kortty.core.SnippetAnalysisContentLimit.compute(5 * mb, null));
+        String base = bigScript(5 * mb, 0);
+        String result = bigScript(5 * mb, 997);
+        Snippet snippet = new Snippet("large-script-smoke.sh", base, "bash");
+        String snippetId = snippet.getId();
+        de.kortty.core.SnippetAnalysisStore store = de.kortty.core.SnippetAnalysisStore.shared();
+        long seeded = System.nanoTime();
+        de.kortty.core.SnippetAnalysisRecord record = historyRecord("big-a", snippetId, "Big", base, null, 1000L)
+            .withRun(historyRun("run-big", "B-1", base, result, "Big summary")
+                .accepted(4000L, List.of("B-1"), result));
+        try {
+            if (record.source().content() == null || record.source().contentTruncated()) {
+                throw new AssertionError("A 5 MB script must be stored completely under a 5 MB limit");
+            }
+            store.addAnalysis(snippetId, record);
+            store.flush(java.time.Duration.ofSeconds(60));
+            de.kortty.core.SnippetAnalysisStore fresh = new de.kortty.core.SnippetAnalysisStore(
+                store.directory(), id -> true, () -> 5);
+            long overviewStart = System.nanoTime();
+            var overviews = fresh.allOverviews().get(20, TimeUnit.SECONDS);
+            long overviewMillis = (System.nanoTime() - overviewStart) / 1_000_000L;
+            if (overviews.get(snippetId) == null) {
+                throw new AssertionError("The overview of the stored analysis is missing");
+            }
+            long loadStart = System.nanoTime();
+            de.kortty.core.SnippetAnalysisRecord onDisk = fresh.load(snippetId).get(60, TimeUnit.SECONDS)
+                .find("big-a");
+            long loadMillis = (System.nanoTime() - loadStart) / 1_000_000L;
+            fresh.close();
+            if (onDisk == null || !base.equals(onDisk.source().content())
+                    || !base.equals(lastRun(onDisk).request().baseContent())
+                    || !result.equals(lastRun(onDisk).acceptedContent())
+                    || !result.equals(lastRun(onDisk).resultContent())) {
+                throw new AssertionError("The 5 MB texts did not survive on disk completely");
+            }
+            System.out.printf("[large-script] seeded+written in %d ms, overview %d ms, load %d ms%n",
+                (System.nanoTime() - seeded) / 1_000_000L - loadMillis - overviewMillis, overviewMillis, loadMillis);
+            store.invalidateAll(); // the editor reads the analysis back from disk
+        } catch (Throwable e) {
+            failure.compareAndSet(null, "Large script leg (store) failed: " + e);
+            de.kortty.core.SnippetAnalysisContentLimit.reset();
+            next.run();
+            return;
+        }
+
+        SnippetEditDialog.AiAssist assist = new SnippetEditDialog.AiAssist(
+            null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+            request -> new SnippetAiResponseSupport.MermaidDiagram("Flow", "flowchart TD\n  A --> B"),
+            request -> {
+                throw new AssertionError("The large script leg must never run a new analysis");
+            },
+            request -> {
+                throw new AssertionError("The large script leg must never run an apply");
+            },
+            false,
+            null);
+        java.util.concurrent.atomic.AtomicInteger phase = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicLong stamp = new java.util.concurrent.atomic.AtomicLong(System.nanoTime());
+        java.util.concurrent.atomic.AtomicLong mark = new java.util.concurrent.atomic.AtomicLong(System.nanoTime());
+        AtomicReference<Timeline> poller = new AtomicReference<>();
+        SnippetEditDialog editorDialog;
+        try {
+            editorDialog = new SnippetEditDialog(snippet, List.of(), assist);
+            editorDialog.show();
+        } catch (Throwable e) {
+            failure.compareAndSet(null, "Large script leg could not open the editor: " + e);
+            de.kortty.core.SnippetAnalysisContentLimit.reset();
+            next.run();
+            return;
+        }
+        SnippetEditDialog editor = editorDialog;
+        MonacoEditorPane content = field(editor, "contentArea", MonacoEditorPane.class);
+        Runnable finish = () -> {
+            stop(poller);
+            editor.closeWithoutPrompt();
+            de.kortty.core.SnippetAnalysisContentLimit.reset();
+            PauseTransition cleanupPause = new PauseTransition(Duration.seconds(2));
+            cleanupPause.setOnFinished(cleanup -> next.run());
+            cleanupPause.play();
+        };
+        Timeline timeline = new Timeline(new KeyFrame(Duration.millis(100), event -> {
+            try {
+                if (System.nanoTime() - stamp.get() > 180_000_000_000L) {
+                    throw new AssertionError("timed out in phase " + phase.get());
+                }
+                switch (phase.get()) {
+                    case 0 -> {
+                        if (!content.isReady()) {
+                            return;
+                        }
+                        System.out.printf("[large-script] editor with the 5 MB script ready after %d ms%n",
+                            (System.nanoTime() - mark.get()) / 1_000_000L);
+                        editor.analysisController().showPanel();
+                        phase.set(1);
+                    }
+                    case 1 -> {
+                        SnippetAnalysisController controller = editor.analysisController();
+                        SnippetAnalysisPanel panel = controller.analysisPanel();
+                        if (panel == null || !panel.isPageReady() || !findingsText(panel).contains("Big")) {
+                            return;
+                        }
+                        Button view = findNodes(controller.sidePanel(), Button.class).stream()
+                            .map(Button.class::cast)
+                            .filter(button -> I18n.get("snippets.ai.analysis.progress.viewChanges").equals(button.getText())
+                                && button.isVisible())
+                            .findFirst().orElse(null);
+                        if (view == null) {
+                            return;
+                        }
+                        mark.set(System.nanoTime());
+                        phase.set(2);
+                        click(view);
+                    }
+                    case 2 -> {
+                        SnippetAiDiffPane review = editor.analysisController().reviewPane();
+                        if (review == null || review.getScene() == null || !review.isDiffReady()) {
+                            return;
+                        }
+                        if (!base.equals(review.originalText()) || !result.equals(review.replacementText())) {
+                            throw new AssertionError("View changes shows the wrong 5 MB texts");
+                        }
+                        System.out.printf("[large-script] View changes (5 MB diff) ready after %d ms%n",
+                            (System.nanoTime() - mark.get()) / 1_000_000L);
+                        mark.set(System.nanoTime());
+                        phase.set(3);
+                        click((Button) requireInEditor(editor, "#snippet-ai-diff-restore"));
+                    }
+                    case 3 -> {
+                        if (!result.equals(content.getText())) {
+                            return;
+                        }
+                        System.out.printf("[large-script] Restore of the 5 MB text done after %d ms%n",
+                            (System.nanoTime() - mark.get()) / 1_000_000L);
+                        finish.run();
+                        phase.set(99);
+                    }
+                    default -> { }
+                }
+            } catch (Throwable e) {
+                failure.compareAndSet(null, "Large script leg failed: " + e);
+                finish.run();
+                phase.set(99);
+            }
+        }));
+        timeline.setCycleCount(Animation.INDEFINITE);
+        poller.set(timeline);
+        timeline.play();
+    }
+
     private static String findingsText(SnippetAnalysisPanel panel) {
         Object text = findingsWebView(panel).getEngine().executeScript("document.body.innerText");
         return text != null ? text.toString() : "";
@@ -2065,7 +2236,7 @@ public final class SnippetAiDialogsSmoke {
      * saved snippet stamps its accepted run. Ends by starting the next leg.
      */
     private static void runAnalysisHistoryLeg(AtomicReference<String> failure, CountDownLatch done) {
-        Runnable next = () -> runInEditorChangeReviewLeg(failure, done);
+        Runnable next = () -> runLargeScriptLeg(failure, done, () -> runInEditorChangeReviewLeg(failure, done));
         String s0 = "#!/usr/bin/env bash\n# Alpha script that greets the caller by name.\nprintf '%s\\n' $name\n";
         String sc = "#!/bin/sh\n# Gamma script, analysed earlier and rewritten since.\necho gamma $1\n";
         String ra = s0 + "# proposed by the alpha analysis\n";

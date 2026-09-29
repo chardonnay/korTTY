@@ -5,6 +5,8 @@ import de.kortty.core.SnippetAnalysisRecord.RecordStatus;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -293,9 +295,107 @@ public record SnippetAnalysisHistory(
             loadIssue);
     }
 
-    /** Applies the per-record size caps. */
+    /** Applies the per-record size caps, then the per-file {@linkplain #withContentBudget content budget}. */
     SnippetAnalysisHistory compact() {
-        return withRecords(records.stream().map(SnippetAnalysisRecord::compact).toList());
+        return withRecords(records.stream().map(SnippetAnalysisRecord::compact).toList())
+            .withContentBudget(SnippetAnalysisContentLimit.contentBudgetBytes());
+    }
+
+    /** One place content lives: the source of a record (run = -1) or the texts of one apply run. */
+    private record ContentSlot(int record, int run, int priority, List<String> texts) {
+    }
+
+    /**
+     * Keeps the distinct stored texts of this history (each counted once, like the blob store) within
+     * {@code maxBytes} of UTF-8 by dropping content instead of failing the write. Order of shedding,
+     * oldest record and run first inside each class:
+     * <ol start="0">
+     *   <li>the content of runs that nothing waits for (decided, failed, cancelled),</li>
+     *   <li>the source text of every record but the newest,</li>
+     *   <li>runs of older records that are still pending, resumable or accepted-but-unsaved,</li>
+     *   <li>the source text of the newest record,</li>
+     *   <li>the protected runs of the newest record.</li>
+     * </ol>
+     * Returns {@code this} when everything fits. Hashes, findings and summaries are never touched.
+     */
+    SnippetAnalysisHistory withContentBudget(long maxBytes) {
+        List<ContentSlot> slots = new ArrayList<>();
+        Map<String, Integer> references = new HashMap<>();
+        long total = 0;
+        for (int i = 0; i < records.size(); i++) {
+            SnippetAnalysisRecord record = records.get(i);
+            boolean newest = i == 0;
+            List<String> sourceTexts = presentTexts(record.source().content());
+            if (!sourceTexts.isEmpty()) {
+                slots.add(new ContentSlot(i, -1, newest ? 3 : 1, sourceTexts));
+            }
+            for (int j = 0; j < record.applyRuns().size(); j++) {
+                ApplyRun run = record.applyRuns().get(j);
+                List<String> texts = presentTexts(run.request().baseContent(),
+                    run.checkpoint() != null ? run.checkpoint().content() : null,
+                    run.resultContent(), run.acceptedContent());
+                if (texts.isEmpty()) {
+                    continue;
+                }
+                boolean protectedRun = run.outcome() == SnippetAnalysisRecord.RunOutcome.PENDING_REVIEW
+                    || run.outcome() == SnippetAnalysisRecord.RunOutcome.RUNNING
+                    || run.isResumable() || run.holdsUnsavedAcceptedContent();
+                slots.add(new ContentSlot(i, j, protectedRun ? (newest ? 4 : 2) : 0, texts));
+            }
+        }
+        for (ContentSlot slot : slots) {
+            for (String text : slot.texts()) {
+                if (references.merge(text, 1, Integer::sum) == 1) {
+                    total += SnippetAnalysisContentLimit.utf8Length(text);
+                }
+            }
+        }
+        if (total <= maxBytes) {
+            return this;
+        }
+        slots.sort(Comparator.comparingInt(ContentSlot::priority)
+            .thenComparing(Comparator.comparingInt(ContentSlot::record).reversed())
+            .thenComparingInt(ContentSlot::run));
+        Set<Long> dropped = new HashSet<>();
+        for (ContentSlot slot : slots) {
+            if (total <= maxBytes) {
+                break;
+            }
+            dropped.add(((long) slot.record() << 32) | (slot.run() + 1L));
+            for (String text : slot.texts()) {
+                if (references.merge(text, -1, Integer::sum) == 0) {
+                    total -= SnippetAnalysisContentLimit.utf8Length(text);
+                }
+            }
+        }
+        List<SnippetAnalysisRecord> next = new ArrayList<>(records.size());
+        for (int i = 0; i < records.size(); i++) {
+            SnippetAnalysisRecord record = records.get(i);
+            if (dropped.contains(((long) i << 32))) {
+                record = record.withSource(record.source().withContent(null));
+            }
+            List<ApplyRun> runs = null;
+            for (int j = 0; j < record.applyRuns().size(); j++) {
+                if (dropped.contains(((long) i << 32) | (j + 1L))) {
+                    if (runs == null) {
+                        runs = new ArrayList<>(record.applyRuns());
+                    }
+                    runs.set(j, runs.get(j).mapContent(text -> null));
+                }
+            }
+            next.add(runs != null ? record.withApplyRuns(runs) : record);
+        }
+        return withRecords(next);
+    }
+
+    private static List<String> presentTexts(String... texts) {
+        List<String> present = new ArrayList<>(texts.length);
+        for (String text : texts) {
+            if (text != null) {
+                present.add(text);
+            }
+        }
+        return present;
     }
 
     /** File form: content fields replaced by blob keys, the texts stored once in {@code blobs}. */

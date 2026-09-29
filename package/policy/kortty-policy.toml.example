@@ -83,6 +83,10 @@
 #
 #   [rule.snippets]
 #   allow-custom-script-headers = false   # only the [[script-header]] entries below
+#   # Upper bound, in bytes of UTF-8, for the script text korTTY stores with each Full code
+#   # analysis (users choose 0..5 MB themselves, default 1 MB; this caps their choice).
+#   # 0 = store no script text at all (findings and reports are kept). Smaller value wins.
+#   analysis-max-stored-content-bytes = 1_048_576   # 1 MB
 #
 #   [rule.ai-profiles]
 #   allow-create = false              # users cannot create AI profiles
