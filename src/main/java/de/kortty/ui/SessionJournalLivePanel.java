@@ -40,7 +40,7 @@ public class SessionJournalLivePanel extends BorderPane {
     private final Button openViewerButton = new Button(I18n.get("journal.live.openViewer"));
     private final javafx.scene.control.ToggleButton tailToggle =
         new javafx.scene.control.ToggleButton(I18n.get("journal.live.tailToggle"));
-    private final MenuButton overflowMenu = new MenuButton("⋯");
+    private final MenuButton overflowMenu = new MenuButton();
     private final Label placeholder = new Label(I18n.get("journal.live.noJournal"));
     private final StackPane centerHost = new StackPane();
 
@@ -116,6 +116,8 @@ public class SessionJournalLivePanel extends BorderPane {
                 viewerPane.showAppearance(overflowMenu);
             }
         });
+        ButtonIcons.apply(overflowMenu, ButtonIcons.MORE_ACTIONS);
+        overflowMenu.setTooltip(new Tooltip(I18n.get("common.moreActions")));
         overflowMenu.getItems().addAll(themeItem, refreshItem, appearanceItem);
 
         HBox titleRow = new HBox(8, titleLabel, stateBadge);
