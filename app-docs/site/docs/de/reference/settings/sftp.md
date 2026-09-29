@@ -12,7 +12,7 @@ Standardwerte für den Dual-Panel-Dateimanager [SFTP ](../../features/sftp.md) u
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| Auto-close SFTP tabs after inactivity | toggle | — | Off | `sftpAutoCloseMinutes` (unset or `0`) |
+| SFTP-Tabs nach Inaktivität automatisch schließen | Schalter | — | Aus | `sftpAutoCloseMinutes` (nicht festgelegt oder `0`) |
 | Timeout (Minuten) | Nummer | 1–120 | 10 | `sftpAutoCloseMinutes` |
 
 !!! note "Auto-Close"

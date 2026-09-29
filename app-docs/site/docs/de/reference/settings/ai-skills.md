@@ -1,10 +1,10 @@
 ---
-title: KI-Fähigkeiten
+title: KI-Skills
 ---
 
-# KI-Fähigkeiten
+# KI-Skills
 
-Configure custom AI skills that enhance AI interactions. This tab lets you manage a library of markdown-based skills that are automatically or manually included in AI requests. Open via **AI → KI-Manager → AI Skills**; stored in `~/.kortty/global-settings.xml`.
+Configure custom AI skills that enhance AI interactions. This tab lets you manage a library of markdown-based skills that are automatically or manually included in AI requests. Open via **KI → KI-Manager → AI Skills**; stored in `~/.kortty/global-settings.xml`.
 
 !!! note "Aus den globalen Einstellungen entfernt"
     Die Skill-Bibliothek war früher eine Registerkarte unter **Konfiguration → Globale Einstellungen**. Es befindet sich jetzt im **KI-Manager**, neben Profilen, lokalen Modellen und Wissensspeichern. Die gespeicherten Daten und die Einstellungsdatei bleiben unverändert.
@@ -15,7 +15,7 @@ Configure custom AI skills that enhance AI interactions. This tab lets you manag
 
 | Einstellung | Geben Sie | ein Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| KI-Fähigkeiten aktivieren | umschalten | – | Ein | `aiSkillsEnabled` |
+| KI-Skills aktivieren | umschalten | – | Ein | `aiSkillsEnabled` |
 | Automatisch nur passende Fähigkeiten senden | umschalten | – | Ein | `aiSkillAutoDetectionEnabled` |
 | Versteckte integrierte Fähigkeiten anzeigen | umschalten | – | Aus | – (Filter anzeigen) |
 | Suchfähigkeiten | Text | Filtert die Liste nach Name, Beschreibung oder Tags | – | – (Filter anzeigen) |
@@ -30,7 +30,7 @@ Wenn Sie eine Fertigkeit auswählen oder erstellen, werden im rechten Bereich Fe
 
 | Einstellung | Geben Sie | ein Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| Skill name | text | — | "AI Skill" | `name` (on AiSkill object) |
+| Skill-Name | Text | — | "KI-Skill" | `name` (auf AiSkill-Objekt) |
 | Beschreibung | Text | – | – | `description` |
 | Tags | Text | Durch Kommas getrennte Tags (z. B. Linux, Bash) | – | `tags` |
 | Ziel | Dropdown | KI-Chat/-Funktionen, KI-Agent, Beide, Verbindung | Beide | `target` |
@@ -43,10 +43,10 @@ korTTY bietet 39 integrierte Best-Practice-Kenntnisse für Shells (Bash, KornShe
 
 Integrierte Fertigkeiten verhalten sich wie Ihre eigenen Fertigkeiten – sie können bearbeitet, deaktiviert und Verbindungen zugewiesen werden – mit folgenden Unterschieden:
 
-- **Sie können nicht gelöscht, sondern nur ausgeblendet werden.** *Ausblenden* entfernt eine integrierte Funktion aus der Liste und aus allen Fertigkeitsauswahlen, und eine ausgeblendete integrierte Funktion wird nicht mehr mit AI-Anfragen gesendet – selbst bei Verbindungen, denen sie zuvor zugewiesen wurde. *Versteckte integrierte Fertigkeiten anzeigen* zeigt versteckte Einträge an, die mit einem **Versteckt**-Abzeichen gekennzeichnet sind, sodass sie mit *Einblenden* wieder angezeigt werden können.
+- **Sie können nicht gelöscht, sondern nur ausgeblendet werden.** *Ausblenden* entfernt eine integrierte Funktion aus der Liste und aus allen Fertigkeitsauswahlen, und eine ausgeblendete integrierte Funktion wird nicht mehr mit KI-Anfragen gesendet – selbst bei Verbindungen, denen sie zuvor zugewiesen wurde. *Versteckte integrierte Fertigkeiten anzeigen* zeigt versteckte Einträge an, die mit einem **Versteckt**-Abzeichen gekennzeichnet sind, sodass sie mit *Einblenden* wieder angezeigt werden können.
 - **Unveränderte integrierte Funktionen werden automatisch aktualisiert.** Wenn eine neue korTTY-Version verbesserte Skill-Inhalte bereitstellt, werden unveränderte integrierte Funktionen beim Start automatisch ersetzt (Ihre Auswahl zwischen Aktiv/Ausgeblendet bleibt erhalten).
 - **Geänderte integrierte Funktionen werden nie berührt.** Sobald Sie eine integrierte Funktion bearbeiten, wird für sie das Abzeichen „Integriert (geändert)“ angezeigt und die automatische Aktualisierung wird beendet. *Auf die ausgelieferte Version zurücksetzen* verwirft Ihre Änderungen und stellt die ausgelieferte Version wieder her, auf der Ihre Änderungen basierten. Wenn eine neuere ausgelieferte Version vorhanden ist, wird im Eintrag 🔄 **Update verfügbar** angezeigt und *Update auf neueste ausgelieferte Version* übernimmt diese.
-- **Ihre eigenen Fertigkeiten haben immer Vorrang.** Wenn einer Ihrer aktivierten Fertigkeiten ein Tag trägt, das mit dem Thema einer integrierten Fertigkeit übereinstimmt (z. B. eine persönliche Fertigkeit mit der Bezeichnung `perl`), wird die integrierte Fertigkeit unterdrückt: Sie zeigt **Von Benutzerfertigkeit überschrieben** an, ist ausgegraut und wird nicht mehr mit einer AI-Anfrage gesendet. Durch das Löschen oder Deaktivieren Ihres Skills wird die integrierte Funktion sofort wieder aktiviert.
+- **Ihre eigenen Fertigkeiten haben immer Vorrang.** Wenn einer Ihrer aktivierten Fertigkeiten ein Tag trägt, das mit dem Thema einer integrierten Fertigkeit übereinstimmt (z. B. eine persönliche Fertigkeit mit der Bezeichnung `perl`), wird die integrierte Fertigkeit unterdrückt: Sie zeigt **Von Benutzerfertigkeit überschrieben** an, ist ausgegraut und wird nicht mehr mit einer KI-Anfrage gesendet. Durch das Löschen oder Deaktivieren Ihres Skills wird die integrierte Funktion sofort wieder aktiviert.
 - Deaktivierte, ausgeblendete und überschriebene Einträge werden ausgegraut dargestellt; Dies funktioniert in jedem Anwendungsdesign-Thema.
 
 !!! note "Durch das Ausschalten der automatischen Erkennung werden integrierte Funktionen deaktiviert"
@@ -67,4 +67,4 @@ Integrierte Fertigkeiten verhalten sich wie Ihre eigenen Fertigkeiten – sie k�
     Fertigkeiten werden als XML-Elemente in der globalen Einstellungsdatei gespeichert. Verwenden Sie **Importieren**, um Fertigkeiten aus Markdown-Dateien zu laden, und **Exportieren**, um ausgewählte Fertigkeiten als Markdown-Dateien zu speichern. **Löschen** gilt nur für Ihre eigenen Fähigkeiten; Stattdessen werden integrierte Fähigkeiten ausgeblendet (siehe oben). Zurücksetzen, Aktualisieren, Ausblenden und Einblenden sind über das Kontextmenü der Liste und über das Banner über dem Editor verfügbar, wenn eine integrierte Fertigkeit ausgewählt wird. Die Fertigkeitsliste kann alphabetisch nach Name oder Status (zuerst aktiviert) sortiert werden. **Speichern** speichert die Bibliothek sofort und bestätigt neben der Schaltfläche; Ausstehende Änderungen werden auch geschrieben, wenn das KI-Manager-Fenster geschlossen wird. Durch das Importieren einer Markdown-Datei wird immer ein unabhängiger Benutzer-Skill erstellt – sogar eine Datei, die aus einem integrierten Skill exportiert wurde.
 
 !!! note "Auswahl der Fähigkeiten pro Anfrage"
-    Auf dieser Registerkarte wird die globale Bibliothek verwaltet. Welche dieser aktivierten Fertigkeiten für eine bestimmte Aktion gelten, wird an anderer Stelle ausgewählt: Die **KI-Skills**-Auswahl des Snippet-Editors heftet Ihre Auswahl an jede Snippet-KI-Aktion, und das Fenster **Vollständige Codeanalyse** zeigt die enthaltenen Fertigkeiten als Chips an – mit der Bezeichnung *(automatisch ausgewählt)* oder *(manuell)* – mit einer durchsuchbaren Auswahl, deren Änderungen bei der nächsten Wiederholung wirksam werden. Innerhalb von Snippet-KI-Aktionen ersetzt der Picker die automatische Erkennung: Es werden nur die angekreuzten Skills plus verbindungszugewiesenen Skills gesendet, und durch das Löschen des Pickers werden überhaupt keine Bibliotheksskills gesendet. Die Snippet-Auswahlaktionen **Korrigieren** und **Übersetzen** sowie die feste Anforderung **Diagramm** umfassen niemals Bibliothekskenntnisse, unabhängig vom Ziel oder der Fixierung. Siehe [Snippets → KI-Fähigkeiten](../../features/snippets.md#ki-skills).
+    Dieser Tab verwaltet die globale Bibliothek. Welche der hier aktivierten KI-Skills einer bestimmten Aktion entsprechen, wird anderswo gewählt: Der KI-Skills-Auswahlfeld im Snippet-Editor bindet Ihre Auswahl an jede Aktion im Snippet-Editor, während das Fenster „Vollständige Code-Analyse“ die enthaltenen Skills als Chips anzeigt – mit den Bezeichnungen *(automatisch)* oder *(manuell)* – und ein suchbares Auswahlfeld, dessen Änderungen beim nächsten Neustart wirksam werden. Innerhalb der Snippet-Aktionen wird das Auswahlfeld die automatische Erkennung ersetzen: Nur die markierten KI-Skills sowie die Skills, die der Verbindung zugewiesen sind, werden übermittelt, und das Entfernen des Auswahlfelds sendet keine Bibliotheks-Skills. Die Snippet-Aktionen „Richtig machen“ und „Übersetzen“ sowie die feste Anfrage „Diagramm“ enthalten nie Bibliotheks-Skills, unabhängig von Ziel oder Pinning. Siehe [Snippets → KI-Skills](../../features/snippets.md#ki-skills).

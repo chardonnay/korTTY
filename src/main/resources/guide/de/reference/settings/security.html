@@ -312,7 +312,7 @@
         <a href="ai-skills.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            KI-Fähigkeiten
+            KI-Skills
         </a>
     </li>
                     
@@ -772,24 +772,24 @@
 </thead>
 <tbody>
 <tr>
-<td>Change Master Password</td>
-<td>button</td>
+<td>Master-Passwort ändern</td>
+<td>Schaltfläche</td>
 <td>—</td>
 <td>—</td>
 <td>—</td>
 </tr>
 <tr>
-<td>Require master password on startup</td>
-<td>toggle</td>
+<td>Master-Passwort beim Programmstart anfordern</td>
+<td>Schalter</td>
 <td>—</td>
-<td>On</td>
+<td>Ein</td>
 <td><code>requireMasterPasswordOnStartup</code></td>
 </tr>
 <tr>
-<td>Disable master password prompt on startup (auto-login)</td>
-<td>toggle</td>
+<td>Master-Passwort-Aufforderung beim Programmstart deaktivieren (automatischer Login)</td>
+<td>Schalter</td>
 <td>—</td>
-<td>Off</td>
+<td>Aus</td>
 <td><code>skipMasterPasswordPrompt</code></td>
 </tr>
 <tr>
@@ -807,7 +807,7 @@
 </div>
 <div class="admonition danger">
 <p class="admonition-title">Auto-Login speichert Ihr Master-Passwort auf der Festplatte</p>
-<p>Enabling "Disable master password prompt on startup" makes korTTY remember your master password — stored only obfuscated (not securely encrypted) in <code>~/.kortty/master.autounlock</code> with owner-only file permissions — and unlock the vault automatically on every start, with no dialog. Unlike disabling the option above, encrypted data (AI profiles, SSH passwords, credentials) stays usable, because the vault is actually unlocked. The trade-off: anyone who can read your <code>~/.kortty</code> folder or a backup can then decrypt <strong>all</strong> saved passwords, SSH keys and API keys — the file permissions are the only remaining protection. On a brand-new profile korTTY sets up a default password automatically, so the app can start with no input at all. korTTY asks you to confirm before enabling it, and it is intended only for throwaway/test environments such as a VM. While auto-login is enabled, <strong>Require master password on startup</strong> is switched off and greyed out — the two options are mutually exclusive. An enterprise policy that requires a master password overrides this option.</p>
+<p>Die Aktivierung von „Master-Passwort-Frage beim Programmstart deaktivieren“ lässt korTTY Ihr Master-Passwort speichern – nur verschleiert (nicht sicher verschlüsselt) im <code>~/.kortty/master.autounlock</code> mit Besitzerrechten auf der Datei – und entsperrt den Tresor automatisch bei jedem Start ohne Dialog. Im Gegensatz zur Deaktivierung der Option oben bleiben verschlüsselte Daten (KI-Profile, SSH-Passwörter, Zugangsdaten) nutzbar, da der Tresor tatsächlich entsperrt wird. Der Preis dafür ist, dass jeder, der Ihren <code>~/.kortty</code>-Ordner oder eine Sicherung lesen kann, alle gespeicherten Passwörter, SSH-Schlüssel und API-Schlüssel entschlüsseln kann – die Dateirechte sind die einzige verbleibende Schutzmaßnahme. Bei einem neuen Profil erstellt korTTY ein Standardpasswort automatisch, sodass die Anwendung ohne Eingabe starten kann. korTTY fragt Sie vor der Aktivierung nach Bestätigung, und diese Einstellung ist ausschließlich für kurzfristige oder Testumgebungen wie eine Virtuelle Maschine vorgesehen. Solange automatischer Login aktiv ist, ist „Master-Passwort beim Programmstart anfordern“ deaktiviert und grau, da beide Optionen gegenseitig ausschließend sind. Eine Unternehmensrichtlinie, die ein Master-Passwort erfordert, überschreibt diese Einstellung.</p>
 </div>
 <div class="admonition tip">
 <p class="admonition-title">Unbeaufsichtigter erster Start (Automatisierungs-/Test-VMs)</p>
@@ -817,12 +817,12 @@
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nt">&lt;skipMasterPasswordPrompt&gt;</span>true<span class="nt">&lt;/skipMasterPasswordPrompt&gt;</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="nt">&lt;/globalSettings&gt;</span>
 </span></code></pre></div>
-<p>On that first start korTTY sets up the default master password <code>kortty-auto</code> automatically and unlocks the vault, so scripted or CI runs need no interaction. If you later turn auto-login off on such a profile, <code>kortty-auto</code> is the password to enter — change it immediately via <strong>Change Master Password</strong> if the profile is meant to live on. Intended for disposable/test environments only — see the security warning above.</p>
+<p>Bei dem ersten Start legt korTTY das Standard-Master-Passwort <code>kortty-auto</code> automatisch fest und entsperrt den Tresor, sodass skriptbasierte oder CI-Abläufe keine Interaktion erfordern. Wenn Sie später den automatischen Login auf einem solchen Profil deaktivieren, ist <code>kortty-auto</code> das Passwort, das eingegeben werden muss — ändern Sie es sofort über <strong>Master-Passwort ändern</strong>, falls das Profil langfristig verwendet werden soll. Dies ist ausschließlich für kurzlebige oder Testumgebungen vorgesehen — siehe die Sicherheitswarnung oben.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Schaltfläche „Master-Passwort ändern“</p>
-<p>Opens a dialog asking for the <strong>Current Password</strong>, the <strong>New Password (at least 6 characters)</strong> and a <strong>Confirm New Password</strong> repetition; <strong>Change</strong> applies it. korTTY rejects a wrong current password, a new password under six characters, and a mismatch between the two new entries, each with its own message. On success it reports how many secrets were re-encrypted: every master-password-protected secret is decrypted with the old password and re-encrypted with the new one — connection passwords and key passphrases, jump-server passwords, SSH-key passphrases, stored credentials, AI-profile API keys and the other AI/translation keys, and RAG and Job Scheduler secrets — so nothing becomes unreadable after the change.</p>
-<p>The new password only takes over once every store has been migrated, so an error part-way through leaves the old password in effect instead of locking you out of half your data. If an individual secret cannot be migrated (for example one that was encrypted with a different password), korTTY leaves that value untouched, reports how many items were affected, and notes them in the log — those secrets keep the old password and must be re-entered manually. With auto-login enabled, the remembered password in <code>~/.kortty/master.autounlock</code> is rewritten to the new master password, so automatic unlocking keeps working after the change.</p>
+<p>Öffnet ein Dialogfeld, das das <strong>Aktuelle Passwort</strong>, das <strong>Neue Passwort (mindestens 6 Zeichen)</strong> und eine <strong>Neues Passwort bestätigen</strong>-Wiederholung erfordert; <strong>Ändern</strong> wendet diese Anpassung an. korTTY lehnt ein falsches aktuelles Passwort, ein neues Passwort mit weniger als sechs Zeichen und eine Ungleichheit zwischen den beiden neuen Eingaben ab, jeweils mit einer eigenen Nachricht. Im Erfolg wird angegeben, wie viele Geheimnisse neu verschlüsselt wurden: Jedes Geheimnis, das mit dem Master-Passwort geschützt ist, wird mit dem alten Passwort entschlüsselt und mit dem neuen Passwort neu verschlüsselt — Verbindungspasswörter und Schlüsselphrasen, Jump-Server-Passwörter, SSH-Schlüsselphrasen, gespeicherte Zugangsdaten, KI-Profile-API-Schlüssel und andere KI-/Übersetzungsschlüssel sowie RAG- und Job-Scheduler-Geheimnisse — so dass nach der Änderung nichts unlesbar wird.</p>
+<p>Das neue Passwort übernimmt erst dann, wenn alle Speicher übertragen wurden, sodass ein Fehler während des Prozesses das alte Passwort behält statt Sie teilweise auszuschließen. Wenn ein einzelnes Geheimnis nicht übertragen werden kann (zum Beispiel ein Geheimnis, das mit einem anderen Passwort verschlüsselt wurde), bleibt korTTY das alte Wert unverändert, meldet, wie viele Elemente betroffen sind, und notiert dies im Protokoll — diese Geheimnisse behalten das alte Passwort und müssen manuell neu eingegeben werden. Wenn automatischer Login aktiv ist, wird das in <code>~/.kortty/master.autounlock</code> gespeicherte Passwort mit dem neuen Master-Passwort überschrieben, sodass das automatische Entsperrungsverhalten nach der Änderung weiterhin funktioniert.</p>
 </div></p>
     </article>
 </section>

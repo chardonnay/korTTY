@@ -312,7 +312,7 @@
         <a href="settings/ai-skills.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            KI-Fähigkeiten
+            KI-Skills
         </a>
     </li>
                     
@@ -768,22 +768,22 @@
 <table>
 <thead>
 <tr>
-<th>Where</th>
-<th>What it does</th>
+<th>Wo</th>
+<th>Was es tut</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>Snippet-Editor → AI-Code → In eine Sprache migrieren…</strong></td>
+<td><strong>Snippet-Editor → KI-Code → In eine Sprache migrieren…</strong></td>
 <td>Öffnet den Migrationsdialog direkt und zeigt das Ergebnis als Vorher/Nachher-Vorschau an</td>
 </tr>
 <tr>
-<td><strong>Snippet-Editor → AI-Code → Vollständige Code-Analyse</strong></td>
+<td><strong>Snippet-Editor → KI-Code → Vollständige Code-Analyse</strong></td>
 <td>Ein minimiertes Bedienfeld zur <strong>Sprachvereinheitlichung</strong>; Die Migration wird dann als <strong>erste</strong> Phase von <em>Ausgewählte anwenden</em> ausgeführt, sodass jede anschließende Verbesserungs- und Härtungsphase auf das migrierte Skript wirkt</td>
 </tr>
 <tr>
-<td><strong>Snippet editor → AI Code → Security Check</strong></td>
-<td>The same panel; the migration runs before the security fixes, so the fixes are written in the target language</td>
+<td><strong>Snippet-Editor → KI-Code → Security-Check</strong></td>
+<td>Das gleiche Panel; die Migration erfolgt vor den Sicherheitskorrekturen, daher werden die Korrekturen in der Ziel-Sprache geschrieben</td>
 </tr>
 <tr>
 <td><strong>Terminal → Workflow-Skript generieren</strong>, <strong>KI-Schwarm</strong></td>
@@ -793,7 +793,7 @@
 </table>
 <h2 id="zielsprachen">Zielsprachen<a class="headerlink" href="#zielsprachen" title="Permanent link">&para;</a></h2>
 <p>Bash, Python, Perl, Ruby, PowerShell, Windows-CMD, AppleScript, JavaScript (Node) und Groovy.</p>
-<p>Jedes Ziel bringt seinen eigenen Shebang, seine eigene Dateierweiterung und sein eigenes Kommentarpräfix sowie die gleichen sprachspezifischen Redewendungen mit, die der Workflow-Skript-Generator verwendet. Nach einer Migration des gesamten Skripts aktualisiert KorTTY auch die <strong>Sprache</strong> des Snippets, seine Dateierweiterung und seine automatisch erkannten KI-Fähigkeiten, sodass das Snippet durchweg der neue Dateityp ist.</p>
+<p>Jedes Ziel bringt seinen eigenen Shebang, seine eigene Dateierweiterung und sein eigenes Kommentarpräfix sowie die gleichen sprachspezifischen Redewendungen mit, die der Workflow-Skript-Generator verwendet. Nach einer Migration des gesamten Skripts aktualisiert KorTTY auch die <strong>Sprache</strong> des Snippets, seine Dateierweiterung und seine automatisch erkannten KI-Skills, sodass das Snippet durchweg der neue Dateityp ist.</p>
 <p>Ansible ist bewusst <strong>kein</strong> Ziel: Die Umwandlung eines imperativen Skripts in ein deklaratives Playbook ist eine Neumodellierung, keine Sprachmigration.</p>
 <h2 id="orchestrierungsformate">Orchestrierungsformate<a class="headerlink" href="#orchestrierungsformate" title="Permanent link">&para;</a></h2>
 <p>Eine Azure DevOps-Pipeline, ein GitHub Actions-Workflow, eine GitLab CI-Datei, eine Jenkins-Datei, ein Ansible-Playbook, ein Puppet-Manifest und eine Docker-Datei rufen Bash oder PowerShell <strong>konstruktionsbedingt</strong> auf. Die eingebettete Shell ist ihr Design und kein Defekt, daher meldet KorTTY ein solches Dokument niemals als „gemischt“ und bietet niemals an, das Dokument selbst zu migrieren. Stattdessen werden zwei engere Dinge angeboten:</p>

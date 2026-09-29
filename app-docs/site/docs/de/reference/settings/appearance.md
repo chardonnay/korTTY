@@ -42,7 +42,7 @@ Es berührt bewusst **keine** Oberflächen, die bereits über eine eigene Größ
 | Terminalsitzungen | Der Tab **Schrift** sowie die Zoom-Verknüpfungen des Menüs „Ansicht“ |
 | Dateieditor | Der Tab **Editor** |
 | KI-Chat-, Agentenplan- und Aktivitätspanels | Ihre eigenen `A-` / `A+`-Schaltflächen |
-| Die Anleitung (**Hilfe → Anleitung**) | Der `A-` / `A+` Schaltflächen in einem eigenen Fenster – siehe [unten](#textgroe-der-anleitung) |
+| Die Anleitung (**Hilfe → Anleitung**) | Das `A-` / `A+` Buttons in seinem eigenen Fenster — siehe [unten](#textgroe-der-anleitung) |
 | Sitzungsjournalseite | Das Popover für das Erscheinungsbild des Journalbetrachters |
 
 Zwei weitere Teile der Benutzeroberfläche behalten bei jeder Einstellung ihre Größe: das macOS-Anwendungsmenü (das in der Systemmenüleiste), da macOS es anstelle von korTTY zeichnet, und der KI-Schwarm-Statusstreifen, dessen Beschriftungen zusammen mit handberechneten Positionen auf einen Canvas gezeichnet werden.
@@ -119,7 +119,7 @@ korTTY enthält eine Reihe integrierter Farbthemen (z. B. Standard, Dunkelmodus,
 
 ### Theme-Vorschau
 
-Eine Live-Theme-Vorschau zeigt die Farben des Themes an. Die Vorschau zeigt sechs Farbfelder – Vordergrund, Hintergrund und Cursor sowie die Hintergrund-, Ausführungs- und Fehlerfarben des AI-Agent-Panels – sodass Sie ein Design bewerten können, bevor Sie es anwenden.
+Eine Live-Theme-Vorschau zeigt die Farben des Themes an. Die Vorschau zeigt sechs Farbfelder – Vordergrund, Hintergrund und Cursor sowie die Hintergrund-, Ausführungs- und Fehlerfarben des KI-Agent-Panels – sodass Sie ein Design bewerten können, bevor Sie es anwenden.
 
 ## Cross-Tab-Integration
 

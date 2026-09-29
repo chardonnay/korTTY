@@ -36,11 +36,11 @@ Das Backup umfasst:
 | SSH-Schlüssel | Schlüsselreferenzen mit verschlüsselten Passphrasen sowie die kopierten Schlüsseldateien in `~/.kortty/ssh-keys/` |
 | Vertrauenswürdige interaktive Hosts | `ssh-host-keys.properties`, gemeinsam genutzt von Terminal, SFTP und dem Mosh SSH-Bootstrap; der Vergängliche `.lock` Begleiter ist nicht im Lieferumfang enthalten |
 | GPG-Schlüssel | Öffentliche GPG-Schlüssel für die Backup-Verschlüsselung |
-| Einstellungen | Globale Anwendungseinstellungen, Terminalkonfigurationen, Themen und AI-Profile |
+| Einstellungen | Globale Anwendungseinstellungen, Terminalkonfigurationen, Themen und KI-Profile |
 | JobScheduler-Jobs | Alle geplanten Jobs, Hostschlüssel-Pins und verschlüsselten Sudo-Passwörter |
 | Snippets | Code-Snippets und Skriptvorlagen mit Metadaten |
 | Snippet-Variablen | Benutzerdefinierte Variablen für die Snippet-Ersetzung |
-| Snippet-Analysen | Die gespeicherten Vollcodeanalysen[ jedes Snippets, mit ihren Anwendungsdurchläufen und Diagrammen](snippets.md#vollstandige-code-analyse) |
+| Snippet analysiert | das gespeicherte [Vollcode-Analysis](snippets.md#vollstandige-code-analyse) aller Snippets, einschließlich ihrer Anwendungsläufe und Diagramme |
 | KI-Chats | Gespeicherte KI-Gesprächsverläufe und -Profile |
 | Lokale KI-Konfiguration | Lokale GGUF-Registrierungen und eingegebene Starteinstellungen, Text-/Codierungsrollen, bevorzugte Laufzeit-Backend-/Update-Richtlinie und verschlüsseltes Hugging Face-Token |
 | Wissensspeicherkonfiguration | Speichermetadaten und Quellpfade, Filter, Synchronisierungsmodi und Einbettungskonfiguration; nicht die HNSW-Vektoren |
@@ -95,7 +95,7 @@ Sowohl `.zip`- als auch `.gpg`-Backups enthalten dieselben Dateien:
 * `ssh-keys/` – Kopierte SSH-Schlüsseldateien (nur Schlüssel, die Sie über **In Benutzerverzeichnis kopieren** dort platziert haben; Schlüssel, auf die an ihren ursprünglichen Speicherorten verwiesen wird, werden nicht erfasst). Wiederhergestellte Schlüsseldateien erhalten nur Besitzerberechtigungen und ein Import wird zusammengeführt – bereits vorhandene Schlüssel werden nie gelöscht oder, ohne **Überschreiben**, ersetzt
 * `ssh-host-keys.properties` – Vertrauenswürdige öffentliche Hostschlüssel für interaktive Terminal-, SFTP- und Mosh-Bootstrap-Verbindungen (`ssh-host-keys.properties.lock` ist absichtlich ausgeschlossen)
 * `gpg-keys.xml` – öffentliche GPG-Schlüssel
-* `global-settings.xml` – Anwendungseinstellungen, Themen, AI-Profile, Terminal-Standardeinstellungen
+* `global-settings.xml` – Anwendungseinstellungen, Themen, KI-Profile, Terminal-Standardeinstellungen
 * `job-scheduler.xml` – JobScheduler-Jobs, Host-Key-Pins, verschlüsselte Sudo-Passwörter
 * `snippets.xml` – Codeausschnitte und Vorlagen
 * `snippet-variables.xml` – Benutzerdefinierte Snippet-Variablen
@@ -157,4 +157,4 @@ Alle gesicherten Verbindungen, Einstellungen, Snippets, gespeicherten Chats, int
 : Starten Sie KorTTY neu, damit importierte Einstellungen aktiv werden. Wenn Sie Anmeldeinformationen importiert haben, müssen Sie nach dem Neustart möglicherweise auch das Master-Passwort entsperren.
 
 **Sicherungsdatei ist größer als erwartet**
-: Große Backups können auftreten, wenn Sie viele gespeicherte AI-Chats oder ein großes Projektverzeichnis haben. GGUF-Gewichte, llama.cpp-Laufzeitpakete und HNSW-Snapshots sind ausgeschlossen und können nicht die Ursache sein.
+: Große Backups können auftreten, wenn Sie viele gespeicherte KI-Chats oder ein großes Projektverzeichnis haben. GGUF-Gewichte, llama.cpp-Laufzeitpakete und HNSW-Snapshots sind ausgeschlossen und können nicht die Ursache sein.

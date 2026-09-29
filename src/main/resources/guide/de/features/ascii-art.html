@@ -312,7 +312,7 @@
         <a href="../reference/settings/ai-skills.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            KI-Fähigkeiten
+            KI-Skills
         </a>
     </li>
                     
@@ -791,7 +791,7 @@
 <td>Fordert ein Bild für den Betreff an.</td>
 </tr>
 <tr>
-<td><strong>AI-Profil</strong></td>
+<td><strong>KI-Profil</strong></td>
 <td>Welches Profil verarbeitet diesen Lauf? Die Auswahl ist vorübergehend und ändert Ihr Standardprofil nicht.</td>
 </tr>
 <tr>
@@ -804,11 +804,11 @@
 </tr>
 </tbody>
 </table>
-<p>Für die Registerkarte ist mindestens ein konfiguriertes AI-Profil und der aktivierte AI-Features-Schalter erforderlich. andernfalls bleiben die Steuerelemente deaktiviert und die Statuszeile zeigt dies an.</p>
+<p>Für die Registerkarte ist mindestens ein konfiguriertes KI-Profil und der aktivierte KI-Features-Schalter erforderlich. andernfalls bleiben die Steuerelemente deaktiviert und die Statuszeile zeigt dies an.</p>
 <p>Die Statuszeile benennt den aktuellen Schritt: die KI nach einer Zeichnung fragen, sie in Zeichen umwandeln, noch einmal fragen oder die KI bitten, das Bild direkt einzugeben. Wenn eine Antwort keine brauchbare Zeichnung enthält, fragt korTTY noch einmal nach und teilt dem Modell mit, was falsch war; Wenn auch dies fehlschlägt, wird das Modell wieder aufgefordert, das ASCII-Bild direkt einzugeben, und dies wird in der Statuszeile angezeigt. Dort werden auch Fehler, eine abgeschnittene Antwort und „Kein brauchbares Bild“-Antworten zusammen mit dem Grund gemeldet.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Das Modell gibt eine Zeichnung anstelle von Zeichen zurück: korTTY zeichnet sie außerhalb des Bildschirms, passt sie in die gewählte Größe ein und wählt ein druckbares ASCII-Zeichen pro Zelle aus, sodass das Ergebnis immer einfaches ASCII ist, das in das Raster passt, mit beschnittenen Zeilen und Spalten am leeren Rand. Eine Zeichnung wird überprüft, bevor sie angezeigt wird – sie muss Formen enthalten, innerhalb der Leinwand liegen, weder leer noch ein fester Block sein und groß genug sein. Nur der Direkteingabe-Fallback zeigt die eigenen Zeichen des Modells an, wie zuvor bereinigt und auf die gewählte Größe zugeschnitten: Ein eingezäunter Codeblock wird entpackt, Reasoning-Blöcke und Steuerzeichen werden entfernt, Tabulatoren werden zu Leerzeichen und leere Anfangs- und Endzeilen werden abgeschnitten. Für diese Aktion schaltet korTTY die Reasoning des Modells dort ab, wo das Profil dies zulässt, begrenzt die Antwortlänge und überspringt Wissensspeicher, da ein Bild von beidem nichts profitiert.</p>
+<p>Das Modell gibt eine Zeichnung anstelle von Zeichen zurück: korTTY zeichnet sie außerhalb des Bildschirms, passt sie in die gewählte Größe ein und wählt ein druckbares ASCII-Zeichen pro Zelle aus, sodass das Ergebnis immer einfaches ASCII ist, das in das Raster passt, mit beschnittenen Zeilen und Spalten am leeren Rand. Eine Zeichnung wird überprüft, bevor sie angezeigt wird – sie muss Formen enthalten, innerhalb der Leinwand liegen, weder leer noch ein fester Block sein und groß genug sein. Nur der Direkteingabe-Fallback zeigt die eigenen Zeichen des Modells an, wie zuvor bereinigt und auf die gewählte Größe zugeschnitten: Ein eingezäunter Codeblock wird entpackt, Reasoning-Blöcke und Steuerzeichen werden entfernt, Tabulatoren werden zu Leerzeichen und leere Anfangs- und Endzeilen werden abgeschnitten. Für diese Aktion schaltet korTTY Reasoning des Modells dort ab, wo das Profil dies zulässt, begrenzt die Antwortlänge und überspringt Wissensspeicher, da ein Bild von beidem nichts profitiert.</p>
 </div>
 <h2 id="registerkarte-bilddatei">Registerkarte „Bilddatei“.<a class="headerlink" href="#registerkarte-bilddatei" title="Permanent link">&para;</a></h2>
 <p>Diese Registerkarte konvertiert ein vorhandenes Bild – ein Foto, ein Logo, ein Symbol – in ASCII-Grafik auf Ihrem Computer; Es ist kein KI-Profil beteiligt. Öffnen Sie eine Datei mit <strong>Bild öffnen…</strong> oder legen Sie sie auf der Registerkarte ab. Es werden PNG, JPEG, GIF und BMP gelesen.</p>
@@ -837,8 +837,8 @@
 <td>Vertauscht hell und dunkel. ASCII-Tinte ist auf hellem Hintergrund dunkel, sodass ein helles Motiv auf dunklem Hintergrund nur dann richtig gelesen wird, wenn es invertiert wird.</td>
 </tr>
 <tr>
-<td><strong>Reset</strong></td>
-<td>Returns brightness, contrast and inversion to neutral.</td>
+<td><strong>Zurücksetzen</strong></td>
+<td>Die Helligkeit, Kontrast und Inversion werden auf neutral gesetzt.</td>
 </tr>
 </tbody>
 </table>
@@ -873,7 +873,7 @@
 </table>
 <p>Der Prozentsatz zwischen den Schaltflächen zeigt den aktuellen Wert an, von 50 % bis 333 %, wobei 100 % die standardmäßige 12-Pixel-Monospace-Größe ist.</p>
 <h2 id="in-die-zwischenablage-kopieren">In die Zwischenablage kopieren<a class="headerlink" href="#in-die-zwischenablage-kopieren" title="Permanent link">&para;</a></h2>
-<p><strong>In die Zwischenablage kopieren</strong> kopiert die Vorschau der aktuell geöffneten Registerkarte, sodass Sie das Banner von der Registerkarte „Textbanner“ und das Bild von der Registerkarte „AI-Bild“ oder „Bilddatei“ erhalten. Die Zeile <strong>Kopieren als</strong> über den Schaltflächen bestimmt die Form dessen, was in der Zwischenablage landet, sodass ein Bild direkt in den Programmcode eingefügt werden kann:</p>
+<p><strong>In die Zwischenablage kopieren</strong> kopiert die Vorschau der aktuell geöffneten Registerkarte, sodass Sie das Banner von der Registerkarte „Textbanner“ und das Bild von der Registerkarte „KI-Bild“ oder „Bilddatei“ erhalten. Die Zeile <strong>Kopieren als</strong> über den Schaltflächen bestimmt die Form dessen, was in der Zwischenablage landet, sodass ein Bild direkt in den Programmcode eingefügt werden kann:</p>
 <table>
 <thead>
 <tr>
@@ -1046,7 +1046,7 @@
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a> #     #  ####   ####    #   #    #  ####  #    #  ####  
 </span></code></pre></div>
 <h2 id="dialogstatus">Dialogstatus<a class="headerlink" href="#dialogstatus" title="Permanent link">&para;</a></h2>
-<p>Der Dialog merkt sich seine Fensterposition, seine Größe, die Vorschau-Zoomstufe, die Bildgrößen der Registerkarten „AI-Bild“ und „Bilddatei“ sowie die Kopiereinstellungen zwischen Sitzungen.</p>
+<p>Der Dialog merkt sich seine Fensterposition, seine Größe, die Vorschau-Zoomstufe, die Bildgrößen der Registerkarten „KI-Bild“ und „Bilddatei“ sowie die Kopiereinstellungen zwischen Sitzungen.</p>
 <p><img alt="ASCII art from an image file" src="../assets/screenshots/tools/ascii-art-image.png" /></p>
 <p><img alt="ASCII art generator" src="../assets/screenshots/tools/ascii-art.png" /></p></p>
     </article>

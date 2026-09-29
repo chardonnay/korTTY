@@ -134,7 +134,7 @@ Globale Anwendungseinstellungen und Standardeinstellungen.
 - Angedocktes Live-Sitzungsjournal-Panel: Platzierung (versteckt/links/rechts) und Breite
 - JobScheduler-Statusanzeigeeinstellung
 - Letzte Vorschau-Zoomstufe des ASCII-Art-Dialogfelds
-- Letzte ASCII-Art-Bildgröße (Klein bis Extragroß) für die Registerkarte „AI-Bild“ und separat für die Registerkarte „Bilddatei“.
+- Letzte ASCII-Art-Bildgröße (Klein bis Extragroß) für die Registerkarte „KI-Bild“ und separat für die Registerkarte „Bilddatei“.
 - Letztes ASCII-Art-Kopierformat: Kommentarstil, Ausgabecodestil und Lücke
 
 #### Terminal und Anschlüsse
@@ -146,7 +146,7 @@ Globale Anwendungseinstellungen und Standardeinstellungen.
 
 #### AI, Modelle und Wissensspeicher
 
-- AI-Profilstandards, Text-/Coding-Rollenzuweisungen, eingebettete GGUF-Referenzen, Eingabeaufforderungsvoreinstellungen und Wissensspeicherzuordnungen
+- KI-Profilstandards, Text-/Coding-Rollenzuweisungen, eingebettete GGUF-Referenzen, Eingabeaufforderungsvoreinstellungen und Wissensspeicherzuordnungen
 - RAG-Einbettungsmodell-ID und llama.cpp bevorzugte Laufzeit-Backend-/Update-Richtlinie
 - Optional verschlüsseltes Hugging Face-Token
 - Zeitlimit für KI-Anfragen in Minuten (0 = keine Begrenzung)
@@ -156,7 +156,7 @@ Globale Anwendungseinstellungen und Standardeinstellungen.
 - Speicherordner und Capture-Log-Format
 - KI-Zusammenfassungen (Intervall und Profil) und der Schalter für die KI-Screenshot-Analyse
 - Übersetzungssprache beachten
-- AI-Zeilenfenster und Token-Budget
+- KI-Zeilenfenster und Token-Budget
 - Journal-Seitendarstellung und Höhe des Live-Log-Endes
 - Benutzerdefinierte Markierungen und Markierungsregeln
 - Die gespeicherten Journalfenstergeometrien
@@ -249,10 +249,10 @@ Gespeicherte KI-Gespräche und Chat-Verlauf.
 **Beinhaltet:**
 - Chat-Titel und Erstellungszeitstempel
 - Konversationsnachrichten und Antworten
-- Zugehöriges AI-Profil, das für den Chat verwendet wird
+- Zugehöriges KI-Profil, das für den Chat verwendet wird
 - Follow-up-Eingabeaufforderungsverlauf (für Kontext)
 
-**Hinweis:** AI-Ergebnisregisterkarten werden nicht automatisch gespeichert. Sie müssen sie explizit auf der Registerkarte „AI“ mit der Schaltfläche „Speichern“ speichern, um sie dieser Datei hinzuzufügen.
+**Hinweis:** KI-Ergebnisregisterkarten werden nicht automatisch gespeichert. Sie müssen sie explizit auf der Registerkarte „AI“ mit der Schaltfläche „Speichern“ speichern, um sie dieser Datei hinzuzufügen.
 
 ### snippets.xml
 Codeausschnitte, Skripte und Vorlagen.
@@ -270,7 +270,7 @@ Codeausschnitte, Skripte und Vorlagen.
 - Export von Nur-Text-Skripten
 - ZIP-Archive mit optionaler Passwort- oder GPG-Verschlüsselung
 - Lokale Syntaxhervorhebung mit dem Monaco-Editor
-- AI-unterstützte Bearbeitung und Codegenerierung
+- KI-unterstützte Bearbeitung und Codegenerierung
 - Persistierte Mermaid-Diagramme (Flussdiagramm mit logischer Struktur, Sequenz, Zustand, Klasse, ER) mit stabilen Code-Referenz-Knoten-IDs und, für Diagramme mit Auswahlbereich, dem abgedeckten Linienbereich
 - Einzeiliger Export mit optionalen Skriptargumenten
 
@@ -303,7 +303,7 @@ Textdatei mit den IDs der deaktivierten Terminaleffekt-Plugins (eine pro Zeile).
 ### coding-agents/
 Optionale Benutzerüberschreibungen für die Regeln der Coding-Agent-Erkennung, eine JSON-Datei pro Agent (`claude-code.json`, `codex.json`, `gemini-cli.json`).
 
-**Zweck:** Eine Datei ersetzt hier die im Paket enthaltene Regeldatei des gleichen Agents vollständig. Eine ungültige Datei wird im Log als *Coding-Agents* Warnung gemeldet und die im Paket enthaltenen Regeln bleiben aktiv. Das Verzeichnis existiert nicht, bis Sie es erstellen. Siehe [Coding-Agents → Custom rules](../features/coding-agents.md#eigene-regeln).
+**Zweck:** Eine Datei hier ersetzt die im Paket enthaltene Regeldatei des entsprechenden Agents vollständig. Eine ungültige Datei wird im Log als *Coding-Agents*-Warnung gemeldet und die im Paket enthaltenen Regeln bleiben aktiv. Das Verzeichnis existiert erst dann, wenn es erstellt wird. Siehe [Coding-Agents → Benutzerdefinierte Regeln](../features/coding-agents.md#eigene-regeln).
 
 ### kortty.log
 Anwendungsprotokolldatei.
@@ -341,7 +341,7 @@ Komprimierter Terminalsitzungsverlauf.
 Sitzungsjournale – ein eigenständiges Verzeichnis pro Journal (Speicherort konfigurierbar unter **Einstellungen > Protokollierung > Sitzungsjournal**). Jedes Journalverzeichnis enthält `journal.xml` (das kuratierte Dokument: Metadaten, KI-Zusammenfassungen, Markierungen, Notizen, Screenshot-Referenzen), das Nur-Anhängen-Capture-Log `session-log.json` / `.xml` / `.yaml` (standardmäßig JSON Lines) mit zstd-komprimierten gedrehten Teilen (Teilgröße und Teileanzahl sind pro Verbindung auf der Registerkarte „Journal“ konfigurierbar, standardmäßig 25 MB und 20 Teile; Journale aus älteren Versionen behalten ihre gzip-komprimierte `.gz`-Teile), die generierte `journal.html`-Timeline-Seite und `screenshots/*.png`. Siehe [Sitzungsjournal](../features/session-journal.md).
 
 ### terminal-logs/
-Standardzielordner für [Terminalprotokolle pro Verbindung](../features/terminal.md#terminalprotokollierung), wenn das Logordnerfeld einer Verbindung leer bleibt. Dateibenennung, tägliche Rotation, Kompression und Aufbewahrung folgen der Protokollierungskonfiguration der Verbindung.
+Standardmäßige Zielordner für den [per-Verbindung-Terminal-Log](../features/terminal.md#terminalprotokollierung), wenn das Feld für den Log-Ordner einer Verbindung leer bleibt. Die Dateinamenerstellung, tägige Rotation, Kompression und Aufbewahrung folgen der Logging-Konfiguration der Verbindung.
 
 ### plugins/
 Vom Benutzer importierte Terminal-Effekt-Plugin-JARs.
@@ -424,7 +424,7 @@ Optionales Verzeichnis für kopierte SSH-Schlüssel.
 | JobScheduler Sudo-Passwörter | AES-256-GCM-Verschlüsselung |
 | JobScheduler-Journaleinträge | Geschwärzte Geheimnisse vor Persistenz |
 | Sicherungsdateien | Passwortgeschützte ZIP- oder GPG-Verschlüsselung |
-| API-Schlüssel (AI-Profile) | AES-256-GCM-Verschlüsselung mit Master-Passwort |
+| API-Schlüssel (KI-Profile) | AES-256-GCM-Verschlüsselung mit Master-Passwort |
 | Terminaleffekt-Plugins | Nicht verschlüsselt; Vertrauenswürdiger lokaler Code, kein Sandbox-Code |
 
 ## Dateispeicherorte nach Plattform
@@ -439,7 +439,7 @@ Alle Dateien werden plattformübergreifend im selben `~/.kortty/`-Verzeichnis ge
 
 Wenn Sie über *Bearbeiten > Backup erstellen* ein Backup erstellen, ist die folgende Konfiguration enthalten:
 
-- Alle `.xml`-Konfigurationsdateien (Verbindungen, Anmeldeinformationen, SSH-Schlüsselreferenzen und Passphrasen, GPG-Schlüssel, globale Einstellungen, JobScheduler, Snippets, Snippet-Variablen, AI-Chats)
+- Alle `.xml`-Konfigurationsdateien (Verbindungen, Anmeldeinformationen, SSH-Schlüsselreferenzen und Passphrasen, GPG-Schlüssel, globale Einstellungen, JobScheduler, Snippets, Snippet-Variablen, KI-Chats)
 - `master.key`
 - `projects/` Verzeichnis
 - `ssh-keys/`-Verzeichnis – kopierte SSH-Schlüsseldateien (wiederhergestellt mit Nur-Eigentümer-Berechtigungen; Importe führen lokale Schlüssel zusammen und löschen sie niemals)

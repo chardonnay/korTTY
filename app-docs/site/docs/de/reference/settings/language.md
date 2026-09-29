@@ -4,7 +4,7 @@ title: Sprache
 
 # Sprache
 
-Configure the user interface language for korTTY. Supports 8 built-in languages plus automatic detection based on your system settings. Open via **Configuration → Global Settings → Language**; stored in `~/.kortty/global-settings.xml`.
+Konfigurieren Sie die Sprache der Benutzeroberfläche für korTTY. Unterstützt 8 integrierte Sprachen sowie automatisierte Erkennung basierend auf Ihren Systemeinstellungen. Öffnen Sie über **Konfiguration → Globale Einstellungen → Sprache**; gespeichert in `~/.kortty/global-settings.xml`.
 
 ![Language settings tab](../../assets/screenshots/settings/language.png)
 

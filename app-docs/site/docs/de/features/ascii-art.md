@@ -33,16 +33,16 @@ Anstelle von Buchstaben fordert diese Registerkarte ein Modell auf, das Motiv al
 | **Thema** | Das Ding zum Zeichnen zum Beispiel `house in the forest`. Drücken ++enter++ startet die Generation. |
 | **Größe** | Das Zeichenraster, in das das Bild eingepasst wird: Klein (40 × 20), Mittel (60 × 30), Groß (80 × 40) oder Extragroß (100 × 50). Zwischen den Sitzungen erinnert. |
 | **Generieren** | Fordert ein Bild für den Betreff an. |
-| **AI-Profil** | Welches Profil verarbeitet diesen Lauf? Die Auswahl ist vorübergehend und ändert Ihr Standardprofil nicht. |
+| **KI-Profil** | Welches Profil verarbeitet diesen Lauf? Die Auswahl ist vorübergehend und ändert Ihr Standardprofil nicht. |
 | **Neue Variante** | Zeichnet dasselbe Motiv mit einer anderen Behandlung neu – Blickwinkel, Detaillierungsgrad, Szenenkontext, geometrischer Stil, Proportionen, Kontrast oder Farbtöne – und fragt bei jedem Wiederholungsversuch erneut nach etwas anderem. |
 | **Abbrechen** | Stoppt die laufende Generierung; Das vorherige Bild bleibt erhalten. |
 
-Für die Registerkarte ist mindestens ein konfiguriertes AI-Profil und der aktivierte AI-Features-Schalter erforderlich. andernfalls bleiben die Steuerelemente deaktiviert und die Statuszeile zeigt dies an.
+Für die Registerkarte ist mindestens ein konfiguriertes KI-Profil und der aktivierte KI-Features-Schalter erforderlich. andernfalls bleiben die Steuerelemente deaktiviert und die Statuszeile zeigt dies an.
 
 Die Statuszeile benennt den aktuellen Schritt: die KI nach einer Zeichnung fragen, sie in Zeichen umwandeln, noch einmal fragen oder die KI bitten, das Bild direkt einzugeben. Wenn eine Antwort keine brauchbare Zeichnung enthält, fragt korTTY noch einmal nach und teilt dem Modell mit, was falsch war; Wenn auch dies fehlschlägt, wird das Modell wieder aufgefordert, das ASCII-Bild direkt einzugeben, und dies wird in der Statuszeile angezeigt. Dort werden auch Fehler, eine abgeschnittene Antwort und „Kein brauchbares Bild“-Antworten zusammen mit dem Grund gemeldet.
 
 !!! note
-    Das Modell gibt eine Zeichnung anstelle von Zeichen zurück: korTTY zeichnet sie außerhalb des Bildschirms, passt sie in die gewählte Größe ein und wählt ein druckbares ASCII-Zeichen pro Zelle aus, sodass das Ergebnis immer einfaches ASCII ist, das in das Raster passt, mit beschnittenen Zeilen und Spalten am leeren Rand. Eine Zeichnung wird überprüft, bevor sie angezeigt wird – sie muss Formen enthalten, innerhalb der Leinwand liegen, weder leer noch ein fester Block sein und groß genug sein. Nur der Direkteingabe-Fallback zeigt die eigenen Zeichen des Modells an, wie zuvor bereinigt und auf die gewählte Größe zugeschnitten: Ein eingezäunter Codeblock wird entpackt, Reasoning-Blöcke und Steuerzeichen werden entfernt, Tabulatoren werden zu Leerzeichen und leere Anfangs- und Endzeilen werden abgeschnitten. Für diese Aktion schaltet korTTY die Reasoning des Modells dort ab, wo das Profil dies zulässt, begrenzt die Antwortlänge und überspringt Wissensspeicher, da ein Bild von beidem nichts profitiert.
+    Das Modell gibt eine Zeichnung anstelle von Zeichen zurück: korTTY zeichnet sie außerhalb des Bildschirms, passt sie in die gewählte Größe ein und wählt ein druckbares ASCII-Zeichen pro Zelle aus, sodass das Ergebnis immer einfaches ASCII ist, das in das Raster passt, mit beschnittenen Zeilen und Spalten am leeren Rand. Eine Zeichnung wird überprüft, bevor sie angezeigt wird – sie muss Formen enthalten, innerhalb der Leinwand liegen, weder leer noch ein fester Block sein und groß genug sein. Nur der Direkteingabe-Fallback zeigt die eigenen Zeichen des Modells an, wie zuvor bereinigt und auf die gewählte Größe zugeschnitten: Ein eingezäunter Codeblock wird entpackt, Reasoning-Blöcke und Steuerzeichen werden entfernt, Tabulatoren werden zu Leerzeichen und leere Anfangs- und Endzeilen werden abgeschnitten. Für diese Aktion schaltet korTTY Reasoning des Modells dort ab, wo das Profil dies zulässt, begrenzt die Antwortlänge und überspringt Wissensspeicher, da ein Bild von beidem nichts profitiert.
 
 ## Registerkarte „Bilddatei“.
 
@@ -54,7 +54,7 @@ Diese Registerkarte konvertiert ein vorhandenes Bild – ein Foto, ein Logo, ein
 | **Helligkeit** | Verschiebt alle Töne heller oder dunkler. |
 | **Kontrast** | Verbreitert oder glättet die Töne um mittleres Grau. |
 | **Invertieren** | Vertauscht hell und dunkel. ASCII-Tinte ist auf hellem Hintergrund dunkel, sodass ein helles Motiv auf dunklem Hintergrund nur dann richtig gelesen wird, wenn es invertiert wird. |
-| **Reset** | Returns brightness, contrast and inversion to neutral. |
+| **Zurücksetzen** | Die Helligkeit, Kontrast und Inversion werden auf neutral gesetzt. |
 
 Jede Änderung wird sofort wieder konvertiert und in der Statuszeile wird die Quellgröße in Pixel und die Ergebnisgröße in Zeichen angezeigt.
 
@@ -75,7 +75,7 @@ Der Prozentsatz zwischen den Schaltflächen zeigt den aktuellen Wert an, von 50 
 
 ## In die Zwischenablage kopieren
 
-**In die Zwischenablage kopieren** kopiert die Vorschau der aktuell geöffneten Registerkarte, sodass Sie das Banner von der Registerkarte „Textbanner“ und das Bild von der Registerkarte „AI-Bild“ oder „Bilddatei“ erhalten. Die Zeile **Kopieren als** über den Schaltflächen bestimmt die Form dessen, was in der Zwischenablage landet, sodass ein Bild direkt in den Programmcode eingefügt werden kann:
+**In die Zwischenablage kopieren** kopiert die Vorschau der aktuell geöffneten Registerkarte, sodass Sie das Banner von der Registerkarte „Textbanner“ und das Bild von der Registerkarte „KI-Bild“ oder „Bilddatei“ erhalten. Die Zeile **Kopieren als** über den Schaltflächen bestimmt die Form dessen, was in der Zwischenablage landet, sodass ein Bild direkt in den Programmcode eingefügt werden kann:
 
 | Steuerung | Was es tut |
 | --- | --- |
@@ -143,7 +143,7 @@ Der **Banner**-Stil mit dem Eingabetext „Nostromo“:
 
 ## Dialogstatus
 
-Der Dialog merkt sich seine Fensterposition, seine Größe, die Vorschau-Zoomstufe, die Bildgrößen der Registerkarten „AI-Bild“ und „Bilddatei“ sowie die Kopiereinstellungen zwischen Sitzungen.
+Der Dialog merkt sich seine Fensterposition, seine Größe, die Vorschau-Zoomstufe, die Bildgrößen der Registerkarten „KI-Bild“ und „Bilddatei“ sowie die Kopiereinstellungen zwischen Sitzungen.
 
 ![ASCII art from an image file](../assets/screenshots/tools/ascii-art-image.png)
 

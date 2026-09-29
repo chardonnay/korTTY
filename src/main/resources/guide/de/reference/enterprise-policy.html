@@ -312,7 +312,7 @@
         <a href="settings/ai-skills.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            KI-Fähigkeiten
+            KI-Skills
         </a>
     </li>
                     
@@ -778,7 +778,7 @@
 <td><code>/Applications/KorTTY.app/Contents/app/policy/kortty-policy.toml</code></td>
 </tr>
 <tr>
-<td>Windows</td>
+<td>Fenster</td>
 <td><code>C:\Program Files\KorTTY\app\policy\kortty-policy.toml</code></td>
 </tr>
 <tr>
@@ -983,7 +983,7 @@
 <td><code>ai</code></td>
 <td>Zeichenfolge</td>
 <td><code>allow</code>, <code>deny</code></td>
-<td>Hauptschalter: <code>deny</code> deaktiviert alle AI-Funktionen auf einmal.</td>
+<td>Hauptschalter: <code>deny</code> deaktiviert alle KI-Funktionen auf einmal.</td>
 </tr>
 <tr>
 <td><code>ai-agent</code></td>
@@ -1007,7 +1007,7 @@
 <td><code>ai-planning</code></td>
 <td>Zeichenfolge</td>
 <td><code>allow</code>, <code>deny</code></td>
-<td>AI-Planung</td>
+<td>KI-Planung</td>
 </tr>
 <tr>
 <td><code>teamwork</code></td>
@@ -1112,16 +1112,22 @@
 <td>Benutzer können keine Skript-Header erstellen; Es verbleiben nur die Einträge <code>[[script-header]]</code> und</td>
 </tr>
 <tr>
+<td><code>analysis-max-stored-content-bytes</code></td>
+<td>Integer</td>
+<td>≥ 0 (Bytes von UTF-8)</td>
+<td>Obergrenze für den Skripttext, der mit jeder Vollständigen Code-Analyse gespeichert wird; <code>0</code> verbietet die Speicherung des Skripttexts — siehe unten</td>
+</tr>
+<tr>
 <td><code>allow-create</code></td>
 <td>boolean</td>
 <td><code>false</code></td>
-<td>Benutzer können keine AI-Profile erstellen (Schaltflächen und Assistent sind gesperrt)</td>
+<td>Benutzer können keine KI-Profile erstellen (Schaltflächen und Assistent sind gesperrt)</td>
 </tr>
 <tr>
 <td><code>allow-edit</code></td>
 <td>boolean</td>
 <td><code>false</code></td>
-<td>Benutzer können ihre vorhandenen AI-Profile auch nicht bearbeiten</td>
+<td>Benutzer können ihre vorhandenen KI-Profile auch nicht bearbeiten</td>
 </tr>
 <tr>
 <td><code>allow-internet</code></td>
@@ -1133,7 +1139,7 @@
 </table>
 <div class="admonition info">
 <p class="admonition-title"><code>allow-internet = false</code> unterbindet den KI-Internetzugriff auf drei Ebenen</p>
-<p>Im Dropdown-Menü <a href="settings/ai.html#internetzugriffsmodi">internet access</a> eines AI-Profils wird ein ausgewählt
+<p>Das <a href="settings/ai.html#internet-zugriffs-modi">Internetzugang</a> Dropdown-Menu eines KI-Profils wählt ein
 Backend für Websuche oder MCP-Browsing. Das Verbot wird an drei Stellen durchgesetzt, weil eine
 einzelne eine Lücke ließe:</p>
 <ol>
@@ -1142,7 +1148,7 @@ einzelne eine Lücke ließe:</p>
    eine Handänderung an <code>global-settings.xml</code>.</li>
 <li><strong>Die Schnittstelle</strong> – das Dropdown-Menü ist mit dem Hinweis „Von Ihrer Organisation verwaltet“ gesperrt
    sowohl den KI-Manager als auch <strong>Einstellungen → AI</strong>.</li>
-<li><strong>Jede AI-Anfrage</strong> – korTTY weigert sich, einen Dienst für ein Profil zu erstellen, dessen Modus aktiviert ist,
+<li><strong>Jede KI-Anfrage</strong> – korTTY weigert sich, einen Dienst für ein Profil zu erstellen, dessen Modus aktiviert ist,
    und schließt damit das Zeitfenster zwischen zwei Klemmungen. Die Anfrage scheitert mit einer
    Richtlinienmeldung, statt still ohne das angeforderte Web-Werkzeug zu antworten.</li>
 </ol>
@@ -1150,6 +1156,26 @@ einzelne eine Lücke ließe:</p>
 eigener Anbieter – verweigern Sie dazu die <code>ai</code>-Funktion oder stellen Sie an dieser Stelle <code>[[ai-profile]]</code>-Einträge bereit
 stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen Endpunkt zeigen.</p>
 </div>
+<h3 id="gespeicherter-skripttext-der-analysen">Gespeicherter Skripttext der Analysen<a class="headerlink" href="#gespeicherter-skripttext-der-analysen" title="Permanent link">&para;</a></h3>
+<p>Ein <a href="../features/snippets.html#gespeicherter-skripttext">Vollständige Code-Analyse</a> speichert den Skripttext, an dem gearbeitet wurde – das analysierte Skript, der Text, von dem die Anwendung ausgegangen ist, das vorgeschlagene Ergebnis und der angenommene Text – damit funktioniert der Code-Vorschau, <strong>Änderungen ansehen</strong>, der Skriptexport, der Berichtsabschnitt, <strong>Zwischenstand wiederherstellen</strong> und der Fortsetzung nach einem Neustart. Die Benutzer wählen die Größe selbst unter <strong>Einstellungen → Snippet-Editor → Gespeicherte Skriptgröße pro Analyse</strong> (Standardwert 1 MB, maximal 5 MB, oder <strong>Aus</strong>); <code>analysis-max-stored-content-bytes</code> in <code>[rule.snippets]</code> ist ein obere Schranke auf der Basis jenes Auswahlkriteriums:</p>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Keep script text small"</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="k">[rule.snippets]</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="n">analysis-max-stored-content-bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">524_288</span><span class="w">      </span><span class="c1"># at most 512 KB per stored text</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="k">[[rule]]</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Compliance team: no script text in analyses"</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">groups</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"compliance"</span><span class="p">]</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">  </span><span class="k">[rule.snippets]</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">  </span><span class="n">analysis-max-stored-content-bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="w">            </span><span class="c1"># findings and reports only</span>
+</span></code></pre></div>
+<ul>
+<li><strong>Effektiver Grenzwert</strong> — Der kleinere Wert aus dem eigenen Wert des Benutzers (Standardwert 1 MB), dem festgelegten maximalen Wert von 5 MB und diesem Schlüssel. Ein Wert über 5 MB hat daher keine Wirkung, und ein niedrigerer Benutzerwert bleibt gültig. Jeder positive Wert wird akzeptiert, auch ein Wert unter dem Mindestwert von 256 KB, den Benutzer wählen kann.</li>
+<li><strong><code>0</code></strong> — Kein Skripttext wird gespeichert: Die Analyse behält ihre Ergebnisse, Zusammenfassung, Diagramm und Berichte, aber nicht das Skript, sodass <strong>Änderungen ansehen</strong>, die vorherigen Einträge mit dem Code-Vorschau, der Skriptexport, der Berichtsanhang, <strong>Zwischenstand wiederherstellen</strong> und das Fortsetzen nach einem Neustart nicht verfügbar sind. Das Panel zeigt, dass die Organisation den Speicherung des Skripttexts nicht erlaubt. Die Analyse selbst, einschließlich der Anwendung der Ergebnisse und der sofortigen Änderungsprüfung im Editor, funktioniert wie zuvor. Text, der zuvor gespeichert wurde, wird beim nächsten Schreiben der gespeicherten Analysen gelöscht.</li>
+<li><strong>Einstellungen-Dialog</strong> — Das Dropdown-Menü bietet nur Größen bis zur Grenze an, zeigt die Grenze darunter und ist gesperrt (mit dem Hinweis "Verwaltet von Ihrer Organisation"), wenn der Wert <code>0</code> ist. Die Benutzerwahl wird nicht durch die Grenze überschrieben: Sie wird erneut aktiv, sobald die Richtlinie aufgehoben wird.</li>
+<li><strong>Ebenen</strong> — Wie jede Einstellung gewinnt die spezifischste Ebene, die den Schlüssel festlegt (Benutzer, dann Gruppe, dann alle); Regeln derselben Ebene nehmen den kleineren Wert, sodass <code>0</code> jeder positiven Grenze vorauseilt. Der Schlüssel ist kein <code>0</code>-bedeutet-ungelimitierter Wert.</li>
+<li><strong>Ungültige Werte</strong> — Eine negative Zahl oder eine nicht-ganze Zahl (z. B. <code>"5 MB"</code>) stellt eine Richtlinienfehler dar, wie jeder andere falsch formatierte Wert, weshalb die gesamte Datei abgelehnt wird und der Lockdown-Fallback aktiviert wird; der Fallback verbietet außerdem das Speichern von Skripttexten. Schreiben Sie Bytes, optional mit TOML-Zifferntrennern (<code>5_242_880</code>).</li>
+</ul>
 <h3 id="ruleai-runtime"><code>[rule.ai-runtime]</code><a class="headerlink" href="#ruleai-runtime" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -1177,7 +1203,7 @@ stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen End
 <td><code>allow-user-models</code></td>
 <td>boolean</td>
 <td><code>false</code></td>
-<td>Nur vom Administrator bereitgestellte <code>[[ai-runtime.model]]</code>-Einträge können von eingebetteten AI-Profilen geladen werden</td>
+<td>Nur vom Administrator bereitgestellte <code>[[ai-runtime.model]]</code>-Einträge können von eingebetteten KI-Profilen geladen werden</td>
 </tr>
 </tbody>
 </table>
@@ -1275,14 +1301,14 @@ stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen End
 </tr>
 </tbody>
 </table>
-<div class="language-toml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[[rule]]</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="k">[rule.logging]</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="n">directory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/var/log/kortty"</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="n">retention-days</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">30</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="n">compress</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="n">format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"json"</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="n">rotation-max-files</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">14</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="n">rotation-total-size-mb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">512</span>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="k">[rule.logging]</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="n">directory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/var/log/kortty"</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="n">retention-days</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">30</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="n">compress</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="n">format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"json"</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">  </span><span class="n">rotation-max-files</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">14</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">  </span><span class="n">rotation-total-size-mb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">512</span>
 </span></code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -1368,15 +1394,15 @@ stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen End
 </tr>
 </tbody>
 </table>
-<div class="language-toml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[[rule]]</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="k">[rule.features]</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="n">session-journal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"allow"</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="k">[rule.session-journal]</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="n">enforced</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="n">log-format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"json"</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">  </span><span class="n">storage-path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/srv/audit/kortty-journals"</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">  </span><span class="n">allow-delete</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">  </span><span class="n">name-template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"{connection} {date} {time} ({user})"</span>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="k">[rule.features]</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="n">session-journal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"allow"</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="k">[rule.session-journal]</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="n">enforced</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="n">log-format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"json"</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span><span class="n">storage-path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/srv/audit/kortty-journals"</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">  </span><span class="n">allow-delete</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">  </span><span class="n">name-template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"{connection} {date} {time} ({user})"</span>
 </span></code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -1426,26 +1452,26 @@ stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen End
 </tr>
 </tbody>
 </table>
-<div class="language-toml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">[[rule]]</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="k">[rule.session-journal]</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="n">enforced</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"AKIA[0-9A-Z]{16}"</span>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"***AWS-ACCESS-KEY***"</span>
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="n">regex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"AWS access keys"</span>
-</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
-</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
-</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"(?i)bearer</span><span class="se">\\</span><span class="s2">s+[A-Za-z0-9._-]{20,}"</span>
-</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Bearer ***"</span>
-</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">    </span><span class="n">regex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">    </span><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Bearer tokens"</span>
-</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>
-</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
-</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"vpn.internal.acme.corp"</span>
-</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"&lt;internal-host&gt;"</span>
-</span><span id="__span-4-20"><a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="w">    </span><span class="n">ignore-case</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="k">[rule.session-journal]</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="n">enforced</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"AKIA[0-9A-Z]{16}"</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"***AWS-ACCESS-KEY***"</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="n">regex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"AWS access keys"</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"(?i)bearer</span><span class="se">\\</span><span class="s2">s+[A-Za-z0-9._-]{20,}"</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Bearer ***"</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="w">    </span><span class="n">regex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="w">    </span><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Bearer tokens"</span>
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>
+</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
+</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"vpn.internal.acme.corp"</span>
+</span><span id="__span-5-19"><a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"&lt;internal-host&gt;"</span>
+</span><span id="__span-5-20"><a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="w">    </span><span class="n">ignore-case</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
 </span></code></pre></div>
 <p>Die Regeln werden <strong>im Erfassungsthread ausgeführt, bevor eine Zeile geschrieben wird</strong>, sodass ein übereinstimmender Text überhaupt nicht in die Protokolldatei gelangt, und sie werden auch auf KI-Zusammenfassungen und Benutzernotizen angewendet. Im Gegensatz zu den anderen Schlüsseln werden Ersetzungsregeln <strong>über alle übereinstimmenden Regeln und alle Ebenen hinweg zusammengeführt</strong> und nicht, dass die höchste Ebene gewinnt: Mehr Schwärzung ist das restriktivere Ergebnis, sodass eine benutzer- oder gruppenspezifische Regel nur Muster hinzufügen und niemals die organisationsweiten ausschalten kann. Doppelte Einträge werden ausgeblendet.</p>
 <div class="admonition warning">
@@ -1493,17 +1519,17 @@ stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen End
 <p>Mit <code>clipboard-mode = "internal"</code> trennt sich korTTY vollständig von der Zwischenablage des Betriebssystems und verwendet stattdessen seine eigene Zwischenablage im Arbeitsspeicher: In einer anderen Anwendung kopierter Text kann nirgendwo in korTTY eingefügt werden, und in korTTY kopierter Text gelangt nie in die Zwischenablage des Betriebssystems – während das Kopieren, Ausschneiden und Einfügen <em>innerhalb</em> von korTTY weiterhin überall funktioniert, da Terminals, SFTP-Ansichten, der Snippet-Editor und alle Dialoge denselben internen Puffer verwenden. Da es sich hierbei um reine Anwendungslogik handelt und keine Betriebssystem-Zwischenablage-Isolations-API beteiligt ist, verhält es sich unter macOS, Windows und Linux identisch, einschließlich der X11-Primärauswahl (Einfügen mit mittlerem Klick): Das Einfügen von Inhalten mit mittlerem Klick aus anderen Anwendungen ist blockiert, das Einfügen mit mittlerem Klick von korTTY-internen Kopien funktioniert weiterhin.</p>
 <p>Der Modus umfasst das Terminal (Verknüpfungen, Kontextmenü, Mittelklick), den Code-Editor, alle Kopierschaltflächen, die Snippet-Variable <code>${clipboard}</code> und die Verknüpfungen zum Kopieren/Ausschneiden/Einfügen einfacher Eingabefelder. Das Kopieren von Bildern (KI-generierte Bilder, Diagrammexporte) ist im internen Modus nicht verfügbar, da ein Bild nur über die Zwischenablage des Betriebssystems geteilt werden kann.</p>
 <div class="admonition note">
-<p class="admonition-title">Scope</p>
+<p class="admonition-title">Bereich</p>
 <p>Die interne Zwischenablage ist ein Richtlinientool gegen zufällige Datenübertragung über die Zwischenablage und kein fester Luftspalt: Ein Benutzer kann weiterhin Text auf dem Bildschirm lesen. Die Rechtsklick-<em>Einfüge</em>-Eingabe von Nur-Text-Feldern wird vom UI-Toolkit bereitgestellt und kann weiterhin auf die Zwischenablage des Betriebssystems zugreifen – die Tastenkombination und jedes von korTTY bereitgestellte Menü werden abgedeckt.</p>
 </div>
 <h2 id="verschlusselte-api-schlussel">Verschlüsselte API-Schlüssel<a class="headerlink" href="#verschlusselte-api-schlussel" title="Permanent link">&para;</a></h2>
-<p>Der API-Schlüssel eines AI-Profils erscheint niemals im Klartext in der Richtlinie. Der Administrator verschlüsselt es einmal von einem Terminal aus – der Befehl gibt einen <code>kortty-enc:v1:</code>-Wert für den <code>api-key-encrypted</code>-Schlüssel aus:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>korTTY<span class="w"> </span>--encrypt-policy-value
+<p>Der API-Schlüssel eines KI-Profils erscheint niemals im Klartext in der Richtlinie. Der Administrator verschlüsselt es einmal von einem Terminal aus – der Befehl gibt einen <code>kortty-enc:v1:</code>-Wert für den <code>api-key-encrypted</code>-Schlüssel aus:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>korTTY<span class="w"> </span>--encrypt-policy-value
 </span></code></pre></div>
 <p>Benutzern wird im Profil nur „Von Ihrer Organisation bereitgestellter API-Schlüssel“ angezeigt. Der Schlüssel wird im Speicher entschlüsselt, sobald eine Anfrage gestellt wird.</p>
 <div class="admonition warning">
 <p class="admonition-title">Sicherheitsbereich</p>
-<p>The envelope uses AES-256-GCM with an application-wide key, so it protects against casual disclosure (shoulder surfing, config diffs, backups) and detects tampering — it is not hard secrecy, since anyone with the korTTY binary could recover the application key. The installation directory's OS permissions remain the actual security boundary; prefer per-user keys via the normal profile flow when that boundary is not enough.</p>
+<p>Die Enveloppe verwendet AES-256-GCM mit einem Schlüssel, der über die gesamte Anwendung gültig ist, wodurch sie vor beiläufiger Offenlegung (z. B. Shoulder-Surfing, Konfigurationsunterschiede, Backups) geschützt ist und Manipulationen detektiert – es handelt sich nicht um eine starke Geheimschutzmethode, da jeder mit dem korTTY-Binary den Anwendungsschlüssel wiederherstellen könnte. Die Betriebssystemrechte des Installationsverzeichnisses bleiben die tatsächliche Sicherheitsgrenze; bei unzureichender Sicherheit empfiehlt sich der Einsatz von per-Nutzer-Schlüsseln über den üblichen Profilworkflow.</p>
 </div>
 <h2 id="fehlerbehebung">Fehlerbehebung<a class="headerlink" href="#fehlerbehebung" title="Permanent link">&para;</a></h2>
 <table>
@@ -1527,8 +1553,8 @@ stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen End
 <td>Der Regelbereich besteht aus Betriebssystem-Anmeldenamen in Kleinbuchstaben. überprüfen <code>[groups]</code> Mitgliedschaft und denken Sie daran, dass eine spezifischere Stufe (Benutzer &gt; Gruppe &gt; Jeder) weniger spezifische Regeln außer Kraft setzt</td>
 </tr>
 <tr>
-<td>Warning "policy file is writable by the current user"</td>
-<td>The installation directory permissions are too open — the enforcement model relies on admin-only write access</td>
+<td>Warnung „Policies-Datei ist lesbar vom aktuellen Benutzer“</td>
+<td>Die Berechtigungen des Installationsverzeichnisses sind zu offen – das Einschließlich-Modell basiert auf einer Schreibzugriff nur durch Administratoren</td>
 </tr>
 <tr>
 <td>Das Admin-Modell wird nicht angezeigt</td>

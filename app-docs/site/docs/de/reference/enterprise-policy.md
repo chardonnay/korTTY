@@ -16,7 +16,7 @@ korTTY lädt die Richtlinie ausschließlich aus dem Ordner `policy/` seines Inst
 | Plattform | Speicherort der Richtliniendatei |
 | --- | --- |
 | macOS | `/Applications/KorTTY.app/Contents/app/policy/kortty-policy.toml` |
-| Windows | `C:\Program Files\KorTTY\app\policy\kortty-policy.toml` |
+| Fenster | `C:\Program Files\KorTTY\app\policy\kortty-policy.toml` |
 | Linux (deb/rpm) | `/opt/kortty/lib/app/policy/kortty-policy.toml` |
 
 Das Durchsetzungsmodell basiert auf den Dateiberechtigungen des Betriebssystems: Das Installationsverzeichnis darf nur von Administratoren beschreibbar sein, was für die oben genannten Speicherorte die Standardeinstellung ist. korTTY protokolliert zusätzlich eine Warnung, wenn die aktive Richtliniendatei vom aktuellen Benutzer beschreibbar ist. Während der Entwicklung (niemals in einer Paketinstallation) kann eine Richtlinie mit `-Dkortty.policy.file=/path/to/policy.toml` getestet werden.
@@ -112,11 +112,11 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
 
 | Schlüssel | Typ | Werte | Beschränkt |
 | --- | --- | --- | --- |
-| `ai` | Zeichenfolge | `allow`, `deny` | Hauptschalter: `deny` deaktiviert alle AI-Funktionen auf einmal. |
+| `ai` | Zeichenfolge | `allow`, `deny` | Hauptschalter: `deny` deaktiviert alle KI-Funktionen auf einmal. |
 | `ai-agent` | Zeichenfolge | `allow`, `deny` | AI Agent (Menü, Terminal-Kontextmenü, Tastaturkürzel, Headless-Job-Ausführungen) |
 | `ai-chat` | Zeichenfolge | `allow`, `deny` | KI-Chat, gespeicherte Chats und die Terminalauswahl-KI-Aktionen |
 | `ai-swarm` | Zeichenfolge | `allow`, `deny` | KI-Schwarm, einschließlich geplanter Schwarmjobs |
-| `ai-planning` | Zeichenfolge | `allow`, `deny` | AI-Planung |
+| `ai-planning` | Zeichenfolge | `allow`, `deny` | KI-Planung |
 | `teamwork` | Zeichenfolge | `allow`, `deny` | Synchronisierung freigegebener Teamwork-Verbindungen (Dienst ist nicht gestartet, Menü gesperrt) |
 | `plugins` | Zeichenfolge | `allow`, `deny` | Laden des Plugins und Plugins-Menü (z. B. Terminaleffekte) |
 | `session-journal` | Zeichenfolge | `allow`, `deny` | The [session journal](../features/session-journal.md): Erfassung, Journalleiste, Manager, Viewer und Exporte. Nicht angekettet `ai` – Auch wenn die KI verweigert wird, zeichnet das Journal immer noch Rohaktivitäten auf |
@@ -142,12 +142,13 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
 | --- | --- | --- | --- |
 | `allow-custom-sources` | boolean | `false` | Benutzer können keine Teamwork-Quellen hinzufügen; Es verbleiben nur die Einträge `[[teamwork-source]]` und |
 | `allow-custom-script-headers` | boolean | `false` | Benutzer können keine Skript-Header erstellen; Es verbleiben nur die Einträge `[[script-header]]` und |
-| `allow-create` | boolean | `false` | Benutzer können keine AI-Profile erstellen (Schaltflächen und Assistent sind gesperrt) |
-| `allow-edit` | boolean | `false` | Benutzer können ihre vorhandenen AI-Profile auch nicht bearbeiten |
+| `analysis-max-stored-content-bytes` | Integer | ≥ 0 (Bytes von UTF-8) | Obergrenze für den Skripttext, der mit jeder Vollständigen Code-Analyse gespeichert wird; `0` verbietet die Speicherung des Skripttexts — siehe unten |
+| `allow-create` | boolean | `false` | Benutzer können keine KI-Profile erstellen (Schaltflächen und Assistent sind gesperrt) |
+| `allow-edit` | boolean | `false` | Benutzer können ihre vorhandenen KI-Profile auch nicht bearbeiten |
 | `allow-internet` | boolean | `false` | Verbietet jeden KI-Internetzugriffsmodus – siehe unten |
 
 !!! info "`allow-internet = false` unterbindet den KI-Internetzugriff auf drei Ebenen"
-    Im Dropdown-Menü [internet access](settings/ai.md#internetzugriffsmodi) eines AI-Profils wird ein ausgewählt
+    Das [Internetzugang](settings/ai.md#internet-zugriffs-modi) Dropdown-Menu eines KI-Profils wählt ein
     Backend für Websuche oder MCP-Browsing. Das Verbot wird an drei Stellen durchgesetzt, weil eine
     einzelne eine Lücke ließe:
 
@@ -156,7 +157,7 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
        eine Handänderung an `global-settings.xml`.
     2. **Die Schnittstelle** – das Dropdown-Menü ist mit dem Hinweis „Von Ihrer Organisation verwaltet“ gesperrt
        sowohl den KI-Manager als auch **Einstellungen → AI**.
-    3. **Jede AI-Anfrage** – korTTY weigert sich, einen Dienst für ein Profil zu erstellen, dessen Modus aktiviert ist,
+    3. **Jede KI-Anfrage** – korTTY weigert sich, einen Dienst für ein Profil zu erstellen, dessen Modus aktiviert ist,
        und schließt damit das Zeitfenster zwischen zwei Klemmungen. Die Anfrage scheitert mit einer
        Richtlinienmeldung, statt still ohne das angeforderte Web-Werkzeug zu antworten.
 
@@ -164,13 +165,36 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
     eigener Anbieter – verweigern Sie dazu die `ai`-Funktion oder stellen Sie an dieser Stelle `[[ai-profile]]`-Einträge bereit
     stellen `[[ai-profile]]`-Einträge bereit, die auf einen internen Endpunkt zeigen.
 
+### Gespeicherter Skripttext der Analysen
+
+Ein [Vollständige Code-Analyse](../features/snippets.md#gespeicherter-skripttext) speichert den Skripttext, an dem gearbeitet wurde – das analysierte Skript, der Text, von dem die Anwendung ausgegangen ist, das vorgeschlagene Ergebnis und der angenommene Text – damit funktioniert der Code-Vorschau, **Änderungen ansehen**, der Skriptexport, der Berichtsabschnitt, **Zwischenstand wiederherstellen** und der Fortsetzung nach einem Neustart. Die Benutzer wählen die Größe selbst unter **Einstellungen → Snippet-Editor → Gespeicherte Skriptgröße pro Analyse** (Standardwert 1 MB, maximal 5 MB, oder **Aus**); `analysis-max-stored-content-bytes` in `[rule.snippets]` ist ein obere Schranke auf der Basis jenes Auswahlkriteriums:
+
+```toml
+[[rule]]
+name = "Keep script text small"
+  [rule.snippets]
+  analysis-max-stored-content-bytes = 524_288      # at most 512 KB per stored text
+
+[[rule]]
+name = "Compliance team: no script text in analyses"
+groups = ["compliance"]
+  [rule.snippets]
+  analysis-max-stored-content-bytes = 0            # findings and reports only
+```
+
+- **Effektiver Grenzwert** — Der kleinere Wert aus dem eigenen Wert des Benutzers (Standardwert 1 MB), dem festgelegten maximalen Wert von 5 MB und diesem Schlüssel. Ein Wert über 5 MB hat daher keine Wirkung, und ein niedrigerer Benutzerwert bleibt gültig. Jeder positive Wert wird akzeptiert, auch ein Wert unter dem Mindestwert von 256 KB, den Benutzer wählen kann.
+- **`0`** — Kein Skripttext wird gespeichert: Die Analyse behält ihre Ergebnisse, Zusammenfassung, Diagramm und Berichte, aber nicht das Skript, sodass **Änderungen ansehen**, die vorherigen Einträge mit dem Code-Vorschau, der Skriptexport, der Berichtsanhang, **Zwischenstand wiederherstellen** und das Fortsetzen nach einem Neustart nicht verfügbar sind. Das Panel zeigt, dass die Organisation den Speicherung des Skripttexts nicht erlaubt. Die Analyse selbst, einschließlich der Anwendung der Ergebnisse und der sofortigen Änderungsprüfung im Editor, funktioniert wie zuvor. Text, der zuvor gespeichert wurde, wird beim nächsten Schreiben der gespeicherten Analysen gelöscht.
+- **Einstellungen-Dialog** — Das Dropdown-Menü bietet nur Größen bis zur Grenze an, zeigt die Grenze darunter und ist gesperrt (mit dem Hinweis "Verwaltet von Ihrer Organisation"), wenn der Wert `0` ist. Die Benutzerwahl wird nicht durch die Grenze überschrieben: Sie wird erneut aktiv, sobald die Richtlinie aufgehoben wird.
+- **Ebenen** — Wie jede Einstellung gewinnt die spezifischste Ebene, die den Schlüssel festlegt (Benutzer, dann Gruppe, dann alle); Regeln derselben Ebene nehmen den kleineren Wert, sodass `0` jeder positiven Grenze vorauseilt. Der Schlüssel ist kein `0`-bedeutet-ungelimitierter Wert.
+- **Ungültige Werte** — Eine negative Zahl oder eine nicht-ganze Zahl (z. B. `"5 MB"`) stellt eine Richtlinienfehler dar, wie jeder andere falsch formatierte Wert, weshalb die gesamte Datei abgelehnt wird und der Lockdown-Fallback aktiviert wird; der Fallback verbietet außerdem das Speichern von Skripttexten. Schreiben Sie Bytes, optional mit TOML-Zifferntrennern (`5_242_880`).
+
 ### `[rule.ai-runtime]`
 
 | Schlüssel | Typ | Werte | Wirkung |
 | --- | --- | --- | --- |
 | `allow-runtime-downloads` | boolean | `false` | Keine llama.cpp/MLX-Laufzeit-Downloads oder Update-Prüfungen |
 | `allow-model-downloads` | boolean | `false` | Der Browser und die Downloads des Hugging Face-Modells sind deaktiviert |
-| `allow-user-models` | boolean | `false` | Nur vom Administrator bereitgestellte `[[ai-runtime.model]]`-Einträge können von eingebetteten AI-Profilen geladen werden |
+| `allow-user-models` | boolean | `false` | Nur vom Administrator bereitgestellte `[[ai-runtime.model]]`-Einträge können von eingebetteten KI-Profilen geladen werden |
 
 ### `[rule.updates]`
 
@@ -305,12 +329,12 @@ Mit `clipboard-mode = "internal"` trennt sich korTTY vollständig von der Zwisch
 
 Der Modus umfasst das Terminal (Verknüpfungen, Kontextmenü, Mittelklick), den Code-Editor, alle Kopierschaltflächen, die Snippet-Variable `${clipboard}` und die Verknüpfungen zum Kopieren/Ausschneiden/Einfügen einfacher Eingabefelder. Das Kopieren von Bildern (KI-generierte Bilder, Diagrammexporte) ist im internen Modus nicht verfügbar, da ein Bild nur über die Zwischenablage des Betriebssystems geteilt werden kann.
 
-!!! note "Scope"
+!!! note "Bereich"
     Die interne Zwischenablage ist ein Richtlinientool gegen zufällige Datenübertragung über die Zwischenablage und kein fester Luftspalt: Ein Benutzer kann weiterhin Text auf dem Bildschirm lesen. Die Rechtsklick-*Einfüge*-Eingabe von Nur-Text-Feldern wird vom UI-Toolkit bereitgestellt und kann weiterhin auf die Zwischenablage des Betriebssystems zugreifen – die Tastenkombination und jedes von korTTY bereitgestellte Menü werden abgedeckt.
 
 ## Verschlüsselte API-Schlüssel
 
-Der API-Schlüssel eines AI-Profils erscheint niemals im Klartext in der Richtlinie. Der Administrator verschlüsselt es einmal von einem Terminal aus – der Befehl gibt einen `kortty-enc:v1:`-Wert für den `api-key-encrypted`-Schlüssel aus:
+Der API-Schlüssel eines KI-Profils erscheint niemals im Klartext in der Richtlinie. Der Administrator verschlüsselt es einmal von einem Terminal aus – der Befehl gibt einen `kortty-enc:v1:`-Wert für den `api-key-encrypted`-Schlüssel aus:
 
 ```bash
 korTTY --encrypt-policy-value
@@ -319,7 +343,7 @@ korTTY --encrypt-policy-value
 Benutzern wird im Profil nur „Von Ihrer Organisation bereitgestellter API-Schlüssel“ angezeigt. Der Schlüssel wird im Speicher entschlüsselt, sobald eine Anfrage gestellt wird.
 
 !!! warning "Sicherheitsbereich"
-    The envelope uses AES-256-GCM with an application-wide key, so it protects against casual disclosure (shoulder surfing, config diffs, backups) and detects tampering — it is not hard secrecy, since anyone with the korTTY binary could recover the application key. The installation directory's OS permissions remain the actual security boundary; prefer per-user keys via the normal profile flow when that boundary is not enough.
+    Die Enveloppe verwendet AES-256-GCM mit einem Schlüssel, der über die gesamte Anwendung gültig ist, wodurch sie vor beiläufiger Offenlegung (z. B. Shoulder-Surfing, Konfigurationsunterschiede, Backups) geschützt ist und Manipulationen detektiert – es handelt sich nicht um eine starke Geheimschutzmethode, da jeder mit dem korTTY-Binary den Anwendungsschlüssel wiederherstellen könnte. Die Betriebssystemrechte des Installationsverzeichnisses bleiben die tatsächliche Sicherheitsgrenze; bei unzureichender Sicherheit empfiehlt sich der Einsatz von per-Nutzer-Schlüsseln über den üblichen Profilworkflow.
 
 ## Fehlerbehebung
 
@@ -328,5 +352,5 @@ Benutzern wird im Profil nur „Von Ihrer Organisation bereitgestellter API-Schl
 | Startdialog „Organisationsrichtlinie konnte nicht geladen werden“ | Die Richtliniendatei weist einen Syntaxfehler oder einen ungültigen Wert auf; Der Dialog und das Protokoll benennen die genaue Position. korTTY bleibt ausfallsicher gesperrt, bis die Datei repariert ist |
 | Richtlinie scheint ignoriert zu werden | Die Datei heißt nicht `kortty-policy.toml`, befindet sich nicht im `policy/`-Ordner der Installation oder korTTY wurde nicht neu gestartet. Die Startzeilen des Protokolls geben an, welche Richtliniendatei (falls vorhanden) geladen wurde |
 | Eine Regel gilt nicht für einen Benutzer | Der Regelbereich besteht aus Betriebssystem-Anmeldenamen in Kleinbuchstaben. überprüfen `[groups]` Mitgliedschaft und denken Sie daran, dass eine spezifischere Stufe (Benutzer > Gruppe > Jeder) weniger spezifische Regeln außer Kraft setzt |
-| Warning "policy file is writable by the current user" | The installation directory permissions are too open — the enforcement model relies on admin-only write access |
+| Warnung „Policies-Datei ist lesbar vom aktuellen Benutzer“ | Die Berechtigungen des Installationsverzeichnisses sind zu offen – das Einschließlich-Modell basiert auf einer Schreibzugriff nur durch Administratoren |
 | Das Admin-Modell wird nicht angezeigt | Sehen Sie sich das Protokoll an: GGUF-URL-Downloads erfolgen beim Start im Hintergrund und für die Registrierung ist eine installierte llama.cpp-Laufzeit erforderlich. MLX-Quellen müssen lokale Safetensors-Verzeichnisse sein |

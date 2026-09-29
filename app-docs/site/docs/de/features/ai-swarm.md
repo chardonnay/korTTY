@@ -82,7 +82,7 @@ Tabellenzellen sind oft zu klein für eine vollständige Befehlsausgabe – **kl
 
 ## Konversation kopieren, exportieren und speichern
 
-Der Konversationskopf verfügt über eine Schaltfläche **Kopieren** (gesamte Konversation in die Zwischenablage) und ein Menü **Exportieren** mit **Nur-Text**, **Markdown** und **PDF**. **Speichern** speichert die Konversation als benannten Schwarm-Chat; Gespeicherte Schwarm-Chats werden in einem speziellen Abschnitt **Schwarm-Chats** des [KI-Manager](ai-assistant.md#ki-manager) angezeigt und können später wieder geöffnet werden.
+Der Konversationshauptteil enthält eine **Kopier**-Schaltfläche (ganze Konversation in die Zwischenablage) sowie ein **Export**-Menü mit **Plain Text**, **Markdown** und **PDF**. **Speichern** speichert die Konversation als benanntes Swarm-Chat; gespeicherte Swarm-Chats erscheinen in einer separaten **Swarm-Chats**-Sektion im [KI-Manager](ai-assistant.md#ki-manager) und können später erneut geöffnet werden.
 
 ## Skripte ohne KI ausführen
 
@@ -122,7 +122,7 @@ Geplante Schwarmjobs laufen völlig kopflos über SSH-Hintergrundsitzungen – e
 
 | Feld | Beschreibung |
 | --- | --- |
-| **AI-Profil** | Das AI-Profil, das für alle Agenten im Lauf verwendet wird |
+| **KI-Profil** | Das KI-Profil, das für alle Agenten im Lauf verwendet wird |
 | **KI-Eingabeaufforderung** | Die Aufgabe wird an jeden Zielserver gesendet |
 | **Automatisch genehmigen** | Genehmigen Sie systemverändernde Befehle ohne Dialog (bei unbeaufsichtigten Ausführungen muss niemand gefragt werden) |
 | **Schwarmparallelität** | Wie viele Server gleichzeitig laufen (1–16, Standard 4) |

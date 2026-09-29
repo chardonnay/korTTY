@@ -16,7 +16,7 @@ Beim ersten Start werden Sie aufgefordert, ein Master-Passwort (mindestens 6 Zei
 ### Setup
 
 1. Geben Sie ein Passwort ein (der Feldrand wird grün, wenn die Länge ausreichend ist, rot, wenn die Länge zu kurz ist).
-Der Stärkeindikator 2. A zeigt die Passwortqualität an; Bei schwachen oder gebräuchlichen Passwörtern wird eine Warnung angezeigt, die Sie bei Bedarf jedoch bestätigen können.
+2. Ein Stärke-Indikator zeigt die Passwortqualität; eine Warnung erscheint bei schwachen oder häufig verwendeten Passwörtern, können Sie jedoch gegebenenfalls bestätigen.
 3. Bestätigen Sie das Passwort.
 4. Klicken Sie auf **Setup**.
 
@@ -170,7 +170,7 @@ Die folgenden sensiblen und sicherheitsrelevanten Daten werden in `~/.kortty/` g
 | `job-scheduler.xml` | Scheduler-Sudo-Passwörter und Archiv-Passwörter; Journaleinträge schwärzen von KorTTY verwaltete Geheimnisse | AES-256-GCM |
 | `master.key` | Master-Passwort-Hash (PBKDF2, 310.000 Iterationen) und Salt | PBKDF2-Hash nur |
 | `master.autounlock` | Gespeichertes Master-Passwort für die optionale automatische Anmeldung | Nur verschleiert – nicht verschlüsselt; Nur-Eigentümer-Dateiberechtigungen |
-| `global-settings.xml` | AI-Profil-API-Schlüssel, Übersetzungs-API-Schlüssel, optionales Hugging Face-Token | AES-256-GCM |
+| `global-settings.xml` | KI-Profil-API-Schlüssel, Übersetzungs-API-Schlüssel, optionales Hugging Face-Token | AES-256-GCM |
 
 ## Best Practices für die Sicherheit
 
@@ -202,7 +202,7 @@ Die folgenden sensiblen und sicherheitsrelevanten Daten werden in `~/.kortty/` g
 - Speichern Sie Sicherungsdateien an einem sicheren Ort.
 - Testen Sie die Wiederherstellungsverfahren regelmäßig, um sicherzustellen, dass Backups verwendbar sind.
 
-### AI-Integration
+### KI-Integration
 
 - API-Schlüssel für KI-Endpunkte werden mit Ihrem Master-Passwort verschlüsselt.
 - Das optionale Hugging Face-Token ist mit dem Master-Passwort verschlüsselt und wird nur für genehmigte Modellsuch-/Downloadanfragen an den vertrauenswürdigen Hugging Face-Host verwendet.
@@ -211,10 +211,10 @@ Die folgenden sensiblen und sicherheitsrelevanten Daten werden in `~/.kortty/` g
 - Signierte Laufzeitabhebungen sind dauerhaft und werden nicht geschlossen. Ein verifizierter Index fügt zurückgezogene Laufzeit- und Installations-IDs zu `llm/runtime/revoked-v1` hinzu, markiert jedes installierte Paket, löscht einen passenden aktiven Zeiger, stoppt seine Sidecars, entfernt es aus dem fehlerfreien Rollback-Verlauf und stellt betroffene Modellbindungen unter Quarantäne. Sowohl das Installationsprogramm als auch der Prozessstarter lehnen diese Pakete ab, auch nach einem unterbrochenen Update. Überprüfungen, bei denen nur eine Benachrichtigung erfolgt, erzwingen eine Auszahlung, ohne dass der angebotene Ersatz stillschweigend installiert wird. **Off** stellt keine Indexanfrage und erfährt daher bis zu einer expliziten oder aktivierten Prüfung keine neue Entnahme.
 - Eine neu aktivierte Laufzeit wird nicht in den fehlerfreien Verlauf hochgestuft, nur weil die begrenzte `--version`-Prüfung bestanden wurde. Es bleibt ausstehend, bis der erste echte GGUF-gestützte authentifizierte API-Start erfolgreich ist; Wenn dieser Start fehlschlägt, wird der Kandidat entfernt und das neueste fehlerfreie, nicht widerrufene Paket wiederhergestellt bzw. erneut gebunden, sofern eines vorhanden ist.
 - -Modellempfehlungen und die automatische Erkennung von Eingabeaufforderungsfamilien können aus einem separaten Ed25519-signierten HTTPS-Katalog aktualisiert werden. Der letzte gültige Cache wird vor der Verwendung erneut überprüft, und eine monotone Sequenz lehnt signierte ältere Wiederholungen oder Versionskollisionen mit gleicher Sequenz vor einem atomaren Hochwasser-Update ab. Ohne den unabhängigen öffentlichen Katalogschlüssel vertraut korTTY weder Netzwerk- noch Cache-Daten und greift auf den integrierten Bootstrap zurück. Das Signieren von Produktionskatalogen und Laufzeiten ist auf die durch Prüfer geschützten GitHub-Umgebungen im Hauptzweig beschränkt. Anwendungsbuilds erhalten nur die öffentlichen Vertrauenswurzeln.
-Die Profilkonfiguration - AI wird lokal gespeichert; Nur Ihre überprüfte Terminalauswahl oder Eingabeaufforderung wird an den ausgewählten Dienst gesendet. Die eingebettete Inferenz bleibt auf diesem Computer.
+- Die KI-Profil-Konfiguration wird lokal gespeichert; nur Ihre überprüfte Terminal-Auswahl oder Prompt wird an den gewählten Dienst gesendet. Die eingebettete Inference bleibt auf diesem Rechner.
 - Wissensspeicher-Scanning folgt einer festen Text-Zulassungsliste, validiert Inhalte, lehnt symbolische Links ab und zeigt eine Vorschau an. Nur begrenzte abgerufene Auszüge, nicht der gesamte Wissensspeicher, werden in die Modellaufforderung eingegeben. Diese Auszüge bleiben für integrierte/Loopback-Profile lokal, verlassen jedoch den Computer, wenn ein explizit zugewiesenes Cloud-Profil die Anfrage verarbeitet. Wissensspeicherrollen und persistente Profilzuweisungen sind die Offenlegungsberechtigung des Benutzers.
 - Remote-Qdrant-Wissensspeicher erfordern HTTPS; Einfaches HTTP wird nur für Loopback akzeptiert und der optionale API-Schlüssel bleibt durch den Tresor geschützt.
-- Der Internetzugriff ist für AI-Profile standardmäßig deaktiviert. nur bei Bedarf aktivieren.
+- Der Internetzugriff ist für KI-Profile standardmäßig deaktiviert. nur bei Bedarf aktivieren.
 - Snippet-KI-Aktionen nutzen niemals den Internetzugang, selbst wenn dieser im Profil aktiviert ist.
 - Die feste Snippet-/Workflow-**Diagramm**-Anfrage erhält nie Auszüge aus dem Wissensspeicher, selbst wenn an das Profil Speicher angehängt sind – die Diagramm-Eingabeaufforderung wird ausschließlich aus der Quelle erstellt.
 
@@ -226,7 +226,7 @@ Die Profilkonfiguration - AI wird lokal gespeichert; Nur Ihre überprüfte Termi
 | Anmeldeinformationsverschlüsselung | AES-256-GCM |
 | SSH-Schlüsselpassphrasen | Verschlüsselt mit AES-256-GCM und Master-Passwort |
 | Interaktive SSH/SFTP/Mosh-Hostschlüssel | Gemeinsam genutzter normalisierter Host:Port-TOFU, Bestätigung des Fingerabdrucks bei der ersten Verwendung (optional entspannt, um „Neu“ zu akzeptieren), stille exakte Übereinstimmung, harte Blockierung bei Änderung |
-| AI-API-Schlüssel | Verschlüsselt mit AES-256-GCM und Master-Passwort |
+| KI-API-Schlüssel | Verschlüsselt mit AES-256-GCM und Master-Passwort |
 | Eingebetteter llama.cpp | Nur-Loopback-Zufallsport, generierter API-Schlüssel, Offline-/gehärtete Server-Flags, Anforderungsleasing |
 | GGUF/Laufzeit-Lieferkette | Unveränderliche Revisionen, SHA-256-Verifizierung, signierter Laufzeitindex, dauerhafte Sperrquarantäne, Rollback nach fehlgeschlagener Integritätsprüfung oder erstem echten API-Start |
 | Modell-/Prompt-Katalog | Unabhängiger Ed25519 Trust Root, striktes Schema, monotone Anti-Replay-Sequenz, erneut verifizierter Atomcache, geschützte menschliche Förderung, Bootstrap-Fallback |
@@ -246,7 +246,7 @@ So ändern Sie Ihr Master-Passwort (wodurch alle gespeicherten Geheimnisse mit e
 2. Klicken Sie auf **Master-Passwort ändern**.
 3. Geben Sie Ihr aktuelles (altes) Master-Passwort ein.
 4. Geben Sie das neue Master-Passwort zweimal ein.
-5. Jedes Master-Passwort-geschützte Geheimnis wird automatisch mit dem neuen Schlüssel neu verschlüsselt: Verbindungs- und Jump-Server-Passwörter, SSH-Schlüssel-Passphrasen, gespeicherte Anmeldeinformationen, AI-Profil-API-Schlüssel und die globalen AI-/Übersetzungs-/Hugging-Face-Schlüssel, RAG-Wissensspeicher-Geheimnisse und JobScheduler-Sudo-/Archive-Passwörter. Die Änderung erfolgt stufenweise – das neue Passwort wird erst übernommen, wenn alle Filialen migriert wurden, sodass bei einem Fehler auf halbem Weg das alte Passwort in Kraft bleibt. Einzelne Geheimnisse, die nicht migriert werden können, bleiben unberührt, werden in der Ergebnisnachricht gezählt und im Protokoll vermerkt; Geben Sie diese manuell erneut ein.
+5. Jedes Master-Passwort-geschützte Geheimnis wird automatisch mit dem neuen Schlüssel neu verschlüsselt: Verbindungs- und Jump-Server-Passwörter, SSH-Schlüssel-Passphrasen, gespeicherte Anmeldeinformationen, KI-Profil-API-Schlüssel und die globalen KI-/Übersetzungs-/Hugging-Face-Schlüssel, RAG-Wissensspeicher-Geheimnisse und JobScheduler-Sudo-/Archive-Passwörter. Die Änderung erfolgt stufenweise – das neue Passwort wird erst übernommen, wenn alle Filialen migriert wurden, sodass bei einem Fehler auf halbem Weg das alte Passwort in Kraft bleibt. Einzelne Geheimnisse, die nicht migriert werden können, bleiben unberührt, werden in der Ergebnisnachricht gezählt und im Protokoll vermerkt; Geben Sie diese manuell erneut ein.
 
 ## Konfigurationsdateien-Referenz
 

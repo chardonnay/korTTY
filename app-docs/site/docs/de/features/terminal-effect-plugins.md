@@ -353,7 +353,7 @@ Behalten Sie keinen separaten Geschwindigkeitswert im Plugin bei. KorTTY speiche
 
 **Exporte:**
 
-Das - A-Plugin ist exportierbar, wenn es aus einer echten Quell-JAR geladen wurde
+- Ein Plugin ist exportierbar, wenn es aus einem echten Quell-JAR geladen wurde.
 - Gebündelte Plugins sind exportierbar, da KorTTY seine gebündelten JARs vor dem Laden nach `~/.kortty/bundled-plugins/terminal-effects` kopiert
 - Beim Exportieren eines der zehn Effektpaket-Effekte wird der gesamte `kortty-terminal-effect-pack.jar` exportiert, da das JAR die Exporteinheit ist
 - Anwendungsklassenpfad-Plugins ohne Quell-JAR können nicht exportiert werden

@@ -27,7 +27,7 @@ KorTTY ist in verschiedene Funktionsmodule unterteilt. Das folgende Diagramm gru
 |---|---|---|
 | **Kern** | SSH-Konnektivität, gemeinsames interaktives Host-Key-Vertrauen, Sitzungsverwaltung, KI-Integration, Terminalautomatisierung | `SSHSession`, `SshHostKeyTrustManager`, `AiChatManager`, `TerminalAgentService`, `Mosh4jTtyConnector` |
 | **ai** | Signierter Modell-/Eingabeaufforderungskatalog, Hugging Face-Metadaten/Downloads, eingebettete llama.cpp- und MLX-Laufzeiten und signierte Laufzeitpakete | `AiCatalogService`, `HuggingFaceClient`, `LlamaRuntimeManager`, `LlamaRuntimePackageInstaller`, `EmbeddedMlxAiService`, `MlxRuntimeLocator` |
-| **rag** | Sicheres Scannen, Extrahieren, Chunking, Einbetten, Vektorspeicherung, Synchronisierung und begrenztes Abrufen von Quellen | `RagSourceScanner`, `RagSourceSynchronizer`, `LocalHnswWissensspeicher`, `RagRuntimeService` |
+| **rag** | Sicherer Quellscanning, Extraktion, Chunking, Embeddings, Vektor-Speicher, Synchronisation und begrenztes Abrufen | `RagSourceScanner`, `RagSourceSynchronizer`, `LocalHnswStore`, `RagRuntimeService` |
 | **ui** | JavaFX-Benutzeroberfläche, Dialoge, Terminalansichten, SFTP-Manager | `TerminalView`, `TerminalTab`, `ConnectionEditDialog`, `SFTPManagerDialog`, `SnippetEditDialog` |
 | **Modell** | Domänenobjekte für Verbindungen, Anmeldeinformationen, Snippets, Jobs | `ServerConnection`, `StoredCredential`, `Snippet`, `JobSchedule` |
 | **Jobscheduler** | Hintergrundjobplanung und -ausführung | `JobSchedulerService`, `JobSchedulerJobRunner`, `JobJournalEntry` |
@@ -42,7 +42,7 @@ KorTTY ist in verschiedene Funktionsmodule unterteilt. Das folgende Diagramm gru
 | **jmx** | Überwachung der Java-Verwaltungserweiterungen | `SSHClientMonitor`, `SSHClientMonitorMBean` |
 | **Update** | Versionsprüfung und Update-Benachrichtigungen | Update-Dienst und Versionsmetadaten |
 
-## SithTermFX Terminal Engine
+## SithTermFX Terminal-Engine
 
 KorTTY verwendet **SithTermFX 1.2.2** als primären Terminalemulator, der während des Erstellungsprozesses aus dem Quellcode erstellt wird. SithTermFX bietet:
 
@@ -153,7 +153,7 @@ KorTTY speichert seine Hauptkonfiguration, Anmeldeinformationen und Sitzungsstat
 | **Komponente** | **Verantwortung** |
 |---|---|
 | `JobScheduler` | Hauptplanerdienst; verwaltet geplante Jobs und die Ausführungswarteschlange |
-| `JobExecutor` | Führt einzelne Jobs aus (SSH-Befehl, Skript, AI-Agent, SFTP, Rsync) |
+| `JobExecutor` | Führt einzelne Jobs aus (SSH-Befehl, Skript, KI-Agent, SFTP, Rsync) |
 | `JobJournal` | Persistentes Prüfprotokoll mit Schwärzungsunterstützung und automatischer Bereinigung (Standard 14 Tage) |
 
 ## UI-Modulorganisation
@@ -168,7 +168,7 @@ Die UI-Ebene basiert auf JavaFX und ist in logische Komponenten unterteilt:
 | `SFTPManagerDialog` | Dual-Panel-Dateimanager für lokale und Remote-Dateioperationen |
 | `SnippetEditor` | Monaco-basierter Code-Editor mit Syntaxhervorhebung, KI-Unterstützung und Mermaid-Flussdiagrammen |
 | `LocalModelManagerPane` | Sucht/lädt/importiert GGUF-Dateien und steuert gleichzeitige llama.cpp-Sidecars |
-| `RagKnowledgeWissensspeicherPane` | Erstellt Wissensspeicher, zeigt Quellen in der Vorschau an, zeigt den Status der dauerhaften Indizierung an, synchronisiert sie und führt Abruftests durch |
+| `RagKnowledgeStorePane` | Erstellt Wissensspeicher, zeigt Quellenvorschau an, zeigt den persistierten Indexzustand an, synchronisiert sie und führt Abfragen zur Wiederfindung durch |
 | `JobSchedulerDialog` | Joberstellung, Planung und Journalprüfung |
 | `QuickConnectDialog` | Schnelle Verbindungssuche und häufig verwendete Verbindungsverknüpfungen |
 
@@ -197,7 +197,7 @@ Die UI-Ebene basiert auf JavaFX und ist in logische Komponenten unterteilt:
 
 - Jeder eingebettete Modellprozess bindet nur an `127.0.0.1` an einem zufälligen Port und erfordert einen generierten API-Schlüssel, der in einer temporären Datei nur für Besitzer gespeichert ist.
 - Der feste Startbefehl llama.cpp aktiviert den Offline-Modus und deaktiviert die Web-Benutzeroberfläche, den Agenten, den UI-MCP-Proxy und den Slot-Endpunkt. Die geerbten Token-Variablen `LLAMA_ARG_*` und Hugging Face wurden entfernt.
-- Hugging Face-Tokens und AI-Profil-API-Schlüssel werden mit dem Master-Passwort verschlüsselt. Modelldownloads werden an eine unveränderliche Revision angeheftet und mit SHA-256 überprüft.
+- Hugging Face-Tokens und KI-Profil-API-Schlüssel werden mit dem Master-Passwort verschlüsselt. Modelldownloads werden an eine unveränderliche Revision angeheftet und mit SHA-256 überprüft.
 - RAG akzeptiert nur zentral zugelassenen, inhaltsvalidierten Text. Abgerufene Auszüge werden als explizit nicht vertrauenswürdige Daten begrenzt und verpackt, sodass indizierte Anweisungen den System-/Aktionsvertrag von korTTY nicht ersetzen können.
 - Runtime-Update-Indizes werden mit Ed25519 als exakte Bytes überprüft, bevor Paket-URLs analysiert werden; Pakete verfügen außerdem über signierte Größen-/SHA-256-Metadaten und sichere ZIP-Extraktionsbeschränkungen.
 - Runtime-Entnahmen werden vor dem Herunterfahren des Prozesses durch eine Runtime-Root-Denylist plus Paketmarkierung beibehalten. Aktive Zeiger und unsichere Rollback-Verlaufseinträge werden entfernt, registrierte Modelle werden an eine nicht ausführbare Quarantänemarkierung zurückgebunden und der Startpfad überprüft die Markierung erneut, sodass ein veralteter Registrierungsstatus eine zurückgezogene Binärdatei nicht wiederbeleben kann.
@@ -245,7 +245,7 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 | **Daten** | Jakarta XML Bind | 4.0.5 (jaxb-runtime 4.0.9) | JAXB-Serialisierung |
 | | Gson | 2.14.0 | JSON-Analyse |
 | | zip4j | 2.11.6 | ZIP-Verschlüsselung |
-| | jtokkit | 1.1.0 | Tokenzählung für AI-Anfragen |
+| | jtokkit | 1.1.0 | Tokenzählung für KI-Anfragen |
 | | PDFBox | 3.0.8 | PDF-Export und RAG-Textextraktion |
 | **Archiv** | Apache Commons Compress | 1.28.0 | TAR, BZ2, XZ-Unterstützung |
 | | Tukaani xz | 1.12 | XZ-Komprimierung |
@@ -254,7 +254,7 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 | | AtlantaFX Base | 2.1.0 | Sieben wählbare Primer-, Nord-, Cupertino- und Dracula-JavaFX-Benutzeragententhemen; seine transitive OpenJFX-Abhängigkeit ist ausgeschlossen |
 | | Monaco-Editor | 0.56.0 | Code-Editor-Komponente |
 | | Mermaid | 12.0.0 | Lokale Diagrammanalyse, SVG-Rendering und PNG-Rasterisierung |
-| | MathJax | 3.2.2 | Lokales AI-Chat-Formel-Rendering |
+| | MathJax | 3.2.2 | Lokales KI-Chat-Formel-Rendering |
 | | google-java-format | 1.36.1 | Java-Codeformatierung |
 | **Dienstprogramme** | jfiglet | 0.0.9 | ASCII-Art-Banner |
 | | zxcvbn | 1.9.0 | Passwortstärke (offline) |
@@ -309,7 +309,7 @@ Terminal Pane (SithTermFX rendering)
 Dashboard (status display, job monitor)
 ```
 
-### AI-Integrationsablauf
+### KI-Integrationsablauf
 
 ```
 Selected Terminal Text
@@ -356,8 +356,8 @@ Menu-bar status displays next runs / live countdown
 - **SSH-Sitzungsthreads**: Ein Thread pro aktiver SSH-Verbindung (Apache SSHD-Pool)
 - **Split-Connection-Handshake**: Gleiche Server- und neu ausgewählte Split-Verbindungen führen die Netzwerkeinrichtung auf einem Worker durch, während ein JavaFX-Fortschrittsdialog dafür sorgt, dass Host-Tasten und interaktive Tastatureingabeaufforderungen reagieren.
 - **Job Executor Threads**: Hintergrund-Thread-Pool für die JobScheduler-Ausführung
-- **AI-Chat-Threads**: Hintergrundthreads für API-Anfragen (nicht blockierende Benutzeroberfläche)
-- **AI-Katalogaktualisierung**: Der erste Katalogkonsument erhält sofort verifizierte Cache-/Bootstrap-Daten und startet höchstens eine Hintergrundaktualisierung über den stabilen Kanal.
+- **KI-Chat-Threads**: Hintergrundthreads für API-Anfragen (nicht blockierende Benutzeroberfläche)
+- **KI-Katalogaktualisierung**: Der erste Katalogkonsument erhält sofort verifizierte Cache-/Bootstrap-Daten und startet höchstens eine Hintergrundaktualisierung über den stabilen Kanal.
 - **Bereitstellung lokaler Modelle**: Metadatenprüfung durch Setup-Assistent, signierte Laufzeitinstallation, fortsetzbarer GGUF-Download/-Überprüfung, Registrierung und echte Chat-/Einbettungstests, die auf Hintergrund-Futures ausgeführt werden; JavaFX erhält nur Fortschritts- und Endzustandsaktualisierungen. Text-/Codierungs-/RAG-Zuweisungen bleiben bestehen, nachdem jedes ausgewählte Modell bestanden wurde.
 - **llama.cpp-Sidecars**: Ein nativer Prozess pro kompatibler geladener GGUF-Konfiguration; Verschiedene Modelle können gleichzeitig geladen und generiert werden, während Leases verhindern, dass aktive Anforderungen gestoppt werden. Die Laufzeitkonfiguration speichert die erste Anforderung eines Leerlaufstopps und wird abgelehnt, während eine Lease beschäftigt ist.
 - **RAG-Worker**: Quellvorschauen, Extraktion, Einbettungsbatches und HNSW-Kandidaten-Builds werden außerhalb des JavaFX-Threads ausgeführt; Ein Daemon-WatchService-Thread entprellt automatische Quelländerungen. Der Bereich lässt nur einen aktiven Scan-/Indexvorgang zu und gibt die überprüfte Vorschau vor Konfigurations- oder Indexierungsänderungen an JavaFX zurück.
@@ -372,7 +372,7 @@ Menu-bar status displays next runs / live countdown
 
 1. **Terminale Auswirkungen**: `TerminalEffectPlugin` implementieren und über `ServiceLoader` registrieren (siehe `TERMINAL_EFFECT_PLUGINS.adoc`)
 2. **Benutzerdefinierte Formatierer**: Unterstützung für neue Sprachen im Snippet-Editor hinzugefügt
-3. **KI-Skills**: Importieren Sie benutzerdefinierte KI-Befehlssätze über `AI → KI-Manager → AI Skills`
+3. **KI-Skills**: Importieren Sie benutzerdefinierte KI-Auflistungen über `AI → KI-Manager → AI Skills`
 
 ### Für Integratoren
 
@@ -394,5 +394,5 @@ Menu-bar status displays next runs / live countdown
 2. **SSH-Schlüssel**: Zur Einbindung von Backups in `~/.kortty/ssh-keys/` speichern; Passphrasen werden in `ssh-keys.xml` verschlüsselt und das AES-256/GPG-verschlüsselte Backup enthält die Schlüsseldateien
 3. **Hostschlüsselüberprüfung**: Überprüfen Sie den OpenSSH SHA-256-Fingerabdruck, bevor Sie eine interaktive Aufforderung zur ersten Verwendung akzeptieren. Halten Sie die Hostschlüssel-Anheftung für die unbeaufsichtigte JobScheduler-Ausführung aktiviert
 4. **Backup-Verschlüsselung**: Verwenden Sie passwortgeschützte ZIP- oder GPG-Verschlüsselung
-5. **AI-Profile**: Bevorzugen Sie ein integriertes lokales GGUF-Modell für sensible Daten; Überprüfen Sie die Vertrauens- und Datenrichtlinie jedes Remote-Endpunkts
+5. **KI-Profile**: Bevorzugen Sie ein integriertes lokales GGUF-Modell für sensible Daten; Überprüfen Sie die Vertrauens- und Datenrichtlinie jedes Remote-Endpunkts
 6. **Protokollierungsgeheimnisse vermeiden**: Das JobScheduler-Journal schwärzt gespeicherte Geheimnisse vor der Persistenz

@@ -312,7 +312,7 @@
         <a href="settings/ai-skills.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            KI-Fähigkeiten
+            KI-Skills
         </a>
     </li>
                     
@@ -788,8 +788,8 @@
 </tr>
 <tr>
 <td><strong>rag</strong></td>
-<td>Sicheres Scannen, Extrahieren, Chunking, Einbetten, Vektorspeicherung, Synchronisierung und begrenztes Abrufen von Quellen</td>
-<td><code>RagSourceScanner</code>, <code>RagSourceSynchronizer</code>, <code>LocalHnswWissensspeicher</code>, <code>RagRuntimeService</code></td>
+<td>Sicherer Quellscanning, Extraktion, Chunking, Embeddings, Vektor-Speicher, Synchronisation und begrenztes Abrufen</td>
+<td><code>RagSourceScanner</code>, <code>RagSourceSynchronizer</code>, <code>LocalHnswStore</code>, <code>RagRuntimeService</code></td>
 </tr>
 <tr>
 <td><strong>ui</strong></td>
@@ -858,7 +858,7 @@
 </tr>
 </tbody>
 </table>
-<h2 id="sithtermfx-terminal-engine">SithTermFX Terminal Engine<a class="headerlink" href="#sithtermfx-terminal-engine" title="Permanent link">&para;</a></h2>
+<h2 id="sithtermfx-terminal-engine">SithTermFX Terminal-Engine<a class="headerlink" href="#sithtermfx-terminal-engine" title="Permanent link">&para;</a></h2>
 <p>KorTTY verwendet <strong>SithTermFX 1.2.2</strong> als primären Terminalemulator, der während des Erstellungsprozesses aus dem Quellcode erstellt wird. SithTermFX bietet:</p>
 <ul>
 <li><strong>Terminalemulation</strong>: VT100/xterm-kompatibles Terminal-Rendering, unterstützt durch ein benutzerdefiniertes JavaFX-Steuerelement</li>
@@ -1024,7 +1024,7 @@
 </tr>
 <tr>
 <td><code>JobExecutor</code></td>
-<td>Führt einzelne Jobs aus (SSH-Befehl, Skript, AI-Agent, SFTP, Rsync)</td>
+<td>Führt einzelne Jobs aus (SSH-Befehl, Skript, KI-Agent, SFTP, Rsync)</td>
 </tr>
 <tr>
 <td><code>JobJournal</code></td>
@@ -1067,8 +1067,8 @@
 <td>Sucht/lädt/importiert GGUF-Dateien und steuert gleichzeitige llama.cpp-Sidecars</td>
 </tr>
 <tr>
-<td><code>RagKnowledgeWissensspeicherPane</code></td>
-<td>Erstellt Wissensspeicher, zeigt Quellen in der Vorschau an, zeigt den Status der dauerhaften Indizierung an, synchronisiert sie und führt Abruftests durch</td>
+<td><code>RagKnowledgeStorePane</code></td>
+<td>Erstellt Wissensspeicher, zeigt Quellenvorschau an, zeigt den persistierten Indexzustand an, synchronisiert sie und führt Abfragen zur Wiederfindung durch</td>
 </tr>
 <tr>
 <td><code>JobSchedulerDialog</code></td>
@@ -1104,7 +1104,7 @@
 <ul>
 <li>Jeder eingebettete Modellprozess bindet nur an <code>127.0.0.1</code> an einem zufälligen Port und erfordert einen generierten API-Schlüssel, der in einer temporären Datei nur für Besitzer gespeichert ist.</li>
 <li>Der feste Startbefehl llama.cpp aktiviert den Offline-Modus und deaktiviert die Web-Benutzeroberfläche, den Agenten, den UI-MCP-Proxy und den Slot-Endpunkt. Die geerbten Token-Variablen <code>LLAMA_ARG_*</code> und Hugging Face wurden entfernt.</li>
-<li>Hugging Face-Tokens und AI-Profil-API-Schlüssel werden mit dem Master-Passwort verschlüsselt. Modelldownloads werden an eine unveränderliche Revision angeheftet und mit SHA-256 überprüft.</li>
+<li>Hugging Face-Tokens und KI-Profil-API-Schlüssel werden mit dem Master-Passwort verschlüsselt. Modelldownloads werden an eine unveränderliche Revision angeheftet und mit SHA-256 überprüft.</li>
 <li>RAG akzeptiert nur zentral zugelassenen, inhaltsvalidierten Text. Abgerufene Auszüge werden als explizit nicht vertrauenswürdige Daten begrenzt und verpackt, sodass indizierte Anweisungen den System-/Aktionsvertrag von korTTY nicht ersetzen können.</li>
 <li>Runtime-Update-Indizes werden mit Ed25519 als exakte Bytes überprüft, bevor Paket-URLs analysiert werden; Pakete verfügen außerdem über signierte Größen-/SHA-256-Metadaten und sichere ZIP-Extraktionsbeschränkungen.</li>
 <li>Runtime-Entnahmen werden vor dem Herunterfahren des Prozesses durch eine Runtime-Root-Denylist plus Paketmarkierung beibehalten. Aktive Zeiger und unsichere Rollback-Verlaufseinträge werden entfernt, registrierte Modelle werden an eine nicht ausführbare Quarantänemarkierung zurückgebunden und der Startpfad überprüft die Markierung erneut, sodass ein veralteter Registrierungsstatus eine zurückgezogene Binärdatei nicht wiederbeleben kann.</li>
@@ -1224,7 +1224,7 @@
 <td></td>
 <td>jtokkit</td>
 <td>1.1.0</td>
-<td>Tokenzählung für AI-Anfragen</td>
+<td>Tokenzählung für KI-Anfragen</td>
 </tr>
 <tr>
 <td></td>
@@ -1278,7 +1278,7 @@
 <td></td>
 <td>MathJax</td>
 <td>3.2.2</td>
-<td>Lokales AI-Chat-Formel-Rendering</td>
+<td>Lokales KI-Chat-Formel-Rendering</td>
 </tr>
 <tr>
 <td></td>
@@ -1360,7 +1360,7 @@
 </span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    ↓
 </span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>Dashboard (status display, job monitor)
 </span></code></pre></div>
-<h3 id="ai-integrationsablauf">AI-Integrationsablauf<a class="headerlink" href="#ai-integrationsablauf" title="Permanent link">&para;</a></h3>
+<h3 id="ki-integrationsablauf">KI-Integrationsablauf<a class="headerlink" href="#ki-integrationsablauf" title="Permanent link">&para;</a></h3>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Selected Terminal Text
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    ↓
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>AI Action + deterministic Text/Coding role
@@ -1401,8 +1401,8 @@
 <li><strong>SSH-Sitzungsthreads</strong>: Ein Thread pro aktiver SSH-Verbindung (Apache SSHD-Pool)</li>
 <li><strong>Split-Connection-Handshake</strong>: Gleiche Server- und neu ausgewählte Split-Verbindungen führen die Netzwerkeinrichtung auf einem Worker durch, während ein JavaFX-Fortschrittsdialog dafür sorgt, dass Host-Tasten und interaktive Tastatureingabeaufforderungen reagieren.</li>
 <li><strong>Job Executor Threads</strong>: Hintergrund-Thread-Pool für die JobScheduler-Ausführung</li>
-<li><strong>AI-Chat-Threads</strong>: Hintergrundthreads für API-Anfragen (nicht blockierende Benutzeroberfläche)</li>
-<li><strong>AI-Katalogaktualisierung</strong>: Der erste Katalogkonsument erhält sofort verifizierte Cache-/Bootstrap-Daten und startet höchstens eine Hintergrundaktualisierung über den stabilen Kanal.</li>
+<li><strong>KI-Chat-Threads</strong>: Hintergrundthreads für API-Anfragen (nicht blockierende Benutzeroberfläche)</li>
+<li><strong>KI-Katalogaktualisierung</strong>: Der erste Katalogkonsument erhält sofort verifizierte Cache-/Bootstrap-Daten und startet höchstens eine Hintergrundaktualisierung über den stabilen Kanal.</li>
 <li><strong>Bereitstellung lokaler Modelle</strong>: Metadatenprüfung durch Setup-Assistent, signierte Laufzeitinstallation, fortsetzbarer GGUF-Download/-Überprüfung, Registrierung und echte Chat-/Einbettungstests, die auf Hintergrund-Futures ausgeführt werden; JavaFX erhält nur Fortschritts- und Endzustandsaktualisierungen. Text-/Codierungs-/RAG-Zuweisungen bleiben bestehen, nachdem jedes ausgewählte Modell bestanden wurde.</li>
 <li><strong>llama.cpp-Sidecars</strong>: Ein nativer Prozess pro kompatibler geladener GGUF-Konfiguration; Verschiedene Modelle können gleichzeitig geladen und generiert werden, während Leases verhindern, dass aktive Anforderungen gestoppt werden. Die Laufzeitkonfiguration speichert die erste Anforderung eines Leerlaufstopps und wird abgelehnt, während eine Lease beschäftigt ist.</li>
 <li><strong>RAG-Worker</strong>: Quellvorschauen, Extraktion, Einbettungsbatches und HNSW-Kandidaten-Builds werden außerhalb des JavaFX-Threads ausgeführt; Ein Daemon-WatchService-Thread entprellt automatische Quelländerungen. Der Bereich lässt nur einen aktiven Scan-/Indexvorgang zu und gibt die überprüfte Vorschau vor Konfigurations- oder Indexierungsänderungen an JavaFX zurück.</li>
@@ -1416,7 +1416,7 @@
 <ol>
 <li><strong>Terminale Auswirkungen</strong>: <code>TerminalEffectPlugin</code> implementieren und über <code>ServiceLoader</code> registrieren (siehe <code>TERMINAL_EFFECT_PLUGINS.adoc</code>)</li>
 <li><strong>Benutzerdefinierte Formatierer</strong>: Unterstützung für neue Sprachen im Snippet-Editor hinzugefügt</li>
-<li><strong>KI-Skills</strong>: Importieren Sie benutzerdefinierte KI-Befehlssätze über <code>AI → KI-Manager → AI Skills</code></li>
+<li><strong>KI-Skills</strong>: Importieren Sie benutzerdefinierte KI-Auflistungen über <code>AI → KI-Manager → AI Skills</code></li>
 </ol>
 <h3 id="fur-integratoren">Für Integratoren<a class="headerlink" href="#fur-integratoren" title="Permanent link">&para;</a></h3>
 <ol>
@@ -1438,7 +1438,7 @@
 <li><strong>SSH-Schlüssel</strong>: Zur Einbindung von Backups in <code>~/.kortty/ssh-keys/</code> speichern; Passphrasen werden in <code>ssh-keys.xml</code> verschlüsselt und das AES-256/GPG-verschlüsselte Backup enthält die Schlüsseldateien</li>
 <li><strong>Hostschlüsselüberprüfung</strong>: Überprüfen Sie den OpenSSH SHA-256-Fingerabdruck, bevor Sie eine interaktive Aufforderung zur ersten Verwendung akzeptieren. Halten Sie die Hostschlüssel-Anheftung für die unbeaufsichtigte JobScheduler-Ausführung aktiviert</li>
 <li><strong>Backup-Verschlüsselung</strong>: Verwenden Sie passwortgeschützte ZIP- oder GPG-Verschlüsselung</li>
-<li><strong>AI-Profile</strong>: Bevorzugen Sie ein integriertes lokales GGUF-Modell für sensible Daten; Überprüfen Sie die Vertrauens- und Datenrichtlinie jedes Remote-Endpunkts</li>
+<li><strong>KI-Profile</strong>: Bevorzugen Sie ein integriertes lokales GGUF-Modell für sensible Daten; Überprüfen Sie die Vertrauens- und Datenrichtlinie jedes Remote-Endpunkts</li>
 <li><strong>Protokollierungsgeheimnisse vermeiden</strong>: Das JobScheduler-Journal schwärzt gespeicherte Geheimnisse vor der Persistenz</li>
 </ol></p>
     </article>

@@ -60,7 +60,7 @@ Die Zoom-Tasten (++ctrl++ oder ++alt++ mit ++plus++ / ++minus++ / ++0++; ++cmd++
 
 ## Snippet-Manager
 
-Diese Tasten funktionieren im Snippet-Manager (Bibliothek und Editor-Tabs); Siehe [Öffnen des Snippet-Managers](../features/snippets.md#offnen-des-snippet-managers).
+Diese Tastenkombinationen funktionieren im Snippet-Manager (Bibliotheks- und Bearbeitungs-Tab); siehe [Das Öffnen des Snippet-Managers](../features/snippets.md#offnen-des-snippet-managers).
 
 | Verknüpfung | Aktion |
 | --- | --- |
@@ -79,7 +79,7 @@ Wenn der Fokus auf dem eigenen Tab-Header des Snippet-Managers im Hauptfenster (
 
 ## Snippet-Editor
 
-Diese Tasten funktionieren im Codefeld des Snippet-Editors; Siehe [KI-Code-Vervollständigungen](../features/snippets.md#ai-codevervollstandigungen).
+Diese Tastenkombinationen funktionieren im Code-Feld des Snippet-Editors; siehe [KI-Code-Vervollständigungen](../features/snippets.md#ai-codevervollstandigungen).
 
 | Verknüpfung | Aktion |
 | --- | --- |
@@ -88,17 +88,18 @@ Diese Tasten funktionieren im Codefeld des Snippet-Editors; Siehe [KI-Code-Vervo
 | ++up++ / ++down++ (Liste offen) | Verschieben Sie die Auswahl. Durch die Eingabe wird die Liste gefiltert |
 | ++tab++ oder ++enter++ (Liste offen) | Den ausgewählten Eintrag einfügen |
 | ++esc++ | Schließen Sie die Liste oder verwerfen Sie Geistertext |
-| ++esc++ (eine KI-Anfrage läuft) | Stoppen Sie die laufende KI-Anfrage dieses Editors — eine KI-Code-Aktion, die Vollständige Code-Analyse oder deren Anwendung, ein Diagramm; funktioniert im gesamten Editor und seinem Analysefenster, schließt den Editor nie (Siehe [Anhalten und erneutes Ausführen von KI-Anfragen](../features/snippets.md#stoppen-und-erneutes-ausfuhren-von-ki-anfragen)) |
+| ++esc++ (eine KI-Anfrage wird ausgeführt) | Die laufende KI-Anfrage dieses Editors beenden — eine KI-Code-Aktion, die Vollständige Code-Analyse oder deren Anwenden, ein Diagramm; funktioniert im gesamten Editor und in seinem Analysepanel, schließt den Editor nie (siehe [Beenden und erneut starten von KI-Anfragen](../features/snippets.md#stoppen-und-erneutes-ausfuhren-von-ki-anfragen)) |
+| ++enter++ (Neue Analyse-Bereich des Analysepanels) | Starte die Vollständige Code-Analyse mit dem gewählten KI-Profil (siehe [Wahl des KI-Profil vor der Analyse](../features/snippets.md#das-ki-profil-vor-der-analyse-auswahlen)) |
 | ++tab++ (Geistertext sichtbar) | Akzeptieren Sie den Geistertext |
 | ++alt+bracket-right++ / ++alt+bracket-left++ (Geistertext sichtbar) | Nächster/vorheriger Ghosttext-Kandidat (physisch `]` Und `[` Tasten eines US-Layouts) |
 | ++tab++ (in einer eingefügten Redewendungsvorlage) | Zum nächsten Platzhalter springen |
 | ++shift+tab++ (an jedem anderen Ort oder wenn eine andere Kombination konfiguriert ist) | Die Zeile wie zuvor einrücken |
-| ++ctrl+enter++ (Änderungsüberprüfung angezeigt) | **Übernehmen & anwenden** die geprüfte KI-Änderung (siehe [Überprüfung einer KI-Änderung](../features/snippets.md#uberprufung-einer-ki-anderung)); ++esc++ tut dort nichts |
+| ++ctrl+enter++ (Änderungserfassung angezeigt ändern) | **Übernehmen & anwenden** die überprüfte KI-Änderung (siehe [Die Überprüfung einer KI-Änderung](../features/snippets.md#uberprufung-einer-ki-anderung)); ++esc++ erfüllt dort nichts |
 | ++ctrl+plus++ / ++ctrl+minus++ (gezeigte Änderungsüberprüfung) | Zoomen Sie die Schriftgröße des Code-Reviews |
 
 ## Diagramm-Zoomfenster
 
-Diese Tasten funktionieren im Zoomfenster des Vollständigen Code-Analyse-Flussdiagramms; Siehe [Vollständige Code-Analyse](../features/snippets.md#vollstandige-code-analyse).
+Diese Tastenkombinationen funktionieren im Zoom-Fenster des Diagramms für die Vollständige Code-Analyse; siehe [Vollständige Code-Analyse](../features/snippets.md#vollstandige-code-analyse).
 
 | Verknüpfung | Aktion |
 | --- | --- |

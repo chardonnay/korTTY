@@ -139,7 +139,7 @@ flatpak-builder --user --force-clean --disable-rofiles-fuse --repo=build/flatpak
 flatpak build-bundle --arch="$(flatpak --default-arch)" build/flatpak-repo "build/jpackage/kortty-Linux-<version>-$(flatpak --default-arch).flatpak" io.github.chardonnay.korTTY stable
 ```
 
-Das Paket gewährt Netzwerk-, X11-, Audio-, GPU- und Host-Dateisystemzugriff, da ein SSH-Terminal-Client Remote-Hosts erreichen, JavaFX/WebView rendern, Terminalmedien verwenden und explizit ausgewählte Hostdateien bearbeiten muss. Es gewährt auch Zugriff auf `org.freedesktop.Flatpak`; Lokale Shells und ihre AI-Agent-Befehle werden über `flatpak-spawn --host` auf dem Host gestartet. Validieren Sie ein lokales Bundle, indem Sie es installieren, seine Architektur überprüfen und den gepackten WebView Smoke ausführen:
+Das Paket gewährt Netzwerk-, X11-, Audio-, GPU- und Host-Dateisystemzugriff, da ein SSH-Terminal-Client Remote-Hosts erreichen, JavaFX/WebView rendern, Terminalmedien verwenden und explizit ausgewählte Hostdateien bearbeiten muss. Es gewährt auch Zugriff auf `org.freedesktop.Flatpak`; Lokale Shells und ihre KI-Agent-Befehle werden über `flatpak-spawn --host` auf dem Host gestartet. Validieren Sie ein lokales Bundle, indem Sie es installieren, seine Architektur überprüfen und den gepackten WebView Smoke ausführen:
 
 ```bash
 flatpak install --user ./build/jpackage/kortty-Linux-<version>-<architecture>.flatpak

@@ -1754,6 +1754,270 @@
       "to": "**Zweck:** Eine Datei",
       "scope": "markdown",
       "note": "config-files labels every entry **Zweck:** (Purpose)."
+    },
+    {
+      "from": "den Panel",
+      "to": "das Panel",
+      "scope": "markdown",
+      "note": "Panel is neuter in the guide (das Panel); the small model writes den/der Panel."
+    },
+    {
+      "from": "der Panel ",
+      "to": "das Panel ",
+      "scope": "markdown",
+      "note": "Panel is neuter (das Panel)."
+    },
+    {
+      "from": "Der Panel ",
+      "to": "Das Panel ",
+      "scope": "markdown",
+      "note": "Panel is neuter (das Panel)."
+    },
+    {
+      "from": "Schatz",
+      "to": "Tresor",
+      "scope": "markdown",
+      "note": "LLM renders 'vault' as Schatz; the app says Tresor (Passwort-Tresor, Datentresor)."
+    },
+    {
+      "from": "Rechenschaft",
+      "to": "Argumentation",
+      "scope": "markdown",
+      "note": "LLM renders the reasoning-effort setting as Rechenschaft; the app label is Argumentation (settings.ai.reasoning)."
+    },
+    {
+      "from": "die Eintrag ",
+      "to": "der Eintrag ",
+      "scope": "markdown",
+      "note": "Eintrag is masculine."
+    },
+    {
+      "from": "Die Eintrag ",
+      "to": "Der Eintrag ",
+      "scope": "markdown",
+      "note": "Eintrag is masculine."
+    },
+    {
+      "from": "einen Snippet ",
+      "to": "ein Snippet ",
+      "scope": "markdown",
+      "note": "Snippet is neuter."
+    },
+    {
+      "from": "Einen Snippet ",
+      "to": "Ein Snippet ",
+      "scope": "markdown",
+      "note": "Snippet is neuter."
+    },
+    {
+      "from": "Der Terminal ",
+      "to": "Das Terminal ",
+      "scope": "markdown",
+      "note": "Terminal is neuter (das Terminal); compounds such as Terminal-KI-Agent are unaffected (they have a hyphen)."
+    },
+    {
+      "from": "der Terminal ",
+      "to": "das Terminal ",
+      "scope": "markdown",
+      "note": "Terminal is neuter (das Terminal)."
+    },
+    {
+      "from": "Ladet automatisch",
+      "to": "Lädt automatisch",
+      "scope": "markdown",
+      "note": "LLM imperative plural for a third-person description."
+    },
+    {
+      "from": "Sprachqualitätsfähigkeit",
+      "to": "Sprachqualitäts-Skill",
+      "scope": "markdown",
+      "note": "'skill' means KI-Skill in this guide."
+    },
+    {
+      "from": "Diagramm-Toolbar",
+      "to": "Diagramm-Symbolleiste",
+      "scope": "markdown",
+      "note": "Toolbar is Symbolleiste in the guide."
+    },
+    {
+      "from": "großes Flowchart",
+      "to": "großes Flussdiagramm",
+      "scope": "markdown",
+      "note": "Flowchart is Flussdiagramm/Ablaufdiagramm in German."
+    },
+    {
+      "from": "*AI → ",
+      "to": "*KI → ",
+      "scope": "markdown",
+      "note": "Top-level menu label is KI (menu.ai); the LLM keeps the English AI in italic menu paths."
+    },
+    {
+      "from": "nur verschlüsselt (nicht sicher verschlüsselt)",
+      "to": "nur verschleiert (nicht sicher verschlüsselt)",
+      "scope": "markdown",
+      "note": "EN 'obfuscated (not securely encrypted)': the LLM says verschlüsselt twice, which would claim the master password is encrypted. Security-relevant."
+    },
+    {
+      "from": "entsperrt das Schloss",
+      "to": "entsperrt den Tresor",
+      "scope": "markdown",
+      "note": "LLM renders vault as Schloss; the app says Tresor."
+    },
+    {
+      "from": "da das Schloss tatsächlich entsperrt wird",
+      "to": "da der Tresor tatsächlich entsperrt wird",
+      "scope": "markdown",
+      "note": "LLM renders vault as Schloss; the app says Tresor."
+    },
+    {
+      "from": "schließt den Snippet-Manager nie automatisch",
+      "to": "schließt den Snippet-Manager nie",
+      "scope": "markdown",
+      "note": "The English says Esc never closes the Snippet Manager; the LLM invented 'automatisch'."
+    },
+    {
+      "from": "Nichts Ungespeicherte ist verloren",
+      "to": "Nichts Ungespeichertes geht verloren",
+      "scope": "markdown",
+      "note": "Grammar of the 'Nothing unsaved is lost' bullet."
+    },
+    {
+      "from": ")Es füllt ein neues Job mit den aktuellen Zielen, Prompt, KI-Profil und dem Lesebereich des Tabs vor.",
+      "to": "): Sie füllt einen neuen Job mit den aktuellen Zielen, dem Prompt, dem KI-Profil und der Schreibschutz-Einstellung des Tabs vor.",
+      "scope": "markdown",
+      "note": "LLM glued the link to the next sentence, wrote Job with the wrong gender and rendered 'read-only setting' as Lesebereich (jobscheduler.md)."
+    },
+    {
+      "from": "Lassen Sie die KI den Journal titeln, sobald die Sitzung beendet ist",
+      "to": "Journal-Titel zum Abschluss von der KI vergeben lassen",
+      "scope": "markdown",
+      "note": "UI label journal.options.aiTitle."
+    },
+    {
+      "from": "ein letzter AI-Aufruf den Journal titeln",
+      "to": "ein letzter KI-Aufruf den Journal-Titel vergeben",
+      "scope": "markdown",
+      "note": "Follows the aiTitle label above."
+    },
+    {
+      "from": "AI-",
+      "to": "KI-",
+      "scope": "markdown",
+      "note": "German UI and guide use KI; the LLM leaves compound AI-... English."
+    },
+    {
+      "from": "Ein ausgewähltes Datei an das Chat-Verlauf angehängt",
+      "to": "Eine ausgewählte Datei an den Chat anhängen",
+      "scope": "markdown",
+      "note": "Heading of 'Attaching a selected file to the chat' (ai-assistant.md); the LLM garbled gender and case. The release notes and the terminal page link to it."
+    },
+    {
+      "from": "- **Lesen** — Quellen als schreibgeschützt markieren, um versehentliche Schreibvorgänge zurückzuführen.",
+      "to": "- **Schreibgeschützter Modus** — Quellen als schreibgeschützt markieren, um versehentliches Zurückschreiben zu verhindern.",
+      "scope": "markdown",
+      "note": "teamwork.md: the LLM dropped the bold label 'Read-only mode' and inverted 'prevent accidental writes back'."
+    },
+    {
+      "from": "enterprise-Politik",
+      "to": "Unternehmensrichtlinie",
+      "scope": "markdown",
+      "note": "'enterprise policy' is Unternehmensrichtlinie in the guide (anchor #unternehmensrichtlinie)."
+    },
+    {
+      "from": "Sitzungstagesbuch",
+      "to": "Sitzungsjournal",
+      "scope": "markdown",
+      "note": "The feature is Sitzungsjournal (journal.manager.title)."
+    },
+    {
+      "from": "Volltextanalyse-Konfigurationen",
+      "to": "Vollständige Code-Analysen",
+      "scope": "markdown",
+      "note": "Wrong term for 'Full code analyses' (the feature name)."
+    },
+    {
+      "from": "wie tief der KI-Manager vor der Antwort denken muss",
+      "to": "wie gründlich die KI vor der Antwort nachdenkt",
+      "scope": "markdown",
+      "note": "Reasoning effort: the LLM turned 'the AI' into 'der KI-Manager'."
+    },
+    {
+      "from": "Legen Sie einen Ausgabesatz",
+      "to": "Legen Sie ein Ausgabenlimit",
+      "scope": "markdown",
+      "note": "'spending cap' is a Ausgabenlimit."
+    },
+    {
+      "from": "nach einem rückläufigen Zeitplan",
+      "to": "nach einem gleitenden Zeitplan",
+      "scope": "markdown",
+      "note": "'rolling schedule' is not 'rückläufig'."
+    },
+    {
+      "from": "das gleiche erinnerte Einstellung",
+      "to": "dieselbe gemerkte Einstellung",
+      "scope": "markdown",
+      "note": "Grammar and wording of 'the same remembered setting'."
+    },
+    {
+      "from": "Regelfile",
+      "to": "Regeldatei",
+      "scope": "markdown",
+      "note": "Anglicism."
+    },
+    {
+      "from": "Ausgabelines",
+      "to": "Ausgabezeilen",
+      "scope": "markdown",
+      "note": "Anglicism."
+    },
+    {
+      "from": "Die erste Auftretensweise",
+      "to": "Das erste Auftreten",
+      "scope": "markdown",
+      "note": "'first occurrence'."
+    },
+    {
+      "from": "– eingabedaten und geheime Informationen, die ausgelöscht wurden,",
+      "to": "– unterdrückte Eingaben und geschwärzte Geheimnisse",
+      "scope": "markdown",
+      "note": "session-journal.md: lower-case fragment, 'suppressed input and redacted secrets'."
+    },
+    {
+      "from": "vor ungeachteten Offenlegungen",
+      "to": "vor beiläufiger Offenlegung",
+      "scope": "markdown",
+      "note": "'casual disclosure' (enterprise-policy.md)."
+    },
+    {
+      "from": "der tatsächliche Sicherheitsgrenze",
+      "to": "die tatsächliche Sicherheitsgrenze",
+      "scope": "markdown",
+      "note": "Gender of Sicherheitsgrenze."
+    },
+    {
+      "from": "vom eingebetteten Programm (der `.dmg`/`.msi`/AppImage-Bau)",
+      "to": "von der paketierten App (dem `.dmg`-/`.msi`-/AppImage-Build)",
+      "scope": "markdown",
+      "note": "'packaged app' (resources.md)."
+    },
+    {
+      "from": "der Java-Runtime kann",
+      "to": "die Java-Laufzeit kann",
+      "scope": "markdown",
+      "note": "Runtime is Laufzeit in the guide."
+    },
+    {
+      "from": "Fähigkeiten wie Sprachqualitätsrichtlinien",
+      "to": "Skills wie Sprachqualitätsrichtlinien",
+      "scope": "markdown",
+      "note": "'Skills' means KI-Skills."
+    },
+    {
+      "from": "Loopback-`llama-server`-Vertrag dafür",
+      "to": "Loopback-`llama-server`-Zugriff (Lease) dafür",
+      "scope": "markdown",
+      "note": "'lease' is not a contract."
     }
   ]
 }

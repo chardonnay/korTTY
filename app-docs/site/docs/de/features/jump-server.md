@@ -2,7 +2,7 @@
 title: Jump-Server (Bastion Host)
 ---
 
-# Jump Server (Bastion Host)
+# Jump-Server (Bastion Host)
 
 Ein Jump-Server (Bastion-Host) fungiert als Zwischengateway, um Server in einem privaten Netzwerk zu erreichen. korTTY tunnelt die Verbindung über einen Jump-Server, sodass Sie von Ihrem lokalen Computer aus ein internes System erreichen können, ohne direkten Netzwerkzugriff darauf zu haben.
 
@@ -35,9 +35,9 @@ So konfigurieren Sie einen Jump-Server für eine Verbindung:
 
 ## Host-Schlüsselüberprüfung
 
-Der Host-Schlüssel des Jump-Servers wird bei der ersten Verwendung genau wie jeder andere Host überprüft: korTTY zeigt den SHA-256-Fingerabdruck des Schlüssels an, fordert Sie zur Bestätigung auf und heftet ihn dann fest. Bei späteren Verbindungen wird ein geänderter Jump-Server-Schlüssel abgelehnt, der gleiche Vertrauensschutz bei der ersten Verwendung erhält der Zielhost. Die Bastion wird immer streng überprüft: [Relaxing Host-Key-Überprüfung](security.md#lockere-uberprufung-des-hostschlussels) gilt nur für Zielhosts, niemals für den Jump Hop.
+Das Host-Key des Jump-Servers wird beim ersten Einsatz genau wie jedes andere Host-System überprüft: korTTY zeigt den SHA-256-Fingerprint des Schlüssels und bittet Sie, ihn zu bestätigen, danach wird er gespeichert. Bei späteren Verbindungen wird ein geändertes Host-Key des Jump-Servers abgelehnt, genauso wie die gleiche 'Trust-on-First-Use'-Sicherheit dem Ziel-Host gewährt wird. Der Bastion wird stets streng überprüft: [Die Entspannung der Host-Key-Überprüfung](security.md#lockere-uberprufung-des-hostschlussels) gilt ausschließlich für Ziel-Hosts und wird nie für den Jump-Hop angewendet.
 
-Dies gilt auch dann, wenn die Überprüfung des Hostschlüssels für das Ziel gelockert wurde: Die verbindungs-, gruppen- und globalen Opt-outs decken niemals die Bastion ab, sodass ihr Schlüssel immer streng überprüft wird. Siehe [Lockere Hostschlüsselüberprüfung](security.md#lockere-uberprufung-des-hostschlussels).
+Dies gilt auch dann, wenn die Host-Key-Überprüfung für das Ziel gelockt wurde: Die pro-Verbindung, pro-Gruppe und globale Ausnahmen betreffen den Bastion nie, sodass dessen Schlüssel stets streng überprüft wird. Siehe [Entspannung der Host-Key-Überprüfung](security.md#lockere-uberprufung-des-hostschlussels).
 
 Der Zielhost wird unter seinem eigenen Namen verifiziert, auch wenn der Transport durch den Tunnel erfolgt, sodass eine kompromittierte Bastion nicht unbemerkt einen anderen Zielhostschlüssel ersetzen kann.
 

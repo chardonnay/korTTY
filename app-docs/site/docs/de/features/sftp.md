@@ -2,7 +2,7 @@
 title: SFTP-Dateimanager
 ---
 
-# SFTP file manager
+#  Manager für SFTP-Dateien
 
 Der integrierte SFTP-Manager bietet einen grafischen Dateimanager zum Übertragen von Dateien zwischen Ihrem lokalen Computer und Remote-Servern über SFTP. Es verfügt über ein Dual-Panel-Layout, vollständige Unterstützung für Dateivorgänge und eine nahtlose Integration mit dem Snippet-Editor für die Fernbearbeitung von Dateien.
 
@@ -19,22 +19,22 @@ Wenn die Verbindung einen temporären SSH-Schlüssel verwendet, der abgelaufen i
 
 Der SFTP-Manager verwendet ein **Zwei-Panel-Layout** für eine einfache Dateiverwaltung nebeneinander:
 
-| Left Panel (Local) | Right Panel (Remote) |
+| Linker Bereich (lokale) | Rechter Bereich (fern) |
 |----|---|
-| Browse local files | Browse remote files |
-| Upload to remote | Download to local |
+| Lokale Dateien durchstöbern | Ferndateien durchstöbern |
+| Auf Remote-System hochladen | Auf lokales System herunterladen |
 
-### Sortable columns
+###  Sortierbare Spalten
 
-Both panels display the same columns, all of which are sortable by clicking the column header:
+Beide Paneele zeigen die gleichen Spalten an, von denen alle durch Klicken auf den Spaltenkopf sortierbar sind:
 
-| Column | Description |
+| Spalte | Beschreibung |
 |--------|---|
-| **Name** | File or directory name |
-| **Type** | Directory (📁) or file (📄) indicator |
-| **Size** | File size in human-readable format (directories show —) |
-| **Date** | Last modified date and time |
-| **User** | Owner name (local: from filesystem; remote: from SFTP or UID) |
+| **Name** | Datei oder Verzeichnisaname |
+| **Typ** | Verzeichnis (📁) oder Datei (📄) Hinweis |
+| **Größe** | Dateigröße in lesbarer Form (Verzeichnisse zeigen — an) |
+| **Datum** | Letzte Änderungsdatum und -zeit |
+| **Benutzer** | Eigentümername (lokale Umgebung: aus der Dateisystem; remote: aus SFTP oder UID) |
 | **Gruppe** | Gruppenname (lokal: vom Dateisystem; remote: von SFTP oder GID) |
 | **Berechtigungen** | Berechtigungen im Unix-Stil (z. B. `rwxr-xr-x`) |
 
@@ -50,9 +50,9 @@ Standardmäßig werden Dateien in der folgenden Reihenfolge nach der Spalte **Ty
 
 Klicken Sie auf eine beliebige Spaltenüberschrift, um nach dieser Spalte zu sortieren. Durch erneutes Klicken auf die Spalte „Typ“ wird zwischen aufsteigender und absteigender Reihenfolge umgeschaltet.
 
-## File operations
+## Dateioperationen
 
-The SFTP Manager supports a full range of file operations:
+Der SFTP-Manager unterstützt eine umfassende Palette an Dateioperationen:
 
 | Betrieb | Wie |
 |-----------|-----|
@@ -87,7 +87,7 @@ Die Dateimodus-Schaltflächen bieten folgende Speicheroptionen:
 
 - **Datei überschreiben** – schreibt den aktuellen Editorinhalt zurück in die ursprüngliche lokale oder Remote-Datei
 - **Speichern unter...** – schreibt eine neue lokale Datei über eine Dateiauswahl oder fordert für Remote-Dateien zur Eingabe eines neuen Dateinamens im selben Remote-Verzeichnis auf
-- **Als Snippet speichern** – speichert den aktuellen Inhalt als neues Snippet Manager-Snippet, ohne die Quelldatei als gespeichert zu markieren
+- **Als Snippet speichern** – speichert den aktuellen Inhalt als neues Snippet-Manager-Snippet, ohne die Quelldatei als gespeichert zu markieren
 
 ![SFTP dual-panel file manager](../assets/screenshots/sftp/sftp-manager.png)
 

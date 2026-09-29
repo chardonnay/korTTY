@@ -15,15 +15,15 @@ Despite the similar name, this is a different feature than [Hardening options](h
 
 ## Wo es erscheint
 
-Das **Input-Hardening**-Panel wird an den gleichen Stellen angezeigt wie das klassische Hardening-Panel sowie den AI-Swarm-Generator:
+Das **Input-Hardening**-Panel wird an den gleichen Stellen angezeigt wie das klassische Hardening-Panel sowie den KI-Swarm-Generator:
 
 | Wobei | angewendet wird, wenn |
 |-------|--------------|
 | **Terminal → Workflow-Skript generieren** (die Schaltfläche *Workflow* nach der Ausführung eines Agenten) | Sie klicken auf *Generieren* |
 | **AI Swarm → Multi-Server-Workflow generieren** | Sie generieren das Multi-Server-Skript |
-| **Snippet-Editor → AI-Code → Robustheit verbessern** | Sie bestätigen den Dialog |
-| **Snippet-Editor → AI-Code → Benutzerdefinierte Verbesserung…** | Sie bestätigen den Dialog |
-| **Snippet-Editor → AI-Code → Vollständige Code-Analyse** | Sie klicken auf *Auswahl übernehmen*; Jede aktivierte Schutzregel wird zu einer separat verfolgten verbindlichen Anforderung, und ein unvollständiger Ersatz wird vor der Überprüfung abgelehnt |
+| **Snippet-Editor → KI-Code → Robustheit verbessern** | Sie bestätigen den Dialog |
+| **Snippet-Editor → KI-Code → Benutzerdefinierte Verbesserung…** | Sie bestätigen den Dialog |
+| **Snippet-Editor → KI-Code → Vollständige Code-Analyse** | Sie klicken auf *Auswahl übernehmen*; Jede aktivierte Schutzregel wird zu einer separat verfolgten verbindlichen Anforderung, und ein unvollständiger Ersatz wird vor der Überprüfung abgelehnt |
 
 Im Gegensatz zu den klassischen Härtungsoptionen erfolgt die Eingabe-Härtung **ausschließlich per Opt-in**: Das Master-Kontrollkästchen wird deaktiviert und das Bedienfeld wird ausgeblendet, da der Wächter das Laufzeitverhalten des Skripts ändert – ein Skript, das zuvor Eingaben akzeptiert hat, beginnt, Eingaben abzulehnen, die gegen die Regeln verstoßen. Aktivieren Sie **Eingabe-Härtung (Skript-Eingaben validieren)**, um sie für die aktuelle Generierung oder Neuschreibung zu aktivieren.
 

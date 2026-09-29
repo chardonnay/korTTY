@@ -2,192 +2,196 @@
 title: KI
 ---
 
-# AI
+# KI
 
-Konfigurieren Sie AI-Profile und Terminal-AI-Agent-Einstellungen. Dies ist die größte Einstellungsregisterkarte und umfasst die Aktivierung von KI-Funktionen, Profile (mit Modell, API-Endpunkt, Verbindungsmodus und Reasoning-Ebenen), Token-Kontingentverwaltung, Snippet-Editor-Einstellungen und Internetzugangskonfiguration. Öffnen über **Konfiguration → Globale Einstellungen → AI**; in `~/.kortty/global-settings.xml` gespeichert.
+Konfigurieren von KI-Profilen und Einstellungen für den Terminal-KI-Agent. Dies ist die umfassendste Einstellungs-Option, die KI-Funktionen, Profil- (mit Modell, API-Endpunkt, Verbindungsmethode und Schlussfolgerungsebene), Token-Quotenverwaltung, Einstellungen für den Snippet-Editor und die Konfiguration des Internetzugangs umfasst. Öffnen Sie sie über **Konfiguration → Globale Einstellungen → KI**; gespeichert in `~/.kortty/global-settings.xml`.
 
 ![AI settings tab](../../assets/screenshots/settings/ai.png)
 
-## Core-Einstellungen
+## Kern-Einstellungen
 
-| Einstellung | Typ | Werte | Standard | Gespeichert als |
+| Einstellung | Typ | Werte | Standard | Speichert als |
 | --- | --- | --- | --- | --- |
-| KI-Funktionen aktivieren | umschalten | – | Ein | `aiFeaturesEnabled` |
-| Bestätigungsdialog vor dem Senden von AI-Anfragen anzeigen | umschalten | – | Ein | `aiConfirmBeforeSend` |
+| KI-Funktionen aktivieren | Schalter | — | Ein | `aiFeaturesEnabled` |
+| Bestätigungsdialog vor Absendung von KI-Anfragen anzeigen | Schalter | — | Ein | `aiConfirmBeforeSend` |
 
-## Terminal-KI-Agent
+## KI-Agent im Terminal
 
-| Einstellung | Typ | Werte | Standard | Gespeichert als |
+| Einstellung | Typ | Werte | Standard | Speichert als |
 | --- | --- | --- | --- | --- |
-| AI Agent-Ausführung aktivieren | umschalten | – | Ein | `terminalAgentExecutionEnabled` |
-| Fragen Sie nach, bevor AI Agent das Zielsystem ändert. | umschalten | – | Aus | `terminalAgentConfirmMutatingCommandSets` |
-| Verwenden Sie OSC 133-Eingabeaufforderungsmarkierungen, wenn die Shell sie bereits bereitstellt. | umschalten | – | Ein | `defaultPromptHookEnabled` |
-| Agent-Debug-Meldungen anzeigen | umschalten | – | Aus | `terminalAgentShowDebugMessages` |
-| Agent-Laufzeitmeldungen anzeigen | umschalten | – | Aus | `terminalAgentShowRuntimeMessages` |
-| Terminal-Agent-Setup-Dialogfeld vor jeder Ausführung anzeigen | umschalten | – | Ein | `terminalAgentShowRunDialog` |
-| Agentenbefehlsname | Text | – | Agent | `terminalAgentCommandName` |
-| Agentenbefehlsnamen ohne Berücksichtigung der Groß- und Kleinschreibung abgleichen | umschalten | – | Aus | `terminalAgentCommandNameCaseInsensitive` |
-| AI-Agent-Aufgabenziel | Dropdown-Liste | Terminalfenster, neues Chat-Fenster | Terminalfenster | `terminalAgentExecutionTarget` |
-| Größe des Eingabeverlaufs des Terminalagenten | Nummer | 5–100 | 20 | `terminalAgentInputHistorySize` |
+| KI-Agent-Ausführung aktivieren | Schalter | — | Ein | `terminalAgentExecutionEnabled` |
+| Frage vor der Änderung des Zielsystems durch den KI-Agent stellen | Schalter | — | Aus | `terminalAgentConfirmMutatingCommandSets` |
+| OSC 133-Prompt-Marker verwenden, wenn die Shell diese bereits bereitstellt | Schalter | — | Ein | `defaultPromptHookEnabled` |
+| Agent-Debugmeldungen anzeigen | umschalten | — | Aus | `terminalAgentShowDebugMessages` |
+| Agent-Laufzeitmeldungen anzeigen | umschalten | — | Aus | `terminalAgentShowRuntimeMessages` |
+| Terminal-Agent-Abfrage vor jedem Start anzeigen | umschalten | — | Ein | `terminalAgentShowRunDialog` |
+| Agent-Kommando | Text | — | agent | `terminalAgentCommandName` |
+| Den Agent-Befehl namensmäßig unabhängig von Groß- und Kleinschreibung abgleichen | umschalten | — | Aus | `terminalAgentCommandNameCaseInsensitive` |
+| Ziel für KI-Agent-Aufgaben | Dropdown-Menü | Terminalfenster, Neues Chatfenster | Terminalfenster | `terminalAgentExecutionTarget` |
+| Größe der Terminal-Agent-Eingabehistorie | Zahl | 5–100 | 20 | `terminalAgentInputHistorySize` |
 
-## AI-Profile
+## KI-Profile
 
-| Einstellung | Typ | Werte | Standard | Gespeichert als |
+| Einstellung | Typ | Werte | Standard | Speichert als |
 | --- | --- | --- | --- | --- |
-| Standardprofil | Dropdown-Liste | (Liste der konfigurierten Profile) | – | `defaultAiProfileId` |
-| Zeitlimit für KI-Anfragen | Nummer | 0–1440 Minuten | 0 (kein Timeout) | `aiRequestTimeoutMinutes` |
-| Sicherheitsüberprüfungsprofil | Dropdown-Liste | (Liste der konfigurierten Profile; leer = Standardprofil verwenden) | – | `securityCheckAiProfileId` |
+| Standardprofil | Dropdown-Kontrolle | (Liste der konfigurierten Profile) | — | `defaultAiProfileId` |
+| Zeitlimit für KI-Anfragen | Zahl | 0 bis 1440 Minuten | 0 (kein Timeout) | `aiRequestTimeoutMinutes` |
+| Security-Check-Profil | Dropdown-Kontrolle | (Liste der konfigurierten Profile; leer = Standardprofil verwenden) | — | `securityCheckAiProfileId` |
 
-Das Sicherheitsüberprüfungsprofil ist ein dediziertes KI-Profil für Snippet-**Sicherheitsüberprüfungsaktionen**. Lassen Sie es leer (oder verwenden Sie **Löschen**), um das Standardprofil wiederzuverwenden. Es kann auch direkt im Snippet-Sicherheitsüberprüfungsfenster festgelegt werden, und an beiden Stellen wird dieselbe gespeicherte Einstellung verwendet.
+Das Security-Check-Profil ist ein spezielles KI-Profil für Snippet-**Security-Check**-Aktionen. Lassen Sie es leer (oder verwenden Sie **Keine**) um das Standardprofil zu verwenden. Es kann ebenfalls direkt im Fenster für das Snippet-Security Check festgelegt werden, und beide Orte teilen dieselbe gemerkte Einstellung.
 
-**Zeitlimit für KI-Anfragen** ist die maximale Laufzeit einer einzelnen AI-Request und gilt für jedes Profil. Der Standardwert `0` bedeutet, dass korTTY überhaupt keine Zeitüberschreitung vorschreibt: Aufgaben mit langer Laufzeit wie die **Vollständige Codeanalyse** des Snippet-Editors werden ausgeführt, bis das Modell antwortet. Legen Sie eine positive Anzahl von Minuten fest, um Anfragen abzubrechen, die diesen Wert überschreiten. Ein Profil kann den Wert überschreiben – siehe **Zeitlimit für dieses Profil** unten.
+**Zeitlimit für KI-Anfragen** ist die maximale Laufzeit einer einzelnen KI-Anfrage und gilt für jedes Profil. Der Standardwert `0` bedeutet, dass korTTY kein Zeitlimit vorschreibt: Aufwändige Aufgaben wie die **Vollständige Code-Analyse** im Snippet-Editor laufen bis der KI-Modell eine Antwort gibt. Legen Sie eine positive Zahl in Minuten fest, um Anfragen zu unterbrechen, die diese Dauer überschreiten. Ein Profil kann den Wert überschreiben — siehe unten unter **Zeitlimit für dieses Profil**.
 
-### Profileinstellungen (im Editor-Raster)
+### Profil-Einstellungen (in Editor-Grid)
 
-Die gleichen Felder werden unter **KI > KI-Manager > Profiles** bearbeitet, wo das gesamte Formular auf einmal sichtbar ist:
+Die gleichen Felder werden im **KI > KI-Manager > Profile** bearbeitet, wo das gesamte Formular sofort sichtbar ist:
 
 ![KI-Manager profiles tab](../../assets/screenshots/ai/ai-profiles.png)
 
-| Einstellung | Typ | Werte | Standard | Gespeichert als |
+| Einstellung | Typ | Werte | Standard | Speichert als |
 | --- | --- | --- | --- | --- |
-| Profile name | text | — | AI Profile | (profile `name` field) |
-| Verbindung | Dropdown-Liste | HTTP-API, lokale CLI, integriertes llama.cpp, integriertes MLX (Apple Silicon; nur auf Apple Silicon Macs verfügbar) | HTTP-API | (Profilfeld `connectionMode`) |
-| API-URL | Text | – | – | (Profilfeld `apiUrl`) |
-| CLI provider | dropdown | (registered providers) | — | (profile `cliProviderId` field) |
-| CLI executable | text | — | — | (profile `cliExecutablePath` field) |
-| Model | dropdown/text | (editable; "Default", curated cloud-provider suggestions plus live-loaded models; "Auto" only for local LM Studio endpoints) | — | (profile `model` field) |
-| Local GGUF model | dropdown | Installed chat models; available when Connection is Integrated llama.cpp | — | (profile `embeddedModelId` field) |
-| Lokales MLX-Modell | Dropdown-Liste | Installierte MLX-Modelle; Verfügbar, wenn die Verbindung „Integrated MLX“ (Apple Silicon) ist. | – | (Profilfeld `embeddedModelId`) |
-| Custom model | text | — | — | (profile `cliCustomModel` field) |
-| Prompt-Optimierung | Dropdown-Liste | Automatisch (Modellerkennung), Generisch, Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, GPT-OSS | Automatisch | (Profilfeld `promptPreset`) |
-| Begründung | Dropdown-Liste | Deaktiviert, Keine, Minimal, Niedrig, Mittel, Hoch, Extra hoch | Deaktiviert | (Profilfeld `reasoningEffort`) |
-| Bildeingabe (Vision) | Dropdown-Liste | Automatisch (Erkennung), Aktiviert, Deaktiviert | Automatisch (Erkennung) | (Profilfeld `visionSupport`) |
-| Internetzugang | Dropdown-Liste | Deaktiviert, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio Toolpack | Deaktiviert | (Profilfeld `internetAccessMode`) |
-| API Key (optional) | text | (password field) | — | (profile `encryptedApiKey` field) |
-| Max characters | number | 1–50,000,000 | 100,000 | (profile `maxSelectionChars` field) |
-| Timeout for this profile | check box + number | Own timeout off = follow the global timeout; on: 0–1440 minutes (0 = never time out) | Off | (profile `requestTimeoutMinutes` field) |
+| Profilname | Text | — | KI-Profil | (Feld Profil `name`) |
+| Verbindung | Dropdown | HTTP-API, Lokale CLI, Integriertes llama.cpp, Integriertes MLX (Apple-Silizium; nur auf Mac-Geräten mit Apple-Silizium verfügbar) | HTTP-API | (Profilfeld `connectionMode`) |
+| API-URL | Text | — | — | (Profilfeld `apiUrl`) |
+| CLI-Anbieter | Dropdown | (registrierte Anbieter) | — | (Profilfeld `cliProviderId`) |
+| CLI-Executable | Text | — | — | (Profilfeld `cliExecutablePath`) |
+| Modell | Dropdown/Text | (bearbeitbar; "Standard", vorgeschlagene Modelle von Cloud-Anbietern mit kurzen Vorschlägen plus live geladene Modelle; "Automatisch" nur für lokale LM Studio-Endpunkte) | — | (Profilfeld `model`) |
+| Lokales GGUF-Modell | Dropdown | Installierte Chat-Modelle; verfügbar, wenn Verbindung Integriertes llama.cpp ist | — | (Profilfeld `embeddedModelId`) |
+| Lokales MLX-Modell | Dropdown | Installierte MLX-Modelle; verfügbar, wenn Verbindung Integriertes MLX (Apple Silicon) ist | — | (Profilfeld `embeddedModelId`) |
+| Eigenes Modell | Text | — | — | (Profilfeld `cliCustomModel`) |
+| Prompt-Optimierung | Dropdown | Automatisch (Modellerkennung), Allgemein, Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, GPT-OSS | Automatisch | (Profilfeld `promptPreset`) |
+| Reasoning | Dropdown | Deaktiviert, Keine, Minimal, Niedrig, Mittel, Hoch, Extra hoch | Deaktiviert | (Profilfeld `reasoningEffort`) |
+| Bild-Eingabe (Vision) | Dropdown | Automatisch (erkennen), Aktiviert, Deaktiviert | Automatisch (erkennen) | (Profilfeld `visionSupport`) |
+| Internetzugriff | Dropdown | Deaktiviert, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio-Toolpack | Deaktiviert | (Profilfeld `internetAccessMode`) |
+| API-Schlüssel (optional) | Text | (Passwortfeld) | — | (Profilfeld `encryptedApiKey`) |
+| Maximale Zeichen | Zahl | 1–50.000.000 | 100.000 | (Profilfeld `maxSelectionChars`) |
+| Zeitlimit für dieses Profil | Kontrollkästchen + Zahl | Eigenes Zeitlimit aus = globales Zeitlimit folgen; ein: 0–1440 Minuten (0 = niemals abgelaufen) | Aus | (Profilfeld `requestTimeoutMinutes`) |
 | Tokenizer | Dropdown | Schätzung, OpenAI cl100k_base, OpenAI o200k_base, OpenAI p50k_base, OpenAI r50k_base | Schätzung | (Profilfeld `tokenizerType`) |
-| Max tokens | number + unit | (amount: 0–1,000,000; unit: Thousands or Millions) | 0 (unlimited) | (profile `tokenLimitAmount`, `tokenLimitUnit` fields) |
-| Warning thresholds | number pair | Yellow %: 0–100, Red %: 0–100 | 75%, 90% | (profile `tokenWarningYellowPercent`, `tokenWarningRedPercent` fields) |
-| Reset | number + anchor date | Period: 1–3650 days; Anchor date | 30 days | (profile `tokenResetPeriodDays`, `tokenResetAnchorDate` fields) |
-| Test AI Connection | button | — | — | (action only) |
+| Maximale Tokens | Zahl + Einheit | (Menge: 0–1.000.000; Einheit: Tausende oder Millionen) | 0 (unbegrenzt) | (Profil `tokenLimitAmount`, `tokenLimitUnit`-Felder) |
+| Warnschwellen | Zahl-Paar | Gelb %: 0–100, Rot %: 0–100 | 75%, 90% | (Profil `tokenWarningYellowPercent`, `tokenWarningRedPercent`-Felder) |
+| Zurücksetzen | Zahl + Startdatum | Zeitraum: 1–3650 Tage; Startdatum | 30 Tage | (Profil `tokenResetPeriodDays`, `tokenResetAnchorDate`-Felder) |
+| KI-Verbindung testen | Schaltfläche | — | — | (nur Aktion) |
 
-## Snippet-Editor
+##  Snippet-Editor
 
-| Einstellung | Typ | Werte | Standard | Gespeichert als |
+| Einstellung | Typ | Werte | Standard | Speichert als |
 | --- | --- | --- | --- | --- |
-| Standardsprache für AI-Text im Code | Dropdown-Liste | (verfügbare Sprachoptionen) | – | `aiCodeTextDefaultLanguage` |
-| Show optional additional instructions for AI actions in the snippet editor | toggle | — | Off | `aiSnippetEditorAdditionalInstructionsEnabled` |
-| Maximum alternative solutions | number | 1–10 | 3 | `aiSnippetAlternativeSolutionCount` |
+| Standardsprache für KI-Texte im Programmcode | Dropdown-Kontrolle | (verfügbare Sprachoptionen) | — | `aiCodeTextDefaultLanguage` |
+| Optionale zusätzliche Anweisungen für KI-Aktionen im Snippet-Editor anzeigen | Schalter | — | Aus | `aiSnippetEditorAdditionalInstructionsEnabled` |
+| Maximale Anzahl alternativer Lösungen | Zahl | 1–10 | 3 | `aiSnippetAlternativeSolutionCount` |
 
-## Internetzugriffskonfiguration
+## Internetzugangskonfiguration
 
-| Einstellung | Typ | Werte | Standard | Gespeichert als |
+| Einstellung | Typ | Werte | Standard | Speichert als |
 | --- | --- | --- | --- | --- |
-| Tavily API key | text | (password field) | — | `encryptedAiTavilyApiKey` |
-| Bright Data API token | text | (password field) | — | `encryptedAiBrightDataApiToken` |
-| Brave Search API key | text | (password field) | — | `encryptedAiBraveSearchApiKey` |
-| SearXNG URL | text | — | — | `aiSearxngUrl` |
-| Tavily MCP server label | text | — | tavily | `aiTavilyMcpServerLabel` |
-| Bright Data MCP-Serverbezeichnung | Text | – | Bright-Data | `aiBrightDataMcpServerLabel` |
-| Brave Search MCP plugin ID | text | — | — | `aiBraveSearchMcpPluginId` |
-| SearXNG MCP-Plugin-ID | Text | – | – | `aiSearxngMcpPluginId` |
-| LM Studio Toolpack MCP-Plugin-ID | Text | – | – | `aiLmStudioToolpackMcpPluginId` |
-| KI-Agent: Internetrecherche bei jedem Schritt anbieten | umschalten | – | Aus | `aiAgentAlwaysOfferWebTools` |
+| Tavily-API-Schlüssel | Text | (Passwortsfeld) | — | `encryptedAiTavilyApiKey` |
+| Bright-Data-API-Token | Text | (Passwortsfeld) | — | `encryptedAiBrightDataApiToken` |
+| Brave-Search-API-Schlüssel | Text | (Passwortsfeld) | — | `encryptedAiBraveSearchApiKey` |
+| SearXNG-URL | Text | — | — | `aiSearxngUrl` |
+| Tavily-MCP-Serverlabel | Text | — | tavily | `aiTavilyMcpServerLabel` |
+| Bright-Data-MCP-Serverlabel | Text | — | bright-data | `aiBrightDataMcpServerLabel` |
+| Brave Search MCP-Plugin-ID | Text | — | — | `aiBraveSearchMcpPluginId` |
+| SearXNG-MCP-Plugin-ID | Text | — | — | `aiSearxngMcpPluginId` |
+| LM-Studio-Toolpack-MCP-Plugin-ID | Text | — | — | `aiLmStudioToolpackMcpPluginId` |
+| KI-Agent: Internetforschung auf jedem Schritt anbieten | Schalter | — | Aus | `aiAgentAlwaysOfferWebTools` |
 
-**KI-Agent: Internetrecherche bei jedem Schritt anbieten** wirkt nur im Modus **KorTTY Tavily Tool**. Ist die Option aus, bekommt ein Schritt des Terminal-KI-Agenten die Web-Tools nur, wenn seine Aufgabe ein Web-Signalwort oder eine URL enthält; ist sie an, bekommt jeder Schritt sie und das Modell entscheidet, ob es sucht oder eine Seite liest.
+**KI-Agent: Internetforschung auf jedem Schritt** gilt ausschließlich für den **KorTTY Tavily Tool**-Modus. Wenn deaktiviert, erhält ein Terminal-KI-Agent-Schritt nur die Webtools, falls die Aufgabe ein Web-Signalwort oder eine URL enthält; wenn aktiv, erhält jeder Schritt diese Tools und das Modell entscheidet, ob eine Seite abgefragt oder gelesen werden soll.
 
 ## Hinweise
 
-### AI-Profile
+### KI-Profile
 
-KorTTY speichert mehrere benannte KI-Profile, jedes mit eigenem Modell, Verbindungsmethode, Reasoning-Einstellungen, Eingabeaufforderungsvoreinstellungen und optionalen Wissensspeichern. Jedes Profil verfolgt seine eigene Token-Nutzung separat. Profile unterstützen drei Verbindungsmodi:
+korTTY speichert mehrere benannte KI-Profile, jedes mit eigener Modellvariante, Verbindungsmethode, Vorgangsregeln, Prompt-Vorlage und optionalem Wissensspeicher. Jedes Profil verfolgt seine eigenen Token-Nutzung separat. Die Profile unterstützen drei Verbindungsmodi:
 
-- **HTTP-API**: Direkte Verbindung zu einem OpenAI-kompatiblen REST-Endpunkt (API-URL, Modellnamen und optionalen API-Schlüssel angeben).
-- **Lokale CLI**: Führen Sie einen lokalen Befehlszeilen-KI-Client aus (konfigurieren Sie den CLI-Anbieter, die benutzerdefinierte ausführbare Datei, die Argumentvorlage und den benutzerdefinierten Modellnamen).
-- **Integrated llama.cpp**: Wählen Sie den installierten Chat-GGUF im **Lokalen GGUF-Modell**. korTTY erwirbt dafür einen privaten Loopback-`llama-server`-Leasing; Die API-URL und der Profil-API-Schlüssel werden von korTTY verwaltet und können nicht bearbeitet werden.
+- **HTTP-API**: Direkte Verbindung zu einem OpenAI-kompatiblen REST-Endpunkt (geben Sie die API-URL, das Modellnamen und optional die API-Schlüssel an).
+- **Lokale CLI**: Ausführung eines lokalen Befehlszeilen-Tools für KI (konfigurieren Sie den CLI-Anbieter, die benutzerdefinierte Ausführbarkeit, die Argumentenvorlage und den benutzerdefinierten Modellnamen).
+- **Integriertes llama.cpp**: Wählen Sie den installierten Chat-GGUF im **Lokalen GGUF-Modell** aus. korTTY erhält einen privaten Loopback-`llama-server`-Zugriff (Lease) dafür; die API-URL und das Profil-API-Schlüssel werden von korTTY verwaltet und sind nicht bearbeitbar.
 
-Ein explizit ausgewähltes Profil oder Sicherheitsüberprüfungsprofil bleibt am spezifischsten. Andernfalls verwenden Terminaltextaktionen das konfigurierte Textprofil, Codeaktionen das Codierungsprofil und eine nicht zugewiesene Rolle greift auf das **Standardprofil** zurück. Konfigurieren Sie diese Rollen und die lokale Laufzeit unter **KI > KI-Manager > Local AI**; siehe [Lokale Modelle mit llama.cpp](../../features/local-models.md).
+Ein explizit ausgewählter oder sicherheitsgeprüfter Profil bleibt am spezifischsten. Andernfalls verwenden Aktionen im Terminal den konfigurierten Textprofil, Aktionen im Code das Coding-Profil, und ein nicht zugewiesenes Rolle fällt auf das **Standardprofil** zurück. Konfigurieren Sie diese Rollen und die lokale Laufzeit unter **KI > KI-Manager > Lokale KI**; siehe [Lokale Modelle mit llama.cpp](../../features/local-models.md).
 
-Der KI-Manager ist modusunabhängig und kann geöffnet bleiben, während Sie das Hauptfenster verwenden. Wenn Sie es erneut aufrufen, wird derselbe Manager für dieses Hauptfenster wiederhergestellt und fokussiert, und sein geöffneter primärer Abschnitt bleibt sichtbar mit einer fetten Akzentunterstreichung markiert, wenn Sie mit Steuerelementen in diesem Abschnitt interagieren.
+Der KI-Manager ist moduslos und kann während der Nutzung des Hauptfensters geöffnet bleiben. Ein erneutes Aufrufen des Managers führt dazu, dass der gleiche Manager für das Hauptfenster wiederhergestellt und gefokussiert wird, und der offene primäre Abschnitt bleibt bei Interaktion mit den Steuerelementen sichtbar mit einem fett unterstrichenen Akzent.
 
-### Lokale KI-Manager-Einstellungen
+### Einstellungen des lokalen KI-Managers
 
-| Einstellung | Werte | Standard | Gespeichert als |
+| Wert für | Werte | Standard | als gespeichert |
 | --- | --- | --- | --- |
-| Text- und Übersetzungsprofil | Konfiguriertes AI-Profil oder Standard verwenden | Standard verwenden | `textAiProfileId` |
-| Codierungsprofil | Konfiguriertes AI-Profil oder Standard verwenden | Standard verwenden | `codingAiProfileId` |
-| Sitzungsjournalprofil | Konfiguriertes AI-Profil oder Standard verwenden | Standard verwenden | `sessionJournalAiProfileId` |
-| RAG-Einbettungsmodell-ID | Installiertes lokales Einbettungsmodell | – | `ragEmbeddingModelId` |
-| llama.cpp-Laufzeitaktualisierungen | Aus, Benachrichtigen, Stabile Updates automatisch installieren | Benachrichtigen Sie mich | `llamaRuntimeUpdatePolicy` |
-| Bevorzugtes Laufzeit-Backend | Auto/CPU/Metal unter macOS; Auto/CPU/Vulkan unter Windows/Linux | Auto | `preferredLlamaRuntimeBackend` |
-| Hugging Face-Token | Optionaler verschlüsselter Token für geschlossene/private Repositories | – | `encryptedHuggingFaceToken` |
+| Profil für Text und Übersetzung | konfiguriertes KI-Profil oder Standard verwenden | Standard verwenden | `textAiProfileId` |
+| Coding-Profil | konfiguriertes KI-Profil oder Standard verwenden | Standard verwenden | `codingAiProfileId` |
+| Sitzungsjournal-Profil | konfiguriertes KI-Profil oder Standard verwenden | Standard verwenden | `sessionJournalAiProfileId` |
+| RAG-Embedding-Modell-ID | Installiertes lokales Embedding-Modell | — | `ragEmbeddingModelId` |
+| llama.cpp Runtime-Updates | Aus, Benachrichtigen, Stabile Updates automatisch installieren | Benachrichtigen | `llamaRuntimeUpdatePolicy` |
+| Bevorzugtes Runtime-Backend | Auto/CPU/Metal unter macOS; Auto/CPU/Vulkan unter Windows/Linux | Auto | `preferredLlamaRuntimeBackend` |
+| Hugging Face token | Optionales verschlüsseltes Token für begrenzte/private Repositorys | — | `encryptedHuggingFaceToken` |
 
-**Automatisch (aktives Backend beibehalten)** behält das aktive Laufzeitpaket-Backend für Aktualisierungen bei. Ohne installiertes Paket wählt Auto zunächst Metal unter macOS und CPU anderswo aus. Das Starten eines Modells, das für ein anderes unterstütztes GPU-Backend konfiguriert ist, bietet die Möglichkeit, das passende signierte Paket zu installieren.
+**Automatisch (aktives Backend beibehalten)** behält das aktive Runtime-Paket-Backend für Updates. Bei fehlenden installierten Paketen wählt Auto standardmäßig Metal unter macOS und CPU an anderen Orten. Das Starten eines Modells, das für ein anderes unterstütztes GPU-Backend konfiguriert ist, bietet die Installation des entsprechenden signierten Pakets an.
 
-Der **Lokale Modelle > Setup-Assistent** stellt optionale Text-, Codierungs- und RAG-Einbettungsslots bereit. Es überprüft jede ausgewählte feste Revision, Quantisierung, Lizenz und genaue Größe, bevor es mit der asynchronen Laufzeit-/Modellinstallation beginnt, führt einen echten Chat- oder Einbettungstest für jeden installierten GGUF durch und speichert die resultierenden Rollenzuweisungen erst, nachdem alle Tests erfolgreich waren. Die Text- und Codierungsslots können ein gemeinsames Modell haben. **Configure** weigert sich, die persistenten Laufzeiteinstellungen eines Modells zu ersetzen, während dieses Modell eine aktive Anfrage bedient.
+Der **Local Models > Einrichtungsassistent** bietet optionale Text-, Coding- und RAG-Embedding-Slots an. Er überprüft jede ausgewählte feste Revision, Quantisierung, Lizenz und genaue Größe vor dem Start des asynchronen Runtime/Modell-Installationsprozesses, führt für jedes installierte GGUF ein echtes Chat- oder Embedding-Test durch und speichert die resultierenden Rolle-Zuweisungen erst dann, wenn alle Tests erfolgreich sind. Die Text- und Coding-Slots können ein gemeinsames Modell teilen. **Konfigurieren** weigert sich, die persistierten Runtime-Einstellungen eines Modells zu ersetzen, während dieses eine aktive Anfrage bearbeitet.
 
-Den Text-/Coding-Rollen zugewiesene Wissensspeicher fügen nur begrenzte, zitierte Auszüge zu passenden normalen Terminal- und Snippet-KI-Anfragen hinzu, niemals den gesamten Wissensspeicher. Ein Cloud-Text-/Codierungsprofil empfängt diese Auszüge über seine konfigurierte Anbieterverbindung, sodass die Zuweisung des Wissensspeichers zu dieser Rolle/diesem Profil eine ausdrückliche Erlaubnis für diese Offenlegung darstellt. Agent-, Planungs-, Schwarm- und geplante autonome Eingabeaufforderungen bleiben eine separate Opt-in-Option; siehe [RAG Wissensspeicher](../../features/rag.md).
+Die Wissensspeicher, die der Text/Coding-Rolle zugewiesen sind, fügen lediglich begrenzte, zitierten Ausschnitte zu passenden normalen Terminal- und Snippet-KI-Anfragen hinzu, nie den gesamten Wissensspeicher. Ein Cloud-Text/Coding-Profil erhält diese Ausschnitte über seine konfigurierte Verbindung mit dem Anbieter, weshalb die Zuweisung des Wissensspeichers an diese Rolle oder Profil explizite Genehmigung für diese Offenlegung darstellt. Agenten, Planung, Swarm und geplante autonome Prompts bleiben eine separate Option; siehe [Wissensspeicher für RAG](../../features/rag.md).
 
-### Prompt-Optimierungsvoreinstellungen
+### Prompt-Optimierungsvorlagen
 
-**Automatisch (Modellerkennung)** löst gängige Llama-, Qwen-, Mistral/Mixtral-, Gemma-, DeepSeek-, Phi- und GPT-OSS-Namen auf. Eine Familienvoreinstellung fügt eine prägnante Kompatibilitätsanleitung hinzu, während die strengen JSON-/Code-Verträge von korTTY maßgebend bleiben; **Allgemein** fügt keine familienspezifische Anleitung hinzu. llama.cpp wendet weiterhin die native Chat-Vorlage des GGUF an.
+**Automatisch (Modellerkennung)** löst gängige Namen für Llama, Qwen, Mistral/Mixtral, Gemma, DeepSeek, Phi und GPT-OSS auf. Ein Familienprofil bietet präzise Hinweise zur Kompatibilität, bleibt jedoch bei den strengen JSON/Code-Verträgen von korTTY. **Generisch** liefert keine familienbezogenen Hinweise. llama.cpp wendet den eingebauten Chat-Vorlage des GGUF an.
 
-### Begründungsaufwandsstufen
+### Einstellungen für das Denkverhalten
 
-Der Reasoning-Aufwand konfiguriert, wie tief die KI nachdenkt, bevor sie antwortet. Die verfügbaren Ebenen hängen vom Modell und Endpunkt ab:
+Die Einstellung für das Denkverhalten bestimmt, wie gründlich die KI vor der Antwort nachdenkt. Die verfügbaren Ebenen hängen vom Modell und dem Endpoint ab:
 
-- **Deaktiviert**: Kein Begründungsparameter gesendet; Das Modell verwendet sein Standardverhalten.
-- **Keine**: Reasoning mit dem unterstützten Off-Wert des Transports explizit deaktivieren.
+- **Deaktiviert**: Kein Denkparameter übermittelt; das Modell verwendet seinen Standardverhalten.
+- **Keine**: Die Nutzung der Reasoning explizit deaktivieren, wobei der vom Transport unterstützte Standardwert verwendet wird.
 - **Minimal**: Leichtes Reasoning; schnellste Ausführung.
-- **Niedrig**: Reasoning mit geringem Aufwand; Balance zwischen Geschwindigkeit und Tiefe.
-- **Mittel**: Mittlerer Aufwand; angemessene Tiefe.
-- **Hoch**: Hoher Aufwand; gründlichere Begründung.
-- **Extra hoch**: Maximaler Reasoning-Aufwand; am langsamsten, aber am umfassendsten.
+- **Niedrig**: Geringe Anstrengung bei der Reasoning; Balance zwischen Geschwindigkeit und Tiefe.
+- **Mittel**: Mittlere Anstrengung; angemessene Tiefe.
+- **Hoch**: Hohe Anstrengung; umfassendere Begründung.
+- **Extra hoch**: Maximaler Begründungsanstrengung; am langsamsten, aber umfassendest.
 
-Nicht alle Modelle unterstützen alle Ebenen. Wenn LM Studio `capabilities.reasoning.allowed_options` über seine nativen Modellmetadaten veröffentlicht, verwendet korTTY genau diese Liste, anstatt einen stillschweigend konvertierten Wert als unterstützt zu behandeln, und liest diese Liste **automatisch**: Wenn Sie im Profileditor ein anderes Modell oder einen anderen Endpunkt auswählen, werden die Metadaten für das gerade ausgewählte Modell erneut gelesen, sodass das Dropdown-Menü ohne weitere Aktion dem Profil folgt. Die Liste wird hier nur aus den Modellmetadaten des Endpunkts gelesen – eine einzelne Anfrage, die keine Eingabeaufforderung sendet. Verwenden Sie die Schaltfläche **Reasoning-Optionen aktualisieren**, wenn Sie eine erneute Überprüfung erzwingen möchten oder für einen Endpunkt, der keine derartigen Metadaten veröffentlicht: Über diese Schaltfläche werden auch aktive Verbindungsprüfungen ausgeführt.
+Nicht alle Modelle unterstützen alle Ebenen. Wenn LM Studio über seine native Modellmetadaten `capabilities.reasoning.allowed_options` veröffentlicht, verwendet korTTY diese genaue Liste anstelle davon, einen stumm umgewandelten Wert als unterstützten zu behandeln, und liest diese Liste **automatisch**: Wenn Sie im Profil-Editor ein anderes Modell oder Endpunkt wählen, wird die Metadaten für das gerade ausgewählte Modell erneut geladen, sodass die Dropdown-Liste dem Profil folgt, ohne zusätzliche Aktionen. Die Liste wird hier ausschließlich aus den Modellmetadaten des Endpunkts gelesen – ein einziger Anruf, der keinen Prompt enthält. Verwenden Sie die Schaltfläche **Reasoning-Optionen aktualisieren**, wenn Sie eine erneute Prüfung erzwingen oder bei einem Endpunkt, der keine solche Metadaten veröffentlicht, benötigen: Diese Schaltfläche führt auch aktive Verbindungstests durch.
 
-Bei einem binären `off`/`on`-Modell schaltet eine explizite `none`-Anfrage diese Funktion aus, während das Weglassen des Reasoning-Parameters den veröffentlichten Standardwert des Modells verwendet; Die nicht unterstützten Stufen „Minimal“, „Niedrig“, „Mittel“, „Hoch“ und „Extra hoch“ werden nicht angeboten. Ein Modell, dessen LM Studio-Metadaten überhaupt keine Reasoningsfunktion veröffentlichen – einschließlich eines virtuellen Modells, das seine Reasoning-Metadaten auf „falsch“ überschreibt – bietet nur **Deaktiviert**: LM Studio überspringt einen nicht unterstützten Reasoning-Wert zur Anforderungszeit mit einer Protokollwarnung, anstatt die Anfrage abzulehnen, sodass eine aktive Prüfung jede Ebene als unterstützt verwechseln würde.
+Für ein binäres `off`/`on`-Modell deaktiviert ein explizites `none`-Angebot diese Funktion, während die Omission des Begründungsparameters das veröffentlichte Standardverhalten des Modells verwendet; die nicht unterstützten Ebenen Minimal, Niedrig, Mittel, Hoch und Extra hoch werden nicht angeboten. Ein Modell, dessen LM Studio-Metadaten keine Begründungsfunktion publizieren, einschließlich eines virtuellen Modells, das seine Begründungsmetadaten auf falsch überschreibt, bietet ausschließlich **Deaktiviert**: LM Studio überspringt bei einem nicht unterstützten Begründungswert bei der Anfrage mit einer Protokollwarnung anstatt die Anfrage abzulehnen, sodass ein aktiver Test jede Ebene als unterstützend vermuten würde.
 
-Eine erkannte Liste gehört zu dem Endpunkt und Modell, für den sie gelesen wurde. Wenn Sie eines davon ändern, wird es verworfen, und wenn korTTY die Metadaten der neuen Kombination – ein CLI-Profil, ein Cloud-Endpunkt – nicht lesen kann, greift das Profil auf die konservativen Standardeinstellungen für seinen Modellnamen zurück, bis Sie auf **Reasoning-Optionen aktualisieren** klicken. Ein Level, das nicht mehr angeboten wird, wird aus der Anfrage entfernt, mit einer Protokollzeile, in der das tatsächlich genutzte Level genannt wird. Felder, die der eigene Verbindungsmodus eines Profils nicht verwendet, wie z. B. der CLI-Anbieter eines HTTP-Profils, machen eine erkannte Liste niemals ungültig. Profile, die ein integriertes Modell verwenden, behalten ihre erkannten Werte bei.
+Eine erkannte Liste gehört dem Endpoint und dem Modell an, für das sie gelesen wurde. Änderungen an entweder der Konfiguration oder dem Modell führen dazu, dass die Liste verworfen wird. Wird von korTTY das Metadaten der neuen Kombination nicht gelesen — beispielsweise ein CLI-Profil oder ein Cloud-Endpoint — fällt das Profil auf die konservativen Standardwerte für den Modellnamen zurück, bis Sie **Reasoning-Optionen aktualisieren**. Ein Level, das nicht mehr angeboten wird, wird aus der Anfrage entfernt, wobei eine Log-Zeile den tatsächlich verwendeten Level benennt. Felder, die vom eigenen Verbindungsmodus des Profils nicht verwendet werden, wie beispielsweise der CLI-Anbieter eines HTTP-Profils, verursachen nie eine Ungültigkeit einer erkannten Liste. Profile, die ein integriertes Modell verwenden, behalten ihre erkannten Levels.
 
-Für den nativen Endpunkt Anthropic (Claude) fordert eine aktivierte Reasoning-Ebene **erweitertes Denken** mit einem ebenenabhängigen Denkbudget an; Modelle, die erweitertes Denken nicht unterstützen, werden ohne erweitertes Denken einmal wiederholt. Das Reasoning des Modells wird in den 💭 Denkzeilen des Terminal AI Agent angezeigt.
+Für MiniMax-Endpunkte (direkt oder über einen Aggregator, dessen Modellname `minimax` enthält), werden sowohl **Deaktiviert** als auch ein explizites `none` als Parameter des eigenen MiniMax-`thinking: disabled` übermittelt, da diese Modelle den `reasoning_effort`-Parameter ignorieren und standardmäßig den Hidden-Reasoning als Completion-Tokens berechnen — für MiniMax-M3 wird der Antwort mit einem inline-`<think>`-Block gestartet. Ein explizites Leistungsniveau wird unverändert weitergeleitet.
 
-### Bildeingabe (Vision)
+Für MiniMax wird die OpenAI-kompatible URL `https://api.minimax.io/v1/chat/completions` verwendet anstatt dem nativen `/text/chatcompletion_v2`-Endpoint: Der native Endpoint antwortet mit HTTP 200 und einem Fehlerobjekt, wenn ein falscher Schlüssel, ein falsches Modell oder ein leerer Balance-Status vorliegt, was korTTY nun als eigenes Provider-Meldung anzeigt, während der OpenAI-kompatible Endpoint diese mit einem korrekten HTTP-Status meldet.
 
-**Image input (vision)** decides whether korTTY may attach images to a prompt for this profile — used by the [session journal's AI screenshot analysis](../../features/session-journal.md#ki-screenshot-analyse). **Automatisch (Erkennung)** leitet die Funktion vom Endpunkt ab: Für einen lokalen LM Studio-Endpunkt sind die Modellmetadaten maßgeblich (a `vlm` Modell gilt als bildfähig; die Antwort wird zusammen mit den Begründungsebenen gelesen – durch das automatische Lesen von Metadaten und durch **Reasoning-Optionen aktualisieren** – und mit ihnen zwischengespeichert), der native Anthropic-Endpunkt gilt immer als bildfähig, und andere Endpunkte werden durch bekannte Vision-Modellnamen erkannt (GPT-4o/4.1/5, o3/o4, Gemini, Gemma 3, Qwen-VL, LLaVA, Pixtral und ähnlich). **Aktiviert**/**Deaktiviert** überschreibt die Erkennung von Modellen, die falsch beurteilt werden. CLI- und integrierte (llama.cpp/MLX)-Profile können keine Bilder senden. Lokale LM Studio Vision-Modelle (`vlm`) also appear in the model dropdown.
+Für den nativen Anthropic (Claude) Endpoint wird ein aktiviertes Reasoning-Level mit **erweitertem Denken** und einem abhängigen Denkbudget angefordert; Modelle, die erweitertes Denken nicht unterstützen, werden einmal ohne es neu versucht. Das Modell-Reasoning wird in den 💭 Denkzeilen des Terminal-KI-Agenten angezeigt.
 
-### Token-Kontingentverwaltung
+### Bild-Eingabe (Vision)
 
-Jedes AI-Profil verwaltet ein Token-Nutzungskontingent mit den folgenden Kontrollen:
+**Bild-Eingabe (Vision)** bestimmt, ob korTTY Bilder zu einem Prompt für dieses Profil hinzufügen darf – verwendet von der [Sitzungssitzungsaufzeichnung des KI-Systems](../../features/session-journal.md#ki-screenshot-analyse). **Automatisch (erkennen)** ermittelt die Funktion aus dem Endpoint: Bei einem lokalen LM Studio-Endpoint ist das Modellmetadaten entscheidend (ein `vlm` Modell gilt als bildfähig; die Antwort wird gemeinsam mit den Begründungsebenen gelesen – über die automatische Metadatenerfassung und durch **Reasoning-Optionen aktualisieren** – und mit diesen abgespeichert), der native Anthropic-Endpoint gilt stets als bildfähig, und andere Endpunkte werden anhand bekannter Vision-Modellnamen erkannt (GPT-4o/4.1/5, o3/o4, Gemini, Gemma 3, Qwen-VL, LLaVA, Pixtral und ähnliche). **Aktiviert**/**Deaktiviert** überschreibt die Erkennung, wenn das Modell falsch eingeordnet wird. CLI- und integrierte (llama.cpp/MLX) Profile können Bilder nicht senden. Lokale LM Studio-Vision-Modelle (`vlm`) erscheinen ebenfalls in der Modell-Liste.
 
-- **Tokenizer**: Wählen Sie aus, welcher Tokenizer die Tokenanzahl schätzt – nützlich beim Wechsel zwischen OpenAI und anderen Anbietern. Optionen sind Estimate (generisch), cl100k_base (GPT-3.5/4), o200k_base (o1/o1-mini), p50k_base (Codex) und r50k_base (GPT-2).
-- **Maximales Token-Limit**: Legen Sie eine Ausgabenobergrenze fest (in Tausend oder Millionen Token oder unbegrenzt). Die Anzahl der Token wird nach einem fortlaufenden Zeitplan zurückgesetzt.
-- **Reset-Zeitraum**: Anzahl der Tage zwischen Resets (1–3650), mit optionalem Ankerdatum für vorhersehbaren Reset-Zeitpunkt.
-- **Warnschwellenwerte**: Gelbe Warnung wird bei einem Prozentsatz des Grenzwerts ausgelöst; rote Warnung bei einem höheren Prozentsatz. Konfigurieren Sie beide als Ganzzahlen 0–100.
+### Token-Quoten-Verwaltung
 
-Die Token-Nutzung wird als farbiger Balken und Zusammenfassung im Profileditor angezeigt, und die Profilliste zeigt den Token-Status inline an.
+Jedes KI-Profil verfügt über ein Token-Verbrauchslimit mit den folgenden Einstellungen:
 
-### Internetzugriffsmodi
+- **Tokenizer**: Wählen Sie den Token-Tokenizer aus, der die Tokenanzahl schätzt — nützlich, wenn zwischen OpenAI und anderen Anbietern gewechselt wird. Mögliche Optionen sind Schätzung (allgemein), cl100k_base (GPT-3.5/4), o200k_base (o1/o1-mini), p50k_base (Codex) und r50k_base (GPT-2).
+- **Maximale Tokens-Grenze**: Legen Sie ein Ausgabenlimit (in Tausend oder Millionen von Tokens oder unbeschränkt) fest. Die Tokenanzahl wird nach einem gleitenden Zeitplan neu berechnet.
+- **Reset-Periode**: Anzahl der Tage zwischen den Resets (1–3650), wobei ein optionaler Referenzdatum für vorhersehbare Resetzeiten verwendet wird.
+- **Warnschwellen**: Eine gelbe Warnung wird bei einem bestimmten Prozentsatz der Grenze ausgelöst; eine rote Warnung bei einem höheren Prozentsatz. Beide Werte können als ganze Zahlen zwischen 0 und 100 konfiguriert werden.
 
-Profilspezifische Internetzugriffsstrategie für KI-Anfragen. Jeder Modus erfordert unterschiedliche Anmeldeinformationen und MCP-Konfiguration:
+Der Token-Verbrauch wird als farbiger Balken und Zusammenfassung im Profil-Editor angezeigt und die Profilliste zeigt den Token-Status inline.
 
-- **Deaktiviert** (Standard): Kein Internetzugang.
-- **KorTTY Tavily Tool**: Integrierte Websuche mit direkter Tavily-API (erfordert Tavily-API-Schlüssel).
-- **LM Studio Tavily MCP**: Websuche über eine LM Studio Tavily MCP-Instanz (erfordert Tavily-API-Schlüssel und MCP-Server-Label).
-- **Bright Data Web MCP**: Strukturierte Datenextraktion und Browsing über Bright Data Web MCP (erfordert Bright Data API-Token und MCP-Server-Label).
-- **Brave Search MCP**: Suche über Brave Search MCP (erfordert den Brave Search API-Schlüssel und die MCP-Plugin-ID im `mcp/<server_label>`-Format).
-- **SearXNG MCP**: Suche über eine SearXNG MCP-Instanz (erfordert SearXNG-URL und MCP-Plugin-ID im `mcp/<server_label>`-Format).
-- **LM Studio Toolpack**: Community-Websuchserver für LM Studio Toolpack (erfordert Plugin-ID im `mcp/<server_label>`-Format).
+### Internet-Zugriffs-Modi
 
-Anmeldeinformationen werden verschlüsselt und sicher gespeichert. Verwenden Sie den Schalter **Löschen** neben jedem geheimen Feld, um gespeicherte Werte beim nächsten Speichern zu löschen.
+Pro-Profil-Strategie für den Internetzugriff bei KI-Anfragen. Jeder Modus erfordert unterschiedliche Anmeldeinformationen und eine MCP-Konfiguration:
 
-!!! warning "Eingebettete Profile unterstützen nur das KorTTY Tavily Tool"
-    Es kann ein Profil verwendet werden, dessen Verbindungsmodus **Integrated llama.cpp** oder **Integrated MLX** ist
-    **KorTTY Tavily Tool** und sonst nichts. Die fünf MCP-Modi leiten die Anfrage über LM Studios weiter
-    native API, die ein eingebettetes Modell nie durchläuft – Auswahl einer in einem eingebetteten Profil
-    schlägt die Anfrage mit einer expliziten Nachricht fehl, anstatt stillschweigend und ohne Webzugriff zu antworten.
-    Lokale CLI-Profile haben überhaupt keine Internetmodi; Das Dropdown-Menü ist für sie deaktiviert.
+- **Deaktiviert** (Standard): Kein Internetzugriff.
+- **KorTTY Tavily Tool**: Integrierte Web-Suche mithilfe der Tavily-API direkt (erfordert Tavily-API-Schlüssel).
+- **LM Studio Tavily MCP**: Websuche über eine LM Studio Tavily MCP-Instanz (erfordert Tavily-API-Schlüssel und MCP-Server-Bezeichnung).
+- **Bright Data Web MCP**: Strukturierte Datenextraktion und Durchsuchen über Bright Data Web MCP (erfordert Bright-Data-API-Token und MCP-Server-Label).
+- **Brave Search MCP**: Suchen über Brave Search MCP (erfordert Brave-Search-API-Schlüssel und MCP-Plugin-ID im `mcp/<server_label>`-Format).
+- **SearXNG MCP**: Suchen über eine SearXNG MCP-Instanz (erfordert SearXNG-URL und MCP-Plugin-ID im Format `mcp/<server_label>`).
+- **LM Studio-Toolpack**: Community-LM Studio-Toolpack-Web-Suchserver (erfordert Plugin-ID im Format `mcp/<server_label>`).
 
-    An organization can forbid web access entirely with the `allow-internet` policy key — see
-    [Unternehmensrichtlinie](../enterprise-policy.md).
+Die Anmeldeinformationen werden verschlüsselt und sicher gespeichert. Verwenden Sie den **Keinen**-Schalter neben jedem Geheimnisfeld, um die gespeicherten Werte beim nächsten Speichern zu löschen.
+
+!!! warning "Integrierte Profile unterstützen ausschließlich das KorTTY Tavily Tool"
+    Ein Profil, dessen Verbindungsmodus **Integriertes llama.cpp** oder **Integriertes MLX** ist, kann verwenden
+    **KorTTY Tavily Tool** und nichts sonst. Die fünf MCP-Mode leiten die Anfrage über LM Studio's
+    native API, das ein eingebettetes Modell niemals durchläuft – die Auswahl eines auf einem eingebetteten Profil
+    falscht die Anfrage mit einer expliziten Nachricht statt stumm ohne Webzugriff zu antworten.
+    Lokale CLI-Profile verfügen über keine Internet-Modi; das Dropdown-Menü ist für sie deaktiviert.
+
+    Eine Organisation kann den Web-Zugriff vollständig verbieten, indem sie den `allow-internet`-Policy-Schlüssel verwendet — siehe
+    [Enterprise-Politik](../enterprise-policy.md).

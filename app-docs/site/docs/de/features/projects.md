@@ -41,7 +41,7 @@ Ein Projekt erfasst den vollständigen Zustand Ihres Arbeitsbereichs:
 | **Terminalsitzungen** | Sitzungsstatus einschließlich Cursorposition und Scrollback (sofern von der Sitzung unterstützt) |
 
 !!! note
-    AI-Ergebnisregisterkarten werden nicht mit Projekten gespeichert. Sie bleiben nur in der aktuellen Sitzung bestehen und gehen verloren, wenn Sie die Registerkarte schließen oder ein Projekt öffnen.
+    KI-Ergebnisregisterkarten werden nicht mit Projekten gespeichert. Sie bleiben nur in der aktuellen Sitzung bestehen und gehen verloren, wenn Sie die Registerkarte schließen oder ein Projekt öffnen.
 
 ## Automatische Wiederverbindung
 

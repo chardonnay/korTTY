@@ -312,7 +312,7 @@
         <a href="settings/ai-skills.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            KI-Fähigkeiten
+            KI-Skills
         </a>
     </li>
                     
@@ -968,7 +968,7 @@
 </table>
 <p>Die Zoom-Tasten (<span class="keys"><kbd class="key-control">Ctrl</kbd></span> oder <span class="keys"><kbd class="key-alt">Alt</kbd></span> mit <span class="keys"><kbd class="key-plus">+</kbd></span> / <span class="keys"><kbd class="key-minus">-</kbd></span> / <span class="keys"><kbd class="key-0">0</kbd></span>; <span class="keys"><kbd class="key-command">Cmd</kbd></span> auf macOS) vergrößern das Terminal nur, wenn ein Terminal-Tab ausgewählt ist. In einem Snippet-Editor oder Dateieditor-Tab erreichen sie den Editor, und <span class="keys"><kbd class="key-alt-graph">AltGr</kbd><span>+</span><kbd class="key-plus">+</kbd></span> tippt dort sein Zeichen.</p>
 <h2 id="snippet-manager">Snippet-Manager<a class="headerlink" href="#snippet-manager" title="Permanent link">&para;</a></h2>
-<p>Diese Tasten funktionieren im Snippet-Manager (Bibliothek und Editor-Tabs); Siehe <a href="../features/snippets.html#offnen-des-snippet-managers">Öffnen des Snippet-Managers</a>.</p>
+<p>Diese Tastenkombinationen funktionieren im Snippet-Manager (Bibliotheks- und Bearbeitungs-Tab); siehe <a href="../features/snippets.html#offnen-des-snippet-managers">Das Öffnen des Snippet-Managers</a>.</p>
 <table>
 <thead>
 <tr>
@@ -1021,7 +1021,7 @@
 </table>
 <p>Wenn der Fokus auf dem eigenen Tab-Header des Snippet-Managers im Hauptfenster (Tab-Modus) liegt, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-s">S</kbd></span> speichert das Projekt weiterhin, und <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-w">W</kbd></span> schließt den Snippet-Manager-Tab nach einer Nachfrage zu nicht gespeicherten Änderungen.</p>
 <h2 id="snippet-editor">Snippet-Editor<a class="headerlink" href="#snippet-editor" title="Permanent link">&para;</a></h2>
-<p>Diese Tasten funktionieren im Codefeld des Snippet-Editors; Siehe <a href="../features/snippets.html#ai-codevervollstandigungen">KI-Code-Vervollständigungen</a>.</p>
+<p>Diese Tastenkombinationen funktionieren im Code-Feld des Snippet-Editors; siehe <a href="../features/snippets.html#ai-codevervollstandigungen">KI-Code-Vervollständigungen</a>.</p>
 <table>
 <thead>
 <tr>
@@ -1051,8 +1051,12 @@
 <td>Schließen Sie die Liste oder verwerfen Sie Geistertext</td>
 </tr>
 <tr>
-<td><span class="keys"><kbd class="key-escape">Esc</kbd></span> (eine KI-Anfrage läuft)</td>
-<td>Stoppen Sie die laufende KI-Anfrage dieses Editors — eine KI-Code-Aktion, die Vollständige Code-Analyse oder deren Anwendung, ein Diagramm; funktioniert im gesamten Editor und seinem Analysefenster, schließt den Editor nie (Siehe <a href="../features/snippets.html#stoppen-und-erneutes-ausfuhren-von-ki-anfragen">Anhalten und erneutes Ausführen von KI-Anfragen</a>)</td>
+<td><span class="keys"><kbd class="key-escape">Esc</kbd></span> (eine KI-Anfrage wird ausgeführt)</td>
+<td>Die laufende KI-Anfrage dieses Editors beenden — eine KI-Code-Aktion, die Vollständige Code-Analyse oder deren Anwenden, ein Diagramm; funktioniert im gesamten Editor und in seinem Analysepanel, schließt den Editor nie (siehe <a href="../features/snippets.html#stoppen-und-erneutes-ausfuhren-von-ki-anfragen">Beenden und erneut starten von KI-Anfragen</a>)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-enter">Enter</kbd></span> (Neue Analyse-Bereich des Analysepanels)</td>
+<td>Starte die Vollständige Code-Analyse mit dem gewählten KI-Profil (siehe <a href="../features/snippets.html#das-ki-profil-vor-der-analyse-auswahlen">Wahl des KI-Profil vor der Analyse</a>)</td>
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-tab">Tab</kbd></span> (Geistertext sichtbar)</td>
@@ -1071,8 +1075,8 @@
 <td>Die Zeile wie zuvor einrücken</td>
 </tr>
 <tr>
-<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> (Änderungsüberprüfung angezeigt)</td>
-<td><strong>Übernehmen &amp; anwenden</strong> die geprüfte KI-Änderung (siehe <a href="../features/snippets.html#uberprufung-einer-ki-anderung">Überprüfung einer KI-Änderung</a>); <span class="keys"><kbd class="key-escape">Esc</kbd></span> tut dort nichts</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> (Änderungserfassung angezeigt ändern)</td>
+<td><strong>Übernehmen &amp; anwenden</strong> die überprüfte KI-Änderung (siehe <a href="../features/snippets.html#uberprufung-einer-ki-anderung">Die Überprüfung einer KI-Änderung</a>); <span class="keys"><kbd class="key-escape">Esc</kbd></span> erfüllt dort nichts</td>
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-plus">+</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-minus">-</kbd></span> (gezeigte Änderungsüberprüfung)</td>
@@ -1081,7 +1085,7 @@
 </tbody>
 </table>
 <h2 id="diagramm-zoomfenster">Diagramm-Zoomfenster<a class="headerlink" href="#diagramm-zoomfenster" title="Permanent link">&para;</a></h2>
-<p>Diese Tasten funktionieren im Zoomfenster des Vollständigen Code-Analyse-Flussdiagramms; Siehe <a href="../features/snippets.html#vollstandige-code-analyse">Vollständige Code-Analyse</a>.</p>
+<p>Diese Tastenkombinationen funktionieren im Zoom-Fenster des Diagramms für die Vollständige Code-Analyse; siehe <a href="../features/snippets.html#vollstandige-code-analyse">Vollständige Code-Analyse</a>.</p>
 <table>
 <thead>
 <tr>
