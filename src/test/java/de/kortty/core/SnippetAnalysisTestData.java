@@ -58,7 +58,7 @@ final class SnippetAnalysisTestData {
             List.of(new Change("SEC-1", "echo \"$1\"", "Prevents word splitting")), List.of("R1"),
             List.of("SEC-1", "R1"), List.of("SEC-1"), new RunStats(12, new Usage(10, 5, 15, 2), 1, 1, 1, "done"),
             new Provenance("p1", "Local", "qwen", List.of(), List.of(), "", new Usage(10, 5, 15, 2)), null,
-            SnippetDiagramSupport.contentHash(RESULT), 3500L);
+            SnippetDiagramSupport.contentHash(RESULT), 3500L, RESULT);
         return base
             .withDiagram(new AnalysisDiagram("logical-structure", "flowchart TD\n  A-->B",
                 List.of(new CodeRef("A", "start", 1, 2)), "", false, SnippetDiagramSupport.contentHash(SOURCE),

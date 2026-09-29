@@ -225,6 +225,33 @@ public class SnippetAnalysisStoreTest {
     }
 
     @Test
+    public void anAppliedButUnsavedResultSurvivesReloadRetentionAndOnlyDiscardRemovesIt() throws Exception {
+        SnippetAnalysisStore store = store(2);
+        ApplyRun remembered = ApplyRun.started("run", 1L, null, List.of(), null)
+            .withResult(2L, false, "fixed", "", null, null, null, null, null)
+            .accepted(3L, List.of("SEC-1"), "fixed\n# header\n");
+        store.addAnalysis("s", record("keeper", 1L).withRun(remembered));
+        for (int i = 0; i < 6; i++) {
+            store.addAnalysis("s", record("n" + i, 10L + i));
+        }
+        store.flush(Duration.ofSeconds(5));
+
+        // Retention never trimmed it, and the exact text is on disk.
+        assertThat(ids(store.cached("s"))).contains("keeper");
+        SnippetAnalysisHistory reloaded = store(2).load("s").join();
+        ApplyRun stored = reloaded.find("keeper").findRun("run");
+        assertThat(stored.acceptedContent()).isEqualTo("fixed\n# header\n");
+        assertThat(reloaded.find("keeper").isProtectedFromRetention()).isTrue();
+
+        // Saving the snippet with that text releases it; discarding the record removes it for good.
+        String savedSha = SnippetDiagramSupport.contentHash("fixed\n# header\n");
+        store.update("s", history -> history.withAcceptedRunsSaved(savedSha, 99L));
+        assertThat(store.cached("s").find("keeper").isProtectedFromRetention()).isFalse();
+        store.update("s", history -> history.remove("keeper"));
+        assertThat(ids(store.cached("s"))).doesNotContain("keeper");
+    }
+
+    @Test
     public void currentIsAlwaysTheNewestAndDiscardRemovesOneRecord() {
         SnippetAnalysisStore store = store(5);
         store.addAnalysis("s", record("a", 1L));

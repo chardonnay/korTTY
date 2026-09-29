@@ -304,6 +304,8 @@ public record SnippetAnalysisRecord(
      * @param completedWorkItemIds   ids of finished work items plus the completed requirement ids
      * @param appliedFindingIds      finding ids this run counts as applied once accepted
      * @param savedToSnippetAt       when an editor save persisted {@code acceptedContentSha256}, 0 before
+     * @param acceptedContent        the exact editor text right after Accept (header injection included),
+     *                               {@code null} in older files or when it exceeded the content cap
      */
     public record ApplyRun(String id, long startedAt, long finishedAt, long decidedAt, RunOutcome outcome,
                            boolean partial, ApplyRequestSnapshot request, List<WorkItemState> items,
@@ -311,7 +313,20 @@ public record SnippetAnalysisRecord(
                            String summary, List<Change> changes, List<String> implementedRequirements,
                            List<String> completedWorkItemIds, List<String> appliedFindingIds, RunStats stats,
                            Provenance provenance, String failureKey, String acceptedContentSha256,
-                           long savedToSnippetAt) {
+                           long savedToSnippetAt, String acceptedContent) {
+        /** Files and callers from before {@code acceptedContent} existed: no stored accepted text. */
+        public ApplyRun(String id, long startedAt, long finishedAt, long decidedAt, RunOutcome outcome,
+                        boolean partial, ApplyRequestSnapshot request, List<WorkItemState> items,
+                        StoredCheckpoint checkpoint, String resultSha256, String resultContent,
+                        String summary, List<Change> changes, List<String> implementedRequirements,
+                        List<String> completedWorkItemIds, List<String> appliedFindingIds, RunStats stats,
+                        Provenance provenance, String failureKey, String acceptedContentSha256,
+                        long savedToSnippetAt) {
+            this(id, startedAt, finishedAt, decidedAt, outcome, partial, request, items, checkpoint, resultSha256,
+                resultContent, summary, changes, implementedRequirements, completedWorkItemIds, appliedFindingIds,
+                stats, provenance, failureKey, acceptedContentSha256, savedToSnippetAt, null);
+        }
+
         public ApplyRun {
             id = blankToEmpty(id);
             outcome = outcome != null ? outcome : RunOutcome.INTERRUPTED;
@@ -370,19 +385,19 @@ public record SnippetAnalysisRecord(
             return new ApplyRun(id, startedAt, decision ? finishedAt : Math.max(finishedAt, at),
                 decision ? at : decidedAt, value, partial, request, items, checkpoint, resultSha256,
                 resultContent, summary, changes, implementedRequirements, completedWorkItemIds,
-                appliedFindingIds, stats, provenance, failureKey, acceptedContentSha256, savedToSnippetAt);
+                appliedFindingIds, stats, provenance, failureKey, acceptedContentSha256, savedToSnippetAt, acceptedContent);
         }
 
         public ApplyRun withCheckpoint(StoredCheckpoint value) {
             return new ApplyRun(id, startedAt, finishedAt, decidedAt, outcome, partial, request, items, value,
                 resultSha256, resultContent, summary, changes, implementedRequirements, completedWorkItemIds,
-                appliedFindingIds, stats, provenance, failureKey, acceptedContentSha256, savedToSnippetAt);
+                appliedFindingIds, stats, provenance, failureKey, acceptedContentSha256, savedToSnippetAt, acceptedContent);
         }
 
         public ApplyRun withItems(List<WorkItemState> value) {
             return new ApplyRun(id, startedAt, finishedAt, decidedAt, outcome, partial, request, value, checkpoint,
                 resultSha256, resultContent, summary, changes, implementedRequirements, completedWorkItemIds,
-                appliedFindingIds, stats, provenance, failureKey, acceptedContentSha256, savedToSnippetAt);
+                appliedFindingIds, stats, provenance, failureKey, acceptedContentSha256, savedToSnippetAt, acceptedContent);
         }
 
         /** Records a finished rewrite that waits for the user's decision. */
@@ -393,14 +408,14 @@ public record SnippetAnalysisRecord(
             return new ApplyRun(id, startedAt, at, decidedAt, RunOutcome.PENDING_REVIEW, isPartial, request, items,
                 checkpoint, SnippetDiagramSupport.contentHash(text), capContent(text), resultSummary,
                 resultChanges, requirements, completedIds, appliedFindingIds, runStats,
-                resolved != null ? resolved : provenance, failureKey, acceptedContentSha256, savedToSnippetAt);
+                resolved != null ? resolved : provenance, failureKey, acceptedContentSha256, savedToSnippetAt, acceptedContent);
         }
 
         public ApplyRun withFailure(RunOutcome value, long at, String key, RunStats runStats) {
             return new ApplyRun(id, startedAt, Math.max(finishedAt, at), decidedAt, value, partial, request, items,
                 checkpoint, resultSha256, resultContent, summary, changes, implementedRequirements,
                 completedWorkItemIds, appliedFindingIds, runStats != null ? runStats : stats, provenance, key,
-                acceptedContentSha256, savedToSnippetAt);
+                acceptedContentSha256, savedToSnippetAt, acceptedContent);
         }
 
         /** Accept: the editor now holds {@code editorContent}; {@code findingIds} count as applied. */
@@ -408,13 +423,13 @@ public record SnippetAnalysisRecord(
             return new ApplyRun(id, startedAt, finishedAt, at, RunOutcome.ACCEPTED, partial, request, items,
                 checkpoint, resultSha256, resultContent, summary, changes, implementedRequirements,
                 completedWorkItemIds, findingIds, stats, provenance, failureKey,
-                SnippetDiagramSupport.contentHash(editorContent), savedToSnippetAt);
+                SnippetDiagramSupport.contentHash(editorContent), savedToSnippetAt, capContent(editorContent));
         }
 
         public ApplyRun withSavedToSnippetAt(long value) {
             return new ApplyRun(id, startedAt, finishedAt, decidedAt, outcome, partial, request, items, checkpoint,
                 resultSha256, resultContent, summary, changes, implementedRequirements, completedWorkItemIds,
-                appliedFindingIds, stats, provenance, failureKey, acceptedContentSha256, value);
+                appliedFindingIds, stats, provenance, failureKey, acceptedContentSha256, value, acceptedContent);
         }
 
         ApplyRun mapContent(UnaryOperator<String> mapper) {
@@ -425,7 +440,16 @@ public record SnippetAnalysisRecord(
             return new ApplyRun(id, startedAt, finishedAt, decidedAt, outcome, partial, mappedRequest, items,
                 mappedCheckpoint, resultSha256, mapper.apply(resultContent), summary, changes,
                 implementedRequirements, completedWorkItemIds, appliedFindingIds, stats, provenance, failureKey,
-                acceptedContentSha256, savedToSnippetAt);
+                acceptedContentSha256, savedToSnippetAt, mapper.apply(acceptedContent));
+        }
+
+        /**
+         * An accepted run whose result never reached the saved snippet and whose exact editor text
+         * is stored: the "applied, but not saved" intermediate state that is remembered until the
+         * snippet is saved with it or the user deletes the analysis.
+         */
+        public boolean holdsUnsavedAcceptedContent() {
+            return outcome == RunOutcome.ACCEPTED && savedToSnippetAt <= 0 && acceptedContent != null;
         }
 
         /** Drops content no later step needs: decided runs lose their checkpoint text. */
@@ -709,7 +733,28 @@ public record SnippetAnalysisRecord(
 
     /** Retention never trims a pinned record, or one with running, pending or resumable work. */
     public boolean isProtectedFromRetention() {
-        return pinned || hasRunningRun() || hasPendingReview() || hasResumableRun();
+        return pinned || hasRunningRun() || hasPendingReview() || hasResumableRun() || hasUnsavedAcceptedRun();
+    }
+
+    /** Some accepted run's stored result was never saved to the snippet ({@link ApplyRun#holdsUnsavedAcceptedContent}). */
+    public boolean hasUnsavedAcceptedRun() {
+        return applyRuns.stream().anyMatch(ApplyRun::holdsUnsavedAcceptedContent);
+    }
+
+    /**
+     * The accepted-but-unsaved runs whose stored text differs from {@code savedSnippetSha256} (the
+     * snippet as saved; {@code null} = unknown), newest first: what "restore the intermediate state"
+     * can offer.
+     */
+    public List<ApplyRun> unsavedAcceptedRuns(String savedSnippetSha256) {
+        List<ApplyRun> found = new ArrayList<>();
+        for (int i = applyRuns.size() - 1; i >= 0; i--) {
+            ApplyRun run = applyRuns.get(i);
+            if (run.holdsUnsavedAcceptedContent() && !run.acceptedContentSha256().equals(savedSnippetSha256)) {
+                found.add(run);
+            }
+        }
+        return List.copyOf(found);
     }
 
     // ---- Withers ----
@@ -806,7 +851,7 @@ public record SnippetAnalysisRecord(
     /**
      * Applies the size caps: every content field at most {@link #MAX_CONTENT_CHARS}, decided runs
      * without checkpoint text, and only the {@link #MAX_RUNS_WITH_CONTENT} newest runs with content.
-     * Runs still waiting for review or resumable always keep their content.
+     * Runs still waiting for review, resumable or accepted but not saved always keep their content.
      */
     SnippetAnalysisRecord compact() {
         Source cappedSource = source;
@@ -819,7 +864,7 @@ public record SnippetAnalysisRecord(
         for (int i = 0; i < applyRuns.size(); i++) {
             ApplyRun run = applyRuns.get(i).mapContent(SnippetAnalysisRecord::capContent);
             boolean keep = i >= firstWithContent || run.outcome() == RunOutcome.PENDING_REVIEW
-                || run.outcome() == RunOutcome.RUNNING || run.isResumable();
+                || run.outcome() == RunOutcome.RUNNING || run.isResumable() || run.holdsUnsavedAcceptedContent();
             runs.add(run.compact(keep));
         }
         return withSource(cappedSource).withApplyRuns(runs);

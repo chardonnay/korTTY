@@ -8099,6 +8099,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         }
         try {
             store.copy(fromId, copy.getId());
+            // The copy is saved with the editor's text: an applied result that is exactly that text
+            // is saved there (the original keeps its own remembered state).
+            String copySha = de.kortty.core.SnippetDiagramSupport.contentHash(
+                copy.getContent() != null ? copy.getContent() : "");
+            long now = System.currentTimeMillis();
+            store.update(copy.getId(), h -> h.withAcceptedRunsSaved(copySha, now));
             setStatus(I18n.get("snippets.saveAsNew.analysisCopied", count));
         } catch (RuntimeException e) {
             logger.warn("Could not copy the stored analyses of {} to {}", fromId, copy.getId(), e);
@@ -8213,6 +8219,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         @Override
         public void hideBanner(Region banner) {
             editorFormLayout.getChildren().remove(banner);
+            // The analysis panel does not repeat a result the draft banner was offering.
+            if (analysisController != null) {
+                analysisController.onContentChanged();
+            }
         }
     }
 
@@ -8393,6 +8403,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             String label = I18n.get("snippets.ai.analysis.panel.toggle");
             analysisToggleButton.setText(badge == null || badge.isBlank() ? label : label + " " + badge);
             analysisToggleButton.getTooltip().setText(tooltip != null ? tooltip : "");
+        }
+
+        @Override
+        public String offeredDraftContentSha256() {
+            return draftAutosave != null ? draftAutosave.offeredContentSha256() : null;
         }
 
         @Override

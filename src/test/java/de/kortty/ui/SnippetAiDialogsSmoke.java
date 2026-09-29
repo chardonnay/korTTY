@@ -76,6 +76,10 @@ public final class SnippetAiDialogsSmoke {
             System.setProperty(de.kortty.core.SnippetAnalysisStore.DIRECTORY_PROPERTY,
                 java.nio.file.Files.createTempDirectory("kortty-smoke-analyses").toString());
         }
+        if (System.getProperty(de.kortty.core.SnippetDraftStore.DIRECTORY_PROPERTY) == null) {
+            System.setProperty(de.kortty.core.SnippetDraftStore.DIRECTORY_PROPERTY,
+                java.nio.file.Files.createTempDirectory("kortty-smoke-drafts").toString());
+        }
         CountDownLatch done = new CountDownLatch(1);
         AtomicReference<String> failure = new AtomicReference<>();
 
@@ -388,7 +392,7 @@ public final class SnippetAiDialogsSmoke {
             // Closing the editors disposes their analysis and diff WebViews. Give macOS WebKit a
             // moment to release its native scenes before the next editor boots its own.
             PauseTransition cleanupPause = new PauseTransition(Duration.seconds(2));
-            cleanupPause.setOnFinished(cleanup -> runInEditorChangeReviewLeg(failure, done));
+            cleanupPause.setOnFinished(cleanup -> runAnalysisHistoryLeg(failure, done));
             cleanupPause.play();
         }));
         wait.setCycleCount(Animation.INDEFINITE);
@@ -511,7 +515,7 @@ public final class SnippetAiDialogsSmoke {
                             throw new AssertionError("Accept is blocked although the content is unchanged");
                         }
                         phase.set(3);
-                        ((Button) requireInEditor(editorDialog, "#snippet-ai-diff-accept")).fire();
+                        click((Button) requireInEditor(editorDialog, "#snippet-ai-diff-accept"));
                     }
                     case 3 -> {
                         if (!migrated.equals(editor.getText())) {
@@ -537,7 +541,7 @@ public final class SnippetAiDialogsSmoke {
                             return;
                         }
                         phase.set(5);
-                        ((Button) requireInEditor(editorDialog, "#snippet-ai-diff-reject")).fire();
+                        click((Button) requireInEditor(editorDialog, "#snippet-ai-diff-reject"));
                     }
                     case 5 -> {
                         if (!migrated.equals(editor.getText())) {
@@ -1686,6 +1690,536 @@ public final class SnippetAiDialogsSmoke {
                 });
             }
         };
+    }
+
+    // =====================================================================================
+    // The analysis history entry drives the whole panel, and applied results are remembered
+    // =====================================================================================
+
+    private static de.kortty.core.SnippetAnalysisRecord historyRecord(
+            String recordId, String snippetId, String tag, String source, String mermaid, long at) {
+        SnippetAiResponseSupport.ScriptAnalysis analysis = new SnippetAiResponseSupport.ScriptAnalysis(
+            tag + " summary.", List.of(), List.of(new SnippetAiResponseSupport.ScriptImprovement(
+                tag.toUpperCase(java.util.Locale.ROOT).charAt(0) + "-1", "security", "high",
+                tag + " finding title", tag + " finding detail.", "Fix it (" + tag + ").", 3)));
+        de.kortty.core.SnippetAnalysisRecord record = de.kortty.core.SnippetAnalysisRecord.fromAnalysis(
+            recordId, snippetId, analysis,
+            de.kortty.core.SnippetAnalysisRecord.Source.of(source, "bash", "en", "en", "history-follow-smoke.sh"),
+            new de.kortty.core.SnippetAnalysisRecord.Provenance(null, tag + " profile", null, null, null, null, null),
+            de.kortty.core.SnippetAnalysisRecord.Purpose.ANALYSIS, null, at);
+        String finding = tag.toUpperCase(java.util.Locale.ROOT).charAt(0) + "-1";
+        record = record.withSelection(new de.kortty.core.SnippetAnalysisRecord.SelectionState(
+            List.of(finding), List.of(), List.of(), false, List.of(), 0L, null, null, null, null, at));
+        if (mermaid != null) {
+            record = record.withDiagram(new de.kortty.core.SnippetAnalysisRecord.AnalysisDiagram(
+                "logical-structure", mermaid, List.of(), "", false,
+                de.kortty.core.SnippetDiagramSupport.contentHash(source), null, at));
+        }
+        return record;
+    }
+
+    private static de.kortty.core.SnippetAnalysisRecord.ApplyRun historyRun(
+            String runId, String finding, String base, String result, String summary) {
+        de.kortty.core.SnippetAnalysisRecord.ApplyRequestSnapshot request =
+            new de.kortty.core.SnippetAnalysisRecord.ApplyRequestSnapshot("bash", "en", List.of(finding), List.of(),
+                null, List.of(), null, List.of(), null, null, null, null, null, null, null, null,
+                de.kortty.core.SnippetDiagramSupport.contentHash(base), base);
+        return de.kortty.core.SnippetAnalysisRecord.ApplyRun.started(runId, 2000L, request, List.of(), null)
+            .withResult(3000L, false, result, summary,
+                List.of(new de.kortty.core.SnippetAnalysisRecord.Change(finding, "printf", "Reason of " + summary)),
+                List.of(), List.of(finding), de.kortty.core.SnippetAnalysisRecord.RunStats.EMPTY, null);
+    }
+
+    private static String findingsText(SnippetAnalysisPanel panel) {
+        Object text = findingsWebView(panel).getEngine().executeScript("document.body.innerText");
+        return text != null ? text.toString() : "";
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ComboBox<String> historyCombo(SnippetEditDialog editor) {
+        return (ComboBox<String>) requireInEditor(editor, "#" + SnippetAnalysisController.HISTORY_COMBO_ID);
+    }
+
+    /**
+     * Seeds three stored analyses (an old one without a diagram, a middle one with a result waiting
+     * for review, the current one with an accepted-but-unsaved result), opens the editor and:
+     * switches the history picker through all of them, asserting that findings, ticked selection,
+     * diagram, banners and the change preview follow the entry; opens A's review and switches away
+     * (the preview must go, the review stay pending); generates C's missing diagram from C's stored
+     * source, even though the view moved on meanwhile; "View changes" of the accepted entry and its
+     * restore; closes the editor unsaved, reopens it and restores from the store (with the inline
+     * question when the editor holds other edits); discards the record; and finally checks that a
+     * saved snippet stamps its accepted run. Ends by starting the next leg.
+     */
+    private static void runAnalysisHistoryLeg(AtomicReference<String> failure, CountDownLatch done) {
+        Runnable next = () -> runInEditorChangeReviewLeg(failure, done);
+        String s0 = "#!/usr/bin/env bash\n# Alpha script that greets the caller by name.\nprintf '%s\\n' $name\n";
+        String sc = "#!/bin/sh\n# Gamma script, analysed earlier and rewritten since.\necho gamma $1\n";
+        String ra = s0 + "# proposed by the alpha analysis\n";
+        String rb = "#!/usr/bin/env bash\n# Alpha script that greets the caller by name.\nprintf '%s\\n' \"$name\"\n";
+        String mermaidA = "flowchart TD\n  A1[Alpha start] --> A2[Alpha end]";
+        String mermaidB = "flowchart TD\n  B1[Beta start] --> B2[Beta end]";
+        String mermaidC = "flowchart TD\n  C1[Gamma start] --> C2[Gamma end]";
+        Snippet snippet = new Snippet("history-follow-smoke.sh", s0, "bash");
+        String snippetId = snippet.getId();
+        de.kortty.core.SnippetAnalysisStore store = de.kortty.core.SnippetAnalysisStore.shared();
+        de.kortty.core.SnippetAnalysisRecord recordC =
+            historyRecord("hist-c", snippetId, "Gamma", sc, null, 1000L);
+        de.kortty.core.SnippetAnalysisRecord recordA = historyRecord("hist-a", snippetId, "Alpha", s0, mermaidA, 2000L)
+            .withRun(historyRun("run-a", "A-1", s0, ra, "Alpha summary"));
+        de.kortty.core.SnippetAnalysisRecord recordB = historyRecord("hist-b", snippetId, "Beta", s0, mermaidB, 3000L)
+            .withRun(historyRun("run-b", "B-1", s0, rb, "Beta summary")
+                .accepted(4000L, List.of("B-1"), rb));
+        store.addAnalysis(snippetId, recordC);
+        store.addAnalysis(snippetId, recordA);
+        store.addAnalysis(snippetId, recordB);
+
+        AtomicReference<List<SnippetEditDialog.DiagramRequest>> diagramRequests =
+            new AtomicReference<>(new ArrayList<>());
+        CountDownLatch diagramGate = new CountDownLatch(1);
+        AtomicBoolean gateDiagram = new AtomicBoolean();
+        SnippetEditDialog.AiAssist assist = new SnippetEditDialog.AiAssist(
+            null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+            request -> {
+                diagramRequests.get().add(request);
+                if (gateDiagram.get()) {
+                    diagramGate.await(20, TimeUnit.SECONDS);
+                }
+                return new SnippetAiResponseSupport.MermaidDiagram("Flow", mermaidC);
+            },
+            request -> {
+                throw new AssertionError("The history leg must never run a new analysis");
+            },
+            request -> {
+                throw new AssertionError("The history leg must never run an apply");
+            },
+            false,
+            null);
+
+        java.util.concurrent.atomic.AtomicInteger phase = new java.util.concurrent.atomic.AtomicInteger();
+        AtomicReference<Timeline> poller = new AtomicReference<>();
+        AtomicReference<SnippetEditDialog> editorRef = new AtomicReference<>();
+        AtomicReference<SnippetEditDialog> secondRef = new AtomicReference<>();
+        AtomicReference<SnippetEditDialog> thirdRef = new AtomicReference<>();
+        java.util.concurrent.atomic.AtomicLong stamp = new java.util.concurrent.atomic.AtomicLong(System.nanoTime());
+        java.util.concurrent.atomic.AtomicLong phaseSince = new java.util.concurrent.atomic.AtomicLong(System.nanoTime());
+        String edit = "# an unsaved edit\n";
+        Snippet savedSnippet = new Snippet("history-saved-smoke.sh", rb, "bash");
+        String savedSnippetId = savedSnippet.getId();
+        SnippetEditDialog editorDialog;
+        try {
+            editorDialog = new SnippetEditDialog(snippet, List.of(), assist);
+            editorRef.set(editorDialog);
+            editorDialog.show();
+        } catch (Throwable e) {
+            failure.compareAndSet(null, "Analysis history leg could not start: " + e);
+            next.run();
+            return;
+        }
+        MonacoEditorPane editor = field(editorDialog, "contentArea", MonacoEditorPane.class);
+        Runnable finish = () -> {
+            stop(poller);
+            for (AtomicReference<SnippetEditDialog> ref : List.of(editorRef, secondRef, thirdRef)) {
+                if (ref.get() != null) {
+                    ref.get().closeWithoutPrompt();
+                }
+            }
+            PauseTransition cleanupPause = new PauseTransition(Duration.seconds(2));
+            cleanupPause.setOnFinished(cleanup -> next.run());
+            cleanupPause.play();
+        };
+        Runnable advance = () -> phaseSince.set(System.nanoTime());
+
+        Timeline timeline = new Timeline(new KeyFrame(Duration.millis(100), event -> {
+            try {
+                if (System.nanoTime() - stamp.get() > 90_000_000_000L) {
+                    throw new AssertionError("timed out in phase " + phase.get());
+                }
+                SnippetEditDialog live = phase.get() >= 20 ? secondRef.get() : editorRef.get();
+                switch (phase.get()) {
+                    case 0 -> {
+                        if (!editor.isReady()) {
+                            return;
+                        }
+                        editorDialog.analysisController().showPanel();
+                        phase.set(1);
+                    }
+                    case 1 -> {
+                        // The current entry (B): its findings, selection, diagram and unsaved-result banner.
+                        SnippetAnalysisController controller = editorDialog.analysisController();
+                        SnippetAnalysisPanel panel = controller.analysisPanel();
+                        if (panel == null || !panel.isPageReady() || panel.diagramView().currentSource() == null) {
+                            return;
+                        }
+                        assertEntry(editorDialog, panel, "Beta", "imp:B-1", mermaidB);
+                        requireInEditor(editorDialog, "#" + SnippetAnalysisController.INTERMEDIATE_BANNER_ID);
+                        if (historyCombo(editorDialog).getItems().size() != 3) {
+                            throw new AssertionError("The history picker should list the three seeded analyses");
+                        }
+                        controller.selectRecord("hist-a");
+                        phase.set(2);
+                    }
+                    case 2 -> {
+                        // Entry A: everything follows — and A's pending result is offered, B's banner is gone.
+                        SnippetAnalysisController controller = editorDialog.analysisController();
+                        SnippetAnalysisPanel panel = controller.analysisPanel();
+                        if (panel == null || !panel.isPageReady() || panel.diagramView().currentSource() == null
+                                || !findingsText(panel).contains("Alpha")) {
+                            return;
+                        }
+                        assertEntry(editorDialog, panel, "Alpha", "imp:A-1", mermaidA);
+                        if (editorDialog.getDialogPane().lookup("#" + SnippetAnalysisController.INTERMEDIATE_BANNER_ID) != null) {
+                            throw new AssertionError("B's intermediate-state banner must not show under A");
+                        }
+                        requireInEditor(editorDialog, "#" + SnippetAnalysisController.REVIEW_BANNER_ID);
+                        phase.set(3);
+                        click((Button) requireInEditor(editorDialog, "#snippet-analysis-review-open"));
+                    }
+                    case 3 -> {
+                        // A's review is open in the editor area with A's stored base and result.
+                        SnippetAiDiffPane review = editorDialog.analysisController().reviewPane();
+                        if (review == null || review.getScene() == null || !review.isDiffReady()) {
+                            return;
+                        }
+                        if (!s0.equals(review.originalText()) || !ra.equals(review.replacementText())) {
+                            throw new AssertionError("A's review shows the wrong texts: " + review.replacementText());
+                        }
+                        phase.set(4);
+                        // The user picks B in the history picker while A's review is open.
+                        historyCombo(editorDialog).setValue("hist-b");
+                    }
+                    case 4 -> {
+                        SnippetAnalysisController controller = editorDialog.analysisController();
+                        if (controller.isReviewShowing()) {
+                            throw new AssertionError("A's change preview stayed on screen after B was picked");
+                        }
+                        if (editorDialog.getDialogPane().lookup("#snippet-ai-diff-pane") != null) {
+                            throw new AssertionError("The editor area still shows a change preview under B");
+                        }
+                        SnippetAnalysisPanel panel = controller.analysisPanel();
+                        if (panel == null || !panel.isPageReady() || panel.diagramView().currentSource() == null
+                                || !findingsText(panel).contains("Beta")) {
+                            return;
+                        }
+                        assertEntry(editorDialog, panel, "Beta", "imp:B-1", mermaidB);
+                        de.kortty.core.SnippetAnalysisRecord a = store.cached(snippetId).find("hist-a");
+                        if (lastRun(a).outcome() != de.kortty.core.SnippetAnalysisRecord.RunOutcome.PENDING_REVIEW) {
+                            throw new AssertionError("Switching away must leave A's review pending");
+                        }
+                        // ... and it is re-openable from A's own entry.
+                        controller.selectRecord("hist-a");
+                        phase.set(5);
+                    }
+                    case 5 -> {
+                        SnippetAnalysisController controller = editorDialog.analysisController();
+                        SnippetAnalysisPanel panel = controller.analysisPanel();
+                        if (panel == null || !panel.isPageReady() || !findingsText(panel).contains("Alpha")) {
+                            return;
+                        }
+                        Button reopen = (Button) requireInEditor(editorDialog, "#snippet-analysis-review-open");
+                        phase.set(6);
+                        click(reopen);
+                    }
+                    case 6 -> {
+                        SnippetAiDiffPane review = editorDialog.analysisController().reviewPane();
+                        if (review == null || review.getScene() == null || !review.isDiffReady()) {
+                            return;
+                        }
+                        if (!ra.equals(review.replacementText())) {
+                            throw new AssertionError("Re-opened A review shows " + review.replacementText());
+                        }
+                        phase.set(7);
+                        // Now to C (no stored diagram): the preview must go and the diagram area says so.
+                        historyCombo(editorDialog).setValue("hist-c");
+                    }
+                    case 7 -> {
+                        SnippetAnalysisController controller = editorDialog.analysisController();
+                        SnippetAnalysisPanel panel = controller.analysisPanel();
+                        if (controller.isReviewShowing()) {
+                            throw new AssertionError("A's change preview stayed on screen after C was picked");
+                        }
+                        if (panel == null || !panel.isPageReady() || !findingsText(panel).contains("Gamma")) {
+                            return;
+                        }
+                        if (panel.diagramView().currentSource() != null
+                                || !diagramRequests.get().isEmpty()) {
+                            throw new AssertionError("C has no stored diagram: none may be shown or requested unasked");
+                        }
+                        if (panel.selectedFindingTokens().stream().noneMatch("imp:G-1"::equals)) {
+                            throw new AssertionError("C's ticked selection was not restored: " + panel.selectedFindingTokens());
+                        }
+                        // Generate C's diagram, then move on to B before the provider answers.
+                        gateDiagram.set(true);
+                        Button regenerate = findNodes(panel.diagramView(), Button.class).stream()
+                            .map(Button.class::cast)
+                            .filter(button -> button.getText() != null
+                                && button.getText().contains(I18n.get("snippets.ai.diagram.regenerate")))
+                            .findFirst().orElseThrow(() -> new AssertionError("No Regenerate button"));
+                        phase.set(8);
+                        click(regenerate);
+                    }
+                    case 8 -> {
+                        if (diagramRequests.get().isEmpty()) {
+                            return; // the job has not reached the provider yet
+                        }
+                        SnippetEditDialog.DiagramRequest request = diagramRequests.get().get(0);
+                        if (!sc.equals(request.fullContent())) {
+                            throw new AssertionError("C's diagram was generated from the editor text instead of "
+                                + "C's stored source: " + request.fullContent());
+                        }
+                        // Switch view while the job is in flight; the job is bound to C, not to the view.
+                        editorDialog.analysisController().selectRecord("hist-b");
+                        phase.set(9);
+                    }
+                    case 9 -> {
+                        SnippetAnalysisController controller = editorDialog.analysisController();
+                        SnippetAnalysisPanel panel = controller.analysisPanel();
+                        if (panel == null || !panel.isPageReady() || panel.diagramView().currentSource() == null
+                                || !findingsText(panel).contains("Beta")) {
+                            return;
+                        }
+                        diagramGate.countDown();
+                        phase.set(10);
+                    }
+                    case 10 -> {
+                        de.kortty.core.SnippetAnalysisHistory stored = store.cached(snippetId);
+                        de.kortty.core.SnippetAnalysisRecord c = stored.find("hist-c");
+                        if (c == null || c.diagram() == null) {
+                            return; // the late job is still landing
+                        }
+                        if (!mermaidC.equals(c.diagram().mermaid())
+                                || !mermaidB.equals(stored.find("hist-b").diagram().mermaid())
+                                || !mermaidA.equals(stored.find("hist-a").diagram().mermaid())) {
+                            throw new AssertionError("The late diagram landed in the wrong record: C="
+                                + c.diagram().mermaid());
+                        }
+                        SnippetAnalysisPanel panel = editorDialog.analysisController().analysisPanel();
+                        if (!mermaidB.equals(panel.diagramView().currentSource().mermaid())) {
+                            throw new AssertionError("The late diagram replaced B's diagram in the view");
+                        }
+                        editorDialog.analysisController().selectRecord("hist-c");
+                        phase.set(11);
+                    }
+                    case 11 -> {
+                        SnippetAnalysisPanel panel = editorDialog.analysisController().analysisPanel();
+                        if (panel == null || !panel.isPageReady() || panel.diagramView().currentSource() == null
+                                || !findingsText(panel).contains("Gamma")) {
+                            return;
+                        }
+                        assertEntry(editorDialog, panel, "Gamma", "imp:G-1", mermaidC);
+                        editorDialog.analysisController().selectRecord("hist-b");
+                        phase.set(12);
+                    }
+                    case 12 -> {
+                        // "View changes" of the accepted entry: a read-only diff of its stored base and result.
+                        SnippetAnalysisController controller = editorDialog.analysisController();
+                        SnippetAnalysisPanel panel = controller.analysisPanel();
+                        if (panel == null || !panel.isPageReady() || !findingsText(panel).contains("Beta")) {
+                            return;
+                        }
+                        Button view = findNodes(controller.sidePanel(), Button.class).stream()
+                            .map(Button.class::cast)
+                            .filter(button -> I18n.get("snippets.ai.analysis.progress.viewChanges").equals(button.getText())
+                                && button.isVisible())
+                            .findFirst().orElse(null);
+                        if (view == null) {
+                            return;
+                        }
+                        phase.set(13);
+                        click(view);
+                    }
+                    case 13 -> {
+                        SnippetAiDiffPane review = editorDialog.analysisController().reviewPane();
+                        if (review == null || review.getScene() == null || !review.isDiffReady()) {
+                            return;
+                        }
+                        if (!s0.equals(review.originalText()) || !rb.equals(review.replacementText())) {
+                            throw new AssertionError("The accepted entry's preview shows the wrong diff");
+                        }
+                        if (editorDialog.getDialogPane().lookup("#snippet-ai-diff-accept") != null) {
+                            throw new AssertionError("A decided entry's preview must be read-only");
+                        }
+                        // Restore from the preview: the editor gets the remembered applied text.
+                        phase.set(14);
+                        click((Button) requireInEditor(editorDialog, "#snippet-ai-diff-restore"));
+                    }
+                    case 14 -> {
+                        if (!rb.equals(editor.getText())) {
+                            return;
+                        }
+                        if (editorDialog.analysisController().isReviewShowing()) {
+                            throw new AssertionError("Restore left the preview open");
+                        }
+                        // Leave the editor unsaved: close it, the state must survive in the store.
+                        store.flush(java.time.Duration.ofSeconds(5));
+                        editorDialog.closeWithoutPrompt();
+                        phase.set(19);
+                        advance.run();
+                    }
+                    case 19 -> {
+                        if (System.nanoTime() - phaseSince.get() < 1_500_000_000L) {
+                            return;
+                        }
+                        de.kortty.core.SnippetAnalysisStore fresh = new de.kortty.core.SnippetAnalysisStore(
+                            store.directory(), id -> true, () -> 5);
+                        de.kortty.core.SnippetAnalysisRecord onDisk = fresh.load(snippetId).get(10, TimeUnit.SECONDS)
+                            .find("hist-b");
+                        fresh.close();
+                        if (onDisk == null || !rb.equals(lastRun(onDisk).acceptedContent())
+                                || !onDisk.isProtectedFromRetention()) {
+                            throw new AssertionError("The applied-but-unsaved text did not survive on disk");
+                        }
+                        SnippetEditDialog again = new SnippetEditDialog(snippet, List.of(), assist);
+                        secondRef.set(again);
+                        again.show();
+                        phase.set(20);
+                    }
+                    case 20 -> {
+                        MonacoEditorPane againEditor = field(live, "contentArea", MonacoEditorPane.class);
+                        if (!againEditor.isReady()) {
+                            return;
+                        }
+                        live.analysisController().showPanel();
+                        phase.set(21);
+                    }
+                    case 21 -> {
+                        // The reopened editor holds the saved text again: the banner offers the remembered one.
+                        SnippetAnalysisPanel panel = live.analysisController().analysisPanel();
+                        MonacoEditorPane againEditor = field(live, "contentArea", MonacoEditorPane.class);
+                        if (panel == null || !panel.isPageReady()
+                                || live.getDialogPane().lookup("#" + SnippetAnalysisController.INTERMEDIATE_BANNER_ID) == null) {
+                            return;
+                        }
+                        if (!s0.equals(againEditor.getText())) {
+                            throw new AssertionError("The reopened editor should hold the saved text");
+                        }
+                        // The editor has other edits: Restore asks first, Keep changes nothing.
+                        againEditor.replaceText(s0 + edit);
+                        phase.set(22);
+                    }
+                    case 22 -> {
+                        MonacoEditorPane againEditor = field(live, "contentArea", MonacoEditorPane.class);
+                        if (!(s0 + edit).equals(againEditor.getText())) {
+                            return;
+                        }
+                        phase.set(23);
+                        click((Button) requireInEditor(live, "#snippet-analysis-intermediate-restore"));
+                    }
+                    case 23 -> {
+                        Node confirm = live.getDialogPane().lookup("#snippet-analysis-intermediate-confirm");
+                        if (confirm == null) {
+                            return;
+                        }
+                        MonacoEditorPane againEditor = field(live, "contentArea", MonacoEditorPane.class);
+                        if (!(s0 + edit).equals(againEditor.getText())) {
+                            throw new AssertionError("Restore replaced unsaved edits without asking");
+                        }
+                        click((Button) requireInEditor(live, "#snippet-analysis-intermediate-keep"));
+                        phase.set(24);
+                    }
+                    case 24 -> {
+                        if (live.getDialogPane().lookup("#snippet-analysis-intermediate-confirm") != null) {
+                            return;
+                        }
+                        MonacoEditorPane againEditor = field(live, "contentArea", MonacoEditorPane.class);
+                        if (!(s0 + edit).equals(againEditor.getText())) {
+                            throw new AssertionError("Keep must leave the editor alone");
+                        }
+                        phase.set(25);
+                        click((Button) requireInEditor(live, "#snippet-analysis-intermediate-restore"));
+                    }
+                    case 25 -> {
+                        if (live.getDialogPane().lookup("#snippet-analysis-intermediate-replace") == null) {
+                            return;
+                        }
+                        phase.set(26);
+                        click((Button) requireInEditor(live, "#snippet-analysis-intermediate-replace"));
+                    }
+                    case 26 -> {
+                        MonacoEditorPane againEditor = field(live, "contentArea", MonacoEditorPane.class);
+                        if (!rb.equals(againEditor.getText())) {
+                            return;
+                        }
+                        // Restored and unsaved: no second offer for the text the editor holds already.
+                        if (live.getDialogPane().lookup("#" + SnippetAnalysisController.INTERMEDIATE_BANNER_ID) != null) {
+                            return; // the banner refreshes after the content debounce
+                        }
+                        phase.set(27);
+                    }
+                    case 27 -> {
+                        // Discard the current record (the viewed one): its banner goes with it.
+                        SnippetAnalysisController controller = live.analysisController();
+                        javafx.scene.control.MenuButton actions = (javafx.scene.control.MenuButton) requireInEditor(live,
+                            "#" + SnippetAnalysisController.HISTORY_ACTIONS_ID);
+                        historyItem(actions, SnippetAnalysisController.HISTORY_DISCARD_ID).fire();
+                        click((Button) requireInEditor(live, "#" + SnippetAnalysisController.CONFIRM_YES_ID));
+                        de.kortty.core.SnippetAnalysisHistory after = store.cached(snippetId);
+                        if (after.find("hist-b") != null) {
+                            throw new AssertionError("Discard did not remove the record with the remembered result");
+                        }
+                        phase.set(28);
+                    }
+                    case 28 -> {
+                        if (live.getDialogPane().lookup("#" + SnippetAnalysisController.INTERMEDIATE_BANNER_ID) != null) {
+                            throw new AssertionError("The intermediate-state banner survived the discard");
+                        }
+                        // A saved snippet that holds an accepted result exactly: stamped saved, banner-free.
+                        de.kortty.core.SnippetAnalysisRecord d = historyRecord("hist-d", savedSnippetId, "Delta", s0, null, 5000L)
+                            .withRun(historyRun("run-d", "D-1", s0, rb, "Delta summary").accepted(6000L, List.of("D-1"), rb));
+                        store.addAnalysis(savedSnippetId, d);
+                        if (!store.cached(savedSnippetId).current().isProtectedFromRetention()) {
+                            throw new AssertionError("An unsaved accepted run must protect its record");
+                        }
+                        SnippetEditDialog third = new SnippetEditDialog(savedSnippet, List.of(), assist);
+                        thirdRef.set(third);
+                        third.show();
+                        third.analysisController().showPanel();
+                        phase.set(29);
+                    }
+                    case 29 -> {
+                        de.kortty.core.SnippetAnalysisRecord d = store.cached(savedSnippetId).find("hist-d");
+                        if (lastRun(d).savedToSnippetAt() <= 0) {
+                            return; // stamped once the editor's history arrives
+                        }
+                        if (d.isProtectedFromRetention()) {
+                            throw new AssertionError("A saved result must not stay protected");
+                        }
+                        stop(poller);
+                        finish.run();
+                    }
+                    default -> stop(poller);
+                }
+            } catch (Throwable e) {
+                e.printStackTrace();
+                failure.compareAndSet(null, "Analysis history leg failed in phase " + phase.get() + ": " + e);
+                finish.run();
+            }
+        }));
+        timeline.setCycleCount(Timeline.INDEFINITE);
+        poller.set(timeline);
+        timeline.play();
+    }
+
+    /** One entry is fully shown: its findings, ticked selection and diagram (not another entry's). */
+    private static void assertEntry(SnippetEditDialog editor, SnippetAnalysisPanel panel, String tag,
+                                    String selectionToken, String mermaid) {
+        String text = findingsText(panel);
+        for (String other : List.of("Alpha", "Beta", "Gamma")) {
+            if (!other.equals(tag) && text.contains(other + " finding title")) {
+                throw new AssertionError("Findings of " + other + " shown under " + tag);
+            }
+        }
+        if (!text.contains(tag + " finding title")) {
+            throw new AssertionError("Findings of " + tag + " are not shown: " + text);
+        }
+        if (!panel.selectedFindingTokens().contains(selectionToken)) {
+            throw new AssertionError("Selection of " + tag + " not restored: " + panel.selectedFindingTokens());
+        }
+        SnippetDiagramView.DiagramSource source = panel.diagramView().currentSource();
+        if (source == null || !mermaid.equals(source.mermaid())) {
+            throw new AssertionError("Diagram of " + tag + " not shown, got "
+                + (source == null ? "none" : source.mermaid()));
+        }
     }
 
     /** The stored comparison, the panel's banner, chips and "Resolved" list, and the report's lookup. */

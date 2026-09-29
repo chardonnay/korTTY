@@ -245,6 +245,21 @@ public class SnippetAiDiffPane extends VBox {
         headingLabel.setText(heading);
     }
 
+    /**
+     * Turns the pane into a read-only view of a decided result: a bar with the given buttons
+     * (typically Close, and "Restore intermediate state") replaces the decision bar.
+     */
+    public void setReadOnlyActions(List<Button> actions) {
+        HBox bar = new HBox(8);
+        bar.setId("snippet-ai-diff-readonly-bar");
+        bar.setAlignment(Pos.CENTER_RIGHT);
+        Region barSpacer = new Region();
+        HBox.setHgrow(barSpacer, Priority.ALWAYS);
+        bar.getChildren().add(barSpacer);
+        bar.getChildren().addAll(actions);
+        getChildren().add(bar);
+    }
+
     /** Receives the decision-bar choice. Only called when the pane was built with the bar. */
     public void setOnDecision(Consumer<Decision> onDecision) {
         this.onDecision = onDecision;

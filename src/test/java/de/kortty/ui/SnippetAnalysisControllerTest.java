@@ -369,4 +369,90 @@ class SnippetAnalysisControllerTest {
             .containsExactly("SEC-1", "OPT-1", "D1").inOrder();
         assertThat(report.verification().introduced().getFirst().id()).isEqualTo("DES-1");
     }
+
+    // ---- Intermediate state and per-entry rules ----
+
+    private static ApplyRun accepted(String id, String editorText) {
+        return ApplyRun.started(id, 10L, request(SOURCE), List.of(), null)
+            .withResult(20L, false, editorText, "", List.of(), List.of(), List.of(), null, null)
+            .accepted(30L, List.of("SEC-1"), editorText);
+    }
+
+    @Test
+    public void theNewestUnsavedAcceptedRunIsOfferedForRestore() {
+        SnippetAnalysisRecord withRuns = record().withRun(accepted("a", "one\n")).withRun(accepted("b", "two\n"));
+
+        ApplyRun offered = SnippetAnalysisController.restorableRun(withRuns, SOURCE_SHA, SOURCE_SHA, null);
+
+        assertThat(offered.id()).isEqualTo("b");
+    }
+
+    @Test
+    public void noRestoreIsOfferedWhenTheEditorAlreadyHoldsTheText() {
+        SnippetAnalysisRecord withRun = record().withRun(accepted("a", "one\n"));
+        String one = SnippetDiagramSupport.contentHash("one\n");
+
+        // The ordinary "accepted, not saved" state covers it.
+        assertThat(SnippetAnalysisController.restorableRun(withRun, SOURCE_SHA, one, null)).isNull();
+    }
+
+    @Test
+    public void noRestoreIsOfferedTwiceForTheSameTextAsADraftBanner() {
+        SnippetAnalysisRecord withRun = record().withRun(accepted("a", "one\n"));
+        String one = SnippetDiagramSupport.contentHash("one\n");
+
+        assertThat(SnippetAnalysisController.restorableRun(withRun, SOURCE_SHA, SOURCE_SHA, one)).isNull();
+        // A draft with other text does not hide it.
+        assertThat(SnippetAnalysisController.restorableRun(withRun, SOURCE_SHA, SOURCE_SHA,
+            SnippetDiagramSupport.contentHash("else"))).isNotNull();
+    }
+
+    @Test
+    public void noRestoreIsOfferedOnceTheSnippetWasSavedWithTheText() {
+        SnippetAnalysisRecord savedByHash = record().withRun(accepted("a", "one\n"));
+        SnippetAnalysisRecord stamped = record().withRun(accepted("a", "one\n").withSavedToSnippetAt(99L));
+        String one = SnippetDiagramSupport.contentHash("one\n");
+
+        assertThat(SnippetAnalysisController.restorableRun(savedByHash, one, SOURCE_SHA, null)).isNull();
+        assertThat(SnippetAnalysisController.restorableRun(stamped, SOURCE_SHA, SOURCE_SHA, null)).isNull();
+        assertThat(SnippetAnalysisController.restorableRun(null, SOURCE_SHA, SOURCE_SHA, null)).isNull();
+    }
+
+    @Test
+    public void aDiagramIsGeneratedFromTheEntrysOwnSourceNeverFromOtherEditorText() {
+        SnippetAnalysisRecord withSource = record();
+        assertThat(SnippetAnalysisController.diagramContentFor(withSource, "something else")).isEqualTo(SOURCE);
+
+        // Source too large to keep: only the editor text that still hashes to the analysed one counts.
+        SnippetAnalysisRecord withoutSource = withSource.withSource(withSource.source().withContent(null));
+        assertThat(SnippetAnalysisController.diagramContentFor(withoutSource, SOURCE)).isEqualTo(SOURCE);
+        assertThat(SnippetAnalysisController.diagramContentFor(withoutSource, "changed")).isNull();
+    }
+
+    @Test
+    public void aStoredDiagramIsShownAgainstItsOwnSourceOnly() {
+        SnippetAnalysisRecord.AnalysisDiagram diagram = new SnippetAnalysisRecord.AnalysisDiagram(
+            "logical-structure", "flowchart TD\n  A-->B", List.of(), "", false, SOURCE_SHA, null, 1L);
+        SnippetAnalysisRecord withDiagram = record().withDiagram(diagram);
+
+        SnippetDiagramView.DiagramSource shown = SnippetAnalysisController.toDiagramSource(withDiagram, "other text");
+
+        assertThat(shown.mermaid()).isEqualTo("flowchart TD\n  A-->B");
+        assertThat(shown.content()).isEqualTo(SOURCE);
+        assertThat(SnippetAnalysisController.toDiagramSource(record(), SOURCE)).isNull();
+    }
+
+    @Test
+    public void onlyDecidedRunsWithAStoredResultOfferViewChanges() {
+        ApplyRun acceptedRun = accepted("a", "one\n");
+        ApplyRun rejected = acceptedRun.withOutcome(RunOutcome.REJECTED, 40L);
+        ApplyRun pending = acceptedRun.withOutcome(RunOutcome.PENDING_REVIEW, 40L);
+        ApplyRun noText = ApplyRun.started("n", 1L, request(SOURCE), List.of(), null).withOutcome(RunOutcome.ACCEPTED, 2L);
+
+        assertThat(SnippetAnalysisController.canViewChanges(acceptedRun)).isTrue();
+        assertThat(SnippetAnalysisController.canViewChanges(rejected)).isTrue();
+        assertThat(SnippetAnalysisController.canViewChanges(pending)).isFalse();
+        assertThat(SnippetAnalysisController.canViewChanges(noText)).isFalse();
+        assertThat(SnippetAnalysisController.canViewChanges(null)).isFalse();
+    }
 }

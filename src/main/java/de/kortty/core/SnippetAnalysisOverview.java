@@ -23,6 +23,9 @@ import java.util.Set;
  * @param analyzedAt        when the newest record was analysed
  * @param findingIds        finding ids of the newest record
  * @param acceptedRuns      the accepted runs of the newest record
+ * @param intermediateSha256s hashes of the accepted-but-unsaved texts stored with any record (the
+ *                          remembered "applied, not saved" intermediate states); like a pending review
+ *                          they count for any record, because they stay until saved or deleted
  */
 public record SnippetAnalysisOverview(
     String snippetId,
@@ -32,7 +35,16 @@ public record SnippetAnalysisOverview(
     String sourceSha256,
     long analyzedAt,
     Set<String> findingIds,
-    List<AcceptedRun> acceptedRuns) {
+    List<AcceptedRun> acceptedRuns,
+    Set<String> intermediateSha256s) {
+
+    /** An overview without remembered intermediate states. */
+    public SnippetAnalysisOverview(String snippetId, int recordCount, int unprotectedCount, boolean pendingReview,
+                                   String sourceSha256, long analyzedAt, Set<String> findingIds,
+                                   List<AcceptedRun> acceptedRuns) {
+        this(snippetId, recordCount, unprotectedCount, pendingReview, sourceSha256, analyzedAt, findingIds,
+            acceptedRuns, Set.of());
+    }
 
     /** An accepted run, reduced to what decides "applied": the ids and whether it was saved. */
     public record AcceptedRun(String acceptedContentSha256, boolean savedToSnippet, Set<String> appliedFindingIds) {
@@ -59,10 +71,15 @@ public record SnippetAnalysisOverview(
     /**
      * The status against the saved snippet: {@code openFindings} counts findings of the newest
      * analysis that no saved accepted run covers; {@code stale} means the snippet changed since that
-     * analysis other than by accepting one of its results.
+     * analysis other than by accepting one of its results. {@code intermediateUnsaved}: a result was
+     * accepted into the editor and remembered, but the saved snippet does not hold it.
      */
-    public record Status(Kind kind, int openFindings, boolean stale, long analyzedAt) {
-        public static final Status NONE = new Status(Kind.NONE, 0, false, 0L);
+    public record Status(Kind kind, int openFindings, boolean stale, long analyzedAt, boolean intermediateUnsaved) {
+        public static final Status NONE = new Status(Kind.NONE, 0, false, 0L, false);
+
+        public Status(Kind kind, int openFindings, boolean stale, long analyzedAt) {
+            this(kind, openFindings, stale, analyzedAt, false);
+        }
 
         public boolean hasAnalysis() {
             return kind != Kind.NONE;
@@ -73,13 +90,15 @@ public record SnippetAnalysisOverview(
     public enum Filter {
         ALL, OPEN_FINDINGS, STALE, REVIEW_PENDING;
 
+        /** "Review pending" is the inbox of decisions still to make: a waiting result or an unsaved applied one. */
+
         public boolean matches(Status status) {
             Status value = status != null ? status : Status.NONE;
             return switch (this) {
                 case ALL -> true;
                 case OPEN_FINDINGS -> value.openFindings() > 0;
                 case STALE -> value.stale();
-                case REVIEW_PENDING -> value.kind() == Kind.REVIEW_PENDING;
+                case REVIEW_PENDING -> value.kind() == Kind.REVIEW_PENDING || value.intermediateUnsaved();
             };
         }
     }
@@ -91,6 +110,7 @@ public record SnippetAnalysisOverview(
         sourceSha256 = sourceSha256 != null ? sourceSha256 : "";
         findingIds = findingIds == null ? Set.of() : Set.copyOf(findingIds);
         acceptedRuns = acceptedRuns == null ? List.of() : List.copyOf(acceptedRuns);
+        intermediateSha256s = intermediateSha256s == null ? Set.of() : Set.copyOf(intermediateSha256s);
     }
 
     /** The overview of {@code history}; {@code null} for {@code null}. */
@@ -101,11 +121,17 @@ public record SnippetAnalysisOverview(
         SnippetAnalysisRecord current = history.current();
         int unprotected = 0;
         boolean pending = false;
+        Set<String> intermediate = new HashSet<>();
         for (SnippetAnalysisRecord record : history.records()) {
             if (!record.isProtectedFromRetention()) {
                 unprotected++;
             }
             pending |= record.hasPendingReview();
+            for (ApplyRun run : record.applyRuns()) {
+                if (run.holdsUnsavedAcceptedContent()) {
+                    intermediate.add(run.acceptedContentSha256());
+                }
+            }
         }
         List<AcceptedRun> accepted = new ArrayList<>();
         if (current != null) {
@@ -118,7 +144,7 @@ public record SnippetAnalysisOverview(
         }
         return new SnippetAnalysisOverview(history.snippetId(), history.records().size(), unprotected, pending,
             current != null ? current.source().sha256() : "", current != null ? current.analyzedAt() : 0L,
-            current != null ? current.allFindingIds() : Set.of(), accepted);
+            current != null ? current.allFindingIds() : Set.of(), accepted, intermediate);
     }
 
     public boolean isEmpty() {
@@ -168,6 +194,7 @@ public record SnippetAnalysisOverview(
         } else {
             kind = Kind.CLEAN;
         }
-        return new Status(kind, open, stale, analyzedAt);
+        boolean intermediateUnsaved = intermediateSha256s.stream().anyMatch(sha -> !sha.equals(saved));
+        return new Status(kind, open, stale, analyzedAt, intermediateUnsaved);
     }
 }
