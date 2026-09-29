@@ -162,6 +162,11 @@ final class RagAugmentedAiService implements AiPromptService, AiSkillUsageTracke
     }
 
     @Override
+    public String lastTestFailure() {
+        return delegate.lastTestFailure();
+    }
+
+    @Override
     public List<AiSkillPromptSupport.SkillUsage> drainSkillUsages() {
         return delegate instanceof AiSkillUsageTracker tracker ? tracker.drainSkillUsages() : List.of();
     }

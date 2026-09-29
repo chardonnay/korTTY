@@ -47,4 +47,9 @@ public final class CodeTextLanguageAiService implements AiService {
     public boolean testConnection() {
         return delegate.testConnection();
     }
+
+    @Override
+    public String lastTestFailure() {
+        return delegate.lastTestFailure();
+    }
 }

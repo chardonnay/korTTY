@@ -153,6 +153,8 @@ A detected list belongs to the endpoint and model it was read for. Changing eith
 
 For MiniMax endpoints (directly or through an aggregator whose model name contains `minimax`), both **Disabled** and an explicit `none` are sent as MiniMax's own `thinking: disabled` parameter, because those models ignore `reasoning_effort` and otherwise think by default — billing the hidden reasoning as completion tokens and, for MiniMax-M3, opening the reply with an inline `<think>` block. An explicit effort level is passed through unchanged.
 
+For MiniMax, use the OpenAI-compatible URL `https://api.minimax.io/v1/chat/completions` rather than the native `/text/chatcompletion_v2` endpoint: the native one answers a wrong key, model or an empty balance with HTTP 200 and an error object, which korTTY now shows as the provider's own message but which the OpenAI-compatible endpoint reports with a proper HTTP status.
+
 For the native Anthropic (Claude) endpoint, an enabled reasoning level requests **extended thinking** with a level-dependent thinking budget; models that do not support extended thinking are retried once without it. The model's reasoning is shown in the Terminal AI Agent's 💭 thinking rows.
 
 ### Image input (vision)

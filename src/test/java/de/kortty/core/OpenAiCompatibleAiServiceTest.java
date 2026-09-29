@@ -2517,6 +2517,209 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     /** Test double for deterministic OpenAI-compatible HTTP responses. */
+    private static final String MINIMAX_1004 = "{\"base_resp\":{\"status_code\":1004,\"status_msg\":"
+        + "\"login fail: Please carry the API secret key in the 'Authorization' field of the request header\"}}";
+
+    private static final String OK_BODY = "{\"choices\":[{\"message\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}],"
+        + "\"base_resp\":{\"status_code\":0,\"status_msg\":\"\"}}";
+
+    private static OpenAiCompatibleAiService miniMaxService(HttpClient client) {
+        return new OpenAiCompatibleAiService(
+            "https://api.minimax.io/v1/text/chatcompletion_v2", "MiniMax-M3", "secret-token", client);
+    }
+
+    @Test
+    void miniMaxBaseRespErrorInABufferedTwoHundredSurfacesTheProviderMessageWithoutRetry() {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(200, MINIMAX_1004));
+
+        OpenAiCompatibleAiService.AiApiException failure = expectThrows(
+            OpenAiCompatibleAiService.AiApiException.class,
+            () -> miniMaxService(client).executeWithClient(
+                new AiRequest(AiAction.ANALYZE_SNIPPET_CODE, "echo ok", null, "en"), client, null));
+
+        assertThat(failure.getMessage()).startsWith("AI API error: login fail: Please carry the API secret key");
+        assertThat(failure.getMessage()).contains("(1004)");
+        // No schema-less retry and no streaming fallback: a key problem is not fixed by either.
+        assertThat(client.requestBodies()).hasSize(1);
+    }
+
+    @Test
+    void miniMaxBaseRespErrorInAnEventStreamSurfacesTheProviderMessage() {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(200, "data: " + MINIMAX_1004 + "\n\ndata: [DONE]\n"));
+
+        OpenAiCompatibleAiService.AiApiException failure = expectThrows(
+            OpenAiCompatibleAiService.AiApiException.class,
+            () -> miniMaxService(client).executeWithClient(
+                new AiRequest(AiAction.ANALYZE_SNIPPET_CODE, "echo ok", null, "en"), client, null));
+
+        assertThat(failure.getMessage()).contains("login fail");
+        assertThat(client.requestBodies()).hasSize(1);
+    }
+
+    @Test
+    void openAiStyleErrorObjectInATwoHundredIsAnApiError() {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(new StubResponse(200,
+            "{\"error\":{\"message\":\"Insufficient balance\",\"type\":\"billing\"}}"));
+
+        OpenAiCompatibleAiService.AiApiException failure = expectThrows(
+            OpenAiCompatibleAiService.AiApiException.class,
+            () -> miniMaxService(client).executeWithClient(
+                new AiRequest(AiAction.ANALYZE_SNIPPET_CODE, "echo ok", null, "en"), client, null));
+
+        assertThat(failure.getMessage()).contains("Insufficient balance");
+        assertThat(client.requestBodies()).hasSize(1);
+    }
+
+    @Test
+    void miniMaxCompatibleEndpointErrorShapeWithHttp401IsReportedWithItsMessage() {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(new StubResponse(401,
+            "{\"type\":\"error\",\"error\":{\"type\":\"authorized_error\",\"message\":\"login fail: bad key (1004)\","
+                + "\"http_code\":\"401\"},\"request_id\":\"r1\"}"));
+
+        OpenAiCompatibleAiService.AiApiException failure = expectThrows(
+            OpenAiCompatibleAiService.AiApiException.class,
+            () -> miniMaxService(client).executeWithClient(
+                new AiRequest(AiAction.ANALYZE_SNIPPET_CODE, "echo ok", null, "en"), client, null));
+
+        assertThat(failure.getMessage()).isEqualTo("AI API error 401: login fail: bad key (1004)");
+        assertThat(failure.statusCode()).isEqualTo(401);
+    }
+
+    @Test
+    void miniMaxInvalidParamsInATwoHundredStillTriggersTheSchemaFallback() throws Exception {
+        String invalid = "{\"base_resp\":{\"status_code\":2013,\"status_msg\":"
+            + "\"invalid params: response_format json_schema not supported\"}}";
+        String analysis = "{\"summary\":\"s\",\"dependencies\":[],\"improvements\":[]}";
+        JsonObject message = new JsonObject();
+        message.addProperty("content", analysis);
+        JsonObject choice = new JsonObject();
+        choice.add("message", message);
+        JsonArray choices = new JsonArray();
+        choices.add(choice);
+        JsonObject success = new JsonObject();
+        success.add("choices", choices);
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(200, invalid), new StubResponse(200, success.toString()));
+
+        AiExecutionResult result = miniMaxService(client).executeWithClient(
+            new AiRequest(AiAction.ANALYZE_SNIPPET_CODE, "echo ok", null, "en"), client, null);
+
+        assertThat(result.content()).contains("summary");
+        assertThat(client.requestBodies()).hasSize(2);
+        assertThat(client.requestBodies().get(1)).doesNotContain("json_schema");
+    }
+
+    @Test
+    void miniMaxSuccessBodyWithZeroBaseRespIsNotMisclassified() throws Exception {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(new StubResponse(200, OK_BODY));
+
+        AiExecutionResult result = miniMaxService(client).executeWithClient(
+            new AiRequest(AiAction.SUMMARIZE, "echo ok", null, "en"), client, null);
+
+        assertThat(result.content()).isEqualTo("ok");
+    }
+
+    @Test
+    void miniMaxSuccessfulStreamWithZeroBaseRespIsNotMisclassified() throws Exception {
+        String sse = "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"}}],\"base_resp\":{\"status_code\":0}}\n\n"
+            + "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n";
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(new StubResponse(200, sse));
+
+        AiExecutionResult result = miniMaxService(client).executeWithClient(
+            new AiRequest(AiAction.SUMMARIZE, "echo ok", null, "en"), client, null);
+
+        assertThat(result.content()).isEqualTo("ok");
+    }
+
+    @Test
+    void trulyEmptyReplyStaysAnEmptyResponseAndLogsTheRedactedRawBody() {
+        ch.qos.logback.classic.Logger serviceLogger =
+            (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(OpenAiCompatibleAiService.class);
+        ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> events =
+            new ch.qos.logback.core.read.ListAppender<>();
+        events.start();
+        serviceLogger.addAppender(events);
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(new StubResponse(200,
+            "{\"choices\":[],\"note\":\"Bearer abcdefghijklmnop1234\"}"));
+        try {
+            OpenAiCompatibleAiService.EmptyResponseException failure = expectThrows(
+                OpenAiCompatibleAiService.EmptyResponseException.class,
+                () -> miniMaxService(client).executeWithClient(
+                    new AiRequest(AiAction.SUMMARIZE, "echo ok", null, "en"), client, null));
+            assertThat(failure.getMessage()).isEqualTo("AI API returned an empty response.");
+        } finally {
+            serviceLogger.detachAppender(events);
+        }
+
+        List<String> warnings = events.list.stream()
+            .filter(event -> event.getLevel() == ch.qos.logback.classic.Level.WARN)
+            .map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage)
+            .filter(message -> message.startsWith("AI endpoint answered without any content"))
+            .toList();
+        assertThat(warnings).hasSize(1);
+        assertThat(warnings.get(0)).contains("HTTP 200");
+        assertThat(warnings.get(0)).contains("\"choices\":[]");
+        assertThat(warnings.get(0)).contains("Bearer ***");
+        assertThat(warnings.get(0)).doesNotContain("abcdefghijklmnop1234");
+    }
+
+    @Test
+    void emptyStructuredReplyIsStillRetriedOnceWithoutTheSchema() {
+        SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
+            new StubResponse(200, "{\"choices\":[]}"), new StubResponse(200, "{\"choices\":[]}"));
+
+        expectThrows(OpenAiCompatibleAiService.EmptyResponseException.class,
+            () -> miniMaxService(client).executeWithClient(
+                new AiRequest(AiAction.ANALYZE_SNIPPET_CODE, "echo ok", null, "en"), client, null));
+
+        assertThat(client.requestBodies()).hasSize(2);
+    }
+
+    @Test
+    void connectionTestReportsTheProviderMessageAndKeepsSecretsOut() throws Exception {
+        com.sun.net.httpserver.HttpServer server =
+            com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> {
+            byte[] body = MINIMAX_1004.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        try {
+            OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/v1/text/chatcompletion_v2",
+                "MiniMax-M3", "secret-token");
+
+            assertThat(service.testConnection()).isFalse();
+            assertThat(service.lastTestFailure()).startsWith("AI API error: login fail");
+            assertThat(service.lastTestFailure()).doesNotContain("secret-token");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void providerErrorDetectionAndMiniMaxEndpointRecognition() {
+        assertThat(OpenAiCompatibleAiService.detectProviderError(
+            JsonParser.parseString("{\"code\":1001,\"msg\":\"bad thing\"}").getAsJsonObject()).message())
+            .isEqualTo("bad thing (1001)");
+        assertThat(OpenAiCompatibleAiService.detectProviderError(
+            JsonParser.parseString("{\"error\":null,\"choices\":[{\"message\":{\"content\":\"x\"}}]}").getAsJsonObject()))
+            .isNull();
+        assertThat(OpenAiCompatibleAiService.detectProviderError(
+            JsonParser.parseString("{\"error\":\"rate limited\"}").getAsJsonObject()).message())
+            .isEqualTo("rate limited");
+        assertThat(OpenAiCompatibleAiService.isMiniMaxNativeEndpoint("https://api.minimaxi.com/v1/text/chatcompletion_v2")).isTrue();
+        assertThat(OpenAiCompatibleAiService.isMiniMaxNativeEndpoint("https://api.minimax.io/v1/chat/completions")).isFalse();
+        assertThat(OpenAiCompatibleAiService.isMiniMaxNativeEndpoint("https://example.com/v1/text/chatcompletion_v2")).isFalse();
+        assertThat(OpenAiCompatibleAiService.redactSecrets("Authorization: Bearer abcdefghijkl and sk-abcdefgh12345"))
+            .doesNotContain("abcdefghijkl");
+    }
+
     private static final class SequencedInputStreamHttpClient extends HttpClient {
         private final Queue<StubResponse> responses;
         private final List<String> requestBodies = new ArrayList<>();
