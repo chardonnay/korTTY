@@ -86,9 +86,11 @@ final class SnippetQuickOpenPopup {
         root.setId(ROOT_ID);
         root.setPadding(new Insets(8));
         root.setPrefWidth(560);
-        root.setStyle("-fx-background-color: -fx-control-inner-background; -fx-background-radius: 8;"
-            + " -fx-border-color: -fx-box-border; -fx-border-radius: 8;"
-            + " -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.35), 18, 0.2, 0, 4);");
+        root.getStyleClass().add("kortty-popup-surface");
+        // A raw Popup inherits no author stylesheets: give the root the design's base sheet so
+        // the surface class resolves colours the active user-agent stylesheet actually defines.
+        AppDesignStyleSupport.registerApplicationBaseStyles(root);
+        AppDesignStyleSupport.applyToParent(root);
         popup.getContent().add(root);
         popup.setAutoHide(true);
         popup.setHideOnEscape(true);

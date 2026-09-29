@@ -7,8 +7,36 @@
 
 /* The AI Manager's primary section stays identifiable after focus moves into its content. */
 .ai-manager-primary-tab:selected {
-    -fx-border-color: -fx-focus-color;
+    -fx-border-color: -color-accent-emphasis;
     -fx-border-width: 0 0 3 0;
+}
+
+/*
+ * Surfaces that used to name Modena-only looked-up colours (-fx-box-border, -fx-base,
+ * -fx-control-inner-background) in inline styles. AtlantaFX does not define those, so the
+ * lookup logged a CssStyleHelper ClassCastException and the border/background was dropped.
+ */
+.kortty-box-border {
+    -fx-border-color: -color-border-default;
+}
+
+.kortty-popup-surface {
+    -fx-background-color: -color-bg-default;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.35), 18, 0.2, 0, 4);
+}
+
+.kortty-popover-surface {
+    -fx-background-color: -color-bg-default;
+}
+
+.ai-agent-completion-popup {
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 1;
+    -fx-padding: 2;
 }
 
 .ai-manager-primary-tab:selected .tab-label {

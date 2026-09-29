@@ -3611,6 +3611,14 @@ tasks.register<JavaExec>("terminalShortcutKeyTypedSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("aiManagerTabCssSmoke") {
+    group = "verification"
+    description = "Opens the AI Manager under every app design and fails on JavaFX CSS warnings for the selected tab."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AiManagerTabCssSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("aiManagerModelComboSmoke") {
     group = "verification"
     description = "Selects a model in the real AI Manager model picker to verify the choice sticks."

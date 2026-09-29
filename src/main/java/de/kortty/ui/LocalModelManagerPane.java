@@ -859,8 +859,8 @@ final class LocalModelManagerPane extends VBox {
         controls.setAlignment(Pos.CENTER_LEFT);
         downloadStatusPanel.setSpacing(5);
         downloadStatusPanel.setPadding(new Insets(8));
-        downloadStatusPanel.setStyle(
-            "-fx-border-color: -fx-box-border; -fx-border-radius: 4; -fx-background-radius: 4;");
+        downloadStatusPanel.getStyleClass().add("kortty-box-border");
+        downloadStatusPanel.setStyle("-fx-border-radius: 4; -fx-background-radius: 4;");
         downloadStatusPanel.getChildren().addAll(
             title,
             downloadModelDetails,
