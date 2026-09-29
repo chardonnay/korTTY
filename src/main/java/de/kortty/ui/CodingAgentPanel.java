@@ -115,7 +115,7 @@ public class CodingAgentPanel extends BorderPane {
     private final Label titleLabel = new Label(I18n.get("codingAgent.panel.title"));
     private final Label summaryLabel = new Label();
     private final Button nextBlockedButton = new Button(I18n.get("codingAgent.panel.nextBlocked"));
-    private final MenuButton overflowMenu = new MenuButton("⋯");
+    private final MenuButton overflowMenu = new MenuButton();
 
     // center
     private final ListView<CodingAgentEntry> list = new ListView<>();
@@ -224,6 +224,8 @@ public class CodingAgentPanel extends BorderPane {
         dockRight.setOnAction(event -> requestDock(CodingAgentPanelDockManager.Placement.RIGHT));
         MenuItem hide = new MenuItem(I18n.get("codingAgent.panel.hide"));
         hide.setOnAction(event -> requestDock(CodingAgentPanelDockManager.Placement.HIDDEN));
+        ButtonIcons.apply(overflowMenu, ButtonIcons.MORE_ACTIONS);
+        overflowMenu.setTooltip(new Tooltip(I18n.get("common.moreActions")));
         overflowMenu.getItems().addAll(dockLeft, dockRight, hide);
 
         HBox titleRow = new HBox(8, titleLabel, summaryLabel, spacer, nextBlockedButton, overflowMenu);
