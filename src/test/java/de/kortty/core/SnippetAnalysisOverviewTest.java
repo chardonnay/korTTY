@@ -131,6 +131,46 @@ public class SnippetAnalysisOverviewTest {
     }
 
     @Test
+    public void aRememberedAppliedResultShowsAsIntermediateUntilSaved() {
+        String rememberedText = SnippetAnalysisTestData.RESULT + "# applied\n";
+        SnippetAnalysisRecord older = record("r1", 100L)
+            .withRun(ApplyRun.started("run", 10L, null, List.of(), null).accepted(30L, List.of("SEC-1"), rememberedText));
+        SnippetAnalysisRecord newer = record("r2", 200L);
+
+        // The remembered state belongs to an older entry: it still counts, like a pending review.
+        Status unsaved = overview(newer, older).statusFor(SOURCE_SHA);
+        assertThat(unsaved.intermediateUnsaved()).isTrue();
+        assertThat(Filter.REVIEW_PENDING.matches(unsaved)).isTrue();
+        assertThat(Filter.OPEN_FINDINGS.matches(unsaved)).isTrue();
+
+        // Saved exactly with that text: nothing is remembered any more.
+        Status saved = overview(newer, older).statusFor(SnippetDiagramSupport.contentHash(rememberedText));
+        assertThat(saved.intermediateUnsaved()).isFalse();
+        assertThat(Filter.REVIEW_PENDING.matches(saved)).isFalse();
+
+        // Stamped as saved (the editor's save): no longer remembered, however the saved text reads.
+        SnippetAnalysisRecord stamped = record("r1", 100L).withRun(ApplyRun.started("run", 10L, null, List.of(), null)
+            .accepted(30L, List.of("SEC-1"), rememberedText).withSavedToSnippetAt(40L));
+        assertThat(overview(stamped).statusFor(SOURCE_SHA).intermediateUnsaved()).isFalse();
+        // Old files without the stored text never claim an intermediate state.
+        SnippetAnalysisRecord legacy = record("r1", 100L).withRun(new ApplyRun("run", 10L, 20L, 30L,
+            RunOutcome.ACCEPTED, false, null, List.of(), null, "", "", "", List.of(), List.of(), List.of(),
+            List.of("SEC-1"), null, null, null, SnippetDiagramSupport.contentHash(rememberedText), 0L));
+        assertThat(overview(legacy).statusFor(SOURCE_SHA).intermediateUnsaved()).isFalse();
+    }
+
+    @Test
+    public void aRememberedResultProtectsItsRecordFromTheRetentionCount() {
+        SnippetAnalysisRecord remembered = record("r1", 100L)
+            .withRun(ApplyRun.started("run", 10L, null, List.of(), null).accepted(30L, List.of(), "text"));
+
+        SnippetAnalysisOverview overview = overview(record("r2", 200L), remembered);
+
+        assertThat(overview.unprotectedCount()).isEqualTo(1);
+        assertThat(overview.trimmableAt(1)).isEqualTo(1);
+    }
+
+    @Test
     public void retentionCountMatchesTheHistory() {
         SnippetAnalysisRecord pinned = record("r3", 300L).withPinned(true);
         SnippetAnalysisRecord pending = record("r4", 400L).withRun(run("run", RunOutcome.PENDING_REVIEW));

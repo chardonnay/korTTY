@@ -258,7 +258,7 @@ final class SnippetLibraryPane extends BorderPane {
         TableColumn<Snippet, SnippetAnalysisOverview.Status> analysisCol =
                 new TableColumn<>(I18n.get("snippets.workspace.analysis.column"));
         analysisCol.setId(ANALYSIS_COLUMN_ID);
-        analysisCol.setPrefWidth(62);
+        analysisCol.setPrefWidth(78);
         analysisCol.setCellValueFactory(cd -> new SimpleObjectProperty<>(analysisStatus(cd.getValue())));
         analysisCol.setComparator(Comparator.comparingInt(SnippetLibraryPane::analysisSortRank));
         analysisCol.setCellFactory(col -> new TableCell<>() {
@@ -697,10 +697,19 @@ final class SnippetLibraryPane extends BorderPane {
             case OPEN_FINDINGS -> "\u26A0 " + status.openFindings();
             case APPLIED, CLEAN -> "\u2713";
         };
+        if (status.intermediateUnsaved()) {
+            text = text.isEmpty() ? INTERMEDIATE_MARK : text + " " + INTERMEDIATE_MARK;
+        }
         return status.stale() ? text + " \u21BB" : text;
     }
 
+    /** Marks a snippet whose applied AI result was remembered but never saved. */
+    static final String INTERMEDIATE_MARK = "\u270E";
+
     private static String analysisStatusColor(SnippetAnalysisOverview.Status status) {
+        if (status.intermediateUnsaved() && status.kind() != SnippetAnalysisOverview.Kind.REVIEW_PENDING) {
+            return "#3b82f6";
+        }
         return switch (status.kind()) {
             case REVIEW_PENDING -> "#3b82f6";
             case OPEN_FINDINGS -> "#d97706";
@@ -725,6 +734,9 @@ final class SnippetLibraryPane extends BorderPane {
                 return "";
             }
         }
+        if (status.intermediateUnsaved()) {
+            lines.add(0, I18n.get("snippets.workspace.analysis.intermediate"));
+        }
         String when = formatTimestamp(status.analyzedAt());
         if (status.stale()) {
             lines.add(I18n.get("snippets.workspace.analysis.stale", when));
@@ -737,6 +749,9 @@ final class SnippetLibraryPane extends BorderPane {
     static int analysisSortRank(SnippetAnalysisOverview.Status status) {
         if (status == null || !status.hasAnalysis()) {
             return Integer.MAX_VALUE;
+        }
+        if (status.intermediateUnsaved() && status.kind() != SnippetAnalysisOverview.Kind.REVIEW_PENDING) {
+            return 1;
         }
         return switch (status.kind()) {
             case REVIEW_PENDING -> 0;

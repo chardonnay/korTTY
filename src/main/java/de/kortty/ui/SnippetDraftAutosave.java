@@ -174,6 +174,12 @@ final class SnippetDraftAutosave {
         return offered != null;
     }
 
+    /** The hash of the content of the draft on offer, or {@code null} when none waits for an answer. */
+    String offeredContentSha256() {
+        SnippetDraft draft = offered;
+        return draft != null ? de.kortty.core.SnippetDiagramSupport.contentHash(draft.content()) : null;
+    }
+
     Region bannerForTesting() {
         return banner;
     }

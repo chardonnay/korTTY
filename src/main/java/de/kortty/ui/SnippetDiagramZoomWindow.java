@@ -62,6 +62,15 @@ final class SnippetDiagramZoomWindow extends ThemeAwareDialog<Void> {
         }
     }
 
+    /** Switches the open window to {@code diagram} without taking the focus (the shown analysis entry changed). */
+    void followDiagram(SnippetDiagramView.DiagramSource diagram) {
+        if (diagram == null || !isShowing()) {
+            return;
+        }
+        this.source = diagram;
+        diagramView.showCached(diagram);
+    }
+
     /** The source shown (tests). */
     SnippetDiagramView.DiagramSource source() {
         return source;

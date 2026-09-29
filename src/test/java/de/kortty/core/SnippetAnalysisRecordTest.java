@@ -112,6 +112,107 @@ public class SnippetAnalysisRecordTest {
     }
 
     @Test
+    public void acceptedContentRoundTripsAndOldFilesLoadItAsNull() {
+        ApplyRun unsaved = ApplyRun.started("a", 10L, null, List.of(), null)
+            .withResult(20L, false, "fixed", "", List.of(), List.of(), List.of(), null, null)
+            .accepted(30L, List.of("SEC-1"), "fixed\n# header\n");
+        assertThat(unsaved.acceptedContent()).isEqualTo("fixed\n# header\n");
+        assertThat(unsaved.acceptedContentSha256()).isEqualTo(SnippetDiagramSupport.contentHash("fixed\n# header\n"));
+        SnippetAnalysisRecord record = SnippetAnalysisTestData.simpleRecord("r", "s", 1L).withRun(unsaved);
+
+        SnippetAnalysisHistory reloaded = SnippetAnalysisStore.fromJson(SnippetAnalysisStore.toJson(
+            SnippetAnalysisHistory.empty("s").withNewCurrent(record, 5)));
+
+        assertThat(reloaded.current().applyRuns().getFirst().acceptedContent()).isEqualTo("fixed\n# header\n");
+        // A file from before the field existed: no acceptedContent, hence nothing to restore or protect.
+        String old = """
+            {"schemaVersion":1,"snippetId":"s","records":[{"id":"r","applyRuns":[
+              {"id":"a","outcome":"ACCEPTED","acceptedContentSha256":"abc","savedToSnippetAt":0}]}]}
+            """;
+        SnippetAnalysisRecord legacy = SnippetAnalysisStore.fromJson(old).current();
+        assertThat(legacy.applyRuns().getFirst().acceptedContent()).isNull();
+        assertThat(legacy.applyRuns().getFirst().holdsUnsavedAcceptedContent()).isFalse();
+        assertThat(legacy.isProtectedFromRetention()).isFalse();
+    }
+
+    @Test
+    public void anUnsavedAcceptedRunProtectsItsRecordUntilSaved() {
+        ApplyRun unsaved = ApplyRun.started("a", 10L, null, List.of(), null)
+            .withResult(20L, false, "fixed", "", List.of(), List.of(), List.of(), null, null)
+            .accepted(30L, List.of("SEC-1"), "fixed");
+        SnippetAnalysisRecord keeper = SnippetAnalysisTestData.simpleRecord("keeper", "s", 1L).withRun(unsaved);
+        SnippetAnalysisHistory history = SnippetAnalysisHistory.empty("s").withNewCurrent(keeper, 2);
+        for (int i = 0; i < 4; i++) {
+            history = history.withNewCurrent(SnippetAnalysisTestData.simpleRecord("n" + i, "s", 10L + i), 2);
+        }
+
+        // Retention trims the plain records but never the one with the remembered result.
+        assertThat(history.find("keeper")).isNotNull();
+        assertThat(history.records().stream().map(SnippetAnalysisRecord::id).toList()).contains("keeper");
+        assertThat(keeper.isProtectedFromRetention()).isTrue();
+        // Even at a limit of one, only the plain record is trimmable.
+        assertThat(history.trimmableAt(1)).isEqualTo(1);
+
+        // Saved with exactly that text: stamped, and retention may trim it again.
+        SnippetAnalysisHistory saved = history.withAcceptedRunsSaved(SnippetDiagramSupport.contentHash("fixed"), 99L);
+        SnippetAnalysisRecord stamped = saved.find("keeper");
+        assertThat(stamped.applyRuns().getFirst().savedToSnippetAt()).isEqualTo(99L);
+        assertThat(stamped.isProtectedFromRetention()).isFalse();
+        // A different saved text stamps nothing.
+        assertThat(history.withAcceptedRunsSaved(SnippetDiagramSupport.contentHash("other"), 99L)).isSameInstanceAs(history);
+        assertThat(history.withAcceptedRunsSaved(null, 99L)).isSameInstanceAs(history);
+    }
+
+    @Test
+    public void unsavedAcceptedRunsListTheNewestFirstAndSkipTheSavedText() {
+        ApplyRun first = ApplyRun.started("a", 10L, null, List.of(), null)
+            .accepted(30L, List.of("SEC-1"), "one");
+        ApplyRun second = ApplyRun.started("b", 40L, null, List.of(), null)
+            .accepted(50L, List.of("SEC-1"), "two");
+        ApplyRun saved = ApplyRun.started("c", 60L, null, List.of(), null)
+            .accepted(70L, List.of("SEC-1"), "three").withSavedToSnippetAt(80L);
+        SnippetAnalysisRecord record = SnippetAnalysisTestData.simpleRecord("r", "s", 1L)
+            .withRun(first).withRun(second).withRun(saved);
+
+        assertThat(record.unsavedAcceptedRuns(null).stream().map(ApplyRun::id).toList())
+            .containsExactly("b", "a").inOrder();
+        assertThat(record.unsavedAcceptedRuns(SnippetDiagramSupport.contentHash("two")).stream()
+            .map(ApplyRun::id).toList()).containsExactly("a");
+    }
+
+    @Test
+    public void compactingKeepsTheTextOfUnsavedAcceptedRunsBeyondTheNewestTen() {
+        SnippetAnalysisRecord record = SnippetAnalysisTestData.simpleRecord("r", "s", 1L);
+        ApplyRun remembered = ApplyRun.started("old", 1L, null, List.of(), null)
+            .withResult(2L, false, "result", "", List.of(), List.of(), List.of(), null, null)
+            .accepted(3L, List.of("SEC-1"), "result");
+        record = record.withRun(remembered);
+        for (int i = 0; i < SnippetAnalysisRecord.MAX_RUNS_WITH_CONTENT + 2; i++) {
+            record = record.withRun(ApplyRun.started("run" + i, 10L + i, null, List.of(), null)
+                .withResult(20L + i, false, "r" + i, "", List.of(), List.of(), List.of(), null, null)
+                .accepted(30L + i, List.of(), "r" + i).withSavedToSnippetAt(40L + i));
+        }
+
+        SnippetAnalysisRecord compact = record.compact();
+
+        assertThat(compact.findRun("old").acceptedContent()).isEqualTo("result");
+        assertThat(compact.findRun("old").resultContent()).isEqualTo("result");
+        // A saved run of the same age loses its text.
+        assertThat(compact.findRun("run0").acceptedContent()).isNull();
+        assertThat(compact.findRun("run0").resultContent()).isNull();
+    }
+
+    @Test
+    public void acceptedContentOverTheCapIsNotStoredAndDoesNotProtect() {
+        String huge = "x".repeat(SnippetAnalysisRecord.MAX_CONTENT_CHARS + 1);
+        ApplyRun run = ApplyRun.started("a", 10L, null, List.of(), null).accepted(30L, List.of(), huge);
+
+        assertThat(run.acceptedContent()).isNull();
+        assertThat(run.acceptedContentSha256()).isEqualTo(SnippetDiagramSupport.contentHash(huge));
+        assertThat(run.holdsUnsavedAcceptedContent()).isFalse();
+    }
+
+    @Test
     public void statusIsDerivedAndAppliedOnlyOnceSaved() {
         SnippetAnalysisRecord older = SnippetAnalysisTestData.simpleRecord("old", "s", 1L);
         SnippetAnalysisRecord record = SnippetAnalysisTestData.simpleRecord("new", "s", 2L);
@@ -408,7 +509,8 @@ public class SnippetAnalysisRecordTest {
                     "durationMillis": 0
                   },
                   "acceptedContentSha256": "77190c368ce9e84805d1cfa0293555f56d6ae4df6345b86e587a4afbd54eb8ff",
-                  "savedToSnippetAt": 3500
+                  "savedToSnippetAt": 3500,
+                  "acceptedContent": "77190c368ce9e84805d1cfa0293555f56d6ae4df6345b86e587a4afbd54eb8ff"
                 }
               ],
               "verification": {

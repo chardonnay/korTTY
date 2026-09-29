@@ -213,6 +213,35 @@ public record SnippetAnalysisHistory(
         return record == null ? this : replace(change.apply(record));
     }
 
+    /**
+     * Stamps every accepted run whose accepted text is exactly the saved snippet
+     * ({@code savedSnippetSha256}) as saved at {@code at}: the intermediate state is then gone and
+     * retention may trim the record again. Returns {@code this} when nothing needed a stamp.
+     */
+    public SnippetAnalysisHistory withAcceptedRunsSaved(String savedSnippetSha256, long at) {
+        if (savedSnippetSha256 == null || savedSnippetSha256.isBlank()) {
+            return this;
+        }
+        SnippetAnalysisHistory next = this;
+        for (SnippetAnalysisRecord record : records) {
+            if (needsSavedStamp(record, savedSnippetSha256)) {
+                next = next.update(record.id(), r -> r.withApplyRuns(r.applyRuns().stream()
+                    .map(run -> run.isAccepted() && run.savedToSnippetAt() <= 0
+                        && savedSnippetSha256.equals(run.acceptedContentSha256())
+                        ? run.withSavedToSnippetAt(at) : run)
+                    .toList()));
+            }
+        }
+        return next;
+    }
+
+    /** Whether some accepted run of {@code record} is exactly the saved snippet but not yet stamped. */
+    public static boolean needsSavedStamp(SnippetAnalysisRecord record, String savedSnippetSha256) {
+        return savedSnippetSha256 != null && !savedSnippetSha256.isBlank()
+            && record.applyRuns().stream().anyMatch(run -> run.isAccepted() && run.savedToSnippetAt() <= 0
+                && savedSnippetSha256.equals(run.acceptedContentSha256()));
+    }
+
     /** Discard: removes one record. */
     public SnippetAnalysisHistory remove(String recordId) {
         List<SnippetAnalysisRecord> next = records.stream().filter(r -> !r.id().equals(recordId)).toList();

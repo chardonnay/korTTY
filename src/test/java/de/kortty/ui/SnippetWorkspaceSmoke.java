@@ -169,6 +169,11 @@ public final class SnippetWorkspaceSmoke {
         analyses.addAnalysis(gamma.getId(), analysisOf(gamma, "g1", gamma.getContent())
             .withRun(de.kortty.core.SnippetAnalysisRecord.ApplyRun.started("run", 1L, null, List.of(), null)
                 .withOutcome(de.kortty.core.SnippetAnalysisRecord.RunOutcome.PENDING_REVIEW, 2L)));
+        // delta: an AI result was applied in the editor but the snippet never saved, and the state was
+        // remembered (applied intermediate state).
+        analyses.addAnalysis(delta.getId(), analysisOf(delta, "d1", delta.getContent())
+            .withRun(de.kortty.core.SnippetAnalysisRecord.ApplyRun.started("run", 1L, null, List.of(), null)
+                .accepted(2L, List.of("SEC-1"), "echo delta fixed\n")));
         analyses.flush(java.time.Duration.ofSeconds(5));
 
         TabPane mainTabs = new TabPane();
@@ -219,16 +224,27 @@ public final class SnippetWorkspaceSmoke {
                 check(library.analysisStatus(gamma).kind() == de.kortty.core.SnippetAnalysisOverview.Kind.REVIEW_PENDING,
                     "gamma must show the pending review, got " + library.analysisStatus(gamma));
                 check(!library.analysisStatus(beta).hasAnalysis(), "beta has no analysis");
+                de.kortty.core.SnippetAnalysisOverview.Status deltaStatus = library.analysisStatus(delta);
+                check(deltaStatus.intermediateUnsaved() && deltaStatus.openFindings() == 2,
+                    "delta must show its remembered applied result and its open findings, got " + deltaStatus);
+                check(SnippetLibraryPane.analysisStatusText(deltaStatus).contains(SnippetLibraryPane.INTERMEDIATE_MARK),
+                    "an unsaved applied result is marked in the column");
+                check(SnippetLibraryPane.analysisStatusTooltip(deltaStatus)
+                        .contains(I18n.get("snippets.workspace.analysis.intermediate")),
+                    "the tooltip must say the applied result is remembered but not saved");
+                check(!SnippetLibraryPane.analysisStatusText(alphaStatus).contains(SnippetLibraryPane.INTERMEDIATE_MARK),
+                    "alpha has no remembered result");
             })
             .then(50, "the analysis filter narrows the library", () -> {
                 SnippetLibraryPane library = workspace.library();
                 library.analysisFilter().setValue(de.kortty.core.SnippetAnalysisOverview.Filter.OPEN_FINDINGS);
                 // gamma's pending result has not been applied either, so its findings are still open.
-                check(new java.util.HashSet<>(library.table().getItems()).equals(java.util.Set.of(alpha, gamma)),
-                    "Open findings must list alpha and gamma, got " + library.table().getItems());
+                check(new java.util.HashSet<>(library.table().getItems()).equals(java.util.Set.of(alpha, gamma, delta)),
+                    "Open findings must list alpha, gamma and delta, got " + library.table().getItems());
                 library.analysisFilter().setValue(de.kortty.core.SnippetAnalysisOverview.Filter.REVIEW_PENDING);
-                check(library.table().getItems().equals(List.of(gamma)),
-                    "Review pending must list gamma only, got " + library.table().getItems());
+                // The decision inbox: a result waiting for review (gamma) and an applied one never saved (delta).
+                check(new java.util.HashSet<>(library.table().getItems()).equals(java.util.Set.of(gamma, delta)),
+                    "Review pending must list gamma and delta, got " + library.table().getItems());
                 library.analysisFilter().setValue(de.kortty.core.SnippetAnalysisOverview.Filter.STALE);
                 check(library.table().getItems().isEmpty(), "nothing is stale yet");
                 // A new analysis of beta that describes older content arrives while the filter is on.

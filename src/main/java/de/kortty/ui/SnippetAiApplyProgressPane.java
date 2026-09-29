@@ -337,7 +337,18 @@ final class SnippetAiApplyProgressPane extends VBox {
      * by accident should not mean re-running the whole analysis. {@code null} removes the action.
      */
     void setOnReviewChanges(Runnable handler) {
+        setOnReviewChanges(handler, false);
+    }
+
+    /**
+     * Like {@link #setOnReviewChanges(Runnable)}; {@code viewOnly} labels the action "View changes"
+     * for a result that was already decided (a read-only look at the stored diff).
+     */
+    void setOnReviewChanges(Runnable handler, boolean viewOnly) {
         runOnFx(() -> {
+            reviewChangesButton.setText(I18n.get(viewOnly
+                ? "snippets.ai.analysis.progress.viewChanges"
+                : "snippets.ai.analysis.progress.reopenPreview"));
             reviewChangesButton.setOnAction(handler == null ? null : event -> handler.run());
             setVisibleManaged(reviewChangesButton, handler != null);
             refreshActionBar();

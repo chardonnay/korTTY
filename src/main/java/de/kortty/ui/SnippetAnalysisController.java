@@ -100,6 +100,8 @@ final class SnippetAnalysisController {
     static final String RUNNING_BANNER_ID = "snippet-analysis-running-banner";
     /** A stopped or failed analysis, with Retry. */
     static final String OUTCOME_BANNER_ID = "snippet-analysis-outcome-banner";
+    /** Offers to restore an applied result that was remembered but never saved. */
+    static final String INTERMEDIATE_BANNER_ID = "snippet-analysis-intermediate-banner";
     static final String NOT_PERSISTED_BANNER_ID = "snippet-analysis-not-persisted-banner";
     static final String VERIFY_BUTTON_ID = "snippet-analysis-verify";
     static final String VERIFY_BANNER_ID = "snippet-analysis-verify-banner";
@@ -112,6 +114,9 @@ final class SnippetAnalysisController {
     static final String CONFIRM_NO_ID = "snippet-analysis-confirm-no";
     /** Marks a pinned entry in the history picker. */
     static final String PIN_MARKER = "\uD83D\uDCCC";
+
+    /** Marks an entry whose applied result is remembered but not saved. */
+    static final String INTERMEDIATE_MARK = "\u270E";
 
     static final String BADGE_OPEN = "●";
     static final String BADGE_STALE = "⚠";
@@ -229,6 +234,14 @@ final class SnippetAnalysisController {
         /** Selects and reveals the given 1-based line range in the editor (a diagram's code reference). */
         default void navigateToCode(int startLine, int endLine) {
         }
+
+        /**
+         * The hash of the draft-autosave content the editor is offering to restore right now, or
+         * {@code null} (none). The panel does not repeat that offer for the same text.
+         */
+        default String offeredDraftContentSha256() {
+            return null;
+        }
     }
 
     /** The one apply run of this editor that is in flight. */
@@ -273,7 +286,16 @@ final class SnippetAnalysisController {
     /** The change review currently replacing the editor area. */
     private record Review(String recordId, String runId, String baseContent, String replacement,
                           boolean partial, List<String> appliedFindingIds, SnippetAiDiffPane pane,
-                          SnippetAnalysisPanel.ApplySelection selection) {
+                          SnippetAnalysisPanel.ApplySelection selection, boolean readOnly) {
+        Review(String recordId, String runId, String baseContent, String replacement, boolean partial,
+               List<String> appliedFindingIds, SnippetAiDiffPane pane,
+               SnippetAnalysisPanel.ApplySelection selection) {
+            this(recordId, runId, baseContent, replacement, partial, appliedFindingIds, pane, selection, false);
+        }
+    }
+
+    /** "Restore the intermediate state" waiting for the answer to "this replaces your unsaved edits". */
+    private record PendingRestore(String recordId, String runId) {
     }
 
     private final Host host;
@@ -311,6 +333,8 @@ final class SnippetAnalysisController {
 
     /** A Discard / Delete all waiting for the inline confirmation strip; {@code null} = none. */
     private PendingConfirm pendingConfirm;
+    /** A restore of the intermediate state waiting for its inline confirmation; {@code null} = none. */
+    private PendingRestore pendingRestore;
 
     // ---- work ----
     private Task<SnippetAiResponseSupport.ScriptAnalysis> analysisTask;
@@ -409,8 +433,10 @@ final class SnippetAnalysisController {
         if (analysisTask != null && !analysisTask.isDone()) {
             analysisTask.cancel(true);
         }
-        diagramJobs.values().forEach(job -> job.cancel(true));
+        // Cancelling completes a job, whose callback removes it from the map: iterate a copy.
+        List<CompletableFuture<SnippetDiagramView.DiagramSource>> pendingJobs = new ArrayList<>(diagramJobs.values());
         diagramJobs.clear();
+        pendingJobs.forEach(job -> job.cancel(true));
         if (review != null) {
             review.pane().dispose();
             review = null;
@@ -469,30 +495,30 @@ final class SnippetAnalysisController {
             return;
         }
         store.persistIfPossible(key);
-        String savedSha = SnippetDiagramSupport.contentHash(saved.getContent() != null ? saved.getContent() : "");
-        long now = System.currentTimeMillis();
-        SnippetAnalysisHistory current = store.cached(key);
-        if (current != null && current.records().stream().anyMatch(r -> needsSavedStamp(r, savedSha))) {
-            store.update(key, h -> {
-                SnippetAnalysisHistory next = h;
-                for (SnippetAnalysisRecord record : h.records()) {
-                    if (needsSavedStamp(record, savedSha)) {
-                        next = next.update(record.id(), r -> r.withApplyRuns(r.applyRuns().stream()
-                            .map(run -> run.isAccepted() && run.savedToSnippetAt() <= 0
-                                && savedSha.equals(run.acceptedContentSha256())
-                                ? run.withSavedToSnippetAt(now) : run)
-                            .toList()));
-                    }
-                }
-                return next;
-            });
-        }
+        stampSavedRuns(SnippetDiagramSupport.contentHash(saved.getContent() != null ? saved.getContent() : ""));
         refreshState();
     }
 
-    private static boolean needsSavedStamp(SnippetAnalysisRecord record, String savedSha) {
-        return record.applyRuns().stream().anyMatch(run -> run.isAccepted() && run.savedToSnippetAt() <= 0
-            && savedSha.equals(run.acceptedContentSha256()));
+    /**
+     * Stamps the accepted runs whose text is exactly the saved snippet as saved (they stop being an
+     * unsaved intermediate state and retention may trim their record again). Returns whether a
+     * store update was issued; the store then notifies again.
+     */
+    private boolean stampSavedRuns(String savedSha) {
+        SnippetAnalysisHistory current = key != null ? store.cached(key) : null;
+        if (current == null || current.records().stream()
+                .noneMatch(record -> SnippetAnalysisHistory.needsSavedStamp(record, savedSha))) {
+            return false;
+        }
+        long now = System.currentTimeMillis();
+        store.update(key, h -> h.withAcceptedRunsSaved(savedSha, now));
+        return true;
+    }
+
+    /** The hash of the snippet as last saved, or {@code null} for one that was never saved. */
+    private String savedContentSha() {
+        String saved = host.savedSnippetContent();
+        return saved != null ? SnippetDiagramSupport.contentHash(saved) : null;
     }
 
     // =====================================================================================
@@ -835,8 +861,15 @@ final class SnippetAnalysisController {
         if (job == null) {
             SnippetAnalysisRecord record = findRecord(recordId);
             String profileId = record != null ? blankToNull(record.provenance().profileId()) : null;
-            String content = host.currentContent();
-            String language = host.snippetLanguage();
+            // The diagram describes the code this analysis was made for, not whatever the editor
+            // holds now; without that text (too large to store, changed since) there is nothing
+            // honest to generate.
+            String content = diagramContentFor(record, host.currentContent());
+            if (content == null) {
+                return null;
+            }
+            String language = record == null || record.source().language().isBlank()
+                ? host.snippetLanguage() : record.source().language();
             CompletableFuture<SnippetDiagramView.DiagramSource> started =
                 host.generateDiagram(content, language, profileId);
             if (started == null) {
@@ -855,6 +888,23 @@ final class SnippetAnalysisController {
             }));
         }
         return job.thenApply(source -> source);
+    }
+
+    /**
+     * The text a diagram for {@code record} is generated from: the analysed source when it was
+     * stored, else the editor's current content when it is exactly what was analysed, else
+     * {@code null}.
+     */
+    static String diagramContentFor(SnippetAnalysisRecord record, String currentContent) {
+        if (record == null) {
+            return currentContent;
+        }
+        if (record.source().content() != null) {
+            return record.source().content();
+        }
+        String current = currentContent != null ? currentContent : "";
+        return !record.source().sha256().isBlank()
+            && record.source().sha256().equals(SnippetDiagramSupport.contentHash(current)) ? current : null;
     }
 
     private void persistDiagram(String recordId, SnippetDiagramView.DiagramSource source, String content,
@@ -878,7 +928,7 @@ final class SnippetAnalysisController {
         if (diagram == null || diagram.mermaid().isBlank()) {
             return null;
         }
-        String content = record.source().content() != null ? record.source().content() : fallbackContent;
+        String content = diagramContentFor(record, fallbackContent);
         SnippetDiagramType type = diagram.diagramType();
         return new SnippetDiagramView.DiagramSource(
             diagram.mermaid(),
@@ -1504,10 +1554,25 @@ final class SnippetAnalysisController {
             run.summary(), run.changes().stream().map(SnippetAnalysisRecord.Change::toSecurityChange).toList());
     }
 
+    /** Makes {@code recordId} the shown history entry (the current one is followed again). */
+    private void focusRecord(String recordId) {
+        if (recordId == null || history == null || history.find(recordId) == null) {
+            return;
+        }
+        SnippetAnalysisRecord current = history.current();
+        String next = current != null && current.id().equals(recordId) ? null : recordId;
+        if (!Objects.equals(next, shownRecordId)) {
+            flushSelection();
+            shownRecordId = next;
+        }
+    }
+
     private void openReviewPane(Review pending, String summary, List<SnippetAiResponseSupport.SecurityChange> changes) {
         if (review != null) {
             closeReview();
         }
+        // The result belongs to its own analysis entry, whichever entry the user looked at meanwhile.
+        focusRecord(pending.recordId());
         SnippetAiDiffPane pane = new SnippetAiDiffPane(summary, pending.baseContent(), pending.replacement(),
             host.snippetLanguage(), host.editorSettings(), true);
         if (changes != null && !changes.isEmpty()) {
@@ -1521,6 +1586,141 @@ final class SnippetAnalysisController {
         host.showInEditorArea(pane);
         Platform.runLater(pane::fitSummaryHeight);
         refreshState();
+    }
+
+    /**
+     * Shows the stored diff of a decided run (accepted or rejected) read-only, in the editor area:
+     * the content it started from against its proposed result, with the change reasons. For an
+     * accepted run whose applied text is remembered but not saved, "Restore intermediate state" is
+     * offered next to Close. The preview belongs to that run's analysis entry, so it is shown with
+     * that entry and goes away when another entry is picked.
+     */
+    void openPreview(String recordId, String runId) {
+        if (disposed) {
+            return;
+        }
+        if (review != null && Objects.equals(review.runId(), runId)) {
+            host.showInEditorArea(review.pane());
+            return;
+        }
+        SnippetAnalysisRecord record = findRecord(recordId);
+        ApplyRun run = record != null ? record.findRun(runId) : null;
+        if (run == null || run.outcome() == RunOutcome.PENDING_REVIEW) {
+            openReview(recordId, runId);
+            return;
+        }
+        String base = baseContentOf(recordId, runId);
+        if (run.resultContent() == null || base == null) {
+            host.setStatus(I18n.get("snippets.ai.analysis.preview.unavailable"));
+            return;
+        }
+        if (review != null) {
+            closeReview();
+        }
+        focusRecord(recordId);
+        trackAction("code_review_view_changes", Map.of("outcome", run.outcome().name().toLowerCase(java.util.Locale.ROOT)));
+        SnippetAiDiffPane pane = new SnippetAiDiffPane(run.summary(), base, run.resultContent(),
+            host.snippetLanguage(), host.editorSettings(), false);
+        List<SnippetAiResponseSupport.SecurityChange> changes =
+            run.changes().stream().map(SnippetAnalysisRecord.Change::toSecurityChange).toList();
+        if (!changes.isEmpty()) {
+            pane.setChangeExplanations(changes);
+        }
+        pane.setHeading(I18n.get("snippets.ai.analysis.preview.heading",
+            statusWord(run.outcome()), formatTime(run.decidedAt() > 0 ? run.decidedAt() : run.finishedAt())));
+        List<Button> actions = new ArrayList<>();
+        Button close = new Button(I18n.get("snippets.ai.analysis.preview.close"));
+        close.setId("snippet-ai-diff-close");
+        actions.add(close);
+        if (run.holdsUnsavedAcceptedContent()
+                && !run.acceptedContentSha256().equals(SnippetDiagramSupport.contentHash(safe(host.currentContent())))
+                && !run.acceptedContentSha256().equals(savedContentSha())) {
+            Button restore = new Button(I18n.get("snippets.ai.analysis.intermediate.restore"));
+            restore.setId("snippet-ai-diff-restore");
+            restore.setOnAction(event -> {
+                closeReview();
+                restoreIntermediate(recordId, runId);
+            });
+            actions.add(0, restore);
+        }
+        pane.setReadOnlyActions(actions);
+        Review shown = new Review(recordId, runId, base, run.resultContent(), run.partial(),
+            run.appliedFindingIds(), pane, null, true);
+        close.setOnAction(event -> {
+            if (review == shown) {
+                closeReview();
+                refreshState();
+            }
+        });
+        review = shown;
+        host.showInEditorArea(pane);
+        Platform.runLater(pane::fitSummaryHeight);
+        refreshState();
+    }
+
+    private static String statusWord(RunOutcome outcome) {
+        return I18n.get(outcome == RunOutcome.ACCEPTED
+            ? "snippets.ai.analysis.preview.accepted"
+            : outcome == RunOutcome.REJECTED
+                ? "snippets.ai.analysis.preview.rejected"
+                : "snippets.ai.analysis.preview.result");
+    }
+
+    /**
+     * Puts the remembered applied text of {@code runId} back into the editor, through the same path
+     * as an AI change (so the change toggle and undo work). When the editor holds other unsaved
+     * edits, asks inline first; a second call with the answer given goes through.
+     */
+    void restoreIntermediate(String recordId, String runId) {
+        if (disposed) {
+            return;
+        }
+        SnippetAnalysisRecord record = findRecord(recordId);
+        ApplyRun run = record != null ? record.findRun(runId) : null;
+        if (run == null || !run.holdsUnsavedAcceptedContent()) {
+            host.setStatus(I18n.get("snippets.ai.analysis.intermediate.unavailable"));
+            return;
+        }
+        String current = safe(host.currentContent());
+        String accepted = run.acceptedContent();
+        if (current.equals(accepted)) {
+            pendingRestore = null;
+            refreshState();
+            return;
+        }
+        String saved = host.savedSnippetContent();
+        boolean otherEdits = saved == null ? !current.isBlank() : !current.equals(saved);
+        PendingRestore confirmed = pendingRestore;
+        if (otherEdits && (confirmed == null || !confirmed.runId().equals(runId))) {
+            pendingRestore = new PendingRestore(recordId, runId);
+            refreshState();
+            return;
+        }
+        pendingRestore = null;
+        trackAction("code_review_restore_intermediate", Map.of());
+        host.applyFullReplacement(current, accepted, I18n.get("snippets.ai.analysis.intermediate.action"));
+        host.setStatus(I18n.get("snippets.ai.analysis.intermediate.restored"));
+        refreshState();
+    }
+
+    /**
+     * The accepted-but-unsaved run of {@code record} the panel offers to restore: the newest one
+     * whose text differs from the saved snippet, unless the editor holds it already, or
+     * {@code null}. A run whose text is what the editor holds already is the ordinary "accepted, not
+     * saved" state, and one that a draft banner offers with the same text is not offered twice.
+     */
+    static ApplyRun restorableRun(SnippetAnalysisRecord record, String savedSha, String editorSha,
+                                  String offeredDraftSha) {
+        if (record == null) {
+            return null;
+        }
+        List<ApplyRun> unsaved = record.unsavedAcceptedRuns(savedSha);
+        if (unsaved.isEmpty()) {
+            return null;
+        }
+        ApplyRun newest = unsaved.get(0);
+        String sha = newest.acceptedContentSha256();
+        return sha.equals(editorSha) || sha.equals(offeredDraftSha) ? null : newest;
     }
 
     /** Accept only applies to the content the run started from; otherwise offer a re-plan. */
@@ -1753,6 +1953,15 @@ final class SnippetAnalysisController {
         if (shownRecordId != null && next.find(shownRecordId) == null) {
             shownRecordId = null;
         }
+        if (review != null && review.recordId() != null && next.find(review.recordId()) == null) {
+            closeReview();
+        }
+        // An accepted result that is exactly the saved snippet (saved through any path) is not an
+        // intermediate state any more; the store notifies again after the stamp.
+        String savedSha = savedContentSha();
+        if (savedSha != null) {
+            stampSavedRuns(savedSha);
+        }
         render();
     }
 
@@ -1765,10 +1974,16 @@ final class SnippetAnalysisController {
 
     private void render() {
         refreshBadge();
+        SnippetAnalysisRecord record = shownRecord();
+        // The change preview belongs to one analysis entry: once another entry is shown it goes back
+        // to the panel (a pending review stays PENDING_REVIEW and re-openable from its own entry).
+        if (review != null && review.recordId() != null
+                && (record == null || !review.recordId().equals(record.id()))) {
+            closeReview();
+        }
         if (!panelVisible || sidePanel == null) {
             return;
         }
-        SnippetAnalysisRecord record = shownRecord();
         renderHistoryCombo();
         renderContent(record);
         renderBanners(record);
@@ -1901,7 +2116,21 @@ final class SnippetAnalysisController {
         if (record == null) {
             return "";
         }
-        return historyEntryLabel(record, formatTime(record.analyzedAt()), statusText(statusOf(record)));
+        return historyEntryLabel(record, formatTime(record.analyzedAt()), entryStatusText(record));
+    }
+
+    /**
+     * The status word of one history entry: its derived status, plus "✎ intermediate state not
+     * saved" when an applied result of that entry is remembered but not saved (an older entry's
+     * status is only "superseded", which would hide it).
+     */
+    private String entryStatusText(SnippetAnalysisRecord record) {
+        RecordStatus status = statusOf(record);
+        String text = statusText(status);
+        if (status != RecordStatus.ACCEPTED_NOT_SAVED && !record.unsavedAcceptedRuns(savedContentSha()).isEmpty()) {
+            text += " · " + INTERMEDIATE_MARK + " " + I18n.get("snippets.ai.analysis.status.intermediate");
+        }
+        return text;
     }
 
     /**
@@ -2064,8 +2293,30 @@ final class SnippetAnalysisController {
             panel.diagramView().showCached(cached);
         } else if (diagramJobs.containsKey(recordId)) {
             panel.diagramView().loadIfNeeded();
-        } else {
+        } else if (history != null && history.current() != null && history.current().id().equals(recordId)) {
             panel.startDiagramIfAutoEnabled();
+        } else {
+            // An older entry without a stored diagram: never generated behind the user's back, and
+            // never from the editor's current text — "Regenerate" makes it from this entry's source.
+            panel.diagramView().showNotice(I18n.get(diagramContentFor(record, host.currentContent()) != null
+                ? "snippets.ai.analysis.diagram.notStored"
+                : "snippets.ai.analysis.diagram.notStored.noSource"));
+        }
+        followZoomWindow(cached);
+    }
+
+    /**
+     * The open zoom window follows the shown entry: it shows that entry's stored diagram, and closes
+     * when the entry has none — it never keeps showing another entry's diagram.
+     */
+    private void followZoomWindow(SnippetDiagramView.DiagramSource shownDiagram) {
+        if (zoomWindow == null || !zoomWindow.isShowing()) {
+            return;
+        }
+        if (shownDiagram == null) {
+            closeDiagramZoomWindow();
+        } else {
+            zoomWindow.followDiagram(shownDiagram);
         }
     }
 
@@ -2181,6 +2432,7 @@ final class SnippetAnalysisController {
                 banners.add(banner("snippet-analysis-unsaved-banner",
                     I18n.get("snippets.ai.analysis.status.acceptedNotSaved.banner"), BannerKind.INFO));
             }
+            addIntermediateBanner(banners, record);
         }
         if (key != null && store.isRunClaimedByOther(key, this)) {
             banners.add(banner("snippet-analysis-other-window-banner",
@@ -2206,6 +2458,46 @@ final class SnippetAnalysisController {
         bannerScroll.setVisible(!banners.isEmpty());
         bannerScroll.setManaged(!banners.isEmpty());
 
+    }
+
+    /**
+     * "Applied intermediate state from … is not saved" with Restore — for the shown entry's newest
+     * accepted-but-unsaved run whose text the editor does not hold (any more), and the inline
+     * "this replaces your unsaved edits" question after Restore was pressed.
+     */
+    private void addIntermediateBanner(List<Node> banners, SnippetAnalysisRecord record) {
+        ApplyRun restorable = restorableRun(record, savedContentSha(),
+            SnippetDiagramSupport.contentHash(safe(host.currentContent())), host.offeredDraftContentSha256());
+        PendingRestore asked = pendingRestore;
+        if (asked != null && (restorable == null || !asked.runId().equals(restorable.id()))) {
+            pendingRestore = null;
+            asked = null;
+        }
+        if (restorable == null) {
+            return;
+        }
+        String recordId = record.id();
+        String runId = restorable.id();
+        if (asked != null) {
+            Button replace = new Button(I18n.get("snippets.ai.analysis.intermediate.replace"));
+            replace.setId("snippet-analysis-intermediate-replace");
+            replace.setOnAction(event -> restoreIntermediate(recordId, runId));
+            Button keep = new Button(I18n.get("snippets.ai.analysis.intermediate.keep"));
+            keep.setId("snippet-analysis-intermediate-keep");
+            keep.setOnAction(event -> {
+                pendingRestore = null;
+                refreshState();
+            });
+            banners.add(banner("snippet-analysis-intermediate-confirm",
+                I18n.get("snippets.ai.analysis.intermediate.confirm"), BannerKind.WARNING, replace, keep));
+            return;
+        }
+        Button restore = new Button(I18n.get("snippets.ai.analysis.intermediate.restore"));
+        restore.setId("snippet-analysis-intermediate-restore");
+        restore.setOnAction(event -> restoreIntermediate(recordId, runId));
+        banners.add(banner(INTERMEDIATE_BANNER_ID, I18n.get("snippets.ai.analysis.intermediate.banner",
+            formatTime(restorable.decidedAt() > 0 ? restorable.decidedAt() : restorable.finishedAt())),
+            BannerKind.INFO, restore));
     }
 
     private enum BannerKind { INFO, WARNING }
@@ -2303,7 +2595,12 @@ final class SnippetAnalysisController {
             SnippetAiApplyProgressPane live = livePanes.get(last.id());
             if (live != null) {
                 shown = live;
-                if (last.outcome() != RunOutcome.PENDING_REVIEW) {
+                if (last.outcome() == RunOutcome.PENDING_REVIEW) {
+                    // Its handler was set when the result arrived.
+                } else if (canViewChanges(last)) {
+                    String recordId = record.id();
+                    live.setOnReviewChanges(() -> openPreview(recordId, last.id()), true);
+                } else {
                     live.setOnReviewChanges(null);
                 }
             } else {
@@ -2329,6 +2626,12 @@ final class SnippetAnalysisController {
         progressHolder.setManaged(true);
     }
 
+    /** Whether a decided run still has the text its read-only "View changes" preview is built from. */
+    static boolean canViewChanges(ApplyRun run) {
+        return run != null && (run.outcome() == RunOutcome.ACCEPTED || run.outcome() == RunOutcome.REJECTED)
+            && run.resultContent() != null;
+    }
+
     /** A stored run rebuilt as a (static) progress view, with its review or recovery action. */
     private SnippetAiApplyProgressPane restoredPaneFor(SnippetAnalysisRecord record, ApplyRun run) {
         ResumeVerdict verdict = run.isResumable()
@@ -2346,6 +2649,8 @@ final class SnippetAnalysisController {
         String recordId = record.id();
         if (run.outcome() == RunOutcome.PENDING_REVIEW) {
             pane.setOnReviewChanges(() -> openReview(recordId, run.id()));
+        } else if (canViewChanges(run)) {
+            pane.setOnReviewChanges(() -> openPreview(recordId, run.id()), true);
         }
         SnippetAnalysisRecord.StoredCheckpoint stored = run.checkpoint();
         if ((run.outcome() == RunOutcome.INTERRUPTED || run.outcome() == RunOutcome.FAILED
@@ -2411,7 +2716,7 @@ final class SnippetAnalysisController {
             }
         }
         if (headerStatusLabel != null) {
-            headerStatusLabel.setText(record != null ? statusText(statusOf(record)) : "");
+            headerStatusLabel.setText(record != null ? entryStatusText(record) : "");
         }
         Node run = contentHolder != null ? contentHolder.lookup("#snippet-analysis-run") : null;
         if (run != null) {
