@@ -61,6 +61,54 @@ class EffectivePolicyResolveTest {
     }
 
     @Test
+    void snippetAnalysisStoredContentCapResolvesToTheSmallerValueAndDrivesTheEffectiveLimit() {
+        long mb = 1024L * 1024;
+        PolicyFile conflicting = file(Map.of(),
+            PolicyRule.builder().snippetAnalysisMaxStoredContentBytes(4 * mb).build(),
+            PolicyRule.builder().snippetAnalysisMaxStoredContentBytes(2 * mb).build());
+        EffectivePolicy policy = EffectivePolicy.resolve(conflicting, identity("anyone"));
+        assertThat(policy.snippetAnalysisMaxStoredContentBytes()).isEqualTo(2 * mb);
+        assertThat(policy.isManaged(ManagedSetting.SNIPPET_ANALYSIS_CONTENT)).isTrue();
+        assertThat(de.kortty.core.SnippetAnalysisContentLimit
+            .compute(3 * mb, policy.snippetAnalysisMaxStoredContentBytes()).effective()).isEqualTo(2 * mb);
+
+        // 0 (forbid) beats every positive cap of the same tier
+        PolicyFile forbidding = file(Map.of(),
+            PolicyRule.builder().snippetAnalysisMaxStoredContentBytes(0L).build(),
+            PolicyRule.builder().snippetAnalysisMaxStoredContentBytes(8 * mb).build());
+        EffectivePolicy forbidden = EffectivePolicy.resolve(forbidding, identity("anyone"));
+        assertThat(forbidden.snippetAnalysisMaxStoredContentBytes()).isEqualTo(0L);
+        assertThat(de.kortty.core.SnippetAnalysisContentLimit
+            .compute(5 * mb, forbidden.snippetAnalysisMaxStoredContentBytes()).forbiddenByPolicy()).isTrue();
+    }
+
+    @Test
+    void snippetAnalysisStoredContentCapFollowsTheTiersAndIsUnmanagedWhenMissing() {
+        long mb = 1024L * 1024;
+        // a more specific tier overrides (GPO-style), also upwards
+        PolicyFile tiered = file(Map.of(),
+            PolicyRule.builder().snippetAnalysisMaxStoredContentBytes(1 * mb).build(),
+            PolicyRule.builder().users(Set.of("eve")).snippetAnalysisMaxStoredContentBytes(4 * mb).build());
+        assertThat(EffectivePolicy.resolve(tiered, identity("eve")).snippetAnalysisMaxStoredContentBytes())
+            .isEqualTo(4 * mb);
+        assertThat(EffectivePolicy.resolve(tiered, identity("bob")).snippetAnalysisMaxStoredContentBytes())
+            .isEqualTo(1 * mb);
+
+        // no rule sets it: no cap, not managed, the user's setting alone decides
+        EffectivePolicy unset = EffectivePolicy.resolve(file(Map.of(), PolicyRule.builder().build()), identity("bob"));
+        assertThat(unset.snippetAnalysisMaxStoredContentBytes()).isNull();
+        assertThat(unset.isManaged(ManagedSetting.SNIPPET_ANALYSIS_CONTENT)).isFalse();
+        assertThat(EffectivePolicy.unrestricted().snippetAnalysisMaxStoredContentBytes()).isNull();
+        assertThat(de.kortty.core.SnippetAnalysisContentLimit
+            .compute(3 * mb, unset.snippetAnalysisMaxStoredContentBytes()).effective()).isEqualTo(3 * mb);
+    }
+
+    @Test
+    void lockdownForbidsStoringScriptText() {
+        assertThat(EffectivePolicy.lockdown().snippetAnalysisMaxStoredContentBytes()).isEqualTo(0L);
+    }
+
+    @Test
     void aiScreenshotAnalysisResolvesRestrictivelyWithinATierAndBySpecificityAcrossTiers() {
         // Same-tier conflict: off wins — screenshots leaving the machine is the risk.
         PolicyFile conflicting = file(Map.of(),

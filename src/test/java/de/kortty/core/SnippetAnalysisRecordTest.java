@@ -102,7 +102,7 @@ public class SnippetAnalysisRecordTest {
 
     @Test
     public void sourceOverTheCapKeepsItsHashButNotItsText() {
-        String huge = "x".repeat(SnippetAnalysisRecord.MAX_CONTENT_CHARS + 1);
+        String huge = "x".repeat((int) SnippetAnalysisContentLimit.DEFAULT_BYTES + 1);
 
         SnippetAnalysisRecord.Source source = SnippetAnalysisRecord.Source.of(huge, "bash", "en", "en", "n");
 
@@ -204,7 +204,7 @@ public class SnippetAnalysisRecordTest {
 
     @Test
     public void acceptedContentOverTheCapIsNotStoredAndDoesNotProtect() {
-        String huge = "x".repeat(SnippetAnalysisRecord.MAX_CONTENT_CHARS + 1);
+        String huge = "x".repeat((int) SnippetAnalysisContentLimit.DEFAULT_BYTES + 1);
         ApplyRun run = ApplyRun.started("a", 10L, null, List.of(), null).accepted(30L, List.of(), huge);
 
         assertThat(run.acceptedContent()).isNull();

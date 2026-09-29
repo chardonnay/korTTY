@@ -35,7 +35,7 @@ public final class EffectivePolicy {
         new EnumMap<>(PolicyFeature.class), AgentExecutionMode.ALLOW, false, false,
         ClipboardMode.SYSTEM, true, true,
         true, true, true, true, true, true, true, true, true, null, LoadIntoEditorMode.ALLOW,
-        EMPTY_LOGGING, EMPTY_SESSION_JOURNAL,
+        EMPTY_LOGGING, EMPTY_SESSION_JOURNAL, null,
         List.of(), EnumSet.noneOf(ManagedSetting.class), List.of(), List.of(), List.of(), List.of());
 
     private final boolean fromPolicyFile;
@@ -61,6 +61,7 @@ public final class EffectivePolicy {
     private final LoadIntoEditorMode loadIntoSnippetEditor;
     private final PolicyRule.LoggingRule logging;
     private final PolicyRule.SessionJournalRule sessionJournal;
+    private final Long snippetAnalysisMaxStoredContentBytes;
     private final List<ServerRestriction> serverRestrictions;
     private final Set<ManagedSetting> managedSettings;
     private final List<PolicyFile.ScriptHeader> scriptHeaders;
@@ -81,6 +82,7 @@ public final class EffectivePolicy {
                             LoadIntoEditorMode loadIntoSnippetEditor,
                             PolicyRule.LoggingRule logging,
                             PolicyRule.SessionJournalRule sessionJournal,
+                            Long snippetAnalysisMaxStoredContentBytes,
                             List<ServerRestriction> serverRestrictions,
                             Set<ManagedSetting> managedSettings,
                             List<PolicyFile.ScriptHeader> scriptHeaders,
@@ -110,6 +112,7 @@ public final class EffectivePolicy {
         this.loadIntoSnippetEditor = loadIntoSnippetEditor;
         this.logging = logging;
         this.sessionJournal = sessionJournal;
+        this.snippetAnalysisMaxStoredContentBytes = snippetAnalysisMaxStoredContentBytes;
         this.serverRestrictions = List.copyOf(serverRestrictions);
         this.managedSettings = managedSettings;
         this.scriptHeaders = List.copyOf(scriptHeaders);
@@ -134,7 +137,7 @@ public final class EffectivePolicy {
         }
         return new EffectivePolicy(true, true, null, denied, AgentExecutionMode.READ_ONLY,
             true, true, ClipboardMode.INTERNAL, false, false, false, false, false, false, false, false, false, false,
-            false, null, LoadIntoEditorMode.DENY, EMPTY_LOGGING, EMPTY_SESSION_JOURNAL,
+            false, null, LoadIntoEditorMode.DENY, EMPTY_LOGGING, EMPTY_SESSION_JOURNAL, 0L,
             List.of(), EnumSet.allOf(ManagedSetting.class),
             List.of(), List.of(), List.of(), List.of());
     }
@@ -221,6 +224,13 @@ public final class EffectivePolicy {
         markManaged(managed, ManagedSetting.AI_RUNTIME, allowModelDownloads);
         markManaged(managed, ManagedSetting.AI_RUNTIME, allowUserModels);
         markManaged(managed, ManagedSetting.UPDATES, updatesEnabled);
+        // The stored script text of an analysis is an upper bound: the smaller value is the more
+        // restrictive one, so 0 (store nothing) beats every positive cap on a same-tier conflict.
+        Long analysisMaxStoredContentBytes = resolver.resolve(
+            PolicyRule::snippetAnalysisMaxStoredContentBytes, Math::min);
+        if (analysisMaxStoredContentBytes != null) {
+            managed.add(ManagedSetting.SNIPPET_ANALYSIS_CONTENT);
+        }
         if (updateFeedUrl != null) {
             managed.add(ManagedSetting.UPDATES);
         }
@@ -254,7 +264,7 @@ public final class EffectivePolicy {
             orDefault(allowRuntimeDownloads, true), orDefault(allowModelDownloads, true),
             orDefault(allowUserModels, true), orDefault(updatesEnabled, true), updateFeedUrl,
             orDefault(loadIntoEditor, LoadIntoEditorMode.ALLOW), logging, sessionJournal,
-            serverRestrictions, managed,
+            analysisMaxStoredContentBytes, serverRestrictions, managed,
             file.scriptHeaders(), file.aiProfiles(), file.runtimeModels(), file.teamworkSources());
     }
 
@@ -448,6 +458,16 @@ public final class EffectivePolicy {
 
     public LoadIntoEditorMode loadIntoSnippetEditor() {
         return loadIntoSnippetEditor;
+    }
+
+    /**
+     * The admin's upper bound in bytes of UTF-8 for the script text stored with each Full-code
+     * analysis, or {@code null} when no policy sets one; {@code 0} forbids storing script text. The
+     * effective limit is {@code min(user setting, this)}, see
+     * {@link de.kortty.core.SnippetAnalysisContentLimit#compute}.
+     */
+    public Long snippetAnalysisMaxStoredContentBytes() {
+        return snippetAnalysisMaxStoredContentBytes;
     }
 
     /** The resolved admin log configuration; all-null fields when logging is not managed. */

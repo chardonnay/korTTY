@@ -5,14 +5,19 @@ import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
 import de.kortty.core.SnippetAnalysisHistory.LoadIssue;
 import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -75,8 +80,16 @@ public final class SnippetAnalysisStore implements AutoCloseable {
     public static final String DIRECTORY_NAME = "snippet-analyses";
     /** Overrides the directory of {@link #shared()} outside the app (tests, scratch runners). */
     public static final String DIRECTORY_PROPERTY = "kortty.snippetAnalyses.dir";
-    /** Larger files are not loaded (they are moved aside instead). */
-    public static final long MAX_FILE_BYTES = 16L * 1024 * 1024;
+    /**
+     * Larger files are not loaded (they are moved aside instead): {@code max(16 MiB, 12 x the
+     * effective content limit)}, see {@link SnippetAnalysisContentLimit#maxFileBytes()}.
+     */
+    public static long maxFileBytes() {
+        return SnippetAnalysisContentLimit.maxFileBytes();
+    }
+
+    /** How many histories nobody uses any more stay cached (the newest ones), the rest are evicted. */
+    static final int MAX_IDLE_CACHED = 3;
     static final String FILE_SUFFIX = ".json";
 
     private static final Logger logger = LoggerFactory.getLogger(SnippetAnalysisStore.class);
@@ -110,6 +123,7 @@ public final class SnippetAnalysisStore implements AutoCloseable {
         String lastWriteError;
         /** Changed while the id was not persistable; written once it is. */
         boolean awaitingPersist;
+        long lastAccess;
         CompletableFuture<SnippetAnalysisHistory> loading;
         Object runOwner;
         final List<Consumer<SnippetAnalysisHistory>> subscribers = new CopyOnWriteArrayList<>();
@@ -130,10 +144,12 @@ public final class SnippetAnalysisStore implements AutoCloseable {
     private final Map<String, Entry> entries = new HashMap<>();
     private final Map<String, SnippetAnalysisHistory> pendingWrites = new LinkedHashMap<>();
     private final Set<String> scheduledWrites = new HashSet<>();
+    private final Set<String> writingIds = new HashSet<>();
     private final Consumer<SnippetManager.Change> snippetChangeListener = this::onSnippetsChanged;
     private final List<Consumer<String>> changeListeners = new CopyOnWriteArrayList<>();
     private SnippetManager attachedManager;
     private long generation;
+    private long accessCounter;
     private volatile boolean warnOffFxThread;
     private volatile boolean closed;
 
@@ -221,6 +237,7 @@ public final class SnippetAnalysisStore implements AutoCloseable {
         String id = requireId(snippetId);
         synchronized (lock) {
             Entry entry = entry(id);
+            entry.lastAccess = ++accessCounter;
             if (entry.loaded) {
                 return CompletableFuture.completedFuture(view(entry));
             }
@@ -247,9 +264,11 @@ public final class SnippetAnalysisStore implements AutoCloseable {
                             current.loadIssue = result.issue();
                             current.loaded = true;
                         }
+                        current.lastAccess = ++accessCounter;
                         delivered = view(current);
                     }
                     notifyLater(id, delivered);
+                    trimIdleEntries();
                     return delivered;
                 });
             entry.loading = future;
@@ -352,6 +371,7 @@ public final class SnippetAnalysisStore implements AutoCloseable {
                 .withSnippetId(id)
                 .compact()
                 .withRevision(entry.history.revision() + 1, System.currentTimeMillis());
+            entry.lastAccess = ++accessCounter;
             result = view(entry);
         }
         persistOrDefer(id);
@@ -546,6 +566,46 @@ public final class SnippetAnalysisStore implements AutoCloseable {
             String id = emptied;
             runOnFxLater(() -> evictIfAbandoned(id));
         }
+        trimIdleEntries();
+    }
+
+    /**
+     * Bounds the memory of cached histories (multi-megabyte scripts make them heavy): a history
+     * nobody subscribes to, that holds no run claim, no unwritten change, no write error and no load
+     * notice can always be read again from its file, so all but the {@value #MAX_IDLE_CACHED} most
+     * recently used such histories are dropped. Memory-only stores keep everything (nothing to
+     * reload from).
+     */
+    private void trimIdleEntries() {
+        if (directory == null) {
+            return;
+        }
+        synchronized (lock) {
+            List<Map.Entry<String, Entry>> idle = new ArrayList<>();
+            for (Map.Entry<String, Entry> item : entries.entrySet()) {
+                Entry entry = item.getValue();
+                if (entry.loaded && entry.subscribers.isEmpty() && entry.runOwner == null && !entry.awaitingPersist
+                        && entry.lastWriteError == null && entry.loadIssue == null && entry.loading == null
+                        && !scheduledWrites.contains(item.getKey()) && !pendingWrites.containsKey(item.getKey())
+                        && !writingIds.contains(item.getKey())) {
+                    idle.add(item);
+                }
+            }
+            if (idle.size() <= MAX_IDLE_CACHED) {
+                return;
+            }
+            idle.sort(Comparator.comparingLong((Map.Entry<String, Entry> item) -> item.getValue().lastAccess).reversed());
+            for (int i = MAX_IDLE_CACHED; i < idle.size(); i++) {
+                entries.remove(idle.get(i).getKey());
+            }
+        }
+    }
+
+    /** For tests: how many histories are cached in memory. */
+    int cachedEntryCount() {
+        synchronized (lock) {
+            return (int) entries.values().stream().filter(entry -> entry.loaded).count();
+        }
     }
 
     private void evictIfAbandoned(String id) {
@@ -658,17 +718,25 @@ public final class SnippetAnalysisStore implements AutoCloseable {
      */
     public static OptionalLong readRevision(Path file) {
         try {
-            if (file == null || !Files.isRegularFile(file) || Files.size(file) > MAX_FILE_BYTES) {
+            if (file == null || !Files.isRegularFile(file) || Files.size(file) > maxFileBytes()) {
                 return OptionalLong.empty();
             }
-            JsonElement root = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8));
-            if (!root.isJsonObject()) {
-                return OptionalLong.empty();
+            try (JsonReader reader = new JsonReader(Files.newBufferedReader(file, StandardCharsets.UTF_8))) {
+                if (reader.peek() != JsonToken.BEGIN_OBJECT) {
+                    return OptionalLong.empty();
+                }
+                reader.beginObject();
+                long revision = 0L;
+                while (reader.hasNext()) {
+                    String name = reader.nextName();
+                    if ("revision".equals(name) && reader.peek() == JsonToken.NUMBER) {
+                        revision = reader.nextLong();
+                    } else {
+                        reader.skipValue();
+                    }
+                }
+                return OptionalLong.of(revision);
             }
-            JsonObject object = root.getAsJsonObject();
-            return object.has("revision") && object.get("revision").isJsonPrimitive()
-                ? OptionalLong.of(object.get("revision").getAsLong())
-                : OptionalLong.of(0L);
         } catch (IOException | RuntimeException e) {
             return OptionalLong.empty();
         }
@@ -676,12 +744,31 @@ public final class SnippetAnalysisStore implements AutoCloseable {
 
     /** The JSON text written for {@code history} (file form, blobs deduplicated). */
     static String toJson(SnippetAnalysisHistory history) {
-        return GSON.toJson(history.compact().externalizeContent());
+        long fileLimit = maxFileBytes();
+        long budget = SnippetAnalysisContentLimit.contentBudgetBytes();
+        SnippetAnalysisHistory compacted = history.compact();
+        while (true) {
+            String json = GSON.toJson(compacted.externalizeContent());
+            if (budget <= 0 || SnippetAnalysisContentLimit.utf8Length(json) <= fileLimit) {
+                return json;
+            }
+            // The estimate missed (escapes, structure): shed more of the oldest content and retry
+            // instead of writing a file the next load would move aside.
+            budget /= 2;
+            compacted = compacted.withContentBudget(budget);
+            logger.warn("Snippet analyses of {} exceed the {} byte file limit; shedding content down to {} bytes",
+                history.snippetId(), fileLimit, budget);
+        }
     }
 
     /** Parses the file form back into the memory form (no normalisation). */
     static SnippetAnalysisHistory fromJson(String json) {
         SnippetAnalysisHistory parsed = GSON.fromJson(json, SnippetAnalysisHistory.class);
+        return parsed == null ? null : parsed.internalizeContent();
+    }
+
+    private static SnippetAnalysisHistory fromTree(JsonElement root) {
+        SnippetAnalysisHistory parsed = GSON.fromJson(root, SnippetAnalysisHistory.class);
         return parsed == null ? null : parsed.internalizeContent();
     }
 
@@ -695,12 +782,27 @@ public final class SnippetAnalysisStore implements AutoCloseable {
         if (!Files.exists(file)) {
             return new LoadResult(SnippetAnalysisHistory.empty(id), null);
         }
-        String json;
+        long fileLimit = maxFileBytes();
+        JsonElement root;
         try {
-            if (Files.size(file) > MAX_FILE_BYTES) {
-                return quarantine(id, file, "larger than " + MAX_FILE_BYTES + " bytes", null);
+            long size = Files.size(file);
+            if (size > fileLimit) {
+                return quarantine(id, file, "larger than " + fileLimit + " bytes", null);
             }
-            json = Files.readString(file, StandardCharsets.UTF_8);
+            // Streamed into one tree: no second copy of a multi-megabyte file as a String, and no
+            // second parse for the typed history.
+            try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+                root = JsonParser.parseReader(reader);
+            }
+        } catch (JsonIOException e) {
+            if (e.getCause() instanceof IOException io) {
+                logger.error("Could not read snippet analyses {}; nothing will be written over it", file, io);
+                return new LoadResult(SnippetAnalysisHistory.empty(id),
+                    new LoadIssue(LoadIssue.Kind.UNREADABLE_READ_ONLY, io.toString()));
+            }
+            return quarantine(id, file, "unparseable", e);
+        } catch (JsonParseException e) {
+            return quarantine(id, file, "unparseable", e);
         } catch (IOException | RuntimeException e) {
             logger.error("Could not read snippet analyses {}; nothing will be written over it", file, e);
             return new LoadResult(SnippetAnalysisHistory.empty(id),
@@ -708,7 +810,6 @@ public final class SnippetAnalysisStore implements AutoCloseable {
         }
         int schema;
         try {
-            JsonElement root = JsonParser.parseString(json);
             if (!root.isJsonObject()) {
                 return quarantine(id, file, "not a JSON object", null);
             }
@@ -720,7 +821,7 @@ public final class SnippetAnalysisStore implements AutoCloseable {
         if (schema > SnippetAnalysisHistory.SCHEMA_VERSION) {
             SnippetAnalysisHistory newer;
             try {
-                newer = fromJson(json);
+                newer = fromTree(root);
             } catch (RuntimeException e) {
                 newer = null;
             }
@@ -733,7 +834,7 @@ public final class SnippetAnalysisStore implements AutoCloseable {
         }
         SnippetAnalysisHistory history;
         try {
-            history = fromJson(json);
+            history = fromTree(root);
         } catch (RuntimeException e) {
             return quarantine(id, file, "unparseable", e);
         }
@@ -847,14 +948,33 @@ public final class SnippetAnalysisStore implements AutoCloseable {
         return names;
     }
 
-    /** Parses a file read-only (never quarantines or writes); {@code null} when it cannot be used. */
-    private static SnippetAnalysisHistory peekFile(Path file) {
+    /**
+     * Parses a file read-only (never quarantines or writes) for an overview; {@code null} when it
+     * cannot be used. The {@code blobs} section (the multi-megabyte script texts) is never read, so
+     * the cost is independent of the script sizes and memory stays small; the content fields
+     * of the records keep their blob keys, which is all an overview needs (only "is it stored").
+     */
+    static SnippetAnalysisHistory peekFile(Path file) {
         try {
-            if (!Files.isRegularFile(file) || Files.size(file) > MAX_FILE_BYTES) {
+            if (!Files.isRegularFile(file) || Files.size(file) > maxFileBytes()) {
                 return null;
             }
-            SnippetAnalysisHistory parsed = fromJson(Files.readString(file, StandardCharsets.UTF_8));
-            return parsed != null ? parsed.normalizeAfterLoad() : null;
+            try (JsonReader reader = new JsonReader(Files.newBufferedReader(file, StandardCharsets.UTF_8))) {
+                JsonObject object = new JsonObject();
+                reader.beginObject();
+                while (reader.hasNext()) {
+                    String name = reader.nextName();
+                    if ("blobs".equals(name)) {
+                        // Written last (declaration order of SnippetAnalysisHistory; the transient
+                        // fields after it are never serialised): nothing an overview needs follows,
+                        // so the multi-megabyte section is not even scanned.
+                        break;
+                    }
+                    object.add(name, JsonParser.parseReader(reader));
+                }
+                SnippetAnalysisHistory parsed = GSON.fromJson(object, SnippetAnalysisHistory.class);
+                return parsed != null ? parsed.normalizeAfterLoad() : null;
+            }
         } catch (IOException | RuntimeException e) {
             return null;
         }
@@ -953,6 +1073,9 @@ public final class SnippetAnalysisStore implements AutoCloseable {
         synchronized (lock) {
             scheduledWrites.remove(id);
             snapshot = pendingWrites.remove(id);
+            if (snapshot != null) {
+                writingIds.add(id); // not evictable while its file is being replaced
+            }
         }
         if (snapshot == null) {
             return;
@@ -961,15 +1084,18 @@ public final class SnippetAnalysisStore implements AutoCloseable {
         try {
             Path file = fileFor(id);
             String json = toJson(snapshot);
-            if (json.length() > MAX_FILE_BYTES) {
-                logger.warn("Snippet analyses of {} grew to {} chars; the file may be moved aside on the next load",
-                    id, json.length());
+            if (json.length() > maxFileBytes()) {
+                logger.warn("Snippet analyses of {} are {} chars, over the {} byte file limit; the file may be moved "
+                    + "aside on the next load", id, json.length(), maxFileBytes());
             }
             Files.createDirectories(file.getParent());
             AtomicFileWriter.writeStringAtomically(file, json);
         } catch (IOException | RuntimeException e) {
             error = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
             logger.error("Failed to write snippet analyses of {}; retrying with the next change", id, e);
+        }
+        synchronized (lock) {
+            writingIds.remove(id);
         }
         recordWriteOutcome(id, error);
     }
@@ -1002,6 +1128,7 @@ public final class SnippetAnalysisStore implements AutoCloseable {
         if (changed != null) {
             notifyLater(id, changed);
         }
+        trimIdleEntries();
     }
 
     private static SnippetAnalysisHistory merge(SnippetAnalysisHistory target, SnippetAnalysisHistory incoming,

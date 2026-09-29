@@ -40,7 +40,8 @@ public final class PolicyLoader {
     private static final Set<String> SECURITY_KEYS = Set.of("require-master-password",
         "enforce-host-key-check", "allow-telemetry", "allow-terminal-recording", "clipboard-mode");
     private static final Set<String> RULE_TEAMWORK_KEYS = Set.of("allow-custom-sources");
-    private static final Set<String> SNIPPETS_KEYS = Set.of("allow-custom-script-headers");
+    private static final Set<String> SNIPPETS_KEYS =
+        Set.of("allow-custom-script-headers", "analysis-max-stored-content-bytes");
     private static final Set<String> AI_PROFILES_KEYS =
         Set.of("allow-create", "allow-edit", "allow-internet");
     private static final Set<String> RULE_AI_RUNTIME_KEYS =
@@ -167,8 +168,7 @@ public final class PolicyLoader {
             parseRuleSecurity(table, context, builder);
             parseRuleFlag(table, "teamwork", RULE_TEAMWORK_KEYS, context,
                 (key, value) -> builder.allowCustomTeamworkSources(value));
-            parseRuleFlag(table, "snippets", SNIPPETS_KEYS, context,
-                (key, value) -> builder.allowCustomScriptHeaders(value));
+            parseRuleSnippets(table, context, builder);
             parseRuleAiProfiles(table, context, builder);
             parseRuleAiRuntime(table, context, builder);
             parseRuleUpdates(table, context, builder);
@@ -284,6 +284,25 @@ public final class PolicyLoader {
             Boolean value = getBoolean(table, key, tableContext);
             if (value != null) {
                 sink.accept(key, value);
+            }
+        }
+    }
+
+    private void parseRuleSnippets(TomlTable rule, String context, PolicyRule.Builder builder) {
+        TomlTable table = getTable(rule, "snippets", context);
+        if (table == null) {
+            return;
+        }
+        String tableContext = context + " [rule.snippets]";
+        warnUnknownKeys(table, SNIPPETS_KEYS, tableContext);
+        builder.allowCustomScriptHeaders(getBoolean(table, "allow-custom-script-headers", tableContext));
+        Long maxBytes = getLong(table, "analysis-max-stored-content-bytes", tableContext);
+        if (maxBytes != null) {
+            if (maxBytes < 0) {
+                errors.add(tableContext + ": analysis-max-stored-content-bytes must be 0 (store no script text) "
+                    + "or a positive number of bytes");
+            } else {
+                builder.snippetAnalysisMaxStoredContentBytes(maxBytes);
             }
         }
     }

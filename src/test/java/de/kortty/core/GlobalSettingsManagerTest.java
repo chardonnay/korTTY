@@ -75,6 +75,34 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void snippetAnalysisMaxStoredContentBytesRoundTripsAndIsNormalised() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-content-limit");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertThat(manager.getSettings().getSnippetAnalysisMaxStoredContentBytes()).isEqualTo(1024L * 1024);
+            manager.getSettings().setSnippetAnalysisMaxStoredContentBytes(3L * 1024 * 1024);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            GlobalSettings settings = reloaded.getSettings();
+            assertThat(settings.getSnippetAnalysisMaxStoredContentBytes()).isEqualTo(3L * 1024 * 1024);
+
+            settings.setSnippetAnalysisMaxStoredContentBytes(0L);
+            assertThat(settings.getSnippetAnalysisMaxStoredContentBytes()).isEqualTo(0L);
+            settings.setSnippetAnalysisMaxStoredContentBytes(1L);
+            assertThat(settings.getSnippetAnalysisMaxStoredContentBytes()).isEqualTo(256L * 1024);
+            settings.setSnippetAnalysisMaxStoredContentBytes(Long.MAX_VALUE);
+            assertThat(settings.getSnippetAnalysisMaxStoredContentBytes()).isEqualTo(5L * 1024 * 1024);
+            settings.setSnippetAnalysisMaxStoredContentBytes(null);
+            assertThat(settings.getSnippetAnalysisMaxStoredContentBytes()).isEqualTo(1024L * 1024);
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void saveAndLoadPreservesTheSessionJournalAiScreenshotAnalysisFlag() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings-shots");
         try {

@@ -27,7 +27,8 @@ import java.util.function.UnaryOperator;
  * {@link ApplyRun#resultContent()}, {@link StoredCheckpoint#content()}) hold the text in memory. In
  * the file they hold the SHA-256 key of a {@link SnippetAnalysisHistory#blobs() blob}, because
  * source, base, checkpoint and result content repeat across runs; {@link SnippetAnalysisStore}
- * does that translation. A content field over {@link #MAX_CONTENT_CHARS} is not stored at all.
+ * does that translation. A content field over {@link SnippetAnalysisContentLimit#current()} (bytes of
+ * UTF-8, 1 MiB by default, up to 5 MiB, user-configurable and limitable by the enterprise policy) is not stored at all.
  */
 public record SnippetAnalysisRecord(
     String id,
@@ -48,8 +49,6 @@ public record SnippetAnalysisRecord(
     Verification verification,
     List<ExportEntry> exports) {
 
-    /** Each stored content field is capped at 256 KiB (chars); a longer text is dropped, never cut. */
-    public static final int MAX_CONTENT_CHARS = 256 * 1024;
     /** Only the newest runs of a record keep their content fields. */
     public static final int MAX_RUNS_WITH_CONTENT = 10;
 
@@ -849,20 +848,24 @@ public record SnippetAnalysisRecord(
     }
 
     /**
-     * Applies the size caps: every content field at most {@link #MAX_CONTENT_CHARS}, decided runs
-     * without checkpoint text, and only the {@link #MAX_RUNS_WITH_CONTENT} newest runs with content.
-     * Runs still waiting for review, resumable or accepted but not saved always keep their content.
+     * Applies the size caps: every content field at most {@link SnippetAnalysisContentLimit#ceiling()}
+     * (not the current limit: lowering the setting must not delete what was stored under the old
+     * one), decided runs without checkpoint text, and only the {@link #MAX_RUNS_WITH_CONTENT} newest
+     * runs with content. Runs still waiting for review, resumable or accepted but not saved always
+     * keep their content.
      */
     SnippetAnalysisRecord compact() {
+        long ceiling = SnippetAnalysisContentLimit.ceiling();
+        UnaryOperator<String> cap = text -> SnippetAnalysisContentLimit.fits(text, ceiling) ? text : null;
         Source cappedSource = source;
-        if (source.content() != null && source.content().length() > MAX_CONTENT_CHARS) {
+        if (source.content() != null && !SnippetAnalysisContentLimit.fits(source.content(), ceiling)) {
             cappedSource = new Source(source.sha256(), source.language(), source.reportLanguageCode(),
                 source.codeTextLanguageCode(), null, true, source.lineCount(), source.snippetName());
         }
         List<ApplyRun> runs = new ArrayList<>(applyRuns.size());
         int firstWithContent = Math.max(0, applyRuns.size() - MAX_RUNS_WITH_CONTENT);
         for (int i = 0; i < applyRuns.size(); i++) {
-            ApplyRun run = applyRuns.get(i).mapContent(SnippetAnalysisRecord::capContent);
+            ApplyRun run = applyRuns.get(i).mapContent(cap);
             boolean keep = i >= firstWithContent || run.outcome() == RunOutcome.PENDING_REVIEW
                 || run.outcome() == RunOutcome.RUNNING || run.isResumable() || run.holdsUnsavedAcceptedContent();
             runs.add(run.compact(keep));
@@ -877,12 +880,13 @@ public record SnippetAnalysisRecord(
 
     // ---- Helpers ----
 
-    /** The text itself, or {@code null} when it exceeds {@link #MAX_CONTENT_CHARS}. */
+    /**
+     * The text itself, or {@code null} when it exceeds the effective
+     * {@linkplain SnippetAnalysisContentLimit#current() limit} (bytes of UTF-8; text of exactly the
+     * limit is kept, one byte more is dropped whole).
+     */
     public static String capContent(String content) {
-        if (content == null || content.length() > MAX_CONTENT_CHARS) {
-            return null;
-        }
-        return content;
+        return SnippetAnalysisContentLimit.fits(content, SnippetAnalysisContentLimit.current()) ? content : null;
     }
 
     static int lineCount(String text) {

@@ -231,6 +231,11 @@ public class KorTTYApplication extends Application {
             configDir.resolve(de.kortty.core.SnippetAnalysisStore.DIRECTORY_NAME),
             id -> snippetManager.findById(id).filter(snippet -> !snippet.isPolicyManaged()).isPresent(),
             () -> globalSettingsManager.getSettings().getSnippetAnalysisHistoryMaxSize());
+        // One decision point for how much script text an analysis stores: the user's setting capped
+        // by the enterprise policy, read live on every use.
+        de.kortty.core.SnippetAnalysisContentLimit.install(() -> de.kortty.core.SnippetAnalysisContentLimit.compute(
+            globalSettingsManager.getSettings().getSnippetAnalysisMaxStoredContentBytes(),
+            de.kortty.policy.PolicyManager.effective().snippetAnalysisMaxStoredContentBytes()));
         snippetAnalysisStore.attachTo(snippetManager);
         snippetAnalysisStore.warnOnMutationsOffFxThread();
         de.kortty.core.SnippetAnalysisStore.installApplicationStore(snippetAnalysisStore);
