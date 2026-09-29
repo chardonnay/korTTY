@@ -377,6 +377,17 @@ class SampleSelection(unittest.TestCase):
             self.assertTrue(sample["en"].strip() and sample["de"].strip())
 
 
+class GlossaryIdentifiers(unittest.TestCase):
+    def test_glossary_does_not_rewrite_inside_camel_case_identifiers(self):
+        td._GLOSSARY = [("Store", "Wissensspeicher", False), ("Snippet Manager", "Snippet-Manager", False)]
+        try:
+            self.assertEqual(td.apply_glossary("Der Store und `LocalHnswStore` sowie `RagKnowledgeStorePane`"),
+                             "Der Wissensspeicher und `LocalHnswStore` sowie `RagKnowledgeStorePane`")
+            self.assertEqual(td.apply_glossary("Snippet Manager"), "Snippet-Manager")
+        finally:
+            td._GLOSSARY = None
+
+
 class QuickAndTimeBoxedBenchmark(unittest.TestCase):
     FIXTURE = json.loads(tb.FIXTURE.read_text(encoding="utf-8"))["samples"]
 

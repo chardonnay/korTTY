@@ -303,6 +303,11 @@ def apply_glossary(text: str) -> str:
         if exact:
             if text.strip() == source:
                 text = text.replace(source, target, 1)
+        elif source[:1].isupper() and source[:1].isascii():
+            # Never rewrite inside a CamelCase identifier (`LocalHnswStore`, `RagKnowledgeStorePane`):
+            # a capitalised term that directly follows a lowercase letter, digit or underscore is
+            # the middle of a word, not the term.
+            text = re.sub(r"(?<![a-z0-9_])" + re.escape(source), lambda _m: target, text)
         else:
             text = text.replace(source, target)
     return text
