@@ -12,7 +12,7 @@
       "from": "Snippet Manager",
       "to": "Snippet-Manager",
       "scope": "markdown",
-      "note": "The guide names the tool Snippet-Manager (page title, headings) even though its window says snippets.title=Snippet-Verwaltung; keeps LLM output from mixing both names on one page. Also given to LLM translators as a required term."
+      "note": "The tool is called Snippet-Manager in German, in the app (snippets.title, menu.tools.snippets) and in the guide; keeps LLM output from using Snippet-Verwaltung. Also given to LLM translators as a required term."
     },
     {
       "from": "Editor-Tabse",
