@@ -152,6 +152,32 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void saveAndLoadPreservesTheLastSnippetAnalysisProfile() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            manager.getSettings().setSnippetAnalysisLastProfileId("  profile-2 ");
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            assertThat(reloaded.getSettings().getSnippetAnalysisLastProfileId()).isEqualTo("profile-2");
+
+            reloaded.getSettings().setSnippetAnalysisLastProfileId(" ");
+            assertThat(reloaded.getSettings().getSnippetAnalysisLastProfileId()).isNull();
+
+            // A settings file written before the element existed loads as "nothing remembered".
+            GlobalSettingsManager legacy = new GlobalSettingsManager(Files.createTempDirectory("kortty-legacy"));
+            legacy.load();
+            assertThat(legacy.getSettings().getSnippetAnalysisLastProfileId()).isNull();
+        } finally {
+            try (var files = Files.walk(dir)) {
+                files.sorted(java.util.Comparator.reverseOrder()).forEach(path -> path.toFile().delete());
+            }
+        }
+    }
+
+    @Test
     void saveAndLoadPreservesTheSnippetAnalysisPanelLayout() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings");
         try {

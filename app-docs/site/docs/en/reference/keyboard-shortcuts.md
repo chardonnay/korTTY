@@ -89,6 +89,7 @@ These keys work inside the snippet editor's code field; see [AI Code completions
 | ++tab++ or ++enter++ (list open) | Insert the selected entry |
 | ++esc++ | Close the list, or dismiss ghost text |
 | ++esc++ (an AI request runs) | Stop the running AI request of this editor — an AI Code action, the Full code analysis or its apply, a diagram; works in the whole editor and its analysis panel, never closes the editor (see [Stopping and retrying AI requests](../features/snippets.md#stopping-and-retrying-ai-requests)) |
+| ++enter++ (New analysis area of the analysis panel) | Start the Full code analysis with the chosen AI profile (see [Choosing the AI profile before the analysis starts](../features/snippets.md#choosing-the-ai-profile-before-the-analysis-starts)) |
 | ++tab++ (ghost text visible) | Accept the ghost text |
 | ++alt+bracket-right++ / ++alt+bracket-left++ (ghost text visible) | Next / previous ghost-text candidate (physical `]` and `[` keys of a US layout) |
 | ++tab++ (inside an inserted idiom template) | Jump to the next placeholder |

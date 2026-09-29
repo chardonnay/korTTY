@@ -10,6 +10,7 @@ import javafx.application.Platform;
 import javafx.geometry.Bounds;
 import javafx.scene.Node;
 import javafx.scene.Parent;
+import javafx.scene.layout.Region;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
@@ -52,6 +53,9 @@ public final class SnippetAnalysisPanelSizingSmoke {
         AtomicReference<SnippetEditDialog> windowEditor = new AtomicReference<>();
         AtomicReference<SnippetEditDialog> tabEditor = new AtomicReference<>();
         AtomicReference<Stage> tabStage = new AtomicReference<>();
+        AtomicReference<SnippetEditDialog> chooserWindow = new AtomicReference<>();
+        AtomicReference<SnippetEditDialog> chooserTab = new AtomicReference<>();
+        AtomicReference<Stage> chooserTabStage = new AtomicReference<>();
         CountDownLatch built = new CountDownLatch(1);
         Platform.startup(() -> {
             try {
@@ -73,6 +77,31 @@ public final class SnippetAnalysisPanelSizingSmoke {
                 hosted.analysisController().showPanel();
                 tabEditor.set(hosted);
                 tabStage.set(host);
+
+                // The "New analysis" chooser (profile picked before the run), in a window and in a tab.
+                GlobalSettings twoProfiles = new GlobalSettings();
+                de.kortty.model.AiProfile alpha = new de.kortty.model.AiProfile();
+                alpha.setId("alpha");
+                alpha.setName("Alpha");
+                alpha.setModel("model-a");
+                de.kortty.model.AiProfile longName = new de.kortty.model.AiProfile();
+                longName.setId("long");
+                longName.setName("A rather long profile name for the local coding model");
+                longName.setModel("model-b");
+                twoProfiles.setAiProfiles(new java.util.ArrayList<>(List.of(alpha, longName)));
+                twoProfiles.setDefaultAiProfileId("alpha");
+                SnippetAiDialogSupport.overrideSettingsForTests(twoProfiles);
+                SnippetEditDialog chooserStandalone = buildChooserEditor("chooser-window");
+                chooserStandalone.show();
+                chooserWindow.set(chooserStandalone);
+                javafx.scene.control.TabPane chooserPane = new javafx.scene.control.TabPane();
+                Stage chooserHost = new Stage();
+                chooserHost.setScene(new javafx.scene.Scene(chooserPane, 1400, 720));
+                chooserHost.show();
+                SnippetEditDialog chooserHosted = buildChooserEditor("chooser-tab");
+                DialogHostTab.host(chooserPane, "snippet-editor", chooserHosted, null);
+                chooserTab.set(chooserHosted);
+                chooserTabStage.set(chooserHost);
             } catch (Throwable error) {
                 failure.compareAndSet(null, String.valueOf(error));
             } finally {
@@ -89,6 +118,10 @@ public final class SnippetAnalysisPanelSizingSmoke {
                 run(windowEditor.get(), null);
                 System.out.println("hosted in a tab:");
                 run(tabEditor.get(), tabStage.get());
+                System.out.println("New-analysis chooser, standalone window:");
+                verifyChooser(chooserWindow.get());
+                System.out.println("New-analysis chooser, hosted in a tab:");
+                verifyChooser(chooserTab.get());
             } catch (Throwable error) {
                 failure.compareAndSet(null, String.valueOf(error));
             }
@@ -101,6 +134,12 @@ public final class SnippetAnalysisPanelSizingSmoke {
                 }
                 if (tabStage.get() != null) {
                     tabStage.get().close();
+                }
+                if (chooserWindow.get() != null) {
+                    chooserWindow.get().close();
+                }
+                if (chooserTabStage.get() != null) {
+                    chooserTabStage.get().close();
                 }
             });
         } catch (Exception ignored) {
@@ -179,7 +218,58 @@ public final class SnippetAnalysisPanelSizingSmoke {
         }
     }
 
+    /**
+     * The "New analysis" chooser at the panel's minimum width: no label is cut or sticks out (the profile
+     * combo's own button may elide a long name), and Start analysis stays inside the panel.
+     */
+    private static void verifyChooser(SnippetEditDialog editor) throws Exception {
+        onFxRun(() -> {
+            editor.analysisController().openStartPanel();
+            SnippetAnalysisLayoutProbe.panelOf(editor).setPrefWidth(SnippetAnalysisController.MIN_PANEL_WIDTH);
+            Parent sceneRoot = editor.getDialogPane().getScene().getRoot();
+            sceneRoot.applyCss();
+            sceneRoot.layout();
+        });
+        require(onFx(() -> editor.analysisController().isStartPending()), "the chooser did not open");
+        List<String> problems = onFx(() -> SnippetAnalysisLayoutProbe.truncatedLabels(
+            SnippetAnalysisLayoutProbe.panelOf(editor), "#" + SnippetAnalysisController.EMPTY_STATE_ID,
+            "start chooser", label -> !(label instanceof javafx.scene.control.ListCell)));
+        System.out.println("  chooser problems at the minimum width: " + problems);
+        require(problems.isEmpty(), "at the minimum panel width the chooser has: " + problems);
+        Bounds start = onFx(() -> {
+            Node run = lookup(editor, "#" + SnippetAnalysisController.START_BUTTON_ID);
+            return run.localToScene(run.getBoundsInLocal());
+        });
+        Bounds panel = onFx(() -> {
+            Region region = SnippetAnalysisLayoutProbe.panelOf(editor);
+            return region.localToScene(region.getBoundsInLocal());
+        });
+        require(start.getMaxX() <= panel.getMaxX() + 1 && start.getMinX() >= panel.getMinX() - 1,
+            "Start analysis sticks out of the panel: " + start + " vs " + panel);
+        onFxRun(() -> ((javafx.scene.control.Button) lookup(editor, "#" + SnippetAnalysisController.START_CANCEL_ID))
+            .fire());
+    }
+
     // ---------------------------------------------------------------- fixture
+
+    private static SnippetEditDialog buildChooserEditor(String name) {
+        String content = "#!/usr/bin/perl\nuse strict;\nprint 'x';\n";
+        Snippet snippet = new Snippet(name + ".pl", content, "perl");
+        SnippetAiResponseSupport.ScriptAnalysis analysis = new SnippetAiResponseSupport.ScriptAnalysis(
+            "Prints x.", List.of(), List.of());
+        SnippetAnalysisStore.shared().addAnalysis(snippet.getId(), SnippetAnalysisRecord.fromAnalysis(
+            "record-" + name, snippet.getId(), analysis,
+            SnippetAnalysisRecord.Source.of(content, "perl", "en", "en", snippet.getName()),
+            SnippetAnalysisRecord.Provenance.EMPTY, SnippetAnalysisRecord.Purpose.ANALYSIS, null,
+            System.currentTimeMillis()));
+        SnippetEditDialog.AiAssist assist = new SnippetEditDialog.AiAssist(
+            null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+            request -> new SnippetAiResponseSupport.MermaidDiagram("Flow", ""),
+            request -> analysis,
+            request -> new SnippetAiResponseSupport.SnippetSecurityFix(content, "", List.of()),
+            true, null);
+        return new SnippetEditDialog(snippet, List.of(), assist);
+    }
 
     private static SnippetEditDialog buildEditor(String name) {
         String content = "#!/usr/bin/perl\nuse strict;\nprint 'x';\n";

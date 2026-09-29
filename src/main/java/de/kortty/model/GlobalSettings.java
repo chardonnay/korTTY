@@ -916,6 +916,13 @@ public class GlobalSettings {
     @XmlElement
     private Boolean snippetAnalysisPanelVisible;
 
+    /**
+     * The AI profile the user last started a Full code analysis with; preselected in the next "New
+     * analysis" chooser. Unset, or an id that no longer exists, falls back to the default profile.
+     */
+    @XmlElement
+    private String snippetAnalysisLastProfileId;
+
     /** The folder the last code-analysis report was exported to; unset = the chooser's default. */
     @XmlElement
     private String snippetAnalysisExportDirectory;
@@ -3661,6 +3668,16 @@ public class GlobalSettings {
 
     public void setSnippetAnalysisPanelVisible(boolean snippetAnalysisPanelVisible) {
         this.snippetAnalysisPanelVisible = snippetAnalysisPanelVisible;
+    }
+
+    public String getSnippetAnalysisLastProfileId() {
+        return snippetAnalysisLastProfileId != null && !snippetAnalysisLastProfileId.isBlank()
+            ? snippetAnalysisLastProfileId : null;
+    }
+
+    public void setSnippetAnalysisLastProfileId(String snippetAnalysisLastProfileId) {
+        this.snippetAnalysisLastProfileId = snippetAnalysisLastProfileId != null
+            && !snippetAnalysisLastProfileId.isBlank() ? snippetAnalysisLastProfileId.trim() : null;
     }
 
     public String getSnippetAnalysisExportDirectory() {

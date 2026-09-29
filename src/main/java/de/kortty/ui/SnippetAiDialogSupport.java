@@ -141,7 +141,18 @@ final class SnippetAiDialogSupport {
         }
     }
 
+    /** Test seam: settings used instead of the running application's (isolated JavaFX smokes). */
+    private static volatile GlobalSettings settingsOverride;
+
+    static void overrideSettingsForTests(GlobalSettings settings) {
+        settingsOverride = settings;
+    }
+
     static GlobalSettings currentSettings() {
+        GlobalSettings override = settingsOverride;
+        if (override != null) {
+            return override;
+        }
         try {
             return KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
         } catch (Exception ignored) {

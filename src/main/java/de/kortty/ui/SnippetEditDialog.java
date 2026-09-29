@@ -162,6 +162,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     private final MenuItem completeCodeItem;
     private final CheckMenuItem autoCompleteItem;
     private final MenuItem reviewCodeItem;
+    /** "Full code analysis with profile": one entry per AI profile, starting the analysis at once. */
+    private final Menu reviewCodeWithProfileMenu;
     private final MenuItem improveReadabilityItem;
     private final MenuItem improveRobustnessItem;
     private final MenuItem improvePerformanceItem;
@@ -1344,6 +1346,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         autoCompleteItem.setOnAction(e -> { trackSnippetAiAction("code_autocomplete_toggle"); handleAutoCompletionToggle(); });
         reviewCodeItem = new MenuItem(aiActionLabel("snippets.ai.code.review"));
         reviewCodeItem.setOnAction(e -> { trackSnippetAiAction("code_review"); runCodeReview(); });
+        reviewCodeWithProfileMenu = buildReviewWithProfileMenu();
         analysisPanelItem = new MenuItem(I18n.get("snippets.ai.analysis.panel.menu"));
         analysisPanelItem.setId("snippet-analysis-panel-item");
         analysisPanelItem.setOnAction(e -> toggleAnalysisPanel());
@@ -1364,11 +1367,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         diagramItem = new MenuItem(aiActionLabel("snippets.ai.diagram.menu"));
         diagramItem.setOnAction(e -> { trackSnippetAiAction("code_diagram"); openOrCreateDiagram(); });
         aiCodeMenu = new MenuButton(aiActionLabel("snippets.ai.code.menu"));
+        aiCodeMenu.setOnShowing(e -> refreshReviewWithProfileMenu(reviewCodeWithProfileMenu));
         aiCodeMenu.getItems().addAll(
             completeCodeItem,
             autoCompleteItem,
             new SeparatorMenuItem(),
             reviewCodeItem,
+            reviewCodeWithProfileMenu,
             analysisPanelItem,
             improveReadabilityItem,
             improveRobustnessItem,
@@ -3187,6 +3192,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         codeAssistantContextItem.setOnAction(e -> runCodeAssistant());
         MenuItem reviewCodeContextItem = new MenuItem(aiActionLabel("snippets.ai.code.review"));
         reviewCodeContextItem.setOnAction(e -> runCodeReview());
+        Menu reviewCodeWithProfileContextMenu = buildReviewWithProfileMenu();
         improveCommentsContextItem = new MenuItem(aiActionLabel("snippets.ai.code.improve.comments"));
         improveCommentsContextItem.setOnAction(e -> {
             trackSnippetAiAction("code_improve_comments");
@@ -3245,6 +3251,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                 completeCodeContextItem,
                 codeAssistantContextItem,
                 reviewCodeContextItem,
+                reviewCodeWithProfileContextMenu,
                 improveCommentsContextItem,
                 improveCustomContextItem,
                 migrateLanguageContextItem,
@@ -3281,6 +3288,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             completeCodeContextItem.setDisable(!hasContent);
             codeAssistantContextItem.setDisable(!hasContent || !hasCodeAssistantProvider() || aiBusy);
             reviewCodeContextItem.setDisable(!hasContent || !hasCodeAnalysisProviders() || aiBusy);
+            refreshReviewWithProfileMenu(reviewCodeWithProfileContextMenu);
+            reviewCodeWithProfileContextMenu.setDisable(!hasContent || !hasCodeAnalysisProviders() || aiBusy);
             improveCommentsContextItem.setDisable(!hasSelection || !hasCodeImprovementProvider() || aiBusy);
             improveCustomContextItem.setDisable(!hasSelection || !hasCodeImprovementProvider() || aiBusy);
             // A migration always rewrites the whole snippet, so it needs content but no selection.
@@ -3417,6 +3426,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         completeCodeItem.setDisable(!hasContent);
         autoCompleteItem.setDisable(busy || !hasContent || !hasCompletionProvider());
         reviewCodeItem.setDisable(busy || !hasContent || !hasCodeAnalysisProviders());
+        reviewCodeWithProfileMenu.setDisable(busy || !hasContent || !hasCodeAnalysisProviders());
         improveReadabilityItem.setDisable(busy || !hasSelection || !hasCodeImprovementProvider());
         improveRobustnessItem.setDisable(busy || !hasSelection || !hasCodeImprovementProvider());
         improvePerformanceItem.setDisable(busy || !hasSelection || !hasCodeImprovementProvider());
@@ -4927,19 +4937,53 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         return count;
     }
 
-    private void runCodeReview() {
-        runCodeReview(null);
-    }
-
     /**
-     * The rich "AI Code Review" (Full code analysis): the provider call returns the summary,
+     * The plain "Full code analysis" entry: opens the analysis panel on its "New analysis" chooser so the AI
+     * profile can be picked first (see {@link SnippetAnalysisController#openStartPanel()}); with a single
+     * profile it starts at once.
+     *
+     * <p>The rich "AI Code Review" (Full code analysis): the provider call returns the summary,
      * dependencies and categorized improvements, which are stored with the snippet the moment they
      * arrive and shown in this editor's analysis side panel; the Mermaid diagram is fetched by a
      * separate dedicated request (better diagram quality than a combined request, and the analysis
      * is visible while the diagram loads). See {@link SnippetAnalysisController}.
      */
+    private void runCodeReview() {
+        analysisController.openStartPanel();
+    }
+
+    /** "Full code analysis with profile": starts at once with the given profile and remembers it. */
     private void runCodeReview(String aiProfileId) {
-        analysisController.runAnalysis(aiProfileId);
+        analysisController.startWithProfile(aiProfileId);
+    }
+
+    /** The "with profile" submenu; its entries are filled in whenever a parent menu is about to show. */
+    private Menu buildReviewWithProfileMenu() {
+        Menu menu = new Menu(aiActionLabel("snippets.ai.code.review.withProfile"));
+        menu.setId("snippet-analysis-with-profile-menu");
+        menu.setVisible(false);
+        return menu;
+    }
+
+    private void refreshReviewWithProfileMenu(Menu menu) {
+        List<SnippetAnalysisProfileSupport.Option> options = analysisController != null
+            ? analysisController.profileOptions() : List.of();
+        boolean offered = SnippetAnalysisProfileSupport.choiceOffered(options, profileSwitchingSupported());
+        menu.setVisible(offered);
+        if (!offered) {
+            menu.getItems().clear();
+            return;
+        }
+        List<MenuItem> items = new ArrayList<>();
+        for (SnippetAnalysisProfileSupport.Option option : options) {
+            MenuItem item = new MenuItem(SnippetAnalysisController.profileOptionLabel(option));
+            item.setOnAction(e -> {
+                trackSnippetAiAction("code_review");
+                runCodeReview(option.id());
+            });
+            items.add(item);
+        }
+        menu.getItems().setAll(items);
     }
 
     /** Generates the analysis diagram (initial load and explicit Regenerate), with a local fallback on failure. */
