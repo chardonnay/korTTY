@@ -2045,14 +2045,15 @@ public final class SnippetAiDialogsSmoke {
 
     /** ASCII script of exactly {@code bytes} bytes; every {@code changeEvery}th line differs (0 = none). */
     private static String bigScript(long bytes, int changeEvery) {
-        StringBuilder text = new StringBuilder((int) bytes + 100);
+        final int target = Math.toIntExact(bytes);
+        StringBuilder text = new StringBuilder(target + 100);
         int line = 0;
-        while (text.length() < bytes) {
+        while (text.length() < target) {
             boolean changed = changeEvery > 0 && line % changeEvery == 0;
             text.append("echo \"line ").append(line++).append(' ').append(changed ? "edit" : "same")
                 .append(" of a generated script\"\n");
         }
-        text.setLength((int) bytes);
+        text.setLength(target);
         return text.toString();
     }
 

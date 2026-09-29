@@ -12,9 +12,10 @@ public class TextLineDiffLargeScriptTest {
     private static final long MB = 1024L * 1024;
 
     private static String script(long bytes, String salt, int changeEvery) {
-        StringBuilder text = new StringBuilder((int) bytes + 100);
+        final int target = Math.toIntExact(bytes);
+        StringBuilder text = new StringBuilder(target + 100);
         int line = 0;
-        while (text.length() < bytes) {
+        while (text.length() < target) {
             boolean changed = changeEvery > 0 && line % changeEvery == 0;
             text.append("echo \"line ").append(line).append(' ').append(changed ? salt : "same")
                 .append(" of a generated script\"\n");
