@@ -13,18 +13,18 @@ KorTTY erkennt die Mischung lokal – es ist keine KI-Anfrage erforderlich, um z
 
 ## Wo es erscheint
 
-| Where | What it does |
+| Wo | Was es tut |
 |-------|--------------|
-| **Snippet-Editor → AI-Code → In eine Sprache migrieren…** | Öffnet den Migrationsdialog direkt und zeigt das Ergebnis als Vorher/Nachher-Vorschau an |
-| **Snippet-Editor → AI-Code → Vollständige Code-Analyse** | Ein minimiertes Bedienfeld zur **Sprachvereinheitlichung**; Die Migration wird dann als **erste** Phase von *Ausgewählte anwenden* ausgeführt, sodass jede anschließende Verbesserungs- und Härtungsphase auf das migrierte Skript wirkt |
-| **Snippet editor → AI Code → Security Check** | The same panel; the migration runs before the security fixes, so the fixes are written in the target language |
+| **Snippet-Editor → KI-Code → In eine Sprache migrieren…** | Öffnet den Migrationsdialog direkt und zeigt das Ergebnis als Vorher/Nachher-Vorschau an |
+| **Snippet-Editor → KI-Code → Vollständige Code-Analyse** | Ein minimiertes Bedienfeld zur **Sprachvereinheitlichung**; Die Migration wird dann als **erste** Phase von *Ausgewählte anwenden* ausgeführt, sodass jede anschließende Verbesserungs- und Härtungsphase auf das migrierte Skript wirkt |
+| **Snippet-Editor → KI-Code → Security-Check** | Das gleiche Panel; die Migration erfolgt vor den Sicherheitskorrekturen, daher werden die Korrekturen in der Ziel-Sprache geschrieben |
 | **Terminal → Workflow-Skript generieren**, **KI-Schwarm** | Das Kontrollkästchen **Nur Zielsprache**, das eingebettete fremdsprachige Teile im generierten Skript von Anfang an verbietet |
 
 ## Zielsprachen
 
 Bash, Python, Perl, Ruby, PowerShell, Windows-CMD, AppleScript, JavaScript (Node) und Groovy.
 
-Jedes Ziel bringt seinen eigenen Shebang, seine eigene Dateierweiterung und sein eigenes Kommentarpräfix sowie die gleichen sprachspezifischen Redewendungen mit, die der Workflow-Skript-Generator verwendet. Nach einer Migration des gesamten Skripts aktualisiert KorTTY auch die **Sprache** des Snippets, seine Dateierweiterung und seine automatisch erkannten KI-Fähigkeiten, sodass das Snippet durchweg der neue Dateityp ist.
+Jedes Ziel bringt seinen eigenen Shebang, seine eigene Dateierweiterung und sein eigenes Kommentarpräfix sowie die gleichen sprachspezifischen Redewendungen mit, die der Workflow-Skript-Generator verwendet. Nach einer Migration des gesamten Skripts aktualisiert KorTTY auch die **Sprache** des Snippets, seine Dateierweiterung und seine automatisch erkannten KI-Skills, sodass das Snippet durchweg der neue Dateityp ist.
 
 Ansible ist bewusst **kein** Ziel: Die Umwandlung eines imperativen Skripts in ein deklaratives Playbook ist eine Neumodellierung, keine Sprachmigration.
 

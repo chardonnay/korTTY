@@ -312,7 +312,7 @@
         <a href="settings/ai-skills.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            KI-Fähigkeiten
+            KI-Skills
         </a>
     </li>
                     
@@ -795,16 +795,16 @@
 <td><code>flatpak run --command=kortty-cli io.github.chardonnay.korTTY</code></td>
 </tr>
 <tr>
-<td>Portables Archiv (Linux)</td>
-<td><code>&lt;entpacktes Verzeichnis&gt;/korTTY/bin/kortty-cli</code></td>
+<td>Portabeler Archiv (Linux)</td>
+<td><code>&lt;extracted directory&gt;/korTTY/bin/kortty-cli</code></td>
 </tr>
 <tr>
-<td>Portables Archiv (Windows)</td>
-<td><code>&lt;entpacktes Verzeichnis&gt;\korTTY\kortty-cli.exe</code> – im Wurzelverzeichnis des Abbilds, nicht unter <code>bin</code></td>
+<td>Portabeler Archiv (Windows)</td>
+<td><code>&lt;extracted directory&gt;\korTTY\kortty-cli.exe</code> — im Stammverzeichnis des Bildes, nicht unter <code>bin</code></td>
 </tr>
 <tr>
-<td>Portables Archiv (macOS)</td>
-<td><code>&lt;entpacktes Verzeichnis&gt;/korTTY.app/Contents/MacOS/kortty-cli</code></td>
+<td>Portabeler Archiv (macOS)</td>
+<td><code>&lt;extracted directory&gt;/korTTY.app/Contents/MacOS/kortty-cli</code></td>
 </tr>
 </tbody>
 </table>
@@ -815,22 +815,22 @@
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Linux deb/rpm</span>
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>sudo<span class="w"> </span>ln<span class="w"> </span>-s<span class="w"> </span>/opt/kortty/bin/kortty-cli<span class="w"> </span>/usr/local/bin/kortty-cli
 </span></code></pre></div>
-<div class="language-powershell highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c"># Windows, für den aktuellen Benutzer</span>
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c"># Windows, for the current user</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="no">[Environment]</span><span class="p">::</span><span class="n">SetEnvironmentVariable</span><span class="p">(</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="s1">'Path'</span><span class="p">,</span> <span class="nv">$env:Path</span> <span class="p">+</span> <span class="s1">';C:\Program Files\korTTY'</span><span class="p">,</span> <span class="s1">'User'</span><span class="p">)</span>
 </span></code></pre></div>
 <p>Der Starter heißt bewusst <strong>nicht</strong> <code>kortty</code>: dieser Name gehört dem grafischen Starter (<code>/usr/bin/kortty</code> unter Arch, <code>korTTY</code> sonst), und unter macOS und Windows, deren Dateisysteme Groß- und Kleinschreibung ignorieren, würde ein zweiter Starter namens <code>kortty</code> mit ihm kollidieren.</p>
 <div class="admonition note">
 <p class="admonition-title">Java-Distributionsarchive</p>
-<p>Die Archive <code>korTTY-Java-*.zip</code> und <code>.tar</code> enthalten außer dem grafischen keinen weiteren Starter. Aus ihnen starten Sie den Client als <code>java -cp korTTY-&lt;version&gt;.jar de.kortty.cli.KorttyCli &lt;befehl&gt;</code>.</p>
+<p>Die Archivdateien <code>korTTY-Java-*.zip</code> und <code>.tar</code> enthalten keine Startprogramme außer dem grafischen. Von diesen starten Sie den Client über <code>java -cp korTTY-&lt;version&gt;.jar de.kortty.cli.KorttyCli &lt;command&gt;</code>.</p>
 </div>
 <h2 id="aufbau-eines-befehls">Aufbau eines Befehls<a class="headerlink" href="#aufbau-eines-befehls" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kortty-cli<span class="w"> </span>&lt;gruppe&gt;<span class="w"> </span>&lt;befehl&gt;<span class="w"> </span><span class="o">[</span>optionen<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kortty-cli<span class="w"> </span>&lt;group&gt;<span class="w"> </span>&lt;command&gt;<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
 </span></code></pre></div>
 <p>Die Gruppen sind <code>pane</code>, <code>tab</code>, <code>window</code>, <code>agent</code>, <code>events</code>, <code>notify</code>, <code>raw</code>, <code>ping</code> und <code>schema</code>. Innerhalb einer Gruppe ist der Befehlsname die API-Methode nach dem Punkt, deren Unterstriche als Bindestriche geschrieben werden – <code>pane.send_text</code> wird zu <code>pane send-text</code>. Vier Methoden ergeben sich nicht aus ihrem Namen und sind es wert, gemerkt zu werden: <code>api.schema</code> ist <code>schema</code>, <code>events.subscribe</code> ist <code>events</code>, <code>notification.show</code> ist <code>notify</code>, und alles ohne eigenen Befehl – <code>events.unsubscribe</code>, <code>pane.resolve</code> – erreichen Sie über <code>raw</code>.</p>
 <p>Alles, was ein Befehl braucht, ist eine Option. Positionsargumente gibt es nur für die Tastennamen von <code>pane send-keys</code> und <code>agent send-keys</code> sowie für Methode und JSON von <code>raw</code>.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>kortty-cli<span class="w"> </span>ping<span class="w">                                   </span><span class="c1"># lauscht ein korTTY?</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span>list<span class="w">                              </span><span class="c1"># alle offenen Bereiche</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>kortty-cli<span class="w"> </span>ping<span class="w">                                   </span><span class="c1"># is a korTTY listening?</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span>list<span class="w">                              </span><span class="c1"># every open pane</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span><span class="nb">read</span><span class="w"> </span>--focused<span class="w"> </span>--recent<span class="w"> </span>--lines<span class="w"> </span><span class="m">200</span>
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span>run<span class="w"> </span>--pane<span class="w"> </span>p1a2b3c4d<span class="w"> </span>--command<span class="w"> </span><span class="s1">'make test'</span>
 </span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span>wait-output<span class="w"> </span>--pane<span class="w"> </span>p1a2b3c4d<span class="w"> </span>--contains<span class="w"> </span><span class="s1">'BUILD SUCCESSFUL'</span><span class="w"> </span>--timeout-ms<span class="w"> </span><span class="m">300000</span>
@@ -928,13 +928,13 @@
 </tr>
 </tbody>
 </table>
-<p>Jeder Fehlschlag gibt auf stderr eine einzeilige Diagnose der Form <code>kortty-cli: &lt;meldung&gt; (&lt;code&gt;)</code> aus, wobei <code>&lt;code&gt;</code> der stabile Protokollcode ist – <code>not_found</code>, <code>timeout</code>, <code>blocked_by_policy</code> –, aus dem der obige Exit-Code abgeleitet wurde. Mit <code>--pretty</code> erhalten Sie stattdessen das vollständige JSON-RPC-Fehlerobjekt, auf das ein Skript verzweigen sollte:</p>
+<p>Jeder Fehler zeigt eine einzeilige Diagnose auf stderr im Format <code>kortty-cli: &lt;message&gt; (&lt;code&gt;)</code>, wobei <code>&lt;code&gt;</code> der stabile Wire-Code ist — <code>not_found</code>, <code>timeout</code>, <code>blocked_by_policy</code> — aus dem der obige Exit-Code abgeleitet wurde. Fügen Sie <code>--pretty</code> hinzu, um das ganze JSON-RPC-Fehlerobjekt zu erhalten, das das, was ein Skript überprüfen sollte, ist:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span><span class="nb">read</span><span class="w"> </span>--focused<span class="w"> </span>--pretty<span class="w"> </span><span class="m">2</span>&gt;err.json<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nv">code</span><span class="o">=</span><span class="k">$(</span>jq<span class="w"> </span>-r<span class="w"> </span>.error.data.code<span class="w"> </span>err.json<span class="k">)</span>
 </span></code></pre></div>
-<p>Fehlschläge, die der Client selbst feststellt, sind die Ausnahme: eine unlesbare Kommandozeile, ein nicht laufendes korTTY, ein <code>--current</code> ohne passenden Bereich und eine abgelaufene Client-Frist haben den Server nie erreicht, tragen also keinen Protokollcode und geben in beiden Einstellungen nur <code>kortty-cli: &lt;meldung&gt;</code> aus. Verzweigen Sie dort auf den Exit-Code.</p>
+<p>Fehler, die der Client selbst erkennt, sind die Ausnahme: eine unparsbare Befehlszeile, ein nicht laufendes korTTY, ein <code>--current</code>, das keiner Panes entspricht, und ein abgelaufener Client-Termin, der nie auf dem Server erreicht wurde – diese Fehler tragen keine Netzwerkcode und geben auf beiden Einstellungen einen reinen <code>kortty-cli: &lt;message&gt;</code> aus. Entscheiden Sie sich nach dem Exit-Code für diese Fälle.</p>
 <h2 id="die-installation-prufen">Die Installation prüfen<a class="headerlink" href="#die-installation-prufen" title="Permanent link">&para;</a></h2>
 <p><code>kortty-cli --version</code> gibt die Version aus und endet mit 0. Es ist der einzige Befehl, der <strong>kein</strong> laufendes korTTY braucht, und damit das Richtige für eine Installationsprüfung oder einen CI-Rauchtest.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kortty-cli<span class="w"> </span>--version<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s1">'kortty-cli ist nicht installiert oder nicht im PATH'</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kortty-cli<span class="w"> </span>--version<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s1">'kortty-cli is not installed or not on PATH'</span>
 </span></code></pre></div>
 <h2 id="hinweise-furs-skripten">Hinweise fürs Skripten<a class="headerlink" href="#hinweise-furs-skripten" title="Permanent link">&para;</a></h2>
 <ul>

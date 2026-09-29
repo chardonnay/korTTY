@@ -22,9 +22,9 @@ Er spricht ausschließlich mit einem korTTY **auf demselben Rechner** und nur, s
 | Linux deb / rpm | `/opt/kortty/bin/kortty-cli` |
 | Arch (pacman) | `/usr/bin/kortty-cli` → `/usr/lib/kortty/bin/kortty-cli` |
 | Flatpak | `flatpak run --command=kortty-cli io.github.chardonnay.korTTY` |
-| Portables Archiv (Linux) | `<entpacktes Verzeichnis>/korTTY/bin/kortty-cli` |
-| Portables Archiv (Windows) | `<entpacktes Verzeichnis>\korTTY\kortty-cli.exe` – im Wurzelverzeichnis des Abbilds, nicht unter `bin` |
-| Portables Archiv (macOS) | `<entpacktes Verzeichnis>/korTTY.app/Contents/MacOS/kortty-cli` |
+| Portabeler Archiv (Linux) | `<extracted directory>/korTTY/bin/kortty-cli` |
+| Portabeler Archiv (Windows) | `<extracted directory>\korTTY\kortty-cli.exe` — im Stammverzeichnis des Bildes, nicht unter `bin` |
+| Portabeler Archiv (macOS) | `<extracted directory>/korTTY.app/Contents/MacOS/kortty-cli` |
 
 Nur das pacman-Paket legt den Befehl für Sie in den `PATH`. Überall sonst nehmen Sie das Verzeichnis in den `PATH` auf oder verlinken den Starter in ein Verzeichnis, das schon darin liegt:
 
@@ -37,7 +37,7 @@ sudo ln -s /opt/kortty/bin/kortty-cli /usr/local/bin/kortty-cli
 ```
 
 ```powershell
-# Windows, für den aktuellen Benutzer
+# Windows, for the current user
 [Environment]::SetEnvironmentVariable(
     'Path', $env:Path + ';C:\Program Files\korTTY', 'User')
 ```
@@ -45,12 +45,12 @@ sudo ln -s /opt/kortty/bin/kortty-cli /usr/local/bin/kortty-cli
 Der Starter heißt bewusst **nicht** `kortty`: dieser Name gehört dem grafischen Starter (`/usr/bin/kortty` unter Arch, `korTTY` sonst), und unter macOS und Windows, deren Dateisysteme Groß- und Kleinschreibung ignorieren, würde ein zweiter Starter namens `kortty` mit ihm kollidieren.
 
 !!! note "Java-Distributionsarchive"
-    Die Archive `korTTY-Java-*.zip` und `.tar` enthalten außer dem grafischen keinen weiteren Starter. Aus ihnen starten Sie den Client als `java -cp korTTY-<version>.jar de.kortty.cli.KorttyCli <befehl>`.
+    Die Archivdateien `korTTY-Java-*.zip` und `.tar` enthalten keine Startprogramme außer dem grafischen. Von diesen starten Sie den Client über `java -cp korTTY-<version>.jar de.kortty.cli.KorttyCli <command>`.
 
 ## Aufbau eines Befehls
 
 ```bash
-kortty-cli <gruppe> <befehl> [optionen]
+kortty-cli <group> <command> [options]
 ```
 
 Die Gruppen sind `pane`, `tab`, `window`, `agent`, `events`, `notify`, `raw`, `ping` und `schema`. Innerhalb einer Gruppe ist der Befehlsname die API-Methode nach dem Punkt, deren Unterstriche als Bindestriche geschrieben werden – `pane.send_text` wird zu `pane send-text`. Vier Methoden ergeben sich nicht aus ihrem Namen und sind es wert, gemerkt zu werden: `api.schema` ist `schema`, `events.subscribe` ist `events`, `notification.show` ist `notify`, und alles ohne eigenen Befehl – `events.unsubscribe`, `pane.resolve` – erreichen Sie über `raw`.
@@ -58,8 +58,8 @@ Die Gruppen sind `pane`, `tab`, `window`, `agent`, `events`, `notify`, `raw`, `p
 Alles, was ein Befehl braucht, ist eine Option. Positionsargumente gibt es nur für die Tastennamen von `pane send-keys` und `agent send-keys` sowie für Methode und JSON von `raw`.
 
 ```bash
-kortty-cli ping                                   # lauscht ein korTTY?
-kortty-cli pane list                              # alle offenen Bereiche
+kortty-cli ping                                   # is a korTTY listening?
+kortty-cli pane list                              # every open pane
 kortty-cli pane read --focused --recent --lines 200
 kortty-cli pane run --pane p1a2b3c4d --command 'make test'
 kortty-cli pane wait-output --pane p1a2b3c4d --contains 'BUILD SUCCESSFUL' --timeout-ms 300000
@@ -119,20 +119,20 @@ Der Exit-Code kommt vom Server, nicht aus einer Tabelle im Client, damit beide n
 | 4 | Eine Wartezeit ist abgelaufen | Meistens |
 | 130 | `kortty-cli events` wurde unterbrochen (Strg-C). Der Datenstrom hat keine Signalbehandlung, dies ist also die 128 + SIGINT der Shell selbst | — |
 
-Jeder Fehlschlag gibt auf stderr eine einzeilige Diagnose der Form `kortty-cli: <meldung> (<code>)` aus, wobei `<code>` der stabile Protokollcode ist – `not_found`, `timeout`, `blocked_by_policy` –, aus dem der obige Exit-Code abgeleitet wurde. Mit `--pretty` erhalten Sie stattdessen das vollständige JSON-RPC-Fehlerobjekt, auf das ein Skript verzweigen sollte:
+Jeder Fehler zeigt eine einzeilige Diagnose auf stderr im Format `kortty-cli: <message> (<code>)`, wobei `<code>` der stabile Wire-Code ist — `not_found`, `timeout`, `blocked_by_policy` — aus dem der obige Exit-Code abgeleitet wurde. Fügen Sie `--pretty` hinzu, um das ganze JSON-RPC-Fehlerobjekt zu erhalten, das das, was ein Skript überprüfen sollte, ist:
 
 ```bash
 kortty-cli pane read --focused --pretty 2>err.json || code=$(jq -r .error.data.code err.json)
 ```
 
-Fehlschläge, die der Client selbst feststellt, sind die Ausnahme: eine unlesbare Kommandozeile, ein nicht laufendes korTTY, ein `--current` ohne passenden Bereich und eine abgelaufene Client-Frist haben den Server nie erreicht, tragen also keinen Protokollcode und geben in beiden Einstellungen nur `kortty-cli: <meldung>` aus. Verzweigen Sie dort auf den Exit-Code.
+Fehler, die der Client selbst erkennt, sind die Ausnahme: eine unparsbare Befehlszeile, ein nicht laufendes korTTY, ein `--current`, das keiner Panes entspricht, und ein abgelaufener Client-Termin, der nie auf dem Server erreicht wurde – diese Fehler tragen keine Netzwerkcode und geben auf beiden Einstellungen einen reinen `kortty-cli: <message>` aus. Entscheiden Sie sich nach dem Exit-Code für diese Fälle.
 
 ## Die Installation prüfen
 
 `kortty-cli --version` gibt die Version aus und endet mit 0. Es ist der einzige Befehl, der **kein** laufendes korTTY braucht, und damit das Richtige für eine Installationsprüfung oder einen CI-Rauchtest.
 
 ```bash
-kortty-cli --version || echo 'kortty-cli ist nicht installiert oder nicht im PATH'
+kortty-cli --version || echo 'kortty-cli is not installed or not on PATH'
 ```
 
 ## Hinweise fürs Skripten

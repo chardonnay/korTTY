@@ -312,7 +312,7 @@
         <a href="../reference/settings/ai-skills.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            KI-Fähigkeiten
+            KI-Skills
         </a>
     </li>
                     
@@ -1109,10 +1109,12 @@
 <li>Der Plugin-Manager lädt Plugins sofort neu</li>
 </ul>
 <p><strong>Exporte:</strong></p>
-<p>Das - A-Plugin ist exportierbar, wenn es aus einer echten Quell-JAR geladen wurde
-- Gebündelte Plugins sind exportierbar, da KorTTY seine gebündelten JARs vor dem Laden nach <code>~/.kortty/bundled-plugins/terminal-effects</code> kopiert
-- Beim Exportieren eines der zehn Effektpaket-Effekte wird der gesamte <code>kortty-terminal-effect-pack.jar</code> exportiert, da das JAR die Exporteinheit ist
-- Anwendungsklassenpfad-Plugins ohne Quell-JAR können nicht exportiert werden</p>
+<ul>
+<li>Ein Plugin ist exportierbar, wenn es aus einem echten Quell-JAR geladen wurde.</li>
+<li>Gebündelte Plugins sind exportierbar, da KorTTY seine gebündelten JARs vor dem Laden nach <code>~/.kortty/bundled-plugins/terminal-effects</code> kopiert</li>
+<li>Beim Exportieren eines der zehn Effektpaket-Effekte wird der gesamte <code>kortty-terminal-effect-pack.jar</code> exportiert, da das JAR die Exporteinheit ist</li>
+<li>Anwendungsklassenpfad-Plugins ohne Quell-JAR können nicht exportiert werden</li>
+</ul>
 <p><strong>Beharrlichkeit:</strong></p>
 <ul>
 <li>Deaktivierte Plugin-IDs werden in gespeichert <code>~/.kortty/terminal-effect-plugins.disabled</code></li>

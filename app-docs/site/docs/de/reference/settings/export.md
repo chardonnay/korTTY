@@ -4,9 +4,9 @@ title: Exportieren
 
 # Export
 
-Wasserzeichen und Fußzeile der von korTTY exportierten Dokumente — [Sitzungsjournale](../../features/session-journal.md#exportieren), [KI-Chats](../../features/ai-assistant.md) und [Code-Analyseberichte](../../features/snippets.md) alike. Öffnen Sie über **Konfiguration → Globale Einstellungen → Export**; gespeichert in `~/.kortty/global-settings.xml`.
+Watermark und Fußzeile der von korTTY exportierten Dokumente – [Sitzungsjournale](../../features/session-journal.md#exportieren), [KI-Chats](../../features/ai-assistant.md) und [Code-Analysenberichte](../../features/snippets.md) – sind identisch. Öffnen Sie sie über **Konfiguration → Globale Einstellungen → Export**; gespeichert in `~/.kortty/global-settings.xml`.
 
-AI-Chat-PDFs betten Fallback-Schriftarten für Unicode-Symbole und Emojis ein, sodass Zeichen wie `✓`, `★`, `😀` und `🚀` im exportierten Dokument sichtbar und durchsuchbar bleiben, anstatt durch Fragezeichen ersetzt zu werden.
+KI-Chat-PDFs betten Fallback-Schriftarten für Unicode-Symbole und Emojis ein, sodass Zeichen wie `✓`, `★`, `😀` und `🚀` im exportierten Dokument sichtbar und durchsuchbar bleiben, anstatt durch Fragezeichen ersetzt zu werden.
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
@@ -20,12 +20,12 @@ AI-Chat-PDFs betten Fallback-Schriftarten für Unicode-Symbole und Emojis ein, s
 
 ## Wasserzeichen
 
-Das Wasserzeichen ist **standardmäßig deaktiviert** – ein Dokument wird markiert, wenn Sie dies wünschen. Sobald es aktiviert ist, wird es schwach und diagonal über die Mitte jeder PDF-Seite gezeichnet, angepasst an die Seitenbreite und in der von Ihnen gewählten Farbe. Dies gilt für Sitzungsjournal- und AI-Chat-PDF-Exporte.
+Das Wasserzeichen ist **standardmäßig deaktiviert** – ein Dokument wird markiert, wenn Sie dies wünschen. Sobald es aktiviert ist, wird es schwach und diagonal über die Mitte jeder PDF-Seite gezeichnet, angepasst an die Seitenbreite und in der von Ihnen gewählten Farbe. Dies gilt für Sitzungsjournal- und KI-Chat-PDF-Exporte.
 
 Wenn Sie das Textfeld leer lassen, wird das integrierte korTTY-Wasserzeichen verwendet, das zusätzlich den Projekt-Repository-Link darunter druckt. Ein eigener Text wird wörtlich übernommen, es wird nichts angehängt.
 
 !!! tip
-    Ein Wasserzeichen wie `CONFIDENTIAL` oder der Name Ihrer Organisation ist eine visuelle Markierung und kein Schutz. Jeder kann es aus einem PDF entfernen. Für Journale, die nicht für andere lesbar sein dürfen, exportieren Sie stattdessen ein [verschlüsseltes Archiv](../../features/session-journal.md#exporting-several-journals).
+    Ein Wasserzeichen wie `CONFIDENTIAL` oder der Name Ihrer Organisation dient als visueller Hinweis und ist keine Sicherheit. Jeder kann das Wasserzeichen aus einem PDF entfernen. Für Journale, die nicht von anderen lesbar sein dürfen, exportieren Sie stattdessen ein [verschlüsseltes Archiv](../../features/session-journal.md#mehrere-tagebucher-exportieren).
 
 ## Fußzeile
 

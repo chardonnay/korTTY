@@ -312,7 +312,7 @@
         <a href="settings/ai-skills.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            KI-Fähigkeiten
+            KI-Skills
         </a>
     </li>
                     
@@ -869,7 +869,7 @@
 <li>Angedocktes Live-Sitzungsjournal-Panel: Platzierung (versteckt/links/rechts) und Breite</li>
 <li>JobScheduler-Statusanzeigeeinstellung</li>
 <li>Letzte Vorschau-Zoomstufe des ASCII-Art-Dialogfelds</li>
-<li>Letzte ASCII-Art-Bildgröße (Klein bis Extragroß) für die Registerkarte „AI-Bild“ und separat für die Registerkarte „Bilddatei“.</li>
+<li>Letzte ASCII-Art-Bildgröße (Klein bis Extragroß) für die Registerkarte „KI-Bild“ und separat für die Registerkarte „Bilddatei“.</li>
 <li>Letztes ASCII-Art-Kopierformat: Kommentarstil, Ausgabecodestil und Lücke</li>
 </ul>
 <h4 id="terminal-und-anschlusse">Terminal und Anschlüsse<a class="headerlink" href="#terminal-und-anschlusse" title="Permanent link">&para;</a></h4>
@@ -881,7 +881,7 @@
 </ul>
 <h4 id="ai-modelle-und-wissensspeicher">AI, Modelle und Wissensspeicher<a class="headerlink" href="#ai-modelle-und-wissensspeicher" title="Permanent link">&para;</a></h4>
 <ul>
-<li>AI-Profilstandards, Text-/Coding-Rollenzuweisungen, eingebettete GGUF-Referenzen, Eingabeaufforderungsvoreinstellungen und Wissensspeicherzuordnungen</li>
+<li>KI-Profilstandards, Text-/Coding-Rollenzuweisungen, eingebettete GGUF-Referenzen, Eingabeaufforderungsvoreinstellungen und Wissensspeicherzuordnungen</li>
 <li>RAG-Einbettungsmodell-ID und llama.cpp bevorzugte Laufzeit-Backend-/Update-Richtlinie</li>
 <li>Optional verschlüsseltes Hugging Face-Token</li>
 <li>Zeitlimit für KI-Anfragen in Minuten (0 = keine Begrenzung)</li>
@@ -891,7 +891,7 @@
 <li>Speicherordner und Capture-Log-Format</li>
 <li>KI-Zusammenfassungen (Intervall und Profil) und der Schalter für die KI-Screenshot-Analyse</li>
 <li>Übersetzungssprache beachten</li>
-<li>AI-Zeilenfenster und Token-Budget</li>
+<li>KI-Zeilenfenster und Token-Budget</li>
 <li>Journal-Seitendarstellung und Höhe des Live-Log-Endes</li>
 <li>Benutzerdefinierte Markierungen und Markierungsregeln</li>
 <li>Die gespeicherten Journalfenstergeometrien</li>
@@ -971,9 +971,9 @@
 <p><strong>Beinhaltet:</strong>
 - Chat-Titel und Erstellungszeitstempel
 - Konversationsnachrichten und Antworten
-- Zugehöriges AI-Profil, das für den Chat verwendet wird
+- Zugehöriges KI-Profil, das für den Chat verwendet wird
 - Follow-up-Eingabeaufforderungsverlauf (für Kontext)</p>
-<p><strong>Hinweis:</strong> AI-Ergebnisregisterkarten werden nicht automatisch gespeichert. Sie müssen sie explizit auf der Registerkarte „AI“ mit der Schaltfläche „Speichern“ speichern, um sie dieser Datei hinzuzufügen.</p>
+<p><strong>Hinweis:</strong> KI-Ergebnisregisterkarten werden nicht automatisch gespeichert. Sie müssen sie explizit auf der Registerkarte „AI“ mit der Schaltfläche „Speichern“ speichern, um sie dieser Datei hinzuzufügen.</p>
 <h3 id="snippetsxml">snippets.xml<a class="headerlink" href="#snippetsxml" title="Permanent link">&para;</a></h3>
 <p>Codeausschnitte, Skripte und Vorlagen.</p>
 <p><strong>Beinhaltet:</strong>
@@ -988,7 +988,7 @@
 - Export von Nur-Text-Skripten
 - ZIP-Archive mit optionaler Passwort- oder GPG-Verschlüsselung
 - Lokale Syntaxhervorhebung mit dem Monaco-Editor
-- AI-unterstützte Bearbeitung und Codegenerierung
+- KI-unterstützte Bearbeitung und Codegenerierung
 - Persistierte Mermaid-Diagramme (Flussdiagramm mit logischer Struktur, Sequenz, Zustand, Klasse, ER) mit stabilen Code-Referenz-Knoten-IDs und, für Diagramme mit Auswahlbereich, dem abgedeckten Linienbereich
 - Einzeiliger Export mit optionalen Skriptargumenten</p>
 <h3 id="snippet-variablesxml">snippet-variables.xml<a class="headerlink" href="#snippet-variablesxml" title="Permanent link">&para;</a></h3>
@@ -1012,7 +1012,7 @@
 <p><strong>Zweck:</strong> Wenn Sie ein Terminaleffekt-Plugin über <em>Plugins &gt; Terminaleffekte</em> deaktivieren, wird seine ID in diese Datei geschrieben, sodass es nach dem Neustart deaktiviert bleibt.</p>
 <h3 id="coding-agents">coding-agents/<a class="headerlink" href="#coding-agents" title="Permanent link">&para;</a></h3>
 <p>Optionale Benutzerüberschreibungen für die Regeln der Coding-Agent-Erkennung, eine JSON-Datei pro Agent (<code>claude-code.json</code>, <code>codex.json</code>, <code>gemini-cli.json</code>).</p>
-<p><strong>Zweck:</strong> Eine Datei ersetzt hier die im Paket enthaltene Regeldatei des gleichen Agents vollständig. Eine ungültige Datei wird im Log als <em>Coding-Agents</em> Warnung gemeldet und die im Paket enthaltenen Regeln bleiben aktiv. Das Verzeichnis existiert nicht, bis Sie es erstellen. Siehe <a href="../features/coding-agents.html#eigene-regeln">Coding-Agents → Custom rules</a>.</p>
+<p><strong>Zweck:</strong> Eine Datei hier ersetzt die im Paket enthaltene Regeldatei des entsprechenden Agents vollständig. Eine ungültige Datei wird im Log als <em>Coding-Agents</em>-Warnung gemeldet und die im Paket enthaltenen Regeln bleiben aktiv. Das Verzeichnis existiert erst dann, wenn es erstellt wird. Siehe <a href="../features/coding-agents.html#eigene-regeln">Coding-Agents → Benutzerdefinierte Regeln</a>.</p>
 <h3 id="korttylog">kortty.log<a class="headerlink" href="#korttylog" title="Permanent link">&para;</a></h3>
 <p>Anwendungsprotokolldatei.</p>
 <p><strong>Enthält:</strong>
@@ -1041,7 +1041,7 @@
 <h3 id="journals">journals/<a class="headerlink" href="#journals" title="Permanent link">&para;</a></h3>
 <p>Sitzungsjournale – ein eigenständiges Verzeichnis pro Journal (Speicherort konfigurierbar unter <strong>Einstellungen &gt; Protokollierung &gt; Sitzungsjournal</strong>). Jedes Journalverzeichnis enthält <code>journal.xml</code> (das kuratierte Dokument: Metadaten, KI-Zusammenfassungen, Markierungen, Notizen, Screenshot-Referenzen), das Nur-Anhängen-Capture-Log <code>session-log.json</code> / <code>.xml</code> / <code>.yaml</code> (standardmäßig JSON Lines) mit zstd-komprimierten gedrehten Teilen (Teilgröße und Teileanzahl sind pro Verbindung auf der Registerkarte „Journal“ konfigurierbar, standardmäßig 25 MB und 20 Teile; Journale aus älteren Versionen behalten ihre gzip-komprimierte <code>.gz</code>-Teile), die generierte <code>journal.html</code>-Timeline-Seite und <code>screenshots/*.png</code>. Siehe <a href="../features/session-journal.html">Sitzungsjournal</a>.</p>
 <h3 id="terminal-logs">terminal-logs/<a class="headerlink" href="#terminal-logs" title="Permanent link">&para;</a></h3>
-<p>Standardzielordner für <a href="../features/terminal.html#terminalprotokollierung">Terminalprotokolle pro Verbindung</a>, wenn das Logordnerfeld einer Verbindung leer bleibt. Dateibenennung, tägliche Rotation, Kompression und Aufbewahrung folgen der Protokollierungskonfiguration der Verbindung.</p>
+<p>Standardmäßige Zielordner für den <a href="../features/terminal.html#terminalprotokollierung">per-Verbindung-Terminal-Log</a>, wenn das Feld für den Log-Ordner einer Verbindung leer bleibt. Die Dateinamenerstellung, tägige Rotation, Kompression und Aufbewahrung folgen der Logging-Konfiguration der Verbindung.</p>
 <h3 id="plugins">plugins/<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h3>
 <p>Vom Benutzer importierte Terminal-Effekt-Plugin-JARs.</p>
 <p><strong>Zweck:</strong> Externe Terminal-Effekt-Plugins, die Sie über <em>Plugins &gt; Terminal-Effekte &gt; Importieren</em> importieren.</p>
@@ -1131,7 +1131,7 @@
 <td>Passwortgeschützte ZIP- oder GPG-Verschlüsselung</td>
 </tr>
 <tr>
-<td>API-Schlüssel (AI-Profile)</td>
+<td>API-Schlüssel (KI-Profile)</td>
 <td>AES-256-GCM-Verschlüsselung mit Master-Passwort</td>
 </tr>
 <tr>
@@ -1150,7 +1150,7 @@
 <h2 id="sicherung-und-wiederherstellung">Sicherung und Wiederherstellung<a class="headerlink" href="#sicherung-und-wiederherstellung" title="Permanent link">&para;</a></h2>
 <p>Wenn Sie über <em>Bearbeiten &gt; Backup erstellen</em> ein Backup erstellen, ist die folgende Konfiguration enthalten:</p>
 <ul>
-<li>Alle <code>.xml</code>-Konfigurationsdateien (Verbindungen, Anmeldeinformationen, SSH-Schlüsselreferenzen und Passphrasen, GPG-Schlüssel, globale Einstellungen, JobScheduler, Snippets, Snippet-Variablen, AI-Chats)</li>
+<li>Alle <code>.xml</code>-Konfigurationsdateien (Verbindungen, Anmeldeinformationen, SSH-Schlüsselreferenzen und Passphrasen, GPG-Schlüssel, globale Einstellungen, JobScheduler, Snippets, Snippet-Variablen, KI-Chats)</li>
 <li><code>master.key</code></li>
 <li><code>projects/</code> Verzeichnis</li>
 <li><code>ssh-keys/</code>-Verzeichnis – kopierte SSH-Schlüsseldateien (wiederhergestellt mit Nur-Eigentümer-Berechtigungen; Importe führen lokale Schlüssel zusammen und löschen sie niemals)</li>

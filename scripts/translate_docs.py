@@ -303,6 +303,11 @@ def apply_glossary(text: str) -> str:
         if exact:
             if text.strip() == source:
                 text = text.replace(source, target, 1)
+        elif source[:1].isupper() and source[:1].isascii():
+            # Never rewrite inside a CamelCase identifier (`LocalHnswStore`, `RagKnowledgeStorePane`):
+            # a capitalised term that directly follows a lowercase letter, digit or underscore is
+            # the middle of a word, not the term.
+            text = re.sub(r"(?<![a-z0-9_])" + re.escape(source), lambda _m: target, text)
         else:
             text = text.replace(source, target)
     return text
@@ -1116,6 +1121,21 @@ class _ConcurrentBackend:
         self.concurrency = max(1, concurrency)
         self.batch_lines = max(1, batch_lines)
         self.log = _RequestLog()
+        # Optional time box (time.perf_counter() value) set by the benchmark: once it has
+        # passed, no further request is sent and a request in flight is cut at that moment.
+        self.deadline: float | None = None
+        self.deadline_hit = False
+
+    def _remaining_timeout(self, timeout: float) -> float:
+        """The request timeout, capped to the time left until `deadline`; raises
+        TimeoutError (and records that the box was hit) when there is none left."""
+        if self.deadline is None:
+            return timeout
+        left = self.deadline - time.perf_counter()
+        if left <= 0:
+            self.deadline_hit = True
+            raise TimeoutError("time budget exhausted")
+        return min(timeout, left)
 
     def _translate_batch(self, batch: list[str]) -> list[str | None]:  # pragma: no cover
         raise NotImplementedError
@@ -1131,9 +1151,15 @@ class _ConcurrentBackend:
         return [line for batch in results for line in batch]
 
     def _safe_batch(self, batch: list[str]) -> list[str | None]:
+        if self.deadline is not None and time.perf_counter() >= self.deadline:
+            self.deadline_hit = True
+            return [None] * len(batch)
         try:
             out = self._translate_batch(batch)
         except Exception as exc:  # noqa: BLE001
+            if self.deadline is not None and time.perf_counter() >= self.deadline:
+                self.deadline_hit = True
+                return [None] * len(batch)
             print(f"  ! {type(self).__name__}: {exc}", file=sys.stderr)
             return [None] * len(batch)
         return out if len(out) == len(batch) else [None] * len(batch)
@@ -1266,7 +1292,8 @@ class OpenAICompatBackend(_ConcurrentBackend):
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
         }
         started = time.perf_counter()
-        data = _http_post_json(f"{self.base_url}/chat/completions", payload, self.timeout)
+        data = _http_post_json(f"{self.base_url}/chat/completions", payload,
+                               self._remaining_timeout(self.timeout))
         elapsed = time.perf_counter() - started
         usage = data.get("usage") or {}
         message = ((data.get("choices") or [{}])[0].get("message") or {})
@@ -1285,6 +1312,7 @@ class OpenAICompatBackend(_ConcurrentBackend):
         return content
 
     def translate(self, text: str) -> str:
+        self._remaining_timeout(self.timeout)  # raises once the benchmark's time box is spent
         out = self._single(text)
         if out is None:
             raise RuntimeError("no usable translation")
@@ -1357,7 +1385,8 @@ class LibreTranslateBackend(_ConcurrentBackend):
         if key:
             payload["api_key"] = key
         started = time.perf_counter()
-        data = _http_post_json(f"{self.base_url}/translate", payload, self.timeout)
+        data = _http_post_json(f"{self.base_url}/translate", payload,
+                               self._remaining_timeout(self.timeout))
         self.log.add(latency=time.perf_counter() - started,
                      lines=len(q) if isinstance(q, list) else 1,
                      prompt_tokens=None, completion_tokens=None, reasoning_tokens=None,
@@ -1365,6 +1394,7 @@ class LibreTranslateBackend(_ConcurrentBackend):
         return data.get("translatedText")
 
     def translate(self, text: str) -> str:
+        self._remaining_timeout(self.timeout)
         out = self._post(text)
         if not isinstance(out, str) or not out:
             raise RuntimeError("no usable translation")
@@ -1408,16 +1438,20 @@ class GoogleBackend:
 
 
 def make_backend(backend: str, model: str | None = None, base_url: str | None = None,
-                 concurrency: int | None = None, batch_lines: int | None = None):
+                 concurrency: int | None = None, batch_lines: int | None = None,
+                 reasoning_effort: str | None = None, timeout: float | None = None):
     if backend == "google":
         return GoogleBackend()
     if backend == "lmstudio":
         return OpenAICompatBackend(base_url or DEFAULT_BASE_URLS["lmstudio"],
                                    model or DEFAULT_LMSTUDIO_MODEL,
-                                   concurrency=concurrency or 4, batch_lines=batch_lines or 1)
+                                   concurrency=concurrency or 4, batch_lines=batch_lines or 1,
+                                   reasoning_effort=reasoning_effort or "low",
+                                   timeout=timeout or 600.0)
     if backend == "libretranslate":
         return LibreTranslateBackend(base_url or DEFAULT_BASE_URLS["libretranslate"],
-                                     concurrency=concurrency or 2, batch_lines=batch_lines or 20)
+                                     concurrency=concurrency or 2, batch_lines=batch_lines or 20,
+                                     timeout=timeout or 120.0)
     raise ValueError(f"unknown backend {backend!r}")
 
 
@@ -1432,6 +1466,10 @@ def add_backend_arguments(ap: argparse.ArgumentParser) -> None:
     ap.add_argument("--batch-lines", type=int, help="masked lines per request as a numbered JSON "
                                                      "array (lmstudio default 1; mismatches fall "
                                                      "back to one line per request)")
+    ap.add_argument("--reasoning-effort", choices=["low", "medium", "high"],
+                    help="reasoning_effort sent to the lmstudio backend (default low)")
+    ap.add_argument("--request-timeout", type=float, metavar="S",
+                    help="per-request timeout in seconds (lmstudio default 600, libretranslate 120)")
 
 
 def git_head_version(path: Path) -> str | None:
@@ -1625,7 +1663,7 @@ def main() -> int:
         return 0
 
     translator = make_backend(args.backend, args.model, args.base_url, args.concurrency,
-                              args.batch_lines)
+                              args.batch_lines, args.reasoning_effort, args.request_timeout)
     new_cache = load_cache()
     md_pages = [src for src in sorted(EN.rglob("*.md"))
                 if not any(part in SKIP_DIRS for part in src.relative_to(EN).parts)]

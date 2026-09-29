@@ -6,7 +6,7 @@ title: JobScheduler
 
 Der JobScheduler führt unbeaufsichtigte Hintergrundjobs aus, während KorTTY geöffnet ist. Es ist kein Betriebssystemdienst oder eine aktive SSH-Terminalregisterkarte erforderlich. Jobs werden automatisch nach einem konfigurierten Zeitplan mithilfe gespeicherter SSH-Verbindungen aus dem Verbindungsmanager ausgeführt.
 
-Unter macOS und Windows verhindert ein aktivierter Job mit einer zukünftigen Ausführung, dass der Computer in den Systemschlaf wechselt, während korTTY ausgeführt wird, wenn **Konfiguration > Systemschlaf verhindern** aktiviert ist, sodass die geplante Zeit erreichbar bleibt. Der Scheduler verwendet einen einzigen Weckvorgang für den nächsten fälligen Lauf und verfügt über keinen Abfrage-Timer, wenn kein aktivierter zukünftiger Job vorhanden ist. Ohne Terminalverbindung, zukünftiger oder laufender Scheduler-Auftrag oder aktive AI-Anfrage bleibt der Systemschlaf auch dann verfügbar, wenn die Einstellung überprüft wird. Während ein Job ausgeführt wird, fügt macOS korTTY nicht in App Nap ein. Der Display-Ruhezustand ist nicht blockiert. Die Linux-Stromunterdrückung wird noch nicht unterstützt.
+Unter macOS und Windows verhindert ein aktivierter Job mit einer zukünftigen Ausführung, dass der Computer in den Systemschlaf wechselt, während korTTY ausgeführt wird, wenn **Konfiguration > Systemschlaf verhindern** aktiviert ist, sodass die geplante Zeit erreichbar bleibt. Der Scheduler verwendet einen einzigen Weckvorgang für den nächsten fälligen Lauf und verfügt über keinen Abfrage-Timer, wenn kein aktivierter zukünftiger Job vorhanden ist. Ohne Terminalverbindung, zukünftiger oder laufender Scheduler-Auftrag oder aktive KI-Anfrage bleibt der Systemschlaf auch dann verfügbar, wenn die Einstellung überprüft wird. Während ein Job ausgeführt wird, fügt macOS korTTY nicht in App Nap ein. Der Display-Ruhezustand ist nicht blockiert. Die Linux-Stromunterdrückung wird noch nicht unterstützt.
 
 Öffnen Sie es mit **Tools > JobScheduler...**. Der Dialog merkt sich seine Fensterposition und -größe. Die deutsche Benutzeroberfläche übersetzt jetzt alle Beschriftungen, Aktionsnamen, Statuswerte, Validierungsmeldungen, Zielselektoren und unterstützenden Eingabeaufforderungen. Technische Protokoll- und Formatnamen wie SFTP, Rsync, ZIP, TAR, stdout und stderr bleiben unverändert.
 
@@ -95,7 +95,7 @@ Snippet-Skriptjobs verwenden den ausgewählten SnippetManager-Eintrag, ohne dass
 
 #### AI Schwarmjobs
 
-AI Swarm-Jobs führen über Hintergrund-SSH-Sitzungen eine AI-Agent-Eingabeaufforderung auf **allen ausgewählten Zielen parallel** aus – es werden keine Terminal-Registerkarten geöffnet. Über die gemeinsamen Felder **KI-Profil**, **KI-Eingabeaufforderung** und **Automatisch genehmigende KI-Befehle** hinaus gelten zwei schwarmspezifische Felder:
+AI Swarm-Jobs führen über Hintergrund-SSH-Sitzungen eine KI-Agent-Eingabeaufforderung auf **allen ausgewählten Zielen parallel** aus – es werden keine Terminal-Registerkarten geöffnet. Über die gemeinsamen Felder **KI-Profil**, **KI-Eingabeaufforderung** und **Automatisch genehmigende KI-Befehle** hinaus gelten zwei schwarmspezifische Felder:
 
 | Feld | Beschreibung |
 |-------|-------------|
@@ -104,7 +104,7 @@ AI Swarm-Jobs führen über Hintergrund-SSH-Sitzungen eine AI-Agent-Eingabeauffo
 
 Die Ergebnisse werden zweimal gespeichert: Das **Journal** zeichnet das Laufergebnis auf, und die vollständige Konversation – einschließlich der kombinierten Vergleichstabelle pro Server – wird als **Schwarm-Chat** gespeichert, der über den Abschnitt *Schwarm-Chats* des KI-Managers erneut geöffnet werden kann.
 
-Der schnellste Weg, einen AI Swarm-Job zu erstellen, ist die Schaltfläche **Planen…** auf der Registerkarte [AI Swarm](ai-swarm.md#schwarmlaufe-planen-jobscheduler): Sie füllt einen neuen Job mit den aktuellen Zielen, der Eingabeaufforderung, dem AI-Profil und der schreibgeschützten Einstellung der Registerkarte vorab aus. Auf dieser Seite finden Sie empfohlene Schwarm-/Scheduler-Nutzungsszenarien.
+Der schnellste Weg, ein Job für einen KI-Swarm zu erstellen, ist die Schaltfläche **Planen…** im [KI-Swarm-Tab](ai-swarm.md#schwarmlaufe-planen-jobscheduler): Sie füllt einen neuen Job mit den aktuellen Zielen, dem Prompt, dem KI-Profil und der Schreibschutz-Einstellung des Tabs vor. Siehe diese Seite für empfohlene Anwendungsszenarien für Swarms/Scheduler.
 
 !!! warning
     Ein geplanter Schwarm, bei dem **Schwarm schreibgeschützt** deaktiviert und **Automatisch genehmigende KI-Befehle** aktiviert ist, verändert Systeme unbeaufsichtigt. Testen Sie die Eingabeaufforderung interaktiv auf der Registerkarte „AI Swarm“, bevor Sie einen solchen Job aktivieren.
@@ -132,7 +132,7 @@ KorTTY erstellt die Rsync-Ausführung als `ProcessBuilder`-Argumentliste, anstat
 - `rsync` wird von `PATH` übernommen, es sei denn, unter **Einstellungen > SFTP > JobScheduler Rsync** ist ein expliziter Binärpfad konfiguriert.
 - `ssh` muss in `PATH` verfügbar sein.
 - Das Fixieren des Hostschlüssels ist erforderlich, es sei denn, der Job deaktiviert die Hostschlüsselüberprüfung ausdrücklich.
-Die Authentifizierung mit - Passwörtern und Passphrasen mit privatem Schlüssel verwendet einen temporären `SSH_ASKPASS`-Helfer, der nur dem Besitzer vorbehalten ist. Secrets, Hilfspfade und temporäre Secret-Dateipfade werden vor dem Journaling geschwärzt.
+- Passwort- und privater-Schlüssel-Authentifizierung verwenden einen temporären, nur für den Benutzer bestimmt `SSH_ASKPASS`Hilfeprozess. Geheime Informationen, Pfade der Hilfeprozesse und temporäre Pfade von Geheimdateien werden vor der Protokollierung gelöscht.
 
 ## Journal-Tab
 

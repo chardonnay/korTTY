@@ -17,7 +17,7 @@ Jedes Element in der Menüleiste von korTTY, mit seiner Tastenkombination (falls
 | Sicherung importieren… | | Wiederherstellung aus einer Sicherungsdatei |
 | Aufhören | ++ctrl+q++ | Beenden Sie korTTY |
 
-Verbindungs-Einträge (Schnellverbindung, Verbindungen verwalten/importieren/exportieren) befinden sich im [Verbindungen](#verbindungen)-Menü.
+Verbindungs-Einträge (Schnellverbindung, Verwalten/Importieren/Exportieren von Verbindungen) befinden sich im [Verbindungen](#verbindungen)-Menü.
 
 ## Bearbeiten
 
@@ -62,7 +62,7 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 | Artikel | Beschreibung |
 | --- | --- |
 | Snippet-Manager… | Erstellen, bearbeiten, organisieren, senden und exportieren Sie Befehls-Snippets in einem Arbeitsbereich: die Bibliothek und die Snippets, die Sie als Tabs bearbeiten, jeweils mit ihrer gespeicherten Vollständigen Code-Analyse |
-| JobScheduler… | Hintergrundbefehl/Snippet/AI-Agent/AI-Swarm/SFTP/Rsync-Jobs planen |
+| JobScheduler… | Hintergrundbefehl/Snippet/KI-Agent/KI-Swarm/SFTP/Rsync-Jobs planen |
 | Videomanager… | Verwalten Sie Terminalaufzeichnungen und exportieren Sie sie über WebM/MKV `ffmpeg` |
 | Terminalaufzeichnung starten/stoppen | Aufzeichnung des aktiven Terminals umschalten (++ctrl+shift+e++) |
 | Sitzungsjournale… | Manage [session journals](../features/session-journal.md): Suchen, Öffnen, Umbenennen, Beschreiben, Exportieren und Löschen sowie Festlegen der Journaloptionen (++ctrl+alt+j++) |
@@ -70,7 +70,7 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 | Journal-Screenshot hinzufügen | Erstellen Sie einen Schnappschuss des aktiven Terminals in das laufende Sitzungsjournal (++ctrl+alt+c++) |
 | ASCII-Art… | Zwei Tabs in einem Dialog: **Text-Banner** rendert Text als FIGlet-Banner in mehreren Schriftstilen, **KI-Bild** lässt ein KI-Profil ein Thema als ASCII-Art zeichnen |
 
-Die drei Session-Journal-Elemente bleiben sichtbar, werden jedoch deaktiviert, wenn eine [Unternehmensrichtlinie](../features/session-journal.md#unternehmensrichtlinie) die Session-Journal-Funktion verweigert.
+Die drei Einträge im Sitzungsjournal bleiben sichtbar, werden jedoch deaktiviert, wenn eine [Unternehmensrichtlinie](../features/session-journal.md#unternehmensrichtlinie) die Funktion des Sitzungsjournals ablehnt.
 
 ## AI
 
@@ -110,10 +110,10 @@ Die drei Session-Journal-Elemente bleiben sichtbar, werden jedoch deaktiviert, w
 | Vollbild | ++f12++ | Fenster-Vollbild umschalten |
 | Nur Terminal-Vollbild | ++ctrl+shift+f++ | Zeigt das gesamte korTTY-Fenster an – einschließlich Menüs, Registerkarten und Statusleiste – in der vorherigen Fenstergröße und zentriert auf einem leeren Vollbildhintergrund, wodurch der Desktop und andere Fenster ausgeblendet werden |
 | Terminal-Bildlaufleisten im Vollbildmodus ausblenden | | Bildlaufleisten auch im Vollbildmodus ausblenden |
-| AI-Agent-Panel ▸ Unten / Links andocken / Rechts andocken | | Wählen Sie, wo sich das AI-Agent-Aktivitätspanel befindet |
-| Live-Journal ▸ Links andocken / Rechts andocken | | Docken Sie das [Live-Journal-Bereich](../features/session-journal.md#das-live-journal-panel) neben dem Terminal; die Auswahl der aktiven Seite versteckt es. |
+| KI-Agent-Panel ▸ Unten / Links andocken / Rechts andocken | | Wählen Sie, wo sich das KI-Agent-Aktivitätspanel befindet |
+| Live-Journal ▸ Links andocken / Rechts andocken | | Der [Live-Journal-Panel](../features/session-journal.md#das-live-journal-panel) wird neben dem Terminal ange dockt; die Auswahl der aktiven Seite verdeckt ihn |
 | Live-Journal ▸ Anzeigen/Ausblenden | ++ctrl+alt+l++ | Schalten Sie das Live-Journal-Panel auf seiner zuletzt verwendeten Seite (standardmäßig rechts) |
-| Coding-Agents ▸ Links andocken / Rechts andocken | | Andocken Sie das [Coding-Agents-Panel](../features/coding-agents.md#das-coding-agents-panel) neben dem Terminal; die Auswahl der aktiven Seite blendet es aus. |
+| Coding-Agents ▸ Links andocken / Rechts andocken | | Das [Coding-Agents-Komponente](../features/coding-agents.md#das-coding-agents-panel) neben dem Terminal anordnen; die Aktivierung einer Seite verdeckt sie |
 | Coding-Agents ▸ Ein-/Ausblenden | ++ctrl+alt+g++ | Blenden Sie das Coding-Agents-Panel auf seiner zuletzt verwendeten Seite ein oder aus (standardmäßig rechts) |
 | Coding-Agents ▸ Nächster wartender Agent | ++ctrl+alt+n++ | Holen Sie den nächsten Coding-Agent, der auf eine Entscheidung wartet, über Fenster hinweg nach vorne |
 
@@ -130,7 +130,7 @@ Die drei Session-Journal-Elemente bleiben sichtbar, werden jedoch deaktiviert, w
 | Anleitung | ++f1++ | Öffnen Sie diese Dokumentation innerhalb von korTTY |
 | Über korTTY | | Versions- und Projektinformationen |
 
-Die Anleitung verfügt über eigene Textgrößen-Schaltflächen oben links im Fenster: `A-`, der aktuelle Prozentsatz, und `A+`. Durch Anklicken des Prozentsatzes wird er zurückgesetzt. Die gleichen drei Aktionen haben Tastenkombinationen: ++cmd+plus++, ++cmd+minus++, ++cmd+0++. korTTY merkt sich die Größe, und die Größe deckt das gesamte Fenster ab – die Seite und, wenn sie geöffnet ist, das KI-Suche-Panel daneben. Siehe [Textgröße der Anleitung](settings/appearance.md#textgroe-der-anleitung).
+Die Anleitung verfügt über eigene Schaltflächen für die Textgröße im oberen linken Bereich ihres Fensters: `A-`, der aktuelle Prozentsatz, und `A+`. Das Klicken auf den Prozentsatz setzt den Wert zurück. Die gleichen drei Aktionen können über Tastenkombinationen durchgeführt werden: ++cmd+plus++, ++cmd+minus++, ++cmd+0++. korTTY erinnert sich an die Größe, wobei diese die gesamte Fensterfläche ausfüllt – die Seite und, wenn sie geöffnet ist, den nebenstehenden KI-Suche-Panel. Siehe [Anleitung-Textgröße](settings/appearance.md#textgroe-der-anleitung).
 
 Screenshots und Diagramme werden durch Klicken vergrößert: Das Bild wird über der Seite in der größtmöglichen Größe geöffnet, die das Fenster zulässt, mit den Schaltflächen **−** / ***+** und einem Prozentsatz, der es auf die angepasste Größe zurücksetzt. Zoomen Sie weiter, um eine einzelne Einstellungszeile zu lesen, ziehen Sie das Bild zum Schwenken und schließen Sie es mit *×**, ++esc++ oder einem Klick neben dem Bild. ++ctrl++ und der Radzoom ebenfalls. Dasselbe funktioniert auch im Online-Ratgeber.
 

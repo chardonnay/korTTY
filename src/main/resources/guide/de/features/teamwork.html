@@ -312,7 +312,7 @@
         <a href="../reference/settings/ai-skills.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            KI-Fähigkeiten
+            KI-Skills
         </a>
     </li>
                     
@@ -764,20 +764,20 @@
 <p>Teamwork ermöglicht es Teams, eine zentrale Bibliothek von Verbindungskonfigurationen zu verwalten:</p>
 <ul>
 <li><strong>Git-Repositorys</strong> – Klonen Sie ein Git-Repository, das eine <code>kortty-teamwork-connections.xml</code>-Datei (oder eine ältere Datei <code>connections.xml</code>) enthält, und bleiben Sie mit diesem synchron.</li>
-<li><strong>Shared files</strong> — Load connections from a local or network path (read-only or read-write).</li>
-<li><strong>Automatic sync</strong> — Background syncing at a configurable interval checks for updates.</li>
-<li><strong>Credential security</strong> — Shared connections do NOT carry inline passwords; only credential IDs and SSH key references.</li>
-<li><strong>Local overrides</strong> — Your local credentials and SSH keys are merged with shared connection definitions.</li>
-<li><strong>Read-only mode</strong> — Mark sources as read-only to prevent accidental writes back.</li>
+<li><strong>Gemeinsame Dateien</strong> — Verbindungen aus einem lokalen oder Netzwerkpfad laden (nur zum Lesen oder zum Lesen-und-Schreiben).</li>
+<li><strong>Automatischer Synchronisierung</strong> — Hintergrund-Synchronisierung in einem konfigurierbaren Intervall überprüft nach Aktualisierungen.</li>
+<li><strong>Sicherheit der Anmeldeinformationen</strong> — Gemeinsame Verbindungen enthalten keine Passwörter direkt; lediglich Anmeldeinformationen-IDs und SSH-Schlüssel-Referenzen.</li>
+<li><strong>Local-Überwachungen</strong> — Ihre lokalen Anmeldeinformationen und SSH-Schlüssel werden mit den gemeinsamen Verbindungsbestimmungen kombiniert.</li>
+<li><strong>Schreibgeschützter Modus</strong> — Quellen als schreibgeschützt markieren, um versehentliches Zurückschreiben zu verhindern.</li>
 </ul>
 <h2 id="einrichten-von-teamwork-quellen">Einrichten von Teamwork-Quellen<a class="headerlink" href="#einrichten-von-teamwork-quellen" title="Permanent link">&para;</a></h2>
-<p>Open <strong>Teamwork → Teamwork Settings…</strong> (or <strong>Configuration → Global Settings… → Teamwork</strong>) to configure sources.</p>
+<p>Öffnen Sie <strong>Teamarbeit → Teamarbeit-Einstellungen…</strong> (oder <strong>Konfiguration → Globale Einstellungen… → Teamarbeit</strong>) zur Konfiguration der Quellen.</p>
 <h3 id="fugen-sie-eine-quelle-hinzu">Fügen Sie eine Quelle hinzu<a class="headerlink" href="#fugen-sie-eine-quelle-hinzu" title="Permanent link">&para;</a></h3>
 <ol>
 <li>Klicken Sie auf <strong>Hinzufügen</strong>, um eine neue Quelle zu erstellen.</li>
 <li>Wählen Sie die Quelle <strong>Typ</strong>:</li>
-<li><strong>Git</strong> — Clone from an HTTPS, SSH, or git:// URL.</li>
-<li><strong>Shared File</strong> — Read from a local or network path (e.g., <code>file:///mnt/share/connections.xml</code> or <code>//host/share/connections.xml</code>).</li>
+<li><strong>Git</strong> — Aus einem HTTPS-, SSH- oder git://-URL-Link klonen.</li>
+<li><strong>Gemeinsames Datei</strong> — Lesen aus einem lokalen oder Netzwerkpfad (z. B. <code>file:///mnt/share/connections.xml</code> oder <code>//host/share/connections.xml</code>).</li>
 <li>Geben Sie den <strong>Standort</strong> ein:</li>
 <li>Für Git: die Klon-URL.</li>
 <li>Für freigegebene Dateien: ein lokaler/Netzwerk-Dateipfad (kann ein file://-URI oder ein UNC-Pfad sein).</li>
@@ -885,7 +885,7 @@
 <li>Teilen Sie die Repository-URL (HTTPS oder SSH) mit den Teammitgliedern.</li>
 <li>Teammitglieder fügen die URL unter <strong>Teamwork → Teamwork-Einstellungen… → Hinzufügen</strong> hinzu.</li>
 </ol>
-<h3 id="ssh-vs-https">SSH vs. HTTPS<a class="headerlink" href="#ssh-vs-https" title="Permanent link">&para;</a></h3>
+<h3 id="ssh-im-vergleich-zu-https">SSH im Vergleich zu HTTPS<a class="headerlink" href="#ssh-im-vergleich-zu-https" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>HTTPS</strong> – Funktioniert ohne SSH-Schlüsseleinrichtung; Möglicherweise ist ein GitHub Personal Access Token oder ein Benutzername/Passwort erforderlich (bewahren Sie das Token sicher auf).</li>
 <li><strong>SSH</strong> – Erfordert <code>git</code> und einen lokalen SSH-Schlüssel in <code>~/.ssh/id_rsa</code> (oder konfiguriert in <code>ssh-add</code>).</li>

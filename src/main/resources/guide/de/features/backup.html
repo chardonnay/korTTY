@@ -312,7 +312,7 @@
         <a href="../reference/settings/ai-skills.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            KI-Fähigkeiten
+            KI-Skills
         </a>
     </li>
                     
@@ -809,7 +809,7 @@
 </tr>
 <tr>
 <td>Einstellungen</td>
-<td>Globale Anwendungseinstellungen, Terminalkonfigurationen, Themen und AI-Profile</td>
+<td>Globale Anwendungseinstellungen, Terminalkonfigurationen, Themen und KI-Profile</td>
 </tr>
 <tr>
 <td>JobScheduler-Jobs</td>
@@ -824,8 +824,8 @@
 <td>Benutzerdefinierte Variablen für die Snippet-Ersetzung</td>
 </tr>
 <tr>
-<td>Snippet-Analysen</td>
-<td>Die gespeicherten Vollcodeanalysen<a href="snippets.html#vollstandige-code-analyse"> jedes Snippets, mit ihren Anwendungsdurchläufen und Diagrammen</a></td>
+<td>Snippet analysiert</td>
+<td>das gespeicherte <a href="snippets.html#vollstandige-code-analyse">Vollcode-Analysis</a> aller Snippets, einschließlich ihrer Anwendungsläufe und Diagramme</td>
 </tr>
 <tr>
 <td>KI-Chats</td>
@@ -892,7 +892,7 @@
 <li><code>ssh-keys/</code> – Kopierte SSH-Schlüsseldateien (nur Schlüssel, die Sie über <strong>In Benutzerverzeichnis kopieren</strong> dort platziert haben; Schlüssel, auf die an ihren ursprünglichen Speicherorten verwiesen wird, werden nicht erfasst). Wiederhergestellte Schlüsseldateien erhalten nur Besitzerberechtigungen und ein Import wird zusammengeführt – bereits vorhandene Schlüssel werden nie gelöscht oder, ohne <strong>Überschreiben</strong>, ersetzt</li>
 <li><code>ssh-host-keys.properties</code> – Vertrauenswürdige öffentliche Hostschlüssel für interaktive Terminal-, SFTP- und Mosh-Bootstrap-Verbindungen (<code>ssh-host-keys.properties.lock</code> ist absichtlich ausgeschlossen)</li>
 <li><code>gpg-keys.xml</code> – öffentliche GPG-Schlüssel</li>
-<li><code>global-settings.xml</code> – Anwendungseinstellungen, Themen, AI-Profile, Terminal-Standardeinstellungen</li>
+<li><code>global-settings.xml</code> – Anwendungseinstellungen, Themen, KI-Profile, Terminal-Standardeinstellungen</li>
 <li><code>job-scheduler.xml</code> – JobScheduler-Jobs, Host-Key-Pins, verschlüsselte Sudo-Passwörter</li>
 <li><code>snippets.xml</code> – Codeausschnitte und Vorlagen</li>
 <li><code>snippet-variables.xml</code> – Benutzerdefinierte Snippet-Variablen</li>
@@ -954,7 +954,7 @@
 <dt><strong>Der Import war erfolgreich, aber die Änderungen wurden nicht wirksam</strong></dt>
 <dd>Starten Sie KorTTY neu, damit importierte Einstellungen aktiv werden. Wenn Sie Anmeldeinformationen importiert haben, müssen Sie nach dem Neustart möglicherweise auch das Master-Passwort entsperren.</dd>
 <dt><strong>Sicherungsdatei ist größer als erwartet</strong></dt>
-<dd>Große Backups können auftreten, wenn Sie viele gespeicherte AI-Chats oder ein großes Projektverzeichnis haben. GGUF-Gewichte, llama.cpp-Laufzeitpakete und HNSW-Snapshots sind ausgeschlossen und können nicht die Ursache sein.</dd>
+<dd>Große Backups können auftreten, wenn Sie viele gespeicherte KI-Chats oder ein großes Projektverzeichnis haben. GGUF-Gewichte, llama.cpp-Laufzeitpakete und HNSW-Snapshots sind ausgeschlossen und können nicht die Ursache sein.</dd>
 </dl></p>
     </article>
 </section>

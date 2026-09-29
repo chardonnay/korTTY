@@ -4,7 +4,7 @@ title: Terminal-KI-Agent und -Tools
 
 # Terminal-KI-Agent und -Tools
 
-Der Terminal AI Agent von korTTY ist ein kontrollierter Automatisierungsworkflow, der eine sichere, intelligente Befehlsausführung auf Remote-Servern ermöglicht – und, da die Ausführungs-Engine hinter einer `AgentCommandRunner`-Abstraktion (SSH-Exec-Channel und lokale Prozess-Backends) entkoppelt wurde, auch in [local-Shells](connections.md#lokale-shell) unter Windows, macOS und Linux. Im Gegensatz zur naiven Automatisierung prüft der Agent den Sitzungsstatus, begründet jeden Schritt und wartet auf die Zustimmung des Menschen, bevor er systemverändernde Befehle ausführt.
+Der Terminal-KI-Agent von korTTY ist ein kontrollierter Automatisierungsworkflow, der die sichere, intelligente Ausführung von Befehlen auf remote-Servern ermöglicht – und da der Ausführungsengine hinter einer `AgentCommandRunner`-Abschattung (SSH-Exec-Channel und lokalen Prozess-Backends) entkoppelt ist, funktioniert er auch in [lokalen Shells](connections.md#lokale-shell) unter Windows, macOS und Linux. Im Gegensatz zu einer naiven Automatisierung untersucht der Agent den Zustand der Sitzung, überlegt Schritt für Schritt und wartet auf die Genehmigung des Benutzers, bevor systemverändernde Befehle ausgeführt werden.
 
 !!! note "SSH vs. lokale Shells"
     In lokalen Shells verwenden Befehle ein natives lokales Backend (PowerShell über `-EncodedCommand`, `cmd.exe` oder POSIX `/bin/sh`) und der Umgebungstest und die Systemeingabeaufforderung sind plattformorientiert. Der Agent erfasst das aktuelle Verzeichnis der interaktiven Shell, wenn ein Lauf startet, und verwendet denselben Snapshot für seine Sonde und jeden Befehl im Lauf. Im Flatpak-Paket werden diese Prozesse auf dem Host über `flatpak-spawn --host` und nicht innerhalb der Freedesktop-Laufzeit-Sandbox ausgeführt. Einschränkungen der lokalen Shell: keine `sudo`/Administrator-Erhöhung unter Windows. Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.
@@ -17,7 +17,7 @@ Der Terminal AI Agent von korTTY ist ein kontrollierter Automatisierungsworkflow
 
 ## Befehlsvarianten
 
-Der Terminal AI Agent wird über Shortcut-Befehle am Shell-Prompt ausgelöst. Wenn KorTTY unter **Einstellungen > AI** aktiviert ist, fängt KorTTY diese Befehle lokal ab, anstatt sie an den Server zu senden:
+Das Terminal AI Agent wird über Shortcut-Befehle am Shell-Prompt ausgelöst. Wenn KorTTY unter **Einstellungen > AI** aktiviert ist, fängt KorTTY diese Befehle lokal ab, anstatt sie an den Server zu senden:
 
 ```bash
 agent <goal>
@@ -37,7 +37,7 @@ Der Basisbefehlsname kann unter **Einstellungen > AI** konfiguriert werden. Wenn
 ### Befehlszwecke
 
 - **`agent <goal>`** – Führen Sie sichere Terminalbefehle aus, um ein Ziel zu erreichen. Der Agent prüft die Sitzung, plant nicht interaktive Befehle, fordert bei Bedarf eine Genehmigung an und schreibt (standardmäßig) die endgültige Antwort zurück an das Terminal. Das Ausführungsdialogfeld bietet die Option **Endgültige Antwort auch im Terminal anzeigen**: Lassen Sie diese Option aktiviert, um die Antwort im Terminal zu spiegeln, oder schalten Sie sie aus, damit die Antwort nur im Aktivitätsfenster des KI-Agenten verbleibt. In beiden Fällen werden die Befehle weiterhin ausgeführt und ihre Ausgabe sowie alle von ihnen erstellten Dateien verbleiben auf dem Server. Lediglich die Anzeige des endgültigen Antworttextes ändert sich. Die letzte Auswahl wird als Standard gespeichert.
-- **`agent-ask <question>`** – Erhalten Sie eine nicht ausführende Antwort zum aktuellen Sitzungskontext, ohne irgendwelche Befehle auszuführen. Wenn Sie über das Kontextmenü des Terminals (**AI → Ask AI Agent**) mit ausgewähltem Text starten, wird die Auswahl als Kontext gesendet, sodass die Frage zur ausgewählten Ausgabe oder zum ausgewählten Skript beantwortet wird.
+- **`agent-ask <question>`** – Erhalten Sie eine nicht ausführende Antwort zum aktuellen Sitzungskontext, ohne irgendwelche Befehle auszuführen. Wenn Sie über das Kontextmenü des Terminals (**KI → Ask AI Agent**) mit ausgewähltem Text starten, wird die Auswahl als Kontext gesendet, sodass die Frage zur ausgewählten Ausgabe oder zum ausgewählten Skript beantwortet wird.
 - **`agent-plan <task>` / `agent -plan <task>`** – Wechseln Sie zuerst in den Planungsmodus. Der Agent stellt klärende Fragen, schlägt Vorgehensweisen vor, erstellt einen endgültigen Plan und führt die Implementierung erst durch, nachdem Sie auf **Umsetzen** geklickt haben.
 
 ### Beispiele
@@ -65,10 +65,10 @@ Die Verlaufsgröße kann unter **Einstellungen > AI** konfiguriert werden (Stand
 
 ## So funktioniert der AI Agent
 
-Der Terminal AI Agent folgt einer strengen, sicheren Ausführungsschleife:
+Das Terminal AI Agent folgt einer strengen, sicheren Ausführungsschleife:
 
 1. **Sitzung prüfen** – KorTTY prüft die aktive Terminalsitzung mit einem nicht interaktiven Befehl und zeichnet kompakten Kontext auf: aktueller Benutzer, Host, Betriebssystem, Arbeitsverzeichnis des aktiven Terminals, Sudo-Verfügbarkeit, Festplattenpfad und aktueller Befehlsstatus.
-2. **Kontext an das Modell senden** – KorTTY sendet die Benutzeraufgabe, den Sonden-Snapshot, frühere Befehlsergebnisse, aktive KI-Fähigkeiten und optional die Web-Tool-Verfügbarkeit an das ausgewählte KI-Profil.
+2. **Kontext an das Modell senden** – KorTTY sendet die Benutzeraufgabe, den Sonden-Snapshot, frühere Befehlsergebnisse, aktive KI-Skills und optional die Web-Tool-Verfügbarkeit an das ausgewählte KI-Profil.
 3. **Modell gibt eine JSON-Entscheidung zurück** – Das Modell muss eine strikte JSON-Antwort zurückgeben: Befehle ausführen, um Bestätigung bitten, beenden oder blockieren.
 4. **Entscheidung validieren** – KorTTY validiert das JSON-Schema und die Befehlseinschränkungen. Ungültige Antworten werden einmalig repariert; unsichere oder nicht unterstützte Entscheidungen werden abgelehnt.
 5. **Genehmigte Befehle ausführen** – KorTTY führt genehmigte Befehle über das aktive Backend aus: SSH-Ausführungskanäle für SSH-Sitzungen oder einen neuen lokalen Prozess für lokale Shells. Jeder Befehl startet im verfolgten aktiven Terminalverzeichnis, das für diese Ausführung erfasst wurde. Ein `cd` innerhalb eines einmaligen Befehls bleibt nicht bis zum nächsten Befehl bestehen, während ein interaktiver `cd`, der vor der Ausführung abgeschlossen wurde, im erfassten Verzeichnis enthalten ist.
@@ -99,9 +99,9 @@ Auf Terminals ausgerichtete Agentenausführungen verwenden ein Inline-Aktivität
 ### Panel-Funktionen
 
 - **Laufregisterkarten** – Mehrere gleichzeitige Ausführungen werden als schließbare Registerkarten angezeigt. Klicken Sie auf eine Registerkarte, um sie auszuwählen. Nur der Lauf der ausgewählten Registerkarte wird durch Laufsteuerungstasten und -schaltflächen gesteuert. Bis zu 5 gleichzeitige Läufe pro Split.
-- **Steuerelemente** – Jeder Lauf verfügt über Schaltflächen zum Neuladen, Anhalten/Fortsetzen, Abbrechen und Kopier-/Snippet-Aktionen pro Zeile. Mit der Schaltfläche „Neu laden“ wird der Befehl mit dem **aktuell aktiven** AI-Profil erneut ausgeführt, sodass der Profilwechsel zwischen den Ausführungen bei der Wiederholung wirksam wird.
+- **Steuerelemente** – Jeder Lauf verfügt über Schaltflächen zum Neuladen, Anhalten/Fortsetzen, Abbrechen und Kopier-/Snippet-Aktionen pro Zeile. Mit der Schaltfläche „Neu laden“ wird der Befehl mit dem **aktuell aktiven** KI-Profil erneut ausgeführt, sodass der Profilwechsel zwischen den Ausführungen bei der Wiederholung wirksam wird.
 - **Details** – Das Panel zeigt die Benutzeraufforderung in einem zweizeiligen scrollbaren Feld, Agentenmeldungen, Lese-/Ausführungsaktionen, Aufgabenzeitpunkt, gemeldete Token-Nutzung, semantische Aktivitätsmarkierungen und ausblendbare Details.
-- **AI-Profilzeile** – Jedes Laufprotokoll beginnt mit einem `AI profile: <name> (<model>)`-Eintrag, sodass das Protokoll aufzeichnet, welches Profil und welches Modell den Lauf erzeugt hat.
+- **KI-Profilzeile** – Jedes Laufprotokoll beginnt mit einem `AI profile: <name> (<model>)`-Eintrag, sodass das Protokoll aufzeichnet, welches Profil und welches Modell den Lauf erzeugt hat.
 - **Modellbegründung** – Durch Erweitern einer 💭-Denkzeile wird die vollständige Begründung des Modells angezeigt, wenn der Anbieter sie verfügbar macht (Anthropisches erweitertes Denken, wenn der Begründungsaufwand des Profils aktiviert ist, OpenAI-kompatibles `reasoning_content`, LM Studio-Begründungsausgabe oder `<think>`-Blöcke von lokalen CLI-Modellen). Modelle ohne offengelegte Begründung behalten die kurze Entscheidungszusammenfassung bei.
 - **Statusleiste** – Wenn das Bedienfeld minimiert ist, wird eine kompakte Statusleiste mit der Ausführungsaufforderung, dem Status, den Schaltflächen „Pause/Abbrechen“ und der Schaltfläche „Erweitern“ angezeigt. Während der Agent arbeitet, wird ein Spinner angezeigt. Eine fettgedruckte ✋-Markierung signalisiert, wenn eine Benutzereingabe erforderlich ist.
 - **Reduziert bleiben** – Verwenden Sie **Reduziert halten**, um das Bedienfeld minimiert zu starten und minimiert zu halten, wenn neue Aktivitäten oder Eingabeaufforderungen eintreffen. Sie können weiterhin manuell erweitern.
@@ -120,7 +120,7 @@ Verwenden Sie **Ansicht → AI Agent Panel**, um auszuwählen, wo das Aktivität
 
 ### Statusanzeigen
 
-Im Dashboard wird ein AI-Agent-Statussymbol für jedes Terminal angezeigt und dem Titel der Terminal-Registerkarte vorangestellt, über die Ausführungen dieses Terminals hinweg aggregiert und etwa einmal pro Sekunde aktualisiert:
+Im Dashboard wird ein KI-Agent-Statussymbol für jedes Terminal angezeigt und dem Titel der Terminal-Registerkarte vorangestellt, über die Ausführungen dieses Terminals hinweg aggregiert und etwa einmal pro Sekunde aktualisiert:
 
 - **✋** – Warten auf Benutzereingaben (Genehmigung oder Sudo-Passwort)
 - **⚡** – Funktioniert (Agent plant aktiv Befehle oder führt sie aus)
@@ -200,19 +200,19 @@ KorTTY erzwingt mehrere Leitplanken rund um die Agentenausführung:
 
 Nachdem eine fertige Agentenausführung erfolgreich abgeschlossen wurde, konvertiert eine **Workflow**-Schaltfläche die Ausführung in ein einzelnes eigenständiges, reproduzierbares Skript in einer ausgewählten Sprache (Bash, Python, Perl, Ruby, PowerShell, Ansible Playbook, **Windows-CMD**-Batch oder **AppleScript**) mit robuster Fehlerbehandlung, detaillierten Kommentaren und einem deterministischen Metadaten-Header (Skriptname, Ersteller, Datum/Uhrzeit).
 
-Für flottenweite Aufgaben verfügt die Registerkarte [AI Swarm](ai-swarm.md#generieren-sie-einen-multi-server-workflow) über ein eigenes Dialogfeld **Multiserver-Workflow generieren**, das zusätzlich Hostlisten und Multiserver-Härtungsoptionen verwaltet, das generierte Skript mit Syntaxhervorhebung und einem Live-Zähler für verstrichene Inhalte anzeigt, einen Verlauf zusätzlicher Anweisungen führt und es in Snippets mit einem vorab ausgefüllten Namen speichert.
+Für umfassende Aufgaben im gesamten Fleet wird [KI-Swarm](ai-swarm.md#generieren-sie-einen-multi-server-workflow) Der Tab verfügt über ein eigenes Dialogfeld **Multi-Server-Workflow erzeugen**, das zusätzliche Funktionen für Host-Listen und Optionen zur Multi-Server-Härtung bereitstellt, den generierten Skriptcode mit Syntaxhervorhebung und einem Live-Zähler für die verstrichene Zeit anzeigt, eine Historie zusätzlicher Anweisungen speichert und die Datei in Snippets mit vorab ausgefülltem Namen speichert.
 
 ### Funktionen zur Skriptgenerierung
 
-- **Passende KI-Fähigkeiten automatisch laden** – Fähigkeiten wie Sprachqualitätsrichtlinien für die Zielsprache werden automatisch einbezogen.
+- **Passende KI-Skills automatisch laden** – Skills wie Sprachqualitätsrichtlinien für die Zielsprache werden automatisch einbezogen.
 - **Härtungsoptionen** – Eine zusammenklappbare Gruppe von Techniken in Produktionsqualität (strenger Modus, Fehlerfallen, aussagekräftige Exit-Codes, Protokollierung, Idempotenz, Probelauf, `--help` und mehr), die in das generierte Skript integriert werden. Alle sind standardmäßig aktiviert. Deaktivieren Sie alle, die Sie nicht möchten. Unter [Härtungsoptionen](../reference/hardening-options.md) erfahren Sie, was die einzelnen Optionen bedeuten.
 - **Eingabe-Härtung** – Ein zweites zusammenklappbares Panel, das die KI auffordert, einen Schutzblock für die Eingabevalidierung in das generierte Skript einzubauen: Parameter-Zulassungslisten und Längenbeschränkungen, Dateiformatprüfungen, eine maximale Eingabedateigröße, die durch die einstellbare Skriptvariable `MAX_FILE_SIZE` gesteuert wird, Sicherheitswarnungen im Protokoll des Skripts und eine `FORCE=1`/`--force`-Überschreibung. Der Wächter prüft Dateimetadaten, bevor er Inhalte liest, und `0` bedeutet unbegrenzt. Streng opt-in – das Master-Kontrollkästchen ist zu Beginn deaktiviert. Siehe [Eingabe-Härtung](../reference/input-hardening.md).
 - **Acht Zielsprachen** – Bash, Python, Perl, Ruby, PowerShell, Ansible, plus **Windows-CMD** (`.cmd`-Batch – `@echo off`, `REM`-Header, `errorlevel`-Prüfungen) und **AppleScript** (`.applescript` – `osascript`-Shebang, `--`-Kommentare, `try`/`on error`).
 - **Mehrere Sprachvarianten** – Generieren Sie mehrere Sprachvarianten und Vorschläge als Inline-Registerkarten im Workflow-Dialogfeld.
 - **Anpassbare Schriftgröße** – Jeder Editor für generierte Skripte verfügt über **A−** / **A+**-Tasten und unterstützt ++ctrl++ + Mausrad (Cmd unter macOS); Die gewählte Größe wird sitzungsübergreifend gespeichert.
 - **Header-Vorlagen** – Verwenden Sie wiederverwendbare Header aus der festen, nicht löschbaren Snippet-Kategorie **Script-Header**.
-- **Mermaid-Diagramm** – Fügen Sie optional ein Mermaid-Flussdiagramm hinzu, das die Skriptlogik darstellt. Seine dedizierte Nur-Quellen-Anfrage lässt KI-Fähigkeiten und Wissensspeicher-Auszüge weg und setzt den anforderungsbezogenen **Reasoning**-Wert nur dann auf `none`, wenn der Anbieter diesen Wert angekündigt hat; Das gespeicherte Profil bleibt unverändert. Während das Diagramm erstellt wird, wird ein funktionierender Spinner angezeigt.
-- **Snippet Manager** – Speichern Sie das generierte Skript im Snippet Manager mit einem kurzen, automatisch generierten Namen und der richtigen Dateierweiterung. Skripte werden nach vollständigem Namen einschließlich Erweiterung dedupliziert.
+- **Mermaid-Diagramm** – Fügen Sie optional ein Mermaid-Flussdiagramm hinzu, das die Skriptlogik darstellt. Seine dedizierte Nur-Quellen-Anfrage lässt KI-Skills und Wissensspeicher-Auszüge weg und setzt den anforderungsbezogenen **Reasoning**-Wert nur dann auf `none`, wenn der Anbieter diesen Wert angekündigt hat; Das gespeicherte Profil bleibt unverändert. Während das Diagramm erstellt wird, wird ein funktionierender Spinner angezeigt.
+- **Snippet-Manager** – Speichern Sie das generierte Skript im Snippet-Manager mit einem kurzen, automatisch generierten Namen und der richtigen Dateierweiterung. Skripte werden nach vollständigem Namen einschließlich Erweiterung dedupliziert.
 - **Workflow-Tagging** – Das Snippet ist zur einfachen Filterung mit dem Tag `workflow` versehen.
 - **OS-Erkennung** – Die Spalte **System** (OS) wird automatisch vom untersuchten Betriebssystem des Agenten festgelegt (jede Linux-Distribution → Linux).
 - **Kein Internetzugang** – Der Internetzugang wird während der Generierung erzwungen, unabhängig vom Internetmodus des Profils ausgeschaltet zu werden.
@@ -305,11 +305,11 @@ Konfigurieren Sie den Terminal AI Agent unter **Einstellungen > AI**:
 | **Ausführungsziel** | Wählen Sie, ob der Agent offen in speziellen Registerkarten oder inline am Terminal-Split ausgeführt wird |
 | **Setup-Dialog pro Lauf** | Zeigt vor jedem Lauf einen Setup-Dialog an (deaktiviert verwendet das Standardprofil) |
 | **Größe des Eingabeverlaufs** | Anzahl der zuletzt zu merkenden Eingabeaufforderungen (5–100, Standard 20) |
-| **Standardprofil** | Das AI-Profil, das verwendet wird, wenn der Setup-Dialog deaktiviert ist |
+| **Standardprofil** | Das KI-Profil, das verwendet wird, wenn der Setup-Dialog deaktiviert ist |
 | **Platzierung des Aktivitätsbereichs** | Wählen Sie **Unten** oder **Links/Rechts andocken** |
 | **Präferenz reduziert beibehalten** | Starten Sie das Panel minimiert und lassen Sie es während der Ausführung minimiert. |
 
-## AI-Fähigkeiten
+## KI-Skills
 
 AI Skills sind wiederverwendbare lokale Anweisungsblöcke, die der Agent verwenden kann. Für Agentenausführungen können Sie Fertigkeiten global aktivieren oder deaktivieren oder KorTTY automatisch nur relevante Fertigkeiten der Aufgabe zuordnen lassen. Die Fähigkeiten können Folgendes umfassen:
 
@@ -328,7 +328,7 @@ Der Agent kann optional Web-Tools verwenden, wenn für die Aufgabe eindeutig akt
 - **KorTTY Tavily Tool** – Direkte Websuche über Tavily API.
 - **LM Studio MCP-Modi** – Integrieren Sie Tavily, Bright Data, Brave Search, SearXNG oder LM Studio Toolpack über die native MCP-Unterstützung von LM Studio.
 
-Konfigurieren Sie den Internetzugang pro AI-Profil unter **Einstellungen > AI > Internetzugang**.
+Konfigurieren Sie den Internetzugang pro KI-Profil unter **Einstellungen > AI > Internetzugang**.
 
 !!! warning
     **Web-Tools werden von lokalen Datei-/Skriptüberprüfungsaufgaben ausgeschlossen**, es sei denn, in Ihrer Eingabeaufforderung werden eindeutig aktuelle oder externe Informationen abgefragt. Für die Untersuchung einer lokalen Datei sollten Shell-Befehle wie `sed`, `cat`, `find` oder sprachspezifische Tools und keine Websuche verwendet werden.

@@ -15,7 +15,7 @@ Blenden Sie die Leiste über die Menüleiste ein:
 | **Ansicht → Dateibrowser → Links anzeigen** | ++shift+cmd+b++ / ++shift+ctrl+b++ |
 | **Ansicht → Dateibrowser → Rechts anzeigen** | ++shift+cmd+r++ / ++shift+ctrl+r++ |
 
-Selecting the item again hides the panel. A draggable divider resizes it (160–420 px). The panel's **position, width, "show hidden" state and last directory are remembered across restarts**.
+Das Wiederauswählen des Elements verdeckt das Panel. Ein verschiebbarer Trennstrich passt seine Größe (160–420 px) an. Die Position, die Breite, der „versteckte“ Status sowie der letzte Verzeichnispfad des Panels werden bei Neustarts gespeichert.
 
 ## Navigation
 

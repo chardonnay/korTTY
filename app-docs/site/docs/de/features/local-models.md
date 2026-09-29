@@ -38,7 +38,7 @@ Der integrierte Bootstrap-Katalog verwendet konservative RAM-Stufen. Die Tabelle
 | Erkannter Speicher | Textempfehlung | Codierungsempfehlung | RAG-Einbettungen |
 | --- | --- | --- | --- |
 | Weniger als 16 GiB | Qwen3 1.7B, `Q4_K_M` | Qwen3 1.7B, `Q4_K_M` | Qwen3-Embedding 0.6B, `Q8_0` |
-| 16–23 GiB | Qwen3 4B, `Q4_K_M` | Qwen2.5-Coder 7B Instruct, `Q4_K_M` | Qwen3-Embedding 0.6B, `Q8_0` |
+| 16–23 GiB | Qwen3 4B, `Q4_K_M` | Qwen2.5-Coder 7B Instruct `Q4_K_M` | Qwen3-Embedding 0.6B, `Q8_0` |
 | 24 GiB oder mehr | Qwen3 8B, `Q4_K_M` | Qwen2.5-Coder 7B Instruct, `Q4_K_M` | Qwen3-Embedding 0.6B, `Q8_0` |
 
 Für den RAG-Embeddings-Slot bleibt Qwen3-Embedding 0.6B `Q8_0` der vorab ausgewählte Standard auf jeder Ebene; Der Selektor bietet außerdem Qwen3-Embedding 4B `Q4_K_M` (ab 16 GiB), Qwen3-Embedding 8B `Q4_K_M` (ab 24 GiB) und – ohne Mindestspeicherbedarf – den mehrsprachigen BGE-M3 `Q8_0` und den sehr kleinen, schnellen Nomic Embed Text v1.5 `Q8_0`.
@@ -114,7 +114,7 @@ Das Backend pro Modell beschreibt, wie dieses Modell ausgeführt werden soll. In
 
 Verwenden Sie die Mehrfachauswahl und **Auswahl starten**, um mehrere verschiedene Modelle gleichzeitig zu laden. Profile, die auf dasselbe installierte Modell und dieselbe Laufzeitkonfiguration verweisen, teilen sich einen authentifizierten Sidecar. Die Tabelle meldet `STOPPED`, `STARTING`, `LOADING`, `READY`, `BUSY`, `SLEEPING` oder `FAILED`.
 
-Sie können ein installiertes Modell mit **Als Standard festlegen** in der Aktionsleiste oder im Rechtsklickmenü der Tabelle als **Standardmodell** markieren. **Standard löschen** im selben Menü entfernt die Markierung. Das Standardmodell wird mit einem führenden ★ in der Spalte „Name“ angezeigt und ist beim Öffnen des Managers vorab ausgewählt, sodass die Aktionen „Starten/Konfigurieren/Stoppen“ standardmäßig darauf abzielen. Dies ist nur eine praktische Markierung für den Manager – es ändert nichts daran, welches KI-Profil der Agent, Chat oder andere KI-Funktionen verwendet; diese folgen weiterhin der AI-Profilkonfiguration.
+Sie können ein installiertes Modell mit **Als Standard festlegen** in der Aktionsleiste oder im Rechtsklickmenü der Tabelle als **Standardmodell** markieren. **Standard löschen** im selben Menü entfernt die Markierung. Das Standardmodell wird mit einem führenden ★ in der Spalte „Name“ angezeigt und ist beim Öffnen des Managers vorab ausgewählt, sodass die Aktionen „Starten/Konfigurieren/Stoppen“ standardmäßig darauf abzielen. Dies ist nur eine praktische Markierung für den Manager – es ändert nichts daran, welches KI-Profil der Agent, Chat oder andere KI-Funktionen verwendet; diese folgen weiterhin der KI-Profilkonfiguration.
 
 Wenn ein ausgewähltes Metal- oder Vulkan-Modell ein anderes Paket als die aktive Laufzeit erfordert, bietet korTTY an, das passende signierte Paket herunterzuladen, zu überprüfen und zu aktivieren, ohne aktuelle Anfragen zu unterbrechen. Modelle, die inkompatible GPU-Laufzeiten erfordern, müssen separat mit dem passenden bevorzugten Backend gestartet werden.
 
@@ -135,7 +135,7 @@ Wählen Sie unter **KI-Manager > Lokale KI** separate Profile für **Text und Ü
 
 Die Profilauflösung folgt der spezifischsten verfügbaren Auswahl: einem explizit ausgewählten Profil, dann ggf. einem sicherheitsspezifischen Profil oder Verbindungsprofil, dann der Text-/Codierungsrolle und dann dem Standardprofil. Der gleiche Rollenmechanismus funktioniert mit eingebetteten, Remote-HTTP- oder lokalen CLI-Profilen; Eine Rolle erzwingt kein lokales Modell.
 
-Für die dynamische UI-Übersetzung kann **Lokales AI-Textprofil** unter **Konfiguration > Globale Einstellungen > Übersetzung** verwendet werden. Dieser Pfad sendet die Übersetzungsanforderung an das zugewiesene eingebettete Textprofil und erfordert keinen Übersetzungsanbieter-API-Schlüssel.
+Für die dynamische UI-Übersetzung kann **Lokales KI-Textprofil** unter **Konfiguration > Globale Einstellungen > Übersetzung** verwendet werden. Dieser Pfad sendet die Übersetzungsanforderung an das zugewiesene eingebettete Textprofil und erfordert keinen Übersetzungsanbieter-API-Schlüssel.
 
 Die **RAG-Einbettungsmodell-ID** identifiziert das installierte lokale Modell, das zur Vektorisierung von Wissensspeicherdokumenten und -suchen verwendet wird. Verwenden Sie ein dediziertes Einbettungs-GGUF anstelle eines Chat-Modells, es sei denn, dieses Modell unterstützt explizit die Einbettungsroute und die konfigurierten Vektordimensionen.
 
@@ -143,7 +143,7 @@ Die **RAG-Einbettungsmodell-ID** identifiziert das installierte lokale Modell, d
 
 Jedes KI-Profil verfügt über eine Voreinstellung für **Prompte Optimierung**. **Auto (Modellerkennung)** verwendet die Modellnamenzuordnung des verifizierten Katalogs, dessen Bootstrap Qwen-, DeepSeek-, Mistral/Mixtral-, Gemma-, Phi-, GPT-OSS- und Llama-Namen erkennt; **Allgemein** fügt keine familienspezifische Anleitung hinzu. Sie können auch jede Familienvoreinstellung erzwingen, wenn ein Modellname ungewöhnlich ist.
 
-Voreinstellungen fügen kurze Kompatibilitätsanweisungen nach dem Aktionsvertrag und den KI-Fähigkeiten von korTTY hinzu und behalten gleichzeitig die bestehenden strengen JSON-, Code-Payload- und Sicherheitsanforderungen bei. Die GGUF-Chat-Vorlagen selbst bleiben in der Verantwortung von llama.cpp. Die Voreinstellung fordert unterstützte Modelle auf, nur das angeforderte Endformat zurückzugeben und Reasoning-Spuren aus JSON-/Code-Antworten fernzuhalten.
+Voreinstellungen fügen kurze Kompatibilitätsanweisungen nach dem Aktionsvertrag und den KI-Skills von korTTY hinzu und behalten gleichzeitig die bestehenden strengen JSON-, Code-Payload- und Sicherheitsanforderungen bei. Die GGUF-Chat-Vorlagen selbst bleiben in der Verantwortung von llama.cpp. Die Voreinstellung fordert unterstützte Modelle auf, nur das angeforderte Endformat zurückzugeben und Reasoning-Spuren aus JSON-/Code-Antworten fernzuhalten.
 
 ## Runtime-Isolation und Updates
 

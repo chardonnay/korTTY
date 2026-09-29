@@ -14,22 +14,22 @@ Teilen Sie SSH-Verbindungen mit Ihrem Team, indem Sie sie aus einem Git-Reposito
 Teamwork ermöglicht es Teams, eine zentrale Bibliothek von Verbindungskonfigurationen zu verwalten:
 
 - **Git-Repositorys** – Klonen Sie ein Git-Repository, das eine `kortty-teamwork-connections.xml`-Datei (oder eine ältere Datei `connections.xml`) enthält, und bleiben Sie mit diesem synchron.
-- **Shared files** — Load connections from a local or network path (read-only or read-write).
-- **Automatic sync** — Background syncing at a configurable interval checks for updates.
-- **Credential security** — Shared connections do NOT carry inline passwords; only credential IDs and SSH key references.
-- **Local overrides** — Your local credentials and SSH keys are merged with shared connection definitions.
-- **Read-only mode** — Mark sources as read-only to prevent accidental writes back.
+- **Gemeinsame Dateien** — Verbindungen aus einem lokalen oder Netzwerkpfad laden (nur zum Lesen oder zum Lesen-und-Schreiben).
+- **Automatischer Synchronisierung** — Hintergrund-Synchronisierung in einem konfigurierbaren Intervall überprüft nach Aktualisierungen.
+- **Sicherheit der Anmeldeinformationen** — Gemeinsame Verbindungen enthalten keine Passwörter direkt; lediglich Anmeldeinformationen-IDs und SSH-Schlüssel-Referenzen.
+- **Local-Überwachungen** — Ihre lokalen Anmeldeinformationen und SSH-Schlüssel werden mit den gemeinsamen Verbindungsbestimmungen kombiniert.
+- **Schreibgeschützter Modus** — Quellen als schreibgeschützt markieren, um versehentliches Zurückschreiben zu verhindern.
 
 ## Einrichten von Teamwork-Quellen
 
-Open **Teamwork → Teamwork Settings…** (or **Configuration → Global Settings… → Teamwork**) to configure sources.
+Öffnen Sie **Teamarbeit → Teamarbeit-Einstellungen…** (oder **Konfiguration → Globale Einstellungen… → Teamarbeit**) zur Konfiguration der Quellen.
 
 ### Fügen Sie eine Quelle hinzu
 
 1. Klicken Sie auf **Hinzufügen**, um eine neue Quelle zu erstellen.
 2. Wählen Sie die Quelle **Typ**:
-   - **Git** — Clone from an HTTPS, SSH, or git:// URL.
-   - **Shared File** — Read from a local or network path (e.g., `file:///mnt/share/connections.xml` or `//host/share/connections.xml`).
+   - **Git** — Aus einem HTTPS-, SSH- oder git://-URL-Link klonen.
+   - **Gemeinsames Datei** — Lesen aus einem lokalen oder Netzwerkpfad (z. B. `file:///mnt/share/connections.xml` oder `//host/share/connections.xml`).
 3. Geben Sie den **Standort** ein:
    - Für Git: die Klon-URL.
    - Für freigegebene Dateien: ein lokaler/Netzwerk-Dateipfad (kann ein file://-URI oder ein UNC-Pfad sein).
@@ -137,7 +137,7 @@ So teilen Sie Verbindungen über Git:
 4. Teilen Sie die Repository-URL (HTTPS oder SSH) mit den Teammitgliedern.
 5. Teammitglieder fügen die URL unter **Teamwork → Teamwork-Einstellungen… → Hinzufügen** hinzu.
 
-### SSH vs. HTTPS
+### SSH im Vergleich zu HTTPS
 
 - **HTTPS** – Funktioniert ohne SSH-Schlüsseleinrichtung; Möglicherweise ist ein GitHub Personal Access Token oder ein Benutzername/Passwort erforderlich (bewahren Sie das Token sicher auf).
 - **SSH** – Erfordert `git` und einen lokalen SSH-Schlüssel in `~/.ssh/id_rsa` (oder konfiguriert in `ssh-add`).

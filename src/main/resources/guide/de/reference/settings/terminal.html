@@ -312,7 +312,7 @@
         <a href="ai-skills.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            KI-Fähigkeiten
+            KI-Skills
         </a>
     </li>
                     
@@ -908,16 +908,16 @@
 </table>
 <h2 id="hinweise">Hinweise<a class="headerlink" href="#hinweise" title="Permanent link">&para;</a></h2>
 <div class="admonition note">
-<p class="admonition-title">Scrollback</p>
+<p class="admonition-title">Zurückscrollen</p>
 <p>Steuert, wie viele Ausgabezeilen jeder Terminalbereich in seinem Scrollback-Puffer behält. Der Wert wird beim Erstellen eines Terminals gelesen, daher gilt eine Änderung für neu geöffnete Registerkarten und geteilte Bereiche – bereits geöffnete Terminals behalten ihre aktuelle Puffergröße. Größere Werte verbrauchen mehr Speicher pro Bereich.</p>
 </div>
 <div class="admonition note">
-<p class="admonition-title">SSH Keep-Alive</p>
+<p class="admonition-title">SSH-Keep-Alive</p>
 <p>Wenn korTTY aktiviert ist, sendet es regelmäßig Keep-Alive-Pakete, um zu verhindern, dass SSH-Sitzungen während Leerlaufzeiten ablaufen. Die Intervalleinstellung steuert, wie oft (in Sekunden) diese Pakete gesendet werden. Der Spinnerbereich beträgt 5–600 Sekunden; Das Intervall ist deaktiviert, wenn SSH Keep-Alive ausgeschaltet ist.</p>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Hostschlüsselüberprüfung für alle Verbindungen deaktivieren</p>
-<p>Dies ist die globale Hostschlüsseleinstellung mit der niedrigsten Priorität: Sie lockert die Überprüfung auf „Accept-New“ für jede Verbindung, die nicht ihre eigene oder die Überschreibung ihrer Gruppe festlegt. Accept-new blockiert weiterhin einen geänderten Schlüssel auf einem bereits gepinnten Host, und der eigene Schlüssel eines Jump-Servers wird immer strikt überprüft – aber durch Deaktivieren der Erstverwendungsüberprüfung wird der Schutz vor einem Man-in-the-Middle bei der allerersten Verbindung aufgehoben. Standardmäßig deaktiviert. Im Verbindungsmanager werden verbindungs- und gruppenspezifische Außerkraftsetzungen festgelegt. siehe <a href="../../features/security.html#lockere-uberprufung-des-hostschlussels">Sicherheit → Lockere Host-Schlüssel-Überprüfung</a>.</p>
+<p>Dies ist die globale Einstellung mit der niedrigsten Priorität für den Host-Schlüssel: Sie entspannt die Prüfung und akzeptiert für jede Verbindung, die keine eigene oder die eigene Gruppeneinstellung überschreibt. Accept-new blockiert weiterhin geänderte Schlüssel bei einem Host, der bereits festgelegt wurde, und der Schlüssel eines Jump-Server ist stets streng überprüft — jedoch entfernt die Deaktivierung der ersten-Nutzung-Prüfung die Sicherheit vor einem Man-in-the-Middle bei der ersten Verbindung. Standardmäßig deaktiviert. Per-Verbindung- und per-Gruppen-Überwachungen werden im Verbindungsverwaltungseinstellungen konfiguriert; siehe <a href="../../features/security.html#lockere-uberprufung-des-hostschlussels">Sicherheit → Lockerung der Host-Schlüssel-Prüfung</a>.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Drag-and-Drop-Datei kopieren</p>
@@ -934,7 +934,7 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Verlorene Verbindungen automatisch wiederherstellen</p>
-<p>Wenn diese Option aktiviert ist und eine <strong>hergestellte</strong> SSH-Verbindung verloren geht (Netzwerkausfall, Server weg), stellt die Registerkarte die Verbindung mit zunehmenden Verzögerungen selbstständig wieder her – 3, 5, 10, 20, 30, dann alle 60 Sekunden – und die rote Statusleiste zählt bis zum nächsten Versuch herunter. Ein Doppelklick auf die Leiste stellt die Verbindung trotzdem sofort wieder her und eine erfolgreiche erneute Verbindung oder das Schließen des Tabs stoppt die automatischen Versuche. Fehlgeschlagene Anmeldungen und andere dauerhafte Fehler (Authentifizierung, Hostschlüssel, Konfiguration) werden nie automatisch wiederholt, und eine Verbindung, die nie hergestellt wurde, wird durch diese Einstellung auch nicht erneut versucht – das ist es, was <em>Verbindungswiederholungen aktivieren</em> abdeckt. Siehe <a href="../../features/terminal.html#verbindungsverlust-und-automatische-wiederherstellung-der-verbindung">Terminalsitzungen → Verbindungsverlust</a>.</p>
+<p>Wenn aktiviert und eine <strong>bestehende</strong> SSH-Verbindung verloren geht (Netzwerkabbruch, Server ist weg), reconnectt der Tab automatisch mit zunehmenden Verzögerungen — 3, 5, 10, 20, 30, dann alle 60 Sekunden — und die rote Statusleiste zählt ab zur nächsten Versuch. Ein Doppelklick auf die Leiste führt zu einem sofortigen Wiederherstellen, und ein erfolgreicher Wiederherstellung oder das Schließen des Tabs beendet die automatischen Versuche. Fehlerhafte Anmeldungen und andere dauerhafte Fehlschläge (Authentifizierung, Host-Schlüssel, Konfiguration) werden nie automatisch erneut versucht, und eine Verbindung, die nie erfolgreich hergestellt wurde, wird ebenfalls nicht erneut versucht — das ist der Inhalt von <em>Verbindungswiederholungen aktivieren</em>. Siehe <a href="../../features/terminal.html#verbindungsverlust-und-automatische-wiederherstellung-der-verbindung">Terminal-Sitzungen → Verbindungsverlust</a>.</p>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Einem lokalen Programm erlauben, dieses korTTY zu lesen und zu steuern</p>
@@ -942,7 +942,7 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Coding-Agents erkennen</p>
-<p>Wenn diese Option aktiviert ist, beobachtet korTTY jeden lokalen Shell-Bereich auf ein laufendes Claude Code, Codex oder Gemini CLI und verfolgt, ob es arbeitet, auf eine Frage wartet, fertig oder untätig ist. Der Bildschirm wird lokal analysiert und nichts verlässt den Rechner; die Änderung wirkt sofort auf offene Registerkarten. Die beiden Schalter darunter steuern die Desktop-Benachrichtigung für einen Agent, der eine Entscheidung braucht oder fertig wird, während Sie seinen Bereich nicht ansehen, sowie die Zahl der wartenden Agents am App-Symbol (oder im Fenstertitel, wo kein Symbol-Badge existiert); beide lesen die Einstellung live, sodass eine Änderung sofort wirkt. Siehe <a href="../../features/coding-agents.html#app-symbol-badge-und-benachrichtigungen">Coding-Agents</a>.</p>
+<p>Wenn aktiviert, beobachtet korTTY jede lokale Shell-Abteilung auf laufende Claude Code, Codex oder Gemini CLI-Instanzen und überwacht, ob sie arbeitet, auf eine Frage blockiert ist, abgeschlossen oder inaktiv ist. Die Anzeige wird lokal analysiert und nichts verlässt den Computer; die Änderung wird sofort auf offene Tabs übertragen. Die beiden Schalter unten steuern die Desktop-Benachrichtigung für einen Agenten, der eine Entscheidung benötigt oder abgeschlossen wird, während Sie nicht auf dessen Abteilung sehen, sowie die Anzahl der wartenden Agenten auf der App-Icon (oder im Fenstertitel, wenn kein Icon-Abzeichen existiert); beide lesen den Einstellung live, sodass eine Änderung sofort wirkt. Siehe <a href="../../features/coding-agents.html#app-symbol-badge-und-benachrichtigungen">Coding-Agents</a>.</p>
 </div></p>
     </article>
 </section>

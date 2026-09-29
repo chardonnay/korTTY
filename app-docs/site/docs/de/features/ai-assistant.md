@@ -2,11 +2,11 @@
 title: KI-Assistent
 ---
 
-# AI-Assistent
+# KI-Assistent
 
 KorTTY kann ausgewählten Terminaltext mit einem OpenAI-kompatiblen KI-Endpunkt, einem integrierten lokalen llama.cpp-Modell oder einer konfigurierten lokalen CLI analysieren und die Antwort in einer temporären KI-Ergebnisregisterkarte öffnen. Sie können auch Workflows im Agentenstil starten, um SSH-Aufgaben zu automatisieren oder Pläne vor der Implementierung überprüfen zu lassen.
 
-Wenn **Konfiguration > System-Ruhezustand verhindern** unter macOS oder Windows aktiviert ist, hält korTTY den Computer wach, während eine AI-API-, lokale Modell-, Web-Tool- oder lokale AI-CLI-Anfrage auf ein Ergebnis wartet. Die Behauptung wird freigegeben, nachdem die letzte gleichzeitige AI-Anfrage abgeschlossen ist. Wenn kein Terminal angeschlossen ist und kein zukünftiger oder laufender Scheduler-Job vorhanden ist, kann der Computer normal schlafen. Der Display-Ruhezustand bleibt verfügbar.
+Wenn **Konfiguration > System-Ruhezustand verhindern** unter macOS oder Windows aktiviert ist, hält korTTY den Computer wach, während eine KI-API-, lokale Modell-, Web-Tool- oder lokale KI-CLI-Anfrage auf ein Ergebnis wartet. Die Behauptung wird freigegeben, nachdem die letzte gleichzeitige KI-Anfrage abgeschlossen ist. Wenn kein Terminal angeschlossen ist und kein zukünftiger oder laufender Scheduler-Job vorhanden ist, kann der Computer normal schlafen. Der Display-Ruhezustand bleibt verfügbar.
 
 ![AI request/integration flow](../assets/diagrams/ai-api-integration.svg)
 
@@ -17,17 +17,17 @@ Wenn **Konfiguration > System-Ruhezustand verhindern** unter macOS oder Windows 
 
 1. Öffnen Sie **Bearbeiten > Globale Einstellungen**.
 2. Gehe zu **AI**.
-3. Erstellen Sie ein oder mehrere AI-Profile unter **Einstellungen > AI** oder **KI > KI-Manager > Profile**. Wählen Sie **HTTP API**, **Local CLI** oder **Integrated llama.cpp** als Verbindungsmodus.
+3. Erstellen Sie ein oder mehrere KI-Profile unter **Einstellungen > AI** oder **KI > KI-Manager > Profile**. Wählen Sie **HTTP API**, **Local CLI** oder **Integrated llama.cpp** als Verbindungsmodus.
 4. Geben Sie für HTTP-Profile eine API-URL, ein Modell und optional einen verschlüsselten API-Schlüssel ein. Wählen Sie für ein eingebettetes Profil ein installiertes GGUF-Modell aus. korTTY stellt den privaten Endpunkt und den temporären Schlüssel bereit. Verwenden Sie zuerst **KI-Manager > Lokale Modelle**, wenn kein GGUF installiert ist.
 5. Konfigurieren Sie optional **Prompt-Optimierung**, **Max. Zeichen**, **Tokenizer**, **Token-Limit**, Warnschwellenwerte, Token-Reset-Zyklus, unterstützten **Begründungsaufwand** und **Internetzugriff** pro Profil. korTTY stellt Reasoning-Optionen basierend auf dem konfigurierten Endpunkt und Modell bereit; Die genauen nativen Funktionsmetadaten von LM Studio haben Vorrang vor Kompatibilitätsprüfungen, sodass ein stillschweigend konvertierter Aufwand nicht als unterstützt angezeigt wird. Profile ohne unterstützten expliziten Reasoning-Modus behalten das Standardverhalten des Anbieters bei.
-6. Legen Sie optional ein **Zeitlimit für KI-Anfragen** in Minuten fest. korTTY führt bei KI-Anfragen nicht automatisch zu einer Zeitüberschreitung, daher wird eine lange Aufgabe wie die **Vollständige Codeanalyse** des Snippet-Editors ausgeführt, bis das Modell antwortet. Der Wert auf der Seite **Profile** gilt für jedes Profil; **Zeitlimit für dieses Profil** überschreibt es für ein einzelnes Profil, und 0 bedeutet, dass das Profil nie abläuft. Siehe [AI-Einstellungen](../reference/settings/ai.md).
-7. Klicken Sie auf **AI-Verbindung testen**.
+6. Legen Sie optional ein **Zeitlimit für KI-Anfragen** in Minuten fest. korTTY führt bei KI-Anfragen nicht automatisch zu einer Zeitüberschreitung, daher wird eine lange Aufgabe wie die **Vollständige Codeanalyse** des Snippet-Editors ausgeführt, bis das Modell antwortet. Der Wert auf der Seite **Profile** gilt für jedes Profil; **Zeitlimit für dieses Profil** überschreibt es für ein einzelnes Profil, und 0 bedeutet, dass das Profil nie abläuft. Siehe [KI-Einstellungen](../reference/settings/ai.md).
+7. Klicken Sie auf **KI-Verbindung testen**.
 8. Wählen Sie optional ein **Standardprofil** und weisen Sie dann unter **KI-Manager > Lokale KI** separate Text-/Übersetzungs- und Codierungsrollen zu. Eine leere Rolle verwendet das Standardprofil.
 9. Konfigurieren Sie optional die Standardsprache für KI-generierten Text in Codekommentaren und Programmausgaben, aktivieren Sie das Feld für zusätzliche Anweisungen für Snippet-KI-Aktionen und legen Sie fest, wie viele alternative Lösungen der Snippet-Editor anfordern soll.
 10. Konfigurieren Sie optional die Größe des Terminal-Agent-Eingabeverlaufs (Standard 20, Bereich 5–100), den Agent-Befehlsnamen, die Befehlsübereinstimmung ohne Berücksichtigung der Groß-/Kleinschreibung, das Ausführungsziel, die Verwendung des Prompt-Hooks, den Einrichtungsdialog pro Ausführung, die Debug-/Laufzeitsichtbarkeit und die Aktivitätsfenstereinstellungen für **AI Agent** und **AI Planning**.
 11. Deaktivieren Sie optional den Bestätigungsdialog für **Zusammenfassen** und **Problem lösen**, wenn Sie einen schnelleren Arbeitsablauf wünschen. **Fragen** öffnet immer den Eingabeaufforderungsdialog.
 
-## AI-Profil-Setup-Assistent
+## KI-Profil-Setup-Assistent
 
 Ein geführter Assistent erstellt KI-Profile mit Unterstützung sowohl für lokale als auch für cloudbasierte Sprachmodelle.
 
@@ -62,7 +62,7 @@ Die Modellauswahl unter **Einstellungen > AI** und **Tools > KI-Manager > Profil
 
 korTTY klassifiziert seine eigenen Aktionstypen deterministisch, ohne ein Modell zu fragen. Übersetzungen, Zusammenfassungen, Problemlösungen, Fragen, Prosabeschreibungen und KI-ASCII-Artbilder verwenden die Textrolle. Codierung, Vervollständigung, Snippet-Überprüfung, Sicherheitskorrekturen, Diagramme und Workflow-Generierung verwenden die Coding-Rolle. Eine explizite Profilauswahl, ein Sicherheitsüberprüfungsprofil oder ein verbindungsspezifisches Profil hat Vorrang, gefolgt vom Rollenprofil und dann dem Standardprofil.
 
-Wenn passende Wissensspeicher der Text- oder Codierungsrolle der Anfrage zugewiesen werden, wird eine gewöhnliche KI-Anfrage in dieser Reihenfolge zusammengestellt: Aktions-/Ausgabevertrag von korTTY, ausgewählte KI-Fähigkeiten, begrenzter nicht vertrauenswürdiger RAG-Kontext mit `[R1]`-Quellmarkierungen, die aufgelöste Modellfamilienvoreinstellung und schließlich der Anbietertransport. Es werden nur abgerufene Auszüge hinzugefügt, nicht der komplette Wissensspeicher; Durch die Auswahl eines Cloud-Profils werden diese Auszüge an diesen Anbieter gesendet, sodass die Wissensspeicher-Rollen-/Profilzuweisung die explizite Offenlegungsentscheidung ist. Strenge JSON- und Code-Payload-Regeln bleiben maßgebend. Die dedizierte Nur-Quelle-Diagrammanforderung, die von Snippets und Workflows verwendet wird, ist eine kleine Ausnahme: Nach seinem festen Ausgabevertrag fügt korTTY immer eine kompakte, unveränderliche Aktionsfähigkeit für die angeforderte Diagrammfamilie (Flussdiagramm mit logischer Struktur, Sequenz, Zustand, Klasse oder ER) hinzu und lässt alle konfigurierbaren Bibliotheksfähigkeiten und Abrufkontexte aus. Für ein Profil mit einer festen Modellauswahl setzt korTTY den anforderungsbezogenen **Reasoning**-Wert nur dann automatisch auf `none`, wenn dieser Wert verfügbar ist, ohne das gespeicherte Profil zu ändern. Der Aktionsskill ist keiner der 39 ausgelieferten konfigurierbaren integrierten Skills: Benutzer können ihn nicht deaktivieren oder bearbeiten, und er fügt keine Übereinstimmungs-/Klassifizierungsanfrage hinzu. Die Phasen der vollständigen Codeanalyse, in denen ausgewählte Verbesserungen angewendet werden, und die anschließenden Sicherheitskorrekturen verwenden dieselbe feste Modellregel, da sie begrenzte, maschinell analysierte vollständige Skriptersetzungen zurückgeben. Die vorherige Analyse verwendet weiterhin den konfigurierten Reasoning-Wert des Profils. Ein Auto-Profil wird nicht von zuvor erkannten Funktionen überschrieben, da sich sein geladenes Modell ändern kann; ein explizit konfigurierter `none`-Wert gilt weiterhin. Autonomous Agent, Planning, Swarm und geplante Eingabeaufforderungen erfordern eine explizite RAG-Anmeldung. Einzelheiten zum Abruf und Datenschutz finden Sie unter [RAG Wissensspeicher](rag.md).
+Wenn passende Wissensspeicher der Text- oder Codierungsrolle der Anfrage zugewiesen werden, wird eine gewöhnliche KI-Anfrage in dieser Reihenfolge zusammengestellt: Aktions-/Ausgabevertrag von korTTY, ausgewählte KI-Skills, begrenzter nicht vertrauenswürdiger RAG-Kontext mit `[R1]`-Quellmarkierungen, die aufgelöste Modellfamilienvoreinstellung und schließlich der Anbietertransport. Es werden nur abgerufene Auszüge hinzugefügt, nicht der komplette Wissensspeicher; Durch die Auswahl eines Cloud-Profils werden diese Auszüge an diesen Anbieter gesendet, sodass die Wissensspeicher-Rollen-/Profilzuweisung die explizite Offenlegungsentscheidung ist. Strenge JSON- und Code-Payload-Regeln bleiben maßgebend. Die dedizierte Nur-Quelle-Diagrammanforderung, die von Snippets und Workflows verwendet wird, ist eine kleine Ausnahme: Nach seinem festen Ausgabevertrag fügt korTTY immer eine kompakte, unveränderliche Aktionsfähigkeit für die angeforderte Diagrammfamilie (Flussdiagramm mit logischer Struktur, Sequenz, Zustand, Klasse oder ER) hinzu und lässt alle konfigurierbaren Bibliotheksfähigkeiten und Abrufkontexte aus. Für ein Profil mit einer festen Modellauswahl setzt korTTY den anforderungsbezogenen **Reasoning**-Wert nur dann automatisch auf `none`, wenn dieser Wert verfügbar ist, ohne das gespeicherte Profil zu ändern. Der Aktionsskill ist keiner der 39 ausgelieferten konfigurierbaren integrierten Skills: Benutzer können ihn nicht deaktivieren oder bearbeiten, und er fügt keine Übereinstimmungs-/Klassifizierungsanfrage hinzu. Die Phasen der vollständigen Codeanalyse, in denen ausgewählte Verbesserungen angewendet werden, und die anschließenden Sicherheitskorrekturen verwenden dieselbe feste Modellregel, da sie begrenzte, maschinell analysierte vollständige Skriptersetzungen zurückgeben. Die vorherige Analyse verwendet weiterhin den konfigurierten Reasoning-Wert des Profils. Ein Auto-Profil wird nicht von zuvor erkannten Funktionen überschrieben, da sich sein geladenes Modell ändern kann; ein explizit konfigurierter `none`-Wert gilt weiterhin. Autonomous Agent, Planning, Swarm und geplante Eingabeaufforderungen erfordern eine explizite RAG-Anmeldung. Einzelheiten zum Abruf und Datenschutz finden Sie unter [RAG Wissensspeicher](rag.md).
 
 ### Lokale LM Studio-Modellauswahl
 
@@ -72,11 +72,11 @@ Der automatische Modus löst das effektive Modell unmittelbar vor Verbindungstes
 
 ## AI Internetzugang
 
-Der Internetzugang wird pro AI-Profil konfiguriert. Vorhandene und neue Profile sind standardmäßig **Deaktiviert**.
+Der Internetzugang wird pro KI-Profil konfiguriert. Vorhandene und neue Profile sind standardmäßig **Deaktiviert**.
 
 | Modus | Verhalten |
 |------|----------|
-| **Deaktiviert** | Es werden keine Web-Tools oder MCP-Integrationen mit AI-Anfragen gesendet. |
+| **Deaktiviert** | Es werden keine Web-Tools oder MCP-Integrationen mit KI-Anfragen gesendet. |
 | **KorTTY Tavily Tool** | korTTY fügt berechtigten OpenAI-kompatiblen `/v1/chat/completions`-Anfragen die Tools `web_search` und `web_extract` hinzu. Werkzeugaufrufe werden von korTTY ausgeführt: Suchen über `POST https://api.tavily.com/search` (5 Treffer mit kurzen Auszügen), Seitenabrufe über `POST https://api.tavily.com/extract`, das den Text einer Webseite oder eines Online-Dokuments liefert, begrenzt auf 12.000 Zeichen. |
 | **LM Studio Tavily MCP** | korTTY sendet eine LM Studio native `/api/v1/chat`-Anfrage mit einer Tavily MCP-Integration. |
 | **Bright Data Web MCP** | korTTY sendet eine native LM Studio `/api/v1/chat`-Anfrage mit einer Bright Data MCP-Integration. |
@@ -97,11 +97,11 @@ Wichtiges Verhalten:
 * Tool-Fehler werden als strukturierte Daten an das Modell zurückgegeben. Wenn das Web-Tool das Zeitlimit überschreitet, die Authentifizierung fehlschlägt, keine Ergebnisse zurückgibt oder das Tool-Runden-Limit erreicht, wird das Modell angewiesen, dies explizit zu sagen und keine Web-Fakten zu erfinden.
 * Für die Terminal-Agent-JSON-Planung bietet korTTY seine direkten Web-Tools nur dann an, wenn die Benutzeraufgabe ein Web-Signalwort (zum Beispiel aktuell, neueste, suche, recherchiere, Doku, Changelog, CVE, Webseite, herunterladen, Version) oder eine URL enthält. Lokale Datei-/Skriptüberprüfungsaufgaben sollten durch Shell-Befehle wie `sed`, `cat`, `find` oder Testbefehle und nicht durch die Websuche erledigt werden. Mit **KI-Agent: Internetrecherche bei jedem Schritt anbieten** unter **Einstellungen > KI > Internet-Tool-Konfiguration** werden die Tools bei jedem Agent-Schritt angeboten und das Modell entscheidet selbst; das verbraucht mehr Tavily-Credits und Tokens. Die LM-Studio-MCP-Modi hängen ihre Integration immer an Agent-Schritte an.
 
-## AI-Fähigkeiten
+## KI-Skills
 
-KI-Fähigkeiten sind wiederverwendbare lokale Anweisungsblöcke, die korTTY zu KI-Anfragen hinzufügen kann. Verwenden Sie sie für dauerhafte Präferenzen wie Codierungsstandards, Überprüfungsregeln, Betriebsrichtlinien oder sprachspezifische Stilrichtlinien.
+KI-Skills sind wiederverwendbare lokale Anweisungsblöcke, die korTTY zu KI-Anfragen hinzufügen kann. Verwenden Sie sie für dauerhafte Präferenzen wie Codierungsstandards, Überprüfungsregeln, Betriebsrichtlinien oder sprachspezifische Stilrichtlinien.
 
-Öffnen Sie **KI > KI-Manager > KI-Fähigkeiten**. Die Bibliothek wurde aus dem globalen Einstellungsdialog hierher verschoben. **Speichern** schreibt es sofort und ausstehende Änderungen werden auch gespeichert, wenn der KI-Manager geschlossen wird.
+Öffnen Sie **KI > KI-Manager > KI-Skills**. Die Bibliothek wurde aus dem globalen Einstellungsdialog hierher verschoben. **Speichern** schreibt es sofort und ausstehende Änderungen werden auch gespeichert, wenn der KI-Manager geschlossen wird.
 
 ### Fertigkeitsfelder
 
@@ -139,7 +139,7 @@ Skill instructions as Markdown.
 
 Einfaches Markdown ohne korTTY-Frontmatter wird mit dem Dateinamen als Skill-Name, Ziel `Both`, importiert und standardmäßig deaktiviert, sodass Sie es vor der Verwendung überprüfen können. `SKILL.md`-Frontmatter im Claude/Codex-Stil mit `name`, `description` und `tags` wird ebenfalls akzeptiert und der Import ist standardmäßig deaktiviert, es sei denn, es handelt sich um das eigene Exportformat von korTTY.
 
-Wenn eine AI-Agent-Ausführung einen oder mehrere Skills verwendet, protokolliert das Terminal-Agent-Aktivitätsfenster die ausgewählten Skill-Namen. Verbindungstests senden niemals Fertigkeiten, daher bleiben `Reply with exactly OK`-Tests stabil.
+Wenn eine KI-Agent-Ausführung einen oder mehrere Skills verwendet, protokolliert das Terminal-Agent-Aktivitätsfenster die ausgewählten Skill-Namen. Verbindungstests senden niemals Fertigkeiten, daher bleiben `Reply with exactly OK`-Tests stabil.
 
 ## Terminalauswahl
 
@@ -152,11 +152,22 @@ Wenn eine AI-Agent-Ausführung einen oder mehrere Skills verwendet, protokollier
    * **Problem lösen** – Analysiert die ausgewählte Fehlerausgabe und schlägt mögliche Korrekturen vor.
    * **Ask** – Sendet die Auswahl zusammen mit Ihrer eigenen Folgefrage oder Anweisung.
 4. Bestätigen Sie die Anfrage im Vorschaudialog. Sie können den ausgewählten Text vor dem Senden bearbeiten. Fügen Sie für **Fragen** Ihre eigene Eingabeaufforderung hinzu. Das Dialogfeld zeigt auch die geschätzten Anforderungstoken und das prognostizierte verbleibende Kontingent an.
-5. Die Antwort wird in einer temporären AI-Registerkarte geöffnet. Sie können den gleichen Kontext mit Folgeaufforderungen aus dem unteren Verfasserfeld fortsetzen.
+5. Die Antwort wird in einer temporären KI-Registerkarte geöffnet. Sie können den gleichen Kontext mit Folgeaufforderungen aus dem unteren Verfasserfeld fortsetzen.
 6. Verwenden Sie **Speichern** auf der Registerkarte „AI“, um die Konversation unter einem benutzerdefinierten Titel zu speichern.
 7. Öffnen Sie gespeicherte Konversationen später erneut über **Tools > KI-Manager** oder ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ unter macOS).
 
-### Funktionen der AI-Ergebnisregisterkarte
+### Eine ausgewählte Datei an den Chat anhängen
+
+Wenn die Auswahl wie ein einzelnes Dateiname aussieht — beispielsweise einen Namen aus der `ls`-Ausgabe, mit Anführungszeichen versehen, wenn er Leerzeichen enthält — bietet korTTY an, den Inhalt der Datei zusammen mit der Anfrage zu übermitteln, damit das Modell die Datei berücksichtigen kann, anstatt nur ihren Namen. Die Datei wird im Hinblick auf das aktuelle Verzeichnis des Fensters ermittelt, über SFTP in SSH-Tabs und aus dem lokalen Dateisystem in lokalen Shell-Tabs, genau wie bei **Im Snippet-Editor öffnen**.
+
+* Das Bestätigungsdialogfeld zeigt eine Checkbox mit dem Dateinamen unter dem Titel **Datei anhängen**. Diese ist standardmäßig ausgewählt, und Sie können sie löschen, um lediglich den ausgewählten Text zu übermitteln. Während die Datei überprüft wird, wartet **OK**; die Checkbox löschen, um ohne Wartezeit zu übermitteln.
+* Vor der Anbindung eines Elements wird von korTTY überprüft, ob die Datei im aktuellen Verzeichnis existiert, ein reguläres Datei ist, mit Ihren Berechtigungen lesbar ist, als UTF-8-Text decodiert werden kann und innerhalb des **Maximale Zeichen**-Limits des Profils (siehe [KI-Einstellungen](../reference/settings/ai.md)) sowie des ausgewählten Textes liegt. Binäre Dateien, zu große Dateien und Dateien, die eine der Prüfungen bestehen, werden nicht angehängt; der Dialog gibt den Grund an und das Kontrollkästchen ist deaktiviert.
+* Wenn der Bestätigungsdialog für **Zusammenfassen** und **Problem lösen** deaktiviert ist und stets für **Agent fragen…** (der kein Vorschau-Dialog hat) ist, wird die Datei automatisch angehängt, wenn die Prüfungen bestanden werden; sonst wird die Anfrage ohne die Datei gesendet und die Statusleiste erklärt, warum.
+* Nach einem Identitätswechsel innerhalb der Sitzung (`su`, ein innerer `ssh`) wird keine Anbindung angeboten, da die Datei gegen die falsche Anmeldung gelöst werden würde – dieselbe Regel, die das **Im Snippet-Editor öffnen**-Kontrollkästchen ausblendet.
+* Die angehängte Datei wird oberhalb der Chat-Nachrichten angezeigt, bleibt im Kontext für jede nachfolgende Anfrage und wird mit einem gespeicherten Chat gespeichert, sodass eine erneute Konversation sie beibehält.
+* Die Schaltfläche **Ablaufdiagramm** neben dem Anhang fordert das aktive KI-Profil dazu auf, einen Mermaid-Ablaufplan des angehängten Skripts (den gleichen logischen Strukturplan, den der Snippet-Editor erzeugt) anzuzeigen und diesen als gerenderten Diagramm im Chat anzuzeigen. Falls die Antwort des Modells nicht nutzbar ist, erstellt korTTY ein lokales strukturelles Ablaufdiagramm als Ersatz.
+
+### Funktionen der KI-Ergebnisregisterkarte
 
 * Das Gesprächsprotokoll ist schreibgeschützt und nicht im gespeicherten Projekt-/Sitzungsstatus enthalten.
 * Assistant-Antworten zeigen Markdown als formatierte Vorschau an: Überschriften, fetter und kursiver Text, durchgestrichen, Listen, Zitate und hervorgehobener Inline-Code. Der Text wird auf die verfügbare Breite umbrochen und kann ausgewählt und kopiert werden. Benutzernachrichten behalten ihren wörtlichen Text.
@@ -165,11 +176,11 @@ Wenn eine AI-Agent-Ausführung einen oder mehrere Skills verwendet, protokollier
 * Mit der Symbolleiste können Sie die Konversation kopieren, den Chat speichern oder umbenennen, ihn als PDF/Markdown/Nur-Text teilen/exportieren, die letzte Anfrage erneut versuchen, die Registerkarte schließen, laufende Anfragen abbrechen und die Schriftgröße ändern.
 * Die Antwortsprache ist standardmäßig die aktuelle GUI-Sprache. Sie können die Antwortsprache und das aktive KI-Profil pro Chat ändern, bevor Sie eine Folgeaufforderung senden.
 * Follow-up-Eingabeaufforderungen in **Zusammenfassen** und **Problem lösen** werden als normale Chat-Fragen fortgesetzt; Sie werden nicht zur ursprünglichen Eingabeaufforderung für Zusammenfassung/Problemanalyse zurück gezwungen.
-* Erkannte Codeblöcke erhalten einen eigenen Kopier-Button und können auch direkt im Snippet Manager gespeichert werden. Blöcke, die Bilder, Diagramme oder Mathematik enthalten, werden stattdessen als Bilder gerendert – siehe [Gerenderte Bilder, Diagramme und Mathematik](#gerenderte-bilder-diagramme-und-mathematik).
+* Erkennte Code-Blocks erhalten eine eigene Kopfzeilen-Option und können direkt im Snippet-Manager gespeichert werden. Blöcke, die Bilder, Diagramme oder mathematische Ausdrücke enthalten, werden als Bilder dargestellt – siehe [Gewonnene Bilder, Diagramme und mathematische Ausdrücke](#gerenderte-bilder-diagramme-und-mathematik).
 * gerenderte Markdown-Tabellen können als ganze Tabelle, einzelne Spalte oder einzelne Zelle kopiert werden.
-* Die ausgewählte Schriftgröße der AI-Registerkarte wird global gespeichert und für zukünftige AI-Ergebnisregisterkarten wiederverwendet.
-Die * Token-Nutzung wird nach erfolgreichen Anfragen pro KI-Profil aufgezeichnet, sodass Warnungen und Rücksetzzyklen korrekt bleiben.
-* Wenn ein gespeicherter Chat auf ein AI-Profil verweist, das nicht mehr existiert, fordert korTTY Sie auf, ein Ersatzprofil auszuwählen, bevor Sie mit den Folgeaufforderungen fortfahren.
+* Die ausgewählte Schriftgröße der KI-Registerkarte wird global gespeichert und für zukünftige KI-Ergebnisregisterkarten wiederverwendet.
+* Der Tokenverbrauch wird pro KI-Profil nach erfolgreichen Anfragen erfasst, sodass Warnungen und Reset-Zyklen genaue Werte aufweisen.
+* Wenn ein gespeicherter Chat auf ein KI-Profil verweist, das nicht mehr existiert, fordert korTTY Sie auf, ein Ersatzprofil auszuwählen, bevor Sie mit den Folgeaufforderungen fortfahren.
 
 ### gerenderte Bilder, Diagramme und Mathematik
 
@@ -227,13 +238,13 @@ Der Manager kombiniert Profil-, lokale Inferenz-, Abruf- und gespeicherte Chat-V
 
 * **Profile** – KI-Profile erstellen, bearbeiten, testen, speichern und entfernen. Die Profilliste zeigt den aktuellen Kontingent-/Nutzungsstatus für jedes Profil.
 * **Lokale Modelle** – Hugging Face durchsuchen, GGUF-Dateien importieren/herunterladen/konfigurieren, den Funktionstest nach der Installation ausführen und mehrere llama.cpp-Sidecars starten oder stoppen.
-* **Lokale KI** – Weisen Sie Profile für Text/Übersetzung, Codierung und [Sitzungsjournal](session-journal.md#ki-zusammenfassungen) zu, wählen Sie das Einbettungsmodell und das bevorzugte Laufzeit-Backend aus, speichern Sie ein verschlüsseltes Hugging Face-Token und wählen Sie die Laufzeitaktualisierungsrichtlinie aus.
+* **Lokale KI** – Text/Übersetzung, Programmierung und [Sitzung Journal-](session-journal.md#ki-zusammenfassungen) Profil zuweisen, die Embedding-Modelle und den bevorzugten Laufzeit-Backend auszuwählen, ein verschlüsseltes Hugging Face-Token zu speichern und die Laufzeit-Update-Richtlinie zu wählen.
 * **Wissensspeicher** – Erstellen Sie lokale HNSW-Speicher, fügen Sie überprüfte Dateien oder rekursive Ordner hinzu, synchronisieren Sie Quellen und führen Sie eine Testsuche durch.
 * **Gespeicherte Chats** – zuvor gespeicherte KI-Konversationen öffnen, umbenennen, aktualisieren oder löschen. Gespeicherte [AI Swarm](ai-swarm.md)-Konversationen werden in einem eigenen Abschnitt **Swarm-Chats** angezeigt, einschließlich der Konversationen, die durch geplante Swarm-Jobs erstellt wurden.
 
 Verwenden Sie **Einstellungen > KI** für globale Verhaltensänderungen und **KI-Manager** für die tägliche Profil-, Modell-, Wissensspeicher- und Chat-Verwaltung.
 
-## Fragen Sie nach der Anleitung (AI-Dokumentensuche)
+## Fragen Sie nach der Anleitung (KI-Dokumentensuche)
 
 Die integrierte Anleitung (**Hilfe > Anleitung**, ++f1++) enthält eine KI-gestützte Suche. Schalten Sie **KI-Suche** in der Symbolleiste des Fensters der Anleitung ein, um einen Seitenbereich zu öffnen, geben Sie eine Frage in natürlicher Sprache ein – zum Beispiel *„Wie führe ich den KI-Agenten im Terminalfenster aus?“* – und drücken Sie ++enter++.
 
@@ -246,7 +257,7 @@ So funktioniert es:
 
 Anforderungen:
 
-* A konfiguriertes AI-Profil (siehe [Setup](#setup)); Es wird das Standardprofil verwendet.
+* A konfiguriertes KI-Profil (siehe [Setup](#setup)); Es wird das Standardprofil verwendet.
 * Ein entsperrter Master-Passwort-Tresor, wenn das Profil einen verschlüsselten API-Schlüssel speichert.
 
 !!! warning "Datensicherheit"
@@ -257,12 +268,12 @@ Anforderungen:
 korTTY unterstützt Workflows im Agentenstil für eine aktive Terminalsitzung.
 
 !!! note "SSH und lokale Shells"
-    Die Befehlsausführungs-Engine des Agenten ist hinter einer `AgentCommandRunner`-Abstraktion mit zwei Backends – **SSH** (Exec-Kanal) und **local** (ein neuer lokaler Prozess) von SSH entkoppelt. Der **AI Agent** und **AI Planning** laufen daher sowohl in SSH-Sitzungen als auch in [lokalen Shells](connections.md#lokale-shell) unter Windows, macOS und Linux: Befehle verwenden ein natives lokales Backend (PowerShell über `-EncodedCommand`, `cmd.exe` oder POSIX `/bin/sh`), die Umgebungsprüfung und die Systemeingabeaufforderung sind plattformbewusst, sodass das Modell native Befehle generiert und der gleiche Genehmigungsablauf gilt. Eine lokale Ausführung erfasst das aktuelle Verzeichnis der interaktiven Shell einmal und verwendet es für die Probe und jeden Befehl. **Lokale Shell-Einschränkung:** keine `sudo`/Administrator-Erhöhung unter Windows. Die kopflose KI-Agent-Aktion des JobScheduler bleibt nur SSH.
+    Das Befehlsausführungs-Engine des KI-Agents ist über eine `AgentCommandRunner`-Abstraktion von SSH getrennt und verfügt über zwei Backends – **SSH** (Exec-Channel) und **local** (ein neuer lokaler Prozess). Der **KI-Agent** und die **KI-Planung** laufen daher sowohl in SSH-Sitzungen als auch in [lokalen Shells](connections.md#lokale-shell) unter Windows, macOS und Linux: Befehle nutzen einen nativen lokalen Backend (PowerShell über `-EncodedCommand`, `cmd.exe`, oder POSIX-`/bin/sh`), die Umgebungserkundung und der System-Prompt sind plattformbewusst, sodass das Modell native Befehle generiert, und der gleiche Genehmigungsprozess gilt. Ein lokaler Lauf erfasst den aktuellen Verzeichnis des interaktiven Shells einmal und verwendet diesen für die Erkundung und jeden Befehl. **Beschränkung des lokalen Shells:** Keine `sudo`/Verwaltungsaufhebung auf Windows. Die Aktion des JobScheduler-KI-Agenten bleibt ausschließlich über SSH verfügbar.
 
 ### Der Agent wird gestartet
 
 * **AI Agent** – Starten Sie über **Tools > AI Agent...**, über das Kontextmenü des Terminals oder mit dem Terminal-Verknüpfungsbefehl. Der Agent kann je nach **Einstellungen > AI** einen speziellen Chat-Tab öffnen oder auf das aktive Terminalfenster zielen.
-* **AI-Planung** – Starten Sie über **Tools > AI-Planung...**, über das Terminal-Rechtsklickmenü oder mit `agent-plan` / `agent -plan`. Im Planungsmodus werden klärende Fragen gestellt, eine oder mehrere Optionen vorgeschlagen, ein endgültiger Planbericht erstellt und Sie können mit dem akzeptierten Plan beginnen.
+* **KI-Planung** – Starten Sie über **Tools > KI-Planung...**, über das Terminal-Rechtsklickmenü oder mit `agent-plan` / `agent -plan`. Im Planungsmodus werden klärende Fragen gestellt, eine oder mehrere Optionen vorgeschlagen, ein endgültiger Planbericht erstellt und Sie können mit dem akzeptierten Plan beginnen.
 
 ### Aktivitätspanel und Platzierung
 
@@ -311,10 +322,10 @@ Die Verlaufsgröße kann unter **Einstellungen > AI** konfiguriert werden (Stand
 
 ### So funktioniert der AI Agent
 
-Der Terminal AI Agent ist ein kontrollierter Terminalautomatisierungsworkflow. Es führt keine beliebige Modellausgabe direkt im interaktiven Terminal aus. Stattdessen folgt jede Runde diesem Muster:
+Das Terminal AI Agent ist ein kontrollierter Terminalautomatisierungsworkflow. Es führt keine beliebige Modellausgabe direkt im interaktiven Terminal aus. Stattdessen folgt jede Runde diesem Muster:
 
 1. korTTY prüft die aktive SSH- oder lokale Shell-Sitzung mit einem nicht interaktiven Befehl und zeichnet kompakten Kontext wie aktuellen Benutzer, Host, Betriebssystem, aktives Terminal-Arbeitsverzeichnis, Sudo-Verfügbarkeit, Festplattenpfad und aktuellen Befehlsstatus auf.
-2. korTTY sendet die Benutzeraufgabe, den Sonden-Snapshot, frühere Befehlsergebnisse, aktive KI-Fähigkeiten und optional die Web-Tool-Verfügbarkeit an das ausgewählte KI-Profil.
+2. korTTY sendet die Benutzeraufgabe, den Sonden-Snapshot, frühere Befehlsergebnisse, aktive KI-Skills und optional die Web-Tool-Verfügbarkeit an das ausgewählte KI-Profil.
 3. Das Modell muss eine strikte JSON-Entscheidung zurückgeben: Befehle ausführen, Bestätigung anfordern, beenden oder blockieren.
 4. korTTY validiert das JSON-Schema und die Befehlseinschränkungen. Ungültige Antworten werden einmalig repariert; unsichere oder nicht unterstützte Befehlsentscheidungen werden abgelehnt.
 5. korTTY führt genehmigte Befehle über das aktive Backend aus: SSH-Exec-Kanäle für SSH-Sitzungen oder neue lokale Prozesse für lokale Shells. Jeder Befehl startet in dem für die Ausführung erfassten Verzeichnis. Ein `cd` innerhalb eines Befehls bleibt nicht bis zum nächsten Befehl bestehen.
@@ -393,7 +404,7 @@ Nachdem die Ausführung eines fertigen Agenten erfolgreich abgeschlossen wurde, 
 
 Skripterstellung:
 
-* Ladet automatisch passende KI-Fähigkeiten (z. B. eine Sprachqualitätsfähigkeit für die Zielsprache).
+* Lädt automatisch passende KI-Skills (z. B. eine Sprachqualitäts-Skill für die Zielsprache).
 * Kann mehrere Sprachvarianten und mehrere Vorschläge als Inline-Tabs erzeugen.
 * Unterstützt Header-Vorlagen aus der festen, nicht löschbaren Snippet-Kategorie **Script-Header**.
 * Enthält optional ein Mermaid-Flussdiagramm für die Skriptlogik. Während das Diagramm erstellt wird, wird ein funktionierender Kreisel angezeigt, sodass klar ist, dass die KI-Verbindung ausgelastet ist.

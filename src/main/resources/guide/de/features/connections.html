@@ -312,7 +312,7 @@
         <a href="../reference/settings/ai-skills.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            KI-Fähigkeiten
+            KI-Skills
         </a>
     </li>
                     
@@ -791,8 +791,8 @@
 <td>Bastion-Host-Verkettung</td>
 </tr>
 <tr>
-<td>Terminalprotokollierung</td>
-<td>Schreibt die Terminalausgabe dieser Verbindung in eine Datei – Ordner, Format, tägliche Rotation, Komprimierung und Aufbewahrung. Siehe <a href="terminal.html#terminalprotokollierung">Terminalprotokollierung</a>.</td>
+<td>Terminal-Logging</td>
+<td>Schreibt den Terminal-Ausgang dieser Verbindung in eine Datei – Ordner, Format, tägige Rotation, Kompression und Aufbewahrung. Siehe <a href="terminal.html#terminalprotokollierung">Terminal-Logging</a>.</td>
 </tr>
 <tr>
 <td>Journal</td>
@@ -804,7 +804,7 @@
 </tr>
 <tr>
 <td>KI</td>
-<td>KI-Standardeinstellungen pro Verbindung: die <a href="ai-assistant.html">KI-Profil</a> und KI-Fähigkeiten, die von Terminal-KI-Funktionen auf dieser Verbindung verwendet werden</td>
+<td>KI-Standardeinstellungen pro Verbindung: die <a href="ai-assistant.html">KI-Profil</a> und KI-Skills, die von Terminal-KI-Funktionen auf dieser Verbindung verwendet werden</td>
 </tr>
 </tbody>
 </table>
@@ -826,14 +826,14 @@
 <p>Roaming, latenzfreundlicher Mosh-Transport (mosh4j). Das Mosh-Backend ist in nativen Builds gebündelt; Bestehende Verbindungen benötigen keine Migration.</p>
 </div>
 <div class="tabbed-block">
-<p>Öffnet die Shell des <strong>lokalen Rechners</strong> in einer Terminal-Registerkarte (kein Netzwerk) über ein pty4j-gestütztes Pseudo-Terminal. Host, Port, Benutzername und Authentifizierung sind nicht erforderlich. Siehe <a href="#lokale-shell">Local Shell</a> unten.</p>
+<p>Öffnet die <strong>lokale Maschine</strong>-Shell in einem Terminal-Tab (ohne Netzwerk) über einen pty4j-gebackenen Pseudoterminal. Host, Port, Benutzername und Authentifizierung sind nicht erforderlich. Siehe unten <a href="#lokale-shell">Lokale Shell</a>.</p>
 </div>
 </div>
 </div>
 <h2 id="ssh-hostschlusseluberprufung">SSH-Hostschlüsselüberprüfung<a class="headerlink" href="#ssh-hostschlusseluberprufung" title="Permanent link">&para;</a></h2>
 <p>Interactive Terminal- und SFTP-Verbindungen verwenden denselben TOFU-Hostschlüsselspeicher (Trust-on-First-Use). Mosh verwendet es auch für den SSH-Bootstrap. Die Vertrauenswürdigkeit wird durch den normalisierten Hostnamen und Port bestimmt, sodass verschiedene gespeicherte Verbindungen zum selben Endpunkt eine gemeinsame Entscheidung treffen.</p>
 <p>Bei der ersten Verbindung zeigt korTTY den Schlüsselalgorithmus und den OpenSSH SHA-256-Fingerabdruck an. Überprüfen Sie diesen Fingerabdruck beim Serveradministrator, bevor Sie <strong>Ja</strong> auswählen. <strong>Nein</strong> ist die sichere Standardeinstellung. Ein passender Schlüssel wird bei späteren Verbindungen stillschweigend akzeptiert. Wenn der Server einen anderen Schlüssel vorlegt, blockiert korTTY die Verbindung hart, zeigt die erwarteten und angebotenen Fingerabdrücke an und versucht es nicht erneut, da eine Wiederholung des Versuchs einen möglichen Man-in-the-Middle-Angriff nicht auflösen kann.</p>
-<p>Die Erstverwendungsaufforderung kann für Hosts deaktiviert werden, bei denen sie nicht erwünscht ist – legen Sie die <strong>Hostschlüsselüberprüfung</strong> auf der Registerkarte <em>Verbindung</em> des Verbindungseditors oder in der Schnellverbindung (<strong>Standard verwenden</strong> / <strong>Überprüfen</strong> / <strong>Nicht überprüfen</strong>), pro Gruppe über das Gruppenkontextmenü des Verbindungsmanagers oder global unter <strong>Einstellungen → Terminal</strong> fest. Die Lockerung betrifft nur „Neu akzeptieren“: Ein unbekannter Schlüssel wird ohne Aufforderung gepinnt, aber ein Schlüssel, der sich von einem unterscheidet, der bereits für diesen Host gepinnt ist, wird immer noch fest blockiert. Siehe <a href="security.html#lockere-uberprufung-des-hostschlussels">Lockere Hostschlüsselüberprüfung</a>.</p>
+<p>Das erste Benutzerprompt kann für Hosts, bei denen es nicht gewünscht ist, deaktiviert werden – setzen Sie <strong>Host-Key-Prüfung</strong> im Verbindungsersteller auf der <em>Verbindung</em>-Registerkarte oder in der Schnellverbindung (<strong>Standard verwenden</strong> / <strong>Verifizieren</strong> / <strong>Nicht verifizieren</strong>), pro Gruppe über das Kontextmenü des Verbindungsmanagers oder global unter <strong>Einstellungen → Terminal</strong>. Die Entspannung ist auf Akzeptanz neuer beschränkt: Ein unbekannter Schlüssel wird ohne Prompt festgelegt, ein Schlüssel, der von einem bereits für diesen Host festgelegten abweicht, wird jedoch weiterhin blockiert. Siehe <a href="security.html#lockere-uberprufung-des-hostschlussels">Entspannung der Host-Key-Prüfung</a>.</p>
 <p>Die interaktiven Pins werden atomar in <code>~/.kortty/ssh-host-keys.properties</code> gespeichert, mit prozessübergreifender Sperrung, sodass zwei korTTY-Fenster die Entscheidungen des anderen nicht überschreiben können. Diese endpunktbasierten Pins sind von den verbindungs-ID-basierten Pins getrennt, die von unbeaufsichtigten JobScheduler-SSH-, SFTP- und Rsync-Jobs verwendet werden.</p>
 <p>Wenn eine neue geteilte Verbindung geöffnet wird, wird der SSH-Handshake auf einem Worker ausgeführt, während ein Fortschrittsdialog dafür sorgt, dass die JavaFX-Schnittstelle reagiert. Dadurch können sowohl die Hostschlüsselbestätigung als auch die interaktive Tastaturauthentifizierung abgeschlossen werden, ohne dass die Benutzeroberfläche blockiert wird.</p>
 <h2 id="lokale-shell">Lokale Shell<a class="headerlink" href="#lokale-shell" title="Permanent link">&para;</a></h2>
@@ -860,10 +860,10 @@
 <p>Ein Freiformfeld <strong>Benutzerdefinierter Befehl</strong> akzeptiert jede ausführbare Datei mit Argumenten (z. B. <code>pwsh.exe</code>, <code>wsl.exe -d Ubuntu</code>, ein Git-Bash-Pfad) und ein optionales <strong>Startverzeichnis</strong> kann festgelegt werden. Der Befehlsparser erkennt Anführungszeichen, sodass Shell-Pfade, die Leerzeichen enthalten – wie <code>"C:\Program Files\Git\bin\bash.exe"</code> – korrekt gestartet werden.</p>
 <p>Wenn korTTY über sein Flatpak-Paket ausgeführt wird, wird die lokale Shell auf dem Host über <code>flatpak-spawn --host</code> gestartet, einschließlich des ausgewählten Startverzeichnisses und des Terminalgebietsschemas. Das Paket verfügt über Host-Dateisystemzugriff, sodass Terminaldateiaktionen Hostpfade verwenden können. Da die Sandbox-seitige Prozess-ID zu <code>flatpak-spawn</code> und nicht zur Host-Shell gehört, verwendet die Verfolgung des aktuellen Verzeichnisses vertrauenswürdige absolute Eingabeaufforderungspfade, anstatt <code>/proc/&lt;pid&gt;/cwd</code> zu lesen. Wenn kein sicherer Hostpfad eingerichtet werden kann, werden pfadabhängige Aktionen mit einem expliziten Fehler beendet.</p>
 <h3 id="terminalfunktionen-in-lokalen-shells">Terminalfunktionen in lokalen Shells<a class="headerlink" href="#terminalfunktionen-in-lokalen-shells" title="Permanent link">&para;</a></h3>
-<p>Die Terminalprotokollierung und -aufzeichnung sowie die AI-Eingabe-/Daten-Hooks funktionieren für lokale Shells über eine gemeinsam genutzte <code>ObservableTtyConnector</code>-Schnittstelle. Eingegebene und eingefügte Agentenanforderungen verwenden denselben Eingabepfad auf Byteebene, und Terminaldateiaktionen sowie lokale Agentenausführungen folgen dem aktuellen Verzeichnis der interaktiven Shell. macOS/Linux verwenden das lokale Prozessverzeichnis; Native PowerShell und cmd verwenden absolute Eingabeaufforderungspfade. WSL, Git Bash, Cygwin und benutzerdefinierte Befehle eignen sich am besten, wenn sich ihr Shell-Pfad-Namespace vom Host-Dateisystem unterscheidet und ein nicht zuordenbares Verzeichnis einen expliziten Fehler anstelle eines Fallbacks auf eine falsche Datei erzeugt. Funktionen, die von einem SSH-Kanal abhängen, bleiben nur SSH.</p>
+<p>Die Terminalprotokollierung und -aufzeichnung sowie die KI-Eingabe-/Daten-Hooks funktionieren für lokale Shells über eine gemeinsam genutzte <code>ObservableTtyConnector</code>-Schnittstelle. Eingegebene und eingefügte Agentenanforderungen verwenden denselben Eingabepfad auf Byteebene, und Terminaldateiaktionen sowie lokale Agentenausführungen folgen dem aktuellen Verzeichnis der interaktiven Shell. macOS/Linux verwenden das lokale Prozessverzeichnis; Native PowerShell und cmd verwenden absolute Eingabeaufforderungspfade. WSL, Git Bash, Cygwin und benutzerdefinierte Befehle eignen sich am besten, wenn sich ihr Shell-Pfad-Namespace vom Host-Dateisystem unterscheidet und ein nicht zuordenbares Verzeichnis einen expliziten Fehler anstelle eines Fallbacks auf eine falsche Datei erzeugt. Funktionen, die von einem SSH-Kanal abhängen, bleiben nur SSH.</p>
 <div class="admonition note">
 <p class="admonition-title">AI Agent in lokalen Shells</p>
-<p>Der <strong>AI Agent</strong> und <strong>AI Planning</strong> laufen auch in lokalen Shells unter Windows, macOS und Linux – siehe <a href="ai-assistant.html#ai-agent-und-ki-planung">AI Assistant</a>.</p>
+<p>Der <strong>KI-Agent</strong> und die <strong>KI-Planung</strong> laufen ebenfalls in lokalen Shells unter Windows, macOS und Linux – siehe <a href="ai-assistant.html#ai-agent-und-ki-planung">KI-Assistenz</a>.</p>
 </div>
 <h2 id="tunnels-und-sprungserver">Tunnels und Sprungserver<a class="headerlink" href="#tunnels-und-sprungserver" title="Permanent link">&para;</a></h2>
 <ul>

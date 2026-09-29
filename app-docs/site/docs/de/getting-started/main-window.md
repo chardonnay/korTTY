@@ -14,7 +14,7 @@ Das Hauptfenster von korTTY hat diese Bereiche:
 - **Tab-Leiste** — jede SSH/Mosh-Sitzung läuft in ihrem eigenen Tab. ++ctrl+t++ öffnet Schnellverbindung für einen neuen Tab; ++ctrl+tab++ / ++ctrl+shift+tab++ wechseln Tabs. Mit aktivierter **Tool-Fenster als Tabs öffnen** ([Fenster-Einstellungen](../reference/settings/window.md)) werden Verwaltungstools wie Snippets, der JobScheduler oder der KI-Manager ebenfalls als Tabs in dem Fenster geöffnet, dessen Menü Sie benutzt haben — anstatt separate Fenster zu öffnen. Der [Snippet-Manager](../features/snippets.md) speichert die von Ihnen bearbeiteten Snippets als eigene Tabs innerhalb seines eigenen Tabs.
 - **Dashboard** (umschalten ++ctrl+shift+d++) – ein Seitenbereich, der jede offene Verbindung mit Statuspunkten, Protokollabzeichen und KI-Agent-Abzeichen auflistet. Siehe [Armaturenbrett](#dashboard) unten.
 - **Dateibrowser** (**Ansicht → Dateibrowser ▸ Links anzeigen / Rechts anzeigen**) – ein andockbarer lokaler Dateimanager mit Navigationssymbolleiste, Pfadleiste, Filter, Typsymbolen und einem Ordner-/Datei-/Auswahlzähler. Beim nächsten Start werden Seite, Breite, Status der versteckten Datei und letztes Verzeichnis wiederhergestellt. Siehe [Dateibrowser](../features/file-browser.md).
-- **Live-Journal-Panel** (**Ansehen → Live-Journal**, ++ctrl+alt+l++) — das laufende [Sitzungsjournal](../features/session-journal.md#das-live-journal-panel) des aktiven Tabs als seine vollständige Journalseite, angedockt und in Echtzeit aktualisiert; Seiten- und Breitenposition werden beim nächsten Start wiederhergestellt.
+- **Live-Journal-Panel** (**Ansehen → Live-Journal**, ++ctrl+alt+l++) — das aktive Tab ist ausgeführt [Sitzungsprotokoll](../features/session-journal.md#das-live-journal-panel) wie seine volle Protokoll-Seite, angepflanzt und in Echtzeit aktualisiert; Seiten- und Breite werden beim nächsten Start wiederhergestellt.
 - **Terminalbereich** — das aktive Terminal, mit optionaler geteilten Ansicht und Broadcast-Eingabe.
 - **Statusleiste** — Verbindungsstatus, Host/IP, aktives Protokoll, temporärer SSH-Schlüssel-Timer und Verbindungsdauer.
 
@@ -25,7 +25,7 @@ Das Hauptfenster von korTTY hat diese Bereiche:
 
 Schalten Sie das Dashboard mit ++ctrl+shift+d++ oder **Ansicht → Dashboard anzeigen** um. Es wird auf der linken Seite eingeschoben, passt seine Breite an den längsten Eintrag an und folgt den Farben des aktiven App-Designs.
 
-Die Kopfzeile zeigt den Paneltitel mit zwei Schaltflächen: ein Auf-/Zuklapp-Schalter (klappt alles zu, solange ein Knoten geöffnet ist, andernfalls klappt alles auf) und eine Aktualisierungs-Schaltfläche. Darunter werden die Verbindungen als Baum organisiert:
+Die Kopfzeile zeigt das Paneltitel mit zwei Schaltflächen: ein Auf-/Zuklapp-Schalter (klappt alles zu, solange ein Knoten geöffnet ist, andernfalls klappt alles auf) und eine Aktualisierungs-Schaltfläche. Darunter werden die Verbindungen als Baum organisiert:
 
 - **Hauptfenster** – der Stammknoten mit einer aktiven/Gesamtsitzungsanzahl.
 - **Umgebungen** – Verbindungen, deren gespeicherte Anmeldeinformationen eine Umgebung haben (z. B. *Produktion* oder *Test*), werden unter einem Umgebungsknoten geclustert; Anschlüsse ohne einen befinden sich direkt unter dem Hauptfenster.

@@ -312,7 +312,7 @@
         <a href="../ai-skills.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
-            KI-Fähigkeiten
+            KI-Skills
         </a>
     </li>
                     
@@ -758,7 +758,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="snippet-editor">Snippet-Editor<a class="headerlink" href="#snippet-editor" title="Permanent link">&para;</a></h1>
-<p>Schriftart, Farbe und Cursor-Überschreibungen für den Snippet-Manager und das Snippet-Editor-Dialogfeld, sowie wie viele Vollcodeanalysen korTTY pro Snippet behält. Öffnen Sie über <strong>Konfiguration → Globale Einstellungen → Snippet-Editor</strong>; gespeichert in <code>~/.kortty/global-settings.xml</code>.</p>
+<p>Schriftart, Farbe und Cursor-Übernahme für den Snippet-Manager und das Snippet-Edit-Fenster, sowie wie viele volle Code-Analysen korTTY pro Snippet speichert und wie groß der Text eines Skripts sein darf, um mit ihnen gespeichert zu werden. Öffnen über <strong>Konfiguration → Globale Einstellungen → Snippet-Editor</strong>; gespeichert in <code>~/.kortty/global-settings.xml</code>.</p>
 <p><img alt="Snippet Editor settings tab" src="../../../assets/screenshots/settings/snippet-editor.png" /></p>
 <table>
 <thead>
@@ -834,6 +834,13 @@
 <td>5</td>
 <td><code>snippetAnalysisHistoryMaxSize</code></td>
 </tr>
+<tr>
+<td>Gespeicherte Skriptgröße pro Analyse</td>
+<td>Dropdown-Kontrolle</td>
+<td>Aus, 256 KB, 512 KB, 1 MB, 2 MB, 5 MB</td>
+<td>1 MB</td>
+<td><code>snippetAnalysisMaxStoredContentBytes</code></td>
+</tr>
 </tbody>
 </table>
 <div class="admonition tip">
@@ -846,13 +853,17 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Gespeicherte Analysen pro Snippet</p>
-<p>Wie viele <a href="../../../features/snippets.html#vollstandige-code-analyse">Vollständige Code-Analysen</a> korTTY für jedes Snippet behält. Wenn eine neue Analyse eines Snippets eintrifft und die Historie das Limit überschreitet, werden die ältesten Analysen entfernt; angeheftete Analysen, Analysen mit einem Ergebnis, das auf Überprüfung wartet, und Analysen mit einer unterbrochenen Anwendung bleiben immer erhalten, sodass eine Historie mehr als das Limit enthalten kann. Eine Verringerung des Wertes löscht sofort nichts: der Einstellungs-Tab gibt an, wie viele ältere, nicht angeheftete Analysen die nächste Analyse jedes Snippets entfernen würde, und sie werden erst entfernt, wenn diese Analyse eintrifft. Um Analysen jetzt zu entfernen, verwenden Sie <strong>Verwerfen</strong> oder <strong>Alle löschen</strong> im Analyse-Panel.</p>
+<p>Wie viele <a href="../../../features/snippets.html#vollstandige-code-analyse">Volltextanalyse-</a> korTTY pro Snippet speichert. Wenn eine neue Analyse eines Snippets eintritt und die Historie den Grenzwert überschreitet, werden die ältesten Analysen entfernt; Analysen, die an einer Stelle fixiert sind, Analysen mit einem Ergebnis, das der Überprüfung bedarf, und Analysen mit einem unterbrochenen Anwenden werden immer beibehalten, sodass die Historie mehr als den Grenzwert enthalten kann. Das Verringern des Werts führt nicht sofort zu einer Löschung: Die Einstellungen-Tabelle zeigt, wie viele ältere, nicht fixierte Analysen die nächste Analyse jedes Snippets entfernen würde, und sie werden erst dann gelöscht, wenn diese Analyse eintritt. Um Analysen jetzt zu entfernen, verwenden Sie <strong>Verwerfen</strong> oder <strong>Alle löschen</strong> im Analysepanel.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Gespeicherte Skriptgröße pro Analyse</p>
+<p>Der größte Skripttext – gemessen in Bytes von UTF-8 – der von korTTY gespeichert wird <a href="../../../features/snippets.html#gespeicherter-skripttext">Vollständige Code-Analyse</a>Jede Analyse kann mehrere Kopien des Skripts enthalten (der analysierten Text, der Text, aus dem die Anwendung gestartet wurde, das vorgeschlagene Ergebnis und der angenommene Text); jede Kopie bis zu dieser Größe wird vollständig gespeichert, identische Kopien nur einmal. Der Standardwert beträgt <strong>1 MB</strong>, der maximale Wert <strong>5 MB</strong>, und <strong>Aus</strong> speichert den Skripttext überhaupt nicht – die Erkenntnisse, das Diagramm und die Berichte bleiben jedoch. Ein größerer Skripttext wird weiterhin analysiert und kann weiterhin in der Editor-Ansicht angewendet und überprüft werden; nachfolgend fehlen lediglich die gespeicherten Kopien, sodass <strong>Änderungen ansehen</strong>, der Code-Vorschau eines älteren Eintrags, der plain-text Skriptexport, der Berichtsabschnitt, <strong>Zwischenstand wiederherstellen</strong> sowie die Fortsetzung einer unterbrochenen Anwendung nach einem Neustart nicht für diesen verfügbar sind und das Panel erklärt, warum. Die Reduzierung des Werts löscht nichts: Text, der bereits gespeichert wurde, bleibt erhalten, und der neue Grenzwert gilt ab diesem Zeitpunkt für zukünftige Analysen. Ein höherer Wert verbraucht mehr Plattenplatz. <code>~/.kortty/snippet-analyses/</code>Eine Datei, die sich über 60 MB erweitert, entfernt zuerst den gespeicherten Text der ältesten Analysen. Ein Administrator kann den Wert begrenzen oder das Speichern des Skripttextes verbieten. <a href="../../enterprise-policy.html#gespeicherter-skripttext-der-analysen">Unternehmensrichtlinie</a>Die Dropdown-Liste bietet dann nur das, was die Richtlinie erlaubt, und zeigt dies unten an. Wenn die Richtlinie das Speichern von Skripttext verboten hat, ist die Dropdown-Liste gesperrt.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Erben statt Überschreiben</p>
 <p>Diese Einstellungen überschreiben die Terminal-/Editor-Standardeinstellungen nur für Snippet-Fenster. Lassen Sie ein Feld leer – oder stellen Sie die Schriftgröße auf ein <code>0</code> – um die allgemeine Einstellung zu erben <a href="../appearance.html">Aussehen</a>, <a href="../colors.html">Farben</a> Und <a href="../editor.html">Editor</a> stattdessen.</p>
 </div>
-<p>Der Snippet-Editor selbst, einschließlich seiner AI-Code-Aktionen und Sprachfelder, wird unter <a href="../../../features/snippets.html">Snippets</a> beschrieben.</p></p>
+<p>Der Snippet-Editor selbst, einschließlich seiner KI-Code-Aktionen und Sprachfelder, wird unter <a href="../../../features/snippets.html">Snippets</a> beschrieben.</p></p>
     </article>
 </section>
             <!-- endblock -->
