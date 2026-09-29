@@ -363,6 +363,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final TextField snippetCompletionShortcutField;
     private final CheckBox snippetPrewarmCheck;
     private final Spinner<Integer> snippetAnalysisHistorySpinner;
+    private final SnippetAnalysisContentLimitControl snippetAnalysisContentLimit;
     private String selectedGlobalThemeId;
     private ComboBox<Theme> colorProfileCombo;
     private final BooleanProperty applyThemeFontsProperty;
@@ -2921,6 +2922,16 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         snippetAnalysisHistorySpinner.valueProperty().addListener((obs, was, isNow) ->
             updateAnalysisHistoryLoweredHint(snippetAnalysisHistoryLowered, savedAnalysisHistory, isNow));
 
+        // How much script text each stored analysis keeps (user value, capped by the enterprise policy).
+        // Lowering it never deletes stored text; only new analyses are affected.
+        snippetAnalysisContentLimit = new SnippetAnalysisContentLimitControl(
+            globalSettings != null
+                ? globalSettings.getSnippetAnalysisMaxStoredContentBytes()
+                : de.kortty.core.SnippetAnalysisContentLimit.DEFAULT_BYTES,
+            de.kortty.policy.PolicyManager.effective().snippetAnalysisMaxStoredContentBytes());
+        snippetRow = snippetAnalysisContentLimit.addTo(snippetEditorGrid,
+            new Label(I18n.get("settings.snippetEditor.analysisContentLimit")), snippetRow);
+
         LazyTabContent.defer(snippetEditorTab, () -> snippetEditorGrid);
 
         // Themes tab
@@ -3328,6 +3339,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             MonacoEditorWarmup.applyEnabled(snippetPrewarmCheck.isSelected());
             Integer analysisHistory = snippetAnalysisHistorySpinner.getValue();
             globalSettings.setSnippetAnalysisHistoryMaxSize(analysisHistory);
+            Long analysisContentLimit = snippetAnalysisContentLimit.valueToStore();
+            if (analysisContentLimit != null) {
+                globalSettings.setSnippetAnalysisMaxStoredContentBytes(analysisContentLimit);
+            }
         }
         trackChangedSettings(trackedSettingsBefore);
         return true;
@@ -3409,6 +3424,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("sftp", "auto_close_minutes", gs::getSftpAutoCloseMinutes, true));
             tracked.add(new TrackedSetting("snippet_editor", "analysis_history_max",
                 gs::getSnippetAnalysisHistoryMaxSize, true));
+            tracked.add(new TrackedSetting("snippet_editor", "analysis_content_limit_bytes",
+                gs::getSnippetAnalysisMaxStoredContentBytes, true));
         }
         return tracked;
     }

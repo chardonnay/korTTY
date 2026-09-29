@@ -92,6 +92,10 @@ final class SnippetAnalysisController {
     static final String BANNERS_ID = "snippet-analysis-banners";
     static final String HISTORY_COMBO_ID = "snippet-analysis-history";
     static final String EMPTY_STATE_ID = "snippet-analysis-empty";
+    /** The Start analysis button of the "New analysis" chooser / empty state. */
+    static final String START_BUTTON_ID = "snippet-analysis-run";
+    static final String START_PROFILE_COMBO_ID = "snippet-analysis-start-profile";
+    static final String START_CANCEL_ID = "snippet-analysis-start-cancel";
     static final String PROGRESS_HOLDER_ID = "snippet-analysis-progress-holder";
     static final String STALE_BANNER_ID = "snippet-analysis-stale-banner";
     static final String REVIEW_BANNER_ID = "snippet-analysis-review-banner";
@@ -325,6 +329,12 @@ final class SnippetAnalysisController {
     private Label headerStatusLabel;
     private SnippetAnalysisPanel analysisPanel;
     private String renderedRecordId;
+    /** The "New analysis" chooser is shown instead of the result (profile picked before the run). */
+    private boolean startPending;
+    /** The profile currently picked in the ready-state combo; {@code null} = not chosen yet. */
+    private String readyProfileId;
+    private Node readyPane;
+    private boolean readyPaneForRecord;
     /** {@code null} follows the current record; otherwise the history entry the user picked. */
     private String shownRecordId;
     private boolean restoringSelection;
@@ -558,6 +568,7 @@ final class SnippetAnalysisController {
         flushSelection();
         persistPanelWidth();
         panelVisible = false;
+        startPending = false;
         host.hideSidePanel();
         persistPanelVisible(false);
         disposePanelViews();
@@ -591,6 +602,7 @@ final class SnippetAnalysisController {
             restoredPaneKey = null;
         }
         sidePanel = null;
+        readyPane = null;
         bannerBox = null;
         bannerScroll = null;
         historyCombo = null;
@@ -615,6 +627,112 @@ final class SnippetAnalysisController {
      */
     void runAnalysis(String aiProfileId) {
         runAnalysis(aiProfileId, null, null);
+    }
+
+    // ---- choosing the profile before the analysis starts ----------------------------------------
+
+    /** The profiles a new analysis can be started with (empty without settings, e.g. in isolated tests). */
+    List<SnippetAnalysisProfileSupport.Option> profileOptions() {
+        GlobalSettings settings = SnippetAiDialogSupport.currentSettings();
+        if (settings == null) {
+            return List.of();
+        }
+        return SnippetAnalysisProfileSupport.options(settings.getAiProfiles(), analysisDefaultProfileId(settings));
+    }
+
+    /**
+     * The profile a request without an explicit profile resolves to for this action: the coding role
+     * profile when it exists, else the default profile (mirrors {@code AiProfileSelectionSupport}).
+     */
+    static String analysisDefaultProfileId(GlobalSettings settings) {
+        if (settings == null) {
+            return null;
+        }
+        String coding = settings.getCodingAiProfileId();
+        if (coding != null && settings.getAiProfiles() != null
+                && settings.getAiProfiles().stream().anyMatch(p -> p != null && coding.equals(p.getId()))) {
+            return coding;
+        }
+        return settings.getDefaultAiProfileId();
+    }
+
+    /** Whether the user is offered a profile choice before the analysis (else it starts at once). */
+    boolean profileChoiceOffered() {
+        return SnippetAnalysisProfileSupport.choiceOffered(profileOptions(), host.profileSwitchingSupported());
+    }
+
+    /** The profile the chooser preselects: the remembered one, else the default. */
+    String preselectedProfileId() {
+        GlobalSettings settings = SnippetAiDialogSupport.currentSettings();
+        return SnippetAnalysisProfileSupport.resolveSelection(profileOptions(),
+            settings != null ? settings.getSnippetAnalysisLastProfileId() : null);
+    }
+
+    /**
+     * The plain "Full code analysis" entry: opens the panel on the "New analysis" chooser so the profile can
+     * be seen and picked before anything is sent. Without a choice to make (one profile, or a host that
+     * cannot switch profiles) it starts at once, like before.
+     */
+    void openStartPanel() {
+        if (disposed) {
+            return;
+        }
+        if (!host.hasCodeAnalysisProviders() || !aiAllowed()) {
+            host.setStatus(I18n.get("snippets.ai.analysis.panel.aiUnavailable"));
+            return;
+        }
+        String content = host.currentContent();
+        if (content == null || content.isBlank()) {
+            return;
+        }
+        if (!profileChoiceOffered()) {
+            runAnalysis(null);
+            return;
+        }
+        if (host.isAnyAiTaskRunning() || activeRun != null) {
+            host.setStatus(I18n.get("snippets.ai.analysis.panel.busy"));
+            return;
+        }
+        host.autoDetectAiSkills();
+        startPending = true;
+        readyProfileId = preselectedProfileId();
+        readyPane = null;
+        shownRecordId = null;
+        showPanel();
+        render();
+        Node start = contentHolder != null ? contentHolder.lookup("#" + START_BUTTON_ID) : null;
+        if (start != null) {
+            Platform.runLater(start::requestFocus);
+        }
+    }
+
+    /** "Full code analysis with profile": starts at once with {@code profileId} and remembers it. */
+    void startWithProfile(String profileId) {
+        if (disposed) {
+            return;
+        }
+        rememberProfile(profileId);
+        runAnalysis(profileId);
+    }
+
+    /** The "New analysis" chooser is showing (tests). */
+    boolean isStartPending() {
+        return startPending;
+    }
+
+    private void rememberProfile(String profileId) {
+        if (profileId != null && !profileId.isBlank()) {
+            updateSettings(settings -> settings.setSnippetAnalysisLastProfileId(profileId));
+        }
+    }
+
+    private String runningHint(String aiProfileId) {
+        List<SnippetAnalysisProfileSupport.Option> options = profileOptions();
+        String id = aiProfileId != null ? aiProfileId : analysisDefaultProfileId(SnippetAiDialogSupport.currentSettings());
+        SnippetAnalysisProfileSupport.Option option = SnippetAnalysisProfileSupport.find(options, id);
+        return option != null && options.size() > 1
+            ? I18n.get("snippets.ai.review.running.profile", option.name())
+            : I18n.get("snippets.ai.review.running");
     }
 
     /**
@@ -682,13 +800,16 @@ final class SnippetAnalysisController {
         analysisTask = task;
         analysisPurpose = purpose;
         analysisOutcome = null;
+        startPending = false;
+        readyPane = null;
+        String runningText = runningHint(aiProfileId);
         analysisStartedNanos = System.nanoTime();
         analysisElapsedTicker.play();
         Runnable retry = () -> runAnalysis(aiProfileId, purpose, previousRecordId);
         host.beginAiAction(task, retry);
         task.setOnRunning(event -> {
-            host.showAiHint(I18n.get("snippets.ai.review.running"));
-            host.setStatus(I18n.get("snippets.ai.review.running"));
+            host.showAiHint(runningText);
+            host.setStatus(runningText);
             refreshState();
         });
         task.setOnSucceeded(event -> {
@@ -1466,7 +1587,7 @@ final class SnippetAnalysisController {
             }
             case CONTENT_CHANGED -> host.setStatus(I18n.get("snippets.ai.analysis.fix.resume.contentChanged"));
             case PLAN_CHANGED -> host.setStatus(I18n.get("snippets.ai.analysis.fix.resume.replan"));
-            case NOT_ELIGIBLE -> host.setStatus(I18n.get("snippets.ai.analysis.panel.partialUnavailable"));
+            case NOT_ELIGIBLE -> host.setStatus(withStorageHint(I18n.get("snippets.ai.analysis.panel.partialUnavailable")));
         }
         refreshState();
     }
@@ -1483,7 +1604,7 @@ final class SnippetAnalysisController {
         }
         String base = context != null ? context.baseContent() : baseContentOf(recordId, runId);
         if (base == null) {
-            host.setStatus(I18n.get("snippets.ai.analysis.panel.partialUnavailable"));
+            host.setStatus(withStorageHint(I18n.get("snippets.ai.analysis.panel.partialUnavailable")));
             return;
         }
         SnippetAiResponseSupport.SnippetSecurityFix partial = checkpoint.toPartialFix();
@@ -1536,12 +1657,12 @@ final class SnippetAnalysisController {
         SnippetAnalysisRecord record = findRecord(recordId);
         ApplyRun run = record != null ? record.findRun(runId) : null;
         if (run == null || run.outcome() != RunOutcome.PENDING_REVIEW || run.resultContent() == null) {
-            host.setStatus(I18n.get("snippets.ai.analysis.review.unavailable"));
+            host.setStatus(withStorageHint(I18n.get("snippets.ai.analysis.review.unavailable")));
             return;
         }
         String base = baseContentOf(recordId, runId);
         if (base == null) {
-            host.setStatus(I18n.get("snippets.ai.analysis.review.unavailable"));
+            host.setStatus(withStorageHint(I18n.get("snippets.ai.analysis.review.unavailable")));
             return;
         }
         trackAction("code_review_reopen", Map.of());
@@ -1611,7 +1732,7 @@ final class SnippetAnalysisController {
         }
         String base = baseContentOf(recordId, runId);
         if (run.resultContent() == null || base == null) {
-            host.setStatus(I18n.get("snippets.ai.analysis.preview.unavailable"));
+            host.setStatus(withStorageHint(I18n.get("snippets.ai.analysis.preview.unavailable")));
             return;
         }
         if (review != null) {
@@ -1825,6 +1946,24 @@ final class SnippetAnalysisController {
             }
         }
         refreshState();
+    }
+
+    /**
+     * Appends why the script text of an analysis may be missing: the limit in force, that it is Off,
+     * or that the enterprise policy forbids storing it.
+     */
+    static String withStorageHint(String message) {
+        var limits = de.kortty.core.SnippetAnalysisContentLimit.limits();
+        String hint;
+        if (limits.forbiddenByPolicy()) {
+            hint = I18n.get("snippets.ai.analysis.contentNotStored.policy");
+        } else if (limits.effective() == 0) {
+            hint = I18n.get("snippets.ai.analysis.contentNotStored.off");
+        } else {
+            hint = I18n.get("snippets.ai.analysis.contentNotStored.limit",
+                SnippetAnalysisContentLimitControl.format(limits.effective()));
+        }
+        return message + " " + hint;
     }
 
     private void closeReview() {
@@ -2208,7 +2347,12 @@ final class SnippetAnalysisController {
     void selectRecord(String recordId) {
         SnippetAnalysisRecord current = history != null ? history.current() : null;
         String next = current != null && current.id().equals(recordId) ? null : recordId;
+        boolean wasPending = startPending;
+        startPending = false;
         if (Objects.equals(next, shownRecordId)) {
+            if (wasPending) {
+                render();
+            }
             return;
         }
         flushSelection();
@@ -2217,15 +2361,23 @@ final class SnippetAnalysisController {
     }
 
     private void renderContent(SnippetAnalysisRecord record) {
-        if (record == null) {
+        if (record == null || startPending) {
             if (analysisPanel != null) {
                 analysisPanel.dispose();
                 analysisPanel = null;
                 renderedRecordId = null;
             }
-            contentHolder.getChildren().setAll(buildEmptyState());
+            boolean forRecord = record != null;
+            if (readyPane == null || readyPaneForRecord != forRecord) {
+                readyPane = buildReadyState(forRecord);
+                readyPaneForRecord = forRecord;
+            }
+            if (contentHolder.getChildren().size() != 1 || contentHolder.getChildren().get(0) != readyPane) {
+                contentHolder.getChildren().setAll(readyPane);
+            }
             return;
         }
+        readyPane = null;
         if (analysisPanel != null && record.id().equals(renderedRecordId)) {
             analysisPanel.setAppliedFindings(appliedFindingIds(record));
             return;
@@ -2356,19 +2508,161 @@ final class SnippetAnalysisController {
         }
     }
 
-    private Node buildEmptyState() {
-        Label text = new Label(I18n.get("snippets.ai.analysis.panel.empty"));
-        text.setWrapText(true);
-        Button run = new Button(SnippetAiDialogSupport.AI_ACTION_PREFIX + I18n.get("snippets.ai.analysis.panel.run"));
-        run.setId("snippet-analysis-run");
-        run.setDisable(!aiAllowed() || !host.hasCodeAnalysisProviders() || analysisTask != null
-            || host.isAnyAiTaskRunning());
-        run.setOnAction(event -> runAnalysis(null));
-        VBox box = new VBox(10, text, run);
+    /**
+     * The "New analysis" area, shown while there is no analysis yet and whenever the user opens Full code
+     * analysis: the AI profile to use (a picker when there is a choice, else just its name), the skills the
+     * analysis will include, a note on the editor's additional instructions and the Start button. Enter
+     * starts, like the button. {@code forRecord} adds "Back to result" for an editor that already has one.
+     */
+    private Node buildReadyState(boolean forRecord) {
+        List<SnippetAnalysisProfileSupport.Option> options = profileOptions();
+        boolean offered = SnippetAnalysisProfileSupport.choiceOffered(options, host.profileSwitchingSupported());
+        VBox box = new VBox(10);
         box.setId(EMPTY_STATE_ID);
         box.setPadding(new Insets(12, 4, 12, 4));
         box.setAlignment(Pos.TOP_LEFT);
+
+        if (forRecord) {
+            Label title = new Label(I18n.get("snippets.ai.analysis.start.title"));
+            title.setStyle("-fx-font-weight: bold; -fx-font-size: 1.08em;");
+            box.getChildren().add(title);
+        }
+        Label text = new Label(I18n.get(forRecord
+            ? "snippets.ai.analysis.start.hint" : "snippets.ai.analysis.panel.empty"));
+        text.setWrapText(true);
+        text.setMinHeight(Region.USE_PREF_SIZE);
+        box.getChildren().add(text);
+
+        ComboBox<SnippetAnalysisProfileSupport.Option> profileCombo = null;
+        if (offered) {
+            profileCombo = new ComboBox<>();
+            profileCombo.setId(START_PROFILE_COMBO_ID);
+            profileCombo.getItems().setAll(options);
+            profileCombo.setMaxWidth(Double.MAX_VALUE);
+            profileCombo.setMinWidth(120);
+            profileCombo.setCellFactory(list -> new ProfileOptionCell());
+            profileCombo.setButtonCell(new ProfileOptionCell());
+            String selected = readyProfileId != null && SnippetAnalysisProfileSupport.find(options, readyProfileId) != null
+                ? readyProfileId : preselectedProfileId();
+            readyProfileId = selected;
+            profileCombo.setValue(SnippetAnalysisProfileSupport.find(options, selected));
+            profileCombo.valueProperty().addListener((obs, was, now) -> {
+                if (now != null) {
+                    readyProfileId = now.id();
+                }
+            });
+            HBox.setHgrow(profileCombo, Priority.ALWAYS);
+            Label profileLabel = SnippetAiDialogSupport.profileLabel();
+            profileLabel.setMinWidth(Region.USE_PREF_SIZE);
+            HBox row = new HBox(8, profileLabel, profileCombo);
+            row.setAlignment(Pos.CENTER_LEFT);
+            box.getChildren().add(row);
+        } else {
+            SnippetAnalysisProfileSupport.Option only = options.size() == 1 ? options.get(0) : null;
+            String name = only != null ? only.name()
+                : SnippetAiDialogSupport.resolveProfileDisplayName(null);
+            Label profile = new Label(I18n.get("snippets.ai.analysis.profile.using", name));
+            profile.setId("snippet-analysis-start-profile-label");
+            profile.setWrapText(true);
+            profile.setMinHeight(Region.USE_PREF_SIZE);
+            box.getChildren().add(profile);
+        }
+
+        SnippetAnalysisPanel.SkillContext skills = host.skillContext();
+        if (skills != null && !skills.availableSkills().isEmpty()) {
+            box.getChildren().add(new AiSkillPickerControl(skills.availableSkills(), skills.includedSkillIds(),
+                skills.autoSelected(), skills.onSelectionChanged()));
+        }
+        String instructions = host.additionalInstructions();
+        if (instructions != null && !instructions.isBlank()) {
+            Label extra = new Label(I18n.get("snippets.ai.analysis.start.instructions", instructions.strip()));
+            extra.setId("snippet-analysis-start-instructions");
+            extra.setWrapText(true);
+            extra.setMinHeight(Region.USE_PREF_SIZE);
+            extra.setMaxHeight(90);
+            extra.setStyle("-fx-opacity: 0.85;");
+            box.getChildren().add(extra);
+        }
+
+        Button run = new Button(SnippetAiDialogSupport.AI_ACTION_PREFIX + I18n.get("snippets.ai.analysis.start.button"));
+        run.setId(START_BUTTON_ID);
+        run.setMinWidth(Region.USE_PREF_SIZE);
+        run.setDisable(!aiAllowed() || !host.hasCodeAnalysisProviders() || analysisTask != null
+            || host.isAnyAiTaskRunning());
+        ComboBox<SnippetAnalysisProfileSupport.Option> combo = profileCombo;
+        Runnable start = () -> {
+            String chosen = combo != null ? readyProfileId : null;
+            if (chosen != null) {
+                rememberProfile(chosen);
+            }
+            runAnalysis(chosen);
+        };
+        run.setOnAction(event -> start.run());
+        HBox buttons = new HBox(8, run);
+        buttons.setAlignment(Pos.CENTER_LEFT);
+        Button cancel = null;
+        if (forRecord) {
+            cancel = new Button(I18n.get("snippets.ai.analysis.start.cancel"));
+            cancel.setId(START_CANCEL_ID);
+            cancel.setMinWidth(Region.USE_PREF_SIZE);
+            cancel.setOnAction(event -> {
+                startPending = false;
+                readyPane = null;
+                render();
+            });
+            buttons.getChildren().add(cancel);
+        }
+        box.getChildren().add(buttons);
+        Button cancelButton = cancel;
+        box.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() != javafx.scene.input.KeyCode.ENTER || event.isConsumed()) {
+                return;
+            }
+            if (event.getTarget() == cancelButton || combo != null && combo.isShowing() || run.isDisabled()) {
+                return;
+            }
+            event.consume();
+            start.run();
+        });
         return box;
+    }
+
+    /** A profile entry of the chooser: name, "(default)" mark and a tooltip with provider type and model. */
+    private static final class ProfileOptionCell extends ListCell<SnippetAnalysisProfileSupport.Option> {
+        @Override
+        protected void updateItem(SnippetAnalysisProfileSupport.Option item, boolean empty) {
+            super.updateItem(item, empty);
+            if (empty || item == null) {
+                setText(null);
+                setTooltip(null);
+                return;
+            }
+            setText(profileOptionLabel(item));
+            setTooltip(new Tooltip(profileOptionTooltip(item)));
+        }
+    }
+
+    /** The label of a profile in the chooser and the submenu: its name, "(default)" for the default one. */
+    static String profileOptionLabel(SnippetAnalysisProfileSupport.Option option) {
+        return option.isDefault()
+            ? I18n.get("snippets.ai.analysis.start.profile.defaultMark", option.name())
+            : option.name();
+    }
+
+    /** "Provider type · model", e.g. "HTTP API · gpt-4o". */
+    static String profileOptionTooltip(SnippetAnalysisProfileSupport.Option option) {
+        StringBuilder text = new StringBuilder();
+        if (option.connectionMode() != null) {
+            text.append(I18n.get("settings.ai.connectionMode."
+                + option.connectionMode().name().toLowerCase(java.util.Locale.ROOT)));
+        }
+        if (option.model() != null && !option.model().isBlank()) {
+            if (!text.isEmpty()) {
+                text.append(" · ");
+            }
+            text.append(option.model().strip());
+        }
+        return text.isEmpty() ? option.name() : text.toString();
     }
 
     private void renderBanners(SnippetAnalysisRecord record) {
@@ -3051,12 +3345,14 @@ final class SnippetAnalysisController {
 
     private static void updateSettings(java.util.function.Consumer<GlobalSettings> change) {
         try {
-            KorTTYApplication app = KorTTYApplication.getInstance();
-            GlobalSettingsManager manager = app != null ? app.getGlobalSettingsManager() : null;
-            GlobalSettings settings = manager != null ? manager.getSettings() : null;
+            GlobalSettings settings = SnippetAiDialogSupport.currentSettings();
             if (settings != null) {
                 change.accept(settings);
-                manager.scheduleSave();
+                KorTTYApplication app = KorTTYApplication.getInstance();
+                GlobalSettingsManager manager = app != null ? app.getGlobalSettingsManager() : null;
+                if (manager != null && manager.getSettings() == settings) {
+                    manager.scheduleSave();
+                }
             }
         } catch (Exception ignored) {
             // No application (isolated JavaFX tests) or an unwritable profile: a layout preference.

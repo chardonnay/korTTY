@@ -908,6 +908,10 @@ public class GlobalSettings {
     @XmlElement
     private Integer snippetAnalysisHistoryMaxSize = 5; // Stored Full-code analyses kept per snippet (default: 5, 1..20)
 
+    /** Bytes of UTF-8 per stored content field of a Full-code analysis; unset = 1 MiB, 0 = store no script text, max 5 MiB. */
+    @XmlElement
+    private Long snippetAnalysisMaxStoredContentBytes;
+
     /** Width of the Full-code-analysis side panel inside the snippet editor; unset = default. */
     @XmlElement
     private Double snippetAnalysisPanelWidth;
@@ -915,6 +919,13 @@ public class GlobalSettings {
     /** Whether the analysis side panel was left open, so an editor with a stored analysis reopens it. */
     @XmlElement
     private Boolean snippetAnalysisPanelVisible;
+
+    /**
+     * The AI profile the user last started a Full code analysis with; preselected in the next "New
+     * analysis" chooser. Unset, or an id that no longer exists, falls back to the default profile.
+     */
+    @XmlElement
+    private String snippetAnalysisLastProfileId;
 
     /** The folder the last code-analysis report was exported to; unset = the chooser's default. */
     @XmlElement
@@ -3640,6 +3651,23 @@ public class GlobalSettings {
         this.snippetAnalysisHistoryMaxSize = Math.max(1, Math.min(20, snippetAnalysisHistoryMaxSize));
     }
 
+    /**
+     * The user's limit for the script text stored with each Full-code analysis, in bytes of UTF-8:
+     * 1 MiB when unset, {@code 0} = do not store script text, otherwise 256 KiB..5 MiB. This is the
+     * user's own value; the effective limit also honours the enterprise policy maximum
+     * ({@link de.kortty.core.SnippetAnalysisContentLimit#compute}).
+     */
+    public long getSnippetAnalysisMaxStoredContentBytes() {
+        return de.kortty.core.SnippetAnalysisContentLimit.normalizeUser(snippetAnalysisMaxStoredContentBytes);
+    }
+
+    /** {@code null} resets to the default; other values are normalised like the getter reads them. */
+    public void setSnippetAnalysisMaxStoredContentBytes(Long bytes) {
+        this.snippetAnalysisMaxStoredContentBytes = bytes == null
+            ? null
+            : de.kortty.core.SnippetAnalysisContentLimit.normalizeUser(bytes);
+    }
+
     /** The analysis side panel width, or {@code null} for the default; junk values read as unset. */
     public Double getSnippetAnalysisPanelWidth() {
         if (snippetAnalysisPanelWidth == null || snippetAnalysisPanelWidth.isNaN() || snippetAnalysisPanelWidth <= 0) {
@@ -3661,6 +3689,16 @@ public class GlobalSettings {
 
     public void setSnippetAnalysisPanelVisible(boolean snippetAnalysisPanelVisible) {
         this.snippetAnalysisPanelVisible = snippetAnalysisPanelVisible;
+    }
+
+    public String getSnippetAnalysisLastProfileId() {
+        return snippetAnalysisLastProfileId != null && !snippetAnalysisLastProfileId.isBlank()
+            ? snippetAnalysisLastProfileId : null;
+    }
+
+    public void setSnippetAnalysisLastProfileId(String snippetAnalysisLastProfileId) {
+        this.snippetAnalysisLastProfileId = snippetAnalysisLastProfileId != null
+            && !snippetAnalysisLastProfileId.isBlank() ? snippetAnalysisLastProfileId.trim() : null;
     }
 
     public String getSnippetAnalysisExportDirectory() {

@@ -75,6 +75,34 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void snippetAnalysisMaxStoredContentBytesRoundTripsAndIsNormalised() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-content-limit");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertThat(manager.getSettings().getSnippetAnalysisMaxStoredContentBytes()).isEqualTo(1024L * 1024);
+            manager.getSettings().setSnippetAnalysisMaxStoredContentBytes(3L * 1024 * 1024);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            GlobalSettings settings = reloaded.getSettings();
+            assertThat(settings.getSnippetAnalysisMaxStoredContentBytes()).isEqualTo(3L * 1024 * 1024);
+
+            settings.setSnippetAnalysisMaxStoredContentBytes(0L);
+            assertThat(settings.getSnippetAnalysisMaxStoredContentBytes()).isEqualTo(0L);
+            settings.setSnippetAnalysisMaxStoredContentBytes(1L);
+            assertThat(settings.getSnippetAnalysisMaxStoredContentBytes()).isEqualTo(256L * 1024);
+            settings.setSnippetAnalysisMaxStoredContentBytes(Long.MAX_VALUE);
+            assertThat(settings.getSnippetAnalysisMaxStoredContentBytes()).isEqualTo(5L * 1024 * 1024);
+            settings.setSnippetAnalysisMaxStoredContentBytes(null);
+            assertThat(settings.getSnippetAnalysisMaxStoredContentBytes()).isEqualTo(1024L * 1024);
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void saveAndLoadPreservesTheSessionJournalAiScreenshotAnalysisFlag() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings-shots");
         try {
@@ -148,6 +176,32 @@ class GlobalSettingsManagerTest {
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void saveAndLoadPreservesTheLastSnippetAnalysisProfile() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            manager.getSettings().setSnippetAnalysisLastProfileId("  profile-2 ");
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            assertThat(reloaded.getSettings().getSnippetAnalysisLastProfileId()).isEqualTo("profile-2");
+
+            reloaded.getSettings().setSnippetAnalysisLastProfileId(" ");
+            assertThat(reloaded.getSettings().getSnippetAnalysisLastProfileId()).isNull();
+
+            // A settings file written before the element existed loads as "nothing remembered".
+            GlobalSettingsManager legacy = new GlobalSettingsManager(Files.createTempDirectory("kortty-legacy"));
+            legacy.load();
+            assertThat(legacy.getSettings().getSnippetAnalysisLastProfileId()).isNull();
+        } finally {
+            try (var files = Files.walk(dir)) {
+                files.sorted(java.util.Comparator.reverseOrder()).forEach(path -> path.toFile().delete());
+            }
         }
     }
 

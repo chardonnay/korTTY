@@ -353,7 +353,7 @@ public final class SnippetAiDialogsSmoke {
                 // opens, closes and reopens editors, and WebKit copes badly with many pages booting
                 // at once in one headless harness.
                 PauseTransition settle = new PauseTransition(Duration.seconds(2));
-                settle.setOnFinished(event -> runIntegratedAnalysisLeg(failure, done));
+                settle.setOnFinished(event -> runProfileChoiceLeg(failure, () -> runIntegratedAnalysisLeg(failure, done)));
                 settle.play();
                 return;
             }
@@ -995,6 +995,319 @@ public final class SnippetAiDialogsSmoke {
                 Throwable cause = e instanceof java.lang.reflect.InvocationTargetException ite && ite.getCause() != null
                     ? ite.getCause() : e;
                 failure.compareAndSet(null, "Stop/Retry failed in phase " + phase.get() + ": " + cause);
+                phase.set(99);
+                finish.run();
+            }
+        }));
+        timeline.setCycleCount(Timeline.INDEFINITE);
+        poller.set(timeline);
+        timeline.play();
+    }
+
+    /**
+     * Choosing the AI profile before the Full code analysis starts, with two fake profiles ("Alpha" is the
+     * default, "Beta" is not): the plain entry opens the "New analysis" chooser and starts nothing, a stale
+     * remembered profile falls back to the default, the picked profile reaches the analysis request, the
+     * stored record, the diagram and Apply, the choice is remembered and preselected next time (also when a
+     * result already exists, with Back to result), Enter starts, the submenu starts at once with its
+     * profile, Retry after a failure keeps the profile, and a single profile skips the choice.
+     */
+    private static void runProfileChoiceLeg(AtomicReference<String> failure, Runnable next) {
+        // Real comments: the apply flow asks which language to keep when it cannot tell.
+        String original = "#!/usr/bin/env bash\n# Prints the value that was passed to the script and checks that the\n"
+            + "# variable is quoted, otherwise the shell splits it into several arguments.\n"
+            + "printf '%s\\n' $value\n";
+        List<String> analysisProfiles = java.util.Collections.synchronizedList(new ArrayList<>());
+        List<String> diagramProfiles = java.util.Collections.synchronizedList(new ArrayList<>());
+        List<String> applyProfiles = java.util.Collections.synchronizedList(new ArrayList<>());
+        AtomicBoolean failNext = new AtomicBoolean();
+        AtomicReference<Timeline> poller = new AtomicReference<>();
+        java.util.concurrent.atomic.AtomicInteger phase = new java.util.concurrent.atomic.AtomicInteger();
+        long started = System.nanoTime();
+
+        GlobalSettings settings = new GlobalSettings();
+        de.kortty.model.AiProfile alpha = new de.kortty.model.AiProfile();
+        alpha.setId("profile-alpha");
+        alpha.setName("Alpha");
+        alpha.setModel("model-a");
+        de.kortty.model.AiProfile beta = new de.kortty.model.AiProfile();
+        beta.setId("profile-beta");
+        beta.setName("Beta");
+        beta.setModel("model-b");
+        settings.setAiProfiles(new ArrayList<>(List.of(alpha, beta)));
+        settings.setDefaultAiProfileId("profile-alpha");
+        settings.setSnippetAnalysisLastProfileId("profile-deleted-long-ago");
+        SnippetAiDialogSupport.overrideSettingsForTests(settings);
+
+        SnippetAiResponseSupport.ScriptAnalysis analysis = new SnippetAiResponseSupport.ScriptAnalysis(
+            "Prints one value.", List.of(),
+            List.of(new SnippetAiResponseSupport.ScriptImprovement("SEC-1", "security", "high",
+                "Quote the value", "Unquoted.", "Quote it.", 3)));
+        SnippetEditDialog.AiAssist assist = new SnippetEditDialog.AiAssist(
+            null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+            request -> {
+                diagramProfiles.add(String.valueOf(request.aiProfileId()));
+                return new SnippetAiResponseSupport.MermaidDiagram("Flow", "");
+            },
+            request -> {
+                analysisProfiles.add(request.aiProfileId());
+                if (failNext.compareAndSet(true, false)) {
+                    throw new IllegalStateException("simulated provider failure");
+                }
+                String id = request.aiProfileId() != null ? request.aiProfileId() : "profile-alpha";
+                if (request.provenanceListener() != null) {
+                    request.provenanceListener().onProvenance(new de.kortty.core.SnippetAnalysisRecord.Provenance(
+                        id, "profile-alpha".equals(id) ? "Alpha" : "Beta", null, null, null, null, null));
+                }
+                return analysis;
+            },
+            request -> {
+                applyProfiles.add(request.aiProfileId());
+                return new SnippetAiResponseSupport.SnippetSecurityFix(
+                    original.replace("$value", "\"$value\""), "Quoted.", List.of(
+                        new SnippetAiResponseSupport.SecurityChange("SEC-1", "x", "y")));
+            },
+            true,
+            null);
+        Snippet snippet = new Snippet("profile-choice-smoke.sh", original, "bash");
+        SnippetEditDialog editorDialog;
+        try {
+            editorDialog = new SnippetEditDialog(snippet, List.of(), assist);
+            editorDialog.show();
+        } catch (Throwable e) {
+            SnippetAiDialogSupport.overrideSettingsForTests(null);
+            failure.compareAndSet(null, "Profile-choice leg could not start: " + e);
+            next.run();
+            return;
+        }
+        SnippetEditDialog shown = editorDialog;
+        MonacoEditorPane editor = field(shown, "contentArea", MonacoEditorPane.class);
+        Runnable finish = () -> {
+            stop(poller);
+            SnippetAiDialogSupport.overrideSettingsForTests(null);
+            shown.closeWithoutPrompt();
+            PauseTransition cleanupPause = new PauseTransition(Duration.seconds(2));
+            cleanupPause.setOnFinished(cleanup -> next.run());
+            cleanupPause.play();
+        };
+        Timeline timeline = new Timeline(new KeyFrame(Duration.millis(100), event -> {
+            try {
+                if (System.nanoTime() - started > 120_000_000_000L) {
+                    throw new AssertionError("timed out");
+                }
+                SnippetAnalysisController controller = shown.analysisController();
+                switch (phase.get()) {
+                    case 0 -> {
+                        if (!editor.isReady()) {
+                            return;
+                        }
+                        // The plain entry only opens the chooser.
+                        invoke(shown, "runCodeReview", new Class<?>[0]);
+                        phase.set(1);
+                    }
+                    case 1 -> {
+                        if (!controller.isStartPending() || controller.sidePanel() == null) {
+                            return;
+                        }
+                        if (!analysisProfiles.isEmpty() || controller.isAnalysisRunning()) {
+                            throw new AssertionError("The plain entry started the analysis before a profile was chosen");
+                        }
+                        @SuppressWarnings("unchecked")
+                        ComboBox<SnippetAnalysisProfileSupport.Option> combo = (ComboBox<SnippetAnalysisProfileSupport.Option>)
+                            requireInEditor(shown, "#" + SnippetAnalysisController.START_PROFILE_COMBO_ID);
+                        if (combo.getItems().size() != 2 || combo.getValue() == null
+                                || !"profile-alpha".equals(combo.getValue().id())) {
+                            throw new AssertionError("A stale remembered profile must fall back to the default, got "
+                                + combo.getValue());
+                        }
+                        if (!SnippetAnalysisController.profileOptionLabel(combo.getItems().get(0)).contains("Alpha (")
+                                || SnippetAnalysisController.profileOptionLabel(combo.getItems().get(1)).contains("(")) {
+                            throw new AssertionError("Only the default profile carries the default mark");
+                        }
+                        if (!SnippetAnalysisController.profileOptionTooltip(combo.getItems().get(1)).contains("model-b")) {
+                            throw new AssertionError("The profile tooltip shows no model");
+                        }
+                        requireInEditor(shown, "#snippet-analysis-side-panel");
+                        snapshotNode(controller.sidePanel(), "snippet-analysis-start-chooser.png");
+                        combo.setValue(combo.getItems().get(1));
+                        click((Button) requireInEditor(shown, "#" + SnippetAnalysisController.START_BUTTON_ID));
+                        phase.set(2);
+                    }
+                    case 2 -> {
+                        de.kortty.core.SnippetAnalysisHistory stored =
+                            de.kortty.core.SnippetAnalysisStore.shared().cached(snippet.getId());
+                        SnippetAnalysisPanel panel = controller.analysisPanel();
+                        if (stored == null || stored.isEmpty() || controller.isAnalysisRunning()
+                                || panel == null || !panel.isPageReady()) {
+                            return;
+                        }
+                        if (!"profile-beta".equals(analysisProfiles.get(0))) {
+                            throw new AssertionError("The chosen profile did not reach the request: " + analysisProfiles);
+                        }
+                        de.kortty.core.SnippetAnalysisRecord.Provenance provenance = stored.current().provenance();
+                        if (!"profile-beta".equals(provenance.profileId()) || !"Beta".equals(provenance.profileName())) {
+                            throw new AssertionError("The stored record names the wrong profile: " + provenance);
+                        }
+                        if (!"profile-beta".equals(settings.getSnippetAnalysisLastProfileId())) {
+                            throw new AssertionError("The chosen profile was not remembered");
+                        }
+                        Label using = nodeById(panel, "snippet-analysis-profile-using", Label.class);
+                        if (!using.getText().contains("Beta")) {
+                            throw new AssertionError("The panel banner does not name the profile: " + using.getText());
+                        }
+                        phase.set(3);
+                    }
+                    case 3 -> {
+                        // The diagram of the analysis is generated with the analysis profile.
+                        if (diagramProfiles.isEmpty()) {
+                            return;
+                        }
+                        if (!diagramProfiles.stream().allMatch("profile-beta"::equals)) {
+                            throw new AssertionError("The diagram used another profile: " + diagramProfiles);
+                        }
+                        WebEngine findings = findingsWebView(controller.analysisPanel()).getEngine();
+                        setChecked(findings, "imp", "SEC-1", true);
+                        click((Button) requireInEditor(shown, "#" + SnippetAnalysisController.APPLY_BUTTON_ID));
+                        phase.set(4);
+                    }
+                    case 4 -> {
+                        SnippetAiDiffPane review = controller.reviewPane();
+                        if (applyProfiles.isEmpty() || review == null || review.getScene() == null
+                                || !review.isDiffReady()) {
+                            return;
+                        }
+                        if (!"profile-beta".equals(applyProfiles.get(0))) {
+                            throw new AssertionError("Apply used another profile: " + applyProfiles);
+                        }
+                        ((Button) requireInEditor(shown, "#snippet-ai-diff-reject")).fire();
+                        phase.set(5);
+                    }
+                    case 5 -> {
+                        if (controller.isReviewShowing() || isAiBusy(shown)) {
+                            return;
+                        }
+                        // A result exists now: the chooser still opens, preselects the remembered profile
+                        // and offers the way back to the result.
+                        invoke(shown, "runCodeReview", new Class<?>[0]);
+                        phase.set(6);
+                    }
+                    case 6 -> {
+                        if (!controller.isStartPending()) {
+                            return;
+                        }
+                        @SuppressWarnings("unchecked")
+                        ComboBox<SnippetAnalysisProfileSupport.Option> combo = (ComboBox<SnippetAnalysisProfileSupport.Option>)
+                            requireInEditor(shown, "#" + SnippetAnalysisController.START_PROFILE_COMBO_ID);
+                        if (combo.getValue() == null || !"profile-beta".equals(combo.getValue().id())) {
+                            throw new AssertionError("The remembered profile is not preselected: " + combo.getValue());
+                        }
+                        Node back = requireInEditor(shown, "#" + SnippetAnalysisController.START_CANCEL_ID);
+                        ((Button) back).fire();
+                        if (controller.isStartPending()) {
+                            throw new AssertionError("Back to result left the chooser open");
+                        }
+                        invoke(shown, "runCodeReview", new Class<?>[0]);
+                        phase.set(7);
+                    }
+                    case 7 -> {
+                        if (!controller.isStartPending()) {
+                            return;
+                        }
+                        @SuppressWarnings("unchecked")
+                        ComboBox<SnippetAnalysisProfileSupport.Option> combo = (ComboBox<SnippetAnalysisProfileSupport.Option>)
+                            requireInEditor(shown, "#" + SnippetAnalysisController.START_PROFILE_COMBO_ID);
+                        combo.setValue(combo.getItems().get(0));
+                        // Enter in the chooser starts the analysis.
+                        javafx.event.Event.fireEvent(combo, new javafx.scene.input.KeyEvent(
+                            javafx.scene.input.KeyEvent.KEY_PRESSED, "", "", javafx.scene.input.KeyCode.ENTER,
+                            false, false, false, false));
+                        phase.set(8);
+                    }
+                    case 8 -> {
+                        de.kortty.core.SnippetAnalysisHistory stored =
+                            de.kortty.core.SnippetAnalysisStore.shared().cached(snippet.getId());
+                        if (analysisProfiles.size() < 2 || controller.isAnalysisRunning() || stored == null
+                                || stored.records().size() < 2) {
+                            return;
+                        }
+                        if (!"profile-alpha".equals(analysisProfiles.get(1))
+                                || !"profile-alpha".equals(settings.getSnippetAnalysisLastProfileId())) {
+                            throw new AssertionError("Enter did not start with the picked profile: " + analysisProfiles);
+                        }
+                        // The submenu starts at once with the picked profile.
+                        javafx.scene.control.Menu submenu = field(shown, "reviewCodeWithProfileMenu",
+                            javafx.scene.control.Menu.class);
+                        invoke(shown, "refreshReviewWithProfileMenu", new Class<?>[] {javafx.scene.control.Menu.class},
+                            submenu);
+                        if (!submenu.isVisible() || submenu.getItems().size() != 2
+                                || !submenu.getItems().get(0).getText().contains("Alpha (")) {
+                            throw new AssertionError("The profile submenu is wrong: " + submenu.getItems());
+                        }
+                        submenu.getItems().get(1).fire();
+                        phase.set(9);
+                    }
+                    case 9 -> {
+                        if (analysisProfiles.size() < 3 || controller.isAnalysisRunning() || isAiBusy(shown)) {
+                            return;
+                        }
+                        if (controller.isStartPending() || !"profile-beta".equals(analysisProfiles.get(2))
+                                || !"profile-beta".equals(settings.getSnippetAnalysisLastProfileId())) {
+                            throw new AssertionError("The submenu did not start with its profile: " + analysisProfiles);
+                        }
+                        // Retry after a failure keeps the profile.
+                        failNext.set(true);
+                        javafx.scene.control.Menu submenu = field(shown, "reviewCodeWithProfileMenu",
+                            javafx.scene.control.Menu.class);
+                        submenu.getItems().get(0).fire();
+                        phase.set(10);
+                    }
+                    case 10 -> {
+                        if (analysisProfiles.size() < 4 || controller.isAnalysisRunning()
+                                || controller.analysisOutcome() == null) {
+                            return;
+                        }
+                        controller.retryAnalysis();
+                        phase.set(11);
+                    }
+                    case 11 -> {
+                        if (analysisProfiles.size() < 5 || controller.isAnalysisRunning() || isAiBusy(shown)) {
+                            return;
+                        }
+                        if (!"profile-alpha".equals(analysisProfiles.get(3))
+                                || !"profile-alpha".equals(analysisProfiles.get(4))) {
+                            throw new AssertionError("Retry changed the profile: " + analysisProfiles);
+                        }
+                        // One profile only: no choice, the plain entry starts at once.
+                        settings.setAiProfiles(new ArrayList<>(List.of(alpha)));
+                        invoke(shown, "runCodeReview", new Class<?>[0]);
+                        if (controller.isStartPending()) {
+                            throw new AssertionError("A single profile must not show the chooser");
+                        }
+                        phase.set(12);
+                    }
+                    case 12 -> {
+                        if (analysisProfiles.size() < 6 || controller.isAnalysisRunning() || isAiBusy(shown)) {
+                            return;
+                        }
+                        if (analysisProfiles.get(5) != null) {
+                            throw new AssertionError("The single-profile start must not pin a profile: " + analysisProfiles);
+                        }
+                        javafx.scene.control.Menu submenu = field(shown, "reviewCodeWithProfileMenu",
+                            javafx.scene.control.Menu.class);
+                        invoke(shown, "refreshReviewWithProfileMenu", new Class<?>[] {javafx.scene.control.Menu.class},
+                            submenu);
+                        if (submenu.isVisible()) {
+                            throw new AssertionError("A single profile must not offer the profile submenu");
+                        }
+                        phase.set(13);
+                        finish.run();
+                    }
+                    default -> stop(poller);
+                }
+            } catch (Throwable e) {
+                Throwable cause = e instanceof java.lang.reflect.InvocationTargetException ite && ite.getCause() != null
+                    ? ite.getCause() : e;
+                failure.compareAndSet(null, "Profile-choice leg failed in phase " + phase.get() + ": " + cause);
                 phase.set(99);
                 finish.run();
             }
@@ -1730,6 +2043,178 @@ public final class SnippetAiDialogsSmoke {
                 List.of(), List.of(finding), de.kortty.core.SnippetAnalysisRecord.RunStats.EMPTY, null);
     }
 
+    /** ASCII script of exactly {@code bytes} bytes; every {@code changeEvery}th line differs (0 = none). */
+    private static String bigScript(long bytes, int changeEvery) {
+        final int target = Math.toIntExact(bytes);
+        StringBuilder text = new StringBuilder(target + 100);
+        int line = 0;
+        while (text.length() < target) {
+            boolean changed = changeEvery > 0 && line % changeEvery == 0;
+            text.append("echo \"line ").append(line++).append(' ').append(changed ? "edit" : "same")
+                .append(" of a generated script\"\n");
+        }
+        text.setLength(target);
+        return text.toString();
+    }
+
+    /**
+     * A 5 MB script (the stored-content maximum): a stored analysis with an accepted-but-unsaved
+     * result keeps every text completely, survives a reload from disk, its overview is read without
+     * the blobs, and in the editor "View changes" opens the read-only diff of the two 5 MB texts and
+     * "Restore" puts the 5 MB accepted text back. Logs the timings; then starts {@code next}.
+     */
+    private static void runLargeScriptLeg(AtomicReference<String> failure, CountDownLatch done, Runnable next) {
+        long mb = 1024L * 1024;
+        de.kortty.core.SnippetAnalysisContentLimit.install(
+            () -> de.kortty.core.SnippetAnalysisContentLimit.compute(5 * mb, null));
+        String base = bigScript(5 * mb, 0);
+        String result = bigScript(5 * mb, 997);
+        Snippet snippet = new Snippet("large-script-smoke.sh", base, "bash");
+        String snippetId = snippet.getId();
+        de.kortty.core.SnippetAnalysisStore store = de.kortty.core.SnippetAnalysisStore.shared();
+        long seeded = System.nanoTime();
+        de.kortty.core.SnippetAnalysisRecord record = historyRecord("big-a", snippetId, "Big", base, null, 1000L)
+            .withRun(historyRun("run-big", "B-1", base, result, "Big summary")
+                .accepted(4000L, List.of("B-1"), result));
+        try {
+            if (record.source().content() == null || record.source().contentTruncated()) {
+                throw new AssertionError("A 5 MB script must be stored completely under a 5 MB limit");
+            }
+            store.addAnalysis(snippetId, record);
+            store.flush(java.time.Duration.ofSeconds(60));
+            de.kortty.core.SnippetAnalysisStore fresh = new de.kortty.core.SnippetAnalysisStore(
+                store.directory(), id -> true, () -> 5);
+            long overviewStart = System.nanoTime();
+            var overviews = fresh.allOverviews().get(20, TimeUnit.SECONDS);
+            long overviewMillis = (System.nanoTime() - overviewStart) / 1_000_000L;
+            if (overviews.get(snippetId) == null) {
+                throw new AssertionError("The overview of the stored analysis is missing");
+            }
+            long loadStart = System.nanoTime();
+            de.kortty.core.SnippetAnalysisRecord onDisk = fresh.load(snippetId).get(60, TimeUnit.SECONDS)
+                .find("big-a");
+            long loadMillis = (System.nanoTime() - loadStart) / 1_000_000L;
+            fresh.close();
+            if (onDisk == null || !base.equals(onDisk.source().content())
+                    || !base.equals(lastRun(onDisk).request().baseContent())
+                    || !result.equals(lastRun(onDisk).acceptedContent())
+                    || !result.equals(lastRun(onDisk).resultContent())) {
+                throw new AssertionError("The 5 MB texts did not survive on disk completely");
+            }
+            System.out.printf("[large-script] seeded+written in %d ms, overview %d ms, load %d ms%n",
+                (System.nanoTime() - seeded) / 1_000_000L - loadMillis - overviewMillis, overviewMillis, loadMillis);
+            store.invalidateAll(); // the editor reads the analysis back from disk
+        } catch (Throwable e) {
+            failure.compareAndSet(null, "Large script leg (store) failed: " + e);
+            de.kortty.core.SnippetAnalysisContentLimit.reset();
+            next.run();
+            return;
+        }
+
+        SnippetEditDialog.AiAssist assist = new SnippetEditDialog.AiAssist(
+            null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+            request -> new SnippetAiResponseSupport.MermaidDiagram("Flow", "flowchart TD\n  A --> B"),
+            request -> {
+                throw new AssertionError("The large script leg must never run a new analysis");
+            },
+            request -> {
+                throw new AssertionError("The large script leg must never run an apply");
+            },
+            false,
+            null);
+        java.util.concurrent.atomic.AtomicInteger phase = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicLong stamp = new java.util.concurrent.atomic.AtomicLong(System.nanoTime());
+        java.util.concurrent.atomic.AtomicLong mark = new java.util.concurrent.atomic.AtomicLong(System.nanoTime());
+        AtomicReference<Timeline> poller = new AtomicReference<>();
+        SnippetEditDialog editorDialog;
+        try {
+            editorDialog = new SnippetEditDialog(snippet, List.of(), assist);
+            editorDialog.show();
+        } catch (Throwable e) {
+            failure.compareAndSet(null, "Large script leg could not open the editor: " + e);
+            de.kortty.core.SnippetAnalysisContentLimit.reset();
+            next.run();
+            return;
+        }
+        SnippetEditDialog editor = editorDialog;
+        MonacoEditorPane content = field(editor, "contentArea", MonacoEditorPane.class);
+        Runnable finish = () -> {
+            stop(poller);
+            editor.closeWithoutPrompt();
+            de.kortty.core.SnippetAnalysisContentLimit.reset();
+            PauseTransition cleanupPause = new PauseTransition(Duration.seconds(2));
+            cleanupPause.setOnFinished(cleanup -> next.run());
+            cleanupPause.play();
+        };
+        Timeline timeline = new Timeline(new KeyFrame(Duration.millis(100), event -> {
+            try {
+                if (System.nanoTime() - stamp.get() > 180_000_000_000L) {
+                    throw new AssertionError("timed out in phase " + phase.get());
+                }
+                switch (phase.get()) {
+                    case 0 -> {
+                        if (!content.isReady()) {
+                            return;
+                        }
+                        System.out.printf("[large-script] editor with the 5 MB script ready after %d ms%n",
+                            (System.nanoTime() - mark.get()) / 1_000_000L);
+                        editor.analysisController().showPanel();
+                        phase.set(1);
+                    }
+                    case 1 -> {
+                        SnippetAnalysisController controller = editor.analysisController();
+                        SnippetAnalysisPanel panel = controller.analysisPanel();
+                        if (panel == null || !panel.isPageReady() || !findingsText(panel).contains("Big")) {
+                            return;
+                        }
+                        Button view = findNodes(controller.sidePanel(), Button.class).stream()
+                            .map(Button.class::cast)
+                            .filter(button -> I18n.get("snippets.ai.analysis.progress.viewChanges").equals(button.getText())
+                                && button.isVisible())
+                            .findFirst().orElse(null);
+                        if (view == null) {
+                            return;
+                        }
+                        mark.set(System.nanoTime());
+                        phase.set(2);
+                        click(view);
+                    }
+                    case 2 -> {
+                        SnippetAiDiffPane review = editor.analysisController().reviewPane();
+                        if (review == null || review.getScene() == null || !review.isDiffReady()) {
+                            return;
+                        }
+                        if (!base.equals(review.originalText()) || !result.equals(review.replacementText())) {
+                            throw new AssertionError("View changes shows the wrong 5 MB texts");
+                        }
+                        System.out.printf("[large-script] View changes (5 MB diff) ready after %d ms%n",
+                            (System.nanoTime() - mark.get()) / 1_000_000L);
+                        mark.set(System.nanoTime());
+                        phase.set(3);
+                        click((Button) requireInEditor(editor, "#snippet-ai-diff-restore"));
+                    }
+                    case 3 -> {
+                        if (!result.equals(content.getText())) {
+                            return;
+                        }
+                        System.out.printf("[large-script] Restore of the 5 MB text done after %d ms%n",
+                            (System.nanoTime() - mark.get()) / 1_000_000L);
+                        finish.run();
+                        phase.set(99);
+                    }
+                    default -> { }
+                }
+            } catch (Throwable e) {
+                failure.compareAndSet(null, "Large script leg failed: " + e);
+                finish.run();
+                phase.set(99);
+            }
+        }));
+        timeline.setCycleCount(Animation.INDEFINITE);
+        poller.set(timeline);
+        timeline.play();
+    }
+
     private static String findingsText(SnippetAnalysisPanel panel) {
         Object text = findingsWebView(panel).getEngine().executeScript("document.body.innerText");
         return text != null ? text.toString() : "";
@@ -1752,7 +2237,7 @@ public final class SnippetAiDialogsSmoke {
      * saved snippet stamps its accepted run. Ends by starting the next leg.
      */
     private static void runAnalysisHistoryLeg(AtomicReference<String> failure, CountDownLatch done) {
-        Runnable next = () -> runInEditorChangeReviewLeg(failure, done);
+        Runnable next = () -> runLargeScriptLeg(failure, done, () -> runInEditorChangeReviewLeg(failure, done));
         String s0 = "#!/usr/bin/env bash\n# Alpha script that greets the caller by name.\nprintf '%s\\n' $name\n";
         String sc = "#!/bin/sh\n# Gamma script, analysed earlier and rewritten since.\necho gamma $1\n";
         String ra = s0 + "# proposed by the alpha analysis\n";
