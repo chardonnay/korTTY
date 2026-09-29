@@ -186,6 +186,11 @@ final class LoggingAiService implements AiPromptService, AiSkillUsageTracker {
     }
 
     @Override
+    public String lastTestFailure() {
+        return delegate.lastTestFailure();
+    }
+
+    @Override
     public List<AiSkillPromptSupport.SkillUsage> drainSkillUsages() {
         return delegate instanceof AiSkillUsageTracker tracker ? tracker.drainSkillUsages() : List.of();
     }

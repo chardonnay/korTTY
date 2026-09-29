@@ -98,6 +98,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     private Integer defaultMaxCompletionTokens;
     /** {@code null} lets a request run to completion — see {@link AiRequestTimeoutSupport}. */
     private Duration requestTimeout;
+    private volatile String lastTestFailure;
 
     public OpenAiCompatibleAiService(String apiUrl, String model, String apiKey) {
         this(apiUrl, model, apiKey, AiReasoningEffort.DISABLED);
@@ -231,6 +232,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         this.httpClient = httpClient;
         this.webSearchTool = webSearchTool;
         this.skillPromptSupport = skillPromptSupport != null ? skillPromptSupport : AiSkillPromptSupport.disabled();
+        logEndpointHintOnce();
     }
 
     OpenAiCompatibleAiService(
@@ -250,6 +252,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         this.httpClient = httpClient;
         this.webSearchTool = webSearchTool;
         this.skillPromptSupport = skillPromptSupport != null ? skillPromptSupport : AiSkillPromptSupport.disabled();
+        logEndpointHintOnce();
     }
 
     /**
@@ -810,6 +813,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                         + "raw stream: {}", content.length(), archived != null ? archived : "not archived");
                 }
             } else {
+                throwIfProviderError(responseBody);
                 result = parseResponseBody(responseBody);
             }
             // A stream cut short never delivers a finish_reason, so the aggregated result would
@@ -819,6 +823,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             if (body.salvaged()) {
                 result = markStreamInterrupted(result);
             }
+            logEmptyReply(result, returnTruncatedResult, response.statusCode(), contentTypeOf(response), responseBody);
             return finishExecutionResult(result, returnTruncatedResult);
         });
     }
@@ -838,7 +843,10 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw apiError(response.statusCode(), responseBody);
         }
-        return finishExecutionResult(parseResponseBody(responseBody), returnTruncatedResult);
+        throwIfProviderError(responseBody);
+        AiExecutionResult parsedResult = parseResponseBody(responseBody);
+        logEmptyReply(parsedResult, returnTruncatedResult, response.statusCode(), contentTypeOf(response), responseBody);
+        return finishExecutionResult(parsedResult, returnTruncatedResult);
     }
 
     /**
@@ -940,9 +948,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                 // A salvaged early EOF can leave a half-written final line; keep what parsed.
                 continue;
             }
-            if (chunk.has("error") && !chunk.get("error").isJsonNull()) {
-                throw new IOException("AI API streaming error: " + extractErrorMessage(payload));
-            }
+            throwIfProviderError(chunk);
             sawChunk = true;
             JsonObject chunkUsage = chunk.has("usage") && chunk.get("usage").isJsonObject()
                 ? chunk.getAsJsonObject("usage")
@@ -1033,6 +1039,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw apiError(response.statusCode(), responseBody);
             }
+            throwIfProviderError(responseBody);
             JsonObject root = parseResponseRoot(responseBody);
             if (root == null) {
                 AiExecutionResult parsed = parseResponseBody(responseBody);
@@ -1118,6 +1125,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw apiError(response.statusCode(), responseBody);
         }
+        throwIfProviderError(responseBody);
         JsonObject root = parseResponseRoot(responseBody);
         AiExecutionResult parsed;
         if (root != null) {
@@ -1372,6 +1380,221 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         }
     }
 
+
+    private static final int PROVIDER_ERROR_MAX_CHARS = 300;
+    private static final int EMPTY_REPLY_LOG_CHARS = 500;
+    private static final java.util.Set<String> HINTED_ENDPOINTS = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private static final java.util.regex.Pattern SECRET_PATTERN = java.util.regex.Pattern.compile(
+        "(?i)(bearer\\s+)[A-Za-z0-9._~+/=-]{8,}"
+            + "|\\bsk-[A-Za-z0-9_-]{8,}"
+            + "|((?:api[_-]?key|access[_-]?token|token|secret|authorization)[\"']?\\s*[:=]\\s*[\"']?)[^\\s\"',}]{8,}");
+
+    /** MiniMax's OpenAI-compatible chat endpoint, which reports failures with real HTTP statuses. */
+    public static final String MINIMAX_COMPATIBLE_ENDPOINT = "https://api.minimax.io/v1/chat/completions";
+
+    /**
+     * @return whether {@code url} is MiniMax's native {@code /text/chatcompletion_v2} endpoint, which
+     *     answers every failure with HTTP 200 and an error object instead of choices.
+     */
+    public static boolean isMiniMaxNativeEndpoint(String url) {
+        if (url == null || url.isBlank()) {
+            return false;
+        }
+        try {
+            URI uri = URI.create(url.trim());
+            String host = uri.getHost() != null ? uri.getHost().toLowerCase(java.util.Locale.ROOT) : "";
+            String path = uri.getPath() != null ? uri.getPath() : "";
+            while (path.endsWith("/")) {
+                path = path.substring(0, path.length() - 1);
+            }
+            return (host.equals("api.minimax.io") || host.equals("api.minimaxi.com") || host.equals("api.minimax.chat"))
+                && path.endsWith("/text/chatcompletion_v2");
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    private void logEndpointHintOnce() {
+        if (isMiniMaxNativeEndpoint(apiUrl) && HINTED_ENDPOINTS.add(apiUrl)) {
+            logger.warn("AI profile uses MiniMax's native endpoint {} which reports errors inside HTTP 200 replies; "
+                + "the OpenAI-compatible endpoint {} is recommended. The URL is not changed automatically.",
+                apiUrl, MINIMAX_COMPATIBLE_ENDPOINT);
+        }
+    }
+
+    /** Masks bearer tokens and API keys so a provider message or raw body can be logged and shown. */
+    static String redactSecrets(String text) {
+        if (text == null) {
+            return null;
+        }
+        return SECRET_PATTERN.matcher(text).replaceAll(m ->
+            java.util.regex.Matcher.quoteReplacement(
+                (m.group(1) != null ? m.group(1) : m.group(2) != null ? m.group(2) : "sk-") + "***"));
+    }
+
+    private static String truncateForUser(String message) {
+        if (message == null) {
+            return null;
+        }
+        String single = redactSecrets(message).replace('\n', ' ').replace('\r', ' ').trim();
+        return single.length() <= PROVIDER_ERROR_MAX_CHARS
+            ? single
+            : single.substring(0, PROVIDER_ERROR_MAX_CHARS - 3) + "...";
+    }
+
+    /** A provider failure delivered inside a 2xx body: the message and an HTTP-like status for fallbacks. */
+    record ProviderError(String message, int status) { }
+
+    /**
+     * Detects an error object carried in a JSON body, whatever HTTP status it came with: OpenAI's
+     * {@code error} (object or string, also {@code {"type":"error","error":{...}}}), MiniMax's
+     * {@code base_resp} with a non-zero {@code status_code}, and a {@code code}/{@code msg} pair.
+     * Bodies that carry choices are successful unless they hold an explicit {@code error}.
+     *
+     * @return the error, or {@code null} for a successful or merely empty body
+     */
+    static ProviderError detectProviderError(JsonObject root) {
+        if (root == null) {
+            return null;
+        }
+        JsonElement error = root.get("error");
+        if (error != null && !error.isJsonNull()) {
+            String message = null;
+            int status = 200;
+            if (error.isJsonObject()) {
+                JsonObject obj = error.getAsJsonObject();
+                message = firstText(obj, "message", "msg", "detail");
+                String type = firstText(obj, "type");
+                String code = firstText(obj, "code");
+                Integer http = parseHttpStatus(firstText(obj, "http_code", "status", "status_code"));
+                if (http != null) {
+                    status = http;
+                } else if ("2013".equals(code)) {
+                    status = 400;
+                }
+                if (message == null) {
+                    message = obj.size() == 0 ? null : GSON.toJson(obj);
+                }
+                if (message != null && type != null && !"error".equals(type)
+                    && !message.toLowerCase(java.util.Locale.ROOT).contains(type.toLowerCase(java.util.Locale.ROOT))) {
+                    message = message + " (" + type + ")";
+                }
+            } else if (error.isJsonPrimitive() && !error.getAsString().isBlank()) {
+                message = error.getAsString();
+            }
+            if (message != null && !message.isBlank()) {
+                return new ProviderError(message, status);
+            }
+        }
+        boolean hasChoices = root.has("choices") && root.get("choices").isJsonArray()
+            && !root.getAsJsonArray("choices").isEmpty();
+        if (hasChoices) {
+            return null;
+        }
+        JsonElement baseResp = root.get("base_resp");
+        if (baseResp != null && baseResp.isJsonObject()) {
+            JsonObject obj = baseResp.getAsJsonObject();
+            String code = firstText(obj, "status_code");
+            if (code != null && !isZero(code)) {
+                String msg = firstText(obj, "status_msg");
+                String detail = msg != null ? msg : "provider status " + code;
+                if (!detail.contains(code)) {
+                    detail = detail + " (" + code + ")";
+                }
+                return new ProviderError(detail, "2013".equals(code) ? 400 : 200);
+            }
+        }
+        String code = firstText(root, "code");
+        String msg = firstText(root, "msg", "message");
+        if (msg != null && code != null && !isZero(code) && !"200".equals(code)) {
+            return new ProviderError(msg + " (" + code + ")", 200);
+        }
+        return null;
+    }
+
+    private static boolean isZero(String code) {
+        String trimmed = code.trim();
+        return trimmed.equals("0") || trimmed.equals("0.0") || trimmed.isEmpty();
+    }
+
+    private static Integer parseHttpStatus(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            int parsed = Integer.parseInt(value.trim());
+            return parsed >= 400 && parsed <= 599 ? parsed : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static String firstText(JsonObject obj, String... names) {
+        for (String name : names) {
+            JsonElement element = obj.get(name);
+            if (element != null && element.isJsonPrimitive()) {
+                String value = element.getAsString();
+                if (!value.isBlank()) {
+                    return value;
+                }
+            }
+        }
+        return null;
+    }
+
+    private void throwIfProviderError(JsonObject root) throws AiApiException {
+        ProviderError error = detectProviderError(root);
+        if (error != null) {
+            String detail = truncateForUser(error.message());
+            logger.warn("AI endpoint returned an error inside an HTTP 2xx reply (mapped status {}): {}",
+                error.status(), detail);
+            throw new AiApiException(error.status(), "AI API error: " + detail);
+        }
+    }
+
+    /** Checks a complete 2xx body for a provider error; a body that is not a JSON object is left to the parser. */
+    private void throwIfProviderError(String responseBody) throws AiApiException {
+        if (responseBody == null || responseBody.isBlank()) {
+            return;
+        }
+        JsonObject root;
+        try {
+            root = JsonParser.parseString(responseBody).getAsJsonObject();
+        } catch (Exception notAnObject) {
+            return;
+        }
+        throwIfProviderError(root);
+    }
+
+    private static String contentTypeOf(HttpResponse<?> response) {
+        return response.headers().firstValue("Content-Type").orElse("none");
+    }
+
+    /**
+     * One WARN for a reply that carried neither content nor an error, so an "empty response" can be
+     * told apart from a misconfigured endpoint. The body is capped and redacted; the request headers
+     * (and with them the API key) are never part of it.
+     */
+    private void logEmptyReply(
+        AiExecutionResult result,
+        boolean returnTruncatedResult,
+        int status,
+        String contentType,
+        String body) {
+
+        String content = result != null ? result.content() : null;
+        if (content != null && !content.isBlank()) {
+            return;
+        }
+        if (returnTruncatedResult && result != null && result.outputTruncated()) {
+            return;
+        }
+        String raw = body != null ? body : "";
+        String excerpt = redactSecrets(raw.length() > EMPTY_REPLY_LOG_CHARS ? raw.substring(0, EMPTY_REPLY_LOG_CHARS) : raw);
+        logger.warn("AI endpoint answered without any content: HTTP {}, content-type {}, {} body chars, first {} chars: {}",
+            status, contentType, raw.length(), EMPTY_REPLY_LOG_CHARS, excerpt);
+    }
+
     /** Builds the exception for a non-2xx response, with an actionable hint for the not-loaded case. */
     private IOException apiError(int status, String body) {
         String detail = extractErrorMessage(body);
@@ -1419,12 +1642,19 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     public boolean testConnection() {
         try {
             HttpClient testClient = HttpClient.newBuilder().connectTimeout(TEST_CONNECT_TIMEOUT).build();
+            lastTestFailure = null;
             AiExecutionResult result = executeConnectionTestWithClient(testClient, TEST_REQUEST_TIMEOUT);
             return result != null && result.content() != null && !result.content().isBlank();
         } catch (Exception e) {
             logger.warn("AI API test connection failed: {}", e.getMessage());
+            lastTestFailure = truncateForUser(e.getMessage());
             return false;
         }
+    }
+
+    @Override
+    public String lastTestFailure() {
+        return lastTestFailure;
     }
 
     HttpRequest buildHttpRequest(AiRequest request) {
@@ -2304,9 +2534,11 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw apiError(response.statusCode(), responseBody);
         }
+        throwIfProviderError(responseBody);
         AiExecutionResult result = parseResponseBody(responseBody);
         String content = result != null ? result.content() : null;
         if (content == null || content.isBlank()) {
+            logEmptyReply(result, false, response.statusCode(), contentTypeOf(response), responseBody);
             throw new EmptyResponseException();
         }
         return new AiExecutionResult(

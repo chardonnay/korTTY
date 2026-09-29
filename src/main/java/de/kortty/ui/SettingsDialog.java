@@ -32,6 +32,7 @@ import de.kortty.core.AiModelComboSupport;
 import de.kortty.core.LocalLmModelResolver;
 import de.kortty.core.AiLanguageSupport;
 import de.kortty.core.AiService;
+import de.kortty.core.OpenAiCompatibleAiService;
 import de.kortty.core.AiPromptService;
 import de.kortty.core.FailingAiService;
 import de.kortty.core.GoogleTranslationService;
@@ -5869,10 +5870,23 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 }
                 Alert alert = ok != null && ok
                     ? new Alert(Alert.AlertType.INFORMATION, I18n.get("settings.ai.testSuccess"))
-                    : new Alert(Alert.AlertType.ERROR, I18n.get("settings.ai.error.testFailed"));
+                    : new Alert(Alert.AlertType.ERROR, aiTestFailureText(svc, selectedAiProfile));
                 alert.setHeaderText(null);
                 alert.showAndWait();
             }));
+    }
+
+    /** The failed-test text: the generic line, the provider's own reason when known, and the endpoint hint. */
+    private static String aiTestFailureText(AiService svc, AiProfile profile) {
+        StringBuilder text = new StringBuilder(I18n.get("settings.ai.error.testFailed"));
+        String detail = svc != null ? svc.lastTestFailure() : null;
+        if (detail != null && !detail.isBlank()) {
+            text.append("\n\n").append(detail);
+        }
+        if (profile != null && OpenAiCompatibleAiService.isMiniMaxNativeEndpoint(profile.getApiUrl())) {
+            text.append("\n\n").append(I18n.get("settings.ai.hint.minimaxEndpoint"));
+        }
+        return text.toString();
     }
 
     private boolean validateAiInternetConfigurationForTest(AiProfile profile) {
