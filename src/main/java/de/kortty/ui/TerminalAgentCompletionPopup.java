@@ -118,8 +118,6 @@ final class TerminalAgentCompletionPopup {
         body = new VBox(4, listView, footerBar);
         container = new StackPane(body);
         container.getStyleClass().add("ai-agent-completion-popup");
-        container.setStyle("-fx-background-color: derive(-fx-base, -8%); -fx-border-color: -fx-box-border; "
-            + "-fx-border-width: 1; -fx-padding: 2;");
         applyTheme();
         popup.getContent().add(container);
         popup.setAutoHide(true);

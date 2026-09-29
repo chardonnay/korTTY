@@ -106,8 +106,10 @@ public final class SessionJournalAppearancePopover {
 
         VBox container = new VBox(10, grid, reset, hint);
         container.setPadding(new Insets(10));
-        container.setStyle("-fx-background-color: -fx-control-inner-background;"
-            + " -fx-border-color: rgba(128,128,128,0.4); -fx-border-radius: 6; -fx-background-radius: 6;"
+        container.getStyleClass().add("kortty-popover-surface");
+        AppDesignStyleSupport.registerApplicationBaseStyles(container);
+        AppDesignStyleSupport.applyToParent(container);
+        container.setStyle("-fx-border-color: rgba(128,128,128,0.4); -fx-border-radius: 6; -fx-background-radius: 6;"
             + " -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 12, 0, 0, 4);");
         // A raw Popup does not inherit the owner scene's stylesheets, so the UI font scale has to
         // be applied to its content root directly.

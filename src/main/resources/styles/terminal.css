@@ -37,10 +37,39 @@
     -fx-text-fill: #ffffff;
 }
 
-/* The AI Manager's primary section stays identifiable after focus moves into its content. */
+/*
+ * The AI Manager's primary section stays identifiable after focus moves into its content. A literal
+ * (Modena's default focus blue) instead of the -fx-focus-color lookup: the lookup is only defined
+ * while Modena is the user-agent stylesheet, and during a live switch away from an AtlantaFX
+ * design it resolved to a String and logged a CssStyleHelper ClassCastException.
+ */
 .ai-manager-primary-tab:selected {
-    -fx-border-color: -fx-focus-color;
+    -fx-border-color: #0093ff;
     -fx-border-width: 0 0 3 0;
+}
+
+/* Modena counterparts of the surface classes in atlantafx-kortty-components.css. */
+.kortty-box-border {
+    -fx-border-color: -fx-box-border;
+}
+
+.kortty-popup-surface {
+    -fx-background-color: -fx-control-inner-background;
+    -fx-border-color: -fx-box-border;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.35), 18, 0.2, 0, 4);
+}
+
+.kortty-popover-surface {
+    -fx-background-color: -fx-control-inner-background;
+}
+
+.ai-agent-completion-popup {
+    -fx-background-color: derive(-fx-base, -8%);
+    -fx-border-color: -fx-box-border;
+    -fx-border-width: 1;
+    -fx-padding: 2;
 }
 
 .ai-manager-primary-tab:selected .tab-label {

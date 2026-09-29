@@ -103,7 +103,8 @@ final class TerminalEffectPluginManagerDialog extends ThemeAwareDialog<Void> {
         previewHolder.setMinSize(TerminalEffectPreviewCanvas.PREVIEW_WIDTH, TerminalEffectPreviewCanvas.PREVIEW_HEIGHT);
         previewHolder.setPrefSize(TerminalEffectPreviewCanvas.PREVIEW_WIDTH, TerminalEffectPreviewCanvas.PREVIEW_HEIGHT);
         previewHolder.setMaxSize(TerminalEffectPreviewCanvas.PREVIEW_WIDTH, TerminalEffectPreviewCanvas.PREVIEW_HEIGHT);
-        previewHolder.setStyle("-fx-border-color: -fx-box-border; -fx-border-radius: 8; -fx-background-radius: 8;");
+        previewHolder.getStyleClass().add("kortty-box-border");
+        previewHolder.setStyle("-fx-border-radius: 8; -fx-background-radius: 8;");
         previewHolder.getChildren().setAll(previewPlaceholder);
         VBox previewBox = new VBox(6, previewTitle, previewHolder);
 
