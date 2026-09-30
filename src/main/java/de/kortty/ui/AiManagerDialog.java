@@ -488,6 +488,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
                 clearApiKeyCheck.setSelected(false);
             }
         });
+        clearApiKeyCheck.selectedProperty().addListener((obs, oldValue, newValue) -> updateApiKeyPromptText());
 
         GridPane editorGrid = new GridPane();
         editorGrid.setHgap(10);
@@ -1768,6 +1769,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             apiKeyField.clear();
             clearApiKeyCheck.setDisable(false);
             clearApiKeyCheck.setSelected(false);
+            updateApiKeyPromptText();
             maxSelectionCharsSpinner.getValueFactory().setValue(AiProfile.DEFAULT_MAX_SELECTION_CHARS);
             profileRequestTimeoutOverrideCheck.setSelected(false);
             profileRequestTimeoutSpinner.getValueFactory().setValue(0);
@@ -1819,8 +1821,29 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         boolean cleared = profile.getId() != null && clearedApiKeysByProfileId.contains(profile.getId());
         clearApiKeyCheck.setSelected(cleared);
         clearApiKeyCheck.setDisable(plainApiKey != null && !plainApiKey.isBlank());
+        updateApiKeyPromptText();
         updateConnectionModeUi();
         updateTokenUsagePreview();
+    }
+
+    /**
+     * The stored key is never decrypted into the field, so without a hint an empty field
+     * reads as "no key". Say so via the prompt text while the stored key is still in effect.
+     */
+    private void updateApiKeyPromptText() {
+        String promptKey = apiKeyPromptKey(
+            selectedProfile != null ? selectedProfile.getEncryptedApiKey() : null,
+            clearApiKeyCheck.isSelected());
+        apiKeyField.setPromptText(promptKey != null ? I18n.get(promptKey) : null);
+    }
+
+    static String apiKeyPromptKey(String encryptedApiKey, boolean clearRequested) {
+        return storedSecretKept(encryptedApiKey, clearRequested) ? "ai.manager.profile.apiKey.stored" : null;
+    }
+
+    /** Whether a stored (encrypted) secret stays in effect when its field is left empty. */
+    static boolean storedSecretKept(String encryptedValue, boolean clearRequested) {
+        return encryptedValue != null && !encryptedValue.isBlank() && !clearRequested;
     }
 
     private boolean saveProfiles() {

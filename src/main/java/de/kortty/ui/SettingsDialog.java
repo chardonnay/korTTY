@@ -2128,25 +2128,25 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiInternetGrid.add(new Label(I18n.get("settings.ai.internet.tavilyKey")), 0, internetRow);
         aiTavilyApiKeyField = new PasswordField();
         aiTavilyApiKeyField.setPrefWidth(280);
-        aiTavilyApiKeyField.setPromptText(I18n.get("settings.ai.internet.secretUnchanged"));
         aiClearTavilyApiKeyCheck = new CheckBox(I18n.get("settings.ai.internet.clearSecret"));
-        wireSecretClearToggle(aiTavilyApiKeyField, aiClearTavilyApiKeyCheck);
+        wireSecretClearToggle(aiTavilyApiKeyField, aiClearTavilyApiKeyCheck,
+            globalSettings != null ? globalSettings.getEncryptedAiTavilyApiKey() : null);
         aiInternetGrid.add(new HBox(8, aiTavilyApiKeyField, aiClearTavilyApiKeyCheck), 1, internetRow++);
 
         aiInternetGrid.add(new Label(I18n.get("settings.ai.internet.brightDataToken")), 0, internetRow);
         aiBrightDataApiTokenField = new PasswordField();
         aiBrightDataApiTokenField.setPrefWidth(280);
-        aiBrightDataApiTokenField.setPromptText(I18n.get("settings.ai.internet.secretUnchanged"));
         aiClearBrightDataApiTokenCheck = new CheckBox(I18n.get("settings.ai.internet.clearSecret"));
-        wireSecretClearToggle(aiBrightDataApiTokenField, aiClearBrightDataApiTokenCheck);
+        wireSecretClearToggle(aiBrightDataApiTokenField, aiClearBrightDataApiTokenCheck,
+            globalSettings != null ? globalSettings.getEncryptedAiBrightDataApiToken() : null);
         aiInternetGrid.add(new HBox(8, aiBrightDataApiTokenField, aiClearBrightDataApiTokenCheck), 1, internetRow++);
 
         aiInternetGrid.add(new Label(I18n.get("settings.ai.internet.braveKey")), 0, internetRow);
         aiBraveSearchApiKeyField = new PasswordField();
         aiBraveSearchApiKeyField.setPrefWidth(280);
-        aiBraveSearchApiKeyField.setPromptText(I18n.get("settings.ai.internet.secretUnchanged"));
         aiClearBraveSearchApiKeyCheck = new CheckBox(I18n.get("settings.ai.internet.clearSecret"));
-        wireSecretClearToggle(aiBraveSearchApiKeyField, aiClearBraveSearchApiKeyCheck);
+        wireSecretClearToggle(aiBraveSearchApiKeyField, aiClearBraveSearchApiKeyCheck,
+            globalSettings != null ? globalSettings.getEncryptedAiBraveSearchApiKey() : null);
         aiInternetGrid.add(new HBox(8, aiBraveSearchApiKeyField, aiClearBraveSearchApiKeyCheck), 1, internetRow++);
 
         aiSearxngUrlField = new TextField(globalSettings != null && globalSettings.getAiSearxngUrl() != null ? globalSettings.getAiSearxngUrl() : "");
@@ -2420,6 +2420,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 aiClearApiKeyCheck.setSelected(false);
             }
         });
+        aiClearApiKeyCheck.selectedProperty().addListener((obs, oldValue, newValue) -> updateAiApiKeyPromptText());
 
         aiEditorGrid.add(new Label(I18n.get("settings.ai.cli.arguments")), 0, aiRow);
         aiCliArgumentsTemplateArea = new TextArea();
@@ -4830,7 +4831,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         };
     }
 
-    private void wireSecretClearToggle(PasswordField passwordField, CheckBox clearCheck) {
+    private void wireSecretClearToggle(PasswordField passwordField, CheckBox clearCheck, String storedEncryptedValue) {
         passwordField.textProperty().addListener((obs, oldValue, newValue) -> {
             boolean hasReplacement = newValue != null && !newValue.isBlank();
             clearCheck.setDisable(hasReplacement);
@@ -4838,6 +4839,20 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 clearCheck.setSelected(false);
             }
         });
+        // The stored secret is never decrypted into the field, so only the prompt can tell that one exists.
+        Runnable updatePrompt = () -> passwordField.setPromptText(
+            AiManagerDialog.storedSecretKept(storedEncryptedValue, clearCheck.isSelected())
+                ? I18n.get("settings.ai.internet.secretUnchanged")
+                : null);
+        clearCheck.selectedProperty().addListener((obs, oldValue, newValue) -> updatePrompt.run());
+        updatePrompt.run();
+    }
+
+    private void updateAiApiKeyPromptText() {
+        String promptKey = AiManagerDialog.apiKeyPromptKey(
+            selectedAiProfile != null ? selectedAiProfile.getEncryptedApiKey() : null,
+            aiClearApiKeyCheck.isSelected());
+        aiApiKeyField.setPromptText(I18n.get(promptKey != null ? promptKey : "settings.ai.apiKey"));
     }
 
     private String aiModelEditorText() {
@@ -5453,6 +5468,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             aiApiKeyField.clear();
             aiClearApiKeyCheck.setDisable(false);
             aiClearApiKeyCheck.setSelected(false);
+            updateAiApiKeyPromptText();
             aiMaxSelectionCharsSpinner.getValueFactory().setValue(AiProfile.DEFAULT_MAX_SELECTION_CHARS);
             aiTokenizerCombo.setValue(AiTokenizerType.ESTIMATE);
             aiTokenLimitAmountSpinner.getValueFactory().setValue(0);
@@ -5502,6 +5518,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         boolean cleared = profileId != null && aiClearedApiKeysByProfileId.contains(profileId);
         aiClearApiKeyCheck.setSelected(cleared);
         aiClearApiKeyCheck.setDisable(plainApiKey != null && !plainApiKey.isBlank());
+        updateAiApiKeyPromptText();
         updateAiConnectionModeUi();
         updateAiTokenUsagePreview();
     }
