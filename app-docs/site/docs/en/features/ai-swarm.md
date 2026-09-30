@@ -57,6 +57,8 @@ The strip scales from a single server to large fleets — orbs shrink and pack i
 
 Each server has a row in the **Agents** list showing its status badge, elapsed time, and token count. **Left-click a row** to expand it inline and watch the agent's live transcript (commands, output, and progress) while it runs — no extra window needed. Very long transcripts are trimmed from the front so the latest output is always visible.
 
+The header above the rows adds up the whole run: **Σ tokens** of all agents plus the final combined answer, followed by the cost in money when the AI profile has a [price per 1M tokens](../reference/settings/ai.md#token-quota-management) (or `local · no token costs` for a local profile). Every agent call and the combined answer also count towards the profile's token quota — for interactive runs and for [scheduled swarm runs](#scheduling-swarm-runs-jobscheduler) alike.
+
 **Right-click a row** for per-agent control: **Pause**, **Resume**, **Restart**, and **Stop** apply to that agent only. Restarting one agent does not disturb the others; its answer is replaced in the combined result.
 
 ## Run control

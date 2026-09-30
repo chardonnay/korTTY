@@ -1064,6 +1064,13 @@
 <td>(profile <code>tokenResetPeriodDays</code>, <code>tokenResetAnchorDate</code> fields)</td>
 </tr>
 <tr>
+<td>Price per 1M tokens</td>
+<td>two numbers + currency</td>
+<td>Input and Output price per one million tokens (comma or dot as decimal separator; empty = no price); currency EUR, USD, CHF, GBP or any ISO code. Edited in <strong>AI → AI Manager → Profiles</strong></td>
+<td>empty, EUR</td>
+<td>(profile <code>pricePerMillionPromptTokens</code>, <code>pricePerMillionCompletionTokens</code>, <code>priceCurrency</code> fields)</td>
+</tr>
+<tr>
 <td>Test AI Connection</td>
 <td>button</td>
 <td>—</td>
@@ -1287,9 +1294,14 @@
 <li><strong>Tokenizer</strong>: Choose which tokenizer estimates token counts—useful when switching between OpenAI and other providers. Options are Estimate (generic), cl100k_base (GPT-3.5/4), o200k_base (o1/o1-mini), p50k_base (Codex), and r50k_base (GPT-2).</li>
 <li><strong>Max tokens limit</strong>: Set a spending cap (in thousands or millions of tokens, or unlimited). Token count resets on a rolling schedule.</li>
 <li><strong>Reset period</strong>: Number of days between resets (1–3650), with an optional anchor date for predictable reset timing.</li>
-<li><strong>Warning thresholds</strong>: Yellow warning triggers at a percentage of the limit; red warning at a higher percentage. Configure both as integers 0–100.</li>
+<li>
+<p><strong>Warning thresholds</strong>: Yellow warning triggers at a percentage of the limit; red warning at a higher percentage. Configure both as integers 0–100.</p>
+</li>
+<li>
+<p><strong>Price per 1M tokens</strong> (AI Manager only, optional): the price the provider charges per one million input and output tokens. With a price, korTTY shows what AI calls cost in money — next to the quota bar as "≈ 3.42 € in this period", on <a href="../../features/session-journal.html#ai-token-usage-and-cost">session journals</a> and in the <a href="../../features/ai-swarm.html">AI Swarm</a> dashboard header. A profile running locally (an integrated llama.cpp/MLX model or an endpoint on <code>localhost</code>/<code>127.0.0.1</code>) is shown as "local · no token costs" instead.</p>
+</li>
 </ul>
-<p>Token usage is displayed as a colored bar and summary on the profile editor, and the profile list shows token status inline.</p>
+<p>Token usage is displayed as a colored bar and summary on the profile editor, and the profile list shows token status inline. Usage is counted for every AI call made with the profile: chat answers, the terminal AI agent, every agent of an AI Swarm run plus its final combined answer, scheduled AI jobs, and every session journal call (summaries, titles, screenshot analysis, questions, translations).</p>
 <h3 id="internet-access-modes">Internet Access Modes<a class="headerlink" href="#internet-access-modes" title="Permanent link">&para;</a></h3>
 <p>Per-profile internet access strategy for AI requests. Each mode requires different credentials and MCP configuration:</p>
 <ul>

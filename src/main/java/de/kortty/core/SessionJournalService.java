@@ -655,6 +655,37 @@ public class SessionJournalService {
         notifyChanged(journalDir);
     }
 
+    /**
+     * Adds one AI call's token usage (and its cost, priced with {@code profile}) to the journal's
+     * running totals. Safe to call concurrently with capture and summaries: it is a locked
+     * read-modify-write of the document like every other meta update.
+     */
+    public void addAiUsage(Path journalDir, de.kortty.core.AiTokenUsage usage, de.kortty.model.AiProfile profile)
+            throws IOException {
+        if (journalDir == null || usage == null) {
+            return;
+        }
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            SessionJournalMeta meta = document.getMeta();
+            meta.setAiPromptTokens(meta.getAiPromptTokens() + usage.promptTokens());
+            meta.setAiCompletionTokens(meta.getAiCompletionTokens() + usage.completionTokens());
+            meta.setAiTotalTokens(meta.getAiTotalTokens() + usage.totalTokens());
+            meta.setAiCallCount(meta.getAiCallCount() + 1);
+            if (profile != null) {
+                meta.setAiProfileId(profile.getId());
+                meta.setAiProfileName(profile.getName());
+                meta.setAiProfileLocal(AiCostCalculator.isLocal(profile));
+                if (AiCostCalculator.hasPrice(profile)) {
+                    meta.setAiCost(meta.getAiCost() + AiCostCalculator.cost(profile, usage));
+                    meta.setAiCostCurrency(AiCostCalculator.currency(profile));
+                }
+            }
+            saveDocumentInternal(journalDir, document);
+        }
+        notifyChanged(journalDir);
+    }
+
     /** Persists the summarizer's progress so restarts never re-summarize covered ranges. */
     public void updateLastSummarizedSeq(Path journalDir, long lastSummarizedSeq) throws IOException {
         synchronized (lockFor(journalDir)) {

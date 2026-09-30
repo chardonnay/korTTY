@@ -6817,55 +6817,24 @@ public class MainWindow {
         if (profile == null || profile.getId() == null) {
             return;
         }
-        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
-        if (settings == null) {
-            return;
-        }
-        AiProfile mutableProfile = settings.getAiProfiles().stream()
-            .filter(candidate -> candidate != null && profile.getId().equals(candidate.getId()))
-            .findFirst()
-            .orElse(null);
-        if (mutableProfile == null) {
-            return;
-        }
         AiTokenUsage usage = result != null ? result.usage() : null;
         if (usage == null) {
-            long promptTokens = countAiRequestTokens(mutableProfile, request);
+            long promptTokens = countAiRequestTokens(profile, request);
             long completionTokens = AiTokenCounter.countTextTokens(
                 result != null ? result.content() : "",
-                mutableProfile.getTokenizerType() != null ? mutableProfile.getTokenizerType() : AiTokenizerType.ESTIMATE);
+                profile.getTokenizerType() != null ? profile.getTokenizerType() : AiTokenizerType.ESTIMATE);
             usage = new AiTokenUsage(promptTokens, completionTokens, promptTokens + completionTokens);
         }
-        AiTokenUsageSnapshot snapshot = AiTokenUsageManager.recordUsage(mutableProfile, usage);
-        logger.debug("Updated AI token usage for profile {} to {}", getAiProfileDisplayName(mutableProfile), snapshot.usedTotalTokens());
-        try {
-            app.getGlobalSettingsManager().save();
-        } catch (Exception e) {
-            logger.warn("Could not persist AI token usage", e);
-        }
+        recordAiUsage(profile, usage);
     }
 
     private void recordAiUsage(AiProfile profile, AiTokenUsage usage) {
         if (profile == null || profile.getId() == null || usage == null) {
             return;
         }
-        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
-        if (settings == null) {
-            return;
-        }
-        AiProfile mutableProfile = settings.getAiProfiles().stream()
-            .filter(candidate -> candidate != null && profile.getId().equals(candidate.getId()))
-            .findFirst()
-            .orElse(null);
-        if (mutableProfile == null) {
-            return;
-        }
-        AiTokenUsageSnapshot snapshot = AiTokenUsageManager.recordUsage(mutableProfile, usage);
-        logger.debug("Updated AI token usage for profile {} to {}", getAiProfileDisplayName(mutableProfile), snapshot.usedTotalTokens());
-        try {
-            app.getGlobalSettingsManager().save();
-        } catch (Exception e) {
-            logger.warn("Could not persist AI token usage", e);
+        de.kortty.core.AiUsageRecorder recorder = app != null ? app.getAiUsageRecorder() : null;
+        if (recorder != null) {
+            recorder.record(profile, usage);
         }
     }
 
@@ -8574,6 +8543,8 @@ public class MainWindow {
         SwarmCallback callback,
         de.kortty.core.swarm.SwarmRunControl control) {
         SwarmOrchestrator orchestrator = new SwarmOrchestrator(terminalAgentService);
+        // Every agent call and the aggregation count against the profile quota, like a single agent.
+        orchestrator.setUsageSink(usage -> recordAiUsage(profile, usage));
         java.util.function.Supplier<AiPromptService> factory = aiPromptServiceFactory(profile);
         Thread thread = new Thread(
             () -> orchestrator.run(request, targets, profile, factory, callback, control),

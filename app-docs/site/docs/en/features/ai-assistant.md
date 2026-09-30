@@ -19,7 +19,7 @@ When **Configuration > Prevent System Sleep** is enabled on macOS or Windows, ko
 2. Go to **AI**.
 3. Create one or more AI profiles in **Settings > AI** or **AI > AI Manager > Profiles**. Choose **HTTP API**, **Local CLI**, or **Integrated llama.cpp** as the connection mode.
 4. For HTTP profiles, enter an API URL, model, and optional encrypted API key. For an embedded profile, select an installed GGUF model; korTTY supplies the private endpoint and temporary key. Use **AI Manager > Local Models** first when no GGUF is installed.
-5. Optionally configure **Prompt optimization**, **Max characters**, **Tokenizer**, **Token limit**, warning thresholds, token reset cycle, supported **Reasoning** effort, and **Internet access** per profile. korTTY exposes reasoning choices based on the configured endpoint and model; LM Studio's exact native capability metadata takes precedence over compatibility probes so a silently converted effort is not shown as supported. Profiles without a supported explicit reasoning mode keep provider-default behavior.
+5. Optionally configure **Prompt optimization**, **Max characters**, **Tokenizer**, **Token limit**, warning thresholds, token reset cycle, **Price per 1M tokens** (to see AI costs in money; see [Token quota management](../reference/settings/ai.md#token-quota-management)), supported **Reasoning** effort, and **Internet access** per profile. korTTY exposes reasoning choices based on the configured endpoint and model; LM Studio's exact native capability metadata takes precedence over compatibility probes so a silently converted effort is not shown as supported. Profiles without a supported explicit reasoning mode keep provider-default behavior.
 6. Optionally set an **AI request timeout** in minutes. korTTY does not time out AI requests on its own, so a long task such as the snippet editor's **Full code analysis** runs until the model answers. The value on the **Profiles** page applies to every profile; **Timeout for this profile** overrides it for a single profile, and 0 there means that profile never times out. See [AI settings](../reference/settings/ai.md).
 7. Click **Test AI Connection**.
 8. Optionally choose a **Default profile**, then assign separate Text/translation and Coding roles under **AI Manager > Local AI**. An empty role uses the default profile.
@@ -179,7 +179,7 @@ When the selection looks like a single file name — for example a name from `ls
 * Detected code blocks get their own copy button and can also be saved directly into the Snippet Manager. Blocks that contain images, diagrams, or math render as images instead — see [Rendered images, diagrams, and math](#rendered-images-diagrams-and-math).
 * Rendered markdown tables can be copied as a whole table, a single column, or a single cell.
 * The chosen AI tab font size is stored globally and reused for future AI result tabs.
-* Token usage is recorded per AI profile after successful requests so warnings and reset cycles remain accurate.
+* Token usage is recorded per AI profile after successful requests so warnings and reset cycles remain accurate. AI Swarm agents, scheduled AI jobs and session journal calls count towards the same quota.
 * If a saved chat references an AI profile that no longer exists, korTTY asks you to choose a replacement profile before you continue with follow-up prompts.
 
 ### Rendered images, diagrams, and math

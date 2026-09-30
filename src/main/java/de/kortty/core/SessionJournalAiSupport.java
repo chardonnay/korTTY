@@ -77,6 +77,14 @@ public final class SessionJournalAiSupport {
         default String visionModelLabel() {
             return null;
         }
+
+        /**
+         * The profile the next call would use, for attributing token usage and cost to a journal;
+         * null when unknown (tests, no profile).
+         */
+        default AiProfile profile() {
+            return null;
+        }
     }
 
     private SessionJournalAiSupport() {
@@ -127,15 +135,17 @@ public final class SessionJournalAiSupport {
                     throw new IllegalStateException("No AI profile available for " + purpose);
                 }
                 AiPromptService service = createService(app, settings, profile);
+                AiExecutionResult result;
                 try {
-                    return service.executeJsonPrompt(systemPrompt, userPrompt, AiPromptExecutionScope.TEXT);
+                    result = service.executeJsonPrompt(systemPrompt, userPrompt, AiPromptExecutionScope.TEXT);
                 } catch (java.io.IOException e) {
                     if (!looksLikeUnsupportedJsonResponseFormat(e.getMessage())) {
                         throw e;
                     }
-                    return service.executeJsonPromptWithoutResponseFormat(
+                    result = service.executeJsonPromptWithoutResponseFormat(
                         systemPrompt, userPrompt, AiPromptExecutionScope.TEXT);
                 }
+                return recordUsage(result, systemPrompt, userPrompt, profile);
             }
 
             @Override
@@ -217,15 +227,30 @@ public final class SessionJournalAiSupport {
                     throw new IllegalStateException("No AI profile available for " + purpose);
                 }
                 AiPromptService service = createService(app, settings, profile);
+                AiExecutionResult result;
                 try {
-                    return service.executeVisionJsonPrompt(
+                    result = service.executeVisionJsonPrompt(
                         systemPrompt, userPrompt, images, AiPromptExecutionScope.TEXT);
                 } catch (java.io.IOException e) {
                     if (!looksLikeUnsupportedJsonResponseFormat(e.getMessage())) {
                         throw e;
                     }
-                    return service.executeVisionJsonPromptWithoutResponseFormat(
+                    result = service.executeVisionJsonPromptWithoutResponseFormat(
                         systemPrompt, userPrompt, images, AiPromptExecutionScope.TEXT);
+                }
+                return recordUsage(result, systemPrompt, userPrompt, profile);
+            }
+
+            @Override
+            public AiProfile profile() {
+                try {
+                    KorTTYApplication app = KorTTYApplication.getInstance();
+                    if (app == null || app.getGlobalSettingsManager() == null) {
+                        return null;
+                    }
+                    return profileResolver.apply(app.getGlobalSettingsManager().getSettings());
+                } catch (Exception e) {
+                    return null;
                 }
             }
 
@@ -247,6 +272,17 @@ public final class SessionJournalAiSupport {
                 }
             }
         };
+    }
+
+    /**
+     * Books the call against the profile's quota and returns the result with its usage filled
+     * in (estimated when the provider reported none), so callers can attribute it to a journal.
+     */
+    private static AiExecutionResult recordUsage(
+            AiExecutionResult result, String systemPrompt, String userPrompt, AiProfile profile) {
+        AiTokenUsage usage = AiUsageRecorder.usageOrEstimate(result, systemPrompt, userPrompt, profile);
+        AiUsageRecorder.application().record(profile, usage);
+        return AiUsageRecorder.withUsage(result, usage);
     }
 
     /**

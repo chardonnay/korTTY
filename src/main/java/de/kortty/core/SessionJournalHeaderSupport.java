@@ -47,6 +47,26 @@ public final class SessionJournalHeaderSupport {
         return String.join(SEPARATOR, parts);
     }
 
+    /**
+     * Compact AI usage of the journal, e.g. {@code "12.3k · ≈ 0,04 €"}, {@code "12.3k · local"}
+     * or just {@code "12.3k"}; empty when the journal never called the AI.
+     *
+     * @param localLabel the localized word for a local (free) profile
+     */
+    public static String aiUsageSummary(SessionJournalMeta meta, String localLabel, Locale locale) {
+        if (meta == null || meta.getAiCallCount() <= 0 || meta.getAiTotalTokens() <= 0) {
+            return "";
+        }
+        StringBuilder text = new StringBuilder(AiTokenUsageManager.formatCompact(meta.getAiTotalTokens()));
+        if (meta.getAiCost() > 0.0) {
+            text.append(SEPARATOR).append("≈ ")
+                .append(AiCostCalculator.format(meta.getAiCost(), meta.getAiCostCurrency(), locale));
+        } else if (meta.isAiProfileLocal() && localLabel != null && !localLabel.isBlank()) {
+            text.append(SEPARATOR).append(localLabel);
+        }
+        return text.toString();
+    }
+
     /** True when the connection name says nothing beyond the endpoint it was derived from. */
     private static boolean isEndpointAlias(String name, String user, String host, int port) {
         if (host.isEmpty()) {

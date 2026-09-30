@@ -2,6 +2,7 @@ package de.kortty.jobscheduler;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiPromptService;
+import de.kortty.core.AiUsageRecorder;
 import de.kortty.core.TerminalAgentService;
 import de.kortty.core.swarm.SwarmCallback;
 import de.kortty.core.swarm.SwarmModels;
@@ -103,8 +104,10 @@ public class JobSchedulerAiSwarmSupport {
             // Same as the interactive path's MainWindow.terminalAgentService: a bare, un-wired
             // TerminalAgentService — SwarmOrchestrator's own null-coalescing constructor would build
             // the same instance, this just makes that explicit at the call site.
-            new SwarmOrchestrator(new TerminalAgentService()).run(
-                request, swarmTargets, profile, () -> safeCreateService(profile), callback);
+            SwarmOrchestrator orchestrator = new SwarmOrchestrator(new TerminalAgentService());
+            AiUsageRecorder usageRecorder = AiUsageRecorder.application();
+            orchestrator.setUsageSink(usage -> usageRecorder.record(profile, usage));
+            orchestrator.run(request, swarmTargets, profile, () -> safeCreateService(profile), callback);
         } finally {
             for (JobSwarmAgentRunner runner : runners) {
                 runner.sessionPassword().ifPresent(redactor::addSecret);

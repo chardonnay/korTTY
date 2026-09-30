@@ -139,6 +139,12 @@ Follow-up questions continue the conversation (the panel keeps the recent exchan
 !!! note
     If no AI profile is reachable or the request fails, the panel degrades instead of erroring out: it extracts the identifiers from your question, runs the internal text search, and shows the matching entries and log lines with a notice that no model was involved. The Q&A never uses internet-access tools, and administrators can forbid it entirely (`ai-ask` under [enterprise policy](#enterprise-policy)).
 
+## AI token usage and cost
+
+Every AI call made for a journal — periodic summaries, the closing session summary and title, screenshot analysis and questions in the AI Q&A panel — adds its token usage to the journal's running totals. The journal page shows the total in its header as **AI tokens** (for example `12.3k · ≈ 0.04 €`), and the journal manager has an **AI tokens** column whose tooltip breaks the number down into input and output tokens, number of AI calls and the profile used. The money amount appears when the profile has a [price per 1M tokens](../reference/settings/ai.md#token-quota-management); a profile running locally shows `local` instead. Each call is priced with the profile's price at the time of the call.
+
+The same calls also count towards the AI profile's token quota, so journal summaries show up in the quota bar of the AI Manager like any other AI request. Journals recorded before this tracking existed show no AI tokens.
+
 ## Password protection
 
 Typed input is captured only as complete submitted lines, and several layers keep passwords out of the journal:
@@ -222,7 +228,7 @@ Changes preview immediately in the viewer and are saved for every journal page. 
 
 ## Managing journals
 
-**Tools > Session Journals…** (++ctrl+alt+j++) opens the journal manager: all journals in a table sorted by start time (newest first) with duration, connection, server, title and entry count. Running journals are marked and cannot be renamed or deleted while live.
+**Tools > Session Journals…** (++ctrl+alt+j++) opens the journal manager: all journals in a table sorted by start time (newest first) with duration, connection, server, title, entry count and [AI tokens](#ai-token-usage-and-cost). Running journals are marked and cannot be renamed or deleted while live.
 
 ![Session journal manager](../assets/screenshots/journal/journal-manager.png)
 

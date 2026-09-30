@@ -64,6 +64,12 @@ public final class LocalLmModelResolver {
         return isHttpUri(uri) && isOpenAiCompatibleModelListEndpoint(uri.getPath());
     }
 
+    /** True for an http(s) URL whose host is a loopback address (localhost, 127.x, ::1). */
+    public static boolean isLoopbackHttpUrl(String apiUrl) {
+        URI uri = parseUri(apiUrl);
+        return uri != null && isLoopbackHttpUri(uri);
+    }
+
     public static boolean isLocalLmStudioBaseUrl(String apiUrl) {
         URI uri = parseUri(apiUrl);
         if (uri == null || !isLoopbackHttpUri(uri)) {

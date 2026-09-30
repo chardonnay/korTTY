@@ -485,7 +485,7 @@ public class SessionJournalSummarizer {
                 window.omittedInputLines(),
                 window.inputLines(),
                 window.outputLines());
-            AiExecutionResult result = executeWithTimeout(systemPrompt, userPrompt);
+            AiExecutionResult result = executeWithTimeout(directory, systemPrompt, userPrompt);
             SessionJournalAiSupport.SummaryResult parsed =
                 SessionJournalAiSupport.parseSummaryResult(result != null ? result.content() : null);
             if (parsed == null) {
@@ -565,13 +565,29 @@ public class SessionJournalSummarizer {
         }
     }
 
-    private AiExecutionResult executeWithTimeout(String systemPrompt, String userPrompt) throws Exception {
+    private AiExecutionResult executeWithTimeout(Path directory, String systemPrompt, String userPrompt)
+            throws Exception {
         Future<AiExecutionResult> future = aiCallExecutor.submit(() -> aiInvoker.execute(systemPrompt, userPrompt));
+        AiExecutionResult result;
         try {
-            return future.get(AI_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            result = future.get(AI_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
             future.cancel(true);
             throw new TimeoutException("AI call exceeded " + AI_CALL_TIMEOUT_SECONDS + "s");
+        }
+        recordJournalUsage(directory, result);
+        return result;
+    }
+
+    /** Adds the call's tokens and cost to the journal's totals; never fails the summary. */
+    private void recordJournalUsage(Path directory, AiExecutionResult result) {
+        if (result == null || result.usage() == null) {
+            return;
+        }
+        try {
+            service.addAiUsage(directory, result.usage(), aiInvoker.profile());
+        } catch (Exception e) {
+            logger.debug("Could not record AI usage for {}: {}", directory.getFileName(), e.getMessage());
         }
     }
 
@@ -648,7 +664,7 @@ public class SessionJournalSummarizer {
             String userPrompt = SessionJournalPrompts.sessionSummaryUserPrompt(
                 meta.getUsername(), meta.getHost(), durationText,
                 meta.getCommandCount(), meta.getErrorCount(), meta.getScreenshotCount(), entryLines);
-            AiExecutionResult result = executeWithTimeout(systemPrompt, userPrompt);
+            AiExecutionResult result = executeWithTimeout(directory, systemPrompt, userPrompt);
             SessionJournalAiSupport.SummaryResult parsed =
                 SessionJournalAiSupport.parseSummaryResult(result != null ? result.content() : null);
             if (parsed == null) {
@@ -710,7 +726,7 @@ public class SessionJournalSummarizer {
             String systemPrompt = SessionJournalPrompts.titleSystemPrompt(document.getMeta().getAppLanguageCode());
             String userPrompt = SessionJournalPrompts.titleUserPrompt(
                 document.getMeta().getConnectionName(), entryLines);
-            AiExecutionResult result = executeWithTimeout(systemPrompt, userPrompt);
+            AiExecutionResult result = executeWithTimeout(directory, systemPrompt, userPrompt);
             String content = result != null ? AiResponseSanitizer.sanitizeForDisplay(result.content()) : null;
             String title = SessionJournalAiSupport.normalizeTitle(content, null, TITLE_MAX_CHARS);
             if (title != null && !title.isBlank()) {

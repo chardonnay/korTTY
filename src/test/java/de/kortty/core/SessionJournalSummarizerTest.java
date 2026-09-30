@@ -28,6 +28,8 @@ class SessionJournalSummarizerTest {
         final List<String> userPrompts = Collections.synchronizedList(new ArrayList<>());
         volatile boolean available = true;
         volatile boolean fail = false;
+        /** Usage attached to every answer; null mimics a provider that reports none. */
+        volatile AiTokenUsage usage;
 
         @Override
         public boolean isAvailable() {
@@ -51,7 +53,7 @@ class SessionJournalSummarizerTest {
             }
             return new AiExecutionResult(
                 "{\"title\":\"Checked nginx\",\"summary\":\"The user checked nginx; it is running.\",\"category\":\"info\"}",
-                null, null);
+                usage, null);
         }
     }
 
@@ -126,6 +128,21 @@ class SessionJournalSummarizerTest {
         return service.loadDocument(dir).getEntries().stream()
             .filter(e -> e.getKind() == kind)
             .toList();
+    }
+
+    @Test
+    void summaryCallsAddTheirTokensToTheJournal() throws Exception {
+        invoker.usage = new AiTokenUsage(100, 20, 120);
+        SessionJournalSession session = newLiveSession();
+        appendLines(session, 5, 3);
+        summarizer.register(session);
+        summarizer.summarizeNow(session).get();
+
+        var meta = service.loadDocument(session.getDirectory()).getMeta();
+        assertThat(meta.getAiCallCount()).isEqualTo(1);
+        assertThat(meta.getAiTotalTokens()).isEqualTo(120L);
+        assertThat(meta.getAiPromptTokens()).isEqualTo(100L);
+        session.close();
     }
 
     @Test
