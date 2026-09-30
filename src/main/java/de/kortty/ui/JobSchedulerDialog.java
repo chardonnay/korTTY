@@ -1214,6 +1214,15 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     }
 
     /** Adds a pre-populated draft (e.g. from the AI-swarm window) — persisted only on Save. */
+    /** Selects the job with {@code jobId} in the list (no-op when it no longer exists). */
+    public void selectJob(String jobId) {
+        if (jobId == null) {
+            return;
+        }
+        jobs.stream().filter(job -> jobId.equals(job.getId())).findFirst()
+            .ifPresent(job -> jobsTable.getSelectionModel().select(job));
+    }
+
     public void prefillNewJob(ScheduledJob draft) {
         if (draft == null) {
             createNewJob();

@@ -229,6 +229,24 @@ public final class SessionJournalHtmlRenderer {
         if (!aiUsage.isEmpty()) {
             appendStat(html, i18n("journal.html.aiTokens", "AI tokens"), aiUsage);
         }
+        if (meta.isAutomation()) {
+            String sourceKey = meta.getEffectiveSourceKind() == de.kortty.model.SessionJournalSourceKind.SWARM
+                ? "journal.manager.group.swarm" : "journal.manager.group.job";
+            appendStat(html, i18n("journal.html.source", "Source"),
+                i18n(sourceKey, "{0}").replace("{0}", meta.getSourceName() != null ? meta.getSourceName() : ""));
+            if (meta.getRunStatus() != null) {
+                appendStat(html, i18n("journal.html.runStatus", "Run"), i18n(
+                    "journal.manager.badge.status." + meta.getRunStatus().name().toLowerCase(java.util.Locale.ROOT),
+                    meta.getRunStatus().name()));
+            }
+            if (meta.isPinned()) {
+                appendStat(html, i18n("journal.manager.column.expires", "Deleted on"),
+                    i18n("journal.manager.pinned", "kept"));
+            } else if (meta.getExpiresAt() != null) {
+                appendStat(html, i18n("journal.manager.column.expires", "Deleted on"),
+                    meta.getExpiresAt().format(DATE_TIME));
+            }
+        }
         html.append("<div class=\"head-buttons\">");
         html.append("<button id=\"rangeToggle\" class=\"icon-button\" type=\"button\" hidden title=\"")
             .append(escapeAttr(i18n("journal.html.range.title", "Pick an export time range")))

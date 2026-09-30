@@ -57,9 +57,15 @@ Der Streifen lässt sich von einem einzelnen Server bis hin zu großen Flotten s
 
 Jeder Server verfügt über eine Zeile in der **Agents**-Liste, in der sein Status-Badge, die verstrichene Zeit und die Token-Anzahl angezeigt werden. **Klicken Sie mit der linken Maustaste auf eine Zeile**, um sie inline zu erweitern und das Live-Transkript des Agenten (Befehle, Ausgabe und Fortschritt) während der Ausführung anzusehen – kein zusätzliches Fenster erforderlich. Sehr lange Transkripte werden von vorne beschnitten, sodass immer die neueste Ausgabe sichtbar ist.
 
-Die Überschrift über den Zeilen summiert die gesamte Laufzeit: **Σ tokens** aller Agenten plus der endgültigen kombinierten Antwort, gefolgt von den Kosten in Geld, wenn das KI-Profil ein [Preis pro 1 M Tokens](../reference/settings/ai.md#token-quoten-verwaltung) (oder `local · no token costs` für ein lokales Profil) hat. Jeder Agentenaufruf und die kombinierte Antwort zählen ebenfalls zum Token-Kontingent des Profils – für interaktive Läufe und für [geplante Swarm-Läufe](#schwarmlaufe-planen-jobscheduler) gleichermaßen.
+Die Überschrift über den Zeilen summiert die gesamte Laufzeit: **Σ Tokens** aller Agenten plus der endgültigen kombinierten Antwort, gefolgt von den Kosten in Geld, wenn das KI-Profil ein [Preis pro 1 M Tokens](../reference/settings/ai.md#token-quoten-verwaltung) (oder `local · no token costs` für ein lokales Profil) hat. Jeder Agentenaufruf und die kombinierte Antwort zählen ebenfalls zum Token-Kontingent des Profils — für interaktive Läufe und für [geplante Schwarmläufe](#schwarmlaufe-planen-jobscheduler) gleichermaßen.
 
 **Klicken Sie mit der rechten Maustaste auf eine Zeile**, um die Kontrolle pro Agent zu erhalten: **Pause**, **Fortsetzen**, **Neustart** und **Stopp** gelten nur für diesen Agenten. Durch den Neustart eines Agenten werden die anderen nicht gestört. seine Antwort wird im kombinierten Ergebnis ersetzt.
+
+## Session-Journal pro Lauf
+
+Die **Session-Journal**-Kontrollkästchen in der Symbolleiste zeichnet ein [Session-Journal](session-journal.md) für jeden Server bei jedem Lauf des Swarms auf: die Befehle jedes Agenten und deren Ausgabe, die Antwort des Agenten, das Ergebnis auf diesem Server sowie der kombinierte Bericht. Die Agenten führen ihre Befehle über eigene Exec-Kanäle aus, die niemals die Terminal-Tabs erreichen; daher sind diese Journale das einzige vollständige Protokoll dessen, was der Swarm getan hat. Der **⚙**-Button daneben öffnet dieselben Einstellungen wie das [Session-Journal pro Lauf](jobscheduler.md#sitzungsjournal-pro-ausfuhrung) eines Jobs – KI-Zusammenfassungen (alle gespeicherten Läufe, nur fehlgeschlagene Läufe, aus), KI-Profil, immer oder nur fehlgeschlagene Läufe behalten, automatische Löschung, maximale Läufe und Speicherplatz, einen Lauf verwerfen, der dem vorherigen identisch ist. Die Einstellungen gelten für jeden Swarm-Tab; das Kontrollkästchen und ⚙ sind deaktiviert, solange ein Lauf aktiv ist.
+
+Das Umschalten des Kontrollkästchens beim ersten Mal zeigt die Kostenwarnung mit einer Schätzung der Tokens und Kosten pro Durchlauf. Während der Schwarm läuft, zeigt das Dashboard *Session-Journal: wird aufgezeichnet…*; danach meldet es, wie viele Journale behalten, verworfen oder identisch mit einem früheren Durchlauf waren, deren Journal-KI-Tokens und Kosten, sobald die Zusammenfassungen geschrieben sind, und **Öffnen** öffnet sie im Journal-Viewer. **Planen…** überträgt die Journaleinstellungen in den neuen Job.
 
 ## Steuerung ausführen
 
@@ -84,7 +90,7 @@ Tabellenzellen sind oft zu klein für eine vollständige Befehlsausgabe – **kl
 
 ## Konversation kopieren, exportieren und speichern
 
-The conversation header has a **Kopieren** button (whole conversation to the clipboard) and an **Exportieren** menu with **Plain Text**, **Markdown**, and **PDF**. **Speichern** stores the conversation as a named swarm chat; saved swarm chats appear in a dedicated **Swarm-Chats** section of the [KI-Manager](ai-assistant.md#ki-manager) und kann später wieder geöffnet werden.
+Der Gesprächsheader verfügt über eine **Kopieren**-Schaltfläche (gesamtes Gespräch in die Zwischenablage) und ein **Exportieren**-Menü mit **Plain Text**, **Markdown** und **PDF**. **Speichern** speichert das Gespräch als benannten Swarm-Chat; gespeicherte Swarm-Chats erscheinen in einem dedizierten **Swarm-Chats**-Bereich des [KI-Manager](ai-assistant.md#ki-manager) und können später wieder geöffnet werden.
 
 ## Skripte ohne KI ausführen
 
@@ -130,7 +136,7 @@ Geplante Schwarmjobs laufen völlig kopflos über SSH-Hintergrundsitzungen – e
 | **Schwarmparallelität** | Wie viele Server gleichzeitig laufen (1–16, Standard 4) |
 | **Schwarm schreibgeschützt** | Alle Agenten auf nicht mutierende Befehle beschränken (Standard: Ein) |
 
-Die Ergebnisse landen an **zwei Stellen**: Das Job-**Journal** zeichnet das Ergebnis pro Lauf auf, und die vollständige Konversation – einschließlich der kombinierten Vergleichstabelle – wird als **gespeicherter Schwarm-Chat** gespeichert, sodass Sie ihn später im Abschnitt *Schwarm-Chats* des KI-Managers öffnen und wie bei einem interaktiven Lauf durch die Ergebnistabelle klicken können. Die Master-Passwort- und Host-Key-Gates des Schedulers gelten wie für andere Jobtypen.
+Ergebnisse landen an **zwei Stellen**: das Job-**Journal** zeichnet das Ergebnis pro Lauf auf (mit dem [Session-Journal des Jobs pro Lauf](jobscheduler.md#sitzungsjournal-pro-ausfuhrung), außerdem ein vollständiges Journal pro Server), und das komplette Gespräch – einschließlich der kombinierten Vergleichstabelle – wird als **gespeicherter Swarm-Chat** gespeichert, sodass Sie es später im KI-Manager aus dem Abschnitt *Swarm-Chats* öffnen und die Ergebnis-Tabelle wie einen interaktiven Lauf durchklicken können. Die Master-Passwort- und Host-Key-Gates des Planers gelten wie bei anderen Jobtypen.
 
 !!! tip "Empfohlener Arbeitsablauf: Interaktiv optimieren, dann planen"
     Pünktliche Qualität entscheidet über die Ergebnisqualität. Führen Sie den Schwarm zunächst interaktiv aus, verfeinern Sie die Eingabeaufforderung, bis die Vergleichstabelle richtig aussieht, und klicken Sie dann auf **Planen…** – die abgestimmte Eingabeaufforderung und die Zielliste werden in den Job übernommen.

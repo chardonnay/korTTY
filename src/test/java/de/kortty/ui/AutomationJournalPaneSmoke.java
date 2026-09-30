@@ -49,6 +49,7 @@ public final class AutomationJournalPaneSmoke {
                 render("automation-journal-pane-policy-" + language + ".png",
                     new AutomationJournalPolicy(true, true, false, 30, 500, 20));
                 renderWarning("automation-journal-warning-" + language + ".png");
+                renderManager("automation-journal-manager-" + language + ".png");
             } catch (Exception e) {
                 failure.compareAndSet(null, "Smoke failed: " + e);
                 e.printStackTrace();
@@ -96,6 +97,83 @@ public final class AutomationJournalPaneSmoke {
         VBox root = new VBox(12, header, body);
         root.setPadding(new Insets(16));
         snapshot(new Scene(root, 560, 520), file);
+    }
+
+    /** The real journal manager (no application, so no service) fed with demo journals by reflection. */
+    @SuppressWarnings("unchecked")
+    private static void renderManager(String file) throws Exception {
+        SessionJournalManagerDialog dialog = new SessionJournalManagerDialog(null);
+        java.lang.reflect.Field field = SessionJournalManagerDialog.class.getDeclaredField("journals");
+        field.setAccessible(true);
+        javafx.collections.ObservableList<de.kortty.model.SessionJournalMeta> journals =
+            (javafx.collections.ObservableList<de.kortty.model.SessionJournalMeta>) field.get(dialog);
+        java.time.OffsetDateTime now = java.time.OffsetDateTime.now();
+        journals.setAll(List.of(
+            demo("Backup db01", null, null, null, "db01", now.minusHours(9), null, 0, false, 0),
+            demo("Nightly check · web01", de.kortty.model.SessionJournalSourceKind.JOB, "job-1", "r2", "web01",
+                now.minusHours(1), de.kortty.model.AutomationRunStatus.SUCCESS, 4200, false, 2),
+            demo("Nightly check · web02", de.kortty.model.SessionJournalSourceKind.JOB, "job-1", "r2", "web02",
+                now.minusHours(1), de.kortty.model.AutomationRunStatus.FAILED, 6100, false, 0),
+            demo("Nightly check · web01", de.kortty.model.SessionJournalSourceKind.JOB, "job-1", "r1", "web01",
+                now.minusDays(1), de.kortty.model.AutomationRunStatus.SUCCESS, 3900, true, 0),
+            demo("Disk report · app01", de.kortty.model.SessionJournalSourceKind.SWARM, "chat-1", "r3", "app01",
+                now.minusMinutes(20), de.kortty.model.AutomationRunStatus.SUCCESS, 900, false, 0)));
+        java.lang.reflect.Field tableField = SessionJournalManagerDialog.class.getDeclaredField("table");
+        tableField.setAccessible(true);
+        javafx.scene.control.TreeTableView<?> table = (javafx.scene.control.TreeTableView<?>) tableField.get(dialog);
+        expandAll(table.getRoot());
+        javafx.scene.Scene scene = dialog.getDialogPane().getScene();
+        dialog.getDialogPane().resize(1500, 520);
+        dialog.getDialogPane().setPrefSize(1500, 520);
+        dialog.getDialogPane().applyCss();
+        dialog.getDialogPane().layout();
+        WritableImage image = dialog.getDialogPane().snapshot(null, null);
+        File out = new File("build/smoke/" + file);
+        out.getParentFile().mkdirs();
+        ImageIO.write(SwingFXUtils.fromFXImage(image, null), "png", out);
+        System.out.println("Snapshot written: " + out.getAbsolutePath());
+    }
+
+    private static void expandAll(javafx.scene.control.TreeItem<?> item) {
+        if (item == null) {
+            return;
+        }
+        item.setExpanded(true);
+        item.getChildren().forEach(AutomationJournalPaneSmoke::expandAll);
+    }
+
+    private static de.kortty.model.SessionJournalMeta demo(String title, de.kortty.model.SessionJournalSourceKind kind,
+            String sourceId, String runId, String host, java.time.OffsetDateTime start,
+            de.kortty.model.AutomationRunStatus status, long tokens, boolean pinned, int duplicates) {
+        de.kortty.model.SessionJournalMeta meta = new de.kortty.model.SessionJournalMeta();
+        meta.setTitle(title);
+        meta.setHost(host);
+        meta.setUsername("root");
+        meta.setConnectionName(host);
+        meta.setStartedAt(start);
+        meta.setEndedAt(start.plusMinutes(3));
+        meta.setDirectory(java.nio.file.Path.of("/demo", title.replace(' ', '_') + (runId != null ? runId : "")));
+        meta.setLogEntryCount(120);
+        if (kind != null) {
+            meta.setSourceKind(kind);
+            meta.setSourceId(sourceId);
+            meta.setSourceName(kind == de.kortty.model.SessionJournalSourceKind.SWARM ? "Disk report" : "Nightly check");
+            meta.setRunId(runId);
+            meta.setRunStartedAt(start);
+            meta.setRunStatus(status);
+            meta.setAiMode(de.kortty.model.AutomationJournalAiMode.ALWAYS);
+            meta.setExpiresAt(start.plusDays(14));
+            meta.setPinned(pinned);
+            meta.setDuplicateRunCount(duplicates);
+            meta.setAiTotalTokens(tokens);
+            meta.setAiPromptTokens(tokens * 4 / 5);
+            meta.setAiCompletionTokens(tokens / 5);
+            meta.setAiCallCount(tokens > 0 ? 2 : 0);
+            meta.setAiCost(tokens * 0.000004);
+            meta.setAiCostCurrency("EUR");
+            meta.setStorageBytes(180_000);
+        }
+        return meta;
     }
 
     private static AiProfile profile(String id, String name, boolean local) {
