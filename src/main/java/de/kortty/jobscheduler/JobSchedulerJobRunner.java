@@ -288,7 +288,8 @@ public class JobSchedulerJobRunner {
                 sudoPassword.orElse(null),
                 archivePassword,
                 targetCount,
-                redactor);
+                redactor,
+                recorder);
             return addHostKeyVerificationNotice(job, outcome);
         }
     }
@@ -312,12 +313,13 @@ public class JobSchedulerJobRunner {
         String sudoPassword,
         String archivePassword,
         int targetCount,
-        JobSchedulerSecretRedactor redactor) throws Exception {
+        JobSchedulerSecretRedactor redactor,
+        AutomationJournalRecorder recorder) throws Exception {
 
         JobAction action = job.getAction();
         return switch (action.getType()) {
-            case COMMAND -> executeCommand(job, remote, sudoPassword);
-            case SNIPPET_SCRIPT -> executeSnippet(job, remote, sudoPassword);
+            case COMMAND -> executeCommand(job, remote, sudoPassword, recorder);
+            case SNIPPET_SCRIPT -> executeSnippet(job, remote, sudoPassword, recorder);
             case AI_AGENT -> aiSupport.runAiAgent(
                 job,
                 new JobSchedulerAiSupport.ServerConnectionContext(connection.getDisplayName()),
@@ -340,12 +342,14 @@ public class JobSchedulerJobRunner {
         };
     }
 
-    private JobExecutionOutcome executeCommand(ScheduledJob job, JobSchedulerRemoteSession remote, String sudoPassword) throws Exception {
+    private JobExecutionOutcome executeCommand(ScheduledJob job, JobSchedulerRemoteSession remote, String sudoPassword,
+                                               AutomationJournalRecorder recorder) throws Exception {
         String command = requireNonBlank(job.getAction().getCommand(), "Command is required.");
-        return executeShellCommand(job, remote, sudoPassword, command, "Command completed.", "Command failed.", null);
+        return executeShellCommand(job, remote, sudoPassword, command, "Command completed.", "Command failed.", null, recorder);
     }
 
-    private JobExecutionOutcome executeSnippet(ScheduledJob job, JobSchedulerRemoteSession remote, String sudoPassword) throws Exception {
+    private JobExecutionOutcome executeSnippet(ScheduledJob job, JobSchedulerRemoteSession remote, String sudoPassword,
+                                               AutomationJournalRecorder recorder) throws Exception {
         JobSchedulerSnippetSupport.BuiltSnippetScript snippet = snippetSupport.build(job.getAction());
         return executeShellCommand(
             job,
@@ -354,7 +358,8 @@ public class JobSchedulerJobRunner {
             snippet.command(),
             "Snippet script completed.",
             "Snippet script failed.",
-            snippet.detail());
+            snippet.detail(),
+            recorder);
     }
 
     private JobExecutionOutcome executeShellCommand(
@@ -364,7 +369,8 @@ public class JobSchedulerJobRunner {
         String command,
         String successSummary,
         String failureSummary,
-        String detailOverride) throws Exception {
+        String detailOverride,
+        AutomationJournalRecorder recorder) throws Exception {
 
         if (job.getWorkingDirectory() != null && !job.getWorkingDirectory().isBlank()) {
             command = "cd " + ShellEscaper.quote(job.getWorkingDirectory()) + " && " + command;
@@ -372,7 +378,19 @@ public class JobSchedulerJobRunner {
         String shellCommand = job.getAction().isUseSudo()
             ? JobSchedulerArchiveCommandBuilder.sudoWrap(command, sudoPassword)
             : "sh -lc " + ShellEscaper.quote(command);
-        remote.labelNextCommand(job.getAction().isUseSudo() ? "sudo " + command : command);
+        String label = job.getAction().isUseSudo() ? "sudo " + command : command;
+        if (job.getAction().isPtyEnabled() && recorder != null && recorder.isRecording()) {
+            if (sudoPassword != null && !sudoPassword.isEmpty()) {
+                // A password sent to a pseudo terminal can be echoed onto the screen — and into a
+                // screenshot. Run such commands without the virtual terminal.
+                recorder.appendLogNote("virtual terminal not used: the command sends a stored sudo password");
+            } else {
+                String detail = detailOverride != null && !detailOverride.isBlank() ? detailOverride : shellCommand;
+                return JobSchedulerVirtualTerminalSupport.run(
+                    job.getAction(), remote, shellCommand, label, successSummary, failureSummary, detail, recorder);
+            }
+        }
+        remote.labelNextCommand(label);
         JobSchedulerRemoteSession.CommandResult result = remote.execute(shellCommand, sudoPassword != null ? sudoPassword + "\n" : null);
         String detail = detailOverride != null && !detailOverride.isBlank() ? detailOverride : shellCommand;
         return result.isSuccess()

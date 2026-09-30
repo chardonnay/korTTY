@@ -41,6 +41,35 @@ public class JobAction {
     @XmlElement
     private boolean swarmReadOnly = true;
 
+    // --- virtual terminal (PTY) with screenshots for COMMAND / SNIPPET_SCRIPT; needs the job's session journal ---
+
+    @XmlElement
+    private boolean ptyEnabled;
+
+    @XmlElement
+    private Integer ptyColumns;
+
+    @XmlElement
+    private Integer ptyRows;
+
+    /** Seconds between periodic screenshots; 0 = none. */
+    @XmlElement
+    private Integer screenshotIntervalSeconds;
+
+    @XmlElement
+    private Boolean screenshotOnChange;
+
+    @XmlElement
+    private Integer maxScreenshots;
+
+    /** Stop the command after this many seconds (Ctrl+C); 0 = the normal one-hour command limit. */
+    @XmlElement
+    private Integer runtimeLimitSeconds;
+
+    /** Treat reaching the runtime limit as success (monitors such as top that never exit). */
+    @XmlElement
+    private boolean runtimeLimitSuccess;
+
     @XmlElement
     private String localPath;
 
@@ -181,6 +210,70 @@ public class JobAction {
     }
 
     /** Effective swarm parallelism: persisted value clamped to 1..16, default 4. */
+    public boolean isPtyEnabled() {
+        return ptyEnabled;
+    }
+
+    public void setPtyEnabled(boolean ptyEnabled) {
+        this.ptyEnabled = ptyEnabled;
+    }
+
+    public int effectivePtyColumns() {
+        return ptyColumns != null ? Math.max(40, Math.min(400, ptyColumns)) : 120;
+    }
+
+    public void setPtyColumns(Integer ptyColumns) {
+        this.ptyColumns = ptyColumns;
+    }
+
+    public int effectivePtyRows() {
+        return ptyRows != null ? Math.max(10, Math.min(200, ptyRows)) : 40;
+    }
+
+    public void setPtyRows(Integer ptyRows) {
+        this.ptyRows = ptyRows;
+    }
+
+    public int effectiveScreenshotIntervalSeconds() {
+        return screenshotIntervalSeconds != null ? Math.max(0, Math.min(3600, screenshotIntervalSeconds)) : 10;
+    }
+
+    public void setScreenshotIntervalSeconds(Integer screenshotIntervalSeconds) {
+        this.screenshotIntervalSeconds = screenshotIntervalSeconds;
+    }
+
+    public boolean isScreenshotOnChange() {
+        return screenshotOnChange == null || screenshotOnChange;
+    }
+
+    public void setScreenshotOnChange(boolean screenshotOnChange) {
+        this.screenshotOnChange = screenshotOnChange;
+    }
+
+    public int effectiveMaxScreenshots() {
+        return maxScreenshots != null ? Math.max(1, Math.min(500, maxScreenshots)) : 30;
+    }
+
+    public void setMaxScreenshots(Integer maxScreenshots) {
+        this.maxScreenshots = maxScreenshots;
+    }
+
+    public int effectiveRuntimeLimitSeconds() {
+        return runtimeLimitSeconds != null ? Math.max(0, Math.min(86_400, runtimeLimitSeconds)) : 0;
+    }
+
+    public void setRuntimeLimitSeconds(Integer runtimeLimitSeconds) {
+        this.runtimeLimitSeconds = runtimeLimitSeconds;
+    }
+
+    public boolean isRuntimeLimitSuccess() {
+        return runtimeLimitSuccess;
+    }
+
+    public void setRuntimeLimitSuccess(boolean runtimeLimitSuccess) {
+        this.runtimeLimitSuccess = runtimeLimitSuccess;
+    }
+
     public int effectiveSwarmParallelism() {
         int value = swarmMaxParallelism != null ? swarmMaxParallelism : 4;
         return Math.max(1, Math.min(16, value));

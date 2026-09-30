@@ -58,7 +58,7 @@ Der einklappbare **Session-Journal pro Lauf**-Bereich am unteren Rand des **Job*
 |---------|-------------|
 | **Für jeden Lauf ein Session-Journal erstellen** | Schaltet die Journale für diesen Job ein. |
 | **KI-Zusammenfassungen** | **Aus (nur Protokoll, keine Tokens)**, **Für jeden behaltenen Lauf** (Standard) oder **Nur bei fehlgeschlagenen Läufen**. Die Zusammenfassungen laufen einmal, nachdem der Lauf beendet ist, sodass ein Lauf, dessen Journal verworfen wird, keine Tokens kostet. Sie müssen außerdem KI-Zusammenfassungen in *Einstellungen → Logs → Sitzungsjournal* aktivieren. |
-| **KI-Profil** | Das Profil für die Zusammenfassungen. **Aus den Einstellungen** verwendet das *KI-Profil für Automations-Journale* (siehe [Session-Journal](session-journal.md#journale-der-automatisierungsdurchlaufe)); wählen Sie ein günstiges oder lokales Profil, um unbeaufsichtigte Läufe erschwinglich zu halten. Die Liste zeigt den Preis pro 1 M Tokens jedes Profils oder anzeigt, dass es lokal läuft. |
+| **KI-Profil** | Das Profil für die Zusammenfassungen. **Aus den Einstellungen** verwendet das *KI-Profil für Automations-Journale* (siehe [Session-Journal](session-journal.md#journale-der-automatisierungsdurchlaufe)); wählen Sie ein günstiges oder lokales Profil, um unbeaufsichtigte Läufe erschwinglich zu halten. Die Liste zeigt den Preis pro 1 M Tokens jedes Profils oder dass es lokal läuft. |
 | **Journale behalten** | **Immer**, oder **Nur bei Fehler** — das Journal eines erfolgreichen Laufs wird dann sofort gelöscht; fehlgeschlagene, blockierte und abgebrochene Läufe werden behalten. In einem Job mit mehreren Zielen wird die Entscheidung pro Server getroffen. |
 | **Automatisch löschen** | Nach einer bestimmten Anzahl von Tagen (Standard 14), an einem festen Datum oder niemals. |
 | **Max. Läufe** / **Max. Speicher** | Behalten Sie höchstens diese Anzahl Läufe oder diesen Speicherplatz (MB) der Journale dieses Jobs; die ältesten Läufe werden zuerst gelöscht, und der neueste Lauf wird nie gelöscht. `0` bedeutet unbegrenzt. |
@@ -111,6 +111,23 @@ Verwenden Sie die Registerkarte **Aktion**, um auszuwählen, was der Job tun sol
 
 Pfadfelder bieten eine lokale Finder-/Explorer-Auswahl, wenn der Pfad lokal ist, und das Durchsuchen von Remote-Verzeichnissen, wenn der Pfad remote ist. Remote-Browsing erfordert eine ausgewählte Ziel- und Hostschlüsselüberprüfung, es sei denn, der Job deaktiviert die Hostschlüsselüberprüfung ausdrücklich.
 
+#### Virtuelles Terminal und Screenshots
+
+**COMMAND** und **SNIPPET_SCRIPT** Aktionen können in einem unsichtbaren **virtual terminal** ausgeführt werden: der Befehl erhält ein Pseudo-Terminal auf dem Server, korTTY interpretiert dessen Ausgabe lokal mit demselben Terminal-Emulator, den ein Tab verwendet, und Screenshots dieses Bildschirms werden dem Lauf hinzugefügt. [Sitzungsjournal](#sitzungsjournal-pro-ausfuhrung)Kein Fenster öffnet sich und kein Terminal, in dem Sie arbeiten, wird berührt, sodass Fortschrittsbalken, `top` oder KI-Coding-Tools im nicht-interaktiven Modus (zum Beispiel `claude -p …` oder `codex exec …`) werden im Journal sichtbar.
+
+| Setting | Beschreibung |
+|---------|-------------|
+| **In einem unsichtbaren virtuellen Terminal (PTY) ausführen und Screenshots für das Sitzungsjournal aufnehmen** | Schaltet das virtuelle Terminal für diese Aktion ein. Benötigt das Sitzungsjournal des Jobs; ohne es läuft der Befehl wie üblich. |
+| **Größe** | Spalten × Zeilen des virtuellen Terminals (Standard 120 × 40). |
+| **Screenshot alle … s (0 = aus)** / **und bei Bildschirmänderung** | Ein Screenshot wird in festem Intervall (Standard 10 s) und/oder jedes Mal, wenn sich der Bildschirm geändert hat, höchstens alle zwei Sekunden aufgenommen. Ein unveränderter Bildschirm wird nie zweimal erfasst; der letzte Bildschirm wird immer erfasst. |
+| **Max. Screenshots pro Befehl** | Obergrenze pro Befehl, einschließlich des letzten Bildschirms (Standard 30). |
+| **Laufzeit-Limit … s (0 = keins)** / **Erreichen des Limits als Erfolg werten** | Stoppt den Befehl mit Ctrl+C nach dieser Anzahl Sekunden — für Monitore wie `top`, die nie von selbst beenden. Ohne die zweite Option zählt ein durch das Limit gestoppter Lauf als abgebrochen. |
+
+Die Laufhistorie behält den letzten Bildschirm als Ausgabe bei. Die KI beschreibt die Screenshots im Abschlussdurchlauf, wenn der KI-Modus des Journals angewendet wird (bei jedem gespeicherten Lauf oder nur bei fehlgeschlagenen Läufen), mit dem KI-Profil des Journals – so zählt die Kostenwarnung die Screenshots in ihrer Schätzung.
+
+!!! note "Ein Job kann kein Programm ausführen."
+    Nichts wird in das Programm eingegeben, außer was der Befehl selbst sendet. Interaktive Programme (Midnight Commander, ein Editor, ein Prompt, der auf eine Antwort wartet) laufen daher nur bis zur Laufzeitbegrenzung – Sie erhalten ihre Screenshots, aber der Job kann sie nicht nutzen. Ein Befehl, der ein gespeichertes sudo-Passwort sendet, läuft immer **ohne** das virtuelle Terminal: ein Passwort, das an ein Pseudo-Terminal gesendet wird, kann auf dem Bildschirm wiedergegeben werden und würde in einem Screenshot landen.
+
 #### Snippet-Skriptjobs
 
 Snippet-Skriptjobs verwenden den ausgewählten SnippetManager-Eintrag, ohne dass eine geöffnete Terminalregisterkarte erforderlich ist. KorTTY löst integrierte Snippet-Variablen und gespeicherte SnippetManager-Variablen vor der Ausführung auf. Fehlende Snippets, fehlende gespeicherte Variablenwerte und nicht unterstützte Snippet-Sprachen blockieren den Job und schreiben den Grund in das Journal. Zusätzliche Snippet-Parameter werden einzeln pro Zeile eingegeben, sodass Werte mit Leerzeichen als einzelne Skriptargumente übergeben werden.
@@ -126,7 +143,7 @@ AI Swarm-Jobs führen über Hintergrund-SSH-Sitzungen eine KI-Agent-Eingabeauffo
 
 Die Ergebnisse werden zweimal gespeichert: Das **Journal** zeichnet das Laufergebnis auf, und die vollständige Konversation – einschließlich der kombinierten Vergleichstabelle pro Server – wird als **Schwarm-Chat** gespeichert, der über den Abschnitt *Schwarm-Chats* des KI-Managers erneut geöffnet werden kann.
 
-Der schnellste Weg, einen KI-Swarm-Job zu erstellen, ist die **Planen…** Schaltfläche im [KI-Swarm-Tab](ai-swarm.md#schwarmlaufe-planen-jobscheduler): sie füllt einen neuen Job mit den aktuellen Zielen, Prompt, KI-Profil und der schreibgeschützten Einstellung des Tabs vor. Siehe diese Seite für empfohlene Swarm-/Scheduler-Anwendungsszenarien.
+Der schnellste Weg, einen KI-Swarm-Job zu erstellen, ist der **Planen…**-Button im [KI-Swarm Tab](ai-swarm.md#schwarmlaufe-planen-jobscheduler): er füllt einen neuen Job mit den aktuellen Zielen, Prompt, KI-Profil und der schreibgeschützten Einstellung des Tabs vor. Siehe diese Seite für empfohlene Swarm-/Scheduler-Verwendungsszenarien.
 
 !!! warning
     Ein geplanter Schwarm, bei dem **Schwarm schreibgeschützt** deaktiviert und **Automatisch genehmigende KI-Befehle** aktiviert ist, verändert Systeme unbeaufsichtigt. Testen Sie die Eingabeaufforderung interaktiv auf der Registerkarte „AI Swarm“, bevor Sie einen solchen Job aktivieren.
@@ -160,7 +177,7 @@ KorTTY erstellt die Rsync-Ausführung als `ProcessBuilder`-Argumentliste, anstat
 
 Der **Journal** Tab listet Jobläufe mit lokalen KorTTY-Zeitstempeln, Status, Jobname, Session-Journal und Zusammenfassung.  
 
-Für Jobs mit einem [Sitzungsprotokoll pro Durchlauf](#sitzungsjournal-pro-ausfuhrung), die **Session-Journal**-Spalte zeigt an, wie viele Journale der Lauf beibehalten hat und deren KI-Tokens sowie Kosten. "= identisch mit einem früheren Lauf" erscheint, wenn der Lauf als Duplikat verworfen wurde, oder "gelöscht (Aufbewahrung)", sobald die Journale verschwunden sind. Der Detailbereich listet jedes Journal mit seinem Status, der Token-Aufschlüsselung und dem Löschdatum auf, und **Session-Journal öffnen** öffnet die Journale des Laufs (oder der identischen früheren Lauf) im Journal-Viewer.
+Für Jobs mit einem [Session-Journal pro Lauf](#sitzungsjournal-pro-ausfuhrung) zeigt die Spalte **Session-Journal** an, wie viele Journale der Lauf behalten hat und deren KI-Tokens sowie Kosten. „= identisch mit einem früheren Lauf“ erscheint, wenn der Lauf als Duplikat verworfen wurde, oder „gelöscht (Aufbewahrung)“, sobald die Journale verschwunden sind. Der Detailbereich listet jedes Journal mit seinem Status, Tokenaufteilung und Löschdatum auf, und **Session-Journal öffnen** öffnet die Journale des Laufs (oder der identischen früheren Lauf) im Journal-Viewer.
 
 Die Suchzeile kann mit allen persistenten Journalfeldern oder nur mit ausgewählten Spalten wie Status, Job, Zusammenfassung, Stdout, Stdderr und Detail übereinstimmen. Geben Sie mehrere durch Leerzeichen getrennte Begriffe ein, wenn jeder Begriff irgendwo im ausgewählten Suchbereich vorkommen muss; Verwenden Sie `*` innerhalb eines Begriffs als Platzhalter, zum Beispiel `backup*fail`.
 

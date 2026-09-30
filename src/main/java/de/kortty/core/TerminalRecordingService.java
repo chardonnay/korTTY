@@ -687,6 +687,16 @@ public class TerminalRecordingService {
         RenderLayout layout,
         boolean includeColor,
         Path output) throws IOException {
+        ImageIO.write(drawFrame(frame, layout, includeColor), "png", output.toFile());
+    }
+
+    /** One screen drawn like an export frame, sized to its own columns and rows. */
+    static BufferedImage renderScreen(TerminalRecordingScreenSnapshot snapshot, boolean includeColor) {
+        TerminalRecordingReplayFrame frame = new TerminalRecordingReplayFrame(snapshot, 0);
+        return drawFrame(frame, resolveRenderLayout(List.of(frame)), includeColor);
+    }
+
+    private static BufferedImage drawFrame(TerminalRecordingReplayFrame frame, RenderLayout layout, boolean includeColor) {
         BufferedImage image = new BufferedImage(layout.width(), layout.height(), BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = image.createGraphics();
         try {
@@ -702,7 +712,7 @@ public class TerminalRecordingService {
         } finally {
             graphics.dispose();
         }
-        ImageIO.write(image, "png", output.toFile());
+        return image;
     }
 
     private static void renderPlainFrame(Graphics2D graphics, String screen, RenderLayout layout) {

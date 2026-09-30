@@ -50,6 +50,7 @@ public final class AutomationJournalPaneSmoke {
                     new AutomationJournalPolicy(true, true, false, 30, 500, 20));
                 renderWarning("automation-journal-warning-" + language + ".png");
                 renderManager("automation-journal-manager-" + language + ".png");
+                renderVirtualTerminal("automation-journal-virtual-terminal.png");
             } catch (Exception e) {
                 failure.compareAndSet(null, "Smoke failed: " + e);
                 e.printStackTrace();
@@ -174,6 +175,24 @@ public final class AutomationJournalPaneSmoke {
             meta.setStorageBytes(180_000);
         }
         return meta;
+    }
+
+    /** A top-like full-screen frame through the headless emulator and the screenshot renderer. */
+    private static void renderVirtualTerminal(String file) throws Exception {
+        try (de.kortty.core.headless.HeadlessTerminal terminal = new de.kortty.core.headless.HeadlessTerminal(80, 12)) {
+            terminal.feed("\u001b[2J\u001b[H\u001b[7m top - 10:42:01 up 3 days,  2 users,  load average: 0.42, 0.37, 0.31 \u001b[0m\r\n");
+            terminal.feed("Tasks: \u001b[1m187\u001b[0m total,   \u001b[32m1 running\u001b[0m, 186 sleeping\r\n");
+            terminal.feed("%Cpu(s): \u001b[33m 3.1 us\u001b[0m,  1.0 sy,  95.9 id\r\n\r\n");
+            terminal.feed("\u001b[30;47m  PID USER      %CPU %MEM COMMAND                                         \u001b[0m\r\n");
+            terminal.feed(" 1287 postgres   12.3  4.1 \u001b[36mpostgres: checkpointer\u001b[0m\r\n");
+            terminal.feed("  911 root        2.0  0.8 \u001b[36mnginx: worker process\u001b[0m\r\n");
+            terminal.awaitProcessed(2_000);
+            byte[] png = de.kortty.core.TerminalScreenRenderer.renderPng(terminal.snapshot(), true);
+            File out = new File("build/smoke/" + file);
+            out.getParentFile().mkdirs();
+            java.nio.file.Files.write(out.toPath(), png);
+            System.out.println("Snapshot written: " + out.getAbsolutePath());
+        }
     }
 
     private static AiProfile profile(String id, String name, boolean local) {

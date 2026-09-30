@@ -74,6 +74,10 @@ public final class SessionJournalBadges {
         if (node.allLocal() && node.aiCallCount() > 0) {
             badges.add(new Badge(I18n.get("journal.manager.badge.local"), Tone.SUCCESS));
         }
+        long screenshots = node.journals().stream().mapToLong(SessionJournalMeta::getScreenshotCount).sum();
+        if (automation && screenshots > 0) {
+            badges.add(new Badge("\uD83D\uDCF7 " + screenshots, Tone.NEUTRAL));
+        }
         if (node.duplicateRunCount() > 0) {
             badges.add(new Badge(I18n.get("journal.manager.badge.duplicates", node.duplicateRunCount() + 1), Tone.NEUTRAL));
         }
