@@ -100,6 +100,7 @@ public class JobSchedulerAiSupport {
                 stdin = sudoPassword + "\n";
             }
             String shellCommand = "sh -lc " + ShellEscaper.quote(normalizedCommand);
+            remoteSession.labelNextCommand(TerminalAgentService.normalizeSudoForAgentExecution(command.command()));
             JobSchedulerRemoteSession.CommandResult commandResult = remoteSession.execute(shellCommand, stdin);
             lastExit = commandResult.exitCode();
             detail.append("$ ").append(normalizedCommand).append("\n")

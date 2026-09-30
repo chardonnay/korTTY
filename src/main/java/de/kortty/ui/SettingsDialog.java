@@ -211,6 +211,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private CheckBox sessionJournalAiSummariesCheck;
     private Spinner<Integer> sessionJournalIntervalSpinner;
     private ComboBox<de.kortty.model.AiProfile> sessionJournalAiProfileCombo;
+    private ComboBox<de.kortty.model.AiProfile> automationJournalAiProfileCombo;
 
     // Update settings
     private final CheckBox updateChecksEnabledCheck;
@@ -1203,6 +1204,46 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             sessionJournalAiSummariesCheck.selectedProperty().not());
         loggingGrid.add(new Label(I18n.get("settings.journal.aiProfile")), 0, loggingRow);
         loggingGrid.add(sessionJournalAiProfileCombo, 1, loggingRow++);
+
+        // Automation journals (JobScheduler / AI Swarm runs) can use a cheaper or local profile.
+        automationJournalAiProfileCombo = new ComboBox<>();
+        automationJournalAiProfileCombo.setMaxWidth(Double.MAX_VALUE);
+        automationJournalAiProfileCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(de.kortty.model.AiProfile profile) {
+                if (profile == null || profile.getId() == null) {
+                    return I18n.get("settings.journal.automationProfile.same");
+                }
+                return AutomationJournalConfigPane.profileLabel(profile);
+            }
+
+            @Override
+            public de.kortty.model.AiProfile fromString(String value) {
+                return null;
+            }
+        });
+        de.kortty.model.AiProfile sameAsJournalPlaceholder = new de.kortty.model.AiProfile();
+        automationJournalAiProfileCombo.getItems().add(sameAsJournalPlaceholder);
+        automationJournalAiProfileCombo.setValue(sameAsJournalPlaceholder);
+        String automationProfileId = globalSettings != null ? globalSettings.getAutomationJournalAiProfileId() : null;
+        if (globalSettings != null && globalSettings.getAiProfiles() != null) {
+            for (de.kortty.model.AiProfile profile : globalSettings.getAiProfiles()) {
+                if (profile != null) {
+                    automationJournalAiProfileCombo.getItems().add(profile);
+                    if (automationProfileId != null && automationProfileId.equals(profile.getId())) {
+                        automationJournalAiProfileCombo.setValue(profile);
+                    }
+                }
+            }
+        }
+        automationJournalAiProfileCombo.disableProperty().bind(
+            sessionJournalAiSummariesCheck.selectedProperty().not());
+        loggingGrid.add(new Label(I18n.get("settings.journal.automationProfile")), 0, loggingRow);
+        loggingGrid.add(automationJournalAiProfileCombo, 1, loggingRow++);
+        Label automationProfileHint = new Label(I18n.get("settings.journal.automationProfile.hint"));
+        automationProfileHint.setWrapText(true);
+        automationProfileHint.setStyle(MutedTextStyle.HINT);
+        loggingGrid.add(automationProfileHint, 1, loggingRow++);
 
         LazyTabContent.defer(loggingTab, () -> loggingGrid);
 
@@ -3552,6 +3593,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         if (sessionJournalAiProfileCombo != null) {
             de.kortty.model.AiProfile selectedProfile = sessionJournalAiProfileCombo.getValue();
             globalSettings.setSessionJournalAiProfileId(
+                selectedProfile != null ? selectedProfile.getId() : null);
+        }
+        if (automationJournalAiProfileCombo != null) {
+            de.kortty.model.AiProfile selectedProfile = automationJournalAiProfileCombo.getValue();
+            globalSettings.setAutomationJournalAiProfileId(
                 selectedProfile != null ? selectedProfile.getId() : null);
         }
 

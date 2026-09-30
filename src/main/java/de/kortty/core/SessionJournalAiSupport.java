@@ -104,6 +104,27 @@ public final class SessionJournalAiSupport {
         return invokerFor(SessionJournalAiSupport::resolveTextProfile, "text translation");
     }
 
+    /**
+     * Invoker for an automation run journal (JobScheduler / AI Swarm): the source's own profile,
+     * else the automation journal profile from the settings, else the regular journal profile.
+     */
+    public static AiInvoker automationInvoker(String sourceProfileId) {
+        return invokerFor(settings -> resolveAutomationProfile(settings, sourceProfileId), "automation journals");
+    }
+
+    /** Source profile → automation journal profile → journal profile → default profile. */
+    public static AiProfile resolveAutomationProfile(GlobalSettings settings, String sourceProfileId) {
+        if (settings == null || settings.getAiProfiles() == null || settings.getAiProfiles().isEmpty()) {
+            return null;
+        }
+        AiProfile source = findById(settings.getAiProfiles(), sourceProfileId);
+        if (source != null) {
+            return source;
+        }
+        AiProfile automation = findById(settings.getAiProfiles(), settings.getAutomationJournalAiProfileId());
+        return automation != null ? automation : resolveProfile(settings);
+    }
+
     private static AiInvoker invokerFor(
             java.util.function.Function<GlobalSettings, AiProfile> profileResolver, String purpose) {
         return new AiInvoker() {

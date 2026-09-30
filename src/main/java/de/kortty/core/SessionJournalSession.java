@@ -241,6 +241,19 @@ public class SessionJournalSession implements AutoCloseable {
         logger.info("Session journal started in {} (format={})", directory.getFileName(), format);
     }
 
+    /**
+     * Adds a secret to redact from every line captured from now on — for secrets that become
+     * known only after the session started (a password resolved while connecting).
+     */
+    public void addKnownSecret(String secret) {
+        redactor.addSecret(secret);
+    }
+
+    /** {@code text} with every known secret and policy pattern redacted, as it would be captured. */
+    public String redact(String text) {
+        return redactor.redact(text);
+    }
+
     /** Raw decoded output from the connector reader thread (ANSI still present). */
     public void appendOutputChunk(String data) {
         if (!running || closed || outputCaptureStopped || data == null || data.isEmpty()) {

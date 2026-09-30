@@ -201,6 +201,15 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private final PauseTransition journalDividerSaveDelay = new PauseTransition(Duration.millis(500));
 
     private ScheduledJob selectedJob;
+    /** "Session journal per run" editor of the selected job; built in {@link #buildJobEditor()}. */
+    private AutomationJournalConfigPane sessionJournalPane;
+    private javafx.scene.control.TitledPane sessionJournalSection;
+    /** Automation journals of JobScheduler jobs, refreshed in the background; read on the FX thread. */
+    private List<de.kortty.model.SessionJournalMeta> jobJournals = List.of();
+    private final java.util.concurrent.atomic.AtomicBoolean journalMetaRefreshRunning =
+        new java.util.concurrent.atomic.AtomicBoolean();
+    private TextArea journalDetailArea;
+    private Button openSessionJournalButton;
     private String loadedEncryptedArchivePassword;
     private boolean geometryListenersInstalled;
     private boolean updatingWeekdaySelection;
@@ -329,9 +338,12 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         enabledColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().isEnabled()));
         TableColumn<ScheduledJob, String> nextRunColumn = new TableColumn<>(text("job.column.nextRun"));
         nextRunColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(nonBlank(cell.getValue().getNextRunAt(), "")));
+        TableColumn<ScheduledJob, String> journalTokensColumn = new TableColumn<>(text("job.column.journalTokens"));
+        journalTokensColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(jobJournalTokens(cell.getValue())));
         jobsTable.getColumns().add(nameColumn);
         jobsTable.getColumns().add(enabledColumn);
         jobsTable.getColumns().add(nextRunColumn);
+        jobsTable.getColumns().add(journalTokensColumn);
         jobsTable.getSelectionModel().selectedItemProperty().addListener((obs, oldJob, newJob) -> {
             if (!suppressJobSelectionLoad) {
                 loadJob(newJob);
@@ -360,9 +372,27 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         return box;
     }
 
+    /** Journal AI tokens (and cost) of all kept runs of the job; empty when it has none. */
+    private String jobJournalTokens(ScheduledJob job) {
+        if (job == null || job.getId() == null) {
+            return "";
+        }
+        de.kortty.core.AutomationJournalRetention.SourceStats stats = de.kortty.core.AutomationJournalRetention.statsFor(
+            jobJournals, de.kortty.model.SessionJournalSourceKind.JOB, job.getId());
+        if (stats.runs() == 0) {
+            return job.getSessionJournal().isEnabled() ? "0" : "";
+        }
+        String tokens = de.kortty.core.AiTokenUsageManager.formatCompact(stats.totalTokens());
+        return stats.cost() > 0.0
+            ? tokens + " · ≈ " + de.kortty.core.AiCostCalculator.format(stats.cost(), stats.currency(), Locale.getDefault())
+            : tokens;
+    }
+
     private TabPane buildDetails() {
         TabPane tabs = new TabPane();
-        tabs.getTabs().add(new Tab(text("tab.job"), buildJobEditor()));
+        ScrollPane jobScroll = new ScrollPane(buildJobEditor());
+        jobScroll.setFitToWidth(true);
+        tabs.getTabs().add(new Tab(text("tab.job"), jobScroll));
         tabs.getTabs().add(new Tab(text("tab.action"), buildActionEditor()));
         tabs.getTabs().add(new Tab(text("tab.journal"), buildJournalView()));
         for (Tab tab : tabs.getTabs()) {
@@ -442,6 +472,11 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         groupSudoButton.setOnAction(event -> setGroupSudoPassword());
         HBox securityButtons = new HBox(8, pinButton, serverSudoButton, groupSudoButton);
 
+        sessionJournalPane = new AutomationJournalConfigPane(this::dialogWindow, this::estimateJournalCost);
+        sessionJournalPane.setOnChange(this::updateSessionJournalSectionTitle);
+        sessionJournalSection = new javafx.scene.control.TitledPane(text("sessionJournal.title"), sessionJournalPane);
+        sessionJournalSection.setExpanded(false);
+
         return padded(new VBox(
             12,
             enabledCheck,
@@ -449,7 +484,268 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             hostKeyLabel,
             hostKeyVerificationDisabledCheck,
             hostKeyVerificationWarningLabel,
-            securityButtons));
+            securityButtons,
+            sessionJournalSection));
+    }
+
+    private Window dialogWindow() {
+        return getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : getOwner();
+    }
+
+    private void updateSessionJournalSectionTitle() {
+        if (sessionJournalSection == null) {
+            return;
+        }
+        sessionJournalSection.setText(text("sessionJournal.title") + (sessionJournalPane.isJournalEnabled()
+            ? " · " + text("sessionJournal.on") : ""));
+    }
+
+    private void loadSessionJournal(ScheduledJob job) {
+        GlobalSettings settings = app.getGlobalSettingsManager() != null ? app.getGlobalSettingsManager().getSettings() : null;
+        sessionJournalPane.setProfiles(settings != null ? settings.getAiProfiles() : List.of());
+        sessionJournalPane.setPolicy(de.kortty.core.AutomationJournalPolicy.current());
+        sessionJournalPane.load(job.getSessionJournal());
+        sessionJournalSection.setExpanded(job.getSessionJournal().isEnabled());
+        updateSessionJournalSectionTitle();
+        updateSessionJournalStats();
+    }
+
+    /** "Last run: 3 journals · 8.2k tokens … · Kept: 11 runs · 96k tokens · 412 MB" for the selected job. */
+    private void updateSessionJournalStats() {
+        if (sessionJournalPane == null) {
+            return;
+        }
+        if (selectedJob == null || selectedJob.getId() == null) {
+            sessionJournalPane.setStatsText(null);
+            return;
+        }
+        de.kortty.core.AutomationJournalRetention.SourceStats stats = de.kortty.core.AutomationJournalRetention.statsFor(
+            jobJournals, de.kortty.model.SessionJournalSourceKind.JOB, selectedJob.getId());
+        if (stats.runs() == 0) {
+            sessionJournalPane.setStatsText(selectedJob.getSessionJournal().isEnabled() ? text("sessionJournal.stats.none") : null);
+            return;
+        }
+        sessionJournalPane.setStatsText(text("sessionJournal.stats",
+            stats.newestRunJournals(),
+            tokensAndCost(stats.newestRunTokens(), stats.newestRunCost(), stats.currency()),
+            stats.runs(),
+            tokensAndCost(stats.totalTokens(), stats.cost(), stats.currency()),
+            formatMegabytes(stats.bytes())));
+    }
+
+    private static String tokensAndCost(long tokens, double cost, String currency) {
+        String text = text("sessionJournal.tokens", de.kortty.core.AiTokenUsageManager.formatCompact(tokens));
+        if (cost > 0.0) {
+            text += " · ≈ " + de.kortty.core.AiCostCalculator.format(cost, currency, Locale.getDefault());
+        }
+        return text;
+    }
+
+    private static String formatMegabytes(long bytes) {
+        return String.format(Locale.getDefault(), "%.1f MB", bytes / (1024.0 * 1024.0));
+    }
+
+    /** Cost estimate for the warning: history of this job, its schedule and its targets. */
+    private de.kortty.core.AutomationJournalCostEstimator.Estimate estimateJournalCost(
+            de.kortty.model.AutomationJournalConfig config) {
+        GlobalSettings settings = app.getGlobalSettingsManager() != null ? app.getGlobalSettingsManager().getSettings() : null;
+        de.kortty.model.AiProfile profile = de.kortty.core.SessionJournalAiSupport.resolveAutomationProfile(
+            settings, config.getAiProfileId());
+        return de.kortty.core.AutomationJournalCostEstimator.estimate(
+            jobJournals,
+            de.kortty.model.SessionJournalSourceKind.JOB,
+            selectedJob != null ? selectedJob.getId() : null,
+            config,
+            countSelectedTargets(),
+            runsPerDay(readSchedule()),
+            profile,
+            settings);
+    }
+
+    private int countSelectedTargets() {
+        ScheduledJob probe = new ScheduledJob();
+        probe.setTargetConnectionIds(selectedConnectionIds);
+        probe.setTargetGroupNames(selectedGroupNames);
+        try {
+            return Math.max(1, new de.kortty.jobscheduler.JobSchedulerConnectionResolver(app).resolveTargets(probe).size());
+        } catch (Exception e) {
+            return Math.max(1, selectedConnectionIds.size());
+        }
+    }
+
+    /** Average runs per day of {@code schedule} over the coming week; null when it never runs. */
+    static Double runsPerDay(JobSchedule schedule) {
+        if (schedule == null) {
+            return null;
+        }
+        de.kortty.jobscheduler.JobScheduleCalculator calculator = new de.kortty.jobscheduler.JobScheduleCalculator();
+        java.time.ZonedDateTime now = java.time.ZonedDateTime.now();
+        java.time.ZonedDateTime end = now.plusDays(7);
+        java.time.ZonedDateTime cursor = now;
+        int runs = 0;
+        while (runs < 7 * 1440) {
+            Optional<java.time.ZonedDateTime> next = calculator.nextRunAfter(schedule, cursor);
+            if (next.isEmpty() || next.get().isAfter(end)) {
+                break;
+            }
+            runs++;
+            cursor = next.get();
+        }
+        return runs == 0 ? null : runs / 7.0;
+    }
+
+    /** Re-reads the job journals' metadata off the FX thread, then refreshes every view that shows it. */
+    private void refreshJobJournals() {
+        de.kortty.core.SessionJournalService service = app.getSessionJournalService();
+        if (service == null || !journalMetaRefreshRunning.compareAndSet(false, true)) {
+            return;
+        }
+        GlobalSettings settings = app.getGlobalSettingsManager() != null ? app.getGlobalSettingsManager().getSettings() : null;
+        java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            try {
+                return service.listJournals(settings).stream()
+                    .filter(meta -> meta.getEffectiveSourceKind() == de.kortty.model.SessionJournalSourceKind.JOB)
+                    .toList();
+            } catch (Exception e) {
+                return List.<de.kortty.model.SessionJournalMeta>of();
+            }
+        }).whenComplete((metas, error) -> Platform.runLater(() -> {
+            journalMetaRefreshRunning.set(false);
+            jobJournals = metas != null ? metas : List.of();
+            jobsTable.refresh();
+            journalTable.refresh();
+            updateSessionJournalStats();
+            showJournalEntryDetails(journalTable.getSelectionModel().getSelectedItem());
+        }));
+    }
+
+    private de.kortty.model.SessionJournalMeta journalMeta(String directory) {
+        if (directory == null) {
+            return null;
+        }
+        java.nio.file.Path key = java.nio.file.Path.of(directory).toAbsolutePath().normalize();
+        for (de.kortty.model.SessionJournalMeta meta : jobJournals) {
+            if (meta.getDirectory() != null && meta.getDirectory().toAbsolutePath().normalize().equals(key)) {
+                return meta;
+            }
+        }
+        return null;
+    }
+
+    /** "2 · 8.2k tokens", "identical to an earlier run", "deleted" or empty for the run-history column. */
+    private String sessionJournalCell(JobJournalEntry entry) {
+        if (entry == null) {
+            return "";
+        }
+        if (entry.getSessionJournalDirs().isEmpty()) {
+            return entry.getDuplicateOfJournalDirs().isEmpty() ? "" : text("journal.sessionJournal.duplicate");
+        }
+        int existing = 0;
+        long tokens = 0;
+        double cost = 0.0;
+        String currency = null;
+        for (String dir : entry.getSessionJournalDirs()) {
+            de.kortty.model.SessionJournalMeta meta = journalMeta(dir);
+            if (meta != null) {
+                existing++;
+                tokens += meta.getAiTotalTokens();
+                cost += meta.getAiCost();
+                currency = currency != null ? currency : meta.getAiCostCurrency();
+            }
+        }
+        if (existing == 0) {
+            return text("journal.sessionJournal.deleted");
+        }
+        return existing + " · " + tokensAndCost(tokens, cost, currency);
+    }
+
+    private void showJournalEntryDetails(JobJournalEntry entry) {
+        if (journalDetailArea == null) {
+            return;
+        }
+        if (entry == null) {
+            journalDetailArea.clear();
+            if (openSessionJournalButton != null) {
+                openSessionJournalButton.setDisable(true);
+            }
+            return;
+        }
+        StringBuilder text = new StringBuilder("stdout:\n" + nonBlank(entry.getStdoutText(), "")
+            + "\n\nstderr:\n" + nonBlank(entry.getStderrText(), "")
+            + "\n\ndetail:\n" + nonBlank(entry.getDetailText(), ""));
+        boolean openable = false;
+        if (!entry.getSessionJournalDirs().isEmpty() || !entry.getDuplicateOfJournalDirs().isEmpty()) {
+            text.append("\n\n").append(text("journal.sessionJournal.heading")).append(":\n");
+            for (String dir : entry.getSessionJournalDirs()) {
+                openable |= appendJournalLine(text, dir, false);
+            }
+            for (String dir : entry.getDuplicateOfJournalDirs()) {
+                openable |= appendJournalLine(text, dir, true);
+            }
+        }
+        journalDetailArea.setText(text.toString());
+        if (openSessionJournalButton != null) {
+            openSessionJournalButton.setDisable(!openable);
+        }
+    }
+
+    private boolean appendJournalLine(StringBuilder text, String dir, boolean duplicate) {
+        de.kortty.model.SessionJournalMeta meta = journalMeta(dir);
+        text.append("• ");
+        if (meta == null) {
+            text.append(text(duplicate ? "journal.sessionJournal.referenceDeleted" : "journal.sessionJournal.deleted"))
+                .append(" (").append(java.nio.file.Path.of(dir).getFileName()).append(")\n");
+            return false;
+        }
+        if (duplicate) {
+            text.append(text("journal.sessionJournal.identicalTo",
+                meta.getStartedAt() != null ? meta.getStartedAt().format(JOURNAL_META_TIME) : "?")).append(": ");
+        }
+        text.append(nonBlank(meta.getTitle(), String.valueOf(meta.getDirectory().getFileName())));
+        if (meta.getRunStatus() != null) {
+            text.append(" · ").append(localizedAutomationStatus(meta.getRunStatus()));
+        }
+        text.append(" · ").append(meta.getAiCallCount() > 0
+            ? tokensAndCost(meta.getAiTotalTokens(), meta.getAiCost(), meta.getAiCostCurrency())
+                + " (" + SessionJournalManagerDialog.aiUsageTooltip(meta) + ")"
+            : text("journal.sessionJournal.noAi"));
+        if (meta.isPinned()) {
+            text.append(" · ").append(text("journal.sessionJournal.pinned"));
+        } else if (meta.getExpiresAt() != null) {
+            text.append(" · ").append(text("journal.sessionJournal.expires", meta.getExpiresAt().format(JOURNAL_META_TIME)));
+        }
+        text.append('\n');
+        return true;
+    }
+
+    private static final java.time.format.DateTimeFormatter JOURNAL_META_TIME =
+        java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+
+    private static String localizedAutomationStatus(de.kortty.model.AutomationRunStatus status) {
+        return text("status." + status.name().toLowerCase(Locale.ROOT));
+    }
+
+    /** Opens the kept journals of the selected run (or the identical earlier run it refers to). */
+    private void openSelectedSessionJournals() {
+        JobJournalEntry entry = journalTable.getSelectionModel().getSelectedItem();
+        if (entry == null) {
+            return;
+        }
+        MainWindow window = MainWindow.findByStage(dialogWindow());
+        if (window == null) {
+            window = MainWindow.getInstance();
+        }
+        if (window == null) {
+            return;
+        }
+        List<String> dirs = new ArrayList<>(entry.getSessionJournalDirs());
+        dirs.addAll(entry.getDuplicateOfJournalDirs());
+        for (String dir : dirs) {
+            de.kortty.model.SessionJournalMeta meta = journalMeta(dir);
+            if (meta != null) {
+                window.openSessionJournal(meta);
+            }
+        }
     }
 
     private VBox buildActionEditor() {
@@ -599,9 +895,13 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         TableColumn<JobJournalEntry, String> summaryColumn = new TableColumn<>(text("journal.column.summary"));
         summaryColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(nonBlank(cell.getValue().getSummary(), "")));
         summaryColumn.setComparator(Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
+        TableColumn<JobJournalEntry, String> sessionJournalColumn = new TableColumn<>(text("journal.column.sessionJournal"));
+        sessionJournalColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(sessionJournalCell(cell.getValue())));
+        sessionJournalColumn.setComparator(Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
         journalTable.getColumns().add(startedColumn);
         journalTable.getColumns().add(statusColumn);
         journalTable.getColumns().add(jobColumn);
+        journalTable.getColumns().add(sessionJournalColumn);
         journalTable.getColumns().add(summaryColumn);
         startedColumn.setSortType(TableColumn.SortType.DESCENDING);
         journalTable.getSortOrder().clear();
@@ -611,15 +911,9 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         detailArea.setPrefRowCount(8);
         detailArea.setMinHeight(80);
         installJournalDetailContextMenu(detailArea);
-        journalTable.getSelectionModel().selectedItemProperty().addListener((obs, oldEntry, entry) -> {
-            if (entry == null) {
-                detailArea.clear();
-            } else {
-                detailArea.setText("stdout:\n" + nonBlank(entry.getStdoutText(), "")
-                    + "\n\nstderr:\n" + nonBlank(entry.getStderrText(), "")
-                    + "\n\ndetail:\n" + nonBlank(entry.getDetailText(), ""));
-            }
-        });
+        journalDetailArea = detailArea;
+        journalTable.getSelectionModel().selectedItemProperty().addListener(
+            (obs, oldEntry, entry) -> showJournalEntryDetails(entry));
         Button refreshButton = new Button(text("button.refresh"));
         refreshButton.setGraphic(iconLabel("\u21BB", 16));
         refreshButton.setOnAction(event -> refresh());
@@ -627,7 +921,11 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         deleteButton.setGraphic(iconLabel("\u2715", 18));
         deleteButton.disableProperty().bind(journalTable.getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelectedJournalEntries(detailArea));
-        HBox buttons = new HBox(8, refreshButton, deleteButton);
+        openSessionJournalButton = new Button(text("button.openSessionJournal"));
+        openSessionJournalButton.setGraphic(iconLabel("\uD83D\uDCD3", 16));
+        openSessionJournalButton.setDisable(true);
+        openSessionJournalButton.setOnAction(event -> openSelectedSessionJournals());
+        HBox buttons = new HBox(8, refreshButton, deleteButton, openSessionJournalButton);
         HBox retentionControls = buildJournalRetentionControls();
         HBox searchControls = buildJournalSearchControls();
         SplitPane journalSplitPane = new SplitPane(journalTable, detailArea);
@@ -866,6 +1164,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         menuBarStatusCheck.setSelected(isJobSchedulerMenuStatusEnabled());
         updateConnectionSummary();
         journal.setAll(schedulerService.getJournal());
+        refreshJobJournals();
         List<ActiveJobSummary> active = schedulerService.getActiveJobSummaries();
         statusLabel.setText(active.isEmpty()
             ? text("status.noJobsRunning")
@@ -954,6 +1253,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         }
         syncAllWeekdaysCheck();
         loadAction(job.getAction());
+        loadSessionJournal(job);
         updateHostKeyLabel();
     }
 
@@ -1022,6 +1322,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             selectedJob.setJournalDetailMode(journalModeCombo.getSelectionModel().getSelectedItem());
             selectedJob.setSchedule(readSchedule());
             selectedJob.setAction(readAction());
+            selectedJob.setSessionJournal(sessionJournalPane.read());
             schedulerService.saveJob(selectedJob);
             refresh();
         } catch (Exception e) {

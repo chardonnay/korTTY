@@ -148,7 +148,7 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
 | `allow-internet` | boolean | `false` | Verbietet jeden KI-Internetzugriffsmodus – siehe unten |
 
 !!! info "`allow-internet = false` unterbindet den KI-Internetzugriff auf drei Ebenen"
-    Das [Internetzugang](settings/ai.md#internet-zugriffs-modi) Dropdown-Menu eines KI-Profils wählt ein
+    Der [Internetzugang](settings/ai.md#internet-zugriffs-modi) Dropdown eines KI-Profils wählt einen
     Backend für Websuche oder MCP-Browsing. Das Verbot wird an drei Stellen durchgesetzt, weil eine
     einzelne eine Lücke ließe:
 
@@ -167,7 +167,7 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
 
 ### Gespeicherter Skripttext der Analysen
 
-Ein [Vollständige Code-Analyse](../features/snippets.md#gespeicherter-skripttext) speichert den Skripttext, an dem gearbeitet wurde – das analysierte Skript, der Text, von dem die Anwendung ausgegangen ist, das vorgeschlagene Ergebnis und der angenommene Text – damit funktioniert der Code-Vorschau, **Änderungen ansehen**, der Skriptexport, der Berichtsabschnitt, **Zwischenstand wiederherstellen** und der Fortsetzung nach einem Neustart. Die Benutzer wählen die Größe selbst unter **Einstellungen → Snippet-Editor → Gespeicherte Skriptgröße pro Analyse** (Standardwert 1 MB, maximal 5 MB, oder **Aus**); `analysis-max-stored-content-bytes` in `[rule.snippets]` ist ein obere Schranke auf der Basis jenes Auswahlkriteriums:
+A [Vollständige Code-Analyse](../features/snippets.md#gespeicherter-skripttext) speichert den Skripttext, an dem gearbeitet wurde — das analysierte Skript, den Text, von dem aus apply gestartet wurde, das vorgeschlagene Ergebnis und den akzeptierten Text — sodass die Codevorschau, **Änderungen ansehen**, der Skriptexport, der Berichtsanhang, **Zwischenstand wiederherstellen** und das Fortsetzen nach einem Neustart weiterhin funktionieren. Benutzer wählen die Größe selbst unter **Einstellungen → Snippet-Editor → Gespeicherte Skriptgröße pro Analyse** (Standard 1 MB, maximal 5 MB oder **Aus**) ; `analysis-max-stored-content-bytes` in `[rule.snippets]` ist eine Obergrenze auf dieser Wahl:
 
 ```toml
 [[rule]]
@@ -253,6 +253,10 @@ Mandate für das [Sitzungsjournal](../features/session-journal.md). Erzwungene W
 | `ai-screenshot-analysis` | boolean | `true` / `false` | `true` erzwingt die KI-Screenshot-Analyse, `false` verbietet sie – einschließlich der manuellen Ausführung pro Screenshot; Die Journaloption ist in beide Richtungen gesperrt |
 | `ai-ask` | boolean | `false` | Verbietet On-Demand-KI für Journalinhalte: Das Frage-und-Antwort-Panel des Viewers und die tagebuchübergreifende KI-Suche des Managers werden ausgeblendet. KI-Zusammenfassungen sind nicht betroffen |
 | `max-log-parts` | Ganzzahl | ≥ 1 | Begrenzt die Anzahl der rotierten Capture-Logteile pro Journal; Der wirksame Grenzwert ist das Minimum dieser Obergrenze und der Einstellung pro Verbindung, und der Spinner des Verbindungseditors ist darauf begrenzt |
+| `automation-allowed` | Boolean | `false` | Verhindert das [Sitzungsprotokolle von JobScheduler und KI-Swarm-Läufen](../features/session-journal.md#journale-der-automatisierungsdurchlaufe); die „Sitzungsjournal pro Lauf“-Steuerung ist deaktiviert. Interaktive Journale sind nicht betroffen. |
+| `automation-max-retention-days` | integer | ≥ 1 | Automation-Journale werden höchstens so viele Tage nach ihrem Lauf gelöscht, egal was der Benutzer gewählt hat ("nie" ist nicht verfügbar); wird auch dann durchgesetzt, wenn `allow-delete = false` |
+| `automation-max-storage-mb` | integer | ≥ 1 | Begrenzt den Speicherplatz der Journale eines Jobs (oder des KI-Swarms); die ältesten Durchläufe werden zuerst gelöscht; auch bei `allow-delete = false` |
+| `automation-max-journals` | integer | ≥ 1 | Begrenzt die Anzahl der gespeicherten Durchläufe pro Aufgabe (oder KI-Swarm); wird auch bei `allow-delete = false` |
 
 ```toml
 [[rule]]
@@ -267,7 +271,7 @@ Mandate für das [Sitzungsjournal](../features/session-journal.md). Erzwungene W
 ```
 
 !!! note
-    `enforced`-Mandate erfassen, nicht AI: Wenn AI verweigert oder nicht verfügbar ist, zeichnet das erzwungene Journal Rohaktivitätseinträge auf. Wenn mehrere gleichstufige Regeln das Journal konfigurieren, werden `enforced` und `ai-title` zu „true“ aufgelöst, wenn eine Regel sie festlegt, `allow-rename`/`allow-delete` zu „false“, wenn eine Regel sie verbietet, `ai-screenshot-analysis` und `ai-ask` zu „off“, wenn eine Regel sie ausschaltet, die Zeilenobergrenze wird auf den engeren Wert aufgelöst (`0` gilt als unbegrenzt) und `max-log-parts` wird auf die niedrigere Obergrenze aufgelöst.
+    `enforced` fordert Aufzeichnung, nicht KI: Wenn KI verweigert oder nicht verfügbar ist, zeichnet das erzwungene Journal rohe Aktivitätseinträge auf. Wenn mehrere Regeln derselben Ebene das Journal konfigurieren, werden `enforced` und `ai-title` zu true, wenn irgendeine Regel sie setzt, `allow-rename`/`allow-delete` zu false, wenn irgendeine Regel sie verbietet, `ai-screenshot-analysis` und `ai-ask` zu off, wenn irgendeine Regel sie ausschaltet, die Zeilenbegrenzung ergibt den strikteren Wert (`0` gilt als unbegrenzt), und `max-log-parts` ergibt die niedrigere Begrenzung. `automation-allowed` ergibt false, wenn irgendeine Regel es verbietet, und die drei `automation-max-*`-Beschränkungen ergeben den niedrigeren Wert. Mit `allow-delete = false` löscht korTTY niemals ein Automatisierungsjournal aufgrund einer *Benutzereinstellung* (Behalte-Modus, Duplikate, Aufbewahrung, Limits) – nur die `automation-max-*`-Beschränkungen löschen noch.
 
 ### `[[rule.session-journal.replace]]`
 

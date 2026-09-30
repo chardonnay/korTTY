@@ -369,6 +369,29 @@ public final class EffectivePolicy {
         return sessionJournal.maxLogParts();
     }
 
+    /**
+     * Session journals per JobScheduler / AI Swarm run. Needs the journal feature itself; an admin
+     * can turn just the automation journals off ({@code automation-allowed = false}).
+     */
+    public boolean automationJournalAllowed() {
+        return sessionJournalAllowed() && !Boolean.FALSE.equals(sessionJournal.automationAllowed());
+    }
+
+    /** Admin cap on how long an automation journal is kept, in days; null = no cap. */
+    public Integer automationJournalMaxRetentionDays() {
+        return sessionJournal.automationMaxRetentionDays();
+    }
+
+    /** Admin cap on the disk space of one automation source's journals, in MB; null = no cap. */
+    public Integer automationJournalMaxStorageMb() {
+        return sessionJournal.automationMaxStorageMb();
+    }
+
+    /** Admin cap on the number of kept runs per automation source; null = no cap. */
+    public Integer automationJournalMaxJournals() {
+        return sessionJournal.automationMaxJournals();
+    }
+
     /** The raw {@code [rule.session-journal]} mandates (fields null when not set). */
     public PolicyRule.SessionJournalRule sessionJournal() {
         return sessionJournal;
@@ -596,10 +619,23 @@ public final class EffectivePolicy {
         Integer maxLogParts = resolver.resolve(
             rule -> rule.sessionJournal() != null ? rule.sessionJournal().maxLogParts() : null,
             Math::min);
+        Boolean automationAllowed = resolver.resolveAllow(
+            rule -> rule.sessionJournal() != null ? rule.sessionJournal().automationAllowed() : null);
+        // Caps: the lower value is the more restrictive one (the loader rejects 0).
+        Integer automationMaxRetentionDays = resolver.resolve(
+            rule -> rule.sessionJournal() != null ? rule.sessionJournal().automationMaxRetentionDays() : null,
+            Math::min);
+        Integer automationMaxStorageMb = resolver.resolve(
+            rule -> rule.sessionJournal() != null ? rule.sessionJournal().automationMaxStorageMb() : null,
+            Math::min);
+        Integer automationMaxJournals = resolver.resolve(
+            rule -> rule.sessionJournal() != null ? rule.sessionJournal().automationMaxJournals() : null,
+            Math::min);
         return new PolicyRule.SessionJournalRule(
             enforced, logFormat, aiMaxLines, storagePath, allowRename, allowDelete, nameTemplate,
             aiTitle, aiScreenshotAnalysis, aiAsk, maxLogParts,
-            resolveSessionJournalReplacements(resolver));
+            resolveSessionJournalReplacements(resolver), automationAllowed, automationMaxRetentionDays,
+            automationMaxStorageMb, automationMaxJournals);
     }
 
     /**

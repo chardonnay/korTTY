@@ -124,6 +124,7 @@ public class KorTTYApplication extends Application {
     private SwarmChatManager swarmChatManager;
     private de.kortty.core.SessionJournalService sessionJournalService;
     private de.kortty.core.SessionJournalSummarizer sessionJournalSummarizer;
+    private de.kortty.core.AutomationJournalRetention automationJournalRetention;
     private de.kortty.core.SessionJournalScreenshotAnalyzer sessionJournalScreenshotAnalyzer;
     private de.kortty.core.SessionJournalHtmlRenderer sessionJournalHtmlRenderer;
     private TeamworkSyncService teamworkSyncService;
@@ -264,6 +265,13 @@ public class KorTTYApplication extends Application {
         swarmChatManager = new SwarmChatManager(configDir);
         sessionJournalService = new de.kortty.core.SessionJournalService();
         sessionJournalSummarizer = new de.kortty.core.SessionJournalSummarizer(sessionJournalService);
+        automationJournalRetention = new de.kortty.core.AutomationJournalRetention(
+            sessionJournalService,
+            () -> globalSettingsManager != null ? globalSettingsManager.getSettings() : null,
+            this::automationJournalConfigOf,
+            de.kortty.core.AutomationJournalPolicy::current,
+            sessionJournalSummarizer::isPending,
+            java.time.Clock.systemDefaultZone());
         sessionJournalScreenshotAnalyzer =
             new de.kortty.core.SessionJournalScreenshotAnalyzer(sessionJournalService);
         sessionJournalHtmlRenderer = new de.kortty.core.SessionJournalHtmlRenderer(sessionJournalService);
@@ -500,6 +508,9 @@ public class KorTTYApplication extends Application {
             } catch (Exception e) {
                 logger.warn("Failed to start the job scheduler", e);
             }
+            if (automationJournalRetention != null) {
+                automationJournalRetention.start();
+            }
 
             // RAG startup reconciliation is independent of credentials, snippets, and scheduler
             // initialization. A failure in one of those subsystems must not disable automatic
@@ -722,6 +733,9 @@ public class KorTTYApplication extends Application {
         }
         if (sessionJournalSummarizer != null) {
             shutdownStep("stop session journal summarizer", sessionJournalSummarizer::stop);
+        }
+        if (automationJournalRetention != null) {
+            shutdownStep("stop automation journal retention", automationJournalRetention::stop);
         }
         if (sessionJournalScreenshotAnalyzer != null) {
             shutdownStep("stop session journal screenshot analyzer", sessionJournalScreenshotAnalyzer::stop);
@@ -1531,6 +1545,26 @@ public class KorTTYApplication extends Application {
     /** Books AI token usage against profile quotas; see {@link de.kortty.core.AiUsageRecorder}. */
     public de.kortty.core.SettingsAiUsageRecorder getAiUsageRecorder() {
         return aiUsageRecorder;
+    }
+
+    /** Deletes expired automation run journals; see {@link de.kortty.core.AutomationJournalRetention}. */
+    public de.kortty.core.AutomationJournalRetention getAutomationJournalRetention() {
+        return automationJournalRetention;
+    }
+
+    /** The current "session journal per run" settings of an automation source, or null when it is gone. */
+    private de.kortty.model.AutomationJournalConfig automationJournalConfigOf(
+            de.kortty.model.SessionJournalSourceKind kind, String sourceId) {
+        if (kind == de.kortty.model.SessionJournalSourceKind.SWARM) {
+            GlobalSettings settings = globalSettingsManager != null ? globalSettingsManager.getSettings() : null;
+            return settings != null ? settings.getSwarmSessionJournal() : null;
+        }
+        if (kind == de.kortty.model.SessionJournalSourceKind.JOB && jobSchedulerService != null && sourceId != null) {
+            return jobSchedulerService.findJob(sourceId)
+                .map(de.kortty.jobscheduler.ScheduledJob::getSessionJournal)
+                .orElse(null);
+        }
+        return null;
     }
 
     public de.kortty.core.SessionJournalService getSessionJournalService() {

@@ -1139,7 +1139,7 @@
 </table>
 <div class="admonition info">
 <p class="admonition-title"><code>allow-internet = false</code> unterbindet den KI-Internetzugriff auf drei Ebenen</p>
-<p>Das <a href="settings/ai.html#internet-zugriffs-modi">Internetzugang</a> Dropdown-Menu eines KI-Profils wählt ein
+<p>Der <a href="settings/ai.html#internet-zugriffs-modi">Internetzugang</a> Dropdown eines KI-Profils wählt einen
 Backend für Websuche oder MCP-Browsing. Das Verbot wird an drei Stellen durchgesetzt, weil eine
 einzelne eine Lücke ließe:</p>
 <ol>
@@ -1157,7 +1157,7 @@ eigener Anbieter – verweigern Sie dazu die <code>ai</code>-Funktion oder stell
 stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen Endpunkt zeigen.</p>
 </div>
 <h3 id="gespeicherter-skripttext-der-analysen">Gespeicherter Skripttext der Analysen<a class="headerlink" href="#gespeicherter-skripttext-der-analysen" title="Permanent link">&para;</a></h3>
-<p>Ein <a href="../features/snippets.html#gespeicherter-skripttext">Vollständige Code-Analyse</a> speichert den Skripttext, an dem gearbeitet wurde – das analysierte Skript, der Text, von dem die Anwendung ausgegangen ist, das vorgeschlagene Ergebnis und der angenommene Text – damit funktioniert der Code-Vorschau, <strong>Änderungen ansehen</strong>, der Skriptexport, der Berichtsabschnitt, <strong>Zwischenstand wiederherstellen</strong> und der Fortsetzung nach einem Neustart. Die Benutzer wählen die Größe selbst unter <strong>Einstellungen → Snippet-Editor → Gespeicherte Skriptgröße pro Analyse</strong> (Standardwert 1 MB, maximal 5 MB, oder <strong>Aus</strong>); <code>analysis-max-stored-content-bytes</code> in <code>[rule.snippets]</code> ist ein obere Schranke auf der Basis jenes Auswahlkriteriums:</p>
+<p>A <a href="../features/snippets.html#gespeicherter-skripttext">Vollständige Code-Analyse</a> speichert den Skripttext, an dem gearbeitet wurde — das analysierte Skript, den Text, von dem aus apply gestartet wurde, das vorgeschlagene Ergebnis und den akzeptierten Text — sodass die Codevorschau, <strong>Änderungen ansehen</strong>, der Skriptexport, der Berichtsanhang, <strong>Zwischenstand wiederherstellen</strong> und das Fortsetzen nach einem Neustart weiterhin funktionieren. Benutzer wählen die Größe selbst unter <strong>Einstellungen → Snippet-Editor → Gespeicherte Skriptgröße pro Analyse</strong> (Standard 1 MB, maximal 5 MB oder <strong>Aus</strong>) ; <code>analysis-max-stored-content-bytes</code> in <code>[rule.snippets]</code> ist eine Obergrenze auf dieser Wahl:</p>
 <div class="language-toml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[[rule]]</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Keep script text small"</span>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="k">[rule.snippets]</span>
@@ -1392,6 +1392,30 @@ stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen End
 <td>≥ 1</td>
 <td>Begrenzt die Anzahl der rotierten Capture-Logteile pro Journal; Der wirksame Grenzwert ist das Minimum dieser Obergrenze und der Einstellung pro Verbindung, und der Spinner des Verbindungseditors ist darauf begrenzt</td>
 </tr>
+<tr>
+<td><code>automation-allowed</code></td>
+<td>Boolean</td>
+<td><code>false</code></td>
+<td>Verhindert das <a href="../features/session-journal.html#journale-der-automatisierungsdurchlaufe">Sitzungsprotokolle von JobScheduler und KI-Swarm-Läufen</a>; die „Sitzungsjournal pro Lauf“-Steuerung ist deaktiviert. Interaktive Journale sind nicht betroffen.</td>
+</tr>
+<tr>
+<td><code>automation-max-retention-days</code></td>
+<td>integer</td>
+<td>≥ 1</td>
+<td>Automation-Journale werden höchstens so viele Tage nach ihrem Lauf gelöscht, egal was der Benutzer gewählt hat ("nie" ist nicht verfügbar); wird auch dann durchgesetzt, wenn <code>allow-delete = false</code></td>
+</tr>
+<tr>
+<td><code>automation-max-storage-mb</code></td>
+<td>integer</td>
+<td>≥ 1</td>
+<td>Begrenzt den Speicherplatz der Journale eines Jobs (oder des KI-Swarms); die ältesten Durchläufe werden zuerst gelöscht; auch bei <code>allow-delete = false</code></td>
+</tr>
+<tr>
+<td><code>automation-max-journals</code></td>
+<td>integer</td>
+<td>≥ 1</td>
+<td>Begrenzt die Anzahl der gespeicherten Durchläufe pro Aufgabe (oder KI-Swarm); wird auch bei <code>allow-delete = false</code></td>
+</tr>
 </tbody>
 </table>
 <div class="language-toml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">[[rule]]</span>
@@ -1406,7 +1430,7 @@ stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen End
 </span></code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p><code>enforced</code>-Mandate erfassen, nicht AI: Wenn AI verweigert oder nicht verfügbar ist, zeichnet das erzwungene Journal Rohaktivitätseinträge auf. Wenn mehrere gleichstufige Regeln das Journal konfigurieren, werden <code>enforced</code> und <code>ai-title</code> zu „true“ aufgelöst, wenn eine Regel sie festlegt, <code>allow-rename</code>/<code>allow-delete</code> zu „false“, wenn eine Regel sie verbietet, <code>ai-screenshot-analysis</code> und <code>ai-ask</code> zu „off“, wenn eine Regel sie ausschaltet, die Zeilenobergrenze wird auf den engeren Wert aufgelöst (<code>0</code> gilt als unbegrenzt) und <code>max-log-parts</code> wird auf die niedrigere Obergrenze aufgelöst.</p>
+<p><code>enforced</code> fordert Aufzeichnung, nicht KI: Wenn KI verweigert oder nicht verfügbar ist, zeichnet das erzwungene Journal rohe Aktivitätseinträge auf. Wenn mehrere Regeln derselben Ebene das Journal konfigurieren, werden <code>enforced</code> und <code>ai-title</code> zu true, wenn irgendeine Regel sie setzt, <code>allow-rename</code>/<code>allow-delete</code> zu false, wenn irgendeine Regel sie verbietet, <code>ai-screenshot-analysis</code> und <code>ai-ask</code> zu off, wenn irgendeine Regel sie ausschaltet, die Zeilenbegrenzung ergibt den strikteren Wert (<code>0</code> gilt als unbegrenzt), und <code>max-log-parts</code> ergibt die niedrigere Begrenzung. <code>automation-allowed</code> ergibt false, wenn irgendeine Regel es verbietet, und die drei <code>automation-max-*</code>-Beschränkungen ergeben den niedrigeren Wert. Mit <code>allow-delete = false</code> löscht korTTY niemals ein Automatisierungsjournal aufgrund einer <em>Benutzereinstellung</em> (Behalte-Modus, Duplikate, Aufbewahrung, Limits) – nur die <code>automation-max-*</code>-Beschränkungen löschen noch.</p>
 </div>
 <h3 id="rulesession-journalreplace"><code>[[rule.session-journal.replace]]</code><a class="headerlink" href="#rulesession-journalreplace" title="Permanent link">&para;</a></h3>
 <p>Automatisches Suchen und Ersetzen in jedem Journal – die Möglichkeit, eine ganze Kategorie von Geheimnissen aus dem Transkript herauszuhalten, anstatt sich darauf zu verlassen, dass der Benutzer es bemerkt. Jeder Eintrag stellt eine Regel dar, und eine Regel kann einen regulären Ausdruck verwenden.</p>

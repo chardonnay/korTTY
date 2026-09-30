@@ -50,6 +50,28 @@ Zeitplanberechnungen verwenden die Zeitzone des lokalen Systems. Wenn keine fest
 !!! note
     Scheduler-Jobs unterstützen nur gespeicherte SSH-TCP-Verbindungen. Mosh-Ziele werden als nicht unterstützt blockiert und der Grund wird in das Journal geschrieben.
 
+### Sitzungsjournal pro Ausführung
+
+Der einklappbare **Session-Journal pro Lauf**-Bereich am unteren Rand des **Job**-Tabs zeichnet ein vollständiges [Session-Journal](session-journal.md) für jeden Lauf des Jobs auf – ein Journal pro Zielserver, mit jedem Befehl, den der Job gesendet hat, dessen Ausgabe, dem Zusammenfassung des Jobs und dem Ergebnis auf diesem Server. Im Gegensatz zur kurzen Laufhistorie im **Journal**-Tab behält er die komplette Ausgabe bei, kann von der KI zusammengefasst, durchsucht, exportiert und [gestellte Fragen](session-journal.md#die-ki-nach-einem-journal-fragen) wie jedes interaktive Journal behandelt werden, und wird automatisch gelöscht, sobald seine Aufbewahrungsfrist endet. SFTP- und rsync-Aktionen senden keinen Shell-Befehl; ihr Journal protokolliert stattdessen die Aktion und deren Ergebnis.
+
+| Setting | Beschreibung |
+|---------|-------------|
+| **Für jeden Lauf ein Session-Journal erstellen** | Schaltet die Journale für diesen Job ein. |
+| **KI-Zusammenfassungen** | **Aus (nur Protokoll, keine Tokens)**, **Für jeden behaltenen Lauf** (Standard) oder **Nur bei fehlgeschlagenen Läufen**. Die Zusammenfassungen laufen einmal, nachdem der Lauf beendet ist, sodass ein Lauf, dessen Journal verworfen wird, keine Tokens kostet. Sie müssen außerdem KI-Zusammenfassungen in *Einstellungen → Logs → Sitzungsjournal* aktivieren. |
+| **KI-Profil** | Das Profil für die Zusammenfassungen. **Aus den Einstellungen** verwendet das *KI-Profil für Automations-Journale* (siehe [Session-Journal](session-journal.md#journale-der-automatisierungsdurchlaufe)); wählen Sie ein günstiges oder lokales Profil, um unbeaufsichtigte Läufe erschwinglich zu halten. Die Liste zeigt den Preis pro 1 M Tokens jedes Profils oder anzeigt, dass es lokal läuft. |
+| **Journale behalten** | **Immer**, oder **Nur bei Fehler** — das Journal eines erfolgreichen Laufs wird dann sofort gelöscht; fehlgeschlagene, blockierte und abgebrochene Läufe werden behalten. In einem Job mit mehreren Zielen wird die Entscheidung pro Server getroffen. |
+| **Automatisch löschen** | Nach einer bestimmten Anzahl von Tagen (Standard 14), an einem festen Datum oder niemals. |
+| **Max. Läufe** / **Max. Speicher** | Behalten Sie höchstens diese Anzahl Läufe oder diesen Speicherplatz (MB) der Journale dieses Jobs; die ältesten Läufe werden zuerst gelöscht, und der neueste Lauf wird nie gelöscht. `0` bedeutet unbegrenzt. |
+| **Verwerfen eines Laufs, der identisch mit dem vorherigen ist (Bezug behalten)** | Wenn ein Lauf exakt die gleichen Befehle, Ausgaben und Ergebnisse auf einem Server wie der vorher beibehaltenen Lauf dieses Servers zeichnet, wird sein Journal gelöscht und die Laufhistorie verweist stattdessen auf das frühere Journal („= identisch mit einem früheren Lauf“). Das frühere Journal wird dann mindestens so lange aufbewahrt, wie der neue Lauf gewesen wäre. Standardmäßig aktiviert. |
+| **Gesendete Befehle aufzeichnen** | Aufzeichnet die Befehle zusätzlich zu ihrer Ausgabe. |
+
+Unter den Einstellungen zeigt eine Statuszeile die Tokens und Kosten des letzten Durchlaufs sowie aller gespeicherten Durchläufe an, ebenso den Speicherplatz, den die Journale des Auftrags verbrauchen. Die Auftragsliste verfügt über eine Spalte **Journal-Tokens** mit der Gesamtsumme pro Auftrag.
+
+!!! warning "Session-Journale von Automatisierungen können sehr teuer werden"
+    Schalten Sie das Journal ein — und die KI-Zusammenfassungen ein — zeigt zunächst eine Warnung: Das Journal wird bei jedem Lauf und für jeden Server ohne Beobachtung geschrieben, und mit KI-Zusammenfassungen macht jedes gespeicherte Journal mindestens zwei KI-Aufrufe. Die Warnung schätzt die Tokens pro Lauf (aus den früheren Läufen des Jobs oder eine grobe Obergrenze, wenn es keine gibt), pro Tag und pro Monat aus dem Zeitplan und der Anzahl der Ziele, die Kosten in Geld, wenn das KI-Profil einen [Preis pro 1 M Tokens](../reference/settings/ai.md#token-quoten-verwaltung) hat, und was von der Quote des Profils übrig bleibt. Günstigere Optionen: ein lokales KI-Profil, **Nur bei fehlgeschlagenen Läufen**, **Nur bei Fehler**, und das Wegwerfen identischer Läufe. Abbrechen lässt das Journal (oder seine KI-Zusammenfassungen) ausfallen.
+
+Gepinnte Journale (Rechtsklick im Journal-Manager → **Behalten (Pin)**) werden nie automatisch gelöscht. Ein Administrator kann Automationsjournale verbieten oder deren Aufbewahrungszeit, Speicherplatz und Anzahl der Durchläufe begrenzen; die Sektion gibt dann an und ihre Steuerungen sind eingeschränkt — siehe [Unternehmensrichtlinie](../reference/enterprise-policy.md#rulesession-journal).
+
 ### Host-Schlüssel, Sudo und Geheimnisse
 
 Die Überprüfung des Hostschlüssels ist standardmäßig sicher. Wählen Sie vor der unbeaufsichtigten SSH/SFTP/Rsync-Ausführung das Ziel aus und klicken Sie auf **Hostschlüssel bestätigen**, damit KorTTY den angehefteten Fingerabdruck und das öffentliche OpenSSH-Schlüsselmaterial speichert.
@@ -104,7 +126,7 @@ AI Swarm-Jobs führen über Hintergrund-SSH-Sitzungen eine KI-Agent-Eingabeauffo
 
 Die Ergebnisse werden zweimal gespeichert: Das **Journal** zeichnet das Laufergebnis auf, und die vollständige Konversation – einschließlich der kombinierten Vergleichstabelle pro Server – wird als **Schwarm-Chat** gespeichert, der über den Abschnitt *Schwarm-Chats* des KI-Managers erneut geöffnet werden kann.
 
-Der schnellste Weg, ein Job für einen KI-Swarm zu erstellen, ist die Schaltfläche **Planen…** im [KI-Swarm-Tab](ai-swarm.md#schwarmlaufe-planen-jobscheduler): Sie füllt einen neuen Job mit den aktuellen Zielen, dem Prompt, dem KI-Profil und der Schreibschutz-Einstellung des Tabs vor. Siehe diese Seite für empfohlene Anwendungsszenarien für Swarms/Scheduler.
+Der schnellste Weg, einen KI-Swarm-Job zu erstellen, ist die **Planen…** Schaltfläche im [KI-Swarm-Tab](ai-swarm.md#schwarmlaufe-planen-jobscheduler): sie füllt einen neuen Job mit den aktuellen Zielen, Prompt, KI-Profil und der schreibgeschützten Einstellung des Tabs vor. Siehe diese Seite für empfohlene Swarm-/Scheduler-Anwendungsszenarien.
 
 !!! warning
     Ein geplanter Schwarm, bei dem **Schwarm schreibgeschützt** deaktiviert und **Automatisch genehmigende KI-Befehle** aktiviert ist, verändert Systeme unbeaufsichtigt. Testen Sie die Eingabeaufforderung interaktiv auf der Registerkarte „AI Swarm“, bevor Sie einen solchen Job aktivieren.
@@ -136,7 +158,9 @@ KorTTY erstellt die Rsync-Ausführung als `ProcessBuilder`-Argumentliste, anstat
 
 ## Journal-Tab
 
-Auf der Registerkarte **Journal** werden Jobausführungen mit lokalen KorTTY-Zeitstempeln, Status, Jobnamen und Zusammenfassung aufgeführt. Die Spalten **Gestartet**, **Status**, **Auftrag** und **Zusammenfassung** sind sortierbar; In der Standardreihenfolge werden die neuesten gestarteten Einträge zuerst angezeigt.
+Der **Journal** Tab listet Jobläufe mit lokalen KorTTY-Zeitstempeln, Status, Jobname, Session-Journal und Zusammenfassung.  
+
+Für Jobs mit einem [Sitzungsprotokoll pro Durchlauf](#sitzungsjournal-pro-ausfuhrung), die **Session-Journal**-Spalte zeigt an, wie viele Journale der Lauf beibehalten hat und deren KI-Tokens sowie Kosten. "= identisch mit einem früheren Lauf" erscheint, wenn der Lauf als Duplikat verworfen wurde, oder "gelöscht (Aufbewahrung)", sobald die Journale verschwunden sind. Der Detailbereich listet jedes Journal mit seinem Status, der Token-Aufschlüsselung und dem Löschdatum auf, und **Session-Journal öffnen** öffnet die Journale des Laufs (oder der identischen früheren Lauf) im Journal-Viewer.
 
 Die Suchzeile kann mit allen persistenten Journalfeldern oder nur mit ausgewählten Spalten wie Status, Job, Zusammenfassung, Stdout, Stdderr und Detail übereinstimmen. Geben Sie mehrere durch Leerzeichen getrennte Begriffe ein, wenn jeder Begriff irgendwo im ausgewählten Suchbereich vorkommen muss; Verwenden Sie `*` innerhalb eines Begriffs als Platzhalter, zum Beispiel `backup*fail`.
 
