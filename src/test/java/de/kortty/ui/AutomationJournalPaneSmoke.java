@@ -81,7 +81,15 @@ public final class AutomationJournalPaneSmoke {
         pane.setStatsText(I18n.get("jobscheduler.dialog.sessionJournal.stats", 2, "8.2k KI-Tokens · ≈ 0,03 €", 11,
             "96.0k KI-Tokens · ≈ 0,31 €", "412.0 MB"));
         TitledPane section = new TitledPane(I18n.get("jobscheduler.dialog.sessionJournal.title"), pane);
-        VBox root = new VBox(section);
+        section.setContentDisplay(javafx.scene.control.ContentDisplay.RIGHT);
+        section.setGraphicTextGap(10);
+        section.setGraphic(JobSchedulerDialog.sessionJournalStateBadge(true));
+        TitledPane collapsedOff = new TitledPane(I18n.get("jobscheduler.dialog.sessionJournal.title"), new Label());
+        collapsedOff.setExpanded(false);
+        collapsedOff.setContentDisplay(javafx.scene.control.ContentDisplay.RIGHT);
+        collapsedOff.setGraphicTextGap(10);
+        collapsedOff.setGraphic(JobSchedulerDialog.sessionJournalStateBadge(false));
+        VBox root = new VBox(8, collapsedOff, section);
         root.setPadding(new Insets(12));
         snapshot(new Scene(root, 760, 640), file);
     }
