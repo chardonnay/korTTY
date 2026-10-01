@@ -79,6 +79,8 @@ public final class AutomationJournalRun {
     private boolean finished;
     /** Describes the run's screenshots in the closing pass when the AI mode applies; may be null. */
     private volatile SessionJournalScreenshotAnalyzer screenshotAnalyzer;
+    /** The run's one AI connection test, shared by all its targets. */
+    private CompletableFuture<SessionJournalAiPreflight.Result> aiPreflight;
 
     private AutomationJournalRun() {
         this.source = null;
@@ -291,25 +293,68 @@ public final class AutomationJournalRun {
      * mode asks for them and AI is allowed.
      */
     private CompletableFuture<Void> closingPass(Path directory, AutomationRunStatus status) {
-        boolean aiEnabled = policy.aiAllowed() && config.getAiMode().summarizes(status);
+        boolean aiWanted = policy.aiAllowed() && config.getAiMode().summarizes(status);
         SessionJournalAiSupport.AiInvoker invoker = invokerFactory.apply(config.getAiProfileId());
-        CompletableFuture<Void> pass = summarizer != null
-            ? summarizer.summarizeClosedJournal(directory, invoker, aiEnabled)
-            : CompletableFuture.completedFuture(null);
-        return pass.handle((ignored, error) -> {
-            if (error != null) {
-                logger.warn("Closing pass of {} failed: {}", directory.getFileName(), error.getMessage());
-            }
-            if (aiEnabled) {
-                analyzeScreenshots(directory, invoker);
-            }
-            try {
-                service.updateStorageBytes(directory);
-            } catch (Exception e) {
-                logger.debug("Could not measure {}: {}", directory.getFileName(), e.getMessage());
-            }
-            return null;
+        CompletableFuture<Boolean> aiReachable = aiWanted && invoker != null
+            ? preflight(invoker).thenApply(result -> {
+                if (!result.ok()) {
+                    noteAiUnreachable(directory, result);
+                }
+                return result.ok();
+            })
+            : CompletableFuture.completedFuture(aiWanted);
+        return aiReachable.thenCompose(aiEnabled -> {
+            CompletableFuture<Void> pass = summarizer != null
+                ? summarizer.summarizeClosedJournal(directory, invoker, aiEnabled)
+                : CompletableFuture.completedFuture(null);
+            return pass.handle((ignored, error) -> {
+                if (error != null) {
+                    logger.warn("Closing pass of {} failed: {}", directory.getFileName(), error.getMessage());
+                }
+                if (aiEnabled) {
+                    analyzeScreenshots(directory, invoker);
+                }
+                try {
+                    service.updateStorageBytes(directory);
+                } catch (Exception e) {
+                    logger.debug("Could not measure {}: {}", directory.getFileName(), e.getMessage());
+                }
+                return null;
+            });
         });
+    }
+
+    /**
+     * Tests the AI connection once per run (all targets share the answer) before any journal of
+     * the run relies on it. Runs off the job's worker thread.
+     */
+    private synchronized CompletableFuture<SessionJournalAiPreflight.Result> preflight(
+            SessionJournalAiSupport.AiInvoker invoker) {
+        if (aiPreflight == null) {
+            aiPreflight = SessionJournalAiPreflight.checkAsync(invoker);
+        }
+        return aiPreflight;
+    }
+
+    /** The journal is kept as a log only; a note says why and that it can be evaluated later. */
+    private void noteAiUnreachable(Path directory, SessionJournalAiPreflight.Result result) {
+        logger.warn("AI not reachable for the session journal {} ({}): {}",
+            directory.getFileName(), result.profileName(), result.message());
+        try {
+            de.kortty.model.SessionJournalEntry entry = new de.kortty.model.SessionJournalEntry();
+            entry.setKind(de.kortty.model.SessionJournalEntryKind.SYSTEM);
+            entry.setState(de.kortty.model.SessionJournalEntry.State.RAW);
+            entry.setCreatedAt(OffsetDateTime.now(clock));
+            entry.setTitle(i18n("journal.automation.aiUnreachable.title", "AI not reachable"));
+            entry.setText(i18n("journal.automation.aiUnreachable.text",
+                "The AI connection test failed for the profile \"{0}\": {1}. The run was recorded without AI "
+                    + "summaries; evaluate it later in the journal manager with \"Re-evaluate with AI…\".",
+                result.profileName() != null ? result.profileName() : "—",
+                result.message() != null ? result.message() : "—"));
+            service.appendEntry(directory, entry);
+        } catch (Exception e) {
+            logger.debug("Could not note the failed AI test in {}: {}", directory.getFileName(), e.getMessage());
+        }
     }
 
     /** Describes every screenshot of the journal that has no AI description yet. */

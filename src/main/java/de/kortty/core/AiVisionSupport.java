@@ -119,6 +119,10 @@ public final class AiVisionSupport {
         if (bare.startsWith("o1") && !bare.startsWith("o1-mini")) {
             return true;
         }
+        if (bare.startsWith("minimax-m3")) {
+            // MiniMax-M3 (and its M3.x variants) is natively multimodal; M1/M2 are text-only.
+            return true;
+        }
         if (normalized.contains("gemini-") || normalized.contains("gemma-3") || normalized.contains("gemma3")) {
             return true;
         }

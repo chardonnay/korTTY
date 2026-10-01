@@ -95,7 +95,7 @@ public class SessionJournalSession implements AutoCloseable {
     private final SessionJournalMeta metaSnapshot;
     private final String tabSessionId;
     private final boolean captureInput;
-    private final boolean aiSummariesEnabled;
+    private volatile boolean aiSummariesEnabled;
     private final int summaryIntervalMinutesOverride;
     private final long maxLogSizeBytes;
     private final int maxLogParts;
@@ -190,6 +190,14 @@ public class SessionJournalSession implements AutoCloseable {
 
     public boolean isAiSummariesEnabled() {
         return aiSummariesEnabled;
+    }
+
+    /**
+     * Switches the AI summaries of this live journal off (or on again) — "record without AI" after
+     * the AI connection test failed. Capture is unaffected; windows are kept as raw entries.
+     */
+    public void setAiSummariesEnabled(boolean aiSummariesEnabled) {
+        this.aiSummariesEnabled = aiSummariesEnabled;
     }
 
     /** Per-connection interval override in minutes; 0 = use the global default. */

@@ -334,6 +334,7 @@ pages:
     owns_i18n: ["journal.", "settings.journal.", "terminal.journal.", "connEdit.journal.", connEdit.tab.journal, tab.contextMenu.journal, terminal.contextMenu.journalScreenshot, terminal.contextMenu.journalNote, menu.tools.sessionJournals, menu.tools.toggleSessionJournal, menu.tools.journalScreenshot]
     owns_code:
       - src/main/java/de/kortty/core/PasswordPromptDetector.java
+      - src/main/java/de/kortty/core/SessionJournalAiPreflight.java
       - src/main/java/de/kortty/core/SessionJournalAiSupport.java
       - src/main/java/de/kortty/core/SessionJournalAnsiProcessor.java
       - src/main/java/de/kortty/core/SessionJournalExportService.java
@@ -345,6 +346,7 @@ pages:
       - src/main/java/de/kortty/core/SessionJournalLogTail.java
       - src/main/java/de/kortty/core/SessionJournalPrompts.java
       - src/main/java/de/kortty/core/SessionJournalRedactor.java
+      - src/main/java/de/kortty/ui/SessionJournalReevaluateDialog.java
       - src/main/java/de/kortty/core/SessionJournalService.java
       - src/main/java/de/kortty/core/SessionJournalSession.java
       - src/main/java/de/kortty/core/SessionJournalSummarizer.java
