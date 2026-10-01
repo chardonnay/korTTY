@@ -13,7 +13,6 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
-import javafx.collections.transformation.SortedList;
 import javafx.scene.Node;
 import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
@@ -28,10 +27,11 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Spinner;
-import javafx.scene.control.TableCell;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableRow;
-import javafx.scene.control.TableView;
+import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeTableCell;
+import javafx.scene.control.TreeTableColumn;
+import javafx.scene.control.TreeTableRow;
+import javafx.scene.control.TreeTableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
@@ -75,7 +75,11 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
     private final KorTTYApplication app;
     private final ObservableList<SessionJournalMeta> journals = FXCollections.observableArrayList();
     private final FilteredList<SessionJournalMeta> filteredJournals = new FilteredList<>(journals, meta -> true);
-    private final TableView<SessionJournalMeta> table;
+    /** Interactive journals as rows; automation journals grouped by source and run. */
+    private final TreeTableView<SessionJournalTreeSupport.Node> table;
+    private final ComboBox<SessionJournalTreeSupport.Filter> sourceFilterCombo = new ComboBox<>();
+    /** Keys of expanded group/run rows, kept across rebuilds. */
+    private final Set<String> expandedKeys = new HashSet<>();
     private final TextField searchField = new TextField();
     private final CheckBox fulltextCheck = new CheckBox(I18n.get("journal.manager.fulltext"));
     private final TextArea descriptionArea = new TextArea();
@@ -92,7 +96,7 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
     private final javafx.scene.layout.FlowPane keywordChips = new javafx.scene.layout.FlowPane(6, 4);
     /** AI-search hit counts per journal directory; null = no hit column/highlight shown. */
     private volatile java.util.Map<Path, Long> aiHitCounts;
-    private TableColumn<SessionJournalMeta, Long> hitsColumn;
+    private TreeTableColumn<SessionJournalTreeSupport.Node, Long> hitsColumn;
 
     public SessionJournalManagerDialog(MainWindow ownerWindow) {
         this.ownerWindow = ownerWindow;
@@ -103,6 +107,8 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         getDialogPane().getButtonTypes().addAll(ButtonType.CLOSE);
 
         table = buildTable();
+        // The tree follows the filtered list: a refresh, a new filter or a finished content scan.
+        filteredJournals.addListener((javafx.collections.ListChangeListener<SessionJournalMeta>) change -> rebuildTree());
         getDialogPane().setContent(buildRoot());
         getDialogPane().setPrefSize(940, 620);
         getDialogPane().setMinSize(680, 460);
@@ -123,7 +129,21 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         searchField.textProperty().addListener((obs, old, value) -> onSearchChanged());
         fulltextCheck.selectedProperty().addListener((obs, old, value) -> onSearchChanged());
         HBox.setHgrow(searchField, Priority.ALWAYS);
-        HBox searchBar = new HBox(8, searchField, fulltextCheck);
+        sourceFilterCombo.getItems().setAll(SessionJournalTreeSupport.Filter.values());
+        sourceFilterCombo.setValue(SessionJournalTreeSupport.Filter.ALL);
+        sourceFilterCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(SessionJournalTreeSupport.Filter filter) {
+                return filter == null ? "" : I18n.get("journal.manager.filter." + filter.name().toLowerCase(Locale.ROOT));
+            }
+
+            @Override
+            public SessionJournalTreeSupport.Filter fromString(String value) {
+                return null;
+            }
+        });
+        sourceFilterCombo.valueProperty().addListener((obs, old, value) -> onSearchChanged());
+        HBox searchBar = new HBox(8, searchField, sourceFilterCombo, fulltextCheck);
         searchBar.setStyle("-fx-alignment: center-left;");
         if (de.kortty.policy.PolicyManager.effective().sessionJournalAiAskAllowed()) {
             aiSearchToggle.setOnAction(event -> toggleAiSearchPanel());
@@ -151,15 +171,15 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         ButtonIcons.apply(refreshButton, ButtonIcons.REFRESH);
         refreshButton.setOnAction(event -> refresh());
 
-        var selection = table.getSelectionModel().selectedItemProperty();
         var selectedItems = table.getSelectionModel().getSelectedItems();
-        // Open and rename act on exactly one journal; export and delete accept a whole selection.
+        // Open and rename act on exactly one journal; export and delete accept a whole selection —
+        // a selected run or group stands for all of its journals.
         var exactlyOne = javafx.beans.binding.Bindings.createBooleanBinding(
-            () -> selectedItems.size() == 1, selectedItems);
+            () -> selectedJournals().size() == 1, selectedItems);
         var noneSelected = javafx.beans.binding.Bindings.createBooleanBinding(
-            selectedItems::isEmpty, selectedItems);
+            () -> selectedJournals().isEmpty(), selectedItems);
         var anyLiveSelected = javafx.beans.binding.Bindings.createBooleanBinding(
-            () -> selectedItems.stream().anyMatch(SessionJournalMeta::isLive), selectedItems);
+            () -> selectedJournals().stream().anyMatch(SessionJournalMeta::isLive), selectedItems);
         openButton.disableProperty().bind(exactlyOne.not());
         exportButton.disableProperty().bind(noneSelected);
         de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
@@ -183,10 +203,11 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         descriptionArea.setWrapText(true);
         descriptionArea.setDisable(true);
         Button saveDescriptionButton = new Button(I18n.get("journal.manager.description.save"));
-        saveDescriptionButton.disableProperty().bind(selection.isNull());
+        saveDescriptionButton.disableProperty().bind(exactlyOne.not());
         saveDescriptionButton.setOnAction(event -> saveDescription());
         descriptionStatus.setStyle("-fx-text-fill: gray; -fx-font-size: 0.8462em;");
-        selection.addListener((obs, old, meta) -> {
+        selectedItems.addListener((javafx.collections.ListChangeListener<TreeItem<SessionJournalTreeSupport.Node>>) change -> {
+            SessionJournalMeta meta = selected();
             descriptionArea.setDisable(meta == null);
             descriptionArea.setText(meta != null && meta.getDescription() != null ? meta.getDescription() : "");
             descriptionStatus.setText("");
@@ -200,7 +221,7 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         keywordChips.setManaged(false);
         // Exactly one selected journal shows its own keywords; otherwise the most common ones.
         table.getSelectionModel().getSelectedItems().addListener(
-            (javafx.collections.ListChangeListener<SessionJournalMeta>) change -> rebuildKeywordChips());
+            (javafx.collections.ListChangeListener<TreeItem<SessionJournalTreeSupport.Node>>) change -> rebuildKeywordChips());
 
         centerBox.getChildren().setAll(table);
         VBox.setVgrow(table, Priority.ALWAYS);
@@ -313,9 +334,9 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
     private void showHitCounts(java.util.Map<Path, Long> counts) {
         aiHitCounts = counts;
         if (hitsColumn == null) {
-            hitsColumn = new TableColumn<>(I18n.get("journal.search.hitsColumn"));
-            hitsColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(hitCount(cell.getValue())));
-            hitsColumn.setCellFactory(column -> new TableCell<>() {
+            hitsColumn = new TreeTableColumn<>(I18n.get("journal.search.hitsColumn"));
+            hitsColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(hitCount(cell.getValue().getValue())));
+            hitsColumn.setCellFactory(column -> new TreeTableCell<>() {
                 @Override
                 protected void updateItem(Long count, boolean empty) {
                     super.updateItem(count, empty);
@@ -327,7 +348,7 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         if (!table.getColumns().contains(hitsColumn)) {
             table.getColumns().add(hitsColumn);
         }
-        hitsColumn.setSortType(TableColumn.SortType.DESCENDING);
+        hitsColumn.setSortType(TreeTableColumn.SortType.DESCENDING);
         table.getSortOrder().setAll(List.of(hitsColumn));
         table.refresh();
     }
@@ -338,49 +359,76 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
             table.getColumns().remove(hitsColumn);
             if (table.getSortOrder().contains(hitsColumn)) {
                 table.getSortOrder().clear();
-                if (!table.getColumns().isEmpty()) {
-                    TableColumn<SessionJournalMeta, ?> started = table.getColumns().get(0);
-                    started.setSortType(TableColumn.SortType.DESCENDING);
-                    table.getSortOrder().add(started);
+                if (startedColumn != null) {
+                    startedColumn.setSortType(TreeTableColumn.SortType.DESCENDING);
+                    table.getSortOrder().add(startedColumn);
                 }
             }
         }
         table.refresh();
     }
 
-    private Long hitCount(SessionJournalMeta meta) {
+    /** Hits of a journal, or the sum over the journals of a run or group row. */
+    private Long hitCount(SessionJournalTreeSupport.Node node) {
         java.util.Map<Path, Long> counts = aiHitCounts;
-        if (counts == null || meta == null || meta.getDirectory() == null) {
+        if (counts == null || node == null) {
             return null;
         }
-        return counts.get(meta.getDirectory().toAbsolutePath().normalize());
+        long sum = 0;
+        boolean any = false;
+        for (SessionJournalMeta meta : node.journals()) {
+            Long count = meta.getDirectory() != null ? counts.get(meta.getDirectory().toAbsolutePath().normalize()) : null;
+            if (count != null) {
+                sum += count;
+                any = true;
+            }
+        }
+        return any ? sum : null;
     }
 
-    /** "📌 kept", the expiry date of an automation journal, or empty for interactive journals. */
-    static String expiresText(SessionJournalMeta meta) {
-        if (meta == null || !meta.isAutomation()) {
+    /** "📌 kept", the (next) automatic deletion date of automation journals, or empty. */
+    static String expiresText(SessionJournalTreeSupport.Node node) {
+        if (node == null || node.journals().isEmpty() || !node.journals().get(0).isAutomation()) {
             return "";
         }
-        if (meta.isPinned()) {
+        if (node.allPinned()) {
             return "\uD83D\uDCCC " + I18n.get("journal.manager.pinned");
         }
-        return meta.getExpiresAt() != null
-            ? meta.getExpiresAt().atZoneSameInstant(ZoneId.systemDefault()).format(STARTED_FORMAT)
-            : "";
+        OffsetDateTime expiry = node.nextExpiry();
+        return expiry != null ? expiry.atZoneSameInstant(ZoneId.systemDefault()).format(STARTED_FORMAT) : "";
     }
 
-    /** Pins an automation journal (exempt from automatic deletion) or releases it. */
-    private void togglePinned(SessionJournalMeta meta) {
+    /** Pins every journal of the row (exempt from automatic deletion), or releases them all. */
+    private void setPinned(SessionJournalTreeSupport.Node node, boolean pinned) {
         SessionJournalService service = service();
-        if (meta == null || meta.getDirectory() == null || service == null) {
+        if (node == null || service == null) {
             return;
         }
         try {
-            service.setPinned(meta.getDirectory(), !meta.isPinned());
+            for (SessionJournalMeta meta : node.journals()) {
+                if (meta.getDirectory() != null && meta.isAutomation()) {
+                    service.setPinned(meta.getDirectory(), pinned);
+                }
+            }
             refresh();
         } catch (Exception e) {
             showError(e.getMessage());
         }
+    }
+
+    /** The AI tokens tooltip of a row: one journal's breakdown, or the sums of a run or group. */
+    static String aiUsageTooltip(SessionJournalTreeSupport.Node node) {
+        if (node == null || node.aiCallCount() <= 0) {
+            return "";
+        }
+        if (node.meta() != null) {
+            return aiUsageTooltip(node.meta());
+        }
+        return I18n.get("journal.ai.usage.detail",
+            Long.toString(node.aiPromptTokens()),
+            Long.toString(node.aiCompletionTokens()),
+            Integer.toString(node.aiCallCount()),
+            "");
     }
 
     /** "Prompt 9 812 · completion 2 488 · 4 calls · Profile" for the AI tokens tooltip. */
@@ -395,18 +443,56 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
             meta.getAiProfileName() != null ? meta.getAiProfileName() : "");
     }
 
-    private TableView<SessionJournalMeta> buildTable() {
-        TableView<SessionJournalMeta> view = new TableView<>();
-        view.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+    private TreeTableColumn<SessionJournalTreeSupport.Node, Long> startedColumn;
+
+    private TreeTableView<SessionJournalTreeSupport.Node> buildTable() {
+        TreeTableView<SessionJournalTreeSupport.Node> view = new TreeTableView<>(new TreeItem<>());
+        view.setShowRoot(false);
+        view.setColumnResizePolicy(TreeTableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         // Several journals can be exported into one archive or deleted in one go.
         view.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         view.setPlaceholder(new Label(I18n.get("journal.manager.empty")));
+        // One fixed row height for every row: measured per row, the title cell (rebuilt with its
+        // badges on every update) made rows differ and grow when selected. Derived from the font
+        // so larger UI fonts still get comfortable rows.
+        view.setFixedCellSize(rowHeight(javafx.scene.text.Font.getDefault().getSize()));
+
+        TreeTableColumn<SessionJournalTreeSupport.Node, String> titleColumn =
+            new TreeTableColumn<>(I18n.get("journal.manager.column.title"));
+        titleColumn.setCellValueFactory(cell -> new SimpleStringProperty(titleText(cell.getValue().getValue())));
+        titleColumn.setCellFactory(column -> new TreeTableCell<>() {
+            @Override
+            protected void updateItem(String title, boolean empty) {
+                super.updateItem(title, empty);
+                SessionJournalTreeSupport.Node node = empty || getTableRow() == null ? null : getTableRow().getItem();
+                if (node == null) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                Label text = new Label(title);
+                // Follow the cell's own colour (theme, selection) instead of the dialog's label colour.
+                text.textFillProperty().bind(textFillProperty());
+                if (node.kind() != SessionJournalTreeSupport.Kind.JOURNAL) {
+                    text.setStyle("-fx-font-weight: bold;");
+                }
+                text.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
+                HBox badges = SessionJournalBadges.render(SessionJournalBadges.badges(
+                    node, OffsetDateTime.now(), de.kortty.core.AutomationJournalPolicy.current().hasCaps()));
+                badges.getChildren().forEach(pill -> ((Label) pill).textFillProperty().bind(textFillProperty()));
+                HBox box = new HBox(8, text, badges);
+                box.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+                setText(null);
+                setGraphic(box);
+            }
+        });
+        titleColumn.setMinWidth(320);
+        titleColumn.setPrefWidth(420);
 
         // Sorted on the epoch value, never on the dd.MM.yyyy display string.
-        TableColumn<SessionJournalMeta, Long> startedColumn =
-            new TableColumn<>(I18n.get("journal.manager.column.started"));
-        startedColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(startedEpoch(cell.getValue())));
-        startedColumn.setCellFactory(column -> new TableCell<>() {
+        startedColumn = new TreeTableColumn<>(I18n.get("journal.manager.column.started"));
+        startedColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(startedEpoch(cell.getValue().getValue())));
+        startedColumn.setCellFactory(column -> new TreeTableCell<>() {
             @Override
             protected void updateItem(Long epochMillis, boolean empty) {
                 super.updateItem(epochMillis, empty);
@@ -418,72 +504,65 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         });
         startedColumn.setMinWidth(130);
 
-        TableColumn<SessionJournalMeta, String> durationColumn =
-            new TableColumn<>(I18n.get("journal.manager.column.duration"));
-        durationColumn.setCellValueFactory(cell -> new SimpleStringProperty(durationText(cell.getValue())));
-        durationColumn.setMinWidth(90);
+        TreeTableColumn<SessionJournalTreeSupport.Node, String> durationColumn =
+            new TreeTableColumn<>(I18n.get("journal.manager.column.duration"));
+        durationColumn.setCellValueFactory(cell -> new SimpleStringProperty(
+            cell.getValue().getValue() != null && cell.getValue().getValue().meta() != null
+                ? durationText(cell.getValue().getValue().meta()) : ""));
+        durationColumn.setMinWidth(80);
 
-        TableColumn<SessionJournalMeta, String> connectionColumn =
-            new TableColumn<>(I18n.get("journal.manager.column.connection"));
-        connectionColumn.setCellValueFactory(cell -> new SimpleStringProperty(
-            cell.getValue().getConnectionName() != null ? cell.getValue().getConnectionName() : ""));
+        TreeTableColumn<SessionJournalTreeSupport.Node, String> connectionColumn =
+            new TreeTableColumn<>(I18n.get("journal.manager.column.connection"));
+        connectionColumn.setCellValueFactory(cell -> new SimpleStringProperty(connectionText(cell.getValue().getValue())));
         connectionColumn.setMinWidth(140);
 
-        TableColumn<SessionJournalMeta, String> serverColumn =
-            new TableColumn<>(I18n.get("journal.manager.column.server"));
-        serverColumn.setCellValueFactory(cell -> new SimpleStringProperty(serverText(cell.getValue())));
-        serverColumn.setMinWidth(160);
+        TreeTableColumn<SessionJournalTreeSupport.Node, String> serverColumn =
+            new TreeTableColumn<>(I18n.get("journal.manager.column.server"));
+        serverColumn.setCellValueFactory(cell -> new SimpleStringProperty(serverText(cell.getValue().getValue())));
+        serverColumn.setMinWidth(140);
 
-        TableColumn<SessionJournalMeta, String> titleColumn =
-            new TableColumn<>(I18n.get("journal.manager.column.title"));
-        titleColumn.setCellValueFactory(cell -> new SimpleStringProperty(
-            cell.getValue().getTitle() != null ? cell.getValue().getTitle() : ""));
-        titleColumn.setMinWidth(200);
-
-        TableColumn<SessionJournalMeta, Long> entriesColumn =
-            new TableColumn<>(I18n.get("journal.manager.column.entries"));
-        entriesColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().getLogEntryCount()));
+        TreeTableColumn<SessionJournalTreeSupport.Node, Long> entriesColumn =
+            new TreeTableColumn<>(I18n.get("journal.manager.column.entries"));
+        entriesColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(
+            cell.getValue().getValue() != null ? cell.getValue().getValue().logEntryCount() : 0L));
         entriesColumn.setMinWidth(70);
 
         // Sorted on the token count; the cell shows tokens and cost, the tooltip the breakdown.
-        TableColumn<SessionJournalMeta, Long> aiTokensColumn =
-            new TableColumn<>(I18n.get("journal.manager.column.aiTokens"));
-        aiTokensColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().getAiTotalTokens()));
-        aiTokensColumn.setCellFactory(column -> new TableCell<>() {
+        TreeTableColumn<SessionJournalTreeSupport.Node, Long> aiTokensColumn =
+            new TreeTableColumn<>(I18n.get("journal.manager.column.aiTokens"));
+        aiTokensColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(
+            cell.getValue().getValue() != null ? cell.getValue().getValue().aiTotalTokens() : 0L));
+        aiTokensColumn.setCellFactory(column -> new TreeTableCell<>() {
             @Override
             protected void updateItem(Long tokens, boolean empty) {
                 super.updateItem(tokens, empty);
-                SessionJournalMeta meta = empty || getTableRow() == null ? null : getTableRow().getItem();
-                String summary = meta == null ? "" : SessionJournalHeaderSupport.aiUsageSummary(
-                    meta, I18n.get("journal.ai.usage.local"), java.util.Locale.getDefault());
+                SessionJournalTreeSupport.Node node = empty || getTableRow() == null ? null : getTableRow().getItem();
+                String summary = aiUsageSummary(node);
                 setText(summary);
-                setTooltip(summary.isEmpty() ? null : new javafx.scene.control.Tooltip(aiUsageTooltip(meta)));
+                setTooltip(summary.isEmpty() ? null : new Tooltip(aiUsageTooltip(node)));
             }
         });
         aiTokensColumn.setMinWidth(110);
 
         // Automation run journals are deleted automatically; the column says when, or that a pin keeps them.
-        TableColumn<SessionJournalMeta, String> expiresColumn =
-            new TableColumn<>(I18n.get("journal.manager.column.expires"));
-        expiresColumn.setCellValueFactory(cell -> new SimpleStringProperty(expiresText(cell.getValue())));
+        TreeTableColumn<SessionJournalTreeSupport.Node, String> expiresColumn =
+            new TreeTableColumn<>(I18n.get("journal.manager.column.expires"));
+        expiresColumn.setCellValueFactory(cell -> new SimpleStringProperty(expiresText(cell.getValue().getValue())));
         expiresColumn.setMinWidth(110);
 
         view.getColumns().addAll(List.of(
-            startedColumn, durationColumn, connectionColumn, serverColumn, titleColumn, entriesColumn,
+            titleColumn, startedColumn, durationColumn, connectionColumn, serverColumn, entriesColumn,
             aiTokensColumn, expiresColumn));
-
-        SortedList<SessionJournalMeta> sorted = new SortedList<>(filteredJournals);
-        sorted.comparatorProperty().bind(view.comparatorProperty());
-        view.setItems(sorted);
-        startedColumn.setSortType(TableColumn.SortType.DESCENDING);
+        view.setTreeColumn(titleColumn);
+        startedColumn.setSortType(TreeTableColumn.SortType.DESCENDING);
         view.getSortOrder().add(startedColumn);
 
         view.setRowFactory(tableView -> {
-            TableRow<SessionJournalMeta> row = new TableRow<>() {
+            TreeTableRow<SessionJournalTreeSupport.Node> row = new TreeTableRow<>() {
                 @Override
-                protected void updateItem(SessionJournalMeta meta, boolean empty) {
-                    super.updateItem(meta, empty);
-                    Long count = empty ? null : hitCount(meta);
+                protected void updateItem(SessionJournalTreeSupport.Node node, boolean empty) {
+                    super.updateItem(node, empty);
+                    Long count = empty ? null : hitCount(node);
                     // Subtle accent wash on AI-search hits; low alpha works on both themes.
                     setStyle(count != null && count > 0
                         ? "-fx-background-color: rgba(120, 170, 255, 0.14);"
@@ -491,26 +570,162 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
                 }
             };
             row.setOnMouseClicked(event -> {
-                if (event.getClickCount() == 2 && !row.isEmpty()) {
-                    ownerWindow.openSessionJournal(row.getItem());
+                if (event.getClickCount() != 2 || row.isEmpty() || row.getItem() == null) {
+                    return;
+                }
+                if (row.getItem().meta() != null) {
+                    ownerWindow.openSessionJournal(row.getItem().meta());
+                } else if (row.getTreeItem() != null) {
+                    row.getTreeItem().setExpanded(!row.getTreeItem().isExpanded());
                 }
             });
-            javafx.scene.control.MenuItem pinItem = new javafx.scene.control.MenuItem();
-            pinItem.setOnAction(event -> togglePinned(row.getItem()));
-            javafx.scene.control.ContextMenu rowMenu = new javafx.scene.control.ContextMenu(pinItem);
-            rowMenu.setOnShowing(event -> {
-                SessionJournalMeta meta = row.getItem();
-                pinItem.setText(I18n.get(meta != null && meta.isPinned()
-                    ? "journal.manager.unpin" : "journal.manager.pin"));
-            });
-            row.contextMenuProperty().bind(javafx.beans.binding.Bindings.when(row.emptyProperty()
-                    .or(javafx.beans.binding.Bindings.createBooleanBinding(
-                        () -> row.getItem() == null || !row.getItem().isAutomation(), row.itemProperty())))
-                .then((javafx.scene.control.ContextMenu) null)
-                .otherwise(rowMenu));
+            row.setContextMenu(null);
+            row.itemProperty().addListener((obs, old, node) -> row.setContextMenu(buildRowMenu(node)));
             return row;
         });
         return view;
+    }
+
+    /** Right-click menu of an automation row: pin or release, and open the job. */
+    private javafx.scene.control.ContextMenu buildRowMenu(SessionJournalTreeSupport.Node node) {
+        if (node == null || node.journals().isEmpty() || !node.journals().get(0).isAutomation()) {
+            return null;
+        }
+        javafx.scene.control.ContextMenu menu = new javafx.scene.control.ContextMenu();
+        boolean single = node.meta() != null;
+        if (!node.allPinned()) {
+            MenuItem pin = new MenuItem(I18n.get(single ? "journal.manager.pin" : "journal.manager.pinAll"));
+            pin.setOnAction(event -> setPinned(node, true));
+            menu.getItems().add(pin);
+        }
+        if (node.anyPinned()) {
+            MenuItem unpin = new MenuItem(I18n.get(single ? "journal.manager.unpin" : "journal.manager.unpinAll"));
+            unpin.setOnAction(event -> setPinned(node, false));
+            menu.getItems().add(unpin);
+        }
+        SessionJournalMeta first = node.journals().get(0);
+        if (first.getEffectiveSourceKind() == de.kortty.model.SessionJournalSourceKind.JOB && first.getSourceId() != null) {
+            MenuItem openJob = new MenuItem(I18n.get("journal.manager.openJob"));
+            openJob.setOnAction(event -> ownerWindow.showJobSchedulerForJob(first.getSourceId()));
+            menu.getItems().add(openJob);
+        }
+        return menu;
+    }
+
+    /** Row height of the journal table for a UI font size: roomy, never below 30 px. */
+    static double rowHeight(double fontSize) {
+        return Math.max(30, Math.ceil(fontSize * 2.4));
+    }
+
+    /** "Job: Nightly check", "Run 30.09.2026 22:00", or the journal's title. */
+    private static String titleText(SessionJournalTreeSupport.Node node) {
+        if (node == null) {
+            return "";
+        }
+        return switch (node.kind()) {
+            case GROUP -> {
+                String name = node.sourceName() != null ? node.sourceName() : "";
+                String key = SessionJournalTreeSupport.isScheduledSwarm(node) ? "journal.manager.group.scheduledSwarm"
+                    : node.sourceKind() == de.kortty.model.SessionJournalSourceKind.SWARM ? "journal.manager.group.swarm"
+                    : "journal.manager.group.job";
+                yield I18n.get(key, name);
+            }
+            case RUN -> I18n.get("journal.manager.run.title", node.startedAt() != null
+                ? node.startedAt().atZoneSameInstant(ZoneId.systemDefault()).format(STARTED_FORMAT) : "?");
+            case JOURNAL -> node.meta().getTitle() != null ? node.meta().getTitle() : "";
+        };
+    }
+
+    /** Journal: connection name; run: its servers; group: runs, journals and disk space. */
+    private static String connectionText(SessionJournalTreeSupport.Node node) {
+        if (node == null) {
+            return "";
+        }
+        return switch (node.kind()) {
+            case JOURNAL -> node.meta().getConnectionName() != null ? node.meta().getConnectionName() : "";
+            case RUN -> I18n.get("journal.manager.run.summary", node.journalCount());
+            case GROUP -> I18n.get("journal.manager.group.summary", node.runCount(), node.journalCount(),
+                String.format(Locale.getDefault(), "%.1f MB", node.storageBytes() / (1024.0 * 1024.0)));
+        };
+    }
+
+    private static String aiUsageSummary(SessionJournalTreeSupport.Node node) {
+        if (node == null) {
+            return "";
+        }
+        if (node.meta() != null) {
+            return SessionJournalHeaderSupport.aiUsageSummary(node.meta(), I18n.get("journal.ai.usage.local"), Locale.getDefault());
+        }
+        if (node.aiCallCount() <= 0) {
+            return "";
+        }
+        StringBuilder text = new StringBuilder(de.kortty.core.AiTokenUsageManager.formatCompact(node.aiTotalTokens()));
+        if (node.aiCost() > 0.0) {
+            text.append(SessionJournalHeaderSupport.SEPARATOR).append("≈ ")
+                .append(de.kortty.core.AiCostCalculator.format(node.aiCost(), node.costCurrency(), Locale.getDefault()));
+        } else if (node.allLocal()) {
+            text.append(SessionJournalHeaderSupport.SEPARATOR).append(I18n.get("journal.ai.usage.local"));
+        }
+        return text.toString();
+    }
+
+    /** Rebuilds the tree from the filtered journals, keeping expanded rows and the selection. */
+    private void rebuildTree() {
+        Set<String> selectedKeys = new HashSet<>();
+        for (TreeItem<SessionJournalTreeSupport.Node> item : table.getSelectionModel().getSelectedItems()) {
+            if (item != null && item.getValue() != null) {
+                selectedKeys.add(item.getValue().key());
+            }
+        }
+        rememberExpansion(table.getRoot());
+        TreeItem<SessionJournalTreeSupport.Node> root = new TreeItem<>();
+        for (SessionJournalTreeSupport.Node node : SessionJournalTreeSupport.build(List.copyOf(filteredJournals))) {
+            root.getChildren().add(treeItem(node));
+        }
+        table.setRoot(root);
+        table.sort();
+        table.getSelectionModel().clearSelection();
+        selectKeys(root, selectedKeys);
+    }
+
+    private TreeItem<SessionJournalTreeSupport.Node> treeItem(SessionJournalTreeSupport.Node node) {
+        TreeItem<SessionJournalTreeSupport.Node> item = new TreeItem<>(node);
+        for (SessionJournalTreeSupport.Node child : node.children()) {
+            item.getChildren().add(treeItem(child));
+        }
+        item.setExpanded(expandedKeys.contains(node.key()));
+        item.expandedProperty().addListener((obs, was, expanded) -> {
+            if (expanded) {
+                expandedKeys.add(node.key());
+            } else {
+                expandedKeys.remove(node.key());
+            }
+        });
+        return item;
+    }
+
+    private void rememberExpansion(TreeItem<SessionJournalTreeSupport.Node> item) {
+        if (item == null) {
+            return;
+        }
+        for (TreeItem<SessionJournalTreeSupport.Node> child : item.getChildren()) {
+            if (child.getValue() != null && child.isExpanded()) {
+                expandedKeys.add(child.getValue().key());
+            }
+            rememberExpansion(child);
+        }
+    }
+
+    private void selectKeys(TreeItem<SessionJournalTreeSupport.Node> item, Set<String> keys) {
+        if (keys.isEmpty()) {
+            return;
+        }
+        for (TreeItem<SessionJournalTreeSupport.Node> child : item.getChildren()) {
+            if (child.getValue() != null && keys.contains(child.getValue().key())) {
+                table.getSelectionModel().select(child);
+            }
+            selectKeys(child, keys);
+        }
     }
 
     // ==== search ====
@@ -528,7 +743,12 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
 
     private void applyPredicate(String query) {
         Set<Path> contentMatches = fulltextMatches;
+        SessionJournalTreeSupport.Filter filter = sourceFilterCombo.getValue() != null
+            ? sourceFilterCombo.getValue() : SessionJournalTreeSupport.Filter.ALL;
         filteredJournals.setPredicate(meta -> {
+            if (!filter.matches(meta)) {
+                return false;
+            }
             if (query.isEmpty()) {
                 return true;
             }
@@ -542,6 +762,7 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
 
     private static boolean matchesMetadata(SessionJournalMeta meta, String query) {
         return containsIgnoreCase(meta.getTitle(), query)
+            || containsIgnoreCase(meta.getSourceName(), query)
             || containsIgnoreCase(meta.getConnectionName(), query)
             || containsIgnoreCase(meta.getHost(), query)
             || containsIgnoreCase(meta.getUsername(), query)
@@ -627,13 +848,34 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         onSearchChanged();
     }
 
+    /** The single selected journal (a run or group of exactly one journal counts), else null. */
     private SessionJournalMeta selected() {
-        return table.getSelectionModel().getSelectedItem();
+        List<SessionJournalMeta> selected = selectedJournals();
+        return selected.size() == 1 ? selected.get(0) : null;
     }
 
-    /** A stable copy of the selection — the live list changes while we work through it. */
+    /**
+     * A stable copy of the selected journals — a selected run or group stands for all journals
+     * below it; each journal appears once.
+     */
     private List<SessionJournalMeta> selectedJournals() {
-        return List.copyOf(table.getSelectionModel().getSelectedItems());
+        java.util.LinkedHashMap<Path, SessionJournalMeta> unique = new java.util.LinkedHashMap<>();
+        List<SessionJournalMeta> withoutDirectory = new ArrayList<>();
+        for (TreeItem<SessionJournalTreeSupport.Node> item : List.copyOf(table.getSelectionModel().getSelectedItems())) {
+            if (item == null || item.getValue() == null) {
+                continue;
+            }
+            for (SessionJournalMeta meta : item.getValue().journals()) {
+                if (meta.getDirectory() != null) {
+                    unique.putIfAbsent(meta.getDirectory().toAbsolutePath().normalize(), meta);
+                } else {
+                    withoutDirectory.add(meta);
+                }
+            }
+        }
+        List<SessionJournalMeta> result = new ArrayList<>(unique.values());
+        result.addAll(withoutDirectory);
+        return result;
     }
 
     private void openSelected() {
@@ -1065,6 +1307,11 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         return startedAt != null ? startedAt.toInstant().toEpochMilli() : 0;
     }
 
+    private static long startedEpoch(SessionJournalTreeSupport.Node node) {
+        OffsetDateTime startedAt = node != null ? node.startedAt() : null;
+        return startedAt != null ? startedAt.toInstant().toEpochMilli() : 0;
+    }
+
     private String durationText(SessionJournalMeta meta) {
         if (meta.isLive()) {
             return "● " + I18n.get("journal.manager.running");
@@ -1076,6 +1323,19 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         long hours = duration.toHours();
         long minutes = duration.toMinutesPart();
         return hours > 0 ? hours + "h " + minutes + "m" : minutes + "m " + duration.toSecondsPart() + "s";
+    }
+
+    /** Journal: user@host; run and group: their servers. */
+    private static String serverText(SessionJournalTreeSupport.Node node) {
+        if (node == null) {
+            return "";
+        }
+        if (node.meta() != null) {
+            return serverText(node.meta());
+        }
+        List<String> servers = node.servers();
+        return servers.size() <= 3 ? String.join(", ", servers)
+            : String.join(", ", servers.subList(0, 3)) + " +" + (servers.size() - 3);
     }
 
     private static String serverText(SessionJournalMeta meta) {

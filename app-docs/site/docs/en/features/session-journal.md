@@ -66,7 +66,7 @@ Closing the tab instead also ends the journal with its closing summary. Without 
 
 ### Journals of automation runs
 
-JobScheduler jobs — including scheduled AI Swarm jobs — can record a session journal for every run on their own, without a terminal tab: one journal per target server, holding the commands the automation sent, their output, its summary and the outcome on that server. They are set up per job in the JobScheduler — see [Session journal per run](jobscheduler.md#session-journal-per-run) for the settings (AI summaries always / only for failed runs / off, keep always / only failed runs, automatic deletion after N days or on a date, maximum runs and disk space, discarding runs identical to the previous one) and the cost warning shown when they are switched on.
+JobScheduler jobs — including scheduled AI Swarm jobs — and runs started in the [AI Swarm](ai-swarm.md#session-journal-per-run) tab can record a session journal for every run on their own, without a terminal tab: one journal per target server, holding the commands the automation sent, their output, its summary and the outcome on that server. They are set up per job in the JobScheduler — see [Session journal per run](jobscheduler.md#session-journal-per-run) for the settings (AI summaries always / only for failed runs / off, keep always / only failed runs, automatic deletion after N days or on a date, maximum runs and disk space, discarding runs identical to the previous one) and the cost warning shown when they are switched on.
 
 Automation journals are titled after the job, the server and the start time, and their AI summaries run once after the run has finished — on their own worker, so they never delay the summaries of the terminal you are working in. **AI profile for automation journals** in **Settings > Logging > Session Journal** picks the profile they use when a job does not choose its own; **Same as for summaries** uses the journal profile described under [AI summaries](#ai-summaries). A cheap or local model keeps unattended runs affordable.
 
@@ -241,7 +241,24 @@ Changes preview immediately in the viewer and are saved for every journal page. 
 
 ## Managing journals
 
-**Tools > Session Journals…** (++ctrl+alt+j++) opens the journal manager: all journals in a table sorted by start time (newest first) with duration, connection, server, title, entry count, [AI tokens](#ai-token-usage-and-cost) and, for [automation journals](#journals-of-automation-runs), the date they are deleted automatically (or "kept" when pinned). Running journals are marked and cannot be renamed or deleted while live.
+**Tools > Session Journals…** (++ctrl+alt+j++) opens the journal manager: all journals sorted by start time (newest first) with title, duration, connection, server, entry count, [AI tokens](#ai-token-usage-and-cost) and, for [automation journals](#journals-of-automation-runs), the date they are deleted automatically (or "kept" when pinned). Running journals are marked and cannot be renamed or deleted while live.
+
+Interactive journals are single rows. The journals of automation runs are grouped so it stays clear what belongs together: one row per source — **Job: …**, **AI Swarm: …** or **Scheduled swarm: …** — with its runs below, and below each run one journal per server; a run of a single server shows that journal directly. Group and run rows show the totals of the journals below them (runs, journals and disk space in the connection column, summed entries, AI tokens and cost, the next deletion date); double-click expands them, and selecting one selects all its journals for **Export** and **Delete**. The drop-down next to the filter field shows **All journals**, only **Interactive**, **JobScheduler** or **AI Swarm** journals, **Failed runs** or **Pinned** journals.
+
+Small badges next to each title say what a row is at a glance:
+
+| Badge | Meaning |
+|-------|---------|
+| **Interactive** · **Job** · **Swarm** · **Scheduled swarm** | Where the journal comes from |
+| **Success** · **Failed** · **Blocked** · **Cancelled** | The outcome of the run on that server (the most severe one on group and run rows) |
+| **AI** · **Log only** · **AI on failure** | The AI mode the run was recorded with |
+| **local** | The summaries came from a local model (no token costs) |
+| **×N identical** | N runs produced exactly this output; the later ones were discarded in favour of this journal |
+| **📌 Kept** | Pinned: never deleted automatically |
+| **deleted in N d** · **deleted today** | Time left until automatic deletion (highlighted when less than two days are left) |
+| **policy limit** | An administrator caps the retention, disk space or number of automation journals |
+
+Right-click an automation row for **Keep (pin)** / **Release pin** — on a run or group, **Keep all (pin)** / **Release all pins** — and, for job journals, **Open job in JobScheduler**. The journal page of an automation journal also shows its source, run outcome and deletion date in the header.
 
 ![Session journal manager](../assets/screenshots/journal/journal-manager.png)
 

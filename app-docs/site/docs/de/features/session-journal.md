@@ -22,7 +22,7 @@ Jedes Journal ist ein eigenständiges Verzeichnis unter `~/.kortty/journals` (ko
 
 Das Capture-Log-Format kann im Dialogfeld **Optionen** des Journalmanagers ausgewählt werden: **JSON** (JSON Lines, Standard), **XML** oder **YAML**. Alle Formate enthalten die gleichen Felder und jeder Eintrag besteht aus genau einer Zeile, sodass ein Absturz nie mehr als die letzte Zeile beschädigt. JSON ist die Standardeinstellung, weil die Protokolltools es lesen, ohne dass ein eigener Parser erforderlich ist – und nicht, weil es Platz spart. Die Größe trennt die drei kaum voneinander: Bei normaler Ausgabe ist XML etwa 9 Byte pro Eintrag kleiner, bei Ausgabe voller `<`, `>` und `&` ist JSON etwa 10 % kleiner (XML muss diese maskieren, JSON nicht), und sobald ein fertiger Teil komprimiert ist, liegen alle drei innerhalb von 2 % voneinander. YAML ist das größte, da es JSON-Zuordnungen mit dem Präfix `- ` schreibt. Der aktive Protokollteil bleibt für Live-Lesevorgänge unkomprimiert; Rotation (Standard 25 MB pro Teil) und Sitzungsende komprimieren fertige Teile auf `.zst` (zstd – Journale aus älteren Versionen behalten ihre `.gz`-Teile und öffnen sich genau wie zuvor).
 
-Zwei weitere Maßnahmen halten lange, laute Sitzungen klein und vollständig. Aufeinanderfolgende identische Ausgabelinien (Fortschrittszyklen, `tail -f` Wiederholungen) werden syslog-ähnlich zusammengefasst: der erste Vorkommnis wird sofort geschrieben, Folgelinien werden gezählt und als ein Eintrag mit einer Wiederholungsanzahl gespeichert. Der Viewer zeigt einen solchen Lauf kompakt als `Zeile ×12`, während das Kopieren oder Exportieren des Logs die ursprünglichen Zeilen vollständig reproduziert. Und wenn Serverausgaben schneller eintreffen, als das Log sie speichern kann, wendet die Aufnahme Rückdruck anstelle von Zeilenverlusten an – das Terminal kann sich bei einem extremen Flut kurz verlangsamen, aber das Journal bleibt vollständig.
+Zwei weitere Maßnahmen halten lange, laute Sitzungen klein und vollständig. Aufeinanderfolgende identische Ausgabelinien (Fortschrittszyklen, `tail -f` Wiederholungen) werden syslog-ähnlich zusammengefasst: der erste Vorkommnis wird sofort geschrieben, Folgeschritte werden gezählt und als ein Eintrag mit einer Wiederholungsanzahl gespeichert. Der Viewer zeigt einen solchen Lauf kompakt als `Zeile ×12`, während das Kopieren oder Exportieren des Logs die ursprünglichen Zeilen vollständig reproduziert. Und wenn Serverausgaben schneller eintreffen, als das Log sie speichern kann, wendet die Aufnahme Rückdruck anstelle von Zeilenverlusten an – das Terminal kann sich bei einem extremen Flut kurz verlangsamen, aber das Journal bleibt vollständig.
 
 Die Rotation kann pro Verbindung auf der Registerkarte **Journal** konfiguriert werden: **Maximale Größe pro Log-Teil (MB)** (Standard 25) und **Maximale Anzahl rotierter Log-Teile** (Standard 20). Nach der konfigurierten Anzahl von Teilen stoppt die Ausgabeerfassung mit einer Notiz im Journal; Eingaben, Screenshots und Notizen werden fortgesetzt. Eine Unternehmensrichtlinie kann die Teileanzahl über `max-log-parts` begrenzen.
 
@@ -45,11 +45,11 @@ Verwenden Sie **Extras > Sitzungsjournal starten/stoppen** (++ctrl+alt+t++), das
 Während ein Journal verfügbar ist, zeigt eine Leiste unter dem Terminal seinen Status an (**Journal aktiv seit HH:MM**) und bietet **Journal stoppen**, **Screenshot** und **Notiz**:
 
 - **Screenshot** (++ctrl+alt+c++, auch im Rechtsklick-Menü des Terminals) erstellt einen Schnappschuss des Terminals – in einem geteilten Layout erfasst das Rechtsklick-Menü genau den Bereich unter dem Cursor – und legt ihn in der Journal-Timeline ab.
-- **Notiz** öffnet den [Notiz-Editor](#notizen-schreiben) für eine freitextliche Bemerkung, die als eigener Zeitstrahl-Eintrag an der aktuellen Position erscheint.
+- **Notiz** öffnet den [Notiz-Editor](#notizen-schreiben) für einen freitextlichen Kommentar, der als eigener Zeitstrahl-Eintrag an der aktuellen Position erscheint.
 
 ### Notizen schreiben
 
-Notizen werden überall im selben Editor geschrieben, wo sie bearbeitet werden — der **Notiz**-Knopf der Journalleiste, das Live-Panel, das Eingabeformular im [Viewer](#der-viewer-und-die-bearbeitung) und der [Screenshot-Editor](#screenshot-notizen-und-anmerkungen):
+Notizen werden überall im selben Editor bearbeitet – der **Notiz**-Knopf in der Journalleiste, die Live-Panel-Schaltfläche, das Eingabeformular im [viewer](#der-viewer-und-die-bearbeitung) und der [screenshot-Editor](#screenshot-notizen-und-anmerkungen):
 
 - Das Feld enthält **mindestens sechs Zeilen** und die Größe des Dialogfelds kann geändert werden, sodass eine Notiz ein Absatz statt einer einzelnen Zeile sein kann.
 - **Links sind anklickbar.** Jede `http://`- oder `https://`-Adresse in einer Notiz wird zu einem Link auf der Journalseite – klicken Sie darauf und die Adresse wird in Ihrem Systembrowser geöffnet, niemals in der Journalansicht. Nur diese beiden Schemata werden jemals zu Links, und zwar nur in Texten, die Sie selbst geschrieben haben: KI-Zusammenfassungen und Terminalauszüge bleiben wörtlich.
@@ -66,15 +66,15 @@ Wenn Sie stattdessen die Registerkarte schließen, wird auch das Journal mit sei
 
 ### Journale der Automatisierungsdurchläufe
 
-JobScheduler-Jobs – einschließlich geplanter KI-Swarm-Jobs – können eigenständig ein Session-Journal für jeden Lauf aufzeichnen, ohne einen Terminal-Tab zu benötigen: ein Journal pro Zielserver, das die vom Automatisierungsprozess gesendeten Befehle, deren Ausgabe, dessen Zusammenfassung und das Ergebnis auf diesem Server enthält. Sie werden pro Job im JobScheduler eingerichtet – siehe [Session-Journal pro Lauf](jobscheduler.md#sitzungsjournal-pro-ausfuhrung) für die Einstellungen (KI-Zusammenfassungen immer / nur bei fehlgeschlagenen Läufen / aus, behalten immer / nur fehlgeschlagene Läufe, automatische Löschung nach N Tagen oder an einem Datum, maximale Läufe und Speicherplatz, verwerfen von Läufen identisch zum vorherigen) sowie die Kostenwarnung, die angezeigt wird, wenn sie aktiviert werden.
+JobScheduler-Jobs — einschließlich geplanter KI-Swarm-Jobs — und Ausführungen, die im [KI-Swarm](ai-swarm.md#session-journal-pro-lauf) Tab kann für jeden Lauf eigenständig ein Sitzungsprotokoll aufzeichnen, ohne einen Terminal-Tab zu verwenden: ein Protokoll pro Zielserver, das die vom Automatisierung gesendeten Befehle, deren Ausgabe, ihre Zusammenfassung und das Ergebnis auf diesem Server enthält. Sie werden pro Aufgabe im JobScheduler eingerichtet — siehe [Session-Journal pro Lauf](jobscheduler.md#sitzungsjournal-pro-ausfuhrung) für die Einstellungen (KI-Zusammenfassungen immer / nur bei fehlgeschlagenen Läufen / aus, behalten immer / nur fehlgeschlagene Läufe, automatische Löschung nach N Tagen oder an einem Datum, maximale Läufe und Speicherplatz, verwerfen von Läufen identisch zum vorherigen) und die Kostenwarnung, die angezeigt wird, wenn sie aktiviert werden.
 
-Automationsjournale werden nach dem Job, dem Server und der Startzeit benannt, und ihre KI-Zusammenfassungen laufen einmal nach Abschluss des Laufs – auf ihrem eigenen Worker, sodass sie die Zusammenfassungen des Terminals, in dem Sie arbeiten, nie verzögern. **KI-Profil für Automations-Journale** in **Einstellungen > Logs > Sitzungsjournal** wählt das Profil, das verwendet wird, wenn ein Job kein eigenes auswählt; **Wie für Zusammenfassungen** nutzt das Journal-Profil, das unter [KI-Zusammenfassungen](#ki-zusammenfassungen) beschrieben ist. Ein günstiges oder lokales Modell hält unbeaufsichtigte Läufe erschwinglich.
+Automationsjournale werden nach dem Job, dem Server und der Startzeit benannt, und ihre KI-Zusammenfassungen laufen einmal nach Abschluss des Laufs – auf ihrem eigenen Worker, sodass sie die Zusammenfassungen des Terminals, in dem Sie arbeiten, nie verzögern. **KI-Profil für Automations-Journale** in **Einstellungen > Logs > Sitzungsjournal** wählt das Profil, das verwendet wird, wenn ein Job keines selbst auswählt; **Wie für Zusammenfassungen** nutzt das Journal-Profil, das unter [KI-Zusammenfassungen](#ki-zusammenfassungen) beschrieben ist. Ein günstiges oder lokales Modell hält unbeaufsichtigte Läufe erschwinglich.
 
 Abgelaufene Automationsjournale werden automatisch gelöscht – eine Minute nach dem Start von korTTY und anschließend jede Stunde, ebenso wie die ältesten Ausführungen eines Jobs, die ihre maximale Anzahl an Durchläufen oder den verfügbaren Speicherplatz überschreiten. Laufende Journale, Journale deren Zusammenfassung noch geschrieben wird, angeheftete Journale und interaktive Journale werden niemals verändert. In the [Journal-Manager](#journale-verwalten) the **Löschung am** column shows when a journal goes, and **Behalten (Pin)** in a journal's right-click menu exempts it from automatic deletion (**Pin lösen** undoes it).
 
 ## Das Live-Journal-Panel
 
-**Ansehen > Live-Journal** (oder ++ctrl+alt+l++) dockt die laufende Journal's **vollständige Journalseite** — dieselbe Seite, die der [viewer](#die-journalseite) anzeigt — zu den **links oder rechts** des Terminals, stets aktuell. Wählt man die angeklickte Seite im Menü, wird das Panel wieder ausgeblendet; der Trennbalken daneben passt die Breite an, und Seite sowie Breite werden über Neustarts hinweg gespeichert.
+**Ansehen > Live-Journal** (oder ++ctrl+alt+l++) dockt die laufende Journal-Seite **vollständige Journal-Seite** — dieselbe Seite, die der [viewer](#die-journalseite) anzeigt — links oder rechts vom Terminal an und bleibt in Echtzeit aktuell. Wählt man die markierte Seite im Menü aus, wird das Panel wieder ausgeblendet; der Trennstrich daneben passt die Breite an, und Seite sowie Breite werden über Neustarts hinweg gespeichert.
 
 Zwei Dinge werden während der Sitzung live aktualisiert:
 
@@ -87,11 +87,11 @@ Da es sich um die echte Journalseite handelt, funktioniert alles, was die Viewer
 
 Die Schaltfläche **◷** in der Kopfzeile der Seite öffnet ein Zeitfeld: Geben Sie eine Zeit ein und die Zeitleiste scrollt zum nächstgelegenen Eintrag und hebt ihn kurz hervor. Die Eingabe ist nachsichtig – `19:00`, `19.00`, `1900` und `19` bedeuten alle dasselbe, und ein Datum kann vorangestellt werden (`13.08. 19:00`, `13.08.2026 19:00` oder `2026-08-13 19:00`). Ohne Datum wird die Uhrzeit mit dem jeweiligen Tag jedes Eintrags abgeglichen, sodass eine Sitzung, die nach Mitternacht läuft, zum nächsten Vorkommen springt und nicht immer zum ersten Tag.
 
-Die Kopfzeile des Panels fügt die sofortigen Steuerelemente hinzu: **Notiz** und **Screenshot** wirken auf das angezeigte Journal genau wie die [journal bar](#die-journalleiste) – eine Notiz, die Sie hinzufügen, erscheint sowohl in der Zeitleiste als auch im Live-Log – **Live-Log** zeigt oder versteckt die Log-Ansicht, und **Viewer öffnen** öffnet das vollständige Viewer-Fenster zum Bearbeiten, Suchen & ersetzen und Exportieren. Das **⋯**-Menü wechselt die Seite zwischen hell und dunkel, aktualisiert sie und öffnet die Seite [appearance](#aussehen).
+Die Kopfzeile des Panels fügt die sofortigen Steuerelemente hinzu: **Notiz** und **Screenshot** wirken auf das angezeigte Journal genau wie die [journal bar](#die-journalleiste) – eine Notiz, die Sie hinzufügen, erscheint sowohl in der Zeitleiste als auch im Live-Log – **Live-Log** zeigt oder versteckt die Log-Ansicht, und **Viewer öffnen** öffnet das vollständige Viewer-Fenster zum Bearbeiten, Suchen & ersetzen und Exportieren. Das **⋯**-Menü schaltet die Seite zwischen Hell und Dunkel, aktualisiert sie und öffnet die Seite [appearance](#aussehen).
 
 Das Panel folgt Ihren Tabs mit einem Gedächtnis: Es zeigt das Journal des aktuellen Tabs an, und wenn Sie zwischen Tabs wechseln, schaltet es nur weiter, **wenn der neu ausgewählte Tab auch ein laufendes Journal hat** – andernfalls zeigt es weiterhin das Journal an, das es bereits anzeigt. Wenn das angezeigte Journal gestoppt oder sein Tab geschlossen wird, bleibt die Seite mit dem Abzeichen **Journal gestoppt** / **Tab geschlossen** sichtbar, bis Sie einen anderen Tab mit einem Live-Journal auswählen.
 
-Alles, was angezeigt wird, hat bereits [Passwortschutz](#passwortschutz) durchlaufen – unterdrückte Eingaben und geschwärzte Geheimnisse erreichen das Panel nie.
+Alles, was angezeigt wird, hat bereits [](#passwortschutz) durchlaufen – unterdrückte Eingaben und geschwärzte Geheimnisse erreichen das Panel nie.
 
 ## KI-Zusammenfassungen
 
@@ -114,7 +114,7 @@ Wenn Sie **max Zeilen auf 0** setzen, wird auf Kontextfüllung umgeschaltet: Der
 !!! warning
     Chunking kann bei großen Sitzungen sehr lange dauern und wird nicht für den täglichen Gebrauch empfohlen – es ist für Power-User mit leistungsfähiger Hardware und einem leistungsstarken LLM gedacht.
 
-Wenn die Sitzung endet, schreibt der Zusammenfassungs-Algorithmus einen abschließenden **Sitzungsfazit** (was erreicht wurde, welche Fehler aufgetreten sind) und extrahiert bis zu zwölf wortwörtliche **Keywords** — Hostnamen, Skript- und Dateinamen, Fehlertypen — in die Journal-Metadaten, wo der Filter des Managers, Keyword-Chips und [KI-Suche](#ki-suche-in-allen-journale) sie abgreifen. Optional — **Lassen Sie die KI den Journal-Titel vergeben, wenn die Sitzung endet** im Optionsdialog — ruft ein letzter KI-Aufruf den Journal-Titel ab, sofern Sie ihn nicht manuell umbenannt haben.
+Wenn die Sitzung endet, schreibt der Zusammenfassungs-Algorithmus einen abschließenden **Sitzungsfazit** Eintrag (was erreicht wurde, welche Fehler aufgetreten sind) und extrahiert bis zu zwölf wortwörtliche **keywords** — Hostnamen, Skript- und Dateinamen, Fehlertypen — in die Journal-Metadaten, wo der Filter des Managers, Keyword-Chips und [KI-Suche](#ki-suche-in-allen-journale) sie abgreifen. Optional — **Lassen Sie die KI den Journal-Titel vergeben, wenn die Sitzung endet** im Optionsdialog — ein letzter KI-Aufruf benennt das Journal, sofern Sie es nicht manuell umbenannt haben.
 
 !!! note
     Das Journal funktioniert ohne KI: Wenn kein KI-Profil verfügbar ist, KI-Funktionen deaktiviert oder Zusammenfassungen ausgeschaltet sind, zeichnet die Zeitleiste stattdessen rohe Aktivitätseinträge auf. KI-Zusammenfassungsaufforderungen verwenden niemals Tools für den Internetzugang; Der Terminalauszug geht nur an das konfigurierte KI-Profil.
@@ -129,7 +129,7 @@ Wenn das KI-Profil des Journals Bilder akzeptiert, werden auch Screenshots analy
 Ob ein Profil Bilder aufnehmen kann, ist eine profilspezifische Eigenschaft: **Bildeingabe (Vision)** in den [KI-Einstellungen. ](../reference/settings/ai.md) ist standardmäßig auf **Auto** eingestellt – für einen lokalen LM Studio-Endpunkt liest korTTY die Antwort aus den Modellmetadaten (während derselben Aktualisierung, Reasoning-Optionen erkennt), für Cloud-Endpunkte erkennt es die allgemeinen vision-fähigen Modellnamen – und kann mit **Aktiviert**/**Deaktiviert** für Modelle der Erkennung überschrieben werden schätzt falsch ein.
 
 !!! warning
-    Die automatische Analyse sendet den Screenshot zum Zeitpunkt der Aufnahme — bevor Sie die Möglichkeit hatten, etwas unleserlich zu machen. Das Bild geht ausschließlich zum konfigurierten KI-Profil und niemals über internetzugängliche Tools, aber für Sitzungen, deren Bildschirminhalt die Maschine nicht verlassen darf, schalten Sie die Option aus oder lassen Sie Ihren Administrator die Analyse über [Unternehmensrichtlinie](#unternehmensrichtlinie) verbieten — das Richtlinienmandat deaktiviert zudem die manuelle Ausführung.
+    Die automatische Analyse sendet den Screenshot zum Zeitpunkt der Aufnahme — bevor Sie die Möglichkeit hatten, etwas unleserlich zu machen. Das Bild geht nur zum konfigurierten KI-Profil und niemals über internetzugängliche Werkzeuge, aber für Sitzungen, deren Bildschirminhalt nicht die Maschine verlassen darf, schalten Sie die Option aus oder lassen Sie Ihren Administrator die Analyse über [Unternehmensrichtlinie](#unternehmensrichtlinie) verbieten — das Richtlinienmandat deaktiviert auch die manuelle Ausführung.
 
 ## Die KI nach einem Journal fragen
 
@@ -145,7 +145,7 @@ Wenn für eine Frage konkrete Beweise aus dem Protokoll benötigt werden – gen
 Anschlussfragen führen das Gespräch fort (das Gremium behält die jüngsten Gespräche als Kontext bei); **Neues Gespräch** beginnt von vorne. **Als Notiz speichern** fügt ein Frage-Antwort-Paar als Eintrag an die Journalzeitleiste an, sodass ein Befund Teil der Aufzeichnung wird.
 
 !!! note
-    Wenn kein KI-Profil erreichbar ist oder die Anfrage fehlschlägt, degradiert das Panel anstelle eines Fehlers: es extrahiert die Identifikatoren aus Ihrer Frage, führt die interne Textsuche durch und zeigt die passenden Einträge und Logzeilen mit einer Mitteilung, dass kein Modell beteiligt war. Das Q&A verwendet niemals internetbasierte Tools, und Administratoren können es vollständig verbieten (`ai-ask` unter [Unternehmensrichtlinie](#unternehmensrichtlinie)).
+    Wenn kein KI-Profil erreichbar ist oder die Anfrage fehlschlägt, degradiert das Panel anstelle eines Fehlers: es extrahiert die Identifikatoren aus Ihrer Frage, führt die interne Textsuche durch und zeigt die passenden Einträge und Logzeilen mit einer Mitteilung, dass kein Modell beteiligt war. Das Q&A verwendet niemals internetbasierte Tools und Administratoren können es vollständig verbieten (`ai-ask` unter [Unternehmensrichtlinie](#unternehmensrichtlinie)).
 
 ## KI-Token-Nutzung und Kosten
 
@@ -164,7 +164,7 @@ Getippte Eingaben werden nur als vollständig übermittelte Zeilen erfasst und m
 !!! warning
     Bei der Prompt-Erkennung handelt es sich um eine Heuristik – ein Remote-Terminal kann nicht zuverlässig erkennen, wann der Server das Echo deaktiviert hat. Exotische oder Vollbild-Passwortabfragen werden möglicherweise nicht erkannt und in sichtbare Befehle eingefügte Geheimnisse (außer den Anmeldeinformationen der Verbindung) werden wie jeder andere Text erfasst. Behandeln Sie Protokolle sensibler Sitzungen entsprechend.
 
-Falls etwas dennoch durchgegangen ist, entfernt der Viewer [Suchen und Ersetzen](#suchen-und-ersetzen) es aus den Einträgen und dem Aufzeichnungsprotokoll nachträglich. Administratoren können korTTY auch automatisch Muster ausblenden lassen – siehe [Unternehmensrichtlinie](#unternehmensrichtlinie) unten.
+Falls etwas dennoch durchgelaufen ist, entfernt der Viewer's [search und replace](#suchen-und-ersetzen) es aus den Einträgen und dem Aufzeichnungsprotokoll nachträglich. Administratoren können korTTY auch automatisch Muster ausblenden lassen — siehe [Unternehmensrichtlinie](#unternehmensrichtlinie) unten.
 
 ## Die Journalseite
 
@@ -241,7 +241,24 @@ Die **Darstellung**-Schaltfläche des Viewers öffnet ein kleines Fenster mit de
 
 ## Journale verwalten
 
-**Werkzeuge > Sitzungsjournale…** (++ctrl+alt+j++) öffnet den Journal-Manager: alle Journale in einer Tabelle, sortiert nach Startzeit (neueste zuerst), mit Dauer, Verbindung, Server, Titel, Eintragszahl, [KI-Tokens](#ki-token-nutzung-und-kosten) und, für [automatisierte Journale](#journale-der-automatisierungsdurchlaufe), dem Datum, an dem sie automatisch gelöscht werden (oder „behalten“, wenn angeheftet). Laufende Journale sind markiert und können während des Betriebs weder umbenannt noch gelöscht werden.
+**Werkzeuge > Sitzungsjournale…** (++ctrl+alt+j++) öffnet den Journal-Manager: alle Journale sind nach Startzeit (neueste zuerst) sortiert mit Titel, Dauer, Verbindung, Server, Eintragszahl, [KI-Tokens](#ki-token-nutzung-und-kosten) und, für [Automatisierungsjournale](#journale-der-automatisierungsdurchlaufe), dem Datum, an dem sie automatisch gelöscht werden (oder „behalten“, wenn angeheftet). Laufende Journale sind markiert und können nicht umbenannt oder gelöscht werden, solange sie aktiv sind.
+
+Interaktive Journale sind einzelne Zeilen. Die Journale von Automatisierungsdurchläufen werden gruppiert, damit klar bleibt, was zusammengehört: eine Zeile pro Quelle — **Job: …**, **KI-Swarm: …** oder **Geplanter Swarm: …** — mit seinen Durchläufen darunter, und unter jedem Durchlauf ein Journal pro Server; ein Durchlauf eines einzelnen Servers zeigt dieses Journal direkt an. Gruppen- und Durchlaufzeilen zeigen die Summen der darunterliegenden Journale (Durchläufe, Journale und Festplattenspeicher in der Verbindungsspalte, aufsummierte Einträge, KI-Tokens und Kosten, das nächste Löschdatum); ein Doppelklick erweitert sie, und die Auswahl eines Eintrags wählt alle seine Journale für **Exportieren** und **Löschen** aus. Das Dropdown neben dem Filterfeld zeigt **Alle Journale**, nur **Interaktiv**, **JobScheduler** oder **KI-Swarm** Journale, **Fehlgeschlagene Läufe** oder **Angeheftet** Journale.
+
+Kleine Abzeichen neben jedem Titel zeigen auf einen Blick, was eine Zeile ist:
+
+| Abzeichen | Bedeutung |
+|-------|---------|
+| **Interaktiv** · **Job** · **Schwarm** · **Geplanter Swarm** | Woher kommt das Journal? |
+| **Erfolg** · **Fehlgeschlagen** · **Blockiert** · **Abgebrochen** | Das Ergebnis des Laufs auf diesem Server (der schwerwiegendste in den Gruppen- und Laufzeilen) |
+| **AI** · **Nur Protokoll** · **KI bei Fehler** | Der KI-Modus, mit dem der Lauf aufgezeichnet wurde |
+| **lokal** | Die Zusammenfassungen stammten von einem lokalen Modell (keine Token-Kosten) |
+| **×N identisch** | N Durchläufe erzeugten genau diese Ausgabe; die späteren wurden zugunsten dieses Journals verworfen |
+| **📌 Behalten** | Angeheftet: wird nie automatisch gelöscht |
+| **wird in N d gelöscht** · **wird heute gelöscht** | Verbleibende Zeit bis zur automatischen Löschung (hervorgehoben, wenn weniger als zwei Tage übrig sind) |
+| **durch Richtlinie begrenzt** | Ein Administrator begrenzt die Aufbewahrung, den Speicherplatz oder die Anzahl der Automatisierungsjournale |
+
+Rechtsklick auf eine Automatisierungszeile für **Behalten (Pin)** / **Pin lösen** — bei einem Lauf oder einer Gruppe, **Alle behalten (Pin)** / **Alle Pins lösen** — und für Jobjournale, **Job im JobScheduler öffnen**. Die Journalseite eines Automatisierungsjournals zeigt außerdem seinen Ursprung, das Lauf-Ergebnis und das Löschdatum im Header an.
 
 ![Session journal manager](../assets/screenshots/journal/journal-manager.png)
 
@@ -254,7 +271,7 @@ Die **Darstellung**-Schaltfläche des Viewers öffnet ein kleines Fenster mit de
 
 ### KI-Suche in allen Journale
 
-**KI-Suche** neben dem Filterfeld öffnet ein Suchfenster unter der Tabelle. Stellen Sie eine Frage zu allen gespeicherten Journals — *„In welchen Journals hat result_complex.pl mit einem Fehler beendet?“* — und korTTY antwortet in zwei Schritten: ein schneller lokaler Ranking-Algorithmus wählt die relevantesten Journals anhand ihrer Metadaten und gesammelten Einträge aus, danach schreibt eine einzelne KI-Anfrage über diese Kandidaten die Zusammenfassung und wählt die Journals aus, die tatsächlich die Frage beantworten. Wie bei der [per-Journal Q&A](#die-ki-nach-einem-journal-fragen) sieht das Modell nur die gesammelten Einträge, niemals die Roh-Logs; exakte Log-Positionen stammen aus der internen Streaming-Suche.
+**KI-Suche** neben dem Filterfeld öffnet ein Suchfenster unter der Tabelle. Stellen Sie eine Frage zu allen gespeicherten Journalen — *„In welchen Journalen hat result_complex.pl mit einem Fehler beendet?“* — und korTTY antwortet in zwei Schritten: eine schnelle lokale Rangfolge wählt die relevantesten Journale aus deren Metadaten und gesammelten Einträgen, dann schreibt eine einzelne KI-Anfrage über diese Kandidaten die Zusammenfassung und wählt die Journale aus, die tatsächlich die Frage beantworten. Wie bei der [per-Journal Q&A](#die-ki-nach-einem-journal-fragen) sieht das Modell nur die gesammelten Einträge, niemals die Capture-Loge; exakte Logpositionen stammen aus der internen Streaming-Suche.
 
 ![AI search across all journals](../assets/screenshots/journal/journal-search-panel.png)
 
@@ -338,7 +355,7 @@ Eine von Ihnen manuell gesetzte Markierung wird niemals überschrieben; ein Mark
 
 Durch die Suche wird ein Begriff gefunden. **Suchen & ersetzen** schreibt jedes Vorkommen neu. Verwenden Sie es, um etwas zu löschen, das nicht im Journal bleiben darf – ein in einen sichtbaren Befehl eingefügtes Passwort, ein Token in einer Serverantwort – oder einfach um ein wiederkehrendes Wort zu korrigieren.
 
-Es ist von zwei Stellen aus erreichbar: der **Suchen & ersetzen…**-Schaltfläche im Bearbeitungsmodus und der **Ersetzen…**-Schaltfläche in [der Suchleiste auf der Journalseite](#suche-im-journal), die das gleiche Dialogfeld öffnet und den gesuchten Begriff bereits vorausfüllt. Diese Schaltfläche erscheint nur innerhalb von korTTY – die Seite wird *aus* den Journaldateien generiert, sodass eine in einem Browser geöffnete Kopie suchen kann, aber nichts umschreiben kann.
+Es ist von zwei Stellen aus erreichbar: der **Suchen & ersetzen…**-Schaltfläche im Bearbeitungsmodus und der **Ersetzen…**-Schaltfläche in [der Suchleiste auf der Journalseite](#suche-im-journal), die das gleiche Dialogfeld öffnet, wobei der gesuchte Begriff bereits ausgefüllt ist. Diese Schaltfläche erscheint nur innerhalb von korTTY – die Seite wird *aus* den Journaldateien generiert, sodass eine Kopie in einem Browser suchen kann, aber nichts umschreiben kann.
 
 | Option | Wirkung |
 |--------|--------|
