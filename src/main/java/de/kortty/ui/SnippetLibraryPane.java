@@ -6,6 +6,8 @@ import de.kortty.core.SnippetAnalysisOverview;
 import de.kortty.core.SnippetAnalysisStore;
 import de.kortty.core.SnippetDiagramSupport;
 import de.kortty.core.SnippetDiffSelectionSupport;
+import de.kortty.core.SnippetExecutableSupport;
+import de.kortty.core.SnippetFolderLayout;
 import de.kortty.core.SnippetManager;
 import de.kortty.core.SnippetOneLiner;
 import de.kortty.core.SnippetTextFileImport;
@@ -13,6 +15,7 @@ import de.kortty.core.SnippetVariableManager;
 import de.kortty.model.GPGKey;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
+import de.kortty.model.SnippetFolder;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -90,6 +93,15 @@ final class SnippetLibraryPane extends BorderPane {
          * editor holds unsaved changes). The host closes clean editors of deleted snippets.
          */
         boolean beforeDelete(List<Snippet> snippets);
+
+        /** Right-click on a folder → "Full code analysis": analyse the folder as one project. */
+        default void analyzeFolderRequested(String folderId) {
+        }
+
+        /** Right-click on a script → "Full code analysis": open it and start the single analysis. */
+        default void analyzeSnippetRequested(Snippet snippet) {
+            openRequested(snippet);
+        }
     }
 
     private enum SnippetExportFormat {
@@ -168,6 +180,7 @@ final class SnippetLibraryPane extends BorderPane {
     private final SnippetManager snippetManager;
     private final Host host;
     private final TableView<Snippet> snippetTable;
+    private final SnippetFolderTreePane folderTree;
     private final TextField searchField;
     private final ComboBox<String> categoryFilter;
     private final ComboBox<SnippetAnalysisOverview.Filter> analysisFilter;
@@ -182,6 +195,9 @@ final class SnippetLibraryPane extends BorderPane {
     static final String ANALYSIS_COLUMN_ID = "analysisStatus";
     static final String ANALYSIS_FILTER_ID = "snippet-library-analysis-filter";
     static final String BATCH_EXPORT_ITEM_ID = "snippet-library-export-reports";
+    static final String EXECUTABLE_COLUMN_ID = "executable";
+    static final String ANALYZE_ITEM_ID = "snippet-library-analyze";
+    static final String TRANSFER_ITEM_ID = "snippet-library-transfer";
     private final SnippetAnalysisStore analysisStore;
     private final Map<String, SnippetAnalysisOverview> analysisOverviews = new HashMap<>();
     private final Set<String> overviewRequested = new HashSet<>();
@@ -345,8 +361,15 @@ final class SnippetLibraryPane extends BorderPane {
             }
         });
 
+        TableColumn<Snippet, Boolean> execCol = new TableColumn<>(I18n.get("snippets.executable.column"));
+        execCol.setId(EXECUTABLE_COLUMN_ID);
+        execCol.setPrefWidth(55);
+        execCol.setCellValueFactory(cd -> new SimpleObjectProperty<>(
+                SnippetExecutableSupport.isExecutable(cd.getValue())));
+        execCol.setCellFactory(col -> new ExecutableCell());
+
         snippetTable.getColumns().addAll(java.util.List.of(
-                favCol, nameCol, analysisCol, langCol, catCol, osCol, tagsCol, linesCol, modifiedCol, usedCol));
+                favCol, nameCol, analysisCol, langCol, execCol, catCol, osCol, tagsCol, linesCol, modifiedCol, usedCol));
         installPersistentColumnWidths();
         installSnippetTableTooltipColumns(nameCol, langCol, catCol, tagsCol);
         snippetTable.setContextMenu(createTableContextMenu());
@@ -364,6 +387,24 @@ final class SnippetLibraryPane extends BorderPane {
 
         snippetTable.setRowFactory(tv -> {
             TableRow<Snippet> row = new TableRow<>();
+            row.setOnDragDetected(event -> {
+                if (row.isEmpty() || row.getItem() == null) {
+                    return;
+                }
+                List<String> ids = snippetTable.getSelectionModel().getSelectedItems().stream()
+                        .filter(snippet -> snippet != null && !snippet.isPolicyManaged())
+                        .map(Snippet::getId)
+                        .toList();
+                if (ids.isEmpty()) {
+                    return;
+                }
+                javafx.scene.input.Dragboard dragboard = row.startDragAndDrop(javafx.scene.input.TransferMode.MOVE);
+                ClipboardContent content = new ClipboardContent();
+                content.put(SnippetFolderTreePane.SNIPPET_IDS_FORMAT, String.join("\n", ids));
+                dragboard.setContent(content);
+                dragboard.setDragView(row.snapshot(null, null));
+                event.consume();
+            });
             row.setOnMouseClicked(event -> {
                 if (event.getClickCount() != 2 || event.getButton() != MouseButton.PRIMARY || row.isEmpty()) {
                     return;
@@ -505,15 +546,22 @@ final class SnippetLibraryPane extends BorderPane {
         FlowPane transferButtons = new FlowPane(8, 6, importBtn, exportBtn, variablesBtn);
         transferButtons.setAlignment(Pos.CENTER_LEFT);
         
+        folderTree = new SnippetFolderTreePane(snippetManager, new FolderActions());
+        folderTree.setOnDeleteRequested(this::deleteFolder);
+        SplitPane folderSplit = new SplitPane(folderTree, snippetTable);
+        folderSplit.setOrientation(javafx.geometry.Orientation.VERTICAL);
+        folderSplit.setDividerPositions(0.3);
+        SplitPane.setResizableWithParent(folderTree, false);
+
         VBox layout = new VBox(8,
                 searchBar,
-                snippetTable,
+                folderSplit,
                 crudButtons,
                 actionButtons,
                 transferButtons
         );
         layout.setPadding(new Insets(10));
-        VBox.setVgrow(snippetTable, Priority.ALWAYS);
+        VBox.setVgrow(folderSplit, Priority.ALWAYS);
         setCenter(layout);
         setMinWidth(0);
 
@@ -887,7 +935,21 @@ final class SnippetLibraryPane extends BorderPane {
         SnippetAnalysisOverview.Filter analysis = analysisFilter.getValue() != null
                 ? analysisFilter.getValue() : SnippetAnalysisOverview.Filter.ALL;
         
+        SnippetFolderTreePane.Node folderNode = folderTree != null ? folderTree.selectedNode() : null;
+        Set<String> folderScope = folderNode == null || folderNode.kind() != SnippetFolderTreePane.Kind.FOLDER
+                ? null
+                : folderTree.includeSubfolders()
+                        ? snippetManager.descendantFolderIds(folderNode.folderId())
+                        : Set.of(folderNode.folderId());
+        boolean topLevelOnly = folderNode != null && folderNode.kind() == SnippetFolderTreePane.Kind.TOP_LEVEL;
+
         filteredList.setPredicate(snippet -> {
+            if (topLevelOnly && snippet.getFolderId() != null) {
+                return false;
+            }
+            if (folderScope != null && (snippet.getFolderId() == null || !folderScope.contains(snippet.getFolderId()))) {
+                return false;
+            }
             boolean matchesSearch = query == null || query.isBlank()
                     || matchesQuery(snippet, query.trim());
             boolean matchesCategory = allCategories
@@ -995,13 +1057,32 @@ final class SnippetLibraryPane extends BorderPane {
         MenuItem exportReportsItem = new MenuItem(I18n.get("snippets.batchExport.menu"));
         exportReportsItem.setId(BATCH_EXPORT_ITEM_ID);
         exportReportsItem.setOnAction(e -> exportAnalysisReports());
+        MenuItem analyzeItem = new MenuItem(I18n.get("snippets.analyze.single"));
+        analyzeItem.setId(ANALYZE_ITEM_ID);
+        analyzeItem.setOnAction(e -> analyzeSelected());
+        MenuItem transferItem = new MenuItem("\u2328 " + I18n.get("snippets.transfer.files"));
+        transferItem.setId(TRANSFER_ITEM_ID);
+        transferItem.setOnAction(e -> copySelectedToTerminal());
+        MenuItem moveItem = new MenuItem("\uD83D\uDCC1 " + I18n.get("snippets.folder.moveTo"));
+        moveItem.setOnAction(e -> moveSelectedToFolder());
+        Menu executableMenu = new Menu(I18n.get("snippets.executable.menu"));
+        MenuItem execAuto = new MenuItem(I18n.get("snippets.executable.auto"));
+        execAuto.setOnAction(e -> setExecutableForSelection(null));
+        MenuItem execOn = new MenuItem(I18n.get("snippets.executable.on"));
+        execOn.setOnAction(e -> setExecutableForSelection(Boolean.TRUE));
+        MenuItem execOff = new MenuItem(I18n.get("snippets.executable.off"));
+        execOff.setOnAction(e -> setExecutableForSelection(Boolean.FALSE));
+        executableMenu.getItems().addAll(execAuto, execOn, execOff);
         menu.getItems().addAll(
                 editItem,
                 deleteItem,
                 new SeparatorMenuItem(),
                 diffItem,
+                analyzeItem,
                 new SeparatorMenuItem(),
-                copyItem, insertEditorItem, insertTerminalItem, insertTerminalWithParamsItem,
+                copyItem, insertEditorItem, insertTerminalItem, insertTerminalWithParamsItem, transferItem,
+                new SeparatorMenuItem(),
+                moveItem, executableMenu,
                 new SeparatorMenuItem(),
                 favItem, exportItem, exportReportsItem
         );
@@ -1021,6 +1102,10 @@ final class SnippetLibraryPane extends BorderPane {
             favItem.setDisable(!hasSelection || policyManaged);
             exportItem.setDisable(!hasSelection && snippetList.isEmpty());
             exportReportsItem.setDisable(!hasSelection);
+            analyzeItem.setDisable(!hasSingle || policyManaged);
+            transferItem.setDisable(!hasSelection || !canCopyToTerminal());
+            moveItem.setDisable(!hasSelection || policyManaged);
+            executableMenu.setDisable(!hasSelection || policyManaged);
         });
         return menu;
     }
@@ -1716,6 +1801,11 @@ final class SnippetLibraryPane extends BorderPane {
         }
 
         Path target = targetResult.get();
+        if (options.forcedExtension() == null) {
+            // Files keep their own names, folders and executable bits.
+            exportLayoutZip(SnippetFolderLayout.ofSnippets(snippetManager, toExport, currentFolderId()), options, target);
+            return;
+        }
         try {
             List<String> entryNames;
             if (options.encryptionMode() == SnippetZipEncryptionMode.GPG) {
@@ -1743,6 +1833,11 @@ final class SnippetLibraryPane extends BorderPane {
     }
 
     private Optional<SnippetZipExportOptions> chooseZipExportOptions() {
+        return chooseZipExportOptions(true);
+    }
+
+    /** @param showScriptFormat {@code false} for a folder export, whose files keep their own names */
+    private Optional<SnippetZipExportOptions> chooseZipExportOptions(boolean showScriptFormat) {
         Dialog<SnippetZipExportOptions> dialog = new Dialog<>();
         dialog.setTitle(I18n.get("snippets.export.zip.title"));
         dialog.setHeaderText(I18n.get("snippets.export.zip.header"));
@@ -1833,7 +1928,9 @@ final class SnippetLibraryPane extends BorderPane {
                 gpgEncryptionRadio,
                 gpgPane);
 
-        VBox content = new VBox(14, optionsGrid, new Separator(), encryptionBox);
+        VBox content = showScriptFormat
+                ? new VBox(14, optionsGrid, new Separator(), encryptionBox)
+                : new VBox(14, encryptionBox);
         content.setPadding(new Insets(10));
         content.setPrefWidth(520);
         dialog.getDialogPane().setContent(content);
@@ -2006,7 +2103,8 @@ final class SnippetLibraryPane extends BorderPane {
         if (directory == null) return;
 
         try {
-            List<Path> exportedFiles = snippetManager.exportToPlainTextDirectory(directory.toPath(), toExport);
+            List<Path> exportedFiles = SnippetManager.exportLayoutToDirectory(directory.toPath(),
+                    SnippetFolderLayout.ofSnippets(snippetManager, toExport, currentFolderId()));
             showInfo(I18n.get("snippets.exportPlainTextSuccess", exportedFiles.size(), directory.getPath()));
             logger.info("Exported {} snippets as plain text files to {}", exportedFiles.size(), directory.getPath());
         } catch (Exception e) {
@@ -2020,8 +2118,10 @@ final class SnippetLibraryPane extends BorderPane {
     /** Saves a user-initiated change (reporting a failure) and re-sorts the list. */
     private void saveAndRefresh() {
         saveOrReport();
+        folderTree.refresh();
         refreshTable(true);
         refreshCategoryFilter();
+        updateFilter();
     }
 
     /** @return whether the save succeeded (a failure was reported to the user) */
@@ -2055,7 +2155,14 @@ final class SnippetLibraryPane extends BorderPane {
      * Re-reads the snippets (e.g. after a save elsewhere); see {@link #refreshTable(boolean)}.
      */
     void refresh(boolean resort) {
+        folderTree.refresh();
         refreshTable(resort);
+        updateFilter();
+    }
+
+    /** The folder tree (tests). */
+    SnippetFolderTreePane folderTree() {
+        return folderTree;
     }
 
     private void refreshTable(boolean resort) {
@@ -2201,5 +2308,316 @@ final class SnippetLibraryPane extends BorderPane {
         alert.setContentText(message);
         alert.initOwner(ownerWindow());
         alert.showAndWait();
+    }
+
+    // ---- Folders ----
+
+    /** The folder shown in the tree ({@code null} for "All snippets" / "Top level"). */
+    private String currentFolderId() {
+        SnippetFolderTreePane.Node node = folderTree.selectedNode();
+        return node.kind() == SnippetFolderTreePane.Kind.FOLDER ? node.folderId() : null;
+    }
+
+    private final class FolderActions implements SnippetFolderTreePane.Actions {
+        @Override
+        public void selectionChanged() {
+            updateFilter();
+        }
+
+        @Override
+        public void moveSnippets(List<String> snippetIds, String folderId) {
+            moveSnippetsToFolder(snippetIds, folderId);
+        }
+
+        @Override
+        public boolean persist() {
+            boolean saved = saveOrReport();
+            folderTree.refresh();
+            refreshTable(false);
+            updateFilter();
+            return saved;
+        }
+
+        @Override
+        public void exportFolder(String folderId) {
+            SnippetLibraryPane.this.exportFolder(folderId);
+        }
+
+        @Override
+        public void copyFolderToTerminal(String folderId) {
+            if (folderId != null) {
+                copyLayoutToTerminal(SnippetFolderLayout.ofFolder(snippetManager, folderId, true),
+                        snippetManager.findFolder(folderId).map(SnippetFolder::getName).orElse(""));
+            }
+        }
+
+        @Override
+        public void analyzeFolder(String folderId) {
+            if (folderId != null) {
+                host.analyzeFolderRequested(folderId);
+            }
+        }
+
+        @Override
+        public void exportFolderReports(String folderId) {
+            List<Snippet> scope = snippetManager.snippetsInFolder(folderId, true).stream()
+                    .filter(snippet -> !snippet.isPolicyManaged())
+                    .toList();
+            if (scope.isEmpty()) {
+                showInfo(I18n.get("snippets.exportEmpty"));
+                return;
+            }
+            new SnippetAnalysisBatchExportDialog(ownerWindow(), scope, analysisStore).show();
+        }
+
+        @Override
+        public boolean canCopyToTerminal() {
+            return SnippetLibraryPane.this.canCopyToTerminal();
+        }
+
+        @Override
+        public Window ownerWindow() {
+            return SnippetLibraryPane.this.ownerWindow();
+        }
+    }
+
+    /** Moves snippets into {@code folderId} ({@code null} = top level) and persists. */
+    void moveSnippetsToFolder(List<String> snippetIds, String folderId) {
+        if (snippetManager.moveSnippetsToFolder(snippetIds, folderId) > 0) {
+            saveAndRefresh();
+        }
+    }
+
+    private void moveSelectedToFolder() {
+        List<Snippet> selected = new ArrayList<>(snippetTable.getSelectionModel().getSelectedItems());
+        if (selected.isEmpty() || anyPolicyManaged(selected)) {
+            return;
+        }
+        record Choice(String folderId, String label) {
+            @Override
+            public String toString() {
+                return label;
+            }
+        }
+        List<Choice> choices = new ArrayList<>();
+        choices.add(new Choice(null, I18n.get("snippets.folder.topLevel")));
+        snippetManager.getAllFolders().stream()
+                .map(folder -> new Choice(folder.getId(), snippetManager.folderPath(folder.getId())))
+                .sorted(Comparator.comparing(Choice::label, String.CASE_INSENSITIVE_ORDER))
+                .forEach(choices::add);
+        String currentId = selected.getFirst().getFolderId();
+        Choice preselected = choices.stream().filter(c -> Objects.equals(c.folderId(), currentId)).findFirst()
+                .orElse(choices.getFirst());
+        ChoiceDialog<Choice> dialog = new ChoiceDialog<>(preselected, choices);
+        dialog.initOwner(ownerWindow());
+        dialog.setTitle(I18n.get("snippets.folder.moveTo"));
+        dialog.setHeaderText(null);
+        dialog.setContentText(I18n.get("snippets.folder.moveTo.content", selected.size()));
+        dialog.showAndWait().ifPresent(choice ->
+                moveSnippetsToFolder(selected.stream().map(Snippet::getId).toList(), choice.folderId()));
+    }
+
+    private void setExecutableForSelection(Boolean executable) {
+        List<Snippet> selected = new ArrayList<>(snippetTable.getSelectionModel().getSelectedItems());
+        if (selected.isEmpty() || anyPolicyManaged(selected)) {
+            return;
+        }
+        for (Snippet snippet : selected) {
+            snippet.setExecutable(executable);
+            snippetManager.updateSnippet(snippet);
+        }
+        saveOrReport();
+        snippetTable.refresh();
+    }
+
+    /**
+     * The Exec column: a checkbox showing the effective flag. An automatic value is dimmed; clicking
+     * stores the opposite explicitly, or returns to automatic when that matches the default.
+     */
+    private final class ExecutableCell extends TableCell<Snippet, Boolean> {
+        private final CheckBox box = new CheckBox();
+
+        ExecutableCell() {
+            setAlignment(Pos.CENTER);
+            box.setOnAction(event -> {
+                Snippet snippet = getTableRow() != null ? getTableRow().getItem() : null;
+                if (snippet == null || snippet.isPolicyManaged()) {
+                    return;
+                }
+                boolean wanted = box.isSelected();
+                boolean automatic = SnippetExecutableSupport.defaultExecutable(
+                        SnippetExecutableSupport.fileNameOf(snippet), snippet.getContent());
+                snippet.setExecutable(wanted == automatic ? null : wanted);
+                snippetManager.updateSnippet(snippet);
+                saveOrReport();
+                snippetTable.refresh();
+            });
+        }
+
+        @Override
+        protected void updateItem(Boolean executable, boolean empty) {
+            super.updateItem(executable, empty);
+            Snippet snippet = getTableRow() != null ? getTableRow().getItem() : null;
+            if (empty || snippet == null) {
+                setGraphic(null);
+                setTooltip(null);
+                return;
+            }
+            box.setSelected(Boolean.TRUE.equals(executable));
+            box.setDisable(snippet.isPolicyManaged());
+            boolean automatic = snippet.getExecutable() == null;
+            box.setOpacity(automatic ? 0.55 : 1.0);
+            setTooltip(new Tooltip(I18n.get(automatic ? "snippets.executable.tooltip.auto" : "snippets.executable.tooltip.explicit",
+                    SnippetExecutableSupport.fileNameOf(snippet))));
+            setGraphic(box);
+        }
+    }
+
+    /** Right-click on a folder → "Export folder…": the folder with everything below it. */
+    private void exportFolder(String folderId) {
+        SnippetFolderLayout layout = SnippetFolderLayout.ofFolder(snippetManager, folderId, folderId != null);
+        if (layout.entries().isEmpty()) {
+            showInfo(I18n.get("snippets.exportEmpty"));
+            return;
+        }
+        ChoiceDialog<SnippetExportFormat> formatDialog = new ChoiceDialog<>(SnippetExportFormat.ZIP,
+                List.of(SnippetExportFormat.ZIP, SnippetExportFormat.PLAIN_TEXT, SnippetExportFormat.JSON,
+                        SnippetExportFormat.XML, SnippetExportFormat.YAML));
+        formatDialog.initOwner(ownerWindow());
+        formatDialog.setTitle(I18n.get("snippets.folder.export"));
+        formatDialog.setHeaderText(I18n.get("snippets.folder.export.header",
+                folderId != null ? snippetManager.folderPath(folderId) : I18n.get("snippets.folder.all")));
+        formatDialog.setContentText(I18n.get("snippets.export.format.content"));
+        Optional<SnippetExportFormat> format = formatDialog.showAndWait();
+        if (format.isEmpty()) {
+            return;
+        }
+        List<Snippet> snippets = layout.entries().stream().map(SnippetFolderLayout.Entry::snippet).toList();
+        switch (format.get()) {
+            case ZIP -> {
+                Optional<SnippetZipExportOptions> options = chooseZipExportOptions(false);
+                if (options.isEmpty()) {
+                    return;
+                }
+                Optional<Path> target = chooseZipExportTarget(options.get().encryptionMode());
+                if (target.isEmpty()) {
+                    clearPassword(options.get().password());
+                    return;
+                }
+                exportLayoutZip(layout, options.get(), target.get());
+            }
+            case PLAIN_TEXT -> {
+                DirectoryChooser chooser = new DirectoryChooser();
+                chooser.setTitle(I18n.get("snippets.exportPlainText.folder"));
+                File directory = chooser.showDialog(ownerWindow());
+                if (directory == null) {
+                    return;
+                }
+                try {
+                    List<Path> files = SnippetManager.exportLayoutToDirectory(directory.toPath(), layout);
+                    showInfo(I18n.get("snippets.exportPlainTextSuccess", files.size(), directory.getPath()));
+                } catch (Exception e) {
+                    logger.error("Failed to export snippet folder", e);
+                    showError(I18n.get("snippets.exportFailed", e.getMessage()));
+                }
+            }
+            default -> exportStructuredSnippets(snippets, format.get());
+        }
+    }
+
+    private void exportLayoutZip(SnippetFolderLayout layout, SnippetZipExportOptions options, Path target) {
+        try {
+            List<String> names;
+            if (options.encryptionMode() == SnippetZipEncryptionMode.GPG) {
+                names = SnippetManager.exportLayoutToGpgEncryptedZip(target, layout, options.gpgKey());
+                showInfo(I18n.get("snippets.exportZipGpgSuccess", names.size(), target.toString()));
+            } else {
+                names = SnippetManager.exportLayoutToZip(target, layout,
+                        options.encryptionMode() == SnippetZipEncryptionMode.PASSWORD ? options.password() : null);
+                showInfo(I18n.get("snippets.exportZipSuccess", names.size(), target.toString()));
+            }
+            logger.info("Exported {} snippets with folders as ZIP to {}", names.size(), target);
+        } catch (Exception e) {
+            logger.error("Failed to export snippets as ZIP", e);
+            showError(I18n.get("snippets.exportFailed", e.getMessage()));
+        } finally {
+            clearPassword(options.password());
+        }
+    }
+
+    /** Deletes a folder; with its contents, open editors are asked first and analyses discarded after the save. */
+    private void deleteFolder(String folderId, boolean deleteContents) {
+        List<Snippet> doomed = deleteContents
+                ? snippetManager.snippetsInFolder(folderId, true).stream().filter(s -> !s.isPolicyManaged()).toList()
+                : List.of();
+        if (!doomed.isEmpty() && !host.beforeDelete(doomed)) {
+            return;
+        }
+        snippetManager.removeFolder(folderId, deleteContents);
+        boolean saved = saveOrReport();
+        folderTree.refresh();
+        refreshTable(true);
+        updateFilter();
+        if (saved) {
+            for (Snippet snippet : doomed) {
+                if (snippet.getId() != null && !snippet.getId().isBlank()) {
+                    analysisStore.discardAll(snippet.getId());
+                    de.kortty.core.SnippetDraftStore.shared().delete(snippet.getId());
+                }
+            }
+        }
+    }
+
+    // ---- Copy files to the terminal's working directory ----
+
+    private boolean canCopyToTerminal() {
+        MainWindow mainWindow = getMainWindow();
+        if (mainWindow == null) {
+            return false;
+        }
+        TerminalTab tab = mainWindow.snippetInsertTarget(TerminalTab.class);
+        return tab != null && SnippetTerminalTransfer.supports(tab);
+    }
+
+    private void copySelectedToTerminal() {
+        List<Snippet> selected = new ArrayList<>(snippetTable.getSelectionModel().getSelectedItems());
+        if (selected.isEmpty()) {
+            return;
+        }
+        // Selected snippets keep their sub-folders below the folder shown in the tree.
+        SnippetFolderLayout layout = SnippetFolderLayout.ofSnippets(snippetManager, selected, currentFolderId());
+        String label = selected.size() == 1 ? SnippetExecutableSupport.fileNameOf(selected.getFirst())
+                : I18n.get("snippets.transfer.count", selected.size());
+        copyLayoutToTerminal(layout, label);
+    }
+
+    private void copyLayoutToTerminal(SnippetFolderLayout layout, String label) {
+        if (layout.isEmpty()) {
+            showInfo(I18n.get("snippets.exportEmpty"));
+            return;
+        }
+        MainWindow mainWindow = getMainWindow();
+        TerminalTab tab = mainWindow != null ? mainWindow.snippetInsertTarget(TerminalTab.class) : null;
+        if (tab == null) {
+            showInfo(I18n.get("snippets.noTerminalOpen"));
+            return;
+        }
+        if (!SnippetTerminalTransfer.supports(tab)) {
+            showInfo(I18n.get("snippets.transfer.unsupported"));
+            return;
+        }
+        SnippetTerminalTransfer.start(ownerWindow(), tab, layout, label, () -> {
+            mainWindow.revealSnippetInsertTarget(tab);
+        });
+    }
+
+    // ---- Full code analysis ----
+
+    private void analyzeSelected() {
+        Snippet selected = snippetTable.getSelectionModel().getSelectedItem();
+        if (selected != null && !selected.isPolicyManaged()) {
+            previewDebounce.stop();
+            host.analyzeSnippetRequested(selected);
+        }
     }
 }

@@ -38,6 +38,9 @@ class SnippetExecutableSupportTest {
         module.setFileName("helpers.py");
         assertThat(SnippetExecutableSupport.fileNameOf(module)).isEqualTo("helpers.py");
 
+        assertThat(SnippetExecutableSupport.fileNameOf(new Snippet("notes.md", "x", "plain"))).isEqualTo("notes.md");
+        assertThat(SnippetExecutableSupport.fileNameOf(new Snippet("my deploy", "x", "bash"))).isEqualTo("my-deploy.sh");
+
         Snippet notes = new Snippet("notes", "hello", "plain");
         assertThat(SnippetExecutableSupport.isExecutable(notes)).isFalse();
         notes.setExecutable(Boolean.TRUE);

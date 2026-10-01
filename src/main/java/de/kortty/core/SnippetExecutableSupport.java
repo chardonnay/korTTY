@@ -57,7 +57,13 @@ public final class SnippetExecutableSupport {
             return sanitizeFileName(snippet.getFileName());
         }
         String language = SnippetLanguageSupport.detectSnippetLanguage(snippet.getLanguage(), snippet.getContent());
-        return SnippetLanguageSupport.sanitizeFileName(snippet.getName(), language);
+        String name = snippet.getName() != null ? snippet.getName().trim() : "";
+        // A plain-text snippet named like a file ("notes.md", "hosts") keeps that name.
+        if ("plain".equals(language) && !name.isEmpty()) {
+            String safe = sanitizeFileName(name);
+            return extensionOf(safe) != null ? safe : safe + ".txt";
+        }
+        return SnippetLanguageSupport.sanitizeFileName(name, language);
     }
 
     /** The numeric mode ({@code 0755} / {@code 0644}) for a snippet file. */

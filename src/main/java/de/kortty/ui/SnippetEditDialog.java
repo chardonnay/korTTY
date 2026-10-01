@@ -109,6 +109,17 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     private final TextField nameField;
     private final ComboBox<String> languageCombo;
     private final ComboBox<String> categoryCombo;
+    /** Where the snippet lives in the library ({@code null} item = top level). */
+    private final ComboBox<SnippetFileFields.FolderChoice> folderCombo = new ComboBox<>();
+    /** Explicit file name for export / copy to a server; empty = derived from name and language. */
+    private final TextField fileNameField = new TextField();
+    /** Executable flag: automatic, on or off. */
+    private final ComboBox<SnippetFileFields.ExecutableChoice> executableCombo = new ComboBox<>();
+    /**
+     * The file fields as loaded: a field the user did not touch here is not written back on save,
+     * so a move in the library tree (or an Exec toggle) while this editor is open survives it.
+     */
+    private SnippetFileFields.Loaded loadedFileFields = SnippetFileFields.Loaded.NONE;
     private final TextField tagsField;
     private final TextArea descriptionArea;
     private final HBox metadataHintBox;
@@ -841,7 +852,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         String tags,
         String description,
         String content,
-        String diagrams) {
+        String diagrams,
+        String folderId,
+        String fileName,
+        Boolean executable) {
     }
 
     private enum AiFormatScope {
@@ -1244,9 +1258,19 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             new Label(I18n.get("snippets.codeLanguage") + ":"), languageCombo, addCodeLanguageButton,
             new Label(I18n.get("snippets.category") + ":"), categoryCombo
         );
+        SnippetFileFields.setUp(folderCombo, fileNameField, executableCombo,
+            () -> SnippetLanguageSupport.detectSnippetLanguage(languageCombo.getValue(), safeContentText()),
+            () -> nameField.getText(), this::safeContentText, this::updateSaveButtonState,
+            nameField.textProperty(), languageCombo.valueProperty());
+        HBox fileRow = new HBox(10,
+            new Label(I18n.get("snippets.folder") + ":"), folderCombo,
+            new Label(I18n.get("snippets.fileName") + ":"), fileNameField,
+            new Label(I18n.get("snippets.executable.label") + ":"), executableCombo);
+        fileRow.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(fileNameField, Priority.SOMETIMES);
         // Text language sits directly below the code language: both describe the snippet, while the
         // skills/instructions box below the toolbar is about the next AI request.
-        VBox languageBox = new VBox(6, langCatBox, aiCodeTextLanguageRow);
+        VBox languageBox = new VBox(6, langCatBox, fileRow, aiCodeTextLanguageRow);
         formGrid.add(languageBox, 0, 1, 2, 1);
         
         formGrid.add(new Label(I18n.get("snippets.tags") + ":"), 0, 2);
@@ -1638,6 +1662,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
                 programmaticLanguageUpdate = false;
             }
             categoryCombo.setValue(snippet.getCategory());
+            SnippetFileFields.load(folderCombo, fileNameField, executableCombo, snippet);
+            loadedFileFields = SnippetFileFields.Loaded.of(snippet);
             tagsField.setText(snippet.getTagsAsString());
             programmaticDescriptionUpdate = true;
             try {
@@ -2599,7 +2625,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     private boolean hasUnsavedContentChanges() {
         FormSnapshot initial = initialFormSnapshot != null
             ? initialFormSnapshot
-            : new FormSnapshot("", "", "", "", "", initialContentSnapshot != null ? initialContentSnapshot : "", "");
+            : new FormSnapshot("", "", "", "", "", initialContentSnapshot != null ? initialContentSnapshot : "", "",
+                null, "", null);
         return !currentFormSnapshot().equals(initial);
     }
 
@@ -2621,7 +2648,10 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             normalizedFieldValue(tagsField.getText()),
             normalizedFieldValue(descriptionArea.getText()),
             safeContentText(),
-            diagramFingerprint());
+            diagramFingerprint(),
+            SnippetFileFields.folderId(folderCombo),
+            normalizedFieldValue(fileNameField.getText()),
+            SnippetFileFields.executable(executableCombo));
     }
 
     private String diagramFingerprint() {
@@ -2681,6 +2711,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         result.setContent(content);
         result.setLanguage(SnippetLanguageSupport.detectSnippetLanguage(languageCombo.getValue(), content));
         result.setCategory(categoryCombo.getValue() != null ? categoryCombo.getValue().trim() : null);
+        String formFolderId = SnippetFileFields.folderId(folderCombo);
+        String formFileName = normalizedFieldValue(fileNameField.getText());
+        Boolean formExecutable = SnippetFileFields.executable(executableCombo);
+        loadedFileFields.applyChanges(result, formFolderId, formFileName, formExecutable);
+        // From now on only further edits of these fields are written back.
+        loadedFileFields = new SnippetFileFields.Loaded(true, formFolderId,
+            formFileName.isBlank() ? null : formFileName, formExecutable);
         result.setTagsFromString(tagsField.getText());
         result.setDescription(descriptionArea.getText() != null ? descriptionArea.getText().trim() : null);
         result.setDiagrams(copyDiagrams());

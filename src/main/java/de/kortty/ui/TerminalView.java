@@ -2310,124 +2310,27 @@ public class TerminalView extends BorderPane {
     }
 
     static String appendRemotePath(String basePath, String relativePath) {
-        String base = basePath == null || basePath.isBlank() ? "." : basePath.trim();
-        String relative = relativePath == null ? "" : relativePath.trim();
-        if (relative.isEmpty()) {
-            return base;
-        }
-        if (relative.startsWith("/")) {
-            return relative;
-        }
-        if ("/".equals(base)) {
-            return "/" + relative;
-        }
-        return base.endsWith("/") ? base + relative : base + "/" + relative;
+        return de.kortty.core.RemotePathSupport.appendRemotePath(basePath, relativePath);
     }
 
     private String resolveSftpStartDirectory(SftpClient sftp) {
-        try {
-            String directory = sftp.canonicalPath(".");
-            if (directory != null && !directory.isBlank()) {
-                return directory.trim();
-            }
-        } catch (IOException e) {
-            logger.debug("Could not resolve SFTP start directory via canonicalPath('.'): {}", e.getMessage());
-        }
-        return ".";
+        return de.kortty.core.RemotePathSupport.sftpStartDirectory(sftp);
     }
 
     private static boolean needsSftpStartDirectory(String trackedDirectory) {
-        if (trackedDirectory == null || trackedDirectory.isBlank()) {
-            return true;
-        }
-        String tracked = trackedDirectory.trim();
-        return "~".equals(tracked) || tracked.startsWith("~/");
+        return de.kortty.core.RemotePathSupport.needsSftpStartDirectory(trackedDirectory);
     }
 
     static String resolveDragDropRemoteDirectory(String trackedDirectory, String sftpStartDirectory) {
-        String fallback = normalizedRemoteDirectoryOrCurrent(sftpStartDirectory);
-        if (trackedDirectory == null || trackedDirectory.isBlank()) {
-            return fallback;
-        }
-        String tracked = trackedDirectory.trim();
-        if (tracked.startsWith("/")) {
-            return tracked;
-        }
-        if ("~".equals(tracked)) {
-            return fallback;
-        }
-        if (tracked.startsWith("~/")) {
-            String relativeToHome = tracked.substring(2);
-            if (relativeToHome.isBlank()) {
-                return fallback;
-            }
-            return fallback.startsWith("/")
-                ? appendRemotePath(fallback, relativeToHome)
-                : relativeToHome;
-        }
-        return tracked;
-    }
-
-    private static String normalizedRemoteDirectoryOrCurrent(String remoteDirectory) {
-        if (remoteDirectory == null || remoteDirectory.isBlank()) {
-            return ".";
-        }
-        return remoteDirectory.trim();
+        return de.kortty.core.RemotePathSupport.resolveTargetDirectory(trackedDirectory, sftpStartDirectory);
     }
 
     static String parentRemotePath(String remotePath) {
-        if (remotePath == null || remotePath.isBlank()) {
-            return ".";
-        }
-        String normalized = remotePath.trim();
-        int index = normalized.lastIndexOf('/');
-        if (index < 0) {
-            return ".";
-        }
-        if (index == 0) {
-            return "/";
-        }
-        return normalized.substring(0, index);
+        return de.kortty.core.RemotePathSupport.parentRemotePath(remotePath);
     }
 
     private void mkdirsRemote(SftpClient sftp, String remoteDirectory) throws IOException {
-        if (remoteDirectory == null || remoteDirectory.isBlank()
-                || ".".equals(remoteDirectory) || "/".equals(remoteDirectory)) {
-            return;
-        }
-        boolean absolute = remoteDirectory.startsWith("/");
-        String current = absolute ? "/" : null;
-        for (String part : remoteDirectory.split("/")) {
-            if (part == null || part.isBlank() || ".".equals(part)) {
-                continue;
-            }
-            if ("..".equals(part)) {
-                current = current == null ? part : appendRemotePath(current, part);
-                continue;
-            }
-            current = current == null ? part : appendRemotePath(current, part);
-            ensureRemoteDirectory(sftp, current);
-        }
-    }
-
-    private void ensureRemoteDirectory(SftpClient sftp, String remoteDirectory) throws IOException {
-        try {
-            SftpClient.Attributes attrs = sftp.stat(remoteDirectory);
-            if (!attrs.isDirectory()) {
-                throw new IOException("Remote path exists but is not a directory: " + remoteDirectory);
-            }
-        } catch (SftpException e) {
-            if (e.getStatus() != SftpConstants.SSH_FX_NO_SUCH_FILE) {
-                throw e;
-            }
-            try {
-                sftp.mkdir(remoteDirectory);
-            } catch (SftpException mkdirException) {
-                if (mkdirException.getStatus() != SftpConstants.SSH_FX_FILE_ALREADY_EXISTS) {
-                    throw mkdirException;
-                }
-            }
-        }
+        de.kortty.core.RemotePathSupport.mkdirs(sftp, remoteDirectory);
     }
     
     /**
