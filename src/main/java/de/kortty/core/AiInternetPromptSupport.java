@@ -46,7 +46,10 @@ public final class AiInternetPromptSupport {
                 APPLY_SNIPPET_SECURITY_FIXES,
                 GENERATE_SNIPPET_ONE_LINER,
                 GENERATE_SNIPPET_MERMAID,
-                GENERATE_ASCII_ART -> false;
+                GENERATE_ASCII_ART,
+                ANALYZE_SNIPPET_PROJECT,
+                PLAN_SNIPPET_MODULARIZATION,
+                GENERATE_SNIPPET_MODULE -> false;
         };
     }
 

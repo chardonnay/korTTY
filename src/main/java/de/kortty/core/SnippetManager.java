@@ -768,6 +768,173 @@ public class SnippetManager {
         return repaired;
     }
 
+    // ---- Writing files of a folder (project apply, modularization) ----
+
+    /**
+     * One file to write below a folder. {@code existingSnippetId} names the snippet that becomes
+     * this file (it is moved there and its content replaced); {@code null} creates a new snippet.
+     * {@code executable == null} keeps the automatic flag.
+     */
+    public record FolderFileWrite(String path, String content, Boolean executable, String purpose,
+                                  String existingSnippetId) {
+        public FolderFileWrite {
+            path = path != null ? path : "";
+            content = content != null ? content : "";
+        }
+    }
+
+    /** What {@link #writeFolderFiles} changed. */
+    public record FolderWriteResult(List<Snippet> created, List<Snippet> updated) {
+        public FolderWriteResult {
+            created = List.copyOf(created);
+            updated = List.copyOf(updated);
+        }
+    }
+
+    /**
+     * Writes files below {@code rootFolderId} ({@code null} = top level), creating the folders of
+     * their paths. A replaced content is kept in the snippet's history, so every change can be
+     * undone there. New snippets inherit category, tags, operating system and language family
+     * from {@code template} (may be {@code null}) and are named after their file, prefixed with
+     * the folder path when that name is already taken. Nothing is saved; call {@link #save()}.
+     */
+    public FolderWriteResult writeFolderFiles(String rootFolderId, List<FolderFileWrite> writes, Snippet template) {
+        List<Snippet> created = new ArrayList<>();
+        List<Snippet> updated = new ArrayList<>();
+        for (FolderFileWrite write : writes) {
+            String path = write.path().replace('\\', '/');
+            int slash = path.lastIndexOf('/');
+            String directory = slash >= 0 ? path.substring(0, slash) : "";
+            String fileName = slash >= 0 ? path.substring(slash + 1) : path;
+            String folderId = ensureFolderPath(directory, rootFolderId);
+            Snippet snippet = write.existingSnippetId() != null ? findById(write.existingSnippetId()).orElse(null) : null;
+            if (snippet != null) {
+                requireNotPolicyManaged(snippet);
+                recordContentChange(snippet, write.content());
+                snippet.setFolderId(folderId);
+                applyFileName(snippet, fileName);
+                applyExecutable(snippet, write.executable());
+                snippet.markModified();
+                updated.add(snippet);
+                continue;
+            }
+            String language = SnippetLanguageSupport.detectFileLanguage(fileName, write.content());
+            Snippet module = new Snippet(uniqueSnippetName(fileName, folderPath(folderId)), write.content(), language);
+            module.setFolderId(folderId);
+            applyFileName(module, fileName);
+            applyExecutable(module, write.executable());
+            module.setDescription(write.purpose() != null && !write.purpose().isBlank() ? write.purpose() : null);
+            if (template != null) {
+                module.setCategory(template.getCategory() != null
+                    && !SCRIPT_HEADER_CATEGORY.equalsIgnoreCase(template.getCategory()) ? template.getCategory() : null);
+                module.setOperatingSystem(template.getOperatingSystem());
+                module.setCodeTextLanguageCode(template.getCodeTextLanguageCode());
+                module.setTags(new ArrayList<>(template.getTags()));
+            }
+            if (!module.getTags().contains("module")) {
+                module.getTags().add("module");
+            }
+            module.getHistory().add(new de.kortty.model.SnippetHistoryEntry(write.content()));
+            addSnippet(module);
+            created.add(module);
+        }
+        return new FolderWriteResult(created, updated);
+    }
+
+    /**
+     * Splits a script into the files of an accepted modularization: a new folder named after the
+     * script (next to it) receives the files; the script itself becomes the entry point, keeping
+     * its id, history and analyses. Nothing is saved; call {@link #save()}.
+     *
+     * @param contents generated content by planned path
+     * @return the new folder's id and the written snippets
+     */
+    public ModularizationResult applyModularization(String originalId,
+                                                    SnippetModularizationSupport.ModularizationPlan plan,
+                                                    Map<String, String> contents) {
+        Snippet original = findById(originalId)
+            .orElseThrow(() -> new IllegalArgumentException("Unknown snippet: " + originalId));
+        requireNotPolicyManaged(original);
+        if (plan == null || plan.entryPoint() == null) {
+            throw new IllegalArgumentException("The modularization plan has no entry point");
+        }
+        String stem = SnippetExecutableSupport.fileNameOf(original);
+        int dot = stem.lastIndexOf('.');
+        stem = dot > 0 ? stem.substring(0, dot) : stem;
+        String folderName = sanitizeFolderName(stem);
+        if (folderName.isEmpty()) {
+            folderName = "module";
+        }
+        String parentId = original.getFolderId();
+        SnippetFolder folder = addFolder(uniqueFolderName(folderName, parentId, null), parentId);
+        List<FolderFileWrite> writes = new ArrayList<>();
+        for (SnippetModularizationSupport.ModuleFile file : plan.modulesFirst()) {
+            String content = contents.get(file.path());
+            if (content == null) {
+                continue;
+            }
+            writes.add(new FolderFileWrite(file.path(), content, file.executable(), file.purpose(),
+                file.entryPoint() ? original.getId() : null));
+        }
+        FolderWriteResult result = writeFolderFiles(folder.getId(), writes, original);
+        return new ModularizationResult(folder.getId(), original, result.created());
+    }
+
+    /** The outcome of {@link #applyModularization}: the new folder, the entry point and the new modules. */
+    public record ModularizationResult(String folderId, Snippet entry, List<Snippet> modules) {
+        public ModularizationResult {
+            modules = List.copyOf(modules);
+        }
+    }
+
+    /** Replaces the content, keeping the old and the new text in the snippet's history. */
+    private static void recordContentChange(Snippet snippet, String newContent) {
+        String old = snippet.getContent() != null ? snippet.getContent() : "";
+        List<de.kortty.model.SnippetHistoryEntry> history = snippet.getHistory();
+        if (history.isEmpty() || !Objects.equals(history.getLast().getContent(), old)) {
+            history.add(new de.kortty.model.SnippetHistoryEntry(old));
+        }
+        if (!Objects.equals(old, newContent)) {
+            history.add(new de.kortty.model.SnippetHistoryEntry(newContent));
+        }
+        int max = snippet.getHistoryMaxSize() != null && snippet.getHistoryMaxSize() > 0 ? snippet.getHistoryMaxSize() : 30;
+        while (history.size() > max) {
+            history.removeFirst();
+        }
+        snippet.setContent(newContent);
+    }
+
+    /** Stores {@code fileName} only where the name and language would not produce it anyway. */
+    private static void applyFileName(Snippet snippet, String fileName) {
+        snippet.setFileName(null);
+        if (!SnippetExecutableSupport.fileNameOf(snippet).equals(fileName)) {
+            snippet.setFileName(fileName);
+        }
+    }
+
+    /** Stores {@code executable} only where it differs from the automatic flag. */
+    private static void applyExecutable(Snippet snippet, Boolean executable) {
+        if (executable == null) {
+            return;
+        }
+        boolean automatic = SnippetExecutableSupport.defaultExecutable(
+            SnippetExecutableSupport.fileNameOf(snippet), snippet.getContent());
+        snippet.setExecutable(executable == automatic ? null : executable);
+    }
+
+    private String uniqueSnippetName(String fileName, String folderPath) {
+        String candidate = fileName;
+        if (hasSnippetName(candidate, null) && folderPath != null && !folderPath.isBlank()) {
+            candidate = folderPath + "/" + fileName;
+        }
+        String base = candidate;
+        int counter = 2;
+        while (hasSnippetName(candidate, null)) {
+            candidate = base + " (" + counter++ + ")";
+        }
+        return candidate;
+    }
+
     // ---- Operating systems (for the snippet "System" column) ----
 
     public List<String> getOperatingSystems() {

@@ -6959,6 +6959,8 @@ public class MainWindow {
             case GENERATE_SNIPPET_ONE_LINER -> I18n.get("snippets.oneliner.compact");
             case GENERATE_SNIPPET_MERMAID -> I18n.get("snippets.ai.diagram.menu");
             case GENERATE_ASCII_ART -> I18n.get("asciiArt.ai.action");
+            case ANALYZE_SNIPPET_PROJECT -> I18n.get("snippets.folder.analyze");
+            case PLAN_SNIPPET_MODULARIZATION, GENERATE_SNIPPET_MODULE -> I18n.get("snippets.modularize.title");
         };
     }
 

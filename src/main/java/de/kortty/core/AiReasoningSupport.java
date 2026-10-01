@@ -140,7 +140,8 @@ public final class AiReasoningSupport {
             || action == AiAction.APPLY_SNIPPET_IMPROVEMENTS
             || action == AiAction.APPLY_SNIPPET_SECURITY_FIXES
             || action == AiAction.COMPLETE_SNIPPET_CODE
-            || action == AiAction.GENERATE_ASCII_ART;
+            || action == AiAction.GENERATE_ASCII_ART
+            || action == AiAction.GENERATE_SNIPPET_MODULE;
     }
 
     public static List<AiReasoningEffort> availableEfforts(AiProfile profile) {
