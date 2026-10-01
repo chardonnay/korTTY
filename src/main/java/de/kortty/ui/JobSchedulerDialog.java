@@ -476,6 +476,10 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         sessionJournalPane.setOnChange(this::updateSessionJournalSectionTitle);
         sessionJournalSection = new javafx.scene.control.TitledPane(text("sessionJournal.title"), sessionJournalPane);
         sessionJournalSection.setExpanded(false);
+        // The state badge sits right of the title so it is visible while the section is collapsed.
+        sessionJournalSection.setContentDisplay(javafx.scene.control.ContentDisplay.RIGHT);
+        sessionJournalSection.setGraphicTextGap(10);
+        updateSessionJournalSectionTitle();
 
         return padded(new VBox(
             12,
@@ -496,8 +500,17 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         if (sessionJournalSection == null) {
             return;
         }
-        sessionJournalSection.setText(text("sessionJournal.title") + (sessionJournalPane.isJournalEnabled()
-            ? " · " + text("sessionJournal.on") : ""));
+        sessionJournalSection.setText(text("sessionJournal.title"));
+        sessionJournalSection.setGraphic(sessionJournalStateBadge(sessionJournalPane.isJournalEnabled()));
+    }
+
+    /** "ACTIVE" in green or "DISABLED" in red — readable at a glance in every theme. */
+    static Label sessionJournalStateBadge(boolean enabled) {
+        Label badge = new Label(text(enabled ? "sessionJournal.active" : "sessionJournal.inactive"));
+        badge.getStyleClass().add(enabled ? "session-journal-state-active" : "session-journal-state-inactive");
+        badge.setStyle("-fx-font-weight: bold; -fx-text-fill: white; -fx-padding: 1 8 1 8;"
+            + " -fx-background-radius: 4; -fx-background-color: " + (enabled ? "#16a34a;" : "#dc2626;"));
+        return badge;
     }
 
     private void loadSessionJournal(ScheduledJob job) {
@@ -1226,6 +1239,11 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private void loadJob(ScheduledJob job) {
         selectedJob = job;
         if (job == null) {
+            if (sessionJournalPane != null) {
+                sessionJournalPane.load(new de.kortty.model.AutomationJournalConfig());
+                sessionJournalPane.setStatsText(null);
+                updateSessionJournalSectionTitle();
+            }
             return;
         }
         nameField.setText(job.getName());
