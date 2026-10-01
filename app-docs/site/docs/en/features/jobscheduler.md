@@ -111,6 +111,23 @@ Use the **Action** tab to choose what the job does. The tab shows only the field
 
 Path fields provide local Finder/Explorer selection where the path is local and remote directory browsing where the path is remote. Remote browsing requires a selected target and host-key verification unless the job explicitly disables host-key verification.
 
+#### Virtual Terminal and Screenshots
+
+**COMMAND** and **SNIPPET_SCRIPT** actions can run in an invisible **virtual terminal**: the command gets a pseudo terminal on the server, korTTY interprets its output locally with the same terminal emulator a terminal tab uses, and screenshots of that screen are added to the run's [session journal](#session-journal-per-run). No window opens and no terminal you are working in is touched, so progress bars, `top` or AI coding tools in non-interactive mode (for example `claude -p …` or `codex exec …`) become visible in the journal.
+
+| Setting | Description |
+|---------|-------------|
+| **Run in an invisible virtual terminal (PTY) and take screenshots for the session journal** | Switches the virtual terminal on for this action. Needs the job's session journal; without it the command runs as usual. |
+| **Size** | Columns × rows of the virtual terminal (default 120 × 40). |
+| **Screenshot every … s (0 = off)** / **and when the screen changes** | A screenshot at a fixed interval (default 10 s) and/or whenever the screen changed, at most every two seconds. An unchanged screen is never captured twice; the final screen is always captured. |
+| **Max. screenshots per command** | Upper limit per command, including the final screen (default 30). |
+| **Runtime limit … s (0 = none)** / **count reaching the limit as success** | Stops the command with Ctrl+C after this many seconds — for monitors such as `top` that never exit on their own. Without the second option a run stopped by the limit counts as cancelled. |
+
+The run history keeps the final screen as the output. The AI describes the screenshots in the closing pass when the journal's AI mode applies (every kept run, or only failed runs), with the journal's AI profile — so the cost warning counts the screenshots in its estimate.
+
+!!! note "A job cannot operate a program"
+    Nothing is typed into the program besides what the command itself sends. Interactive programs (Midnight Commander, an editor, a prompt waiting for an answer) therefore run only until the runtime limit — you get their screenshots, but the job cannot use them. A command that sends a stored sudo password always runs **without** the virtual terminal: a password sent to a pseudo terminal can be echoed onto the screen and would end up in a screenshot.
+
 #### Snippet Script Jobs
 
 Snippet script jobs use the selected SnippetManager entry without requiring an open terminal tab. KorTTY resolves built-in snippet variables and stored SnippetManager variables before execution. Missing snippets, missing stored variable values, and unsupported snippet languages block the job and write the reason to the journal. Additional snippet parameters are entered one per line so values with spaces are passed as single script arguments.

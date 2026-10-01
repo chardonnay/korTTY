@@ -34,6 +34,7 @@ public class AutomationJournalRecorder {
     private final MessageDigest digest;
     private volatile AutomationRunStatus targetStatus;
     private volatile int commandCount;
+    private volatile int screenshotCount;
 
     AutomationJournalRecorder(SessionJournalSession session, SessionJournalService service, String connectionId) {
         this.session = session;
@@ -85,6 +86,45 @@ public class AutomationJournalRecorder {
         } catch (RuntimeException e) {
             logger.debug("Automation journal could not record output: {}", e.getMessage());
         }
+    }
+
+    /**
+     * Raw terminal output of a command running in the virtual terminal, escape sequences
+     * included — handled like the output of a terminal tab.
+     */
+    public void appendTerminalOutput(String output) {
+        if (session == null || output == null || output.isEmpty()) {
+            return;
+        }
+        try {
+            session.appendOutputChunk(output);
+        } catch (RuntimeException e) {
+            logger.debug("Automation journal could not record terminal output: {}", e.getMessage());
+        }
+    }
+
+    /** Adds the final screen text to the duplicate hash (the raw output of a full-screen program never repeats). */
+    public void hashScreen(String screenText) {
+        if (session != null && screenText != null) {
+            hash("[screen] " + session.redact(screenText));
+        }
+    }
+
+    /** A screenshot of the virtual terminal as a journal entry; best-effort. */
+    public void attachScreenshot(byte[] png, String caption) {
+        if (session == null || png == null || png.length == 0) {
+            return;
+        }
+        try {
+            session.attachScreenshot(png, caption);
+            screenshotCount++;
+        } catch (Exception e) {
+            logger.debug("Automation journal could not attach a screenshot: {}", e.getMessage());
+        }
+    }
+
+    public int getScreenshotCount() {
+        return screenshotCount;
     }
 
     /**

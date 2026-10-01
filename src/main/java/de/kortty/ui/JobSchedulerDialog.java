@@ -160,6 +160,14 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private final Spinner<Integer> swarmParallelismSpinner = new Spinner<>(1, 16, 4);
     private final CheckBox swarmReadOnlyCheck =
         new CheckBox(text("ai.swarmReadOnly"));
+    private final CheckBox ptyCheck = new CheckBox(text("pty.enable"));
+    private final Spinner<Integer> ptyColumnsSpinner = new Spinner<>(40, 400, 120);
+    private final Spinner<Integer> ptyRowsSpinner = new Spinner<>(10, 200, 40);
+    private final Spinner<Integer> screenshotIntervalSpinner = new Spinner<>(0, 3600, 10);
+    private final CheckBox screenshotOnChangeCheck = new CheckBox(text("pty.onChange"));
+    private final Spinner<Integer> maxScreenshotsSpinner = new Spinner<>(1, 500, 30);
+    private final Spinner<Integer> runtimeLimitSpinner = new Spinner<>(0, 86_400, 0);
+    private final CheckBox runtimeLimitSuccessCheck = new CheckBox(text("pty.limitSuccess"));
     private final TextField localPathField = new TextField();
     private final TextField remotePathField = new TextField();
     private final TextField remoteSourceField = new TextField();
@@ -244,6 +252,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         ARCHIVE_COMPRESSION,
         ARCHIVE_DOWNLOAD,
         ARCHIVE_DOWNLOAD_PATH,
+        VIRTUAL_TERMINAL,
         RSYNC_DIRECTION,
         RSYNC_SOURCES,
         RSYNC_TARGET_ROOT,
@@ -568,7 +577,20 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             countSelectedTargets(),
             runsPerDay(readSchedule()),
             profile,
-            settings);
+            settings,
+            virtualTerminalScreenshotsPerRun());
+    }
+
+    /** Screenshots a run may take per server when the action runs in the virtual terminal. */
+    private int virtualTerminalScreenshotsPerRun() {
+        try {
+            JobAction action = readAction();
+            boolean terminalAction = action.getType() == JobActionType.COMMAND
+                || action.getType() == JobActionType.SNIPPET_SCRIPT;
+            return terminalAction && action.isPtyEnabled() ? action.effectiveMaxScreenshots() : 0;
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     private int countSelectedTargets() {
@@ -862,6 +884,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         addActionRow(grid, row++, ActionField.OWNER, text("action.owner"), fieldButtonBox(ownerField, ownerButton));
         addActionRow(grid, row++, ActionField.GROUP, text("action.group"), fieldButtonBox(groupField, groupButton));
         addActionRow(grid, row++, ActionField.SYNC_DIRECTION, text("action.syncDirection"), syncDirectionCombo);
+        addActionRow(grid, row++, ActionField.VIRTUAL_TERMINAL, text("action.virtualTerminal"), buildVirtualTerminalBox());
         addActionRow(grid, row++, ActionField.SUDO, text("action.sudo"), sudoCheck);
         addActionRow(grid, row++, ActionField.SUDO_STAGING, text("action.sudoStaging"), sudoStagingCheck);
         addActionRow(grid, row++, ActionField.ARCHIVE_SOURCES, text("action.archiveSources"), archiveSourcesArea);
@@ -1290,6 +1313,14 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         aiAutoApproveCheck.setSelected(action.isAiAutoApproveCommands());
         swarmParallelismSpinner.getValueFactory().setValue(action.effectiveSwarmParallelism());
         swarmReadOnlyCheck.setSelected(action.isSwarmReadOnly());
+        ptyCheck.setSelected(action.isPtyEnabled());
+        ptyColumnsSpinner.getValueFactory().setValue(action.effectivePtyColumns());
+        ptyRowsSpinner.getValueFactory().setValue(action.effectivePtyRows());
+        screenshotIntervalSpinner.getValueFactory().setValue(action.effectiveScreenshotIntervalSeconds());
+        screenshotOnChangeCheck.setSelected(action.isScreenshotOnChange());
+        maxScreenshotsSpinner.getValueFactory().setValue(action.effectiveMaxScreenshots());
+        runtimeLimitSpinner.getValueFactory().setValue(action.effectiveRuntimeLimitSeconds());
+        runtimeLimitSuccessCheck.setSelected(action.isRuntimeLimitSuccess());
         localPathField.setText(nonBlank(action.getLocalPath(), ""));
         remotePathField.setText(nonBlank(action.getRemotePath(), ""));
         remoteSourceField.setText(nonBlank(action.getRemoteSourcePath(), ""));
@@ -1380,6 +1411,14 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         action.setAiAutoApproveCommands(aiAutoApproveCheck.isSelected());
         action.setSwarmMaxParallelism(swarmParallelismSpinner.getValue());
         action.setSwarmReadOnly(swarmReadOnlyCheck.isSelected());
+        action.setPtyEnabled(ptyCheck.isSelected());
+        action.setPtyColumns(committedValue(ptyColumnsSpinner));
+        action.setPtyRows(committedValue(ptyRowsSpinner));
+        action.setScreenshotIntervalSeconds(committedValue(screenshotIntervalSpinner));
+        action.setScreenshotOnChange(screenshotOnChangeCheck.isSelected());
+        action.setMaxScreenshots(committedValue(maxScreenshotsSpinner));
+        action.setRuntimeLimitSeconds(committedValue(runtimeLimitSpinner));
+        action.setRuntimeLimitSuccess(runtimeLimitSuccessCheck.isSelected());
         action.setLocalPath(localPathField.getText());
         action.setRemotePath(remotePathField.getText());
         action.setRemoteSourcePath(remoteSourceField.getText());
@@ -2240,16 +2279,54 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         }
     }
 
+    /** The virtual-terminal options of COMMAND and SNIPPET_SCRIPT actions. */
+    private VBox buildVirtualTerminalBox() {
+        for (Spinner<Integer> spinner : List.of(ptyColumnsSpinner, ptyRowsSpinner, screenshotIntervalSpinner,
+                maxScreenshotsSpinner, runtimeLimitSpinner)) {
+            spinner.setEditable(true);
+            spinner.setPrefWidth(95);
+        }
+        HBox size = new HBox(6, new Label(text("pty.size")), ptyColumnsSpinner, new Label("×"), ptyRowsSpinner);
+        HBox interval = new HBox(6, new Label(text("pty.interval")), screenshotIntervalSpinner,
+            new Label(text("pty.intervalUnit")), screenshotOnChangeCheck);
+        HBox max = new HBox(6, new Label(text("pty.maxScreenshots")), maxScreenshotsSpinner);
+        HBox limit = new HBox(6, new Label(text("pty.limit")), runtimeLimitSpinner,
+            new Label(text("pty.limitUnit")), runtimeLimitSuccessCheck);
+        for (HBox box : List.of(size, interval, max, limit)) {
+            box.setAlignment(Pos.CENTER_LEFT);
+        }
+        Label hint = new Label(text("pty.hint"));
+        hint.setWrapText(true);
+        hint.setStyle(MutedTextStyle.HINT);
+        VBox options = new VBox(6, size, interval, max, limit);
+        options.disableProperty().bind(ptyCheck.selectedProperty().not());
+        return new VBox(6, ptyCheck, options, hint);
+    }
+
+    private static int committedValue(Spinner<Integer> spinner) {
+        try {
+            Integer parsed = spinner.getValueFactory().getConverter().fromString(spinner.getEditor().getText());
+            if (parsed != null) {
+                spinner.getValueFactory().setValue(parsed);
+            }
+        } catch (RuntimeException ignored) {
+            // keep the last valid value
+        }
+        return spinner.getValue();
+    }
+
     private Set<ActionField> visibleActionFields(JobActionType actionType) {
         Set<ActionField> fields = EnumSet.of(ActionField.ACTION);
         switch (actionType) {
             case COMMAND -> fields.addAll(EnumSet.of(
                 ActionField.COMMAND,
+                ActionField.VIRTUAL_TERMINAL,
                 ActionField.SUDO));
             case SNIPPET_SCRIPT -> fields.addAll(EnumSet.of(
                 ActionField.SNIPPET_SEARCH,
                 ActionField.SNIPPET_SCRIPT,
                 ActionField.SNIPPET_PARAMETERS,
+                ActionField.VIRTUAL_TERMINAL,
                 ActionField.SUDO));
             case AI_AGENT -> fields.addAll(EnumSet.of(
                 ActionField.AI_PROFILE,

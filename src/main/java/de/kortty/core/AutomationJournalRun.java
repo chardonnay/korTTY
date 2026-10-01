@@ -77,6 +77,8 @@ public final class AutomationJournalRun {
     private final OffsetDateTime startedAt;
     private final Map<String, AutomationJournalRecorder> recorders = new LinkedHashMap<>();
     private boolean finished;
+    /** Describes the run's screenshots in the closing pass when the AI mode applies; may be null. */
+    private volatile SessionJournalScreenshotAnalyzer screenshotAnalyzer;
 
     private AutomationJournalRun() {
         this.source = null;
@@ -133,7 +135,7 @@ public final class AutomationJournalRun {
             return NONE;
         }
         AutomationJournalRetention retention = app.getAutomationJournalRetention();
-        return new AutomationJournalRun(
+        AutomationJournalRun run = new AutomationJournalRun(
             source,
             runId,
             config,
@@ -144,6 +146,12 @@ public final class AutomationJournalRun {
             policy,
             retention != null ? retention::enforceLimits : null,
             Clock.systemDefaultZone());
+        run.setScreenshotAnalyzer(app.getSessionJournalScreenshotAnalyzer());
+        return run;
+    }
+
+    void setScreenshotAnalyzer(SessionJournalScreenshotAnalyzer analyzer) {
+        this.screenshotAnalyzer = analyzer;
     }
 
     /** True when this run records journals. */
@@ -278,15 +286,22 @@ public final class AutomationJournalRun {
         return new FinishResult(List.copyOf(kept), List.copyOf(duplicateOf), discarded, done);
     }
 
-    /** Raw entries always; AI summaries when the AI mode asks for them and AI is allowed. */
+    /**
+     * Raw entries always; AI summaries — and descriptions of the run's screenshots — when the AI
+     * mode asks for them and AI is allowed.
+     */
     private CompletableFuture<Void> closingPass(Path directory, AutomationRunStatus status) {
         boolean aiEnabled = policy.aiAllowed() && config.getAiMode().summarizes(status);
+        SessionJournalAiSupport.AiInvoker invoker = invokerFactory.apply(config.getAiProfileId());
         CompletableFuture<Void> pass = summarizer != null
-            ? summarizer.summarizeClosedJournal(directory, invokerFactory.apply(config.getAiProfileId()), aiEnabled)
+            ? summarizer.summarizeClosedJournal(directory, invoker, aiEnabled)
             : CompletableFuture.completedFuture(null);
         return pass.handle((ignored, error) -> {
             if (error != null) {
                 logger.warn("Closing pass of {} failed: {}", directory.getFileName(), error.getMessage());
+            }
+            if (aiEnabled) {
+                analyzeScreenshots(directory, invoker);
             }
             try {
                 service.updateStorageBytes(directory);
@@ -295,6 +310,24 @@ public final class AutomationJournalRun {
             }
             return null;
         });
+    }
+
+    /** Describes every screenshot of the journal that has no AI description yet. */
+    private void analyzeScreenshots(Path directory, SessionJournalAiSupport.AiInvoker invoker) {
+        SessionJournalScreenshotAnalyzer analyzer = screenshotAnalyzer;
+        if (analyzer == null || invoker == null) {
+            return;
+        }
+        try {
+            for (de.kortty.model.SessionJournalEntry entry : service.loadDocument(directory).getEntries()) {
+                if (entry.getKind() == de.kortty.model.SessionJournalEntryKind.SCREENSHOT
+                    && (entry.getAiDescription() == null || entry.getAiDescription().isBlank())) {
+                    analyzer.analyzeNow(directory, entry.getId(), invoker);
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("Could not analyze the screenshots of {}: {}", directory.getFileName(), e.getMessage());
+        }
     }
 
     private boolean deleteForUserSetting(GlobalSettings settings, Path directory, String reason) {
