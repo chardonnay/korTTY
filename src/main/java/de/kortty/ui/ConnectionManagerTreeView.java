@@ -5,8 +5,6 @@ import de.kortty.model.ServerConnection;
 import javafx.application.Platform;
 import javafx.scene.control.*;
 import javafx.scene.input.*;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -17,6 +15,16 @@ import java.util.stream.Collectors;
  * Custom TreeView for displaying and managing connection groups hierarchically.
  */
 public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemData> {
+
+    /**
+     * Connection and group rows: a little larger than the default text, colour left to the theme
+     * (a fixed colour was unreadable on dark designs).
+     */
+    static final String ENTRY_STYLE = "-fx-font-size: 1.08em;";
+    /** Jump-host placeholders under a connection: smaller and dimmed, in any theme. */
+    static final String PLACEHOLDER_STYLE = "-fx-font-size: 0.92em; -fx-opacity: 0.65;";
+    /** Connections the enterprise policy blocks: dimmed, in any theme. */
+    static final String BLOCKED_STYLE = ENTRY_STYLE + " -fx-opacity: 0.55;";
     
     private final List<ServerConnection> connections;
     private Button undoButton;
@@ -260,7 +268,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
         }
         cell.setText("🚫 " + item.getDisplayName()
             + (connection.getTag() != null ? "  🏷 " + connection.getTag() : ""));
-        cell.setTextFill(Color.GRAY);
+        cell.setStyle(BLOCKED_STYLE);
         cell.setTooltip(new Tooltip(I18n.get("policy.server.blocked.title") + " — "
             + de.kortty.policy.PolicyUiSupport.managedByOrganizationText()));
     }
@@ -278,12 +286,12 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                         setText(null);
                         setGraphic(null);
                     } else {
+                        setStyle(ENTRY_STYLE);
                         if (item.isGroup()) {
                             setText("📁 " + item.getDisplayName());
                         } else if (item.getConnection() != null && item.getConnection().isPlaceholder()) {
                             setText("└─ " + item.getDisplayName());
-                            setTextFill(Color.GRAY);
-                            setFont(Font.font(getFont().getFamily(), 10));
+                            setStyle(PLACEHOLDER_STYLE);
                         } else {
                             setText("🔌 " + item.getDisplayName());
                             markIfPolicyBlocked(this, item);
@@ -371,8 +379,9 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                     setText(null);
                     setGraphic(null);
                     setContextMenu(null);
-                    setTextFill(Color.BLACK);
-                    setFont(Font.font(getFont().getFamily(), 12));
+                    setTooltip(null);
+                    // Text colour comes from the theme (light on dark designs); only the size is set.
+                    setStyle(ENTRY_STYLE);
                     
                     if (empty || item == null) {
                         return;
@@ -386,8 +395,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                     } else if (item.getConnection() != null) {
                         if (item.getConnection().isPlaceholder()) {
                             setText("└─ " + item.getDisplayName());
-                            setTextFill(Color.GRAY);
-                            setFont(Font.font(getFont().getFamily(), 10));
+                            setStyle(PLACEHOLDER_STYLE);
                         } else {
                             String tag = item.getConnection().getTag();
                             setText("🔌 " + item.getDisplayName()

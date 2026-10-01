@@ -1257,7 +1257,7 @@
     },
     {
       "from": "Connection Manager-Suche",
-      "to": "Verbindungsmanager-Suche",
+      "to": "Connection-Manager-Suche",
       "scope": "markdown",
       "note": "Keeps the feature name German — the same section already says Verbindungsmanager-Baum."
     },
@@ -1275,7 +1275,7 @@
     },
     {
       "from": "über Quick Connect und Connection Manager",
-      "to": "über die Schnellverbindung und den Connection Manager",
+      "to": "über die Schnellverbindung und den Connection-Manager",
       "note": "Feature name: the German UI calls Quick Connect 'Schnellverbindung' (menu.connections.quickConnect), but MT keeps the English name in prose. The contextual rows of this block repair the article and case around the feminine noun before the bare row unifies the remaining plain mentions; longest first, as the ordering invariant requires."
     },
     {
@@ -1306,7 +1306,7 @@
     },
     {
       "from": "**Quick Connect**, den **Verbindungsmanager**",
-      "to": "die **Schnellverbindung**, den **Verbindungsmanager**",
+      "to": "die **Schnellverbindung**, den **Connection-Manager**",
       "scope": "markdown",
       "note": "Keeps the three entry points on the connections page parallel: die Schnellverbindung, den Verbindungsmanager, gespeicherte Projekte."
     },
@@ -2018,6 +2018,42 @@
       "to": "Loopback-`llama-server`-Zugriff (Lease) dafür",
       "scope": "markdown",
       "note": "'lease' is not a contract."
+    },
+    {
+      "from": "werden im Verbindungsverwaltungseinstellungen konfiguriert",
+      "to": "werden im Connection-Manager konfiguriert",
+      "scope": "markdown",
+      "note": "\"set in the Connection Manager\": the dialog is called Connection-Manager in German (connectionManager.title)."
+    },
+    {
+      "from": "gespeicherten Connection Manager-Eintrag",
+      "to": "gespeicherten Connection-Manager-Eintrag",
+      "scope": "markdown",
+      "note": "MT keeps the English name unhyphenated; German UI name is Connection-Manager."
+    },
+    {
+      "from": "Im Connection Manager ",
+      "to": "Im Connection-Manager ",
+      "scope": "markdown",
+      "note": "MT keeps the English name; German UI name is Connection-Manager. Not a blanket row: \"PuTTY Connection Manager\" is a product name."
+    },
+    {
+      "from": "im **Connection Manager**",
+      "to": "im **Connection-Manager**",
+      "scope": "markdown",
+      "note": "German UI name is Connection-Manager (bold UI reference)."
+    },
+    {
+      "from": "den Connection Manager",
+      "to": "den Connection-Manager",
+      "scope": "markdown",
+      "note": "German UI name is Connection-Manager (accusative/dative after den)."
+    },
+    {
+      "from": "Verbindungsmanager",
+      "to": "Connection-Manager",
+      "scope": "markdown",
+      "note": "The dialog is called Connection-Manager in German (connectionManager.title), like Snippet-Manager; also covers the genitive Verbindungsmanagers."
     }
   ]
 }
