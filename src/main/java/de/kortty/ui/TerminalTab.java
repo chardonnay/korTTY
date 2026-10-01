@@ -19,6 +19,7 @@ import javafx.scene.Node;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.Tab;
@@ -98,6 +99,12 @@ public class TerminalTab extends Tab {
     private boolean previousDisconnectedStatusBarManaged;
     private javafx.scene.layout.HBox journalDecisionBar;
     private Label journalDecisionLabel;
+    /** Red bar when the AI of an automatically started journal is not reachable. */
+    private javafx.scene.layout.HBox journalAiBar;
+    private Label journalAiLabel;
+    private boolean previousJournalAiBarVisible;
+    private boolean previousJournalAiBarManaged;
+    private boolean journalAiCheckRunning;
     private boolean previousJournalDecisionBarVisible;
     private boolean previousJournalDecisionBarManaged;
     /** True when the red disconnected bar was shown due to mosh network interruption (so we hide it on recovery). */
@@ -136,6 +143,8 @@ public class TerminalTab extends Tab {
         // Create disconnected status bar (red bar, shown when server disconnects; double-click to reconnect)
         createDisconnectedStatusBar();
         createJournalDecisionBar();
+        createJournalAiBar();
+        this.terminalView.setJournalAiPreflightListener(this::onAutomaticJournalAiPreflight);
         createRecordingBar();
         createJournalBar();
         
@@ -149,6 +158,9 @@ public class TerminalTab extends Tab {
         }
         if (journalBar != null) {
             container.getChildren().add(journalBar);
+        }
+        if (journalAiBar != null) {
+            container.getChildren().add(journalAiBar);
         }
         if (statusBarLabel != null) {
             container.getChildren().add(statusBarLabel);
@@ -271,6 +283,71 @@ public class TerminalTab extends Tab {
         journalDecisionBar.setManaged(false);
     }
 
+    /**
+     * Red bar for a journal that started automatically on connect while its AI is not reachable:
+     * capture already runs (the terminal is never blocked), the user decides whether to test
+     * again, keep recording without AI (the journal can be evaluated later) or end the journal.
+     */
+    private void createJournalAiBar() {
+        journalAiLabel = new Label();
+        journalAiLabel.setStyle("-fx-text-fill: white;");
+        journalAiLabel.setWrapText(true);
+        journalAiLabel.setMaxWidth(Double.MAX_VALUE);
+        javafx.scene.layout.HBox.setHgrow(journalAiLabel, Priority.ALWAYS);
+        Button retryButton = new Button(I18n.get("terminal.journal.ai.retry"));
+        retryButton.setOnAction(event -> retryAutomaticJournalAi());
+        Button withoutAiButton = new Button(I18n.get("terminal.journal.ai.withoutAi"));
+        withoutAiButton.setOnAction(event -> {
+            terminalView.disableSessionJournalAi();
+            hideJournalAiBar();
+            journalStatusLabel.setText(I18n.get("terminal.journal.ai.recordingWithoutAi"));
+        });
+        Button stopButton = new Button(I18n.get("terminal.journal.ai.stopJournal"));
+        stopButton.setOnAction(event -> {
+            hideJournalAiBar();
+            stopJournal();
+        });
+        journalAiBar = new javafx.scene.layout.HBox(10, journalAiLabel, retryButton, withoutAiButton, stopButton);
+        journalAiBar.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        journalAiBar.setStyle("-fx-background-color: #8B0000; -fx-padding: 4 10;");
+        journalAiBar.setMaxWidth(Double.MAX_VALUE);
+        journalAiBar.setVisible(false);
+        journalAiBar.setManaged(false);
+    }
+
+    private void onAutomaticJournalAiPreflight(de.kortty.core.SessionJournalAiPreflight.Result result) {
+        journalAiCheckRunning = false;
+        if (result.ok() || !isJournalActive()) {
+            hideJournalAiBar();
+            refreshJournalUi();
+            return;
+        }
+        journalAiLabel.setText(I18n.get("terminal.journal.ai.failedBar", failureText(result)));
+        applyChromeAwareVisibility(journalAiBar, true, true);
+    }
+
+    private void retryAutomaticJournalAi() {
+        if (journalAiCheckRunning) {
+            return;
+        }
+        journalAiCheckRunning = true;
+        journalAiLabel.setText(I18n.get("terminal.journal.ai.checking"));
+        terminalView.runJournalAiPreflight();
+    }
+
+    private void hideJournalAiBar() {
+        if (journalAiBar != null) {
+            applyChromeAwareVisibility(journalAiBar, false, false);
+        }
+    }
+
+    private static String failureText(de.kortty.core.SessionJournalAiPreflight.Result result) {
+        String profile = result.profileName() != null && !result.profileName().isBlank()
+            ? result.profileName() : I18n.get("terminal.journal.ai.noProfile");
+        String reason = result.message() != null ? result.message() : "";
+        return profile + " — " + reason;
+    }
+
     /** Shows the journal decision bar instead of the plain disconnected bar. */
     private void showJournalDecisionBar() {
         disconnectedAt = Instant.now();
@@ -345,12 +422,15 @@ public class TerminalTab extends Tab {
             previousDisconnectedStatusBarManaged = disconnectedStatusBar != null && disconnectedStatusBar.isManaged();
             previousJournalDecisionBarVisible = journalDecisionBar != null && journalDecisionBar.isVisible();
             previousJournalDecisionBarManaged = journalDecisionBar != null && journalDecisionBar.isManaged();
+            previousJournalAiBarVisible = journalAiBar != null && journalAiBar.isVisible();
+            previousJournalAiBarManaged = journalAiBar != null && journalAiBar.isManaged();
             terminalChromeVisible = false;
             applyNodeVisibility(recordingBar, false, false);
             applyNodeVisibility(journalBar, false, false);
             applyNodeVisibility(statusBarLabel, false, false);
             applyNodeVisibility(disconnectedStatusBar, false, false);
             applyNodeVisibility(journalDecisionBar, false, false);
+            applyNodeVisibility(journalAiBar, false, false);
             return;
         }
 
@@ -366,6 +446,7 @@ public class TerminalTab extends Tab {
             journalDecisionBar,
             previousJournalDecisionBarVisible,
             previousJournalDecisionBarManaged);
+        applyNodeVisibility(journalAiBar, previousJournalAiBarVisible, previousJournalAiBarManaged);
     }
 
     public void refreshRecordingControlsVisibility() {
@@ -612,10 +693,67 @@ public class TerminalTab extends Tab {
             showJournalError(I18n.get("terminal.journal.error.notConnected"));
             return;
         }
-        if (!terminalView.enableSessionJournalRetroactively()) {
+        if (!terminalView.sessionJournalWouldUseAi()) {
+            enableJournalNow(false);
+            return;
+        }
+        checkAiThenStartJournal();
+    }
+
+    /**
+     * A journal whose summaries can never be written is pointless: test the AI first and only
+     * then start. The scrollback is imported when the journal starts, so output printed during
+     * the test is not lost.
+     */
+    private void checkAiThenStartJournal() {
+        if (journalAiCheckRunning) {
+            return;
+        }
+        journalAiCheckRunning = true;
+        journalStatusLabel.setText(I18n.get("terminal.journal.ai.checking"));
+        de.kortty.core.SessionJournalAiPreflight.checkAsync(de.kortty.core.SessionJournalAiSupport.applicationInvoker())
+            .thenAccept(result -> Platform.runLater(() -> {
+                journalAiCheckRunning = false;
+                if (result.ok()) {
+                    enableJournalNow(false);
+                } else {
+                    askAfterFailedJournalAiCheck(result);
+                }
+            }));
+    }
+
+    private void askAfterFailedJournalAiCheck(de.kortty.core.SessionJournalAiPreflight.Result result) {
+        ButtonType retry = new ButtonType(I18n.get("terminal.journal.ai.retry"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType withoutAi = new ButtonType(I18n.get("terminal.journal.ai.withoutAi"), ButtonBar.ButtonData.OTHER);
+        ButtonType cancel = new ButtonType(I18n.get("terminal.journal.ai.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
+        Alert alert = new Alert(Alert.AlertType.WARNING, "", retry, withoutAi, cancel);
+        DialogThemeHelper.applyTheme(alert);
+        alert.setTitle(I18n.get("terminal.journal.ai.dialogTitle"));
+        alert.setHeaderText(I18n.get("terminal.journal.ai.dialogHeader"));
+        alert.setContentText(I18n.get("terminal.journal.ai.dialogText", failureText(result)));
+        alert.getDialogPane().setMinHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
+        ButtonType choice = alert.showAndWait().orElse(cancel);
+        if (choice == retry) {
+            checkAiThenStartJournal();
+        } else if (choice == withoutAi) {
+            enableJournalNow(true);
+        } else {
+            refreshJournalUi();
+        }
+    }
+
+    private void enableJournalNow(boolean withoutAi) {
+        if (!terminalView.isConnected()) {
+            showJournalError(I18n.get("terminal.journal.error.notConnected"));
+        } else if (!terminalView.enableSessionJournalRetroactively()) {
             showJournalError(I18n.get("terminal.journal.error.start", ""));
+        } else if (withoutAi) {
+            terminalView.disableSessionJournalAi();
         }
         refreshJournalUi();
+        if (withoutAi && isJournalActive()) {
+            journalStatusLabel.setText(I18n.get("terminal.journal.ai.recordingWithoutAi"));
+        }
     }
 
     private void stopJournal() {
@@ -735,6 +873,9 @@ public class TerminalTab extends Tab {
             }
         }
         boolean active = isJournalActive();
+        if (!active) {
+            hideJournalAiBar();
+        }
         refreshJournalControlsVisibility();
         journalToggleButton.setText(I18n.get(active ? "terminal.journal.stop" : "terminal.journal.start"));
         setJournalButtonIcon(active);
@@ -879,6 +1020,9 @@ public class TerminalTab extends Tab {
         } else if (node == journalDecisionBar) {
             previousJournalDecisionBarVisible = visible;
             previousJournalDecisionBarManaged = managed;
+        } else if (node == journalAiBar) {
+            previousJournalAiBarVisible = visible;
+            previousJournalAiBarManaged = managed;
         }
         node.setVisible(terminalChromeVisible && visible);
         node.setManaged(terminalChromeVisible && managed);

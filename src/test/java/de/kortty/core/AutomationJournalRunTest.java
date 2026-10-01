@@ -7,6 +7,8 @@ import de.kortty.model.AutomationRunStatus;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.SessionJournalMeta;
+import de.kortty.model.SessionJournalEntryKind;
+import de.kortty.model.SessionJournalEntry;
 import de.kortty.model.SessionJournalSourceKind;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -30,10 +32,20 @@ class AutomationJournalRunTest {
     /** Answers every summary prompt and counts the calls. */
     private static final class CountingInvoker implements SessionJournalAiSupport.AiInvoker {
         final AtomicInteger calls = new AtomicInteger();
+        final AtomicInteger connectionTests = new AtomicInteger();
+        volatile boolean unreachable;
 
         @Override
         public boolean isAvailable() {
             return true;
+        }
+
+        @Override
+        public void testConnection() throws Exception {
+            connectionTests.incrementAndGet();
+            if (unreachable) {
+                throw new java.io.IOException("connection refused");
+            }
         }
 
         @Override
@@ -131,6 +143,28 @@ class AutomationJournalRunTest {
         assertThat(invoker.calls.get()).isGreaterThan(0);
         assertThat(meta.getAiTotalTokens()).isGreaterThan(0L);
         assertThat(limitCalls.get()).isEqualTo(1);
+    }
+
+    @Test
+    void anUnreachableAiIsTestedOncePerRunAndTheJournalIsKeptAsALogWithANote() throws Exception {
+        invoker.unreachable = true;
+        AutomationJournalRun run = run(config(), AutomationJournalPolicy.UNRESTRICTED);
+        record(run, connection("c1", "web01"), " 10:00 up 3 days");
+        record(run, connection("c2", "web02"), " 10:00 up 9 days");
+
+        AutomationJournalRun.FinishResult result = run.finish(AutomationRunStatus.SUCCESS);
+        await(result);
+
+        assertThat(result.kept()).hasSize(2);
+        assertThat(invoker.connectionTests.get()).isEqualTo(1);
+        assertThat(invoker.calls.get()).isEqualTo(0);
+        for (Path dir : result.kept()) {
+            var entries = service.loadDocument(dir).getEntries();
+            assertThat(entries.stream().anyMatch(entry -> entry.getKind() == SessionJournalEntryKind.AI_SUMMARY
+                && entry.getState() == SessionJournalEntry.State.RAW)).isTrue();
+            assertThat(entries.stream().anyMatch(entry -> entry.getKind() == SessionJournalEntryKind.SYSTEM
+                && entry.getText() != null && entry.getText().contains("connection refused"))).isTrue();
+        }
     }
 
     @Test
