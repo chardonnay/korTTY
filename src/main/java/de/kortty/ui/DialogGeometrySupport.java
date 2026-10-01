@@ -95,15 +95,17 @@ public final class DialogGeometrySupport {
             if (!(window instanceof Stage stage)) {
                 return;
             }
-            if (usable != null && !isRestoreSuppressed(dialog)) {
-                if (sizeStillValid) {
-                    stage.setWidth(usable.getWidth());
-                    stage.setHeight(usable.getHeight());
+            whenShowing(stage, () -> {
+                if (usable != null && !isRestoreSuppressed(dialog)) {
+                    if (sizeStillValid) {
+                        stage.setWidth(usable.getWidth());
+                        stage.setHeight(usable.getHeight());
+                    }
+                    stage.setX(usable.getX());
+                    stage.setY(usable.getY());
                 }
-                stage.setX(usable.getX());
-                stage.setY(usable.getY());
-            }
-            track(dialog, stage);
+                track(dialog, stage);
+            });
         });
     }
 
@@ -191,11 +193,18 @@ public final class DialogGeometrySupport {
             if (!(window instanceof Stage stage)) {
                 return;
             }
-            if (usable != null) {
-                stage.setX(usable.getX());
-                stage.setY(usable.getY());
-            }
-            track(dialog, stage);
+            boolean applySize = usable != null && uiFontScaleMatchesStoredGeometry();
+            whenShowing(stage, () -> {
+                if (usable != null) {
+                    if (applySize) {
+                        stage.setWidth(usable.getWidth());
+                        stage.setHeight(usable.getHeight());
+                    }
+                    stage.setX(usable.getX());
+                    stage.setY(usable.getY());
+                }
+                track(dialog, stage);
+            });
         });
         dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> {
             if (isExplicit(dialog) || isHostedInTab(dialog)) {
@@ -211,6 +220,29 @@ public final class DialogGeometrySupport {
             currentSettings.setUiFontScalePercentAtGeometrySave(UiFontScaleSupport.effectivePercent());
             // Bookkeeping, not a user action: written off the FX thread, merged with other saves.
             manager.scheduleSave();
+        });
+    }
+
+    /**
+     * Runs {@code action} once the stage is really on screen. For {@code showAndWait()} JavaFX
+     * fires DIALOG_SHOWN <em>before</em> the window is shown and then centres it, which would undo
+     * a restored position (and, depending on the platform, the size) — the Connection Manager
+     * reopened centred at its default size although its geometry had been stored.
+     */
+    static void whenShowing(Stage stage, Runnable action) {
+        if (stage.isShowing()) {
+            action.run();
+            return;
+        }
+        stage.showingProperty().addListener(new javafx.beans.value.ChangeListener<>() {
+            @Override
+            public void changed(javafx.beans.value.ObservableValue<? extends Boolean> observable,
+                                Boolean wasShowing, Boolean showing) {
+                if (Boolean.TRUE.equals(showing)) {
+                    observable.removeListener(this);
+                    action.run();
+                }
+            }
         });
     }
 

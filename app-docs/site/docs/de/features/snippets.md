@@ -332,7 +332,7 @@ Eine Werkzeugleiste verläuft entlang der oberen Kante des Panels, der Bericht b
 
 - **Alle Verbesserungen auswählen** – Das erste Steuerelement ganz links aktiviert oder deaktiviert alle Sicherheits-, Optimierungs- und Designverbesserungen auf einmal. Durch den zusätzlichen Abstand wird diese Massenaktion klar vom folgenden **Profil:**-Indikator getrennt. Dieses Steuerelement ändert niemals eine Abhängigkeitsauswahl.
 - **Verwendetes Profil** – Der Name des KI-Profils, mit dem die Analyse ausgeführt wurde, wird neben diesem Kontrollkästchen angezeigt (für das Standardprofil wird sein *tatsächlicher* Name angezeigt, z. B. *Profil: LM Studio* – nicht nur „Standardprofil“), sodass Sie immer erkennen können, welches Modell den Bericht erstellt hat.
-- **KI-Skills** – Wenn [KI-Fähigkeiten](../reference/settings/ai-skills.md) konfiguriert sind, wird in einer Zeile angezeigt, welche Fertigkeiten enthalten waren, und Sie können diese ändern; siehe **KI-Skills für diese Analyse** unten.
+- **KI-Skills** – Wenn [KI-Skills](../reference/settings/ai-skills.md) konfiguriert sind, wird in einer Zeile angezeigt, welche Fertigkeiten enthalten waren, und Sie können diese ändern; siehe **KI-Skills für diese Analyse** unten.
 - **Erneut ausführen** — Ein temporärer KI-Profilpicker plus ein **Erneut ausführen**-Button wiederholen die Analyse mit dem gewählten Profil *und* Ihrer aktuellen KI-Skill-Auswahl. Der Picker setzt sich beim Neuaufbau des Panels auf den Standard zurück.
 - **A− / A+** – Passen Sie die Leseschriftgröße an (wird sitzungsübergreifend gespeichert).
 - **Kopieren** – Kopieren Sie die Zusammenfassung, Verbesserungen und Abhängigkeiten als Klartext in die Zwischenablage.

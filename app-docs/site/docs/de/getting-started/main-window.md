@@ -29,7 +29,7 @@ Die Kopfzeile zeigt das Paneltitel mit zwei Schaltflächen: ein Auf-/Zuklapp-Sch
 
 - **Hauptfenster** – der Stammknoten mit einer aktiven/Gesamtsitzungsanzahl.
 - **Umgebungen** – Verbindungen, deren gespeicherte Anmeldeinformationen eine Umgebung haben (z. B. *Produktion* oder *Test*), werden unter einem Umgebungsknoten geclustert; Anschlüsse ohne einen befinden sich direkt unter dem Hauptfenster.
-- **Gruppen** – Registerkarten, die einer Verbindungsgruppe zugewiesen sind, werden unter ihrem Gruppenknoten angezeigt. Durch das Speichern einer geänderten Gruppe im Verbindungsmanager werden geöffnete Registerkarten sofort aktualisiert.
+- **Gruppen** – Registerkarten, die einer Verbindungsgruppe zugewiesen sind, werden unter ihrem Gruppenknoten angezeigt. Durch das Speichern einer geänderten Gruppe im Connection-Manager werden geöffnete Registerkarten sofort aktualisiert.
 
 Jede Verbindungszeile zeigt ein Typsymbol, einen Statuspunkt, den Servernamen und ein Protokoll-Badge (`ssh`, `mosh` oder `local`). Der Statuspunkt unterscheidet drei Zustände: grün gefüllt für eine fehlerfreie Verbindung, rot gefüllt für eine Verbindung, die unerwartet unterbrochen wurde (einschließlich einer Unterbrechung des Mosh-Netzwerks) und ein leerer Umriss für eine Sitzung, die normal beendet wurde. Terminals mit KI-Agentenläufen tragen das gleiche ✋/⚡/⏸/ ✓-Abzeichen wie anderswo. Wenn Sie den Mauszeiger über eine Zeile bewegen, werden `user@host` und der Verbindungsstatus angezeigt. Ein Doppelklick (oder ++enter++) fokussiert die Registerkarte der Sitzung.
 
@@ -41,7 +41,7 @@ Klicken Sie unter macOS mit der rechten Maustaste (oder bei gedrückter Ctrl-Tas
 
 - **Neues Fenster**
 - **Neuer Tab im aktuellen Fenster**
-- **Verbindungen verwalten…** (Verbindungsmanager)
+- **Verbindungen verwalten…** (Connection-Manager)
 - **Projekt öffnen…**
 - **Anleitung** (die In-App-Anleitung)
 - **Über korTTY**
