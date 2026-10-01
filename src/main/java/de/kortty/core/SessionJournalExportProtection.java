@@ -140,10 +140,32 @@ public final class SessionJournalExportProtection {
         }
     }
 
+    /** Gpg4win's install folders; the PATH and the usual Unix/Homebrew folders are searched first. */
+    private static final List<String> WINDOWS_GPG = List.of(
+        "C:\\Program Files (x86)\\GnuPG\\bin\\gpg.exe",
+        "C:\\Program Files\\GnuPG\\bin\\gpg.exe");
+
+    /**
+     * The absolute path of the installed {@code gpg}, or empty — run by absolute path so a
+     * {@code gpg} planted in the working directory or an early PATH entry is never picked up
+     * implicitly by the process launcher.
+     */
+    public static java.util.Optional<String> resolveGpg() {
+        java.util.Optional<String> found = AiCliProviderRegistry.findExecutable("gpg");
+        if (found.isPresent()) {
+            return found.map(path -> Path.of(path).toAbsolutePath().toString());
+        }
+        return WINDOWS_GPG.stream().filter(path -> Files.isExecutable(Path.of(path))).findFirst();
+    }
+
     /** Whether a usable {@code gpg} is installed. */
     public static boolean isGpgAvailable() {
+        java.util.Optional<String> gpg = resolveGpg();
+        if (gpg.isEmpty()) {
+            return false;
+        }
         try {
-            Process process = new ProcessBuilder("gpg", "--version").redirectErrorStream(true).start();
+            Process process = new ProcessBuilder(gpg.get(), "--version").redirectErrorStream(true).start();
             process.getInputStream().readAllBytes();
             return process.waitFor(10, TimeUnit.SECONDS) && process.exitValue() == 0;
         } catch (Exception e) {
@@ -153,7 +175,8 @@ public final class SessionJournalExportProtection {
 
     private static void encryptWithSystemGpg(Path input, Path output, String keyId, String publicKeyPath)
             throws IOException {
-        List<String> command = new ArrayList<>(List.of("gpg", "--batch", "--yes", "--trust-model", "always",
+        String gpg = resolveGpg().orElseThrow(() -> new IOException("gpg is not installed or not found"));
+        List<String> command = new ArrayList<>(List.of(gpg, "--batch", "--yes", "--trust-model", "always",
             "--encrypt"));
         if (publicKeyPath != null && !publicKeyPath.isBlank() && Files.isRegularFile(Path.of(publicKeyPath))) {
             // the key file korTTY manages works even when the key is not in the gpg keyring
