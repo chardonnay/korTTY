@@ -23,6 +23,8 @@ public final class AutomationJournalCostEstimator {
     static final int TOKENS_PER_LINE = 25;
     /** Completion tokens of one summary answer. */
     static final int ANSWER_TOKENS = 400;
+    /** Generous tokens of one screenshot description (image input plus a short answer). */
+    static final int VISION_TOKENS_PER_SCREENSHOT = 1_600;
 
     /**
      * @param tokensPerRun     estimated journal AI tokens of one run (all targets)
@@ -53,6 +55,23 @@ public final class AutomationJournalCostEstimator {
             Double runsPerDay,
             AiProfile profile,
             GlobalSettings settings) {
+        return estimate(journals, kind, sourceId, config, targets, runsPerDay, profile, settings, 0);
+    }
+
+    /**
+     * @param screenshotsPerTarget screenshots a run may take per server (virtual terminal), each of
+     *                             which the AI describes; only used for the upper bound
+     */
+    public static Estimate estimate(
+            List<SessionJournalMeta> journals,
+            SessionJournalSourceKind kind,
+            String sourceId,
+            AutomationJournalConfig config,
+            int targets,
+            Double runsPerDay,
+            AiProfile profile,
+            GlobalSettings settings,
+            int screenshotsPerTarget) {
         long perRun = 0;
         boolean fromHistory = false;
         if (config != null && config.getAiMode() != AutomationJournalAiMode.OFF) {
@@ -61,7 +80,8 @@ public final class AutomationJournalCostEstimator {
                 perRun = average;
                 fromHistory = true;
             } else {
-                perRun = upperBoundPerTarget(settings) * Math.max(1, targets);
+                perRun = (upperBoundPerTarget(settings)
+                    + (long) Math.max(0, screenshotsPerTarget) * VISION_TOKENS_PER_SCREENSHOT) * Math.max(1, targets);
             }
         }
         Long perDay = runsPerDay != null ? Math.round(perRun * runsPerDay) : null;

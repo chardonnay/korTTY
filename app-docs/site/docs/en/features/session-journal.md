@@ -68,7 +68,7 @@ Closing the tab instead also ends the journal with its closing summary. Without 
 
 JobScheduler jobs — including scheduled AI Swarm jobs — and runs started in the [AI Swarm](ai-swarm.md#session-journal-per-run) tab can record a session journal for every run on their own, without a terminal tab: one journal per target server, holding the commands the automation sent, their output, its summary and the outcome on that server. They are set up per job in the JobScheduler — see [Session journal per run](jobscheduler.md#session-journal-per-run) for the settings (AI summaries always / only for failed runs / off, keep always / only failed runs, automatic deletion after N days or on a date, maximum runs and disk space, discarding runs identical to the previous one) and the cost warning shown when they are switched on.
 
-Automation journals are titled after the job, the server and the start time, and their AI summaries run once after the run has finished — on their own worker, so they never delay the summaries of the terminal you are working in. **AI profile for automation journals** in **Settings > Logging > Session Journal** picks the profile they use when a job does not choose its own; **Same as for summaries** uses the journal profile described under [AI summaries](#ai-summaries). A cheap or local model keeps unattended runs affordable.
+Jobs whose command runs in the [virtual terminal](jobscheduler.md#virtual-terminal-and-screenshots) also add screenshots of that invisible screen; the AI describes them in the closing pass when the AI mode applies. Automation journals are titled after the job, the server and the start time, and their AI summaries run once after the run has finished — on their own worker, so they never delay the summaries of the terminal you are working in. **AI profile for automation journals** in **Settings > Logging > Session Journal** picks the profile they use when a job does not choose its own; **Same as for summaries** uses the journal profile described under [AI summaries](#ai-summaries). A cheap or local model keeps unattended runs affordable.
 
 Expired automation journals are deleted automatically — a minute after korTTY starts and then every hour — as are the oldest runs of a job beyond its maximum number of runs or disk space. Running journals, journals whose summary is still being written, pinned journals and interactive journals are never touched. In the [journal manager](#managing-journals) the **Deleted on** column shows when a journal goes, and **Keep (pin)** in a journal's right-click menu exempts it from automatic deletion (**Release pin** undoes it).
 
@@ -249,6 +249,7 @@ Small badges next to each title say what a row is at a glance:
 | **AI** · **Log only** · **AI on failure** | The AI mode the run was recorded with |
 | **local** | The summaries came from a local model (no token costs) |
 | **×N identical** | N runs produced exactly this output; the later ones were discarded in favour of this journal |
+| **📷 N** | The journal holds N screenshots of the job's virtual terminal |
 | **📌 Kept** | Pinned: never deleted automatically |
 | **deleted in N d** · **deleted today** | Time left until automatic deletion (highlighted when less than two days are left) |
 | **policy limit** | An administrator caps the retention, disk space or number of automation journals |

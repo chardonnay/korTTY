@@ -174,7 +174,7 @@ public class SessionJournalScreenshotAnalyzer {
         try {
             workExecutor.execute(() -> {
                 try {
-                    runAnalysis(journalDir, entryId, trigger);
+                    runAnalysis(journalDir, entryId, trigger, aiInvoker);
                     future.complete(null);
                 } catch (Throwable t) {
                     if (trigger == Trigger.AUTO) {
@@ -198,7 +198,26 @@ public class SessionJournalScreenshotAnalyzer {
         return future;
     }
 
-    private void runAnalysis(Path journalDir, String entryId, Trigger trigger) throws Exception {
+    /**
+     * Analyzes one screenshot right now, on the calling thread, with {@code invoker} instead of
+     * the journal profile — the closing pass of an automation run journal, which has its own
+     * profile and already decided that AI should run. Silently skips when the policy forbids the
+     * analysis or the profile cannot take images; never throws.
+     */
+    public void analyzeNow(Path journalDir, String entryId, SessionJournalAiSupport.AiInvoker invoker) {
+        if (journalDir == null || entryId == null || invoker == null || !policyAllowsAnalysis()) {
+            return;
+        }
+        try {
+            runAnalysis(journalDir, entryId, Trigger.AUTO, invoker);
+        } catch (Exception e) {
+            logger.debug("Automation screenshot analysis failed for {} entry {}: {}",
+                journalDir.getFileName(), entryId, e.getMessage());
+        }
+    }
+
+    private void runAnalysis(Path journalDir, String entryId, Trigger trigger,
+                             SessionJournalAiSupport.AiInvoker aiInvoker) throws Exception {
         // Authoritative capability check — may ask the endpoint's model metadata (LM Studio),
         // which is why it runs here on the worker and not on the capture or FX thread.
         if (!aiInvoker.isVisionAvailableLive()) {
@@ -230,7 +249,7 @@ public class SessionJournalScreenshotAnalyzer {
             entry.getCreatedAt(),
             entry.getText());
 
-        AiExecutionResult result = executeWithTimeout(systemPrompt, userPrompt, List.of(AiImageInput.png(png)));
+        AiExecutionResult result = executeWithTimeout(aiInvoker, systemPrompt, userPrompt, List.of(AiImageInput.png(png)));
         if (result != null && result.usage() != null) {
             try {
                 service.addAiUsage(journalDir, result.usage(), aiInvoker.profile());
@@ -299,7 +318,7 @@ public class SessionJournalScreenshotAnalyzer {
         return png;
     }
 
-    private AiExecutionResult executeWithTimeout(
+    private AiExecutionResult executeWithTimeout(SessionJournalAiSupport.AiInvoker aiInvoker,
             String systemPrompt, String userPrompt, List<AiImageInput> images) throws Exception {
         Future<AiExecutionResult> future = aiCallExecutor.submit(
             () -> aiInvoker.executeVision(systemPrompt, userPrompt, images));
