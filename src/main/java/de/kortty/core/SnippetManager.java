@@ -4,6 +4,7 @@ import de.kortty.model.GPGKey;
 import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
 import de.kortty.model.SnippetDiagram;
+import de.kortty.model.SnippetFolder;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
@@ -65,7 +66,7 @@ public class SnippetManager {
     static {
         try {
             JAXB_CONTEXT = JAXBContext.newInstance(
-                SnippetsWrapper.class, Snippet.class, SnippetCategory.class, SnippetDiagram.class);
+                SnippetsWrapper.class, Snippet.class, SnippetCategory.class, SnippetDiagram.class, SnippetFolder.class);
         } catch (JAXBException e) {
             throw new ExceptionInInitializerError(e);
         }
@@ -85,6 +86,7 @@ public class SnippetManager {
     private final Path configDir;
     private final List<Snippet> snippets = new ArrayList<>();
     private final List<SnippetCategory> categories = new ArrayList<>();
+    private final List<SnippetFolder> folders = new ArrayList<>();
     private final List<String> operatingSystems = new ArrayList<>();
     private final List<Consumer<Change>> changeListeners = new CopyOnWriteArrayList<>();
     /** Ids removed via {@link #removeSnippet} that no successful save has reported yet. */
@@ -170,6 +172,7 @@ public class SnippetManager {
                 + "with an empty snippet list", file, loadFailureBackup, parseFailure);
             snippets.clear();
             categories.clear();
+            folders.clear();
             operatingSystems.clear();
             ensureDefaults();
             fireChange(new Change(Set.of(), true));
@@ -185,6 +188,15 @@ public class SnippetManager {
         categories.clear();
         if (wrapper.getCategories() != null) {
             categories.addAll(wrapper.getCategories());
+        }
+
+        folders.clear();
+        if (wrapper.getFolders() != null) {
+            wrapper.getFolders().stream().filter(Objects::nonNull).forEach(folders::add);
+        }
+        int repairedFolderReferences = repairFolderReferences();
+        if (repairedFolderReferences > 0) {
+            logger.warn("Repaired {} dangling snippet folder references in {}", repairedFolderReferences, file);
         }
 
         operatingSystems.clear();
@@ -250,6 +262,7 @@ public class SnippetManager {
                 .filter(snippet -> snippet == null || !snippet.isPolicyManaged())
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new)));
             wrapper.setCategories(new ArrayList<>(categories));
+            wrapper.setFolders(new ArrayList<>(folders));
             wrapper.setOperatingSystems(new ArrayList<>(operatingSystems));
 
             Marshaller marshaller = JAXB_CONTEXT.createMarshaller();
@@ -442,6 +455,317 @@ public class SnippetManager {
                 .sorted(java.util.Comparator.comparing(s -> s.getName() != null ? s.getName() : "",
                         String.CASE_INSENSITIVE_ORDER))
                 .collect(java.util.stream.Collectors.toList());
+    }
+
+    // ---- Folders ----
+
+    /** Every folder, in no particular order; build the tree with {@link #childFolders}. */
+    public List<SnippetFolder> getAllFolders() {
+        return new ArrayList<>(folders);
+    }
+
+    public Optional<SnippetFolder> findFolder(String folderId) {
+        if (folderId == null) {
+            return Optional.empty();
+        }
+        return folders.stream().filter(folder -> folderId.equals(folder.getId())).findFirst();
+    }
+
+    /** The direct sub-folders of {@code parentId} ({@code null} = top level), sorted by order then name. */
+    public List<SnippetFolder> childFolders(String parentId) {
+        return folders.stream()
+            .filter(folder -> Objects.equals(folder.getParentId(), parentId))
+            .sorted(Comparator.comparingInt(SnippetFolder::getSortOrder)
+                .thenComparing(folder -> folder.getName() != null ? folder.getName() : "",
+                    String.CASE_INSENSITIVE_ORDER))
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Creates a folder named {@code name} below {@code parentId} ({@code null} = top level).
+     *
+     * @throws IllegalArgumentException for a blank or invalid name, an unknown parent, or a name a
+     *                                  sibling already uses
+     */
+    public SnippetFolder addFolder(String name, String parentId) {
+        String normalized = requireValidFolderName(name);
+        if (parentId != null && findFolder(parentId).isEmpty()) {
+            throw new IllegalArgumentException("Unknown parent folder: " + parentId);
+        }
+        requireUniqueFolderName(normalized, parentId, null);
+        SnippetFolder folder = new SnippetFolder(normalized, parentId);
+        folder.setSortOrder(childFolders(parentId).size());
+        folders.add(folder);
+        logger.info("Added snippet folder: {}", normalized);
+        return folder;
+    }
+
+    public void renameFolder(String folderId, String name) {
+        SnippetFolder folder = findFolder(folderId)
+            .orElseThrow(() -> new IllegalArgumentException("Unknown folder: " + folderId));
+        String normalized = requireValidFolderName(name);
+        requireUniqueFolderName(normalized, folder.getParentId(), folder.getId());
+        folder.setName(normalized);
+    }
+
+    /**
+     * Moves a folder (with its contents) below {@code newParentId} ({@code null} = top level).
+     *
+     * @throws IllegalArgumentException when the target is the folder itself or one of its
+     *                                  sub-folders, or a sibling there already has its name
+     */
+    public void moveFolder(String folderId, String newParentId) {
+        SnippetFolder folder = findFolder(folderId)
+            .orElseThrow(() -> new IllegalArgumentException("Unknown folder: " + folderId));
+        if (Objects.equals(folder.getParentId(), newParentId)) {
+            return;
+        }
+        if (newParentId != null) {
+            if (findFolder(newParentId).isEmpty()) {
+                throw new IllegalArgumentException("Unknown target folder: " + newParentId);
+            }
+            if (isSameOrDescendant(newParentId, folderId)) {
+                throw new IllegalArgumentException("A folder cannot be moved into itself or one of its sub-folders");
+            }
+        }
+        requireUniqueFolderName(folder.getName(), newParentId, folder.getId());
+        folder.setParentId(newParentId);
+        folder.setSortOrder(childFolders(newParentId).size());
+    }
+
+    /**
+     * Removes a folder. With {@code deleteContents} its sub-folders and snippets go too (policy
+     * managed snippets never live in a folder); otherwise they move up into the folder's parent,
+     * with a numeric suffix where a moved sub-folder's name is already taken there.
+     *
+     * @return the snippets that were removed
+     */
+    public List<Snippet> removeFolder(String folderId, boolean deleteContents) {
+        SnippetFolder folder = findFolder(folderId).orElse(null);
+        if (folder == null) {
+            return List.of();
+        }
+        List<Snippet> removed = new ArrayList<>();
+        if (deleteContents) {
+            Set<String> doomed = descendantFolderIds(folderId);
+            for (Snippet snippet : new ArrayList<>(snippets)) {
+                if (snippet.getFolderId() != null && doomed.contains(snippet.getFolderId())) {
+                    removeSnippet(snippet);
+                    removed.add(snippet);
+                }
+            }
+            folders.removeIf(candidate -> doomed.contains(candidate.getId()));
+        } else {
+            String parentId = folder.getParentId();
+            folders.remove(folder);
+            for (SnippetFolder child : childFolders(folderId)) {
+                child.setName(uniqueFolderName(child.getName(), parentId, child.getId()));
+                child.setParentId(parentId);
+            }
+            for (Snippet snippet : snippets) {
+                if (folderId.equals(snippet.getFolderId())) {
+                    snippet.setFolderId(parentId);
+                }
+            }
+        }
+        logger.info("Removed snippet folder: {} (contents {})", folder.getName(), deleteContents ? "deleted" : "kept");
+        return removed;
+    }
+
+    /**
+     * Moves the given snippets into {@code folderId} ({@code null} = top level). Policy-managed
+     * snippets are rebuilt from the policy on every load, so they stay where they are.
+     *
+     * @return how many snippets actually moved
+     */
+    public int moveSnippetsToFolder(Collection<String> snippetIds, String folderId) {
+        if (folderId != null && findFolder(folderId).isEmpty()) {
+            throw new IllegalArgumentException("Unknown folder: " + folderId);
+        }
+        if (snippetIds == null || snippetIds.isEmpty()) {
+            return 0;
+        }
+        Set<String> ids = new HashSet<>(snippetIds);
+        int moved = 0;
+        for (Snippet snippet : snippets) {
+            if (snippet != null && !snippet.isPolicyManaged() && ids.contains(snippet.getId())
+                && !Objects.equals(snippet.getFolderId(), folderId)) {
+                snippet.setFolderId(folderId);
+                snippet.markModified();
+                moved++;
+            }
+        }
+        return moved;
+    }
+
+    /** The folders from the top level down to {@code folderId}; empty for the top level or an unknown id. */
+    public List<SnippetFolder> folderChain(String folderId) {
+        List<SnippetFolder> chain = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        SnippetFolder current = findFolder(folderId).orElse(null);
+        while (current != null && seen.add(current.getId())) {
+            chain.add(0, current);
+            current = findFolder(current.getParentId()).orElse(null);
+        }
+        return chain;
+    }
+
+    /** The folder's path as {@code a/b/c}; {@code ""} for the top level. */
+    public String folderPath(String folderId) {
+        return folderChain(folderId).stream().map(SnippetFolder::getName).collect(Collectors.joining("/"));
+    }
+
+    /**
+     * The folder at {@code path} ({@code a/b/c}) below {@code parentId}, created segment by segment
+     * where missing. Invalid characters in a segment are replaced, empty and {@code .}/{@code ..}
+     * segments skipped.
+     *
+     * @return the id of the deepest folder, or {@code parentId} for an empty path
+     */
+    public String ensureFolderPath(String path, String parentId) {
+        String current = parentId;
+        if (path == null) {
+            return current;
+        }
+        for (String rawSegment : path.replace('\\', '/').split("/")) {
+            String segment = sanitizeFolderName(rawSegment);
+            if (segment.isEmpty()) {
+                continue;
+            }
+            String parent = current;
+            Optional<SnippetFolder> existing = childFolders(parent).stream()
+                .filter(folder -> folder.getName() != null && folder.getName().equalsIgnoreCase(segment))
+                .findFirst();
+            current = existing.map(SnippetFolder::getId).orElseGet(() -> addFolder(segment, parent).getId());
+        }
+        return current;
+    }
+
+    /** {@code folderId} and every folder below it. */
+    public Set<String> descendantFolderIds(String folderId) {
+        Set<String> result = new LinkedHashSet<>();
+        if (folderId == null) {
+            return result;
+        }
+        Deque<String> pending = new ArrayDeque<>();
+        pending.add(folderId);
+        while (!pending.isEmpty()) {
+            String next = pending.poll();
+            if (result.add(next)) {
+                folders.stream()
+                    .filter(folder -> next.equals(folder.getParentId()))
+                    .map(SnippetFolder::getId)
+                    .forEach(pending::add);
+            }
+        }
+        return result;
+    }
+
+    /** Whether {@code candidateId} is {@code ancestorId} or lies below it. */
+    public boolean isSameOrDescendant(String candidateId, String ancestorId) {
+        if (candidateId == null || ancestorId == null) {
+            return false;
+        }
+        return folderChain(candidateId).stream().anyMatch(folder -> ancestorId.equals(folder.getId()));
+    }
+
+    /**
+     * Snippets directly in {@code folderId} ({@code null} = top level), or — with {@code recursive} —
+     * also in every folder below it ({@code null} + recursive = every snippet).
+     */
+    public List<Snippet> snippetsInFolder(String folderId, boolean recursive) {
+        if (folderId == null && recursive) {
+            return getAllSnippets();
+        }
+        Set<String> scope = recursive ? descendantFolderIds(folderId) : null;
+        return snippets.stream()
+            .filter(snippet -> recursive
+                ? snippet.getFolderId() != null && scope.contains(snippet.getFolderId())
+                : Objects.equals(snippet.getFolderId(), folderId))
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * A folder name usable as a directory on every platform: path separators, control and
+     * Windows-reserved characters become {@code -}; {@code .} and {@code ..} become empty.
+     */
+    public static String sanitizeFolderName(String name) {
+        String candidate = name != null ? name.trim() : "";
+        candidate = UNSAFE_PLAIN_TEXT_FILENAME_CHARS.matcher(candidate).replaceAll("-");
+        candidate = candidate.replaceAll("[. ]+$", "").trim();
+        if (candidate.equals(".") || candidate.equals("..") || candidate.matches("\\.+")) {
+            return "";
+        }
+        return candidate;
+    }
+
+    private static String requireValidFolderName(String name) {
+        String normalized = sanitizeFolderName(name);
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException("Folder name is empty or invalid: " + name);
+        }
+        return normalized;
+    }
+
+    private void requireUniqueFolderName(String name, String parentId, String ignoredFolderId) {
+        boolean taken = folders.stream()
+            .filter(folder -> !Objects.equals(folder.getId(), ignoredFolderId))
+            .filter(folder -> Objects.equals(folder.getParentId(), parentId))
+            .anyMatch(folder -> folder.getName() != null && folder.getName().equalsIgnoreCase(name));
+        if (taken) {
+            throw new IllegalArgumentException("Folder name already exists: " + name);
+        }
+    }
+
+    private String uniqueFolderName(String name, String parentId, String ignoredFolderId) {
+        String candidate = name;
+        int suffix = 2;
+        while (true) {
+            String probe = candidate;
+            boolean taken = folders.stream()
+                .filter(folder -> !Objects.equals(folder.getId(), ignoredFolderId))
+                .filter(folder -> Objects.equals(folder.getParentId(), parentId))
+                .anyMatch(folder -> folder.getName() != null && folder.getName().equalsIgnoreCase(probe));
+            if (!taken) {
+                return candidate;
+            }
+            candidate = name + "-" + suffix++;
+        }
+    }
+
+    /**
+     * Points snippets of unknown folders and folders of unknown (or cyclic) parents back to the top
+     * level, so a hand-edited or partially restored file never hides snippets.
+     */
+    private int repairFolderReferences() {
+        int repaired = 0;
+        Set<String> ids = folders.stream().map(SnippetFolder::getId).collect(Collectors.toSet());
+        for (SnippetFolder folder : folders) {
+            if (folder.getParentId() != null
+                && (!ids.contains(folder.getParentId()) || folder.getParentId().equals(folder.getId()))) {
+                folder.setParentId(null);
+                repaired++;
+            }
+        }
+        for (SnippetFolder folder : folders) {
+            Set<String> seen = new HashSet<>();
+            SnippetFolder current = folder;
+            while (current != null && current.getParentId() != null) {
+                if (!seen.add(current.getId())) {
+                    folder.setParentId(null);
+                    repaired++;
+                    break;
+                }
+                current = findFolder(current.getParentId()).orElse(null);
+            }
+        }
+        for (Snippet snippet : snippets) {
+            if (snippet != null && snippet.getFolderId() != null && !ids.contains(snippet.getFolderId())) {
+                snippet.setFolderId(null);
+                repaired++;
+            }
+        }
+        return repaired;
     }
 
     // ---- Operating systems (for the snippet "System" column) ----
@@ -640,6 +964,16 @@ public class SnippetManager {
             json.append("      \"language\": ").append(escapeJson(s.getLanguage())).append(",\n");
             json.append("      \"category\": ").append(escapeJson(s.getCategory())).append(",\n");
             json.append("      \"description\": ").append(escapeJson(s.getDescription())).append(",\n");
+            String folderPath = folderPath(s.getFolderId());
+            if (!folderPath.isEmpty()) {
+                json.append("      \"folderPath\": ").append(escapeJson(folderPath)).append(",\n");
+            }
+            if (s.getFileName() != null) {
+                json.append("      \"fileName\": ").append(escapeJson(s.getFileName())).append(",\n");
+            }
+            if (s.getExecutable() != null) {
+                json.append("      \"executable\": ").append(s.getExecutable()).append(",\n");
+            }
             json.append("      \"tags\": [");
             List<String> tags = s.getTags();
             for (int j = 0; j < tags.size(); j++) {
@@ -690,6 +1024,191 @@ public class SnippetManager {
 
         logger.info("Exported {} snippets as plain text files to {}", exportedFiles.size(), exportDirectory);
         return exportedFiles;
+    }
+
+    /**
+     * Writes a {@link SnippetFolderLayout} below {@code directory}: its folders as directories and each
+     * snippet as a file, executable ({@code rwxr-xr-x}) or plain ({@code rw-r--r--}) where the file
+     * system supports POSIX permissions. Content is written with LF line endings and without a BOM.
+     *
+     * @return the written files
+     */
+    public static List<Path> exportLayoutToDirectory(Path directory, SnippetFolderLayout layout) throws IOException {
+        Objects.requireNonNull(directory, "directory");
+        Objects.requireNonNull(layout, "layout");
+        Path root = directory.toAbsolutePath().normalize();
+        Files.createDirectories(root);
+        for (String relative : layout.directories()) {
+            Path dir = resolveInside(root, relative);
+            Files.createDirectories(dir);
+            applyPosixMode(dir, SnippetExecutableSupport.EXECUTABLE_MODE);
+        }
+        List<Path> written = new ArrayList<>();
+        for (SnippetFolderLayout.Entry entry : layout.entries()) {
+            Path target = resolveInside(root, entry.relativePath());
+            if (target.getParent() != null) {
+                Files.createDirectories(target.getParent());
+            }
+            Files.writeString(target, fileContent(entry.snippet()), StandardCharsets.UTF_8);
+            applyPosixMode(target, entry.mode());
+            written.add(target);
+        }
+        logger.info("Exported {} snippets with {} folders to {}", written.size(), layout.directories().size(), root);
+        return written;
+    }
+
+    /**
+     * Writes a {@link SnippetFolderLayout} into a ZIP archive (AES-256 when {@code password} is set).
+     * Entries carry their Unix mode, so {@code unzip} restores the executable bit.
+     *
+     * @return the entry names of the written files
+     */
+    public static List<String> exportLayoutToZip(Path zipFile, SnippetFolderLayout layout, char[] password)
+            throws IOException {
+        Objects.requireNonNull(zipFile, "zipFile");
+        Objects.requireNonNull(layout, "layout");
+        Path target = zipFile.toAbsolutePath().normalize();
+        Path parent = target.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+        Path tempZip = Files.createTempFile(parent, "kortty-snippet-folder-", ".zip");
+        try {
+            Files.deleteIfExists(tempZip);
+            List<String> names = writeLayoutZip(tempZip, layout, password);
+            Files.move(tempZip, target, StandardCopyOption.REPLACE_EXISTING);
+            logger.info("Exported {} snippets as a folder ZIP to {}", names.size(), target);
+            return names;
+        } finally {
+            Files.deleteIfExists(tempZip);
+        }
+    }
+
+    /** Like {@link #exportLayoutToZip} without a password, then encrypted for {@code gpgKey}. */
+    public static List<String> exportLayoutToGpgEncryptedZip(Path gpgFile, SnippetFolderLayout layout, GPGKey gpgKey)
+            throws IOException {
+        Objects.requireNonNull(gpgFile, "gpgFile");
+        Objects.requireNonNull(layout, "layout");
+        if (gpgKey == null || gpgKey.getKeyId() == null || gpgKey.getKeyId().isBlank()) {
+            throw new IOException("GPG key is missing");
+        }
+        Path target = gpgFile.toAbsolutePath().normalize();
+        Path parent = target.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+        Path tempZip = Files.createTempFile(parent, "kortty-snippet-folder-", ".zip");
+        Path tempGpg = Files.createTempFile(parent, "kortty-snippet-folder-", ".zip.gpg");
+        try {
+            Files.deleteIfExists(tempZip);
+            List<String> names = writeLayoutZip(tempZip, layout, null);
+            Files.deleteIfExists(tempGpg);
+            runGpgEncrypt(tempZip, tempGpg, gpgKey.getKeyId());
+            Files.move(tempGpg, target, StandardCopyOption.REPLACE_EXISTING);
+            logger.info("Exported {} snippets as a GPG-encrypted folder ZIP to {}", names.size(), target);
+            return names;
+        } finally {
+            Files.deleteIfExists(tempZip);
+            Files.deleteIfExists(tempGpg);
+        }
+    }
+
+    /**
+     * Without a password the archive is written with commons-compress, which stores each entry's
+     * Unix mode on every platform. zip4j (needed for AES) only takes the mode from real files, so a
+     * password-protected archive is assembled from a staged copy of the layout; on file systems
+     * without POSIX permissions such an archive carries no executable bits.
+     */
+    private static List<String> writeLayoutZip(Path zipFile, SnippetFolderLayout layout, char[] password)
+            throws IOException {
+        boolean encrypted = password != null && password.length > 0;
+        if (!encrypted) {
+            return writePlainLayoutZip(zipFile, layout);
+        }
+        Path staging = Files.createTempDirectory("kortty-snippet-folder-");
+        try {
+            exportLayoutToDirectory(staging, layout);
+            List<String> names = new ArrayList<>();
+            try (ZipFile zip = new ZipFile(zipFile.toFile(), password)) {
+                for (SnippetFolderLayout.Entry entry : layout.entries()) {
+                    ZipParameters parameters = scriptZipParameters(entry.relativePath(), true);
+                    zip.addFile(staging.resolve(entry.relativePath()).toFile(), parameters);
+                    names.add(entry.relativePath());
+                }
+            }
+            return names;
+        } finally {
+            deleteRecursively(staging);
+        }
+    }
+
+    private static List<String> writePlainLayoutZip(Path zipFile, SnippetFolderLayout layout) throws IOException {
+        List<String> names = new ArrayList<>();
+        try (org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream zip =
+                 new org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream(zipFile.toFile())) {
+            for (String directory : layout.directories()) {
+                org.apache.commons.compress.archivers.zip.ZipArchiveEntry entry =
+                    new org.apache.commons.compress.archivers.zip.ZipArchiveEntry(directory + "/");
+                entry.setUnixMode(040000 | SnippetExecutableSupport.EXECUTABLE_MODE);
+                zip.putArchiveEntry(entry);
+                zip.closeArchiveEntry();
+            }
+            for (SnippetFolderLayout.Entry file : layout.entries()) {
+                org.apache.commons.compress.archivers.zip.ZipArchiveEntry entry =
+                    new org.apache.commons.compress.archivers.zip.ZipArchiveEntry(file.relativePath());
+                entry.setUnixMode(0100000 | file.mode());
+                zip.putArchiveEntry(entry);
+                zip.write(fileContent(file.snippet()).getBytes(StandardCharsets.UTF_8));
+                zip.closeArchiveEntry();
+                names.add(file.relativePath());
+            }
+        }
+        return names;
+    }
+
+    private static void deleteRecursively(Path root) {
+        if (root == null || !Files.exists(root)) {
+            return;
+        }
+        try (java.util.stream.Stream<Path> walk = Files.walk(root)) {
+            walk.sorted(Comparator.reverseOrder()).forEach(path -> {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException ignored) {
+                    // best effort cleanup of a temp directory
+                }
+            });
+        } catch (IOException ignored) {
+            // best effort cleanup of a temp directory
+        }
+    }
+
+    /** The bytes a snippet file holds: its content with LF line endings and without a BOM. */
+    public static String fileContent(Snippet snippet) {
+        String content = snippet != null && snippet.getContent() != null ? snippet.getContent() : "";
+        if (content.startsWith("\uFEFF")) {
+            content = content.substring(1);
+        }
+        return content.replace("\r\n", "\n").replace('\r', '\n');
+    }
+
+    /** Sets {@code mode} on {@code path}; a no-op where the file system has no POSIX permissions. */
+    public static void applyPosixMode(Path path, int mode) throws IOException {
+        try {
+            Files.setPosixFilePermissions(path, SnippetExecutableSupport.posixPermissions(mode));
+        } catch (UnsupportedOperationException notPosix) {
+            if ((mode & 0100) != 0 && !Files.isDirectory(path)) {
+                path.toFile().setExecutable(true, false);
+            }
+        }
+    }
+
+    private static Path resolveInside(Path root, String relative) throws IOException {
+        Path resolved = root.resolve(relative).normalize();
+        if (!resolved.startsWith(root) || resolved.equals(root)) {
+            throw new IOException("Unsafe export path: " + relative);
+        }
+        return resolved;
     }
 
     /**
@@ -962,6 +1481,9 @@ public class SnippetManager {
             snippet.setLanguage(extractJsonString(obj, "language"));
             snippet.setCategory(extractJsonString(obj, "category"));
             snippet.setDescription(extractJsonString(obj, "description"));
+            snippet.setFileName(extractJsonString(obj, "fileName"));
+            snippet.setExecutable(extractJsonBoolean(obj, "executable"));
+            applyImportedFolderPath(snippet, extractJsonString(obj, "folderPath"));
             
             // Parse tags array
             List<String> tags = extractJsonStringArray(obj, "tags");
@@ -1002,6 +1524,16 @@ public class SnippetManager {
             if (s.getDescription() != null && !s.getDescription().isEmpty()) {
                 xml.append("    <description>").append(escapeXml(s.getDescription())).append("</description>\n");
             }
+            String folderPath = folderPath(s.getFolderId());
+            if (!folderPath.isEmpty()) {
+                xml.append("    <folderPath>").append(escapeXml(folderPath)).append("</folderPath>\n");
+            }
+            if (s.getFileName() != null) {
+                xml.append("    <fileName>").append(escapeXml(s.getFileName())).append("</fileName>\n");
+            }
+            if (s.getExecutable() != null) {
+                xml.append("    <executable>").append(s.getExecutable()).append("</executable>\n");
+            }
             if (s.getTags() != null && !s.getTags().isEmpty()) {
                 xml.append("    <tags>\n");
                 for (String tag : s.getTags()) {
@@ -1041,6 +1573,9 @@ public class SnippetManager {
             snippet.setLanguage(extractXmlValue(block, "language"));
             snippet.setCategory(extractXmlValue(block, "category"));
             snippet.setDescription(unescapeXml(extractXmlValue(block, "description")));
+            snippet.setFileName(unescapeXml(extractXmlValue(block, "fileName")));
+            snippet.setExecutable(parseOptionalBoolean(extractXmlValue(block, "executable")));
+            applyImportedFolderPath(snippet, unescapeXml(extractXmlValue(block, "folderPath")));
             
             // Parse tags
             List<String> tags = new ArrayList<>();
@@ -1089,6 +1624,16 @@ public class SnippetManager {
             }
             if (s.getDescription() != null && !s.getDescription().isEmpty()) {
                 yaml.append("    description: ").append(escapeYaml(s.getDescription())).append("\n");
+            }
+            String folderPath = folderPath(s.getFolderId());
+            if (!folderPath.isEmpty()) {
+                yaml.append("    folderPath: ").append(escapeYaml(folderPath)).append("\n");
+            }
+            if (s.getFileName() != null) {
+                yaml.append("    fileName: ").append(escapeYaml(s.getFileName())).append("\n");
+            }
+            if (s.getExecutable() != null) {
+                yaml.append("    executable: ").append(s.getExecutable()).append("\n");
             }
             if (s.getTags() != null && !s.getTags().isEmpty()) {
                 yaml.append("    tags:\n");
@@ -1178,6 +1723,12 @@ public class SnippetManager {
                 current.setCategory(unescapeYaml(extractYamlValue(line)));
             } else if (trimmed.startsWith("description:")) {
                 current.setDescription(unescapeYaml(extractYamlValue(line)));
+            } else if (trimmed.startsWith("folderPath:")) {
+                applyImportedFolderPath(current, unescapeYaml(extractYamlValue(line)));
+            } else if (trimmed.startsWith("fileName:")) {
+                current.setFileName(unescapeYaml(extractYamlValue(line)));
+            } else if (trimmed.startsWith("executable:")) {
+                current.setExecutable(parseOptionalBoolean(unescapeYaml(extractYamlValue(line))));
             } else if (trimmed.equals("tags:")) {
                 inTags = true;
                 current.setTags(new ArrayList<>());
@@ -1207,6 +1758,32 @@ public class SnippetManager {
         return imported;
     }
     
+    /** Places an imported snippet in the folder at {@code folderPath}, creating it like categories are. */
+    private void applyImportedFolderPath(Snippet snippet, String folderPath) {
+        if (folderPath != null && !folderPath.isBlank()) {
+            snippet.setFolderId(ensureFolderPath(folderPath, null));
+        }
+    }
+
+    private static Boolean parseOptionalBoolean(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if ("true".equalsIgnoreCase(trimmed)) {
+            return Boolean.TRUE;
+        }
+        if ("false".equalsIgnoreCase(trimmed)) {
+            return Boolean.FALSE;
+        }
+        return null;
+    }
+
+    private static Boolean extractJsonBoolean(String json, String key) {
+        Matcher matcher = Pattern.compile("\"" + Pattern.quote(key) + "\"\\s*:\\s*(true|false)").matcher(json);
+        return matcher.find() ? Boolean.valueOf(matcher.group(1)) : null;
+    }
+
     private void finishImportedSnippet(Snippet snippet) {
         String cat = snippet.getCategory();
         if (cat != null && !cat.isEmpty() && findCategoryByName(cat).isEmpty()) {
@@ -1446,6 +2023,13 @@ public class SnippetManager {
         @XmlElementWrapper(name = "operatingSystems")
         @XmlElement(name = "os")
         private List<String> operatingSystems;
+
+        @XmlElementWrapper(name = "folders")
+        @XmlElement(name = "folder")
+        private List<SnippetFolder> folders;
+
+        public List<SnippetFolder> getFolders() { return folders; }
+        public void setFolders(List<SnippetFolder> folders) { this.folders = folders; }
 
         public List<Snippet> getSnippets() { return snippets; }
         public void setSnippets(List<Snippet> snippets) { this.snippets = snippets; }

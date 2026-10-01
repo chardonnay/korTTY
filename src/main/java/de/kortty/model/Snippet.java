@@ -34,6 +34,25 @@ public class Snippet {
     @XmlElement
     private String description;
 
+    /** The {@link SnippetFolder} this snippet lives in; {@code null} = top level. */
+    @XmlElement
+    private String folderId;
+
+    /**
+     * Whether the snippet is written with the executable bit when exported or copied to a server.
+     * {@code null} = automatic (see {@code SnippetExecutableSupport#defaultExecutable}).
+     */
+    @XmlElement
+    private Boolean executable;
+
+    /**
+     * The file name used when the snippet is exported or copied to a server. {@code null} = derived
+     * from the name and language. Set for modules of a modularized script, whose snippet names carry
+     * the folder as a prefix to stay unique while the file name must match the import statements.
+     */
+    @XmlElement
+    private String fileName;
+
     /**
      * The language this snippet's comments and messages are written in, as answered by the user
      * when korTTY could not work it out on its own. Remembered so the question is asked once per
@@ -113,6 +132,15 @@ public class Snippet {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    public String getFolderId() { return folderId; }
+    public void setFolderId(String folderId) { this.folderId = folderId == null || folderId.isBlank() ? null : folderId; }
+
+    public Boolean getExecutable() { return executable; }
+    public void setExecutable(Boolean executable) { this.executable = executable; }
+
+    public String getFileName() { return fileName; }
+    public void setFileName(String fileName) { this.fileName = fileName == null || fileName.isBlank() ? null : fileName.trim(); }
 
     public String getCodeTextLanguageCode() {
         return codeTextLanguageCode;
