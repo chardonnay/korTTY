@@ -338,8 +338,19 @@ public final class SessionJournalHtmlRenderer {
         html.append("<div id=\"searchBar\" class=\"search-bar\" hidden>\n")
             .append("<input type=\"search\" id=\"journalSearch\" autocomplete=\"off\" placeholder=\"")
             .append(escapeAttr(i18n("journal.html.search.journalPlaceholder", "Search the journal...")))
+            .append("\" title=\"")
+            .append(escapeAttr(i18n("journal.html.search.help",
+                "Several words: an entry must contain all of them. \"Quotes\" search an exact phrase.")))
             .append("\">\n")
             .append("<span id=\"journalMatchCount\" class=\"match-count\">0/0</span>\n")
+            // Filter mode: hides the entries that do not match, instead of only highlighting.
+            .append("<label class=\"search-filter\" title=\"")
+            .append(escapeAttr(i18n("journal.html.search.filter.title",
+                "Hide the entries that do not contain every search term")))
+            .append("\"><input type=\"checkbox\" id=\"journalFilter\"> ")
+            .append(escapeHtml(i18n("journal.html.search.filter", "Only matches"))).append("</label>\n")
+            .append("<span id=\"journalEntryCount\" class=\"match-count\" data-template=\"")
+            .append(escapeAttr(i18n("journal.html.search.entries", "{0} of {1} entries"))).append("\"></span>\n")
             .append("<button type=\"button\" id=\"journalPrev\" title=\"")
             .append(escapeAttr(i18n("journal.html.search.prev", "Previous match"))).append("\">▲</button>\n")
             .append("<button type=\"button\" id=\"journalNext\" title=\"")
@@ -988,6 +999,10 @@ public final class SessionJournalHtmlRenderer {
               font-size:.87em;font-family:inherit}
             .search-bar input::placeholder{color:var(--muted);opacity:1}
             #journalSearch{flex:1 1 240px;min-width:min(200px,50vw)}
+            .search-filter{display:inline-flex;align-items:center;gap:4px;color:var(--muted);
+              cursor:pointer;white-space:nowrap;font-size:.92em}
+            .search-filter input{margin:0;cursor:pointer}
+            .entry.search-hidden,.day-divider.search-hidden{display:none}
             #timeJump{flex:0 1 240px;min-width:min(150px,45vw)}
             .search-bar button{background:var(--surface2);border:1px solid var(--border);
               color:var(--text);border-radius:6px;padding:4px 9px;cursor:pointer;font-family:inherit;
@@ -1903,6 +1918,8 @@ public final class SessionJournalHtmlRenderer {
               };
             }
             var journalNav=makeNav(journalCount,"cur");
+            var journalFilter=document.getElementById("journalFilter");
+            var journalEntryCount=document.getElementById("journalEntryCount");
             function clearHighlights(){
               timeline.querySelectorAll("mark.gs").forEach(function(mark){
                 var parent=mark.parentNode;
@@ -1911,47 +1928,105 @@ public final class SessionJournalHtmlRenderer {
               });
               journalNav.clear();
             }
-            function markMatches(query){
+            /* Words separated by spaces, "quoted phrases" kept whole; lower-case, no duplicates.
+               Longest first, so a term inside another term never splits the longer highlight. */
+            function parseTerms(raw){
+              var terms=[],re=/"([^"]+)"|(\\S+)/g,m;
+              while((m=re.exec(raw))){
+                var term=(m[1]!==undefined?m[1]:m[2]).toLowerCase().trim();
+                if(term&&terms.indexOf(term)<0){terms.push(term);}
+              }
+              return terms.sort(function(a,b){return b.length-a.length;});
+            }
+            /* Text nodes of an entry that a search looks at: everything but the card's buttons. */
+            function searchableTexts(root){
+              return document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:function(n){
+                return n.parentNode&&n.parentNode.closest&&n.parentNode.closest(".card-actions")
+                  ?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT;}});
+            }
+            function entryText(entry){
+              var walker=searchableTexts(entry),parts=[],node;
+              while((node=walker.nextNode())){parts.push(node.nodeValue);}
+              return parts.join(" ").toLowerCase();
+            }
+            function entryMatches(entry,terms){
+              var text=entryText(entry);
+              for(var i=0;i<terms.length;i++){if(text.indexOf(terms[i])<0){return false;}}
+              return true;
+            }
+            /* Earliest occurrence of any term at or after index; longer terms win a tie. */
+            function nextHit(lower,terms,index){
+              var best=null;
+              for(var i=0;i<terms.length;i++){
+                var at=lower.indexOf(terms[i],index);
+                if(at>=0&&(best===null||at<best.at)){best={at:at,len:terms[i].length};}
+              }
+              return best;
+            }
+            function markMatches(root,terms){
               // Collect first, wrap afterwards: the walker must not see its own new nodes. Wrapping
               // text nodes (instead of rewriting innerHTML) keeps the cards' event listeners alive.
-              var walker=document.createTreeWalker(timeline,NodeFilter.SHOW_TEXT,null);
-              var targets=[],node;
+              var walker=searchableTexts(root),targets=[],node;
               while((node=walker.nextNode())){
-                if(node.nodeValue&&node.nodeValue.toLowerCase().indexOf(query)>=0){targets.push(node);}
+                if(node.nodeValue&&nextHit(node.nodeValue.toLowerCase(),terms,0)){targets.push(node);}
               }
               targets.forEach(function(text){
                 var value=text.nodeValue,lower=value.toLowerCase(),index=0;
                 var fragment=document.createDocumentFragment();
                 while(true){
-                  var hit=lower.indexOf(query,index);
-                  if(hit<0){
+                  var hit=nextHit(lower,terms,index);
+                  if(!hit){
                     fragment.appendChild(document.createTextNode(value.substring(index)));
                     break;
                   }
-                  if(hit>index){
-                    fragment.appendChild(document.createTextNode(value.substring(index,hit)));
+                  if(hit.at>index){
+                    fragment.appendChild(document.createTextNode(value.substring(index,hit.at)));
                   }
                   var mark=document.createElement("mark");
                   mark.className="gs";
-                  mark.textContent=value.substring(hit,hit+query.length);
+                  mark.textContent=value.substring(hit.at,hit.at+hit.len);
                   fragment.appendChild(mark);
-                  index=hit+query.length;
+                  index=hit.at+hit.len;
                 }
                 text.parentNode.replaceChild(fragment,text);
               });
-              journalNav.set(Array.prototype.slice.call(timeline.querySelectorAll("mark.gs")));
+            }
+            /* Filter mode hides non-matching entries and the day dividers left without entries. */
+            function applyFilter(matching,active){
+              var entries=timeline.querySelectorAll(".entry");
+              entries.forEach(function(entry){
+                entry.classList.toggle("search-hidden",active&&matching.indexOf(entry)<0);
+              });
+              var divider=null,dividerHasEntries=false;
+              Array.prototype.forEach.call(timeline.children,function(child){
+                if(child.classList.contains("day-divider")){
+                  if(divider){divider.classList.toggle("search-hidden",active&&!dividerHasEntries);}
+                  divider=child;dividerHasEntries=false;
+                }else if(child.classList.contains("entry")&&!child.classList.contains("search-hidden")){
+                  dividerHasEntries=true;
+                }
+              });
+              if(divider){divider.classList.toggle("search-hidden",active&&!dividerHasEntries);}
             }
             function runJournalSearch(){
-              var query=journalSearch.value.trim().toLowerCase();
+              var terms=parseTerms(journalSearch.value);
               clearHighlights();
-              if(query){markMatches(query);}
+              var entries=Array.prototype.slice.call(timeline.querySelectorAll(".entry"));
+              var matching=terms.length?entries.filter(function(e){return entryMatches(e,terms);}):entries;
+              if(terms.length){matching.forEach(function(entry){markMatches(entry,terms);});}
+              applyFilter(matching,journalFilter.checked&&terms.length>0);
+              journalEntryCount.textContent=terms.length
+                ?journalEntryCount.dataset.template.replace("{0}",matching.length).replace("{1}",entries.length)
+                :"";
+              journalNav.set(Array.prototype.slice.call(timeline.querySelectorAll("mark.gs")));
               journalNav.focus(true);
             }
+            journalFilter.addEventListener("change",runJournalSearch);
             function moveJournal(step){journalNav.move(step);}
             function toggleSearch(show){
               searchBar.hidden=!show;
               if(show){journalSearch.focus();journalSearch.select();}
-              else{journalSearch.value=""; clearHighlights();}
+              else{journalSearch.value=""; runJournalSearch();}
             }
             var journalSearchTimer=null;
             journalSearch.addEventListener("input",function(){

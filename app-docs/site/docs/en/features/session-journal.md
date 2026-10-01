@@ -167,6 +167,11 @@ If something slipped through anyway, the viewer's [search and replace](#search-a
 
 The magnifier in the header opens a search bar directly under the connection details (++ctrl+f++ works too). Typing a term or a whole sentence highlights every occurrence across the timeline — entry titles, AI summaries, AI screenshot descriptions and tags, input and output excerpts, notes and timestamps — and shows a match counter; ▲ and ▼ or ++enter++ / ++shift+enter++ jump between the hits, ++esc++ or ✕ closes the bar and clears the highlighting.
 
+- **Several terms** narrow the search: `nginx error` finds the entries that contain *both* words, in any order and place, and highlights each of them. Put a phrase in quotes — `"config error"` — to search it exactly.
+- **Only matches** next to the counter switches to filter mode: entries that do not contain every term disappear, together with day dividers left without entries, and the bar shows how many entries match (for example *2 of 164 entries*). Clearing the field or closing the bar shows the whole timeline again.
+
+The search runs entirely in the page, without AI — it works the same way in an exported HTML bundle opened in any browser.
+
 !!! note
     This searches the journal entries. The raw capture log has its own search inside the log panel, the journal manager can search across *all* journals with **Search contents** or the [AI search](#ai-search-across-all-journals), and the viewer's [AI Q&A](#asking-the-ai-about-a-journal) answers questions about this journal.
 

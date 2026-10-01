@@ -72,6 +72,35 @@ class SessionJournalHtmlRendererTest {
         assertThat(html).contains("a.ext{");
     }
 
+    @Test
+    void theJournalSearchOffersAFilterModeAndExplainsSeveralTerms() throws Exception {
+        String[][] demo = {
+            {"2026-08-03T14:20", "Checked nginx status", "systemctl status nginx showed the service running."},
+            {"2026-08-03T14:40", "Restarted nginx", "nginx was restarted after a config error in sites-enabled."},
+            {"2026-08-03T15:00", "Disk usage", "df -h: /var at 91 percent."},
+            {"2026-08-04T09:10", "Next day: nginx error log", "tail of error.log shows upstream timed out."},
+        };
+        for (String[] row : demo) {
+            SessionJournalEntry entry = new SessionJournalEntry();
+            entry.setKind(SessionJournalEntryKind.AI_SUMMARY);
+            entry.setCreatedAt(java.time.LocalDateTime.parse(row[0]).atOffset(ZoneOffset.ofHours(2)));
+            entry.setTitle(row[1]);
+            entry.setText(row[2]);
+            document.getEntries().add(entry);
+        }
+
+        String html = renderer.render(document, sampleLog());
+
+        assertThat(html).contains("id=\"journalFilter\"");
+        assertThat(html).contains("id=\"journalEntryCount\"");
+        assertThat(html).contains("function parseTerms(");
+        assertThat(html).contains(".entry.search-hidden");
+        // a browser-ready demo page for checking the search by hand
+        java.nio.file.Path out = java.nio.file.Path.of("build/smoke/journal-search-demo.html");
+        java.nio.file.Files.createDirectories(out.getParent());
+        java.nio.file.Files.writeString(out, html);
+    }
+
     private List<SessionJournalLogEntry> sampleLog() {
         OffsetDateTime base = OffsetDateTime.of(2026, 8, 3, 14, 15, 3, 0, ZoneOffset.ofHours(2));
         return List.of(

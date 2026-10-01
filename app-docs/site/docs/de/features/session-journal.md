@@ -167,6 +167,11 @@ Falls etwas dennoch versehentlich durchgedrungen ist, entfernt der Viewer-Modus 
 
 Die Lupe in der Kopfzeile öffnet eine Suchleiste direkt unter den Verbindungsdetails (++ctrl+f++ funktioniert auch). Durch die Eingabe eines Begriffs oder eines ganzen Satzes wird jedes Vorkommen auf der Zeitleiste hervorgehoben – Eintragstitel, KI-Zusammenfassungen, KI-Screenshot-Beschreibungen und Tags, Ein- und Ausgabeauszüge, Notizen und Zeitstempel – und ein Übereinstimmungszähler angezeigt; ▲ und ▼ oder ++enter++ / ++shift+enter++ springen zwischen den Treffern, ++esc++ oder ✕ schließt die Leiste und löscht die Hervorhebung.
 
+- **Mehrere Begriffe** schränken die Suche ein: `nginx error` findet die Einträge, die *beide* Wörter enthalten, in beliebiger Reihenfolge und Position, und hebt jedes einzelne hervor. Setzen Sie einen Ausdruck in Anführungszeichen — `"config error"` — um ihn exakt zu suchen.
+- **Nur Treffer** neben dem Zähler schaltet in den Filtermodus: Einträge, die nicht jeden Begriff enthalten, verschwinden zusammen mit Tagestrennern, unter denen kein Eintrag mehr steht, und die Leiste zeigt an, wie viele Einträge übereinstimmen (zum Beispiel *2 von 164 Einträgen*). Das Leeren des Feldes oder das Schließen der Leiste zeigt wieder die gesamte Zeitleiste.
+
+Die Suche läuft vollständig auf der Seite, ohne KI – sie funktioniert genauso in einem exportierten HTML-Paket, das in einem beliebigen Browser geöffnet wird.
+
 !!! note
     Dies sucht die Einträge im Protokoll. Der roh eingezeichnete Protokoll-Log verfügt über eine eigene Suche im Log-Fenster, der Journal-Manager kann über **Inhalte durchsuchen** oder die [KI-Suche](#ki-suche-in-allen-journale) alle Journal-Dateien durchsuchen, und der Viewer antwortet mit der [KI-Fragen](#die-ki-nach-einem-journal-fragen) auf Fragen zu diesem Journal.
 
