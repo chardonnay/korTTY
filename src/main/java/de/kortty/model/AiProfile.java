@@ -128,6 +128,18 @@ public class AiProfile {
     @XmlElement
     private Long usedTotalTokens = 0L;
 
+    /** Optional price per one million prompt (input) tokens; null = no price configured. */
+    @XmlElement
+    private Double pricePerMillionPromptTokens;
+
+    /** Optional price per one million completion (output) tokens; null = no price configured. */
+    @XmlElement
+    private Double pricePerMillionCompletionTokens;
+
+    /** ISO 4217 currency of the two prices; null reads as EUR. */
+    @XmlElement
+    private String priceCurrency;
+
     /**
      * True for profiles injected from the enterprise policy. Never persisted — policy profiles are
      * rebuilt from the policy file on every settings load.
@@ -181,6 +193,9 @@ public class AiProfile {
         this.usedPromptTokens = source.usedPromptTokens;
         this.usedCompletionTokens = source.usedCompletionTokens;
         this.usedTotalTokens = source.usedTotalTokens;
+        this.pricePerMillionPromptTokens = source.pricePerMillionPromptTokens;
+        this.pricePerMillionCompletionTokens = source.pricePerMillionCompletionTokens;
+        this.priceCurrency = source.priceCurrency;
         this.policyManaged = source.policyManaged;
         this.policyEncryptedApiKey = source.policyEncryptedApiKey;
     }
@@ -480,6 +495,30 @@ public class AiProfile {
 
     public void setUsedTotalTokens(Long usedTotalTokens) {
         this.usedTotalTokens = usedTotalTokens;
+    }
+
+    public Double getPricePerMillionPromptTokens() {
+        return pricePerMillionPromptTokens;
+    }
+
+    public void setPricePerMillionPromptTokens(Double pricePerMillionPromptTokens) {
+        this.pricePerMillionPromptTokens = pricePerMillionPromptTokens;
+    }
+
+    public Double getPricePerMillionCompletionTokens() {
+        return pricePerMillionCompletionTokens;
+    }
+
+    public void setPricePerMillionCompletionTokens(Double pricePerMillionCompletionTokens) {
+        this.pricePerMillionCompletionTokens = pricePerMillionCompletionTokens;
+    }
+
+    public String getPriceCurrency() {
+        return priceCurrency;
+    }
+
+    public void setPriceCurrency(String priceCurrency) {
+        this.priceCurrency = priceCurrency;
     }
 
     private static List<AiReasoningEffort> copyReasoningEfforts(List<AiReasoningEffort> source) {

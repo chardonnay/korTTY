@@ -921,6 +921,9 @@
 <p class="admonition-title">Note</p>
 <p>If no AI profile is reachable or the request fails, the panel degrades instead of erroring out: it extracts the identifiers from your question, runs the internal text search, and shows the matching entries and log lines with a notice that no model was involved. The Q&amp;A never uses internet-access tools, and administrators can forbid it entirely (<code>ai-ask</code> under <a href="#enterprise-policy">enterprise policy</a>).</p>
 </div>
+<h2 id="ai-token-usage-and-cost">AI token usage and cost<a class="headerlink" href="#ai-token-usage-and-cost" title="Permanent link">&para;</a></h2>
+<p>Every AI call made for a journal — periodic summaries, the closing session summary and title, screenshot analysis and questions in the AI Q&amp;A panel — adds its token usage to the journal's running totals. The journal page shows the total in its header as <strong>AI tokens</strong> (for example <code>12.3k · ≈ 0.04 €</code>), and the journal manager has an <strong>AI tokens</strong> column whose tooltip breaks the number down into input and output tokens, number of AI calls and the profile used. The money amount appears when the profile has a <a href="../reference/settings/ai.html#token-quota-management">price per 1M tokens</a>; a profile running locally shows <code>local</code> instead. Each call is priced with the profile's price at the time of the call.</p>
+<p>The same calls also count towards the AI profile's token quota, so journal summaries show up in the quota bar of the AI Manager like any other AI request. Journals recorded before this tracking existed show no AI tokens.</p>
 <h2 id="password-protection">Password protection<a class="headerlink" href="#password-protection" title="Permanent link">&para;</a></h2>
 <p>Typed input is captured only as complete submitted lines, and several layers keep passwords out of the journal:</p>
 <ul>
@@ -1035,7 +1038,7 @@
 </table>
 <p>Changes preview immediately in the viewer and are saved for every journal page. With a fixed scheme the page's ◐ toggle stays visible but is disabled, since the scheme already decides the colours.</p>
 <h2 id="managing-journals">Managing journals<a class="headerlink" href="#managing-journals" title="Permanent link">&para;</a></h2>
-<p><strong>Tools &gt; Session Journals…</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-j">J</kbd></span>) opens the journal manager: all journals in a table sorted by start time (newest first) with duration, connection, server, title and entry count. Running journals are marked and cannot be renamed or deleted while live.</p>
+<p><strong>Tools &gt; Session Journals…</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-j">J</kbd></span>) opens the journal manager: all journals in a table sorted by start time (newest first) with duration, connection, server, title, entry count and <a href="#ai-token-usage-and-cost">AI tokens</a>. Running journals are marked and cannot be renamed or deleted while live.</p>
 <p><img alt="Session journal manager" src="../assets/screenshots/journal/journal-manager.png" /></p>
 <ul>
 <li>The filter field matches title, connection, host, user, description and the AI keywords; enabling <strong>Search contents</strong> additionally scans the journal entries — including AI screenshot descriptions and tags — and capture logs of every journal in the background (the logs are read streaming, part by part, so even huge journals do not load into memory).</li>

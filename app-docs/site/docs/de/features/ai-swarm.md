@@ -57,6 +57,8 @@ Der Streifen lässt sich von einem einzelnen Server bis hin zu großen Flotten s
 
 Jeder Server verfügt über eine Zeile in der **Agents**-Liste, in der sein Status-Badge, die verstrichene Zeit und die Token-Anzahl angezeigt werden. **Klicken Sie mit der linken Maustaste auf eine Zeile**, um sie inline zu erweitern und das Live-Transkript des Agenten (Befehle, Ausgabe und Fortschritt) während der Ausführung anzusehen – kein zusätzliches Fenster erforderlich. Sehr lange Transkripte werden von vorne beschnitten, sodass immer die neueste Ausgabe sichtbar ist.
 
+Die Überschrift über den Zeilen summiert die gesamte Laufzeit: **Σ tokens** aller Agenten plus der endgültigen kombinierten Antwort, gefolgt von den Kosten in Geld, wenn das KI-Profil ein [Preis pro 1 M Tokens](../reference/settings/ai.md#token-quoten-verwaltung) (oder `local · no token costs` für ein lokales Profil) hat. Jeder Agentenaufruf und die kombinierte Antwort zählen ebenfalls zum Token-Kontingent des Profils – für interaktive Läufe und für [geplante Swarm-Läufe](#schwarmlaufe-planen-jobscheduler) gleichermaßen.
+
 **Klicken Sie mit der rechten Maustaste auf eine Zeile**, um die Kontrolle pro Agent zu erhalten: **Pause**, **Fortsetzen**, **Neustart** und **Stopp** gelten nur für diesen Agenten. Durch den Neustart eines Agenten werden die anderen nicht gestört. seine Antwort wird im kombinierten Ergebnis ersetzt.
 
 ## Steuerung ausführen
@@ -82,7 +84,7 @@ Tabellenzellen sind oft zu klein für eine vollständige Befehlsausgabe – **kl
 
 ## Konversation kopieren, exportieren und speichern
 
-Der Konversationshauptteil enthält eine **Kopier**-Schaltfläche (ganze Konversation in die Zwischenablage) sowie ein **Export**-Menü mit **Plain Text**, **Markdown** und **PDF**. **Speichern** speichert die Konversation als benanntes Swarm-Chat; gespeicherte Swarm-Chats erscheinen in einer separaten **Swarm-Chats**-Sektion im [KI-Manager](ai-assistant.md#ki-manager) und können später erneut geöffnet werden.
+The conversation header has a **Kopieren** button (whole conversation to the clipboard) and an **Exportieren** menu with **Plain Text**, **Markdown**, and **PDF**. **Speichern** stores the conversation as a named swarm chat; saved swarm chats appear in a dedicated **Swarm-Chats** section of the [KI-Manager](ai-assistant.md#ki-manager) und kann später wieder geöffnet werden.
 
 ## Skripte ohne KI ausführen
 

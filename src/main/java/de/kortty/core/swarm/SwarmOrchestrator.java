@@ -1,6 +1,7 @@
 package de.kortty.core.swarm;
 
 import de.kortty.core.AiPromptService;
+import de.kortty.core.AiTokenUsage;
 import de.kortty.core.TerminalAgentService;
 import de.kortty.model.AiProfile;
 import de.kortty.model.TerminalAgentExecutionTarget;
@@ -19,6 +20,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -35,6 +37,7 @@ public final class SwarmOrchestrator {
 
     private final TerminalAgentService agentService;
     private final SwarmAggregator aggregator;
+    private volatile Consumer<AiTokenUsage> usageSink = usage -> { };
 
     public SwarmOrchestrator(TerminalAgentService agentService) {
         this(agentService, new SwarmAggregator());
@@ -43,6 +46,15 @@ public final class SwarmOrchestrator {
     public SwarmOrchestrator(TerminalAgentService agentService, SwarmAggregator aggregator) {
         this.agentService = agentService != null ? agentService : new TerminalAgentService();
         this.aggregator = aggregator != null ? aggregator : new SwarmAggregator();
+    }
+
+    /**
+     * Receives every token usage record of the run — each agent's AI calls and the final
+     * aggregation — so the caller can book them against the profile quota. Called from agent
+     * worker threads and the coordinator thread.
+     */
+    public void setUsageSink(Consumer<AiTokenUsage> usageSink) {
+        this.usageSink = usageSink != null ? usageSink : usage -> { };
     }
 
     /** Compatibility overload: runs with a private control (no external pause/restart/stop). */
@@ -152,8 +164,21 @@ public final class SwarmOrchestrator {
         SwarmModels.SwarmAggregationResult aggregation = aggregator.aggregate(
             new SwarmModels.SwarmAggregationRequest(request.query(), orderedResults(targetsById, results)),
             aggregationService);
+        recordAggregationUsage(aggregation);
         callback.onAggregationResult(aggregation);
         callback.onSwarmState(rollup(SwarmModels.SwarmPhase.DONE, states, total, start, null));
+    }
+
+    private void recordAggregationUsage(SwarmModels.SwarmAggregationResult aggregation) {
+        SwarmModels.TokenTotals tokens = aggregation != null ? aggregation.aggregationTokens() : null;
+        if (tokens == null || tokens.total() <= 0) {
+            return;
+        }
+        try {
+            usageSink.accept(new AiTokenUsage(tokens.prompt(), tokens.completion(), tokens.total()));
+        } catch (RuntimeException e) {
+            logger.debug("Swarm usage sink failed: {}", e.getMessage());
+        }
     }
 
     /** Everything one attempt submission needs; avoids ten-argument helper signatures. */
@@ -274,6 +299,7 @@ public final class SwarmOrchestrator {
         SwarmRunControl control = context.control();
         SwarmCallback callback = context.callback();
         PerAgentRunUi ui = new PerAgentRunUi(target, callback, context.router(), control, generation);
+        ui.setUsageSink(usageSink);
         if (callback.isCancelled()
             || callback.isAgentCancelled(target.agentId())
             || control.isAttemptCancelled(target.agentId(), generation)) {

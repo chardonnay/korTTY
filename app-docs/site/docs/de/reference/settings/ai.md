@@ -70,6 +70,7 @@ Die gleichen Felder werden im **KI > KI-Manager > Profile** bearbeitet, wo das g
 | Maximale Tokens | Zahl + Einheit | (Menge: 0–1.000.000; Einheit: Tausende oder Millionen) | 0 (unbegrenzt) | (Profil `tokenLimitAmount`, `tokenLimitUnit`-Felder) |
 | Warnschwellen | Zahl-Paar | Gelb %: 0–100, Rot %: 0–100 | 75%, 90% | (Profil `tokenWarningYellowPercent`, `tokenWarningRedPercent`-Felder) |
 | Zurücksetzen | Zahl + Startdatum | Zeitraum: 1–3650 Tage; Startdatum | 30 Tage | (Profil `tokenResetPeriodDays`, `tokenResetAnchorDate`-Felder) |
+| Preis pro 1 Mio. Tokens | zwei Zahlen + Währung | Preis für Eingabe und Ausgabe pro eine Million Tokens (Komma oder Punkt als Dezimaltrennzeichen; leer = kein Preis); Währung EUR, USD, CHF, GBP oder jeder ISO-Code. Bearbeitet in **KI → KI-Manager → Profile** | leer, EUR | (Profil `pricePerMillionPromptTokens`, `pricePerMillionCompletionTokens`, `priceCurrency` Felder) |
 | KI-Verbindung testen | Schaltfläche | — | — | (nur Aktion) |
 
 ##  Snippet-Editor
@@ -159,7 +160,7 @@ Für den nativen Anthropic (Claude) Endpoint wird ein aktiviertes Reasoning-Leve
 
 ### Bild-Eingabe (Vision)
 
-**Bild-Eingabe (Vision)** bestimmt, ob korTTY Bilder zu einem Prompt für dieses Profil hinzufügen darf – verwendet von der [Sitzungssitzungsaufzeichnung des KI-Systems](../../features/session-journal.md#ki-screenshot-analyse). **Automatisch (erkennen)** ermittelt die Funktion aus dem Endpoint: Bei einem lokalen LM Studio-Endpoint ist das Modellmetadaten entscheidend (ein `vlm` Modell gilt als bildfähig; die Antwort wird gemeinsam mit den Begründungsebenen gelesen – über die automatische Metadatenerfassung und durch **Reasoning-Optionen aktualisieren** – und mit diesen abgespeichert), der native Anthropic-Endpoint gilt stets als bildfähig, und andere Endpunkte werden anhand bekannter Vision-Modellnamen erkannt (GPT-4o/4.1/5, o3/o4, Gemini, Gemma 3, Qwen-VL, LLaVA, Pixtral und ähnliche). **Aktiviert**/**Deaktiviert** überschreibt die Erkennung, wenn das Modell falsch eingeordnet wird. CLI- und integrierte (llama.cpp/MLX) Profile können Bilder nicht senden. Lokale LM Studio-Vision-Modelle (`vlm`) erscheinen ebenfalls in der Modell-Liste.
+**Bild-Eingabe (Vision)** entscheidet, ob korTTY Bilder zu einem Prompt für dieses Profil anhängen darf – verwendet von der KI-Bildschirm-Aufnahme-Analyse des [Session-Journal](../../features/session-journal.md#ki-screenshot-analyse). **Automatisch (erkennen)** ermittelt die Fähigkeit vom Endpunkt: für einen lokalen LM Studio-Endpunkt sind die Modell-Metadaten autoritativ (ein `vlm`Modell gilt als bildfähig; die Antwort wird zusammen mit den Reasoningsstufen – durch das automatische Metadaten-Lesen und durch **Reasoning-Optionen aktualisieren** – gelesen und mit ihnen zwischengespeichert), der native Anthropic-Endpunkt gilt immer als bildfähig, und andere Endpunkte werden anhand bekannter Vision-Modellnamen erkannt (GPT-4o/4.1/5, o3/o4, Gemini, Gemma 3, Qwen-VL, LLaVA, Pixtral und ähnliche). **Aktiviert**/**Deaktiviert** überschreiben die Erkennung für Modelle, die falsch eingeschätzt werden. CLI- und integrierte (llama.cpp/MLX) Profile können keine Bilder senden. Lokale LM Studio-Vision-Modelle (`vlm`) erscheinen ebenfalls im Modell-Dropdown.
 
 ### Token-Quoten-Verwaltung
 
@@ -170,7 +171,9 @@ Jedes KI-Profil verfügt über ein Token-Verbrauchslimit mit den folgenden Einst
 - **Reset-Periode**: Anzahl der Tage zwischen den Resets (1–3650), wobei ein optionaler Referenzdatum für vorhersehbare Resetzeiten verwendet wird.
 - **Warnschwellen**: Eine gelbe Warnung wird bei einem bestimmten Prozentsatz der Grenze ausgelöst; eine rote Warnung bei einem höheren Prozentsatz. Beide Werte können als ganze Zahlen zwischen 0 und 100 konfiguriert werden.
 
-Der Token-Verbrauch wird als farbiger Balken und Zusammenfassung im Profil-Editor angezeigt und die Profilliste zeigt den Token-Status inline.
+- **Preis pro 1 Mio. Tokens** (nur im KI-Manager, optional): der Preis, den der Anbieter pro eine Million Eingabe- und Ausgabe-Tokens verlangt. Mit einem Preis zeigt korTTY, was KI-Aufrufe kosten in Geld – neben der Quotenleiste als „≈ 3,42 € in diesem Zeitraum“, auf [Sitzungsjournale](../../features/session-journal.md#ki-token-nutzung-und-kosten) und im [KI-Swarm](../../features/ai-swarm.md) Dashboard-Header. Ein Profil, das lokal läuft (ein integriertes llama.cpp/MLX-Modell oder ein Endpunkt auf `localhost`/`127.0.0.1`), wird stattdessen als „lokal · keine Token-Kosten“ angezeigt.
+
+Die Token-Nutzung wird im Profil-Editor als farbige Balken und Zusammenfassung angezeigt, und die Profilliste zeigt den Tokenstatus inline. Die Nutzung wird für jeden KI-Aufruf gezählt, der mit dem Profil ausgeführt wird: Chat-Antworten, der Terminal-KI-Agent, jeder Agent eines KI-Swarms im Lauf plus seine endgültige kombinierte Antwort, geplante KI-Jobs und jeder Aufruf des Sitzungsjournals (Zusammenfassungen, Titel, Screenshot-Analyse, Fragen, Übersetzungen).
 
 ### Internet-Zugriffs-Modi
 
