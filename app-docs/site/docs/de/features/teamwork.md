@@ -4,7 +4,7 @@ title: Teamarbeit (gemeinsame Verbindungen)
 
 # Teamarbeit (gemeinsame Verbindungen)
 
-Teilen Sie SSH-Verbindungen mit Ihrem Team, indem Sie sie aus einem Git-Repository oder einer freigegebenen Datei synchronisieren. Teamwork-Quellen werden zusammen mit Ihren lokalen Verbindungen in den Connection Manager geladen, automatisch synchronisiert und sicher von Inline-Passwörtern befreit, sodass Anmeldeinformationen nur aus Ihrem lokalen verschlüsselten Speicher stammen.
+Teilen Sie SSH-Verbindungen mit Ihrem Team, indem Sie sie aus einem Git-Repository oder einer freigegebenen Datei synchronisieren. Teamwork-Quellen werden zusammen mit Ihren lokalen Verbindungen in den Connection-Manager geladen, automatisch synchronisiert und sicher von Inline-Passwörtern befreit, sodass Anmeldeinformationen nur aus Ihrem lokalen verschlüsselten Speicher stammen.
 
 
 ![Teamwork sync](../assets/diagrams/teamwork-sync-flow.svg)
@@ -66,7 +66,7 @@ Sobald Sie die Teamwork-Einstellungen gespeichert haben:
 2. Alle N Minuten (basierend auf dem Mindestintervall zwischen aktivierten Quellen) geschieht Folgendes:
    - Zieht/klont jede Quelle (Git) oder liest die Datei (Shared File).
    - Lädt die XML-Verbindungen.
-   - Führt die Ergebnisse im Cache und im Verbindungsmanager zusammen.
+   - Führt die Ergebnisse im Cache und im Connection-Manager zusammen.
 3. Wenn eine Quellaktualisierung fehlschlägt, wird die vorherige zwischengespeicherte Version beibehalten.
 
 ### Manuelle Synchronisierung
@@ -125,7 +125,7 @@ Sobald eine Quelle synchronisiert ist:
 
 ### Quellen unterscheiden
 
-Im Connection Manager werden Teamwork-Verbindungen anhand ihrer Quell-ID gekennzeichnet. Bewegen Sie den Mauszeiger über die Verbindungseigenschaften oder überprüfen Sie sie, um zu sehen, von welcher Teamwork-Quelle sie stammt.
+Im Connection-Manager werden Teamwork-Verbindungen anhand ihrer Quell-ID gekennzeichnet. Bewegen Sie den Mauszeiger über die Verbindungseigenschaften oder überprüfen Sie sie, um zu sehen, von welcher Teamwork-Quelle sie stammt.
 
 ## Git-Repository-Setup
 
