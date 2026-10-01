@@ -1826,23 +1826,33 @@ public class SessionJournalViewerPane extends BorderPane {
         if (choice == null) {
             return;
         }
+        de.kortty.core.SessionJournalExportProtection.Protection protection = choice.protection();
+        String extension = de.kortty.core.SessionJournalExportProtection.targetExtension(
+            format.getExtension(), archive, protection);
+        String filterKey = protection.usesGpg() ? "journal.export.file.gpg"
+            : protection.usesPassword() && !archive ? "journal.export.file.encryptedZip"
+            : format.getFilterKey();
         FileChooser chooser = new FileChooser();
         chooser.setTitle(I18n.get("journal.export.title"));
-        chooser.setInitialFileName("session-journal" + format.getExtension());
-        chooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter(I18n.get(format.getFilterKey()), "*" + format.getExtension()));
+        chooser.setInitialFileName("session-journal" + extension);
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(I18n.get(filterKey), "*" + extension));
         File target = chooser.showSaveDialog(ownerWindow());
         if (target == null) {
-            zero(choice.password());
+            protection.wipe();
             return;
         }
         Thread exporter = new Thread(() -> {
             try {
-                SessionJournalExportService.ExportResult result =
-                    new SessionJournalExportService(service(), renderer()).export(format, dir,
-                        target.toPath(),
-                        new SessionJournalExportService.Options(choice.includeScreenshots(), choice.filter()),
-                        choice.password());
+                SessionJournalExportService exportService = new SessionJournalExportService(service(), renderer());
+                SessionJournalExportService.Options options =
+                    new SessionJournalExportService.Options(choice.includeScreenshots(), choice.filter());
+                SessionJournalExportService.ExportResult result = de.kortty.core.SessionJournalExportProtection.export(
+                    target.toPath(), archive,
+                    de.kortty.core.SessionJournalExportProtection.plainName(
+                        target.toPath(), extension, format.getExtension()),
+                    protection,
+                    (path, password) -> exportService.export(format, dir, path, options, password),
+                    de.kortty.core.SessionJournalExportProtection.SYSTEM_GPG);
                 Platform.runLater(() -> {
                     if (result.aiSelectionWarning() != null && !result.aiSelectionWarning().isBlank()) {
                         showInfo(result.aiSelectionWarning());
@@ -1853,7 +1863,7 @@ public class SessionJournalViewerPane extends BorderPane {
                 logger.error("Session journal export failed: {}", e.getMessage(), e);
                 Platform.runLater(() -> showError(I18n.get("journal.export.error", e.getMessage())));
             } finally {
-                zero(choice.password());
+                protection.wipe();
             }
         }, "SessionJournal-ViewerExport");
         exporter.setDaemon(true);

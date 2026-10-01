@@ -25,7 +25,7 @@ Das Wasserzeichen ist **standardmäßig deaktiviert** – ein Dokument wird mark
 Wenn Sie das Textfeld leer lassen, wird das integrierte korTTY-Wasserzeichen verwendet, das zusätzlich den Projekt-Repository-Link darunter druckt. Ein eigener Text wird wörtlich übernommen, es wird nichts angehängt.
 
 !!! tip
-    Ein Wasserzeichen wie `CONFIDENTIAL` oder der Name Ihrer Organisation dient als visueller Hinweis und ist keine Sicherheit. Jeder kann das Wasserzeichen aus einem PDF entfernen. Für Journale, die nicht von anderen lesbar sein dürfen, exportieren Sie stattdessen ein [verschlüsseltes Archiv](../../features/session-journal.md#mehrere-tagebucher-exportieren).
+    Ein Wasserzeichen wie `CONFIDENTIAL` oder der Name Ihrer Organisation ist ein visueller Marker, keine Schutzmaßnahme. Jeder kann es aus einer PDF entfernen. Für Journale, die nicht von anderen gelesen werden dürfen, [verschlüsseln Sie den Export](../../features/session-journal.md#export-verschlusseln) stattdessen — mit einem Passwort oder GPG.
 
 ## Fußzeile
 

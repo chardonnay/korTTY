@@ -440,10 +440,20 @@ With more than one journal selected, the export writes a single zip archive that
 
 Filters apply to every selected journal. A journal in which the filter matches nothing is skipped and reported afterwards, so one empty result cannot kill a ten-journal export; only if *every* journal comes out empty does the export refuse — before writing a file.
 
-Every archive — including the HTML bundle of a single journal — can be **protected with a password**. The option sits in the export dialog and encrypts the archive with **AES-256**; without it the archive is written unencrypted. Journals contain full terminal transcripts, so an unprotected archive is a deliberate choice.
+### Encrypting an export
+
+Journals contain full terminal transcripts, so every export can be encrypted. Pick the protection next to **Include screenshots** at the top of the export dialog:
+
+| Encryption | Result |
+|------------|--------|
+| **No encryption** | The file as described above, unencrypted — a deliberate choice for transcripts |
+| **Protect with a password (ZIP, AES-256)** | An archive (HTML bundle, several journals) is encrypted directly. A single PDF or Markdown file is packed into a password-protected ZIP archive. |
+| **Encrypt with GPG** | The export — PDF, Markdown or ZIP — becomes a `.gpg` file for one of the keys under **Security > GPG-Keys...**; only the owner of the matching private key can decrypt it (`gpg --decrypt`). |
+
+GPG needs `gpg` installed. korTTY encrypts for the key file it manages, so the key does not have to be in your GPG keyring. Without stored keys the option explains where to add one. While a protected export is written, the unencrypted version exists only in a private temporary folder that is deleted right afterwards, also when encryption fails.
 
 !!! warning
-    The password is not stored anywhere. korTTY cannot recover an encrypted archive if you lose it.
+    The password is not stored anywhere. korTTY cannot recover an encrypted archive if you lose it — nor a GPG export without the private key.
 
 ### Footer and watermark
 
