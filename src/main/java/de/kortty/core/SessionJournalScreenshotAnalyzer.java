@@ -43,6 +43,8 @@ import java.util.function.Supplier;
  */
 public class SessionJournalScreenshotAnalyzer {
 
+    private final java.util.Set<Path> noVisionNoted = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     /** Thrown for MANUAL runs when policy or the profile's capability forbids the analysis. */
     public static final class VisionUnavailableException extends IllegalStateException {
         public VisionUnavailableException(String message) {
@@ -114,8 +116,7 @@ public class SessionJournalScreenshotAnalyzer {
             return;
         }
         if (!aiInvoker.isVisionPlausible()) {
-            logger.debug("Skipping screenshot analysis for {}: no vision-capable AI profile",
-                journalDir.getFileName());
+            noteSkippedNoVision(journalDir, aiInvoker);
             return;
         }
         // The authoritative vision check may query the endpoint's metadata — it runs on the
@@ -216,6 +217,27 @@ public class SessionJournalScreenshotAnalyzer {
         }
     }
 
+    /**
+     * Says once per journal — at INFO, so it shows in kortty.log — why its screenshots stay
+     * undescribed: the profile is not known to accept images. Models the name heuristic does not
+     * recognise need "Image input (vision): Enabled" on the profile.
+     */
+    private void noteSkippedNoVision(Path journalDir, SessionJournalAiSupport.AiInvoker invoker) {
+        if (!noVisionNoted.add(journalDir.toAbsolutePath().normalize())) {
+            return;
+        }
+        String profile = null;
+        try {
+            profile = invoker.profile() != null ? invoker.profile().getName() : null;
+        } catch (RuntimeException ignored) {
+            // name is only for the message
+        }
+        logger.info("Screenshots of session journal {} are not analyzed: the AI profile '{}' is not known to accept "
+                + "images. If its model supports image input, set 'Image input (vision)' to 'Enabled' for the profile "
+                + "in the AI Manager.",
+            journalDir.getFileName(), profile != null ? profile : "?");
+    }
+
     private void runAnalysis(Path journalDir, String entryId, Trigger trigger,
                              SessionJournalAiSupport.AiInvoker aiInvoker) throws Exception {
         // Authoritative capability check — may ask the endpoint's model metadata (LM Studio),
@@ -224,8 +246,7 @@ public class SessionJournalScreenshotAnalyzer {
             if (trigger == Trigger.MANUAL) {
                 throw new VisionUnavailableException("No image-capable AI profile is available");
             }
-            logger.debug("Skipping screenshot analysis for {}: profile has no image input",
-                journalDir.getFileName());
+            noteSkippedNoVision(journalDir, aiInvoker);
             return;
         }
         SessionJournalEntry entry = findScreenshotEntry(service.loadDocument(journalDir), entryId);

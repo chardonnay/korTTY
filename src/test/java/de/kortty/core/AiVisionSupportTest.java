@@ -85,6 +85,8 @@ class AiVisionSupportTest {
         assertThat(AiVisionSupport.modelSuggestsVision(url, "google/gemma-3-12b")).isTrue();
         assertThat(AiVisionSupport.modelSuggestsVision(url, "qwen2.5-vl-7b-instruct")).isTrue();
         assertThat(AiVisionSupport.modelSuggestsVision(url, "MiniMax-VL-01")).isTrue();
+        assertThat(AiVisionSupport.modelSuggestsVision(url, "MiniMax-M3")).isTrue();
+        assertThat(AiVisionSupport.modelSuggestsVision(url, "MiniMax-M3.1-Flash-Preview")).isTrue();
         assertThat(AiVisionSupport.modelSuggestsVision(url, "llava-1.6-mistral")).isTrue();
         assertThat(AiVisionSupport.modelSuggestsVision(url, "pixtral-12b")).isTrue();
         assertThat(AiVisionSupport.modelSuggestsVision(url, "nvidia/nemotron-nano-vl-8b")).isTrue();
@@ -94,6 +96,7 @@ class AiVisionSupportTest {
         assertThat(AiVisionSupport.modelSuggestsVision(url, "gpt-3.5-turbo")).isFalse();
         assertThat(AiVisionSupport.modelSuggestsVision(url, "o3-mini")).isFalse();
         assertThat(AiVisionSupport.modelSuggestsVision(url, "deepseek-r1")).isFalse();
+        assertThat(AiVisionSupport.modelSuggestsVision(url, "MiniMax-M2")).isFalse();
         assertThat(AiVisionSupport.modelSuggestsVision(url, "claude-2.1")).isFalse();
         assertThat(AiVisionSupport.modelSuggestsVision(url, "")).isFalse();
         assertThat(AiVisionSupport.modelSuggestsVision(url, null)).isFalse();

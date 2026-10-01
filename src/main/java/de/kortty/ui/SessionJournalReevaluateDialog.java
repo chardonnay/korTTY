@@ -91,6 +91,19 @@ final class SessionJournalReevaluateDialog {
         screenshotsCheck.setSelected(false);
         screenshotsCheck.setVisible(anyScreenshots && screenshotAnalyzer != null);
         screenshotsCheck.setManaged(screenshotsCheck.isVisible());
+        Runnable updateVision = () -> {
+            AiProfile chosen = profileCombo.getValue();
+            boolean vision = chosen != null && (de.kortty.core.AiVisionSupport.isVisionCapable(chosen)
+                || de.kortty.core.AiVisionLiveCheck.probeEligible(chosen));
+            screenshotsCheck.setDisable(!vision);
+            if (!vision) {
+                screenshotsCheck.setSelected(false);
+            }
+            screenshotsCheck.setTooltip(vision ? null
+                : new javafx.scene.control.Tooltip(I18n.get("journal.reevaluate.noVision")));
+        };
+        profileCombo.valueProperty().addListener((obs, old, value) -> updateVision.run());
+        updateVision.run();
 
         Label info = new Label(I18n.get("journal.reevaluate.info"));
         info.setWrapText(true);
