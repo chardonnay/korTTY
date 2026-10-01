@@ -34,7 +34,8 @@ Opened as a window of its own, the Snippet Manager remembers its size and positi
 The library lists every snippet in a table:
 
 - **System (OS) column** — A sortable operating-system column for each snippet (Any, Linux, macOS, Windows). Auto-set when a snippet is created via *Generate Workflow Script*.
-- **Sortable columns** — All columns (Name, Analysis, Language, Category, System, Tags, Lines, Last modified, Used) are sortable.
+- **Sortable columns** — All columns (Name, Analysis, Language, Exec, Category, System, Tags, Lines, Last modified, Used) are sortable.
+- **Exec column** — Whether the snippet is written as an executable file when it is exported or copied to a server. A dimmed checkbox is the automatic value; clicking it sets the flag explicitly, and clicking back to the automatic value returns to **Automatic**. See [Executable flag](#executable-flag).
 - **Analysis column** — Shows the state of each snippet's stored [Full code analysis](#full-code-analysis) at a glance: **⚠ 3** — three findings of the newest analysis are not applied to the saved snippet yet; **◷** — a result waits for your review ("Review later"); **✓** — every finding was applied, or the analysis found nothing to fix; **✎** — an AI result was applied in the editor but the snippet was never saved with it, and korTTY remembers that state (see [Applied but not saved](#applied-but-not-saved)); **↻** after the symbol — the snippet changed since that analysis. Hover a cell for the details and the date of the analysis. The column is filled in the background when the Snippet Manager opens and follows every new analysis, apply, discard and save, so even a library with hundreds of snippets opens without waiting. Sorting by it puts pending reviews first, then the snippets with a remembered unsaved result, then the snippets with the most open findings.
 - **Analysis filter** — The drop-down next to the category filter narrows the list to the snippets that need attention: **Open findings**, **Stale analysis** or **Review pending** — an inbox for the decisions you still owe: results you kept for later and applied results you have not saved. **All snippets** shows everything again. It combines with the search and the category filter.
 - **Lines and Last modified** — **Lines** shows the number of lines in the snippet, **Last modified** the date and time of its last change (the creation time for a snippet that was never edited).
@@ -46,6 +47,23 @@ The buttons below the table and its right-click menu insert, copy and send the s
 
 !!! note "An unreadable snippet file is moved aside, not deleted"
     If `snippets.xml` cannot be read when korTTY starts, korTTY renames it to `snippets.xml.corrupt-<date>-<time>` next to the original, continues with an empty list, and says so once the first time you open the Snippet Manager. Restore the moved file or a korTTY [backup](backup.md) to get its snippets back. Snippets are always written atomically, so an interrupted save cannot leave a half-written file behind.
+
+### Folders
+
+Above the table, a folder tree organises the library. **All snippets** shows everything, each folder shows its snippets (with **Include sub-folders** ticked also those of every folder below it), and **Top level (no folder)** shows the snippets that are in no folder. The number after each entry counts its snippets. Folders are independent of categories: a snippet has one folder and, as before, one category.
+
+- **Create** — The 📁+ button above the tree, or **New folder** in the tree's right-click menu, creates a folder below the selected one (at the top level when *All snippets* is selected). Folder names must be unique within their parent; path separators are replaced.
+- **Move snippets** — Drag one or more selected rows from the table onto a folder. Dropping them on *All snippets* or *Top level (no folder)* moves them out of every folder. **Move to folder…** in the table's right-click menu does the same without the mouse.
+- **Move folders** — Drag a folder onto another folder; a folder cannot be moved into itself or one of its sub-folders.
+- **Rename and delete** — **Rename folder** (also ++f2++) and **Delete folder** (also ++delete++) in the tree's right-click menu. Deleting asks whether to **Delete folder, keep snippets** — its snippets and sub-folders move one level up — or **Delete folder and snippets**, which asks once more before it deletes them together with their stored analyses.
+- **Folder actions** — The tree's right-click menu also offers **Copy folder to terminal directory** (see [Copying files to the terminal directory](#copying-files-to-the-terminal-directory)), **Export folder…** (see [Exporting a folder](#exporting-a-folder)), **Full code analysis (folder as project)** (see [Analysing a folder as one project](#analysing-a-folder-as-one-project)) and **Export analysis reports…** for every snippet below the folder.
+
+### Executable flag
+
+Every snippet has an executable flag that decides the file mode when it is exported or copied to a server: executable files get `rwxr-xr-x` (755), all others `rw-r--r--` (644). Folders are always created as 755.
+
+- **Automatic** (default) — A file with a script extension (`.sh`, `.bash`, `.zsh`, `.ksh`, `.py`, `.pl`, `.rb`, `.groovy`, `.ps1`) or a first line starting with `#!` is executable; everything else is not.
+- **Executable** / **Not executable** — Set explicitly in the editor's **Executable** field, with the Exec column, or for several snippets at once with **Executable flag** in the table's right-click menu (which also offers **Automatic** to reset).
 
 ### Browsing and editing
 
@@ -74,6 +92,9 @@ The buttons below the table and its right-click menu insert, copy and send the s
    - **Code language** — Select the programming language (Bash, Python, Java, JavaScript, TypeScript, SQL, XML, JSON, YAML, and more). Enables syntax highlighting. The add (**+**) button next to the list adds a language that is not offered yet: type its name once and it is stored and offered in every future snippet editor. A self-added language is used for the AI prompts and the file extension; syntax highlighting falls back to plain text unless korTTY happens to ship a grammar for it.
    - **Text language** — What language AI-written code should use for comments and for messages shown to users, logged, or printed as help. The default, **Automatic — keep the script's language**, leaves the snippet's own prose alone: korTTY writes new text in the language the script already uses and translates nothing. Picking a language instead is a deliberate instruction to convert the snippet's existing text into it. It is independent of the korTTY interface language. Tick **Remember as default** to keep the choice for future snippets; otherwise it applies to this editor only.
    - **Category** — Select an existing category or type a new one. The fixed non-deletable *Script-Header* category contains reusable header templates for generated workflow scripts.
+   - **Folder** — The library folder the snippet lives in; **Top level (no folder)** for none.
+   - **File name** — The name the snippet gets as a file when it is exported or copied to a server. Left empty, korTTY derives it from the name and the code language (the field shows that name as a hint), for example `deploy` with Bash becomes `deploy.sh`.
+   - **Executable** — **Automatic**, **Executable** or **Not executable**; the tooltip says what *Automatic* means for this file. See [Executable flag](#executable-flag).
    - **System** — Optionally select a target operating system (Any, Linux, macOS, Windows). Auto-set when created via *Generate Workflow Script* based on the agent's probed OS; you can manually override it for any snippet.
    - **Tags** — Comma-separated keywords for searching (e.g., `docker, deploy, backup`).
    - **Description** — Optional free-text description of the snippet.
@@ -294,7 +315,10 @@ With more than one AI profile configured, **AI Code → Full code analysis** (an
 - **Remembered choice** — The profile you start with is remembered per user and preselected the next time. If it has been deleted since, the default profile is preselected instead.
 - **One click with a profile** — **AI Code → Full code analysis with profile ▸** (and the same submenu in the context menu) lists the profiles and starts the analysis at once with the one you pick, without opening the New analysis area. That profile becomes the remembered one, too.
 - **One profile only** — Without a choice to make, nothing changes: the plain entry starts the analysis immediately, the panel names the profile in use, and the submenu is not shown. The entries stay disabled, with their usual tooltip, when a policy turns AI off or no AI profile is configured.
+- **Propose modularization** — With this option ticked, the analysis also asks the AI whether the code should be split into files. See [Modularization](#modularization).
 - **Same profile everywhere** — The profile you chose is used for the analysis request, its flow diagram, **Apply selected**, **Retry** after a stop or failure and **Verify**; the panel's *Profile:* indicator, the history entry and the editor's hint bar (*Reviewing code with …*) name it. **Re-run** in the result still lets you switch the profile for the next run.
+
+The analysis is told the snippet's file name and whether it is written as an executable file, and checks that its shebang line and the executable flag fit how the file is used. Right-click a snippet in the library and choose **Full code analysis** to open it in an editor tab and start the analysis there.
 
 ### Stored script text
 
@@ -415,6 +439,36 @@ Select snippets in the library, right-click and choose **Export analysis reports
 
 Each snippet contributes its current analysis: the report after its newest accepted apply run when there is one (a verification made after it is included), otherwise the report before applying. **Append the full script to the report** works as in the single export. The export runs in the background with a progress bar and **Cancel** (a cancelled export writes nothing); when it is done, the dialog shows how many reports were written, with **Open** and **Show in folder**.
 
+Each item also carries the snippet's library folder: in the ZIP archive every report lies in the directory of its folder (for example `ops/deploy/01-deploy.sh-analysis-….md`), and the combined files name the folder in front of the snippet in the table of contents.
+
+### Analysing a folder as one project
+
+Right-click a folder in the library tree — the main folder of a script collection or any sub-folder — and choose **Full code analysis (folder as project)**. A tab named after the folder opens next to the editor tabs. Every script of that folder and its sub-folders goes to the AI together, so the analysis can see problems between files: duplicated code, broken `source` or `import` paths, inconsistent interfaces, and executable flags or shebang lines that do not match how a file is used. A right-click on a single script analyses only that script, as before.
+
+- **Before starting** — The tab shows the folder, the number of files and an estimate of the tokens they take. Choose the **AI profile**, tick **Propose modularization** if wanted and click **Start analysis**; **Stop** cancels. **Files…** lets you leave files out. A folder larger than about 48,000 tokens — more than many models can read at once — opens that file choice first.
+- **The report** — The same report as for a single script, with the flow diagram of the whole folder. Each finding names its file in square brackets in front of its title (`[lib/util.sh] Quote $1`); findings without a file concern several files.
+- **Applying** — Tick findings and click **Apply selected findings…**. korTTY rewrites each affected file one at a time, with the rest of the project as read-only context, and opens the result in the [multi-file review](#reviewing-changes-to-several-files). Accepted files replace the snippets' content; the previous content stays in each snippet's history.
+- **Stored with the folder** — The result is kept like a single analysis, under the folder, and survives restarts and [backups](backup.md). When files change afterwards, the tab says the analysis is out of date. Deleting the folder discards its analyses.
+
+### Modularization
+
+Tick **Propose modularization (split into files where useful)** in the **New analysis** area or in a folder's analysis tab, and the analysis also asks the AI for a module structure. The choice is remembered. The AI proposes a split only where it helps — several responsibilities, a long script or reused code; otherwise it says why the code should stay one file.
+
+- **The proposal** — Below the report, **Proposed module structure** shows the rationale and the planned file tree: the entry point (▶), each module with its purpose, and ⚙ for files that will be executable. **No split recommended** shows only the reason.
+- **Apply modularization…** — korTTY writes the planned files one at a time — modules first, then the entry point, so it calls the modules by their real names — using the language's own mechanism to load them (Python packages, Perl `use lib`, shell `source` relative to the script). When a file comes back empty or a module is loaded by no other file, korTTY asks the AI once more to fix exactly that; anything still wrong is listed in the review.
+- **Review and accept** — The files open in the [multi-file review](#reviewing-changes-to-several-files): the entry point against the original script, the modules as new files.
+- **Result for a single script** — A new folder named after the script is created next to it, sub-folders follow the planned paths (for example `lib/`). The script itself becomes the entry point in that folder: it keeps its id, its history and its analyses, gets the planned file name, and its old content stays in its history. Each module becomes a new snippet with the planned file name and executable flag, the script's category, tags (plus `module`) and system; a module name already in use gets the folder path in front. A never-saved snippet is saved first.
+- **Result for a folder** — Planned paths that already exist update those snippets; new paths become new snippets in the folder.
+
+### Reviewing changes to several files
+
+Results that change several files — applied project findings and modularizations — open in a review window instead of the editor:
+
+- **Tabs** — One tab per file with the usual side-by-side comparison; a new file is compared against an empty one. The tab shows the file's state: **+** new, **✎** changed, **=** unchanged.
+- **Directory tree** — On the left, the folder structure of the result with the same marks and ⚙ for executable files. **Directory tree** in the toolbar shows or hides it; korTTY keeps that choice while it runs. Selecting a file in the tree selects its tab, and the tree follows the selected tab.
+- **Choosing files** — The checkbox on each tab and in the tree includes or excludes a file; the toolbar shows how many changed files are selected. Unchanged files are never written.
+- **Accept selected files** writes the included files; **Discard** writes nothing.
+
 ### How the analysis works in detail
 
 This section describes what korTTY sends to the model, how it checks what comes back, and what it logs — useful when you tune a model or read a log, not needed for everyday use.
@@ -534,13 +588,22 @@ Supported for Bash/shell, Python, Perl, and Ruby snippets:
 
 For embedded/base64 one-liners, the terminal shows the `KorTTY snippet: ...` label instead of echoing the full generated command.
 
+### Copying files to the terminal directory
+
+Instead of sending a script's text, korTTY can copy snippets as files into the current directory of the terminal:
+
+- **Copy as file(s) to terminal directory** in the table's right-click menu copies the selected snippets. Snippets in sub-folders of the folder shown in the tree keep those sub-folders.
+- **Copy folder to terminal directory** in the tree's right-click menu copies the whole folder, including its own name and every sub-folder (also empty ones).
+
+For an SSH session the files are uploaded over the session's SFTP channel into the directory the shell is in (korTTY follows `cd` and the OSC 7 directory reports of the shell; `~` is resolved to the login directory). For a local shell they are written directly into the shell's current directory. korTTY first shows the target directory and the number of files; when files already exist there, it lists them and offers **Overwrite**, **Skip existing** or **Cancel**. Each file is written with LF line endings and the mode of its [executable flag](#executable-flag), so scripts can be run right away. A progress window shows each file and can cancel the copy. Telnet and serial tabs cannot receive files.
+
 ## Import and export
 
 Snippets can be imported and exported in multiple formats.
 
 ### Data format exports
 
-Use **Export** to save selected snippets, or all snippets when nothing is selected. The format dialog proposes **Plain text script files** first. Use **Import** to merge snippets from a file.
+Use **Export** to save selected snippets, or all snippets when nothing is selected. The format dialog proposes **Plain text script files** first. Use **Import** to merge snippets from a file. The data formats keep each snippet's folder path, file name and executable flag; importing them recreates missing folders.
 
 | Format | Extension | Use case |
 |--------|-----------|----------|
@@ -559,16 +622,22 @@ For script-specific exports, choose:
 #### Plain text script files
 
 - Opens a target-folder chooser
-- Writes one file per snippet
-- Filename comes from the snippet's **Name** column, including extension
+- Writes one file per snippet, in sub-directories for snippets in sub-folders of the folder shown in the tree
+- The file name is the snippet's **File name**, else derived from the name and the code language
 - Unsafe path characters are sanitized
-- Duplicate names receive a suffix such as `script (2).sh`
+- Duplicate names in one directory receive a suffix such as `script-2.sh`
+- Files get the mode of their [executable flag](#executable-flag) where the file system supports it
 
 #### ZIP script archive
 
 - Writes one ZIP containing one script file per snippet
-- Keep the extension from the **Name** column or force one extension for all files
+- Keep each file's own name or force one extension for all files
+- With their own names, the files keep their sub-folders and their executable flag (`unzip` restores the mode); a password-protected archive carries the mode only where the file system has POSIX permissions
 - Supported forced extensions: `.sh`, `.py`, `.pl`, `.rb`, `.ps1`, `.sql`, `.txt`, or custom
+
+#### Exporting a folder
+
+**Export folder…** in the tree's right-click menu exports the folder with every sub-folder. Choose **ZIP script archive** (with the encryption options below), **Plain text script files** into a directory, or JSON, XML or YAML. ZIP and directory exports keep the folder structure, including empty folders, and the executable flags.
 
 #### ZIP encryption options
 
