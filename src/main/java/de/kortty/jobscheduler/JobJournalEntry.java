@@ -51,6 +51,43 @@ public class JobJournalEntry {
     @XmlElement
     private String detailText;
 
+    /** Session journal folders this run kept (one per target), absolute paths. */
+    @jakarta.xml.bind.annotation.XmlElementWrapper(name = "sessionJournals")
+    @XmlElement(name = "dir")
+    private java.util.List<String> sessionJournalDirs = new java.util.ArrayList<>();
+
+    /**
+     * Folders of earlier journals this run produced identical output to; its own journal was
+     * discarded as a duplicate in favour of them.
+     */
+    @jakarta.xml.bind.annotation.XmlElementWrapper(name = "duplicateOfSessionJournals")
+    @XmlElement(name = "dir")
+    private java.util.List<String> duplicateOfJournalDirs = new java.util.ArrayList<>();
+
+    public java.util.List<String> getSessionJournalDirs() {
+        if (sessionJournalDirs == null) {
+            sessionJournalDirs = new java.util.ArrayList<>();
+        }
+        return sessionJournalDirs;
+    }
+
+    public void setSessionJournalDirs(java.util.List<String> sessionJournalDirs) {
+        this.sessionJournalDirs = sessionJournalDirs != null
+            ? new java.util.ArrayList<>(sessionJournalDirs) : new java.util.ArrayList<>();
+    }
+
+    public java.util.List<String> getDuplicateOfJournalDirs() {
+        if (duplicateOfJournalDirs == null) {
+            duplicateOfJournalDirs = new java.util.ArrayList<>();
+        }
+        return duplicateOfJournalDirs;
+    }
+
+    public void setDuplicateOfJournalDirs(java.util.List<String> duplicateOfJournalDirs) {
+        this.duplicateOfJournalDirs = duplicateOfJournalDirs != null
+            ? new java.util.ArrayList<>(duplicateOfJournalDirs) : new java.util.ArrayList<>();
+    }
+
     public static JobJournalEntry system(JobRunStatus status, String summary, String detailText) {
         JobJournalEntry entry = new JobJournalEntry();
         entry.setJobId("__system__");

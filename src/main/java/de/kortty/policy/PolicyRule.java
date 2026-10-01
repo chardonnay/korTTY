@@ -134,17 +134,40 @@ public record PolicyRule(
         Boolean aiScreenshotAnalysis,
         Boolean aiAsk,
         Integer maxLogParts,
-        List<de.kortty.model.SessionJournalReplacement> replacements) {
+        List<de.kortty.model.SessionJournalReplacement> replacements,
+        Boolean automationAllowed,
+        Integer automationMaxRetentionDays,
+        Integer automationMaxStorageMb,
+        Integer automationMaxJournals) {
 
         public SessionJournalRule {
             replacements = replacements == null ? List.of() : List.copyOf(replacements);
+        }
+
+        /** A rule without automation-journal mandates. */
+        public SessionJournalRule(
+            Boolean enforced,
+            String logFormat,
+            Integer aiMaxLines,
+            String storagePath,
+            Boolean allowRename,
+            Boolean allowDelete,
+            String nameTemplate,
+            Boolean aiTitle,
+            Boolean aiScreenshotAnalysis,
+            Boolean aiAsk,
+            Integer maxLogParts,
+            List<de.kortty.model.SessionJournalReplacement> replacements) {
+            this(enforced, logFormat, aiMaxLines, storagePath, allowRename, allowDelete, nameTemplate,
+                aiTitle, aiScreenshotAnalysis, aiAsk, maxLogParts, replacements, null, null, null, null);
         }
 
         public boolean isEmpty() {
             return enforced == null && logFormat == null && aiMaxLines == null && storagePath == null
                 && allowRename == null && allowDelete == null && nameTemplate == null && aiTitle == null
                 && aiScreenshotAnalysis == null && aiAsk == null && maxLogParts == null
-                && replacements.isEmpty();
+                && replacements.isEmpty() && automationAllowed == null && automationMaxRetentionDays == null
+                && automationMaxStorageMb == null && automationMaxJournals == null;
         }
     }
 

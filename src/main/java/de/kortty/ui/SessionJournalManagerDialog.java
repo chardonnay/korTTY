@@ -356,6 +356,33 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         return counts.get(meta.getDirectory().toAbsolutePath().normalize());
     }
 
+    /** "📌 kept", the expiry date of an automation journal, or empty for interactive journals. */
+    static String expiresText(SessionJournalMeta meta) {
+        if (meta == null || !meta.isAutomation()) {
+            return "";
+        }
+        if (meta.isPinned()) {
+            return "\uD83D\uDCCC " + I18n.get("journal.manager.pinned");
+        }
+        return meta.getExpiresAt() != null
+            ? meta.getExpiresAt().atZoneSameInstant(ZoneId.systemDefault()).format(STARTED_FORMAT)
+            : "";
+    }
+
+    /** Pins an automation journal (exempt from automatic deletion) or releases it. */
+    private void togglePinned(SessionJournalMeta meta) {
+        SessionJournalService service = service();
+        if (meta == null || meta.getDirectory() == null || service == null) {
+            return;
+        }
+        try {
+            service.setPinned(meta.getDirectory(), !meta.isPinned());
+            refresh();
+        } catch (Exception e) {
+            showError(e.getMessage());
+        }
+    }
+
     /** "Prompt 9 812 · completion 2 488 · 4 calls · Profile" for the AI tokens tooltip. */
     static String aiUsageTooltip(SessionJournalMeta meta) {
         if (meta == null || meta.getAiCallCount() <= 0) {
@@ -435,9 +462,15 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         });
         aiTokensColumn.setMinWidth(110);
 
+        // Automation run journals are deleted automatically; the column says when, or that a pin keeps them.
+        TableColumn<SessionJournalMeta, String> expiresColumn =
+            new TableColumn<>(I18n.get("journal.manager.column.expires"));
+        expiresColumn.setCellValueFactory(cell -> new SimpleStringProperty(expiresText(cell.getValue())));
+        expiresColumn.setMinWidth(110);
+
         view.getColumns().addAll(List.of(
             startedColumn, durationColumn, connectionColumn, serverColumn, titleColumn, entriesColumn,
-            aiTokensColumn));
+            aiTokensColumn, expiresColumn));
 
         SortedList<SessionJournalMeta> sorted = new SortedList<>(filteredJournals);
         sorted.comparatorProperty().bind(view.comparatorProperty());
@@ -462,6 +495,19 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
                     ownerWindow.openSessionJournal(row.getItem());
                 }
             });
+            javafx.scene.control.MenuItem pinItem = new javafx.scene.control.MenuItem();
+            pinItem.setOnAction(event -> togglePinned(row.getItem()));
+            javafx.scene.control.ContextMenu rowMenu = new javafx.scene.control.ContextMenu(pinItem);
+            rowMenu.setOnShowing(event -> {
+                SessionJournalMeta meta = row.getItem();
+                pinItem.setText(I18n.get(meta != null && meta.isPinned()
+                    ? "journal.manager.unpin" : "journal.manager.pin"));
+            });
+            row.contextMenuProperty().bind(javafx.beans.binding.Bindings.when(row.emptyProperty()
+                    .or(javafx.beans.binding.Bindings.createBooleanBinding(
+                        () -> row.getItem() == null || !row.getItem().isAutomation(), row.itemProperty())))
+                .then((javafx.scene.control.ContextMenu) null)
+                .otherwise(rowMenu));
             return row;
         });
         return view;

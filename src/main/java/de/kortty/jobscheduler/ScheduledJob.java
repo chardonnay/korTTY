@@ -49,6 +49,10 @@ public class ScheduledJob {
     @XmlElement
     private JournalDetailMode journalDetailMode = JournalDetailMode.LIMITED_REDACTED;
 
+    /** "Session journal per run": one session journal per target server for every run. */
+    @XmlElement
+    private de.kortty.model.AutomationJournalConfig sessionJournal;
+
     @XmlElement
     private JobSchedule schedule = new JobSchedule();
 
@@ -156,6 +160,18 @@ public class ScheduledJob {
 
     public JournalDetailMode getJournalDetailMode() {
         return journalDetailMode != null ? journalDetailMode : JournalDetailMode.LIMITED_REDACTED;
+    }
+
+    public de.kortty.model.AutomationJournalConfig getSessionJournal() {
+        if (sessionJournal == null) {
+            sessionJournal = new de.kortty.model.AutomationJournalConfig();
+        }
+        return sessionJournal;
+    }
+
+    public void setSessionJournal(de.kortty.model.AutomationJournalConfig sessionJournal) {
+        this.sessionJournal = sessionJournal;
+        touch();
     }
 
     public void setJournalDetailMode(JournalDetailMode journalDetailMode) {

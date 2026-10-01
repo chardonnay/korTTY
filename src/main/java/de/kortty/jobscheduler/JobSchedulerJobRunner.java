@@ -1,6 +1,8 @@
 package de.kortty.jobscheduler;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.AutomationJournalRecorder;
+import de.kortty.core.AutomationJournalRun;
 import de.kortty.model.ServerConnection;
 import de.kortty.security.EncryptionService;
 
@@ -43,6 +45,12 @@ public class JobSchedulerJobRunner {
     }
 
     public JobExecutionOutcome run(ScheduledJob job, String runId) {
+        return run(job, runId, AutomationJournalRun.NONE);
+    }
+
+    /** Runs the job, recording each target into {@code journalRun} (may be {@link AutomationJournalRun#NONE}). */
+    public JobExecutionOutcome run(ScheduledJob job, String runId, AutomationJournalRun journalRun) {
+        AutomationJournalRun journals = journalRun != null ? journalRun : AutomationJournalRun.NONE;
         JobSchedulerSecretRedactor redactor = new JobSchedulerSecretRedactor();
         try {
             List<ServerConnection> targets = connectionResolver.resolveTargets(job);
@@ -50,11 +58,11 @@ public class JobSchedulerJobRunner {
             if (job.getAction() != null && job.getAction().getType() == JobActionType.AI_SWARM) {
                 // The swarm gets ALL targets at once (parallel agents + one aggregated report),
                 // never the sequential per-connection loop.
-                outcome = runAiSwarm(job, runId, targets, redactor);
+                outcome = runAiSwarm(job, runId, targets, redactor, journals);
             } else {
                 outcome = targets.size() == 1
-                    ? runForConnection(job, runId, targets.get(0), redactor, targets.size())
-                    : runForTargets(job, runId, targets, redactor);
+                    ? runForConnection(job, runId, targets.get(0), redactor, targets.size(), journals)
+                    : runForTargets(job, runId, targets, redactor, journals);
             }
             return sanitizeOutcome(outcome, job.getJournalDetailMode(), redactor);
         } catch (JobBlockedException e) {
@@ -76,7 +84,8 @@ public class JobSchedulerJobRunner {
         ScheduledJob job,
         String runId,
         List<ServerConnection> targets,
-        JobSchedulerSecretRedactor redactor) {
+        JobSchedulerSecretRedactor redactor,
+        AutomationJournalRun journals) {
 
         int successCount = 0;
         int failedCount = 0;
@@ -89,7 +98,7 @@ public class JobSchedulerJobRunner {
         for (ServerConnection target : targets) {
             JobExecutionOutcome outcome;
             try {
-                outcome = runForConnection(job, runId, target, redactor, targets.size());
+                outcome = runForConnection(job, runId, target, redactor, targets.size(), journals);
             } catch (JobBlockedException e) {
                 outcome = JobExecutionOutcome.blocked(e.getMessage(), e.getMessage());
             } catch (Exception e) {
@@ -144,7 +153,8 @@ public class JobSchedulerJobRunner {
         ScheduledJob job,
         String runId,
         List<ServerConnection> targets,
-        JobSchedulerSecretRedactor redactor) throws Exception {
+        JobSchedulerSecretRedactor redactor,
+        AutomationJournalRun journals) throws Exception {
 
         if (targets == null || targets.isEmpty()) {
             throw new JobBlockedException("No target connections are configured for this job.");
@@ -160,8 +170,66 @@ public class JobSchedulerJobRunner {
             hostKeys.add(resolvePinnedHostKeyForJob(job, target));
         }
         JobExecutionOutcome outcome = aiSwarmSupport.runAiSwarm(
-            job, runId, targets, hostKeys, masterPassword, redactor);
+            job, runId, targets, hostKeys, masterPassword, redactor, journals);
         return addHostKeyVerificationNotice(job, outcome);
+    }
+
+    /**
+     * Runs the job on one target and records it into that target's session journal: every
+     * command with its output, the job's summary, and the target's own outcome.
+     */
+    private JobExecutionOutcome runForConnection(
+        ScheduledJob job,
+        String runId,
+        ServerConnection connection,
+        JobSchedulerSecretRedactor redactor,
+        int targetCount,
+        AutomationJournalRun journals) throws Exception {
+
+        AutomationJournalRecorder recorder = journals.recorderFor(connection);
+        try {
+            JobExecutionOutcome outcome = runForConnection(job, runId, connection, redactor, targetCount, recorder);
+            if (recorder.getCommandCount() == 0) {
+                // SFTP and rsync actions send no shell command: describe the action instead.
+                recorder.appendCommand(describeAction(job.getAction()));
+                recorder.appendOutput(outcome.stdout(), outcome.stderr());
+            }
+            recorder.appendNote(localizedStatus(outcome.status()), outcome.summary());
+            recorder.setTargetStatus(JobSchedulerService.toAutomationStatus(outcome.status()));
+            return outcome;
+        } catch (JobBlockedException e) {
+            recorder.appendNote(localizedStatus(JobRunStatus.BLOCKED), e.getMessage());
+            recorder.setTargetStatus(de.kortty.model.AutomationRunStatus.BLOCKED);
+            throw e;
+        } catch (Exception e) {
+            recorder.appendNote(localizedStatus(JobRunStatus.FAILED), safeMessage(e));
+            recorder.setTargetStatus(de.kortty.model.AutomationRunStatus.FAILED);
+            throw e;
+        }
+    }
+
+    private static String localizedStatus(JobRunStatus status) {
+        return de.kortty.ui.I18n.get("jobscheduler.dialog.status." + status.name().toLowerCase(java.util.Locale.ROOT));
+    }
+
+    /** One line for the journal that says what an action without shell commands did. */
+    static String describeAction(JobAction action) {
+        if (action == null || action.getType() == null) {
+            return "";
+        }
+        StringBuilder text = new StringBuilder(action.getType().name().toLowerCase(java.util.Locale.ROOT));
+        if (action.getType() == JobActionType.AI_AGENT && action.getAiPrompt() != null && !action.getAiPrompt().isBlank()) {
+            return text.append(": ").append(action.getAiPrompt().strip().lines().findFirst().orElse("")).toString();
+        }
+        for (String part : new String[] {
+            action.getLocalPath(), action.getRemotePath(), action.getRemoteSourcePath(),
+            action.getRemoteDestinationPath(), action.getNewName(), action.getArchivePath(),
+            action.getRsyncTargetRoot()}) {
+            if (part != null && !part.isBlank()) {
+                text.append(' ').append(part.strip());
+            }
+        }
+        return text.toString();
     }
 
     private JobExecutionOutcome runForConnection(
@@ -169,7 +237,8 @@ public class JobSchedulerJobRunner {
         String runId,
         ServerConnection connection,
         JobSchedulerSecretRedactor redactor,
-        int targetCount) throws Exception {
+        int targetCount,
+        AutomationJournalRecorder recorder) throws Exception {
 
         PinnedHostKey hostKey = resolvePinnedHostKeyForJob(job, connection);
         char[] masterPassword = app.getMasterPasswordManager() != null
@@ -182,8 +251,10 @@ public class JobSchedulerJobRunner {
             ? sudoService.resolveSudoPassword(connection, masterPassword)
             : Optional.empty();
         sudoPassword.ifPresent(redactor::addSecret);
+        sudoPassword.ifPresent(recorder::addSecret);
         String archivePassword = decryptArchivePassword(job.getAction(), masterPassword);
         redactor.addSecret(archivePassword);
+        recorder.addSecret(archivePassword);
 
         try (JobSchedulerRemoteSession remote = new JobSchedulerRemoteSession(
             app,
@@ -193,6 +264,20 @@ public class JobSchedulerJobRunner {
             job.isHostKeyVerificationDisabled())) {
             remote.connect();
             remote.getPassword().ifPresent(redactor::addSecret);
+            remote.getPassword().ifPresent(recorder::addSecret);
+            if (recorder.isRecording()) {
+                remote.setCommandObserver((label, result) -> {
+                    recorder.appendCommand(label);
+                    if (result == null) {
+                        recorder.appendLogNote("failed or cancelled");
+                        return;
+                    }
+                    recorder.appendOutput(result.stdout(), result.stderr());
+                    if (result.exitCode() != 0) {
+                        recorder.appendLogNote("exit " + result.exitCode());
+                    }
+                });
+            }
             JobExecutionOutcome outcome = executeAction(
                 job,
                 runId,
@@ -287,6 +372,7 @@ public class JobSchedulerJobRunner {
         String shellCommand = job.getAction().isUseSudo()
             ? JobSchedulerArchiveCommandBuilder.sudoWrap(command, sudoPassword)
             : "sh -lc " + ShellEscaper.quote(command);
+        remote.labelNextCommand(job.getAction().isUseSudo() ? "sudo " + command : command);
         JobSchedulerRemoteSession.CommandResult result = remote.execute(shellCommand, sudoPassword != null ? sudoPassword + "\n" : null);
         String detail = detailOverride != null && !detailOverride.isBlank() ? detailOverride : shellCommand;
         return result.isSuccess()

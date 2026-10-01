@@ -65,6 +65,16 @@ public class SessionJournalSummarizer {
         daemonThreadFactory("SessionJournal-AiCall"));
     private final ExecutorService workExecutor = Executors.newSingleThreadExecutor(
         daemonThreadFactory("SessionJournal-Summarizer"));
+    /**
+     * Close passes of automation run journals get their own worker, so a 20-server job queuing
+     * twenty summaries never delays the summaries of the terminal the user is working in.
+     */
+    private final ExecutorService automationExecutor = Executors.newSingleThreadExecutor(
+        daemonThreadFactory("SessionJournal-Automation"));
+    /** Journals whose automation close pass has not finished yet; retention must not touch them. */
+    private final java.util.Set<Path> pendingClosePasses = ConcurrentHashMap.newKeySet();
+    /** The invoker of the pass running on this thread when it differs from the default one. */
+    private final ThreadLocal<SessionJournalAiSupport.AiInvoker> invokerOverride = new ThreadLocal<>();
     private ScheduledExecutorService scheduler;
 
     /** Per-session summarization progress; {@code lastSummarizedSeq < 0} means "load from doc". */
@@ -167,6 +177,42 @@ public class SessionJournalSummarizer {
             () -> runClosePass(directory, new SessionState(), true), workExecutor);
     }
 
+    /**
+     * Runs the closing pass (windows and session summary) for a closed automation run journal on
+     * the automation worker, with its own AI profile. {@code aiEnabled=false} writes raw entries
+     * only and never calls the AI. The journal counts as pending until the returned future
+     * completes; see {@link #isPending(Path)}.
+     */
+    public CompletableFuture<Void> summarizeClosedJournal(
+            Path directory, SessionJournalAiSupport.AiInvoker invoker, boolean aiEnabled) {
+        Path key = directory.toAbsolutePath().normalize();
+        pendingClosePasses.add(key);
+        try {
+            return CompletableFuture.runAsync(() -> {
+                invokerOverride.set(invoker);
+                try {
+                    runClosePass(directory, new SessionState(), aiEnabled);
+                } finally {
+                    invokerOverride.remove();
+                    pendingClosePasses.remove(key);
+                }
+            }, automationExecutor);
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            pendingClosePasses.remove(key);
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    /** True while an automation close pass for this journal is queued or running. */
+    public boolean isPending(Path directory) {
+        return directory != null && pendingClosePasses.contains(directory.toAbsolutePath().normalize());
+    }
+
+    private SessionJournalAiSupport.AiInvoker invoker() {
+        SessionJournalAiSupport.AiInvoker override = invokerOverride.get();
+        return override != null ? override : aiInvoker;
+    }
+
     /** Stops all executors on application shutdown. */
     public synchronized void stop() {
         sessions.clear();
@@ -175,6 +221,7 @@ public class SessionJournalSummarizer {
             scheduler = null;
         }
         workExecutor.shutdown();
+        automationExecutor.shutdown();
         aiCallExecutor.shutdown();
     }
 
@@ -279,7 +326,7 @@ public class SessionJournalSummarizer {
         boolean chunked = settings != null && settings.isSessionJournalAiChunkingEnabled();
         boolean aiAvailable = sessionAiEnabled
             && (settings == null || settings.isSessionJournalAiSummariesEnabled())
-            && aiInvoker.isAvailable();
+            && invoker().isAvailable();
         String languageCode = document.getMeta().getAppLanguageCode();
 
         List<Window> windows = chunked
@@ -580,7 +627,8 @@ public class SessionJournalSummarizer {
 
     private AiExecutionResult executeWithTimeout(Path directory, String systemPrompt, String userPrompt)
             throws Exception {
-        Future<AiExecutionResult> future = aiCallExecutor.submit(() -> aiInvoker.execute(systemPrompt, userPrompt));
+        SessionJournalAiSupport.AiInvoker invoker = invoker();
+        Future<AiExecutionResult> future = aiCallExecutor.submit(() -> invoker.execute(systemPrompt, userPrompt));
         AiExecutionResult result;
         try {
             result = future.get(AI_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS);
@@ -598,7 +646,7 @@ public class SessionJournalSummarizer {
             return;
         }
         try {
-            service.addAiUsage(directory, result.usage(), aiInvoker.profile());
+            service.addAiUsage(directory, result.usage(), invoker().profile());
         } catch (Exception e) {
             logger.debug("Could not record AI usage for {}: {}", directory.getFileName(), e.getMessage());
         }
@@ -614,7 +662,7 @@ public class SessionJournalSummarizer {
 
             boolean aiAvailable = aiEnabled
                 && (settings == null || settings.isSessionJournalAiSummariesEnabled())
-                && aiInvoker.isAvailable();
+                && invoker().isAvailable();
             if (!aiAvailable) {
                 return;
             }
