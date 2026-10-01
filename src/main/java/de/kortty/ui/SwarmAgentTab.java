@@ -91,6 +91,8 @@ public class SwarmAgentTab extends Tab {
     private final CheckBox readOnlyCheck = new CheckBox(I18n.get("ai.swarm.readOnly"));
     private final CheckBox journalCheck = new CheckBox(I18n.get("ai.swarm.journal"));
     private final Button journalSettingsButton = new Button("\u2699");
+    /** Green ACTIVE / red DISABLED next to the checkbox, mirroring it. */
+    private final Label journalStateBadge = SessionJournalStateBadge.create(false);
     private final Label journalStatusLabel = new Label();
     private final javafx.scene.control.Hyperlink journalOpenLink =
         new javafx.scene.control.Hyperlink(I18n.get("ai.swarm.journal.open"));
@@ -235,7 +237,7 @@ public class SwarmAgentTab extends Tab {
             readOnlyCheck,
             approvalLabel, approvalComboBox,
             new Separator(),
-            journalCheck, journalSettingsButton,
+            journalCheck, journalStateBadge, journalSettingsButton,
             new Separator(),
             workflowButton, saveButton, scheduleButton, runScriptButton,
             new Separator(),
@@ -752,6 +754,9 @@ public class SwarmAgentTab extends Tab {
         journalCheck.setSelected(config != null && config.isEnabled() && policy.allowed());
         journalCheckLoading = false;
         journalCheck.setDisable(!policy.allowed());
+        SessionJournalStateBadge.apply(journalStateBadge, journalCheck.isSelected());
+        journalCheck.selectedProperty().addListener(
+            (obs, was, now) -> SessionJournalStateBadge.apply(journalStateBadge, now));
         journalSettingsButton.setDisable(!policy.allowed());
         journalCheck.selectedProperty().addListener((obs, was, now) -> {
             if (journalCheckLoading) {

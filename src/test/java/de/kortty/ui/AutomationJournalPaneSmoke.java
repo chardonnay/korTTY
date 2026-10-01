@@ -90,7 +90,12 @@ public final class AutomationJournalPaneSmoke {
         collapsedOff.setContentDisplay(javafx.scene.control.ContentDisplay.RIGHT);
         collapsedOff.setGraphicTextGap(10);
         collapsedOff.setGraphic(JobSchedulerDialog.sessionJournalStateBadge(false));
-        VBox root = new VBox(8, collapsedOff, section);
+        javafx.scene.control.CheckBox swarmCheck = new javafx.scene.control.CheckBox(I18n.get("ai.swarm.journal"));
+        swarmCheck.setSelected(true);
+        javafx.scene.control.ToolBar swarmBar = new javafx.scene.control.ToolBar(
+            new javafx.scene.control.CheckBox(I18n.get("ai.swarm.readOnly")), new javafx.scene.control.Separator(),
+            swarmCheck, SessionJournalStateBadge.create(true), new javafx.scene.control.Button("\u2699"));
+        VBox root = new VBox(8, swarmBar, collapsedOff, section);
         root.setPadding(new Insets(12));
         snapshot(new Scene(root, 760, 640), file);
     }
