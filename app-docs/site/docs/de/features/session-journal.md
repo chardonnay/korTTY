@@ -387,10 +387,20 @@ Wenn mehr als ein Journal ausgewählt ist, erstellt der Export ein einzelnes ZIP
 
 Filter gelten für jede ausgewählte Journal. Ein Journal, in dem der Filter mit nichts übereinstimmt, wird übersprungen und anschließend gemeldet, sodass ein leeres Ergebnis einen Export von zehn Journalen nicht zum Scheitern bringen kann; Nur wenn *jedes* Journal leer ausgeht, wird der Export abgelehnt – bevor eine Datei geschrieben wird.
 
-Jedes Archiv – einschließlich des HTML-Bundles eines einzelnen Journals – kann **mit einem Passwort geschützt** werden. Die Option befindet sich im Exportdialog und verschlüsselt das Archiv mit **AES-256**; ohne sie wird das Archiv unverschlüsselt geschrieben. Da Journale vollständige Terminal-Mitschriften enthalten, ist die Wahl eines ungeschützten Archivs eine bewusste Wahl.
+### Export verschlüsseln
+
+Journale enthalten vollständige Terminaltranskripte, sodass jeder Export verschlüsselt werden kann. Wählen Sie die Schutzoption neben **Screenshots einbetten** oben im Exportdialog:
+
+| Verschlüsselung | Ergebnis |
+|------------|--------|
+| **Keine Verschlüsselung** | Die Datei wie oben beschrieben, unverschlüsselt – eine bewusste Wahl für Transkripte |
+| **Mit Passwort schützen (ZIP, AES-256)** | Ein Archiv (HTML-Bundle, mehrere Journale) wird direkt verschlüsselt. Eine einzelne PDF- oder Markdown-Datei wird in ein passwortgeschütztes ZIP-Archiv gepackt. |
+| **Mit GPG verschlüsseln** | Der Export — PDF, Markdown oder ZIP — wird zu einer `.gpg`-Datei für einen der Schlüssel unter **Sicherheit > GPG-Schlüssel...**; nur der Besitzer des passenden privaten Schlüssels kann sie entschlüsseln (`gpg --decrypt`). |
+
+Für GPG muss `gpg` installiert sein. korTTY verschlüsselt für die von ihm verwaltete Schlüsseldatei, sodass der Schlüssel nicht in Ihrem GPG-Schlüsselbund sein muss. Ohne gespeicherte Schlüssel erklärt die Option, wo ein solcher hinzugefügt werden kann. Während ein geschützter Export geschrieben wird, existiert die unverschlüsselte Version nur in einem privaten temporären Ordner, der sofort danach gelöscht wird, auch wenn die Verschlüsselung fehlschlägt.
 
 !!! warning
-    Das Passwort wird nirgendwo gespeichert. korTTY kann ein verschlüsseltes Archiv nicht wiederherstellen, wenn Sie es verlieren.
+    Das Passwort wird nirgendwo gespeichert. korTTY kann ein verschlüsseltes Archiv nicht wiederherstellen, wenn Sie es verlieren – noch einen GPG-Export ohne den privaten Schlüssel.
 
 ### Fußzeile und Wasserzeichen
 

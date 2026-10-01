@@ -2,6 +2,7 @@ package de.kortty.ui;
 
 import de.kortty.core.SessionJournalAiSupport;
 import de.kortty.core.SessionJournalExportFilter;
+import de.kortty.core.SessionJournalExportProtection;
 import de.kortty.core.SessionJournalExportService;
 import de.kortty.core.SessionJournalService;
 import de.kortty.model.SessionJournalDocument;
@@ -79,8 +80,8 @@ public final class SessionJournalExportOptionsDialog {
         }
     }
 
-    /** What the user chose; {@code password} null means an unencrypted archive. */
-    public record ExportChoice(boolean includeScreenshots, char[] password,
+    /** What the user chose; {@link SessionJournalExportProtection.Protection#NONE} means unencrypted. */
+    public record ExportChoice(boolean includeScreenshots, SessionJournalExportProtection.Protection protection,
                                SessionJournalExportFilter filter) {
     }
 
@@ -117,7 +118,16 @@ public final class SessionJournalExportOptionsDialog {
         private final RadioButton markersSelected = new RadioButton(I18n.get("journal.export.filter.markers.specific"));
         private final FlowPane markerBoxes = new FlowPane(8, 6);
         private final Map<String, CheckBox> markerChecks = new LinkedHashMap<>();
-        private final CheckBox protectCheck = new CheckBox(I18n.get("journal.export.archive.password"));
+        /** How the export is protected; the matching fields appear below only when chosen. */
+        private enum ProtectionMode { NONE, PASSWORD, GPG }
+
+        private final javafx.scene.control.ComboBox<ProtectionMode> protectionMode =
+            new javafx.scene.control.ComboBox<>();
+        private final VBox passwordBox = new VBox(6);
+        private final VBox gpgBox = new VBox(6);
+        private final javafx.scene.control.ComboBox<de.kortty.model.GPGKey> gpgKeyCombo =
+            new javafx.scene.control.ComboBox<>();
+        private final Label protectionHint = new Label();
         private final PasswordField passwordField = new PasswordField();
         private final PasswordField repeatField = new PasswordField();
         private final Label mismatch = new Label(I18n.get("journal.export.archive.mismatch"));
@@ -175,12 +185,19 @@ public final class SessionJournalExportOptionsDialog {
             if (dialog.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
                 return Optional.empty();
             }
-            char[] password = request.archive() && protectCheck.isSelected()
-                && passwordField.getText() != null && !passwordField.getText().isEmpty()
-                ? passwordField.getText().toCharArray()
-                : null;
             return Optional.of(new ExportChoice(
-                !offersScreenshots || includeCheck.isSelected(), password, currentFilter()));
+                !offersScreenshots || includeCheck.isSelected(), currentProtection(), currentFilter()));
+        }
+
+        private SessionJournalExportProtection.Protection currentProtection() {
+            if (passwordChosen() && passwordField.getText() != null && !passwordField.getText().isEmpty()) {
+                return SessionJournalExportProtection.Protection.password(passwordField.getText().toCharArray());
+            }
+            de.kortty.model.GPGKey key = gpgKeyCombo.getValue();
+            if (gpgChosen() && key != null) {
+                return SessionJournalExportProtection.Protection.gpg(key.getKeyId(), key.getPublicKeyPath());
+            }
+            return SessionJournalExportProtection.Protection.NONE;
         }
 
         private String headerText() {
@@ -199,17 +216,23 @@ public final class SessionJournalExportOptionsDialog {
             VBox content = new VBox(10);
             content.setPadding(new Insets(10));
 
+            // Screenshots and encryption share the first row, so protection costs no height until
+            // a password or GPG key is actually chosen.
+            VBox protection = buildPasswordSection();
+            javafx.scene.layout.HBox topRow = new javafx.scene.layout.HBox(10);
+            topRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
             if (offersScreenshots) {
                 includeCheck.setSelected(true);
-                content.getChildren().add(includeCheck);
+                topRow.getChildren().add(includeCheck);
             }
+            javafx.scene.layout.Region spacer = new javafx.scene.layout.Region();
+            javafx.scene.layout.HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
+            topRow.getChildren().addAll(spacer, new Label(I18n.get("journal.export.protection") + ":"), protectionMode);
+            content.getChildren().addAll(topRow, protection);
             content.getChildren().addAll(
                 titled("journal.export.filter.timeRange", buildTimeSection()),
                 titled("journal.export.filter.topic", buildTopicSection()),
                 titled("journal.export.filter.markers", buildMarkerSection()));
-            if (request.archive()) {
-                content.getChildren().add(titled("journal.export.archive.password", buildPasswordSection()));
-            }
 
             previewLabel.setStyle("-fx-font-size: 0.8462em;");
             bundleHint.setWrapText(true);
@@ -308,17 +331,122 @@ public final class SessionJournalExportOptionsDialog {
             return box;
         }
 
+        /** None, an AES-256 password ZIP, or GPG for one of the keys korTTY manages. */
         private VBox buildPasswordSection() {
+            List<de.kortty.model.GPGKey> keys = gpgKeys();
+            protectionMode.getItems().setAll(ProtectionMode.values());
+            protectionMode.setConverter(new javafx.util.StringConverter<>() {
+                @Override
+                public String toString(ProtectionMode mode) {
+                    if (mode == null) {
+                        return "";
+                    }
+                    return switch (mode) {
+                        case NONE -> I18n.get("journal.export.protection.none");
+                        case PASSWORD -> I18n.get(request.archive()
+                            ? "journal.export.archive.password" : "journal.export.protection.passwordZip");
+                        case GPG -> I18n.get("journal.export.protection.gpg");
+                    };
+                }
+
+                @Override
+                public ProtectionMode fromString(String text) {
+                    return null;
+                }
+            });
+            protectionMode.setValue(ProtectionMode.NONE);
+
             mismatch.setStyle("-fx-text-fill: #cf222e; -fx-font-size: 0.8462em;");
             mismatch.setVisible(false);
-            passwordField.disableProperty().bind(protectCheck.selectedProperty().not());
-            repeatField.disableProperty().bind(protectCheck.selectedProperty().not());
-            VBox box = new VBox(6, protectCheck,
-                new Label(I18n.get("journal.export.archive.passwordField")), passwordField,
-                new Label(I18n.get("journal.export.archive.passwordRepeat")), repeatField,
-                mismatch);
-            box.setPadding(new Insets(4));
+            mismatch.managedProperty().bind(mismatch.visibleProperty());
+            passwordField.setPromptText(I18n.get("journal.export.archive.passwordField"));
+            repeatField.setPromptText(I18n.get("journal.export.archive.passwordRepeat"));
+            javafx.scene.layout.HBox fields = new javafx.scene.layout.HBox(8, passwordField, repeatField);
+            javafx.scene.layout.HBox.setHgrow(passwordField, javafx.scene.layout.Priority.ALWAYS);
+            javafx.scene.layout.HBox.setHgrow(repeatField, javafx.scene.layout.Priority.ALWAYS);
+            passwordBox.getChildren().setAll(fields, mismatch);
+
+            gpgKeyCombo.getItems().setAll(keys);
+            gpgKeyCombo.setConverter(new javafx.util.StringConverter<>() {
+                @Override
+                public String toString(de.kortty.model.GPGKey key) {
+                    if (key == null) {
+                        return "";
+                    }
+                    String name = key.getName() != null ? key.getName() : "";
+                    String email = key.getEmail() != null && !key.getEmail().isBlank() ? " <" + key.getEmail() + ">" : "";
+                    return name + email + " · " + key.getKeyId();
+                }
+
+                @Override
+                public de.kortty.model.GPGKey fromString(String text) {
+                    return null;
+                }
+            });
+            gpgKeyCombo.setPromptText(I18n.get("journal.export.protection.gpgKey"));
+            gpgKeyCombo.setMaxWidth(Double.MAX_VALUE);
+            if (!keys.isEmpty()) {
+                gpgKeyCombo.setValue(keys.get(0));
+            }
+            gpgBox.getChildren().setAll(gpgKeyCombo);
+
+            protectionHint.setWrapText(true);
+            protectionHint.setStyle("-fx-text-fill: gray; -fx-font-size: 0.8462em;");
+            VBox box = new VBox(6, passwordBox, gpgBox, protectionHint);
+            updateProtectionHint();
             return box;
+        }
+
+        private boolean passwordChosen() {
+            return protectionMode.getValue() == ProtectionMode.PASSWORD;
+        }
+
+        private boolean gpgChosen() {
+            return protectionMode.getValue() == ProtectionMode.GPG;
+        }
+
+        private static List<de.kortty.model.GPGKey> gpgKeys() {
+            try {
+                de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+                if (app != null && app.getGpgKeyManager() != null) {
+                    return app.getGpgKeyManager().getAllKeys().stream()
+                        .filter(key -> key.getKeyId() != null && !key.getKeyId().isBlank())
+                        .toList();
+                }
+            } catch (RuntimeException e) {
+                logger.debug("GPG keys not available: {}", e.getMessage());
+            }
+            return List.of();
+        }
+
+        private void updateProtectionHint() {
+            String hint = "";
+            if (gpgChosen()) {
+                hint = I18n.get(gpgKeyCombo.getItems().isEmpty()
+                    ? "journal.export.protection.gpgNoKeys" : "journal.export.protection.gpgHint");
+            } else if (passwordChosen() && !request.archive()) {
+                hint = I18n.get("journal.export.protection.passwordZipHint");
+            }
+            protectionHint.setText(hint);
+            show(protectionHint, !hint.isEmpty());
+            show(passwordBox, passwordChosen());
+            show(gpgBox, gpgChosen() && !gpgKeyCombo.getItems().isEmpty());
+            show(passwordBox.getParent(), !hint.isEmpty() || passwordChosen() || gpgChosen());
+        }
+
+        /**
+         * Shows or hides a node and relayouts: toggling {@code managed} inside a ScrollPane does
+         * not trigger a relayout on its own.
+         */
+        private static void show(Node node, boolean visible) {
+            if (node == null) {
+                return;
+            }
+            node.setVisible(visible);
+            node.setManaged(visible);
+            if (node.getParent() != null) {
+                node.getParent().requestLayout();
+            }
         }
 
         // ==== behaviour ====
@@ -329,7 +457,11 @@ public final class SessionJournalExportOptionsDialog {
             topicRegex.selectedProperty().addListener((obs, old, value) -> revalidate());
             topicAi.selectedProperty().addListener((obs, old, value) -> revalidate());
             markerGroup.selectedToggleProperty().addListener((obs, old, value) -> revalidate());
-            protectCheck.selectedProperty().addListener((obs, old, value) -> revalidate());
+            protectionMode.valueProperty().addListener((obs, old, value) -> {
+                updateProtectionHint();
+                revalidate();
+            });
+            gpgKeyCombo.valueProperty().addListener((obs, old, value) -> revalidate());
             passwordField.textProperty().addListener((obs, old, value) -> revalidate());
             repeatField.textProperty().addListener((obs, old, value) -> revalidate());
         }
@@ -466,8 +598,8 @@ public final class SessionJournalExportOptionsDialog {
             }
             updateWindowHint(filter);
 
-            boolean passwordProblem = request.archive() && protectCheck.isSelected()
-                && !passwordsMatch();
+            boolean passwordProblem = (passwordChosen() && !passwordsMatch())
+                || (gpgChosen() && gpgKeyCombo.getValue() == null);
             mismatch.setVisible(passwordProblem && !repeatField.getText().isEmpty());
 
             boolean emptySelection = updatePreview(filter);

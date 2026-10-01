@@ -1249,10 +1249,34 @@
 <h3 id="exporting-several-journals">Exporting several journals<a class="headerlink" href="#exporting-several-journals" title="Permanent link">&para;</a></h3>
 <p>With more than one journal selected, the export writes a single zip archive that keeps each journal separate: one PDF or Markdown document per journal, or one folder per journal for the HTML bundle. Names are taken from the journal titles, with a numeric suffix if two titles collide.</p>
 <p>Filters apply to every selected journal. A journal in which the filter matches nothing is skipped and reported afterwards, so one empty result cannot kill a ten-journal export; only if <em>every</em> journal comes out empty does the export refuse — before writing a file.</p>
-<p>Every archive — including the HTML bundle of a single journal — can be <strong>protected with a password</strong>. The option sits in the export dialog and encrypts the archive with <strong>AES-256</strong>; without it the archive is written unencrypted. Journals contain full terminal transcripts, so an unprotected archive is a deliberate choice.</p>
+<h3 id="encrypting-an-export">Encrypting an export<a class="headerlink" href="#encrypting-an-export" title="Permanent link">&para;</a></h3>
+<p>Journals contain full terminal transcripts, so every export can be encrypted. Pick the protection next to <strong>Include screenshots</strong> at the top of the export dialog:</p>
+<table>
+<thead>
+<tr>
+<th>Encryption</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>No encryption</strong></td>
+<td>The file as described above, unencrypted — a deliberate choice for transcripts</td>
+</tr>
+<tr>
+<td><strong>Protect with a password (ZIP, AES-256)</strong></td>
+<td>An archive (HTML bundle, several journals) is encrypted directly. A single PDF or Markdown file is packed into a password-protected ZIP archive.</td>
+</tr>
+<tr>
+<td><strong>Encrypt with GPG</strong></td>
+<td>The export — PDF, Markdown or ZIP — becomes a <code>.gpg</code> file for one of the keys under <strong>Security &gt; GPG-Keys...</strong>; only the owner of the matching private key can decrypt it (<code>gpg --decrypt</code>).</td>
+</tr>
+</tbody>
+</table>
+<p>GPG needs <code>gpg</code> installed. korTTY encrypts for the key file it manages, so the key does not have to be in your GPG keyring. Without stored keys the option explains where to add one. While a protected export is written, the unencrypted version exists only in a private temporary folder that is deleted right afterwards, also when encryption fails.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>The password is not stored anywhere. korTTY cannot recover an encrypted archive if you lose it.</p>
+<p>The password is not stored anywhere. korTTY cannot recover an encrypted archive if you lose it — nor a GPG export without the private key.</p>
 </div>
 <h3 id="footer-and-watermark">Footer and watermark<a class="headerlink" href="#footer-and-watermark" title="Permanent link">&para;</a></h3>
 <p>By default every exported document carries a footer stating that it was created with korTTY, with a link to the project repository — at the bottom of each PDF page, at the end of the Markdown file, and in the footer of the journal page inside the HTML bundle. PDFs can additionally carry a diagonal watermark, which is <strong>off by default</strong>.</p>

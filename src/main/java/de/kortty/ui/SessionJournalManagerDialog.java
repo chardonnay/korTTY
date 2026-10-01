@@ -660,8 +660,13 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         if (choice == null) {
             return;
         }
-        String extension = archive ? ".zip" : format.getExtension();
-        String filterKey = archive ? "journal.export.file.bundle" : format.getFilterKey();
+        de.kortty.core.SessionJournalExportProtection.Protection protection = choice.protection();
+        String plainExtension = archive ? ".zip" : format.getExtension();
+        String extension = de.kortty.core.SessionJournalExportProtection.targetExtension(
+            plainExtension, archive, protection);
+        String filterKey = protection.usesGpg() ? "journal.export.file.gpg"
+            : protection.usesPassword() && !archive ? "journal.export.file.encryptedZip"
+            : archive ? "journal.export.file.bundle" : format.getFilterKey();
         FileChooser chooser = new FileChooser();
         chooser.setTitle(I18n.get("journal.export.title"));
         String baseName = targets.size() == 1
@@ -673,7 +678,7 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
             new FileChooser.ExtensionFilter(I18n.get(filterKey), "*" + extension));
         File target = chooser.showSaveDialog(getDialogPane().getScene().getWindow());
         if (target == null) {
-            java.util.Arrays.fill(choice.password() != null ? choice.password() : new char[0], '\0');
+            protection.wipe();
             return;
         }
         List<java.nio.file.Path> directories = targets.stream()
@@ -686,11 +691,14 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
                     service(), app != null ? app.getSessionJournalHtmlRenderer() : null);
                 SessionJournalExportService.Options options =
                     new SessionJournalExportService.Options(choice.includeScreenshots(), choice.filter());
-                SessionJournalExportService.ExportResult result = directories.size() > 1
-                    ? exportService.exportArchive(format, directories, target.toPath(), options,
-                        choice.password())
-                    : exportService.export(format, directories.get(0), target.toPath(), options,
-                        choice.password());
+                SessionJournalExportService.ExportResult result = de.kortty.core.SessionJournalExportProtection.export(
+                    target.toPath(), archive,
+                    de.kortty.core.SessionJournalExportProtection.plainName(target.toPath(), extension, plainExtension),
+                    protection,
+                    (path, password) -> directories.size() > 1
+                        ? exportService.exportArchive(format, directories, path, options, password)
+                        : exportService.export(format, directories.get(0), path, options, password),
+                    de.kortty.core.SessionJournalExportProtection.SYSTEM_GPG);
                 Platform.runLater(() -> {
                     try {
                         new de.kortty.core.AiChatShareService().share(target.toPath());
@@ -712,9 +720,7 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
                 logger.error("Session journal export failed: {}", e.getMessage(), e);
                 Platform.runLater(() -> showError(I18n.get("journal.export.error", e.getMessage())));
             } finally {
-                if (choice.password() != null) {
-                    java.util.Arrays.fill(choice.password(), '\0');
-                }
+                protection.wipe();
             }
         }, "SessionJournal-Export");
         exporter.setDaemon(true);

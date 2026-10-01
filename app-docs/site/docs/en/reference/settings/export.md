@@ -25,7 +25,7 @@ The watermark is **off by default** — a document gets marked when you decide i
 Leaving the text field empty uses the built-in korTTY watermark, which additionally prints the project repository link beneath it. A text of your own is used verbatim — nothing is appended to it.
 
 !!! tip
-    A watermark such as `CONFIDENTIAL` or your organization's name is a visual marker, not protection. Anyone can remove it from a PDF. For journals that must not be readable by others, export an [encrypted archive](../../features/session-journal.md#exporting-several-journals) instead.
+    A watermark such as `CONFIDENTIAL` or your organization's name is a visual marker, not protection. Anyone can remove it from a PDF. For journals that must not be readable by others, [encrypt the export](../../features/session-journal.md#encrypting-an-export) instead — with a password or GPG.
 
 ## Footer
 

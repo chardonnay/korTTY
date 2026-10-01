@@ -1249,10 +1249,34 @@
 <h3 id="mehrere-tagebucher-exportieren">Mehrere Tagebücher exportieren<a class="headerlink" href="#mehrere-tagebucher-exportieren" title="Permanent link">&para;</a></h3>
 <p>Wenn mehr als ein Journal ausgewählt ist, erstellt der Export ein einzelnes ZIP-Archiv, das jedes Journal separat hält: ein PDF- oder Markdown-Dokument pro Journal oder ein Ordner pro Journal für das HTML-Bundle. Namen werden aus den Journaltiteln übernommen, mit einem numerischen Suffix, wenn zwei Titel kollidieren.</p>
 <p>Filter gelten für jede ausgewählte Journal. Ein Journal, in dem der Filter mit nichts übereinstimmt, wird übersprungen und anschließend gemeldet, sodass ein leeres Ergebnis einen Export von zehn Journalen nicht zum Scheitern bringen kann; Nur wenn <em>jedes</em> Journal leer ausgeht, wird der Export abgelehnt – bevor eine Datei geschrieben wird.</p>
-<p>Jedes Archiv – einschließlich des HTML-Bundles eines einzelnen Journals – kann <strong>mit einem Passwort geschützt</strong> werden. Die Option befindet sich im Exportdialog und verschlüsselt das Archiv mit <strong>AES-256</strong>; ohne sie wird das Archiv unverschlüsselt geschrieben. Da Journale vollständige Terminal-Mitschriften enthalten, ist die Wahl eines ungeschützten Archivs eine bewusste Wahl.</p>
+<h3 id="export-verschlusseln">Export verschlüsseln<a class="headerlink" href="#export-verschlusseln" title="Permanent link">&para;</a></h3>
+<p>Journale enthalten vollständige Terminaltranskripte, sodass jeder Export verschlüsselt werden kann. Wählen Sie die Schutzoption neben <strong>Screenshots einbetten</strong> oben im Exportdialog:</p>
+<table>
+<thead>
+<tr>
+<th>Verschlüsselung</th>
+<th>Ergebnis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Keine Verschlüsselung</strong></td>
+<td>Die Datei wie oben beschrieben, unverschlüsselt – eine bewusste Wahl für Transkripte</td>
+</tr>
+<tr>
+<td><strong>Mit Passwort schützen (ZIP, AES-256)</strong></td>
+<td>Ein Archiv (HTML-Bundle, mehrere Journale) wird direkt verschlüsselt. Eine einzelne PDF- oder Markdown-Datei wird in ein passwortgeschütztes ZIP-Archiv gepackt.</td>
+</tr>
+<tr>
+<td><strong>Mit GPG verschlüsseln</strong></td>
+<td>Der Export — PDF, Markdown oder ZIP — wird zu einer <code>.gpg</code>-Datei für einen der Schlüssel unter <strong>Sicherheit &gt; GPG-Schlüssel...</strong>; nur der Besitzer des passenden privaten Schlüssels kann sie entschlüsseln (<code>gpg --decrypt</code>).</td>
+</tr>
+</tbody>
+</table>
+<p>Für GPG muss <code>gpg</code> installiert sein. korTTY verschlüsselt für die von ihm verwaltete Schlüsseldatei, sodass der Schlüssel nicht in Ihrem GPG-Schlüsselbund sein muss. Ohne gespeicherte Schlüssel erklärt die Option, wo ein solcher hinzugefügt werden kann. Während ein geschützter Export geschrieben wird, existiert die unverschlüsselte Version nur in einem privaten temporären Ordner, der sofort danach gelöscht wird, auch wenn die Verschlüsselung fehlschlägt.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>Das Passwort wird nirgendwo gespeichert. korTTY kann ein verschlüsseltes Archiv nicht wiederherstellen, wenn Sie es verlieren.</p>
+<p>Das Passwort wird nirgendwo gespeichert. korTTY kann ein verschlüsseltes Archiv nicht wiederherstellen, wenn Sie es verlieren – noch einen GPG-Export ohne den privaten Schlüssel.</p>
 </div>
 <h3 id="fuzeile-und-wasserzeichen">Fußzeile und Wasserzeichen<a class="headerlink" href="#fuzeile-und-wasserzeichen" title="Permanent link">&para;</a></h3>
 <p>Standardmäßig enthält jedes exportierte Dokument eine Fußzeile, die angibt, dass es mit korTTY erstellt wurde, mit einem Link zum Projekt-Repository – unten auf jeder PDF-Seite, am Ende der Markdown-Datei und in der Fußzeile der Journalseite innerhalb des HTML-Pakets. PDFs können zusätzlich ein diagonales Wasserzeichen tragen, das <strong>standardmäßig deaktiviert</strong> ist.</p>
