@@ -301,7 +301,7 @@ public final class SessionJournalAiSupport {
             ? policyKey
             : decryptApiKey(app, profile.getEncryptedApiKey());
         AiService service = AiServiceFactory.create(
-            profile,
+            withoutInternetTools(profile),
             apiKey,
             AiInternetAccessConfiguration.disabled(),
             AiSkillPromptSupport.fromSettings(settings));
@@ -309,6 +309,25 @@ public final class SessionJournalAiSupport {
             throw new IllegalStateException("AI profile is not configured for prompt execution.");
         }
         return promptService;
+    }
+
+    /**
+     * Journal calls never use internet tools, so a profile set to the KorTTY Tavily tool must not
+     * demand a Tavily key here (the factory threw "Tavily API key must be configured" and every
+     * summary failed). Switch such a copy to DISABLED; LM Studio MCP modes keep their mode because
+     * it selects the native endpoint — their tools stay off through the disabled configuration.
+     */
+    static AiProfile withoutInternetTools(AiProfile profile) {
+        if (profile == null) {
+            return null;
+        }
+        de.kortty.model.AiInternetAccessMode mode = profile.getInternetAccessMode();
+        if (mode != null && mode.usesLmStudioMcp()) {
+            return profile;
+        }
+        AiProfile copy = new AiProfile(profile);
+        copy.setInternetAccessMode(de.kortty.model.AiInternetAccessMode.DISABLED);
+        return copy;
     }
 
     private static String decryptApiKey(KorTTYApplication app, String encryptedValue) {

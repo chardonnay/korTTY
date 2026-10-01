@@ -33,7 +33,7 @@ Verbindungs-Einträge (Schnellverbindung, Verwalten/Importieren/Exportieren von 
 | Artikel | Beschreibung |
 | --- | --- |
 | Schnellverbindung… | Stellen Sie eine Verbindung zu einem Host her, ohne zu speichern |
-| Verbindungen verwalten… | Öffnen Sie den Verbindungsmanager (Struktur, Suche, Bearbeiten) |
+| Verbindungen verwalten… | Öffnen Sie den Connection-Manager (Struktur, Suche, Bearbeiten) |
 | Importieren… | Verbindungen von anderen Clients importieren |
 | Export… | Exportverbindungen |
 | SFTP-Client… | Öffnen Sie den Dual-Panel-SFTP-Dateimanager |

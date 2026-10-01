@@ -3806,6 +3806,14 @@ tasks.register<JavaExec>("aiChatRedesignSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("dialogGeometryShowAndWaitSmoke") {
+    group = "verification"
+    description = "Checks that a modal dialog opened with showAndWait() comes back at its stored geometry."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.DialogGeometryShowAndWaitSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("aiChatPreviewSmoke") {
     group = "verification"
     description = "Checks AI chat Markdown previews and user-controlled auto-scrolling on JavaFX."
