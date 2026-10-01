@@ -32,7 +32,21 @@ public final class SnippetProjectAiSupport {
     /** Rough characters per token for the context estimate (code is denser than prose). */
     private static final double CHARS_PER_TOKEN = 3.2;
 
+    /** The analysis store keeps a folder's project analyses under this prefix plus the folder id. */
+    public static final String FOLDER_KEY_PREFIX = "folder-";
+
     private SnippetProjectAiSupport() {
+    }
+
+    /** The analysis-store key of a folder's project analyses. */
+    public static String folderKey(String folderId) {
+        return FOLDER_KEY_PREFIX + folderId;
+    }
+
+    /** The folder id behind a {@link #folderKey}, or {@code null} for a snippet id. */
+    public static String folderIdOfKey(String key) {
+        return key != null && key.startsWith(FOLDER_KEY_PREFIX) && key.length() > FOLDER_KEY_PREFIX.length()
+            ? key.substring(FOLDER_KEY_PREFIX.length()) : null;
     }
 
     // ---- Project context ----

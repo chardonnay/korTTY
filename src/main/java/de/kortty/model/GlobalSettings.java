@@ -580,6 +580,10 @@ public class GlobalSettings {
     @XmlElement
     private Boolean codeAnalysisDiagramAutoGenerate = true;
 
+    /** Whether a Full code analysis also asks the AI for a modularization proposal. Default: off. */
+    @XmlElement
+    private Boolean codeAnalysisProposeModularization = false;
+
     /** Font size used in the Workflow script-generation window's editors. */
     @XmlElement
     private Integer workflowScriptFontSize = 14;
@@ -2426,6 +2430,14 @@ public class GlobalSettings {
 
     public void setCodeAnalysisDiagramAutoGenerate(Boolean codeAnalysisDiagramAutoGenerate) {
         this.codeAnalysisDiagramAutoGenerate = codeAnalysisDiagramAutoGenerate;
+    }
+
+    public Boolean getCodeAnalysisProposeModularization() {
+        return codeAnalysisProposeModularization;
+    }
+
+    public void setCodeAnalysisProposeModularization(Boolean codeAnalysisProposeModularization) {
+        this.codeAnalysisProposeModularization = codeAnalysisProposeModularization;
     }
 
     public Integer getWorkflowScriptFontSize() {

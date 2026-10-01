@@ -27,7 +27,9 @@ class SnippetWorkspaceI18nCoverageTest {
     private static final Path BUNDLES = Path.of("src/main/resources/i18n");
     private static final Path UI_ROOT = Path.of("src/main/java/de/kortty/ui");
     private static final List<String> LOCALES = List.of("", "_de", "_es", "_fr", "_hr", "_it", "_nl", "_pt");
-    private static final Pattern KEY_USE = Pattern.compile("\"(snippets\\.(?:workspace|draft|saveAsNew|batchExport)\\.[A-Za-z.]+)\"");
+    private static final Pattern KEY_USE = Pattern.compile(
+        "\"(snippets\\.(?:(?:workspace|draft|saveAsNew|batchExport|folder|executable|transfer|modularize|preview|project"
+            + "|analyze)\\.[A-Za-z.]*[A-Za-z]|folder|fileName))\"");
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{\\d+}");
 
     @Test

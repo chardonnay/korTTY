@@ -95,6 +95,8 @@ final class SnippetAnalysisController {
     /** The Start analysis button of the "New analysis" chooser / empty state. */
     static final String START_BUTTON_ID = "snippet-analysis-run";
     static final String START_PROFILE_COMBO_ID = "snippet-analysis-start-profile";
+    /** The "Propose modularization" option of the "New analysis" chooser. */
+    static final String MODULARIZE_CHECK_ID = "snippet-analysis-modularize";
     static final String START_CANCEL_ID = "snippet-analysis-start-cancel";
     static final String PROGRESS_HOLDER_ID = "snippet-analysis-progress-holder";
     static final String STALE_BANNER_ID = "snippet-analysis-stale-banner";
@@ -246,6 +248,26 @@ final class SnippetAnalysisController {
         default String offeredDraftContentSha256() {
             return null;
         }
+
+        /** The file name the snippet is exported / copied as (e.g. {@code backup.py}). */
+        default String fileName() {
+            return null;
+        }
+
+        /** Whether the snippet is written with the executable bit. */
+        default boolean executable() {
+            return false;
+        }
+
+        /** Saves the editor now (the modularization writes the snippet); {@code false} when it could not. */
+        default boolean saveSnippetNow() {
+            return false;
+        }
+
+        /** The window review dialogs belong to. */
+        default javafx.stage.Window ownerWindow() {
+            return null;
+        }
     }
 
     /** The one apply run of this editor that is in flight. */
@@ -319,6 +341,10 @@ final class SnippetAnalysisController {
     private boolean updatingHistoryCombo;
     private List<String> renderedHistoryLabels = List.of();
     private StackPane contentHolder;
+    /** Below the report: the modularization proposal of the shown record, if any. */
+    private final VBox modularizationHolder = new VBox();
+    /** The record whose modularization plan is being requested right now, or {@code null}. */
+    private String planningRecordId;
     /** The analysis diagram, large; one per editor, closed with it. */
     private SnippetDiagramZoomWindow zoomWindow;
     private VBox progressHolder;
@@ -781,6 +807,9 @@ final class SnippetAnalysisController {
         String codeTextLanguage = host.codeTextFallbackLanguageCode();
         String extra = host.additionalInstructions();
         String name = host.snippetName();
+        String fileName = host.fileName();
+        boolean executable = host.executable();
+        boolean modularize = SnippetModularizationPreference.load();
         SnippetEditDialog.AiAssist assist = host.aiAssist();
         AtomicReference<SnippetAnalysisRecord.Provenance> provenance = new AtomicReference<>();
 
@@ -791,7 +820,8 @@ final class SnippetAnalysisController {
                 long started = System.nanoTime();
                 try {
                     return assist.codeAnalysisProvider().analyze(new SnippetEditDialog.CodeAnalysisRequest(
-                        content, language, reportLanguage, extra, aiProfileId, provenance::set));
+                        content, language, reportLanguage, extra, aiProfileId, provenance::set,
+                        fileName, executable));
                 } finally {
                     elapsedMillis.set((System.nanoTime() - started) / 1_000_000L);
                 }
@@ -828,9 +858,12 @@ final class SnippetAnalysisController {
                 return;
             }
             SnippetAnalysisRecord.Provenance reported = provenance.get();
-            storeAnalysis(result, content, language, reportLanguage, codeTextLanguage, name, extra,
+            String storedId = storeAnalysis(result, content, language, reportLanguage, codeTextLanguage, name, extra,
                 aiProfileId, reported, elapsedMillis.get(), purpose, previousRecordId);
             host.setStatus(I18n.get("snippets.ai.review.ready"));
+            if (modularize) {
+                requestModularizationPlan(storedId, content, language, fileName, aiProfileId, reportLanguage, extra);
+            }
         });
         task.setOnFailed(event -> {
             analysisTask = null;
@@ -859,6 +892,146 @@ final class SnippetAnalysisController {
         });
         refreshState();
         AiTaskRunner.start(task, "snippet-ai-analysis");
+    }
+
+    // ---- Modularization ----
+
+    private SnippetProjectAi projectAi() {
+        javafx.stage.Window window = host.ownerWindow();
+        return SnippetAiAssistFactory.createProjectAi(() -> {
+            MainWindow found = window != null ? MainWindow.findByStage(window) : null;
+            return found != null ? found : MainWindow.getInstance();
+        });
+    }
+
+    /** After an analysis with "Propose modularization": asks for the plan and stores it with the record. */
+    private void requestModularizationPlan(String recordId, String content, String language, String fileName,
+                                           String aiProfileId, String reportLanguage, String extra) {
+        SnippetProjectAi ai = projectAi();
+        if (ai == null || recordId == null) {
+            return;
+        }
+        planningRecordId = recordId;
+        refreshState();
+        Task<de.kortty.core.SnippetModularizationSupport.ModularizationPlan> task = new Task<>() {
+            @Override
+            protected de.kortty.core.SnippetModularizationSupport.ModularizationPlan call() throws Exception {
+                return ai.planModularization(
+                    de.kortty.core.SnippetProjectAiSupport.scriptContext(fileName, content),
+                    language, aiProfileId, reportLanguage, extra);
+            }
+        };
+        task.setOnSucceeded(event -> {
+            planningRecordId = null;
+            if (disposed) {
+                return;
+            }
+            updateRecord(recordId, record -> record.withModularization(task.getValue()));
+            host.setStatus(I18n.get(task.getValue().isApplicable()
+                ? "snippets.modularize.ready" : "snippets.modularize.notRecommended"));
+            refreshState();
+        });
+        task.setOnFailed(event -> {
+            planningRecordId = null;
+            logger.warn("Modularization plan failed", task.getException());
+            if (!disposed) {
+                host.setStatus(I18n.get("snippets.modularize.planFailed",
+                    task.getException() != null ? task.getException().getMessage() : ""));
+                refreshState();
+            }
+        });
+        task.setOnCancelled(event -> planningRecordId = null);
+        host.setStatus(I18n.get("snippets.modularize.planning"));
+        AiTaskRunner.start(task, "snippet-modularize-plan");
+    }
+
+    private void renderModularization(SnippetAnalysisRecord record) {
+        modularizationHolder.getChildren().clear();
+        if (record == null) {
+            return;
+        }
+        if (record.id().equals(planningRecordId)) {
+            Label planning = new Label(I18n.get("snippets.modularize.planning"));
+            planning.setStyle("-fx-opacity: 0.8;");
+            modularizationHolder.getChildren().add(planning);
+            return;
+        }
+        de.kortty.core.SnippetModularizationSupport.ModularizationPlan plan = record.modularization();
+        if (plan == null || !plan.isUsable()) {
+            return;
+        }
+        boolean canApply = plan.isApplicable() && !host.isTransientSnippet() && aiAllowed();
+        modularizationHolder.getChildren().add(SnippetModularizationView.build(plan,
+            canApply ? () -> applyModularization(plan) : null));
+    }
+
+    /**
+     * Generates the planned files, shows them in the multi-file preview and, on accept, turns the
+     * snippet into the entry point of a new folder next to it (see
+     * {@link de.kortty.core.SnippetManager#applyModularization}).
+     */
+    private void applyModularization(de.kortty.core.SnippetModularizationSupport.ModularizationPlan plan) {
+        if (host.isAnyAiTaskRunning() || activeRun != null) {
+            host.setStatus(I18n.get("snippets.ai.analysis.panel.busy"));
+            return;
+        }
+        if (host.savedSnippetContent() == null && !host.saveSnippetNow()) {
+            host.setStatus(I18n.get("snippets.modularize.saveFirst"));
+            return;
+        }
+        SnippetProjectAi ai = projectAi();
+        if (ai == null) {
+            host.setStatus(I18n.get("snippets.ai.analysis.panel.aiUnavailable"));
+            return;
+        }
+        String content = host.currentContent();
+        String snippetId = host.snippetId();
+        de.kortty.core.SnippetModularizationSupport.ModuleFile entry = plan.entryPoint();
+        Map<String, String> existingContents = new HashMap<>();
+        existingContents.put(entry.path(), content);
+        Map<String, String> existingIds = new HashMap<>();
+        existingIds.put(entry.path(), snippetId);
+        String sourceContext = de.kortty.core.SnippetProjectAiSupport.scriptContext(host.fileName(), content);
+        SnippetModularizationRunner.run(host.ownerWindow(), new SnippetModularizationRunner.Job(ai, sourceContext,
+                content, plan, host.snippetLanguage(), null, host.codeTextFallbackLanguageCode(),
+                host.additionalInstructions(), existingContents, existingIds),
+            host.editorSettings(), accepted -> writeModularization(plan, content, accepted));
+    }
+
+    private void writeModularization(de.kortty.core.SnippetModularizationSupport.ModularizationPlan plan,
+                                     String originalContent, List<SnippetMultiFilePreview.FileChange> accepted) {
+        de.kortty.core.SnippetModularizationSupport.ModuleFile entry = plan.entryPoint();
+        Map<String, String> contents = new LinkedHashMap<>();
+        for (SnippetMultiFilePreview.FileChange change : accepted) {
+            if (change.replacement() != null) {
+                contents.put(change.path(), change.replacement());
+            }
+        }
+        contents.putIfAbsent(entry.path(), originalContent);
+        de.kortty.core.SnippetModularizationSupport.ModularizationPlan chosen =
+            new de.kortty.core.SnippetModularizationSupport.ModularizationPlan(true, plan.rationale(),
+                plan.files().stream().filter(file -> contents.containsKey(file.path())).toList());
+        de.kortty.core.SnippetManager manager = KorTTYApplication.getInstance() != null
+            ? KorTTYApplication.getInstance().getSnippetManager() : null;
+        if (manager == null) {
+            return;
+        }
+        try {
+            de.kortty.core.SnippetManager.ModularizationResult result =
+                manager.applyModularization(host.snippetId(), chosen, contents);
+            manager.save();
+            String entryContent = contents.get(entry.path());
+            if (!entryContent.equals(host.currentContent())) {
+                host.applyFullReplacement(host.currentContent(), entryContent, I18n.get("snippets.modularize.title"));
+            }
+            host.saveSnippetNow();
+            host.setStatus(I18n.get("snippets.modularize.done", result.modules().size() + 1,
+                manager.folderPath(result.folderId())));
+        } catch (Exception e) {
+            logger.error("Writing the modularization failed", e);
+            host.setStatus(I18n.get("snippets.workspace.saveFailed",
+                e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
+        }
     }
 
     /** Stop from the panel's running banner (the editor's hint bar and Esc stop the same task). */
@@ -913,7 +1086,7 @@ final class SnippetAnalysisController {
         }
     }
 
-    private void storeAnalysis(SnippetAiResponseSupport.ScriptAnalysis result, String content, String language,
+    private String storeAnalysis(SnippetAiResponseSupport.ScriptAnalysis result, String content, String language,
                                String reportLanguage, String codeTextLanguage, String name, String extra,
                                String requestedProfileId, SnippetAnalysisRecord.Provenance reported,
                                long elapsedMillis, SnippetAnalysisRecord.Purpose requestedPurpose,
@@ -941,6 +1114,7 @@ final class SnippetAnalysisController {
         shownRecordId = null;
         store.addAnalysis(key, record);
         showPanel();
+        return record.id();
     }
 
     /**
@@ -2380,6 +2554,7 @@ final class SnippetAnalysisController {
         readyPane = null;
         if (analysisPanel != null && record.id().equals(renderedRecordId)) {
             analysisPanel.setAppliedFindings(appliedFindingIds(record));
+            renderModularization(record);
             return;
         }
         if (analysisPanel != null) {
@@ -2438,7 +2613,10 @@ final class SnippetAnalysisController {
         scroll.setFitToHeight(true);
         scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         scroll.setMinHeight(0);
-        contentHolder.getChildren().setAll(scroll);
+        renderModularization(record);
+        VBox withPlan = new VBox(6, scroll, modularizationHolder);
+        VBox.setVgrow(scroll, Priority.ALWAYS);
+        contentHolder.getChildren().setAll(withPlan);
         // Cached first: a stored diagram is shown as it is, never regenerated behind the user's back.
         SnippetDiagramView.DiagramSource cached = toDiagramSource(record, host.currentContent());
         if (cached != null) {
@@ -2583,6 +2761,15 @@ final class SnippetAnalysisController {
             extra.setStyle("-fx-opacity: 0.85;");
             box.getChildren().add(extra);
         }
+
+        javafx.scene.control.CheckBox modularize = new javafx.scene.control.CheckBox(
+            I18n.get("snippets.modularize.option"));
+        modularize.setId(MODULARIZE_CHECK_ID);
+        modularize.setWrapText(true);
+        modularize.setTooltip(new Tooltip(I18n.get("snippets.modularize.option.tooltip")));
+        modularize.setSelected(SnippetModularizationPreference.load());
+        modularize.selectedProperty().addListener((obs, was, now) -> SnippetModularizationPreference.save(now));
+        box.getChildren().add(modularize);
 
         Button run = new Button(SnippetAiDialogSupport.AI_ACTION_PREFIX + I18n.get("snippets.ai.analysis.start.button"));
         run.setId(START_BUTTON_ID);

@@ -232,7 +232,8 @@ public class KorTTYApplication extends Application {
         // non-policy snippets are written; drafts stay in memory until their first save.
         snippetAnalysisStore = new de.kortty.core.SnippetAnalysisStore(
             configDir.resolve(de.kortty.core.SnippetAnalysisStore.DIRECTORY_NAME),
-            id -> snippetManager.findById(id).filter(snippet -> !snippet.isPolicyManaged()).isPresent(),
+            id -> snippetManager.findById(id).filter(snippet -> !snippet.isPolicyManaged()).isPresent()
+                || snippetManager.findFolder(de.kortty.core.SnippetProjectAiSupport.folderIdOfKey(id)).isPresent(),
             () -> globalSettingsManager.getSettings().getSnippetAnalysisHistoryMaxSize());
         // One decision point for how much script text an analysis stores: the user's setting capped
         // by the enterprise policy, read live on every use.

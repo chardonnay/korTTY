@@ -663,7 +663,20 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         String fallbackLanguageCode,
         String additionalInstructions,
         String aiProfileId,
-        AiProvenanceListener provenanceListener) {
+        AiProvenanceListener provenanceListener,
+        String fileName,
+        Boolean executable) {
+
+        public CodeAnalysisRequest(
+            String fullContent,
+            String snippetLanguage,
+            String fallbackLanguageCode,
+            String additionalInstructions,
+            String aiProfileId,
+            AiProvenanceListener provenanceListener) {
+            this(fullContent, snippetLanguage, fallbackLanguageCode, additionalInstructions, aiProfileId,
+                provenanceListener, null, null);
+        }
 
         public CodeAnalysisRequest(
             String fullContent,
@@ -4989,6 +5002,13 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         analysisController.openStartPanel();
     }
 
+    /** Right-click → "Full code analysis" in the library: the same as the editor's own entry. */
+    void runFullCodeAnalysis() {
+        if (analysisController != null) {
+            runCodeReview();
+        }
+    }
+
     /** "Full code analysis with profile": starts at once with the given profile and remembers it. */
     private void runCodeReview(String aiProfileId) {
         analysisController.startWithProfile(aiProfileId);
@@ -8495,6 +8515,31 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         public String savedSnippetContent() {
             Snippet persisted = persistedSnippet();
             return persisted != null ? persisted.getContent() : null;
+        }
+
+        @Override
+        public String fileName() {
+            Snippet probe = new Snippet(currentSnippetName(), safeContentText(),
+                SnippetLanguageSupport.detectSnippetLanguage(languageCombo.getValue(), safeContentText()));
+            probe.setFileName(normalizedFieldValue(fileNameField.getText()));
+            return de.kortty.core.SnippetExecutableSupport.fileNameOf(probe);
+        }
+
+        @Override
+        public boolean executable() {
+            Boolean explicit = SnippetFileFields.executable(executableCombo);
+            return explicit != null ? explicit
+                : de.kortty.core.SnippetExecutableSupport.defaultExecutable(fileName(), safeContentText());
+        }
+
+        @Override
+        public boolean saveSnippetNow() {
+            return saveSnippetWithoutClosing();
+        }
+
+        @Override
+        public javafx.stage.Window ownerWindow() {
+            return getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : getOwner();
         }
 
         @Override
