@@ -191,7 +191,10 @@ public class SessionJournalSummarizer {
             return CompletableFuture.runAsync(() -> {
                 invokerOverride.set(invoker);
                 try {
-                    runClosePass(directory, new SessionState(), aiEnabled);
+                    SessionState state = new SessionState();
+                    // the journal's last pass: a failed AI call must still leave raw activity
+                    state.closingSession = true;
+                    runClosePass(directory, state, aiEnabled);
                 } finally {
                     invokerOverride.remove();
                     pendingClosePasses.remove(key);
@@ -201,6 +204,21 @@ public class SessionJournalSummarizer {
             pendingClosePasses.remove(key);
             return CompletableFuture.failedFuture(e);
         }
+    }
+
+    /**
+     * Evaluates a closed journal again with {@code invoker} — e.g. another profile after a poor
+     * result or a broken AI connection: the previous AI summaries and session summary are removed
+     * and the whole capture log is summarized afresh. If the AI fails midway the windows are kept
+     * as raw entries, so the timeline is never left empty.
+     */
+    public CompletableFuture<Void> reevaluateClosedJournal(Path directory, SessionJournalAiSupport.AiInvoker invoker) {
+        try {
+            service.resetAiEvaluation(directory);
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+        return summarizeClosedJournal(directory, invoker, true);
     }
 
     /** True while an automation close pass for this journal is queued or running. */

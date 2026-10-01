@@ -362,6 +362,35 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void aFinalStreamChunkRepeatingTheWholeMessageIsNotAppendedTwice() throws Exception {
+        // MiniMax's native endpoint streams deltas, then repeats the complete reply as "message".
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.minimax.io/v1/text/chatcompletion_v2", "MiniMax-M3", "");
+
+        JsonObject aggregated = service.aggregateStreamedResponse("""
+            data: {"choices":[{"delta":{"content":"{\\"title\\":\\"Disk\\","}}]}
+            data: {"choices":[{"delta":{"content":"\\"summary\\":\\"ok\\"}"}}]}
+            data: {"choices":[{"finish_reason":"stop","message":{"role":"assistant","content":"{\\"title\\":\\"Disk\\",\\"summary\\":\\"ok\\"}"}}]}
+            """);
+
+        assertThat(aggregated.getAsJsonArray("choices").get(0).getAsJsonObject().getAsJsonObject("message")
+            .get("content").getAsString()).isEqualTo("{\"title\":\"Disk\",\"summary\":\"ok\"}");
+    }
+
+    @Test
+    void aStreamThatOnlySendsMessagesStillYieldsTheirContent() throws Exception {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "https://api.example.test/v1/chat/completions", "some-model", "");
+
+        JsonObject aggregated = service.aggregateStreamedResponse("""
+            data: {"choices":[{"finish_reason":"stop","message":{"content":"{\\"a\\":1}"}}]}
+            """);
+
+        assertThat(aggregated.getAsJsonArray("choices").get(0).getAsJsonObject().getAsJsonObject("message")
+            .get("content").getAsString()).isEqualTo("{\"a\":1}");
+    }
+
+    @Test
     void miniMaxStructuredRequestsCarryTheJsonReminderWithTheFirstAttempt() throws Exception {
         // MiniMax accepts response_format and ignores it; the reminder the retry used to carry
         // costs ~70 tokens where a retry costs the whole request again.

@@ -351,6 +351,7 @@ public class TerminalView extends BorderPane {
     // Session journal: the live capture session survives reconnects (one journal per tab
     // lifetime); only the data listener hops to the new connector.
     private volatile de.kortty.core.SessionJournalSession journalSession;
+    private volatile java.util.function.Consumer<de.kortty.core.SessionJournalAiPreflight.Result> journalAiPreflightListener;
     private ObservableTtyConnector.DataListener journalDataListener;
     private ObservableTtyConnector journalAttachedConnector;
     private String journalTabSessionId;
@@ -5724,6 +5725,48 @@ public class TerminalView extends BorderPane {
         return journalSession;
     }
 
+    /** Receives the result of the AI connection test of an automatically started journal (FX thread). */
+    public void setJournalAiPreflightListener(
+            java.util.function.Consumer<de.kortty.core.SessionJournalAiPreflight.Result> listener) {
+        this.journalAiPreflightListener = listener;
+    }
+
+    /** True when the running journal is configured to call the AI (so a connection test matters). */
+    public boolean sessionJournalWouldUseAi() {
+        de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+        de.kortty.model.GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings() : null;
+        return de.kortty.core.SessionJournalAiPreflight.aiWouldRun(connection.getSessionJournalConfig(), settings);
+    }
+
+    /**
+     * Tests the AI connection of the journal that just started automatically on connect. Capture
+     * runs meanwhile, so nothing is lost; the tab shows a bar when the AI is not reachable.
+     */
+    public void runJournalAiPreflight() {
+        if (!sessionJournalWouldUseAi()) {
+            return;
+        }
+        de.kortty.core.SessionJournalAiPreflight.checkAsync(de.kortty.core.SessionJournalAiSupport.applicationInvoker())
+            .thenAccept(result -> {
+                if (!result.ok()) {
+                    logger.warn("Session journal AI connection test failed for {}: {}", connection.getHost(), result.message());
+                }
+                java.util.function.Consumer<de.kortty.core.SessionJournalAiPreflight.Result> listener = journalAiPreflightListener;
+                if (listener != null) {
+                    javafx.application.Platform.runLater(() -> listener.accept(result));
+                }
+            });
+    }
+
+    /** "Record without AI": the running journal keeps capturing but no longer calls the AI. */
+    public void disableSessionJournalAi() {
+        de.kortty.core.SessionJournalSession session = journalSession;
+        if (session != null) {
+            session.setAiSummariesEnabled(false);
+        }
+    }
+
     /**
      * Called from the connect success path. First connect with journaling enabled creates the
      * journal; after a reconnect the existing journal continues and only the data listener is
@@ -5746,6 +5789,7 @@ public class TerminalView extends BorderPane {
                 return;
             }
             createAndStartSessionJournal(false, java.util.List.of());
+            runJournalAiPreflight();
         } catch (Exception e) {
             logger.error("Failed to start session journal for {}:{}: {}",
                 connection.getHost(), connection.getPort(), e.getMessage(), e);

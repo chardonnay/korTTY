@@ -43,6 +43,8 @@ import java.util.function.Supplier;
  */
 public class SessionJournalScreenshotAnalyzer {
 
+    private final java.util.Set<Path> noVisionNoted = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     /** Thrown for MANUAL runs when policy or the profile's capability forbids the analysis. */
     public static final class VisionUnavailableException extends IllegalStateException {
         public VisionUnavailableException(String message) {
@@ -114,8 +116,7 @@ public class SessionJournalScreenshotAnalyzer {
             return;
         }
         if (!aiInvoker.isVisionPlausible()) {
-            logger.debug("Skipping screenshot analysis for {}: no vision-capable AI profile",
-                journalDir.getFileName());
+            noteSkippedNoVision(journalDir, aiInvoker);
             return;
         }
         // The authoritative vision check may query the endpoint's metadata — it runs on the
@@ -201,19 +202,47 @@ public class SessionJournalScreenshotAnalyzer {
     /**
      * Analyzes one screenshot right now, on the calling thread, with {@code invoker} instead of
      * the journal profile — the closing pass of an automation run journal, which has its own
-     * profile and already decided that AI should run. Silently skips when the policy forbids the
-     * analysis or the profile cannot take images; never throws.
+     * profile and already decided that AI should run — and "Re-evaluate with AI…". Never throws.
+     *
+     * @return true when the screenshot got a description; false when the policy forbids it, the
+     *         profile cannot take images or the AI failed (logged)
      */
-    public void analyzeNow(Path journalDir, String entryId, SessionJournalAiSupport.AiInvoker invoker) {
+    public boolean analyzeNow(Path journalDir, String entryId, SessionJournalAiSupport.AiInvoker invoker) {
         if (journalDir == null || entryId == null || invoker == null || !policyAllowsAnalysis()) {
-            return;
+            return false;
         }
         try {
-            runAnalysis(journalDir, entryId, Trigger.AUTO, invoker);
+            runAnalysis(journalDir, entryId, Trigger.MANUAL, invoker);
+            return true;
+        } catch (VisionUnavailableException e) {
+            noteSkippedNoVision(journalDir, invoker);
+            return false;
         } catch (Exception e) {
-            logger.debug("Automation screenshot analysis failed for {} entry {}: {}",
+            logger.warn("Screenshot analysis failed for {} entry {}: {}",
                 journalDir.getFileName(), entryId, e.getMessage());
+            return false;
         }
+    }
+
+    /**
+     * Says once per journal — at INFO, so it shows in kortty.log — why its screenshots stay
+     * undescribed: the profile is not known to accept images. Models the name heuristic does not
+     * recognise need "Image input (vision): Enabled" on the profile.
+     */
+    private void noteSkippedNoVision(Path journalDir, SessionJournalAiSupport.AiInvoker invoker) {
+        if (!noVisionNoted.add(journalDir.toAbsolutePath().normalize())) {
+            return;
+        }
+        String profile = null;
+        try {
+            profile = invoker.profile() != null ? invoker.profile().getName() : null;
+        } catch (RuntimeException ignored) {
+            // name is only for the message
+        }
+        logger.info("Screenshots of session journal {} are not analyzed: the AI profile '{}' is not known to accept "
+                + "images. If its model supports image input, set 'Image input (vision)' to 'Enabled' for the profile "
+                + "in the AI Manager.",
+            journalDir.getFileName(), profile != null ? profile : "?");
     }
 
     private void runAnalysis(Path journalDir, String entryId, Trigger trigger,
@@ -224,8 +253,7 @@ public class SessionJournalScreenshotAnalyzer {
             if (trigger == Trigger.MANUAL) {
                 throw new VisionUnavailableException("No image-capable AI profile is available");
             }
-            logger.debug("Skipping screenshot analysis for {}: profile has no image input",
-                journalDir.getFileName());
+            noteSkippedNoVision(journalDir, aiInvoker);
             return;
         }
         SessionJournalEntry entry = findScreenshotEntry(service.loadDocument(journalDir), entryId);

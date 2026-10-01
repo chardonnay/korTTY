@@ -5,6 +5,7 @@ import de.kortty.model.ServerConnection;
 import de.kortty.model.SessionJournalConfig;
 import de.kortty.model.SessionJournalDocument;
 import de.kortty.model.SessionJournalEntry;
+import de.kortty.model.SessionJournalEntryKind;
 import de.kortty.model.SessionJournalLogFormat;
 import de.kortty.model.SessionJournalMarker;
 import de.kortty.model.SessionJournalMeta;
@@ -706,6 +707,33 @@ public class SessionJournalService {
             saveDocumentInternal(journalDir, document);
         }
         notifyChanged(journalDir);
+    }
+
+    /**
+     * Removes the AI evaluation of a closed journal — window summaries (including raw and failed
+     * placeholders), the closing session summary and the AI keywords — and resets the summarized
+     * progress, so the summarizer can evaluate it afresh. Notes, screenshots, agent and system
+     * entries stay. Refuses live journals.
+     *
+     * @return the number of entries removed
+     */
+    public int resetAiEvaluation(Path journalDir) throws IOException {
+        if (isLive(journalDir)) {
+            throw new IOException("Cannot re-evaluate a session journal that is still being written");
+        }
+        int removed;
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            int before = document.getEntries().size();
+            document.getEntries().removeIf(entry -> entry.getKind() == SessionJournalEntryKind.AI_SUMMARY
+                || entry.getKind() == SessionJournalEntryKind.SESSION_SUMMARY);
+            removed = before - document.getEntries().size();
+            document.getMeta().setLastSummarizedSeq(0);
+            document.getMeta().setAiKeywords(null);
+            saveDocumentInternal(journalDir, document);
+        }
+        notifyChanged(journalDir);
+        return removed;
     }
 
     /** Pins a journal (exempt from automatic deletion) or releases it. */
