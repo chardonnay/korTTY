@@ -253,6 +253,30 @@ class SessionJournalSummarizerTest {
     }
 
     @Test
+    void failedClosingPassStillLeavesRawActivityAndKeepsTheJournalForCatchUp() throws Exception {
+        invoker.fail = true;
+        SessionJournalSession session = newLiveSession();
+        appendLines(session, 4, 2);
+        summarizer.register(session);
+        Path dir = session.getDirectory();
+
+        summarizer.onSessionClosing(session);
+        session.close();
+
+        long deadline = System.currentTimeMillis() + 10_000;
+        while (System.currentTimeMillis() < deadline
+            && entriesOf(dir, SessionJournalEntryKind.AI_SUMMARY).isEmpty()) {
+            Thread.sleep(100);
+        }
+        List<SessionJournalEntry> entries = entriesOf(dir, SessionJournalEntryKind.AI_SUMMARY);
+        assertThat(entries).isNotEmpty();
+        assertThat(entries.get(0).getState()).isEqualTo(SessionJournalEntry.State.RAW);
+        assertThat(entries.get(0).getOutputExcerpt()).isNotEmpty();
+        // progress stays at 0, so "Catch up summaries" still picks the journal up
+        assertThat(service.loadDocument(dir).getMeta().getLastSummarizedSeq()).isEqualTo(0);
+    }
+
+    @Test
     void closePassWritesFinalWindowSessionSummaryAndAiTitle() throws Exception {
         settings.setSessionJournalAiTitleEnabled(true);
         SessionJournalSession session = newLiveSession();
