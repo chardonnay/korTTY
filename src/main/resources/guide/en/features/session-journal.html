@@ -960,6 +960,11 @@
 </ul>
 <h3 id="searching-the-journal">Searching the journal<a class="headerlink" href="#searching-the-journal" title="Permanent link">&para;</a></h3>
 <p>The magnifier in the header opens a search bar directly under the connection details (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> works too). Typing a term or a whole sentence highlights every occurrence across the timeline — entry titles, AI summaries, AI screenshot descriptions and tags, input and output excerpts, notes and timestamps — and shows a match counter; ▲ and ▼ or <span class="keys"><kbd class="key-enter">Enter</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> jump between the hits, <span class="keys"><kbd class="key-escape">Esc</kbd></span> or ✕ closes the bar and clears the highlighting.</p>
+<ul>
+<li><strong>Several terms</strong> narrow the search: <code>nginx error</code> finds the entries that contain <em>both</em> words, in any order and place, and highlights each of them. Put a phrase in quotes — <code>"config error"</code> — to search it exactly.</li>
+<li><strong>Only matches</strong> next to the counter switches to filter mode: entries that do not contain every term disappear, together with day dividers left without entries, and the bar shows how many entries match (for example <em>2 of 164 entries</em>). Clearing the field or closing the bar shows the whole timeline again.</li>
+</ul>
+<p>The search runs entirely in the page, without AI — it works the same way in an exported HTML bundle opened in any browser.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>This searches the journal entries. The raw capture log has its own search inside the log panel, the journal manager can search across <em>all</em> journals with <strong>Search contents</strong> or the <a href="#ai-search-across-all-journals">AI search</a>, and the viewer's <a href="#asking-the-ai-about-a-journal">AI Q&amp;A</a> answers questions about this journal.</p>
