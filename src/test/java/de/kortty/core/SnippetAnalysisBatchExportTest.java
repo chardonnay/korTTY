@@ -218,6 +218,25 @@ class SnippetAnalysisBatchExportTest {
     }
 
     @Test
+    void aZipMirrorsTheSnippetFoldersAndCombinedReportsNameThem() throws IOException {
+        SnippetAnalysisReport pre = SnippetAnalysisReportFixtures.preReport();
+        SnippetAnalysisReport post = SnippetAnalysisReportFixtures.postReport();
+        List<Item> foldered = List.of(new Item("snippet-deploy", "deploy_release.sh", pre, "ops/../deploy"),
+            new Item("snippet-cleanup", "cleanup.sh", post, ""));
+        service().exportBatch(directory.resolve("foldered.zip"), Format.MARKDOWN, Packaging.ZIP, foldered, List.of(),
+            options(), null, null);
+        List<String> names = zipEntries(directory.resolve("foldered.zip"));
+        assertThat(names.get(0)).startsWith("ops/deploy/01-deploy_release.sh-analysis-");
+        assertThat(names.get(1)).startsWith("ops/deploy/");
+        assertThat(names.get(1)).endsWith(".diagram.png");
+        assertThat(names.get(2)).startsWith("02-");
+
+        service().exportBatch(directory.resolve("foldered.html"), Format.HTML, Packaging.COMBINED, foldered, List.of(),
+            options(), null, null);
+        assertThat(Files.readString(directory.resolve("foldered.html"))).contains("ops/deploy / deploy_release.sh");
+    }
+
+    @Test
     void progressIsReportedAndACancelWritesNothing() throws IOException {
         List<String> seen = new ArrayList<>();
         service().exportBatch(directory.resolve("progress.json"), Format.JSON, Packaging.COMBINED, items(), List.of(),

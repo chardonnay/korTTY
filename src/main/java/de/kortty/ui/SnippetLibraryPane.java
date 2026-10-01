@@ -2553,12 +2553,15 @@ final class SnippetLibraryPane extends BorderPane {
         if (!doomed.isEmpty() && !host.beforeDelete(doomed)) {
             return;
         }
+        // Kept contents move up, but the removed folders' project analyses describe folders that are gone.
+        Set<String> removedFolders = deleteContents ? snippetManager.descendantFolderIds(folderId) : Set.of(folderId);
         snippetManager.removeFolder(folderId, deleteContents);
         boolean saved = saveOrReport();
         folderTree.refresh();
         refreshTable(true);
         updateFilter();
         if (saved) {
+            removedFolders.forEach(id -> analysisStore.discardAll(de.kortty.core.SnippetProjectAiSupport.folderKey(id)));
             for (Snippet snippet : doomed) {
                 if (snippet.getId() != null && !snippet.getId().isBlank()) {
                     analysisStore.discardAll(snippet.getId());
