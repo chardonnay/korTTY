@@ -297,8 +297,100 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
         }
     }
 
+    /** Outcome of {@link #executeInPty}: the exit code, and whether the runtime limit stopped the command. */
+    public record PtyResult(int exitCode, boolean limitReached) {
+    }
+
+    /**
+     * Runs one command in a pseudo terminal of {@code columns}×{@code rows}, so full-screen
+     * programs draw as they would in a terminal tab. The output (stdout and stderr merged, escape
+     * sequences included) streams to {@code output} as it arrives. When {@code limit} elapses the
+     * command gets Ctrl+C, then the channel is closed. Nothing is ever typed into the program
+     * besides {@code stdin} — a job cannot operate an interactive program.
+     */
+    public PtyResult executeInPty(
+            String command,
+            String stdin,
+            int columns,
+            int rows,
+            String terminalType,
+            Duration limit,
+            java.util.function.Consumer<String> output,
+            java.util.function.BooleanSupplier cancelled) throws Exception {
+        ensureConnected();
+        try (ChannelExec channel = session.createExecChannel(command)) {
+            channel.setUsePty(true);
+            channel.setPtyType(terminalType != null && !terminalType.isBlank() ? terminalType : "xterm-256color");
+            channel.setPtyColumns(columns);
+            channel.setPtyLines(rows);
+            java.io.OutputStream sink = new Utf8StreamingOutput(output);
+            channel.setOut(sink);
+            channel.setErr(sink);
+            channel.open().verify(COMMAND_OPEN_TIMEOUT);
+            java.io.OutputStream in = channel.getInvertedIn();
+            if (stdin != null && !stdin.isEmpty()) {
+                in.write(stdin.getBytes(StandardCharsets.UTF_8));
+                in.flush();
+            }
+            Duration effectiveLimit = limit != null && !limit.isZero() && !limit.isNegative()
+                && limit.compareTo(COMMAND_WAIT_TIMEOUT) < 0 ? limit : COMMAND_WAIT_TIMEOUT;
+            boolean limitReached = waitForCommand(channel, cancelled, effectiveLimit, () -> {
+                try {
+                    in.write(3); // Ctrl+C
+                    in.flush();
+                    channel.waitFor(EnumSet.of(ClientChannelEvent.CLOSED), 2_000L);
+                } catch (Exception ignored) {
+                    // the channel is closed below anyway
+                }
+            });
+            sink.flush();
+            int exitCode = !limitReached && channel.getExitStatus() != null ? channel.getExitStatus() : -1;
+            return new PtyResult(exitCode, limitReached);
+        }
+    }
+
+    /** Decodes UTF-8 bytes into text as they arrive, keeping a multi-byte character split across writes intact. */
+    private static final class Utf8StreamingOutput extends java.io.OutputStream {
+        private final java.util.function.Consumer<String> target;
+        private final java.nio.charset.CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
+            .onMalformedInput(java.nio.charset.CodingErrorAction.REPLACE)
+            .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPLACE);
+        private java.nio.ByteBuffer pending = java.nio.ByteBuffer.allocate(0);
+
+        Utf8StreamingOutput(java.util.function.Consumer<String> target) {
+            this.target = target != null ? target : text -> { };
+        }
+
+        @Override
+        public void write(int b) {
+            write(new byte[] {(byte) b}, 0, 1);
+        }
+
+        @Override
+        public synchronized void write(byte[] bytes, int offset, int length) {
+            java.nio.ByteBuffer input = java.nio.ByteBuffer.allocate(pending.remaining() + length);
+            input.put(pending).put(bytes, offset, length).flip();
+            java.nio.CharBuffer chars = java.nio.CharBuffer.allocate(input.remaining() + 1);
+            decoder.decode(input, chars, false);
+            pending = input.slice();
+            chars.flip();
+            if (chars.hasRemaining()) {
+                try {
+                    target.accept(chars.toString());
+                } catch (RuntimeException e) {
+                    // a failing consumer must not break the channel
+                }
+            }
+        }
+    }
+
     private boolean waitForCommand(ChannelExec channel, java.util.function.BooleanSupplier cancelled) throws Exception {
-        long deadlineNanos = System.nanoTime() + COMMAND_WAIT_TIMEOUT.toNanos();
+        return waitForCommand(channel, cancelled, COMMAND_WAIT_TIMEOUT, () -> { });
+    }
+
+    private boolean waitForCommand(ChannelExec channel, java.util.function.BooleanSupplier cancelled,
+                                   Duration timeout, Runnable beforeTimeoutClose) throws Exception {
+        long deadlineNanos = System.nanoTime() + timeout.toNanos();
         while (true) {
             if (Thread.currentThread().isInterrupted() || (cancelled != null && cancelled.getAsBoolean())) {
                 channel.close(false);
@@ -306,6 +398,7 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
             }
             long remainingNanos = deadlineNanos - System.nanoTime();
             if (remainingNanos <= 0L) {
+                beforeTimeoutClose.run();
                 channel.close(false);
                 return true;
             }
