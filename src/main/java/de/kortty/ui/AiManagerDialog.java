@@ -3,6 +3,7 @@ package de.kortty.ui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import de.kortty.KorTTYApplication;
+import de.kortty.core.AiCostCalculator;
 import de.kortty.core.AiInternetAccessConfiguration;
 import de.kortty.core.AiCliArgumentPreset;
 import de.kortty.core.AiCliArgumentTemplate;
@@ -137,6 +138,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private final DatePicker tokenResetAnchorPicker;
     private final AiQuotaBar tokenUsageBar;
     private final Label tokenUsageLabel;
+    private final TextField pricePromptField;
+    private final TextField priceCompletionField;
+    private final ComboBox<String> priceCurrencyCombo;
     private final Label statusLabel;
     private final BooleanProperty profileTestRunning = new SimpleBooleanProperty(false);
 
@@ -217,6 +221,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         tokenResetAnchorPicker = new DatePicker(LocalDate.now());
         tokenUsageBar = new AiQuotaBar();
         tokenUsageLabel = new Label();
+        pricePromptField = new TextField();
+        priceCompletionField = new TextField();
+        priceCurrencyCombo = new ComboBox<>();
         statusLabel = new Label();
 
         TabPane tabPane = new TabPane();
@@ -638,6 +645,28 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             new Label(I18n.get("settings.ai.token.reset.anchor")),
             tokenResetAnchorPicker);
         editorGrid.add(resetBox, 1, row++);
+
+        editorGrid.add(new Label(I18n.get("settings.ai.price")), 0, row);
+        pricePromptField.setPrefColumnCount(7);
+        pricePromptField.setPromptText("0.00");
+        priceCompletionField.setPrefColumnCount(7);
+        priceCompletionField.setPromptText("0.00");
+        priceCurrencyCombo.getItems().setAll("EUR", "USD", "CHF", "GBP");
+        priceCurrencyCombo.setEditable(true);
+        priceCurrencyCombo.setPrefWidth(90);
+        HBox priceBox = new HBox(
+            8,
+            new Label(I18n.get("settings.ai.price.prompt")),
+            pricePromptField,
+            new Label(I18n.get("settings.ai.price.completion")),
+            priceCompletionField,
+            priceCurrencyCombo);
+        priceBox.setAlignment(Pos.CENTER_LEFT);
+        editorGrid.add(priceBox, 1, row++);
+        Label priceHint = new Label(I18n.get("settings.ai.price.hint"));
+        priceHint.setWrapText(true);
+        priceHint.setStyle(MutedTextStyle.HINT);
+        editorGrid.add(priceHint, 1, row++);
 
         tokenUsageBar.setPrefWidth(360);
         editorGrid.add(tokenUsageBar, 1, row++);
@@ -1716,6 +1745,14 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         selectedProfile.setTokenWarningRedPercent(tokenWarningRedSpinner.getValue());
         selectedProfile.setTokenResetPeriodDays(tokenResetDaysSpinner.getValue());
         selectedProfile.setTokenResetAnchorDate(tokenResetAnchorPicker.getValue() != null ? tokenResetAnchorPicker.getValue().toString() : null);
+        selectedProfile.setPricePerMillionPromptTokens(AiCostCalculator.parsePrice(pricePromptField.getText()));
+        selectedProfile.setPricePerMillionCompletionTokens(AiCostCalculator.parsePrice(priceCompletionField.getText()));
+        String currency = priceCurrencyCombo.getEditor() != null && priceCurrencyCombo.isEditable()
+            ? priceCurrencyCombo.getEditor().getText()
+            : priceCurrencyCombo.getValue();
+        selectedProfile.setPriceCurrency(currency != null && !currency.isBlank()
+            ? currency.trim().toUpperCase(Locale.ROOT)
+            : null);
 
         String profileId = selectedProfile.getId();
         String plainApiKey = apiKeyField.getText();
@@ -1782,6 +1819,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             tokenResetAnchorPicker.setValue(LocalDate.now());
             tokenUsageBar.update(0.0, 75, 90, AiTokenWarningLevel.NONE, true);
             tokenUsageLabel.setText("");
+            pricePromptField.setText("");
+            priceCompletionField.setText("");
+            priceCurrencyCombo.setValue(AiCostCalculator.DEFAULT_CURRENCY);
             updateConnectionModeUi();
             return;
         }
@@ -1815,6 +1855,10 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         tokenWarningRedSpinner.getValueFactory().setValue(profile.getTokenWarningRedPercent() != null ? profile.getTokenWarningRedPercent() : 90);
         tokenResetDaysSpinner.getValueFactory().setValue(profile.getTokenResetPeriodDays() != null ? profile.getTokenResetPeriodDays() : 30);
         tokenResetAnchorPicker.setValue(parseLocalDate(profile.getTokenResetAnchorDate(), LocalDate.now()));
+        pricePromptField.setText(AiCostCalculator.formatPrice(profile.getPricePerMillionPromptTokens(), Locale.getDefault()));
+        priceCompletionField.setText(
+            AiCostCalculator.formatPrice(profile.getPricePerMillionCompletionTokens(), Locale.getDefault()));
+        priceCurrencyCombo.setValue(AiCostCalculator.currency(profile));
 
         String plainApiKey = profile.getId() != null ? plainApiKeysByProfileId.get(profile.getId()) : null;
         apiKeyField.setText(plainApiKey != null ? plainApiKey : "");
@@ -2208,7 +2252,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             selectedProfile.getTokenWarningRedPercent() != null ? selectedProfile.getTokenWarningRedPercent() : 90,
             snapshot.warningLevel(),
             snapshot.unlimited());
-        tokenUsageLabel.setText(buildAiProfileUsageInline(selectedProfile));
+        tokenUsageLabel.setText(buildAiProfileUsageInline(selectedProfile) + buildAiProfileCostSuffix(selectedProfile));
         profileListView.refresh();
     }
 
@@ -2223,6 +2267,20 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             formatCompact(snapshot.usedTotalTokens()),
             formatCompact(snapshot.maxTokens()),
             formatPercent(percentUsed));
+    }
+
+    /** " · ≈ 3,42 € in this period", " · local · 0 €", or empty when no price is known. */
+    private String buildAiProfileCostSuffix(AiProfile profile) {
+        if (AiCostCalculator.isLocal(profile)) {
+            return " · " + I18n.get("settings.ai.price.local");
+        }
+        if (!AiCostCalculator.hasPrice(profile)) {
+            return "";
+        }
+        AiTokenUsageSnapshot snapshot = AiTokenUsageManager.refreshUsage(profile);
+        double cost = AiCostCalculator.cost(profile, snapshot.usedPromptTokens(), snapshot.usedCompletionTokens());
+        return " · " + I18n.get("settings.ai.price.periodCost",
+            AiCostCalculator.format(cost, AiCostCalculator.currency(profile), Locale.getDefault()));
     }
 
     private String profileListDisplayName(AiProfile profile) {

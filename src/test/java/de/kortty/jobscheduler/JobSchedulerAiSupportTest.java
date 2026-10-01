@@ -27,6 +27,38 @@ class JobSchedulerAiSupportTest {
     }
 
     @Test
+    void tokenCountIsBookedAgainstTheQuotaInsteadOfBeingRedactedAsASecret() throws Exception {
+        java.util.List<de.kortty.core.AiTokenUsage> recorded = new java.util.ArrayList<>();
+        de.kortty.model.AiProfile profile = new de.kortty.model.AiProfile();
+        profile.setId("p");
+        AiPromptService aiService = new FixedUsageAiService(
+            "{\"status\":\"done\",\"summary\":\"Checked 1234 files\",\"commands\":[]}",
+            new de.kortty.core.AiTokenUsage(1000, 234, 1234));
+        JobSchedulerAiSupport support = new JobSchedulerAiSupport(null, (p, usage) -> recorded.add(usage)) {
+            @Override
+            de.kortty.model.AiProfile findAiProfile(String profileId) {
+                return profile;
+            }
+
+            @Override
+            AiPromptService createAiService(de.kortty.model.AiProfile ignored) {
+                return aiService;
+            }
+        };
+        ScheduledJob job = new ScheduledJob();
+        job.getAction().setType(JobActionType.AI_AGENT);
+        job.getAction().setAiPrompt("count files");
+        JobSchedulerSecretRedactor redactor = new JobSchedulerSecretRedactor();
+
+        JobExecutionOutcome outcome = support.runAiAgent(
+            job, new JobSchedulerAiSupport.ServerConnectionContext("host"), null, null, redactor);
+
+        assertThat(recorded).hasSize(1);
+        assertThat(recorded.get(0).totalTokens()).isEqualTo(1234L);
+        assertThat(redactor.redact(outcome.summary())).isEqualTo("Checked 1234 files");
+    }
+
+    @Test
     void executeAgentJsonPromptKeepsNonResponseFormatErrors() throws Exception {
         FailingAiService aiService = new FailingAiService();
 
@@ -120,6 +152,36 @@ class JobSchedulerAiSupportTest {
         public AiExecutionResult executeJsonPromptWithoutResponseFormat(String systemPrompt, String userPrompt) throws IOException {
             fallbackPromptCalls++;
             throw new IOException("network unavailable");
+        }
+    }
+
+    private static final class FixedUsageAiService implements AiPromptService {
+        private final String content;
+        private final de.kortty.core.AiTokenUsage usage;
+
+        FixedUsageAiService(String content, de.kortty.core.AiTokenUsage usage) {
+            this.content = content;
+            this.usage = usage;
+        }
+
+        @Override
+        public AiExecutionResult execute(AiRequest request) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public AiExecutionResult executePrompt(String systemPrompt, String userPrompt) {
+            return new AiExecutionResult(content, usage);
+        }
+
+        @Override
+        public AiExecutionResult executeJsonPrompt(String systemPrompt, String userPrompt) {
+            return new AiExecutionResult(content, usage);
+        }
+
+        @Override
+        public boolean testConnection() {
+            return true;
         }
     }
 }

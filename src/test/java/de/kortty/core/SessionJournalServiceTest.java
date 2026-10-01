@@ -206,6 +206,47 @@ class SessionJournalServiceTest {
     }
 
     @Test
+    void addAiUsageAccumulatesTokensCallsAndCostAcrossConcurrentCalls() throws Exception {
+        SessionJournalSession session = service.createSession(
+            sampleConnection(), "tab-usage0000001", settings, List.of(), false);
+        Path dir = session.getDirectory();
+        de.kortty.model.AiProfile profile = new de.kortty.model.AiProfile();
+        profile.setId("priced");
+        profile.setName("Priced");
+        profile.setPricePerMillionPromptTokens(1_000.0);
+        profile.setPricePerMillionCompletionTokens(2_000.0);
+
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(8);
+        try {
+            List<java.util.concurrent.Future<?>> futures = new java.util.ArrayList<>();
+            for (int i = 0; i < 16; i++) {
+                futures.add(pool.submit(() -> {
+                    service.addAiUsage(dir, new AiTokenUsage(100, 50, 150), profile);
+                    return null;
+                }));
+            }
+            for (java.util.concurrent.Future<?> future : futures) {
+                future.get();
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+        session.close();
+
+        SessionJournalMeta meta = service.loadDocument(dir).getMeta();
+        assertThat(meta.getAiCallCount()).isEqualTo(16);
+        assertThat(meta.getAiPromptTokens()).isEqualTo(1_600L);
+        assertThat(meta.getAiCompletionTokens()).isEqualTo(800L);
+        assertThat(meta.getAiTotalTokens()).isEqualTo(2_400L);
+        // 16 x (100 x 1000 + 50 x 2000) / 1e6 = 16 x 0.2
+        assertThat(meta.getAiCost()).isWithin(1e-9).of(3.2);
+        assertThat(meta.getAiCostCurrency()).isEqualTo("EUR");
+        assertThat(meta.getAiProfileName()).isEqualTo("Priced");
+        // closing the session must not overwrite the usage recorded while it was live
+        assertThat(new SessionJournalMeta(meta).getAiTotalTokens()).isEqualTo(2_400L);
+    }
+
+    @Test
     void listJournalsReturnsMetadataSortedByStartDescending() throws IOException {
         SessionJournalSession first = service.createSession(
             sampleConnection(), "tab-aaaaaaaaaaaa", settings, List.of(), false);

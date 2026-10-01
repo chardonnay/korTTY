@@ -8,6 +8,7 @@ import de.kortty.core.AiInternetAccessConfiguration;
 import de.kortty.core.AiPromptService;
 import de.kortty.core.AiServiceFactory;
 import de.kortty.core.AiSkillPromptSupport;
+import de.kortty.core.AiUsageRecorder;
 import de.kortty.core.TerminalAgentService;
 import de.kortty.model.AiInternetAccessMode;
 import de.kortty.model.AiProfile;
@@ -28,8 +29,16 @@ public class JobSchedulerAiSupport {
 
     private final KorTTYApplication app;
 
+    /** Overrides the application's recorder; null = use the application's. For tests. */
+    private final AiUsageRecorder usageRecorderOverride;
+
     public JobSchedulerAiSupport(KorTTYApplication app) {
+        this(app, null);
+    }
+
+    JobSchedulerAiSupport(KorTTYApplication app, AiUsageRecorder usageRecorderOverride) {
         this.app = app;
+        this.usageRecorderOverride = usageRecorderOverride;
     }
 
     public JobExecutionOutcome runAiAgent(
@@ -56,9 +65,8 @@ public class JobSchedulerAiSupport {
             + "Working directory: " + (job.getWorkingDirectory() != null ? job.getWorkingDirectory() : "~") + "\n"
             + "Job prompt:\n" + action.getAiPrompt();
         AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
-        if (result.usage() != null) {
-            redactor.addSecret(String.valueOf(result.usage().totalTokens()));
-        }
+        // The token count is bookkeeping, not a secret: book it against the profile quota.
+        usageRecorder().record(profile, AiUsageRecorder.usageOrEstimate(result, systemPrompt, userPrompt, profile));
         AgentDecision decision = parseDecision(result.content());
         if ("blocked".equalsIgnoreCase(decision.status())) {
             return JobExecutionOutcome.blocked(nonBlank(decision.summary(), "AI agent blocked the job."), result.content());
@@ -114,6 +122,14 @@ public class JobSchedulerAiSupport {
             stdout.toString(),
             stderr.toString(),
             detail.toString());
+    }
+
+    private AiUsageRecorder usageRecorder() {
+        if (usageRecorderOverride != null) {
+            return usageRecorderOverride;
+        }
+        AiUsageRecorder recorder = app != null ? app.getAiUsageRecorder() : null;
+        return recorder != null ? recorder : AiUsageRecorder.NOOP;
     }
 
     AiProfile findAiProfile(String profileId) {

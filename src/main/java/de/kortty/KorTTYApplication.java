@@ -103,6 +103,7 @@ public class KorTTYApplication extends Application {
     private de.kortty.core.SnippetDraftStore snippetDraftStore;
     private SnippetVariableManager snippetVariableManager;
     private GlobalSettingsManager globalSettingsManager;
+    private de.kortty.core.SettingsAiUsageRecorder aiUsageRecorder;
     private ThemeManager themeManager;
     private TerminalEffectPluginManager terminalEffectPluginManager;
     private CodingAgentService codingAgentService;
@@ -222,6 +223,7 @@ public class KorTTYApplication extends Application {
         snippetManager = new SnippetManager(configDir);
         snippetVariableManager = new SnippetVariableManager(configDir);
         globalSettingsManager = new GlobalSettingsManager(configDir);
+        aiUsageRecorder = new de.kortty.core.SettingsAiUsageRecorder(globalSettingsManager);
         globalSettingsManager.setPolicyClamp(
             new de.kortty.policy.PolicyClamp(policyManager.getEffective()));
         // Stored Full-code analyses: built right after the snippet manager, outside the fragile load
@@ -1524,6 +1526,11 @@ public class KorTTYApplication extends Application {
 
     public SwarmChatManager getSwarmChatManager() {
         return swarmChatManager;
+    }
+
+    /** Books AI token usage against profile quotas; see {@link de.kortty.core.AiUsageRecorder}. */
+    public de.kortty.core.SettingsAiUsageRecorder getAiUsageRecorder() {
+        return aiUsageRecorder;
     }
 
     public de.kortty.core.SessionJournalService getSessionJournalService() {

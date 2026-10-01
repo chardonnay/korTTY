@@ -224,6 +224,11 @@ public final class SessionJournalHtmlRenderer {
         appendStat(html, i18n("journal.html.commands", "Commands"), String.valueOf(meta.getCommandCount()));
         appendStat(html, i18n("journal.html.errors", "Errors"), String.valueOf(meta.getErrorCount()));
         appendStat(html, i18n("journal.html.screenshots", "Screenshots"), String.valueOf(screenshots));
+        String aiUsage = SessionJournalHeaderSupport.aiUsageSummary(
+            meta, i18n("journal.ai.usage.local", "local"), java.util.Locale.getDefault());
+        if (!aiUsage.isEmpty()) {
+            appendStat(html, i18n("journal.html.aiTokens", "AI tokens"), aiUsage);
+        }
         html.append("<div class=\"head-buttons\">");
         html.append("<button id=\"rangeToggle\" class=\"icon-button\" type=\"button\" hidden title=\"")
             .append(escapeAttr(i18n("journal.html.range.title", "Pick an export time range")))

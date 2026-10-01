@@ -92,6 +92,41 @@ public class SessionJournalMeta {
     @XmlElement(name = "keyword")
     private java.util.List<String> aiKeywords;
 
+    // --- AI usage of this journal (summaries, title, screenshot analysis, Q&A); absent on
+    // journals written before usage was tracked, which then read as zero ---
+
+    @XmlElement
+    private long aiPromptTokens;
+
+    @XmlElement
+    private long aiCompletionTokens;
+
+    @XmlElement
+    private long aiTotalTokens;
+
+    @XmlElement
+    private int aiCallCount;
+
+    /** Money spent, summed per call from the calling profile's price at that time. */
+    @XmlElement
+    private double aiCost;
+
+    /** Currency of {@link #aiCost}; null when no priced call was made. */
+    @XmlElement
+    private String aiCostCurrency;
+
+    /** Id of the profile that made the most recent AI call for this journal. */
+    @XmlElement
+    private String aiProfileId;
+
+    /** Display name of that profile, kept for journals whose profile was deleted since. */
+    @XmlElement
+    private String aiProfileName;
+
+    /** True when that profile runs locally (no per-token charges). */
+    @XmlElement
+    private boolean aiProfileLocal;
+
     // --- transient (the keyword alone keeps JAXB away; combining it with @XmlTransient is an
     // IllegalAnnotationsException), populated by SessionJournalService for the management UI ---
 
@@ -126,6 +161,15 @@ public class SessionJournalMeta {
         this.screenshotCount = other.screenshotCount;
         this.aiKeywords = other.aiKeywords != null
             ? new java.util.ArrayList<>(other.aiKeywords) : null;
+        this.aiPromptTokens = other.aiPromptTokens;
+        this.aiCompletionTokens = other.aiCompletionTokens;
+        this.aiTotalTokens = other.aiTotalTokens;
+        this.aiCallCount = other.aiCallCount;
+        this.aiCost = other.aiCost;
+        this.aiCostCurrency = other.aiCostCurrency;
+        this.aiProfileId = other.aiProfileId;
+        this.aiProfileName = other.aiProfileName;
+        this.aiProfileLocal = other.aiProfileLocal;
         this.directory = other.directory;
         this.live = other.live;
         this.journalId = other.journalId;
@@ -295,6 +339,78 @@ public class SessionJournalMeta {
 
     public Path getDirectory() {
         return directory;
+    }
+
+    public long getAiPromptTokens() {
+        return aiPromptTokens;
+    }
+
+    public void setAiPromptTokens(long aiPromptTokens) {
+        this.aiPromptTokens = aiPromptTokens;
+    }
+
+    public long getAiCompletionTokens() {
+        return aiCompletionTokens;
+    }
+
+    public void setAiCompletionTokens(long aiCompletionTokens) {
+        this.aiCompletionTokens = aiCompletionTokens;
+    }
+
+    public long getAiTotalTokens() {
+        return aiTotalTokens;
+    }
+
+    public void setAiTotalTokens(long aiTotalTokens) {
+        this.aiTotalTokens = aiTotalTokens;
+    }
+
+    public int getAiCallCount() {
+        return aiCallCount;
+    }
+
+    public void setAiCallCount(int aiCallCount) {
+        this.aiCallCount = aiCallCount;
+    }
+
+    public double getAiCost() {
+        return aiCost;
+    }
+
+    public void setAiCost(double aiCost) {
+        this.aiCost = aiCost;
+    }
+
+    public String getAiCostCurrency() {
+        return aiCostCurrency;
+    }
+
+    public void setAiCostCurrency(String aiCostCurrency) {
+        this.aiCostCurrency = aiCostCurrency;
+    }
+
+    public String getAiProfileId() {
+        return aiProfileId;
+    }
+
+    public void setAiProfileId(String aiProfileId) {
+        this.aiProfileId = aiProfileId;
+    }
+
+    public String getAiProfileName() {
+        return aiProfileName;
+    }
+
+    public void setAiProfileName(String aiProfileName) {
+        this.aiProfileName = aiProfileName;
+    }
+
+    public boolean isAiProfileLocal() {
+        return aiProfileLocal;
+    }
+
+    public void setAiProfileLocal(boolean aiProfileLocal) {
+        this.aiProfileLocal = aiProfileLocal;
     }
 
     public void setDirectory(Path directory) {
