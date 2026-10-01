@@ -167,6 +167,9 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         deleteButton.setOnAction(event -> deleteSelected());
         Button optionsButton = new Button(I18n.get("journal.manager.options"));
         optionsButton.setOnAction(event -> showOptionsDialog());
+        Button reevaluateButton = new Button(I18n.get("journal.reevaluate.button"));
+        reevaluateButton.setTooltip(new Tooltip(I18n.get("journal.reevaluate.tooltip")));
+        reevaluateButton.setOnAction(event -> reevaluateSelected());
         Button refreshButton = new Button(I18n.get("journal.manager.refresh"));
         ButtonIcons.apply(refreshButton, ButtonIcons.REFRESH);
         refreshButton.setOnAction(event -> refresh());
@@ -196,7 +199,16 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
             deleteButton.disableProperty().bind(noneSelected.or(anyLiveSelected));
         }
 
-        HBox buttonBar = new HBox(8, openButton, renameButton, exportButton, deleteButton, optionsButton, refreshButton);
+        if (!policy.sessionJournalAiSummariesAllowed()) {
+            reevaluateButton.setDisable(true);
+            reevaluateButton.setTooltip(new Tooltip(I18n.get("journal.options.managed")));
+        } else {
+            reevaluateButton.disableProperty().bind(javafx.beans.binding.Bindings.createBooleanBinding(
+                () -> SessionJournalReevaluateDialog.eligible(selectedJournals()).isEmpty(), selectedItems));
+        }
+
+        HBox buttonBar = new HBox(8, openButton, renameButton, exportButton, deleteButton, reevaluateButton,
+            optionsButton, refreshButton);
 
         descriptionArea.setPromptText(I18n.get("journal.manager.description"));
         descriptionArea.setPrefRowCount(3);
@@ -584,10 +596,19 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
 
     /** Right-click menu of an automation row: pin or release, and open the job. */
     private javafx.scene.control.ContextMenu buildRowMenu(SessionJournalTreeSupport.Node node) {
-        if (node == null || node.journals().isEmpty() || !node.journals().get(0).isAutomation()) {
+        if (node == null || node.journals().isEmpty()) {
             return null;
         }
         javafx.scene.control.ContextMenu menu = new javafx.scene.control.ContextMenu();
+        if (de.kortty.policy.PolicyManager.effective().sessionJournalAiSummariesAllowed()
+                && !SessionJournalReevaluateDialog.eligible(node.journals()).isEmpty()) {
+            MenuItem reevaluate = new MenuItem(I18n.get("journal.reevaluate.button"));
+            reevaluate.setOnAction(event -> reevaluate(node.journals()));
+            menu.getItems().add(reevaluate);
+        }
+        if (!node.journals().get(0).isAutomation()) {
+            return menu.getItems().isEmpty() ? null : menu;
+        }
         boolean single = node.meta() != null;
         if (!node.allPinned()) {
             MenuItem pin = new MenuItem(I18n.get(single ? "journal.manager.pin" : "journal.manager.pinAll"));
@@ -867,6 +888,20 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         List<SessionJournalMeta> result = new ArrayList<>(unique.values());
         result.addAll(withoutDirectory);
         return result;
+    }
+
+    private void reevaluateSelected() {
+        reevaluate(selectedJournals());
+    }
+
+    private void reevaluate(List<SessionJournalMeta> journals) {
+        new SessionJournalReevaluateDialog(
+            getDialogPane().getScene().getWindow(),
+            service(),
+            app != null ? app.getSessionJournalSummarizer() : null,
+            app != null ? app.getSessionJournalScreenshotAnalyzer() : null,
+            settings(),
+            this::refresh).show(journals);
     }
 
     private void openSelected() {

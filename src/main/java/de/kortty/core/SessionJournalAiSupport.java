@@ -85,6 +85,16 @@ public final class SessionJournalAiSupport {
         default AiProfile profile() {
             return null;
         }
+
+        /**
+         * Checks that the profile answers at all, before a journal relies on it. Throws with a
+         * message worth showing the user when it does not. Default: only {@link #isAvailable()}.
+         */
+        default void testConnection() throws Exception {
+            if (!isAvailable()) {
+                throw new IllegalStateException("No AI profile is available for the session journal.");
+            }
+        }
     }
 
     private SessionJournalAiSupport() {
@@ -102,6 +112,12 @@ public final class SessionJournalAiSupport {
      */
     public static AiInvoker textProfileInvoker() {
         return invokerFor(SessionJournalAiSupport::resolveTextProfile, "text translation");
+    }
+
+    /** Invoker bound to one explicitly chosen profile — re-evaluating a journal with another profile. */
+    public static AiInvoker profileInvoker(String profileId) {
+        return invokerFor(settings -> settings != null && settings.getAiProfiles() != null
+            ? findById(settings.getAiProfiles(), profileId) : null, "journal re-evaluation");
     }
 
     /**
@@ -260,6 +276,27 @@ public final class SessionJournalAiSupport {
                         systemPrompt, userPrompt, images, AiPromptExecutionScope.TEXT);
                 }
                 return recordUsage(result, systemPrompt, userPrompt, profile);
+            }
+
+            @Override
+            public void testConnection() throws Exception {
+                if (!de.kortty.policy.PolicyManager.effective().aiAllowed()) {
+                    throw new IllegalStateException("AI is disabled by your organization's policy.");
+                }
+                KorTTYApplication app = KorTTYApplication.getInstance();
+                if (app == null || app.getGlobalSettingsManager() == null) {
+                    throw new IllegalStateException("Application not available for AI execution");
+                }
+                GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+                AiProfile profile = profileResolver.apply(settings);
+                if (profile == null) {
+                    throw new IllegalStateException("No AI profile is configured for " + purpose + ".");
+                }
+                AiPromptService service = createService(app, settings, profile);
+                if (!service.testConnection()) {
+                    throw new IllegalStateException("The AI profile \"" + profile.getName()
+                        + "\" did not answer the connection test.");
+                }
             }
 
             @Override

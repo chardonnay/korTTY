@@ -40,6 +40,14 @@ Jede zukünftige Verbindung dieses Servers startet dann automatisch sein Journal
 
 Verwenden Sie **Extras > Sitzungsjournal starten/stoppen** (++ctrl+alt+t++), das Tab-Kontextmenü (**Sitzungsjournal > Journal starten**) oder die Schaltfläche **Journal starten** in der Journalleiste. Der vorhandene Scrollback wird zunächst als Starteinträge in das Journal importiert, sodass die Zeitleiste abdeckt, was bereits passiert ist. Anschließend wird eine Live-Aufnahme angehängt.
 
+### KI-Verbindungsprüfung vor dem Start des Journals
+
+Ein Journal, dessen Zusammenfassungen niemals geschrieben werden können, ist wenig nützlich; deshalb prüft korTTY zunächst, ob das KI-Profil antwortet, wenn das Journal die KI aufruft (Zusammenfassungen sind global und für die Verbindung aktiviert und von der Richtlinie erlaubt). Ein erfolgreicher Test wird pro Profil zehn Minuten lang gespeichert, sodass beim Öffnen weiterer Tabs der Anbieter nicht erneut abgefragt wird.
+
+- **Das Journal manuell starten** — die Journalleiste, das Tab-Menü oder ++ctrl+alt+t++ — zeigt **KI-Verbindung wird geprüft…** und startet das Journal erst, wenn der Test bestanden ist. Ausgaben, die dabei erzeugt werden, gehen nicht verloren: Der Scrollback wird importiert, sobald das Journal startet. Scheitert der Test, benennt ein Dialog das Profil und den Grund (z.B. fehlender API-Schlüssel oder verweigerte Verbindung) und bietet **Erneut testen**, **Ohne KI aufzeichnen** — das Journal zeichnet rohe Aktivität auf und kann später [ausgewertet werden](#ein-journal-erneut-mit-ki-bewerten) — oder **Abbrechen**.
+- **Journale, die beim Verbinden automatisch starten,** beginnen sofort mit der Aufzeichnung, sodass das Terminal nie blockiert wird; der Test läuft im Hintergrund. Wenn er fehlschlägt, zeigt eine rote Leiste unter dem Terminal das Profil und den Grund an, mit **Erneut testen**, **Ohne KI aufzeichnen** und **Journal beenden**.
+- **Automatisierungsdurchläufe** testen die KI einmal pro Lauf vor ihrem Abschlussdurchlauf. Wenn sie nicht antwortet, wird der Lauf nur als Log gespeichert und ein Zeitstrahl-Eintrag **KI nicht erreichbar** erklärt, warum – werten Sie ihn später im Journal-Manager aus.
+
 ### Die Journalleiste
 
 Während ein Journal verfügbar ist, zeigt eine Leiste unter dem Terminal seinen Status an (**Journal aktiv seit HH:MM**) und bietet **Journal stoppen**, **Screenshot** und **Notiz**:
@@ -263,7 +271,14 @@ Rechtsklick auf eine Automatisierungszeile für **Behalten (Pin)** / **Pin löse
 - **Öffnen** (oder Doppelklick) öffnet den Journal-Viewer; **Umbenennen** ändert den Titel; **Löschen** fragt nach einer Bestätigung und entfernt dann dauerhaft den Journalordner einschließlich des Protokolls und aller Screenshots.
 - Es können mehrere Journale gleichzeitig ausgewählt werden (Klick ++ctrl++ / ++shift++), um sie in einem Schritt zu löschen oder zu exportieren. Laufende Journale können nicht umbenannt oder gelöscht werden.
 - Der Bereich **Beschreibung** unterhalb der Tabelle speichert eine Freitextbeschreibung pro Journal; Es erscheint auf der Journalseite und in jedem Export und wird in die Inhaltssuche einbezogen.
+- **Mit KI neu auswerten…** (Button und Rechtsklickmenü) fasst die ausgewählten geschlossenen Journale erneut mit einem von Ihnen gewählten Profil zusammen — siehe [Ein Journal erneut mit KI bewerten](#ein-journal-erneut-mit-ki-bewerten).
 - **Optionen** enthält die oben beschriebenen globalen Erfassungs- und KI-Einstellungen sowie **Zusammenfassungen aufholen**: Es zählt die geschlossenen Journale, die nie zusammengefasst wurden (aufgezeichnet, während Zusammenfassungen deaktiviert waren oder kein Modell erreichbar war) und führt bei Bedarf die reguläre Zusammenfassung nacheinander hinter einem Fortschrittsdialog aus – zwischen Journalen abbrechbar, und ein unterbrochener Lauf wird an der Stelle fortgesetzt, an der er gestoppt wurde.
+
+### Ein Journal erneut mit KI bewerten
+
+Wenn eine Zusammenfassung schlecht ausfiel oder die KI während der Aufzeichnung des Journals nicht erreichbar war, wählen Sie das Journal – oder einen Lauf bzw. eine Gruppe, die alle seine Journale repräsentiert – und wählen Sie **Mit KI neu auswerten…**. Das Dialogfenster bietet jedes KI-Profil (vorausgewählt: das Profil, das das Journal verfasst hat, sonst das Journal-Profil) und für Journale mit Screenshots **Screenshots erneut beschreiben**.
+
+Das ausgewählte Profil wird zuerst getestet; antwortet es nicht, wird nichts verändert. Andernfalls werden die vorherigen KI-Zusammenfassungen und das abschließende Sitzungsfazit **ersetzt**: Das gesamte Aufzeichnungsprotokoll wird neu zusammengefasst, einschließlich neuer Schlüsselwörter. Notizen, Screenshots, Agenten- und Systemeinträge bleiben unverändert. Sollte die KI mittendrin scheitern, werden die betroffenen Fenster als rohe Aktivitätseinträge beibehalten, sodass die Zeitleiste niemals leer wird. Ein Fortschrittsdialog zeigt das Journal während der Auswertung; am Ende meldet er, wie viele Journale neu bewertet wurden und wie viele Tokens verbraucht wurden; sie zählen wie jeder andere Journal-KI-Aufruf zum Kontingent des Profils. Laufende Journale können nicht neu bewertet werden.
 
 ### KI-Suche in allen Journale
 

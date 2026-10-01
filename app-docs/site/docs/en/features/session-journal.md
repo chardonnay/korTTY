@@ -40,6 +40,14 @@ Every future connection of this server then starts its journal automatically. Th
 
 Use **Tools > Start/Stop Session Journal** (++ctrl+alt+t++), the tab context menu (**Session Journal > Start journal**) or the journal bar's **Start journal** button. The existing scrollback is imported into the journal as seed entries first, so the timeline covers what already happened, then live capture attaches.
 
+### AI connection test before the journal starts
+
+A journal whose summaries can never be written is of little use, so when the journal would call the AI (summaries switched on globally and for the connection, and allowed by policy), korTTY first checks that the AI profile answers. A successful test is remembered for ten minutes per profile, so opening further tabs does not ask the provider again.
+
+- **Starting the journal by hand** — the journal bar, the tab menu or ++ctrl+alt+t++ — shows **Testing the AI connection…** and starts the journal only after the test passed. Output printed meanwhile is not lost: the scrollback is imported when the journal starts. If the test fails, a dialog names the profile and the reason (for example a missing API key or a refused connection) and offers **Test again**, **Record without AI** — the journal records raw activity and can be [evaluated later](#re-evaluating-a-journal-with-ai) — or **Cancel**.
+- **Journals that start automatically on connect** begin capturing right away, so the terminal is never blocked; the test runs in the background. If it fails, a red bar below the terminal shows the profile and the reason, with **Test again**, **Record without AI** and **End journal**.
+- **Automation runs** test the AI once per run before their closing pass. If it does not answer, the run is kept as a log only and a timeline entry **AI not reachable** says why — evaluate it later from the journal manager.
+
 ### The journal bar
 
 While a journal is available, a bar below the terminal shows its state (**Journal active since HH:MM**) and offers **Stop journal**, **Screenshot** and **Note**:
@@ -263,7 +271,14 @@ Right-click an automation row for **Keep (pin)** / **Release pin** — on a run 
 - **Open** (or double-click) opens the journal viewer; **Rename** changes the title; **Delete** asks for confirmation and then permanently removes the journal folder including the log and all screenshots.
 - Several journals can be selected at once (++ctrl++ / ++shift++ click) to delete or export them in one step. Running journals cannot be renamed or deleted.
 - The **Description** area below the table stores a free-text description per journal; it appears on the journal page and in every export and is included in the content search.
+- **Re-evaluate with AI…** (button and right-click menu) summarizes the selected closed journals again with a profile you pick — see [Re-evaluating a journal with AI](#re-evaluating-a-journal-with-ai).
 - **Options** holds the global capture and AI settings described above, plus **Catch up summaries**: it counts the closed journals that were never summarized (recorded while summaries were off or no model was reachable) and, on demand, runs the regular summarizer over them one by one behind a progress dialog — cancellable between journals, and an interrupted run resumes where it stopped.
+
+### Re-evaluating a journal with AI
+
+When a summary turned out poor, or the AI was not reachable while the journal was recorded, select the journal — or a run or group, which stands for all its journals — and choose **Re-evaluate with AI…**. The dialog offers every AI profile (preselected: the profile that wrote the journal, else the journal profile), and, for journals with screenshots, **Describe the screenshots again**.
+
+The chosen profile is tested first; if it does not answer, nothing is changed. Otherwise the previous AI summaries and the closing session summary are **replaced**: the whole capture log is summarized afresh, including new keywords. Notes, screenshots, agent and system entries stay as they are. Should the AI fail midway, the affected windows are kept as raw activity entries, so the timeline never ends up empty. A progress dialog shows the journal being evaluated; at the end it reports how many journals were re-evaluated and the tokens used, which count towards the profile's quota like every other journal AI call. Running journals cannot be re-evaluated.
 
 ### AI search across all journals
 
