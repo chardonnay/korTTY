@@ -89,6 +89,20 @@ public class SwarmAgentTab extends Tab {
 
     private final ComboBox<AiProfile> profileComboBox = new ComboBox<>();
     private final CheckBox readOnlyCheck = new CheckBox(I18n.get("ai.swarm.readOnly"));
+    private final CheckBox journalCheck = new CheckBox(I18n.get("ai.swarm.journal"));
+    private final Button journalSettingsButton = new Button("\u2699");
+    /** Green ACTIVE / red DISABLED next to the checkbox, mirroring it. */
+    private final Label journalStateBadge = SessionJournalStateBadge.create(false);
+    private final Label journalStatusLabel = new Label();
+    private final javafx.scene.control.Hyperlink journalOpenLink =
+        new javafx.scene.control.Hyperlink(I18n.get("ai.swarm.journal.open"));
+    /** Journals of the current/last AI run; {@link de.kortty.core.AutomationJournalRun#NONE} when off. */
+    private de.kortty.core.AutomationJournalRun journalRun = de.kortty.core.AutomationJournalRun.NONE;
+    private List<SwarmTarget> journalTargets = List.of();
+    private List<java.nio.file.Path> keptJournalDirs = List.of();
+    /** Stable source id of this tab's journals when the chat has not been saved yet. */
+    private final String unsavedJournalSourceId = java.util.UUID.randomUUID().toString();
+    private boolean journalCheckLoading;
     private final ComboBox<SwarmModels.BatchApprovalPolicy> approvalComboBox = new ComboBox<>();
     private final TextArea promptInputArea = new TextArea();
     private final Button sendButton = new Button(I18n.get("ai.swarm.send"));
@@ -223,6 +237,8 @@ public class SwarmAgentTab extends Tab {
             readOnlyCheck,
             approvalLabel, approvalComboBox,
             new Separator(),
+            journalCheck, journalStateBadge, journalSettingsButton,
+            new Separator(),
             workflowButton, saveButton, scheduleButton, runScriptButton,
             new Separator(),
             pauseButton, resumeButton, restartButton, stopButton);
@@ -235,7 +251,13 @@ public class SwarmAgentTab extends Tab {
         dashboardHeader.setStyle("-fx-font-weight: bold;");
         dashboardScroll.setFitToWidth(true);
         agentRowsBox.setPadding(new Insets(6));
-        VBox dashboard = new VBox(6, new Label(I18n.get("ai.swarm.dashboard.title")), targetLabel, dashboardHeader, dashboardScroll);
+        initJournalControls();
+        HBox journalStatusBox = new HBox(6, journalStatusLabel, journalOpenLink);
+        journalStatusBox.setAlignment(Pos.CENTER_LEFT);
+        journalStatusBox.managedProperty().bind(journalStatusLabel.visibleProperty());
+        journalStatusBox.visibleProperty().bind(journalStatusLabel.visibleProperty());
+        VBox dashboard = new VBox(6, new Label(I18n.get("ai.swarm.dashboard.title")), targetLabel, dashboardHeader,
+            journalStatusBox, dashboardScroll);
         dashboard.setPadding(new Insets(8));
         VBox.setVgrow(dashboardScroll, Priority.ALWAYS);
 
@@ -514,6 +536,7 @@ public class SwarmAgentTab extends Tab {
         runStartMillis = System.currentTimeMillis();
         runProfile = profile;
         aggregationTokens = SwarmModels.TokenTotals.zero();
+        runTargets = beginJournalRun(runTargets);
         swarmControl = new SwarmRunControl();
         SwarmRunControl control = swarmControl;
         timer.playFromStart();
@@ -699,6 +722,7 @@ public class SwarmAgentTab extends Tab {
         if (result != null && result.aggregationTokens() != null) {
             aggregationTokens = result.aggregationTokens();
         }
+        finishJournalRun(result, restartRequested);
         // A swarm restart discards the cancelled run's partial aggregation instead of
         // polluting the chat (and the autosave) with a half answer.
         if (!restartRequested && result != null && result.markdown() != null && !result.markdown().isBlank()) {
@@ -710,6 +734,241 @@ public class SwarmAgentTab extends Tab {
         updateTabIndicator();
         if (restartRequested && getTabPane() != null && lastSentPrompt != null) {
             startSwarmRun(lastSentPrompt);
+        }
+    }
+
+    // ---- Session journal per run ----------------------------------------------
+
+    private void initJournalControls() {
+        journalCheck.setTooltip(new javafx.scene.control.Tooltip(I18n.get("ai.swarm.journal.tooltip")));
+        journalSettingsButton.setTooltip(new javafx.scene.control.Tooltip(I18n.get("ai.swarm.journal.settings")));
+        journalSettingsButton.setOnAction(e -> openJournalSettings());
+        journalStatusLabel.setWrapText(true);
+        journalStatusLabel.setStyle(MutedTextStyle.HINT);
+        journalStatusLabel.setVisible(false);
+        journalOpenLink.setVisible(false);
+        journalOpenLink.setOnAction(e -> openKeptJournals());
+        de.kortty.model.AutomationJournalConfig config = swarmJournalConfig();
+        de.kortty.core.AutomationJournalPolicy policy = de.kortty.core.AutomationJournalPolicy.current();
+        journalCheckLoading = true;
+        journalCheck.setSelected(config != null && config.isEnabled() && policy.allowed());
+        journalCheckLoading = false;
+        journalCheck.setDisable(!policy.allowed());
+        SessionJournalStateBadge.apply(journalStateBadge, journalCheck.isSelected());
+        journalCheck.selectedProperty().addListener(
+            (obs, was, now) -> SessionJournalStateBadge.apply(journalStateBadge, now));
+        journalSettingsButton.setDisable(!policy.allowed());
+        journalCheck.selectedProperty().addListener((obs, was, now) -> {
+            if (journalCheckLoading) {
+                return;
+            }
+            de.kortty.model.AutomationJournalConfig current = swarmJournalConfig();
+            if (now && current != null && !confirmJournalCost(current)) {
+                journalCheckLoading = true;
+                journalCheck.setSelected(false);
+                journalCheckLoading = false;
+                return;
+            }
+            if (current != null) {
+                current.setEnabled(now);
+                saveSettingsQuietly();
+            }
+        });
+    }
+
+    private static de.kortty.model.AutomationJournalConfig swarmJournalConfig() {
+        de.kortty.model.GlobalSettings settings = globalSettings();
+        return settings != null ? settings.getSwarmSessionJournal() : null;
+    }
+
+    private static de.kortty.model.GlobalSettings globalSettings() {
+        KorTTYApplication app = KorTTYApplication.getInstance();
+        return app != null && app.getGlobalSettingsManager() != null ? app.getGlobalSettingsManager().getSettings() : null;
+    }
+
+    private static void saveSettingsQuietly() {
+        KorTTYApplication app = KorTTYApplication.getInstance();
+        if (app != null && app.getGlobalSettingsManager() != null) {
+            app.getGlobalSettingsManager().scheduleSave();
+        }
+    }
+
+    private String journalSourceId() {
+        return savedChatId != null ? savedChatId : unsavedJournalSourceId;
+    }
+
+    private boolean confirmJournalCost(de.kortty.model.AutomationJournalConfig config) {
+        de.kortty.model.AutomationJournalConfig candidate = new de.kortty.model.AutomationJournalConfig(config);
+        candidate.setEnabled(true);
+        return AutomationJournalCostWarning.confirm(windowOf(), candidate.getAiMode(), estimateJournalCost(candidate));
+    }
+
+    private de.kortty.core.AutomationJournalCostEstimator.Estimate estimateJournalCost(
+            de.kortty.model.AutomationJournalConfig config) {
+        de.kortty.model.GlobalSettings settings = globalSettings();
+        List<de.kortty.model.SessionJournalMeta> journals = List.of();
+        KorTTYApplication app = KorTTYApplication.getInstance();
+        if (app != null && app.getSessionJournalService() != null) {
+            try {
+                journals = app.getSessionJournalService().listJournals(settings);
+            } catch (Exception ignored) {
+                // no history: the estimate falls back to an upper bound
+            }
+        }
+        return de.kortty.core.AutomationJournalCostEstimator.estimate(
+            journals, de.kortty.model.SessionJournalSourceKind.SWARM, journalSourceId(), config,
+            Math.max(1, connectionsForWorkflow().size()), null,
+            de.kortty.core.SessionJournalAiSupport.resolveAutomationProfile(settings, config.getAiProfileId()),
+            settings);
+    }
+
+    private javafx.stage.Window windowOf() {
+        return getTabPane() != null && getTabPane().getScene() != null ? getTabPane().getScene().getWindow() : null;
+    }
+
+    /** The swarm's "session journal per run" settings in a small dialog (same editor as a job's). */
+    private void openJournalSettings() {
+        de.kortty.model.AutomationJournalConfig config = swarmJournalConfig();
+        if (config == null) {
+            return;
+        }
+        AutomationJournalConfigPane pane = new AutomationJournalConfigPane(this::windowOf, this::estimateJournalCost);
+        de.kortty.model.GlobalSettings settings = globalSettings();
+        pane.setProfiles(settings != null ? settings.getAiProfiles() : List.of());
+        pane.setPolicy(de.kortty.core.AutomationJournalPolicy.current());
+        pane.load(config);
+        javafx.scene.control.Dialog<javafx.scene.control.ButtonType> dialog = new javafx.scene.control.Dialog<>();
+        DialogThemeHelper.applyTheme(dialog);
+        if (windowOf() != null) {
+            dialog.initOwner(windowOf());
+        }
+        dialog.setTitle(I18n.get("ai.swarm.journal.settings"));
+        dialog.setHeaderText(I18n.get("ai.swarm.journal.settings.header"));
+        dialog.getDialogPane().setContent(pane);
+        dialog.getDialogPane().getButtonTypes().setAll(javafx.scene.control.ButtonType.OK,
+            javafx.scene.control.ButtonType.CANCEL);
+        dialog.showAndWait().filter(javafx.scene.control.ButtonType.OK::equals).ifPresent(button -> {
+            de.kortty.model.AutomationJournalConfig updated = pane.read();
+            if (settings != null) {
+                settings.setSwarmSessionJournal(updated);
+                saveSettingsQuietly();
+            }
+            journalCheckLoading = true;
+            journalCheck.setSelected(updated.isEnabled());
+            journalCheckLoading = false;
+        });
+    }
+
+    /** Starts this run's journals when the checkbox is on and returns the (wrapped) targets. */
+    private List<SwarmTarget> beginJournalRun(List<SwarmTarget> targets) {
+        journalRun = de.kortty.core.AutomationJournalRun.NONE;
+        journalTargets = List.of();
+        keptJournalDirs = List.of();
+        journalStatusLabel.setVisible(false);
+        journalOpenLink.setVisible(false);
+        de.kortty.model.AutomationJournalConfig config = swarmJournalConfig();
+        if (!journalCheck.isSelected() || config == null) {
+            return targets;
+        }
+        de.kortty.model.AutomationJournalConfig runConfig = new de.kortty.model.AutomationJournalConfig(config);
+        runConfig.setEnabled(true);
+        journalRun = de.kortty.core.AutomationJournalRun.begin(
+            new de.kortty.core.AutomationJournalRun.Source(
+                de.kortty.model.SessionJournalSourceKind.SWARM, journalSourceId(), baseTitle, "AI_SWARM"),
+            java.util.UUID.randomUUID().toString(),
+            runConfig);
+        if (!journalRun.isActive()) {
+            return targets;
+        }
+        journalTargets = de.kortty.core.swarm.SwarmJournalSupport.wrapTargets(targets, journalRun);
+        journalStatusLabel.setText(I18n.get("ai.swarm.journal.recording"));
+        journalStatusLabel.setVisible(true);
+        return journalTargets;
+    }
+
+    /** Closes the run's journals off the FX thread and reports what was kept and what it cost. */
+    private void finishJournalRun(SwarmModels.SwarmAggregationResult result, boolean cancelled) {
+        de.kortty.core.AutomationJournalRun run = journalRun;
+        if (run == null || !run.isActive()) {
+            return;
+        }
+        journalRun = de.kortty.core.AutomationJournalRun.NONE;
+        List<SwarmTarget> targets = journalTargets;
+        List<SwarmModels.SwarmAgentStatus> statuses = new ArrayList<>();
+        boolean anyFailed = false;
+        for (SwarmAgentRow row : rowsByAgentId.values()) {
+            if (row.lastStatus != null) {
+                statuses.add(row.lastStatus);
+                anyFailed |= row.lastStatus.state() == SwarmModels.SwarmAgentState.FAILED;
+            }
+        }
+        de.kortty.model.AutomationRunStatus runStatus = cancelled || result == null
+            ? de.kortty.model.AutomationRunStatus.CANCELLED
+            : anyFailed ? de.kortty.model.AutomationRunStatus.FAILED : de.kortty.model.AutomationRunStatus.SUCCESS;
+        String markdown = result != null ? result.markdown() : null;
+        journalStatusLabel.setText(I18n.get("ai.swarm.journal.finishing"));
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            de.kortty.core.swarm.SwarmJournalSupport.recordOutcome(run, targets, statuses, java.util.Set.of(), markdown,
+                I18n.get("journal.automation.swarmReport"));
+            de.kortty.core.AutomationJournalRun.FinishResult finished = run.finish(runStatus);
+            Platform.runLater(() -> showJournalResult(finished, false));
+            finished.summariesDone().thenRun(() -> Platform.runLater(() -> showJournalResult(finished, true)));
+        });
+    }
+
+    private void showJournalResult(de.kortty.core.AutomationJournalRun.FinishResult finished, boolean summarized) {
+        keptJournalDirs = new ArrayList<>(finished.kept());
+        keptJournalDirs.addAll(finished.duplicateOf());
+        String base = I18n.get("ai.swarm.journal.result",
+            finished.kept().size(), finished.discarded(), finished.duplicateOf().size());
+        if (!summarized) {
+            journalStatusLabel.setText(base + "  ·  " + I18n.get("ai.swarm.journal.summarizing"));
+        } else {
+            journalStatusLabel.setText(base + journalUsageSuffix(finished.kept()));
+        }
+        journalStatusLabel.setVisible(true);
+        journalOpenLink.setVisible(!keptJournalDirs.isEmpty());
+    }
+
+    /** "  ·  12.3k tokens · ≈ 0,04 €" over the kept journals' AI usage. */
+    private static String journalUsageSuffix(List<java.nio.file.Path> kept) {
+        KorTTYApplication app = KorTTYApplication.getInstance();
+        if (app == null || app.getSessionJournalService() == null || kept.isEmpty()) {
+            return "";
+        }
+        long tokens = 0;
+        double cost = 0.0;
+        String currency = null;
+        for (java.nio.file.Path dir : kept) {
+            try {
+                de.kortty.model.SessionJournalMeta meta = app.getSessionJournalService().loadDocument(dir).getMeta();
+                tokens += meta.getAiTotalTokens();
+                cost += meta.getAiCost();
+                currency = currency != null ? currency : meta.getAiCostCurrency();
+            } catch (Exception ignored) {
+                // deleted meanwhile
+            }
+        }
+        String text = "  ·  " + I18n.get("ai.swarm.journal.tokens", de.kortty.core.AiTokenUsageManager.formatCompact(tokens));
+        if (cost > 0.0) {
+            text += " · ≈ " + de.kortty.core.AiCostCalculator.format(cost, currency, java.util.Locale.getDefault());
+        }
+        return text;
+    }
+
+    private void openKeptJournals() {
+        KorTTYApplication app = KorTTYApplication.getInstance();
+        if (app == null || app.getSessionJournalService() == null) {
+            return;
+        }
+        for (java.nio.file.Path dir : keptJournalDirs) {
+            try {
+                de.kortty.model.SessionJournalMeta meta = app.getSessionJournalService().loadDocument(dir).getMeta();
+                meta.setDirectory(dir);
+                ownerWindow.openSessionJournal(meta);
+            } catch (Exception e) {
+                org.slf4j.LoggerFactory.getLogger(SwarmAgentTab.class).debug("Could not open swarm journal {}: {}", dir, e.getMessage());
+            }
         }
     }
 
@@ -939,6 +1198,12 @@ public class SwarmAgentTab extends Tab {
             readOnlyCheck.isSelected());
         if (draft == null) {
             return;
+        }
+        de.kortty.model.AutomationJournalConfig journalConfig = swarmJournalConfig();
+        if (journalConfig != null) {
+            de.kortty.model.AutomationJournalConfig copy = new de.kortty.model.AutomationJournalConfig(journalConfig);
+            copy.setEnabled(journalCheck.isSelected());
+            draft.setSessionJournal(copy);
         }
         ownerWindow.showJobSchedulerWithDraft(draft);
     }
@@ -1543,6 +1808,9 @@ public class SwarmAgentTab extends Tab {
             || profileComboBox.getSelectionModel().getSelectedItem() == null);
         profileComboBox.setDisable(busy);
         readOnlyCheck.setDisable(busy);
+        boolean journalAllowed = de.kortty.core.AutomationJournalPolicy.current().allowed();
+        journalCheck.setDisable(busy || !journalAllowed);
+        journalSettingsButton.setDisable(busy || !journalAllowed);
         approvalComboBox.setDisable(busy);
         copyChatButton.setDisable(messageEntries.isEmpty());
         exportChatButton.setDisable(messageEntries.isEmpty());
@@ -1717,6 +1985,7 @@ public class SwarmAgentTab extends Tab {
         private long promptTokens;
         private long completionTokens;
         private long startedAtMillis;
+        private SwarmModels.SwarmAgentStatus lastStatus;
 
         SwarmAgentRow(String agentId, String displayName) {
             super(4);
@@ -1807,6 +2076,7 @@ public class SwarmAgentTab extends Tab {
         }
 
         void update(SwarmModels.SwarmAgentStatus status) {
+            this.lastStatus = status;
             this.state = status.state();
             this.lastActivity = status.currentActivity() != null ? status.currentActivity() : "";
             this.elapsedSeconds = status.elapsedSeconds();

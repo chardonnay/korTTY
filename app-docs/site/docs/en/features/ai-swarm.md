@@ -61,6 +61,12 @@ The header above the rows adds up the whole run: **Σ tokens** of all agents plu
 
 **Right-click a row** for per-agent control: **Pause**, **Resume**, **Restart**, and **Stop** apply to that agent only. Restarting one agent does not disturb the others; its answer is replaced in the combined result.
 
+## Session journal per run
+
+The **Session journal** checkbox in the toolbar records a [session journal](session-journal.md) for every server on every run of the swarm: each agent's commands and their output, the agent's answer, the outcome on that server and the combined report. The agents run their commands over their own exec channels, which never reach the terminal tabs, so these journals are the only full record of what the swarm did. The **⚙** button next to it opens the same settings as a job's [session journal per run](jobscheduler.md#session-journal-per-run) — AI summaries (every kept run, only failed runs, off), AI profile, keep always or only failed runs, automatic deletion, maximum runs and disk space, discarding a run identical to the previous one. The settings apply to every swarm tab; the checkbox and ⚙ are disabled while a run is active.
+
+Switching the checkbox on first shows the cost warning with an estimate of the tokens and cost per run. While the swarm runs, the dashboard shows *Session journal: recording…*; afterwards it reports how many journals were kept, discarded or identical to an earlier run, their journal AI tokens and cost once the summaries are written, and **Open** opens them in the journal viewer. **Schedule…** carries the journal settings into the new job.
+
 ## Run control
 
 The toolbar offers the same four controls for the **whole swarm**: **Pause**, **Resume**, **Restart**, and **Stop**. Pausing is cooperative — each agent pauses at its next safe checkpoint (the badge shows *Pausing…* until it takes effect), and elapsed timers stop while paused.
@@ -130,7 +136,7 @@ Scheduled swarm jobs run completely headless over background SSH sessions — no
 | **Swarm parallelism** | How many servers run concurrently (1–16, default 4) |
 | **Swarm read-only** | Restrict all agents to non-mutating commands (default: on) |
 
-Results land in **two places**: the job **journal** records the outcome per run, and the full conversation — including the combined comparison table — is stored as a **saved swarm chat**, so you can open it later from the AI Manager's *Swarm Chats* section and click through the result table like an interactive run. The scheduler's master-password and host-key gates apply as for other job types.
+Results land in **two places**: the job **journal** records the outcome per run (with the job's [session journal per run](jobscheduler.md#session-journal-per-run) on, also one full journal per server), and the full conversation — including the combined comparison table — is stored as a **saved swarm chat**, so you can open it later from the AI Manager's *Swarm Chats* section and click through the result table like an interactive run. The scheduler's master-password and host-key gates apply as for other job types.
 
 !!! tip "Recommended workflow: tune interactively, then schedule"
     Prompt quality decides result quality. Run the swarm interactively first, refine the prompt until the comparison table looks right, then click **Schedule…** — the tuned prompt and target list carry over into the job.

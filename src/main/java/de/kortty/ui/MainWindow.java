@@ -9529,8 +9529,17 @@ public class MainWindow {
         showJobSchedulerWithDraft(null);
     }
 
+    /** Opens the Job Scheduler with {@code jobId} selected — "open job" from a journal group. */
+    void showJobSchedulerForJob(String jobId) {
+        showJobScheduler(dialog -> dialog.selectJob(jobId));
+    }
+
     /** Opens the Job Scheduler; a non-null draft (e.g. from the AI-swarm window) is preselected. */
     void showJobSchedulerWithDraft(de.kortty.jobscheduler.ScheduledJob draft) {
+        showJobScheduler(draft != null ? dialog -> dialog.prefillNewJob(draft) : null);
+    }
+
+    private void showJobScheduler(java.util.function.Consumer<JobSchedulerDialog> prepare) {
         logger.info("showJobScheduler() called - Opening JobScheduler");
         try {
             if (app.getJobSchedulerService() == null) {
@@ -9540,21 +9549,21 @@ public class MainWindow {
             if (toolTabsEnabled()) {
                 DialogHostTab existing = findAndSelectToolTab("jobScheduler");
                 if (existing != null) {
-                    if (draft != null) {
-                        ((JobSchedulerDialog) existing.getHostedDialog()).prefillNewJob(draft);
+                    if (prepare != null) {
+                        prepare.accept((JobSchedulerDialog) existing.getHostedDialog());
                     }
                     return;
                 }
                 JobSchedulerDialog tabDialog = new JobSchedulerDialog(app, stage);
-                if (draft != null) {
-                    tabDialog.prefillNewJob(draft);
+                if (prepare != null) {
+                    prepare.accept(tabDialog);
                 }
                 hostToolTab("jobScheduler", tabDialog, null);
                 return;
             }
             JobSchedulerDialog dialog = new JobSchedulerDialog(app, stage);
-            if (draft != null) {
-                dialog.prefillNewJob(draft);
+            if (prepare != null) {
+                prepare.accept(dialog);
             }
             dialog.show();
         } catch (Exception e) {
