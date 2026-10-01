@@ -127,6 +127,67 @@ public class SessionJournalMeta {
     @XmlElement
     private boolean aiProfileLocal;
 
+    // --- automation runs (JobScheduler / AI Swarm); absent on interactive journals ---
+
+    /** What created the journal; null reads as {@link SessionJournalSourceKind#INTERACTIVE}. */
+    @XmlElement
+    private SessionJournalSourceKind sourceKind;
+
+    /** Id of the automation source (job id, swarm chat id); null for interactive journals. */
+    @XmlElement
+    private String sourceId;
+
+    /** Display name of the automation source (job name, swarm chat title). */
+    @XmlElement
+    private String sourceName;
+
+    /** Groups the per-server journals of one automation run. */
+    @XmlElement
+    private String runId;
+
+    /** Start of the automation run (shared by all its journals). */
+    @XmlElement
+    @XmlJavaTypeAdapter(IsoOffsetDateTimeAdapter.class)
+    private OffsetDateTime runStartedAt;
+
+    /** Action of the run, e.g. {@code COMMAND} or {@code AI_SWARM}. */
+    @XmlElement
+    private String automationAction;
+
+    /** Outcome of the run for this journal's target; null while running or for interactive journals. */
+    @XmlElement
+    private AutomationRunStatus runStatus;
+
+    /** Pinned journals are never deleted by retention or limits. */
+    @XmlElement
+    private boolean pinned;
+
+    /** When retention deletes the journal automatically; null = never. */
+    @XmlElement
+    @XmlJavaTypeAdapter(IsoOffsetDateTimeAdapter.class)
+    private OffsetDateTime expiresAt;
+
+    /** Disk space of the journal folder, measured when the run finished. */
+    @XmlElement
+    private long storageBytes;
+
+    /** The AI mode the run was recorded with. */
+    @XmlElement
+    private AutomationJournalAiMode aiMode;
+
+    /** SHA-256 of the redacted captured commands and output, for duplicate detection. */
+    @XmlElement
+    private String contentHash;
+
+    /** Later runs that produced exactly this output and were discarded in favour of this journal. */
+    @XmlElement
+    private int duplicateRunCount;
+
+    /** When the most recent identical run happened. */
+    @XmlElement
+    @XmlJavaTypeAdapter(IsoOffsetDateTimeAdapter.class)
+    private OffsetDateTime lastDuplicateAt;
+
     // --- transient (the keyword alone keeps JAXB away; combining it with @XmlTransient is an
     // IllegalAnnotationsException), populated by SessionJournalService for the management UI ---
 
@@ -170,6 +231,20 @@ public class SessionJournalMeta {
         this.aiProfileId = other.aiProfileId;
         this.aiProfileName = other.aiProfileName;
         this.aiProfileLocal = other.aiProfileLocal;
+        this.sourceKind = other.sourceKind;
+        this.sourceId = other.sourceId;
+        this.sourceName = other.sourceName;
+        this.runId = other.runId;
+        this.runStartedAt = other.runStartedAt;
+        this.automationAction = other.automationAction;
+        this.runStatus = other.runStatus;
+        this.pinned = other.pinned;
+        this.expiresAt = other.expiresAt;
+        this.storageBytes = other.storageBytes;
+        this.aiMode = other.aiMode;
+        this.contentHash = other.contentHash;
+        this.duplicateRunCount = other.duplicateRunCount;
+        this.lastDuplicateAt = other.lastDuplicateAt;
         this.directory = other.directory;
         this.live = other.live;
         this.journalId = other.journalId;
@@ -411,6 +486,128 @@ public class SessionJournalMeta {
 
     public void setAiProfileLocal(boolean aiProfileLocal) {
         this.aiProfileLocal = aiProfileLocal;
+    }
+
+    public SessionJournalSourceKind getSourceKind() {
+        return sourceKind;
+    }
+
+    public void setSourceKind(SessionJournalSourceKind sourceKind) {
+        this.sourceKind = sourceKind;
+    }
+
+    public String getSourceId() {
+        return sourceId;
+    }
+
+    public void setSourceId(String sourceId) {
+        this.sourceId = sourceId;
+    }
+
+    public String getSourceName() {
+        return sourceName;
+    }
+
+    public void setSourceName(String sourceName) {
+        this.sourceName = sourceName;
+    }
+
+    public String getRunId() {
+        return runId;
+    }
+
+    public void setRunId(String runId) {
+        this.runId = runId;
+    }
+
+    public OffsetDateTime getRunStartedAt() {
+        return runStartedAt;
+    }
+
+    public void setRunStartedAt(OffsetDateTime runStartedAt) {
+        this.runStartedAt = runStartedAt;
+    }
+
+    public String getAutomationAction() {
+        return automationAction;
+    }
+
+    public void setAutomationAction(String automationAction) {
+        this.automationAction = automationAction;
+    }
+
+    public AutomationRunStatus getRunStatus() {
+        return runStatus;
+    }
+
+    public void setRunStatus(AutomationRunStatus runStatus) {
+        this.runStatus = runStatus;
+    }
+
+    public boolean isPinned() {
+        return pinned;
+    }
+
+    public void setPinned(boolean pinned) {
+        this.pinned = pinned;
+    }
+
+    public OffsetDateTime getExpiresAt() {
+        return expiresAt;
+    }
+
+    public void setExpiresAt(OffsetDateTime expiresAt) {
+        this.expiresAt = expiresAt;
+    }
+
+    public long getStorageBytes() {
+        return storageBytes;
+    }
+
+    public void setStorageBytes(long storageBytes) {
+        this.storageBytes = storageBytes;
+    }
+
+    public AutomationJournalAiMode getAiMode() {
+        return aiMode;
+    }
+
+    public void setAiMode(AutomationJournalAiMode aiMode) {
+        this.aiMode = aiMode;
+    }
+
+    public String getContentHash() {
+        return contentHash;
+    }
+
+    public void setContentHash(String contentHash) {
+        this.contentHash = contentHash;
+    }
+
+    public int getDuplicateRunCount() {
+        return duplicateRunCount;
+    }
+
+    public void setDuplicateRunCount(int duplicateRunCount) {
+        this.duplicateRunCount = duplicateRunCount;
+    }
+
+    public OffsetDateTime getLastDuplicateAt() {
+        return lastDuplicateAt;
+    }
+
+    public void setLastDuplicateAt(OffsetDateTime lastDuplicateAt) {
+        this.lastDuplicateAt = lastDuplicateAt;
+    }
+
+    /** The source kind, {@link SessionJournalSourceKind#INTERACTIVE} for journals without one. */
+    public SessionJournalSourceKind getEffectiveSourceKind() {
+        return sourceKind != null ? sourceKind : SessionJournalSourceKind.INTERACTIVE;
+    }
+
+    /** True for journals recorded by a JobScheduler job or an AI Swarm run. */
+    public boolean isAutomation() {
+        return getEffectiveSourceKind() != SessionJournalSourceKind.INTERACTIVE;
     }
 
     public void setDirectory(Path directory) {

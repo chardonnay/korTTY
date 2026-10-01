@@ -429,11 +429,12 @@ public class JobSchedulerService {
             control.setWorkerThread(Thread.currentThread());
         }
         JobExecutionOutcome outcome;
+        de.kortty.core.AutomationJournalRun journalRun = beginJournalRun(job, runId);
         try {
             if (control != null && control.isCancellationRequested()) {
                 outcome = JobExecutionOutcome.cancelled("Job cancelled before execution.", "Cancellation was requested before the worker started.");
             } else {
-                outcome = jobRunner.run(job, runId);
+                outcome = jobRunner.run(job, runId, journalRun);
                 if (control != null && control.isCancellationRequested()) {
                     outcome = JobExecutionOutcome.cancelled("Job cancelled.", "Cancellation was requested by the user.");
                 }
@@ -460,6 +461,7 @@ public class JobSchedulerService {
             entry.setStdoutText(outcome.stdout());
             entry.setStderrText(outcome.stderr());
             entry.setDetailText(outcome.detail());
+            finishJournalRun(journalRun, outcome.status(), entry);
             repository.appendJournal(entry);
             if (repository.findJob(job.getId()).isPresent()) {
                 job.setLastRunAt(finishedAt);
@@ -478,6 +480,56 @@ public class JobSchedulerService {
             notifyListeners();
             scheduleNextTick();
         }
+    }
+
+    /** Starts the run's session journals, or a no-op run when the job has them off. Never throws. */
+    private de.kortty.core.AutomationJournalRun beginJournalRun(ScheduledJob job, String runId) {
+        try {
+            if (!job.getSessionJournal().isEnabled()) {
+                return de.kortty.core.AutomationJournalRun.NONE;
+            }
+            return de.kortty.core.AutomationJournalRun.begin(
+                new de.kortty.core.AutomationJournalRun.Source(
+                    de.kortty.model.SessionJournalSourceKind.JOB,
+                    job.getId(),
+                    job.getName(),
+                    job.getAction().getType() != null ? job.getAction().getType().name() : null),
+                runId,
+                job.getSessionJournal());
+        } catch (Exception e) {
+            logger.warn("Could not start the session journals of job {}", job.getId(), e);
+            return de.kortty.core.AutomationJournalRun.NONE;
+        }
+    }
+
+    /**
+     * Closes the run's session journals, links the kept ones (or the identical earlier run) to
+     * the run-history entry, and refreshes the dialog once their summaries are written.
+     */
+    private void finishJournalRun(de.kortty.core.AutomationJournalRun journalRun, JobRunStatus status, JobJournalEntry entry) {
+        if (journalRun == null || !journalRun.isActive()) {
+            return;
+        }
+        try {
+            de.kortty.core.AutomationJournalRun.FinishResult result = journalRun.finish(toAutomationStatus(status));
+            entry.setSessionJournalDirs(result.kept().stream().map(java.nio.file.Path::toString).toList());
+            entry.setDuplicateOfJournalDirs(result.duplicateOf().stream().map(java.nio.file.Path::toString).toList());
+            result.summariesDone().thenRun(this::notifyListeners);
+        } catch (Exception e) {
+            logger.warn("Could not finish the session journals of run {}", entry.getRunId(), e);
+        }
+    }
+
+    static de.kortty.model.AutomationRunStatus toAutomationStatus(JobRunStatus status) {
+        if (status == null) {
+            return de.kortty.model.AutomationRunStatus.FAILED;
+        }
+        return switch (status) {
+            case SUCCESS -> de.kortty.model.AutomationRunStatus.SUCCESS;
+            case BLOCKED -> de.kortty.model.AutomationRunStatus.BLOCKED;
+            case CANCELLED -> de.kortty.model.AutomationRunStatus.CANCELLED;
+            case FAILED, RUNNING -> de.kortty.model.AutomationRunStatus.FAILED;
+        };
     }
 
     private void removeActiveJob(String jobId, ActiveJobControl control) {
@@ -586,6 +638,11 @@ public class JobSchedulerService {
     @FunctionalInterface
     public interface JobRunner {
         JobExecutionOutcome run(ScheduledJob job, String runId);
+
+        /** Runs the job and records each target into {@code journalRun}; the default records nothing. */
+        default JobExecutionOutcome run(ScheduledJob job, String runId, de.kortty.core.AutomationJournalRun journalRun) {
+            return run(job, runId);
+        }
     }
 
     public interface PinningJobRunner extends JobRunner {
@@ -638,6 +695,11 @@ public class JobSchedulerService {
         @Override
         public JobExecutionOutcome run(ScheduledJob job, String runId) {
             return delegate.run(job, runId);
+        }
+
+        @Override
+        public JobExecutionOutcome run(ScheduledJob job, String runId, de.kortty.core.AutomationJournalRun journalRun) {
+            return delegate.run(job, runId, journalRun);
         }
 
         @Override

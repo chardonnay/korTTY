@@ -3806,6 +3806,15 @@ tasks.register<JavaExec>("aiChatRedesignSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("automationJournalPaneSmoke") {
+    group = "verification"
+    description = "Renders the session-journal-per-run editor and its cost warning to build/smoke/automation-journal-*.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AutomationJournalPaneSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+    args(providers.gradleProperty("smokeLanguage").getOrElse("de"))
+}
+
 tasks.register<JavaExec>("dialogGeometryShowAndWaitSmoke") {
     group = "verification"
     description = "Checks that a modal dialog opened with showAndWait() comes back at its stored geometry."

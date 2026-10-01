@@ -60,6 +60,8 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
 
     private SshClient client;
     private ClientSession session;
+    private volatile CommandObserver commandObserver;
+    private volatile String nextCommandLabel;
     private SftpClient sftpClient;
     private String password;
     private Path authenticatedPrivateKeyPath;
@@ -235,6 +237,46 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
      * thread-interrupt check). Used by headless AI-swarm agents whose cancellation is flag-driven.
      */
     public CommandResult execute(String command, String stdin, java.util.function.BooleanSupplier cancelled)
+        throws Exception {
+        String label = nextCommandLabel;
+        nextCommandLabel = null;
+        CommandResult result = null;
+        try {
+            result = executeUnobserved(command, stdin, cancelled);
+            return result;
+        } finally {
+            CommandObserver observer = commandObserver;
+            if (observer != null) {
+                try {
+                    observer.onCommand(label != null ? label : command, result);
+                } catch (RuntimeException e) {
+                    logger.debug("JobScheduler command observer failed: {}", e.getMessage());
+                }
+            }
+        }
+    }
+
+    /**
+     * Receives every command this session executes and its result (null when it failed or was
+     * cancelled) — the hook the session journal of a job run records through.
+     */
+    public interface CommandObserver {
+        void onCommand(String label, CommandResult result);
+    }
+
+    public void setCommandObserver(CommandObserver commandObserver) {
+        this.commandObserver = commandObserver;
+    }
+
+    /**
+     * How the next command should be shown to an observer, e.g. the user's command without the
+     * {@code sh -lc} / sudo wrapper. Applies to exactly one {@link #execute} call.
+     */
+    public void labelNextCommand(String label) {
+        this.nextCommandLabel = label;
+    }
+
+    private CommandResult executeUnobserved(String command, String stdin, java.util.function.BooleanSupplier cancelled)
         throws Exception {
         ensureConnected();
         try (ChannelExec channel = session.createExecChannel(command)) {

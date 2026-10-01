@@ -247,7 +247,11 @@ public class JobSchedulerRepository {
             SudoSecretScope.class,
             PinnedHostKey.class,
             JobJournalEntry.class,
-            JobRunStatus.class
+            JobRunStatus.class,
+            de.kortty.model.AutomationJournalConfig.class,
+            de.kortty.model.AutomationJournalAiMode.class,
+            de.kortty.model.AutomationJournalKeepMode.class,
+            de.kortty.model.AutomationJournalRetentionMode.class
         );
     }
 

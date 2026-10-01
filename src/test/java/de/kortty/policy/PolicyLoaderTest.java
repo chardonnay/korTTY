@@ -608,6 +608,39 @@ class PolicyLoaderTest {
     }
 
     @Test
+    void parsesTheAutomationJournalMandatesAndRejectsZeroCaps() throws IOException {
+        PolicyLoadResult result = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+              [rule.session-journal]
+              automation-allowed = false
+              automation-max-retention-days = 30
+              automation-max-storage-mb = 500
+              automation-max-journals = 20
+            """));
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.warnings()).isEmpty();
+        PolicyRule.SessionJournalRule rule = result.file().rules().get(0).sessionJournal();
+        assertThat(rule.automationAllowed()).isFalse();
+        assertThat(rule.automationMaxRetentionDays()).isEqualTo(30);
+        assertThat(rule.automationMaxStorageMb()).isEqualTo(500);
+        assertThat(rule.automationMaxJournals()).isEqualTo(20);
+
+        PolicyLoadResult zero = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+              [rule.session-journal]
+              automation-max-retention-days = 0
+            """));
+        assertThat(zero.errors()).hasSize(1);
+        assertThat(zero.errors().get(0)).contains("automation-max-retention-days must be at least 1");
+    }
+
+    @Test
     void parsesTheAiScreenshotAnalysisMandateInBothDirections() throws IOException {
         PolicyLoadResult forced = PolicyLoader.load(write("""
             [meta]

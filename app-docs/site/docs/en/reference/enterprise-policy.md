@@ -253,6 +253,10 @@ Mandates for the [session journal](../features/session-journal.md). Forced value
 | `ai-screenshot-analysis` | boolean | `true` / `false` | `true` forces the AI screenshot analysis on, `false` forbids it — including the manual per-screenshot run; the journal option is locked either way |
 | `ai-ask` | boolean | `false` | Forbids on-demand AI over journal content: the viewer's Q&A panel and the manager's cross-journal AI search disappear; AI summaries are unaffected |
 | `max-log-parts` | integer | ≥ 1 | Caps the number of rotated capture-log parts per journal; the effective limit is the minimum of this cap and the per-connection setting, and the connection editor's spinner is clamped to it |
+| `automation-allowed` | boolean | `false` | Forbids the [session journals of JobScheduler and AI Swarm runs](../features/session-journal.md#journals-of-automation-runs); the "session journal per run" controls are disabled. Interactive journals are unaffected |
+| `automation-max-retention-days` | integer | ≥ 1 | Automation journals are deleted at most this many days after their run, whatever the user chose ("never" is not available); enforced even when `allow-delete = false` |
+| `automation-max-storage-mb` | integer | ≥ 1 | Caps the disk space of one job's (or the AI Swarm's) journals; the oldest runs are deleted first; enforced even when `allow-delete = false` |
+| `automation-max-journals` | integer | ≥ 1 | Caps the number of kept runs per job (or AI Swarm); enforced even when `allow-delete = false` |
 
 ```toml
 [[rule]]
@@ -267,7 +271,7 @@ Mandates for the [session journal](../features/session-journal.md). Forced value
 ```
 
 !!! note
-    `enforced` mandates capture, not AI: with AI denied or unavailable the enforced journal records raw activity entries. When several same-tier rules configure the journal, `enforced` and `ai-title` resolve to true if any rule sets them, `allow-rename`/`allow-delete` to false if any rule forbids them, `ai-screenshot-analysis` and `ai-ask` to off if any rule switches them off, the line cap resolves to the tighter value (`0` counts as unlimited), and `max-log-parts` resolves to the lower cap.
+    `enforced` mandates capture, not AI: with AI denied or unavailable the enforced journal records raw activity entries. When several same-tier rules configure the journal, `enforced` and `ai-title` resolve to true if any rule sets them, `allow-rename`/`allow-delete` to false if any rule forbids them, `ai-screenshot-analysis` and `ai-ask` to off if any rule switches them off, the line cap resolves to the tighter value (`0` counts as unlimited), and `max-log-parts` resolves to the lower cap. `automation-allowed` resolves to false if any rule forbids it, and the three `automation-max-*` caps resolve to the lower value. With `allow-delete = false` korTTY never deletes an automation journal because of a *user* setting (keep mode, duplicates, retention, limits) — only the `automation-max-*` caps still delete.
 
 ### `[[rule.session-journal.replace]]`
 

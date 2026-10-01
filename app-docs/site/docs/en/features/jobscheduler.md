@@ -50,6 +50,28 @@ Schedule calculations use the local system time zone. If no fixed time and no in
 !!! note
     Scheduler jobs support saved SSH TCP connections only. Mosh targets are blocked as unsupported and the reason is written to the journal.
 
+### Session Journal per Run
+
+The collapsible **Session journal per run** section at the bottom of the **Job** tab records a full [session journal](session-journal.md) for every run of the job — one journal per target server, with every command the job sent, its output, the job's summary and the outcome on that server. Unlike the short run history in the **Journal** tab, it keeps the complete output, can be summarized by the AI, searched, exported and [asked questions](session-journal.md#asking-the-ai-about-a-journal) like any interactive journal, and it is deleted automatically when its retention ends. SFTP and rsync actions send no shell command; their journal records the action and its result instead.
+
+| Setting | Description |
+|---------|-------------|
+| **Create a session journal for every run** | Switches the journals on for this job. |
+| **AI summaries** | **Off (log only, no tokens)**, **For every kept run** (default) or **Only for failed runs**. The summaries run once, after the run has finished, so a run whose journal is discarded never costs tokens. They also need AI summaries to be switched on in *Settings → Logging → Session Journal*. |
+| **AI profile** | The profile for the summaries. **From the settings** uses the *AI profile for automation journals* (see [Session journal](session-journal.md#journals-of-automation-runs)); pick a cheap or local profile to keep unattended runs affordable. The list shows each profile's price per 1M tokens, or that it runs locally. |
+| **Keep journals** | **Always**, or **Only when the run fails** — the journal of a successful run is then deleted right away; failed, blocked and cancelled runs are kept. In a job with several targets the decision is made per server. |
+| **Delete automatically** | After a number of days (default 14), on a fixed date, or never. |
+| **Max. runs** / **Max. disk space** | Keep at most this many runs, or this much disk space (MB), of this job's journals; the oldest runs are deleted first, and the newest run is never deleted. `0` means unlimited. |
+| **Discard a run identical to the previous one (keep a reference)** | When a run records exactly the same commands, output and outcome on a server as the previous kept run of that server, its journal is deleted and the run history points to the earlier journal instead ("= identical to an earlier run"). The earlier journal is then kept at least as long as the new run would have been. On by default. |
+| **Record the commands sent** | Records the commands in addition to their output. |
+
+Below the settings a status line shows the tokens and cost of the last run and of all kept runs, and the disk space the job's journals use. The job list has a **Journal tokens** column with the total per job.
+
+!!! warning "Session journals of automations can become very expensive"
+    Switching the journal on — and switching its AI summaries on — first shows a warning: the journal is written on every run and for every server without anyone watching, and with AI summaries every kept journal makes at least two AI calls. The warning estimates the tokens per run (from the job's earlier runs, or a rough upper bound when there are none), per day and per month from the schedule and the number of targets, the cost in money when the AI profile has a [price per 1M tokens](../reference/settings/ai.md#token-quota-management), and what is left of the profile's quota. Cheaper options: a local AI profile, **Only for failed runs**, **Only when the run fails**, and discarding identical runs. Cancel keeps the journal (or its AI summaries) off.
+
+Pinned journals (right-click in the journal manager → **Keep (pin)**) are never deleted automatically. An administrator can forbid automation journals or cap their retention, disk space and number of runs; the section then says so and its controls are limited — see [Enterprise policy](../reference/enterprise-policy.md#rulesession-journal).
+
 ### Host Keys, Sudo, and Secrets
 
 Host-key verification is secure by default. Before unattended SSH/SFTP/Rsync execution, select the target and click **Confirm host key** so KorTTY stores the pinned fingerprint and OpenSSH public-key material.
@@ -136,7 +158,9 @@ KorTTY builds Rsync execution as a `ProcessBuilder` argument list instead of she
 
 ## Journal Tab
 
-The **Journal** tab lists job runs with local KorTTY timestamps, status, job name, and summary. The columns **Started**, **Status**, **Job**, and **Summary** are sortable; the default order shows the newest started entries first.
+The **Journal** tab lists job runs with local KorTTY timestamps, status, job name, session journal, and summary. The columns **Started**, **Status**, **Job**, **Session journal**, and **Summary** are sortable; the default order shows the newest started entries first.
+
+For jobs with a [session journal per run](#session-journal-per-run), the **Session journal** column shows how many journals the run kept and their AI tokens and cost, "= identical to an earlier run" when the run was discarded as a duplicate, or "deleted (retention)" once the journals are gone. The detail area lists each journal with its status, token breakdown and deletion date, and **Open session journal** opens the run's journals (or the identical earlier run's) in the journal viewer.
 
 The search row can match all persisted journal fields or only selected columns such as status, job, summary, stdout, stderr, and detail. Enter multiple whitespace-separated terms when every term must occur somewhere in the selected search scope; use `*` inside a term as a wildcard, for example `backup*fail`.
 

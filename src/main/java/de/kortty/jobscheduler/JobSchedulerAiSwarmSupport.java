@@ -3,8 +3,10 @@ package de.kortty.jobscheduler;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiPromptService;
 import de.kortty.core.AiUsageRecorder;
+import de.kortty.core.AutomationJournalRun;
 import de.kortty.core.TerminalAgentService;
 import de.kortty.core.swarm.SwarmCallback;
+import de.kortty.core.swarm.SwarmJournalSupport;
 import de.kortty.core.swarm.SwarmModels;
 import de.kortty.core.swarm.SwarmOrchestrator;
 import de.kortty.core.swarm.SwarmTarget;
@@ -57,6 +59,18 @@ public class JobSchedulerAiSwarmSupport {
         List<PinnedHostKey> hostKeys,
         char[] masterPassword,
         JobSchedulerSecretRedactor redactor) {
+        return runAiSwarm(job, runId, targets, hostKeys, masterPassword, redactor, AutomationJournalRun.NONE);
+    }
+
+    /** Runs the swarm job, recording every agent into its server's session journal. */
+    public JobExecutionOutcome runAiSwarm(
+        ScheduledJob job,
+        String runId,
+        List<ServerConnection> targets,
+        List<PinnedHostKey> hostKeys,
+        char[] masterPassword,
+        JobSchedulerSecretRedactor redactor,
+        AutomationJournalRun journals) {
 
         JobAction action = job.getAction();
         String prompt = action.getAiPrompt();
@@ -107,10 +121,13 @@ public class JobSchedulerAiSwarmSupport {
             SwarmOrchestrator orchestrator = new SwarmOrchestrator(new TerminalAgentService());
             AiUsageRecorder usageRecorder = AiUsageRecorder.application();
             orchestrator.setUsageSink(usage -> usageRecorder.record(profile, usage));
-            orchestrator.run(request, swarmTargets, profile, () -> safeCreateService(profile), callback);
+            orchestrator.run(request, SwarmJournalSupport.wrapTargets(swarmTargets, journals), profile,
+                () -> safeCreateService(profile), callback);
         } finally {
-            for (JobSwarmAgentRunner runner : runners) {
+            for (int i = 0; i < runners.size(); i++) {
+                JobSwarmAgentRunner runner = runners.get(i);
                 runner.sessionPassword().ifPresent(redactor::addSecret);
+                runner.sessionPassword().ifPresent(journals.recorderFor(targets.get(i))::addSecret);
                 runner.close();
             }
         }
@@ -126,6 +143,8 @@ public class JobSchedulerAiSwarmSupport {
         SwarmModels.SwarmAggregationResult aggregation = callback.aggregation;
         String markdown = aggregation != null ? aggregation.markdown() : null;
         UnaryOperator<String> redact = redactor::redact;
+        SwarmJournalSupport.recordOutcome(journals, swarmTargets, statuses, callback.mutationBlockedAgentIds,
+            markdown, de.kortty.ui.I18n.get("journal.automation.swarmReport"));
 
         try {
             SavedSwarmChat chat = buildChatSnapshot(
