@@ -114,6 +114,43 @@ public final class SessionJournalAiSupport {
         return invokerFor(SessionJournalAiSupport::resolveTextProfile, "text translation");
     }
 
+    /** Waits before the retries of a call the provider rejected as temporarily overloaded. */
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SessionJournalAiSupport.class);
+
+    static long[] transientRetryDelaysMillis = {4_000, 10_000};
+
+    /**
+     * Runs a journal AI call and retries it twice after a short wait when the provider answers
+     * "overloaded" / "rate limited" / a 5xx — a busy cluster (MiniMax 529 "high load") must not
+     * leave a screenshot undescribed or a window unsummarized when a second attempt would work.
+     */
+    static <T> T withTransientRetry(java.util.concurrent.Callable<T> call) throws Exception {
+        for (int attempt = 0; ; attempt++) {
+            try {
+                return call.call();
+            } catch (Exception e) {
+                if (attempt >= transientRetryDelaysMillis.length || !isTransientAiError(e)) {
+                    throw e;
+                }
+                logger.info("AI provider is busy ({}); retrying in {} s", e.getMessage(),
+                    transientRetryDelaysMillis[attempt] / 1000);
+                Thread.sleep(transientRetryDelaysMillis[attempt]);
+            }
+        }
+    }
+
+    static boolean isTransientAiError(Throwable error) {
+        if (error instanceof OpenAiCompatibleAiService.AiApiException api) {
+            int status = api.statusCode();
+            if (status == 429 || status == 500 || status == 502 || status == 503 || status == 504 || status == 529) {
+                return true;
+            }
+        }
+        String message = error.getMessage() != null ? error.getMessage().toLowerCase(java.util.Locale.ROOT) : "";
+        return message.contains("overloaded") || message.contains("high load") || message.contains("rate limit")
+            || message.contains("too many requests");
+    }
+
     /** Invoker bound to one explicitly chosen profile — re-evaluating a journal with another profile. */
     public static AiInvoker profileInvoker(String profileId) {
         return invokerFor(settings -> settings != null && settings.getAiProfiles() != null
@@ -172,16 +209,17 @@ public final class SessionJournalAiSupport {
                     throw new IllegalStateException("No AI profile available for " + purpose);
                 }
                 AiPromptService service = createService(app, settings, profile);
-                AiExecutionResult result;
-                try {
-                    result = service.executeJsonPrompt(systemPrompt, userPrompt, AiPromptExecutionScope.TEXT);
-                } catch (java.io.IOException e) {
-                    if (!looksLikeUnsupportedJsonResponseFormat(e.getMessage())) {
-                        throw e;
+                AiExecutionResult result = withTransientRetry(() -> {
+                    try {
+                        return service.executeJsonPrompt(systemPrompt, userPrompt, AiPromptExecutionScope.TEXT);
+                    } catch (java.io.IOException e) {
+                        if (!looksLikeUnsupportedJsonResponseFormat(e.getMessage())) {
+                            throw e;
+                        }
+                        return service.executeJsonPromptWithoutResponseFormat(
+                            systemPrompt, userPrompt, AiPromptExecutionScope.TEXT);
                     }
-                    result = service.executeJsonPromptWithoutResponseFormat(
-                        systemPrompt, userPrompt, AiPromptExecutionScope.TEXT);
-                }
+                });
                 return recordUsage(result, systemPrompt, userPrompt, profile);
             }
 
@@ -264,17 +302,18 @@ public final class SessionJournalAiSupport {
                     throw new IllegalStateException("No AI profile available for " + purpose);
                 }
                 AiPromptService service = createService(app, settings, profile);
-                AiExecutionResult result;
-                try {
-                    result = service.executeVisionJsonPrompt(
-                        systemPrompt, userPrompt, images, AiPromptExecutionScope.TEXT);
-                } catch (java.io.IOException e) {
-                    if (!looksLikeUnsupportedJsonResponseFormat(e.getMessage())) {
-                        throw e;
+                AiExecutionResult result = withTransientRetry(() -> {
+                    try {
+                        return service.executeVisionJsonPrompt(
+                            systemPrompt, userPrompt, images, AiPromptExecutionScope.TEXT);
+                    } catch (java.io.IOException e) {
+                        if (!looksLikeUnsupportedJsonResponseFormat(e.getMessage())) {
+                            throw e;
+                        }
+                        return service.executeVisionJsonPromptWithoutResponseFormat(
+                            systemPrompt, userPrompt, images, AiPromptExecutionScope.TEXT);
                     }
-                    result = service.executeVisionJsonPromptWithoutResponseFormat(
-                        systemPrompt, userPrompt, images, AiPromptExecutionScope.TEXT);
-                }
+                });
                 return recordUsage(result, systemPrompt, userPrompt, profile);
             }
 
@@ -841,6 +880,39 @@ public final class SessionJournalAiSupport {
                 result = result.substring(0, fenceEnd);
             }
         }
-        return result.strip();
+        return firstJsonObject(result.strip());
+    }
+
+    /**
+     * The first complete JSON object of a reply that starts with one — a reply that repeats its
+     * object ({@code {...}{...}}) or adds a remark after it must still parse instead of degrading
+     * to raw JSON shown as text. Anything else is returned unchanged.
+     */
+    static String firstJsonObject(String content) {
+        if (content == null || !content.startsWith("{")) {
+            return content;
+        }
+        int depth = 0;
+        boolean inString = false;
+        boolean escaped = false;
+        for (int i = 0; i < content.length(); i++) {
+            char c = content.charAt(i);
+            if (inString) {
+                if (escaped) {
+                    escaped = false;
+                } else if (c == '\\') {
+                    escaped = true;
+                } else if (c == '"') {
+                    inString = false;
+                }
+            } else if (c == '"') {
+                inString = true;
+            } else if (c == '{') {
+                depth++;
+            } else if (c == '}' && --depth == 0) {
+                return content.substring(0, i + 1);
+            }
+        }
+        return content;
     }
 }

@@ -965,21 +965,20 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             if (chunkFinishReason != null && !chunkFinishReason.isBlank()) {
                 finishReason = chunkFinishReason;
             }
-            JsonObject delta = choice.has("delta") && choice.get("delta").isJsonObject()
-                ? choice.getAsJsonObject("delta")
-                : choice.getAsJsonObject("message");
+            boolean isDelta = choice.has("delta") && choice.get("delta").isJsonObject();
+            JsonObject delta = isDelta ? choice.getAsJsonObject("delta") : choice.getAsJsonObject("message");
             if (delta == null) {
                 continue;
             }
             JsonElement deltaContent = delta.get("content");
             if (deltaContent != null && deltaContent.isJsonPrimitive()) {
-                content.append(deltaContent.getAsString());
+                appendStreamed(content, deltaContent.getAsString(), isDelta);
                 sawContent = true;
             }
             for (String field : new String[] {"reasoning_content", "reasoning"}) {
                 JsonElement deltaReasoning = delta.get(field);
                 if (deltaReasoning != null && deltaReasoning.isJsonPrimitive()) {
-                    reasoning.append(deltaReasoning.getAsString());
+                    appendStreamed(reasoning, deltaReasoning.getAsString(), isDelta);
                 }
             }
         }
@@ -1014,6 +1013,25 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             root.addProperty(STREAM_CLOSED_MARKER, true);
         }
         return root;
+    }
+
+    /**
+     * Adds one streamed piece. A {@code delta} is a piece of the answer; a {@code message} in a
+     * stream chunk is the whole answer so far — MiniMax's native endpoint repeats the complete
+     * reply in its final chunk after streaming the deltas. Appending that would double the answer
+     * ({@code {...}{...}}), so a message that extends what was already received replaces it.
+     */
+    private static void appendStreamed(StringBuilder buffer, String piece, boolean isDelta) {
+        if (isDelta || buffer.length() == 0) {
+            buffer.append(piece);
+            return;
+        }
+        if (piece.startsWith(buffer.toString())) {
+            buffer.setLength(0);
+            buffer.append(piece);
+        } else if (!buffer.toString().endsWith(piece)) {
+            buffer.append(piece);
+        }
     }
 
     /** Set on an aggregated stream that the endpoint closed itself, with a finish_reason or [DONE]. */

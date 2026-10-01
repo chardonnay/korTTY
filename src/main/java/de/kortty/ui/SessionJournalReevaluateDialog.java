@@ -191,6 +191,7 @@ final class SessionJournalReevaluateDialog {
             }
             long tokensBefore = totalTokens(targets);
             List<String> failures = new ArrayList<>();
+            List<String> screenshotIssues = new ArrayList<>();
             int done = 0;
             for (SessionJournalMeta meta : targets) {
                 if (cancelled.get()) {
@@ -205,7 +206,10 @@ final class SessionJournalReevaluateDialog {
                 try {
                     summarizer.reevaluateClosedJournal(meta.getDirectory(), invoker).get();
                     if (screenshots) {
-                        describeScreenshots(meta.getDirectory(), invoker);
+                        int failedShots = describeScreenshots(meta.getDirectory(), invoker);
+                        if (failedShots > 0) {
+                            screenshotIssues.add(I18n.get("journal.reevaluate.screenshotsFailed", titleOf(meta), failedShots));
+                        }
                     }
                 } catch (Exception e) {
                     Throwable cause = e.getCause() != null ? e.getCause() : e;
@@ -218,6 +222,9 @@ final class SessionJournalReevaluateDialog {
             String summary = I18n.get("journal.reevaluate.done", processed, String.format("%,d", tokens));
             if (!failures.isEmpty()) {
                 summary += "\n" + I18n.get("journal.reevaluate.failed", failures.size(), String.join("\n", failures));
+            }
+            if (!screenshotIssues.isEmpty()) {
+                summary += "\n" + String.join("\n", screenshotIssues);
             }
             String text = summary;
             Platform.runLater(() -> finish(progressDialog, bar, statusLabel, text, 1));
@@ -236,12 +243,16 @@ final class SessionJournalReevaluateDialog {
         progressDialog.getDialogPane().getButtonTypes().setAll(ButtonType.CLOSE);
     }
 
-    private void describeScreenshots(Path directory, SessionJournalAiSupport.AiInvoker invoker) throws Exception {
+    /** @return the number of screenshots that could not be described */
+    private int describeScreenshots(Path directory, SessionJournalAiSupport.AiInvoker invoker) throws Exception {
+        int failed = 0;
         for (SessionJournalEntry entry : service.loadDocument(directory).getEntries()) {
-            if (entry.getKind() == SessionJournalEntryKind.SCREENSHOT) {
-                screenshotAnalyzer.analyzeNow(directory, entry.getId(), invoker);
+            if (entry.getKind() == SessionJournalEntryKind.SCREENSHOT
+                    && !screenshotAnalyzer.analyzeNow(directory, entry.getId(), invoker)) {
+                failed++;
             }
         }
+        return failed;
     }
 
     private long totalTokens(List<SessionJournalMeta> targets) {

@@ -202,18 +202,25 @@ public class SessionJournalScreenshotAnalyzer {
     /**
      * Analyzes one screenshot right now, on the calling thread, with {@code invoker} instead of
      * the journal profile — the closing pass of an automation run journal, which has its own
-     * profile and already decided that AI should run. Silently skips when the policy forbids the
-     * analysis or the profile cannot take images; never throws.
+     * profile and already decided that AI should run — and "Re-evaluate with AI…". Never throws.
+     *
+     * @return true when the screenshot got a description; false when the policy forbids it, the
+     *         profile cannot take images or the AI failed (logged)
      */
-    public void analyzeNow(Path journalDir, String entryId, SessionJournalAiSupport.AiInvoker invoker) {
+    public boolean analyzeNow(Path journalDir, String entryId, SessionJournalAiSupport.AiInvoker invoker) {
         if (journalDir == null || entryId == null || invoker == null || !policyAllowsAnalysis()) {
-            return;
+            return false;
         }
         try {
-            runAnalysis(journalDir, entryId, Trigger.AUTO, invoker);
+            runAnalysis(journalDir, entryId, Trigger.MANUAL, invoker);
+            return true;
+        } catch (VisionUnavailableException e) {
+            noteSkippedNoVision(journalDir, invoker);
+            return false;
         } catch (Exception e) {
-            logger.debug("Automation screenshot analysis failed for {} entry {}: {}",
+            logger.warn("Screenshot analysis failed for {} entry {}: {}",
                 journalDir.getFileName(), entryId, e.getMessage());
+            return false;
         }
     }
 
