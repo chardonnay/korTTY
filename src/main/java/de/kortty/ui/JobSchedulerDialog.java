@@ -506,11 +506,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
 
     /** "ACTIVE" in green or "DISABLED" in red — readable at a glance in every theme. */
     static Label sessionJournalStateBadge(boolean enabled) {
-        Label badge = new Label(text(enabled ? "sessionJournal.active" : "sessionJournal.inactive"));
-        badge.getStyleClass().add(enabled ? "session-journal-state-active" : "session-journal-state-inactive");
-        badge.setStyle("-fx-font-weight: bold; -fx-text-fill: white; -fx-padding: 1 8 1 8;"
-            + " -fx-background-radius: 4; -fx-background-color: " + (enabled ? "#16a34a;" : "#dc2626;"));
-        return badge;
+        return SessionJournalStateBadge.create(enabled);
     }
 
     private void loadSessionJournal(ScheduledJob job) {
