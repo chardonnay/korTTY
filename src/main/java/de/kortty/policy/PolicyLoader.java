@@ -52,7 +52,8 @@ public final class PolicyLoader {
         "compress", "format", "rotation-max-files", "rotation-total-size-mb");
     private static final Set<String> SESSION_JOURNAL_KEYS = Set.of("enforced", "log-format",
         "ai-max-lines", "storage-path", "allow-rename", "allow-delete", "name-template", "ai-title",
-        "ai-screenshot-analysis", "ai-ask", "max-log-parts", "replace");
+        "ai-screenshot-analysis", "ai-ask", "max-log-parts", "replace", "automation-allowed",
+        "automation-max-retention-days", "automation-max-storage-mb", "automation-max-journals");
     private static final Set<String> SESSION_JOURNAL_REPLACE_KEYS = Set.of("pattern", "replacement",
         "regex", "ignore-case", "label");
     private static final Set<String> SESSION_JOURNAL_LOG_FORMATS = Set.of("xml", "json", "yaml");
@@ -395,6 +396,15 @@ public final class PolicyLoader {
         }
     }
 
+    /** A cap of 0 would forbid everything and is almost certainly a typo: reject it. */
+    private Integer positiveOrNull(Integer value, String key, String context) {
+        if (value != null && value == 0) {
+            errors.add(context + ": " + key + " must be at least 1");
+            return null;
+        }
+        return value;
+    }
+
     private void parseRuleSessionJournal(TomlTable rule, String context, PolicyRule.Builder builder) {
         TomlTable table = getTable(rule, "session-journal", context);
         if (table == null) {
@@ -426,9 +436,20 @@ public final class PolicyLoader {
         }
         List<de.kortty.model.SessionJournalReplacement> replacements =
             parseSessionJournalReplacements(table, tableContext);
+        Boolean automationAllowed = getBoolean(table, "automation-allowed", tableContext);
+        Integer automationMaxRetentionDays = positiveOrNull(
+            getNonNegativeInt(table, "automation-max-retention-days", tableContext),
+            "automation-max-retention-days", tableContext);
+        Integer automationMaxStorageMb = positiveOrNull(
+            getNonNegativeInt(table, "automation-max-storage-mb", tableContext),
+            "automation-max-storage-mb", tableContext);
+        Integer automationMaxJournals = positiveOrNull(
+            getNonNegativeInt(table, "automation-max-journals", tableContext),
+            "automation-max-journals", tableContext);
         PolicyRule.SessionJournalRule sessionJournal = new PolicyRule.SessionJournalRule(
             enforced, logFormat, aiMaxLines, storagePath, allowRename, allowDelete, nameTemplate,
-            aiTitle, aiScreenshotAnalysis, aiAsk, maxLogParts, replacements);
+            aiTitle, aiScreenshotAnalysis, aiAsk, maxLogParts, replacements, automationAllowed,
+            automationMaxRetentionDays, automationMaxStorageMb, automationMaxJournals);
         if (!sessionJournal.isEmpty()) {
             builder.sessionJournal(sessionJournal);
         }

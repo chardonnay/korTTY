@@ -64,6 +64,14 @@ A journal is bound to its tab, not to a single connection. When the connection e
 
 Closing the tab instead also ends the journal with its closing summary. Without a running journal the behavior is unchanged: a cleanly ended connection closes the tab, an error keeps it open with the reconnect bar (double-click to reconnect).
 
+### Journals of automation runs
+
+JobScheduler jobs — including scheduled AI Swarm jobs — can record a session journal for every run on their own, without a terminal tab: one journal per target server, holding the commands the automation sent, their output, its summary and the outcome on that server. They are set up per job in the JobScheduler — see [Session journal per run](jobscheduler.md#session-journal-per-run) for the settings (AI summaries always / only for failed runs / off, keep always / only failed runs, automatic deletion after N days or on a date, maximum runs and disk space, discarding runs identical to the previous one) and the cost warning shown when they are switched on.
+
+Automation journals are titled after the job, the server and the start time, and their AI summaries run once after the run has finished — on their own worker, so they never delay the summaries of the terminal you are working in. **AI profile for automation journals** in **Settings > Logging > Session Journal** picks the profile they use when a job does not choose its own; **Same as for summaries** uses the journal profile described under [AI summaries](#ai-summaries). A cheap or local model keeps unattended runs affordable.
+
+Expired automation journals are deleted automatically — a minute after korTTY starts and then every hour — as are the oldest runs of a job beyond its maximum number of runs or disk space. Running journals, journals whose summary is still being written, pinned journals and interactive journals are never touched. In the [journal manager](#managing-journals) the **Deleted on** column shows when a journal goes, and **Keep (pin)** in a journal's right-click menu exempts it from automatic deletion (**Release pin** undoes it).
+
 ## The live journal panel
 
 **View > Live Journal** (or ++ctrl+alt+l++) docks the running journal's **full journal page** — the same page the [viewer](#the-journal-page) shows — to the **left or right** of the terminal, kept up to date in real time. Selecting the checked side in the menu hides the panel again; the divider next to it adjusts the width, and side and width are remembered across restarts.
@@ -228,7 +236,7 @@ Changes preview immediately in the viewer and are saved for every journal page. 
 
 ## Managing journals
 
-**Tools > Session Journals…** (++ctrl+alt+j++) opens the journal manager: all journals in a table sorted by start time (newest first) with duration, connection, server, title, entry count and [AI tokens](#ai-token-usage-and-cost). Running journals are marked and cannot be renamed or deleted while live.
+**Tools > Session Journals…** (++ctrl+alt+j++) opens the journal manager: all journals in a table sorted by start time (newest first) with duration, connection, server, title, entry count, [AI tokens](#ai-token-usage-and-cost) and, for [automation journals](#journals-of-automation-runs), the date they are deleted automatically (or "kept" when pinned). Running journals are marked and cannot be renamed or deleted while live.
 
 ![Session journal manager](../assets/screenshots/journal/journal-manager.png)
 

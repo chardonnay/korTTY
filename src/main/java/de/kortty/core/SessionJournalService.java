@@ -125,6 +125,25 @@ public class SessionJournalService {
             GlobalSettings settings,
             List<String> knownSecrets,
             boolean seeded) throws IOException {
+        return createSession(connection, tabSessionId, settings, knownSecrets, seeded, null, null);
+    }
+
+    /**
+     * Like {@link #createSession(ServerConnection, String, GlobalSettings, List, boolean)}, for
+     * journals that are not driven by the connection's own journal settings — automation runs.
+     *
+     * @param configOverride capture settings to use instead of the connection's; null = the connection's
+     * @param metaCustomizer adjusts the initial meta (title, automation source) before it is first
+     *                       written; may be null
+     */
+    public SessionJournalSession createSession(
+            ServerConnection connection,
+            String tabSessionId,
+            GlobalSettings settings,
+            List<String> knownSecrets,
+            boolean seeded,
+            SessionJournalConfig configOverride,
+            Consumer<SessionJournalMeta> metaCustomizer) throws IOException {
         Objects.requireNonNull(connection, "connection must not be null");
         Path baseDir = resolveJournalsDirectory(settings);
         Files.createDirectories(baseDir);
@@ -149,6 +168,9 @@ public class SessionJournalService {
         meta.setSeeded(seeded);
         meta.setLogFormat(format);
         meta.setAppLanguageCode(resolveLanguageCode());
+        if (metaCustomizer != null) {
+            metaCustomizer.accept(meta);
+        }
         saveDocumentInternal(directory, document);
 
         SessionJournalRedactor redactor = new SessionJournalRedactor();
@@ -158,7 +180,7 @@ public class SessionJournalService {
         // Policy replacements run on the capture thread, so an admin-mandated secret never
         // reaches the log at all — there is nothing to clean up afterwards.
         redactor.setReplacements(policyReplacements());
-        SessionJournalConfig config = connection.getSessionJournalConfig();
+        SessionJournalConfig config = configOverride != null ? configOverride : connection.getSessionJournalConfig();
         SessionJournalSession session = new SessionJournalSession(
             this,
             directory,
@@ -686,6 +708,89 @@ public class SessionJournalService {
         notifyChanged(journalDir);
     }
 
+    /** Pins a journal (exempt from automatic deletion) or releases it. */
+    public void setPinned(Path journalDir, boolean pinned) throws IOException {
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            if (document.getMeta().isPinned() == pinned) {
+                return;
+            }
+            document.getMeta().setPinned(pinned);
+            saveDocumentInternal(journalDir, document);
+        }
+        notifyChanged(journalDir);
+    }
+
+    /**
+     * Stores the outcome of the automation run that recorded this (closed) journal: its status,
+     * when retention deletes it, the duplicate-detection hash and the folder size.
+     */
+    public void updateAutomationOutcome(
+            Path journalDir,
+            de.kortty.model.AutomationRunStatus status,
+            OffsetDateTime expiresAt,
+            String contentHash) throws IOException {
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            SessionJournalMeta meta = document.getMeta();
+            meta.setRunStatus(status);
+            meta.setExpiresAt(expiresAt);
+            meta.setContentHash(contentHash);
+            saveDocumentInternal(journalDir, document);
+        }
+        notifyChanged(journalDir);
+    }
+
+    /**
+     * Records that a later run produced exactly this journal's output: bumps its duplicate
+     * counter and extends its expiry so the reference from the discarded run stays valid.
+     */
+    public void recordDuplicateRun(Path journalDir, OffsetDateTime at, OffsetDateTime newExpiry)
+            throws IOException {
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            SessionJournalMeta meta = document.getMeta();
+            meta.setDuplicateRunCount(meta.getDuplicateRunCount() + 1);
+            meta.setLastDuplicateAt(at);
+            OffsetDateTime current = meta.getExpiresAt();
+            if (current != null && (newExpiry == null || newExpiry.isAfter(current))) {
+                meta.setExpiresAt(newExpiry);
+            }
+            saveDocumentInternal(journalDir, document);
+        }
+        notifyChanged(journalDir);
+    }
+
+    /** Measures the journal folder and stores the size in its meta; returns the size in bytes. */
+    public long updateStorageBytes(Path journalDir) throws IOException {
+        long size = directorySize(journalDir);
+        synchronized (lockFor(journalDir)) {
+            SessionJournalDocument document = loadDocumentInternal(journalDir);
+            if (document.getMeta().getStorageBytes() != size) {
+                document.getMeta().setStorageBytes(size);
+                saveDocumentInternal(journalDir, document);
+            }
+        }
+        notifyChanged(journalDir);
+        return size;
+    }
+
+    /** Total size of the regular files below {@code dir}; 0 when it does not exist. */
+    public static long directorySize(Path dir) throws IOException {
+        if (dir == null || !Files.isDirectory(dir)) {
+            return 0L;
+        }
+        try (var walk = Files.walk(dir)) {
+            return walk.filter(Files::isRegularFile).mapToLong(path -> {
+                try {
+                    return Files.size(path);
+                } catch (IOException e) {
+                    return 0L;
+                }
+            }).sum();
+        }
+    }
+
     /** Persists the summarizer's progress so restarts never re-summarize covered ranges. */
     public void updateLastSummarizedSeq(Path journalDir, long lastSummarizedSeq) throws IOException {
         synchronized (lockFor(journalDir)) {
@@ -705,6 +810,34 @@ public class SessionJournalService {
         if (!de.kortty.policy.PolicyManager.effective().sessionJournalDeleteAllowed()) {
             throw new IOException("Deleting session journals is disabled by your organization's policy");
         }
+        deleteJournalFiles(settings, journalDir);
+    }
+
+    /**
+     * Deletes an automation run journal on behalf of korTTY itself — a discarded run, retention,
+     * a count or storage limit. Unlike {@link #deleteJournal} it does not consult the user-delete
+     * policy (the caller decides whether a user setting or an administrator cap asks for it),
+     * but it refuses interactive journals, pinned journals and live ones.
+     */
+    public void deleteAutomationJournal(GlobalSettings settings, Path journalDir) throws IOException {
+        Path normalized = normalize(journalDir);
+        if (!Files.exists(normalized)) {
+            return;
+        }
+        SessionJournalMeta meta;
+        synchronized (lockFor(normalized)) {
+            meta = loadDocumentInternal(normalized).getMeta();
+        }
+        if (!meta.isAutomation()) {
+            throw new IOException("Refusing to auto-delete an interactive session journal: " + normalized);
+        }
+        if (meta.isPinned()) {
+            throw new IOException("Refusing to auto-delete a pinned session journal: " + normalized);
+        }
+        deleteJournalFiles(settings, normalized);
+    }
+
+    private void deleteJournalFiles(GlobalSettings settings, Path journalDir) throws IOException {
         Path normalized = normalize(journalDir);
         if (liveSessions.containsKey(normalized)) {
             throw new IOException("Cannot delete a session journal that is currently being written");

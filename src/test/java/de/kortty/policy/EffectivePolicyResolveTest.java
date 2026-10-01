@@ -44,6 +44,28 @@ class EffectivePolicyResolveTest {
             null, null, null, null, null, null, null, null, null, null, value, List.of());
     }
 
+    private static PolicyRule.SessionJournalRule automationRule(Boolean allowed, Integer retentionDays) {
+        return new PolicyRule.SessionJournalRule(
+            null, null, null, null, null, null, null, null, null, null, null, List.of(),
+            allowed, retentionDays, null, null);
+    }
+
+    @Test
+    void automationJournalCapsResolveToTheTighterValueAndAllowToTheRestrictive() {
+        PolicyFile conflicting = file(Map.of(),
+            PolicyRule.builder().sessionJournal(automationRule(true, 60)).build(),
+            PolicyRule.builder().sessionJournal(automationRule(false, 14)).build());
+        EffectivePolicy policy = EffectivePolicy.resolve(conflicting, identity("anyone"));
+        assertThat(policy.automationJournalMaxRetentionDays()).isEqualTo(14);
+        assertThat(policy.automationJournalAllowed()).isFalse();
+
+        PolicyFile unset = file(Map.of(),
+            PolicyRule.builder().sessionJournal(automationRule(null, null)).build());
+        EffectivePolicy open = EffectivePolicy.resolve(unset, identity("anyone"));
+        assertThat(open.automationJournalAllowed()).isTrue();
+        assertThat(open.automationJournalMaxRetentionDays()).isNull();
+    }
+
     @Test
     void maxLogPartsResolvesToTheTighterCap() {
         // Same-tier conflict: the lower cap wins — it is the more restrictive one.

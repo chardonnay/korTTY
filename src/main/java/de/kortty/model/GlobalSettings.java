@@ -210,6 +210,14 @@ public class GlobalSettings {
     @XmlElement
     private String sessionJournalAiProfileId; // Null = TEXT-workload/default AI profile
 
+    /** Profile for automation journals (JobScheduler / AI Swarm runs); null = the journal profile. */
+    @XmlElement
+    private String automationJournalAiProfileId;
+
+    /** "Session journal per run" defaults of the interactive AI Swarm. */
+    @XmlElement
+    private AutomationJournalConfig swarmSessionJournal;
+
     @XmlElement
     private boolean sessionJournalAiSummariesEnabled = true;
 
@@ -1626,6 +1634,26 @@ public class GlobalSettings {
     public void setSessionJournalAiProfileId(String sessionJournalAiProfileId) {
         String trimmed = sessionJournalAiProfileId != null ? sessionJournalAiProfileId.trim() : "";
         this.sessionJournalAiProfileId = trimmed.isEmpty() ? null : trimmed;
+    }
+
+    public String getAutomationJournalAiProfileId() {
+        return automationJournalAiProfileId;
+    }
+
+    public void setAutomationJournalAiProfileId(String automationJournalAiProfileId) {
+        String trimmed = automationJournalAiProfileId != null ? automationJournalAiProfileId.trim() : "";
+        this.automationJournalAiProfileId = trimmed.isEmpty() ? null : trimmed;
+    }
+
+    public AutomationJournalConfig getSwarmSessionJournal() {
+        if (swarmSessionJournal == null) {
+            swarmSessionJournal = new AutomationJournalConfig();
+        }
+        return swarmSessionJournal;
+    }
+
+    public void setSwarmSessionJournal(AutomationJournalConfig swarmSessionJournal) {
+        this.swarmSessionJournal = swarmSessionJournal;
     }
 
     public boolean isSessionJournalAiSummariesEnabled() {

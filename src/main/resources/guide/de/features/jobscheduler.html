@@ -831,6 +831,56 @@
 <p class="admonition-title">Note</p>
 <p>Scheduler-Jobs unterstützen nur gespeicherte SSH-TCP-Verbindungen. Mosh-Ziele werden als nicht unterstützt blockiert und der Grund wird in das Journal geschrieben.</p>
 </div>
+<h3 id="sitzungsjournal-pro-ausfuhrung">Sitzungsjournal pro Ausführung<a class="headerlink" href="#sitzungsjournal-pro-ausfuhrung" title="Permanent link">&para;</a></h3>
+<p>Der einklappbare <strong>Session-Journal pro Lauf</strong>-Bereich am unteren Rand des <strong>Job</strong>-Tabs zeichnet ein vollständiges <a href="session-journal.html">Session-Journal</a> für jeden Lauf des Jobs auf – ein Journal pro Zielserver, mit jedem Befehl, den der Job gesendet hat, dessen Ausgabe, dem Zusammenfassung des Jobs und dem Ergebnis auf diesem Server. Im Gegensatz zur kurzen Laufhistorie im <strong>Journal</strong>-Tab behält er die komplette Ausgabe bei, kann von der KI zusammengefasst, durchsucht, exportiert und <a href="session-journal.html#die-ki-nach-einem-journal-fragen">gestellte Fragen</a> wie jedes interaktive Journal behandelt werden, und wird automatisch gelöscht, sobald seine Aufbewahrungsfrist endet. SFTP- und rsync-Aktionen senden keinen Shell-Befehl; ihr Journal protokolliert stattdessen die Aktion und deren Ergebnis.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Für jeden Lauf ein Session-Journal erstellen</strong></td>
+<td>Schaltet die Journale für diesen Job ein.</td>
+</tr>
+<tr>
+<td><strong>KI-Zusammenfassungen</strong></td>
+<td><strong>Aus (nur Protokoll, keine Tokens)</strong>, <strong>Für jeden behaltenen Lauf</strong> (Standard) oder <strong>Nur bei fehlgeschlagenen Läufen</strong>. Die Zusammenfassungen laufen einmal, nachdem der Lauf beendet ist, sodass ein Lauf, dessen Journal verworfen wird, keine Tokens kostet. Sie müssen außerdem KI-Zusammenfassungen in <em>Einstellungen → Logs → Sitzungsjournal</em> aktivieren.</td>
+</tr>
+<tr>
+<td><strong>KI-Profil</strong></td>
+<td>Das Profil für die Zusammenfassungen. <strong>Aus den Einstellungen</strong> verwendet das <em>KI-Profil für Automations-Journale</em> (siehe <a href="session-journal.html#journale-der-automatisierungsdurchlaufe">Session-Journal</a>); wählen Sie ein günstiges oder lokales Profil, um unbeaufsichtigte Läufe erschwinglich zu halten. Die Liste zeigt den Preis pro 1 M Tokens jedes Profils oder anzeigt, dass es lokal läuft.</td>
+</tr>
+<tr>
+<td><strong>Journale behalten</strong></td>
+<td><strong>Immer</strong>, oder <strong>Nur bei Fehler</strong> — das Journal eines erfolgreichen Laufs wird dann sofort gelöscht; fehlgeschlagene, blockierte und abgebrochene Läufe werden behalten. In einem Job mit mehreren Zielen wird die Entscheidung pro Server getroffen.</td>
+</tr>
+<tr>
+<td><strong>Automatisch löschen</strong></td>
+<td>Nach einer bestimmten Anzahl von Tagen (Standard 14), an einem festen Datum oder niemals.</td>
+</tr>
+<tr>
+<td><strong>Max. Läufe</strong> / <strong>Max. Speicher</strong></td>
+<td>Behalten Sie höchstens diese Anzahl Läufe oder diesen Speicherplatz (MB) der Journale dieses Jobs; die ältesten Läufe werden zuerst gelöscht, und der neueste Lauf wird nie gelöscht. <code>0</code> bedeutet unbegrenzt.</td>
+</tr>
+<tr>
+<td><strong>Verwerfen eines Laufs, der identisch mit dem vorherigen ist (Bezug behalten)</strong></td>
+<td>Wenn ein Lauf exakt die gleichen Befehle, Ausgaben und Ergebnisse auf einem Server wie der vorher beibehaltenen Lauf dieses Servers zeichnet, wird sein Journal gelöscht und die Laufhistorie verweist stattdessen auf das frühere Journal („= identisch mit einem früheren Lauf“). Das frühere Journal wird dann mindestens so lange aufbewahrt, wie der neue Lauf gewesen wäre. Standardmäßig aktiviert.</td>
+</tr>
+<tr>
+<td><strong>Gesendete Befehle aufzeichnen</strong></td>
+<td>Aufzeichnet die Befehle zusätzlich zu ihrer Ausgabe.</td>
+</tr>
+</tbody>
+</table>
+<p>Unter den Einstellungen zeigt eine Statuszeile die Tokens und Kosten des letzten Durchlaufs sowie aller gespeicherten Durchläufe an, ebenso den Speicherplatz, den die Journale des Auftrags verbrauchen. Die Auftragsliste verfügt über eine Spalte <strong>Journal-Tokens</strong> mit der Gesamtsumme pro Auftrag.</p>
+<div class="admonition warning">
+<p class="admonition-title">Session-Journale von Automatisierungen können sehr teuer werden</p>
+<p>Schalten Sie das Journal ein — und die KI-Zusammenfassungen ein — zeigt zunächst eine Warnung: Das Journal wird bei jedem Lauf und für jeden Server ohne Beobachtung geschrieben, und mit KI-Zusammenfassungen macht jedes gespeicherte Journal mindestens zwei KI-Aufrufe. Die Warnung schätzt die Tokens pro Lauf (aus den früheren Läufen des Jobs oder eine grobe Obergrenze, wenn es keine gibt), pro Tag und pro Monat aus dem Zeitplan und der Anzahl der Ziele, die Kosten in Geld, wenn das KI-Profil einen <a href="../reference/settings/ai.html#token-quoten-verwaltung">Preis pro 1 M Tokens</a> hat, und was von der Quote des Profils übrig bleibt. Günstigere Optionen: ein lokales KI-Profil, <strong>Nur bei fehlgeschlagenen Läufen</strong>, <strong>Nur bei Fehler</strong>, und das Wegwerfen identischer Läufe. Abbrechen lässt das Journal (oder seine KI-Zusammenfassungen) ausfallen.</p>
+</div>
+<p>Gepinnte Journale (Rechtsklick im Journal-Manager → <strong>Behalten (Pin)</strong>) werden nie automatisch gelöscht. Ein Administrator kann Automationsjournale verbieten oder deren Aufbewahrungszeit, Speicherplatz und Anzahl der Durchläufe begrenzen; die Sektion gibt dann an und ihre Steuerungen sind eingeschränkt — siehe <a href="../reference/enterprise-policy.html#rulesession-journal">Unternehmensrichtlinie</a>.</p>
 <h3 id="host-schlussel-sudo-und-geheimnisse">Host-Schlüssel, Sudo und Geheimnisse<a class="headerlink" href="#host-schlussel-sudo-und-geheimnisse" title="Permanent link">&para;</a></h3>
 <p>Die Überprüfung des Hostschlüssels ist standardmäßig sicher. Wählen Sie vor der unbeaufsichtigten SSH/SFTP/Rsync-Ausführung das Ziel aus und klicken Sie auf <strong>Hostschlüssel bestätigen</strong>, damit KorTTY den angehefteten Fingerabdruck und das öffentliche OpenSSH-Schlüsselmaterial speichert.</p>
 <p>Das Kontrollkästchen <strong>Hostschlüsselüberprüfung für diesen Job deaktivieren</strong> deaktiviert die Hostschlüsselüberprüfung nur für den ausgewählten Job. Dies ist unsicher und sollte nur verwendet werden, wenn das Risiko bekannt ist.</p>
@@ -938,7 +988,7 @@
 </tbody>
 </table>
 <p>Die Ergebnisse werden zweimal gespeichert: Das <strong>Journal</strong> zeichnet das Laufergebnis auf, und die vollständige Konversation – einschließlich der kombinierten Vergleichstabelle pro Server – wird als <strong>Schwarm-Chat</strong> gespeichert, der über den Abschnitt <em>Schwarm-Chats</em> des KI-Managers erneut geöffnet werden kann.</p>
-<p>Der schnellste Weg, ein Job für einen KI-Swarm zu erstellen, ist die Schaltfläche <strong>Planen…</strong> im <a href="ai-swarm.html#schwarmlaufe-planen-jobscheduler">KI-Swarm-Tab</a>: Sie füllt einen neuen Job mit den aktuellen Zielen, dem Prompt, dem KI-Profil und der Schreibschutz-Einstellung des Tabs vor. Siehe diese Seite für empfohlene Anwendungsszenarien für Swarms/Scheduler.</p>
+<p>Der schnellste Weg, einen KI-Swarm-Job zu erstellen, ist die <strong>Planen…</strong> Schaltfläche im <a href="ai-swarm.html#schwarmlaufe-planen-jobscheduler">KI-Swarm-Tab</a>: sie füllt einen neuen Job mit den aktuellen Zielen, Prompt, KI-Profil und der schreibgeschützten Einstellung des Tabs vor. Siehe diese Seite für empfohlene Swarm-/Scheduler-Anwendungsszenarien.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>Ein geplanter Schwarm, bei dem <strong>Schwarm schreibgeschützt</strong> deaktiviert und <strong>Automatisch genehmigende KI-Befehle</strong> aktiviert ist, verändert Systeme unbeaufsichtigt. Testen Sie die Eingabeaufforderung interaktiv auf der Registerkarte „AI Swarm“, bevor Sie einen solchen Job aktivieren.</p>
@@ -964,7 +1014,8 @@
 <li>Passwort- und privater-Schlüssel-Authentifizierung verwenden einen temporären, nur für den Benutzer bestimmt <code>SSH_ASKPASS</code>Hilfeprozess. Geheime Informationen, Pfade der Hilfeprozesse und temporäre Pfade von Geheimdateien werden vor der Protokollierung gelöscht.</li>
 </ul>
 <h2 id="journal-tab">Journal-Tab<a class="headerlink" href="#journal-tab" title="Permanent link">&para;</a></h2>
-<p>Auf der Registerkarte <strong>Journal</strong> werden Jobausführungen mit lokalen KorTTY-Zeitstempeln, Status, Jobnamen und Zusammenfassung aufgeführt. Die Spalten <strong>Gestartet</strong>, <strong>Status</strong>, <strong>Auftrag</strong> und <strong>Zusammenfassung</strong> sind sortierbar; In der Standardreihenfolge werden die neuesten gestarteten Einträge zuerst angezeigt.</p>
+<p>Der <strong>Journal</strong> Tab listet Jobläufe mit lokalen KorTTY-Zeitstempeln, Status, Jobname, Session-Journal und Zusammenfassung.  </p>
+<p>Für Jobs mit einem <a href="#sitzungsjournal-pro-ausfuhrung">Sitzungsprotokoll pro Durchlauf</a>, die <strong>Session-Journal</strong>-Spalte zeigt an, wie viele Journale der Lauf beibehalten hat und deren KI-Tokens sowie Kosten. "= identisch mit einem früheren Lauf" erscheint, wenn der Lauf als Duplikat verworfen wurde, oder "gelöscht (Aufbewahrung)", sobald die Journale verschwunden sind. Der Detailbereich listet jedes Journal mit seinem Status, der Token-Aufschlüsselung und dem Löschdatum auf, und <strong>Session-Journal öffnen</strong> öffnet die Journale des Laufs (oder der identischen früheren Lauf) im Journal-Viewer.</p>
 <p>Die Suchzeile kann mit allen persistenten Journalfeldern oder nur mit ausgewählten Spalten wie Status, Job, Zusammenfassung, Stdout, Stdderr und Detail übereinstimmen. Geben Sie mehrere durch Leerzeichen getrennte Begriffe ein, wenn jeder Begriff irgendwo im ausgewählten Suchbereich vorkommen muss; Verwenden Sie <code>*</code> innerhalb eines Begriffs als Platzhalter, zum Beispiel <code>backup*fail</code>.</p>
 <p>Wenn Sie eine Zeile auswählen, werden stdout, stderr und Detailtext angezeigt. Verwenden Sie <strong>Ausgewählte löschen</strong>, um ausgewählte Journaleinträge zu entfernen. Standardmäßig löscht KorTTY automatisch Planer-Journaleinträge, die älter als 14 Tage sind; Legen Sie den Aufbewahrungswert auf <code>0</code> fest, um Einträge auf unbestimmte Zeit aufzubewahren.</p>
 <p>Der Protokoll-/Detailbereich unterhalb der Tabelle ist durch einen vertikalen Splitter getrennt. Ändern Sie die Größe, um der Ausgabe mehr oder weniger Höhe zu verleihen. KorTTY speichert diese Teilerposition in den globalen Einstellungen. Markieren Sie im Detailtextbereich den Text und klicken Sie mit der rechten Maustaste, um den ausgewählten Text in die Zwischenablage zu kopieren.</p>

@@ -14,6 +14,79 @@ import static com.google.common.truth.Truth.assertThat;
 class JobSchedulerRepositoryTest {
 
     @Test
+    void sessionJournalSettingsAndRunLinksSurviveAReload() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-job-scheduler-journal");
+        try {
+            JobSchedulerRepository repository = new JobSchedulerRepository(dir);
+            ScheduledJob job = new ScheduledJob();
+            job.setName("Checks");
+            de.kortty.model.AutomationJournalConfig config = job.getSessionJournal();
+            config.setEnabled(true);
+            config.setAiMode(de.kortty.model.AutomationJournalAiMode.ON_FAILURE);
+            config.setKeepMode(de.kortty.model.AutomationJournalKeepMode.ONLY_ON_FAILURE);
+            config.setRetentionMode(de.kortty.model.AutomationJournalRetentionMode.FIXED_DATE);
+            config.setExpiryDate("2027-03-01");
+            config.setMaxJournals(7);
+            config.setMaxStorageMb(250);
+            config.setDedupEnabled(false);
+            config.setAiProfileId("local-llama");
+            repository.upsertJob(job);
+            JobJournalEntry entry = JobJournalEntry.system(JobRunStatus.FAILED, "failed", "details");
+            entry.setSessionJournalDirs(List.of("/journals/a", "/journals/b"));
+            entry.setDuplicateOfJournalDirs(List.of("/journals/old"));
+            repository.appendJournal(entry);
+            repository.save();
+
+            JobSchedulerRepository reloaded = new JobSchedulerRepository(dir);
+            reloaded.load();
+
+            de.kortty.model.AutomationJournalConfig loaded = reloaded.getJobs().get(0).getSessionJournal();
+            assertThat(loaded.isEnabled()).isTrue();
+            assertThat(loaded.getAiMode()).isEqualTo(de.kortty.model.AutomationJournalAiMode.ON_FAILURE);
+            assertThat(loaded.getKeepMode()).isEqualTo(de.kortty.model.AutomationJournalKeepMode.ONLY_ON_FAILURE);
+            assertThat(loaded.getRetentionMode()).isEqualTo(de.kortty.model.AutomationJournalRetentionMode.FIXED_DATE);
+            assertThat(loaded.getExpiryDate()).isEqualTo("2027-03-01");
+            assertThat(loaded.getMaxJournals()).isEqualTo(7);
+            assertThat(loaded.getMaxStorageMb()).isEqualTo(250);
+            assertThat(loaded.isDedupEnabled()).isFalse();
+            assertThat(loaded.getAiProfileId()).isEqualTo("local-llama");
+            JobJournalEntry loadedEntry = reloaded.getJournal().get(0);
+            assertThat(loadedEntry.getSessionJournalDirs()).containsExactly("/journals/a", "/journals/b").inOrder();
+            assertThat(loadedEntry.getDuplicateOfJournalDirs()).containsExactly("/journals/old");
+        } finally {
+            Files.deleteIfExists(dir.resolve(JobSchedulerRepository.FILE_NAME));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void aJobFileWithoutSessionJournalSettingsLoadsWithJournalsOff() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-job-scheduler-legacy");
+        try {
+            Files.writeString(dir.resolve(JobSchedulerRepository.FILE_NAME), """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <jobScheduler>
+                    <jobs>
+                        <job><id>j1</id><name>Legacy</name><enabled>true</enabled></job>
+                    </jobs>
+                    <journal>
+                        <journalEntry><id>e1</id><jobId>j1</jobId><status>SUCCESS</status></journalEntry>
+                    </journal>
+                </jobScheduler>
+                """);
+            JobSchedulerRepository repository = new JobSchedulerRepository(dir);
+            repository.load();
+
+            assertThat(repository.getJobs().get(0).getSessionJournal().isEnabled()).isFalse();
+            assertThat(repository.getJournal()).isNotEmpty();
+            assertThat(repository.getJournal().get(0).getSessionJournalDirs()).isEmpty();
+        } finally {
+            Files.deleteIfExists(dir.resolve(JobSchedulerRepository.FILE_NAME));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void saveAndLoadPreservesJobsHostKeysAndJournal() throws Exception {
         Path dir = Files.createTempDirectory("kortty-job-scheduler");
         try {
