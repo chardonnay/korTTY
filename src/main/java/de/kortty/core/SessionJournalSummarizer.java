@@ -84,6 +84,8 @@ public class SessionJournalSummarizer {
         volatile int consecutiveFailures;
         volatile int backoffRemaining;
         volatile boolean failurePlaceholderWritten;
+        /** Set for the pass that runs when the session closes — the journal's last chance. */
+        volatile boolean closingSession;
         final AtomicBoolean busy = new AtomicBoolean();
     }
 
@@ -149,6 +151,7 @@ public class SessionJournalSummarizer {
         SessionState state = sessions.remove(session);
         stopSchedulerIfIdle();
         final SessionState closeState = state != null ? state : new SessionState();
+        closeState.closingSession = true;
         final Path directory = session.getDirectory();
         final boolean aiEnabled = session.isAiSummariesEnabled();
         workExecutor.submit(() -> runClosePass(directory, closeState, aiEnabled));
@@ -333,6 +336,16 @@ public class SessionJournalSummarizer {
             boolean ok = aiAvailable
                 ? summarizeWindowWithAi(directory, document, window, languageCode)
                 : writeRawEntry(directory, window);
+            if (!ok && aiAvailable && finalPass && state.closingSession) {
+                // The closing pass is the last chance: a failed AI call must not leave the journal's
+                // timeline empty, so keep the window as a raw activity entry. Progress is NOT
+                // advanced, so "Catch up summaries" still finds the journal and summarizes it later.
+                logger.info("AI summary failed in the closing pass of {}; recording raw activity instead",
+                    directory.getFileName());
+                writeRawEntry(directory, window);
+                handleFailure(directory, state);
+                continue;
+            }
             if (ok) {
                 state.lastSummarizedSeq = window.endSeq();
                 state.consecutiveFailures = 0;
