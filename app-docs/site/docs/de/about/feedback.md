@@ -24,7 +24,7 @@ korTTY wird offen auf GitHub entwickelt: <https://github.com/chardonnay/korTTY>.
 ## Schlagen Sie eine Funktion oder Idee vor
 
 1. Überprüfen Sie zuerst <https://github.com/chardonnay/korTTY/issues> auf ähnliche Vorschläge – fügen Sie dort einen Kommentar oder eine 👍 Reaktion hinzu, anstatt ein Duplikat zu öffnen.
-2. Eröffnen Sie eine neue Ausgabe unter <https://github.com/chardonnay/korTTY/issues/new> mit einem Titel, der mit `Feature:` beginnt (z. B. *"Feature: Lesezeichenordner im Verbindungsmanager"*).
+2. Eröffnen Sie eine neue Ausgabe unter <https://github.com/chardonnay/korTTY/issues/new> mit einem Titel, der mit `Feature:` beginnt (z. B. *"Feature: Lesezeichenordner im Connection-Manager"*).
 3. Beschreiben Sie den **Anwendungsfall** – was Sie erreichen möchten und warum das aktuelle Verhalten unzureichend ist – und nicht nur die Lösung, die Sie im Sinn haben. Mockups oder Beispiele von anderen Tools sind willkommen.
 
 Versionshinweise für ausgelieferte Änderungen werden in [Release Notes](release-notes.md) gesammelt.
