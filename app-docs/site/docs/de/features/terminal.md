@@ -118,7 +118,7 @@ Terminaleffekte können den sichtbaren Terminalstil und die Ausgabeanimation än
 
 - **Aktuelles Terminal**: Verwenden Sie **Ansicht > Terminaleffekt** oder das Terminal-Kontextmenü, um einen Effekt für das aktive Terminal auszuwählen.
 - **Schnellverbindung**: Wählen Sie den Effekt und die Geschwindigkeit, bevor Sie eine temporäre oder gespeicherte Verbindung öffnen.
-- **Verbindungsmanager**: Speichern Sie den Effekt und die Geschwindigkeit einer gespeicherten Verbindung, damit neue Tabs sie automatisch verwenden.
+- **Connection-Manager**: Speichern Sie den Effekt und die Geschwindigkeit einer gespeicherten Verbindung, damit neue Tabs sie automatisch verwenden.
 - **Geschwindigkeit**: Verwenden Sie den Schieberegler für `1x` bis `10x`; Wenn das immer noch zu langsam ist, geben Sie im numerischen Geschwindigkeitsfeld einen benutzerdefinierten Wert bis zu `99x` ein.
 
 ### Plugin-Verwaltung
@@ -151,7 +151,7 @@ Schreibt die Terminalausgabe einer Verbindung zur Prüfung und zum Debuggen in e
 
 Konfigurieren Sie es an einer beliebigen Stelle:
 
-- **Verbindungsmanager > Verbindung bearbeiten > Protokollierung** für eine gespeicherte Verbindung.
+- **Connection-Manager > Verbindung bearbeiten > Protokollierung** für eine gespeicherte Verbindung.
 - **Schnellverbindung > Terminalprotokoll** für eine einmalige Sitzung oder zum Ändern der Einstellung für die Verbindung, die Sie gerade öffnen möchten.
 
 1. Protokollierung aktivieren.

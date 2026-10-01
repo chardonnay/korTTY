@@ -21,7 +21,7 @@ Sowohl SSH-Terminal- als auch SFTP-Verbindungen zur Zielroute über den Jump-Ser
 
 So konfigurieren Sie einen Jump-Server für eine Verbindung:
 
-1. Öffnen Sie den *Verbindungsmanager* und bearbeiten (oder erstellen) Sie eine Verbindung.
+1. Öffnen Sie den *Connection-Manager* und bearbeiten (oder erstellen) Sie eine Verbindung.
 2. Gehen Sie zur Registerkarte **Jump-Server**.
 3. **Jump-Server** aktivieren.
 4. Geben Sie die Details des Jump-Servers ein:

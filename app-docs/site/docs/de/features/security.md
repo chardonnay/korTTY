@@ -125,8 +125,8 @@ Interaktive Pins werden atomar in `~/.kortty/ssh-host-keys.properties` geschrieb
 
 Für Labor- oder Wegwerf-Hosts können Sie die Eingabeaufforderung bei der ersten Verwendung deaktivieren und korTTY veranlassen, einen unbekannten Schlüssel stillschweigend zu akzeptieren. Hierbei handelt es sich um eine **Akzeptieren-Neu**-Lockerung, nicht um blindes Vertrauen: Ein Schlüssel, der sich von dem unterscheidet, der bereits für diesen Host festgelegt wurde, ist immer noch hart blockiert, sodass ein Man-in-the-Middle auf einem Host, mit dem Sie sich zuvor verbunden haben, immer noch abgefangen wird. Es ist standardmäßig deaktiviert und kann in der Reihenfolge der Priorität auf drei Bereiche eingestellt werden:
 
-1. **Pro Verbindung** – das Steuerelement *Hostschlüsselüberprüfung* im Verbindungseditor des Verbindungsmanagers und in der Schnellverbindung mit drei Zuständen: **Standard verwenden** (übernehmen), **Überprüfen** (strikt erzwingen, auch wenn die Gruppen- oder globale Einstellung dies gelockert hat) und **Nicht überprüfen**.
-2. **Pro Gruppe** – Klicken Sie im Verbindungsmanager mit der rechten Maustaste auf eine Gruppe und aktivieren Sie **Hostschlüsselüberprüfung deaktivieren**; Es gilt für jede Verbindung in der Gruppe, die erbt.
+1. **Pro Verbindung** – das Steuerelement *Hostschlüsselüberprüfung* im Verbindungseditor des Connection-Managers und in der Schnellverbindung mit drei Zuständen: **Standard verwenden** (übernehmen), **Überprüfen** (strikt erzwingen, auch wenn die Gruppen- oder globale Einstellung dies gelockert hat) und **Nicht überprüfen**.
+2. **Pro Gruppe** – Klicken Sie im Connection-Manager mit der rechten Maustaste auf eine Gruppe und aktivieren Sie **Hostschlüsselüberprüfung deaktivieren**; Es gilt für jede Verbindung in der Gruppe, die erbt.
 3. **Global** – **Einstellungen → Terminal → Hostschlüsselüberprüfung für alle Verbindungen deaktivieren**, der Basisstandard für jede Verbindung, die auf beiden oben genannten Ebenen erbt.
 
 Der eigene Hostschlüssel eines Jump-Servers wird durch keines davon gelockert – die Bastion wird immer streng überprüft.
