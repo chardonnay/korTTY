@@ -452,6 +452,10 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         // Several journals can be exported into one archive or deleted in one go.
         view.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         view.setPlaceholder(new Label(I18n.get("journal.manager.empty")));
+        // One fixed row height for every row: measured per row, the title cell (rebuilt with its
+        // badges on every update) made rows differ and grow when selected. Derived from the font
+        // so larger UI fonts still get comfortable rows.
+        view.setFixedCellSize(rowHeight(javafx.scene.text.Font.getDefault().getSize()));
 
         TreeTableColumn<SessionJournalTreeSupport.Node, String> titleColumn =
             new TreeTableColumn<>(I18n.get("journal.manager.column.title"));
@@ -606,6 +610,11 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
             menu.getItems().add(openJob);
         }
         return menu;
+    }
+
+    /** Row height of the journal table for a UI font size: roomy, never below 30 px. */
+    static double rowHeight(double fontSize) {
+        return Math.max(30, Math.ceil(fontSize * 2.4));
     }
 
     /** "Job: Nightly check", "Run 30.09.2026 22:00", or the journal's title. */

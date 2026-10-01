@@ -140,6 +140,20 @@ public final class AutomationJournalPaneSmoke {
         dialog.getDialogPane().setPrefSize(1500, 520);
         dialog.getDialogPane().applyCss();
         dialog.getDialogPane().layout();
+        // Selecting a row must not change its height: every row keeps the fixed height.
+        table.getSelectionModel().select(1);
+        dialog.getDialogPane().applyCss();
+        dialog.getDialogPane().layout();
+        java.util.Set<Double> heights = new java.util.TreeSet<>();
+        for (javafx.scene.Node row : table.lookupAll(".tree-table-row-cell")) {
+            if (row instanceof javafx.scene.control.TreeTableRow<?> treeRow && treeRow.getItem() != null) {
+                heights.add(treeRow.getHeight());
+            }
+        }
+        System.out.println("Journal table row heights: " + heights + " (fixed " + table.getFixedCellSize() + ")");
+        if (heights.size() != 1 || table.getFixedCellSize() < 30) {
+            throw new IllegalStateException("Journal table rows differ in height: " + heights);
+        }
         WritableImage image = dialog.getDialogPane().snapshot(null, null);
         File out = new File("build/smoke/" + file);
         out.getParentFile().mkdirs();
