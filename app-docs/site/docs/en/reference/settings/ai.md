@@ -70,6 +70,7 @@ The same fields are edited in **AI > AI Manager > Profiles**, where the whole fo
 | Max tokens | number + unit | (amount: 0–1,000,000; unit: Thousands or Millions) | 0 (unlimited) | (profile `tokenLimitAmount`, `tokenLimitUnit` fields) |
 | Warning thresholds | number pair | Yellow %: 0–100, Red %: 0–100 | 75%, 90% | (profile `tokenWarningYellowPercent`, `tokenWarningRedPercent` fields) |
 | Reset | number + anchor date | Period: 1–3650 days; Anchor date | 30 days | (profile `tokenResetPeriodDays`, `tokenResetAnchorDate` fields) |
+| Price per 1M tokens | two numbers + currency | Input and Output price per one million tokens (comma or dot as decimal separator; empty = no price); currency EUR, USD, CHF, GBP or any ISO code. Edited in **AI → AI Manager → Profiles** | empty, EUR | (profile `pricePerMillionPromptTokens`, `pricePerMillionCompletionTokens`, `priceCurrency` fields) |
 | Test AI Connection | button | — | — | (action only) |
 
 ## Snippet Editor
@@ -170,7 +171,9 @@ Each AI profile maintains a token usage quota with the following controls:
 - **Reset period**: Number of days between resets (1–3650), with an optional anchor date for predictable reset timing.
 - **Warning thresholds**: Yellow warning triggers at a percentage of the limit; red warning at a higher percentage. Configure both as integers 0–100.
 
-Token usage is displayed as a colored bar and summary on the profile editor, and the profile list shows token status inline.
+- **Price per 1M tokens** (AI Manager only, optional): the price the provider charges per one million input and output tokens. With a price, korTTY shows what AI calls cost in money — next to the quota bar as "≈ 3.42 € in this period", on [session journals](../../features/session-journal.md#ai-token-usage-and-cost) and in the [AI Swarm](../../features/ai-swarm.md) dashboard header. A profile running locally (an integrated llama.cpp/MLX model or an endpoint on `localhost`/`127.0.0.1`) is shown as "local · no token costs" instead.
+
+Token usage is displayed as a colored bar and summary on the profile editor, and the profile list shows token status inline. Usage is counted for every AI call made with the profile: chat answers, the terminal AI agent, every agent of an AI Swarm run plus its final combined answer, scheduled AI jobs, and every session journal call (summaries, titles, screenshot analysis, questions, translations).
 
 ### Internet Access Modes
 

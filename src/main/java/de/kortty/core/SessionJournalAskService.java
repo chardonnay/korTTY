@@ -134,7 +134,7 @@ public final class SessionJournalAskService {
                 meta.getUsername(), meta.getHost(),
                 meta.getStartedAt() != null ? meta.getStartedAt().format(TIME) : null,
                 context.numberedLines(), transcriptLines(transcript), question);
-            AiExecutionResult result = call(executor, system, user, cancelled);
+            AiExecutionResult result = call(meta.getDirectory(), executor, system, user, cancelled);
             SessionJournalAiSupport.AskAnswer parsed = result != null
                 ? SessionJournalAiSupport.parseAskAnswer(result.content(), context.ordinalEntries().size())
                 : null;
@@ -153,7 +153,7 @@ public final class SessionJournalAskService {
             String groundingSystem = SessionJournalPrompts.askGroundingSystemPrompt(languageCode);
             String groundingUser = SessionJournalPrompts.askGroundingUserPrompt(
                 question, parsed.answer(), evidenceLines(evidence));
-            AiExecutionResult grounded = call(executor, groundingSystem, groundingUser, cancelled);
+            AiExecutionResult grounded = call(meta.getDirectory(), executor, groundingSystem, groundingUser, cancelled);
             SessionJournalAiSupport.AskAnswer groundedParsed = grounded != null
                 ? SessionJournalAiSupport.parseAskAnswer(grounded.content(), context.ordinalEntries().size())
                 : null;
@@ -173,15 +173,29 @@ public final class SessionJournalAskService {
         }
     }
 
+    /** Q&amp;A spends tokens on the journal too, so they count towards its totals. */
+    private void recordJournalUsage(java.nio.file.Path journalDir, AiExecutionResult result) {
+        if (journalDir == null || result == null || result.usage() == null) {
+            return;
+        }
+        try {
+            service.addAiUsage(journalDir, result.usage(), invoker.profile());
+        } catch (Exception e) {
+            logger.debug("Could not record journal ask usage: {}", e.getMessage());
+        }
+    }
+
     /** One AI call with the timeout and cooperative cancellation; null on any failure. */
-    private AiExecutionResult call(ExecutorService executor, String system, String user,
-                                   BooleanSupplier cancelled) {
+    private AiExecutionResult call(java.nio.file.Path journalDir, ExecutorService executor, String system,
+                                   String user, BooleanSupplier cancelled) {
         Future<AiExecutionResult> future = executor.submit(() -> invoker.execute(system, user));
         long deadline = System.nanoTime() + CALL_TIMEOUT_SECONDS * 1_000_000_000L;
         try {
             while (true) {
                 try {
-                    return future.get(500, TimeUnit.MILLISECONDS);
+                    AiExecutionResult result = future.get(500, TimeUnit.MILLISECONDS);
+                    recordJournalUsage(journalDir, result);
+                    return result;
                 } catch (TimeoutException e) {
                     if (cancelled != null && cancelled.getAsBoolean()) {
                         future.cancel(true);

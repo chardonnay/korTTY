@@ -40,6 +40,7 @@ final class PerAgentRunUi implements TerminalAgentService.RunUi {
     private volatile long completionTokens;
     private volatile long totalTokens;
     private volatile long pausedMillis;
+    private volatile java.util.function.Consumer<AiTokenUsage> usageSink = usage -> { };
 
     PerAgentRunUi(SwarmTarget target, SwarmCallback callback, ApprovalRouter approvalRouter) {
         this(target, callback, approvalRouter, new SwarmRunControl(), 0);
@@ -149,7 +150,17 @@ final class PerAgentRunUi implements TerminalAgentService.RunUi {
         promptTokens += usage.promptTokens();
         completionTokens += usage.completionTokens();
         totalTokens += usage.totalTokens();
+        try {
+            usageSink.accept(usage);
+        } catch (RuntimeException ignored) {
+            // quota bookkeeping must never break the agent run
+        }
         emit();
+    }
+
+    /** Receives every usage record of this agent, e.g. to book it against the profile quota. */
+    void setUsageSink(java.util.function.Consumer<AiTokenUsage> usageSink) {
+        this.usageSink = usageSink != null ? usageSink : usage -> { };
     }
 
     @Override

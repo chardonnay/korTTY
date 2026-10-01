@@ -2,6 +2,7 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.SessionJournalExportService;
+import de.kortty.core.SessionJournalHeaderSupport;
 import de.kortty.core.SessionJournalService;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.SessionJournalLogFormat;
@@ -355,6 +356,18 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         return counts.get(meta.getDirectory().toAbsolutePath().normalize());
     }
 
+    /** "Prompt 9 812 · completion 2 488 · 4 calls · Profile" for the AI tokens tooltip. */
+    static String aiUsageTooltip(SessionJournalMeta meta) {
+        if (meta == null || meta.getAiCallCount() <= 0) {
+            return "";
+        }
+        return I18n.get("journal.ai.usage.detail",
+            Long.toString(meta.getAiPromptTokens()),
+            Long.toString(meta.getAiCompletionTokens()),
+            Integer.toString(meta.getAiCallCount()),
+            meta.getAiProfileName() != null ? meta.getAiProfileName() : "");
+    }
+
     private TableView<SessionJournalMeta> buildTable() {
         TableView<SessionJournalMeta> view = new TableView<>();
         view.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
@@ -405,8 +418,26 @@ public class SessionJournalManagerDialog extends ThemeAwareDialog<Void> {
         entriesColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().getLogEntryCount()));
         entriesColumn.setMinWidth(70);
 
+        // Sorted on the token count; the cell shows tokens and cost, the tooltip the breakdown.
+        TableColumn<SessionJournalMeta, Long> aiTokensColumn =
+            new TableColumn<>(I18n.get("journal.manager.column.aiTokens"));
+        aiTokensColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().getAiTotalTokens()));
+        aiTokensColumn.setCellFactory(column -> new TableCell<>() {
+            @Override
+            protected void updateItem(Long tokens, boolean empty) {
+                super.updateItem(tokens, empty);
+                SessionJournalMeta meta = empty || getTableRow() == null ? null : getTableRow().getItem();
+                String summary = meta == null ? "" : SessionJournalHeaderSupport.aiUsageSummary(
+                    meta, I18n.get("journal.ai.usage.local"), java.util.Locale.getDefault());
+                setText(summary);
+                setTooltip(summary.isEmpty() ? null : new javafx.scene.control.Tooltip(aiUsageTooltip(meta)));
+            }
+        });
+        aiTokensColumn.setMinWidth(110);
+
         view.getColumns().addAll(List.of(
-            startedColumn, durationColumn, connectionColumn, serverColumn, titleColumn, entriesColumn));
+            startedColumn, durationColumn, connectionColumn, serverColumn, titleColumn, entriesColumn,
+            aiTokensColumn));
 
         SortedList<SessionJournalMeta> sorted = new SortedList<>(filteredJournals);
         sorted.comparatorProperty().bind(view.comparatorProperty());

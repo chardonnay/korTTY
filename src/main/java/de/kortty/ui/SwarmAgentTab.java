@@ -101,6 +101,10 @@ public class SwarmAgentTab extends Tab {
     private final Button connectMissingButton = new Button();
     private final Label targetLabel = new Label(I18n.get("ai.swarm.target.none"));
     private final Label dashboardHeader = new Label();
+    /** Profile of the current/last AI run, for pricing its tokens; null for script runs. */
+    private AiProfile runProfile;
+    /** Tokens the final aggregation call spent in the current/last AI run. */
+    private SwarmModels.TokenTotals aggregationTokens = SwarmModels.TokenTotals.zero();
     private final VBox agentRowsBox = new VBox(6);
     private final VBox messagesBox = new VBox(12);
     private final ScrollPane messagesScrollPane;
@@ -508,6 +512,8 @@ public class SwarmAgentTab extends Tab {
         restartPending = false;
         lastSwarmPhase = null;
         runStartMillis = System.currentTimeMillis();
+        runProfile = profile;
+        aggregationTokens = SwarmModels.TokenTotals.zero();
         swarmControl = new SwarmRunControl();
         SwarmRunControl control = swarmControl;
         timer.playFromStart();
@@ -690,6 +696,9 @@ public class SwarmAgentTab extends Tab {
         lastSwarmPhase = null;
         closeHeadlessRunners();
         statusStrip.markRunFinished();
+        if (result != null && result.aggregationTokens() != null) {
+            aggregationTokens = result.aggregationTokens();
+        }
         // A swarm restart discards the cancelled run's partial aggregation instead of
         // polluting the chat (and the autosave) with a half answer.
         if (!restartRequested && result != null && result.markdown() != null && !result.markdown().isBlank()) {
@@ -802,6 +811,8 @@ public class SwarmAgentTab extends Tab {
         restartPending = false;
         lastSwarmPhase = null;
         runStartMillis = System.currentTimeMillis();
+        runProfile = null;
+        aggregationTokens = SwarmModels.TokenTotals.zero();
         swarmControl = new SwarmRunControl();
         SwarmRunControl control = swarmControl;
         timer.playFromStart();
@@ -1497,7 +1508,33 @@ public class SwarmAgentTab extends Tab {
         long elapsed = busy && runStartMillis > 0
             ? Math.max(0L, (System.currentTimeMillis() - runStartMillis) / 1000L)
             : 0L;
-        dashboardHeader.setText(I18n.get("ai.swarm.progress", running, done, failed, formatElapsed(elapsed)));
+        dashboardHeader.setText(I18n.get("ai.swarm.progress", running, done, failed, formatElapsed(elapsed))
+            + runUsageSuffix());
+    }
+
+    /** " · Σ 12.3k tokens · ≈ 0,04 €" for the whole run (agents + aggregation); empty before any AI call. */
+    private String runUsageSuffix() {
+        long prompt = aggregationTokens.prompt();
+        long completion = aggregationTokens.completion();
+        long total = aggregationTokens.total();
+        for (SwarmAgentRow row : rowsByAgentId.values()) {
+            prompt += row.promptTokens;
+            completion += row.completionTokens;
+            total += row.totalTokens;
+        }
+        if (total <= 0) {
+            return "";
+        }
+        StringBuilder suffix = new StringBuilder("  ·  ")
+            .append(I18n.get("ai.swarm.runTokens", de.kortty.core.AiTokenUsageManager.formatCompact(total)));
+        if (de.kortty.core.AiCostCalculator.isLocal(runProfile)) {
+            suffix.append("  ·  ").append(I18n.get("settings.ai.price.local"));
+        } else if (de.kortty.core.AiCostCalculator.hasPrice(runProfile)) {
+            double cost = de.kortty.core.AiCostCalculator.cost(runProfile, prompt, completion);
+            suffix.append("  ·  ≈ ").append(de.kortty.core.AiCostCalculator.format(
+                cost, de.kortty.core.AiCostCalculator.currency(runProfile), java.util.Locale.getDefault()));
+        }
+        return suffix.toString();
     }
 
     private void updateSendAvailability() {
@@ -1677,6 +1714,8 @@ public class SwarmAgentTab extends Tab {
         private String lastActivity = "";
         private long elapsedSeconds;
         private long totalTokens;
+        private long promptTokens;
+        private long completionTokens;
         private long startedAtMillis;
 
         SwarmAgentRow(String agentId, String displayName) {
@@ -1772,6 +1811,8 @@ public class SwarmAgentTab extends Tab {
             this.lastActivity = status.currentActivity() != null ? status.currentActivity() : "";
             this.elapsedSeconds = status.elapsedSeconds();
             this.totalTokens = status.tokens() != null ? status.tokens().total() : 0L;
+            this.promptTokens = status.tokens() != null ? status.tokens().prompt() : 0L;
+            this.completionTokens = status.tokens() != null ? status.tokens().completion() : 0L;
             // Every status carries the agent's authoritative elapsed (pause-adjusted, restart-reset);
             // rebase unconditionally so the local 1s tick merely interpolates between statuses.
             if (!isTerminal()) {

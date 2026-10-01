@@ -130,6 +130,23 @@ class SwarmCoreTest {
         assertThat(doneAgents).isEqualTo(3L);
     }
 
+    @Test
+    void usageSinkReceivesEveryAgentCallAndTheAggregation() {
+        SwarmOrchestrator orchestrator = new SwarmOrchestrator(new TokenReportingAgentService());
+        List<AiTokenUsage> recorded = Collections.synchronizedList(new ArrayList<>());
+        orchestrator.setUsageSink(recorded::add);
+        List<SwarmTarget> targets = List.of(
+            new SwarmTarget("run-1", conn("A", "hostA", 22, "root"), null, null, "sess-1", "hostA"),
+            new SwarmTarget("run-2", conn("B", "hostB", 22, "root"), null, null, "sess-2", "hostB"));
+
+        orchestrator.run(request(2), targets, new AiProfile(), () -> new FakeAiService(VALID_TABLE),
+            new CollectingCallback());
+
+        // two agents x 15 tokens, plus the aggregation call (FakeAiService reports 3)
+        assertThat(recorded).hasSize(3);
+        assertThat(recorded.stream().mapToLong(AiTokenUsage::totalTokens).sum()).isEqualTo(33L);
+    }
+
     // ---- Control-plane scenarios (restart / stop / cancel / pause) --------------
 
     private static SwarmModels.SwarmRequest request(int parallelism) {
@@ -349,6 +366,24 @@ class SwarmCoreTest {
                 TerminalAgentModels.Phase.DONE, "ok",
                 "free on " + request.connectionDisplayName(),
                 null, null, null, 1));
+        }
+    }
+
+    /** Like {@link FakeAgentService}, but reports one AI call's token usage before finishing. */
+    private static final class TokenReportingAgentService extends TerminalAgentService {
+        @Override
+        public void runAgent(
+            TerminalTab terminalTab,
+            AgentCommandRunner runner,
+            AiProfile profile,
+            AiPromptService aiService,
+            TerminalAgentModels.Request request,
+            String requestedRunId,
+            TerminalAgentService.RunUi ui) {
+            ui.recordTokenUsage(new AiTokenUsage(10, 5, 15));
+            ui.updateState(new TerminalAgentModels.RunState(
+                requestedRunId, request.sessionId(), request.executionTarget(),
+                TerminalAgentModels.Phase.DONE, "ok", "done", null, null, null, 1));
         }
     }
 

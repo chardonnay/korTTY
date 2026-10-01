@@ -231,6 +231,13 @@ public class SessionJournalScreenshotAnalyzer {
             entry.getText());
 
         AiExecutionResult result = executeWithTimeout(systemPrompt, userPrompt, List.of(AiImageInput.png(png)));
+        if (result != null && result.usage() != null) {
+            try {
+                service.addAiUsage(journalDir, result.usage(), aiInvoker.profile());
+            } catch (Exception e) {
+                logger.debug("Could not record screenshot analysis usage: {}", e.getMessage());
+            }
+        }
         if (result == null || result.outputTruncated()) {
             // A truncated reply may parse as prose and would store half a description.
             throw new IllegalStateException("AI reply was empty or truncated");
