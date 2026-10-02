@@ -98,71 +98,15 @@ class ScrollbackTrimEmulatorTest {
         assertThat(session.marks.keySet()).containsExactly(2);
     }
 
-    /**
-     * A restored session installs its marks first; the remote history replay then echoes the saved
-     * text through the shell and runs {@code clear;cat}. The marks name the lines {@code cat} prints,
-     * so neither the echo nor that clear may move or wipe them - otherwise the next project save
-     * writes the tab without its timestamps.
-     */
-    @Test
-    void restoredMarksSurviveTheRemoteHistoryReplay() throws IOException {
-        for (String clear : List.of(LINUX_CLEAR, MACOS_CLEAR)) {
-            Session session = new Session();
-            session.process(lines(0, ROWS));
-            session.drain();
-            TreeMap<Integer, LocalDateTime> restored = new TreeMap<>();
-            restored.put(1, T0);
-            restored.put(6, T0.plusMinutes(2));
-            session.marks.putAll(restored);
-            session.historyReplayPending = true;
-
-            // The here-doc echo, longer than the scrollback, drained in two FX batches.
-            session.process(lines(200, MAX_HISTORY + 3));
-            session.drain();
-            session.process(lines(300, MAX_HISTORY));
-            session.drain();
-            session.process(clear);
-            session.drain();
-            session.process(lines(0, 8));
-            session.drain();
-
-            assertWithMessage("the restored marks stay where the restore put them")
-                    .that(session.marks).isEqualTo(restored);
-            assertWithMessage("the replay's clear ends the replay").that(session.historyReplayPending).isFalse();
-
-            session.process(lines(400, MAX_HISTORY + 2));
-            session.drain();
-            assertWithMessage("after the replay the marks follow their lines again")
-                    .that(session.marks.firstKey()).isLessThan(restored.lastKey());
-        }
-    }
-
-    @Test
-    void withoutThePendingReplayTheSameOutputWipesTheRestoredMarks() throws IOException {
-        Session session = new Session();
-        session.process(lines(0, ROWS));
-        session.drain();
-        session.marks.put(1, T0);
-
-        session.process(lines(200, MAX_HISTORY + 3) + LINUX_CLEAR + lines(0, 8));
-        session.drain();
-
-        assertWithMessage("this is what the pending replay prevents").that(session.marks).isEmpty();
-    }
-
     @Test
     void onlyAClearOrARealShiftMovesMarks() {
-        assertThat(TerminalView.scrollbackTrimMovesMarks(Trim.cleared(), false)).isTrue();
-        assertThat(TerminalView.scrollbackTrimMovesMarks(Trim.shift(4), false)).isTrue();
-        assertThat(TerminalView.scrollbackTrimMovesMarks(Trim.none(), false)).isFalse();
+        assertThat(TerminalView.scrollbackTrimMovesMarks(Trim.cleared())).isTrue();
+        assertThat(TerminalView.scrollbackTrimMovesMarks(Trim.shift(4))).isTrue();
+        assertThat(TerminalView.scrollbackTrimMovesMarks(Trim.none())).isFalse();
         assertWithMessage("a width reflow keeps the marks where they are")
-                .that(TerminalView.scrollbackTrimMovesMarks(Trim.unknown(), false)).isFalse();
-        assertThat(TerminalView.scrollbackTrimMovesMarks(Trim.suspended(), false)).isFalse();
-        assertThat(TerminalView.scrollbackTrimMovesMarks(null, false)).isFalse();
-        assertThat(TerminalView.scrollbackTrimMovesMarks(Trim.cleared(), true)).isFalse();
-        assertThat(TerminalView.scrollbackTrimMovesMarks(Trim.shift(4), true)).isFalse();
-        assertThat(TerminalView.scrollbackTrimEndsHistoryReplay(Trim.cleared())).isTrue();
-        assertThat(TerminalView.scrollbackTrimEndsHistoryReplay(Trim.shift(4))).isFalse();
+                .that(TerminalView.scrollbackTrimMovesMarks(Trim.unknown())).isFalse();
+        assertThat(TerminalView.scrollbackTrimMovesMarks(Trim.suspended())).isFalse();
+        assertThat(TerminalView.scrollbackTrimMovesMarks(null)).isFalse();
     }
 
     private static String lines(int first, int count) {
@@ -178,7 +122,6 @@ class ScrollbackTrimEmulatorTest {
         private final SithTerminal terminal;
         private final ScrollbackTrimTracker tracker;
         private TreeMap<Integer, LocalDateTime> marks = new TreeMap<>();
-        private boolean historyReplayPending;
 
         Session() {
             StyleState styleState = new StyleState();
@@ -198,11 +141,7 @@ class ScrollbackTrimEmulatorTest {
         /** One FX batch of the model listener: drain, then apply as TerminalView does. */
         Trim drain() {
             Trim trim = tracker.drain();
-            boolean pending = historyReplayPending;
-            if (pending && TerminalView.scrollbackTrimEndsHistoryReplay(trim)) {
-                historyReplayPending = false;
-            }
-            if (TerminalView.scrollbackTrimMovesMarks(trim, pending)) {
+            if (TerminalView.scrollbackTrimMovesMarks(trim)) {
                 marks = trim.kind() == Trim.Kind.CLEARED
                         ? new TreeMap<>()
                         : TimestampHistory.shift(marks, trim.lines());
