@@ -53,7 +53,8 @@ public class CredentialManager {
     private static final Duration DRAIN_JOIN_TIMEOUT = Duration.ofSeconds(2);
     private static final Duration FLATPAK_TERMINATE_GRACE = Duration.ofMillis(300);
     /** Appended to a PowerShell password command so a failing native tool fails the whole run. */
-    static final String POWERSHELL_EXIT_CODE_TRAILER = "\nif ($LASTEXITCODE) { exit $LASTEXITCODE }";
+    static final String POWERSHELL_EXIT_CODE_TRAILER =
+        "\n$__korttyOk = $?; if ($LASTEXITCODE) { exit $LASTEXITCODE } elseif (-not $__korttyOk) { exit 1 }";
 
     private final Path configDir;
     private final List<StoredCredential> credentials = new ArrayList<>();
@@ -253,7 +254,8 @@ public class CredentialManager {
 
     /**
      * The argv that runs {@code command} in {@code shell}. PowerShell reports a native tool's
-     * failure only when the script ends with it, so a trailer re-raises {@code $LASTEXITCODE}; the
+     * failure only when the script ends with it, so a trailer re-raises {@code $LASTEXITCODE}, and a
+     * cmdlet's non-terminating error ({@code $?} false, no exit code) becomes exit code 1; the
      * trailer sits on its own line so a trailing {@code #} comment in the command cannot swallow it.
      * Under Flatpak the command is spawned on the host, where the password manager's CLI lives.
      */

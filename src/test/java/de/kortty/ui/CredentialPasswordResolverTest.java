@@ -8,12 +8,20 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.truth.Truth.assertThat;
 
+/**
+ * The external commands never run here: {@link ControlledCredentialManager} hands out futures the
+ * test completes, so the order of the results is deterministic and no shell is started (real
+ * process coverage lives in {@code CredentialManagerExternalCommandTest}).
+ */
 class CredentialPasswordResolverTest {
 
     private static final char[] MASTER = "master-password".toCharArray();
@@ -23,7 +31,7 @@ class CredentialPasswordResolverTest {
 
     @Test(timeOut = 60_000)
     void staleResultOfAnEarlierSelectionIsDropped() throws Exception {
-        CredentialManager manager = newManager();
+        ControlledCredentialManager manager = newManager();
         StoredCredential first = externalCommandCredential(manager, "first", "echo first-secret");
         StoredCredential second = externalCommandCredential(manager, "second", "echo second-secret");
         CredentialPasswordResolver resolver = new CredentialPasswordResolver(uiQueue::add);
@@ -32,6 +40,9 @@ class CredentialPasswordResolverTest {
         resolver.resolve(manager, first, MASTER, listener);
         resolver.resolve(manager, second, MASTER, listener);
         assertThat(resolver.isPending()).isTrue();
+        // The second command finishes first, the first one late: the late result must be dropped.
+        manager.future("second").complete("second-secret");
+        manager.future("first").complete("first-secret");
         runUiCallbacks(2);
 
         assertThat(listener.events).containsExactly("started first", "started second", "resolved second second-secret")
@@ -41,7 +52,7 @@ class CredentialPasswordResolverTest {
 
     @Test(timeOut = 60_000)
     void cancelDropsTheResultInFlight() throws Exception {
-        CredentialManager manager = newManager();
+        ControlledCredentialManager manager = newManager();
         StoredCredential credential = externalCommandCredential(manager, "vault", "echo secret");
         CredentialPasswordResolver resolver = new CredentialPasswordResolver(uiQueue::add);
         RecordingListener listener = new RecordingListener();
@@ -49,6 +60,7 @@ class CredentialPasswordResolverTest {
         resolver.resolve(manager, credential, MASTER, listener);
         resolver.cancel();
         assertThat(resolver.isPending()).isFalse();
+        manager.future("vault").complete("secret");
         runUiCallbacks(1);
 
         assertThat(listener.events).containsExactly("started vault");
@@ -56,12 +68,13 @@ class CredentialPasswordResolverTest {
 
     @Test(timeOut = 60_000)
     void commandFailureIsDeliveredUnwrapped() throws Exception {
-        CredentialManager manager = newManager();
+        ControlledCredentialManager manager = newManager();
         StoredCredential credential = externalCommandCredential(manager, "broken", "exit 3");
         CredentialPasswordResolver resolver = new CredentialPasswordResolver(uiQueue::add);
         RecordingListener listener = new RecordingListener();
 
         resolver.resolve(manager, credential, MASTER, listener);
+        manager.future("broken").completeExceptionally(new IOException("password command exited with 3"));
         runUiCallbacks(1);
 
         assertThat(listener.events).containsExactly("started broken", "failed broken IOException").inOrder();
@@ -93,11 +106,28 @@ class CredentialPasswordResolverTest {
         }
     }
 
-    private static CredentialManager newManager() throws IOException {
-        return new CredentialManager(Files.createTempDirectory("kortty-credential-resolver-"));
+    private static ControlledCredentialManager newManager() throws IOException {
+        return new ControlledCredentialManager();
     }
 
-    /** {@code echo} and {@code exit} behave the same in sh and PowerShell, so these run everywhere. */
+    /** Returns a future per credential name that the test completes itself. */
+    private static final class ControlledCredentialManager extends CredentialManager {
+        private final Map<String, CompletableFuture<String>> futures = new ConcurrentHashMap<>();
+
+        ControlledCredentialManager() throws IOException {
+            super(Files.createTempDirectory("kortty-credential-resolver-"));
+        }
+
+        CompletableFuture<String> future(String credentialName) {
+            return futures.computeIfAbsent(credentialName, name -> new CompletableFuture<>());
+        }
+
+        @Override
+        public CompletableFuture<String> getPasswordAsync(StoredCredential credential, char[] masterPassword) {
+            return future(credential.getName());
+        }
+    }
+
     private static StoredCredential externalCommandCredential(CredentialManager manager, String name, String command)
         throws Exception {
         StoredCredential credential = new StoredCredential();

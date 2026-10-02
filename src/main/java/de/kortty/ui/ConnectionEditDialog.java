@@ -538,6 +538,9 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         });
         updateLocalShellFields();
         validateForm(saveButton);
+        // A password command still running when the dialog closes must not report back afterwards
+        // (for example with a timeout alert about a dialog that is gone).
+        addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> credentialPasswordResolver.cancel());
         
         // Result converter
         setResultConverter(dialogButton -> {

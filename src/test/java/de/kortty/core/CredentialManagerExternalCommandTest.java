@@ -170,7 +170,8 @@ class CredentialManagerExternalCommandTest {
         assertThat(argv).contains("-NonInteractive");
         String script = new String(Base64.getDecoder().decode(argv.get(argv.size() - 1)), StandardCharsets.UTF_16LE);
         assertThat(script).isEqualTo(
-            LocalShellArgv.POWERSHELL_UTF8_PREFIX + command + "\nif ($LASTEXITCODE) { exit $LASTEXITCODE }");
+            LocalShellArgv.POWERSHELL_UTF8_PREFIX + command
+                + "\n$__korttyOk = $?; if ($LASTEXITCODE) { exit $LASTEXITCODE } elseif (-not $__korttyOk) { exit 1 }");
     }
 
     @Test

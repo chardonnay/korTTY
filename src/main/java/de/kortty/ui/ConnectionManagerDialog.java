@@ -1231,6 +1231,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                     // password command runs in the background; only the still-selected
                     // credential's result is applied.
                     CredentialPasswordResolver passwordResolver = new CredentialPasswordResolver();
+                    passwordDialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> passwordResolver.cancel());
                     String enterPasswordPrompt = passwordField.getPromptText();
                     storedCredentialCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
                         if (newVal == null || credentialManager == null || masterPassword == null) {
