@@ -992,7 +992,8 @@ The integrated SFTP Manager enables direct file transfers between your local sys
 === Features
 
 * *Two-Panel View*: Local and remote files side by side
-* *Columns*: Name, Type, Size, Date, *User*, *Group*, Permissions (sortable)
+* *Columns*: Name, Type, Size, Date, *User*, *Group*, Permissions (sortable; Size by byte count)
+* *Robust Transfers*: Uploading a folder again merges into the remote folder, uploads are streamed (no size limit), remote folders load in the background, and a lost connection shows *Disconnected* with a *Reconnect* button
 * *Default Sort*: By type — parent directory (`..`) first, then dot-prefix directories, then other directories, then dot-prefix files, then other files (each group alphabetically)
 * *Drag & Drop*: Easy file moving
 * *File Operations*: Delete, rename, copy files and directories
@@ -1003,8 +1004,8 @@ The integrated SFTP Manager enables direct file transfers between your local sys
 
 === Access
 
-* *Dashboard*: Right-click on a server → "Open SFTP Manager"
-* *Menu*: *Tools → Open SFTP Manager...*
+* *Dashboard*: Right-click a connected session → "SFTP-Client..."
+* *Menu*: *Connections → SFTP-Client...* (Ctrl/Cmd+Shift+U)
 
 == Window and Dashboard Management
 
