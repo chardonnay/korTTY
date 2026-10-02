@@ -62,7 +62,7 @@ Die gleichen Felder werden im **KI > KI-Manager > Profile** bearbeitet, wo das g
 | Prompt-Optimierung | Dropdown | Automatisch (Modellerkennung), Allgemein, Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, GPT-OSS | Automatisch | (Profilfeld `promptPreset`) |
 | Reasoning | Dropdown | Deaktiviert, Keine, Minimal, Niedrig, Mittel, Hoch, Extra hoch | Deaktiviert | (Profilfeld `reasoningEffort`) |
 | Bild-Eingabe (Vision) | Dropdown | Automatisch (erkennen), Aktiviert, Deaktiviert | Automatisch (erkennen) | (Profilfeld `visionSupport`) |
-| Internetzugriff | Dropdown | Deaktiviert, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio-Toolpack | Deaktiviert | (Profilfeld `internetAccessMode`) |
+| Internetzugriff | dropdown | Deaktiviert, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio Toolpack (gesperrt auf Deaktiviert, mit Hinweis, für eine native Anthropic Messages API URL) | Deaktiviert | (Profil `internetAccessMode` Feld) |
 | API-Schlüssel (optional) | Text | (Passwortfeld) | — | (Profilfeld `encryptedApiKey`) |
 | Maximale Zeichen | Zahl | 1–50.000.000 | 100.000 | (Profilfeld `maxSelectionChars`) |
 | Zeitlimit für dieses Profil | Kontrollkästchen + Zahl | Eigenes Zeitlimit aus = globales Zeitlimit folgen; ein: 0–1440 Minuten (0 = niemals abgelaufen) | Aus | (Profilfeld `requestTimeoutMinutes`) |
@@ -160,7 +160,7 @@ Für den nativen Anthropic (Claude) Endpoint wird ein aktiviertes Reasoning-Leve
 
 ### Bild-Eingabe (Vision)
 
-**Bild-Eingabe (Vision)** entscheidet, ob korTTY Bilder zu einem Prompt für dieses Profil anhängen darf – verwendet von der KI-Bildschirm-Aufnahme-Analyse des [Session-Journal](../../features/session-journal.md#ki-screenshot-analyse). **Automatisch (erkennen)** ermittelt die Fähigkeit vom Endpunkt: für einen lokalen LM Studio-Endpunkt sind die Modell-Metadaten autoritativ (ein `vlm`Modell gilt als bildfähig; die Antwort wird zusammen mit den Reasoningsstufen – durch das automatische Metadaten-Lesen und durch **Reasoning-Optionen aktualisieren** – gelesen und mit ihnen zwischengespeichert), der native Anthropic-Endpunkt gilt immer als bildfähig, und andere Endpunkte werden anhand bekannter Vision-Modellnamen erkannt (GPT-4o/4.1/5, o3/o4, Gemini, Gemma 3, Qwen-VL, LLaVA, Pixtral und ähnliche). **Aktiviert**/**Deaktiviert** überschreiben die Erkennung für Modelle, die falsch eingeschätzt werden. CLI- und integrierte (llama.cpp/MLX) Profile können keine Bilder senden. Lokale LM Studio-Vision-Modelle (`vlm`) erscheinen ebenfalls im Modell-Dropdown.
+**Bild-Eingabe (Vision)** entscheidet, ob korTTY Bilder zu einem Prompt für dieses Profil anhängen darf – verwendet von der [-Sitzungsjournal-KI-Bildschirmfoto-Analyse](../../features/session-journal.md#ki-screenshot-analyse). **Automatisch (erkennen)** ermittelt die Fähigkeit aus dem Endpunkt: für einen lokalen LM Studio-Endpunkt sind die Modellmetadaten autoritativ (ein `vlm`-Modell gilt als bildfähig; die Antwort wird zusammen mit den Reasoningsstufen – durch das automatische Metadatenlesen und durch **Reasoning-Optionen aktualisieren** – gelesen und mit ihnen zwischengespeichert), der native Anthropic-Endpunkt gilt immer als bildfähig, und andere Endpunkte werden durch bekannte Vision-Modellnamen erkannt (GPT-4o/4.1/5, o3/o4, Gemini, Gemma 3, Qwen-VL, LLaVA, Pixtral und ähnliche). **Aktiviert**/**Deaktiviert** überschreiben die Erkennung für Modelle, die falsch eingeschätzt werden. CLI- und integrierte (llama.cpp/MLX) Profile können keine Bilder senden. Lokale LM Studio Vision-Modelle (`vlm`) erscheinen ebenfalls im Modell-Dropdown.
 
 ### Token-Quoten-Verwaltung
 
@@ -171,7 +171,7 @@ Jedes KI-Profil verfügt über ein Token-Verbrauchslimit mit den folgenden Einst
 - **Reset-Periode**: Anzahl der Tage zwischen den Resets (1–3650), wobei ein optionaler Referenzdatum für vorhersehbare Resetzeiten verwendet wird.
 - **Warnschwellen**: Eine gelbe Warnung wird bei einem bestimmten Prozentsatz der Grenze ausgelöst; eine rote Warnung bei einem höheren Prozentsatz. Beide Werte können als ganze Zahlen zwischen 0 und 100 konfiguriert werden.
 
-- **Preis pro 1 Mio. Tokens** (nur im KI-Manager, optional): der Preis, den der Anbieter pro eine Million Eingabe- und Ausgabe-Tokens verlangt. Mit einem Preis zeigt korTTY, was KI-Aufrufe kosten in Geld – neben der Quotenleiste als „≈ 3,42 € in diesem Zeitraum“, auf [Sitzungsjournale](../../features/session-journal.md#ki-token-nutzung-und-kosten) und im [KI-Swarm](../../features/ai-swarm.md) Dashboard-Header. Ein Profil, das lokal läuft (ein integriertes llama.cpp/MLX-Modell oder ein Endpunkt auf `localhost`/`127.0.0.1`), wird stattdessen als „lokal · keine Token-Kosten“ angezeigt.
+- **Preis pro 1 Mio. Tokens** (nur KI-Manager, optional): der Preis, den der Anbieter pro eine Million Eingabe- und Ausgabe-Tokens verlangt. Mit einem Preis zeigt korTTY, was KI-Aufrufe kosten in Geld – neben der Kontingentleiste als "≈ 3,42 € in diesem Zeitraum", auf [-Sitzungsjournale](../../features/session-journal.md#ki-token-nutzung-und-kosten) und im [KI-Swarm](../../features/ai-swarm.md)-Dashboard-Header. Ein Profil, das lokal läuft (ein integriertes llama.cpp/MLX-Modell oder ein Endpunkt auf `localhost`/`127.0.0.1`), wird als "lokal · keine Token-Kosten" angezeigt.
 
 Die Token-Nutzung wird im Profil-Editor als farbige Balken und Zusammenfassung angezeigt, und die Profilliste zeigt den Tokenstatus inline. Die Nutzung wird für jeden KI-Aufruf gezählt, der mit dem Profil ausgeführt wird: Chat-Antworten, der Terminal-KI-Agent, jeder Agent eines KI-Swarms im Lauf plus seine endgültige kombinierte Antwort, geplante KI-Jobs und jeder Aufruf des Sitzungsjournals (Zusammenfassungen, Titel, Screenshot-Analyse, Fragen, Übersetzungen).
 
@@ -195,6 +195,8 @@ Die Anmeldeinformationen werden verschlüsselt und sicher gespeichert. Verwenden
     native API, das ein eingebettetes Modell niemals durchläuft – die Auswahl eines auf einem eingebetteten Profil
     falscht die Anfrage mit einer expliziten Nachricht statt stumm ohne Webzugriff zu antworten.
     Lokale CLI-Profile verfügen über keine Internet-Modi; das Dropdown-Menü ist für sie deaktiviert.
+
+    Native Anthropic Messages API-Profile (eine API-URL, die mit `/v1/messages` endet) haben ebenfalls keine Internet-Modi, weil korTTY keine Web-Tools an diese API sendet: das Dropdown ist auf **Deaktiviert** festgelegt, und ein Hinweis darunter erklärt warum. Ein von einer früheren Version gespeicherter Modus wird als **Deaktiviert** angezeigt, wenn das Profil geöffnet wird und hat keinen Einfluss auf Anfragen.
 
     Eine Organisation kann den Web-Zugriff vollständig verbieten, indem sie den `allow-internet`-Policy-Schlüssel verwendet — siehe
     [Enterprise-Politik](../enterprise-policy.md).
