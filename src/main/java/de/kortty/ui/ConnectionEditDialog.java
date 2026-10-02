@@ -20,6 +20,7 @@ import de.kortty.model.WindowGeometry;
 import de.kortty.plugin.terminaleffects.TerminalEffectAnimationSpeed;
 import com.sithtermfx.core.emulator.EmulationType;
 import de.kortty.core.TerminalEmulationSupport;
+import de.kortty.core.TerminalEncodingSupport;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert;
@@ -58,6 +59,10 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private final Spinner<Integer> portSpinner;
     private final ComboBox<ConnectionProtocol> protocolCombo;
     private final ComboBox<EmulationType> terminalEmulationCombo;
+    /** Per-connection terminal encoding; the first entry (value null) uses the default. */
+    private final ComboBox<EncodingChoice> encodingCombo;
+    /** Shown beside the locked encoding picker for Mosh: a disabled control shows no tooltip. */
+    private final Label encodingMoshHint;
     private final TextField usernameField;
     private final PasswordField passwordField;
     private final TextField groupField;
@@ -231,6 +236,20 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         TerminalEmulationComboBoxSupport.configureComboBox(terminalEmulationCombo);
         TerminalEmulationComboBoxSupport.select(terminalEmulationCombo, connection.getTerminalEmulationType());
         terminalEmulationCombo.setPrefWidth(300);
+
+        encodingCombo = new ComboBox<>();
+        encodingCombo.getItems().add(new EncodingChoice(null, I18n.get("connEdit.encoding.inherit")));
+        for (String encoding : TerminalEncodingSupport.offeredEncodings(connection.getEncoding())) {
+            encodingCombo.getItems().add(new EncodingChoice(encoding, encoding));
+        }
+        String storedEncoding = TerminalEncodingSupport.displayName(connection.getEncoding());
+        encodingCombo.setValue(encodingCombo.getItems().stream()
+            .filter(choice -> java.util.Objects.equals(choice.value(), storedEncoding))
+            .findFirst().orElse(encodingCombo.getItems().get(0)));
+        encodingCombo.setPrefWidth(300);
+        encodingCombo.setTooltip(new Tooltip(I18n.get("connEdit.encoding.tooltip")));
+        encodingMoshHint = new Label(I18n.get("connEdit.encoding.moshUtf8Only"));
+        encodingMoshHint.setStyle(MutedTextStyle.HINT);
         
         usernameField = new TextField(connection.getUsername());
         usernameField.setPromptText("root");
@@ -415,6 +434,11 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
         connectionGrid.add(new Label(I18n.get("connEdit.terminalEmulation")), 0, row);
         connectionGrid.add(terminalEmulationCombo, 1, row++);
+
+        connectionGrid.add(new Label(I18n.get("connEdit.encoding")), 0, row);
+        HBox encodingBox = new HBox(10, encodingCombo, encodingMoshHint);
+        encodingBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        connectionGrid.add(encodingBox, 1, row++);
         
         connectionGrid.add(new Label(I18n.get("connEdit.group")), 0, row);
         connectionGrid.add(groupField, 1, row++);
@@ -549,9 +573,11 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         if (temporaryKeyArea != null) temporaryKeyArea.textProperty().addListener((obs, oldVal, newVal) -> validateForm(saveButton));
         protocolCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
             updateLocalShellFields();
+            updateEncodingField();
             validateForm(saveButton);
         });
         updateLocalShellFields();
+        updateEncodingField();
         validateForm(saveButton);
         
         // Result converter
@@ -576,6 +602,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 }
                 connection.setTerminalEmulationType(TerminalEmulationSupport.storedValue(
                     TerminalEmulationComboBoxSupport.selectedEmulation(terminalEmulationCombo)));
+                connection.setEncoding(encodingCombo.getValue() != null ? encodingCombo.getValue().value() : null);
                 connection.setGroup(getGroupText.isEmpty() ? null : getGroupText);
                 connection.setTag(getTagText.isEmpty() ? null : getTagText);
                 connection.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
@@ -807,6 +834,14 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
     /** Tri-state host-key override entry; value null=inherit, FALSE=verify, TRUE=don't verify. */
     private record HostKeyChoice(Boolean value, String label) {
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /** Terminal encoding entry; value null = use the default (Settings → Terminal, UTF-8 for local shells). */
+    private record EncodingChoice(String value, String label) {
         @Override
         public String toString() {
             return label;
@@ -1812,6 +1847,16 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
             shellPresetCombo.getValue(),
             customShellCommandField.getText(),
             gitBashCommand, cygwinCommand, wslCommand);
+    }
+
+    /**
+     * Mosh is always UTF-8, so the encoding picker is locked for it and the hint beside it says why.
+     * Only the hint's visibility changes: it keeps its place, so the grid needs no relayout.
+     */
+    private void updateEncodingField() {
+        boolean utf8Only = TerminalEncodingSupport.isUtf8Only(protocolCombo.getValue());
+        encodingCombo.setDisable(utf8Only);
+        encodingMoshHint.setVisible(utf8Only);
     }
 
     /** Enables shell fields and disables SSH fields for LOCAL_SHELL, and vice-versa. */
