@@ -172,6 +172,7 @@ KorTTY builds Rsync execution as a `ProcessBuilder` argument list instead of she
 - `ssh` must be available in `PATH`.
 - Host-key pinning is required unless the job explicitly disables host-key verification.
 - Password and private-key passphrase authentication use a temporary owner-only `SSH_ASKPASS` helper. Secrets, helper paths, and temporary secret-file paths are redacted before journaling.
+- A [temporary SSH key](../reference/settings/security.md) is written to an owner-only file in the system temp folder for the external `ssh` and deleted when the job ends or its connection fails.
 
 ## Journal Tab
 
