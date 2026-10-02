@@ -74,5 +74,9 @@ What changed in the current release. The version this guide was built for is sho
 - **More of your configuration is backed up** — custom terminal themes, credential environments, saved AI Swarm chats and MLX model registrations are now part of the backup, and after an import korTTY reloads them together with SSH keys, snippet variables and AI chats instead of overwriting the restored files with what it had loaded before. A backup with another master password makes korTTY quit after the import, so you unlock the restored data with that password on the next start.
 - **The backup dialogs show their numbers** — the confirmation after creating or importing a backup showed `{0}` instead of the file name, size and number of files.
 
+### Local data files
+
+- **A crash or a damaged file no longer costs you your connections** — connections, credentials, SSH and GPG keys, environments, themes, scheduled jobs and `master.key` are now replaced atomically and flushed to the disk instead of being rewritten in place, and on macOS and Linux `~/.kortty` and the files holding secrets are made owner-only. A file korTTY cannot parse at startup is moved aside as `<name>.corrupt-<timestamp>` and listed in a notice instead of being overwritten with an empty list, and a file it cannot read at all is left untouched for the session. See [Stored security data](../features/security.md#stored-security-data).
+
 !!! note "Earlier releases"
     Only the current release is listed here, so the guide stays short in every language it is translated into. Every version is on the [GitHub releases page](https://github.com/chardonnay/korTTY/releases); the curated notes for earlier versions are kept in the repository, in `app-docs/release-notes-archive.md` and `app-docs/RELEASE_NOTES.adoc`.

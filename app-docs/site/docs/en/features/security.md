@@ -102,7 +102,7 @@ Centralized management of private SSH keys with encrypted passphrases.
 
 - **Centralized Management** — Manage all SSH keys in one place
 - **Encrypted Passphrases** — Key passphrases are stored encrypted with AES-256-GCM
-- **Key Copying** — Use **Copy to User Directory** to copy keys to `~/.kortty/ssh-keys/`; copied keys are included in encrypted backups and restored with owner-only permissions
+- **Key Copying** — Use **Copy to User Directory** to copy keys to `~/.kortty/ssh-keys/`; on macOS and Linux the copied private key is made owner-only (`rw-------`) and the folder `rwx------`, and copied keys are included in encrypted backups and restored with owner-only permissions
 - **Wildcard Search** — Quick search for keys using `*` patterns
 - **Automatic Usage** — Select keys directly in connection settings
 
@@ -172,6 +172,10 @@ The following sensitive and security-related data is stored in `~/.kortty/`; sec
 | `master.autounlock` | Remembered master password for the optional auto-login | Obfuscated only — not encrypted; owner-only file permissions |
 | `global-settings.xml` | AI profile API keys, translation API keys, optional Hugging Face token | AES-256-GCM |
 
+korTTY does not rewrite these files in place: a save goes to a temporary file in `~/.kortty` that is then renamed over the old file, for the connections, credentials, SSH keys, scheduled jobs and `master.key` after flushing it to the disk, so a crash, a full disk or a killed process leaves the previous version intact. On macOS and Linux, korTTY keeps `~/.kortty` at `rwx------` and writes `connections.xml`, `credentials.xml`, `ssh-keys.xml`, `job-scheduler.xml` and `master.key` owner-only (`rw-------`), also when an older version left them readable by other users; on Windows they are protected by the permissions of your user profile.
+
+A data file with connections, credentials, SSH or GPG keys, environments, themes or scheduled jobs that korTTY cannot parse at startup is moved aside as `<name>.corrupt-<timestamp>` without changing it, korTTY continues without its content, and a notice lists the moved files; the next save writes a fresh file. A file that cannot be read at all, for example while a virus scanner or another program holds it, stays where it is and korTTY does not save over it for the rest of the session; the notice lists it separately. `master.key` is never moved aside, because without it korTTY would treat the profile as new and mint a new salt: if it is damaged, unlocking fails with an error that names the file, and you restore it from a backup.
+
 ## Security Best Practices
 
 !!! warning
@@ -187,7 +191,7 @@ The following sensitive and security-related data is stored in `~/.kortty/`; sec
 
 - Keep private key files protected with a passphrase.
 - Copy keys to `~/.kortty/ssh-keys/` for inclusion in encrypted backups; keys left in their original locations are only referenced and must be migrated separately.
-- Limit key file permissions (e.g., `chmod 600`).
+- Limit key file permissions (e.g., `chmod 600`). Copies in `~/.kortty/ssh-keys/` are made owner-only automatically.
 - Verify a first-use host-key fingerprint through a trusted channel before accepting it. Treat a changed-key warning as a possible server rebuild, DNS error, or man-in-the-middle attack and investigate instead of reconnecting repeatedly.
 
 ### JobScheduler
@@ -237,6 +241,7 @@ The following sensitive and security-related data is stored in `~/.kortty/`; sec
 | JobScheduler Secrets | Sudo and archive passwords encrypted; journal redaction enabled by default |
 | JobScheduler Host Keys | Host-key pinning required by default for unattended SSH/SFTP/Rsync jobs |
 | Credentials | Never stored in plain text |
+| Local data files | Atomic replace flushed to disk, owner-only `~/.kortty` and secret stores, unreadable files moved aside or left untouched instead of overwritten |
 
 ## Changing the Master Password
 
