@@ -60,6 +60,7 @@ import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -1275,12 +1276,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             () -> SnippetLanguageSupport.detectSnippetLanguage(languageCombo.getValue(), safeContentText()),
             () -> nameField.getText(), this::safeContentText, this::updateSaveButtonState,
             nameField.textProperty(), languageCombo.valueProperty());
-        HBox fileRow = new HBox(10,
-            new Label(I18n.get("snippets.folder") + ":"), folderCombo,
-            new Label(I18n.get("snippets.fileName") + ":"), fileNameField,
-            new Label(I18n.get("snippets.executable.label") + ":"), executableCombo);
+        // Label + field pairs that wrap as a unit in a narrow editor instead of cutting the labels.
+        FlowPane fileRow = new FlowPane(14, 6,
+            labelledField("snippets.folder", folderCombo),
+            labelledField("snippets.fileName", fileNameField),
+            labelledField("snippets.executable.label", executableCombo));
         fileRow.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(fileNameField, Priority.SOMETIMES);
         // Text language sits directly below the code language: both describe the snippet, while the
         // skills/instructions box below the toolbar is about the next AI request.
         VBox languageBox = new VBox(6, langCatBox, fileRow, aiCodeTextLanguageRow);
@@ -5000,6 +5001,14 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
      */
     private void runCodeReview() {
         analysisController.openStartPanel();
+    }
+
+    private static HBox labelledField(String labelKey, javafx.scene.Node field) {
+        Label label = new Label(I18n.get(labelKey) + ":");
+        label.setMinWidth(Region.USE_PREF_SIZE);
+        HBox pair = new HBox(6, label, field);
+        pair.setAlignment(Pos.CENTER_LEFT);
+        return pair;
     }
 
     /** Right-click → "Full code analysis" in the library: the same as the editor's own entry. */
