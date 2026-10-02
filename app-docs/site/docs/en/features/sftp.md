@@ -62,6 +62,10 @@ When the server or the network ends the session, the status bar shows **Disconne
 
 **Reconnect** opens a new session with the same credentials and lists the folder you were in. The server's host key is checked as on the first connect: an unchanged key connects without a prompt, a changed key is still blocked.
 
+## Reopening with a project
+
+SFTP Manager tabs are saved with a [project](projects.md#sftp-manager-tabs). Opening the project with **Auto-Reconnect** reconnects each tab at the local and remote folders it was in when you saved. A folder that no longer exists opens the home folder instead; on the remote side the status bar says so.
+
 ## File operations
 
 The SFTP Manager supports a full range of file operations:
