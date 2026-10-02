@@ -368,7 +368,7 @@ public final class SwarmWorkflowScriptDialog {
         return String.format(Locale.ROOT, "%02d:%02d", seconds / 60L, seconds % 60L);
     }
 
-    private static List<SwarmHost> buildHosts(List<ServerConnection> connections) {
+    static List<SwarmHost> buildHosts(List<ServerConnection> connections) {
         List<SwarmHost> hosts = new ArrayList<>();
         if (connections == null) {
             return hosts;
