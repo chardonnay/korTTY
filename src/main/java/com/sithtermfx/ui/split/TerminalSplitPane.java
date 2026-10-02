@@ -28,6 +28,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import de.kortty.ui.I18n;
+import de.kortty.ui.TerminalPaneActions;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -434,20 +435,60 @@ public class TerminalSplitPane extends StackPane {
         });
     }
     
+    /** One entry of the terminal context menu: the i18n key of its label and the command it runs. */
+    record TerminalMenuAction(@NotNull String i18nKey, @NotNull Runnable action) {
+    }
+
+    /**
+     * The edit entries at the top of the terminal context menu, in menu order. Free of JavaFX so a
+     * unit test can fire every entry and check that it reaches the pane.
+     */
+    static @NotNull List<TerminalMenuAction> editActions(@NotNull TerminalPaneActions actions) {
+        return List.of(
+            new TerminalMenuAction("terminal.contextMenu.copy", actions::copySelection),
+            new TerminalMenuAction("terminal.contextMenu.paste", actions::paste),
+            new TerminalMenuAction("terminal.contextMenu.clearBuffer", actions::clearBuffer),
+            new TerminalMenuAction("terminal.contextMenu.find", actions::showFind));
+    }
+
+    /**
+     * The entries of <b>Extras &gt; Font Size</b>, in menu order.
+     *
+     * @param reset what <b>Reset</b> runs: the tab's reset-zoom callback or the widget's own reset
+     */
+    static @NotNull List<TerminalMenuAction> fontSizeActions(@NotNull TerminalPaneActions actions,
+                                                             @NotNull Runnable reset) {
+        return List.of(
+            new TerminalMenuAction("terminal.contextMenu.increase", actions::increaseFontSize),
+            new TerminalMenuAction("terminal.contextMenu.decrease", actions::decreaseFontSize),
+            new TerminalMenuAction("terminal.contextMenu.reset", reset));
+    }
+
+    private static @NotNull List<MenuItem> toMenuItems(@NotNull List<TerminalMenuAction> actions) {
+        List<MenuItem> items = new ArrayList<>(actions.size());
+        for (TerminalMenuAction action : actions) {
+            MenuItem item = new MenuItem(I18n.get(action.i18nKey()));
+            item.setOnAction(e -> action.action().run());
+            items.add(item);
+        }
+        return items;
+    }
+
+    /** Every widget this pane creates is a {@code KorttyTermWidget}; anything else gets no pane commands. */
+    private static @Nullable TerminalPaneActions paneActionsOf(@NotNull SithTermFxWidget widget) {
+        return widget instanceof TerminalPaneActions actions ? actions : null;
+    }
+
     private @NotNull ContextMenu createFullContextMenu(@NotNull SithTermFxWidget widget) {
         ContextMenu menu = new ContextMenu();
-        var terminalPanel = widget.getTerminalPanel();
-        
-        MenuItem copy = new MenuItem(I18n.get("terminal.contextMenu.copy"));
-        copy.setOnAction(e -> invokeTerminalPanelMethod(terminalPanel, "handleCopy", null));
-        MenuItem paste = new MenuItem(I18n.get("terminal.contextMenu.paste"));
-        paste.setOnAction(e -> invokeTerminalPanelMethod(terminalPanel, "pasteFromClipboard", false));
-        MenuItem clearBuffer = new MenuItem(I18n.get("terminal.contextMenu.clearBuffer"));
-        clearBuffer.setOnAction(e -> invokeTerminalPanelMethod(terminalPanel, "clearBuffer", null));
-        MenuItem find = new MenuItem(I18n.get("terminal.contextMenu.find"));
-        find.setOnAction(e -> invokeWidgetMethod(widget, "showFindComponent"));
-        menu.getItems().addAll(copy, paste, clearBuffer, find);
-        
+        TerminalPaneActions actions = paneActionsOf(widget);
+        if (actions != null) {
+            List<MenuItem> editItems = toMenuItems(editActions(actions));
+            // Copy without a selection would do nothing, so it is greyed out.
+            editItems.get(0).setDisable(widget.getTerminalPanel().getSelection() == null);
+            menu.getItems().addAll(editItems);
+        }
+
         if (extraMenuItemsFactory != null) {
             List<MenuItem> extraItems = extraMenuItemsFactory.apply(widget);
             if (extraItems != null && !extraItems.isEmpty()) {
@@ -455,7 +496,7 @@ public class TerminalSplitPane extends StackPane {
                 menu.getItems().addAll(extraItems);
             }
         }
-        
+
         menu.getItems().add(new SeparatorMenuItem());
         Menu extrasMenu = createExtrasSubmenu(widget);
         menu.getItems().add(extrasMenu);
@@ -465,19 +506,17 @@ public class TerminalSplitPane extends StackPane {
     private @NotNull Menu createExtrasSubmenu(@NotNull SithTermFxWidget widget) {
         Menu extrasMenu = new Menu(I18n.get("terminal.contextMenu.extras"));
         Menu fontMenu = new Menu(I18n.get("terminal.contextMenu.fontSize"));
-        MenuItem increaseFont = new MenuItem(I18n.get("terminal.contextMenu.increase"));
-        increaseFont.setOnAction(e -> invokeWidgetFontMethod(widget, "increaseFontSize", 2));
-        MenuItem decreaseFont = new MenuItem(I18n.get("terminal.contextMenu.decrease"));
-        decreaseFont.setOnAction(e -> invokeWidgetFontMethod(widget, "decreaseFontSize", 2));
-        MenuItem resetFont = new MenuItem(I18n.get("terminal.contextMenu.reset"));
-        resetFont.setOnAction(e -> {
+        Runnable resetFont = () -> {
             if (resetZoomCallback != null) {
                 resetZoomCallback.run();
             } else {
-                invokeWidgetFontMethod(widget, "resetFontSize", null);
+                widget.resetFontSize();
             }
-        });
-        fontMenu.getItems().addAll(increaseFont, decreaseFont, resetFont);
+        };
+        TerminalPaneActions actions = paneActionsOf(widget);
+        fontMenu.getItems().addAll(toMenuItems(actions != null
+            ? fontSizeActions(actions, resetFont)
+            : List.of(new TerminalMenuAction("terminal.contextMenu.reset", resetFont))));
         
         Menu splitMenu = new Menu(I18n.get("terminal.contextMenu.splitTerminal"));
         MenuItem splitRightSame = new MenuItem(I18n.get("terminal.contextMenu.splitRightSame"));
@@ -502,43 +541,6 @@ public class TerminalSplitPane extends StackPane {
         return extrasMenu;
     }
     
-    private void invokeTerminalPanelMethod(@NotNull Object terminalPanel, @NotNull String methodName, @Nullable Object arg) {
-        try {
-            if (arg == null) {
-                try {
-                    var method = terminalPanel.getClass().getDeclaredMethod(methodName);
-                    method.setAccessible(true);
-                    method.invoke(terminalPanel);
-                    return;
-                } catch (NoSuchMethodException ignored) {}
-                try {
-                    var method = terminalPanel.getClass().getDeclaredMethod(methodName, KeyEvent.class);
-                    method.setAccessible(true);
-                    method.invoke(terminalPanel, (KeyEvent) null);
-                    return;
-                } catch (NoSuchMethodException ignored) {}
-            } else if (arg instanceof Boolean) {
-                var method = terminalPanel.getClass().getDeclaredMethod(methodName, boolean.class);
-                method.setAccessible(true);
-                method.invoke(terminalPanel, arg);
-                return;
-            }
-            logger.warn("Could not find method {} on TerminalPanel", methodName);
-        } catch (Exception e) {
-            logger.warn("Failed to invoke {} on TerminalPanel: {}", methodName, e.getMessage());
-        }
-    }
-    
-    private void invokeWidgetMethod(@NotNull SithTermFxWidget widget, @NotNull String methodName) {
-        try {
-            var method = widget.getClass().getDeclaredMethod(methodName);
-            method.setAccessible(true);
-            method.invoke(widget);
-        } catch (Exception e) {
-            logger.warn("Failed to invoke {} on SithTermFxWidget: {}", methodName, e.getMessage());
-        }
-    }
-
     public void split(@NotNull SplitRequest.SplitMode mode, @NotNull Orientation orientation) {
         SithTermFxWidget parent = getFocusedWidget();
         if (parent == null) {
@@ -930,22 +932,6 @@ public class TerminalSplitPane extends StackPane {
         for (Button button : widgetCloseButtons.values()) {
             button.setVisible(showButtons);
             button.setManaged(showButtons);
-        }
-    }
-
-    private void invokeWidgetFontMethod(@NotNull SithTermFxWidget widget, @NotNull String methodName, @Nullable Integer delta) {
-        try {
-            if (delta == null) {
-                var method = widget.getClass().getMethod(methodName);
-                method.invoke(widget);
-            } else {
-                var method = widget.getClass().getMethod(methodName, int.class);
-                method.invoke(widget, delta);
-            }
-        } catch (NoSuchMethodException e) {
-            logger.debug("Widget method {} not available (upstream SithTermFX)", methodName);
-        } catch (Exception e) {
-            logger.debug("Failed to invoke widget method {}: {}", methodName, e.getMessage());
         }
     }
 

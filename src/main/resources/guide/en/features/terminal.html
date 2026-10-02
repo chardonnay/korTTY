@@ -815,6 +815,35 @@
 <li><strong>Move tabs between windows</strong>: Drag a tab from the tab bar and drop it onto another KorTTY window's tab bar to move that tab (and its session, including any split terminals) into the other window.</li>
 <li><strong>Reorder tabs</strong>: Drag a tab within the same window to change its order; the "+" tab stays at the end.</li>
 </ul>
+<h2 id="terminal-context-menu">Terminal context menu<a class="headerlink" href="#terminal-context-menu" title="Permanent link">&para;</a></h2>
+<p>Right-click inside a terminal to open its context menu; in a split tab it acts on the pane you clicked. The menu starts with the editing commands:</p>
+<table>
+<thead>
+<tr>
+<th>Entry</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Copy</strong></td>
+<td>Copies the selected text to the clipboard and keeps the selection. Greyed out while nothing is selected.</td>
+</tr>
+<tr>
+<td><strong>Paste</strong></td>
+<td>Sends the clipboard text to the session, the same way the paste shortcut does.</td>
+</tr>
+<tr>
+<td><strong>Clear Buffer</strong></td>
+<td>Clears the scrollback and the screen but keeps the prompt line. While a full-screen program such as <code>vim</code> or <code>less</code> is running, it does nothing.</td>
+</tr>
+<tr>
+<td><strong>Find</strong></td>
+<td>Opens the find bar at the top right of the pane, the same as <strong>Edit → Find...</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span>, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-f">F</kbd></span> on macOS). Type to highlight matches, press <span class="keys"><kbd class="key-enter">Enter</kbd></span> or <span class="keys"><kbd class="key-arrow-down">Down</kbd></span> for the next match and <span class="keys"><kbd class="key-arrow-up">Up</kbd></span> for the previous one, and <span class="keys"><kbd class="key-escape">Esc</kbd></span> to close the bar.</td>
+</tr>
+</tbody>
+</table>
+<p>Below them come the entries of other features, in this order and some only where they apply: <strong>Show Menu Bar</strong> (while the menu bar is hidden), <strong>Open in Snippet Editor</strong>, the <strong>AI</strong> submenu, the session-journal screenshot and note entries, <strong>Theme</strong>, <strong>Terminal Effect</strong>, <strong>Reconnect</strong> and <strong>Show Command Timestamps</strong>. The <strong>Extras</strong> submenu at the end holds <strong>Split Terminal</strong>, <strong>Font Size</strong> (see <a href="#font-size-and-zoom">Font size and zoom</a>) and <strong>Broadcast Mode</strong>.</p>
 <h2 id="font-size-and-zoom">Font size and zoom<a class="headerlink" href="#font-size-and-zoom" title="Permanent link">&para;</a></h2>
 <p>Adjust the font size of the active terminal on the fly without reconnecting:</p>
 <table>
@@ -844,7 +873,7 @@
 </tbody>
 </table>
 <p>Holding <span class="keys"><kbd class="key-control">Ctrl</kbd></span> (or <span class="keys"><kbd class="key-command">Cmd</kbd></span> on macOS) and scrolling the mouse wheel over the terminal changes the font size — wheel up enlarges, wheel down shrinks — instead of scrolling the buffer. This complements the <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-plus">+</kbd></span> / <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-minus">-</kbd></span> / <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-0">0</kbd></span> shortcuts.</p>
-<p><strong>Reset zoom</strong> restores the font size and family to what the connection had when you opened the tab (or the connection's saved settings, or the global default). The same reset is available via the terminal context menu: right-click → <strong>Font size</strong> → <strong>Reset</strong>. The zoom level applies only to the currently focused terminal.</p>
+<p><strong>Reset zoom</strong> restores the font size and family to what the connection had when you opened the tab (or the connection's saved settings, or the global default). The terminal context menu has the same controls: right-click → <strong>Extras</strong> → <strong>Font Size</strong> → <strong>Increase</strong>, <strong>Decrease</strong> (two points per step) or <strong>Reset</strong>. The zoom level applies to the current tab — all of its split panes change together — and leaves other tabs unchanged.</p>
 <h2 id="background-transparency">Background transparency<a class="headerlink" href="#background-transparency" title="Permanent link">&para;</a></h2>
 <p><strong>View → Zoom → Background Transparency</strong> is a slider (0–100 %) that makes the terminal background see-through to the desktop while the text stays fully opaque and sharp. At 0 % the background is solid; higher values let more of the desktop show through. The value is saved and restored across restarts.</p>
 <p>Only the terminal area becomes transparent — the title bar, menu bar, status bar and any tab without a terminal stay solid, so the window never turns into a see-through hole.</p>
