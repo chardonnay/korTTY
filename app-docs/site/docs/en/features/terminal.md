@@ -62,9 +62,9 @@ Right-click inside a terminal to open its context menu; in a split tab it acts o
 | **Copy** | Copies the selected text to the clipboard and keeps the selection. Greyed out while nothing is selected. |
 | **Paste** | Sends the clipboard text to the session, the same way the paste shortcut does. |
 | **Clear Buffer** | Clears the scrollback and the screen but keeps the prompt line. While a full-screen program such as `vim` or `less` is running, it does nothing. |
-| **Find** | Opens the find bar at the top right of the pane, the same as **Edit > Find...** (++ctrl+f++, ++cmd+f++ on macOS). Type to highlight matches, press ++enter++ or ++down++ for the next match and ++up++ for the previous one, and ++esc++ to close the bar. |
+| **Find** | Opens the find bar at the top right of the pane, the same as **Edit → Find...** (++ctrl+f++, ++cmd+f++ on macOS). Type to highlight matches, press ++enter++ or ++down++ for the next match and ++up++ for the previous one, and ++esc++ to close the bar. |
 
-Below them come the entries of other features, such as **Open in Snippet Editor**, the AI actions, **Reconnect**, the session-journal screenshot and note entries and the terminal effect, followed by the **Extras** submenu with **Split Terminal**, **Font Size** (see [Font size and zoom](#font-size-and-zoom)) and **Broadcast Mode**.
+Below them come the entries of other features, in this order and some only where they apply: **Show Menu Bar** (while the menu bar is hidden), **Open in Snippet Editor**, the **AI** submenu, the session-journal screenshot and note entries, **Theme**, **Terminal Effect**, **Reconnect** and **Show Command Timestamps**. The **Extras** submenu at the end holds **Split Terminal**, **Font Size** (see [Font size and zoom](#font-size-and-zoom)) and **Broadcast Mode**.
 
 ## Font size and zoom
 
