@@ -138,6 +138,11 @@ public class KorTTYApplication extends Application {
     private boolean macDesktopHandlersRegistered = false;
     private Boolean packagedMacApp;
     private volatile boolean shuttingDown = false;
+    /**
+     * Set when a backup import replaced {@code master.key}: every store in memory still belongs
+     * to the old master key, so the shutdown must not write them over the restored files.
+     */
+    private volatile boolean restoredBackupAwaitsRestart = false;
     private de.kortty.policy.PolicyManager policyManager;
     
     public static void main(String[] args) {
@@ -669,9 +674,16 @@ public class KorTTYApplication extends Application {
         }
         shuttingDown = true;
         logger.info("Shutting down {}...", APP_NAME);
+        // After an import that replaced master.key the in-memory stores belong to the old key:
+        // writing them now would overwrite the restored files (and re-encrypt the restored
+        // connections with the wrong key), so the restored files are left as they are.
+        boolean saveStores = !restoredBackupAwaitsRestart;
+        if (!saveStores) {
+            logger.warn("Skipping the store saves: a restored backup with a different master key awaits the restart");
+        }
 
         // A geometry save scheduled by a dialog that closed just now must land before halt(0).
-        if (globalSettingsManager != null) {
+        if (globalSettingsManager != null && saveStores) {
             globalSettingsManager.flushPendingSave();
         }
 
@@ -686,7 +698,8 @@ public class KorTTYApplication extends Application {
         
         // Save configuration
         try {
-            if (configManager != null && masterPasswordManager != null && masterPasswordManager.getDerivedKey() != null) {
+            if (saveStores && configManager != null && masterPasswordManager != null
+                    && masterPasswordManager.getDerivedKey() != null) {
                 configManager.save(masterPasswordManager.getDerivedKey());
             }
         } catch (Exception e) {
@@ -744,19 +757,19 @@ public class KorTTYApplication extends Application {
         if (sessionJournalHtmlRenderer != null) {
             shutdownStep("stop session journal HTML renderer", sessionJournalHtmlRenderer::stop);
         }
-        if (gpgKeyManager != null) {
+        if (gpgKeyManager != null && saveStores) {
             shutdownStep("save GPG keys", gpgKeyManager::save);
         }
-        if (credentialManager != null) {
+        if (credentialManager != null && saveStores) {
             shutdownStep("save credentials", credentialManager::save);
         }
-        if (sshKeyManager != null) {
+        if (sshKeyManager != null && saveStores) {
             shutdownStep("save SSH keys", sshKeyManager::save);
         }
-        if (snippetManager != null) {
+        if (snippetManager != null && saveStores) {
             shutdownStep("save snippets", snippetManager::save);
         }
-        if (snippetAnalysisStore != null) {
+        if (snippetAnalysisStore != null && saveStores) {
             // After the snippets save (which can make a pending draft analysis persistable);
             // halt(0) skips shutdown hooks, so the queued writes must land here.
             shutdownStep("flush snippet analyses",
@@ -765,16 +778,16 @@ public class KorTTYApplication extends Application {
         if (snippetDraftStore != null) {
             shutdownStep("flush snippet drafts", () -> snippetDraftStore.flush(2_000));
         }
-        if (snippetVariableManager != null) {
+        if (snippetVariableManager != null && saveStores) {
             shutdownStep("save snippet variables", snippetVariableManager::save);
         }
-        if (aiChatManager != null) {
+        if (aiChatManager != null && saveStores) {
             shutdownStep("save AI chats", aiChatManager::save);
         }
-        if (swarmChatManager != null) {
+        if (swarmChatManager != null && saveStores) {
             shutdownStep("save swarm chats", swarmChatManager::save);
         }
-        if (globalSettingsManager != null) {
+        if (globalSettingsManager != null && saveStores) {
             shutdownStep("save global settings", globalSettingsManager::save);
         }
         if (teamworkRecycleBinService != null) {
@@ -784,7 +797,7 @@ public class KorTTYApplication extends Application {
             shutdownStep("stop teamwork sync", teamworkSyncService::stop);
         }
         if (jobSchedulerService != null) {
-            shutdownStep("stop job scheduler", jobSchedulerService::shutdownSchedulerThreads);
+            shutdownStep("stop job scheduler", () -> jobSchedulerService.shutdownSchedulerThreads(saveStores));
         }
         shutdownStep("stop local knowledge-store coordination",
             de.kortty.rag.RagCoordinator::shutdownDefault);
@@ -1586,6 +1599,23 @@ public class KorTTYApplication extends Application {
     
     public BackupManager getBackupManager() {
         return backupManager;
+    }
+    
+    /**
+     * Marks that a backup import wrote a different {@code master.key}. The connections,
+     * credentials and other stores in memory were loaded with the old key; saving them at
+     * shutdown would re-encrypt the restored connections with that key and overwrite the other
+     * restored files, so {@link #performShutdown()} skips those saves and the next start loads
+     * the restored files with the backup's master password.
+     */
+    public void markRestoredBackupAwaitsRestart() {
+        restoredBackupAwaitsRestart = true;
+        logger.warn("A restored backup replaced the master key; korTTY will not save its stores until it restarts");
+    }
+
+    /** Whether {@link #markRestoredBackupAwaitsRestart()} was called in this run. */
+    public boolean isRestoredBackupAwaitingRestart() {
+        return restoredBackupAwaitsRestart;
     }
     
     public TeamworkSyncService getTeamworkSyncService() {
