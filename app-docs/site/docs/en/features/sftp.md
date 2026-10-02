@@ -92,7 +92,7 @@ You can drag entries between the two panels, from your desktop into the SFTP Man
 |------|--------|
 | Local rows onto the remote panel | Uploaded, as with **Upload**: a file of the same name on the server is replaced, a folder merges |
 | Files from Finder, Explorer or the file browser sidebar onto the remote panel | Uploaded the same way |
-| Remote rows onto the local panel | Downloaded in the background, folders included |
+| Remote rows onto the local panel | Downloaded in the background, as with **Download**: folders included, and a local file of the same name is replaced |
 | Files from Finder, Explorer or the file browser sidebar onto the local panel | Copied in the background; a name that is already there gets a number, as in `report (2).txt`, and a file dropped onto the folder it is in is left alone |
 | Local rows onto the desktop or another program | Offered as the files themselves |
 | Remote rows onto the desktop or another program | Only for at most 20 files with at most 16 MB together, and no folders |
@@ -100,7 +100,7 @@ You can drag entries between the two panels, from your desktop into the SFTP Man
 A drag into the same panel does nothing; use **Copy to...** or **Rename** there.
 
 !!! note "Dragging from the server to the desktop"
-    The desktop can only take files that already exist when the drag starts. korTTY therefore downloads the dragged remote files into a private temporary folder first, which can hold the window for up to 5 seconds. Folders, more than 20 files, more than 16 MB or a download that takes longer can only be dropped inside the window; the status bar says so, and you drop them on the local panel instead. The temporary copies are deleted when you start the next drag or close the tab.
+    The desktop can only take files that already exist when the drag starts. korTTY therefore downloads the dragged remote files into a private temporary folder first, which can hold the window for up to 5 seconds. Folders, more than 20 files, more than 16 MB or a download that takes longer can only be dropped inside the window; the status bar says so, and you drop them on the local panel instead. A link on the server counts as the file it points to, so a link to a large file is not offered to the desktop either. The temporary copies are deleted when you start the next drag or close the tab.
 
 ### Keys
 
