@@ -164,7 +164,7 @@ pages:
     last_synced_ref: "ab5f2d9d"
   - path: app-docs/site/docs/en/reference/settings/security.md
     owns_i18n: [settings.security., settings.masterPassword.]
-    owns_code: [src/main/java/de/kortty/security]
+    owns_code: [src/main/java/de/kortty/security, src/main/java/de/kortty/core/TemporarySshKeyMaterial.java, src/main/java/de/kortty/core/LegacyTemporaryKeyFileCleanup.java]
     screenshots:
       - settings/security.png
     last_synced_ref: "093cbbf4"
