@@ -29,7 +29,14 @@ import java.util.List;
 public class PuTTYCMImporter implements ConnectionImporter {
     
     private static final Logger logger = LoggerFactory.getLogger(PuTTYCMImporter.class);
-    
+
+    /** Bind address of every imported listener: the format carries none, PuTTY binds loopback. */
+    private static final String LOOPBACK = "localhost";
+
+    private static String hostOrLoopback(String host) {
+        return host == null || host.isBlank() ? LOOPBACK : host.trim();
+    }
+
     @Override
     public String getName() {
         return "PuTTY Connection Manager";
@@ -207,10 +214,10 @@ public class PuTTYCMImporter implements ConnectionImporter {
                 try {
                     SSHTunnel tunnel = new SSHTunnel();
                     tunnel.setType(TunnelType.LOCAL);
-                    tunnel.setLocalHost("localhost");
-                    tunnel.setLocalPort(Integer.parseInt(parts[0]));
-                    tunnel.setRemoteHost(parts[1]);
-                    tunnel.setRemotePort(Integer.parseInt(parts[2]));
+                    tunnel.setLocalHost(LOOPBACK);
+                    tunnel.setLocalPort(Integer.parseInt(parts[0].trim()));
+                    tunnel.setRemoteHost(hostOrLoopback(parts[1]));
+                    tunnel.setRemotePort(Integer.parseInt(parts[2].trim()));
                     tunnel.setEnabled(true);
                     tunnels.add(tunnel);
                 } catch (NumberFormatException e) {
@@ -224,25 +231,30 @@ public class PuTTYCMImporter implements ConnectionImporter {
     
     /**
      * Parses remote tunnels from the format: remoteport:localhost:localport
+     *
+     * <p>The format names no bind address, and PuTTY's own default for a remote forward is the
+     * server's loopback address. The tunnel's remote host is the address the SSH server listens
+     * on, so it is {@code localhost}: the forwarded port stays private to the server instead of
+     * being published on its network.
      */
     private List<SSHTunnel> parseRemoteTunnels(String tunnelString) {
         List<SSHTunnel> tunnels = new ArrayList<>();
-        
+
         for (String tunnelSpec : tunnelString.split(";")) {
             tunnelSpec = tunnelSpec.trim();
             if (tunnelSpec.isEmpty()) {
                 continue;
             }
-            
+
             String[] parts = tunnelSpec.split(":");
             if (parts.length == 3) {
                 try {
                     SSHTunnel tunnel = new SSHTunnel();
                     tunnel.setType(TunnelType.REMOTE);
-                    tunnel.setRemoteHost("0.0.0.0"); // Listen on all interfaces
-                    tunnel.setRemotePort(Integer.parseInt(parts[0]));
-                    tunnel.setLocalHost(parts[1]);
-                    tunnel.setLocalPort(Integer.parseInt(parts[2]));
+                    tunnel.setRemoteHost(LOOPBACK);
+                    tunnel.setRemotePort(Integer.parseInt(parts[0].trim()));
+                    tunnel.setLocalHost(hostOrLoopback(parts[1]));
+                    tunnel.setLocalPort(Integer.parseInt(parts[2].trim()));
                     tunnel.setEnabled(true);
                     tunnels.add(tunnel);
                 } catch (NumberFormatException e) {
@@ -269,7 +281,7 @@ public class PuTTYCMImporter implements ConnectionImporter {
             try {
                 SSHTunnel tunnel = new SSHTunnel();
                 tunnel.setType(TunnelType.DYNAMIC);
-                tunnel.setLocalHost("localhost");
+                tunnel.setLocalHost(LOOPBACK);
                 tunnel.setLocalPort(Integer.parseInt(tunnelSpec));
                 tunnel.setEnabled(true);
                 tunnels.add(tunnel);
