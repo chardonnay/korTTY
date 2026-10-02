@@ -58,11 +58,32 @@ Speichern Sie zentralisierte Benutzernamen-/Passwort-Anmeldeinformationen, die �
 2. Ausfüllen:
    - **Name** – Beschreibender Bezeichner
    - **Benutzername** – Login-Benutzername
+   - **Passwort-Typ** — **Gespeichertes Passwort**, oder **Externes Kommando** zum Abrufen des Passworts aus einem Passwort-Manager (siehe [Passwörter von einem externen Kommando](#passworter-von-einem-externen-kommando))
    - **Passwort** – Mit AES-256-GCM verschlüsselt gespeichert
    - **Umgebung** – Produktion, Entwicklung, Test oder Staging
    - **Servermuster** (optional) – Glob-Muster (z. B. `*.example.com`, `10.0.0.*`) für den automatischen Abgleich von Anmeldeinformationen mit Verbindungen
    - **Beschreibung** (optional) – Freitextnotizen
 3. Klicken Sie auf **OK**.
+
+### Passwörter von einem externen Kommando
+
+Anstatt das Passwort zu speichern, kann eine Anmeldeinformation jedes Mal aus Ihrem Passwort-Manager abgerufen werden, wenn sie benötigt wird. Wählen Sie **Externes Kommando** als **Passwort-Typ** und geben Sie ein Kommando ein, das das Passwort ausgibt, zum Beispiel:
+
+```bash
+op item get "db-prod" --fields password
+bw get password "db-prod"
+enpass-cli show "db-prod" -field password
+```
+
+- **Verschlüsselt gespeichert** — das Kommando selbst ist mit Ihrem Master-Passwort verschlüsselt, ähnlich wie ein gespeichertes Passwort.
+- **Shell** — der Befehl läuft in `/bin/sh` auf macOS und Linux und in PowerShell unter Windows, daher schreiben Sie unter Windows PowerShell-Syntax (`$env:NAME`, nicht `%NAME%`). Im Flatpak-Paket läuft der Befehl auf dem Host, wo das Kommandozeilenwerkzeug Ihres Passwortmanagers installiert ist.
+- **Ausgabe** — die erste Zeile, die der Befehl ausgibt, ist das Passwort. Wenn der Befehl mit einem Fehler beendet wird, zeigt korTTY dessen Exit-Code und Fehlermeldung an; eine leere Ausgabe gilt ebenfalls als Fehler.
+- **Keine Eingabeaufforderungen** — der Befehl erhält keine Eingabe, daher kann ein Tool, das nach einem Master-Passwort oder PIN fragt, nicht beantwortet werden und schlägt sofort fehl. Entsperren Sie zunächst den Passwortmanager, zum Beispiel mit `op signin`, oder mit `bw unlock` und `BW_SESSION`, die in der Umgebung gesetzt sind, aus der korTTY gestartet wurde. Das Flatpak-Paket führt den Befehl auf dem Host ohne die Umgebung von korTTY aus, daher muss dort `BW_SESSION` in Ihrer Desktop-Sitzung gesetzt werden oder im Befehl selbst übergeben werden (zum Beispiel `bw get password my-server --session <key>`).
+- **10-Sekunden-Grenze** — ein Befehl, der nach 10 Sekunden nicht beendet ist, wird zusammen mit allen von ihm gestarteten Prozessen gestoppt, und korTTY meldet das Timeout. Ein Touch-ID- oder Systemdialog, den das Tool selbst öffnet, muss innerhalb dieser Zeit bestätigt werden.
+- **Jedes Mal ausführen** — der Befehl wird ausgeführt, sobald ein Passwort benötigt wird: wenn Sie die Anmeldeinformationen im Verbindungseditor auswählen und wann immer eine Verbindung, die sie nutzt, hergestellt wird. Von einem verbundenen Tab aufgeteilte Bereiche verwenden wieder das Passwort dieses Tabs.
+- **Testen** — die **Testen**-Schaltfläche neben dem Befehl führt ihn einmal aus und zeigt, wie viele Zeichen zurückgegeben wurden, niemals das Passwort selbst.
+
+Im Verbindungseditor zeigt das Passwortfeld *Passwort wird abgerufen...* während der Befehl läuft, und korTTY bleibt reaktionsfähig. Das Öffnen, Duplizieren oder Wiederherstellen einer Verbindung wartet auf den Befehl, bevor sie sich verbindet, höchstens bis zum 10-Sekunden-Limit, und das Fenster reagiert in dieser Zeit nicht; wenn der Befehl dort fehlschlägt, verwendet korTTY das eigene gespeicherte Passwort der Verbindung oder fordert eines an.
 
 ### Anmeldeinformationen in Verbindungen verwenden
 
@@ -70,7 +91,7 @@ Beim Erstellen oder Bearbeiten einer Verbindung:
 
 1. Gehen Sie zur Registerkarte **Verbindung**.
 2. Wählen Sie im Dropdown-Menü **Anmeldeinformationen** eine gespeicherte Anmeldeinformation aus.
-3. Benutzername und Passwort werden automatisch ausgefüllt.
+3. Benutzername und Passwort werden automatisch ausgefüllt; für einen externen Befehl, sobald er das Passwort zurückgegeben hat.
 
 Das folgende Diagramm zeigt, wie Anmeldeinformationen und SSH-Schlüssel vom verschlüsselten Speicher zu aktiven Verbindungen fließen:
 
@@ -81,6 +102,7 @@ Das folgende Diagramm zeigt, wie Anmeldeinformationen und SSH-Schlüssel vom ver
 - **Umgebungsspezifisch** – Anmeldeinformationen nach Bereitstellungsumgebung organisieren
 - **Server Pattern Matching** – Anmeldeinformationen automatisch passenden Servern zuweisen
 - **Verschlüsselter Speicher** – Passwörter werden mit AES-256-GCM verschlüsselt
+- **Passwort-Manager** — Rufen Sie das Passwort von einem Befehl wie `op`, `bw` oder `enpass-cli` ab, anstatt es zu speichern.
 - **Automatische Nutzung** – Wählen Sie Anmeldeinformationen direkt in den Verbindungseinstellungen aus
 
 ## SSH Schlüsselverwaltung

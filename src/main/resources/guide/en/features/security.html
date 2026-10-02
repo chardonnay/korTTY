@@ -800,18 +800,35 @@
 <li>Fill in:</li>
 <li><strong>Name</strong> — Descriptive identifier</li>
 <li><strong>Username</strong> — Login username</li>
+<li><strong>Password Type</strong> — <strong>Stored Password</strong>, or <strong>External Command</strong> to fetch the password from a password manager (see <a href="#passwords-from-an-external-command">Passwords from an external command</a>)</li>
 <li><strong>Password</strong> — Stored encrypted with AES-256-GCM</li>
 <li><strong>Environment</strong> — Production, Development, Test, or Staging</li>
 <li><strong>Server Pattern</strong> (optional) — Glob pattern (e.g., <code>*.example.com</code>, <code>10.0.0.*</code>) for automatic credential matching to connections</li>
 <li><strong>Description</strong> (optional) — Free-text notes</li>
 <li>Click <strong>OK</strong>.</li>
 </ol>
+<h3 id="passwords-from-an-external-command">Passwords from an external command<a class="headerlink" href="#passwords-from-an-external-command" title="Permanent link">&para;</a></h3>
+<p>Instead of storing the password, a credential can fetch it from your password manager every time it is needed. Choose <strong>External Command</strong> as the <strong>Password Type</strong> and enter a command that prints the password, for example:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>op<span class="w"> </span>item<span class="w"> </span>get<span class="w"> </span><span class="s2">"db-prod"</span><span class="w"> </span>--fields<span class="w"> </span>password
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>bw<span class="w"> </span>get<span class="w"> </span>password<span class="w"> </span><span class="s2">"db-prod"</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>enpass-cli<span class="w"> </span>show<span class="w"> </span><span class="s2">"db-prod"</span><span class="w"> </span>-field<span class="w"> </span>password
+</span></code></pre></div>
+<ul>
+<li><strong>Stored encrypted</strong> — the command itself is encrypted with your master password, like a stored password.</li>
+<li><strong>Shell</strong> — the command runs in <code>/bin/sh</code> on macOS and Linux and in PowerShell on Windows, so on Windows write PowerShell syntax (<code>$env:NAME</code>, not <code>%NAME%</code>). In the Flatpak package the command runs on the host, where your password manager's command-line tool is installed.</li>
+<li><strong>Output</strong> — the first line the command prints is the password. If the command exits with an error, korTTY shows its exit code and error output; empty output counts as an error too.</li>
+<li><strong>No prompts</strong> — the command gets no input, so a tool that asks for a master password or PIN cannot be answered and fails at once. Unlock the password manager first, for example with <code>op signin</code>, or with <code>bw unlock</code> and <code>BW_SESSION</code> set in the environment korTTY was started from. The Flatpak package runs the command on the host without korTTY's environment, so there <code>BW_SESSION</code> must be set in your desktop session, or passed in the command itself (for example <code>bw get password my-server --session &lt;key&gt;</code>).</li>
+<li><strong>10-second limit</strong> — a command that has not finished after 10 seconds is stopped together with every process it started, and korTTY reports the timeout. A Touch ID or system dialog the tool opens by itself must be confirmed within that time.</li>
+<li><strong>Runs every time</strong> — the command runs whenever the password is needed: when you pick the credential in the connection editor and whenever a connection that uses it connects. Panes split from a connected tab reuse that tab's password.</li>
+<li><strong>Test</strong> — the <strong>Test</strong> button next to the command runs it once and shows how many characters came back, never the password itself.</li>
+</ul>
+<p>In the connection editor the password field shows <em>Retrieving password...</em> while the command runs, and korTTY stays responsive. Opening, duplicating or restoring a connection waits for the command before it connects, for at most the 10-second limit, and the window does not react during that time; if the command fails there, korTTY uses the connection's own saved password or asks for one.</p>
 <h3 id="using-credentials-in-connections">Using Credentials in Connections<a class="headerlink" href="#using-credentials-in-connections" title="Permanent link">&para;</a></h3>
 <p>When creating or editing a connection:</p>
 <ol>
 <li>Go to the <strong>Connection</strong> tab.</li>
 <li>Select a stored credential from the <strong>Credentials</strong> dropdown.</li>
-<li>Username and password are filled in automatically.</li>
+<li>Username and password are filled in automatically; for an external command once it has returned the password.</li>
 </ol>
 <p>The following diagram shows how credentials and SSH keys flow from encrypted storage to active connections:</p>
 <p><img alt="Credential &amp; encryption flow" src="../assets/diagrams/credential-flow.svg" /></p>
@@ -820,6 +837,7 @@
 <li><strong>Environment-specific</strong> — Organize credentials by deployment environment</li>
 <li><strong>Server Pattern Matching</strong> — Automatically assign credentials to matching servers</li>
 <li><strong>Encrypted Storage</strong> — Passwords are encrypted with AES-256-GCM</li>
+<li><strong>Password managers</strong> — Fetch the password from a command such as <code>op</code>, <code>bw</code> or <code>enpass-cli</code> instead of storing it</li>
 <li><strong>Automatic Usage</strong> — Select credentials directly in connection settings</li>
 </ul>
 <h2 id="ssh-key-management">SSH Key Management<a class="headerlink" href="#ssh-key-management" title="Permanent link">&para;</a></h2>
@@ -1062,24 +1080,24 @@
 </ol>
 <h2 id="configuration-files-reference">Configuration Files Reference<a class="headerlink" href="#configuration-files-reference" title="Permanent link">&para;</a></h2>
 <p>All KorTTY data is stored under <code>~/.kortty/</code>. Key security-related files:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>~/.kortty/
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── master.key               # Master password hash and salt (PBKDF2)
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── master.autounlock        # Optional auto-login password (obfuscated, owner-only permissions)
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── credentials.xml           # Encrypted credentials (AES-256-GCM)
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── ssh-keys.xml             # SSH key paths and encrypted passphrases
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── gpg-keys.xml             # GPG keys for backup/export encryption
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── connections.xml          # Connection passwords and key passphrases
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>├── ssh-host-keys.properties # Interactive Terminal/SFTP/Mosh host-key pins
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>├── global-settings.xml      # AI API keys and other encrypted settings
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>├── llm/models.xml           # Model paths and typed launch settings (no model contents)
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>├── llm/runtime/             # Regenerable native packages; excluded from backup
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>├── llm/catalog/             # Regenerable signed-catalog cache; excluded from backup
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>├── llm/run/                 # Temporary per-process API keys/logs; excluded from backup
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>├── rag/stores.json          # Knowledge-store/source configuration
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>├── rag/stores/              # Regenerable HNSW snapshots; excluded from backup
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>├── job-scheduler.xml        # JobScheduler sudo/archive passwords (encrypted)
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>├── kortty.log               # Application log
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>└── history/                 # Compressed terminal session history
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>~/.kortty/
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>├── master.key               # Master password hash and salt (PBKDF2)
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>├── master.autounlock        # Optional auto-login password (obfuscated, owner-only permissions)
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>├── credentials.xml           # Encrypted credentials (AES-256-GCM)
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>├── ssh-keys.xml             # SSH key paths and encrypted passphrases
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>├── gpg-keys.xml             # GPG keys for backup/export encryption
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>├── connections.xml          # Connection passwords and key passphrases
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>├── ssh-host-keys.properties # Interactive Terminal/SFTP/Mosh host-key pins
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>├── global-settings.xml      # AI API keys and other encrypted settings
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>├── llm/models.xml           # Model paths and typed launch settings (no model contents)
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>├── llm/runtime/             # Regenerable native packages; excluded from backup
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>├── llm/catalog/             # Regenerable signed-catalog cache; excluded from backup
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>├── llm/run/                 # Temporary per-process API keys/logs; excluded from backup
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>├── rag/stores.json          # Knowledge-store/source configuration
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>├── rag/stores/              # Regenerable HNSW snapshots; excluded from backup
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>├── job-scheduler.xml        # JobScheduler sudo/archive passwords (encrypted)
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>├── kortty.log               # Application log
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>└── history/                 # Compressed terminal session history
 </span></code></pre></div></p>
     </article>
 </section>
