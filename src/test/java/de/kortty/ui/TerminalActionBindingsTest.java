@@ -49,8 +49,8 @@ class TerminalActionBindingsTest {
 
     @Test
     void ctrlLAndCtrlFAreNoLongerClaimedByTheTerminalActions() {
-        KeyEvent ctrlL = new KeyEvent(KeyEvent.KEY_PRESSED, "\f", "", KeyCode.L, false, true, false, false);
-        KeyEvent ctrlF = new KeyEvent(KeyEvent.KEY_PRESSED, "\u0006", "", KeyCode.F, false, true, false, false);
+        KeyEvent ctrlL = new KeyEvent(KeyEvent.KEY_PRESSED, KeyEvent.CHAR_UNDEFINED, "\f", KeyCode.L, false, true, false, false);
+        KeyEvent ctrlF = new KeyEvent(KeyEvent.KEY_PRESSED, KeyEvent.CHAR_UNDEFINED, "\u0006", KeyCode.F, false, true, false, false);
 
         assertThat(new TerminalAction(TerminalView.clearBufferActionPresentation(false), e -> true).matches(ctrlL)).isFalse();
         assertThat(new TerminalAction(TerminalView.findActionPresentation(false), e -> true).matches(ctrlF)).isFalse();
@@ -77,6 +77,15 @@ class TerminalActionBindingsTest {
             assertThat(provider.getClearBufferActionPresentation().getKeyCombinations()).isEmpty();
             assertThat(provider.getFindActionPresentation().getKeyCombinations()).isEmpty();
         }
+    }
+
+    @Test
+    void providerOverridesBothActionPresentationsOnEveryHost() throws Exception {
+        // providerFollowsTheHostPlatform cannot notice a deleted override on a macOS host, where the
+        // vendor default is the same Cmd+K / Cmd+F, so pin that the overrides exist at all.
+        Class<?> cls = Class.forName("de.kortty.ui.TerminalView$KorTTYSettingsProvider");
+        assertThat(cls.getDeclaredMethod("getClearBufferActionPresentation").getDeclaringClass()).isEqualTo(cls);
+        assertThat(cls.getDeclaredMethod("getFindActionPresentation").getDeclaringClass()).isEqualTo(cls);
     }
 
     @Test
