@@ -35,6 +35,9 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 !!! note "Zurückscrollen"
     Steuert, wie viele Ausgabezeilen jeder Terminalbereich in seinem Scrollback-Puffer behält. Der Wert wird beim Erstellen eines Terminals gelesen, daher gilt eine Änderung für neu geöffnete Registerkarten und geteilte Bereiche – bereits geöffnete Terminals behalten ihre aktuelle Puffergröße. Größere Werte verbrauchen mehr Speicher pro Bereich.
 
+!!! note "Markierung automatisch in Zwischenablage kopieren"
+    Wenn aktiviert, wird der von Ihnen im Terminal ausgewählte Text sofort in die Zwischenablage kopiert. Unter Linux wird er zudem zur X11-Hauptauswahl, sodass ein Mittelklick ihn in anderen Anwendungen wie xterm oder gedit einfügt. Mit dem internen Zwischenablage-Modus der Unternehmensrichtlinie [interner Zwischenablage-Modus](../enterprise-policy.md#interner-zwischenablagemodus) bleibt die Auswahl innerhalb von korTTY auf jeder Plattform.
+
 !!! note "SSH-Keep-Alive"
     Wenn korTTY aktiviert ist, sendet es regelmäßig Keep-Alive-Pakete, um zu verhindern, dass SSH-Sitzungen während Leerlaufzeiten ablaufen. Die Intervalleinstellung steuert, wie oft (in Sekunden) diese Pakete gesendet werden. Der Spinnerbereich beträgt 5–600 Sekunden; Das Intervall ist deaktiviert, wenn SSH Keep-Alive ausgeschaltet ist.
 

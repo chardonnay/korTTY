@@ -26,7 +26,7 @@ Verbindungs-Einträge (Schnellverbindung, Verwalten/Importieren/Exportieren von 
 | Schneiden | ++ctrl+x++ | Ausschneiden (deaktiviert für Anschlusslaschen) |
 | Kopie | ++ctrl+c++ | Kopieren Sie die Terminalauswahl |
 | Paste | ++ctrl+v++ | In das Terminal einfügen |
-| Finden… | ++ctrl+f++ | Durchsuchen Sie die aktive Registerkarte (Terminal-Scrollback oder geöffneter Editor). |
+| Suchen… | ++ctrl+f++ | Suche im aktiven Tab (Terminal-Scrollback oder geöffneter Editor). Auf Windows und Linux sendet ein fokussiertes Terminal ++ctrl+f++ an die Shell, also öffnen Sie Suchen aus diesem Menü oder dem Rechtsklick-Menü des Terminals dort |
 
 ## Verbindungen
 
