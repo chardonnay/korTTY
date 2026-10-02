@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 public class CredentialManager {
     
     private static final Logger logger = LoggerFactory.getLogger(CredentialManager.class);
-    private static final String CREDENTIALS_FILE = "credentials.xml";
+    public static final String CREDENTIALS_FILE = "credentials.xml";
     
     private final Path configDir;
     private final List<StoredCredential> credentials = new ArrayList<>();

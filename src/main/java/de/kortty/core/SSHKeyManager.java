@@ -26,7 +26,7 @@ import java.util.Optional;
 public class SSHKeyManager {
     
     private static final Logger logger = LoggerFactory.getLogger(SSHKeyManager.class);
-    private static final String SSH_KEYS_FILE = "ssh-keys.xml";
+    public static final String SSH_KEYS_FILE = "ssh-keys.xml";
     private static final String SSH_KEYS_DIR = "ssh-keys";  // Subdirectory in .kortty for copied keys
     
     private final Path configDir;

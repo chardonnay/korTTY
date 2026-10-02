@@ -23,7 +23,7 @@ import java.util.UUID;
 public class ThemeManager {
 
     private static final Logger logger = LoggerFactory.getLogger(ThemeManager.class);
-    private static final String THEMES_FILE = "themes.xml";
+    public static final String THEMES_FILE = "themes.xml";
     private static final String DEFAULT_THEME_ID = "default";
     private static final String DARK_THEME_ID = "dark";
 

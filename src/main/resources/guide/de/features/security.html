@@ -880,7 +880,7 @@
 <li>Wählen Sie <strong>GPG-Verschlüsselung</strong> als Verschlüsselungstyp aus.</li>
 <li>Wählen Sie den GPG-Schlüssel aus, der für die Verschlüsselung verwendet werden soll.</li>
 </ol>
-<p>GPG-verschlüsselte Backups und Exporte werden als <code>.gpg</code>-Dateien gespeichert und erfordern den <code>gpg</code>-Befehl Ihres Systems und einen verwendbaren öffentlichen Schlüssel zur Entschlüsselung.</p>
+<p>GPG-verschlüsselte Backups und Exporte werden als <code>.gpg</code> Dateien gespeichert — ein GPG-Backup als <code>kortty-backup.zip.gpg</code> — und benötigen den <code>gpg</code> Befehl Ihres Systems. Die Erstellung eines Backups erfordert den öffentlichen Schlüssel des Empfängers; die Wiederherstellung oder das Öffnen eines Backups erfordert den passenden <strong>privaten</strong> Schlüssel, und <code>gpg</code> kann nach dessen Passphrase fragen.</p>
 <h2 id="gespeicherte-sicherheitsdaten">Gespeicherte Sicherheitsdaten<a class="headerlink" href="#gespeicherte-sicherheitsdaten" title="Permanent link">&para;</a></h2>
 <p>Die folgenden sensiblen und sicherheitsrelevanten Daten werden in <code>~/.kortty/</code> gespeichert; Geheime Werte werden verschlüsselt, während öffentliches Verifizierungsmaterial nicht verschlüsselt ist:</p>
 <table>

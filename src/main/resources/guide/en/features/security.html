@@ -880,7 +880,7 @@
 <li>Select <strong>GPG Encryption</strong> as the encryption type.</li>
 <li>Choose the GPG key to use for encryption.</li>
 </ol>
-<p>GPG-encrypted backups and exports are stored as <code>.gpg</code> files and require your system's <code>gpg</code> command and a usable public key for decryption.</p>
+<p>GPG-encrypted backups and exports are stored as <code>.gpg</code> files — a GPG backup as <code>kortty-backup.zip.gpg</code> — and need your system's <code>gpg</code> command. Creating one needs the recipient's public key; restoring or opening one needs the matching <strong>private</strong> key, and <code>gpg</code> may ask for its passphrase.</p>
 <h2 id="stored-security-data">Stored security data<a class="headerlink" href="#stored-security-data" title="Permanent link">&para;</a></h2>
 <p>The following sensitive and security-related data is stored in <code>~/.kortty/</code>; secret values are encrypted, while public verification material is not:</p>
 <table>

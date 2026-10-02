@@ -155,7 +155,7 @@ Verwalten Sie GPG-Schlüssel für die Backup-Verschlüsselung und die Verbindung
 2. Wählen Sie **GPG-Verschlüsselung** als Verschlüsselungstyp aus.
 3. Wählen Sie den GPG-Schlüssel aus, der für die Verschlüsselung verwendet werden soll.
 
-GPG-verschlüsselte Backups und Exporte werden als `.gpg`-Dateien gespeichert und erfordern den `gpg`-Befehl Ihres Systems und einen verwendbaren öffentlichen Schlüssel zur Entschlüsselung.
+GPG-verschlüsselte Backups und Exporte werden als `.gpg` Dateien gespeichert — ein GPG-Backup als `kortty-backup.zip.gpg` — und benötigen den `gpg` Befehl Ihres Systems. Die Erstellung eines Backups erfordert den öffentlichen Schlüssel des Empfängers; die Wiederherstellung oder das Öffnen eines Backups erfordert den passenden **privaten** Schlüssel, und `gpg` kann nach dessen Passphrase fragen.
 
 ## Gespeicherte Sicherheitsdaten
 

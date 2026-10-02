@@ -30,7 +30,7 @@ import java.util.List;
 public class XMLConnectionRepository {
     
     private static final Logger logger = LoggerFactory.getLogger(XMLConnectionRepository.class);
-    private static final String CONNECTIONS_FILE = "connections.xml";
+    public static final String CONNECTIONS_FILE = "connections.xml";
     private static final String ENCRYPTED_TEMP_KEY_PREFIX = "enc:";
     private static final String TEMPORARY_KEY_PATH_PREFIX = "TEMPORARY:";
     private static final String TEMPORARY_KEY_PATH_MARKER = "TEMPORARY:__ENCRYPTED__";
