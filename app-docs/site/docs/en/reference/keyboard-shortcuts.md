@@ -58,6 +58,15 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 
 The zoom keys (++ctrl++ or ++alt++ with ++plus++ / ++minus++ / ++0++; ++cmd++ on macOS) zoom the terminal only while a terminal tab is selected. In a snippet editor or file editor tab they reach the editor, and ++alt-graph+plus++ types its character there.
 
+## SFTP Manager
+
+These keys work in the local and the remote list of an SFTP Manager tab; see [Keys](../features/sftp.md#keys).
+
+| Shortcut | Action |
+| --- | --- |
+| ++f2++ | Rename the selected entry |
+| ++delete++ or ++ctrl+backspace++ | Delete the selection, after confirmation |
+
 ## Snippet Manager
 
 These keys work in the Snippet Manager (library and editor tabs); see [Opening the Snippet Manager](../features/snippets.md#opening-the-snippet-manager).
