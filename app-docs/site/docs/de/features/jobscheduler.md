@@ -130,7 +130,7 @@ Die Laufhistorie behält den letzten Bildschirm als Ausgabe bei. Die KI beschrei
 
 #### Snippet-Skriptjobs
 
-Snippet-Skriptjobs verwenden den ausgewählten SnippetManager-Eintrag, ohne dass eine geöffnete Terminalregisterkarte erforderlich ist. KorTTY löst integrierte Snippet-Variablen und gespeicherte SnippetManager-Variablen vor der Ausführung auf. Fehlende Snippets, fehlende gespeicherte Variablenwerte und nicht unterstützte Snippet-Sprachen blockieren den Job und schreiben den Grund in das Journal. Zusätzliche Snippet-Parameter werden einzeln pro Zeile eingegeben, sodass Werte mit Leerzeichen als einzelne Skriptargumente übergeben werden.
+Snippet-Skript-Jobs verwenden den ausgewählten Snippet-Manager-Eintrag, ohne einen offenen Terminal-Tab zu benötigen. KorTTY löst die Platzhalter des Snippets vor der Ausführung mit denselben Regeln wie der Snippet-Manager auf: eingebaute Variablen und deklarierte Variablen mit einem gespeicherten Wert werden ersetzt, und Shell-Formen wie `${1:-default}` oder `${HOME}` werden der Shell unverändert übergeben. Fehlende Snippets, eine deklarierte Variable ohne gespeicherten Wert, ein nicht deklarierter einfacher Name wie `${target}` (schreiben Sie `$${target}`, um es an die Shell zu übergeben), und nicht unterstützte Snippet-Sprachen blockieren den Job und schreiben den Grund ins Journal; Siehe [Geplante und Swarm-Läufe](snippets.md#geplante-und-swarm-ausfuhrungen). Zusätzliche Snippet-Parameter werden je Zeile eingegeben, sodass Werte mit Leerzeichen als einzelne Skriptargumente übergeben werden.
 
 #### AI Schwarmjobs
 
