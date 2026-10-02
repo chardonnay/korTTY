@@ -13,6 +13,10 @@ What changed in the current release. The version this guide was built for is sho
 ### Connections and security
 
 - **Review and replace a changed host key** — when a server was rebuilt, the changed-key alert of a terminal tab or the SFTP manager now offers **Review and Replace…**: it shows the trusted and the new SHA-256 fingerprint side by side and replaces the key only after you tick that you verified the new fingerprint with the server administrator. **Close** and **Cancel** stay the default buttons, background connections never offer the replacement, and the `enforce-host-key-check` policy forbids it. The new **Configuration → Security → Known Hosts…** lists, searches and removes trusted keys. See [SSH host-key verification](../features/connections.md#ssh-host-key-verification).
+### SSH and security
+
+- **Temporary SSH keys are no longer left in the temp folder** — every connect, split and SFTP session with a temporary SSH key wrote the private key to a file in the system temp folder that was never deleted, so the key stayed on disk long after it had expired, and the debug log recorded the beginning and end of the key text. Temporary keys are now read in memory only and never logged, and key files that earlier versions left behind are deleted at the next start when they belong to you. See [Security](../reference/settings/security.md).
+- **Scheduled jobs delete their temporary key file** — a JobScheduler job with a temporary SSH key still needs the key as a file for Rsync's external `ssh`; that file is now created owner-only from the start and deleted when the job ends or its connection fails, instead of staying in the temp folder.
 
 ### Local AI
 

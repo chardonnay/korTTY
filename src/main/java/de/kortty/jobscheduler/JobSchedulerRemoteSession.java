@@ -2,6 +2,7 @@ package de.kortty.jobscheduler;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.SSHKeyManager;
+import de.kortty.core.TemporarySshKeyMaterial;
 import de.kortty.model.AuthMethod;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ServerConnection;
@@ -30,8 +31,11 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.time.Duration;
@@ -44,6 +48,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoCloseable {
 
@@ -51,6 +56,9 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
     private static final Duration COMMAND_OPEN_TIMEOUT = Duration.ofSeconds(30);
     private static final Duration COMMAND_WAIT_TIMEOUT = Duration.ofHours(1);
     private static final long COMMAND_POLL_MILLIS = 250L;
+    /** Name pattern also swept at startup by {@code LegacyTemporaryKeyFileCleanup}. */
+    static final String TEMPORARY_KEY_FILE_PREFIX = "kortty_scheduler_key_";
+    static final String TEMPORARY_KEY_FILE_SUFFIX = ".key";
 
     private final KorTTYApplication app;
     private final ServerConnection connection;
@@ -66,6 +74,12 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
     private String password;
     private Path authenticatedPrivateKeyPath;
     private String authenticatedPrivateKeyPassphrase;
+    /**
+     * Owner-only file holding a {@code TEMPORARY:} key for the external {@code ssh} of Rsync jobs,
+     * or {@code null}. Deleted by {@link #close()} and when {@link #connect()} fails. Atomic because
+     * a swarm runner connects lazily on its worker thread and closes from a teardown thread.
+     */
+    private final AtomicReference<Path> temporaryKeyFile = new AtomicReference<>();
 
     public JobSchedulerRemoteSession(
         KorTTYApplication app,
@@ -181,6 +195,19 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
                 "Connection to " + target + " is blocked by your organization's policy");
         });
         validateConnection();
+        boolean authenticated = false;
+        try {
+            connectAndAuthenticate();
+            authenticated = true;
+        } finally {
+            if (!authenticated) {
+                // Not every caller closes a session whose connect failed; never leave the key behind.
+                deleteTemporaryKeyFile();
+            }
+        }
+    }
+
+    private void connectAndAuthenticate() throws Exception {
         client = SshClient.setUpDefaultClient();
         client.setUserAuthFactories(buildUserAuthFactories(connection));
         client.setServerKeyVerifier((clientSession, remoteAddress, serverKey) -> {
@@ -586,6 +613,27 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
                 logger.debug("Could not stop scheduler SSH client", e);
             }
         }
+        deleteTemporaryKeyFile();
+    }
+
+    /**
+     * Deletes the file holding a temporary key, if one was written. korTTY quits through
+     * {@code Runtime.halt}, which skips {@code deleteOnExit}, so this is the only cleanup besides
+     * the startup sweep in {@code LegacyTemporaryKeyFileCleanup}.
+     */
+    private void deleteTemporaryKeyFile() {
+        Path file = temporaryKeyFile.getAndSet(null);
+        if (file == null) {
+            return;
+        }
+        if (file.equals(authenticatedPrivateKeyPath)) {
+            authenticatedPrivateKeyPath = null;
+        }
+        try {
+            Files.deleteIfExists(file);
+        } catch (IOException | SecurityException e) {
+            logger.warn("Could not delete the scheduler's temporary SSH key file", e);
+        }
     }
 
     private void validateConnection() throws JobBlockedException {
@@ -634,7 +682,7 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
     private void authenticateWithKey() throws Exception {
         String keyPath = null;
         String passphrase = null;
-        SSHKeyManager keyManager = app.getSSHKeyManager();
+        SSHKeyManager keyManager = app != null ? app.getSSHKeyManager() : null;
         if (connection.getSshKeyId() != null && keyManager != null) {
             Optional<SSHKey> key = keyManager.findKeyById(connection.getSshKeyId());
             if (key.isPresent()) {
@@ -671,31 +719,43 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
         }
     }
 
+    /**
+     * Returns the key file to authenticate with. A {@code TEMPORARY:} key is written to an
+     * owner-only temp file, because Rsync jobs hand the key to an external {@code ssh}; the file
+     * lives only as long as this session.
+     */
     private Path createTemporaryKeyFileIfNeeded(String keyPath) throws Exception {
-        if (!keyPath.startsWith("TEMPORARY:")) {
+        if (!TemporarySshKeyMaterial.isTemporaryKeyPath(keyPath)) {
             Path path = Path.of(keyPath);
             if (!Files.exists(path)) {
                 throw new JobBlockedException("SSH key file does not exist: " + keyPath);
             }
             return path;
         }
-        String content = keyPath.substring("TEMPORARY:".length());
+        deleteTemporaryKeyFile();
+        String content = keyPath.substring(TemporarySshKeyMaterial.PREFIX.length());
         if (!content.endsWith("\n")) {
             content = content + "\n";
         }
-        Path tempFile = Files.createTempFile("kortty_scheduler_key_", ".key");
+        Path tempFile = createOwnerOnlyTempFile();
+        temporaryKeyFile.set(tempFile);
         Files.writeString(tempFile, content, StandardCharsets.UTF_8);
-        try {
-            Files.setPosixFilePermissions(tempFile, java.util.Set.of(
-                java.nio.file.attribute.PosixFilePermission.OWNER_READ,
-                java.nio.file.attribute.PosixFilePermission.OWNER_WRITE));
-        } catch (UnsupportedOperationException ignored) {
-            tempFile.toFile().setReadable(false, false);
-            tempFile.toFile().setReadable(true, true);
-            tempFile.toFile().setWritable(false, false);
-            tempFile.toFile().setWritable(true, true);
+        return tempFile;
+    }
+
+    /** Creates the key file with owner-only permissions from the start, never widened later. */
+    static Path createOwnerOnlyTempFile() throws IOException {
+        if (FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
+            return Files.createTempFile(TEMPORARY_KEY_FILE_PREFIX, TEMPORARY_KEY_FILE_SUFFIX,
+                PosixFilePermissions.asFileAttribute(
+                    Set.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE)));
         }
-        tempFile.toFile().deleteOnExit();
+        // Windows: the temp folder is per user; also drop the access of everybody but the owner.
+        Path tempFile = Files.createTempFile(TEMPORARY_KEY_FILE_PREFIX, TEMPORARY_KEY_FILE_SUFFIX);
+        tempFile.toFile().setReadable(false, false);
+        tempFile.toFile().setReadable(true, true);
+        tempFile.toFile().setWritable(false, false);
+        tempFile.toFile().setWritable(true, true);
         return tempFile;
     }
 

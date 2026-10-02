@@ -15,6 +15,9 @@ This tab manages password vault security and SSH key authentication options. Ope
 | Disable master password prompt on startup (auto-login) | toggle | — | Off | `skipMasterPasswordPrompt` |
 | Enable temporary SSH key option | toggle | — | Off | `temporarySshKeyEnabled` |
 
+!!! note "Temporary SSH keys and the temp folder"
+    With this option on, the Connection Manager and Quick Connect offer a temporary SSH key: a private key you paste for the session instead of a key file. For terminal tabs, splits and SFTP, korTTY reads a temporary key in memory and never writes it to a key file; a saved connection keeps the key only encrypted with your master password in `connections.xml`. Scheduled jobs are the one exception: because an Rsync job hands the key to the external `ssh`, the JobScheduler writes a temporary key to an owner-only file in the system temp folder while it is connected to the server and deletes it when that connection closes or fails. Key files that earlier versions left in the temp folder (`kortty_temp_key_*.key`, `kortty_scheduler_key_*.key`) are deleted at the next start, as long as they belong to you and are older than five minutes.
+
 !!! warning "Master password on startup"
     If "Require master password on startup" is disabled, encrypted passwords and SSH keys cannot be automatically decrypted without manual password entry. This is a security risk and should only be disabled if you understand the consequences.
 
