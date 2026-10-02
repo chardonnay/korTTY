@@ -15,6 +15,9 @@ Auf dieser Registerkarte werden die Optionen für die Sicherheit des Passwort-Tr
 | Master-Passwort-Aufforderung beim Programmstart deaktivieren (automatischer Login) | Schalter | — | Aus | `skipMasterPasswordPrompt` |
 | Temporäre SSH-Schlüsseloption aktivieren | umschalten | – | Aus | `temporarySshKeyEnabled` |
 
+!!! note "Temporäre SSH-Schlüssel und der Temp-Ordner"
+    Wenn diese Option aktiviert ist, bietet der Connection-Manager und die Schnellverbindung einen temporären SSH-Schlüssel an: ein privater Schlüssel, den Sie für die Sitzung einfügen statt einer Schlüsseldatei. Für Terminal-Tabs, Aufteilungen und SFTP liest korTTY einen temporären Schlüssel im Speicher ein und schreibt ihn niemals in eine Schlüsseldatei; eine gespeicherte Verbindung speichert den Schlüssel nur verschlüsselt mit Ihrem Master-Passwort in `connections.xml`. Geplante Aufgaben sind die einzige Ausnahme: weil ein Rsync-Job den Schlüssel an das externe `ssh` übergibt, schreibt der JobScheduler einen temporären Schlüssel in eine nur für den Eigentümer lesbare Datei im System-Temp-Ordner, solange er mit dem Server verbunden ist, und löscht ihn, wenn diese Verbindung geschlossen oder fehlschlägt. Schlüsseldateien, die frühere Versionen im Temp-Ordner hinterlassen haben (`kortty_temp_key_*.key`, `kortty_scheduler_key_*.key`), werden beim nächsten Start gelöscht, sofern sie Ihnen gehören und älter als fünf Minuten sind.
+
 !!! warning "Master-Passwort beim Start"
     Wenn „Master-Passwort beim Start erforderlich“ deaktiviert ist, können verschlüsselte Passwörter und SSH-Schlüssel nicht automatisch ohne manuelle Passworteingabe entschlüsselt werden. Dies stellt ein Sicherheitsrisiko dar und sollte nur deaktiviert werden, wenn Sie die Konsequenzen verstehen.
 
