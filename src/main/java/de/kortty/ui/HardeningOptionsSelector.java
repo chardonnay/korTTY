@@ -41,9 +41,7 @@ public final class HardeningOptionsSelector extends VBox {
         setSpacing(8);
 
         EnumSet<HardeningOption> initial = loadPersistedSelection();
-        GridPane grid = new GridPane();
-        grid.setHgap(16);
-        grid.setVgap(4);
+        javafx.scene.layout.TilePane grid = optionTiles();
         HardeningOption[] options = HardeningOption.values();
         for (int i = 0; i < options.length; i++) {
             HardeningOption option = options[i];
@@ -52,7 +50,7 @@ public final class HardeningOptionsSelector extends VBox {
             check.selectedProperty().addListener((obs, was, isNow) -> fireSelectionChanged());
             check.setTooltip(optionTooltip("ai.workflow.option." + option.name() + ".tooltip"));
             checks.put(option, check);
-            grid.add(check, i % 2, i / 2);
+            grid.getChildren().add(check);
         }
 
         Button selectAllButton = new Button(I18n.get("ai.workflow.options.all"));
@@ -165,5 +163,17 @@ public final class HardeningOptionsSelector extends VBox {
         KorTTYApplication application = KorTTYApplication.getInstance();
         GlobalSettingsManager manager = application != null ? application.getGlobalSettingsManager() : null;
         return manager != null ? manager.getSettings() : null;
+    }
+
+    /**
+     * The option checkboxes as tiles as wide as the longest label: two columns where there is
+     * room, one in a narrow column (next to the analysis diagram), never a cut-off label.
+     */
+    static javafx.scene.layout.TilePane optionTiles() {
+        javafx.scene.layout.TilePane tiles = new javafx.scene.layout.TilePane(16, 4);
+        tiles.setPrefColumns(2);
+        tiles.setTileAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        tiles.setMaxWidth(Double.MAX_VALUE);
+        return tiles;
     }
 }

@@ -56,9 +56,7 @@ public final class InputHardeningSelector extends VBox {
 
         EnumSet<InputHardeningOption> initial = InputHardeningOption.parseOptions(
             settings != null ? settings.getSnippetInputHardeningOptions() : null);
-        GridPane grid = new GridPane();
-        grid.setHgap(16);
-        grid.setVgap(4);
+        javafx.scene.layout.TilePane grid = HardeningOptionsSelector.optionTiles();
         InputHardeningOption[] options = InputHardeningOption.values();
         for (int i = 0; i < options.length; i++) {
             InputHardeningOption option = options[i];
@@ -68,7 +66,7 @@ public final class InputHardeningSelector extends VBox {
             check.setTooltip(HardeningOptionsSelector.optionTooltip(
                 "ai.inputHardening.option." + option.name() + ".tooltip"));
             checks.put(option, check);
-            grid.add(check, i % 2, i / 2);
+            grid.getChildren().add(check);
         }
         grid.disableProperty().bind(enableCheck.selectedProperty().not());
 
