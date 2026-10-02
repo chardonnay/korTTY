@@ -139,8 +139,9 @@ public class ConfigurationManager {
                 restored++;
             } catch (Exception e) {
                 // Stays registered, so later saves keep writing the encrypted copy back.
-                logger.warn("Temporary SSH key for connection '{}' could not be decrypted after unlocking; it stays stored",
-                    connection.getDisplayName(), e);
+                // Only the exception type: the decryption failure must not put key material in the log.
+                logger.warn("Temporary SSH key for connection '{}' could not be decrypted after unlocking ({}); it stays stored",
+                    connection.getDisplayName(), e.getClass().getSimpleName());
             }
         }
         logger.info("Restored {} temporary SSH key(s) after unlocking the vault", restored);
