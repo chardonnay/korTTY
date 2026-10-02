@@ -815,7 +815,8 @@ public class SFTPManagerTab extends Tab {
                     char[] master = app.getMasterPasswordManager() != null
                         ? app.getMasterPasswordManager().getMasterPassword()
                         : null;
-                    sftpSession.configureVault(app.getSSHKeyManager(), master, temporarySSHKey != null);
+                    SftpConnectionSupport.configureVault(
+                        sftpSession, app.getSSHKeyManager(), master, temporarySSHKey);
                 }
 
                 sftpSession.connect();

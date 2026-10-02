@@ -2429,17 +2429,29 @@ public class TerminalView extends BorderPane {
         } else if (targetConnection.getProtocol() == ConnectionProtocol.LOCAL_SHELL) {
             connector = new LocalShellTtyConnector(targetConnection);
         } else {
-            SshTtyConnector sshConnector = new SshTtyConnector(targetConnection, targetPassword);
-            // Whatever the target's own authentication: a jump server's stored password is
-            // decrypted with the master password, so a password target needs the vault too. A new
-            // connector is built for every attempt, so a reconnect after unlocking picks it up.
             de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
-            if (app != null) {
-                sshConnector.configureVault(app.getSSHKeyManager(), masterPasswordOf(app));
-            }
+            SshTtyConnector sshConnector = sshConnectorWithVault(targetConnection, targetPassword,
+                    app != null ? app.getSSHKeyManager() : null, masterPasswordOf(app));
             sshConnector.setAccessReasonMemory(accessReasonMemory);
             connector = sshConnector;
         }
+        return connector;
+    }
+
+    /**
+     * Builds the SSH terminal connector for {@code target} and hands it the vault, whatever the
+     * target's own authentication: a jump server's stored password is decrypted with the master
+     * password, so a password or keyboard-interactive target needs it as much as a key-based one.
+     * Only a {@code PUBLIC_KEY} target keeps the key manager. A new connector is built for every
+     * attempt, so a reconnect after unlocking the vault picks the master password up.
+     */
+    static SshTtyConnector sshConnectorWithVault(
+            ServerConnection target,
+            String password,
+            de.kortty.core.SSHKeyManager keyManager,
+            char[] masterPassword) {
+        SshTtyConnector connector = new SshTtyConnector(target, password);
+        connector.configureVault(keyManager, masterPassword);
         return connector;
     }
 

@@ -157,9 +157,20 @@ class SftpJumpHostIntegrationTest {
         connection.setAuthMethod(de.kortty.model.AuthMethod.PUBLIC_KEY);
         connection.setPrivateKeyPath("TEMPORARY:" + openSshPrivateKey(temporaryKey));
         connection.setJumpServer(passwordJump(master));
+        // The connection still references a managed key the target does not accept. With the
+        // temporary key in use the key manager must be left out, or that key would be offered
+        // instead and the login would fail.
+        SSHKeyManager keyManager = new SSHKeyManager(tmp);
+        Path managedKeyFile = tmp.resolve("managed.key");
+        Files.writeString(managedKeyFile,
+            openSshPrivateKey(KeyUtils.generateKeyPair(KeyPairProvider.ECDSA_SHA2_NISTP256, 256)),
+            StandardCharsets.UTF_8);
+        de.kortty.model.SSHKey managedKey = new de.kortty.model.SSHKey("managed", managedKeyFile.toString());
+        keyManager.addKey(managedKey);
+        connection.setSshKeyId(managedKey.getId());
 
         SFTPSession sftp = new SFTPSession(connection, null, acceptingTrust(tmp));
-        sftp.configureVault(new SSHKeyManager(tmp), master, true);
+        sftp.configureVault(keyManager, master, true);
         try {
             sftp.connect();
             assertThat(sftp.listFiles(".")).isNotNull();
