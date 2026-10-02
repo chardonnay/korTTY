@@ -7827,9 +7827,15 @@ public class MainWindow {
         // An Ask only sends the question to the model and runs nothing on the target, so it needs
         // no warning; every executing run does.
         ObservableTtyConnector foreignSessionAcknowledgedFor = acknowledgedConnector;
+        TerminalView.TerminalAgentRunContext targetRunContext = runContext;
         if (!request.queryOnly()) {
+            // Resolve the target pane once, so the pane whose identity the user confirms is the
+            // pane the run then uses, not one captured again after the modal warning closed.
+            targetRunContext = terminalTab != null
+                ? resolveTerminalAgentRunContext(terminalTab, runContext)
+                : runContext;
             AgentTargetConfirmation confirmation =
-                confirmAgentTargetInForeignSession(terminalTab, runContext, acknowledgedConnector);
+                confirmAgentTargetInForeignSession(terminalTab, targetRunContext, acknowledgedConnector);
             if (!confirmation.proceed()) {
                 updateStatus(I18n.get("ai.agent.foreignSession.cancelled"));
                 return;
@@ -7858,7 +7864,8 @@ public class MainWindow {
             return;
         }
 
-        TerminalView.TerminalAgentRunContext resolvedRunContext = resolveTerminalAgentRunContext(terminalTab, runContext);
+        TerminalView.TerminalAgentRunContext resolvedRunContext =
+            resolveTerminalAgentRunContext(terminalTab, targetRunContext);
         applyTerminalAgentWorkingDirectoryHint(resolvedRunContext);
 
         if (request.executionTarget() == TerminalAgentExecutionTarget.CHAT_WINDOW) {
@@ -8399,7 +8406,18 @@ public class MainWindow {
         // asks like the agent does. The acknowledgement is handed to the accepted plan's
         // execution, which checks again on its own when it starts (a su typed while planning is
         // caught there) but does not repeat a warning the user already accepted here.
-        AgentTargetConfirmation confirmation = confirmAgentTargetInForeignSession(terminalTab, runContext, null);
+        // The terminal-window pane is captured before the check, so the pane whose identity the
+        // user confirms is the pane the planning probes then use.
+        TerminalAgentExecutionTarget executionTarget = getTerminalAgentExecutionTarget();
+        TerminalView.TerminalAgentRunContext resolvedRunContext = runContext;
+        if (executionTarget == TerminalAgentExecutionTarget.TERMINAL_WINDOW
+            && resolvedRunContext == null
+            && terminalTab != null
+            && terminalTab.getTerminalView() != null) {
+            resolvedRunContext = terminalTab.getTerminalView().captureTerminalAgentRunContext();
+        }
+        AgentTargetConfirmation confirmation =
+            confirmAgentTargetInForeignSession(terminalTab, resolvedRunContext, null);
         if (!confirmation.proceed()) {
             updateStatus(I18n.get("ai.agent.foreignSession.cancelled"));
             return;
@@ -8413,13 +8431,6 @@ public class MainWindow {
             return;
         }
 
-        TerminalAgentExecutionTarget executionTarget = getTerminalAgentExecutionTarget();
-        TerminalView.TerminalAgentRunContext resolvedRunContext = runContext;
-        if (executionTarget == TerminalAgentExecutionTarget.TERMINAL_WINDOW
-            && resolvedRunContext == null
-            && terminalTab.getTerminalView() != null) {
-            resolvedRunContext = terminalTab.getTerminalView().captureTerminalAgentRunContext();
-        }
         applyTerminalAgentWorkingDirectoryHint(resolvedRunContext);
         TerminalView.TerminalAgentRunContext planRunContext = resolvedRunContext;
         AiAgentPlanTab planTab = new AiAgentPlanTab(
