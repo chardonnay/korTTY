@@ -3182,6 +3182,18 @@ public class TerminalView extends BorderPane {
     }
 
     /**
+     * The character encoding the pane's connector types text in (see
+     * {@link de.kortty.core.TerminalEncodingSupport}); UTF-8 without a pane or for a connector that
+     * does not resolve one.
+     */
+    public java.nio.charset.Charset connectorCharset(SithTermFxWidget widget) {
+        TtyConnector connector = widget != null ? unwrapTerminalEffectConnector(widget.getTtyConnector()) : null;
+        return connector instanceof ObservableTtyConnector observable && observable.getCharset() != null
+            ? observable.getCharset()
+            : StandardCharsets.UTF_8;
+    }
+
+    /**
      * The pane's shell working directory when it runs a local shell: the cached directory, or the
      * start directory while a {@code cd} is unresolved; {@code null} for remote panes. Never blocks.
      */
