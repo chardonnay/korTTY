@@ -795,11 +795,11 @@
 </tr>
 <tr>
 <td><strong>Tabs</strong></td>
-<td>All terminal tabs in each window, including split-pane configurations</td>
+<td>All terminal tabs in each window, including split-pane configurations, plus SFTP Manager tabs with the local and remote folders they show, and image viewer tabs</td>
 </tr>
 <tr>
 <td><strong>Connections</strong></td>
-<td>A reference to the saved connection of each tab, by its connection ID</td>
+<td>A reference to the saved connection of each tab, by the connection's internal id, so renaming a connection does not break the project</td>
 </tr>
 <tr>
 <td><strong>Dashboard</strong></td>
@@ -817,7 +817,7 @@
 </table>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>AI result tabs and tool tabs (managers opened as tabs) are not saved with projects. They remain only in the current session and are lost when you close the tab or open a project.</p>
+<p>AI result tabs and tool tabs (managers opened as tabs) are not saved with projects. They remain only in the current session and are lost when you close the tab or open a project. SFTP Manager tabs are not tool tabs in this sense: they are saved, see <a href="#sftp-manager-tabs">SFTP Manager tabs</a>.</p>
 </div>
 <h2 id="auto-reconnect">Auto-Reconnect<a class="headerlink" href="#auto-reconnect" title="Permanent link">&para;</a></h2>
 <p>When <strong>Auto-Reconnect</strong> is enabled, KorTTY automatically:</p>
@@ -825,15 +825,24 @@
 <li>Restores all windows with their saved geometry (position and size)</li>
 <li>Reconnects each SSH tab using the original connection settings</li>
 <li>Shows each terminal tab's saved screen dimmed above the new session, framed by a <em>Restored output from</em> row with the date the project was saved and an <em>End of restored output</em> row. The text is written into the local terminal only and is never sent to the server: it does not reach the remote shell or its command history, and a session journal that starts with the connection does not record it (a journal you switch on later imports the scrollback, which then includes the restored rows). Control characters and escape sequences are removed from it before it is shown.</li>
+<li>Reopens each SFTP Manager tab at the local and remote folders it showed when the project was saved</li>
 <li>Restores the active tab and dashboard state</li>
 </ul>
 <p>If <strong>Auto-Reconnect</strong> is disabled, terminal tabs are not restored: opening the project applies the saved window geometry and reopens local file editor and image viewer tabs, while terminal, SFTP and remote file tabs are skipped. Open those connections again from the Connection Manager.</p>
+<h3 id="sftp-manager-tabs">SFTP Manager tabs<a class="headerlink" href="#sftp-manager-tabs" title="Permanent link">&para;</a></h3>
+<p>With <strong>Auto-Reconnect</strong>, each saved SFTP Manager tab connects to its connection again and opens the local and remote folders it showed when you saved the project. Without <strong>Auto-Reconnect</strong>, SFTP Manager tabs are not reopened.</p>
+<ul>
+<li>A local folder that no longer exists opens your home folder instead.</li>
+<li>A remote folder that no longer exists opens your login directory on the server, and the status bar says <strong>Remote folder</strong> <em>path</em> <strong>no longer exists; showing the home folder</strong>. A remote folder that exists but cannot be read, for example for lack of rights, shows the usual error and opens the login directory as well.</li>
+<li>Projects saved by earlier versions referred to SFTP Manager tabs by the connection's name. Such a tab is still restored when exactly one connection has that name; when several connections share the name, the tab is skipped and the log says why. Save the project again to store the reference by id.</li>
+<li>A remote image viewer tab is saved with the connection it was opened from, even when several SFTP Manager tabs are open or its SFTP Manager tab is already closed. When restored, it opens its own SFTP connection, with the same SSH key and jump server as the SFTP Manager, and that connection closes when you close the tab.</li>
+</ul>
 <h2 id="project-file-storage">Project File Storage<a class="headerlink" href="#project-file-storage" title="Permanent link">&para;</a></h2>
 <p>A project is a plain XML file with the <code>.kortty</code> extension. Each project includes:</p>
 <ul>
 <li>Metadata (name, description, creation/modification timestamps)</li>
 <li>Complete window and tab state</li>
-<li>Connection references (by connection ID, so the connection must exist in your Connection Manager)</li>
+<li>Connection references (by connection id, so the connection must exist in your Connection Manager)</li>
 <li>Dashboard visibility and layout</li>
 </ul>
 <p>The saved screen text is not part of the <code>.kortty</code> file. It is stored separately as one gzip file per terminal tab, <code>~/.kortty/history/&lt;session-id&gt;.history.gz</code>, which the project references by file name — a project file you share therefore carries the layout but not the screen text. korTTY only ever reads, writes or deletes plain file names inside <code>~/.kortty/history/</code>; a project whose reference points anywhere else opens without that screen text.</p>
