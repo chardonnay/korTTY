@@ -4399,7 +4399,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                     // which would leave those stores encrypted with the old password.
                     List<String> failedStores = new ArrayList<>();
                     persistStore(failedStores, "connections.xml",
-                        () -> configManager.save(mpm.getDerivedKey()));
+                        () -> configManager.saveOrThrow(mpm.getDerivedKey()));
                     if (sshKeyManager != null) {
                         persistStore(failedStores, "ssh-keys.xml", sshKeyManager::save);
                     }

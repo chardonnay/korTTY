@@ -840,7 +840,7 @@
 <ul>
 <li><strong>Centralized Management</strong> — Manage all SSH keys in one place</li>
 <li><strong>Encrypted Passphrases</strong> — Key passphrases are stored encrypted with AES-256-GCM</li>
-<li><strong>Key Copying</strong> — Use <strong>Copy to User Directory</strong> to copy keys to <code>~/.kortty/ssh-keys/</code>; copied keys are included in encrypted backups and restored with owner-only permissions</li>
+<li><strong>Key Copying</strong> — Use <strong>Copy to User Directory</strong> to copy keys to <code>~/.kortty/ssh-keys/</code>; on macOS and Linux the copied private key is made owner-only (<code>rw-------</code>) and the folder <code>rwx------</code>, and copied keys are included in encrypted backups and restored with owner-only permissions</li>
 <li><strong>Wildcard Search</strong> — Quick search for keys using <code>*</code> patterns</li>
 <li><strong>Automatic Usage</strong> — Select keys directly in connection settings</li>
 </ul>
@@ -883,7 +883,7 @@
 <li>Select <strong>GPG Encryption</strong> as the encryption type.</li>
 <li>Choose the GPG key to use for encryption.</li>
 </ol>
-<p>GPG-encrypted backups and exports are stored as <code>.gpg</code> files and require your system's <code>gpg</code> command and a usable public key for decryption.</p>
+<p>GPG-encrypted backups and exports are stored as <code>.gpg</code> files — a GPG backup as <code>kortty-backup.zip.gpg</code> — and need your system's <code>gpg</code> command. Creating one needs the recipient's public key; restoring or opening one needs the matching <strong>private</strong> key, and <code>gpg</code> may ask for its passphrase.</p>
 <h2 id="stored-security-data">Stored security data<a class="headerlink" href="#stored-security-data" title="Permanent link">&para;</a></h2>
 <p>The following sensitive and security-related data is stored in <code>~/.kortty/</code>; secret values are encrypted, while public verification material is not:</p>
 <table>
@@ -937,6 +937,8 @@
 </tr>
 </tbody>
 </table>
+<p>korTTY does not rewrite these files in place: a save goes to a temporary file in <code>~/.kortty</code> that is then renamed over the old file, for the connections, credentials, SSH keys, scheduled jobs and <code>master.key</code> after flushing it to the disk, so a crash, a full disk or a killed process leaves the previous version intact. On macOS and Linux, korTTY keeps <code>~/.kortty</code> at <code>rwx------</code> and writes <code>connections.xml</code>, <code>credentials.xml</code>, <code>ssh-keys.xml</code>, <code>job-scheduler.xml</code> and <code>master.key</code> owner-only (<code>rw-------</code>), also when an older version left them readable by other users; on Windows they are protected by the permissions of your user profile.</p>
+<p>A data file with connections, credentials, SSH or GPG keys, environments, themes or scheduled jobs that korTTY cannot parse at startup is moved aside as <code>&lt;name&gt;.corrupt-&lt;timestamp&gt;</code> without changing it, korTTY continues without its content, and a notice lists the moved files; the next save writes a fresh file. A file that cannot be read at all, for example while a virus scanner or another program holds it or while a network home directory is unreachable, stays where it is and korTTY does not save over it for the rest of the session; the notice lists it separately. <code>master.key</code> is never moved aside, because without it korTTY would treat the profile as new and mint a new salt: if it is damaged, unlocking fails with an error that names the file, and you restore it from a backup.</p>
 <h2 id="security-best-practices">Security Best Practices<a class="headerlink" href="#security-best-practices" title="Permanent link">&para;</a></h2>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
@@ -952,7 +954,7 @@
 <ul>
 <li>Keep private key files protected with a passphrase.</li>
 <li>Copy keys to <code>~/.kortty/ssh-keys/</code> for inclusion in encrypted backups; keys left in their original locations are only referenced and must be migrated separately.</li>
-<li>Limit key file permissions (e.g., <code>chmod 600</code>).</li>
+<li>Limit key file permissions (e.g., <code>chmod 600</code>). Copies in <code>~/.kortty/ssh-keys/</code> are made owner-only automatically.</li>
 <li>Verify a first-use host-key fingerprint through a trusted channel before accepting it. Treat a changed-key warning as a possible server rebuild, DNS error, or man-in-the-middle attack and investigate instead of reconnecting repeatedly.</li>
 </ul>
 <h3 id="jobscheduler">JobScheduler<a class="headerlink" href="#jobscheduler" title="Permanent link">&para;</a></h3>
@@ -1051,6 +1053,10 @@
 <tr>
 <td>Credentials</td>
 <td>Never stored in plain text</td>
+</tr>
+<tr>
+<td>Local data files</td>
+<td>Atomic replace flushed to disk, owner-only <code>~/.kortty</code> and secret stores, unreadable files moved aside or left untouched instead of overwritten</td>
 </tr>
 </tbody>
 </table>

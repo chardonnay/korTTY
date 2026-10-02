@@ -108,7 +108,7 @@ Zentralisierte Verwaltung privater SSH-Schlüssel mit verschlüsselten Passphras
 
 - **Zentralisierte Verwaltung** – Verwalten Sie alle SSH-Schlüssel an einem Ort
 - **Verschlüsselte Passphrasen** – Schlüsselpassphrasen werden mit AES-256-GCM verschlüsselt gespeichert
-- **Schlüsselkopie** – Verwenden Sie **In Benutzerverzeichnis kopieren**, um Schlüssel nach `~/.kortty/ssh-keys/` zu kopieren; Kopierte Schlüssel werden in verschlüsselte Backups einbezogen und nur mit Eigentümerberechtigungen wiederhergestellt
+- **Schlüsselkopieren** — Verwenden Sie **In Benutzerverzeichnis kopieren**, um Schlüssel nach `~/.kortty/ssh-keys/` zu kopieren; unter macOS und Linux wird der kopierte private Schlüssel nur für den Besitzer lesbar (`rw-------`) gesetzt und das Verzeichnis `rwx------`, und kopierte Schlüssel werden in verschlüsselten Backups eingeschlossen und mit Besitzer-Nur Berechtigungen wiederhergestellt.
 - **Platzhaltersuche** – Schnelle Suche nach Schlüsseln mithilfe von `*`-Mustern
 - **Automatische Nutzung** – Wählen Sie Schlüssel direkt in den Verbindungseinstellungen aus
 
@@ -161,7 +161,7 @@ Verwalten Sie GPG-Schlüssel für die Backup-Verschlüsselung und die Verbindung
 2. Wählen Sie **GPG-Verschlüsselung** als Verschlüsselungstyp aus.
 3. Wählen Sie den GPG-Schlüssel aus, der für die Verschlüsselung verwendet werden soll.
 
-GPG-verschlüsselte Backups und Exporte werden als `.gpg`-Dateien gespeichert und erfordern den `gpg`-Befehl Ihres Systems und einen verwendbaren öffentlichen Schlüssel zur Entschlüsselung.
+GPG-verschlüsselte Backups und Exporte werden als `.gpg` Dateien gespeichert — ein GPG-Backup als `kortty-backup.zip.gpg` — und benötigen den `gpg` Befehl Ihres Systems. Die Erstellung eines Backups erfordert den öffentlichen Schlüssel des Empfängers; die Wiederherstellung oder das Öffnen eines Backups erfordert den passenden **privaten** Schlüssel, und `gpg` kann nach dessen Passphrase fragen.
 
 ## Gespeicherte Sicherheitsdaten
 
@@ -178,6 +178,10 @@ Die folgenden sensiblen und sicherheitsrelevanten Daten werden in `~/.kortty/` g
 | `master.autounlock` | Gespeichertes Master-Passwort für die optionale automatische Anmeldung | Nur verschleiert – nicht verschlüsselt; Nur-Eigentümer-Dateiberechtigungen |
 | `global-settings.xml` | KI-Profil-API-Schlüssel, Übersetzungs-API-Schlüssel, optionales Hugging Face-Token | AES-256-GCM |
 
+korTTY schreibt diese Dateien nicht an Ort und Stelle neu: ein Speichern erfolgt in einer temporären Datei in `~/.kortty`, die dann über die alte Datei umbenannt wird, für Verbindungen, Anmeldedaten, SSH-Schlüssel, geplante Aufgaben und `master.key` nach dem Flush auf die Festplatte. So bleibt bei einem Absturz, einer vollen Festplatte oder einem beendeten Prozess die vorherige Version intakt. Unter macOS und Linux behält korTTY `~/.kortty` bei `rwx------` und schreibt `connections.xml`, `credentials.xml`, `ssh-keys.xml`, `job-scheduler.xml` und `master.key` auf Besitzer-Nur (`rw-------`), auch wenn eine ältere Version sie für andere Benutzer lesbar ließ; unter Windows sind sie durch die Berechtigungen Ihres Benutzerprofils geschützt.
+
+Eine Datendatei mit Verbindungen, Anmeldedaten, SSH- oder GPG-Schlüsseln, Umgebungen, Themen oder geplanten Aufgaben, die korTTY beim Start nicht parsen kann, wird als `<name>.corrupt-<timestamp>` ohne Änderung verschoben; korTTY fährt ohne deren Inhalt fort und ein Hinweis listet die verschobenen Dateien auf. Eine Datei, die überhaupt nicht gelesen werden kann – zum Beispiel weil ein Virenscanner oder ein anderes Programm sie hält oder ein Netzwerk-Home-Verzeichnis nicht erreichbar ist – bleibt an ihrem Ort und korTTY speichert nicht darüber hinweg für den Rest der Sitzung; der Hinweis listet sie separat auf. `master.key` wird niemals verschoben, weil korTTY ohne ihn das Profil als neu behandeln und einen neuen Salzwert erzeugen würde: wenn es beschädigt ist, schlägt das Entsperren mit einem Fehler fehl, der die Datei nennt, und Sie stellen sie aus einem Backup wieder her.
+
 ## Best Practices für die Sicherheit
 
 !!! warning
@@ -193,7 +197,7 @@ Die folgenden sensiblen und sicherheitsrelevanten Daten werden in `~/.kortty/` g
 
 - Schützen Sie private Schlüsseldateien mit einer Passphrase.
 - Schlüssel nach `~/.kortty/ssh-keys/` kopieren, um sie in verschlüsselte Backups aufzunehmen; Schlüssel, die an ihren ursprünglichen Speicherorten verbleiben, werden nur referenziert und müssen separat migriert werden.
-- Schlüsseldateiberechtigungen einschränken (z. B. `chmod 600`).
+- Beschränken Sie die Dateiberechtigungen für Schlüsseldateien (z. B. `chmod 600`). Kopien in `~/.kortty/ssh-keys/` werden automatisch nur für den Besitzer lesbar gesetzt.
 - Überprüfen Sie den Fingerabdruck eines Hostschlüssels bei der ersten Verwendung über einen vertrauenswürdigen Kanal, bevor Sie ihn akzeptieren. Behandeln Sie eine Warnung bezüglich eines geänderten Schlüssels als einen möglichen Serverneuaufbau, einen DNS-Fehler oder einen Man-in-the-Middle-Angriff und untersuchen Sie ihn, anstatt die Verbindung wiederholt wiederherzustellen.
 
 ### JobScheduler
@@ -243,6 +247,7 @@ Die folgenden sensiblen und sicherheitsrelevanten Daten werden in `~/.kortty/` g
 | JobScheduler-Geheimnisse | Sudo- und Archivkennwörter verschlüsselt; Journal-Schwärzung standardmäßig aktiviert |
 | JobScheduler-Hostschlüssel | Hostschlüssel-Pinning standardmäßig für unbeaufsichtigte SSH-/SFTP-/Rsync-Jobs erforderlich |
 | Anmeldeinformationen | Niemals im Klartext gespeichert |
+| Lokale Datendateien | Atomares Ersetzen mit Flush auf die Festplatte, `~/.kortty` und geheime Speicher nur für den Eigentümer, nicht lesbare Dateien werden beiseitegeschoben oder unverändert gelassen statt überschrieben |
 
 ## Ändern des Master-Passworts
 

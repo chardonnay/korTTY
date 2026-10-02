@@ -1,5 +1,6 @@
 package de.kortty.security;
 
+import de.kortty.core.AtomicFileWriter;
 import de.kortty.policy.PolicyValueCipher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,10 +58,16 @@ public class MasterPasswordManager {
     
     /**
      * Checks if a master password has been set up.
+     *
+     * <p>Only a {@code master.key} that is known not to exist counts as "not set". When its
+     * existence cannot be determined (a network home directory that is briefly unreachable,
+     * {@code ~/.kortty} not searchable) the first-run setup must not start: it would mint a new
+     * salt over the real {@code master.key} and orphan every stored secret. Unlocking then fails
+     * with an error that names the file instead.
      */
     public boolean isPasswordSet() {
         Path keyFile = configDir.resolve(MASTER_KEY_FILE);
-        return Files.exists(keyFile);
+        return !Files.notExists(keyFile);
     }
     
     /**
@@ -88,16 +95,8 @@ public class MasterPasswordManager {
         salt = encryptionService.generateSalt();
         storedHash = encryptionService.hashPassword(password, salt);
         
-        // Store salt and hash
-        Properties props = new Properties();
-        props.setProperty("salt", Base64.getEncoder().encodeToString(salt));
-        props.setProperty("hash", storedHash);
-        
-        Path keyFile = configDir.resolve(MASTER_KEY_FILE);
-        try (OutputStream out = Files.newOutputStream(keyFile)) {
-            props.store(out, "KorTTY Master Password");
-        }
-        
+        writeKeyFile(salt, storedHash);
+
         // Derive and store the key
         derivedKey = encryptionService.deriveKey(password, salt);
         this.masterPassword = password.clone();
@@ -199,14 +198,7 @@ public class MasterPasswordManager {
     /** Writes the staged password to {@code master.key}, making the change permanent. */
     public void commitPasswordChange(PendingPasswordChange pending) throws Exception {
         Objects.requireNonNull(pending, "pending");
-        Properties props = new Properties();
-        props.setProperty("salt", Base64.getEncoder().encodeToString(pending.newSalt));
-        props.setProperty("hash", pending.newHash);
-
-        Path keyFile = configDir.resolve(MASTER_KEY_FILE);
-        try (OutputStream out = Files.newOutputStream(keyFile)) {
-            props.store(out, "KorTTY Master Password");
-        }
+        writeKeyFile(pending.newSalt, pending.newHash);
 
         logger.info("Master password changed successfully");
     }
@@ -228,16 +220,57 @@ public class MasterPasswordManager {
         logger.warn("Master password change rolled back — the previous password is still in effect");
     }
     
-    private void loadStoredCredentials() throws Exception {
+    /**
+     * Writes the salt and verification hash to {@code master.key}: atomically, flushed to the disk
+     * and owner-only. A truncated {@code master.key} loses the salt, and with it every secret the
+     * vault encrypts; anyone who can read it can guess the master password offline.
+     */
+    private void writeKeyFile(byte[] keySalt, String hash) throws IOException {
+        Properties props = new Properties();
+        props.setProperty("salt", Base64.getEncoder().encodeToString(keySalt));
+        props.setProperty("hash", hash);
+        StringWriter text = new StringWriter();
+        props.store(text, "KorTTY Master Password");
+        AtomicFileWriter.writeStoreAtomically(configDir.resolve(MASTER_KEY_FILE), text.toString(),
+            AtomicFileWriter.FileMode.OWNER_ONLY);
+    }
+
+    /**
+     * Reads the salt and hash from {@code master.key}.
+     *
+     * <p>Unlike the other stores, an unreadable {@code master.key} is deliberately NOT moved aside:
+     * without the file {@link #isPasswordSet()} turns false, the first-run setup would mint a new
+     * salt and every stored secret would be orphaned. It stays where it is and unlocking fails with
+     * an error that names the file, so it can be restored from a backup.
+     *
+     * @throws IOException when the file cannot be read or lacks a valid salt or hash
+     */
+    private void loadStoredCredentials() throws IOException {
         Path keyFile = configDir.resolve(MASTER_KEY_FILE);
         Properties props = new Properties();
-        
+
         try (InputStream in = Files.newInputStream(keyFile)) {
             props.load(in);
+        } catch (IllegalArgumentException malformed) {
+            throw new IOException("master.key is incomplete or unreadable: " + keyFile, malformed);
         }
-        
-        salt = Base64.getDecoder().decode(props.getProperty("salt"));
-        storedHash = props.getProperty("hash");
+
+        String encodedSalt = props.getProperty("salt");
+        String hash = props.getProperty("hash");
+        if (encodedSalt == null || encodedSalt.isBlank() || hash == null || hash.isBlank()) {
+            throw new IOException("master.key is incomplete or unreadable: " + keyFile);
+        }
+        byte[] decodedSalt;
+        try {
+            decodedSalt = Base64.getDecoder().decode(encodedSalt.trim());
+        } catch (IllegalArgumentException malformed) {
+            throw new IOException("master.key is incomplete or unreadable: " + keyFile, malformed);
+        }
+        if (decodedSalt.length == 0) {
+            throw new IOException("master.key is incomplete or unreadable: " + keyFile);
+        }
+        salt = decodedSalt;
+        storedHash = hash;
     }
     
     /**
