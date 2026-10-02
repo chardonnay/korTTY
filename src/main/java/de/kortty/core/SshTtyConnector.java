@@ -438,7 +438,10 @@ public class SshTtyConnector implements ObservableTtyConnector {
             close();
             return false;
         } catch (Exception e) {
-            if (hostKeyVerifier != null && hostKeyVerifier.wasRejected()) {
+            // A refused jump-server key is final like a refused target key: retrying would only
+            // show the same changed-key alert again.
+            if (e instanceof JumpHostSupport.JumpHostKeyRejectedException
+                    || (hostKeyVerifier != null && hostKeyVerifier.wasRejected())) {
                 logger.error("SSH host-key verification rejected connection to {}:{}",
                     connection.getHost(), connection.getPort());
                 close();

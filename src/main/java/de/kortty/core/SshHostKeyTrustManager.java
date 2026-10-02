@@ -116,9 +116,7 @@ public final class SshHostKeyTrustManager {
 
     /**
      * Creates a STRICT (trust-on-first-use) verifier bound to the connection's user-visible
-     * endpoint. This overload is always strict — a jump server's own host key uses it so the
-     * bastion is verified regardless of any relaxed target policy. A changed key is never
-     * offered for replacement ({@link ReplacePolicy#NEVER}).
+     * endpoint. A changed key is never offered for replacement ({@link ReplacePolicy#NEVER}).
      */
     public ConnectionVerifier verifierFor(ServerConnection connection) {
         return verifierFor(connection, HostKeyCheckMode.STRICT, ReplacePolicy.NEVER);
@@ -889,7 +887,7 @@ public final class SshHostKeyTrustManager {
                     }
                     Optional<ButtonType> result = alert.showAndWait();
                     if (replacementAllowed && result.isPresent() && result.get() == review
-                            && confirmReplacement(mismatch)) {
+                            && confirmReplacement(mismatch, alert.getOwner())) {
                         return MismatchResolution.REPLACE;
                     }
                     return MismatchResolution.KEEP_BLOCKED;
@@ -938,7 +936,7 @@ public final class SshHostKeyTrustManager {
          * so Enter never confirms, and the replace button stays disabled until the user ticks that
          * the new fingerprint was verified with the server administrator.
          */
-        private static boolean confirmReplacement(HostKeyMismatch mismatch) {
+        private static boolean confirmReplacement(HostKeyMismatch mismatch, Window owner) {
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.setTitle(text("ssh.hostKey.replace.title", "Replace Trusted SSH Host Key"));
             alert.setHeaderText(text("ssh.hostKey.replace.header",
@@ -974,7 +972,14 @@ public final class SshHostKeyTrustManager {
                 text("ssh.hostKey.replace.confirmButton", "Replace Key and Connect"),
                 ButtonBar.ButtonData.OK_DONE);
             alert.getButtonTypes().setAll(replace, ButtonType.CANCEL);
-            prepareAlert(alert);
+            // Right after the changed-key alert closed, its owner may not have regained focus yet,
+            // so reuse that owner instead of looking for the focused window again.
+            if (owner != null) {
+                alert.getDialogPane().setPrefWidth(680);
+                alert.initOwner(owner);
+            } else {
+                prepareAlert(alert);
+            }
             Button replaceButton = (Button) alert.getDialogPane().lookupButton(replace);
             replaceButton.setDefaultButton(false);
             replaceButton.disableProperty().bind(verified.selectedProperty().not());
