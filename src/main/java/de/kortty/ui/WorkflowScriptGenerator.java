@@ -439,6 +439,24 @@ public final class WorkflowScriptGenerator {
             settings.getDefaultAiProfileId());
     }
 
+    /**
+     * Whether {@link #generate} would stop with {@link FailureKind#VAULT_LOCKED} for {@code data}:
+     * the profile it uses has an encrypted API key that no policy key replaces, and the vault is
+     * locked. Checked once on the FX thread before the parallel requests start.
+     */
+    boolean requiresVaultUnlock(RunExportData data) {
+        GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings()
+            : null;
+        AiProfile profile = settings != null ? resolveProfile(settings, data != null ? data.profileId() : null) : null;
+        if (profile == null || de.kortty.policy.PolicyAiProfileSupport.apiKeyOverride(profile) != null) {
+            return false;
+        }
+        String encrypted = profile.getEncryptedApiKey();
+        return encrypted != null && !encrypted.isBlank()
+            && (app.getMasterPasswordManager() == null || app.getMasterPasswordManager().getMasterPassword() == null);
+    }
+
     private String resolveApiKey(AiProfile profile) {
         String policyKey = de.kortty.policy.PolicyAiProfileSupport.apiKeyOverride(profile);
         if (policyKey != null) {

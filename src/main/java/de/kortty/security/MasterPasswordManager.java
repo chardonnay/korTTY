@@ -64,6 +64,23 @@ public class MasterPasswordManager {
     }
     
     /**
+     * Whether the vault is open in this session: a key has been derived from the master password,
+     * so stored secrets can be decrypted and new ones encrypted.
+     */
+    public boolean isUnlocked() {
+        return derivedKey != null;
+    }
+
+    /**
+     * Whether a master password exists but has not been entered in this session — the state after
+     * a start with "Require master password on startup" turned off. A profile without a master
+     * password is not locked, it has no vault yet.
+     */
+    public boolean isLocked() {
+        return isPasswordSet() && derivedKey == null;
+    }
+
+    /**
      * Sets up a new master password.
      */
     public void setupPassword(char[] password) throws Exception {
