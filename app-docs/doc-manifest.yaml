@@ -224,7 +224,7 @@ pages:
   # ---- Features --------------------------------------------------------------
   - path: app-docs/site/docs/en/features/connections.md
     owns_i18n: [menu.connections., connEdit.tag, connManager.assignTag, connManager.removeTag, connExport.selection, quickConnect.tag]
-    owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/ConnectionManagerTreeView.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/ui/QuickConnectDialog.java, src/main/java/de/kortty/core/LocalShellTtyConnector.java, src/main/java/de/kortty/core/SshTtyConnector.java, src/main/java/de/kortty/core/SFTPSession.java, src/main/java/de/kortty/core/SshHostKeyTrustManager.java, src/main/java/de/kortty/platform/FlatpakSupport.java]
+    owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/ConnectionManagerTreeView.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/ui/QuickConnectDialog.java, src/main/java/de/kortty/core/LocalShellTtyConnector.java, src/main/java/de/kortty/core/SshTtyConnector.java, src/main/java/de/kortty/core/SFTPSession.java, src/main/java/de/kortty/core/SshHostKeyTrustManager.java, src/main/java/de/kortty/ui/KnownHostsDialog.java, src/main/java/de/kortty/platform/FlatpakSupport.java]
     diagrams: [connection-flow.svg, jump-server-flow.svg]
     last_synced_ref: "ab5f2d9d"
   - path: app-docs/site/docs/en/features/terminal.md
@@ -301,7 +301,7 @@ pages:
     last_synced_ref: "659b3bd9"
   - path: app-docs/site/docs/en/features/security.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/security, src/main/java/de/kortty/core/SshHostKeyTrustManager.java, src/main/java/de/kortty/core/HostKeyCheckPolicy.java, src/main/java/de/kortty/core/HostKeyCheckMode.java, src/main/java/de/kortty/ai/catalog, src/main/java/de/kortty/ai/llama/LlamaRuntimeManager.java, src/main/java/de/kortty/ai/huggingface, src/main/java/de/kortty/ai/runtimeupdate, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/rag/HttpQdrantRestAdapter.java, src/main/java/de/kortty/rag/RagSourceScanner.java, src/main/java/de/kortty/rag/RagContextBuilder.java, src/main/java/de/kortty/rag/RagSecretSupport.java]
+    owns_code: [src/main/java/de/kortty/security, src/main/java/de/kortty/core/SshHostKeyTrustManager.java, src/main/java/de/kortty/ui/KnownHostsDialog.java, src/main/java/de/kortty/core/HostKeyCheckPolicy.java, src/main/java/de/kortty/core/HostKeyCheckMode.java, src/main/java/de/kortty/ai/catalog, src/main/java/de/kortty/ai/llama/LlamaRuntimeManager.java, src/main/java/de/kortty/ai/huggingface, src/main/java/de/kortty/ai/runtimeupdate, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/rag/HttpQdrantRestAdapter.java, src/main/java/de/kortty/rag/RagSourceScanner.java, src/main/java/de/kortty/rag/RagContextBuilder.java, src/main/java/de/kortty/rag/RagSecretSupport.java]
     diagrams: [credential-flow.svg, persistence-encryption-flow.svg]
     last_synced_ref: "659b3bd9"
   - path: app-docs/site/docs/en/features/backup.md

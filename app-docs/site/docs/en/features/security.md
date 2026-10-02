@@ -117,7 +117,11 @@ When creating or editing a connection:
 
 ## Interactive SSH host-key trust
 
-Terminal and SFTP connections, including the SSH bootstrap used by Mosh, share a trust-on-first-use (TOFU) verifier keyed by normalized host name and port. On first use, korTTY displays the server key algorithm and OpenSSH SHA-256 fingerprint; verify it out of band before accepting. The confirmation defaults to **No**. A previously trusted matching key is accepted silently, while a changed key is hard-blocked with the expected and offered fingerprints and is never retried automatically.
+Terminal and SFTP connections, including the SSH bootstrap used by Mosh, share a trust-on-first-use (TOFU) verifier keyed by normalized host name and port. On first use, korTTY displays the server key algorithm and OpenSSH SHA-256 fingerprint; verify it out of band before accepting. The confirmation defaults to **No**. A previously trusted matching key is accepted silently, while a changed key is hard-blocked with the expected and offered fingerprints and is never retried or replaced automatically.
+
+A changed key can be replaced only by an explicit decision, and only in a connection you opened yourself in a terminal tab or the SFTP manager (including its jump server). **Review and Replace…** in the changed-key alert shows the trusted and the new fingerprint side by side; the replace button stays disabled until you confirm that you verified the new fingerprint with the server administrator, and **Close** and **Cancel** remain the default buttons. The replacement is a compare-and-swap: it is stored only while the trusted key is still exactly the one you reviewed, so a key changed in another window in the meantime is never overwritten. Every replacement is logged with the old and the new fingerprint. Background and restored connections, and the SSH bootstrap of Mosh, keep the plain block.
+
+**Configuration → Security → Known Hosts…** lists, searches and removes trusted keys. Removal works the same way: it deletes a key only while it still has the fingerprint shown in the confirmation, and the next connection asks again as on first use. With the enterprise policy key `enforce-host-key-check`, both replacing and removing are disabled, so only an administrator can change a trusted key.
 
 Interactive pins are written atomically to `~/.kortty/ssh-host-keys.properties`; a companion lock coordinates simultaneous korTTY processes. This store is distinct from the JobScheduler's connection-ID-based host-key pins in `job-scheduler.xml`, which protect unattended SSH, SFTP, and Rsync execution.
 
@@ -188,7 +192,7 @@ The following sensitive and security-related data is stored in `~/.kortty/`; sec
 - Keep private key files protected with a passphrase.
 - Copy keys to `~/.kortty/ssh-keys/` for inclusion in encrypted backups; keys left in their original locations are only referenced and must be migrated separately.
 - Limit key file permissions (e.g., `chmod 600`).
-- Verify a first-use host-key fingerprint through a trusted channel before accepting it. Treat a changed-key warning as a possible server rebuild, DNS error, or man-in-the-middle attack and investigate instead of reconnecting repeatedly.
+- Verify a first-use host-key fingerprint through a trusted channel before accepting it. Treat a changed-key warning as a possible server rebuild, DNS error, or man-in-the-middle attack and investigate instead of reconnecting repeatedly. Use **Review and Replace…** only after the server administrator has confirmed the new fingerprint.
 
 ### JobScheduler
 
@@ -225,7 +229,7 @@ The following sensitive and security-related data is stored in `~/.kortty/`; sec
 | Master Password Hashing | PBKDF2 with 310,000 iterations |
 | Credential Encryption | AES-256-GCM |
 | SSH Key Passphrases | Encrypted with AES-256-GCM and master password |
-| Interactive SSH/SFTP/Mosh host keys | Shared normalized host:port TOFU, first-use fingerprint confirmation (optionally relaxed to accept-new), silent exact match, hard block on change |
+| Interactive SSH/SFTP/Mosh host keys | Shared normalized host:port TOFU, first-use fingerprint confirmation (optionally relaxed to accept-new), silent exact match, hard block on change; replacement only after explicit fingerprint confirmation, as a compare-and-swap |
 | AI API Keys | Encrypted with AES-256-GCM and master password |
 | Embedded llama.cpp | Loopback-only random port, generated API key, offline/hardened server flags, request leases |
 | GGUF/runtime supply chain | Immutable revisions, SHA-256 verification, signed runtime index, durable revocation quarantine, rollback after failed health check or first real API start |
