@@ -382,7 +382,6 @@ Menu-bar status displays next runs / live countdown
 
 ## Performance Considerations
 
-- **Session caching**: Active SSH connections are cached to avoid reconnection overhead
 - **Lazy loading**: Connection details loaded on demand, not all at once
 - **Compression**: Terminal history and terminal logs use gzip; rotated session-journal parts use zstd (legacy `.gz` parts stay readable)
 - **Throttling**: Terminal rendering updates are batched to reduce UI thread load
