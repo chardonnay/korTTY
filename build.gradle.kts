@@ -3634,6 +3634,14 @@ tasks.register<JavaExec>("terminalShortcutKeyTypedSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("terminalContextMenuActionsSmoke") {
+    group = "verification"
+    description = "Fires the terminal context menu's Copy, Paste, Clear Buffer, Find and Font Size entries and checks each reaches the pane (needs a display; uses the OS clipboard and restores it)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("com.sithtermfx.ui.split.TerminalContextMenuActionsSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("aiManagerTabCssSmoke") {
     group = "verification"
     description = "Opens the AI Manager under every app design and fails on JavaFX CSS warnings for the selected tab."
