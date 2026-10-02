@@ -66,12 +66,12 @@ These keys work while a terminal pane has the focus. For how they behave with se
 | --- | --- |
 | ++shift+tab++ | Back-tab (`ESC [ Z`), for example to go back one field or panel in a full-screen program |
 | ++ctrl+left++ / ++ctrl+right++ | Move one word left / right in the shell (Windows and Linux) |
-| ++option+left++ / ++option+right++ | Move one word left / right on macOS (sends `ESC b` / `ESC f`, as Terminal.app does); ++alt+left++ / ++alt+right++ on Windows and Linux |
+| ++option+left++ / ++option+right++ | Move one word left / right on macOS (sends `ESC b` / `ESC f`, as Terminal.app does) |
 | ++shift+page-up++ / ++shift+page-down++ | Scroll korTTY's scrollback by a page; inside a full-screen program such as `vim`, `less` or `mc` the key goes to the program |
 | ++ctrl+up++ / ++ctrl+down++ | Scroll korTTY's scrollback by a line (++cmd+up++ / ++cmd+down++ on macOS); on Windows and Linux the keys go to a full-screen program instead while one runs |
 | ++ctrl+tab++ / ++ctrl+shift+tab++ | Next / previous tab, also while the terminal has the focus (the ++ctrl++ key on macOS too) |
 
-Every other combination of ++shift++, ++ctrl++ and ++alt++ with the arrow keys, ++home++ / ++end++, ++page-up++ / ++page-down++, ++insert++ / ++delete++ and ++f1++ to ++f12++ is sent the way xterm sends it, for example ++ctrl+page-up++ as `ESC [ 5 ; 5 ~` and ++shift+f1++ as `ESC [ 1 ; 2 P`. The arrow keys follow the program's cursor-key mode: `mc` and `vim` switch it on and then receive `ESC O A`, while a shell receives `ESC [ A`. Connections with a non-xterm terminal emulation (Wyse, TeleVideo, HP, SCO ANSI, IBM 3270/5250, PETSCII) keep sending fixed sequences without modifiers.
+Every other combination of ++shift++, ++ctrl++ and ++alt++ with the arrow keys, ++home++ / ++end++, ++page-up++ / ++page-down++, ++insert++ / ++delete++ and ++f1++ to ++f11++ is sent the way xterm sends it (++f12++ always toggles fullscreen), for example ++ctrl+page-up++ as `ESC [ 5 ; 5 ~` and ++shift+f1++ as `ESC [ 1 ; 2 P`. The arrow keys follow the program's cursor-key mode: `mc` and `vim` switch it on and then receive `ESC O A`, while a shell receives `ESC [ A`. Connections with a non-xterm terminal emulation (Wyse, TeleVideo, HP, SCO ANSI, IBM 3270/5250, PETSCII) keep sending fixed sequences without modifiers.
 
 ## Snippet Manager
 
