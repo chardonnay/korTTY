@@ -24,7 +24,6 @@ public class TeamworkSourceEditDialog extends ThemeAwareDialog<TeamworkSourceCon
     private final ComboBox<TeamworkSourceType> typeCombo;
     private final TextField locationField;
     private final Spinner<Integer> intervalSpinner;
-    private final CheckBox readOnlyCheck;
     private final CheckBox enabledCheck;
 
     public TeamworkSourceEditDialog(Stage owner, TeamworkSourceConfig existing) {
@@ -78,9 +77,6 @@ public class TeamworkSourceEditDialog extends ThemeAwareDialog<TeamworkSourceCon
             }
         });
 
-        readOnlyCheck = new CheckBox(I18n.get("teamwork.source.readOnly"));
-        readOnlyCheck.setSelected(existing != null && existing.isReadOnly());
-
         enabledCheck = new CheckBox(I18n.get("common.enabled"));
         enabledCheck.setSelected(existing == null || existing.isEnabled());
 
@@ -97,8 +93,7 @@ public class TeamworkSourceEditDialog extends ThemeAwareDialog<TeamworkSourceCon
         grid.add(locationBox, 1, 1);
         grid.add(new Label(I18n.get("teamwork.settings.interval")), 0, 2);
         grid.add(intervalSpinner, 1, 2);
-        grid.add(readOnlyCheck, 1, 3);
-        grid.add(enabledCheck, 1, 4);
+        grid.add(enabledCheck, 1, 3);
 
         getDialogPane().setContent(grid);
         getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
@@ -111,7 +106,8 @@ public class TeamworkSourceEditDialog extends ThemeAwareDialog<TeamworkSourceCon
             c.setType(typeCombo.getValue());
             c.setLocation(loc.trim());
             c.setCheckIntervalMinutes(intervalSpinner.getValue());
-            c.setReadOnly(readOnlyCheck.isSelected());
+            // readOnly is deliberately left as stored: no adapter writes back to a source, so the
+            // flag has no effect and the dialog no longer offers it.
             c.setEnabled(enabledCheck.isSelected());
             return c;
         });

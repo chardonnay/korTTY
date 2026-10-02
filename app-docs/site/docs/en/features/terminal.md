@@ -205,7 +205,7 @@ Terminal recording is designed as a low-resource replay feature. KorTTY records 
 1. To enable recording automatically after every app restart, open **Settings > Video** and enable **Enable terminal recording after app restart**.
 2. To enable recording only for this session, open **Tools > Video Manager...** and select **Enable terminal recording for this app session**.
 3. Set the **Storage path**. If left at the default, KorTTY uses `~/.kortty/recordings`.
-4. Choose the default format and default split scope. KorTTY replay is always available; video export requires `ffmpeg`.
+4. Choose the **Default scope** (active split or whole tab). Recordings are always KorTTY replay files; video export is a separate step and requires `ffmpeg`.
 5. Enable or disable **Auto-pause when the terminal is idle** and set the idle threshold (default: 20 seconds).
 6. Optional: enable **Capture terminal colors in new recordings** if exported videos should reproduce terminal colors.
 7. Optional: set the `ffmpeg` path and click **Check**. If `ffmpeg` is missing, video export stays disabled but replay files remain usable.

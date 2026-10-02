@@ -1,8 +1,12 @@
 package de.kortty.core;
 
+import de.kortty.ai.llama.LlamaModelRegistry;
+import de.kortty.ai.mlx.MlxModelRegistry;
+import de.kortty.jobscheduler.JobSchedulerRepository;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.StoredCredential;
 import de.kortty.model.GPGKey;
+import de.kortty.persistence.XMLConnectionRepository;
 import de.kortty.security.MasterPasswordManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,11 +17,18 @@ import net.lingala.zip4j.model.enums.AesKeyStrength;
 import net.lingala.zip4j.model.enums.EncryptionMethod;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Properties;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -30,16 +41,34 @@ public class BackupManager {
     private static final Logger logger = LoggerFactory.getLogger(BackupManager.class);
     private static final DateTimeFormatter BACKUP_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
     private static final String BACKUP_SUBDIR = "old-backups";
-    private static final String BACKUP_FILENAME = "kortty-backup.zip";
+    /** The current password-protected backup in the target directory. */
+    static final String BACKUP_FILENAME = "kortty-backup.zip";
+    /**
+     * The current GPG backup. It used to share {@link #BACKUP_FILENAME}, which sent korTTY's own
+     * GPG backups to the ZIP-password prompt on import; the format is now read from the content,
+     * so those older files still restore.
+     */
+    static final String GPG_BACKUP_FILENAME = BACKUP_FILENAME + ".gpg";
+    /** Rotated backups in {@code old-backups/}: {@code kortty-backup_<timestamp>[-n].zip[.gpg]}. */
+    static final String ROTATED_PREFIX = "kortty-backup_";
+    private static final String GPG_BACKUP_SUFFIX = ".zip.gpg";
+    /** A backup is written under this suffix and only moved into place once it is complete. */
+    private static final String PART_SUFFIX = ".part";
+    private static final String ARMORED_PGP_MESSAGE = "-----BEGIN PGP MESSAGE-----";
+    /**
+     * Every store file a backup carries, built from the stores' own constants so a renamed file
+     * cannot silently fall out of the backup; {@code BackupCoverageTest} fails when a new store
+     * constant is neither listed here nor explicitly excluded.
+     */
     private static final List<String> MANAGED_BACKUP_FILES = List.of(
-        "connections.xml",
-        "credentials.xml",
-        "gpg-keys.xml",
+        XMLConnectionRepository.CONNECTIONS_FILE,
+        CredentialManager.CREDENTIALS_FILE,
+        GPGKeyManager.GPG_KEYS_FILE,
         // Key references and master-password-encrypted passphrases; the copied key FILES in
         // ~/.kortty/ssh-keys/ are added as a directory alongside projects/ below.
-        "ssh-keys.xml",
-        "global-settings.xml",
-        "job-scheduler.xml",
+        SSHKeyManager.SSH_KEYS_FILE,
+        GlobalSettingsManager.SETTINGS_FILE,
+        JobSchedulerRepository.FILE_NAME,
         // Without this file, a restore onto a fresh profile leaves every restored encrypted
         // value undecryptable until the user recreates the identical master password by hand.
         // master.autounlock is deliberately NOT backed up: it is an obfuscated copy of the
@@ -48,11 +77,16 @@ public class BackupManager {
         // after a restore, auto-login simply re-arms on the next enable.
         MasterPasswordManager.MASTER_KEY_FILE,
         SshHostKeyTrustManager.STORE_FILE_NAME,
-        "snippets.xml",
-        "snippet-variables.xml",
-        "ai-chats.xml",
-        "llm/models.xml",
-        "rag/stores.json");
+        SnippetManager.SNIPPETS_FILE,
+        SnippetVariableManager.VARIABLES_FILE,
+        AiChatManager.AI_CHATS_FILE,
+        "llm/" + LlamaModelRegistry.REGISTRY_FILE_NAME,
+        // RagConfigurationManager.DEFAULT_FILE is an absolute Path, not a name.
+        "rag/stores.json",
+        ThemeManager.THEMES_FILE,
+        EnvironmentManager.ENVIRONMENTS_FILE,
+        SwarmChatManager.SWARM_CHATS_FILE,
+        "llm/" + MlxModelRegistry.REGISTRY_FILE_NAME);
     /**
      * Directories included alongside the managed files: project workspaces and the copied SSH
      * key files. Raw private keys are why password ZIPs are written with AES-256 rather than
@@ -60,24 +94,125 @@ public class BackupManager {
      */
     private static final List<String> MANAGED_BACKUP_DIRECTORIES = List.of(
         "projects", "ssh-keys", SnippetAnalysisStore.DIRECTORY_NAME);
+    /**
+     * Restored files korTTY itself writes owner-only: they name every host and user, hold the
+     * scheduler's sudo secrets, or (master.key) the salt and hash an attacker could guess the
+     * master password from. The other managed files keep the permissions of the file they replace.
+     */
+    private static final Set<String> OWNER_ONLY_RESTORED_FILES = Set.of(
+        XMLConnectionRepository.CONNECTIONS_FILE,
+        CredentialManager.CREDENTIALS_FILE,
+        SSHKeyManager.SSH_KEYS_FILE,
+        JobSchedulerRepository.FILE_NAME,
+        MasterPasswordManager.MASTER_KEY_FILE);
     
+    /** What a backup file holds, read from its first bytes rather than from its name. */
+    public enum BackupFormat {
+        /** A ZIP archive: a password-protected backup (or an unencrypted ZIP). */
+        ZIP,
+        /** OpenPGP-encrypted data, binary or ASCII-armored: a GPG backup. */
+        OPENPGP,
+        /** Neither — not a korTTY backup. */
+        UNKNOWN
+    }
+
+    /** The outcome of {@link #restoreBackup}. */
+    public record ImportResult(int filesImported, boolean masterKeyReplaced) {
+    }
+
+    /** Decrypts {@code input} into {@code output}; the seam tests replace. */
+    @FunctionalInterface
+    interface GpgDecryptor {
+        void decrypt(Path input, Path output) throws IOException;
+    }
+
+    /** The system's {@code gpg}, which picks the matching private key from the keyring. */
+    static final GpgDecryptor SYSTEM_GPG_DECRYPTOR = BackupManager::decryptWithSystemGpg;
+
     private final Path configDir;
     private final GlobalSettings settings;
+    private final SessionJournalExportProtection.GpgEncryptor gpgEncryptor;
+    private final GpgDecryptor gpgDecryptor;
     
     public BackupManager(Path configDir, GlobalSettings settings) {
+        this(configDir, settings, SessionJournalExportProtection.SYSTEM_GPG, SYSTEM_GPG_DECRYPTOR);
+    }
+
+    BackupManager(Path configDir, GlobalSettings settings,
+                  SessionJournalExportProtection.GpgEncryptor gpgEncryptor, GpgDecryptor gpgDecryptor) {
         this.configDir = configDir;
         this.settings = settings;
+        this.gpgEncryptor = Objects.requireNonNull(gpgEncryptor, "gpgEncryptor");
+        this.gpgDecryptor = Objects.requireNonNull(gpgDecryptor, "gpgDecryptor");
+    }
+
+    /**
+     * Reads the format of a backup from its first bytes: a ZIP local, end-of-central-directory
+     * or spanning signature; an OpenPGP message whose first packet is a public-key or symmetric
+     * session key or a marker packet (old or new packet format); or an ASCII-armored message.
+     * An empty file is {@link BackupFormat#UNKNOWN}.
+     */
+    public static BackupFormat detectBackupFormat(Path file) throws IOException {
+        byte[] head;
+        try (InputStream in = Files.newInputStream(file)) {
+            head = in.readNBytes(64);
+        }
+        return detectBackupFormat(head);
+    }
+
+    static BackupFormat detectBackupFormat(byte[] head) {
+        if (head.length >= 4 && head[0] == 'P' && head[1] == 'K'
+                && ((head[2] == 3 && head[3] == 4) || (head[2] == 5 && head[3] == 6)
+                    || (head[2] == 7 && head[3] == 8))) {
+            return BackupFormat.ZIP;
+        }
+        if (head.length >= 1 && (head[0] & 0x80) != 0) {
+            int b = head[0] & 0xFF;
+            // New packet format (bit 6 set): tag in bits 5-0; old format: tag in bits 5-2.
+            int tag = (b & 0x40) != 0 ? (b & 0x3F) : ((b >> 2) & 0x0F);
+            if (tag == 1 || tag == 3 || tag == 10) {
+                return BackupFormat.OPENPGP;
+            }
+        }
+        String text = new String(head, StandardCharsets.US_ASCII);
+        if (text.startsWith("ï»¿")) {
+            text = text.substring(3); // UTF-8 byte-order mark, decoded byte by byte
+        }
+        if (text.stripLeading().startsWith(ARMORED_PGP_MESSAGE)) {
+            return BackupFormat.OPENPGP;
+        }
+        return BackupFormat.UNKNOWN;
+    }
+
+    /**
+     * The format an import treats a file as: its detected content, except that an unrecognised
+     * file named {@code *.gpg} is handed to gpg, which knows more OpenPGP variants than the
+     * first-packet check.
+     */
+    public static BackupFormat importFormat(Path file) throws IOException {
+        BackupFormat format = detectBackupFormat(file);
+        if (format == BackupFormat.UNKNOWN && hasGpgName(file)) {
+            return BackupFormat.OPENPGP;
+        }
+        return format;
+    }
+
+    private static boolean hasGpgName(Path file) {
+        return file.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".gpg");
     }
     
     /**
      * Creates an encrypted backup of all settings to the specified directory.
-     * Encryption method is determined by GlobalSettings.
+     * Encryption method is determined by GlobalSettings. The new backup is written next to the
+     * current one first; only once it is complete are the current backups rotated into
+     * {@code old-backups/} and the new one moved into place, so a failed backup never pushes
+     * out the last good one.
      * 
      * @param targetDir Directory where backup should be saved
      * @param credentialManager For retrieving backup password (if PASSWORD encryption)
      * @param gpgKeyManager For retrieving GPG key (if GPG encryption)
      * @param masterPassword For decrypting stored credentials
-     * @return Path to created backup file
+     * @return Path to created backup file: {@code kortty-backup.zip} or {@code kortty-backup.zip.gpg}
      * @throws Exception if backup creation fails
      */
     public Path createBackup(Path targetDir, CredentialManager credentialManager, 
@@ -91,18 +226,34 @@ public class BackupManager {
         // Ensure target directory exists
         Files.createDirectories(targetDir);
         
-        Path backupFile = targetDir.resolve(BACKUP_FILENAME);
+        boolean passwordMode =
+            settings.getBackupEncryptionType() == GlobalSettings.BackupEncryptionType.PASSWORD;
+        Path backupFile = targetDir.resolve(passwordMode ? BACKUP_FILENAME : GPG_BACKUP_FILENAME);
+        Path partFile = targetDir.resolve(backupFile.getFileName() + PART_SUFFIX);
+        // A .part left behind by a crash must not be extended: zip4j appends to an existing file.
+        Files.deleteIfExists(partFile);
         
-        // Rotate existing backup if present
-        if (Files.exists(backupFile)) {
-            rotateBackup(targetDir, backupFile);
-        }
-        
-        // Create encrypted backup based on type
-        if (settings.getBackupEncryptionType() == GlobalSettings.BackupEncryptionType.PASSWORD) {
-            createPasswordEncryptedBackup(backupFile, credentialManager, masterPassword);
-        } else {
-            createGPGEncryptedBackup(backupFile, gpgKeyManager);
+        boolean placed = false;
+        try {
+            if (passwordMode) {
+                createPasswordEncryptedBackup(partFile, credentialManager, masterPassword);
+            } else {
+                createGPGEncryptedBackup(partFile, gpgKeyManager);
+            }
+            if (!Files.isRegularFile(partFile) || Files.size(partFile) == 0) {
+                throw new IOException("The backup file was not written: " + partFile.getFileName());
+            }
+            rotateCurrentBackups(targetDir);
+            moveIntoPlace(partFile, backupFile);
+            placed = true;
+        } finally {
+            if (!placed) {
+                try {
+                    Files.deleteIfExists(partFile);
+                } catch (IOException e) {
+                    logger.warn("Could not delete the incomplete backup {}", partFile, e);
+                }
+            }
         }
         
         logger.info("Backup created successfully: {} ({} bytes)", 
@@ -113,6 +264,14 @@ public class BackupManager {
         settings.setLastBackupTime(System.currentTimeMillis());
         
         return backupFile;
+    }
+
+    private static void moveIntoPlace(Path source, Path target) throws IOException {
+        try {
+            Files.move(source, target, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException e) {
+            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+        }
     }
     
     private void validateEncryptionSettings(CredentialManager credentialManager, GPGKeyManager gpgKeyManager) throws Exception {
@@ -127,7 +286,10 @@ public class BackupManager {
             if (settings.getBackupGpgKeyId() == null) {
                 throw new Exception("No GPG key selected for backup encryption!");
             }
-            GPGKey key = gpgKeyManager.getAllKeys().stream()
+            if (gpgKeyManager == null) {
+                throw new Exception("Selected GPG key not found!");
+            }
+            gpgKeyManager.getAllKeys().stream()
                 .filter(k -> k.getId().equals(settings.getBackupGpgKeyId()))
                 .findFirst()
                 .orElseThrow(() -> new Exception("Selected GPG key not found!"));
@@ -147,9 +309,6 @@ public class BackupManager {
             throw new Exception("Password could not be decrypted!");
         }
         
-        // Create password-protected ZIP using zip4j
-        ZipFile zipFile = new ZipFile(backupFile.toFile(), password.toCharArray());
-        
         ZipParameters zipParameters = new ZipParameters();
         zipParameters.setEncryptFiles(true);
         // AES-256, not legacy ZipCrypto: the archive carries raw SSH private-key files, which
@@ -159,15 +318,17 @@ public class BackupManager {
         zipParameters.setEncryptionMethod(EncryptionMethod.AES);
         zipParameters.setAesKeyStrength(AesKeyStrength.KEY_STRENGTH_256);
 
-        // Add all config files
-        for (String fileName : MANAGED_BACKUP_FILES) {
-            addFileToPasswordZip(zipFile, configDir.resolve(fileName), fileName, zipParameters);
-        }
+        // Closed before the file is moved into place: Windows cannot move a file that is open.
+        try (ZipFile zipFile = new ZipFile(backupFile.toFile(), password.toCharArray())) {
+            for (String fileName : MANAGED_BACKUP_FILES) {
+                addFileToPasswordZip(zipFile, configDir.resolve(fileName), fileName, zipParameters);
+            }
 
-        for (String dirName : MANAGED_BACKUP_DIRECTORIES) {
-            Path dir = configDir.resolve(dirName);
-            if (Files.exists(dir) && Files.isDirectory(dir)) {
-                zipFile.addFolder(dir.toFile(), zipParameters);
+            for (String dirName : MANAGED_BACKUP_DIRECTORIES) {
+                Path dir = configDir.resolve(dirName);
+                if (Files.exists(dir) && Files.isDirectory(dir)) {
+                    zipFile.addFolder(dir.toFile(), zipParameters);
+                }
             }
         }
 
@@ -189,7 +350,8 @@ public class BackupManager {
     }
     
     /**
-     * Creates a GPG-encrypted backup.
+     * Creates a GPG-encrypted backup: an unencrypted ZIP built in an owner-only temporary folder,
+     * encrypted for the selected key's public key and removed again with its folder.
      */
     private void createGPGEncryptedBackup(Path backupFile, GPGKeyManager gpgKeyManager) throws Exception {
         // Get GPG key
@@ -198,10 +360,10 @@ public class BackupManager {
             .findFirst()
             .orElseThrow(() -> new Exception("GPG key not found"));
         
-        // Create temporary unencrypted ZIP
-        Path tempZip = Files.createTempFile("kortty-backup-temp", ".zip");
+        Path work = SessionJournalExportProtection.privateTempDir("kortty-backup");
         try {
-            try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(tempZip))) {
+            Path plainZip = work.resolve(BACKUP_FILENAME);
+            try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(plainZip))) {
                 for (String fileName : MANAGED_BACKUP_FILES) {
                     addFileToZip(zos, configDir.resolve(fileName), fileName);
                 }
@@ -214,34 +376,15 @@ public class BackupManager {
                 }
             }
             
-            // Encrypt with GPG
-            ProcessBuilder pb = new ProcessBuilder(
-                "gpg", "--encrypt",
-                "--recipient", gpgKey.getKeyId(),
-                "--trust-model", "always",
-                "--output", backupFile.toString(),
-                tempZip.toString()
-            );
-            pb.redirectErrorStream(true);
-            Process process = pb.start();
-            
-            // Read output
-            StringBuilder output = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    output.append(line).append("\n");
-                }
-            }
-            
-            int exitCode = process.waitFor();
-            if (exitCode != 0) {
-                throw new Exception("GPG encryption failed: " + output.toString());
+            try {
+                gpgEncryptor.encrypt(plainZip, backupFile, gpgKey.getKeyId(), gpgKey.getPublicKeyPath());
+            } catch (IOException e) {
+                throw new Exception("GPG encryption failed: " + e.getMessage(), e);
             }
             
             logger.info("Created GPG-encrypted backup with key: {}", gpgKey.getKeyId());
         } finally {
-            Files.deleteIfExists(tempZip);
+            SessionJournalExportProtection.deleteRecursively(work);
         }
     }
     
@@ -261,7 +404,7 @@ public class BackupManager {
         try (var stream = Files.walk(dir)) {
             stream.filter(Files::isRegularFile).forEach(file -> {
                 try {
-                    String relativePath = basePath + "/" + dir.relativize(file).toString();
+                    String relativePath = basePath + "/" + dir.relativize(file).toString().replace('\\', '/');
                     addFileToZip(zos, file, relativePath);
                 } catch (IOException e) {
                     logger.warn("Failed to add file to backup: {}", file, e);
@@ -271,24 +414,47 @@ public class BackupManager {
     }
     
     /**
-     * Rotates existing backup by moving it to old-backups subdirectory with timestamp.
+     * Moves every current backup in {@code targetDir} — {@code kortty-backup.zip} and
+     * {@code kortty-backup.zip.gpg}, so switching the encryption type never leaves two "current"
+     * backups — into {@code old-backups/} with a timestamp. The rotated name ends in what the
+     * file holds ({@code .zip.gpg} for GPG data, even a GPG backup that an older version saved as
+     * {@code .zip}), and never replaces a backup rotated in the same second.
      */
-    private void rotateBackup(Path targetDir, Path existingBackup) throws IOException {
+    private void rotateCurrentBackups(Path targetDir) throws IOException {
+        List<Path> current = new ArrayList<>();
+        for (String name : List.of(BACKUP_FILENAME, GPG_BACKUP_FILENAME)) {
+            Path candidate = targetDir.resolve(name);
+            if (Files.isRegularFile(candidate)) {
+                current.add(candidate);
+            }
+        }
+        if (current.isEmpty()) {
+            return;
+        }
         Path backupSubdir = targetDir.resolve(BACKUP_SUBDIR);
         Files.createDirectories(backupSubdir);
         
         String timestamp = LocalDateTime.now().format(BACKUP_DATE_FORMAT);
-        String rotatedFilename = "kortty-backup_" + timestamp + ".zip";
-        Path rotatedBackup = backupSubdir.resolve(rotatedFilename);
-        
-        Files.move(existingBackup, rotatedBackup, StandardCopyOption.REPLACE_EXISTING);
-        logger.info("Rotated old backup to: {}", rotatedBackup);
+        for (Path existing : current) {
+            String suffix = importFormat(existing) == BackupFormat.OPENPGP ? GPG_BACKUP_SUFFIX : ".zip";
+            Path rotatedBackup = freeRotatedName(backupSubdir, ROTATED_PREFIX + timestamp, suffix);
+            Files.move(existing, rotatedBackup);
+            logger.info("Rotated old backup to: {}", rotatedBackup);
+        }
         
         cleanupOldBackups(backupSubdir);
     }
     
+    private static Path freeRotatedName(Path dir, String base, String suffix) {
+        Path candidate = dir.resolve(base + suffix);
+        for (int i = 1; Files.exists(candidate); i++) {
+            candidate = dir.resolve(base + "-" + i + suffix);
+        }
+        return candidate;
+    }
+
     /**
-     * Removes oldest backups if count exceeds maximum.
+     * Removes oldest backups if count exceeds maximum. ZIP and GPG backups count together.
      */
     private void cleanupOldBackups(Path backupSubdir) throws IOException {
         int maxBackups = settings.getMaxBackupCount();
@@ -301,15 +467,15 @@ public class BackupManager {
         List<Path> backups;
         try (var stream = Files.list(backupSubdir)) {
             backups = stream
-                .filter(p -> p.getFileName().toString().startsWith("kortty-backup_"))
-                .filter(p -> p.getFileName().toString().endsWith(".zip"))
-                .sorted(Comparator.comparing(p -> {
+                .filter(p -> isRotatedBackupName(p.getFileName().toString()))
+                .filter(Files::isRegularFile)
+                .sorted(Comparator.comparing((Path p) -> {
                     try {
                         return Files.getLastModifiedTime(p);
                     } catch (IOException e) {
                         return java.nio.file.attribute.FileTime.fromMillis(0);
                     }
-                }))
+                }).thenComparing(p -> p.getFileName().toString()))
                 .collect(Collectors.toList());
         }
         
@@ -324,6 +490,10 @@ public class BackupManager {
         }
     }
     
+    static boolean isRotatedBackupName(String name) {
+        return name.startsWith(ROTATED_PREFIX) && (name.endsWith(".zip") || name.endsWith(".gpg"));
+    }
+
     /**
      * Imports a backup from an encrypted backup file.
      * Supports both password-encrypted ZIP files and GPG-encrypted files.
@@ -333,129 +503,209 @@ public class BackupManager {
      * @param overwriteExisting If true, existing files will be overwritten
      * @return Number of files imported
      * @throws Exception if import fails
+     * @see #restoreBackup
      */
     public int importBackup(Path backupFile, String password, boolean overwriteExisting) throws Exception {
+        return restoreBackup(backupFile, password, overwriteExisting).filesImported();
+    }
+
+    /**
+     * Imports a backup. The format is read from the file's content, not its name: a ZIP is
+     * opened with {@code password} (when given), GPG data is decrypted with gpg — which needs the
+     * matching private key — and its unencrypted ZIP payload extracted without a password. GPG
+     * backups that older versions saved as {@code kortty-backup.zip} therefore restore too.
+     *
+     * <p>{@link ImportResult#masterKeyReplaced()} reports that the import wrote a
+     * {@code master.key} different from the one on disk before (another master password): the
+     * running application still holds the old key, so it must not reload or save its stores —
+     * they would be read or re-encrypted with the wrong key — and has to restart.</p>
+     *
+     * @param password Password for password-encrypted ZIP backups (null for GPG backups)
+     * @param overwriteExisting If true, existing files will be overwritten
+     */
+    public ImportResult restoreBackup(Path backupFile, String password, boolean overwriteExisting) throws Exception {
         logger.info("Importing backup from: {}", backupFile);
         
         if (!Files.exists(backupFile)) {
             throw new Exception("Backup file not found: " + backupFile);
         }
         
-        String fileName = backupFile.getFileName().toString().toLowerCase();
-        Path tempZipFile = null;
-        boolean isGPGEncrypted = fileName.endsWith(".gpg");
+        BackupFormat format = importFormat(backupFile);
+        if (format == BackupFormat.UNKNOWN) {
+            throw new Exception("Not a korTTY backup: " + backupFile.getFileName()
+                + " is neither a ZIP archive nor GPG-encrypted");
+        }
         
+        Path work = SessionJournalExportProtection.privateTempDir("kortty-backup-restore");
         try {
-            // Handle GPG-encrypted backups
-            if (isGPGEncrypted) {
-                tempZipFile = Files.createTempFile("kortty-backup-import-", ".zip");
-                
-                // Decrypt GPG file
-                ProcessBuilder pb = new ProcessBuilder(
-                    "gpg",
-                    "--batch",
-                    "--yes",
-                    "--no-tty",
-                    "--quiet",
-                    "--decrypt",
-                    "--output", tempZipFile.toString(),
-                    backupFile.toString()
-                );
-                
-                pb.redirectErrorStream(true);
-                String osName = System.getProperty("os.name").toLowerCase();
-                File nullFile = new File(osName.contains("win") ? "NUL" : "/dev/null");
-                pb.redirectInput(ProcessBuilder.Redirect.from(nullFile));
-                
-                Process process = pb.start();
-                
-                StringBuilder output = new StringBuilder();
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        output.append(line).append("\n");
-                    }
+            Path zip = backupFile;
+            if (format == BackupFormat.OPENPGP) {
+                zip = work.resolve(BACKUP_FILENAME);
+                try {
+                    gpgDecryptor.decrypt(backupFile, zip);
+                } catch (IOException e) {
+                    String message = String.valueOf(e.getMessage());
+                    throw new Exception(message.startsWith("GPG decryption")
+                        ? message : "GPG decryption failed: " + message, e);
                 }
-                
-                int exitCode = process.waitFor();
-                if (exitCode != 0) {
-                    throw new Exception("GPG decryption failed: " + output.toString());
+                if (!Files.isRegularFile(zip) || detectBackupFormat(zip) != BackupFormat.ZIP) {
+                    throw new Exception("The decrypted GPG backup " + backupFile.getFileName()
+                        + " is not a ZIP archive");
                 }
-                
                 logger.info("GPG decryption successful");
-            } else {
-                tempZipFile = backupFile;
             }
             
-            // Extract ZIP file
-            Path extractDir = Files.createTempDirectory("kortty-backup-extract-");
-            try {
-                if (isGPGEncrypted || password != null) {
-                    // Password-protected ZIP
-                    if (password == null) {
-                        throw new Exception("Password required for password-encrypted backup");
-                    }
-                    
-                    ZipFile zipFile = new ZipFile(tempZipFile.toFile(), password.toCharArray());
+            Path extractDir = Files.createDirectories(work.resolve("extract"));
+            if (format == BackupFormat.ZIP && password != null) {
+                try (ZipFile zipFile = new ZipFile(zip.toFile(), password.toCharArray())) {
                     zipFile.extractAll(extractDir.toString());
-                    logger.info("Extracted password-protected ZIP");
-                } else {
-                    // Unencrypted ZIP (shouldn't happen for backups, but handle it)
-                    try (java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(
-                            Files.newInputStream(tempZipFile))) {
-                        java.util.zip.ZipEntry entry;
-                        while ((entry = zis.getNextEntry()) != null) {
-                            // Zip-slip guard: a crafted entry name ("../..") must never escape
-                            // the extraction directory. zip4j's extractAll above validates this
-                            // itself; this manual ZipInputStream path has to do it explicitly.
-                            Path entryPath = extractDir.resolve(entry.getName()).normalize();
-                            if (!entryPath.startsWith(extractDir)) {
-                                throw new IOException(
-                                    "Blocked backup ZIP entry outside the extraction directory: "
-                                        + entry.getName());
-                            }
-                            if (entry.isDirectory()) {
-                                Files.createDirectories(entryPath);
-                            } else {
-                                Files.createDirectories(entryPath.getParent());
-                                Files.copy(zis, entryPath, StandardCopyOption.REPLACE_EXISTING);
-                            }
-                            zis.closeEntry();
-                        }
-                    }
-                    logger.info("Extracted unencrypted ZIP");
                 }
-                
-                // Copy files to config directory
-                int filesImported = copyBackupFiles(extractDir, overwriteExisting);
-                
-                logger.info("Backup imported successfully: {} files", filesImported);
-                return filesImported;
-                
-            } finally {
-                // Cleanup extract directory
-                if (Files.exists(extractDir)) {
-                    try (var stream = Files.walk(extractDir)) {
-                        stream.sorted(Comparator.reverseOrder())
-                            .forEach(path -> {
-                                try {
-                                    Files.delete(path);
-                                } catch (IOException e) {
-                                    logger.warn("Failed to delete temp file: {}", path, e);
-                                }
-                            });
-                    }
+                logger.info("Extracted password-protected ZIP");
+            } else {
+                if (isEncryptedZip(zip)) {
+                    throw new Exception("Password required for password-encrypted backup");
                 }
+                // An unencrypted ZIP: the payload of a GPG backup (or a hand-made archive).
+                extractUnencryptedZip(zip, extractDir);
+                logger.info("Extracted unencrypted ZIP");
             }
             
+            boolean masterKeyReplaced = masterKeyWouldBeReplaced(extractDir, overwriteExisting);
+            if (masterKeyReplaced) {
+                logger.warn("The backup carries a different master key; korTTY must restart after the import");
+            }
+
+            // Copy files to config directory
+            int filesImported = copyBackupFiles(extractDir, overwriteExisting);
+
+            logger.info("Backup imported successfully: {} files", filesImported);
+            return new ImportResult(filesImported, masterKeyReplaced);
         } finally {
-            // Cleanup temp GPG decrypted file
-            if (isGPGEncrypted && tempZipFile != null && Files.exists(tempZipFile)) {
-                Files.deleteIfExists(tempZipFile);
+            SessionJournalExportProtection.deleteRecursively(work);
+        }
+    }
+
+    private static boolean isEncryptedZip(Path zip) {
+        try (ZipFile zipFile = new ZipFile(zip.toFile())) {
+            return zipFile.isEncrypted();
+        } catch (IOException e) {
+            // Unreadable central directory: let the streaming extraction report the problem.
+            return false;
+        }
+    }
+
+    private static void extractUnencryptedZip(Path zip, Path extractDir) throws IOException {
+        try (java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(
+                Files.newInputStream(zip))) {
+            java.util.zip.ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                // Zip-slip guard: a crafted entry name ("../..") must never escape
+                // the extraction directory. zip4j's extractAll validates this
+                // itself; this manual ZipInputStream path has to do it explicitly.
+                Path entryPath = extractDir.resolve(entry.getName()).normalize();
+                if (!entryPath.startsWith(extractDir)) {
+                    throw new IOException(
+                        "Blocked backup ZIP entry outside the extraction directory: "
+                            + entry.getName());
+                }
+                if (entry.isDirectory()) {
+                    Files.createDirectories(entryPath);
+                } else {
+                    Files.createDirectories(entryPath.getParent());
+                    Files.copy(zis, entryPath, StandardCopyOption.REPLACE_EXISTING);
+                }
+                zis.closeEntry();
             }
         }
     }
+
+    /**
+     * Whether copying the extracted backup will put a {@code master.key} on disk that differs
+     * from the current one (or where there was none): the file is only copied when it is missing
+     * locally or the import overwrites.
+     */
+    private boolean masterKeyWouldBeReplaced(Path extractDir, boolean overwriteExisting) throws IOException {
+        Path restored = extractDir.resolve(MasterPasswordManager.MASTER_KEY_FILE);
+        if (!Files.isRegularFile(restored)) {
+            return false;
+        }
+        Path local = configDir.resolve(MasterPasswordManager.MASTER_KEY_FILE);
+        if (!Files.exists(local)) {
+            return true;
+        }
+        return overwriteExisting && !sameMasterKey(local, restored);
+    }
+
+    /**
+     * Compares two {@code master.key} files by salt and verification hash; the timestamp comment
+     * {@link Properties#store} writes is not part of the key.
+     */
+    static boolean sameMasterKey(Path a, Path b) throws IOException {
+        Properties left = readMasterKey(a);
+        Properties right = readMasterKey(b);
+        if (left != null && right != null
+                && left.getProperty("salt") != null && left.getProperty("hash") != null) {
+            return left.getProperty("salt").equals(right.getProperty("salt"))
+                && left.getProperty("hash").equals(right.getProperty("hash"));
+        }
+        return Arrays.equals(Files.readAllBytes(a), Files.readAllBytes(b));
+    }
+
+    private static Properties readMasterKey(Path file) {
+        Properties properties = new Properties();
+        try (InputStream in = Files.newInputStream(file)) {
+            properties.load(in);
+            return properties;
+        } catch (IOException | IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private static void decryptWithSystemGpg(Path input, Path output) throws IOException {
+        String gpg = SessionJournalExportProtection.resolveGpg()
+            .orElseThrow(() -> new IOException("GPG decryption failed: gpg is not installed or not found"));
+        ProcessBuilder pb = new ProcessBuilder(
+            gpg,
+            "--batch",
+            "--yes",
+            "--no-tty",
+            "--quiet",
+            "--decrypt",
+            "--output", output.toString(),
+            input.toString()
+        );
+        pb.redirectErrorStream(true);
+        String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        pb.redirectInput(ProcessBuilder.Redirect.from(new File(osName.contains("win") ? "NUL" : "/dev/null")));
+        Process process;
+        try {
+            process = pb.start();
+        } catch (IOException e) {
+            throw new IOException("GPG decryption failed: gpg could not be started", e);
+        }
+        // No hard timeout: gpg may be waiting for the private key's passphrase in a pinentry.
+        String log = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).strip();
+        int exitCode;
+        try {
+            exitCode = process.waitFor();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            process.destroyForcibly();
+            Files.deleteIfExists(output);
+            throw new IOException("GPG decryption was interrupted", e);
+        }
+        if (exitCode != 0) {
+            Files.deleteIfExists(output);
+            throw new IOException("GPG decryption failed (exit " + exitCode + ")" + (log.isEmpty() ? "" : ": " + log));
+        }
+    }
     
+    private static AtomicFileWriter.FileMode restoredFileMode(String fileName) {
+        return OWNER_ONLY_RESTORED_FILES.contains(fileName)
+            ? AtomicFileWriter.FileMode.OWNER_ONLY
+            : AtomicFileWriter.FileMode.PRESERVE;
+    }
+
     /**
      * Copies backup files from extract directory to config directory.
      */
@@ -477,7 +727,8 @@ public class BackupManager {
                 }
                 
                 Files.createDirectories(targetFile.getParent());
-                Files.copy(sourceFile, targetFile, StandardCopyOption.REPLACE_EXISTING);
+                // Never truncate a store in place: a failed copy keeps the local file intact.
+                AtomicFileWriter.copyStoreAtomically(sourceFile, targetFile, restoredFileMode(fileName));
                 filesImported[0]++;
                 logger.debug("Imported: {}", fileName);
             }

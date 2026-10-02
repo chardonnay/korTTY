@@ -146,6 +146,13 @@ final class GuideAskPanel extends VBox {
             return;
         }
         recordHistory(question);
+        // Offer to unlock before the request starts instead of failing on the background thread.
+        if (service.requiresVaultUnlock()
+            && !VaultUnlockSupport.offerUnlock(getScene() != null ? getScene().getWindow() : null,
+                I18n.get("guide.ask.vaultLocked"))) {
+            showMessage(I18n.get("guide.ask.vaultLocked"));
+            return;
+        }
         // Question text is never sent — only that a search happened and in which guide language.
         de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.GUIDE_AI_SEARCH,
             java.util.Map.of("lang", guideLang != null ? guideLang : "en"));

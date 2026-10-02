@@ -42,6 +42,7 @@ Connection entries (Quick Connect, Manage/Import/Export Connections) live in the
 
 | Item | Description |
 | --- | --- |
+| Unlock Vault… | Enter the master password to unlock stored secrets when the startup prompt is off (disabled while unlocked) |
 | Credentials… | Manage stored credentials (encrypted) |
 | GPG-Keys… | Manage GPG keys used for backup encryption |
 | SSH-Keys… | Manage SSH keys and passphrases |
