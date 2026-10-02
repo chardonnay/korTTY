@@ -3658,6 +3658,14 @@ tasks.register<JavaExec>("aiManagerReasoningPersistenceSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("aiManagerInternetLockSmoke") {
+    group = "verification"
+    description = "Verifies the AI Manager locks the internet mode of native Anthropic profiles to Disabled as the API URL changes, without forcing it onto other profiles while one is loading."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AiManagerInternetLockSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("aiManagerRequestTimeoutSmoke") {
     group = "verification"
     description = "Verifies the AI Manager keeps \"follow the global timeout\" and \"never time out\" apart across loading, profile switching and the close-time snapshot."
