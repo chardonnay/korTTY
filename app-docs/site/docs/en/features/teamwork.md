@@ -65,7 +65,7 @@ Once you save the Teamwork Settings:
 2. Every N minutes (based on the minimum interval among enabled sources), it:
    - Pulls/clones each source (Git) or reads the file (Shared File).
    - Loads the connections XML.
-   - Merges the results into the cache and Connection Manager.
+   - Replaces the cached copy of each source it fetched and refreshes the Connection Manager.
 3. If a source update fails, the previous cached version is kept.
 
 ### Manual sync
@@ -116,14 +116,14 @@ Once a source is synced:
 3. Double-click a teamwork connection to connect.
 4. **Read-only** — Teamwork connections are read-only, and korTTY never writes changes back to a source. To change a shared connection, edit it in the repository or shared file; the change arrives with the next sync.
 
-Deleting a teamwork connection only hides it on this computer; the source is not changed. **Restore deleted** on the **Teamwork connections** tab brings hidden connections back, and **Refresh** reloads the list.
+Deleting a teamwork connection only hides it on this computer; the source is not changed. In the Connection Manager's button column, **Restore deleted** brings hidden connections back and **Refresh** reloads the list from the last sync without fetching the source again.
 
 ### Local overrides
 
 - The credential and SSH key references (`credentialId`, `sshKeyId`) of a shared connection are resolved from your local storage.
-- For shared connections that name neither, choose **Authentication for all team connections** on the **Teamwork connections** tab: a stored credential, an SSH key (with an optional **Default username (SSH key)**), or **Temporary SSH key**.
+- For shared connections that name neither, choose **Authentication for all team connections** on the **Teamwork connections** tab: a stored credential, an SSH key or **Temporary SSH key**. A stored credential that has a username uses it; for an SSH key or a temporary key, an optional **Default username (SSH key)** replaces the username from the source.
 - If a credential or key is not found locally, you are prompted to provide it when connecting.
-- Only authentication can be overridden locally. Host, port, group and the other connection settings always come from the source.
+- Only authentication, including the username, can be overridden locally. Host, port, group and the other connection settings always come from the source.
 
 ### Distinguish sources
 
@@ -187,7 +187,7 @@ To share connections via a file:
     Never commit passwords, SSH key content, or API tokens to the teamwork repository. Use only credential IDs and key references.
 
 !!! warning "File permissions"
-    For shared files on network paths, restrict read/write access to team members only. Ensure the path is not world-readable.
+    For shared files on network paths, give read access to team members only and write access only to whoever maintains the file. Ensure the path is not world-readable. Anyone who can change the file, or push to the tracked Git branch, decides which hosts, jump servers and tunnels the shared connections use on every team member's computer.
 
 !!! tip "Audit trail"
     For Git-based teamwork, the commit history provides an audit trail. korTTY applies whatever the tracked branch contains at the next sync, so review changes before they are pushed to that branch.
