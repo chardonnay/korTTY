@@ -33,7 +33,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
@@ -80,6 +82,8 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
      * a swarm runner connects lazily on its worker thread and closes from a teardown thread.
      */
     private final AtomicReference<Path> temporaryKeyFile = new AtomicReference<>();
+    /** Set by {@link #close()}: a closed session never connects again or writes a key file. */
+    private volatile boolean closed;
 
     public JobSchedulerRemoteSession(
         KorTTYApplication app,
@@ -189,6 +193,9 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
     }
 
     public void connect() throws Exception {
+        if (closed) {
+            throw new IllegalStateException("The scheduler SSH session is closed.");
+        }
         // Headless job runs must respect the enterprise server policy like interactive connects.
         de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(connection).ifPresent(target -> {
             throw new de.kortty.policy.PolicyRestrictionException(
@@ -604,6 +611,9 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
 
     @Override
     public void close() {
+        // Before the key file is taken: a connect on another thread checks this flag after it
+        // publishes the file, so one of the two always sees the file and deletes it.
+        closed = true;
         closeQuietly(sftpClient);
         closeQuietly(session);
         if (client != null) {
@@ -739,8 +749,23 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
         }
         Path tempFile = createOwnerOnlyTempFile();
         temporaryKeyFile.set(tempFile);
-        Files.writeString(tempFile, content, StandardCharsets.UTF_8);
+        if (closed) {
+            // close() ran on another thread while this connect was under way.
+            deleteTemporaryKeyFile();
+            throw new IOException("The scheduler SSH session was closed while it connected.");
+        }
+        writeKeyIntoExistingFile(tempFile, content);
         return tempFile;
+    }
+
+    /**
+     * Writes the key into the owner-only file {@link #createOwnerOnlyTempFile()} made. Never
+     * creates the file: if a concurrent {@link #close()} already deleted it, a plain write would
+     * re-create it with default permissions and nobody left to delete it.
+     */
+    static void writeKeyIntoExistingFile(Path file, String content) throws IOException {
+        Files.writeString(file, content, StandardCharsets.UTF_8,
+            StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING, LinkOption.NOFOLLOW_LINKS);
     }
 
     /** Creates the key file with owner-only permissions from the start, never widened later. */

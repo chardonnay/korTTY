@@ -11,12 +11,15 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.security.KeyPair;
 import java.util.Set;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.testng.Assert.assertThrows;
 
 /**
  * The scheduler still writes a {@code TEMPORARY:} key to a file, because Rsync jobs hand it to an
@@ -74,6 +77,33 @@ class JobSchedulerTemporaryKeyFileTest {
             assertThat(session.externalSshAuthMaterial().privateKeyPath()).isEmpty();
             assertThat(TemporaryKeyTestFixtures.tempFolderEntries("kortty_scheduler_key_")).isEqualTo(before);
         }
+    }
+
+    @Test
+    void aClosedSessionRefusesToConnectAndWritesNoKeyFile() throws Exception {
+        KeyPair key = TemporaryKeyTestFixtures.ed25519KeyPair();
+        startServer(key);
+        Set<String> before = TemporaryKeyTestFixtures.tempFolderEntries("kortty_scheduler_key_");
+
+        JobSchedulerRemoteSession session = new JobSchedulerRemoteSession(
+            null, temporaryKeyConnection(TemporaryKeyTestFixtures.openSshPrivateKey(key)), null, null, true);
+        session.close();
+
+        assertThrows(IllegalStateException.class, session::connect);
+        assertThat(session.isConnected()).isFalse();
+        assertThat(TemporaryKeyTestFixtures.tempFolderEntries("kortty_scheduler_key_")).isEqualTo(before);
+    }
+
+    @Test
+    void theKeyIsNeverWrittenIntoAFileThatIsNoLongerThere() throws Exception {
+        // A concurrent close() may delete the owner-only file between its creation and the write;
+        // the write must then fail instead of re-creating the file with default permissions.
+        Path deleted = JobSchedulerRemoteSession.createOwnerOnlyTempFile();
+        Files.delete(deleted);
+
+        assertThrows(NoSuchFileException.class,
+            () -> JobSchedulerRemoteSession.writeKeyIntoExistingFile(deleted, "key text"));
+        assertThat(Files.exists(deleted, LinkOption.NOFOLLOW_LINKS)).isFalse();
     }
 
     @Test
