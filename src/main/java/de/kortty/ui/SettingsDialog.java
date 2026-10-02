@@ -3047,7 +3047,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                         settings.getForegroundColor(), settings.getCursorStyle());
                 configManager.setGlobalSettings(settings);
                 globalSettings.setDefaultTerminalSettings(new ConnectionSettings(settings));
-                
+                // Migration guard: the stored global encoding takes effect once the Terminal page was
+                // shown and saved. Only here, with the new value in place: applySettings() can still
+                // abort after reading the dropdown, and an aborted save must not apply the old value.
+                TerminalEncodingSupport.confirmOnSave(globalSettings, !LazyTabContent.isPending(terminalTab));
+
                 // Save global settings
                 try {
                     app.getGlobalSettingsManager().save();
@@ -3193,8 +3197,6 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         settings.setBoldAsBright(boldAsBrightCheck.isSelected());
         settings.setTerminalColorsEnabled(terminalColorsEnabledCheck.isSelected());
         settings.setEncoding(encodingCombo.getValue());
-        // Migration guard: the stored global encoding takes effect once the Terminal page was shown and saved.
-        TerminalEncodingSupport.confirmOnSave(globalSettings, !LazyTabContent.isPending(terminalTab));
         settings.setCommandTimestampsEnabled(commandTimestampsCheck.isSelected());
         settings.setSshKeepAliveEnabled(sshKeepAliveCheck.isSelected());
         settings.setSshKeepAliveInterval(sshKeepAliveIntervalSpinner.getValue());
