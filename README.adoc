@@ -463,7 +463,7 @@ All configuration files are stored under `~/.kortty/`:
 ├── job-scheduler.xml   # JobScheduler jobs, host-key pins, sudo secrets, journal
 ├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin ids
 ├── coding-agents/      # User overrides for coding-agent detection rules
-├── master-password-hash # Master password hash
+├── master.key          # Master password salt and verification hash
 ├── kortty.log          # Log file
 ├── history/            # Terminal history (compressed)
 ├── plugins/            # Imported terminal-effect plugin JARs
@@ -611,8 +611,8 @@ image::app-docs/diagrams/backup-restore.svg[Backup and restore flow,align=center
 
 2. *Import Backup*:
 ** *Edit → Import Backup...*
-** Select backup file (.zip or .gpg)
-** Enter password if required
+** Select backup file (`kortty-backup.zip` or `kortty-backup.zip.gpg`); the format is read from the file content
+** Enter the ZIP password if prompted (GPG backups need the matching private key instead)
 ** Choose whether to overwrite existing files
 ** All settings are restored from the backup
 

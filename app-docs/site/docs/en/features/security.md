@@ -155,7 +155,7 @@ Manage GPG keys for backup encryption and connection/snippet export encryption.
 2. Select **GPG Encryption** as the encryption type.
 3. Choose the GPG key to use for encryption.
 
-GPG-encrypted backups and exports are stored as `.gpg` files and require your system's `gpg` command and a usable public key for decryption.
+GPG-encrypted backups and exports are stored as `.gpg` files — a GPG backup as `kortty-backup.zip.gpg` — and need your system's `gpg` command. Creating one needs the recipient's public key; restoring or opening one needs the matching **private** key, and `gpg` may ask for its passphrase.
 
 ## Stored security data
 
