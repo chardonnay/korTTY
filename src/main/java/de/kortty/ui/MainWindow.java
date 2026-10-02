@@ -1543,8 +1543,11 @@ public class MainWindow {
         manageSSHKeys.setAccelerator(new KeyCodeCombination(KeyCode.I, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         manageSSHKeys.setOnAction(e -> showSSHKeyManagement());
 
+        MenuItem knownHosts = new MenuItem(I18n.get("menu.security.knownHosts"));
+        knownHosts.setOnAction(e -> showKnownHosts());
+
         securityMenu.getItems().addAll(unlockVault, new SeparatorMenuItem(),
-            manageCredentials, manageGPGKeys, manageSSHKeys);
+            manageCredentials, manageGPGKeys, manageSSHKeys, knownHosts);
 
         MenuItem settings = new MenuItem(I18n.get("menu.settings.global"));
         settings.setAccelerator(new KeyCodeCombination(KeyCode.COMMA, KeyCombination.SHORTCUT_DOWN));
@@ -9554,7 +9557,26 @@ public class MainWindow {
             showError(I18n.get("error.title"), I18n.get("error.sshKeyManagementFailed", e.getMessage()));
         }
     }
-    
+
+    /** Opens the trusted SSH host keys (Configuration › Security › Known Hosts…). */
+    private void showKnownHosts() {
+        Telemetry.track(TelemetryEvents.SECURITY_MANAGER_OPENED, Map.of("manager", "known_hosts"));
+        try {
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("knownHosts") == null) {
+                    hostToolTab("knownHosts", new KnownHostsDialog(), null);
+                }
+                return;
+            }
+            KnownHostsDialog dialog = new KnownHostsDialog();
+            dialog.initOwner(stage);
+            dialog.showAndWait();
+        } catch (Exception e) {
+            logger.error("Failed to show the known hosts", e);
+            showError(I18n.get("error.title"), I18n.get("ssh.knownHosts.loadFailed", e.getMessage()));
+        }
+    }
+
     private void showAsciiArtBanner() {
         Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "ascii_art"));
         try {

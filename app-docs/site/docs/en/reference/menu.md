@@ -46,6 +46,7 @@ Connection entries (Quick Connect, Manage/Import/Export Connections) live in the
 | Credentials… | Manage stored credentials (encrypted) |
 | GPG-Keys… | Manage GPG keys used for backup encryption |
 | SSH-Keys… | Manage SSH keys and passphrases |
+| Known Hosts… | Review, search and remove trusted SSH host keys |
 
 ## Configuration
 

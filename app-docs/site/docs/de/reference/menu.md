@@ -46,6 +46,7 @@ Verbindungs-Einträge (Schnellverbindung, Verwalten/Importieren/Exportieren von 
 | Anmeldeinformationen… | Gespeicherte Anmeldeinformationen verwalten (verschlüsselt) |
 | GPG-Schlüssel… | GPG-Schlüssel verwalten, die für die Backup-Verschlüsselung verwendet werden |
 | SSH-Schlüssel… | SSH-Schlüssel und Passphrasen verwalten |
+| Bekannte Hosts… | Überprüfen, suchen und entfernen vertrauenswürdiger SSH-Hostschlüssel |
 
 ## Konfiguration
 

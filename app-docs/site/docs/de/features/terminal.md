@@ -27,7 +27,7 @@ Verwalten Sie mehrere SSH-Sitzungen mit diesen Registerkartenoperationen:
 
 ## Sicher verbinden
 
-Interaktive SSH-Terminals teilen das Host-Schlüsselvertrauen mit SFTP sowie dem SSH-Bootstrap, der von Mosh verwendet wird. Die erste Verbindung zu einem normalisierten Host und Port zeigt den Schlüsselalgorithmus und den OpenSSH-SHA-256-Fingerprint mit **Nein** standardmäßig ausgewählt. Nach der Bestätigung und Annahme wird eine exakte Übereinstimmung stumm verbunden; ein geändertes Schlüssel wird hart blockiert und wird nicht automatisch erneut versucht. Siehe [SSH-Host-Schlüsselverifikation](connections.md#ssh-hostschlusseluberprufung).
+Interaktive SSH-Terminals teilen das Host-Schlüssel-Vertrauen mit SFTP und dem von Mosh verwendeten SSH-Bootstrap. Die erste Verbindung zu einem normalisierten Host und Port zeigt den Schlüsselalgorithmus sowie den OpenSSH-SHA-256-Fingerabdruck an, wobei **Nein** standardmäßig ausgewählt ist. Sobald Sie ihn verifizieren und akzeptieren, verbinden sich exakte Übereinstimmungen stillschweigend; ein geänderter Schlüssel wird hart blockiert, ohne automatische Wiederholung, und die Warnung bietet **Prüfen und ersetzen…** für einen Schlüssel, den Sie mit dem Server-Administrator verifiziert haben. Siehe [SSH-Hostschlüssel-Verifizierung](connections.md#ssh-hostschlusseluberprufung).
 
 Beim Öffnen einer Verbindung mit demselben Server oder einer neu ausgewählten Verbindung in einem Split wird ein Fortschrittsdialog angezeigt, während der SSH-Handshake auf einem Worker ausgeführt wird. Die Schnittstelle reagiert weiterhin sowohl auf die Host-Tasten-Bestätigung als auch auf Eingabeaufforderungen zur interaktiven Tastaturauthentifizierung.
 
