@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import org.apache.sshd.common.NamedResource;
+import org.apache.sshd.common.config.keys.FilePasswordProvider;
 import org.apache.sshd.common.session.SessionContext;
 import org.apache.sshd.common.util.security.SecurityUtils;
 
@@ -50,6 +51,20 @@ public final class TemporarySshKeyMaterial {
      * @throws IOException when the text holds no usable key; the message never contains key text
      */
     public static List<KeyPair> load(SessionContext session, String temporaryKeyPath) throws IOException {
+        // A null password provider matches FileKeyPairProvider's default: terminal tabs and SFTP
+        // have never offered a passphrase for a temporary key.
+        return load(session, temporaryKeyPath, null);
+    }
+
+    /**
+     * Parses the key pairs of a {@code TEMPORARY:} key path that may be passphrase-protected.
+     *
+     * @param passwordProvider supplies the passphrase of an encrypted key; may be {@code null}
+     * @see #load(SessionContext, String)
+     */
+    public static List<KeyPair> load(
+            SessionContext session, String temporaryKeyPath, FilePasswordProvider passwordProvider)
+            throws IOException {
         if (!isTemporaryKeyPath(temporaryKeyPath)) {
             throw new IllegalArgumentException("Not a temporary SSH key path");
         }
@@ -61,9 +76,7 @@ public final class TemporarySshKeyMaterial {
 
         List<KeyPair> pairs = new ArrayList<>();
         try (InputStream in = new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8))) {
-            // A null password provider matches FileKeyPairProvider's default: temporary keys have
-            // never supported a passphrase.
-            Iterable<KeyPair> parsed = SecurityUtils.loadKeyPairIdentities(session, RESOURCE, in, null);
+            Iterable<KeyPair> parsed = SecurityUtils.loadKeyPairIdentities(session, RESOURCE, in, passwordProvider);
             if (parsed != null) {
                 for (KeyPair pair : parsed) {
                     if (pair != null && pair.getPrivate() != null && pair.getPublic() != null) {

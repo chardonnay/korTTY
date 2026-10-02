@@ -22,9 +22,10 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.testng.Assert.assertThrows;
 
 /**
- * The scheduler still writes a {@code TEMPORARY:} key to a file, because Rsync jobs hand it to an
- * external {@code ssh}. Pins that the file is owner-only from the start and is gone once the
- * session is closed or its connect failed.
+ * The scheduler authenticates with a {@code TEMPORARY:} key in memory and writes it to a file only
+ * when Rsync's external {@code ssh} asks for it. Pins that nothing is written before that, that the
+ * file is owner-only from the start, and that it is gone once the session is closed or its connect
+ * failed.
  */
 class JobSchedulerTemporaryKeyFileTest {
 
@@ -38,7 +39,22 @@ class JobSchedulerTemporaryKeyFileTest {
     }
 
     @Test
-    void theKeyFileIsOwnerOnlyAndDeletedOnClose() throws Exception {
+    void connectingWritesNoKeyFile() throws Exception {
+        KeyPair key = TemporaryKeyTestFixtures.ed25519KeyPair();
+        startServer(key);
+        Set<String> before = TemporaryKeyTestFixtures.tempFolderEntries("kortty_scheduler_key_");
+
+        try (JobSchedulerRemoteSession session = new JobSchedulerRemoteSession(
+            null, temporaryKeyConnection(TemporaryKeyTestFixtures.openSshPrivateKey(key)), null, null, true)) {
+            session.connect();
+            assertThat(session.isConnected()).isTrue();
+            // Commands, SFTP, the remote folder browser and AI Swarm runs use the session alone.
+            assertThat(TemporaryKeyTestFixtures.tempFolderEntries("kortty_scheduler_key_")).isEqualTo(before);
+        }
+    }
+
+    @Test
+    void theKeyFileForTheExternalSshIsOwnerOnlyAndDeletedOnClose() throws Exception {
         KeyPair key = TemporaryKeyTestFixtures.ed25519KeyPair();
         startServer(key);
         String keyText = TemporaryKeyTestFixtures.openSshPrivateKey(key);
@@ -56,9 +72,26 @@ class JobSchedulerTemporaryKeyFileTest {
                 assertThat(Files.getPosixFilePermissions(keyFile))
                     .containsExactly(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE);
             }
+            // A second request reuses the file instead of writing another one.
+            assertThat(session.externalSshAuthMaterial().privateKeyPath()).hasValue(keyFile);
         }
 
-        assertThat(Files.exists(keyFile)).isFalse();
+        assertThat(Files.exists(keyFile, LinkOption.NOFOLLOW_LINKS)).isFalse();
+    }
+
+    @Test
+    void aClosedSessionHandsOutNoKeyFile() throws Exception {
+        KeyPair key = TemporaryKeyTestFixtures.ed25519KeyPair();
+        startServer(key);
+        Set<String> before = TemporaryKeyTestFixtures.tempFolderEntries("kortty_scheduler_key_");
+
+        JobSchedulerRemoteSession session = new JobSchedulerRemoteSession(
+            null, temporaryKeyConnection(TemporaryKeyTestFixtures.openSshPrivateKey(key)), null, null, true);
+        session.connect();
+        session.close();
+
+        assertThat(session.externalSshAuthMaterial().privateKeyPath()).isEmpty();
+        assertThat(TemporaryKeyTestFixtures.tempFolderEntries("kortty_scheduler_key_")).isEqualTo(before);
     }
 
     @Test

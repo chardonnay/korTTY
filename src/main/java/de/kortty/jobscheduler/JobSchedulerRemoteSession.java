@@ -18,6 +18,7 @@ import org.apache.sshd.client.channel.ChannelExec;
 import org.apache.sshd.client.channel.ClientChannelEvent;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.client.session.ClientSession.ClientSessionEvent;
+import org.apache.sshd.common.config.keys.FilePasswordProvider;
 import org.apache.sshd.common.config.keys.PublicKeyEntry;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
 import org.apache.sshd.sftp.client.SftpClient;
@@ -76,6 +77,12 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
     private String password;
     private Path authenticatedPrivateKeyPath;
     private String authenticatedPrivateKeyPassphrase;
+    /**
+     * The {@code TEMPORARY:} key path this session authenticated with, or {@code null}. The key
+     * itself is parsed in memory; it is written to {@link #temporaryKeyFile} only when an Rsync job
+     * asks {@link #externalSshAuthMaterial()} for a key file.
+     */
+    private volatile String authenticatedTemporaryKeyPath;
     /**
      * Owner-only file holding a {@code TEMPORARY:} key for the external {@code ssh} of Rsync jobs,
      * or {@code null}. Deleted by {@link #close()} and when {@link #connect()} fails. Atomic because
@@ -209,7 +216,7 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
         } finally {
             if (!authenticated) {
                 // Not every caller closes a session whose connect failed; never leave the key behind.
-                deleteTemporaryKeyFile();
+                forgetTemporaryKey();
             }
         }
     }
@@ -587,11 +594,21 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
         return Optional.ofNullable(password);
     }
 
-    public ExternalSshAuthMaterial externalSshAuthMaterial() {
+    /**
+     * The credentials for an external {@code ssh}, which Rsync jobs start. A {@code TEMPORARY:}
+     * key has no file of its own, so the first call writes it to an owner-only temp file, which
+     * {@link #close()} deletes; call this only when an external {@code ssh} really needs the key.
+     */
+    public ExternalSshAuthMaterial externalSshAuthMaterial() throws IOException {
+        Path keyFile = authenticatedPrivateKeyPath;
+        String temporaryKeyPath = authenticatedTemporaryKeyPath;
+        if (keyFile == null && temporaryKeyPath != null) {
+            keyFile = writeTemporaryKeyFile(temporaryKeyPath);
+        }
         return new ExternalSshAuthMaterial(
             connection.getAuthMethod(),
             Optional.ofNullable(password),
-            Optional.ofNullable(authenticatedPrivateKeyPath),
+            Optional.ofNullable(keyFile),
             Optional.ofNullable(authenticatedPrivateKeyPassphrase));
     }
 
@@ -611,7 +628,7 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
 
     @Override
     public void close() {
-        // Before the key file is taken: a connect on another thread checks this flag after it
+        // Before the key file is taken: a thread writing the file checks this flag after it
         // publishes the file, so one of the two always sees the file and deletes it.
         closed = true;
         closeQuietly(sftpClient);
@@ -623,6 +640,11 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
                 logger.debug("Could not stop scheduler SSH client", e);
             }
         }
+        forgetTemporaryKey();
+    }
+
+    private void forgetTemporaryKey() {
+        authenticatedTemporaryKeyPath = null;
         deleteTemporaryKeyFile();
     }
 
@@ -635,9 +657,6 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
         Path file = temporaryKeyFile.getAndSet(null);
         if (file == null) {
             return;
-        }
-        if (file.equals(authenticatedPrivateKeyPath)) {
-            authenticatedPrivateKeyPath = null;
         }
         try {
             Files.deleteIfExists(file);
@@ -710,9 +729,25 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
             passphrase = new EncryptionService().decryptPassword(connection.getPrivateKeyPassphrase(), masterPassword);
         }
 
-        Path effectiveKeyPath = createTemporaryKeyFileIfNeeded(keyPath);
-        authenticatedPrivateKeyPath = effectiveKeyPath;
+        forgetTemporaryKey();
+        authenticatedPrivateKeyPath = null;
         authenticatedPrivateKeyPassphrase = passphrase;
+        if (TemporarySshKeyMaterial.isTemporaryKeyPath(keyPath)) {
+            // Parsed in memory: the key reaches the disk only if an Rsync job asks for a key file.
+            FilePasswordProvider passwordProvider = passphrase != null && !passphrase.isEmpty()
+                ? FilePasswordProvider.of(passphrase)
+                : null;
+            for (java.security.KeyPair keyPair : TemporarySshKeyMaterial.load(session, keyPath, passwordProvider)) {
+                session.addPublicKeyIdentity(keyPair);
+            }
+            authenticatedTemporaryKeyPath = keyPath;
+            return;
+        }
+        Path effectiveKeyPath = Path.of(keyPath);
+        if (!Files.exists(effectiveKeyPath)) {
+            throw new JobBlockedException("SSH key file does not exist: " + keyPath);
+        }
+        authenticatedPrivateKeyPath = effectiveKeyPath;
         FileKeyPairProvider keyPairProvider = new FileKeyPairProvider(effectiveKeyPath);
         if (passphrase != null && !passphrase.isEmpty()) {
             String finalPassphrase = passphrase;
@@ -730,19 +765,17 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
     }
 
     /**
-     * Returns the key file to authenticate with. A {@code TEMPORARY:} key is written to an
-     * owner-only temp file, because Rsync jobs hand the key to an external {@code ssh}; the file
-     * lives only as long as this session.
+     * Returns the owner-only temp file holding the {@code TEMPORARY:} key, writing it on the first
+     * call; the file lives only as long as this session.
      */
-    private Path createTemporaryKeyFileIfNeeded(String keyPath) throws Exception {
-        if (!TemporarySshKeyMaterial.isTemporaryKeyPath(keyPath)) {
-            Path path = Path.of(keyPath);
-            if (!Files.exists(path)) {
-                throw new JobBlockedException("SSH key file does not exist: " + keyPath);
-            }
-            return path;
+    private synchronized Path writeTemporaryKeyFile(String keyPath) throws IOException {
+        Path existing = temporaryKeyFile.get();
+        if (existing != null) {
+            return existing;
         }
-        deleteTemporaryKeyFile();
+        if (closed) {
+            throw new IOException("The scheduler SSH session is closed.");
+        }
         String content = keyPath.substring(TemporarySshKeyMaterial.PREFIX.length());
         if (!content.endsWith("\n")) {
             content = content + "\n";
@@ -750,9 +783,9 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
         Path tempFile = createOwnerOnlyTempFile();
         temporaryKeyFile.set(tempFile);
         if (closed) {
-            // close() ran on another thread while this connect was under way.
+            // close() ran on another thread while the file was being created.
             deleteTemporaryKeyFile();
-            throw new IOException("The scheduler SSH session was closed while it connected.");
+            throw new IOException("The scheduler SSH session is closed.");
         }
         writeKeyIntoExistingFile(tempFile, content);
         return tempFile;
