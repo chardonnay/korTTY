@@ -104,6 +104,10 @@ public class ProjectManager {
         // Load terminal histories
         for (WindowState window : project.getWindows()) {
             for (SessionState session : window.getTabs()) {
+                // korTTY never writes the screen text into the XML (saveProject moves it to
+                // history/), so inline text can only come from a hand-made file. Drop it: a shared
+                // project must not be able to put text of its choosing into a terminal tab.
+                session.setTerminalHistory(null);
                 String historyFile = session.getHistoryFilePath();
                 if (historyFile == null) {
                     continue;

