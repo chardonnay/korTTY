@@ -107,7 +107,7 @@ Writes use a temporary file plus atomic replacement, while `ssh-host-keys.proper
 
 ### ssh-tunnel-approvals.properties
 
-Remembers which [SSH tunnels](../features/tunnels.md) you allowed korTTY to open: one entry per connection ID with a SHA-256 fingerprint of the server and the enabled tunnels. When a connection's tunnels or its server change, the fingerprint no longer matches and korTTY asks again before it opens them. The file is not part of a backup, so a restored or migrated configuration asks once more; deleting it has the same effect.
+Remembers which [SSH tunnels](../features/tunnels.md) you allowed korTTY to open: one entry per connection ID with a SHA-256 fingerprint of the server, of whether the connection is your own or shared (Teamwork), and of the enabled tunnels. When a connection's tunnels or its server change, the fingerprint no longer matches and korTTY asks again before it opens them. The file is not part of a backup, so a restored or migrated configuration asks once more; deleting it has the same effect.
 
 ### gpg-keys.xml
 Stores GPG key information for backup encryption.
