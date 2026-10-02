@@ -53,6 +53,19 @@ Wenn **Verlorene Verbindungen automatisch wiederherstellen** aktiviert ist (**Ei
 - **Registerkarten zwischen Fenstern verschieben**: Ziehen Sie eine Registerkarte aus der Registerkartenleiste und legen Sie sie auf der Registerkartenleiste eines anderen KorTTY-Fensters ab, um diese Registerkarte (und ihre Sitzung, einschließlich aller geteilten Terminals) in das andere Fenster zu verschieben.
 - **Tabs neu anordnen**: Ziehen Sie einen Tab innerhalb desselben Fensters, um seine Reihenfolge zu ändern; die Registerkarte „+“ bleibt am Ende.
 
+## Terminal-Kontextmenü
+
+Rechtsklick innerhalb eines Terminals öffnet dessen Kontextmenü; in einem geteilten Tab wirkt es auf das angeklickte Pane. Das Menü beginnt mit den Bearbeitungsbefehlen:
+
+| Eintrag | Was es tut |
+|-------|--------------|
+| **Kopieren** | Kopiert den ausgewählten Text in die Zwischenablage und behält die Auswahl bei. Ausgegraut, wenn nichts ausgewählt ist. |
+| **Einfügen** | Sendet den Text der Zwischenablage an die Sitzung, genauso wie die Einfügen-Verknüpfung. |
+| **Puffer löschen** | Löscht den Scrollback und den Bildschirm, behält jedoch die Prompt-Zeile bei. Während ein Vollbildprogramm wie `vim` oder `less` läuft, tut es nichts. |
+| **Suchen** | Öffnet die Suchleiste oben rechts im Bereich, genauso wie **Bearbeiten → Suchen...** (++ctrl+f++, ++cmd+f++ auf macOS). Tippen Sie zum Hervorheben von Übereinstimmungen, drücken ++enter++ oder ++down++ für die nächste Übereinstimmung und ++up++ für die vorherige, sowie ++esc++ zum Schließen der Leiste. |
+
+Darunter folgen die Einträge anderer Funktionen, in dieser Reihenfolge und einige nur dort, wo sie zutreffen: **Menüleiste anzeigen** (während die Menüleiste verborgen ist), **Im Snippet-Editor öffnen**, das **KI-Untermenü**, die Session-Journal-Screenshot- und Notizeinträge, **Thema**, **Terminal-Effekt**, **Neu verbinden** und **Befehls-Zeitstempel anzeigen**. Das **Extras**-Untermenü am Ende enthält **Terminal teilen**, **Schriftgröße** (siehe [Schriftgröße und Zoom](#schriftgroe-und-zoom)) und **Broadcast-Modus**.
+
 ## Schriftgröße und Zoom
 
 Passen Sie die Schriftgröße des aktiven Terminals im Handumdrehen an, ohne die Verbindung erneut herzustellen:
@@ -66,7 +79,7 @@ Passen Sie die Schriftgröße des aktiven Terminals im Handumdrehen an, ohne die
 
 Wenn Sie ++ctrl++ (oder ++cmd++ unter macOS) gedrückt halten und mit dem Mausrad über das Terminal scrollen, ändert sich die Schriftgröße – Rad nach oben vergrößert, Rad nach unten verkleinert – anstatt durch den Puffer zu scrollen. Dies ergänzt die Tastenkombinationen ++alt+plus++ / ++alt+minus++ / ++alt+0++.
 
-**Zoom zurücksetzen** stellt die Schriftgröße und -familie wieder her, die die Verbindung hatte, als Sie die Registerkarte geöffnet haben (oder die gespeicherten Einstellungen der Verbindung oder den globalen Standard). Das gleiche Zurücksetzen ist über das Terminal-Kontextmenü verfügbar: Rechtsklick → **Schriftgröße** → **Zurücksetzen**. Die Zoomstufe gilt nur für das aktuell fokussierte Terminal.
+**Zoom zurücksetzen** stellt die Schriftgröße und -familie wieder her, wie sie bei der Verbindung waren, als Sie den Tab geöffnet haben (oder die gespeicherten Einstellungen der Verbindung oder die globale Vorgabe). Das Kontextmenü des Terminals hat dieselben Steuerelemente: Rechtsklick → **Extras** → **Schriftgröße** → **Vergrößern**, **Verkleinern** (jeweils zwei Punkte pro Schritt) oder **Zurücksetzen**. Der Zoom-Level gilt für den aktuellen Tab – alle seine geteilten Bereiche ändern sich gemeinsam – und lässt andere Tabs unverändert.
 
 ## Hintergrundtransparenz
 
