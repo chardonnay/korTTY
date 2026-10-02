@@ -5581,6 +5581,14 @@ public class TerminalView extends BorderPane {
         return redactor;
     }
 
+    /**
+     * A fresh redactor with this tab's known secrets — the same one captured output gets — for
+     * masking terminal text before it leaves for an AI profile. The password itself stays private.
+     */
+    public de.kortty.core.SessionJournalRedactor createSecretRedactor() {
+        return buildCaptureRedactor();
+    }
+
     private void startLogger() {
         de.kortty.model.TerminalLogConfig logConfig = connection.getLogConfig();
         if (logConfig == null || !logConfig.isEnabled()) {

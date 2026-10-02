@@ -93,4 +93,29 @@ class SessionJournalReplacerTest {
         assertThat(redactor.redact("echo vault-secret-pw && aws AKIA0123456789ABCDEF"))
             .isEqualTo("echo *** && aws ***AWS***");
     }
+
+    @Test
+    void applyCountingCountsEachRuleAgainstWhatTheEarlierRulesLeft() {
+        SessionJournalReplacer replacer = of(
+            SessionJournalReplacement.literal("secret-a", "secret-b"),
+            SessionJournalReplacement.literal("secret-b", "***"));
+
+        RedactionResult result = replacer.applyCounting("secret-a secret-b");
+
+        // Rule one turns secret-a into secret-b, so rule two then replaces both occurrences.
+        assertThat(result.text()).isEqualTo(replacer.apply("secret-a secret-b"));
+        assertThat(result.text()).isEqualTo("*** ***");
+        assertThat(result.count()).isEqualTo(3);
+        assertThat(SessionJournalReplacer.none().applyCounting("x").count()).isEqualTo(0);
+    }
+
+    @Test
+    void applyCountingFallsBackToTheLiteralReplacementLikeApply() {
+        SessionJournalReplacer replacer = of(new SessionJournalReplacement(
+            "(pw)=\\w+", "$1=$2", true, false, null));
+        RedactionResult result = replacer.applyCounting("pw=hunter2");
+        assertThat(result.text()).isEqualTo(replacer.apply("pw=hunter2"));
+        assertThat(result.text()).doesNotContain("hunter2");
+        assertThat(result.count()).isEqualTo(1);
+    }
 }
