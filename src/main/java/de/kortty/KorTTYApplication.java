@@ -1,7 +1,7 @@
 package de.kortty;
 
+import de.kortty.core.ActiveConnectionRegistry;
 import de.kortty.core.ConfigurationManager;
-import de.kortty.core.SessionManager;
 import de.kortty.core.GPGKeyManager;
 import de.kortty.core.CredentialManager;
 import de.kortty.core.EnvironmentManager;
@@ -93,7 +93,6 @@ public class KorTTYApplication extends Application {
     private volatile String lastNotifiedMlxRuntimeId;
     
     private ConfigurationManager configManager;
-    private SessionManager sessionManager;
     private MasterPasswordManager masterPasswordManager;
     private GPGKeyManager gpgKeyManager;
     private CredentialManager credentialManager;
@@ -218,7 +217,6 @@ public class KorTTYApplication extends Application {
         
         // Initialize managers
         configManager = new ConfigurationManager(configDir);
-        sessionManager = new SessionManager();
         masterPasswordManager = new MasterPasswordManager(configDir);
         gpgKeyManager = new GPGKeyManager(configDir);
         credentialManager = new CredentialManager(configDir);
@@ -679,15 +677,6 @@ public class KorTTYApplication extends Application {
             globalSettingsManager.flushPendingSave();
         }
 
-        // Close all SSH sessions first.
-        if (sessionManager != null) {
-            try {
-                sessionManager.closeAllSessions();
-            } catch (Exception e) {
-                logger.error("Error closing sessions", e);
-            }
-        }
-        
         // Save configuration
         try {
             if (configManager != null && masterPasswordManager != null && masterPasswordManager.getDerivedKey() != null) {
@@ -1125,7 +1114,7 @@ public class KorTTYApplication extends Application {
         try {
             MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
             ObjectName name = new ObjectName("de.kortty:type=SSHClient");
-            SSHClientMonitor monitor = new SSHClientMonitor(sessionManager);
+            SSHClientMonitor monitor = new SSHClientMonitor(ActiveConnectionRegistry.shared());
             mbs.registerMBean(monitor, name);
             logger.info("JMX MBean registered: {}", name);
         } catch (Exception e) {
@@ -1265,10 +1254,6 @@ public class KorTTYApplication extends Application {
     
     public ConfigurationManager getConfigManager() {
         return configManager;
-    }
-    
-    public SessionManager getSessionManager() {
-        return sessionManager;
     }
     
     public MasterPasswordManager getMasterPasswordManager() {

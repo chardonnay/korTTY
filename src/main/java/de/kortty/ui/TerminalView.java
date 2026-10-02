@@ -23,6 +23,7 @@ import de.kortty.core.AiAction;
 import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.AiTokenWarningLevel;
 import de.kortty.core.ConnectionSettingsSupport;
+import de.kortty.core.ActiveConnectionRegistry;
 import de.kortty.core.Mosh4jTtyConnector;
 import de.kortty.core.SshTtyConnector;
 import de.kortty.core.ObservableTtyConnector;
@@ -2495,7 +2496,13 @@ public class TerminalView extends BorderPane {
         }
     }
 
+    /**
+     * Reports a connector that has just connected, to power management and to the live
+     * {@link ActiveConnectionRegistry} behind the JMX MBean (which ignores local shells). Paired
+     * with {@link #reportTerminalDisconnected}; both are idempotent per connector.
+     */
     private void reportTerminalConnected(TtyConnector connector) {
+        ActiveConnectionRegistry.shared().terminalConnected(connector);
         var app = KorTTYApplication.getInstance();
         if (app != null && app.getPowerManagementCoordinator() != null) {
             app.getPowerManagementCoordinator().terminalConnected(connector);
@@ -2503,6 +2510,7 @@ public class TerminalView extends BorderPane {
     }
 
     private void reportTerminalDisconnected(TtyConnector connector) {
+        ActiveConnectionRegistry.shared().terminalDisconnected(connector);
         var app = KorTTYApplication.getInstance();
         if (app != null && app.getPowerManagementCoordinator() != null) {
             app.getPowerManagementCoordinator().terminalDisconnected(connector);
@@ -5320,8 +5328,11 @@ public class TerminalView extends BorderPane {
                 attempt++;
                 
                 try {
-                    // Clean up previous attempt if any
+                    // Clean up previous attempt if any. Report the replaced connector as gone
+                    // here rather than relying on a disconnect event for a deliberate close; a
+                    // no-op when it was already reported.
                     if (ttyConnector != null) {
+                        reportTerminalDisconnected(ttyConnector);
                         try {
                             ttyConnector.close();
                         } catch (Exception e) {

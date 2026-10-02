@@ -45,8 +45,6 @@ import de.kortty.core.AiReasoningSupport;
 import de.kortty.core.ProjectManager;
 import de.kortty.core.RemoteTextFileSelectionSupport;
 import de.kortty.core.SftpFileTransferService;
-import de.kortty.core.SSHSession;
-import de.kortty.core.SessionManager;
 import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.core.SnippetManager;
 import de.kortty.core.LocalShellTtyConnector;
@@ -291,7 +289,6 @@ public class MainWindow {
     private final List<MenuItem> toolsAiAgentExecutionMenuItems = new ArrayList<>(2);
     
     private final KorTTYApplication app;
-    private final SessionManager sessionManager;
     private final ProjectManager projectManager;
     private final TerminalAgentService terminalAgentService = new TerminalAgentService();
     private final List<ConnectionImporter> importers;
@@ -351,7 +348,6 @@ public class MainWindow {
         instance = this;  // Set singleton instance
         this.stage = stage;
         this.app = KorTTYApplication.getInstance();
-        this.sessionManager = app.getSessionManager();
         this.projectManager = new ProjectManager(KorTTYApplication.getConfigDirectory());
         this.transparentWindowMode = shouldUseTransparentWindow();
         this.unifiedTitleBarEnabled = configureWindowChrome(stage, transparentWindowMode);
@@ -2419,8 +2415,9 @@ public class MainWindow {
             String terminalEffectPluginId,
             Double terminalEffectAnimationSpeed) {
         // Central UI gate for the enterprise server policy — covers saved connections, session
-        // restore, teamwork-shared connections and multi/swarm opens. SessionManager repeats the
-        // check as a non-UI backstop.
+        // restore, teamwork-shared connections and multi/swarm opens. The terminal connectors do
+        // not repeat this check; SFTPSession and JobSchedulerRemoteSession do, as non-UI
+        // backstops for their own paths.
         java.util.Optional<String> blockedTarget =
             de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(connection);
         if (blockedTarget.isPresent()) {
