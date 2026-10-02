@@ -329,15 +329,15 @@ Anwendungsprotokolldatei.
 ## Verzeichnisse
 
 ### history/
-Komprimierter Terminalsitzungsverlauf.
+Bildschirm-Snapshots werden mit [Projekten](../features/projects.md) gespeichert.
 
-**Format:** GZIP-komprimierte Textdateien, eine pro Terminalsitzung
+**Format:** GZIP-komprimierter UTF-8 Text, eine Datei pro Terminal-Tab eines gespeicherten Projekts.
 
-**Benennung:** `{session-id}_{timestamp}.history.gz` (für den Sitzungsverlauf aus der Terminalprotokollierung)
+**Benennung:** `{session-id}.history.gz`, referenziert durch Dateinamen aus der `.kortty` Datei des Projekts.
 
-**Zweck:** Speichert den Projekt-/Sitzungs-Scrollback-Verlauf, damit wieder geöffnete Sitzungen ihren Terminalinhalt wiederherstellen können.
+**Verwendung:** Enthält den zuletzt sichtbaren Bildschirm jedes Primärfensters eines Terminal-Tabs zum Zeitpunkt des Speicherns des Projekts – nicht den Scrollback und nicht die Bildschirme weiterer geteilter Paneele.
 
-**Zugriff:** Der Terminalverlauf wird automatisch geladen, wenn Sie eine gespeicherte Verbindung öffnen, und in der Suchfunktion für den Terminalverlauf angezeigt.
+**Zugriff:** Nur beim Öffnen eines Projekts mit aktivierter **Automatisches Wiederverbinden**; der Text wird dann lokal, über die neue Sitzung hinweg gedimmt angezeigt und niemals an den Server gesendet. Keine Verlaufssuche verwendet diese Dateien. korTTY liest, schreibt und löscht ausschließlich einfache `{session-id}.history.gz` Namen direkt in diesem Ordner. Die Dateien sind nicht verschlüsselt.
 
 !!! note
     Pro Verbindung schreibt *Terminal Logging* hier nicht: Die generierten Protokolldateien werden in den Ordner verschoben, der auf der Registerkarte „Terminal Logging“ der Verbindung konfiguriert ist, oder in `~/.kortty/terminal-logs/`, wenn dieser Ordner leer bleibt.
