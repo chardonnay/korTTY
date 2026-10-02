@@ -127,6 +127,22 @@ class SecretTokenPatternsTest {
     void masksPasswordInUrlKeepingTheUser() {
         assertMasked("DATABASE_URL=postgres://admin:s3cr3t-pw@db.internal:5432/app",
             "DATABASE_URL=postgres://admin:***@db.internal:5432/app", 1);
+        assertMasked("redis://:s3cr3t@cache:6379/0", "redis://:***@cache:6379/0", 1);
+    }
+
+    @Test
+    void masksAnUnencodedAtSignInAUrlPasswordToo() {
+        // Stopping at the first '@' would leave "ss" of the password in the clear.
+        assertMasked("mysql://root:p@ss@db.internal/app", "mysql://root:***@db.internal/app", 1);
+    }
+
+    @Test(timeOut = 5_000)
+    void scansALongDottedLineInLinearTime() {
+        // The URL rule used to re-scan each dotted run from every word boundary: ~45 s for this
+        // line, and the masking runs on the JavaFX thread.
+        String dotted = "a.".repeat(100_000);
+        assertUntouched(dotted);
+        assertUntouched("x-y+z.".repeat(40_000));
     }
 
     @Test
@@ -136,6 +152,9 @@ class SecretTokenPatternsTest {
         assertMasked("{\"client_secret\": \"xyz-123\"}", "{\"client_secret\": \"***\"}", 1);
         assertMasked("mysql --password=hunter2 app", "mysql --password=*** app", 1);
         assertMasked("SERVICE_TOKEN: abc123", "SERVICE_TOKEN: ***", 1);
+        assertMasked("curl -H 'X-Api-Key: abc123def456' https://api.example.com",
+            "curl -H 'X-Api-Key: ***' https://api.example.com", 1);
+        assertMasked("tool --api-key=abc123def456 run", "tool --api-key=*** run", 1);
     }
 
     @Test

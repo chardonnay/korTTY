@@ -69,15 +69,19 @@ public final class SecretTokenPatterns {
         // ("the bearer of the key") never matches.
         Rule.of("bearer-token",
             "(?<keep>\\b(?i:bearer)[ \\t]+)(?<secret>[A-Za-z0-9._~+/-]{20,}=*)"),
-        // scheme://user:password@host keeps the user.
+        // scheme://user:password@host keeps the scheme and the user. The match starts at "://":
+        // matching the scheme too ([A-Za-z][A-Za-z0-9+.-]*) re-scanned every dotted run from each
+        // word boundary, quadratic on a long "a.b.c..." line. The password runs to the last '@'
+        // before the path, so an unencoded '@' in it does not leave its tail in the clear.
         Rule.of("url-credentials",
-            "(?<keep>\\b[A-Za-z][A-Za-z0-9+.-]*://[^\\s:/@\"'<>]*:)(?<secret>[^\\s@/\"'<>]+)(?<tail>@)"),
+            "(?<keep>://[^\\s:/@\"'<>]*:)(?<secret>[^\\s/\"'<>]+)(?<tail>@)"),
         // NAME=value / name: value where the name ends in a secret word. PASSWORD_MIN_LENGTH=8
         // does not match (the name must end in the word), and PWD/OLDPWD are deliberately absent.
         // A quoted value may contain spaces; a bare one ends at whitespace, a quote, ',' or ';'.
+        // "api-key" also takes the hyphen, for the X-Api-Key header and --api-key= flags.
         Rule.of("secret-assignment",
             "(?i)(?<![A-Za-z0-9_])(?<keep>[A-Za-z0-9_]*"
-                + "(?:password|passwd|passphrase|secret|token|api_?key|access_?key|secret_?key|private_?key)"
+                + "(?:password|passwd|passphrase|secret|token|api[_-]?key|access_?key|secret_?key|private_?key)"
                 + "[\"']?[ \\t]*[=:][ \\t]*[\"']?)"
                 + "(?<secret>(?<=[\"'])[^\"'\\r\\n]+|(?<![\"'])[^\\s\"'`,;]+)"));
 
