@@ -1009,10 +1009,10 @@
 </tr>
 <tr>
 <td>Internetzugriff</td>
-<td>Dropdown</td>
-<td>Deaktiviert, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio-Toolpack</td>
+<td>dropdown</td>
+<td>Deaktiviert, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio Toolpack (gesperrt auf Deaktiviert, mit Hinweis, für eine native Anthropic Messages API URL)</td>
 <td>Deaktiviert</td>
-<td>(Profilfeld <code>internetAccessMode</code>)</td>
+<td>(Profil <code>internetAccessMode</code> Feld)</td>
 </tr>
 <tr>
 <td>API-Schlüssel (optional)</td>
@@ -1321,6 +1321,7 @@
 native API, das ein eingebettetes Modell niemals durchläuft – die Auswahl eines auf einem eingebetteten Profil
 falscht die Anfrage mit einer expliziten Nachricht statt stumm ohne Webzugriff zu antworten.
 Lokale CLI-Profile verfügen über keine Internet-Modi; das Dropdown-Menü ist für sie deaktiviert.</p>
+<p>Native Anthropic Messages API-Profile (eine API-URL, die mit <code>/v1/messages</code> endet) haben ebenfalls keine Internet-Modi, weil korTTY keine Web-Tools an diese API sendet: das Dropdown ist auf <strong>Deaktiviert</strong> festgelegt, und ein Hinweis darunter erklärt warum. Ein von einer früheren Version gespeicherter Modus wird als <strong>Deaktiviert</strong> angezeigt, wenn das Profil geöffnet wird und hat keinen Einfluss auf Anfragen.</p>
 <p>Eine Organisation kann den Web-Zugriff vollständig verbieten, indem sie den <code>allow-internet</code>-Policy-Schlüssel verwendet — siehe
 <a href="../enterprise-policy.html">Enterprise-Politik</a>.</p>
 </div></p>

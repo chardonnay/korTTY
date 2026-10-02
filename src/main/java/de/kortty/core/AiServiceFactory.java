@@ -30,6 +30,10 @@ public final class AiServiceFactory {
 
     private static final Logger LOG = LoggerFactory.getLogger(AiServiceFactory.class);
 
+    /** Profiles already warned about an internet mode the native Anthropic service ignores. */
+    private static final java.util.Set<String> ANTHROPIC_INTERNET_MODE_WARNED =
+        java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     private static final String OPENAI_CHAT_COMPLETIONS_PATH = "/chat/completions";
     private static final String MISSING_MODEL_MESSAGE = "AI model must be configured.";
     private static final String CLOUD_MODEL_REQUIRED_MESSAGE =
@@ -184,6 +188,7 @@ public final class AiServiceFactory {
             return null;
         }
         if (isAnthropicMessagesEndpoint(apiUrl)) {
+            warnOnceAboutIgnoredAnthropicInternetMode(profile);
             String anthropicModel = trimToNull(profile.getModel());
             if (anthropicModel == null) {
                 throw new IllegalStateException(MISSING_MODEL_MESSAGE);
@@ -459,8 +464,29 @@ public final class AiServiceFactory {
         return value != null && !value.isBlank() ? value.trim() : null;
     }
 
+    /**
+     * {@link AnthropicAiService} sends no tools, so an internet mode stored on a native Anthropic
+     * profile (the AI Manager locks it to Disabled now, older profiles may still carry one) has no
+     * effect. Says so once per profile in the log rather than on every request; the request itself
+     * is unchanged. Returns whether this call logged the warning.
+     */
+    static boolean warnOnceAboutIgnoredAnthropicInternetMode(AiProfile profile) {
+        AiInternetAccessMode mode = profile != null ? profile.getInternetAccessMode() : null;
+        if (mode == null || !mode.isEnabled()) {
+            return false;
+        }
+        String profileKey = profile.getId() != null ? profile.getId() : String.valueOf(profile.getName());
+        if (!ANTHROPIC_INTERNET_MODE_WARNED.add(profileKey + "|" + mode)) {
+            return false;
+        }
+        LOG.warn("AI profile '{}' uses the native Anthropic Messages API, which korTTY sends no web tools to; "
+            + "its internet access mode {} has no effect.",
+            profile.getName(), mode);
+        return true;
+    }
+
     /** True for Anthropic's native Messages API endpoint (handled by {@link AnthropicAiService}). */
-    static boolean isAnthropicMessagesEndpoint(String apiUrl) {
+    public static boolean isAnthropicMessagesEndpoint(String apiUrl) {
         if (apiUrl == null) {
             return false;
         }
