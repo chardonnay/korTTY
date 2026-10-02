@@ -1512,15 +1512,22 @@ public class SFTPManagerTab extends Tab {
     private void copyLocalItem(SftpFileItem item, Path targetDir) throws IOException {
         Path source = Paths.get(item.getPath());
         Path target = targetDir.resolve(item.getName());
+        if (isLocalCopyIntoItself(source, target)) {
+            throw new IOException(I18n.get("sftp.error.copyIntoItself", source, target));
+        }
         if (item.isFile()) {
             Files.copy(source, target);
         } else {
-            // A folder copied into itself would keep walking the copies it just made.
-            if (target.toAbsolutePath().normalize().startsWith(source.toAbsolutePath().normalize())) {
-                throw new IOException(I18n.get("sftp.error.copyIntoItself", source, target));
-            }
             copyDirectory(source, target);
         }
+    }
+
+    /**
+     * Whether {@code target} is {@code source} or lies inside it. Onto itself a file copy silently
+     * does nothing; a folder copied into itself would keep walking the copies it just made.
+     */
+    static boolean isLocalCopyIntoItself(Path source, Path target) {
+        return target.toAbsolutePath().normalize().startsWith(source.toAbsolutePath().normalize());
     }
 
     /** Copies a tree; entries that fail are skipped, and the first failure is thrown at the end. */

@@ -52,6 +52,17 @@ class SFTPManagerTabRemotePathTest {
     }
 
     @Test
+    void localCopyOntoItselfOrIntoItsOwnFolderIsDetected() {
+        Path project = Path.of("/data/project");
+        assertThat(SFTPManagerTab.isLocalCopyIntoItself(project, Path.of("/data/project"))).isTrue();
+        assertThat(SFTPManagerTab.isLocalCopyIntoItself(project, Path.of("/data/project/sub/project"))).isTrue();
+        assertThat(SFTPManagerTab.isLocalCopyIntoItself(project, Path.of("/data/other/../project"))).isTrue();
+        // Path.startsWith compares whole names: a sibling with a longer name is fine.
+        assertThat(SFTPManagerTab.isLocalCopyIntoItself(project, Path.of("/data/project-copy"))).isFalse();
+        assertThat(SFTPManagerTab.isLocalCopyIntoItself(project, Path.of("/backup/project"))).isFalse();
+    }
+
+    @Test
     void onlyThreeOctalDigitsReachChmod() {
         assertThat(SFTPManagerTab.isAcceptedPermissionsInput("755", "644")).isTrue();
         assertThat(SFTPManagerTab.isAcceptedPermissionsInput("", "644")).isTrue();
