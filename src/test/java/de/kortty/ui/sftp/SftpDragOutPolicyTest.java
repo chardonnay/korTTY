@@ -9,6 +9,8 @@ import static com.google.common.truth.Truth.assertThat;
 
 class SftpDragOutPolicyTest {
 
+    private static final int REGULAR_FILE = 0100644;
+
     @Test
     void smallSelectionOfFilesMayLeaveTheWindow() {
         assertThat(SftpDragOutPolicy.check(List.of(file("a.txt", 10), file("b.txt", 2_000))))
@@ -52,6 +54,37 @@ class SftpDragOutPolicyTest {
             .isEqualTo(SftpDragOutPolicy.Verdict.CONTAINS_FOLDER);
         assertThat(SftpDragOutPolicy.check(List.of())).isEqualTo(SftpDragOutPolicy.Verdict.NOTHING_SELECTED);
         assertThat(SftpDragOutPolicy.check(null)).isEqualTo(SftpDragOutPolicy.Verdict.NOTHING_SELECTED);
+    }
+
+    @Test
+    void hugeReportedSizesCannotOverflowTheSum() {
+        assertThat(SftpDragOutPolicy.check(List.of(file("a", 10), file("b", Long.MAX_VALUE))))
+            .isEqualTo(SftpDragOutPolicy.Verdict.TOO_LARGE);
+        assertThat(SftpDragOutPolicy.checkResolved(List.of(
+                new SftpDragOutPolicy.Resolved(REGULAR_FILE, 10),
+                new SftpDragOutPolicy.Resolved(REGULAR_FILE, Long.MAX_VALUE))))
+            .isEqualTo(SftpDragOutPolicy.Verdict.TOO_LARGE);
+    }
+
+    @Test
+    void resolvedNamesMustBeSmallRegularFiles() {
+        assertThat(SftpDragOutPolicy.checkResolved(List.of(new SftpDragOutPolicy.Resolved(REGULAR_FILE, 1_000))))
+            .isEqualTo(SftpDragOutPolicy.Verdict.ALLOWED);
+        // A server that sends no file type: the size still counts.
+        assertThat(SftpDragOutPolicy.checkResolved(List.of(new SftpDragOutPolicy.Resolved(0644, 1_000))))
+            .isEqualTo(SftpDragOutPolicy.Verdict.ALLOWED);
+        // A link that pointed to a large file, a folder or a device such as /dev/zero.
+        assertThat(SftpDragOutPolicy.checkResolved(List.of(
+                new SftpDragOutPolicy.Resolved(REGULAR_FILE, SftpDragOutPolicy.MAX_TOTAL_BYTES + 1))))
+            .isEqualTo(SftpDragOutPolicy.Verdict.TOO_LARGE);
+        assertThat(SftpDragOutPolicy.checkResolved(List.of(new SftpDragOutPolicy.Resolved(040755, 4096))))
+            .isEqualTo(SftpDragOutPolicy.Verdict.CONTAINS_FOLDER);
+        assertThat(SftpDragOutPolicy.checkResolved(List.of(new SftpDragOutPolicy.Resolved(020666, 0))))
+            .isEqualTo(SftpDragOutPolicy.Verdict.CONTAINS_FOLDER);
+        // No size reported: it could be anything.
+        assertThat(SftpDragOutPolicy.checkResolved(List.of(new SftpDragOutPolicy.Resolved(REGULAR_FILE, -1))))
+            .isEqualTo(SftpDragOutPolicy.Verdict.TOO_LARGE);
+        assertThat(SftpDragOutPolicy.checkResolved(List.of())).isEqualTo(SftpDragOutPolicy.Verdict.NOTHING_SELECTED);
     }
 
     @Test

@@ -29,6 +29,25 @@ public final class SftpDragOutPolicy {
         TOO_LARGE
     }
 
+    /** The file-type bits of a POSIX mode. */
+    private static final int TYPE_MASK = 0170000;
+    /** The file-type bits of a regular file. */
+    private static final int REGULAR_FILE = 0100000;
+
+    /**
+     * What the server reports for a dragged name once links are followed.
+     *
+     * @param mode the POSIX mode with its file-type bits, or {@code 0} when the server sent none
+     * @param size the size in bytes, or a negative value when the server sent none
+     */
+    public record Resolved(int mode, long size) {
+        /** A regular file, or a name of unknown type (whose size still counts). */
+        public boolean regularFile() {
+            int type = mode & TYPE_MASK;
+            return type == 0 || type == REGULAR_FILE;
+        }
+    }
+
     private SftpDragOutPolicy() {
     }
 
@@ -48,17 +67,42 @@ public final class SftpDragOutPolicy {
         if (items.size() > MAX_FILES) {
             return Verdict.TOO_MANY_FILES;
         }
+        return checkSizes(items.stream().mapToLong(SftpFileItem::getSizeBytes).toArray());
+    }
+
+    /**
+     * The same caps for what the server reports when each dragged name is resolved, checked before
+     * anything is downloaded. A listing shows a symbolic link with the size of the link itself, so a
+     * link to a large file, or to a device such as {@code /dev/zero} that never ends, passes
+     * {@link #check}. A folder, device, pipe or socket counts as {@link Verdict#CONTAINS_FOLDER}.
+     */
+    public static Verdict checkResolved(List<Resolved> files) {
+        if (files == null || files.isEmpty()) {
+            return Verdict.NOTHING_SELECTED;
+        }
+        for (Resolved file : files) {
+            if (file == null || !file.regularFile()) {
+                return Verdict.CONTAINS_FOLDER;
+            }
+        }
+        if (files.size() > MAX_FILES) {
+            return Verdict.TOO_MANY_FILES;
+        }
+        return checkSizes(files.stream().mapToLong(Resolved::size).toArray());
+    }
+
+    private static Verdict checkSizes(long[] sizes) {
         long total = 0;
-        for (SftpFileItem item : items) {
-            long size = item.getSizeBytes();
+        for (long size : sizes) {
             if (size < 0) {
                 // Unknown size: it could be anything.
                 return Verdict.TOO_LARGE;
             }
-            total += size;
-            if (total > MAX_TOTAL_BYTES) {
+            // Compared before adding, so a reported size near Long.MAX_VALUE cannot overflow the sum.
+            if (size > MAX_TOTAL_BYTES - total) {
                 return Verdict.TOO_LARGE;
             }
+            total += size;
         }
         return Verdict.ALLOWED;
     }

@@ -1989,8 +1989,14 @@ public class SFTPManagerTab extends Tab {
             statusLabel.setText(I18n.get("sftp.dragOut.timeout",
                 String.valueOf(SftpDragOutPolicy.MAX_WAIT.toSeconds())));
         } catch (ExecutionException e) {
-            logger.warn("Could not download remote files for a drag out of the window", e.getCause());
-            statusLabel.setText(I18n.get("sftp.dragOut.failed", failureMessage(e.getCause())));
+            if (e.getCause() instanceof DragOutTooLarge) {
+                logger.info("Remote files for a drag out of the window resolve to more than the caps allow");
+                statusLabel.setText(I18n.get("sftp.dragOut.tooLarge",
+                    String.valueOf(SftpDragOutPolicy.MAX_FILES), formatSize(SftpDragOutPolicy.MAX_TOTAL_BYTES)));
+            } else {
+                logger.warn("Could not download remote files for a drag out of the window", e.getCause());
+                statusLabel.setText(I18n.get("sftp.dragOut.failed", failureMessage(e.getCause())));
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             download.cancel(true);
@@ -1998,19 +2004,49 @@ public class SFTPManagerTab extends Tab {
         return List.of();
     }
 
-    /** Runs on the drag-out worker: one download after another into {@code directory}. */
-    private static List<File> downloadForDragOut(SFTPSession session, List<SftpFileItem> items, Path directory)
+    /** The dragged names resolve to a folder, a device or more bytes than a drag out of the window may carry. */
+    static final class DragOutTooLarge extends IOException {
+        DragOutTooLarge(SftpDragOutPolicy.Verdict verdict) {
+            super("Not offered outside the window: " + verdict);
+        }
+    }
+
+    /**
+     * Runs on the drag-out worker: one download after another into {@code directory}. First every
+     * name is resolved on the server and checked against the caps once more
+     * ({@link SftpDragOutPolicy#checkResolved}): the listing shows a symbolic link with the size of
+     * the link, and a download that runs past the wait cannot be stopped, so a link to a large file
+     * or to {@code /dev/zero} would otherwise keep filling the temporary folder in the background.
+     */
+    static List<File> downloadForDragOut(SFTPSession session, List<SftpFileItem> items, Path directory)
             throws IOException {
+        List<SftpDragOutPolicy.Resolved> resolved = new ArrayList<>(items.size());
+        for (SftpFileItem item : items) {
+            checkDragOutCancelled();
+            SftpClient.Attributes attributes = session.getAttributes(item.getPath());
+            var flags = attributes.getFlags();
+            resolved.add(new SftpDragOutPolicy.Resolved(
+                flags.contains(SftpClient.Attribute.Perms) ? attributes.getPermissions() : 0,
+                flags.contains(SftpClient.Attribute.Size) ? attributes.getSize() : -1));
+        }
+        SftpDragOutPolicy.Verdict verdict = SftpDragOutPolicy.checkResolved(resolved);
+        if (verdict != SftpDragOutPolicy.Verdict.ALLOWED) {
+            throw new DragOutTooLarge(verdict);
+        }
         List<File> files = new ArrayList<>(items.size());
         for (SftpFileItem item : items) {
-            if (Thread.currentThread().isInterrupted()) {
-                throw new java.io.InterruptedIOException("Drag-out download cancelled");
-            }
+            checkDragOutCancelled();
             Path target = localChild(directory, item.getName());
             session.downloadFile(item.getPath(), target);
             files.add(target.toFile());
         }
         return files;
+    }
+
+    private static void checkDragOutCancelled() throws java.io.InterruptedIOException {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new java.io.InterruptedIOException("Drag-out download cancelled");
+        }
     }
 
     /** Deletes the temporary folders of earlier drags out of the window; a busy one is retried later. */
@@ -2402,8 +2438,8 @@ public class SFTPManagerTab extends Tab {
                 String target = SftpFileTransferService.resolveSiblingRemoteFilePath(item.getPath(), name);
                 statusLabel.setText(I18n.get("sftp.renaming", item.getName(), name));
                 runRemoteOperation("SFTP-Rename", session, () -> {
-                    // A change of case only may "exist" on a case-insensitive server; let it decide.
-                    if (!name.equalsIgnoreCase(item.getName()) && remoteFileExists(session, target)) {
+                    // Not every server refuses to replace an existing target on rename: check first.
+                    if (remoteRenameTargetTaken(session, item.getName(), target, name)) {
                         throw new FileAlreadyExistsException(target);
                     }
                     session.renameFile(item.getPath(), target);
@@ -4518,6 +4554,25 @@ public class SFTPManagerTab extends Tab {
         }
         snippet.setDiagrams(diagramCopies);
         return snippet;
+    }
+
+    /**
+     * Whether renaming the entry {@code currentName} to {@code target} (named {@code newName}) would
+     * meet another entry. A change of case only is looked up in the folder's listing, spelled
+     * exactly: on a case-insensitive server the new name "exists" as the entry itself, while on a
+     * case-sensitive one it can be a second file that a rename might replace.
+     */
+    static boolean remoteRenameTargetTaken(SFTPSession session, String currentName, String target, String newName)
+            throws IOException {
+        if (!newName.equalsIgnoreCase(currentName)) {
+            return remoteFileExists(session, target);
+        }
+        for (SftpClient.DirEntry entry : session.listFiles(RemotePathSupport.parentRemotePath(target))) {
+            if (newName.equals(entry.getFilename())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean remoteFileExists(SFTPSession session, String remotePath) {
