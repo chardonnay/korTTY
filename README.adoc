@@ -387,7 +387,7 @@ Adjust the font size of the active terminal without reconnecting:
 * *Ctrl + mouse wheel* (Cmd + wheel on macOS): Zoom in (wheel up) / out (wheel down) over the terminal instead of scrolling the buffer
 * *Alt+0* (or *Ctrl+0*): Reset zoom to the connection's saved font size and family (or the font that was active when you opened the tab)
 
-The zoom level applies to the currently focused terminal tab. The same reset is available via the terminal context menu (*Font size → Reset*).
+The zoom level applies to the currently focused terminal tab, including all of its split panes. The terminal context menu offers the same controls under *Extras → Font Size → Increase / Decrease / Reset*.
 
 === Split-Screen with Broadcast
 
