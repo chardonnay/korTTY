@@ -350,7 +350,7 @@ Discarding and deleting ask first in a strip at the top of the panel (**Discard*
 
 ### Reading the report
 
-A toolbar runs along the top of the panel, the report sits above the flow diagram below it, and a script-header selector plus the collapsible hardening panels follow further down; the report area scrolls when the panel is short, while **Apply selected** stays in the panel's footer. **Re-run** never closes anything: the current result stays visible with a *re-running* banner until the new one arrives, which then becomes the current analysis while the old one stays in the history.
+A toolbar runs along the top of the panel and the report fills its upper part. Below the report, the script-header selector, the text language and the collapsible **Hardening options**, **Input hardening** and **Code language** panels are stacked on the left, and the flow diagram sits beside them on the right; both dividers can be dragged. The report area scrolls when the panel is short, while **Apply selected** stays in the panel's footer. **Re-run** never closes anything: the current result stays visible with a *re-running* banner until the new one arrives, which then becomes the current analysis while the old one stays in the history.
 
 #### Toolbar
 
