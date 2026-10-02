@@ -54,7 +54,7 @@ Click any column header to sort by that column. Clicking the Type column again t
 
 Remote folders are read in the background, so the window stays responsive even for a folder with tens of thousands of entries. While a folder loads, a **Loading…** indicator covers the remote list. The path field and the list switch to the new folder only once it has been read; if it cannot be read (it does not exist, or you lack the rights), an error is shown and the folder you were in stays.
 
-Type a path into the remote **Path** field and press ++enter++ to go there. `~` and `~/…` stand for your login directory on the server, and a path without a leading `/` is taken relative to the folder shown.
+Type a path into the remote **Path** field and press ++enter++ to go there. `~` and `~/…` stand for your login directory on the server, and a path without a leading `/` is taken relative to the folder shown; `..` and `.` are resolved, so `../logs` opens the sibling folder `logs`.
 
 ## Lost connection
 
@@ -72,7 +72,7 @@ The SFTP Manager supports a full range of file operations:
 | **Download** | Select remote file(s), click Download |
 | **Delete** | Select file(s), click Delete |
 | **Rename** | Select a file, click Rename |
-| **Copy** | Copy files within the same panel (a local copy runs in the background) |
+| **Copy** | Copy files within the same panel (a local copy runs in the background). A remote folder copied where a folder of that name exists merges into it; copying an item onto itself or into one of its own subfolders is refused with an error |
 | **Edit in Snippet Editor** | Select exactly one local or remote file, then use the *Edit* toolbar menu or the right-click context menu |
 | **Create Directory** | Click "New Folder" in either panel |
 | **Create ZIP** | Select multiple files/directories, click "Create ZIP" |
