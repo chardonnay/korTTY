@@ -1,6 +1,8 @@
 package de.kortty.ui;
 
+import de.kortty.core.SFTPSession;
 import de.kortty.model.ServerConnection;
+import de.kortty.model.TemporarySSHKey;
 import javafx.event.Event;
 import javafx.scene.control.Tab;
 import org.apache.sshd.sftp.common.SftpConstants;
@@ -208,6 +210,23 @@ class SftpSessionRestoreSupportTest {
     }
 
     @Test
+    void remoteTabIsSavedWithTheConnectionOfItsOwnSession() {
+        // Saving used to take the id of whichever SFTP tab came first: with two open, a remote
+        // file of the second server was reopened from the first one.
+        ServerConnection web = connection("web");
+        ServerConnection db = connection("db");
+
+        assertThat(SftpSessionRestoreSupport.savedConnectionId(new SFTPSession(db, "pw"))).isEqualTo(db.getId());
+        // An image opened from an SFTP tab with a temporary key: its session runs over a copy.
+        ServerConnection temporaryKeyCopy = SftpConnectionSupport.connectionForSftp(
+            web, new TemporarySSHKey("temporary-private-key", 5));
+        assertThat(temporaryKeyCopy).isNotSameInstanceAs(web);
+        assertThat(SftpSessionRestoreSupport.savedConnectionId(new SFTPSession(temporaryKeyCopy, null)))
+            .isEqualTo(web.getId());
+        assertThat(SftpSessionRestoreSupport.savedConnectionId(null)).isNull();
+    }
+
+    @Test
     void sftpTabsAreSavedByIdAndRestoredAtTheirFolders() throws IOException {
         String tab = read("src/main/java/de/kortty/ui/SFTPManagerTab.java");
         String saved = tab.substring(tab.indexOf("public SessionState createSessionState()"));
@@ -230,6 +249,27 @@ class SftpSessionRestoreSupportTest {
         String dispose = window.substring(window.indexOf("private void disposeTabContent(Tab tab)"));
         dispose = dispose.substring(0, dispose.indexOf("\n    }\n"));
         assertThat(dispose).contains("SftpSessionRestoreSupport.closeOwnedSession(tab);");
+        // Cmd+W, close all, window close and opening a project end an SFTP tab like its close button.
+        assertThat(dispose).contains("sftpTab.cleanup();");
+        // A restored tab whose download finishes after its window closed does not keep its session.
+        String addOwned = window.substring(window.indexOf("private void addTabOwningSftpSession("));
+        addOwned = addOwned.substring(0, addOwned.indexOf("\n    }\n"));
+        assertThat(addOwned).contains("if (!stage.isShowing()) {");
+
+        // Remote editor and image tabs are saved with the connection of their own session.
+        String save = window.substring(window.indexOf("private Project createProjectFromCurrentState()"),
+            window.indexOf("private void loadProject(Project project)"));
+        assertThat(save).contains(
+            "sessionState.setConnectionId(SftpSessionRestoreSupport.savedConnectionId(editorTab.getSftpSession()));");
+        assertThat(save).contains(
+            "sessionState.setConnectionId(SftpSessionRestoreSupport.savedConnectionId(viewerTab.getSftpSession()));");
+        assertThat(save).doesNotContain("sftpTab.getConnection().getId()");
+
+        // The editor's own Close button and its Cmd+W only remove the tab; they must still close it.
+        String editor = read("src/main/java/de/kortty/ui/FileEditorTab.java");
+        String removeTab = editor.substring(editor.indexOf("private void removeTabSafely()"));
+        removeTab = removeTab.substring(0, removeTab.indexOf("\n    }\n"));
+        assertThat(removeTab).contains("javafx.event.Event.fireEvent(this, new javafx.event.Event(Tab.CLOSED_EVENT));");
     }
 
     /** With LF line endings: Windows CI checks sources out with CRLF. */

@@ -1,5 +1,6 @@
 package de.kortty.ui;
 
+import de.kortty.core.SFTPSession;
 import de.kortty.model.ServerConnection;
 import javafx.scene.control.Tab;
 import org.apache.sshd.sftp.common.SftpConstants;
@@ -19,9 +20,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
 /**
- * Reopening the SFTP tabs of a saved project: which connection a saved SFTP Manager tab belongs
- * to, which folders it starts in, and closing the SFTP session a restored remote image or editor
- * tab opened for itself together with that tab.
+ * Saving and reopening the SFTP tabs of a project: which connection a remote editor or image tab
+ * is saved with, which connection a saved SFTP Manager tab belongs to, which folders it starts in,
+ * and closing the SFTP session a restored remote image or editor tab opened for itself together
+ * with that tab.
  */
 final class SftpSessionRestoreSupport {
 
@@ -73,6 +75,19 @@ final class SftpSessionRestoreSupport {
             logger.warn("SFTP tab not restored: {} connections are named '{}'", named.size(), savedId);
         }
         return null;
+    }
+
+    /**
+     * The connection id a remote editor or image tab is saved with: that of the connection its own
+     * SFTP session was opened over — not that of whichever SFTP tab happens to come first, which
+     * belongs to another server when several are open, and is missing once the SFTP tab is closed.
+     * An SFTP tab's session with a temporary key runs over a copy that keeps the id.
+     *
+     * @return the id, or {@code null} without a session
+     */
+    static String savedConnectionId(SFTPSession session) {
+        ServerConnection connection = session != null ? session.getConnection() : null;
+        return connection != null ? connection.getId() : null;
     }
 
     /**

@@ -1024,7 +1024,16 @@ public class SFTPManagerTab extends Tab {
         return message != null && !message.isBlank() ? message : cause.getClass().getSimpleName();
     }
 
-    private void cleanup() {
+    /**
+     * Ends the tab: stops the auto-close timer and the listing thread and closes the session. Runs
+     * from the close button and, through {@code MainWindow.disposeTabContent}, on the programmatic
+     * close paths (Cmd+W, close all, window close, opening a project), where JavaFX asks no close
+     * request. Does nothing the second time. FX thread.
+     */
+    void cleanup() {
+        if (closing) {
+            return;
+        }
         // First, so neither the disconnect listener nor a pending listing touches the closing tab.
         closing = true;
         if (autoCloseTimer != null) {

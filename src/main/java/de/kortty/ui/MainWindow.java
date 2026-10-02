@@ -3448,6 +3448,10 @@ public class MainWindow {
             // Runs the hosted dialog's DIALOG_HIDDEN cleanup (Monaco/WebView disposal, listener
             // deregistration) that a user-initiated tab close would have triggered.
             hostTab.disposeOnWindowClose();
+        } else if (tab instanceof SFTPManagerTab sftpTab) {
+            // What its close request does: without it the session and the auto-close timer outlive
+            // the tab, e.g. every SFTP tab of a project replaced by opening another one.
+            sftpTab.cleanup();
         }
         // A restored remote editor or image tab closes the SFTP session it opened for itself.
         SftpSessionRestoreSupport.closeOwnedSession(tab);
@@ -5324,31 +5328,17 @@ public class MainWindow {
                 logger.info("Saving SFTP Manager tab: {}", sftpTab.getText());
             } else if (tab instanceof FileEditorTab editorTab) {
                 SessionState sessionState = editorTab.createSessionState();
-                // Find connection ID if this is a remote file
-                if (editorTab.isRemote() && editorTab.getSftpSession() != null) {
-                    // Try to find matching SFTP tab to get connection
-                    for (Tab t : tabPane.getTabs()) {
-                        if (t instanceof SFTPManagerTab sftpTab && 
-                            sftpTab.getConnection() != null) {
-                            sessionState.setConnectionId(sftpTab.getConnection().getId());
-                            break;
-                        }
-                    }
+                // The connection the remote file was opened over, not merely the first SFTP tab's.
+                if (editorTab.isRemote()) {
+                    sessionState.setConnectionId(SftpSessionRestoreSupport.savedConnectionId(editorTab.getSftpSession()));
                 }
                 windowState.addTab(sessionState);
                 logger.info("Saving File Editor tab: {}", editorTab.getText());
             } else if (tab instanceof ImageViewerTab viewerTab) {
                 SessionState sessionState = viewerTab.createSessionState();
-                // Find connection ID if this is a remote image
-                if (viewerTab.isRemote() && viewerTab.getSftpSession() != null) {
-                    // Try to find matching SFTP tab to get connection
-                    for (Tab t : tabPane.getTabs()) {
-                        if (t instanceof SFTPManagerTab sftpTab && 
-                            sftpTab.getConnection() != null) {
-                            sessionState.setConnectionId(sftpTab.getConnection().getId());
-                            break;
-                        }
-                    }
+                // The connection the remote image was opened over, not merely the first SFTP tab's.
+                if (viewerTab.isRemote()) {
+                    sessionState.setConnectionId(SftpSessionRestoreSupport.savedConnectionId(viewerTab.getSftpSession()));
                 }
                 windowState.addTab(sessionState);
                 logger.info("Saving Image Viewer tab: {}", viewerTab.getText());
@@ -5606,13 +5596,19 @@ public class MainWindow {
 
     /**
      * Adds the restored tab {@code createTab} builds and makes it the owner of {@code session}: the
-     * session closes with the tab, however the tab is closed. If the tab cannot be built, the
-     * session is closed right away. Only these restored tabs own their session; an image tab opened
-     * from an SFTP tab shares that tab's session. FX thread.
+     * session closes with the tab, however the tab is closed. If the window closed while the file
+     * was downloading, or the tab cannot be built, the session is closed right away. Only these
+     * restored tabs own their session; an image tab opened from an SFTP tab shares that tab's
+     * session. FX thread.
      */
     private void addTabOwningSftpSession(
             de.kortty.core.SFTPSession session,
             java.util.function.Supplier<? extends Tab> createTab) {
+        if (!stage.isShowing()) {
+            // Its tabs were already closed; a tab added now would keep the session open for good.
+            closeOwnedSftpSessionInBackground(session);
+            return;
+        }
         Tab tab;
         try {
             tab = createTab.get();
