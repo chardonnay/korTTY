@@ -30,7 +30,7 @@ import java.nio.file.Path;
 public class GlobalSettingsManager {
     
     private static final Logger logger = LoggerFactory.getLogger(GlobalSettingsManager.class);
-    private static final String SETTINGS_FILE = "global-settings.xml";
+    public static final String SETTINGS_FILE = "global-settings.xml";
     /** Several dialogs save on close within one user action; their writes are merged into one. */
     static final long SAVE_COALESCE_MILLIS = 300;
     private static final long MARSHAL_TIMEOUT_MILLIS = 5000;

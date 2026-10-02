@@ -106,6 +106,17 @@ public class JobSchedulerService {
     }
 
     public void shutdownSchedulerThreads() {
+        shutdownSchedulerThreads(true);
+    }
+
+    /**
+     * Stops the scheduler and worker threads.
+     *
+     * @param saveState whether to write the in-memory jobs back to {@code job-scheduler.xml};
+     *                  {@code false} after a backup import that needs a restart, so the restored
+     *                  file is not overwritten with the state korTTY started with
+     */
+    public void shutdownSchedulerThreads(boolean saveState) {
         synchronized (drainMonitor) {
             draining = true;
         }
@@ -123,6 +134,10 @@ public class JobSchedulerService {
             workerExecutor.shutdownNow();
             Thread.currentThread().interrupt();
             logger.warn("Interrupted while waiting for JobScheduler workers to finish during shutdown", e);
+        }
+        if (!saveState) {
+            logger.info("Not saving the JobScheduler state during shutdown (restored backup awaits a restart)");
+            return;
         }
         try {
             repository.save();

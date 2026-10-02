@@ -24,13 +24,19 @@ On first launch, you are prompted to create a master password (minimum 6 charact
 
 The master password itself is hashed with PBKDF2 (310,000 iterations) and never stored in plain text. The salt and hash are stored in `~/.kortty/master.key`.
 
-On subsequent launches, KorTTY prompts you to enter the master password to unlock encrypted data. Turning off **Require master password on startup** in **Settings > Security** hides this prompt, but stored passwords will not be accessible until you enter the master password manually.
+On subsequent launches, KorTTY prompts you to enter the master password to unlock encrypted data. Turning off **Require master password on startup** in **Settings > Security** hides this prompt and starts with the vault locked: stored passwords and keys stay unavailable until you unlock it (see [Unlocking the vault later](#unlocking-the-vault-later)).
 
 !!! danger "Optional auto-login weakens at-rest protection"
     The second Security option, **Disable master password prompt on startup (auto-login)**, also removes the prompt but keeps the vault fully usable: korTTY writes your master password to `~/.kortty/master.autounlock` — **obfuscated only, not encrypted**, with owner-only file permissions — and unlocks automatically on every start. The obfuscation key is embedded in the application, so file permissions are the only real boundary; anyone who can read `~/.kortty` or a backup can decrypt all saved secrets. On a brand-new profile the option bootstraps a default master password with no dialog at all. korTTY asks for confirmation before enabling it, it is meant for throwaway/test environments, and a [policy configuration](../reference/enterprise-policy.md) that requires a master password disables it. Details: [Security settings](../reference/settings/security.md).
 
 !!! note
     If you lose the master password, encrypted data cannot be recovered. Delete `master.key` and `credentials.xml`, restart, set a new master password, and re-enter your passwords.
+
+### Unlocking the vault later
+
+With the vault locked, choose **Configuration > Security > Unlock Vault…** and enter the master password; the menu item is greyed out while the vault is open. Saving an AI or translation API key, a Hugging Face token, a jump server password or a Job Scheduler password, starting an AI Swarm run on servers without an open terminal, asking the guide a question and generating a single- or multi-server workflow script with an encrypted AI key show their "vault locked" message with an **Unlock Vault…** button instead of a dead end. Some places still only report the locked vault, for example an AI chat request or a key passphrase in the connection editor; unlock the vault from the menu first. After a successful unlock the action continues; **Cancel** leaves the vault locked without a second error. A wrong password keeps the dialog open, and cancelling it never quits korTTY.
+
+Unlocking also restores the temporary SSH keys that could not be decrypted at the locked start; until then they stay stored encrypted, so saving connections in the meantime does not lose them. Windows that were already open while the vault was locked, such as the Connection Manager or the credential and key managers, do not pick up the unlock — reopen them to use stored secrets there.
 
 ## Encryption Model
 
@@ -102,7 +108,7 @@ Centralized management of private SSH keys with encrypted passphrases.
 
 - **Centralized Management** — Manage all SSH keys in one place
 - **Encrypted Passphrases** — Key passphrases are stored encrypted with AES-256-GCM
-- **Key Copying** — Use **Copy to User Directory** to copy keys to `~/.kortty/ssh-keys/`; copied keys are included in encrypted backups and restored with owner-only permissions
+- **Key Copying** — Use **Copy to User Directory** to copy keys to `~/.kortty/ssh-keys/`; on macOS and Linux the copied private key is made owner-only (`rw-------`) and the folder `rwx------`, and copied keys are included in encrypted backups and restored with owner-only permissions
 - **Wildcard Search** — Quick search for keys using `*` patterns
 - **Automatic Usage** — Select keys directly in connection settings
 
@@ -117,7 +123,11 @@ When creating or editing a connection:
 
 ## Interactive SSH host-key trust
 
-Terminal and SFTP connections, including the SSH bootstrap used by Mosh, share a trust-on-first-use (TOFU) verifier keyed by normalized host name and port. On first use, korTTY displays the server key algorithm and OpenSSH SHA-256 fingerprint; verify it out of band before accepting. The confirmation defaults to **No**. A previously trusted matching key is accepted silently, while a changed key is hard-blocked with the expected and offered fingerprints and is never retried automatically.
+Terminal and SFTP connections, including the SSH bootstrap used by Mosh, share a trust-on-first-use (TOFU) verifier keyed by normalized host name and port. On first use, korTTY displays the server key algorithm and OpenSSH SHA-256 fingerprint; verify it out of band before accepting. The confirmation defaults to **No**. A previously trusted matching key is accepted silently, while a changed key is hard-blocked with the expected and offered fingerprints and is never retried or replaced automatically.
+
+A changed key can be replaced only by an explicit decision, and only in a connection you opened yourself in a terminal tab or the SFTP manager (including its jump server). **Review and Replace…** in the changed-key alert shows the trusted and the new fingerprint side by side; the replace button stays disabled until you confirm that you verified the new fingerprint with the server administrator, and **Close** and **Cancel** remain the default buttons. The replacement is a compare-and-swap: it is stored only while the trusted key is still exactly the one you reviewed, so a key changed in another window in the meantime is never overwritten. Every replacement is logged with the old and the new fingerprint. Background and restored connections, and the SSH bootstrap of Mosh, keep the plain block.
+
+**Configuration → Security → Known Hosts…** lists, searches and removes trusted keys. Removal works the same way: it deletes a key only while it still has the fingerprint shown in the confirmation, and the next connection asks again as on first use. With the enterprise policy key `enforce-host-key-check`, both replacing and removing are disabled, so only an administrator can change a trusted key.
 
 Interactive pins are written atomically to `~/.kortty/ssh-host-keys.properties`; a companion lock coordinates simultaneous korTTY processes. This store is distinct from the JobScheduler's connection-ID-based host-key pins in `job-scheduler.xml`, which protect unattended SSH, SFTP, and Rsync execution.
 
@@ -155,7 +165,7 @@ Manage GPG keys for backup encryption and connection/snippet export encryption.
 2. Select **GPG Encryption** as the encryption type.
 3. Choose the GPG key to use for encryption.
 
-GPG-encrypted backups and exports are stored as `.gpg` files and require your system's `gpg` command and a usable public key for decryption.
+GPG-encrypted backups and exports are stored as `.gpg` files — a GPG backup as `kortty-backup.zip.gpg` — and need your system's `gpg` command. Creating one needs the recipient's public key; restoring or opening one needs the matching **private** key, and `gpg` may ask for its passphrase.
 
 ## Stored security data
 
@@ -172,6 +182,10 @@ The following sensitive and security-related data is stored in `~/.kortty/`; sec
 | `master.autounlock` | Remembered master password for the optional auto-login | Obfuscated only — not encrypted; owner-only file permissions |
 | `global-settings.xml` | AI profile API keys, translation API keys, optional Hugging Face token | AES-256-GCM |
 
+korTTY does not rewrite these files in place: a save goes to a temporary file in `~/.kortty` that is then renamed over the old file, for the connections, credentials, SSH keys, scheduled jobs and `master.key` after flushing it to the disk, so a crash, a full disk or a killed process leaves the previous version intact. On macOS and Linux, korTTY keeps `~/.kortty` at `rwx------` and writes `connections.xml`, `credentials.xml`, `ssh-keys.xml`, `job-scheduler.xml` and `master.key` owner-only (`rw-------`), also when an older version left them readable by other users; on Windows they are protected by the permissions of your user profile.
+
+A data file with connections, credentials, SSH or GPG keys, environments, themes or scheduled jobs that korTTY cannot parse at startup is moved aside as `<name>.corrupt-<timestamp>` without changing it, korTTY continues without its content, and a notice lists the moved files; the next save writes a fresh file. A file that cannot be read at all, for example while a virus scanner or another program holds it or while a network home directory is unreachable, stays where it is and korTTY does not save over it for the rest of the session; the notice lists it separately. `master.key` is never moved aside, because without it korTTY would treat the profile as new and mint a new salt: if it is damaged, unlocking fails with an error that names the file, and you restore it from a backup.
+
 ## Security Best Practices
 
 !!! warning
@@ -187,8 +201,8 @@ The following sensitive and security-related data is stored in `~/.kortty/`; sec
 
 - Keep private key files protected with a passphrase.
 - Copy keys to `~/.kortty/ssh-keys/` for inclusion in encrypted backups; keys left in their original locations are only referenced and must be migrated separately.
-- Limit key file permissions (e.g., `chmod 600`).
-- Verify a first-use host-key fingerprint through a trusted channel before accepting it. Treat a changed-key warning as a possible server rebuild, DNS error, or man-in-the-middle attack and investigate instead of reconnecting repeatedly.
+- Limit key file permissions (e.g., `chmod 600`). Copies in `~/.kortty/ssh-keys/` are made owner-only automatically.
+- Verify a first-use host-key fingerprint through a trusted channel before accepting it. Treat a changed-key warning as a possible server rebuild, DNS error, or man-in-the-middle attack and investigate instead of reconnecting repeatedly. Use **Review and Replace…** only after the server administrator has confirmed the new fingerprint.
 
 ### JobScheduler
 
@@ -225,7 +239,7 @@ The following sensitive and security-related data is stored in `~/.kortty/`; sec
 | Master Password Hashing | PBKDF2 with 310,000 iterations |
 | Credential Encryption | AES-256-GCM |
 | SSH Key Passphrases | Encrypted with AES-256-GCM and master password |
-| Interactive SSH/SFTP/Mosh host keys | Shared normalized host:port TOFU, first-use fingerprint confirmation (optionally relaxed to accept-new), silent exact match, hard block on change |
+| Interactive SSH/SFTP/Mosh host keys | Shared normalized host:port TOFU, first-use fingerprint confirmation (optionally relaxed to accept-new), silent exact match, hard block on change; replacement only after explicit fingerprint confirmation, as a compare-and-swap |
 | AI API Keys | Encrypted with AES-256-GCM and master password |
 | Embedded llama.cpp | Loopback-only random port, generated API key, offline/hardened server flags, request leases |
 | GGUF/runtime supply chain | Immutable revisions, SHA-256 verification, signed runtime index, durable revocation quarantine, rollback after failed health check or first real API start |
@@ -237,6 +251,7 @@ The following sensitive and security-related data is stored in `~/.kortty/`; sec
 | JobScheduler Secrets | Sudo and archive passwords encrypted; journal redaction enabled by default |
 | JobScheduler Host Keys | Host-key pinning required by default for unattended SSH/SFTP/Rsync jobs |
 | Credentials | Never stored in plain text |
+| Local data files | Atomic replace flushed to disk, owner-only `~/.kortty` and secret stores, unreadable files moved aside or left untouched instead of overwritten |
 
 ## Changing the Master Password
 

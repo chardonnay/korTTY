@@ -313,6 +313,8 @@ public class MainWindow {
     private static final Set<MainWindow> applicationQuitApprovedWindows =
         Collections.newSetFromMap(new IdentityHashMap<>());
     private final List<CheckMenuItem> preventSleepMenuItems = new ArrayList<>();
+    /** "Unlock Vault…" in every menu bar of this window (window menu bar and system menu bar). */
+    private final List<MenuItem> unlockVaultMenuItems = new ArrayList<>();
     private Runnable powerManagementStateListener;
     private static volatile boolean applicationQuitRequested = false;
     private static volatile boolean schedulerDrainApproved = false;
@@ -1525,6 +1527,13 @@ public class MainWindow {
 
         Menu securityMenu = new Menu(I18n.get("menu.security"));
 
+        // Enabled only while a master password exists but was not entered this session.
+        MenuItem unlockVault = new MenuItem(I18n.get("menu.security.unlockVault"));
+        unlockVault.setOnAction(e -> unlockVaultFromMenu());
+        unlockVaultMenuItems.add(unlockVault);
+        securityMenu.setOnShowing(e -> syncUnlockVaultMenuItems());
+        syncUnlockVaultMenuItems();
+
         MenuItem manageCredentials = new MenuItem(I18n.get("menu.security.credentials"));
         manageCredentials.setAccelerator(new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         manageCredentials.setOnAction(e -> showCredentialManagement());
@@ -1537,7 +1546,11 @@ public class MainWindow {
         manageSSHKeys.setAccelerator(new KeyCodeCombination(KeyCode.I, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         manageSSHKeys.setOnAction(e -> showSSHKeyManagement());
 
-        securityMenu.getItems().addAll(manageCredentials, manageGPGKeys, manageSSHKeys);
+        MenuItem knownHosts = new MenuItem(I18n.get("menu.security.knownHosts"));
+        knownHosts.setOnAction(e -> showKnownHosts());
+
+        securityMenu.getItems().addAll(unlockVault, new SeparatorMenuItem(),
+            manageCredentials, manageGPGKeys, manageSSHKeys, knownHosts);
 
         MenuItem settings = new MenuItem(I18n.get("menu.settings.global"));
         settings.setAccelerator(new KeyCodeCombination(KeyCode.COMMA, KeyCombination.SHORTCUT_DOWN));
@@ -1556,6 +1569,36 @@ public class MainWindow {
             new SeparatorMenuItem(),
             preventSleep);
         return configurationMenu;
+    }
+
+    private void syncUnlockVaultMenuItems() {
+        boolean locked = VaultUnlockSupport.isLocked(app.getMasterPasswordManager());
+        for (MenuItem item : unlockVaultMenuItems) {
+            item.setDisable(!locked);
+        }
+    }
+
+    /**
+     * Configuration › Security › Unlock Vault…. On the macOS system menu bar the enable-sync on
+     * showing is not guaranteed, so this is also a harmless no-op when the vault is already open.
+     */
+    private void unlockVaultFromMenu() {
+        if (!VaultUnlockSupport.isLocked(app.getMasterPasswordManager())) {
+            syncUnlockVaultMenuItems();
+            return;
+        }
+        // Success reaches this window through KorTTYApplication.onVaultUnlocked().
+        VaultUnlockSupport.unlock(stage, app.getMasterPasswordManager());
+    }
+
+    /**
+     * Called by {@link de.kortty.KorTTYApplication#onVaultUnlocked()} for every open window once the
+     * vault was unlocked after startup.
+     */
+    public void onVaultUnlocked() {
+        syncUnlockVaultMenuItems();
+        updateDashboard();
+        updateStatus(I18n.get("status.vaultUnlocked"));
     }
 
     private void installPowerManagementStateListener() {
@@ -9583,7 +9626,26 @@ public class MainWindow {
             showError(I18n.get("error.title"), I18n.get("error.sshKeyManagementFailed", e.getMessage()));
         }
     }
-    
+
+    /** Opens the trusted SSH host keys (Configuration › Security › Known Hosts…). */
+    private void showKnownHosts() {
+        Telemetry.track(TelemetryEvents.SECURITY_MANAGER_OPENED, Map.of("manager", "known_hosts"));
+        try {
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("knownHosts") == null) {
+                    hostToolTab("knownHosts", new KnownHostsDialog(), null);
+                }
+                return;
+            }
+            KnownHostsDialog dialog = new KnownHostsDialog();
+            dialog.initOwner(stage);
+            dialog.showAndWait();
+        } catch (Exception e) {
+            logger.error("Failed to show the known hosts", e);
+            showError(I18n.get("error.title"), I18n.get("ssh.knownHosts.loadFailed", e.getMessage()));
+        }
+    }
+
     private void showAsciiArtBanner() {
         Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "ascii_art"));
         try {
@@ -9728,6 +9790,40 @@ public class MainWindow {
         alert.initOwner(stage);
         alert.initModality(javafx.stage.Modality.NONE);
         alert.show();
+    }
+
+    /**
+     * Tells the user at startup which data files could not be read: {@code movedAside} lists the
+     * {@code *.corrupt-<timestamp>} copies korTTY continues without, {@code blocked} the files it
+     * left in place and will not save over in this session. Non-modal, so korTTY stays usable.
+     */
+    public void showStoreLoadFailureNotice(List<java.nio.file.Path> movedAside, List<java.nio.file.Path> blocked) {
+        List<java.nio.file.Path> moved = movedAside != null ? movedAside : List.of();
+        List<java.nio.file.Path> unwritable = blocked != null ? blocked : List.of();
+        if (moved.isEmpty() && unwritable.isEmpty()) {
+            return;
+        }
+        List<String> sections = new ArrayList<>();
+        if (!moved.isEmpty()) {
+            sections.add(I18n.get("storage.loadFailed.content", joinPaths(moved)));
+        }
+        if (!unwritable.isEmpty()) {
+            sections.add(I18n.get("storage.loadFailed.blocked", joinPaths(unwritable)));
+        }
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        DialogThemeHelper.applyTheme(alert);
+        alert.setTitle(I18n.get("storage.loadFailed.title"));
+        alert.setHeaderText(I18n.get("storage.loadFailed.header"));
+        alert.setContentText(String.join("\n\n", sections));
+        alert.getDialogPane().setMinHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
+        alert.initOwner(stage);
+        alert.initModality(javafx.stage.Modality.NONE);
+        alert.show();
+    }
+
+    private static String joinPaths(List<java.nio.file.Path> paths) {
+        return paths.stream().map(java.nio.file.Path::toString)
+            .collect(java.util.stream.Collectors.joining("\n"));
     }
 
     private void showJobScheduler() {
@@ -10499,8 +10595,9 @@ public class MainWindow {
                 DialogThemeHelper.applyTheme(success);
                 success.setTitle(I18n.get("backup.created"));
                 success.setHeaderText(I18n.get("backup.createdSuccess"));
-                success.setContentText(String.format(
-                    I18n.get("backup.createdMessage"),
+                // I18n fills the {0}/{1}/{2} placeholders; String.format left them as literal text.
+                success.setContentText(I18n.get(
+                    "backup.createdMessage",
                     backupFile.getFileName(),
                     fileSize,
                     encryptionDesc
@@ -10547,10 +10644,11 @@ public class MainWindow {
         
         // Add filters for backup files
         fileChooser.getExtensionFilters().add(
-            new javafx.stage.FileChooser.ExtensionFilter("Backup Files", "*.zip", "*.gpg")
+            new javafx.stage.FileChooser.ExtensionFilter(
+                I18n.get("backup.import.filter.backups"), "*.zip", "*.gpg")
         );
         fileChooser.getExtensionFilters().add(
-            new javafx.stage.FileChooser.ExtensionFilter("All Files", "*.*")
+            new javafx.stage.FileChooser.ExtensionFilter(I18n.get("backup.import.filter.all"), "*.*")
         );
         
         // Use last backup path as initial directory if available
@@ -10570,12 +10668,23 @@ public class MainWindow {
             return; // User cancelled
         }
         
-        // Check if file is GPG-encrypted or password-encrypted
-        String fileName = backupFile.getName().toLowerCase();
-        boolean isGPGEncrypted = fileName.endsWith(".gpg");
+        // The format comes from the file's content, not its name: GPG backups that older
+        // versions saved as kortty-backup.zip must not be sent to the ZIP-password prompt.
+        de.kortty.core.BackupManager.BackupFormat format;
+        try {
+            format = de.kortty.core.BackupManager.importFormat(backupFile.toPath());
+        } catch (java.io.IOException ex) {
+            logger.error("Could not read the backup file {}", backupFile, ex);
+            showBackupImportError(ex.getMessage());
+            return;
+        }
+        if (format == de.kortty.core.BackupManager.BackupFormat.UNKNOWN) {
+            showBackupImportError(I18n.get("backup.import.unknownFormat", backupFile.getName()));
+            return;
+        }
         final String[] password = {null}; // Use array to allow modification in lambda
         
-        if (!isGPGEncrypted) {
+        if (format == de.kortty.core.BackupManager.BackupFormat.ZIP) {
             // Ask for password (masked input)
             Dialog<String> passwordDialog = new Dialog<>();
             DialogThemeHelper.applyTheme(passwordDialog);
@@ -10611,11 +10720,11 @@ public class MainWindow {
         
         // Import backup in background
         final java.nio.file.Path backupFilePath = backupFile.toPath();
-        javafx.concurrent.Task<Integer> importTask = new javafx.concurrent.Task<>() {
+        javafx.concurrent.Task<de.kortty.core.BackupManager.ImportResult> importTask = new javafx.concurrent.Task<>() {
             @Override
-            protected Integer call() throws Exception {
+            protected de.kortty.core.BackupManager.ImportResult call() throws Exception {
                 updateMessage(I18n.get("backup.import.importing"));
-                return app.getBackupManager().importBackup(
+                return app.getBackupManager().restoreBackup(
                     backupFilePath,
                     password[0],
                     overwriteExisting
@@ -10625,38 +10734,33 @@ public class MainWindow {
         
         importTask.setOnSucceeded(e -> {
             Telemetry.track(TelemetryEvents.BACKUP_ACTION, Map.of("action", "import"));
-            int filesImported = importTask.getValue();
+            de.kortty.core.BackupManager.ImportResult result = importTask.getValue();
+            int filesImported = result.filesImported();
+
+            if (result.masterKeyReplaced()) {
+                // The backup brought another master password. Every store in memory (and the
+                // derived key the connections would be reloaded and saved with) belongs to the
+                // old one, so korTTY neither reloads nor saves them: it quits and the next start
+                // unlocks the restored files with the backup's master password.
+                app.markRestoredBackupAwaitsRestart();
+                Alert restart = new Alert(Alert.AlertType.WARNING);
+                DialogThemeHelper.applyTheme(restart);
+                restart.setTitle(I18n.get("backup.import.success"));
+                restart.setHeaderText(I18n.get("backup.import.restartRequired.header"));
+                restart.setContentText(I18n.get("backup.import.restartRequired.message", filesImported));
+                restart.showAndWait();
+                app.shutdownAndExit();
+                return;
+            }
             
             Alert success = new Alert(Alert.AlertType.INFORMATION);
             DialogThemeHelper.applyTheme(success);
             success.setTitle(I18n.get("backup.import.success"));
             success.setHeaderText(I18n.get("backup.import.successHeader"));
-            success.setContentText(String.format(
-                I18n.get("backup.import.successMessage"),
-                filesImported
-            ));
+            success.setContentText(I18n.get("backup.import.successMessage", filesImported));
             success.showAndWait();
             
-            // Reload all managers to reflect imported data
-            try {
-                app.getConfigManager().load(app.getMasterPasswordManager().getDerivedKey());
-                app.getCredentialManager().load();
-                app.getGpgKeyManager().load();
-                app.getGlobalSettingsManager().load();
-            } catch (Exception ex) {
-                logger.error("Failed to reload managers after backup import", ex);
-            }
-            // The restored snippets.xml and snippet analyses replace what is in memory; without the
-            // reload the stale snippet list and the store's cache would overwrite them on the next save.
-            try {
-                de.kortty.core.SnippetAnalysisStore analysisStore = app.getSnippetAnalysisStore();
-                if (analysisStore != null) {
-                    analysisStore.invalidateAll();
-                }
-                app.getSnippetManager().load();
-            } catch (Exception ex) {
-                logger.error("Failed to reload snippets after backup import", ex);
-            }
+            reloadStoresAfterBackupImport();
             
             updateStatus(I18n.get("backup.import.successHeader") + ": " + filesImported + " " + I18n.get("backup.import.files"));
         });
@@ -10664,13 +10768,7 @@ public class MainWindow {
         importTask.setOnFailed(e -> {
             Throwable ex = importTask.getException();
             logger.error("Backup import failed", ex);
-            
-            Alert error = new Alert(Alert.AlertType.ERROR);
-            DialogThemeHelper.applyTheme(error);
-            error.setTitle(I18n.get("error.title"));
-            error.setHeaderText(I18n.get("backup.import.failed"));
-            error.setContentText(I18n.get("backup.import.failedMessage") + "\n" + ex.getMessage());
-            error.showAndWait();
+            showBackupImportError(ex.getMessage());
         });
         
         // Update status and run task
@@ -10679,6 +10777,81 @@ public class MainWindow {
         Thread thread = new Thread(importTask);
         thread.setDaemon(true);
         thread.start();
+    }
+
+    private void showBackupImportError(String detail) {
+        Alert error = new Alert(Alert.AlertType.ERROR);
+        DialogThemeHelper.applyTheme(error);
+        error.setTitle(I18n.get("error.title"));
+        error.setHeaderText(I18n.get("backup.import.failed"));
+        error.setContentText(I18n.get("backup.import.failedMessage") + "\n" + detail);
+        error.showAndWait();
+    }
+
+    /**
+     * Reloads every store a backup restores, each on its own so one unreadable file cannot keep
+     * the others stale. A store left with its old in-memory state would write it over the
+     * restored file on its next save. Environments come first: restored credentials and
+     * connections can refer to them.
+     */
+    private void reloadStoresAfterBackupImport() {
+        reloadAfterBackupImport("environments", () -> {
+            if (app.getEnvironmentManager() != null) {
+                app.getEnvironmentManager().load();
+            }
+        });
+        reloadAfterBackupImport("connections", () ->
+            app.getConfigManager().load(app.getMasterPasswordManager().getDerivedKey()));
+        reloadAfterBackupImport("credentials", () -> app.getCredentialManager().load());
+        reloadAfterBackupImport("SSH keys", () -> {
+            if (app.getSSHKeyManager() != null) {
+                app.getSSHKeyManager().load();
+            }
+        });
+        reloadAfterBackupImport("GPG keys", () -> app.getGpgKeyManager().load());
+        reloadAfterBackupImport("global settings", () -> app.getGlobalSettingsManager().load());
+        reloadAfterBackupImport("themes", () -> {
+            if (app.getThemeManager() != null) {
+                app.getThemeManager().load();
+            }
+        });
+        reloadAfterBackupImport("snippet variables", () -> {
+            if (app.getSnippetVariableManager() != null) {
+                app.getSnippetVariableManager().load();
+            }
+        });
+        // The restored snippets.xml and snippet analyses replace what is in memory; without the
+        // reload the stale snippet list and the store's cache would overwrite them on the next save.
+        reloadAfterBackupImport("snippets", () -> {
+            de.kortty.core.SnippetAnalysisStore analysisStore = app.getSnippetAnalysisStore();
+            if (analysisStore != null) {
+                analysisStore.invalidateAll();
+            }
+            app.getSnippetManager().load();
+        });
+        reloadAfterBackupImport("AI chats", () -> {
+            if (app.getAiChatManager() != null) {
+                app.getAiChatManager().load();
+            }
+        });
+        reloadAfterBackupImport("swarm chats", () -> {
+            if (app.getSwarmChatManager() != null) {
+                app.getSwarmChatManager().load();
+            }
+        });
+    }
+
+    @FunctionalInterface
+    private interface BackupReloadStep {
+        void run() throws Exception;
+    }
+
+    private void reloadAfterBackupImport(String store, BackupReloadStep step) {
+        try {
+            step.run();
+        } catch (Exception ex) {
+            logger.error("Failed to reload {} after backup import", store, ex);
+        }
     }
     
     /**

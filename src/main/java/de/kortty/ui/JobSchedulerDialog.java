@@ -20,6 +20,7 @@ import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.Snippet;
 import de.kortty.security.EncryptionService;
+import de.kortty.security.MasterPasswordManager;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
@@ -584,7 +585,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     /** Screenshots a run may take per server when the action runs in the virtual terminal. */
     private int virtualTerminalScreenshotsPerRun() {
         try {
-            JobAction action = readAction();
+            JobAction action = readAction(false);
             boolean terminalAction = action.getType() == JobActionType.COMMAND
                 || action.getType() == JobActionType.SNIPPET_SCRIPT;
             return terminalAction && action.isPtyEnabled() ? action.effectiveMaxScreenshots() : 0;
@@ -1375,10 +1376,12 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             selectedJob.setWorkingDirectory(workingDirectoryField.getText());
             selectedJob.setJournalDetailMode(journalModeCombo.getSelectionModel().getSelectedItem());
             selectedJob.setSchedule(readSchedule());
-            selectedJob.setAction(readAction());
+            selectedJob.setAction(readAction(true));
             selectedJob.setSessionJournal(sessionJournalPane.read());
             schedulerService.saveJob(selectedJob);
             refresh();
+        } catch (VaultUnlockSupport.UnlockDeclinedException declined) {
+            // The vault stayed locked; the user has seen why and the job stays unsaved.
         } catch (Exception e) {
             showError(text("error.saveJob"), e.getMessage());
         }
@@ -1400,7 +1403,8 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         return schedule;
     }
 
-    private JobAction readAction() throws Exception {
+    /** @param offerVaultUnlock see {@link #requireMasterPassword(boolean)} */
+    private JobAction readAction(boolean offerVaultUnlock) throws Exception {
         JobAction action = new JobAction();
         action.setType(actionTypeCombo.getSelectionModel().getSelectedItem());
         action.setCommand(commandArea.getText());
@@ -1441,7 +1445,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         action.setArchiveDownloadAfterCreate(archiveDownloadCheck.isSelected());
         action.setArchiveDownloadLocalPath(archiveDownloadPathField.getText());
         action.setEncryptedArchivePassword(action.getType() == JobActionType.SFTP_ARCHIVE
-            ? readEncryptedArchivePassword(action.getArchiveFormat())
+            ? readEncryptedArchivePassword(action.getArchiveFormat(), offerVaultUnlock)
             : null);
         action.setRsyncDirection(rsyncDirectionCombo.getSelectionModel().getSelectedItem());
         action.setRsyncSourcePaths(lines(rsyncSourcesArea.getText()));
@@ -1563,10 +1567,12 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         ServerConnection connection = targets.get(0);
         promptPassword(text("sudo.setServerPassword"), connection.getDisplayName()).ifPresent(password -> {
             try {
-                char[] master = requireMasterPassword();
+                char[] master = requireMasterPassword(true);
                 new JobSchedulerSudoService(schedulerService.getRepository())
                     .setServerSudoPassword(connection.getId(), password, master);
                 schedulerService.getRepository().save();
+            } catch (VaultUnlockSupport.UnlockDeclinedException declined) {
+                // The vault stayed locked; the user has seen why.
             } catch (Exception e) {
                 showError(text("error.saveSudoPassword"), e.getMessage());
             }
@@ -1588,10 +1594,12 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         }
         promptPassword(text("sudo.setGroupPassword"), group.get()).ifPresent(password -> {
             try {
-                char[] master = requireMasterPassword();
+                char[] master = requireMasterPassword(true);
                 new JobSchedulerSudoService(schedulerService.getRepository())
                     .setGroupSudoPassword(group.get(), password, master);
                 schedulerService.getRepository().save();
+            } catch (VaultUnlockSupport.UnlockDeclinedException declined) {
+                // The vault stayed locked; the user has seen why.
             } catch (Exception e) {
                 showError(text("error.saveSudoPassword"), e.getMessage());
             }
@@ -1612,10 +1620,28 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         return dialog.showAndWait().filter(value -> !value.isBlank());
     }
 
-    private char[] requireMasterPassword() {
-        char[] master = app.getMasterPasswordManager().getMasterPassword();
-        if (master == null) {
+    /**
+     * The master password for encrypting a secret of this dialog.
+     *
+     * @param offerUnlock whether a locked vault may be unlocked right here — only on an explicit
+     *                    save, never while reading the form for something else (the cost estimate)
+     * @throws VaultUnlockSupport.UnlockDeclinedException when the user left the vault locked; the
+     *                                                    reason was already shown
+     * @throws IllegalStateException when the vault is locked and {@code offerUnlock} is false
+     */
+    private char[] requireMasterPassword(boolean offerUnlock) {
+        MasterPasswordManager passwordManager = app.getMasterPasswordManager();
+        char[] master = passwordManager != null ? passwordManager.getMasterPassword() : null;
+        if (master != null) {
+            return master;
+        }
+        if (!offerUnlock) {
             throw new IllegalStateException(text("error.masterPasswordLocked"));
+        }
+        master = VaultUnlockSupport.masterPasswordOrOfferUnlock(
+            dialogWindow(), passwordManager, text("error.masterPasswordLocked"));
+        if (master == null) {
+            throw new VaultUnlockSupport.UnlockDeclinedException();
         }
         return master;
     }
@@ -2045,14 +2071,14 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             || permissions.matches("([ugoa]*[+=-][rwxXstugo]+)(,([ugoa]*[+=-][rwxXstugo]+))*");
     }
 
-    private String readEncryptedArchivePassword(JobArchiveFormat archiveFormat) throws Exception {
+    private String readEncryptedArchivePassword(JobArchiveFormat archiveFormat, boolean offerVaultUnlock) throws Exception {
         if (archiveFormat != JobArchiveFormat.ZIP_PASSWORD) {
             loadedEncryptedArchivePassword = null;
             return null;
         }
         String enteredPassword = archivePasswordField.getText();
         if (enteredPassword != null && !enteredPassword.isBlank()) {
-            char[] master = requireMasterPassword();
+            char[] master = requireMasterPassword(offerVaultUnlock);
             loadedEncryptedArchivePassword = encryptionService.encryptPassword(enteredPassword, master);
             archivePasswordField.clear();
             return loadedEncryptedArchivePassword;

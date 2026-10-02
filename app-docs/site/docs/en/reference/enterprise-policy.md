@@ -131,7 +131,7 @@ Patterns match the host string exactly as configured in the connection — korTT
 | Key | Type | Values | Effect |
 | --- | --- | --- | --- |
 | `require-master-password` | boolean | `true` | Forces the master-password gate at startup; the setting is locked |
-| `enforce-host-key-check` | boolean | `true` | SSH host key verification cannot be disabled anywhere — globally, per group or per connection |
+| `enforce-host-key-check` | boolean | `true` | SSH host key verification cannot be disabled anywhere — globally, per group or per connection — and trusted host keys cannot be removed or replaced in korTTY |
 | `allow-telemetry` | boolean | `false` | Forbids anonymous usage statistics |
 | `allow-terminal-recording` | boolean | `false` | Forbids terminal session recording, including the session-level toggle |
 | `clipboard-mode` | string | `system`, `internal` | `internal` confines korTTY to its own in-memory clipboard — see below |
