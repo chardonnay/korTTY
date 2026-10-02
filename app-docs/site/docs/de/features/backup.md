@@ -42,7 +42,7 @@ Das Backup umfasst:
 | JobScheduler-Jobs | Alle geplanten Jobs, Hostschlüssel-Pins und verschlüsselten Sudo-Passwörter |
 | Snippets | Code-Snippets und Skriptvorlagen mit Metadaten |
 | Snippet-Variablen | Benutzerdefinierte Variablen für die Snippet-Ersetzung |
-| Snippet-Analysen | Die gespeicherten [Vollständigen Codeanalysen](snippets.md#vollstandige-code-analyse) jedes Snippets und jedes [analysierten Ordners](snippets.md#ordner-als-ein-projekt-analysieren), mit ihren Anwendungsläufen, Diagrammen und Modularisierungsvorschlägen |
+| Snippet-Analysen | Die gespeicherten [Vollcodeanalysen](snippets.md#vollstandige-code-analyse) jedes Snippets und jedes [analysierten Ordners](snippets.md#ordner-als-ein-projekt-analysieren), mit ihren Apply-Läufen, Diagrammen und Modularisierungsvorschlägen |
 | KI-Chats | Gespeicherte KI-Gesprächsverläufe und -Profile |
 | KI-Swarm-Chats | Gespeicherte Swarm-Chats, einschließlich der von Ihnen geplanten KI-Swarm-Jobspeicher (`swarm-chats.xml`) |
 | Lokale KI-Konfiguration | Lokale GGUF-Registrierungen und typisierte Starteinstellungen, MLX-Modellregistrierungen, Text/Coding-Rollen, bevorzugtes Laufzeit-Backend/Update-Politik und verschlüsseltes Hugging Face token |
