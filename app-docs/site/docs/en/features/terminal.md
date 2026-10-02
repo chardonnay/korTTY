@@ -53,6 +53,19 @@ Open additional windows to organize connections by project or environment:
 - **Move tabs between windows**: Drag a tab from the tab bar and drop it onto another KorTTY window's tab bar to move that tab (and its session, including any split terminals) into the other window.
 - **Reorder tabs**: Drag a tab within the same window to change its order; the "+" tab stays at the end.
 
+## Terminal context menu
+
+Right-click inside a terminal to open its context menu; in a split tab it acts on the pane you clicked. The menu starts with the editing commands:
+
+| Entry | What it does |
+|-------|--------------|
+| **Copy** | Copies the selected text to the clipboard and keeps the selection. Greyed out while nothing is selected. |
+| **Paste** | Sends the clipboard text to the session, the same way the paste shortcut does. |
+| **Clear Buffer** | Clears the scrollback and the screen but keeps the prompt line. While a full-screen program such as `vim` or `less` is running, it does nothing. |
+| **Find** | Opens the find bar at the top right of the pane, the same as **Edit > Find...** (++ctrl+f++, ++cmd+f++ on macOS). Type to highlight matches, press ++enter++ or ++down++ for the next match and ++up++ for the previous one, and ++esc++ to close the bar. |
+
+Below them come the entries of other features, such as **Open in Snippet Editor**, the AI actions, **Reconnect**, the session-journal screenshot and note entries and the terminal effect, followed by the **Extras** submenu with **Split Terminal**, **Font Size** (see [Font size and zoom](#font-size-and-zoom)) and **Broadcast Mode**.
+
 ## Font size and zoom
 
 Adjust the font size of the active terminal on the fly without reconnecting:
@@ -66,7 +79,7 @@ Adjust the font size of the active terminal on the fly without reconnecting:
 
 Holding ++ctrl++ (or ++cmd++ on macOS) and scrolling the mouse wheel over the terminal changes the font size — wheel up enlarges, wheel down shrinks — instead of scrolling the buffer. This complements the ++alt+plus++ / ++alt+minus++ / ++alt+0++ shortcuts.
 
-**Reset zoom** restores the font size and family to what the connection had when you opened the tab (or the connection's saved settings, or the global default). The same reset is available via the terminal context menu: right-click → **Font size** → **Reset**. The zoom level applies only to the currently focused terminal.
+**Reset zoom** restores the font size and family to what the connection had when you opened the tab (or the connection's saved settings, or the global default). The terminal context menu has the same controls: right-click → **Extras** → **Font Size** → **Increase**, **Decrease** (two points per step) or **Reset**. The zoom level applies to the current tab — all of its split panes change together — and leaves other tabs unchanged.
 
 ## Background transparency
 
