@@ -811,17 +811,17 @@ public class SFTPManagerTab extends Tab {
                 // The SFTP manager is a tab the user is looking at, so a changed host key may be
                 // reviewed and replaced here.
                 sftpSession.setHostKeyReplacePolicy(de.kortty.core.SshHostKeyTrustManager.ReplacePolicy.INTERACTIVE);
-
-                // Set SSHKeyManager if using public key (for non-temporary keys)
-                if (temporarySSHKey == null && connToUse.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
-                    if (app != null && app.getSSHKeyManager() != null) {
-                        sftpSession.setSSHKeyManager(
-                            app.getSSHKeyManager(),
-                            app.getMasterPasswordManager().getMasterPassword()
-                        );
-                    }
-                }
                 
+                // The master password is needed whatever the target's authentication (it decrypts
+                // the jump server password); the key manager only for a non-temporary key login.
+                if (app != null) {
+                    char[] master = app.getMasterPasswordManager() != null
+                        ? app.getMasterPasswordManager().getMasterPassword()
+                        : null;
+                    SftpConnectionSupport.configureVault(
+                        sftpSession, app.getSSHKeyManager(), master, temporarySSHKey);
+                }
+
                 sftpSession.connect();
                 
                 Platform.runLater(() -> {

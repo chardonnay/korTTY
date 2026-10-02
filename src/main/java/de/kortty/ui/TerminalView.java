@@ -2438,16 +2438,9 @@ public class TerminalView extends BorderPane {
         } else if (targetConnection.getProtocol() == ConnectionProtocol.LOCAL_SHELL) {
             connector = new LocalShellTtyConnector(targetConnection);
         } else {
-            SshTtyConnector sshConnector = new SshTtyConnector(targetConnection, targetPassword);
-            if (targetConnection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
-                de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
-                if (app != null && app.getSSHKeyManager() != null) {
-                    sshConnector.setSSHKeyManager(
-                            app.getSSHKeyManager(),
-                            app.getMasterPasswordManager().getMasterPassword()
-                    );
-                }
-            }
+            de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+            SshTtyConnector sshConnector = sshConnectorWithVault(targetConnection, targetPassword,
+                    app != null ? app.getSSHKeyManager() : null, masterPasswordOf(app));
             sshConnector.setAccessReasonMemory(accessReasonMemory);
             // The user opened this tab and sees its dialogs, so a changed host key may be reviewed
             // and replaced here; background connections keep the plain warning.
@@ -2455,6 +2448,31 @@ public class TerminalView extends BorderPane {
             connector = sshConnector;
         }
         return connector;
+    }
+
+    /**
+     * Builds the SSH terminal connector for {@code target} and hands it the vault, whatever the
+     * target's own authentication: a jump server's stored password is decrypted with the master
+     * password, so a password or keyboard-interactive target needs it as much as a key-based one.
+     * Only a {@code PUBLIC_KEY} target keeps the key manager. A new connector is built for every
+     * attempt, so a reconnect after unlocking the vault picks the master password up.
+     */
+    static SshTtyConnector sshConnectorWithVault(
+            ServerConnection target,
+            String password,
+            de.kortty.core.SSHKeyManager keyManager,
+            char[] masterPassword) {
+        SshTtyConnector connector = new SshTtyConnector(target, password);
+        connector.configureVault(keyManager, masterPassword);
+        return connector;
+    }
+
+    /** The open vault's master password, or {@code null} while it is locked or not set up. */
+    private static char[] masterPasswordOf(de.kortty.KorTTYApplication app) {
+        if (app == null || app.getMasterPasswordManager() == null) {
+            return null;
+        }
+        return app.getMasterPasswordManager().getMasterPassword();
     }
 
     private boolean connectConnector(TtyConnector connector) throws Exception {
@@ -5469,6 +5487,18 @@ public class TerminalView extends BorderPane {
                     lastError = e.getMessage();
                     logger.error("Host-key verification failed for {} - NOT retrying: {}",
                         connection.getDisplayName(), e.getMessage());
+
+                    clearTerminal();
+                    showMessage(e.getMessage());
+                } catch (SshTtyConnector.ConnectionConfigurationException e) {
+                    // The connection's own setup cannot work (e.g. the jump server password needs
+                    // the locked vault): retrying cannot change the outcome. Must precede the
+                    // AuthenticationException catch, which it extends.
+                    configurationRefused = true;
+                    lastError = e.getMessage();
+                    // Host/port only, for the CodeQL reason given at the IllegalStateException branch.
+                    logger.error("Connection setup unusable for {}:{} - NOT retrying: {}",
+                            connection.getHost(), connection.getPort(), e.getMessage());
 
                     clearTerminal();
                     showMessage(e.getMessage());
