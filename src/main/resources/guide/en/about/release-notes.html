@@ -841,6 +841,10 @@
 <li><strong>More of your configuration is backed up</strong> — custom terminal themes, credential environments, saved AI Swarm chats and MLX model registrations are now part of the backup, and after an import korTTY reloads them together with SSH keys, snippet variables and AI chats instead of overwriting the restored files with what it had loaded before. A backup with another master password makes korTTY quit after the import, so you unlock the restored data with that password on the next start.</li>
 <li><strong>The backup dialogs show their numbers</strong> — the confirmation after creating or importing a backup showed <code>{0}</code> instead of the file name, size and number of files.</li>
 </ul>
+<h3 id="teamwork-and-terminal-recording">Teamwork and terminal recording<a class="headerlink" href="#teamwork-and-terminal-recording" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>No more options that did nothing</strong> — the Video Manager no longer offers a <strong>Default format</strong>: recordings were always written as korTTY replay files, and WebM or MKV videos come only from <strong>Export</strong>. A setting saved with the old WebM value still loads. The <strong>Read-only</strong> checkbox is gone from the teamwork source dialog as well, because korTTY never writes back to a teamwork source; a value stored earlier is kept. The <a href="../features/teamwork.html">Teamwork</a> page now describes the one-way sync as it works. See <a href="../features/recording.html">Terminal recording</a>.</li>
+</ul>
 <div class="admonition note">
 <p class="admonition-title">Earlier releases</p>
 <p>Only the current release is listed here, so the guide stays short in every language it is translated into. Every version is on the <a href="https://github.com/chardonnay/korTTY/releases">GitHub releases page</a>; the curated notes for earlier versions are kept in the repository, in <code>app-docs/release-notes-archive.md</code> and <code>app-docs/RELEASE_NOTES.adoc</code>.</p>
