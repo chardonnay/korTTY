@@ -635,8 +635,10 @@ public class TerminalView extends BorderPane {
         terminalWidget = splitPane.getFocusedWidget();
         if (terminalWidget != null) applyCursorShape(terminalWidget);
         
-        // Handle arrow and navigation keys at split-pane level so we run before the terminal widget
-        // (which may consume them for scrolling). Ensures mc and similar apps receive arrow keys.
+        // Key handling at split-pane level runs before every pane: the agent input lock, the agent
+        // shortcut and Ctrl+D come first. Navigation keys are encoded below, in each pane's own
+        // filter (TerminalSplitPane.routeKeyPressed), which needs the real connector type.
+        splitPane.setConnectorUnwrapper(this::unwrapTerminalEffectConnector);
         splitPane.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             if (event.isConsumed()) {
                 return;
@@ -671,21 +673,8 @@ public class TerminalView extends BorderPane {
                     return;
                 }
             }
-            String sequence = keyCodeToControlSequence(event.getCode());
-            if (sequence != null) {
-                SithTermFxWidget focused = eventWidget != null ? eventWidget : splitPane.getFocusedWidget();
-                if (focused != null) {
-                    TtyConnector connector = focused.getTtyConnector();
-                    if (connector != null && connector.isConnected()) {
-                        try {
-                            connector.write(sequence);
-                            event.consume();
-                        } catch (java.io.IOException e) {
-                            logger.debug("Failed to send key sequence: {}", e.getMessage());
-                        }
-                    }
-                }
-            }
+            // Navigation keys (Tab, arrows, Home/End, F-keys, ...) continue to the split pane's
+            // per-pane filter, which encodes them for that pane's mode (TerminalNavigationKeys).
         });
         
         // Require Shift+Alt/Option for pane-move drag; otherwise consume so terminal gets text selection
@@ -3014,8 +3003,8 @@ public class TerminalView extends BorderPane {
         // events are no longer swallowed here (only stray run-control characters are dropped in the
         // canvas dispatcher), so the full command reaches the shell and the shortcut buffer.
 
-        // Navigation keys (arrow, Tab, etc.) are handled at split-pane level so we run before the
-        // terminal widget consumes them; see splitPane.addEventFilter(KeyEvent.KEY_PRESSED, ...) above.
+        // Navigation keys (arrows, Tab, etc.) are encoded per pane by TerminalSplitPane.routeKeyPressed,
+        // a filter on the pane that runs before the canvas; see TerminalNavigationKeys.
 
         // Copy-on-select: when user finishes selecting text, copy to clipboard if enabled
         var panel = widget.getTerminalPanel();
@@ -4834,41 +4823,6 @@ public class TerminalView extends BorderPane {
             case "execute" -> normalizedCommand + " " + prompt;
             case "ask" -> TerminalAgentCommandSupport.getAskCommandName(normalizedCommand) + " " + prompt;
             case "plan" -> TerminalAgentCommandSupport.getPlanCommandName(normalizedCommand) + " " + prompt;
-            default -> null;
-        };
-    }
-
-    /**
-     * Returns the terminal escape sequence for navigation/special keys (arrow, Tab, Home, End, F-keys, etc.).
-     * Used so that e.g. Midnight Commander receives these keys (pane switch with Tab, selection with arrows).
-     * Returns null for keys that should be handled by the default path (Enter, Backspace, printable).
-     */
-    private static String keyCodeToControlSequence(KeyCode code) {
-        return switch (code) {
-            case TAB -> "\t";
-            // Use application keypad mode (SS3) for arrow keys so ncurses apps like mc receive them.
-            case UP -> "\u001BOA";
-            case DOWN -> "\u001BOB";
-            case RIGHT -> "\u001BOC";
-            case LEFT -> "\u001BOD";
-            case HOME -> "\u001B[H";
-            case END -> "\u001B[F";
-            case PAGE_UP -> "\u001B[5~";
-            case PAGE_DOWN -> "\u001B[6~";
-            case INSERT -> "\u001B[2~";
-            case DELETE -> "\u001B[3~";
-            case F1 -> "\u001BOP";
-            case F2 -> "\u001BOQ";
-            case F3 -> "\u001BOR";
-            case F4 -> "\u001BOS";
-            case F5 -> "\u001B[15~";
-            case F6 -> "\u001B[17~";
-            case F7 -> "\u001B[18~";
-            case F8 -> "\u001B[19~";
-            case F9 -> "\u001B[20~";
-            case F10 -> "\u001B[21~";
-            case F11 -> "\u001B[23~";
-            case F12 -> "\u001B[24~";
             default -> null;
         };
     }
