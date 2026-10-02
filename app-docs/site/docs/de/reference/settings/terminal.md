@@ -47,6 +47,8 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 !!! note "Befehlszeitstempel"
     Wenn diese Option aktiviert ist, wird auf der linken Seite des Terminals eine Seitenleiste angezeigt, in der das Datum und die Uhrzeit der Eingabe jedes Befehls angezeigt werden. Dies ist nützlich für Audit-Trails und Sitzungsprotokollierung.
 
+    Jede Markierung bleibt auf ihrer Befehlszeile, wenn der Scrollback voll ist und die ältesten Zeilen verworfen werden, und eine Markierung, deren Zeile den Scrollback verlassen hat, verschwindet ebenfalls. **Puffer löschen** im Rechtsklick-Menü des Terminals sowie ein `clear`, der den Scrollback ebenfalls leert, entfernt alle Markierungen; der nächste Befehl erhält eine neue. Das Öffnen und Beenden eines Vollbildprogramms wie `vim` oder `less` verschiebt die Markierungen nicht. Der Tag und Monat über jeder Markierung sowie das vollständige Datum im Hover-Popup folgen der korTTY UI-Sprache (zum Beispiel `02.10.` auf Deutsch, `10/02` auf Englisch), ebenso wie die verstrichene Zeit im Popup.
+
 !!! note "Verbindungswiederholungsversuche"
     Wenn diese Option aktiviert ist, werden fehlgeschlagene SSH-Verbindungen automatisch wiederholt. Wenn Sie dies deaktivieren, werden automatische Wiederverbindungsversuche bei fehlgeschlagenen Verbindungen verhindert.
 

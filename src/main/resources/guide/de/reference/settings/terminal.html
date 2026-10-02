@@ -926,6 +926,7 @@
 <div class="admonition note">
 <p class="admonition-title">Befehlszeitstempel</p>
 <p>Wenn diese Option aktiviert ist, wird auf der linken Seite des Terminals eine Seitenleiste angezeigt, in der das Datum und die Uhrzeit der Eingabe jedes Befehls angezeigt werden. Dies ist nützlich für Audit-Trails und Sitzungsprotokollierung.</p>
+<p>Jede Markierung bleibt auf ihrer Befehlszeile, wenn der Scrollback voll ist und die ältesten Zeilen verworfen werden, und eine Markierung, deren Zeile den Scrollback verlassen hat, verschwindet ebenfalls. <strong>Puffer löschen</strong> im Rechtsklick-Menü des Terminals sowie ein <code>clear</code>, der den Scrollback ebenfalls leert, entfernt alle Markierungen; der nächste Befehl erhält eine neue. Das Öffnen und Beenden eines Vollbildprogramms wie <code>vim</code> oder <code>less</code> verschiebt die Markierungen nicht. Der Tag und Monat über jeder Markierung sowie das vollständige Datum im Hover-Popup folgen der korTTY UI-Sprache (zum Beispiel <code>02.10.</code> auf Deutsch, <code>10/02</code> auf Englisch), ebenso wie die verstrichene Zeit im Popup.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Verbindungswiederholungsversuche</p>
