@@ -758,20 +758,20 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="teamwork-shared-connections">Teamwork (shared connections)<a class="headerlink" href="#teamwork-shared-connections" title="Permanent link">&para;</a></h1>
-<p>Share SSH connections with your team by syncing them from a Git repository or shared file. Teamwork sources are loaded into the Connection Manager alongside your local connections, kept in sync automatically, and safely stripped of inline passwords so credentials come only from your local encrypted storage.</p>
+<p>Share SSH connections with your team by syncing them from a Git repository or shared file. Teamwork sources are loaded into the Connection Manager alongside your local connections, kept in sync automatically, and safely stripped of inline passwords so credentials come only from your local encrypted storage. Sync is one way: korTTY reads from a source and never writes back to it.</p>
 <p><img alt="Teamwork sync" src="../assets/diagrams/teamwork-sync-flow.svg" /></p>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <p>Teamwork lets teams maintain a centralized library of connection configurations:</p>
 <ul>
 <li><strong>Git repositories</strong> — Clone and keep in sync with a Git repo containing a <code>kortty-teamwork-connections.xml</code> file (or legacy <code>connections.xml</code>).</li>
-<li><strong>Shared files</strong> — Load connections from a local or network path (read-only or read-write).</li>
+<li><strong>Shared files</strong> — Load connections from a local or network path. korTTY only reads the file.</li>
 <li><strong>Automatic sync</strong> — Background syncing at a configurable interval checks for updates.</li>
 <li><strong>Credential security</strong> — Shared connections do NOT carry inline passwords; only credential IDs and SSH key references.</li>
 <li><strong>Local overrides</strong> — Your local credentials and SSH keys are merged with shared connection definitions.</li>
-<li><strong>Read-only mode</strong> — Mark sources as read-only to prevent accidental writes back.</li>
+<li><strong>One-way sync</strong> — korTTY never pushes to a repository or writes to a shared file. Shared connections are changed in the source itself and arrive with the next sync.</li>
 </ul>
 <h2 id="setting-up-teamwork-sources">Setting up teamwork sources<a class="headerlink" href="#setting-up-teamwork-sources" title="Permanent link">&para;</a></h2>
-<p>Open <strong>Teamwork → Teamwork Settings…</strong> (or <strong>Configuration → Global Settings… → Teamwork</strong>) to configure sources.</p>
+<p>Open <strong>Teamwork → Teamwork Settings…</strong> to configure sources.</p>
 <h3 id="add-a-source">Add a source<a class="headerlink" href="#add-a-source" title="Permanent link">&para;</a></h3>
 <ol>
 <li>Click <strong>Add</strong> to create a new source.</li>
@@ -782,7 +782,6 @@
 <li>For Git: the clone URL.</li>
 <li>For Shared File: a local/network file path (can be a file:// URI or a UNC path).</li>
 <li>Set the <strong>Check Interval</strong> (1–1440 minutes; default: 15).</li>
-<li>Optionally enable <strong>Read-Only</strong> to prevent writes back (Git sources only).</li>
 <li>Click <strong>OK</strong> to save.</li>
 </ol>
 <h3 id="manage-sources">Manage sources<a class="headerlink" href="#manage-sources" title="Permanent link">&para;</a></h3>
@@ -816,27 +815,28 @@
 <p>Use the buttons to:
 - <strong>Add</strong> — Create a new source.
 - <strong>Edit</strong> — Modify the selected source.
-- <strong>Remove</strong> — Delete the selected source.
+- <strong>Delete</strong> — Remove the selected source.
 - <strong>Enable/Disable</strong> — Toggle the enabled state for the selected sources.</p>
 <p>At the bottom, set the <strong>Default Check Interval</strong> (applies to new sources that don't specify one).</p>
 <h2 id="how-synchronization-works">How synchronization works<a class="headerlink" href="#how-synchronization-works" title="Permanent link">&para;</a></h2>
 <h3 id="background-sync">Background sync<a class="headerlink" href="#background-sync" title="Permanent link">&para;</a></h3>
-<p>Once you save the Teamwork Settings:</p>
+<p>korTTY syncs teamwork sources in the background:</p>
 <ol>
-<li>KorTTY starts a background sync thread.</li>
-<li>Every N minutes (based on the minimum interval among enabled sources), it:</li>
+<li>When korTTY starts, it starts a background sync thread and syncs right away.</li>
+<li>Every N minutes (the shortest check interval among the sources enabled when korTTY started), it:</li>
 <li>Pulls/clones each source (Git) or reads the file (Shared File).</li>
 <li>Loads the connections XML.</li>
-<li>Merges the results into the cache and Connection Manager.</li>
+<li>Replaces the cached copy of each source it fetched and refreshes the Connection Manager.</li>
 <li>If a source update fails, the previous cached version is kept.</li>
 </ol>
+<p>Saving the Teamwork Settings syncs once right away. A changed check interval takes effect the next time korTTY starts.</p>
 <h3 id="manual-sync">Manual sync<a class="headerlink" href="#manual-sync" title="Permanent link">&para;</a></h3>
 <p>Use <strong>Teamwork → Teamwork Settings…</strong> and click <strong>OK</strong> to trigger a sync immediately.</p>
-<h3 id="conflict-detection">Conflict detection<a class="headerlink" href="#conflict-detection" title="Permanent link">&para;</a></h3>
+<h3 id="version-tracking">Version tracking<a class="headerlink" href="#version-tracking" title="Permanent link">&para;</a></h3>
 <p>Each sync records a version token:
 - <strong>Git</strong> — The current commit hash.
 - <strong>Shared File</strong> — The file's last-modified timestamp.</p>
-<p>If a shared connection's version token changes between syncs, a new version was fetched. If you have made local edits to a teamwork connection and the source updates with a conflicting change, the local edits are preserved (no automatic overwrite).</p>
+<p>If a shared connection's version token changes between syncs, a new version was fetched. On every successful sync korTTY replaces its cached copy of the source with the version it just fetched; nothing is merged with local changes. For a Git source, korTTY resets its own clone to the remote branch, so anything changed inside that clone is discarded. Local overrides cover only credentials and SSH keys (see <a href="#local-overrides">Local overrides</a>).</p>
 <h2 id="shared-connection-file-format">Shared connection file format<a class="headerlink" href="#shared-connection-file-format" title="Permanent link">&para;</a></h2>
 <p>Create a <code>kortty-teamwork-connections.xml</code> file (or <code>connections.xml</code> for backward compatibility) in the root of your Git repo or shared file:</p>
 <div class="language-xml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="cp">&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span>
@@ -847,7 +847,7 @@
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="nt">&lt;port&gt;</span>22<span class="nt">&lt;/port&gt;</span>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="nt">&lt;username&gt;</span>deploy<span class="nt">&lt;/username&gt;</span>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="nt">&lt;group&gt;</span>Production/Web<span class="nt">&lt;/group&gt;</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="nt">&lt;authMethod&gt;</span>SSH_KEY<span class="nt">&lt;/authMethod&gt;</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="nt">&lt;authMethod&gt;</span>PUBLIC_KEY<span class="nt">&lt;/authMethod&gt;</span>
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="nt">&lt;sshKeyId&gt;</span>key-prod-deploy<span class="nt">&lt;/sshKeyId&gt;</span>
 </span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span><span class="nt">&lt;credentialId&gt;</span>cred-prod-user<span class="nt">&lt;/credentialId&gt;</span>
 </span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">  </span><span class="nt">&lt;/connection&gt;</span>
@@ -864,18 +864,20 @@
 <p>Once a source is synced:</p>
 <ol>
 <li>Open <strong>Manage Connections…</strong> (or press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-m">M</kbd></span>).</li>
-<li>Teamwork connections appear in the tree with a <strong>[Teamwork]</strong> label and their source ID.</li>
-<li>Click a teamwork connection to view or use it.</li>
-<li><strong>Cannot edit directly</strong> — Teamwork connections are read-only unless their source is marked as writable and you own edit rights (determined by <code>teamworkRole</code>).</li>
+<li>Switch to the <strong>Teamwork connections</strong> tab.</li>
+<li>Double-click a teamwork connection to connect.</li>
+<li><strong>Read-only</strong> — Teamwork connections are read-only, and korTTY never writes changes back to a source. To change a shared connection, edit it in the repository or shared file; the change arrives with the next sync.</li>
 </ol>
+<p>Deleting a teamwork connection only hides it on this computer; the source is not changed. In the Connection Manager's button column, <strong>Restore deleted</strong> brings hidden connections back and <strong>Refresh</strong> reloads the list from the last sync without fetching the source again.</p>
 <h3 id="local-overrides">Local overrides<a class="headerlink" href="#local-overrides" title="Permanent link">&para;</a></h3>
 <ul>
-<li>The merged credential and SSH key references are resolved from your local storage.</li>
+<li>The credential and SSH key references (<code>credentialId</code>, <code>sshKeyId</code>) of a shared connection are resolved from your local storage.</li>
+<li>For shared connections that name neither, choose <strong>Authentication for all team connections</strong> on the <strong>Teamwork connections</strong> tab: a stored credential, an SSH key or <strong>Temporary SSH key</strong>. A stored credential that has a username uses it; for an SSH key or a temporary key, an optional <strong>Default username (SSH key)</strong> replaces the username from the source.</li>
 <li>If a credential or key is not found locally, you are prompted to provide it when connecting.</li>
-<li>Your local copy of a teamwork connection can override authentication by assigning a different credential or key.</li>
+<li>Only authentication, including the username, can be overridden locally. Host, port, group and the other connection settings always come from the source.</li>
 </ul>
 <h3 id="distinguish-sources">Distinguish sources<a class="headerlink" href="#distinguish-sources" title="Permanent link">&para;</a></h3>
-<p>In the Connection Manager, teamwork connections are marked by their source ID. Hover over or inspect the connection properties to see which teamwork source it came from.</p>
+<p>Connections from every enabled source appear together on the <strong>Teamwork connections</strong> tab, arranged by the groups defined in the shared files. The tab does not show which source a connection came from; give each source its own group names if your team needs to tell them apart.</p>
 <h2 id="git-repository-setup">Git repository setup<a class="headerlink" href="#git-repository-setup" title="Permanent link">&para;</a></h2>
 <p>To share connections via Git:</p>
 <ol>
@@ -896,8 +898,8 @@
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>├── .gitignore
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>└── README.md
 </span></code></pre></div>
-<h3 id="optional-store-versions-in-git">Optional: store versions in Git<a class="headerlink" href="#optional-store-versions-in-git" title="Permanent link">&para;</a></h3>
-<p>Use the commit hash as the version token so KorTTY can detect updates:</p>
+<h3 id="version-token">Version token<a class="headerlink" href="#version-token" title="Permanent link">&para;</a></h3>
+<p>korTTY uses the commit hash of the tracked branch as the version token automatically. To see which version your team is on, run:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>git<span class="w"> </span>log<span class="w"> </span>-1<span class="w"> </span>--pretty<span class="o">=</span>%H
 </span></code></pre></div>
 <h2 id="shared-file-setup">Shared file setup<a class="headerlink" href="#shared-file-setup" title="Permanent link">&para;</a></h2>
@@ -905,7 +907,7 @@
 <ol>
 <li>Export your connections to a file: <strong>Connections → Export… → select connections → save as <code>.xml</code></strong>.</li>
 <li>Place the file on a shared network path (e.g., <code>//server/share/connections.xml</code>).</li>
-<li>Set read/write permissions as needed.</li>
+<li>Give team members read access to the file. korTTY only reads it, so only whoever maintains the file needs write access.</li>
 <li>Team members add the file path in <strong>Teamwork → Teamwork Settings… → Add</strong>.</li>
 </ol>
 <h3 id="example-paths">Example paths<a class="headerlink" href="#example-paths" title="Permanent link">&para;</a></h3>
@@ -942,11 +944,11 @@
 </div>
 <div class="admonition warning">
 <p class="admonition-title">File permissions</p>
-<p>For shared files on network paths, restrict read/write access to team members only. Ensure the path is not world-readable.</p>
+<p>For shared files on network paths, give read access to team members only and write access only to whoever maintains the file. Ensure the path is not world-readable. Anyone who can change the file, or push to the tracked Git branch, decides which hosts, jump servers and tunnels the shared connections use on every team member's computer.</p>
 </div>
 <div class="admonition tip">
 <p class="admonition-title">Audit trail</p>
-<p>For Git-based teamwork, the commit history provides an audit trail. Review changes before pulling by checking the remote branch.</p>
+<p>For Git-based teamwork, the commit history provides an audit trail. korTTY applies whatever the tracked branch contains at the next sync, so review changes before they are pushed to that branch.</p>
 </div>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="source-is-not-syncing">Source is not syncing<a class="headerlink" href="#source-is-not-syncing" title="Permanent link">&para;</a></h3>
@@ -964,12 +966,6 @@
 <li>Open <strong>Security → Credentials…</strong> and <strong>Security → SSH-Keys…</strong>.</li>
 <li>Verify that the credential IDs or SSH key IDs in the shared connections exist locally.</li>
 <li>If missing, add them manually or ask your team administrator to provide the IDs.</li>
-</ol>
-<h3 id="cannot-push-changes-to-git-repo">Cannot push changes to Git repo<a class="headerlink" href="#cannot-push-changes-to-git-repo" title="Permanent link">&para;</a></h3>
-<ol>
-<li>Verify the Git URL uses SSH or an HTTPS token (not username/password).</li>
-<li>Ensure your SSH key is registered with the remote (GitHub, GitLab, etc.).</li>
-<li>In <strong>Teamwork Settings</strong>, mark the source as <strong>Read-Only</strong> if you don't need to write back.</li>
 </ol>
 <h3 id="file-path-is-not-recognized-windowsunc">File path is not recognized (Windows/UNC)<a class="headerlink" href="#file-path-is-not-recognized-windowsunc" title="Permanent link">&para;</a></h3>
 <p>Use forward slashes or the file:// URI format:</p>
