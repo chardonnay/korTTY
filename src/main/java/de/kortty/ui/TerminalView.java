@@ -295,6 +295,9 @@ public class TerminalView extends BorderPane {
     private volatile TtyConnector ttyConnector;
     // True when the last connect attempt failed permanently (auth/host-key/configuration).
     private volatile boolean lastConnectFailurePermanent;
+    // Screen text a project saved for this tab, shown locally once the first connect succeeds.
+    // Set on the FX thread before connect(), consumed (getAndSet(null)) on the FX thread.
+    private final AtomicReference<PendingRestoredHistory> pendingRestoredHistory = new AtomicReference<>();
     // Single tab-wide font-size source. Every per-pane provider delegates its font-size reads/writes
     // here, so Cmd/Ctrl +/- zoom and reset stay global across all splits.
     private DynamicFontSizeSettingsProvider sharedFontSource;
@@ -5382,6 +5385,10 @@ public class TerminalView extends BorderPane {
                         Platform.runLater(() -> {
                             try {
                                 if (terminalWidget == null) return; // Tab was closed during connect
+                                // Before start(): the emulator reads no remote byte yet, so the
+                                // restored block lands between "Connecting…" and the first live
+                                // output — no race with the MOTD, and nothing reaches the server.
+                                replayPendingRestoredHistory(terminalWidget);
                                 terminalWidget.setTtyConnector(decorateTerminalConnector(terminalWidget, ttyConnector));
                                 terminalWidget.start();
                                 applyCursorShape(terminalWidget);
@@ -6586,7 +6593,8 @@ public class TerminalView extends BorderPane {
     }
     
     /**
-     * Gets the terminal history/buffer.
+     * The visible screen of the primary pane only, padded to the full width — what a saved project
+     * stores for this tab. Not the scrollback, not the cursor position, not the other split panes.
      */
     public String getTerminalHistory() {
         if (terminalWidget != null && terminalWidget.getTerminalTextBuffer() != null) {
@@ -6595,56 +6603,57 @@ public class TerminalView extends BorderPane {
         return "";
     }
     
+    /** Sanitized rows of a project's saved screen, waiting for the first successful connect. */
+    private record PendingRestoredHistory(List<String> lines, @Nullable LocalDateTime savedAt) {
+    }
+
     /**
-     * Restores terminal history by writing to temp file first, then displaying it.
-     * This approach shows only one short command line instead of multi-line here-doc.
+     * Queues the screen text a project saved for this tab. It is shown dimmed, between two marker
+     * rows, in the primary pane when the next connect succeeds — written straight into the emulator
+     * before it starts reading the connection, so it is never sent to the server, never reaches the
+     * remote shell or its history, and is not fed to a session journal that starts with the
+     * connection (a journal enabled later seeds itself from the scrollback, block included).
+     *
+     * <p>Call it on the FX thread before {@link #connect()}. If every attempt fails, the block stays
+     * queued and is shown on the next successful reconnect, exactly once.
+     *
+     * @param raw the saved text; blank or control-only text queues nothing
+     * @param savedAt when the project was saved, {@code null} when unknown
      */
-    public void restoreHistory(String history) {
-        if (history == null || history.isEmpty()) {
+    public void setPendingRestoredHistory(@Nullable String raw, @Nullable LocalDateTime savedAt) {
+        List<String> lines = RestoredHistoryReplay.sanitize(raw);
+        pendingRestoredHistory.set(lines.isEmpty() ? null : new PendingRestoredHistory(lines, savedAt));
+    }
+
+    /** Writes the queued restored block into {@code widget}; FX thread, before {@code start()}. */
+    private void replayPendingRestoredHistory(SithTermFxWidget widget) {
+        if (widget == null || widget.getTerminal() == null) {
             return;
         }
-        
-        Platform.runLater(() -> {
-            if (ttyConnector != null && ttyConnector.isConnected()) {
-                try {
-                    // Clean up the history - remove excessive empty lines
-                    String cleanHistory = history
-                        .replaceAll("\\n{3,}", "\n\n") // Max 2 consecutive newlines
-                        .trim();
-                    
-                    // Escape for shell (for writing to file via here-doc)
-                    String escapedForFile = cleanHistory;
-                    
-                    // Use a temp file approach - much cleaner!
-                    // 1. Write history to temp file (using very short here-doc 'H')
-                    // 2. Clear screen and cat the file  
-                    // 3. Delete the temp file
-                    // This way only "clear;cat ..." is visible, not the multi-line content
-                    
-                    StringBuilder command = new StringBuilder();
-                    String tmpFile = "/tmp/.kortty_hist_$$"; // $$ = current shell PID (unique)
-                    
-                    // Write to temp file (this command is short)
-                    command.append("cat>").append(tmpFile).append("<<H\n");
-                    command.append(escapedForFile);
-                    if (!escapedForFile.endsWith("\n")) {
-                        command.append("\n");
-                    }
-                    command.append("H\n");
-                    
-                    // Clear screen, show file content, delete file (all in one short line)
-                    command.append("clear;cat ").append(tmpFile).append(";rm ").append(tmpFile).append("\n");
-                    
-                    ttyConnector.write(command.toString());
-                    
-                    logger.info("Restored history ({} bytes)", cleanHistory.length());
-                } catch (Exception e) {
-                    logger.error("Failed to restore terminal history", e);
-                }
-            } else {
-                logger.warn("Cannot restore history: terminal not connected");
-            }
-        });
+        PendingRestoredHistory pending = pendingRestoredHistory.getAndSet(null);
+        if (pending == null) {
+            return;
+        }
+        try {
+            String header = pending.savedAt() != null
+                ? I18n.get("terminal.restoredHistory.header",
+                    RestoredHistoryReplay.formatSavedAt(pending.savedAt(), currentUiLocale()))
+                : I18n.get("terminal.restoredHistory.headerUndated");
+            RestoredHistoryReplay.replay(widget.getTerminal(), pending.lines(), header,
+                I18n.get("terminal.restoredHistory.footer"));
+            logger.info("Showed {} restored screen rows locally", pending.lines().size());
+        } catch (RuntimeException e) {
+            // Old output is a convenience; it must never keep the live session from starting.
+            logger.warn("Could not show the restored screen output: {}", e.getMessage());
+        }
+    }
+
+    private static @Nullable Locale currentUiLocale() {
+        try {
+            return de.kortty.core.LanguageManager.getInstance().getCurrentLocale();
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
     
     public ServerConnection getConnection() {
