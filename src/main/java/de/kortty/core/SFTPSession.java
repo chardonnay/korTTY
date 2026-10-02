@@ -33,9 +33,11 @@ public class SFTPSession {
     private final ServerConnection connection;
     private final String password;
     private final SshHostKeyTrustManager hostKeyTrustManager;
+    private volatile SshHostKeyTrustManager.ReplacePolicy hostKeyReplacePolicy =
+        SshHostKeyTrustManager.ReplacePolicy.NEVER;
     private SSHKeyManager sshKeyManager;
     private char[] masterPassword;
-    
+
     private SshClient client;
     private ClientSession session;
     private SftpClient sftpClient;
@@ -64,7 +66,18 @@ public class SFTPSession {
         this.sshKeyManager = sshKeyManager;
         this.masterPassword = masterPassword;
     }
-    
+
+    /**
+     * Whether a changed host key (of the target or of its jump server) may be reviewed and replaced
+     * during {@link #connect()}. Only the SFTP manager tab sets
+     * {@link SshHostKeyTrustManager.ReplacePolicy#INTERACTIVE}; the default
+     * {@link SshHostKeyTrustManager.ReplacePolicy#NEVER} keeps restored editors and other
+     * background transfers on the plain mismatch warning.
+     */
+    public void setHostKeyReplacePolicy(SshHostKeyTrustManager.ReplacePolicy replacePolicy) {
+        this.hostKeyReplacePolicy = replacePolicy != null ? replacePolicy : SshHostKeyTrustManager.ReplacePolicy.NEVER;
+    }
+
     /**
      * Establishes the SFTP connection.
      */
@@ -157,8 +170,9 @@ public class SFTPSession {
         // Note: EdDSA signature support is automatically enabled when the eddsa dependency
         // is on the classpath. The client will detect and use EdDSA signatures automatically.
         
+        SshHostKeyTrustManager.ReplacePolicy replacePolicy = hostKeyReplacePolicy;
         client.setServerKeyVerifier(hostKeyTrustManager.verifierFor(
-            connection, HostKeyCheckPolicy.resolveFromSettings(connection)));
+            connection, HostKeyCheckPolicy.resolveFromSettings(connection), replacePolicy));
         client.start();
         
         int timeoutSeconds = connection.getConnectionTimeoutSeconds();
@@ -173,7 +187,8 @@ public class SFTPSession {
         int connectPort = connection.getPort();
         if (JumpHostSupport.isActive(connection)) {
             jumpTunnel = JumpHostSupport.open(
-                connection, hostKeyTrustManager, masterPassword, Duration.ofSeconds(timeoutSeconds));
+                connection, hostKeyTrustManager, masterPassword, Duration.ofSeconds(timeoutSeconds),
+                replacePolicy);
             connectHost = jumpTunnel.localHost();
             connectPort = jumpTunnel.localPort();
             // Log raw host:port rather than connection.getDisplayName(): the latter can fall back to

@@ -106,6 +106,22 @@ public final class JumpHostSupport {
             SshHostKeyTrustManager trustManager,
             char[] masterPassword,
             Duration timeout) throws IOException {
+        return open(connection, trustManager, masterPassword, timeout, SshHostKeyTrustManager.ReplacePolicy.NEVER);
+    }
+
+    /**
+     * Like {@link #open(ServerConnection, SshHostKeyTrustManager, char[], Duration)}, with the
+     * bastion's changed-key handling taken from the caller: a connect the user started passes
+     * {@link SshHostKeyTrustManager.ReplacePolicy#INTERACTIVE}, so a changed bastion key gets the
+     * same explicit review-and-replace path as the target. The bastion is verified strictly either
+     * way.
+     */
+    public static JumpTunnel open(
+            ServerConnection connection,
+            SshHostKeyTrustManager trustManager,
+            char[] masterPassword,
+            Duration timeout,
+            SshHostKeyTrustManager.ReplacePolicy replacePolicy) throws IOException {
 
         JumpServer jump = connection.getJumpServer();
         if (!isActive(connection)) {
@@ -130,7 +146,8 @@ public final class JumpHostSupport {
 
         SshClient jumpClient = SshClient.setUpDefaultClient();
         jumpClient.setKeyIdentityProvider(null);
-        SshHostKeyTrustManager.ConnectionVerifier verifier = trustManager.verifierFor(jumpEndpoint);
+        SshHostKeyTrustManager.ConnectionVerifier verifier =
+            trustManager.verifierFor(jumpEndpoint, HostKeyCheckMode.STRICT, replacePolicy);
         jumpClient.setServerKeyVerifier(verifier);
         jumpClient.start();
 

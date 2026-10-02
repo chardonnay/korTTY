@@ -3879,6 +3879,14 @@ tasks.register<JavaExec>("firstRunSetupDialogSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("knownHostsDialogSmoke") {
+    group = "verification"
+    description = "Seeds a temporary host-key store, filters and removes an entry in the real Known Hosts dialog, checks the policy lock, and drives the changed-key review/replace confirmation; snapshots build/smoke/known-hosts-dialog.png and the host-key alerts."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.KnownHostsDialogSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("updateDownloadCompleteSmoke") {
     group = "verification"
     description = "Renders the update 'download complete' dialog and snapshots it to build/smoke/update-download-complete.png."
