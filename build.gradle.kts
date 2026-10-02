@@ -3642,6 +3642,14 @@ tasks.register<JavaExec>("terminalShortcutKeyTypedSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("terminalContextMenuActionsSmoke") {
+    group = "verification"
+    description = "Fires the terminal context menu's Copy, Paste, Clear Buffer, Find and Font Size entries and checks each reaches the pane (needs a display; uses the OS clipboard and restores it)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("com.sithtermfx.ui.split.TerminalContextMenuActionsSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("aiManagerTabCssSmoke") {
     group = "verification"
     description = "Opens the AI Manager under every app design and fails on JavaFX CSS warnings for the selected tab."
@@ -3663,6 +3671,14 @@ tasks.register<JavaExec>("aiManagerReasoningPersistenceSmoke") {
     description = "Loads AI Manager profiles and verifies the stored reasoning level survives loading, profile switching and the close-time snapshot."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.AiManagerReasoningPersistenceSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("aiManagerInternetLockSmoke") {
+    group = "verification"
+    description = "Verifies the AI Manager locks the internet mode of native Anthropic profiles to Disabled as the API URL changes, without forcing it onto other profiles while one is loading."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AiManagerInternetLockSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 

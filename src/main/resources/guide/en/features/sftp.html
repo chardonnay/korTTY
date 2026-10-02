@@ -762,8 +762,8 @@
 <h2 id="opening-sftp-manager">Opening SFTP Manager<a class="headerlink" href="#opening-sftp-manager" title="Permanent link">&para;</a></h2>
 <p>You can open the SFTP Manager in two ways:</p>
 <ul>
-<li><strong>Menu:</strong> Tools &gt; Open SFTP Manager</li>
-<li><strong>Dashboard:</strong> Right-click a connection &gt; "Open SFTP Manager"</li>
+<li><strong>Menu:</strong> <em>Connections → SFTP-Client...</em> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-u">U</kbd></span>, on macOS <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-u">U</kbd></span>). With a connected terminal tab in front, it opens for that tab's server; otherwise you pick a connection first.</li>
+<li><strong>Dashboard:</strong> right-click a connected session &gt; <strong>SFTP-Client...</strong></li>
 </ul>
 <p>If the connection uses a temporary SSH key that has expired, you will be prompted to enter a new key before the connection can proceed.</p>
 <h2 id="interface">Interface<a class="headerlink" href="#interface" title="Permanent link">&para;</a></h2>
@@ -806,7 +806,7 @@
 </tr>
 <tr>
 <td><strong>Size</strong></td>
-<td>File size in human-readable format (directories show —)</td>
+<td>File size in human-readable format (directories show —); sorting uses the exact byte count, with folders first</td>
 </tr>
 <tr>
 <td><strong>Date</strong></td>
@@ -835,7 +835,13 @@
 <li><strong>Files starting with "."</strong> (e.g., <code>.bashrc</code>) — alphabetically</li>
 <li><strong>All other files</strong> — alphabetically</li>
 </ol>
-<p>Click any column header to sort by that column. Clicking the Type column again toggles between ascending and descending order.</p>
+<p>Click any column header to sort by that column. Clicking the Type column again toggles between ascending and descending order. The parent directory (<code>..</code>) stays at the top whichever column and direction you sort by.</p>
+<h2 id="browsing-the-server">Browsing the server<a class="headerlink" href="#browsing-the-server" title="Permanent link">&para;</a></h2>
+<p>Remote folders are read in the background, so the window stays responsive even for a folder with tens of thousands of entries. While a folder loads, a <strong>Loading…</strong> indicator covers the remote list. The path field and the list switch to the new folder only once it has been read; if it cannot be read (it does not exist, or you lack the rights), an error is shown and the folder you were in stays.</p>
+<p>Type a path into the remote <strong>Path</strong> field and press <span class="keys"><kbd class="key-enter">Enter</kbd></span> to go there. <code>~</code> and <code>~/…</code> stand for your login directory on the server, and a path without a leading <code>/</code> is taken relative to the folder shown; <code>..</code> and <code>.</code> are resolved, so <code>../logs</code> opens the sibling folder <code>logs</code>.</p>
+<h2 id="lost-connection">Lost connection<a class="headerlink" href="#lost-connection" title="Permanent link">&para;</a></h2>
+<p>When the server or the network ends the session, the status bar shows <strong>Disconnected from</strong> <em>host</em> with a <strong>Reconnect</strong> button, and the remote actions are disabled. If the connection drops without the server saying so, the first remote action you try (Refresh, Upload, Download and so on) brings up the same state instead of doing nothing.</p>
+<p><strong>Reconnect</strong> opens a new session with the same credentials and lists the folder you were in. The server's host key is checked as on the first connect: an unchanged key connects without a prompt, a changed key is still blocked.</p>
 <h2 id="file-operations">File operations<a class="headerlink" href="#file-operations" title="Permanent link">&para;</a></h2>
 <p>The SFTP Manager supports a full range of file operations:</p>
 <table>
@@ -864,7 +870,7 @@
 </tr>
 <tr>
 <td><strong>Copy</strong></td>
-<td>Copy files within the same panel</td>
+<td>Copy files within the same panel (a local copy runs in the background). A remote folder copied where a folder of that name exists merges into it; copying an item onto itself or into one of its own subfolders is refused with an error</td>
 </tr>
 <tr>
 <td><strong>Edit in Snippet Editor</strong></td>
@@ -884,6 +890,15 @@
 </tr>
 </tbody>
 </table>
+<h3 id="uploading-files-and-folders">Uploading files and folders<a class="headerlink" href="#uploading-files-and-folders" title="Permanent link">&para;</a></h3>
+<p>Upload copies the selected local files and folders into the remote folder that was shown when you clicked <strong>Upload</strong>; browsing elsewhere while it runs does not change the target. Upload stays disabled until the first remote folder has been listed, because the server does not expand <code>~</code> itself.</p>
+<ul>
+<li><strong>Uploading a folder again merges</strong> into the existing remote folder: files with the same name are replaced, other remote files are kept.</li>
+<li><strong>Files are streamed</strong>, so their size is not limited by memory; files larger than 2 GB upload like any other.</li>
+<li>If the connection drops during an upload or download, the rest of the batch stops with one <strong>Disconnected</strong> state rather than an error per file.</li>
+</ul>
+<h3 id="permissions">Permissions<a class="headerlink" href="#permissions" title="Permanent link">&para;</a></h3>
+<p>The permissions field of <strong>Set Owner/Permissions</strong> and of the remote archive dialog accepts exactly three octal digits, such as <code>755</code> or <code>644</code>; leave it empty (or unchanged) to keep the current mode. Anything else keeps the dialog open with an error, so no other text ever reaches <code>chmod</code>.</p>
 <h3 id="editing-files-with-snippet-editor">Editing files with Snippet Editor<a class="headerlink" href="#editing-files-with-snippet-editor" title="Permanent link">&para;</a></h3>
 <p>The <strong>Edit in Snippet Editor</strong> action is enabled only for a single selected file. It is disabled for:</p>
 <ul>
