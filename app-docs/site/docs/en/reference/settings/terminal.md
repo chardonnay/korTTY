@@ -32,6 +32,11 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 
 ## Notes
 
+!!! note "Encoding"
+    The character encoding korTTY decodes the output of an SSH session with and encodes what you type and paste in. It applies to every SSH connection that does not choose its own **Character encoding** on the *Connection* tab of the connection editor (see [Character encoding](../../features/connections.md#character-encoding)). Local shells use UTF-8 unless their connection sets an encoding, and Mosh always uses UTF-8 because mosh-server and mosh-client require it. Pick the encoding the programs on the server actually write, usually what `locale` reports there. A change applies the next time a tab connects or reconnects; open tabs keep their encoding. Characters the chosen encoding cannot represent are sent as `?`.
+
+    Earlier versions ignored this setting, so a value chosen back then is not applied on its own: SSH sessions stay UTF-8, and a note under the dropdown says so, until you save the settings after opening the Terminal page. Choose **UTF-8** before saving if you do not want the old value.
+
 !!! note "Bold as bright color"
     This setting currently applies to terminal recordings only: with [Capture terminal colors in recordings](video.md) on, bold text in one of the 8 normal ANSI colors is stored in its bright variant. The live terminal draws bold text in its normal color either way.
 
