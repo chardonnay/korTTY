@@ -58,4 +58,36 @@ public final class SessionJournalRedactor {
         // Policy rules run last so an admin pattern also catches what the known-secret pass left.
         return replacer.apply(result);
     }
+
+    /**
+     * Same masking as {@link #redact}, plus how many occurrences it replaced — for callers that
+     * tell the user something was masked (the AI request preview). The capture path keeps using
+     * {@link #redact}, which does not pay for counting.
+     */
+    public RedactionResult redactCounting(String text) {
+        if (text == null || text.isEmpty()) {
+            return RedactionResult.unchanged(text);
+        }
+        String result = text;
+        int count = 0;
+        for (String secret : secrets) {
+            int occurrences = countOccurrences(result, secret);
+            if (occurrences > 0) {
+                result = result.replace(secret, REPLACEMENT);
+                count += occurrences;
+            }
+        }
+        return new RedactionResult(result, count).then(replacer.applyCounting(result));
+    }
+
+    /** Non-overlapping, left to right — the occurrences {@link String#replace} replaces. */
+    private static int countOccurrences(String text, String secret) {
+        int count = 0;
+        int index = text.indexOf(secret);
+        while (index >= 0) {
+            count++;
+            index = text.indexOf(secret, index + secret.length());
+        }
+        return count;
+    }
 }

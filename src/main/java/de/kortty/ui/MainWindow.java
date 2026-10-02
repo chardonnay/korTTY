@@ -30,6 +30,9 @@ import de.kortty.core.swarm.SwarmModels;
 import de.kortty.core.swarm.SwarmOrchestrator;
 import de.kortty.core.swarm.SwarmTarget;
 import de.kortty.core.AiFileAttachment;
+import de.kortty.core.AiOutboundRedaction;
+import de.kortty.core.RedactionResult;
+import de.kortty.core.SessionJournalRedactor;
 import de.kortty.core.AiRequest;
 import de.kortty.core.AiService;
 import de.kortty.core.AiServiceFactory;
@@ -6136,17 +6139,25 @@ public class MainWindow {
         // is attached (see loadAiAttachmentAsync).
         AiAttachmentCandidate attachmentCandidate =
             resolveAiAttachmentCandidate(terminalTab, runContext, selectedText, maxSelectionChars);
+        // Mask secrets before the preview, so the user reviews exactly what leaves the computer.
+        // The file name above is resolved from the raw selection; only the outbound text is masked.
+        SessionJournalRedactor knownSecrets = aiSecretRedactor(terminalTab);
+        RedactionResult maskedSelection = AiOutboundRedaction.redactFor(effectiveProfile, selectedText, knownSecrets);
+        String outboundText = maskedSelection.text();
         GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
         boolean confirmBeforeSend = action == AiAction.ASK || settings == null || settings.isAiConfirmBeforeSend();
         if (confirmBeforeSend) {
-            confirmAiRequest(action, effectiveProfile, selectedText, connectionName, languageCode, attachmentCandidate, maxSelectionChars)
+            confirmAiRequest(action, effectiveProfile, outboundText, connectionName, languageCode, attachmentCandidate,
+                maxSelectionChars, maskedSelection.count())
                 .ifPresent(draft -> startAiSelectionRequest(
-                    action, effectiveProfile, aiService, draft, connectionName, languageCode, maxSelectionChars));
+                    action, effectiveProfile, aiService, draft, connectionName, languageCode, maxSelectionChars,
+                    knownSecrets, 0));
             return;
         }
         if (attachmentCandidate == null) {
             startAiSelectionRequest(action, effectiveProfile, aiService,
-                new AiRequestDraft(selectedText, null, null), connectionName, languageCode, maxSelectionChars);
+                new AiRequestDraft(outboundText, null, null), connectionName, languageCode, maxSelectionChars,
+                knownSecrets, maskedSelection.count());
             return;
         }
         // No confirmation dialog: attach the file when it validates, otherwise send the selection
@@ -6157,10 +6168,39 @@ public class MainWindow {
                 updateStatus(I18n.get("ai.attachment.skipped", attachmentCandidate.fileName(), outcome.failureText()));
             }
             startAiSelectionRequest(action, effectiveProfile, aiService,
-                new AiRequestDraft(selectedText, null, outcome.attachment()), connectionName, languageCode, maxSelectionChars);
+                new AiRequestDraft(outboundText, null, outcome.attachment()), connectionName, languageCode,
+                maxSelectionChars, knownSecrets, maskedSelection.count());
         });
     }
 
+    /** The tab's known secrets (connection password, policy rules) for masking AI-bound text. */
+    private static @Nullable SessionJournalRedactor aiSecretRedactor(@Nullable TerminalTab terminalTab) {
+        return terminalTab != null && terminalTab.getTerminalView() != null
+            ? terminalTab.getTerminalView().createSecretRedactor()
+            : null;
+    }
+
+    /**
+     * Shows {@code status} in the status bar, followed by how many secrets were masked when no
+     * preview showed that (confirmation turned off, Ask Agent, or an attachment, which is never
+     * previewed).
+     */
+    private void updateStatusWithMaskedSecrets(@Nullable String status, int maskedCount) {
+        String notice = maskedCount > 0 ? I18n.get("ai.redaction.notice", maskedCount) : null;
+        if (status == null && notice == null) {
+            return;
+        }
+        updateStatus(status == null ? notice : notice == null ? status : status + " " + notice);
+    }
+
+    /**
+     * Sends the reviewed selection (already masked) with its optional attachment and opens the
+     * result tab.
+     *
+     * @param knownSecrets    the tab's known secrets, for masking the attachment
+     * @param unreportedMasks secrets already masked in the selection that no preview dialog showed;
+     *                        the status bar reports them together with the attachment's
+     */
     private void startAiSelectionRequest(
         AiAction action,
         AiProfile effectiveProfile,
@@ -6168,7 +6208,9 @@ public class MainWindow {
         AiRequestDraft draft,
         String connectionName,
         String languageCode,
-        int maxSelectionChars) {
+        int maxSelectionChars,
+        @Nullable SessionJournalRedactor knownSecrets,
+        int unreportedMasks) {
         String requestText = draft.selectedText();
         if (requestText.trim().isEmpty()) {
             return;
@@ -6177,7 +6219,10 @@ public class MainWindow {
             showError(I18n.get("ai.error.title"), I18n.get("ai.error.selectionTooLarge", maxSelectionChars));
             return;
         }
-        AiFileAttachment fileAttachment = draft.fileAttachment();
+        // The attachment is not part of the preview, so its content is masked here.
+        AiOutboundRedaction.MaskedAttachment maskedAttachment =
+            AiOutboundRedaction.redactAttachmentFor(effectiveProfile, draft.fileAttachment(), knownSecrets);
+        AiFileAttachment fileAttachment = maskedAttachment.attachment();
         if (fileAttachment != null && !fileAttachment.fitsWithin(requestText, maxSelectionChars)) {
             // The preview is editable: the selection may have grown after the file was validated.
             showError(I18n.get("ai.error.title"),
@@ -6210,7 +6255,8 @@ public class MainWindow {
             resultTab.appendUserMessage(draft.userPrompt());
         }
         insertTemporaryTab(resultTab);
-        updateStatus(I18n.get("ai.status.running", getAiActionLabel(action)));
+        updateStatusWithMaskedSecrets(
+            I18n.get("ai.status.running", getAiActionLabel(action)), unreportedMasks + maskedAttachment.count());
 
         Task<AiExecutionResult> task = new Task<>() {
             @Override
@@ -6432,7 +6478,8 @@ public class MainWindow {
         String connectionName,
         String languageCode,
         @Nullable AiAttachmentCandidate attachmentCandidate,
-        int maxSelectionChars) {
+        int maxSelectionChars,
+        int maskedSecretCount) {
         String model = aiModelDisplayText(profile);
         String apiUrl = profile != null && profile.getConnectionMode() == AiConnectionMode.LOCAL_CLI
             ? de.kortty.core.AiCliProviderRegistry.find(profile.getCliProviderId())
@@ -6503,6 +6550,13 @@ public class MainWindow {
         preview.setPrefColumnCount(80);
         preview.setPrefRowCount(18);
 
+        // The selection arrives already masked; say so, so the *** in the preview are explained.
+        Label maskedSecretsLabel = new Label(
+            maskedSecretCount > 0 ? I18n.get("ai.redaction.notice", maskedSecretCount) : "");
+        maskedSecretsLabel.setWrapText(true);
+        maskedSecretsLabel.setVisible(maskedSecretCount > 0);
+        maskedSecretsLabel.setManaged(maskedSecretCount > 0);
+
         Label statusLabel = new Label();
         statusLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
 
@@ -6562,7 +6616,8 @@ public class MainWindow {
         replaceGrid.add(replaceField, 1, 1);
         replaceGrid.add(new HBox(8, replaceButton, replaceAllButton), 2, 1);
 
-        VBox content = new VBox(10, summaryLabel, quotaBar, replaceGrid, preview, attachmentBox, promptBox, statusLabel);
+        VBox content = new VBox(
+            10, summaryLabel, quotaBar, replaceGrid, maskedSecretsLabel, preview, attachmentBox, promptBox, statusLabel);
         content.setPadding(new Insets(5, 0, 0, 0));
         dialog.getDialogPane().setContent(content);
         dialog.getDialogPane().setPrefWidth(900);
@@ -7910,16 +7965,24 @@ public class MainWindow {
         // does not, the question is sent about the bare selection and the status bar says why.
         AiAttachmentCandidate attachmentCandidate =
             resolveAiAttachmentCandidate(terminalTab, runContext, selectedText, maxSelectionChars);
+        // No preview here either, so the status bar says how many secrets were masked.
+        SessionJournalRedactor knownSecrets = aiSecretRedactor(terminalTab);
+        RedactionResult maskedSelection = AiOutboundRedaction.redactFor(profile, selectedText, knownSecrets);
         if (attachmentCandidate == null) {
-            openDirectAiAskTab(profile, prompt, selectedText, connectionDisplayName, connection, null);
+            openDirectAiAskTab(profile, prompt, maskedSelection.text(), connectionDisplayName, connection, null);
+            updateStatusWithMaskedSecrets(null, maskedSelection.count());
             return;
         }
         updateStatus(I18n.get("ai.confirm.attachment.checking", attachmentCandidate.fileName()));
         loadAiAttachmentAsync(attachmentCandidate, maxSelectionChars, outcome -> {
-            if (outcome.attachment() == null) {
-                updateStatus(I18n.get("ai.attachment.skipped", attachmentCandidate.fileName(), outcome.failureText()));
-            }
-            openDirectAiAskTab(profile, prompt, selectedText, connectionDisplayName, connection, outcome.attachment());
+            String skipped = outcome.attachment() == null
+                ? I18n.get("ai.attachment.skipped", attachmentCandidate.fileName(), outcome.failureText())
+                : null;
+            AiOutboundRedaction.MaskedAttachment maskedAttachment =
+                AiOutboundRedaction.redactAttachmentFor(profile, outcome.attachment(), knownSecrets);
+            openDirectAiAskTab(profile, prompt, maskedSelection.text(), connectionDisplayName, connection,
+                maskedAttachment.attachment());
+            updateStatusWithMaskedSecrets(skipped, maskedSelection.count() + maskedAttachment.count());
         });
     }
 
