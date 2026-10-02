@@ -79,7 +79,8 @@ class RestoredHistoryWiringTest {
     }
 
     private static String source(String file) throws IOException {
-        return Files.readString(UI_ROOT.resolve(file), StandardCharsets.UTF_8);
+        // A Windows checkout has CRLF line endings; the markers below are written with \n.
+        return Files.readString(UI_ROOT.resolve(file), StandardCharsets.UTF_8).replace("\r\n", "\n");
     }
 
     /** The text from {@code startMarker} up to and including the next {@code endMarker}. */
