@@ -11,6 +11,7 @@ import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.sftp.client.SftpClient;
 import org.apache.sshd.sftp.client.SftpClientFactory;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
+import org.apache.sshd.common.keyprovider.KeyIdentityProvider;
 import org.apache.sshd.common.signature.BuiltinSignatures;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -696,92 +697,18 @@ public class SFTPSession {
             throw new Exception("Kein SSH-Key-Pfad angegeben");
         }
         
-        // Check if this is a temporary SSH key (starts with "TEMPORARY:")
-        if (keyPath.startsWith("TEMPORARY:")) {
-            String keyContent = keyPath.substring("TEMPORARY:".length());
-            java.io.File tempFile = null;
+        // A temporary SSH key is parsed in memory and never written to disk.
+        if (TemporarySshKeyMaterial.isTemporaryKeyPath(keyPath)) {
             try {
-                // Ensure key content ends with a newline - OpenSSH keys MUST end with a newline character
-                String keyContentFixed = keyContent;
-                if (!keyContent.endsWith("\n")) {
-                    keyContentFixed = keyContent + "\n";
-                    logger.debug("Added missing trailing newline to key content");
-                }
-                
-                // Write temporary key to a temporary file
-                tempFile = java.io.File.createTempFile("kortty_temp_key_", ".key");
-                tempFile.deleteOnExit();
-                
-                // Write key content to file
-                try (java.io.FileWriter writer = new java.io.FileWriter(tempFile, java.nio.charset.StandardCharsets.UTF_8)) {
-                    writer.write(keyContentFixed);
-                }
-                
-                // Set file permissions to 600 (read/write for owner only) - required by SSH
-                try {
-                    java.nio.file.Files.setPosixFilePermissions(
-                        tempFile.toPath(),
-                        java.util.Set.of(
-                            java.nio.file.attribute.PosixFilePermission.OWNER_READ,
-                            java.nio.file.attribute.PosixFilePermission.OWNER_WRITE
-                        )
-                    );
-                } catch (UnsupportedOperationException e) {
-                    // Windows doesn't support POSIX permissions, try alternative
-                    tempFile.setReadable(false, false);
-                    tempFile.setReadable(true, true);
-                    tempFile.setWritable(false, false);
-                    tempFile.setWritable(true, true);
-                }
-                
-                // Load key pair from temporary file using FileKeyPairProvider
-                // Use setKeyIdentityProvider instead of addPublicKeyIdentity for better EdDSA support
-                FileKeyPairProvider keyPairProvider = new FileKeyPairProvider(tempFile.toPath());
-                
-                // Set the key identity provider on the session - this is the recommended approach
-                // for FileKeyPairProvider and works better with EdDSA keys
-                session.setKeyIdentityProvider(keyPairProvider);
-                
-                // Also verify that we can load at least one key pair
-                Iterable<java.security.KeyPair> keyPairs = keyPairProvider.loadKeys(session);
-                
-                if (keyPairs == null) {
-                    throw new Exception("Could not load temporary SSH key: keyPairs is null");
-                }
-                
-                // Get iterator and check if it has elements
-                java.util.Iterator<java.security.KeyPair> iterator = keyPairs.iterator();
-                if (!iterator.hasNext()) {
-                    throw new Exception("Could not parse temporary SSH key: no key pairs found");
-                }
-                
-                // Use the first key pair for logging
-                java.security.KeyPair keyPair = iterator.next();
-                if (keyPair == null) {
-                    throw new Exception("Could not parse temporary SSH key: keyPair is null");
-                }
-                
-                // Verify key pair has both private and public key
-                if (keyPair.getPrivate() == null || keyPair.getPublic() == null) {
-                    throw new Exception("Invalid temporary SSH key: missing private or public key component");
-                }
-                
-                // Log key details for debugging
-                String keyAlgorithm = keyPair.getPublic().getAlgorithm();
-                String keyFormat = keyPair.getPublic().getFormat();
-                logger.info("Loaded temporary SSH key - Algorithm: {}, Format: {}, Key size: {} bytes", 
-                    keyAlgorithm, keyFormat, keyPair.getPublic().getEncoded().length);
-                
-                // Set key identity provider AND add the key directly
-                // Using both methods ensures compatibility with all SSH servers
-                session.setKeyIdentityProvider(keyPairProvider);
-                session.addPublicKeyIdentity(keyPair);
-                
-                logger.info("Set temporary SSH key identity provider and added key to session (key type: {})", keyAlgorithm);
+                List<java.security.KeyPair> keyPairs = TemporarySshKeyMaterial.load(session, keyPath);
+                // The session-level provider holds the parsed pairs in memory (no file to re-read)
+                // and, being non-null, keeps the client-level default keys out of authentication.
+                session.setKeyIdentityProvider(KeyIdentityProvider.wrapKeyPairs(keyPairs));
+                session.addPublicKeyIdentity(keyPairs.get(0));
+                logger.info("Using temporary SSH key (algorithm: {})", keyPairs.get(0).getPublic().getAlgorithm());
                 return;
             } catch (Exception e) {
-                logger.error("Failed to load temporary SSH key from file: {}", 
-                    tempFile != null ? tempFile.getAbsolutePath() : "unknown", e);
+                logger.error("Failed to load temporary SSH key", e);
                 throw new Exception("Error loading temporary SSH key: " + e.getMessage(), e);
             }
         }

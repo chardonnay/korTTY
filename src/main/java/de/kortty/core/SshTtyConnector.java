@@ -1597,114 +1597,17 @@ public class SshTtyConnector implements ObservableTtyConnector {
             throw new Exception("Kein SSH-Key-Pfad angegeben");
         }
         
-        // Check if this is a temporary SSH key (starts with "TEMPORARY:")
-        if (keyPath.startsWith("TEMPORARY:")) {
-            String keyContent = keyPath.substring("TEMPORARY:".length());
-            java.io.File tempFile = null;
+        // A temporary SSH key is parsed in memory and never written to disk.
+        if (TemporarySshKeyMaterial.isTemporaryKeyPath(keyPath)) {
             try {
-                // Ensure key content ends with a newline - OpenSSH keys MUST end with a newline character
-                String keyContentFixed = keyContent;
-                if (!keyContent.endsWith("\n")) {
-                    keyContentFixed = keyContent + "\n";
-                    logger.debug("Added missing trailing newline to key content");
-                }
-                
-                // DEBUG: Log key content details for troubleshooting
-                logger.debug("Temporary SSH key content length: {} chars (after fix: {} chars)", 
-                    keyContent.length(), keyContentFixed.length());
-                if (keyContentFixed.length() > 100) {
-                    logger.debug("Key content starts with: {}", keyContentFixed.substring(0, 50).replace("\n", "\\n"));
-                    logger.debug("Key content ends with: {}", keyContentFixed.substring(keyContentFixed.length() - 50).replace("\n", "\\n"));
-                }
-                
-                // Write temporary key to a temporary file
-                tempFile = java.io.File.createTempFile("kortty_temp_key_", ".key");
-                tempFile.deleteOnExit();
-                
-                // Write key content to file
-                try (java.io.FileWriter writer = new java.io.FileWriter(tempFile, java.nio.charset.StandardCharsets.UTF_8)) {
-                    writer.write(keyContentFixed);
-                }
-                
-                // DEBUG: Log temp file path
-                logger.debug("Temporary key file: {}", tempFile.getAbsolutePath());
-                
-                // Set file permissions to 600 (read/write for owner only) - required by SSH
-                try {
-                    java.nio.file.Files.setPosixFilePermissions(
-                        tempFile.toPath(),
-                        java.util.Set.of(
-                            java.nio.file.attribute.PosixFilePermission.OWNER_READ,
-                            java.nio.file.attribute.PosixFilePermission.OWNER_WRITE
-                        )
-                    );
-                } catch (UnsupportedOperationException e) {
-                    // Windows doesn't support POSIX permissions, try alternative
-                    tempFile.setReadable(false, false);
-                    tempFile.setReadable(true, true);
-                    tempFile.setWritable(false, false);
-                    tempFile.setWritable(true, true);
-                }
-                
-                // Load key pair from temporary file using FileKeyPairProvider
-                // Use setKeyIdentityProvider instead of addPublicKeyIdentity for better EdDSA support
-                FileKeyPairProvider keyPairProvider = new FileKeyPairProvider(tempFile.toPath());
-                
-                // Set the key identity provider on the session - this is the recommended approach
-                // for FileKeyPairProvider and works better with EdDSA keys
-                session.setKeyIdentityProvider(keyPairProvider);
-                
-                // Also verify that we can load at least one key pair
-                Iterable<java.security.KeyPair> keyPairs = keyPairProvider.loadKeys(session);
-                
-                if (keyPairs == null) {
-                    throw new Exception("Could not load temporary SSH key: keyPairs is null");
-                }
-                
-                // Get iterator and check if it has elements
-                java.util.Iterator<java.security.KeyPair> iterator = keyPairs.iterator();
-                if (!iterator.hasNext()) {
-                    throw new Exception("Could not parse temporary SSH key: no key pairs found");
-                }
-                
-                // Use the first key pair for logging
-                java.security.KeyPair keyPair = iterator.next();
-                if (keyPair == null) {
-                    throw new Exception("Could not parse temporary SSH key: keyPair is null");
-                }
-                
-                // Verify key pair has both private and public key
-                if (keyPair.getPrivate() == null || keyPair.getPublic() == null) {
-                    throw new Exception("Invalid temporary SSH key: missing private or public key component");
-                }
-                
-                // Log key details for debugging
-                String pubKeyAlgorithm = keyPair.getPublic().getAlgorithm();
-                String pubKeyFormat = keyPair.getPublic().getFormat();
-                String privKeyAlgorithm = keyPair.getPrivate().getAlgorithm();
-                String privKeyFormat = keyPair.getPrivate().getFormat();
-                String pubKeyClass = keyPair.getPublic().getClass().getName();
-                String privKeyClass = keyPair.getPrivate().getClass().getName();
-                
-                logger.info("Loaded temporary SSH key details:");
-                logger.info("  Public key - Algorithm: {}, Format: {}, Size: {} bytes, Class: {}", 
-                    pubKeyAlgorithm, pubKeyFormat, keyPair.getPublic().getEncoded().length, pubKeyClass);
-                logger.info("  Private key - Algorithm: {}, Format: {}, Class: {}", 
-                    privKeyAlgorithm, privKeyFormat, privKeyClass);
-                
-                // Clear any existing key identities and add ONLY our temporary key
-                // This ensures no other keys interfere with authentication
+                java.security.KeyPair keyPair = TemporarySshKeyMaterial.load(session, keyPath).get(0);
+                // Offer ONLY the temporary key, so no other identity interferes with authentication.
                 session.setKeyIdentityProvider(null);
                 session.addPublicKeyIdentity(keyPair);
-                
-                logger.info("Added temporary key to session:");
-                logger.info("  Public key: {}", keyPair.getPublic());
-                logger.info("  Session username: '{}'", session.getUsername());
-                logger.info("  Session host: '{}'", session.getConnectAddress());
+                logger.info("Using temporary SSH key (algorithm: {})", keyPair.getPublic().getAlgorithm());
                 return;
             } catch (Exception e) {
-                logger.error("Failed to load temporary SSH key from file: {}", 
-                    tempFile != null ? tempFile.getAbsolutePath() : "unknown", e);
+                logger.error("Failed to load temporary SSH key", e);
                 throw new Exception("Error loading temporary SSH key: " + e.getMessage(), e);
             }
         }
@@ -1890,8 +1793,7 @@ public class SshTtyConnector implements ObservableTtyConnector {
     }
 
     private boolean isTemporaryKeyAuthActive() {
-        String keyPath = connection.getPrivateKeyPath();
-        return keyPath != null && keyPath.startsWith("TEMPORARY:");
+        return TemporarySshKeyMaterial.isTemporaryKeyPath(connection.getPrivateKeyPath());
     }
 
     private boolean isPasswordPrompt(String promptText) {
