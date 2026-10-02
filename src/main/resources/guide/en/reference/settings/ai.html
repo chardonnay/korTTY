@@ -1010,7 +1010,7 @@
 <tr>
 <td>Internet access</td>
 <td>dropdown</td>
-<td>Disabled, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio Toolpack</td>
+<td>Disabled, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio Toolpack (locked to Disabled, with a hint, for a native Anthropic Messages API URL)</td>
 <td>Disabled</td>
 <td>(profile <code>internetAccessMode</code> field)</td>
 </tr>
@@ -1321,6 +1321,7 @@
 native API, which an embedded model never goes through — selecting one on an embedded profile
 fails the request with an explicit message instead of silently answering without web access.
 Local CLI profiles have no internet modes at all; the dropdown is disabled for them.</p>
+<p>Native Anthropic Messages API profiles (an API URL ending in <code>/v1/messages</code>) have no internet modes either, because korTTY sends no web tools to that API: the dropdown is locked to <strong>Disabled</strong>, and a hint below it says why. A mode stored by an earlier version is shown as <strong>Disabled</strong> when the profile is opened and has no effect on requests.</p>
 <p>An organization can forbid web access entirely with the <code>allow-internet</code> policy key — see
 <a href="../enterprise-policy.html">Enterprise policy</a>.</p>
 </div></p>
