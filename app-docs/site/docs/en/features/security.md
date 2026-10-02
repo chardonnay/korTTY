@@ -58,11 +58,32 @@ Store centralized username/password credentials that can be reused across multip
 2. Fill in:
    - **Name** — Descriptive identifier
    - **Username** — Login username
+   - **Password Type** — **Stored Password**, or **External Command** to fetch the password from a password manager (see [Passwords from an external command](#passwords-from-an-external-command))
    - **Password** — Stored encrypted with AES-256-GCM
    - **Environment** — Production, Development, Test, or Staging
    - **Server Pattern** (optional) — Glob pattern (e.g., `*.example.com`, `10.0.0.*`) for automatic credential matching to connections
    - **Description** (optional) — Free-text notes
 3. Click **OK**.
+
+### Passwords from an external command
+
+Instead of storing the password, a credential can fetch it from your password manager every time it is needed. Choose **External Command** as the **Password Type** and enter a command that prints the password, for example:
+
+```bash
+op item get "db-prod" --fields password
+bw get password "db-prod"
+enpass-cli show "db-prod" -field password
+```
+
+- **Stored encrypted** — the command itself is encrypted with your master password, like a stored password.
+- **Shell** — the command runs in `/bin/sh` on macOS and Linux and in PowerShell on Windows, so on Windows write PowerShell syntax (`$env:NAME`, not `%NAME%`). In the Flatpak package the command runs on the host, where your password manager's command-line tool is installed.
+- **Output** — the first line the command prints is the password. If the command exits with an error, korTTY shows its exit code and error output; empty output counts as an error too.
+- **No prompts** — the command gets no input, so a tool that asks for a master password or PIN cannot be answered and fails at once. Unlock the password manager first, for example with `op signin`, or with `bw unlock` and `BW_SESSION` set in the environment korTTY was started from.
+- **10-second limit** — a command that has not finished after 10 seconds is stopped together with every process it started, and korTTY reports the timeout. A Touch ID or system dialog the tool opens by itself must be confirmed within that time.
+- **Runs every time** — the command runs whenever the password is needed: when you pick the credential in the connection editor and whenever a connection that uses it connects. Panes split from a connected tab reuse that tab's password.
+- **Test** — the **Test** button next to the command runs it once and shows how many characters came back, never the password itself.
+
+In the connection editor the password field shows *Retrieving password...* while the command runs, and korTTY stays responsive. Opening, duplicating or restoring a connection waits for the command before it connects, for at most the 10-second limit, and the window does not react during that time; if the command fails there, korTTY uses the connection's own saved password or asks for one.
 
 ### Using Credentials in Connections
 
@@ -70,7 +91,7 @@ When creating or editing a connection:
 
 1. Go to the **Connection** tab.
 2. Select a stored credential from the **Credentials** dropdown.
-3. Username and password are filled in automatically.
+3. Username and password are filled in automatically; for an external command once it has returned the password.
 
 The following diagram shows how credentials and SSH keys flow from encrypted storage to active connections:
 
@@ -81,6 +102,7 @@ The following diagram shows how credentials and SSH keys flow from encrypted sto
 - **Environment-specific** — Organize credentials by deployment environment
 - **Server Pattern Matching** — Automatically assign credentials to matching servers
 - **Encrypted Storage** — Passwords are encrypted with AES-256-GCM
+- **Password managers** — Fetch the password from a command such as `op`, `bw` or `enpass-cli` instead of storing it
 - **Automatic Usage** — Select credentials directly in connection settings
 
 ## SSH Key Management
