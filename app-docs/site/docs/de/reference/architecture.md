@@ -130,6 +130,8 @@ KorTTY speichert seine Hauptkonfiguration, Anmeldeinformationen und Sitzungsstat
 |---|---|
 | `SshTtyConnector` | Apache SSHD Terminalverbindung eines Panels: Sprunghost, Authentifizierung, Shell-Kanal und Trennungserkennung |
 | `ActiveConnectionRegistry` | Live-Liste der offenen SSH- und Mosh-Terminalverbindungen (eine pro Panel), gelesen vom JMX-MBean |
+| `SshTunnelManager` | Die SSH-Tunnel (`-L`, `-R`, `-D`) eines Terminal-Tabs: werden nach dem Login in der ersten SSH-Sitzung des Tabs geöffnet, vor einer Wiederverbindung gestoppt und danach wieder geöffnet, in ein anderes Paneel desselben Servers verschoben, wenn dieses Paneel geschlossen wird; geteilte Paneele öffnen nie ihre eigenen |
+| `SshTunnelApprovals` | Einmalige Bestätigung pro Verbindung und Tunnel-Set vor dem Öffnen der Tunnel, gespeichert als Fingerabdruck in `ssh-tunnel-approvals.properties` |
 | `SshHostKeyTrustManager` | Gibt normalisierte Host:Port-TOFU-Pins über interaktive Terminal-, SFTP- und Mosh-Bootstrap-Verbindungen mit atomarer, prozessübergreifender Persistenz frei |
 | `SSHKeyManager` | Zentralisierte SSH-Schlüsselspeicherung mit verschlüsselter Passphrase-Unterstützung |
 | `Mosh4jTtyConnector` | Mosh-Protokoll-Connector unter Verwendung der mosh4j-Bibliothek (dynamisch geladen) |
