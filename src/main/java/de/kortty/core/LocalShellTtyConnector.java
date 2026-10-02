@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
@@ -41,6 +42,8 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
     private static final Logger logger = LoggerFactory.getLogger(LocalShellTtyConnector.class);
 
     private final ServerConnection connection;
+    /** UTF-8 unless the connection sets its own encoding; resolved once per connector. */
+    private final Charset charset;
     private final AtomicBoolean connected = new AtomicBoolean(false);
 
     private DisconnectListener disconnectListener;
@@ -72,6 +75,7 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
 
     public LocalShellTtyConnector(ServerConnection connection) {
         this.connection = connection;
+        this.charset = TerminalEncodingSupport.resolveFromSettings(connection);
         directoryChangeTracker.setSubmittedLineListener(
             new LocalShellDirectoryChangeTracker.SubmittedLineListener() {
                 @Override
@@ -90,6 +94,11 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
         return connection;
     }
 
+    @Override
+    public Charset getCharset() {
+        return charset;
+    }
+
     public boolean connect() throws IOException {
         if (connection.getProtocol() != ConnectionProtocol.LOCAL_SHELL) {
             throw new IllegalStateException(
@@ -100,11 +109,8 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
             int cols = terminalColumns();
             int rows = terminalRows();
 
-            Map<String, String> env = new HashMap<>(System.getenv());
-            env.put("TERM", TerminalEmulationSupport.termName(connection));
-            if (env.get("LANG") == null || env.get("LANG").isBlank()) {
-                env.put("LANG", "en_US.UTF-8");
-            }
+            Map<String, String> env = shellEnvironment(
+                System.getenv(), TerminalEmulationSupport.termName(connection), charset);
 
             String workingDirectory = resolveWorkingDirectory(connection.getLocalShellWorkingDirectory());
             List<String> command = FlatpakSupport.hostCommand(shellCommand, workingDirectory, env);
@@ -136,7 +142,7 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
             ptyProcess = builder.start();
             inputStream = ptyProcess.getInputStream();
             outputStream = ptyProcess.getOutputStream();
-            reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+            reader = new InputStreamReader(inputStream, charset);
 
             connected.set(true);
             startMonitorThread();
@@ -148,6 +154,21 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
             close();
             throw new IOException(i18n("localShell.startFailed", String.valueOf(e.getMessage())), e);
         }
+    }
+
+    /**
+     * The environment the shell starts with: {@code base} plus {@code TERM}, and a UTF-8
+     * {@code LANG} when none is set and the session is UTF-8. With another encoding a missing
+     * {@code LANG} stays missing rather than announcing a UTF-8 locale the terminal does not decode.
+     */
+    static Map<String, String> shellEnvironment(Map<String, String> base, String term, Charset charset) {
+        Map<String, String> env = new HashMap<>(base != null ? base : Map.of());
+        env.put("TERM", term);
+        String lang = env.get("LANG");
+        if ((lang == null || lang.isBlank()) && StandardCharsets.UTF_8.equals(charset)) {
+            env.put("LANG", "en_US.UTF-8");
+        }
+        return env;
     }
 
     /**
@@ -729,7 +750,7 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
         if (string == null) {
             return;
         }
-        write(string.getBytes(StandardCharsets.UTF_8));
+        write(string.getBytes(charset));
     }
 
     private byte[] applyInputInterceptor(byte[] bytes) throws IOException {

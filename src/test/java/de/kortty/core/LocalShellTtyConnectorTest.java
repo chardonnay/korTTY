@@ -117,6 +117,37 @@ class LocalShellTtyConnectorTest {
     }
 
     @Test
+    void charsetIsUtf8UnlessTheConnectionSetsAnEncoding() {
+        de.kortty.model.ServerConnection connection = new de.kortty.model.ServerConnection();
+        connection.setProtocol(ConnectionProtocol.LOCAL_SHELL);
+        assertThat(new LocalShellTtyConnector(connection).getCharset())
+            .isEqualTo(java.nio.charset.StandardCharsets.UTF_8);
+
+        connection.setEncoding("ISO-8859-1");
+        assertThat(new LocalShellTtyConnector(connection).getCharset())
+            .isEqualTo(java.nio.charset.StandardCharsets.ISO_8859_1);
+    }
+
+    @Test
+    void shellEnvironmentAnnouncesAUtf8LocaleOnlyForAUtf8Session() {
+        java.nio.charset.Charset utf8 = java.nio.charset.StandardCharsets.UTF_8;
+        java.nio.charset.Charset latin1 = java.nio.charset.StandardCharsets.ISO_8859_1;
+
+        java.util.Map<String, String> withoutLang = java.util.Map.of("PATH", "/usr/bin");
+        assertThat(LocalShellTtyConnector.shellEnvironment(withoutLang, "xterm-256color", utf8))
+            .containsExactly("PATH", "/usr/bin", "TERM", "xterm-256color", "LANG", "en_US.UTF-8");
+        assertThat(LocalShellTtyConnector.shellEnvironment(withoutLang, "xterm-256color", latin1))
+            .containsExactly("PATH", "/usr/bin", "TERM", "xterm-256color");
+
+        // A LANG the user already has is kept as it is, whatever the session encoding.
+        java.util.Map<String, String> withLang = java.util.Map.of("LANG", "de_DE.ISO-8859-1", "TERM", "dumb");
+        assertThat(LocalShellTtyConnector.shellEnvironment(withLang, "vt220", utf8))
+            .containsExactly("LANG", "de_DE.ISO-8859-1", "TERM", "vt220");
+        assertThat(LocalShellTtyConnector.shellEnvironment(withLang, "vt220", latin1))
+            .containsExactly("LANG", "de_DE.ISO-8859-1", "TERM", "vt220");
+    }
+
+    @Test
     void connectRejectsNonLocalShellProtocol() {
         de.kortty.model.ServerConnection connection = new de.kortty.model.ServerConnection();
         connection.setProtocol(ConnectionProtocol.SSH_TCP);

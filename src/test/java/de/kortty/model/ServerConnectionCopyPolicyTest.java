@@ -29,7 +29,7 @@ public class ServerConnectionCopyPolicyTest {
             "host", "port", "username", "protocol", "localShellCommand",
             "localShellWorkingDirectory", "authMethod", "privateKeyPath",
             "terminalEffectPluginId", "terminalEffectAnimationSpeed", "terminalEmulationType",
-            "group", "tag", "disableHostKeyCheck", "aiProfileId", "aiSkillIds", "settings");
+            "encoding", "group", "tag", "disableHostKeyCheck", "aiProfileId", "aiSkillIds", "settings");
 
     /** Duplicate deliberately leaves these behind; moving one to carried is a product decision. */
     private static final Set<String> DUPLICATE_EXCLUDED = Set.of(
@@ -46,7 +46,7 @@ public class ServerConnectionCopyPolicyTest {
             "name", "host", "port", "group", "tag", "protocol", "localShellCommand",
             "localShellWorkingDirectory", "authMethod", "privateKeyPath", "sshKeyId",
             "disableHostKeyCheck", "terminalEffectPluginId", "terminalEffectAnimationSpeed",
-            "terminalEmulationType", "settings");
+            "terminalEmulationType", "encoding", "settings");
 
     /** Exported only when the matching export-dialog checkbox is set. */
     private static final Set<String> EXPORT_CONDITIONAL = Set.of(

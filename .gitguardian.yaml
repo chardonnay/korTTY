@@ -22,6 +22,11 @@ secret:
     # Test fixtures: throwaway passwords created and thrown away inside temp directories.
     - "src/test/java/de/kortty/security/MasterPasswordManagerAutoUnlockTest.java"
     - "src/test/java/de/kortty/security/MasterPasswordReEncryptorTest.java"
+    # Test fixtures for the outbound AI redaction: every "secret" in them is a made-up sample in the
+    # shape of a real format (AWS's documented EXAMPLE key, a dummy JWT, password=hunter2, X-Api-Key
+    # values), there so the masking patterns can be checked. None of them is or was a credential.
+    - "src/test/java/de/kortty/core/SecretTokenPatternsTest.java"
+    - "src/test/java/de/kortty/core/AiOutboundRedactionTest.java"
     # Generated MkDocs search indexes. Not a credential and not authored: they are one-line JSON
     # rebuilt in full by build-docs-site.py, so every docs change re-adds the whole file and the
     # scanner reads long-standing content as new. The concrete match is the heading anchor

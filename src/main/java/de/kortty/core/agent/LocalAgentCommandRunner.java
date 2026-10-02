@@ -12,8 +12,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
@@ -29,8 +27,6 @@ import java.util.function.Consumer;
 public final class LocalAgentCommandRunner implements AgentCommandRunner {
 
     private static final Duration COMMAND_WAIT_TIMEOUT = Duration.ofMinutes(15);
-    // Force UTF-8 stdout so captured output decodes correctly, regardless of console code page.
-    private static final String PS_UTF8_PREFIX = "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8;";
 
     private final ServerConnection connection;
     private final LocalShellTtyConnector connector;
@@ -75,8 +71,7 @@ public final class LocalAgentCommandRunner implements AgentCommandRunner {
     }
 
     static ShellKind resolveShellKind(String configuredCommand) {
-        boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
-        if (!windows) {
+        if (!LocalShellArgv.isWindows(System.getProperty("os.name", ""))) {
             return ShellKind.POSIX;
         }
         String base = configuredCommand == null ? "" : configuredCommand.trim().toLowerCase(Locale.ROOT);
@@ -102,36 +97,11 @@ public final class LocalAgentCommandRunner implements AgentCommandRunner {
     }
 
     /**
-     * Builds the argv that runs {@code command} non-interactively in the agent shell. PowerShell uses
-     * {@code -EncodedCommand} (Base64 UTF-16LE) so arbitrary commands with quotes/newlines survive
-     * Windows' command-line argument quoting unscathed.
+     * Builds the argv that runs {@code command} non-interactively in the agent shell (see
+     * {@link LocalShellArgv} for the per-shell quoting).
      */
     private List<String> wrap(String command) {
-        List<String> argv = new ArrayList<>();
-        switch (shellKind) {
-            case WINDOWS_POWERSHELL -> {
-                argv.add("powershell.exe");
-                argv.add("-NoProfile");
-                argv.add("-NonInteractive");
-                argv.add("-EncodedCommand");
-                argv.add(encodePowerShell(PS_UTF8_PREFIX + command));
-            }
-            case WINDOWS_CMD -> {
-                argv.add("cmd.exe");
-                argv.add("/c");
-                argv.add(command);
-            }
-            default -> {
-                argv.add("/bin/sh");
-                argv.add("-c");
-                argv.add(command);
-            }
-        }
-        return argv;
-    }
-
-    private static String encodePowerShell(String script) {
-        return Base64.getEncoder().encodeToString(script.getBytes(StandardCharsets.UTF_16LE));
+        return LocalShellArgv.argv(shellKind, command);
     }
 
     @Override
@@ -156,7 +126,7 @@ public final class LocalAgentCommandRunner implements AgentCommandRunner {
             : startDirectory;
         if (shellKind == ShellKind.POSIX) {
             return runProcess(
-                List.of("/bin/sh", "-c", AgentProbeScripts.POSIX),
+                LocalShellArgv.argv(ShellKind.POSIX, AgentProbeScripts.POSIX),
                 null,
                 null,
                 cancellationSupplier,
@@ -165,9 +135,8 @@ public final class LocalAgentCommandRunner implements AgentCommandRunner {
         // Windows: always probe via PowerShell (encoded so quotes/newlines survive argv quoting),
         // regardless of whether the agent's command shell is PowerShell or cmd.
         String shellLabel = shellKind == ShellKind.WINDOWS_CMD ? "cmd.exe" : "powershell.exe";
-        String script = PS_UTF8_PREFIX + AgentProbeScripts.windowsPowerShell(shellLabel);
-        List<String> argv = List.of(
-            "powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encodePowerShell(script));
+        List<String> argv = LocalShellArgv.argv(
+            ShellKind.WINDOWS_POWERSHELL, AgentProbeScripts.windowsPowerShell(shellLabel));
         return runProcess(argv, null, null, cancellationSupplier, directory);
     }
 
