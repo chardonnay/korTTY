@@ -3482,7 +3482,7 @@ tasks.register<JavaExec>("dialogHostTabSmoke") {
 
 tasks.register<JavaExec>("sftpManagerTabSmoke") {
     group = "verification"
-    description = "Drives the SFTP manager tab against a loopback SFTP server: background listing, size sort, folder re-upload, Disconnected and Reconnect."
+    description = "Drives the SFTP manager tab against a loopback SFTP server: background listing, size sort, folder re-upload, Disconnected and Reconnect, restore at saved folders."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.SFTPManagerTabSmoke")
     classpath = sourceSets.test.get().runtimeClasspath

@@ -3449,6 +3449,8 @@ public class MainWindow {
             // deregistration) that a user-initiated tab close would have triggered.
             hostTab.disposeOnWindowClose();
         }
+        // A restored remote editor or image tab closes the SFTP session it opened for itself.
+        SftpSessionRestoreSupport.closeOwnedSession(tab);
     }
     
     /**
@@ -5441,25 +5443,24 @@ public class MainWindow {
                         }
                     }
                     case SFTP_MANAGER -> {
-                        ServerConnection connection = app.getConfigManager().getConnectionById(sessionState.getConnectionId());
+                        // By id; projects saved before stored the connection's name.
+                        ServerConnection connection = SftpSessionRestoreSupport.findConnection(
+                                sessionState.getConnectionId(),
+                                app.getConfigManager()::getConnectionById,
+                                app.getConfigManager().getConnections());
                         if (connection != null && project.isAutoReconnect()) {
                             boolean isKeyAuth = connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY;
                             String password = isKeyAuth ? null : getConnectionPassword(connection);
                             if (password != null || isKeyAuth) {
                                 Integer timeout = sessionState.getSftpAutoCloseTimeout();
                                 int timeoutMinutes = (timeout != null && timeout > 0) ? timeout : 0;
-                                
-                                SFTPManagerTab sftpTab = new SFTPManagerTab(app, connection, password, null, timeoutMinutes, this);
+
+                                // Starts in the saved folders (or the home folders when they are gone).
+                                SFTPManagerTab sftpTab = new SFTPManagerTab(app, connection, password, null,
+                                        timeoutMinutes, this,
+                                        sessionState.getSftpLocalPath(), sessionState.getSftpRemotePath());
                                 tabPane.getTabs().add(sftpTab);
-                                
-                                // Restore paths if saved
-                                if (sessionState.getSftpLocalPath() != null) {
-                                    // Will be restored after connection
-                                }
-                                if (sessionState.getSftpRemotePath() != null) {
-                                    // Will be restored after connection
-                                }
-                                
+
                                 logger.info("Restored SFTP Manager tab for {}", connection.getDisplayName());
                             }
                         }
@@ -5476,24 +5477,29 @@ public class MainWindow {
                                     boolean isKeyAuth = connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY;
                                     String password = isKeyAuth ? null : getConnectionPassword(connection);
                                     if (password != null || isKeyAuth) {
-                                        // Open SFTP session and download file
+                                        // Open an SFTP session of its own and download the file;
+                                        // the session closes with the tab.
                                         new Thread(() -> {
+                                            de.kortty.core.SFTPSession sftpSession = null;
                                             try {
-                                                de.kortty.core.SFTPSession sftpSession = new de.kortty.core.SFTPSession(connection, password);
-                                                sftpSession.connect();
-                                                
+                                                sftpSession = openOwnedSftpSession(connection, password);
+
                                                 byte[] content = sftpSession.downloadFileBytes(filePath);
                                                 String filename = java.nio.file.Paths.get(filePath).getFileName().toString();
-                                                
-                                                Platform.runLater(() -> {
-                                                    FileEditorTab editorTab = new FileEditorTab(filename, filePath, sftpSession, content);
-                                                    tabPane.getTabs().add(editorTab);
+
+                                                de.kortty.core.SFTPSession owned = sftpSession;
+                                                Platform.runLater(() -> addTabOwningSftpSession(owned, () -> {
+                                                    FileEditorTab editorTab = new FileEditorTab(filename, filePath, owned, content);
                                                     logger.info("Restored remote file editor: {}", filePath);
-                                                });
+                                                    return editorTab;
+                                                }));
                                             } catch (Exception e) {
                                                 logger.error("Failed to restore remote file editor", e);
+                                                if (sftpSession != null) {
+                                                    closeOwnedSftpSession(sftpSession);
+                                                }
                                             }
-                                        }).start();
+                                        }, "SFTP-Restore-Editor").start();
                                     }
                                 }
                             } else {
@@ -5524,24 +5530,29 @@ public class MainWindow {
                                     boolean isKeyAuth = connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY;
                                     String password = isKeyAuth ? null : getConnectionPassword(connection);
                                     if (password != null || isKeyAuth) {
-                                        // Open SFTP session and download image
+                                        // Open an SFTP session of its own and download the image;
+                                        // the session closes with the tab.
                                         new Thread(() -> {
+                                            de.kortty.core.SFTPSession sftpSession = null;
                                             try {
-                                                de.kortty.core.SFTPSession sftpSession = new de.kortty.core.SFTPSession(connection, password);
-                                                sftpSession.connect();
-                                                
+                                                sftpSession = openOwnedSftpSession(connection, password);
+
                                                 byte[] imageData = sftpSession.downloadFileBytes(filePath);
                                                 String filename = java.nio.file.Paths.get(filePath).getFileName().toString();
-                                                
-                                                Platform.runLater(() -> {
-                                                    ImageViewerTab viewerTab = new ImageViewerTab(filename, filePath, sftpSession, imageData);
-                                                    tabPane.getTabs().add(viewerTab);
+
+                                                de.kortty.core.SFTPSession owned = sftpSession;
+                                                Platform.runLater(() -> addTabOwningSftpSession(owned, () -> {
+                                                    ImageViewerTab viewerTab = new ImageViewerTab(filename, filePath, owned, imageData);
                                                     logger.info("Restored remote image viewer: {}", filePath);
-                                                });
+                                                    return viewerTab;
+                                                }));
                                             } catch (Exception e) {
                                                 logger.error("Failed to restore remote image viewer", e);
+                                                if (sftpSession != null) {
+                                                    closeOwnedSftpSession(sftpSession);
+                                                }
                                             }
-                                        }).start();
+                                        }, "SFTP-Restore-Image").start();
                                     }
                                 }
                             } else {
@@ -5569,7 +5580,66 @@ public class MainWindow {
             toggleDashboard(true);
         }
     }
-    
+
+    /**
+     * Opens the SFTP session a restored remote editor or image tab uses on its own, prepared like
+     * an SFTP tab's session: the vault (managed SSH keys, and the master password that also
+     * decrypts a jump server's stored password) is handed over before connecting. A failed connect
+     * closes the half-opened session. Runs off the FX thread.
+     */
+    private de.kortty.core.SFTPSession openOwnedSftpSession(ServerConnection connection, String password)
+            throws Exception {
+        de.kortty.core.SFTPSession session = new de.kortty.core.SFTPSession(
+                SftpConnectionSupport.connectionForSftp(connection, null), password);
+        char[] masterPassword = app.getMasterPasswordManager() != null
+                ? app.getMasterPasswordManager().getMasterPassword()
+                : null;
+        SftpConnectionSupport.configureVault(session, app.getSSHKeyManager(), masterPassword, null);
+        try {
+            session.connect();
+        } catch (Exception e) {
+            closeOwnedSftpSession(session);
+            throw e;
+        }
+        return session;
+    }
+
+    /**
+     * Adds the restored tab {@code createTab} builds and makes it the owner of {@code session}: the
+     * session closes with the tab, however the tab is closed. If the tab cannot be built, the
+     * session is closed right away. Only these restored tabs own their session; an image tab opened
+     * from an SFTP tab shares that tab's session. FX thread.
+     */
+    private void addTabOwningSftpSession(
+            de.kortty.core.SFTPSession session,
+            java.util.function.Supplier<? extends Tab> createTab) {
+        Tab tab;
+        try {
+            tab = createTab.get();
+        } catch (RuntimeException e) {
+            logger.error("Failed to open a restored remote tab", e);
+            closeOwnedSftpSessionInBackground(session);
+            return;
+        }
+        SftpSessionRestoreSupport.closeWithTab(tab, () -> closeOwnedSftpSessionInBackground(session));
+        tabPane.getTabs().add(tab);
+    }
+
+    private static void closeOwnedSftpSession(de.kortty.core.SFTPSession session) {
+        try {
+            session.close();
+        } catch (Exception e) {
+            logger.warn("Error closing the SFTP session of a restored tab", e);
+        }
+    }
+
+    /** Closes off the FX thread, since closing waits for the server. */
+    private static void closeOwnedSftpSessionInBackground(de.kortty.core.SFTPSession session) {
+        Thread closer = new Thread(() -> closeOwnedSftpSession(session), "SFTP-Close");
+        closer.setDaemon(true);
+        closer.start();
+    }
+
     private void importConnections() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle(I18n.get("menu.connections.import"));
