@@ -1,6 +1,9 @@
 package de.kortty.ui;
 
 import com.sithtermfx.core.TerminalColor;
+import com.sithtermfx.core.TextStyle;
+import com.sithtermfx.core.emulator.ColorPalette;
+import com.sithtermfx.ui.settings.DefaultSettingsProvider;
 import com.sithtermfx.ui.settings.DynamicFontSizeSettingsProvider;
 import com.sithtermfx.ui.settings.SettingsProvider;
 import de.kortty.model.ConnectionSettings;
@@ -209,5 +212,90 @@ public class PerPaneSettingsProviderTest {
 
         Object fully = newProvider(baselineSettings(), shared, () -> 100);
         assertThat(bg(fully).toColor().getAlpha()).isEqualTo(0);
+    }
+
+    // ---- Colors tab: ANSI palette and selection colour (gated by ansiPaletteCustomized) ----
+
+    private static void refreshPalette(Object provider) throws Exception {
+        Method m = provider.getClass().getDeclaredMethod("refreshPalette");
+        m.setAccessible(true);
+        m.invoke(provider);
+    }
+
+    private static TerminalColor red(ColorPalette palette) {
+        return TerminalColor.fromColor(palette.getForeground(TerminalColor.index(1)));
+    }
+
+    @Test
+    void customizedPaletteReachesTheTerminal() throws Exception {
+        ConnectionSettings settings = baselineSettings();
+        settings.setAnsiRed("#123456");
+        settings.setAnsiPaletteCustomized(true);
+        SettingsProvider pane = (SettingsProvider) newProvider(settings, new DynamicFontSizeSettingsProvider(14f));
+
+        assertThat(red(pane.getTerminalColorPalette())).isEqualTo(TerminalColor.rgb(0x12, 0x34, 0x56));
+    }
+
+    @Test
+    void untouchedSettingsKeepTheVendorPaletteAndInverseSelection() throws Exception {
+        ConnectionSettings settings = baselineSettings(); // carries the legacy model colours, flag off
+        settings.setAnsiRed("#123456");
+        SettingsProvider pane = (SettingsProvider) newProvider(settings, new DynamicFontSizeSettingsProvider(14f));
+        DefaultSettingsProvider vendor = new DefaultSettingsProvider();
+
+        assertThat(pane.getTerminalColorPalette()).isSameInstanceAs(vendor.getTerminalColorPalette());
+        assertThat(pane.useInverseSelectionColor()).isTrue();
+        assertThat(pane.getSelectionColor().getBackground()).isEqualTo(vendor.getSelectionColor().getBackground());
+    }
+
+    @Test
+    void customizedSelectionIsASolidColourInsteadOfInverseVideo() throws Exception {
+        ConnectionSettings settings = baselineSettings();
+        settings.setSelectionColor("#FFFF00");
+        settings.setAnsiPaletteCustomized(true);
+        SettingsProvider pane = (SettingsProvider) newProvider(settings, new DynamicFontSizeSettingsProvider(14f));
+
+        assertThat(pane.useInverseSelectionColor()).isFalse();
+        TextStyle selection = pane.getSelectionColor();
+        assertThat(selection.getBackground()).isEqualTo(TerminalColor.rgb(255, 255, 0));
+        assertThat(selection.getForeground()).isEqualTo(TerminalColor.rgb(0, 0, 0));
+    }
+
+    @Test
+    void anInvalidSelectionColourFallsBackToTheVendorDefault() throws Exception {
+        ConnectionSettings settings = baselineSettings();
+        settings.setSelectionColor("not-a-colour");
+        settings.setAnsiPaletteCustomized(true);
+        SettingsProvider pane = (SettingsProvider) newProvider(settings, new DynamicFontSizeSettingsProvider(14f));
+
+        assertThat(pane.useInverseSelectionColor()).isFalse();
+        assertThat(pane.getSelectionColor().getBackground())
+                .isEqualTo(new DefaultSettingsProvider().getSelectionColor().getBackground());
+    }
+
+    @Test
+    void refreshPalettePicksUpChangedSettings() throws Exception {
+        ConnectionSettings settings = baselineSettings();
+        Object pane = newProvider(settings, new DynamicFontSizeSettingsProvider(14f));
+        SettingsProvider provider = (SettingsProvider) pane;
+        ColorPalette vendor = new DefaultSettingsProvider().getTerminalColorPalette();
+        assertThat(provider.getTerminalColorPalette()).isSameInstanceAs(vendor);
+
+        // Settings > Colors applied: the shared settings object changes, the cached palette follows on refresh.
+        settings.setAnsiRed("#FF8800");
+        settings.setSelectionColor("#000080");
+        settings.setAnsiPaletteCustomized(true);
+        assertThat(provider.getTerminalColorPalette()).isSameInstanceAs(vendor); // still cached
+        refreshPalette(pane);
+
+        assertThat(red(provider.getTerminalColorPalette())).isEqualTo(TerminalColor.rgb(0xFF, 0x88, 0x00));
+        assertThat(provider.useInverseSelectionColor()).isFalse();
+        assertThat(provider.getSelectionColor().getBackground()).isEqualTo(TerminalColor.rgb(0, 0, 0x80));
+
+        // Back to untouched: the built-in look returns.
+        settings.setAnsiPaletteCustomized(false);
+        refreshPalette(pane);
+        assertThat(provider.getTerminalColorPalette()).isSameInstanceAs(vendor);
+        assertThat(provider.useInverseSelectionColor()).isTrue();
     }
 }
