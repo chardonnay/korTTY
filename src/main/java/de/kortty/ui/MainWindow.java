@@ -2395,6 +2395,7 @@ public class MainWindow {
                 connection,
                 password,
                 historyToRestore,
+                null,
                 temporarySSHKey,
                 connection != null ? connection.getTerminalEffectPluginId() : null,
                 connection != null ? connection.getTerminalEffectAnimationSpeed() : null);
@@ -2409,15 +2410,22 @@ public class MainWindow {
                 connection,
                 password,
                 historyToRestore,
+                null,
                 temporarySSHKey,
                 connection != null ? connection.getTerminalEffectPluginId() : null,
                 connection != null ? connection.getTerminalEffectAnimationSpeed() : null);
     }
 
+    /**
+     * @param historyToRestore screen text a project saved for this tab; shown locally, dimmed,
+     *     above the new session — never sent to the server
+     * @param historySavedAt when that text was saved (for the header row), {@code null} if unknown
+     */
     private TerminalTab openConnectionAndReturnTab(
             ServerConnection connection,
             String password,
             String historyToRestore,
+            java.time.LocalDateTime historySavedAt,
             de.kortty.model.TemporarySSHKey temporarySSHKey,
             String terminalEffectPluginId,
             Double terminalEffectAnimationSpeed) {
@@ -2471,6 +2479,11 @@ public class MainWindow {
             // Create terminal tab with SithTermFX
             // Note: Tab starts with NO group (tabGroup = null), even if connection has a group
             TerminalTab terminalTab = new TerminalTab(connection, password, keyToUse);
+            if (historyToRestore != null && !historyToRestore.isBlank()) {
+                // Queued before connect(): the view writes it into the emulator before the
+                // emulator starts reading the connection, so it never races the login output.
+                terminalTab.getTerminalView().setPendingRestoredHistory(historyToRestore, historySavedAt);
+            }
             registerTerminalTabForAiAgentDock(terminalTab);
             if (terminalEffectAnimationSpeed != null) {
                 terminalTab.getTerminalView().setTerminalEffectAnimationSpeed(terminalEffectAnimationSpeed);
@@ -2532,22 +2545,6 @@ public class MainWindow {
                                 connection.getDisplayName(), connection.getHost(), getProtocolLabel(connection.getProtocol())));
                         updateDashboard(); // Update dashboard when connection succeeds
                     });
-                    
-                    // Restore history after connection is established
-                    if (historyToRestore != null && !historyToRestore.isEmpty()) {
-                        // Wait a bit for terminal to be fully initialized
-                        new Thread(() -> {
-                            try {
-                                Thread.sleep(500); // Give terminal time to settle
-                                Platform.runLater(() -> {
-                                    terminalTab.getTerminalView().restoreHistory(historyToRestore);
-                                    logger.info("Terminal history restored for {}", connection.getDisplayName());
-                                });
-                            } catch (InterruptedException e) {
-                                logger.error("History restore interrupted", e);
-                            }
-                        }).start();
-                    }
                 } catch (Exception ex) {
                     logger.error("Connection failed", ex);
                     Platform.runLater(() -> {
@@ -5359,6 +5356,7 @@ public class MainWindow {
                                             connection,
                                             password,
                                             history,
+                                            project.getLastModified(),
                                             null,
                                             sessionState.getTerminalEffectPluginId(),
                                             sessionState.getTerminalEffectAnimationSpeed());
