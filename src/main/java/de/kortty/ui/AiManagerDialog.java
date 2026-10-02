@@ -118,6 +118,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private final ComboBox<AiPromptPreset> promptPresetCombo;
     private final Button refreshReasoningButton;
     private final ComboBox<AiInternetAccessMode> internetAccessModeCombo;
+    /** Shown below the internet combo while a native Anthropic Messages URL locks it to Disabled. */
+    private final Label internetUnsupportedHintLabel;
     private final PasswordField apiKeyField;
     private final CheckBox clearApiKeyCheck;
     private final ComboBox<AiCliProviderDescriptor> cliProviderCombo;
@@ -198,6 +200,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         refreshReasoningButton.setTooltip(new Tooltip(I18n.get("settings.ai.reasoning.refresh")));
         refreshReasoningButton.setAccessibleText(I18n.get("settings.ai.reasoning.refresh"));
         internetAccessModeCombo = new ComboBox<>();
+        internetUnsupportedHintLabel = new Label(I18n.get("settings.ai.internet.anthropicUnsupported"));
         apiKeyField = new PasswordField();
         apiKeyField.setTooltip(new Tooltip(I18n.get("ai.manager.profile.apiKey.tooltip")));
         clearApiKeyCheck = new CheckBox(I18n.get("settings.ai.clearApiKey"));
@@ -580,10 +583,17 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         });
         editorGrid.add(new Label(I18n.get("settings.ai.internet.mode")), 0, row);
         editorGrid.add(internetAccessModeCombo, 1, row++);
+        internetUnsupportedHintLabel.setWrapText(true);
+        internetUnsupportedHintLabel.setStyle(MutedTextStyle.HINT);
+        internetUnsupportedHintLabel.setVisible(false);
+        internetUnsupportedHintLabel.setManaged(false);
+        editorGrid.add(internetUnsupportedHintLabel, 1, row++);
 
         apiUrlField.textProperty().addListener((obs, oldValue, newValue) -> {
             refreshReasoningOptions(reasoningCombo.getValue());
             refreshLocalModels(false);
+            // Typing or pasting an Anthropic Messages URL locks the internet mode at once.
+            updateInternetAccessUi();
         });
         modelCombo.getEditor().textProperty().addListener((obs, oldValue, newValue) ->
             refreshReasoningOptions(reasoningCombo.getValue()));
@@ -1671,9 +1681,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         apiUrlField.setDisable(managedLocalMode);
         apiKeyField.setDisable(managedLocalMode);
         clearApiKeyCheck.setDisable(managedLocalMode || (apiKeyField.getText() != null && !apiKeyField.getText().isBlank()));
-        // Never re-enable what the policy locked: this refresh runs on every connection-mode change.
-        internetAccessModeCombo.setDisable(cliMode
-            || de.kortty.policy.PolicyManager.effective().isManaged(de.kortty.policy.ManagedSetting.AI_INTERNET));
+        updateInternetAccessUi();
         refreshModelsButton.setDisable(cliMode
             || (!embeddedMode && !LocalLmModelResolver.canListModels(trimToNull(apiUrlField.getText()))));
         refreshReasoningButton.setDisable(selectedProfile == null || profileTestRunning.get());
@@ -1687,6 +1695,56 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         } else {
             cliStatusLabel.setText("");
         }
+    }
+
+    /**
+     * Enables the internet combo only for profiles whose backend can use a mode, and locks a native
+     * Anthropic Messages profile to Disabled with a hint: {@code AnthropicAiService} sends no
+     * tools, so any other value would be ignored without a word.
+     */
+    private void updateInternetAccessUi() {
+        AiConnectionMode mode = connectionModeCombo.getValue();
+        String apiUrl = apiUrlField.getText();
+        // Never re-enable what the policy locked: this refresh runs on every connection-mode change.
+        internetAccessModeCombo.setDisable(!supportsInternetAccess(mode, apiUrl)
+            || de.kortty.policy.PolicyManager.effective().isManaged(de.kortty.policy.ManagedSetting.AI_INTERNET));
+        boolean lockedToDisabled = internetAccessLockedToDisabled(mode, apiUrl);
+        AiInternetAccessMode current = internetAccessModeCombo.getValue();
+        // Not while a profile is being loaded: mid-load the combo still holds the previous profile's
+        // mode and the URL may still be the previous one, so forcing here could overwrite another
+        // profile's stored mode. loadSelectedProfile applies the lock once the form is complete.
+        if (lockedToDisabled && !loadingProfile && current != null && current.isEnabled()) {
+            revertingInternetMode = true;
+            try {
+                internetAccessModeCombo.setValue(AiInternetAccessMode.DISABLED);
+            } finally {
+                revertingInternetMode = false;
+            }
+        }
+        internetUnsupportedHintLabel.setVisible(lockedToDisabled);
+        internetUnsupportedHintLabel.setManaged(lockedToDisabled);
+    }
+
+    /**
+     * Whether a profile with this connection mode and API URL can use any internet mode at all.
+     * Local CLI providers bring their own tools, and korTTY's native Anthropic Messages service
+     * sends no tools; every other backend (OpenAI-compatible HTTP, LM Studio, the embedded
+     * runtimes) handles at least one mode.
+     */
+    static boolean supportsInternetAccess(AiConnectionMode mode, String apiUrl) {
+        if (mode == AiConnectionMode.LOCAL_CLI) {
+            return false;
+        }
+        return !internetAccessLockedToDisabled(mode, apiUrl);
+    }
+
+    /**
+     * True for an HTTP profile on a native Anthropic Messages endpoint: its internet mode is forced
+     * to Disabled and the hint explains why. CLI profiles only get a disabled combo, as before.
+     */
+    static boolean internetAccessLockedToDisabled(AiConnectionMode mode, String apiUrl) {
+        boolean httpProfile = mode == null || mode == AiConnectionMode.HTTP_API;
+        return httpProfile && AiServiceFactory.isAnthropicMessagesEndpoint(apiUrl);
     }
 
     private void refreshCliStatus() {
@@ -1785,6 +1843,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         } finally {
             loadingProfile = false;
         }
+        // A stored native Anthropic profile with an internet mode (from before the lock) shows
+        // Disabled; the profile keeps that value when it is saved.
+        updateInternetAccessUi();
     }
 
     private void applySelectedProfileToForm(AiProfile profile) {

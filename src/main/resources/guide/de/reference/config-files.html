@@ -1029,11 +1029,11 @@
 </div>
 <h2 id="verzeichnisse">Verzeichnisse<a class="headerlink" href="#verzeichnisse" title="Permanent link">&para;</a></h2>
 <h3 id="history">history/<a class="headerlink" href="#history" title="Permanent link">&para;</a></h3>
-<p>Komprimierter Terminalsitzungsverlauf.</p>
-<p><strong>Format:</strong> GZIP-komprimierte Textdateien, eine pro Terminalsitzung</p>
-<p><strong>Benennung:</strong> <code>{session-id}_{timestamp}.history.gz</code> (für den Sitzungsverlauf aus der Terminalprotokollierung)</p>
-<p><strong>Zweck:</strong> Speichert den Projekt-/Sitzungs-Scrollback-Verlauf, damit wieder geöffnete Sitzungen ihren Terminalinhalt wiederherstellen können.</p>
-<p><strong>Zugriff:</strong> Der Terminalverlauf wird automatisch geladen, wenn Sie eine gespeicherte Verbindung öffnen, und in der Suchfunktion für den Terminalverlauf angezeigt.</p>
+<p>Bildschirm-Snapshots werden mit <a href="../features/projects.html">Projekten</a> gespeichert.</p>
+<p><strong>Format:</strong> GZIP-komprimierter UTF-8 Text, eine Datei pro Terminal-Tab eines gespeicherten Projekts.</p>
+<p><strong>Benennung:</strong> <code>{session-id}.history.gz</code>, referenziert durch Dateinamen aus der <code>.kortty</code> Datei des Projekts.</p>
+<p><strong>Verwendung:</strong> Enthält den zuletzt sichtbaren Bildschirm jedes Primärfensters eines Terminal-Tabs zum Zeitpunkt des Speicherns des Projekts – nicht den Scrollback und nicht die Bildschirme weiterer geteilter Paneele.</p>
+<p><strong>Zugriff:</strong> Nur beim Öffnen eines Projekts mit aktivierter <strong>Automatisches Wiederverbinden</strong>; der Text wird dann lokal, über die neue Sitzung hinweg gedimmt angezeigt und niemals an den Server gesendet. Keine Verlaufssuche verwendet diese Dateien. korTTY liest, schreibt und löscht ausschließlich einfache <code>{session-id}.history.gz</code> Namen direkt in diesem Ordner. Die Dateien sind nicht verschlüsselt.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Pro Verbindung schreibt <em>Terminal Logging</em> hier nicht: Die generierten Protokolldateien werden in den Ordner verschoben, der auf der Registerkarte „Terminal Logging“ der Verbindung konfiguriert ist, oder in <code>~/.kortty/terminal-logs/</code>, wenn dieser Ordner leer bleibt.</p>
