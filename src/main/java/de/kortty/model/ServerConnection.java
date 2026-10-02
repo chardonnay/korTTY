@@ -70,6 +70,14 @@ public class ServerConnection {
     /** SithTermFX terminal emulation type stored as enum name. */
     @XmlElement
     private String terminalEmulationType = "XTERM";
+
+    /**
+     * Character encoding of this connection's terminal session, e.g. {@code ISO-8859-1}.
+     * Null = use the default (Settings → Terminal for SSH, UTF-8 for local shells); Mosh is always
+     * UTF-8. See {@link de.kortty.core.TerminalEncodingSupport}.
+     */
+    @XmlElement
+    private String encoding;
     
     @XmlElement
     private String group;
@@ -186,6 +194,7 @@ public class ServerConnection {
         c.terminalEffectPluginId = source.terminalEffectPluginId;
         c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
         c.terminalEmulationType = source.getTerminalEmulationType();
+        c.encoding = source.encoding;
         c.group = source.group;
         c.tag = source.tag;
         c.disableHostKeyCheck = source.disableHostKeyCheck;
@@ -232,6 +241,7 @@ public class ServerConnection {
         c.terminalEffectPluginId = source.terminalEffectPluginId;
         c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
         c.terminalEmulationType = source.getTerminalEmulationType();
+        c.encoding = source.encoding;
         c.group = source.group;
         c.tag = source.tag;
         c.disableHostKeyCheck = source.disableHostKeyCheck;
@@ -268,6 +278,7 @@ public class ServerConnection {
         c.terminalEffectPluginId = source.terminalEffectPluginId;
         c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
         c.terminalEmulationType = source.getTerminalEmulationType();
+        c.encoding = source.encoding;
         c.username = includeUsername ? source.username : "";
         if (includePassword) {
             c.encryptedPassword = source.encryptedPassword;
@@ -447,6 +458,16 @@ public class ServerConnection {
 
     public void setTerminalEmulationType(String terminalEmulationType) {
         this.terminalEmulationType = terminalEmulationType;
+    }
+
+    /** The per-connection terminal encoding, or {@code null} to use the default. */
+    public String getEncoding() {
+        return encoding;
+    }
+
+    /** Sets the per-connection terminal encoding; {@code null} or blank uses the default. */
+    public void setEncoding(String encoding) {
+        this.encoding = encoding != null && !encoding.isBlank() ? encoding.trim() : null;
     }
     
     public String getGroup() {

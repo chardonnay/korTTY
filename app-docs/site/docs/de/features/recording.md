@@ -14,6 +14,7 @@ Die Terminalaufzeichnung speichert Sitzungsdaten in komprimierten JSONL-Wiederga
 - **Legacy-Format**: `.korttyrec.jsonl`-Dateien bleiben lesbar (unkomprimiert)
 - **Standardspeicher**: `~/.kortty/recordings`
 - **Inhalt**: Änderungen des Bildschirmstatus, Zeitereignisse und optionale Farbläufe
+- **Video**: Nie direkt aufgezeichnet; WebM/VP9 und MKV/FFV1 Dateien stammen nur aus [Ein Replay exportieren](#videos-exportieren)
 
 !!! note
     Aufnahmen erfassen nicht kontinuierlich Pixel und werden nicht über das Netzwerk gestreamt. Die Dateigröße hängt von der Aktivitätsstufe ab und davon, ob die Farberfassung aktiviert ist.
@@ -41,8 +42,7 @@ Legen Sie unter **Tools > Video Manager** die folgenden Optionen fest:
 | Option | Beschreibung |
 |--------|-------------|
 | **Speicherpfad** | Verzeichnis, in dem Wiedergabedateien gespeichert werden (Standard: `~/.kortty/recordings`) |
-| **Standardformat** | KorTTY-Wiedergabeformat für neue Aufnahmen |
-| **Standardmäßiger geteilter Bereich** | Nur aktive Teilung oder gesamte Registerkarte aufzeichnen |
+| **Standardbereich** | Aufnahme des aktiven Teils nur oder des gesamten Tabs|
 | **Automatische Pause im Leerlauf** | Aufzeichnung pausieren, wenn Terminal inaktiv ist |
 | **Leerlaufschwelle** | Sekunden Inaktivität vor der Pause (Standard: 20) |
 | **Farben erfassen** | Terminal-Läufe pro Zelle in neue Aufzeichnungen einbeziehen |

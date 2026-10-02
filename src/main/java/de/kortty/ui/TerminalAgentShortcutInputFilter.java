@@ -1,8 +1,11 @@
 package de.kortty.ui;
 
+import de.kortty.core.TerminalEncodingSupport;
+
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
@@ -45,6 +48,9 @@ final class TerminalAgentShortcutInputFilter {
     private final Consumer<String> commandDispatcher;
     /** Optional observer of every submitted line (session journal input capture); may be null. */
     private final Consumer<String> submittedLineSink;
+    /** The connector's encoding; a byte of a single-byte charset is a whole character. */
+    private final Charset inputCharset;
+    private final boolean singleByteInput;
     private final StringBuilder inputLine = new StringBuilder();
     private final StringBuilder controlSequence = new StringBuilder();
     private final ByteArrayOutputStream partialUtf8 = new ByteArrayOutputStream(4);
@@ -67,12 +73,32 @@ final class TerminalAgentShortcutInputFilter {
         Predicate<String> commandInterceptor,
         Consumer<String> commandDispatcher,
         Consumer<String> submittedLineSink) {
+        this(commandResolver, shellHandlesCommand, commandInterceptor, commandDispatcher, submittedLineSink,
+            StandardCharsets.UTF_8);
+    }
+
+    /**
+     * @param inputCharset the encoding the connector sends typed text in. UTF-8 (and any charset
+     *     that is not single-byte) assembles multi-byte sequences; with a single-byte charset such as
+     *     ISO-8859-1 every byte is a character of its own and is forwarded at once, rather than being
+     *     held back as a UTF-8 lead byte until the next keystroke.
+     */
+    TerminalAgentShortcutInputFilter(
+        Function<String, String> commandResolver,
+        Predicate<String> shellHandlesCommand,
+        Predicate<String> commandInterceptor,
+        Consumer<String> commandDispatcher,
+        Consumer<String> submittedLineSink,
+        Charset inputCharset) {
 
         this.commandResolver = Objects.requireNonNull(commandResolver, "commandResolver");
         this.shellHandlesCommand = Objects.requireNonNull(shellHandlesCommand, "shellHandlesCommand");
         this.commandInterceptor = Objects.requireNonNull(commandInterceptor, "commandInterceptor");
         this.commandDispatcher = Objects.requireNonNull(commandDispatcher, "commandDispatcher");
         this.submittedLineSink = submittedLineSink;
+        this.inputCharset = inputCharset != null ? inputCharset : StandardCharsets.UTF_8;
+        this.singleByteInput = !StandardCharsets.UTF_8.equals(this.inputCharset)
+            && TerminalEncodingSupport.isSingleByte(this.inputCharset);
     }
 
     /** Filters one connector write while preserving decoding and paste state across writes. */
@@ -108,6 +134,12 @@ final class TerminalAgentShortcutInputFilter {
             if (value < 0x80) {
                 byte[] originalBytes = {(byte) value};
                 processCharacter(String.valueOf((char) value), originalBytes, outgoing, currentLineStart);
+                return;
+            }
+
+            if (singleByteInput) {
+                byte[] originalBytes = {(byte) value};
+                processCharacter(new String(originalBytes, inputCharset), originalBytes, outgoing, currentLineStart);
                 return;
             }
 

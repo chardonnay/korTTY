@@ -126,11 +126,11 @@ class SshTtyConnectorJumpHostIntegrationTest {
     void configureVaultAlwaysKeepsTheMasterPasswordButTheKeyManagerOnlyForKeyTargets() throws Exception {
         ServerConnection passwordTarget = new ServerConnection("t", "127.0.0.1", 22, "u");
         passwordTarget.setAuthMethod(AuthMethod.PASSWORD);
-        SshTtyConnector passwordTargetConnector = new SshTtyConnector(passwordTarget, "pw");
+        SshTtyConnector withoutKey = new SshTtyConnector(passwordTarget, "pw");
         SSHKeyManager keyManager = new SSHKeyManager(Files.createTempDirectory("kortty-keys-"));
-        passwordTargetConnector.configureVault(keyManager, MASTER);
-        assertThat(field(passwordTargetConnector, "masterPassword")).isSameInstanceAs(MASTER);
-        assertThat(field(passwordTargetConnector, "sshKeyManager")).isNull();
+        withoutKey.configureVault(keyManager, MASTER);
+        assertThat(field(withoutKey, "masterPassword")).isSameInstanceAs(MASTER);
+        assertThat(field(withoutKey, "sshKeyManager")).isNull();
 
         ServerConnection keyTarget = new ServerConnection("t", "127.0.0.1", 22, "u");
         keyTarget.setAuthMethod(AuthMethod.PUBLIC_KEY);

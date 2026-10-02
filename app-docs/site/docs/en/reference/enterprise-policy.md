@@ -131,7 +131,7 @@ Patterns match the host string exactly as configured in the connection — korTT
 | Key | Type | Values | Effect |
 | --- | --- | --- | --- |
 | `require-master-password` | boolean | `true` | Forces the master-password gate at startup; the setting is locked |
-| `enforce-host-key-check` | boolean | `true` | SSH host key verification cannot be disabled anywhere — globally, per group or per connection |
+| `enforce-host-key-check` | boolean | `true` | SSH host key verification cannot be disabled anywhere — globally, per group or per connection — and trusted host keys cannot be removed or replaced in korTTY |
 | `allow-telemetry` | boolean | `false` | Forbids anonymous usage statistics |
 | `allow-terminal-recording` | boolean | `false` | Forbids terminal session recording, including the session-level toggle |
 | `clipboard-mode` | string | `system`, `internal` | `internal` confines korTTY to its own in-memory clipboard — see below |
@@ -276,6 +276,8 @@ Mandates for the [session journal](../features/session-journal.md). Forced value
 ### `[[rule.session-journal.replace]]`
 
 Automatic search-and-replace in every journal — the way to keep a whole category of secret out of the transcript, instead of relying on the user to notice it. Each entry is one rule, and a rule may use a regular expression.
+
+korTTY applies the same rules to a terminal selection, and to a file attached to it, before they are sent to an AI profile other than an integrated model or a trusted local endpoint; see [Masking secrets before sending](../features/ai-assistant.md#masking-secrets-before-sending).
 
 | Key | Type | Default | Effect |
 | --- | --- | --- | --- |

@@ -908,8 +908,21 @@
 </table>
 <h2 id="hinweise">Hinweise<a class="headerlink" href="#hinweise" title="Permanent link">&para;</a></h2>
 <div class="admonition note">
+<p class="admonition-title">Kodierung</p>
+<p>Die Zeichenkodierung, mit der korTTY die Ausgabe einer SSH-Sitzung dekodiert und das kodiert, was Sie eingeben oder einfügen. Sie gilt für jede SSH-Verbindung, die auf dem Tab <em>Verbindung</em> des Verbindungseditors keine eigene <strong>Zeichenkodierung</strong> auswählt (siehe <a href="../../features/connections.html#zeichenkodierung">Zeichenkodierung</a>). Lokale Shells verwenden UTF-8, sofern ihre Verbindung keine Kodierung festlegt, und Mosh nutzt stets UTF-8, weil mosh-server und mosh-client dies erfordern. Wählen Sie die Kodierung aus, die die Programme auf dem Server tatsächlich schreiben, in der Regel das, was <code>locale</code> dort meldet. Eine Änderung tritt beim nächsten Verbindungsaufbau oder bei einer erneuten Verbindung eines Tabs in Kraft; offene Tabs behalten ihre Kodierung. Zeichen, die die gewählte Kodierung nicht darstellen kann, werden als <code>?</code> übermittelt.</p>
+<p>Frühere Versionen ignorierten diese Einstellung, sodass ein damals gewählter Wert nicht automatisch angewendet wird: SSH-Sitzungen bleiben UTF-8, und ein Hinweis unter dem Dropdown sagt dies, bis Sie die Einstellungen nach dem Öffnen der Terminal-Seite speichern. Wählen Sie <strong>UTF-8</strong> vor dem Speichern, wenn Sie den alten Wert nicht übernehmen möchten.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Fett als helle Farbe anzeigen</p>
+<p>Diese Einstellung gilt derzeit nur für Terminalaufnahmen: mit <a href="video.html">Terminalfarben in Aufnahmen erfassen</a> aktiviert, wird fetter Text einer der 8 normalen ANSI-Farben in seiner hellen Variante gespeichert. Das Live-Terminal zeichnet fetten Text in jeder Hinsicht immer noch in seiner normalen Farbe aus.</p>
+</div>
+<div class="admonition note">
 <p class="admonition-title">Zurückscrollen</p>
 <p>Steuert, wie viele Ausgabezeilen jeder Terminalbereich in seinem Scrollback-Puffer behält. Der Wert wird beim Erstellen eines Terminals gelesen, daher gilt eine Änderung für neu geöffnete Registerkarten und geteilte Bereiche – bereits geöffnete Terminals behalten ihre aktuelle Puffergröße. Größere Werte verbrauchen mehr Speicher pro Bereich.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Markierung automatisch in Zwischenablage kopieren</p>
+<p>Wenn aktiviert, wird der von Ihnen im Terminal ausgewählte Text sofort in die Zwischenablage kopiert. Unter Linux wird er zudem zur X11-Hauptauswahl, sodass ein Mittelklick ihn in anderen Anwendungen wie xterm oder gedit einfügt. Mit dem internen Zwischenablage-Modus der Unternehmensrichtlinie <a href="../enterprise-policy.html#interner-zwischenablagemodus">interner Zwischenablage-Modus</a> bleibt die Auswahl innerhalb von korTTY auf jeder Plattform.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">SSH-Keep-Alive</p>

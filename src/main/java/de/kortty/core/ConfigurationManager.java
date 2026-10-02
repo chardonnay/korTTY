@@ -10,6 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.crypto.SecretKey;
+import java.io.ByteArrayInputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -18,6 +20,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -29,6 +32,7 @@ public class ConfigurationManager {
     
     private final Path configDir;
     private final XMLConnectionRepository connectionRepository;
+    private final StoreFileGuard connectionsGuard;
     
     private ConnectionSettings globalSettings;
     private WindowGeometry defaultWindowGeometry;
@@ -54,48 +58,66 @@ public class ConfigurationManager {
     public ConfigurationManager(Path configDir) {
         this.configDir = configDir;
         this.connectionRepository = new XMLConnectionRepository(configDir);
+        this.connectionsGuard = new StoreFileGuard(connectionRepository.connectionsFile());
         this.globalSettings = new ConnectionSettings();
         this.defaultWindowGeometry = new WindowGeometry(100, 100, 900, 600);
         this.connections = new ArrayList<>();
     }
     
     /**
-     * Loads configuration from disk.
+     * Loads the connections from {@code connections.xml}. Never throws: a corrupt file is moved
+     * aside as {@code connections.xml.corrupt-<timestamp>} (see {@link #getLoadFailureBackup()}),
+     * a file that cannot be read stays in place and blocks saving (see {@link #isSaveBlocked()}).
+     * In both cases the connections in memory are kept as they are — empty at startup, the
+     * previous list after a failed reload — so a broken file never turns into an empty list on
+     * disk.
      */
     public void load(SecretKey key) {
-        lockedTemporaryKeys.clear();
-        loadedWithoutKey = key == null;
+        Path file = connectionsGuard.file();
+        connectionsGuard.beginLoad();
+        if (connectionsGuard.isMissing()) {
+            logger.info("No connections file found, starting with empty list");
+            lockedTemporaryKeys.clear();
+            loadedWithoutKey = key == null;
+            connections = new ArrayList<>();
+            return;
+        }
         try {
             Set<String> undecryptedIds = new LinkedHashSet<>();
-            connections = connectionRepository.loadConnections(key, undecryptedIds);
-            for (ServerConnection connection : connections) {
-                if (connection != null && undecryptedIds.contains(connection.getId())) {
-                    lockedTemporaryKeys.put(connection.getId(),
-                        new LockedTemporaryKey(connection.getAuthMethod(), connection.getSshKeyId()));
+            Optional<List<ServerConnection>> loaded = connectionsGuard.read(
+                content -> XMLConnectionRepository.readConnections(new ByteArrayInputStream(content), key,
+                    undecryptedIds));
+            if (loaded.isPresent()) {
+                connections = new ArrayList<>(loaded.get());
+                lockedTemporaryKeys.clear();
+                loadedWithoutKey = key == null;
+                for (ServerConnection connection : connections) {
+                    if (connection != null && undecryptedIds.contains(connection.getId())) {
+                        lockedTemporaryKeys.put(connection.getId(),
+                            new LockedTemporaryKey(connection.getAuthMethod(), connection.getSshKeyId()));
+                    }
                 }
-            }
-            logger.info("Loaded {} connections", connections.size());
-            if (!lockedTemporaryKeys.isEmpty()) {
-                logger.info("{} temporary SSH key(s) stay encrypted on disk until the vault is unlocked",
-                    lockedTemporaryKeys.size());
+                logger.info("Loaded {} connections", connections.size());
+                if (!lockedTemporaryKeys.isEmpty()) {
+                    logger.info("{} temporary SSH key(s) stay encrypted on disk until the vault is unlocked",
+                        lockedTemporaryKeys.size());
+                }
+            } else {
+                logger.warn("Kept {} connections in memory; the unreadable connections file was moved aside",
+                    connections.size());
             }
         } catch (Exception e) {
-            logger.error("Failed to load connections", e);
-            connections = new ArrayList<>();
+            logger.error("Failed to load connections; korTTY will not save over {} in this session", file, e);
         }
     }
     
     /**
-     * Saves configuration to disk.
+     * Saves configuration to disk. Logs instead of throwing; use {@link #saveOrThrow} where the
+     * caller reports a failed save to the user.
      */
     public void save(SecretKey key) {
         try {
-            if (key != null && loadedWithoutKey) {
-                // Unlocked by a path that did not report it: restore before the keys could be lost.
-                onVaultUnlocked(key);
-            }
-            connectionRepository.saveConnections(connections, key, temporaryKeysToPreserve());
-            logger.info("Saved {} connections", connections.size());
+            saveOrThrow(key);
         } catch (Exception e) {
             logger.error("Failed to save connections", e);
         }
@@ -191,6 +213,31 @@ public class ConfigurationManager {
 
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    /**
+     * Saves the connections and reports failure.
+     *
+     * @throws IllegalStateException when the last load could not read the file and left it in place
+     */
+    public void saveOrThrow(SecretKey key) throws Exception {
+        connectionsGuard.ensureWritable();
+        if (key != null && loadedWithoutKey) {
+            // Unlocked by a path that did not report it: restore before the keys could be lost.
+            onVaultUnlocked(key);
+        }
+        connectionRepository.saveConnections(connections, key, temporaryKeysToPreserve());
+        logger.info("Saved {} connections", connections.size());
+    }
+
+    /** Where the last load moved an unreadable {@code connections.xml}, if it did. */
+    public Optional<Path> getLoadFailureBackup() {
+        return connectionsGuard.getLoadFailureBackup();
+    }
+
+    /** Whether saving is refused because {@code connections.xml} could not be read. */
+    public boolean isSaveBlocked() {
+        return connectionsGuard.isSaveBlocked();
     }
     
     // Connection management

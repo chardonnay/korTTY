@@ -868,6 +868,9 @@ public class SFTPManagerTab extends Tab {
                 ServerConnection connToUse = SftpConnectionSupport.connectionForSftp(connection, temporarySSHKey);
 
                 session = new SFTPSession(connToUse, password);
+                // The SFTP manager is a tab the user is looking at, so a changed host key may be
+                // reviewed and replaced here.
+                session.setHostKeyReplacePolicy(de.kortty.core.SshHostKeyTrustManager.ReplacePolicy.INTERACTIVE);
 
                 // The master password is needed whatever the target's authentication (it decrypts
                 // the jump server password); the key manager only for a non-temporary key login.

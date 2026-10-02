@@ -28,6 +28,15 @@ public class AiProfile {
     @XmlElement
     private String apiUrl;
 
+    /**
+     * The user's statement that {@link #apiUrl} on the loopback interface runs the model on this
+     * computer, so terminal selections may be sent without masking secrets. Off by default: a
+     * proxy or an {@code ssh -L} forward on localhost can lead to a cloud API. Only honoured for
+     * an HTTP profile with a loopback URL (see {@code AiOutboundRedaction}).
+     */
+    @XmlElement
+    private Boolean trustedLocalEndpoint;
+
     @XmlElement
     private AiConnectionMode connectionMode;
 
@@ -164,6 +173,7 @@ public class AiProfile {
         this.id = source.id;
         this.name = source.name;
         this.apiUrl = source.apiUrl;
+        this.trustedLocalEndpoint = source.trustedLocalEndpoint;
         this.connectionMode = source.getConnectionMode();
         this.model = source.model;
         this.embeddedModelId = source.embeddedModelId;
@@ -238,6 +248,15 @@ public class AiProfile {
 
     public void setApiUrl(String apiUrl) {
         this.apiUrl = apiUrl;
+    }
+
+    public boolean isTrustedLocalEndpoint() {
+        return Boolean.TRUE.equals(trustedLocalEndpoint);
+    }
+
+    /** Stores {@code null} for false so profiles that never opted in keep their XML unchanged. */
+    public void setTrustedLocalEndpoint(boolean trustedLocalEndpoint) {
+        this.trustedLocalEndpoint = trustedLocalEndpoint ? Boolean.TRUE : null;
     }
 
     public AiConnectionMode getConnectionMode() {

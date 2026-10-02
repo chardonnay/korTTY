@@ -18,7 +18,7 @@ The connection editor has these tabs:
 
 | Tab | Contents |
 | --- | --- |
-| Connection | Host, port, username, protocol (SSH / Mosh / Local Shell), authentication (password / key / keyboard-interactive), **Host key verification** (use default / verify / don't verify), group/folder assignment and an optional free-text [tag](#tags). For **Local Shell** connections host, port, username and authentication are not required and are disabled. |
+| Connection | Host, port, username, protocol (SSH / Mosh / Local Shell), terminal emulation, **Character encoding** (use default / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), authentication (password / key / keyboard-interactive), **Host key verification** (use default / verify / don't verify), group/folder assignment and an optional free-text [tag](#tags). For **Local Shell** connections host, port, username and authentication are not required and are disabled. See [Character encoding](#character-encoding). |
 | Terminal Settings | Per-connection colors, font, ANSI/TrueColor handling, terminal effect |
 | SSH Tunnels | Local / remote / dynamic port forwarding |
 | Jump Server | Bastion-host chaining |
@@ -26,6 +26,10 @@ The connection editor has these tabs:
 | Journal | Per-connection [session journal](session-journal.md): enable journaling for this connection and configure its capture log and AI summarization |
 | Window Geometry | Saved size/position for this connection |
 | AI | Per-connection AI defaults: the [AI profile](ai-assistant.md) and AI Skills used by terminal AI features on this connection |
+
+### Character encoding
+
+**Character encoding** sets how korTTY decodes what this connection's session prints and encodes what you type and paste, for servers whose programs still write ISO-8859-1, ISO-8859-15 or Windows-1252 instead of UTF-8. **Use default** follows [Settings → Terminal → Encoding](../reference/settings/terminal.md#notes) for SSH connections and means UTF-8 for local shells. Mosh only works with UTF-8, so the dropdown is locked for Mosh connections and a note beside it says so. The choice is stored with the connection, survives duplicating, exporting and importing, and applies the next time the tab connects or reconnects.
 
 ## Tags
 
@@ -51,11 +55,17 @@ Every saved connection can carry one optional free-text **tag** — a label such
 
 Interactive Terminal and SFTP connections use the same trust-on-first-use (TOFU) host-key store. Mosh uses it for the SSH bootstrap as well. Trust is keyed by the normalized host name and port, so different saved connections to the same endpoint share one decision.
 
-On the first connection, korTTY shows the key algorithm and OpenSSH SHA-256 fingerprint. Verify that fingerprint with the server administrator before selecting **Yes**; **No** is the safe default. A matching key is accepted silently on later connections. If the server presents a different key, korTTY hard-blocks the connection, shows the expected and offered fingerprints, and does not retry because repeating the attempt cannot resolve a possible man-in-the-middle attack.
+On the first connection, korTTY shows the key algorithm and OpenSSH SHA-256 fingerprint. Verify that fingerprint with the server administrator before selecting **Yes**; **No** is the safe default. A matching key is accepted silently on later connections. If the server presents a different key, korTTY hard-blocks the connection, shows the expected and offered fingerprints, and does not retry because repeating the attempt cannot resolve a possible man-in-the-middle attack. A changed key is never replaced automatically.
+
+When a server was legitimately rebuilt, the changed-key alert of a terminal tab or the SFTP manager offers **Review and Replace…** next to **Close**, which stays the default. The review shows the currently trusted key and the new key, each with its algorithm and SHA-256 fingerprint. **Replace Key and Connect** stays disabled until you tick **I have verified the new fingerprint with the server administrator**, and **Cancel** is the default button, so ++enter++ never confirms. After you confirm, korTTY replaces the trusted key and the same connection continues. The replacement only succeeds while the trusted key is still the one you reviewed: if another window changed or removed it in the meantime, the connection stays blocked and you reconnect to review the current key. A jump server's changed key gets the same review when the connection was opened from a terminal tab or the SFTP manager.
+
+Other connections never offer the replacement, so nothing that runs without your attention waits on a review dialog: the SSH bootstrap of Mosh sessions, remote editors and image viewers restored with a project, and other background transfers. Their alert points to **Configuration → Security → Known Hosts…** instead. While an enterprise policy sets `enforce-host-key-check`, korTTY can neither replace nor remove a trusted key; the alert says so, and your administrator has to update the key.
+
+**Configuration → Security → Known Hosts…** lists every trusted key with host, port, algorithm, SHA-256 fingerprint and the time it was trusted. The search field filters by host, port, algorithm or fingerprint, ignoring case. **Remove…** asks for confirmation, with **No** as the default, and deletes the key only if it still has the fingerprint shown; the next connection to that server shows the first-use prompt again. If the store cannot be read, the dialog shows the error and offers no actions.
 
 The first-use prompt can be turned off for hosts where it is not wanted — set **Host key verification** on the connection editor's *Connection* tab or in Quick Connect (**Use default** / **Verify** / **Don't verify**), per group via the Connection Manager's group context menu, or globally under **Settings → Terminal**. The relaxation is accept-new only: an unknown key is pinned without a prompt, but a key that differs from one already pinned for that host is still hard-blocked. See [Relaxing host-key verification](security.md#relaxing-host-key-verification).
 
-The interactive pins are stored atomically in `~/.kortty/ssh-host-keys.properties`, with cross-process locking so two korTTY windows cannot overwrite each other's decisions. These endpoint-based pins are separate from the connection-ID-based pins used by unattended JobScheduler SSH, SFTP, and Rsync jobs.
+The interactive pins are stored atomically in `~/.kortty/ssh-host-keys.properties`, with cross-process locking so two korTTY windows cannot overwrite each other's decisions. Removing the last trusted key deletes the file, which korTTY treats as an empty store. These endpoint-based pins are separate from the connection-ID-based pins used by unattended JobScheduler SSH, SFTP, and Rsync jobs.
 
 When a new split connection is opened, the SSH handshake runs on a worker while a progress dialog keeps the JavaFX interface responsive. This allows both host-key confirmation and keyboard-interactive authentication to complete without blocking the UI.
 

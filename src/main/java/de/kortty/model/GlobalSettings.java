@@ -159,6 +159,7 @@ public class GlobalSettings {
     @XmlElement
     private String terminalRecordingStoragePath; // Blank/null = ~/.kortty/recordings
 
+    /** Kept for XML compatibility only: the recorder always writes KorTTY replay files. */
     @XmlElement
     private TerminalRecordingFormat terminalRecordingFormat = TerminalRecordingFormat.KORTTY_REPLAY;
 
@@ -724,6 +725,17 @@ public class GlobalSettings {
      */
     @XmlElement
     private Boolean terminalCursorBlink;
+
+    /**
+     * Whether the global terminal encoding ({@code defaultTerminalSettings.encoding}) applies.
+     *
+     * <p>Before korTTY honoured the setting it had no effect, so a value picked back then was stored
+     * without anyone noticing it did nothing. Such a file has no element here, which reads as
+     * {@code false}, and SSH sessions stay UTF-8 until the Terminal page of the settings is saved
+     * again; see {@link de.kortty.core.TerminalEncodingSupport#globalEncoding(GlobalSettings)}.</p>
+     */
+    @XmlElement
+    private boolean terminalEncodingConfirmed = false;
     
     // Last terminal settings used in QuickConnect dialog
     @XmlElement
@@ -2987,6 +2999,15 @@ public class GlobalSettings {
 
     public void setTerminalCursorBlink(Boolean terminalCursorBlink) {
         this.terminalCursorBlink = terminalCursorBlink;
+    }
+
+    /** Whether the stored global terminal encoding applies; {@code false} for older settings files. */
+    public boolean isTerminalEncodingConfirmed() {
+        return terminalEncodingConfirmed;
+    }
+
+    public void setTerminalEncodingConfirmed(boolean terminalEncodingConfirmed) {
+        this.terminalEncodingConfirmed = terminalEncodingConfirmed;
     }
     
     public ConnectionSettings getLastQuickConnectTerminalSettings() {

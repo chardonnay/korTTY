@@ -39,4 +39,21 @@ class SessionJournalRedactorTest {
         assertThat(redactor.redact(null)).isNull();
         assertThat(redactor.redact("")).isEmpty();
     }
+
+    @Test
+    void redactCountingMasksLikeRedactAndCountsSecretsAndPolicyMatches() {
+        SessionJournalRedactor redactor = new SessionJournalRedactor();
+        redactor.addSecret("alpha-secret");
+        redactor.setReplacements(java.util.List.of(
+            de.kortty.model.SessionJournalReplacement.literal("internal.example", "[host]")));
+        String text = "alpha-secret on internal.example, alpha-secret again";
+
+        RedactionResult result = redactor.redactCounting(text);
+
+        assertThat(result.text()).isEqualTo(redactor.redact(text));
+        assertThat(result.text()).isEqualTo("*** on [host], *** again");
+        assertThat(result.count()).isEqualTo(3);
+        assertThat(redactor.redactCounting("nothing here").count()).isEqualTo(0);
+        assertThat(redactor.redactCounting(null).text()).isNull();
+    }
 }
