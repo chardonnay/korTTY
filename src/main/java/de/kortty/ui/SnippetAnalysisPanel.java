@@ -185,6 +185,8 @@ public class SnippetAnalysisPanel extends VBox {
     /** The diagram with its header. */
     private VBox diagramPane;
     private boolean wideLayout;
+    /** Script header, text language and the collapsible option panels below the report. */
+    private final List<Node> optionNodes = new ArrayList<>();
 
     /**
      * @param onRerun     re-runs the analysis with the chosen profile id; {@code null} hides the re-run controls
@@ -301,13 +303,17 @@ public class SnippetAnalysisPanel extends VBox {
         exportResultBox.getChildren().addAll(exportResultLabel, exportOpenLink, exportFolderLink);
         exportResultBox.setVisible(false);
         exportResultBox.setManaged(false);
-        getChildren().addAll(exportResultBox, splitPane, headerChooser,
-            textLanguageRow, buildHardeningPane(), buildInputHardeningPane());
+        optionNodes.addAll(List.of(headerChooser, textLanguageRow, buildHardeningPane(), buildInputHardeningPane()));
         // Only added when there is something to offer. Toggling `managed` inside a ScrollPane does
         // not trigger a relayout, so an empty pane would leave a visible gap instead of vanishing.
         if (migrationSelector.hasAnythingToOffer()) {
-            getChildren().add(buildMigrationPane());
+            optionNodes.add(buildMigrationPane());
         }
+        getChildren().addAll(exportResultBox, splitPane);
+        getChildren().addAll(optionNodes);
+        // The diagram's own toolbar starts folded away, like the hardening options, so the diagram
+        // gets the room; the user's choice is remembered.
+        diagramView.makeOptionsCollapsible(loadDiagramOptionsExpanded(), this::persistDiagramOptionsExpanded);
         setPadding(new Insets(10));
 
         hardeningSelector.addSelectionListener(this::fireSelectionChanged);
@@ -323,6 +329,16 @@ public class SnippetAnalysisPanel extends VBox {
      */
     void useWideLayout(boolean diagramVisible) {
         wideLayout = true;
+        // Left: the report with the options stacked below it; right: the diagram over the full
+        // height — a flow diagram is tall, so it gets the long side.
+        getChildren().removeAll(optionNodes);
+        VBox leftColumn = new VBox(10);
+        leftColumn.getChildren().add(findingsView);
+        leftColumn.getChildren().addAll(optionNodes);
+        VBox.setVgrow(findingsView, Priority.ALWAYS);
+        findingsView.setMinHeight(200);
+        leftColumn.setPadding(new Insets(0, 8, 0, 0));
+        reportSplit.getItems().set(0, leftColumn);
         reportSplit.setOrientation(Orientation.HORIZONTAL);
         diagramPane.setPadding(new Insets(0, 0, 0, 8));
         setDiagramVisible(diagramVisible);
@@ -969,12 +985,30 @@ public class SnippetAnalysisPanel extends VBox {
     }
 
     private void updateMigrationHeader(Label header) {
-        header.setText(I18n.get("ai.migration.title") + " (" + migrationSelector.selectedCount() + ")");
+        header.setText(I18n.get("snippets.ai.analysis.codeLanguage") + " (" + migrationSelector.selectedCount() + ")");
     }
 
     /** Titles the input-hardening panel with a live "(N)" count of the effectively active sub-options. */
     private void updateInputHardeningHeader(Label header) {
         header.setText(I18n.get("ai.inputHardening.title") + " (" + inputHardeningSelector.selectedCount() + ")");
+    }
+
+    private boolean loadDiagramOptionsExpanded() {
+        GlobalSettings settings = SnippetAiDialogSupport.currentSettings();
+        return settings != null && Boolean.TRUE.equals(settings.getCodeAnalysisDiagramOptionsExpanded());
+    }
+
+    private void persistDiagramOptionsExpanded(boolean expanded) {
+        try {
+            GlobalSettingsManager manager = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            GlobalSettings settings = manager.getSettings();
+            if (settings != null) {
+                settings.setCodeAnalysisDiagramOptionsExpanded(expanded);
+                manager.save();
+            }
+        } catch (Exception ignored) {
+            // a preference that cannot be stored only resets on the next start
+        }
     }
 
     private boolean loadHardeningExpanded() {

@@ -16,7 +16,7 @@ KorTTY erkennt die Mischung lokal – es ist keine KI-Anfrage erforderlich, um z
 | Wo | Was es tut |
 |-------|--------------|
 | **Snippet-Editor → KI-Code → In eine Sprache migrieren…** | Öffnet den Migrationsdialog direkt und zeigt das Ergebnis als Vorher/Nachher-Vorschau an |
-| **Snippet-Editor → KI-Code → Vollständige Code-Analyse** | Ein minimiertes Bedienfeld zur **Sprachvereinheitlichung**; Die Migration wird dann als **erste** Phase von *Ausgewählte anwenden* ausgeführt, sodass jede anschließende Verbesserungs- und Härtungsphase auf das migrierte Skript wirkt |
+| **Snippet-Editor → KI-Code → Vollständige Code-Analyse** | ein eingerückter **Code-Sprache**-Panel; die Migration wird dann als **erste** Stufe von *Auswahl übernehmen* ausgeführt, sodass jeder nachfolgende Optimierungs- und Sicherheitsschritt auf dem migrierten Skript basiert |
 | **Snippet-Editor → KI-Code → Security-Check** | Das gleiche Panel; die Migration erfolgt vor den Sicherheitskorrekturen, daher werden die Korrekturen in der Ziel-Sprache geschrieben |
 | **Terminal → Workflow-Skript generieren**, **KI-Schwarm** | Das Kontrollkästchen **Nur Zielsprache**, das eingebettete fremdsprachige Teile im generierten Skript von Anfang an verbietet |
 

@@ -16,7 +16,7 @@ KorTTY detects the mix locally — no AI request is needed to decide whether the
 | Where | What it does |
 |-------|--------------|
 | **Snippet editor → AI Code → Migrate into one language…** | Opens the migration dialog directly and shows the result as a before/after preview |
-| **Snippet editor → AI Code → Full code analysis** | A collapsed **Language unification** panel; the migration then runs as the **first** stage of *Apply selected*, so every improvement and hardening stage afterwards works on the migrated script |
+| **Snippet editor → AI Code → Full code analysis** | A collapsed **Code language** panel; the migration then runs as the **first** stage of *Apply selected*, so every improvement and hardening stage afterwards works on the migrated script |
 | **Snippet editor → AI Code → Security Check** | The same panel; the migration runs before the security fixes, so the fixes are written in the target language |
 | **Terminal → Generate Workflow Script**, **AI Swarm** | The **Target language only** check box, which forbids embedded foreign-language parts in the generated script from the start |
 

@@ -588,6 +588,10 @@ public class GlobalSettings {
     @XmlElement
     private Boolean codeAnalysisProjectDiagramVisible = true;
 
+    /** Whether the diagram options (toolbar) in the code-analysis panel are expanded. Default: collapsed. */
+    @XmlElement
+    private Boolean codeAnalysisDiagramOptionsExpanded = false;
+
     /** Font size used in the Workflow script-generation window's editors. */
     @XmlElement
     private Integer workflowScriptFontSize = 14;
@@ -2434,6 +2438,14 @@ public class GlobalSettings {
 
     public void setCodeAnalysisDiagramAutoGenerate(Boolean codeAnalysisDiagramAutoGenerate) {
         this.codeAnalysisDiagramAutoGenerate = codeAnalysisDiagramAutoGenerate;
+    }
+
+    public Boolean getCodeAnalysisDiagramOptionsExpanded() {
+        return codeAnalysisDiagramOptionsExpanded;
+    }
+
+    public void setCodeAnalysisDiagramOptionsExpanded(Boolean codeAnalysisDiagramOptionsExpanded) {
+        this.codeAnalysisDiagramOptionsExpanded = codeAnalysisDiagramOptionsExpanded;
     }
 
     public Boolean getCodeAnalysisProjectDiagramVisible() {
