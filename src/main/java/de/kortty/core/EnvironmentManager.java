@@ -27,7 +27,7 @@ import java.util.UUID;
 public class EnvironmentManager {
 
     private static final Logger logger = LoggerFactory.getLogger(EnvironmentManager.class);
-    private static final String ENVIRONMENTS_FILE = "environments.xml";
+    public static final String ENVIRONMENTS_FILE = "environments.xml";
 
     private final Path configDir;
     private final List<EnvironmentDefinition> customEnvironments = new ArrayList<>();

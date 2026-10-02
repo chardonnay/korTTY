@@ -30,7 +30,7 @@ import java.util.UUID;
 public class SwarmChatManager {
 
     private static final Logger logger = LoggerFactory.getLogger(SwarmChatManager.class);
-    private static final String SWARM_CHATS_FILE = "swarm-chats.xml";
+    public static final String SWARM_CHATS_FILE = "swarm-chats.xml";
     private static final JAXBContext JAXB_CONTEXT;
 
     static {

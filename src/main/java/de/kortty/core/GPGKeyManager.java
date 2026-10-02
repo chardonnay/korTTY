@@ -23,7 +23,7 @@ import java.util.Optional;
 public class GPGKeyManager {
     
     private static final Logger logger = LoggerFactory.getLogger(GPGKeyManager.class);
-    private static final String GPG_KEYS_FILE = "gpg-keys.xml";
+    public static final String GPG_KEYS_FILE = "gpg-keys.xml";
     
     private final Path configDir;
     private final List<GPGKey> keys = new ArrayList<>();
