@@ -13,7 +13,7 @@ What changed in the current release. The version this guide was built for is sho
 ### SSH and security
 
 - **Temporary SSH keys are no longer left in the temp folder** — every connect, split and SFTP session with a temporary SSH key wrote the private key to a file in the system temp folder that was never deleted, so the key stayed on disk long after it had expired, and the debug log recorded the beginning and end of the key text. Temporary keys are now read in memory only and never logged, and key files that earlier versions left behind are deleted at the next start when they belong to you. See [Security](../reference/settings/security.md).
-- **Scheduled jobs delete their temporary key file** — a JobScheduler job with a temporary SSH key still needs the key as a file for Rsync's external `ssh`; that file is now created owner-only from the start and deleted when the job ends or its connection fails, instead of staying in the temp folder.
+- **Scheduled jobs keep temporary keys off the disk too** — a JobScheduler job with a temporary SSH key now authenticates in memory like a terminal tab. Only an Rsync job still needs the key as a file for its external `ssh`; that file is created owner-only from the start and deleted when the job ends or its connection fails, instead of staying in the temp folder.
 
 ### Local AI
 
