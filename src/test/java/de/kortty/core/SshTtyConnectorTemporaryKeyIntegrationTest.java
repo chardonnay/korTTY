@@ -16,6 +16,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyPair;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.Set;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -103,7 +105,12 @@ class SshTtyConnectorTemporaryKeyIntegrationTest {
 
     /** No log line may carry the key armour or any line of its Base64 body. */
     private void assertNoKeyTextLogged(String keyText) {
-        for (ILoggingEvent event : logEvents.list) {
+        // SSH I/O threads may still log after close(); ListAppender appends under its own monitor.
+        List<ILoggingEvent> events;
+        synchronized (logEvents) {
+            events = new ArrayList<>(logEvents.list);
+        }
+        for (ILoggingEvent event : events) {
             String message = event.getFormattedMessage();
             assertThat(message).doesNotContain("PRIVATE KEY");
             for (String line : keyText.split("\n")) {
