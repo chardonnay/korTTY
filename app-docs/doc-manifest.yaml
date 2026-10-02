@@ -243,12 +243,12 @@ pages:
     last_synced_ref: "659b3bd9"
   - path: app-docs/site/docs/en/features/sftp.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/ui/sftp]
+    owns_code: [src/main/java/de/kortty/ui/sftp, src/main/java/de/kortty/ui/SFTPManagerTab.java, src/main/java/de/kortty/core/SftpFileTransferService.java]
     screenshots: [sftp/sftp-manager.png]
     last_synced_ref: "031ad3c0"
   - path: app-docs/site/docs/en/features/file-browser.md
     owns_i18n: ["filebrowser."]
-    owns_code: [src/main/java/de/kortty/ui/LocalFileBrowser.java, src/main/java/de/kortty/ui/LocalFileBrowserManager.java, src/main/java/de/kortty/ui/FileBrowserPaths.java, src/main/java/de/kortty/ui/FileBrowserIcons.java, src/main/java/de/kortty/ui/FileBrowserHistory.java, src/main/java/de/kortty/ui/FileBrowserSort.java]
+    owns_code: [src/main/java/de/kortty/ui/LocalFileBrowser.java, src/main/java/de/kortty/ui/LocalFileBrowserManager.java, src/main/java/de/kortty/ui/FileBrowserPaths.java, src/main/java/de/kortty/ui/FileBrowserIcons.java, src/main/java/de/kortty/ui/FileBrowserHistory.java, src/main/java/de/kortty/ui/FileBrowserSort.java, src/main/java/de/kortty/ui/FileBrowserLoadingOverlay.java]
     last_synced_ref: "659b3bd9"
   - path: app-docs/site/docs/en/features/snippets.md
     owns_i18n: [snippets.ai.analysis., snippets.workspace., snippets.draft., snippets.batchExport., snippets.folder., snippets.executable., snippets.transfer., snippets.modularize., snippets.preview., snippets.project., snippets.analyze., snippets.fileName]
