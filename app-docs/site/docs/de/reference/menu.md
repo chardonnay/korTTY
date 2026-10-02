@@ -42,9 +42,11 @@ Verbindungs-Einträge (Schnellverbindung, Verwalten/Importieren/Exportieren von 
 
 | Artikel | Beschreibung |
 | --- | --- |
+| Tresor entsperren… | Geben Sie das Master-Passwort ein, um gespeicherte Geheimnisse zu entsperren, wenn die Startaufforderung ausgeschaltet ist (ausgegraut, solange der Tresor entsperrt ist) |
 | Anmeldeinformationen… | Gespeicherte Anmeldeinformationen verwalten (verschlüsselt) |
 | GPG-Schlüssel… | GPG-Schlüssel verwalten, die für die Backup-Verschlüsselung verwendet werden |
 | SSH-Schlüssel… | SSH-Schlüssel und Passphrasen verwalten |
+| Bekannte Hosts… | Überprüfen, suchen und entfernen vertrauenswürdiger SSH-Hostschlüssel |
 
 ## Konfiguration
 

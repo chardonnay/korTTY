@@ -1996,10 +1996,12 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             String plainApiKey = plainApiKeysByProfileId.get(copy.getId());
             if (plainApiKey != null && !plainApiKey.isBlank()) {
                 char[] masterPassword = app.getMasterPasswordManager() != null ? app.getMasterPasswordManager().getMasterPassword() : null;
+                if (masterPassword == null && !quiet) {
+                    // Offers Unlock Vault…; null means the user has seen the locked message already.
+                    masterPassword = VaultUnlockSupport.masterPasswordOrOfferUnlock(
+                        vaultPromptOwner(), app.getMasterPasswordManager(), I18n.get("settings.ai.error.vaultLocked"));
+                }
                 if (masterPassword == null) {
-                    if (!quiet) {
-                        showSimpleAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.vaultLocked"));
-                    }
                     return false;
                 }
                 try {
@@ -2421,6 +2423,12 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         } catch (Exception e) {
             return fallback;
         }
+    }
+
+    private javafx.stage.Window vaultPromptOwner() {
+        return getDialogPane().getScene() != null && getDialogPane().getScene().getWindow() != null
+            ? getDialogPane().getScene().getWindow()
+            : ownerWindow.getStage();
     }
 
     private void showSimpleAlert(Alert.AlertType type, String message) {

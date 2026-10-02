@@ -771,7 +771,7 @@
 </ol>
 <h3 id="at-rest-verschlusselung">At-Rest-Verschlüsselung<a class="headerlink" href="#at-rest-verschlusselung" title="Permanent link">&para;</a></h3>
 <p>Das Master-Passwort selbst wird mit PBKDF2 gehasht (310.000 Iterationen) und niemals im Klartext gespeichert. Das Salz und der Hash werden in <code>~/.kortty/master.key</code> gespeichert.</p>
-<p>Bei nachfolgenden Starts werden Sie von KorTTY aufgefordert, das Master-Passwort einzugeben, um verschlüsselte Daten zu entsperren. Wenn Sie <strong>Master-Passwort beim Start anfordern</strong> in <strong>Einstellungen &gt; Sicherheit</strong> deaktivieren, wird diese Eingabeaufforderung ausgeblendet, aber auf gespeicherte Passwörter kann erst dann zugegriffen werden, wenn Sie das Master-Passwort manuell eingeben.</p>
+<p>Bei nachfolgenden Starts fordert KorTTY Sie auf, das Master-Passwort einzugeben, um verschlüsselte Daten zu entsperren. Das Deaktivieren von <strong>Master-Passwort beim Programmstart anfordern</strong> in <strong>Einstellungen &gt; Sicherheit</strong> versteckt diese Aufforderung und startet mit dem Tresor gesperrt: gespeicherte Passwörter und Schlüssel bleiben unzugänglich, bis Sie ihn entsperren (siehe <a href="#spater-den-tresor-entsperren">Später den Tresor entsperren</a>).</p>
 <div class="admonition danger">
 <p class="admonition-title">Optionale automatische Anmeldung schwächt den Schutz im Ruhezustand</p>
 <p>Die zweite Sicherheitsoption, <strong>Master-Passwort-Eingabeaufforderung beim Start deaktivieren (automatische Anmeldung)</strong>, entfernt die Eingabeaufforderung ebenfalls, hält den Tresor jedoch vollständig nutzbar: korTTY schreibt Ihr Master-Passwort in <code>~/.kortty/master.autounlock</code> – <strong>Nur verschleiert, nicht verschlüsselt</strong>, mit Dateiberechtigungen nur für den Besitzer – und wird bei jedem Start automatisch entsperrt. Der Verschleierungsschlüssel ist in die Anwendung eingebettet, sodass Dateiberechtigungen die einzige wirkliche Grenze darstellen. jeder, der lesen kann <code>~/.kortty</code> oder ein Backup kann alle gespeicherten Geheimnisse entschlüsseln. Bei einem brandneuen Profil führt die Option ein Standard-Master-Passwort ohne Dialog aus. korTTY fragt vor der Aktivierung nach einer Bestätigung, es ist für Wegwerf-/Testumgebungen gedacht und a <a href="../reference/enterprise-policy.html">Richtlinienkonfiguration</a> das ein Master-Passwort erfordert, deaktiviert es. Einzelheiten: <a href="../reference/settings/security.html">Sicherheitseinstellungen</a>.</p>
@@ -780,6 +780,9 @@
 <p class="admonition-title">Note</p>
 <p>Wenn Sie das Master-Passwort verlieren, können verschlüsselte Daten nicht wiederhergestellt werden. Löschen Sie <code>master.key</code> und <code>credentials.xml</code>, starten Sie neu, legen Sie ein neues Master-Passwort fest und geben Sie Ihre Passwörter erneut ein.</p>
 </div>
+<h3 id="spater-den-tresor-entsperren">Später den Tresor entsperren<a class="headerlink" href="#spater-den-tresor-entsperren" title="Permanent link">&para;</a></h3>
+<p>Mit dem Tresor gesperrt wählen Sie <strong>Konfiguration &gt; Sicherheit &gt; Tresor entsperren…</strong> und geben das Master-Passwort ein; der Menüeintrag ist ausgegraut, solange der Tresor geöffnet ist. Das Speichern eines KI- oder Übersetzungs-API-Schlüssels, eines Hugging-Face-Tokens, eines Jump-Server-Passworts oder eines JobScheduler-Passworts, das Starten einer KI-Swarm-Ausführung auf Servern ohne geöffnetes Terminal, eine Frage an das Handbuch oder das Generieren eines ein- oder mehrseitigen Workflow-Skripts mit einem verschlüsselten KI-Schlüssel zeigen ihre Meldung "Tresor gesperrt" mit einer Schaltfläche <strong>Tresor entsperren…</strong> anstelle eines Sackganges. Einige Stellen berichten noch nur vom gesperrten Tresor, z. B. eine KI-Chat-Anfrage oder ein Schlüssel-Passphrase im Verbindungseditor; entsperren Sie zunächst den Tresor über das Menü. Nach einem erfolgreichen Entsperren setzt die Aktion fort; <strong>Abbrechen</strong> lässt den Tresor gesperrt, ohne einen zweiten Fehler zu erzeugen. Ein falsches Passwort hält das Dialogfeld offen, und das Abbrechen beendet korTTY nicht.</p>
+<p>Das Entsperren stellt auch die temporären SSH-Schlüssel wieder her, die beim gesperrten Start nicht entschlüsselt werden konnten; bis dahin bleiben sie verschlüsselt gespeichert, sodass das Speichern von Verbindungen in der Zwischenzeit nicht verloren geht. Fenster, die bereits geöffnet waren, während der Tresor gesperrt war, wie der Connection-Manager oder die Anmelde- und Schlüsselmanager, erkennen das Entsperren nicht – öffnen Sie sie erneut, um dort gespeicherte Geheimnisse zu nutzen.</p>
 <h2 id="verschlusselungsmodell">Verschlüsselungsmodell<a class="headerlink" href="#verschlusselungsmodell" title="Permanent link">&para;</a></h2>
 <p>Alle vertraulichen Daten im Ruhezustand werden mit <strong>AES-256-GCM</strong> verschlüsselt:</p>
 <ul>
@@ -855,7 +858,7 @@
 <ul>
 <li><strong>Zentralisierte Verwaltung</strong> – Verwalten Sie alle SSH-Schlüssel an einem Ort</li>
 <li><strong>Verschlüsselte Passphrasen</strong> – Schlüsselpassphrasen werden mit AES-256-GCM verschlüsselt gespeichert</li>
-<li><strong>Schlüsselkopie</strong> – Verwenden Sie <strong>In Benutzerverzeichnis kopieren</strong>, um Schlüssel nach <code>~/.kortty/ssh-keys/</code> zu kopieren; Kopierte Schlüssel werden in verschlüsselte Backups einbezogen und nur mit Eigentümerberechtigungen wiederhergestellt</li>
+<li><strong>Schlüsselkopieren</strong> — Verwenden Sie <strong>In Benutzerverzeichnis kopieren</strong>, um Schlüssel nach <code>~/.kortty/ssh-keys/</code> zu kopieren; unter macOS und Linux wird der kopierte private Schlüssel nur für den Besitzer lesbar (<code>rw-------</code>) gesetzt und das Verzeichnis <code>rwx------</code>, und kopierte Schlüssel werden in verschlüsselten Backups eingeschlossen und mit Besitzer-Nur Berechtigungen wiederhergestellt.</li>
 <li><strong>Platzhaltersuche</strong> – Schnelle Suche nach Schlüsseln mithilfe von <code>*</code>-Mustern</li>
 <li><strong>Automatische Nutzung</strong> – Wählen Sie Schlüssel direkt in den Verbindungseinstellungen aus</li>
 </ul>
@@ -868,7 +871,9 @@
 <li>Der Schlüsselpfad und die Passphrase werden automatisch ausgefüllt.</li>
 </ol>
 <h2 id="interaktive-ssh-hostschlussel-vertrauensstellung">Interaktive SSH-Hostschlüssel-Vertrauensstellung<a class="headerlink" href="#interaktive-ssh-hostschlussel-vertrauensstellung" title="Permanent link">&para;</a></h2>
-<p>Terminal- und SFTP-Verbindungen, einschließlich des von Mosh verwendeten SSH-Bootstraps, nutzen einen TOFU-Verifizierer (Trust-on-First-Use), der durch normalisierten Hostnamen und Port verschlüsselt ist. Bei der ersten Verwendung zeigt korTTY den Serverschlüsselalgorithmus und den OpenSSH SHA-256-Fingerabdruck an; Überprüfen Sie vor der Annahme, dass es außerhalb des Bandes liegt. Die Bestätigung lautet standardmäßig <strong>Nein</strong>. Ein zuvor vertrauenswürdiger passender Schlüssel wird stillschweigend akzeptiert, während ein geänderter Schlüssel mit den erwarteten und angebotenen Fingerabdrücken fest blockiert wird und nie automatisch erneut versucht wird.</p>
+<p>Terminal- und SFTP-Verbindungen, einschließlich des SSH-Bootstraps, der von Mosh verwendet wird, teilen einen Trust-on-First-Use (TOFU)-Verifizierer, der nach normalisiertem Hostnamen und Port gekennzeichnet ist. Beim ersten Einsatz zeigt korTTY den Server-Schlüsselalgorithmus und den OpenSSH-SHA-256-Fingerabdruck an; verifizieren Sie ihn außerhalb des Kanals, bevor Sie ihn akzeptieren. Die Bestätigung ist standardmäßig auf <strong>Nein</strong> gesetzt. Ein zuvor vertrauenswürdiger übereinstimmender Schlüssel wird stillschweigend akzeptiert, während ein geänderter Schlüssel mit dem erwarteten und angebotenen Fingerabdruck hart blockiert wird und niemals automatisch erneut versucht oder ersetzt wird.</p>
+<p>Ein geänderter Schlüssel kann nur durch eine explizite Entscheidung und ausschließlich in einer Verbindung ersetzt werden, die Sie selbst in einem Terminal-Tab oder im SFTP-Manager (einschließlich seines Sprungservers) geöffnet haben. <strong>Prüfen und ersetzen…</strong> in der Warnung zum geänderten Schlüssel zeigt den vertrauenswürdigen und den neuen Fingerabdruck nebeneinander; die Ersetzen-Schaltfläche bleibt deaktiviert, bis Sie bestätigen, dass Sie den neuen Fingerabdruck mit dem Server-Administrator verifiziert haben, und <strong>Schließen</strong> sowie <strong>Abbrechen</strong> bleiben die Standardknöpfe. Der Ersatz ist ein Compare-and-Swap: er wird nur gespeichert, solange der vertrauenswürdige Schlüssel noch exakt derselbe ist, den Sie überprüft haben; ein in einem anderen Fenster geänderter Schlüssel wird damit niemals überschrieben. Jeder Ersatz wird mit dem alten und dem neuen Fingerabdruck protokolliert. Hintergrund- und wiederhergestellte Verbindungen sowie der SSH-Bootstrap von Mosh behalten die reine Blockierung bei.</p>
+<p><strong>Konfiguration → Sicherheit → Bekannte Hosts…</strong> listet, durchsucht und entfernt vertrauenswürdige Schlüssel. Die Entfernung funktioniert auf die gleiche Weise: sie löscht einen Schlüssel nur, solange er noch den in der Bestätigung angezeigten Fingerabdruck besitzt, und die nächste Verbindung fragt erneut wie beim ersten Einsatz. Mit dem Unternehmensrichtlinien-Schlüssel <code>enforce-host-key-check</code> sind sowohl Ersetzen als auch Entfernen deaktiviert, sodass nur ein Administrator einen vertrauenswürdigen Schlüssel ändern kann.</p>
 <p>Interaktive Pins werden atomar in <code>~/.kortty/ssh-host-keys.properties</code> geschrieben; Eine Companion-Sperre koordiniert gleichzeitige korTTY-Prozesse. Dieser Speicher unterscheidet sich von den verbindungs-ID-basierten Hostschlüssel-Pins des JobScheduler in <code>job-scheduler.xml</code>, die die unbeaufsichtigte SSH-, SFTP- und Rsync-Ausführung schützen.</p>
 <h3 id="lockere-uberprufung-des-hostschlussels">Lockere Überprüfung des Hostschlüssels<a class="headerlink" href="#lockere-uberprufung-des-hostschlussels" title="Permanent link">&para;</a></h3>
 <p>Für Labor- oder Wegwerf-Hosts können Sie die Eingabeaufforderung bei der ersten Verwendung deaktivieren und korTTY veranlassen, einen unbekannten Schlüssel stillschweigend zu akzeptieren. Hierbei handelt es sich um eine <strong>Akzeptieren-Neu</strong>-Lockerung, nicht um blindes Vertrauen: Ein Schlüssel, der sich von dem unterscheidet, der bereits für diesen Host festgelegt wurde, ist immer noch hart blockiert, sodass ein Man-in-the-Middle auf einem Host, mit dem Sie sich zuvor verbunden haben, immer noch abgefangen wird. Es ist standardmäßig deaktiviert und kann in der Reihenfolge der Priorität auf drei Bereiche eingestellt werden:</p>
@@ -898,7 +903,7 @@
 <li>Wählen Sie <strong>GPG-Verschlüsselung</strong> als Verschlüsselungstyp aus.</li>
 <li>Wählen Sie den GPG-Schlüssel aus, der für die Verschlüsselung verwendet werden soll.</li>
 </ol>
-<p>GPG-verschlüsselte Backups und Exporte werden als <code>.gpg</code>-Dateien gespeichert und erfordern den <code>gpg</code>-Befehl Ihres Systems und einen verwendbaren öffentlichen Schlüssel zur Entschlüsselung.</p>
+<p>GPG-verschlüsselte Backups und Exporte werden als <code>.gpg</code> Dateien gespeichert — ein GPG-Backup als <code>kortty-backup.zip.gpg</code> — und benötigen den <code>gpg</code> Befehl Ihres Systems. Die Erstellung eines Backups erfordert den öffentlichen Schlüssel des Empfängers; die Wiederherstellung oder das Öffnen eines Backups erfordert den passenden <strong>privaten</strong> Schlüssel, und <code>gpg</code> kann nach dessen Passphrase fragen.</p>
 <h2 id="gespeicherte-sicherheitsdaten">Gespeicherte Sicherheitsdaten<a class="headerlink" href="#gespeicherte-sicherheitsdaten" title="Permanent link">&para;</a></h2>
 <p>Die folgenden sensiblen und sicherheitsrelevanten Daten werden in <code>~/.kortty/</code> gespeichert; Geheime Werte werden verschlüsselt, während öffentliches Verifizierungsmaterial nicht verschlüsselt ist:</p>
 <table>
@@ -952,6 +957,8 @@
 </tr>
 </tbody>
 </table>
+<p>korTTY schreibt diese Dateien nicht an Ort und Stelle neu: ein Speichern erfolgt in einer temporären Datei in <code>~/.kortty</code>, die dann über die alte Datei umbenannt wird, für Verbindungen, Anmeldedaten, SSH-Schlüssel, geplante Aufgaben und <code>master.key</code> nach dem Flush auf die Festplatte. So bleibt bei einem Absturz, einer vollen Festplatte oder einem beendeten Prozess die vorherige Version intakt. Unter macOS und Linux behält korTTY <code>~/.kortty</code> bei <code>rwx------</code> und schreibt <code>connections.xml</code>, <code>credentials.xml</code>, <code>ssh-keys.xml</code>, <code>job-scheduler.xml</code> und <code>master.key</code> auf Besitzer-Nur (<code>rw-------</code>), auch wenn eine ältere Version sie für andere Benutzer lesbar ließ; unter Windows sind sie durch die Berechtigungen Ihres Benutzerprofils geschützt.</p>
+<p>Eine Datendatei mit Verbindungen, Anmeldedaten, SSH- oder GPG-Schlüsseln, Umgebungen, Themen oder geplanten Aufgaben, die korTTY beim Start nicht parsen kann, wird als <code>&lt;name&gt;.corrupt-&lt;timestamp&gt;</code> ohne Änderung verschoben; korTTY fährt ohne deren Inhalt fort und ein Hinweis listet die verschobenen Dateien auf. Eine Datei, die überhaupt nicht gelesen werden kann – zum Beispiel weil ein Virenscanner oder ein anderes Programm sie hält oder ein Netzwerk-Home-Verzeichnis nicht erreichbar ist – bleibt an ihrem Ort und korTTY speichert nicht darüber hinweg für den Rest der Sitzung; der Hinweis listet sie separat auf. <code>master.key</code> wird niemals verschoben, weil korTTY ohne ihn das Profil als neu behandeln und einen neuen Salzwert erzeugen würde: wenn es beschädigt ist, schlägt das Entsperren mit einem Fehler fehl, der die Datei nennt, und Sie stellen sie aus einem Backup wieder her.</p>
 <h2 id="best-practices-fur-die-sicherheit">Best Practices für die Sicherheit<a class="headerlink" href="#best-practices-fur-die-sicherheit" title="Permanent link">&para;</a></h2>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
@@ -967,8 +974,8 @@
 <ul>
 <li>Schützen Sie private Schlüsseldateien mit einer Passphrase.</li>
 <li>Schlüssel nach <code>~/.kortty/ssh-keys/</code> kopieren, um sie in verschlüsselte Backups aufzunehmen; Schlüssel, die an ihren ursprünglichen Speicherorten verbleiben, werden nur referenziert und müssen separat migriert werden.</li>
-<li>Schlüsseldateiberechtigungen einschränken (z. B. <code>chmod 600</code>).</li>
-<li>Überprüfen Sie den Fingerabdruck eines Hostschlüssels bei der ersten Verwendung über einen vertrauenswürdigen Kanal, bevor Sie ihn akzeptieren. Behandeln Sie eine Warnung bezüglich eines geänderten Schlüssels als einen möglichen Serverneuaufbau, einen DNS-Fehler oder einen Man-in-the-Middle-Angriff und untersuchen Sie ihn, anstatt die Verbindung wiederholt wiederherzustellen.</li>
+<li>Beschränken Sie die Dateiberechtigungen für Schlüsseldateien (z. B. <code>chmod 600</code>). Kopien in <code>~/.kortty/ssh-keys/</code> werden automatisch nur für den Besitzer lesbar gesetzt.</li>
+<li>Verifizieren Sie einen Fingerabdruck eines Hosts bei Erstverwendung über einen vertrauenswürdigen Kanal, bevor Sie ihn akzeptieren. Behandeln Sie eine Warnung über einen geänderten Schlüssel als möglichen Server-Neuaufbau, DNS-Fehler oder Man-in-the-Middle-Angriff und untersuchen Sie das Problem statt sich wiederholt neu zu verbinden. Verwenden Sie <strong>Prüfen und ersetzen…</strong> erst, nachdem der Server-Administrator den neuen Fingerabdruck bestätigt hat.</li>
 </ul>
 <h3 id="jobscheduler">JobScheduler<a class="headerlink" href="#jobscheduler" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1021,7 +1028,7 @@
 </tr>
 <tr>
 <td>Interaktive SSH/SFTP/Mosh-Hostschlüssel</td>
-<td>Gemeinsam genutzter normalisierter Host:Port-TOFU, Bestätigung des Fingerabdrucks bei der ersten Verwendung (optional entspannt, um „Neu“ zu akzeptieren), stille exakte Übereinstimmung, harte Blockierung bei Änderung</td>
+<td>Geteilte normalisierte host:port TOFU, Bestätigung des Fingerabdrucks bei Erstverwendung (optional gelockert auf accept-new), stilles exaktes Match, harter Block bei Änderung; Ersetzung nur nach expliziter Fingerabdruckbestätigung, als compare-and-swap</td>
 </tr>
 <tr>
 <td>KI-API-Schlüssel</td>
@@ -1066,6 +1073,10 @@
 <tr>
 <td>Anmeldeinformationen</td>
 <td>Niemals im Klartext gespeichert</td>
+</tr>
+<tr>
+<td>Lokale Datendateien</td>
+<td>Atomares Ersetzen mit Flush auf die Festplatte, <code>~/.kortty</code> und geheime Speicher nur für den Eigentümer, nicht lesbare Dateien werden beiseitegeschoben oder unverändert gelassen statt überschrieben</td>
 </tr>
 </tbody>
 </table>
