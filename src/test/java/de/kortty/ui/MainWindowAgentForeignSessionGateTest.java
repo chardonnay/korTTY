@@ -33,7 +33,7 @@ class MainWindowAgentForeignSessionGateTest {
     @Test
     void everyTerminalAgentRunStartsAfterTheForeignSessionGate() throws IOException {
         String source = source();
-        List<String> overloads = methodBodies(source, "private void launchTerminalAgent(");
+        List<String> overloads = methodBodies(source, "private boolean launchTerminalAgent(");
         assertThat(overloads).isNotEmpty();
 
         List<String> gated = new ArrayList<>();
@@ -93,7 +93,7 @@ class MainWindowAgentForeignSessionGateTest {
         // Retry and the accepted plan's execution go back through the gated launcher.
         assertThat(methodBodies(source(), "private void relaunchTerminalAgentWithCurrentProfile(").get(0))
             .contains("launchTerminalAgent(");
-        assertThat(methodBodies(source(), "private void startAcceptedPlanExecution(").get(0))
+        assertThat(methodBodies(source(), "private boolean startAcceptedPlanExecution(").get(0))
             .contains("launchTerminalAgent(");
     }
 
@@ -101,9 +101,15 @@ class MainWindowAgentForeignSessionGateTest {
         return Files.readString(SOURCE, StandardCharsets.UTF_8);
     }
 
-    /** True when a method body is exactly one {@code target(...)} statement (plus whitespace). */
+    /**
+     * True when a method body is exactly one {@code target(...)} statement, optionally returned
+     * (plus whitespace).
+     */
     private static boolean isSingleDelegation(String body, String target) {
         String code = stripCommentsAndStrings(body).strip();
+        if (code.startsWith("return ")) {
+            code = code.substring("return ".length()).strip();
+        }
         return code.startsWith(target) && code.endsWith(");") && count(code, ";") == 1;
     }
 

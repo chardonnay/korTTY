@@ -7788,23 +7788,23 @@ public class MainWindow {
         return AiProfileSelectionSupport.findByLookup(getAvailableAiProfiles(), lookup);
     }
 
-    private void launchTerminalAgent(TerminalTab terminalTab, TerminalAgentModels.Request request) {
-        launchTerminalAgent(terminalTab, request, null);
+    private boolean launchTerminalAgent(TerminalTab terminalTab, TerminalAgentModels.Request request) {
+        return launchTerminalAgent(terminalTab, request, null);
     }
 
-    private void launchTerminalAgent(
+    private boolean launchTerminalAgent(
         TerminalTab terminalTab,
         TerminalAgentModels.Request request,
         TerminalView.TerminalAgentRunContext runContext) {
-        launchTerminalAgent(terminalTab, request, runContext, null);
+        return launchTerminalAgent(terminalTab, request, runContext, null);
     }
 
-    private void launchTerminalAgent(
+    private boolean launchTerminalAgent(
         TerminalTab terminalTab,
         TerminalAgentModels.Request request,
         TerminalView.TerminalAgentRunContext runContext,
         String askSelectedText) {
-        launchTerminalAgent(terminalTab, request, runContext, askSelectedText, null);
+        return launchTerminalAgent(terminalTab, request, runContext, askSelectedText, null);
     }
 
     /**
@@ -7812,8 +7812,11 @@ public class MainWindow {
      * execution of an accepted plan — so the foreign-session check sits here and is evaluated when
      * the run really starts. {@code acknowledgedConnector} is the connector whose foreign-session
      * warning the user already accepted earlier in the same flow, so they are not asked twice.
+     *
+     * @return {@code true} when a run (or an Ask tab) was started, {@code false} when it was refused
+     *     or cancelled, so a caller such as the plan tab can give its controls back
      */
-    private void launchTerminalAgent(
+    private boolean launchTerminalAgent(
         TerminalTab terminalTab,
         TerminalAgentModels.Request request,
         TerminalView.TerminalAgentRunContext runContext,
@@ -7822,7 +7825,7 @@ public class MainWindow {
         AiProfile profile = findAiProfileById(request.profileId());
         if (profile == null) {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.profileMissing"));
-            return;
+            return false;
         }
         // An Ask only sends the question to the model and runs nothing on the target, so it needs
         // no warning; every executing run does.
@@ -7838,7 +7841,7 @@ public class MainWindow {
                 confirmAgentTargetInForeignSession(terminalTab, targetRunContext, acknowledgedConnector);
             if (!confirmation.proceed()) {
                 updateStatus(I18n.get("ai.agent.foreignSession.cancelled"));
-                return;
+                return false;
             }
             foreignSessionAcknowledgedFor = confirmation.acknowledgedConnector();
         }
@@ -7849,7 +7852,7 @@ public class MainWindow {
         AiService service = createAiServiceForProfile(profile, terminalTab != null ? terminalTab.getConnection() : null);
         if (!(service instanceof AiPromptService aiService)) {
             suggestAiWizard(I18n.get("ai.agent.title"));
-            return;
+            return false;
         }
 
         if (request.queryOnly()) {
@@ -7861,7 +7864,7 @@ public class MainWindow {
                 askSelectedText,
                 request.connectionDisplayName(),
                 terminalTab != null ? terminalTab.getConnection() : null);
-            return;
+            return true;
         }
 
         TerminalView.TerminalAgentRunContext resolvedRunContext =
@@ -7878,11 +7881,12 @@ public class MainWindow {
                 aiService,
                 agentRunnerFor(resolvedRunContext),
                 request);
-            return;
+            return true;
         }
 
         runTerminalAgentInTerminalWindow(
             terminalTab, profile, aiService, request, resolvedRunContext, foreignSessionAcknowledgedFor);
+        return true;
     }
 
     private void openDirectAiAskTab(
@@ -8460,7 +8464,7 @@ public class MainWindow {
         return sessionId;
     }
 
-    private void startAcceptedPlanExecution(
+    private boolean startAcceptedPlanExecution(
         TerminalTab terminalTab,
         AiProfile profile,
         TerminalAgentModels.PlanRequest planRequest,
@@ -8469,7 +8473,7 @@ public class MainWindow {
         @Nullable ObservableTtyConnector foreignSessionAcknowledgedFor) {
         if (!isTerminalAgentExecutionEnabled()) {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.executionDisabled"));
-            return;
+            return false;
         }
         TerminalAgentModels.Request request = new TerminalAgentModels.Request(
             planRequest.sessionId(),
@@ -8484,7 +8488,7 @@ public class MainWindow {
             false,
             shouldConfirmTerminalAgentMutatingCommandSets(),
             false);
-        launchTerminalAgent(terminalTab, request, runContext, null, foreignSessionAcknowledgedFor);
+        return launchTerminalAgent(terminalTab, request, runContext, null, foreignSessionAcknowledgedFor);
     }
 
     private void handleTerminalAgentShortcut(
