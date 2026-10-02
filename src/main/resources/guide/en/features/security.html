@@ -771,7 +771,7 @@
 </ol>
 <h3 id="at-rest-encryption">At-Rest Encryption<a class="headerlink" href="#at-rest-encryption" title="Permanent link">&para;</a></h3>
 <p>The master password itself is hashed with PBKDF2 (310,000 iterations) and never stored in plain text. The salt and hash are stored in <code>~/.kortty/master.key</code>.</p>
-<p>On subsequent launches, KorTTY prompts you to enter the master password to unlock encrypted data. Turning off <strong>Require master password on startup</strong> in <strong>Settings &gt; Security</strong> hides this prompt, but stored passwords will not be accessible until you enter the master password manually.</p>
+<p>On subsequent launches, KorTTY prompts you to enter the master password to unlock encrypted data. Turning off <strong>Require master password on startup</strong> in <strong>Settings &gt; Security</strong> hides this prompt and starts with the vault locked: stored passwords and keys stay unavailable until you unlock it (see <a href="#unlocking-the-vault-later">Unlocking the vault later</a>).</p>
 <div class="admonition danger">
 <p class="admonition-title">Optional auto-login weakens at-rest protection</p>
 <p>The second Security option, <strong>Disable master password prompt on startup (auto-login)</strong>, also removes the prompt but keeps the vault fully usable: korTTY writes your master password to <code>~/.kortty/master.autounlock</code> — <strong>obfuscated only, not encrypted</strong>, with owner-only file permissions — and unlocks automatically on every start. The obfuscation key is embedded in the application, so file permissions are the only real boundary; anyone who can read <code>~/.kortty</code> or a backup can decrypt all saved secrets. On a brand-new profile the option bootstraps a default master password with no dialog at all. korTTY asks for confirmation before enabling it, it is meant for throwaway/test environments, and a <a href="../reference/enterprise-policy.html">policy configuration</a> that requires a master password disables it. Details: <a href="../reference/settings/security.html">Security settings</a>.</p>
@@ -780,6 +780,9 @@
 <p class="admonition-title">Note</p>
 <p>If you lose the master password, encrypted data cannot be recovered. Delete <code>master.key</code> and <code>credentials.xml</code>, restart, set a new master password, and re-enter your passwords.</p>
 </div>
+<h3 id="unlocking-the-vault-later">Unlocking the vault later<a class="headerlink" href="#unlocking-the-vault-later" title="Permanent link">&para;</a></h3>
+<p>With the vault locked, choose <strong>Configuration &gt; Security &gt; Unlock Vault…</strong> and enter the master password; the menu item is greyed out while the vault is open. Saving an AI or translation API key, a Hugging Face token, a jump server password or a Job Scheduler password, starting an AI Swarm run on servers without an open terminal, asking the guide a question and generating a single- or multi-server workflow script with an encrypted AI key show their "vault locked" message with an <strong>Unlock Vault…</strong> button instead of a dead end. Some places still only report the locked vault, for example an AI chat request or a key passphrase in the connection editor; unlock the vault from the menu first. After a successful unlock the action continues; <strong>Cancel</strong> leaves the vault locked without a second error. A wrong password keeps the dialog open, and cancelling it never quits korTTY.</p>
+<p>Unlocking also restores the temporary SSH keys that could not be decrypted at the locked start; until then they stay stored encrypted, so saving connections in the meantime does not lose them. Windows that were already open while the vault was locked, such as the Connection Manager or the credential and key managers, do not pick up the unlock — reopen them to use stored secrets there.</p>
 <h2 id="encryption-model">Encryption Model<a class="headerlink" href="#encryption-model" title="Permanent link">&para;</a></h2>
 <p>All sensitive data at rest is encrypted using <strong>AES-256-GCM</strong>:</p>
 <ul>
@@ -837,7 +840,7 @@
 <ul>
 <li><strong>Centralized Management</strong> — Manage all SSH keys in one place</li>
 <li><strong>Encrypted Passphrases</strong> — Key passphrases are stored encrypted with AES-256-GCM</li>
-<li><strong>Key Copying</strong> — Use <strong>Copy to User Directory</strong> to copy keys to <code>~/.kortty/ssh-keys/</code>; copied keys are included in encrypted backups and restored with owner-only permissions</li>
+<li><strong>Key Copying</strong> — Use <strong>Copy to User Directory</strong> to copy keys to <code>~/.kortty/ssh-keys/</code>; on macOS and Linux the copied private key is made owner-only (<code>rw-------</code>) and the folder <code>rwx------</code>, and copied keys are included in encrypted backups and restored with owner-only permissions</li>
 <li><strong>Wildcard Search</strong> — Quick search for keys using <code>*</code> patterns</li>
 <li><strong>Automatic Usage</strong> — Select keys directly in connection settings</li>
 </ul>
@@ -882,7 +885,7 @@
 <li>Select <strong>GPG Encryption</strong> as the encryption type.</li>
 <li>Choose the GPG key to use for encryption.</li>
 </ol>
-<p>GPG-encrypted backups and exports are stored as <code>.gpg</code> files and require your system's <code>gpg</code> command and a usable public key for decryption.</p>
+<p>GPG-encrypted backups and exports are stored as <code>.gpg</code> files — a GPG backup as <code>kortty-backup.zip.gpg</code> — and need your system's <code>gpg</code> command. Creating one needs the recipient's public key; restoring or opening one needs the matching <strong>private</strong> key, and <code>gpg</code> may ask for its passphrase.</p>
 <h2 id="stored-security-data">Stored security data<a class="headerlink" href="#stored-security-data" title="Permanent link">&para;</a></h2>
 <p>The following sensitive and security-related data is stored in <code>~/.kortty/</code>; secret values are encrypted, while public verification material is not:</p>
 <table>
@@ -936,6 +939,8 @@
 </tr>
 </tbody>
 </table>
+<p>korTTY does not rewrite these files in place: a save goes to a temporary file in <code>~/.kortty</code> that is then renamed over the old file, for the connections, credentials, SSH keys, scheduled jobs and <code>master.key</code> after flushing it to the disk, so a crash, a full disk or a killed process leaves the previous version intact. On macOS and Linux, korTTY keeps <code>~/.kortty</code> at <code>rwx------</code> and writes <code>connections.xml</code>, <code>credentials.xml</code>, <code>ssh-keys.xml</code>, <code>job-scheduler.xml</code> and <code>master.key</code> owner-only (<code>rw-------</code>), also when an older version left them readable by other users; on Windows they are protected by the permissions of your user profile.</p>
+<p>A data file with connections, credentials, SSH or GPG keys, environments, themes or scheduled jobs that korTTY cannot parse at startup is moved aside as <code>&lt;name&gt;.corrupt-&lt;timestamp&gt;</code> without changing it, korTTY continues without its content, and a notice lists the moved files; the next save writes a fresh file. A file that cannot be read at all, for example while a virus scanner or another program holds it or while a network home directory is unreachable, stays where it is and korTTY does not save over it for the rest of the session; the notice lists it separately. <code>master.key</code> is never moved aside, because without it korTTY would treat the profile as new and mint a new salt: if it is damaged, unlocking fails with an error that names the file, and you restore it from a backup.</p>
 <h2 id="security-best-practices">Security Best Practices<a class="headerlink" href="#security-best-practices" title="Permanent link">&para;</a></h2>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
@@ -951,7 +956,7 @@
 <ul>
 <li>Keep private key files protected with a passphrase.</li>
 <li>Copy keys to <code>~/.kortty/ssh-keys/</code> for inclusion in encrypted backups; keys left in their original locations are only referenced and must be migrated separately.</li>
-<li>Limit key file permissions (e.g., <code>chmod 600</code>).</li>
+<li>Limit key file permissions (e.g., <code>chmod 600</code>). Copies in <code>~/.kortty/ssh-keys/</code> are made owner-only automatically.</li>
 <li>Verify a first-use host-key fingerprint through a trusted channel before accepting it. Treat a changed-key warning as a possible server rebuild, DNS error, or man-in-the-middle attack and investigate instead of reconnecting repeatedly. Use <strong>Review and Replace…</strong> only after the server administrator has confirmed the new fingerprint.</li>
 </ul>
 <h3 id="jobscheduler">JobScheduler<a class="headerlink" href="#jobscheduler" title="Permanent link">&para;</a></h3>
@@ -1050,6 +1055,10 @@
 <tr>
 <td>Credentials</td>
 <td>Never stored in plain text</td>
+</tr>
+<tr>
+<td>Local data files</td>
+<td>Atomic replace flushed to disk, owner-only <code>~/.kortty</code> and secret stores, unreadable files moved aside or left untouched instead of overwritten</td>
 </tr>
 </tbody>
 </table>
