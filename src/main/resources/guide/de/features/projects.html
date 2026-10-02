@@ -764,11 +764,11 @@
 <li>Öffnen Sie <em>Datei &gt; Projekt speichern</em> oder drücken Sie <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-s">S</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-s">S</kbd></span> unter macOS).</li>
 <li>Geben Sie einen <strong>Namen</strong> und optional eine <strong>Beschreibung</strong> für das Projekt ein.</li>
 <li>Konfigurieren Sie <strong>Auto-Reconnect</strong>:</li>
-<li>Wenn diese Option aktiviert ist, werden beim Öffnen des Projekts alle gespeicherten SSH-Sitzungen automatisch wieder verbunden.</li>
-<li>Bei Deaktivierung werden Fenster und Registerkarten wiederhergestellt, Sie müssen die Verbindung jedoch manuell wiederherstellen.</li>
+<li>Wenn aktiviert, verbindet sich beim Öffnen des Projekts automatisch jeder gespeicherte Terminal- und SFTP-Tab.</li>
+<li>Wenn deaktiviert, stellt das Öffnen des Projekts nur die Fenstergeometrie sowie die Tabs für den lokalen Dateieditor und Bildbetrachter wieder her; Terminal-, SFTP- und Remote-Datei-Tabs werden übersprungen.</li>
 <li>Klicken Sie auf <em>Speichern</em>.</li>
 </ol>
-<p>Projekte werden als <code>.kortty</code>-Dateien in <code>~/.kortty/projects/</code> gespeichert.</p>
+<p>Projekte sind <code>.kortty</code>-Dateien, die Sie an beliebiger Stelle im Speicherdialog speichern können, zum Beispiel in <code>~/.kortty/projects/</code>.</p>
 <h2 id="ein-projekt-offnen">Ein Projekt öffnen<a class="headerlink" href="#ein-projekt-offnen" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Öffnen Sie <em>Datei &gt; Projekt öffnen</em> oder drücken Sie <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-o">O</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-o">O</kbd></span> unter macOS).</li>
@@ -799,7 +799,7 @@
 </tr>
 <tr>
 <td><strong>Verbindungen</strong></td>
-<td>Die gespeicherten Verbindungsnamen für jede Registerkarte</td>
+<td>Ein Verweis auf die gespeicherte Verbindung jedes Tabs, anhand seiner Verbindungs-ID</td>
 </tr>
 <tr>
 <td><strong>Dashboard</strong></td>
@@ -810,8 +810,8 @@
 <td>Welche Registerkarte war in jedem Fenster aktiv</td>
 </tr>
 <tr>
-<td><strong>Terminalsitzungen</strong></td>
-<td>Sitzungsstatus einschließlich Cursorposition und Scrollback (sofern von der Sitzung unterstützt)</td>
+<td><strong>Terminal-Sitzungen</strong></td>
+<td>Der letzte sichtbare Bildschirm des primären Bereichs jedes Terminal-Tabs — nicht dessen Scrollback und nicht die Cursorposition; die Bildschirme weiterer geteilter Bereiche werden nicht gespeichert</td>
 </tr>
 </tbody>
 </table>
@@ -824,17 +824,19 @@
 <ul>
 <li>Stellt alle Fenster mit ihrer gespeicherten Geometrie (Position und Größe) wieder her.</li>
 <li>Verbindet jede SSH-Registerkarte erneut mit den ursprünglichen Verbindungseinstellungen</li>
+<li>Zeigt jeden Tab des Terminals mit dem gespeicherten Bildschirm, der über die neue Sitzung abgedunkelt ist, eingerahmt von einer <em>Wiederhergestellten Ausgabe aus</em> Zeile mit dem Datum, an dem das Projekt gespeichert wurde, und einer <em>Ende der wiederhergestellten Ausgabe</em> Zeile. Der Text wird nur in das lokale Terminal geschrieben und niemals an den Server gesendet: Er erreicht die Remote-Shell oder deren Befehlsverlauf nicht, und ein Sitzungsjournal, das mit der Verbindung beginnt, zeichnet ihn nicht auf (ein Journal, das Sie später aktivieren, importiert den Scrollback, der dann die wiederhergestellten Zeilen enthält). Steuerzeichen und Escape-Sequenzen werden daraus entfernt, bevor er angezeigt wird.</li>
 <li>Stellt den aktiven Tab- und Dashboard-Status wieder her</li>
 </ul>
-<p>Wenn <strong>Auto-Reconnect</strong> deaktiviert ist, werden Fenster und Registerkarten wiederhergestellt, Sie müssen jedoch jede Registerkarte manuell neu verbinden, indem Sie darauf klicken oder <em>Reconnect</em> aus dem Kontextmenü verwenden.</p>
+<p>Wenn <strong>Automatisches Wiederverbinden</strong> deaktiviert ist, werden Terminal-Tabs nicht wiederhergestellt: Das Öffnen des Projekts wendet die gespeicherte Fenstergeometrie an und öffnet erneut lokale Datei-Editor- und Bildbetrachter-Tabs, während Terminal-, SFTP- und Remote-Datei-Tabs übersprungen werden. Öffnen Sie diese Verbindungen erneut im Connection-Manager.</p>
 <h2 id="projektdateispeicherung">Projektdateispeicherung<a class="headerlink" href="#projektdateispeicherung" title="Permanent link">&para;</a></h2>
-<p>Projekte werden in <code>~/.kortty/projects/</code> als komprimierte <code>.kortty</code>-Dateien gespeichert. Jedes Projekt beinhaltet:</p>
+<p>Ein Projekt ist eine einfache XML-Datei mit der <code>.kortty</code>-Erweiterung. Jedes Projekt enthält:</p>
 <ul>
 <li>Metadaten (Name, Beschreibung, Erstellungs-/Änderungszeitstempel)</li>
 <li>Vollständiger Fenster- und Tab-Status</li>
-<li>Verbindungsreferenzen (nach Namen)</li>
+<li>Verweise auf Verbindungen (nach Verbindungs-ID, daher muss die Verbindung im Connection-Manager existieren)</li>
 <li>Sichtbarkeit und Layout des Dashboards</li>
 </ul>
+<p>Der gespeicherte Bildschirminhalt ist nicht Teil der <code>.kortty</code>-Datei. Er wird separat als eine gzip-Datei pro Terminal-Tab, <code>~/.kortty/history/&lt;session-id&gt;.history.gz</code>, gespeichert, die das Projekt per Dateiname referenziert – ein Projektdokument, das Sie teilen, trägt daher das Layout, jedoch nicht den Bildschirminhalt. korTTY liest, schreibt oder löscht ausschließlich reine Dateinamen innerhalb von <code>~/.kortty/history/</code>; ein Projekt, dessen Referenz auf einen anderen Ort zeigt, öffnet sich ohne diesen Bildschirminhalt.</p>
 <h2 id="anwendungsfalle">Anwendungsfälle<a class="headerlink" href="#anwendungsfalle" title="Permanent link">&para;</a></h2>
 <p>Projekte sind nützlich für:</p>
 <ul>
