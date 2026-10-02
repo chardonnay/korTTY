@@ -27,4 +27,23 @@ final class SnippetModularizationPreference {
             // a preference that cannot be stored only resets on the next start
         }
     }
+
+    /** Whether the folder analysis tab shows its flow diagram (shown by default). */
+    static boolean loadProjectDiagramVisible() {
+        GlobalSettings settings = SnippetAiDialogSupport.currentSettings();
+        return settings == null || !Boolean.FALSE.equals(settings.getCodeAnalysisProjectDiagramVisible());
+    }
+
+    static void saveProjectDiagramVisible(boolean visible) {
+        try {
+            GlobalSettingsManager manager = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            GlobalSettings settings = manager.getSettings();
+            if (settings != null) {
+                settings.setCodeAnalysisProjectDiagramVisible(visible);
+                manager.save();
+            }
+        } catch (Exception ignored) {
+            // a preference that cannot be stored only resets on the next start
+        }
+    }
 }

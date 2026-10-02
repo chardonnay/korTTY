@@ -584,6 +584,10 @@ public class GlobalSettings {
     @XmlElement
     private Boolean codeAnalysisProposeModularization = false;
 
+    /** Whether the folder analysis tab shows the flow diagram beside the report. Default: shown. */
+    @XmlElement
+    private Boolean codeAnalysisProjectDiagramVisible = true;
+
     /** Font size used in the Workflow script-generation window's editors. */
     @XmlElement
     private Integer workflowScriptFontSize = 14;
@@ -2430,6 +2434,14 @@ public class GlobalSettings {
 
     public void setCodeAnalysisDiagramAutoGenerate(Boolean codeAnalysisDiagramAutoGenerate) {
         this.codeAnalysisDiagramAutoGenerate = codeAnalysisDiagramAutoGenerate;
+    }
+
+    public Boolean getCodeAnalysisProjectDiagramVisible() {
+        return codeAnalysisProjectDiagramVisible;
+    }
+
+    public void setCodeAnalysisProjectDiagramVisible(Boolean codeAnalysisProjectDiagramVisible) {
+        this.codeAnalysisProjectDiagramVisible = codeAnalysisProjectDiagramVisible;
     }
 
     public Boolean getCodeAnalysisProposeModularization() {

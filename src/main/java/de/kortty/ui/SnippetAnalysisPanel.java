@@ -180,6 +180,11 @@ public class SnippetAnalysisPanel extends VBox {
     private int fontSize;
 
     private final SnippetDiagramView diagramView;
+    /** The report above (or beside) the diagram. */
+    private SplitPane reportSplit;
+    /** The diagram with its header. */
+    private VBox diagramPane;
+    private boolean wideLayout;
 
     /**
      * @param onRerun     re-runs the analysis with the chosen profile id; {@code null} hides the re-run controls
@@ -245,12 +250,14 @@ public class SnippetAnalysisPanel extends VBox {
         HBox diagramHeader = new HBox(8, diagramTitle, diagramSpacer, autoGenerateBox);
         diagramHeader.setAlignment(Pos.CENTER_LEFT);
         VBox rightPane = new VBox(6, diagramHeader, diagramView);
+        this.diagramPane = rightPane;
         VBox.setVgrow(diagramView, Priority.ALWAYS);
 
         // The panel lives in a narrow side column of the editor, so the report sits above the
         // diagram rather than beside it.
         rightPane.setPadding(new Insets(4, 0, 0, 0));
         SplitPane splitPane = new SplitPane(findingsView, rightPane);
+        this.reportSplit = splitPane;
         splitPane.setOrientation(Orientation.VERTICAL);
         splitPane.setDividerPositions(0.58);
         SplitPane.setResizableWithParent(rightPane, true);
@@ -308,6 +315,37 @@ public class SnippetAnalysisPanel extends VBox {
         migrationSelector.addSelectionListener(this::fireSelectionChanged);
         headerChooser.setOnSelectionChanged(this::fireSelectionChanged);
         textLanguageCombo.valueProperty().addListener((obs, was, isNow) -> fireSelectionChanged());
+    }
+
+    /**
+     * For a wide host (the folder analysis tab): the diagram sits to the right of the report over
+     * the full height instead of below it, and can be hidden with {@link #setDiagramVisible}.
+     */
+    void useWideLayout(boolean diagramVisible) {
+        wideLayout = true;
+        reportSplit.setOrientation(Orientation.HORIZONTAL);
+        diagramPane.setPadding(new Insets(0, 0, 0, 8));
+        setDiagramVisible(diagramVisible);
+    }
+
+    /** Shows or hides the diagram; hidden, the report takes the whole width (or height). */
+    void setDiagramVisible(boolean visible) {
+        boolean shown = reportSplit.getItems().contains(diagramPane);
+        if (visible == shown) {
+            return;
+        }
+        if (visible) {
+            reportSplit.getItems().add(diagramPane);
+            double position = wideLayout ? 0.55 : 0.58;
+            reportSplit.setDividerPositions(position);
+            Platform.runLater(() -> reportSplit.setDividerPositions(position));
+        } else {
+            reportSplit.getItems().remove(diagramPane);
+        }
+    }
+
+    boolean isDiagramVisible() {
+        return reportSplit.getItems().contains(diagramPane);
     }
 
     /** The AI profile this analysis was produced with; {@code null} means the default profile. */

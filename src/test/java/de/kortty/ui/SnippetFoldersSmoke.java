@@ -39,9 +39,9 @@ public final class SnippetFoldersSmoke {
                 LanguageManager.getInstance().initialize(new GlobalSettings());
                 previewFollowsSelectionAndHonoursExclusions(out);
                 folderTreeShowsTheLibrary(out);
+                projectTabShowsTheDiagramBesideTheReport(out, failure, done);
             } catch (Throwable t) {
                 failure.set(t);
-            } finally {
                 done.countDown();
             }
         });
@@ -135,6 +135,55 @@ public final class SnippetFoldersSmoke {
         check(lib.equals(pane.selectedNode().folderId()), "refresh keeps the selection");
         snapshot(pane, out.resolve("snippet-folder-tree.png"));
         stage.close();
+    }
+
+    private static void projectTabShowsTheDiagramBesideTheReport(Path out, AtomicReference<Throwable> failure,
+                                                                 CountDownLatch done) throws Exception {
+        SnippetManager manager = new SnippetManager(Files.createTempDirectory("kortty-project-tab-smoke"));
+        String folder = manager.ensureFolderPath("server_performance", null);
+        Snippet one = new Snippet("load.pl", "#!/usr/bin/perl\nprint 1;\n", "perl");
+        manager.addSnippet(one);
+        one.setFolderId(folder);
+        de.kortty.core.SnippetAnalysisStore store = new de.kortty.core.SnippetAnalysisStore(null, id -> false, () -> 5);
+        de.kortty.core.SnippetAnalysisRecord record = de.kortty.core.SnippetAnalysisRecord.fromAnalysis("r1",
+            de.kortty.core.SnippetProjectAiSupport.folderKey(folder),
+            new de.kortty.core.SnippetAiResponseSupport.ScriptAnalysis("Two Perl scripts.", List.of(), List.of(
+                new de.kortty.core.SnippetAiResponseSupport.ScriptImprovement("SEC-1", "security", "high",
+                    "[load.pl] Quote the command", "detail", "recommendation", 2))),
+            de.kortty.core.SnippetAnalysisRecord.Source.of("x", "project", "en", "en", "server_performance"),
+            null, de.kortty.core.SnippetAnalysisRecord.Purpose.ANALYSIS, null, System.currentTimeMillis());
+        store.addAnalysis(de.kortty.core.SnippetProjectAiSupport.folderKey(folder), record);
+        SnippetProjectAnalysisTab tab = new SnippetProjectAnalysisTab(manager, folder, store, () -> null,
+            () -> null, null, () -> { });
+        TabPane pane = new TabPane(tab);
+        Stage stage = new Stage();
+        stage.setScene(new Scene(pane, 1600, 900));
+        stage.show();
+        javafx.animation.PauseTransition settle = new javafx.animation.PauseTransition(javafx.util.Duration.seconds(3));
+        settle.setOnFinished(event -> {
+            try {
+                javafx.scene.control.SplitPane split = (javafx.scene.control.SplitPane) pane.lookupAll(".split-pane")
+                    .stream().filter(node -> node instanceof javafx.scene.control.SplitPane)
+                    .findFirst().orElseThrow();
+                check(split.getOrientation() == javafx.geometry.Orientation.HORIZONTAL,
+                    "the folder analysis shows the diagram beside the report");
+                check(split.getItems().size() == 2, "the diagram is shown by default");
+                snapshot(pane, out.resolve("project-analysis-tab.png"));
+                javafx.scene.control.ToggleButton toggle = (javafx.scene.control.ToggleButton)
+                    pane.lookup("#" + SnippetProjectAnalysisTab.DIAGRAM_TOGGLE_ID);
+                toggle.setSelected(false);
+                check(split.getItems().size() == 1, "the diagram can be hidden");
+                toggle.setSelected(true);
+                check(split.getItems().size() == 2, "the diagram can be shown again");
+                tab.dispose();
+                stage.close();
+            } catch (Throwable t) {
+                failure.set(t);
+            } finally {
+                done.countDown();
+            }
+        });
+        settle.play();
     }
 
     private static void snapshot(javafx.scene.Node node, Path file) throws Exception {

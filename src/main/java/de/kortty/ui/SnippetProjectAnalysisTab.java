@@ -71,6 +71,7 @@ final class SnippetProjectAnalysisTab extends Tab {
     static final String START_BUTTON_ID = "snippet-project-analysis-start";
     static final String APPLY_BUTTON_ID = "snippet-project-analysis-apply";
     static final String MODULARIZE_CHECK_ID = "snippet-project-analysis-modularize";
+    static final String DIAGRAM_TOGGLE_ID = "snippet-project-analysis-diagram-toggle";
 
     private final SnippetManager snippetManager;
     private final String folderId;
@@ -89,6 +90,8 @@ final class SnippetProjectAnalysisTab extends Tab {
     private final Button stopButton = new Button(I18n.get("snippets.project.stop"));
     private final Button filesButton = new Button(I18n.get("snippets.project.files"));
     private final Button applyButton = new Button(I18n.get("snippets.project.apply"));
+    private final javafx.scene.control.ToggleButton diagramToggle =
+        new javafx.scene.control.ToggleButton(I18n.get("snippets.project.diagram"));
     private final ProgressIndicator busy = new ProgressIndicator();
     private final Label statusLabel = new Label();
     private final StackPane reportHolder = new StackPane();
@@ -144,6 +147,15 @@ final class SnippetProjectAnalysisTab extends Tab {
         applyButton.setId(APPLY_BUTTON_ID);
         applyButton.setDisable(true);
         applyButton.setOnAction(event -> applySelected());
+        diagramToggle.setId(DIAGRAM_TOGGLE_ID);
+        diagramToggle.setTooltip(new Tooltip(I18n.get("snippets.project.diagram.tooltip")));
+        diagramToggle.setSelected(SnippetModularizationPreference.loadProjectDiagramVisible());
+        diagramToggle.selectedProperty().addListener((obs, was, now) -> {
+            SnippetModularizationPreference.saveProjectDiagramVisible(now);
+            if (panel != null) {
+                panel.setDiagramVisible(now);
+            }
+        });
         busy.setVisible(false);
         busy.setPrefSize(18, 18);
         statusLabel.setWrapText(true);
@@ -152,7 +164,7 @@ final class SnippetProjectAnalysisTab extends Tab {
         titleRow.setAlignment(Pos.CENTER_LEFT);
         Label profileLabel = SnippetAiDialogSupport.profileLabel();
         FlowPane controls = new FlowPane(10, 8, profileLabel, profileCombo, modularizeCheck, filesButton,
-            startButton, stopButton, busy);
+            startButton, stopButton, busy, diagramToggle);
         controls.setAlignment(Pos.CENTER_LEFT);
         Label info = new Label(I18n.get("snippets.project.info"));
         info.setWrapText(true);
@@ -373,6 +385,7 @@ final class SnippetProjectAnalysisTab extends Tab {
             record.toScriptAnalysis(), () -> generateDiagram(profileId), profileId, null, null, null, null,
             AiLanguageSupport.resolveFallbackLanguageCode(null));
         panel = newPanel;
+        newPanel.useWideLayout(diagramToggle.isSelected());
         ScrollPane scroll = new ScrollPane(newPanel);
         scroll.setFitToWidth(true);
         scroll.setFitToHeight(true);
