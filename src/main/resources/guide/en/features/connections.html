@@ -776,7 +776,7 @@
 <tbody>
 <tr>
 <td>Connection</td>
-<td>Host, port, username, protocol (SSH / Mosh / Local Shell), authentication (password / key / keyboard-interactive), <strong>Host key verification</strong> (use default / verify / don't verify), group/folder assignment and an optional free-text <a href="#tags">tag</a>. For <strong>Local Shell</strong> connections host, port, username and authentication are not required and are disabled.</td>
+<td>Host, port, username, protocol (SSH / Mosh / Local Shell), terminal emulation, <strong>Character encoding</strong> (use default / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), authentication (password / key / keyboard-interactive), <strong>Host key verification</strong> (use default / verify / don't verify), group/folder assignment and an optional free-text <a href="#tags">tag</a>. For <strong>Local Shell</strong> connections host, port, username and authentication are not required and are disabled. See <a href="#character-encoding">Character encoding</a>.</td>
 </tr>
 <tr>
 <td>Terminal Settings</td>
@@ -808,6 +808,8 @@
 </tr>
 </tbody>
 </table>
+<h3 id="character-encoding">Character encoding<a class="headerlink" href="#character-encoding" title="Permanent link">&para;</a></h3>
+<p><strong>Character encoding</strong> sets how korTTY decodes what this connection's session prints and encodes what you type and paste, for servers whose programs still write ISO-8859-1, ISO-8859-15 or Windows-1252 instead of UTF-8. <strong>Use default</strong> follows <a href="../reference/settings/terminal.html#notes">Settings → Terminal → Encoding</a> for SSH connections and means UTF-8 for local shells. Mosh only works with UTF-8, so the dropdown is locked for Mosh connections and a note beside it says so. The choice is stored with the connection, survives duplicating, exporting and importing, and applies the next time the tab connects or reconnects.</p>
 <h2 id="tags">Tags<a class="headerlink" href="#tags" title="Permanent link">&para;</a></h2>
 <p>Every saved connection can carry one optional free-text <strong>tag</strong> — a label such as <code>prod</code>, <code>staging</code> or a customer name — independent of the group/folder hierarchy. Set it on the connection editor's <em>Connection</em> tab (next to the group), or in bulk in the Connection Manager. Tags are stored with the connection in <code>connections.xml</code> and survive duplicating, exporting and importing.</p>
 <ul>

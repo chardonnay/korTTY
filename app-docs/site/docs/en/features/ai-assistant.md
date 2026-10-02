@@ -11,7 +11,7 @@ When **Configuration > Prevent System Sleep** is enabled on macOS or Windows, ko
 ![AI request/integration flow](../assets/diagrams/ai-api-integration.svg)
 
 !!! warning "Data Security"
-    Selected terminal text is transmitted to the configured AI service for analysis. That text can contain sensitive information such as credentials, hostnames, file paths, stack traces, or other operational details. For sensitive data, use an [integrated local GGUF model](local-models.md) or another endpoint you trust. Embedded inference uses an authenticated loopback-only server; remote providers receive the reviewed request over the network. If you provide an **API Key**, korTTY stores it encrypted with your master password.
+    Selected terminal text is transmitted to the configured AI service for analysis. That text can contain sensitive information such as credentials, hostnames, file paths, stack traces, or other operational details. korTTY masks the connection's password and well-known secret formats with `***` first (see [Masking secrets before sending](#masking-secrets-before-sending)), but that masking cannot catch every secret. For sensitive data, use an [integrated local GGUF model](local-models.md) or another endpoint you trust. Embedded inference uses an authenticated loopback-only server; remote providers receive the reviewed request over the network. If you provide an **API Key**, korTTY stores it encrypted with your master password.
 
 ## Setup
 
@@ -152,10 +152,27 @@ When an AI Agent run uses one or more skills, the terminal-agent activity panel 
    * **Summarize** - Creates a concise summary of the selected output.
    * **Solve Problem** - Analyzes the selected error output and suggests likely fixes.
    * **Ask** - Sends the selection together with your own follow-up question or instruction.
-4. Confirm the request in the preview dialog. You can edit the selected text before sending it. For **Ask**, add your own prompt. The dialog also shows the estimated request tokens and projected remaining quota.
+4. Confirm the request in the preview dialog. The preview shows the text as it will be sent: secrets korTTY recognized are already replaced with `***`, and a line above the text says how many (see [Masking secrets before sending](#masking-secrets-before-sending)). You can edit the selected text before sending it. For **Ask**, add your own prompt. The dialog also shows the estimated request tokens and projected remaining quota.
 5. The response opens in a temporary AI tab. You can continue the same context with follow-up prompts from the bottom composer field.
 6. Use **Save** in the AI tab to store the conversation under a custom title.
 7. Reopen saved conversations later via **Tools > AI Manager** or ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ on macOS).
+
+### Masking secrets before sending
+
+Before a terminal selection goes to an AI profile, korTTY replaces the secrets it recognizes with `***`:
+
+* the password of the tab's connection,
+* the replacement rules of your organization's policy (the same `[[rule.session-journal.replace]]` rules the session journal applies, see [Enterprise policy](../reference/enterprise-policy.md)),
+* well-known token formats: private-key blocks (PEM, OpenSSH, PGP — also when the selection ends inside the key), AWS access keys and secret access keys, GitHub, GitLab and Slack tokens, `sk-` style API keys (OpenAI, Anthropic), `Authorization` headers and bearer tokens, JSON Web Tokens, passwords in URLs such as `postgres://admin:***@db`, and assignments whose name ends in a secret word, such as `DB_PASSWORD=…`, `api_key: …` or `--password=…`.
+
+A short, harmless prefix stays visible — the key's BEGIN and END lines, `ghp_***`, `AKIA***`, the variable name, the URL's user — so you can still tell what was there. The preview dialog shows the masked text and the number of masked secrets. Without a preview — when the confirmation dialog is turned off for **Summarize** and **Solve Problem**, and for **Ask Agent…** — the status bar shows the number instead. An attached file (see below) is masked the same way; it is not part of the preview, so its masked secrets are counted in the status bar.
+
+Integrated models (llama.cpp, MLX) run on this computer and receive the text unchanged. An HTTP endpoint on `localhost` is masked as well, because it may be a proxy or an SSH port forward that passes the text on to a cloud API. If such an endpoint really runs the model on this computer, LM Studio for example, turn on **Trusted local endpoint** in the profile (see [AI settings](../reference/settings/ai.md)); the option only takes effect for an API URL on `localhost` or `127.0.0.1`. Local CLI providers send the prompt to their vendor and are always masked.
+
+The AI tab's profile can be changed for follow-up prompts. Before each follow-up, korTTY masks the selection, the attached file and the earlier conversation again for the profile the tab uses now, so a chat that started on an integrated model does not hand the unmasked text, or an answer that quoted it, to a cloud profile.
+
+!!! warning "Masking is not complete"
+    Masking recognizes only the formats listed above. A secret in another format — an internal token, a password shown by another program, a value split across lines — is sent unchanged, so review the preview before sending and prefer an integrated local model for sensitive output. Masking covers terminal selections, their attached files and what the AI tab sends of them again with a follow-up. Text you type yourself, the probe and command output an AI Agent run sends to the model, AI Swarm runs and scheduled AI jobs are not masked.
 
 ### Attaching a selected file to the chat
 
@@ -164,6 +181,7 @@ When the selection looks like a single file name — for example a name from `ls
 * The confirmation dialog shows an **Attach file** checkbox with the file name. It is pre-selected, and you can clear it to send only the selected text. While the file is being checked, **OK** waits; clear the checkbox to send without waiting.
 * Before anything is attached, korTTY verifies that the file exists in the current directory, is a regular file, is readable with your permissions, decodes as UTF-8 text, and fits into the profile's **Max characters** limit (see [AI settings](../reference/settings/ai.md)) together with the selected text. Binary files, oversized files, and files that fail any check are not attached; the dialog states the reason and the checkbox is disabled.
 * When the confirmation dialog is disabled for **Summarize** and **Solve Problem**, and always for **Ask Agent…** (which has no preview dialog), the file is attached automatically if it passes the checks; otherwise the request is sent without it and the status bar says why.
+* Before it is sent, the file's content is masked like the selection (see [Masking secrets before sending](#masking-secrets-before-sending)); the chat keeps the masked content.
 * No attachment is offered after an identity switch inside the session (`su`, an inner `ssh`), because the file would be resolved against the wrong login — the same rule that greys out **Open in Snippet Editor**.
 * The attached file is listed above the chat messages, stays in context for every follow-up prompt, and is stored with a saved chat so a reopened conversation keeps it.
 * The **Flowchart** button beside the attachment asks the active profile for a Mermaid flowchart of the attached script (the same logical-structure diagram the Snippet Editor generates) and shows it as a rendered diagram in the chat. If the model's answer is unusable, korTTY draws the local structural flowchart instead.

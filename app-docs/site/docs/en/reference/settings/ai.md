@@ -53,6 +53,7 @@ The same fields are edited in **AI > AI Manager > Profiles**, where the whole fo
 | Profile name | text | — | AI Profile | (profile `name` field) |
 | Connection | dropdown | HTTP API, Local CLI, Integrated llama.cpp, Integrated MLX (Apple Silicon; offered on Apple Silicon Macs only) | HTTP API | (profile `connectionMode` field) |
 | API URL | text | — | — | (profile `apiUrl` field) |
+| Trusted local endpoint: send terminal selections without masking secrets | check box | Available only for an HTTP API profile whose API URL is on `localhost` or `127.0.0.1`. On: terminal selections and attached files reach this endpoint without masking — turn it on only when the endpoint runs the model itself, not for a proxy or an SSH port forward to a cloud API. See [Masking secrets before sending](../../features/ai-assistant.md#masking-secrets-before-sending) | Off | (profile `trustedLocalEndpoint` field) |
 | CLI provider | dropdown | (registered providers) | — | (profile `cliProviderId` field) |
 | CLI executable | text | — | — | (profile `cliExecutablePath` field) |
 | Model | dropdown/text | (editable; "Default", curated cloud-provider suggestions plus live-loaded models; "Auto" only for local LM Studio endpoints) | — | (profile `model` field) |

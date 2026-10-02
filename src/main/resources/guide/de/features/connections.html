@@ -776,7 +776,7 @@
 <tbody>
 <tr>
 <td>Verbindung</td>
-<td>Host, Port, Benutzername, Protokoll (SSH / Mosh / Local Shell), Authentifizierung (Passwort / Schlüssel / Tastatur-interaktiv), <strong>Host-Schlüsselüberprüfung</strong> (Standard verwenden / überprüfen / nicht überprüfen), Gruppen-/Ordnerzuweisung und optionales Freitext-<a href="#tags">Tag</a>. Für <strong>Local Shell</strong>-Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert.</td>
+<td>Host, Port, Benutzername, Protokoll (SSH / Mosh / Lokale Shell), Terminalemulation, <strong>Zeichenkodierung</strong> (Standard verwenden / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), Authentifizierung (Passwort / Schlüssel / keyboard-interactive), <strong>Host-Key-Prüfung</strong> (Standard verwenden / prüfen / nicht prüfen), Gruppen-/Ordnerzuweisung und ein optionaler Freitext <a href="#tags">Tag</a>. Für <strong>Lokale Shell</strong> Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert. Siehe <a href="#zeichenkodierung">Zeichenkodierung</a>.</td>
 </tr>
 <tr>
 <td>Terminaleinstellungen</td>
@@ -808,6 +808,8 @@
 </tr>
 </tbody>
 </table>
+<h3 id="zeichenkodierung">Zeichenkodierung<a class="headerlink" href="#zeichenkodierung" title="Permanent link">&para;</a></h3>
+<p><strong>Zeichenkodierung</strong> legt fest, wie korTTY dekodiert, was die Sitzung dieser Verbindung ausgibt und wie Sie eingeben und einfügen, für Server deren Programme noch ISO-8859-1, ISO-8859-15 oder Windows-1252 statt UTF-8 schreiben. <strong>Standard verwenden</strong> folgt <a href="../reference/settings/terminal.html#hinweise">Einstellungen → Terminal → Kodierung</a> für SSH-Verbindungen und bedeutet UTF-8 für lokale Shells. Mosh funktioniert nur mit UTF-8, daher ist das Dropdown bei Mosh-Verbindungen gesperrt und daneben steht eine entsprechende Notiz. Die Auswahl wird mit der Verbindung gespeichert, bleibt bei Duplizieren, Exportieren und Importieren erhalten und gilt beim nächsten Verbinden oder Wiederverbinden des Tabs.</p>
 <h2 id="tags">Tags<a class="headerlink" href="#tags" title="Permanent link">&para;</a></h2>
 <p>Jede gespeicherte Verbindung kann ein optionales Freitext-<strong>Tag</strong> tragen – eine Bezeichnung wie <code>prod</code>, <code>staging</code> oder einen Kundennamen – unabhängig von der Gruppen-/Ordnerhierarchie. Legen Sie es auf der Registerkarte <em>Verbindung</em> des Verbindungseditors (neben der Gruppe) oder gesammelt im Connection-Manager fest. Tags werden mit der Verbindung in <code>connections.xml</code> gespeichert und überstehen das Duplizieren, Exportieren und Importieren.</p>
 <ul>

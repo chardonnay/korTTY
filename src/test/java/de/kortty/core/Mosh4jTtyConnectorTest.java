@@ -51,6 +51,20 @@ class Mosh4jTtyConnectorTest {
     }
 
     @Test
+    void anEncodingOverrideDoesNotApplyToMosh() throws Exception {
+        ServerConnection connection = new ServerConnection("Test", "example.com", 22, "daniel");
+        connection.setProtocol(ConnectionProtocol.MOSH);
+        connection.setEncoding("ISO-8859-1");
+
+        // mosh-server and mosh-client need a UTF-8 locale, so the override is kept but not applied.
+        assertThat(TerminalEncodingSupport.resolve(connection, "Windows-1252"))
+            .isEqualTo(java.nio.charset.StandardCharsets.UTF_8);
+        Field charset = Mosh4jTtyConnector.class.getDeclaredField("MOSH_CHARSET");
+        charset.setAccessible(true);
+        assertThat(charset.get(null)).isEqualTo(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    @Test
     void reusesBouncyCastleFromParentClassLoader() {
         assertThat(Mosh4jTtyConnector.parentProvidesBouncyCastle(getClass().getClassLoader())).isTrue();
         assertThat(Mosh4jTtyConnector.parentProvidesBouncyCastle(new ClassLoader(null) {})).isFalse();

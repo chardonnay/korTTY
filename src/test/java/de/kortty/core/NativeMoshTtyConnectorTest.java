@@ -24,4 +24,18 @@ class NativeMoshTtyConnectorTest {
         assertThat(refusal).hasMessageThat().contains("UDP");
         assertThat(connector.isConnected()).isFalse();
     }
+
+    @Test
+    void anEncodingOverrideDoesNotApplyToMosh() throws Exception {
+        ServerConnection connection = new ServerConnection("Test", "example.com", 22, "daniel");
+        connection.setProtocol(ConnectionProtocol.MOSH_CLIENT);
+        connection.setEncoding("Windows-1252");
+
+        // mosh-server and mosh-client need a UTF-8 locale, so the override is kept but not applied.
+        assertThat(TerminalEncodingSupport.resolve(connection, "ISO-8859-1"))
+            .isEqualTo(java.nio.charset.StandardCharsets.UTF_8);
+        java.lang.reflect.Field charset = NativeMoshTtyConnector.class.getDeclaredField("MOSH_CHARSET");
+        charset.setAccessible(true);
+        assertThat(charset.get(null)).isEqualTo(java.nio.charset.StandardCharsets.UTF_8);
+    }
 }
