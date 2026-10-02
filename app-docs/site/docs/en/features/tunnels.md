@@ -82,13 +82,13 @@ Configure your browser or application to use `localhost:1080` as a SOCKS5 (or SO
 ## When Tunnels Open
 
 - **Once per terminal tab:** the tunnels open right after login on the tab's first SSH session and stay open while the tab is connected. Split panes neither open them again nor conflict with them.
-- **Asked once:** the first time a connection's tunnels are about to open, korTTY lists them and asks **Open Tunnels** or **Not Now**. The answer is remembered for that connection; korTTY asks again when its tunnels or its server change. **Not Now** applies to the tab, including its reconnects — open the connection in a new tab to be asked again.
+- **Asked once:** the first time a connection's tunnels are about to open, korTTY lists them and asks **Open Tunnels** or **Not Now**. **Not Now** is the default button, so a key you are still typing into the terminal when the question appears never opens them. The answer is remembered for that connection; korTTY asks again when its tunnels or its server change. **Not Now** applies to the tab, including its reconnects — open the connection in a new tab to be asked again.
 - **Reconnect:** a manual or automatic reconnect closes the tunnels first and opens them again on the new session.
-- **Closing panes:** if you close the pane the tunnels run on (or type `exit` there) while another pane of the same server stays open, the tunnels move to that pane. Panes connected to a different server never take them over.
+- **Closing panes:** if you close the pane the tunnels run on (or type `exit` there) while a pane opened with **Split Right (same server)** or **Split Down (same server)** stays open, the tunnels move to that pane. Panes opened with **Split Right (new connection)** or **Split Down (new connection)** never take them over, even when they connect to the same server.
 - **Closing the tab** closes its tunnels.
-- **Two tabs, one connection:** each tab opens its own tunnels, so in the second tab a local or dynamic tunnel reports that the address is already in use. The first tab keeps working.
+- **Two tabs, one connection:** each tab opens its own tunnels, so in the second tab a local or dynamic tunnel reports that the address is already in use, and a remote tunnel that the SSH server refused it. The first tab keeps working.
 - **Not opened** by SFTP tabs, by Mosh connections (the status bar says that tunnels need the SSH protocol), or for splits to a different server.
-- **Server side:** the SSH server must allow forwarding (`AllowTcpForwarding` in OpenSSH). A remote tunnel the server refuses is reported in the status bar; the other tunnels still open.
+- **Server side:** the SSH server must allow forwarding (`AllowTcpForwarding` in OpenSSH). A remote tunnel the server refuses (forwarding disabled, or its port already in use on the server) is reported in the status bar; the other tunnels still open.
 
 ### Status Bar
 
@@ -102,7 +102,7 @@ Tunnels of a connection that comes from a [Teamwork](teamwork.md) source were wr
 - Local and dynamic tunnels may only listen on `localhost`.
 - The rest still needs your one-time confirmation, which points out that the tunnels come from the shared file.
 
-To use a different tunnel, duplicate the connection and add the tunnel to your own copy.
+To use a different tunnel, create your own connection to the same server and add the tunnel there; shared connections cannot be duplicated in the connection manager.
 
 ### Organization Policy
 

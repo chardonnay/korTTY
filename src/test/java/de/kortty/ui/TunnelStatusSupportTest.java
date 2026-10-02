@@ -128,7 +128,10 @@ class TunnelStatusSupportTest {
             status(REMOTE, State.FAILED, Failure.SHARED_REMOTE, null)));
 
         assertThat(summary).startsWith("Tunnels: 0/1 active | Tunnel R localhost:9090 -> localhost:3000 failed: ");
-        assertThat(summary).contains("duplicate the connection");
+        // A shared connection cannot be duplicated in the connection manager (and a duplicate
+        // drops its tunnels), so the way out is a connection of the user's own.
+        assertThat(summary).contains("create your own connection to this server");
+        assertThat(summary).doesNotContain("duplicate");
     }
 
     @Test
