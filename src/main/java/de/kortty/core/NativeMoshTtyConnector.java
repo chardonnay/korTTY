@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashMap;
@@ -31,6 +32,11 @@ import java.util.regex.Pattern;
 public class NativeMoshTtyConnector implements TtyConnector {
 
     private static final Logger logger = LoggerFactory.getLogger(NativeMoshTtyConnector.class);
+    /**
+     * Mosh is UTF-8 only by protocol: mosh-server and mosh-client require a UTF-8 locale, so the
+     * terminal encoding setting does not apply (see {@link TerminalEncodingSupport#isUtf8Only}).
+     */
+    private static final Charset MOSH_CHARSET = StandardCharsets.UTF_8;
     private static final Pattern MOSH_CONNECT_PATTERN =
             Pattern.compile("MOSH CONNECT\\s+(\\d+)\\s+([A-Za-z0-9+/=]+)");
 
@@ -209,7 +215,7 @@ public class NativeMoshTtyConnector implements TtyConnector {
 
         inputStream = ptyProcess.getInputStream();
         outputStream = ptyProcess.getOutputStream();
-        reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+        reader = new InputStreamReader(inputStream, MOSH_CHARSET);
     }
 
     private void startMonitorThread() {
@@ -385,7 +391,7 @@ public class NativeMoshTtyConnector implements TtyConnector {
     @Override
     public void write(String string) throws IOException {
         if (string == null) return;
-        write(string.getBytes(StandardCharsets.UTF_8));
+        write(string.getBytes(MOSH_CHARSET));
     }
 
     @Override

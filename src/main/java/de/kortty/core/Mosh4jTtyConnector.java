@@ -19,6 +19,7 @@ import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,6 +38,11 @@ import java.util.regex.Pattern;
 public class Mosh4jTtyConnector implements TtyConnector {
 
     private static final Logger logger = LoggerFactory.getLogger(Mosh4jTtyConnector.class);
+    /**
+     * Mosh is UTF-8 only by protocol: mosh-server and mosh-client require a UTF-8 locale, so the
+     * terminal encoding setting does not apply (see {@link TerminalEncodingSupport#isUtf8Only}).
+     */
+    private static final Charset MOSH_CHARSET = StandardCharsets.UTF_8;
     private static final Pattern MOSH_CONNECT_PATTERN =
             Pattern.compile("MOSH CONNECT\\s+(\\d+)\\s+([A-Za-z0-9+/=]+)");
 
@@ -586,7 +592,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
                         if (frontendTakeHostBytes != null) {
                             byte[] hostBytes = (byte[]) frontendTakeHostBytes.invoke(frontend, 250L);
                             if (hostBytes != null && hostBytes.length > 0) {
-                                String chunk = new String(hostBytes, StandardCharsets.UTF_8);
+                                String chunk = new String(hostBytes, MOSH_CHARSET);
                                 writer.write(chunk);
                                 writer.flush();
                                 totalCharsWrittenToPipe += chunk.length();
@@ -608,7 +614,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
                                             System.currentTimeMillis() - connectStartedAtMs, preview);
                                 }
                                 if (!promptNudgeSent) {
-                                    frontendSendUserInput.invoke(frontend, (Object) "\r".getBytes(StandardCharsets.UTF_8));
+                                    frontendSendUserInput.invoke(frontend, (Object) "\r".getBytes(MOSH_CHARSET));
                                     promptNudgeSent = true;
                                     if (DEBUG) {
                                         logger.info("MOSH4J prompt nudge sent (CR)");
@@ -859,7 +865,7 @@ public class Mosh4jTtyConnector implements TtyConnector {
         if (string == null || string.isEmpty()) {
             return;
         }
-        write(string.getBytes(StandardCharsets.UTF_8));
+        write(string.getBytes(MOSH_CHARSET));
     }
 
     @Override

@@ -266,6 +266,62 @@ class XMLConnectionRepositoryTest {
         }
     }
 
+    @Test
+    void saveAndLoadPreservesTheTerminalEncoding() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-xml-repo-encoding");
+        try {
+            XMLConnectionRepository repository = new XMLConnectionRepository(dir);
+            ServerConnection connection = new ServerConnection();
+            connection.setName("Legacy host");
+            connection.setHost("example.com");
+            connection.setUsername("root");
+            connection.setEncoding("Windows-1252");
+
+            repository.saveConnections(List.of(connection), null);
+
+            String persistedXml = Files.readString(dir.resolve("connections.xml"));
+            assertThat(persistedXml).contains("<encoding>Windows-1252</encoding>");
+
+            List<ServerConnection> reloaded = repository.loadConnections(null);
+            assertThat(reloaded).hasSize(1);
+            assertThat(reloaded.get(0).getEncoding()).isEqualTo("Windows-1252");
+        } finally {
+            Files.deleteIfExists(dir.resolve("connections.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void loadOldConnectionWithoutEncodingUsesTheDefault() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-xml-repo-encoding-default");
+        try {
+            // The <encoding> inside <settings> is the copied global value, not a per-connection choice.
+            Files.writeString(dir.resolve("connections.xml"), """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <connections>
+                    <connection>
+                        <name>Old connection</name>
+                        <host>example.com</host>
+                        <port>22</port>
+                        <username>root</username>
+                        <settings>
+                            <encoding>ISO-8859-1</encoding>
+                        </settings>
+                    </connection>
+                </connections>
+                """);
+            XMLConnectionRepository repository = new XMLConnectionRepository(dir);
+
+            List<ServerConnection> reloaded = repository.loadConnections(null);
+
+            assertThat(reloaded).hasSize(1);
+            assertThat(reloaded.get(0).getEncoding()).isNull();
+        } finally {
+            Files.deleteIfExists(dir.resolve("connections.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
     private SecretKey deriveTestKey() throws Exception {
         EncryptionService encryptionService = new EncryptionService();
         return encryptionService.deriveKey("test-master-password".toCharArray(), encryptionService.generateSalt());

@@ -61,6 +61,7 @@ Contains all saved SSH connections with their settings.
 - Terminal appearance overrides (font, colors, size)
 - SSH tunnels and jump server configuration
 - Optional per-connection SSH host-key verification override (verify, don't verify, or inherit)
+- Optional per-connection character encoding (`encoding`; missing means the default — see [Terminal → Encoding](settings/terminal.md#notes))
 - Terminal effect plugins and animation speed
 - Connection-specific terminal logging settings
 - Per-connection session journal settings (enable, capture typed input, AI summaries, summary interval)
@@ -139,6 +140,7 @@ Global application preferences and defaults.
 
 #### Terminal and connections
 
+- Default terminal encoding for SSH connections, and `terminalEncodingConfirmed`, which records that a value stored by an older version has been saved again and applies (see [Terminal → Encoding](settings/terminal.md#notes))
 - Terminal logging defaults
 - Terminal effect plugin defaults
 - SSH keep-alive settings

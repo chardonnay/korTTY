@@ -41,6 +41,8 @@ import de.kortty.core.LibreTranslateTranslationService;
 import de.kortty.core.LocalAiTranslationService;
 import de.kortty.core.MicrosoftTranslationService;
 import de.kortty.core.TerminalAgentCommandSupport;
+import de.kortty.core.TerminalEncodingSupport;
+import de.kortty.core.TerminalPaletteSupport;
 import de.kortty.core.YandexTranslationService;
 import de.kortty.core.LanguageManager;
 import de.kortty.core.LoggingConfiguration;
@@ -80,6 +82,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.geometry.VPos;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
@@ -148,7 +151,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox cursorBlinkCheck;
     private final ColorPicker selectionColorPicker;
     private final CheckBox terminalColorsEnabledCheck;
-    
+    // The 16 ANSI colours, index 0-7 = black, red, green, yellow, blue, magenta, cyan, white.
+    private final ColorPicker[] ansiNormalPickers = new ColorPicker[ConnectionSettings.ANSI_COLOR_COUNT];
+    private final ColorPicker[] ansiBrightPickers = new ColorPicker[ConnectionSettings.ANSI_COLOR_COUNT];
+
     // Terminal size
     private final Spinner<Integer> columnsSpinner;
     private final Spinner<Integer> rowsSpinner;
@@ -157,6 +163,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     // Other settings
     private final CheckBox boldAsBrightCheck;
     private final ComboBox<String> encodingCombo;
+    /** The Terminal page; built on first selection, so a still-pending build means it was not shown. */
+    private final Tab terminalTab;
     private final CheckBox showTerminalScrollbarCheck;
     private final CheckBox commandTimestampsCheck;
     private final CheckBox terminalDragDropCheck;
@@ -696,18 +704,21 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         HBox normalColorsBox = new HBox(5);
         HBox brightColorsBox = new HBox(5);
         
-        for (int i = 0; i < 8; i++) {
-            ColorPicker normalPicker = new ColorPicker(Color.web(settings.getAnsiColor(i, false)));
+        for (int i = 0; i < ConnectionSettings.ANSI_COLOR_COUNT; i++) {
+            // Show what the terminal draws: the stored colours once customised, the built-in palette before.
+            ColorPicker normalPicker = new ColorPicker(Color.web(TerminalPaletteSupport.effectiveHex(settings, i, false)));
             normalPicker.setPrefWidth(40);
             normalPicker.setStyle("-fx-color-label-visible: false;");
             Tooltip.install(normalPicker, new Tooltip(colorNames[i]));
             normalColorsBox.getChildren().add(normalPicker);
-            
-            ColorPicker brightPicker = new ColorPicker(Color.web(settings.getAnsiColor(i, true)));
+            ansiNormalPickers[i] = normalPicker;
+
+            ColorPicker brightPicker = new ColorPicker(Color.web(TerminalPaletteSupport.effectiveHex(settings, i, true)));
             brightPicker.setPrefWidth(40);
             brightPicker.setStyle("-fx-color-label-visible: false;");
             Tooltip.install(brightPicker, new Tooltip(colorNames[i] + " " + I18n.get("color.bright")));
             brightColorsBox.getChildren().add(brightPicker);
+            ansiBrightPickers[i] = brightPicker;
         }
         normalColorsBox.disableProperty().bind(terminalColorsEnabledCheck.selectedProperty().not());
         brightColorsBox.disableProperty().bind(terminalColorsEnabledCheck.selectedProperty().not());
@@ -720,7 +731,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         LazyTabContent.defer(colorsTab, () -> colorsGrid);
         
         // Terminal tab
-        Tab terminalTab = new Tab(I18n.get("settings.tab.terminal"));
+        terminalTab = new Tab(I18n.get("settings.tab.terminal"));
         GridPane terminalGrid = new GridPane();
         terminalGrid.setHgap(10);
         terminalGrid.setVgap(10);
@@ -742,8 +753,20 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         boldAsBrightCheck.setSelected(settings.isBoldAsBright());
         
         encodingCombo = new ComboBox<>();
-        encodingCombo.getItems().addAll("UTF-8", "ISO-8859-1", "ISO-8859-15", "Windows-1252");
-        encodingCombo.setValue(settings.getEncoding());
+        encodingCombo.getItems().addAll(TerminalEncodingSupport.offeredEncodings(settings.getEncoding()));
+        String storedEncoding = TerminalEncodingSupport.displayName(settings.getEncoding());
+        encodingCombo.setValue(storedEncoding != null ? storedEncoding : TerminalEncodingSupport.SUPPORTED_ENCODINGS.get(0));
+        encodingCombo.setTooltip(new Tooltip(I18n.get("settings.terminal.encoding.tooltip")));
+        // A value stored while the setting still had no effect applies only once this page is saved.
+        Label encodingPendingHint = new Label(I18n.get("settings.terminal.encoding.pendingHint"));
+        encodingPendingHint.setWrapText(true);
+        encodingPendingHint.setPrefWidth(UiFontScaleSupport.scaleDimension(420, true));
+        encodingPendingHint.setMinHeight(Region.USE_PREF_SIZE); // wrap instead of ellipsizing
+        encodingPendingHint.setStyle(MutedTextStyle.HINT);
+        boolean encodingPending = TerminalEncodingSupport.isGlobalEncodingPending(globalSettings);
+        encodingPendingHint.setVisible(encodingPending);
+        encodingPendingHint.setManaged(encodingPending);
+        VBox encodingBox = new VBox(4, encodingCombo, encodingPendingHint);
         
         showTerminalScrollbarCheck = new CheckBox(I18n.get("settings.terminal.scrollbar"));
         showTerminalScrollbarCheck.setSelected(globalSettings != null ? globalSettings.isShowTerminalScrollbar() : true);
@@ -827,8 +850,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalGrid.add(rowsSpinner, 1, 1);
         terminalGrid.add(new Label(I18n.get("settings.terminal.scrollback")), 0, 2);
         terminalGrid.add(scrollbackSpinner, 1, 2);
-        terminalGrid.add(new Label(I18n.get("settings.terminal.encoding")), 0, 3);
-        terminalGrid.add(encodingCombo, 1, 3);
+        Label encodingLabel = new Label(I18n.get("settings.terminal.encoding"));
+        // Line the label up with the dropdown, not with the middle of dropdown and hint.
+        GridPane.setValignment(encodingLabel, VPos.BASELINE);
+        GridPane.setValignment(encodingBox, VPos.BASELINE);
+        terminalGrid.add(encodingLabel, 0, 3);
+        terminalGrid.add(encodingBox, 1, 3);
         terminalGrid.add(boldAsBrightCheck, 0, 4, 2, 1);
         terminalGrid.add(showTerminalScrollbarCheck, 0, 5, 2, 1);
         terminalGrid.add(commandTimestampsCheck, 0, 6, 2, 1);
@@ -3041,7 +3068,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                         settings.getForegroundColor(), settings.getCursorStyle());
                 configManager.setGlobalSettings(settings);
                 globalSettings.setDefaultTerminalSettings(new ConnectionSettings(settings));
-                
+                // Migration guard: the stored global encoding takes effect once the Terminal page was
+                // shown and saved. Only here, with the new value in place: applySettings() can still
+                // abort after reading the dropdown, and an aborted save must not apply the old value.
+                TerminalEncodingSupport.confirmOnSave(globalSettings, !LazyTabContent.isPending(terminalTab));
+
                 // Save global settings
                 try {
                     app.getGlobalSettingsManager().save();
@@ -3171,7 +3202,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         if (globalSettings != null) {
             globalSettings.setTerminalCursorBlink(cursorBlinkCheck.isSelected());
         }
-        settings.setSelectionColor(toHex(selectionColorPicker.getValue()));
+        String[] ansiNormalHex = new String[ConnectionSettings.ANSI_COLOR_COUNT];
+        String[] ansiBrightHex = new String[ConnectionSettings.ANSI_COLOR_COUNT];
+        for (int i = 0; i < ConnectionSettings.ANSI_COLOR_COUNT; i++) {
+            ansiNormalHex[i] = toHex(ansiNormalPickers[i].getValue());
+            ansiBrightHex[i] = toHex(ansiBrightPickers[i].getValue());
+        }
+        // Also marks the palette customised exactly when the colours differ from the built-in look.
+        TerminalPaletteSupport.storeColorsTab(settings, ansiNormalHex, ansiBrightHex,
+                toHex(selectionColorPicker.getValue()));
         settings.setThemeId(selectedGlobalThemeId);
         settings.setTerminalColumns(columnsSpinner.getValue());
         settings.setTerminalRows(rowsSpinner.getValue());

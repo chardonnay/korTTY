@@ -15,24 +15,24 @@ Konfigurieren Sie die Anzeigefarben des Terminals, einschließlich Text, Hinterg
 | Hintergrund | Farbe | RGB-Hex-Farbe | #1E1E1E | `backgroundColor` |
 | Cursor | Farbe | RGB-Hex-Farbe | #FFFFFF | `cursorColor` |
 | Cursor blinkt | umschalten | — | Ein | `terminalCursorBlink` (gespiegelt in `cursorStyle`) |
-| Auswahl | Farbe | RGB-Hex-Farbe | #3399FF | `selectionColor` |
+| Auswahl | Farbe | RGB Hex-Farbe | #3399FF (inverses Video bis angepasst) | `selectionColor` |
 | Terminalfarben aktivieren | umschalten | – | Ein | `terminalColorsEnabled` |
-| Normal: Schwarz | Farbe | RGB-Hex-Farbe | #000000 | `ansiBlack` |
-| Normal: Rot | Farbe | RGB-Hex-Farbe | #CD0000 | `ansiRed` |
-| Normal: Grün | Farbe | RGB-Hex-Farbe | #00CD00 | `ansiGreen` |
-| Normal: Gelb | Farbe | RGB-Hex-Farbe | #CDCD00 | `ansiYellow` |
-| Normal: Blau | Farbe | RGB-Hex-Farbe | #0000EE | `ansiBlue` |
-| Normal: Magenta | Farbe | RGB-Hex-Farbe | #CD00CD | `ansiMagenta` |
-| Normal: Cyan | Farbe | RGB-Hex-Farbe | #00CDCD | `ansiCyan` |
-| Normal: Weiß | Farbe | RGB-Hex-Farbe | #E5E5E5 | `ansiWhite` |
-| Hell: Schwarz | Farbe | RGB-Hex-Farbe | #7F7F7F | `ansiBrightBlack` |
-| Hell: Rot | Farbe | RGB-Hex-Farbe | #FF0000 | `ansiBrightRed` |
-| Hell: Grün | Farbe | RGB-Hex-Farbe | #00FF00 | `ansiBrightGreen` |
-| Hell: Gelb | Farbe | RGB-Hex-Farbe | #FFFF00 | `ansiBrightYellow` |
-| Hell: Blau | Farbe | RGB-Hex-Farbe | #5C5CFF | `ansiBrightBlue` |
-| Hell: Magenta | Farbe | RGB-Hex-Farbe | #FF00FF | `ansiBrightMagenta` |
-| Hell: Cyan | Farbe | RGB-Hex-Farbe | #00FFFF | `ansiBrightCyan` |
-| Hell: Weiß | Farbe | RGB-Hex-Farbe | #FFFFFF | `ansiBrightWhite` |
+| Normal: Schwarz | Farbe | RGB Hex-Farbe | integrierte Palette | `ansiBlack` |
+| Normal: Rot | Farbe | RGB Hex-Farbe | integrierte Palette | `ansiRed` |
+| Normal: Grün | Farbe | RGB Hex-Farbe | integrierte Palette | `ansiGreen` |
+| Normal: Gelb | Farbe | RGB Hex-Farbe | integrierte Palette | `ansiYellow` |
+| Normal: Blau | Farbe | RGB Hex-Farbe | integrierte Palette | `ansiBlue` |
+| Normal: Magenta | Farbe | RGB Hex-Farbe | integrierte Palette | `ansiMagenta` |
+| Normal: Cyan | Farbe | RGB Hex-Farbe | integrierte Palette | `ansiCyan` |
+| Normal: Weiß | Farbe | RGB Hex-Farbe | integrierte Palette | `ansiWhite` |
+| Hell: Schwarz | Farbe | RGB Hex-Farbe | integrierte Palette | `ansiBrightBlack` |
+| Hell: Rot | Farbe | RGB Hex-Farbe | integrierte Palette | `ansiBrightRed` |
+| Hell: Grün | Farbe | RGB Hex-Farbe | integrierte Palette | `ansiBrightGreen` |
+| Hell: Gelb | Farbe | RGB Hex-Farbe | integrierte Palette | `ansiBrightYellow` |
+| Hell: Blau | Farbe | RGB Hex-Farbe | integrierte Palette | `ansiBrightBlue` |
+| Hell: Magenta | Farbe | RGB Hex-Farbe | integrierte Palette | `ansiBrightMagenta` |
+| Hell: Cyan | Farbe | RGB Hex-Farbe | integrierte Palette | `ansiBrightCyan` |
+| Hell: Weiß | Farbe | RGB Hex-Farbe | integrierte Palette | `ansiBrightWhite` |
 
 ## Notizen
 
@@ -44,3 +44,8 @@ Konfigurieren Sie die Anzeigefarben des Terminals, einschließlich Text, Hinterg
 
 !!! note "ANSI Farben"
     Die Farbpaletten **Normal** und **Hell** definieren die 16 ANSI-Farben (0–7 normal, 8–15 hell), die verwendet werden, wenn **Terminalfarben aktivieren** aktiviert ist. Jeder Satz von 8 Farben entspricht Schwarz, Rot, Grün, Gelb, Blau, Magenta, Cyan und Weiß. Wenn Terminalfarben deaktiviert sind, werden nur die konfigurierten **Textfarben** und **Hintergrund** verwendet, alle ANSI- und TrueColor-Sequenzen werden ignoriert.
+
+    Solange Sie die Palette und die **Auswahl**-Farbe unverändert lassen, behält das Terminal seine integrierte Palette bei – die xterm-Farben oder die Windows-Konsolefarben unter Windows – und die Picker zeigen genau diese Farben. Ändern Sie eine der 16 Farben oder die Auswahlfarbe und klicken Sie **Speichern**: alle 16 Farben und die Auswahlfarbe werden sofort auf jedes offene Terminal angewendet, ohne neu verbinden zu müssen, und korTTY merkt sich, dass Sie sie angepasst haben (`ansiPaletteCustomized`). Setzen Sie jede Farbe auf ihren integrierten Wert zurück und die Auswahlfarbe auf #3399FF, kehren Sie zum Standard-Look zurück. Terminalaufzeichnungen mit [Terminalfarben in Aufnahmen erfassen](video.md) verwenden dieselben Farben wie der Bildschirm, außer dass fette Texte [Fett als helle Farbe anzeigen](terminal.md) folgen, was bisher nur Aufzeichnungen betrifft. Farbprofile ändern die ANSI-Palette nicht.
+
+!!! note "Auswahl"
+    Während die Palette und die Auswahlfarbe unverändert bleiben, wird ausgewählter Text im inversen Video dargestellt. Sobald Sie diese angepasst haben, wird die Auswahl in der **Auswahl**-Farbe mit schwarzem oder weißem Text gezeichnet, je nachdem, was leichter lesbar ist.

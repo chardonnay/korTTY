@@ -69,7 +69,8 @@ public class SshTtyConnector implements ObservableTtyConnector {
     private InputStreamReader reader;
     
     private final AtomicBoolean connected = new AtomicBoolean(false);
-    private final Charset charset = StandardCharsets.UTF_8;
+    /** Resolved once per connector: an encoding change applies on the next connect or reconnect. */
+    private final Charset charset;
     private final Object outputWriteLock = new Object();
     private final StringBuilder pendingReadBuffer = new StringBuilder();
     private final StringBuilder shellStartupOutputBuffer = new StringBuilder();
@@ -105,6 +106,12 @@ public class SshTtyConnector implements ObservableTtyConnector {
         this.connection = connection;
         this.password = password;
         this.hostKeyTrustManager = java.util.Objects.requireNonNull(hostKeyTrustManager, "hostKeyTrustManager");
+        this.charset = TerminalEncodingSupport.resolveFromSettings(connection);
+    }
+
+    @Override
+    public Charset getCharset() {
+        return charset;
     }
     
     /**
@@ -400,6 +407,9 @@ public class SshTtyConnector implements ObservableTtyConnector {
             inputStream = channel.getInvertedOut();
             outputStream = channel.getInvertedIn();
             reader = new InputStreamReader(inputStream, charset);
+            if (!StandardCharsets.UTF_8.equals(charset)) {
+                logger.info("Terminal encoding {} for {}:{}", charset.name(), connection.getHost(), connection.getPort());
+            }
 
             writeShellStartupCommandIfConfigured();
             

@@ -38,6 +38,7 @@ import de.kortty.core.TerminalRecordingScreenSnapshot;
 import de.kortty.core.TerminalRecordingSession;
 import de.kortty.core.TerminalRecordingStyleRun;
 import de.kortty.core.TerminalColorControlSequenceFilter;
+import de.kortty.core.TerminalPaletteSupport;
 import de.kortty.model.AiProfile;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ConnectionSettings;
@@ -2027,8 +2028,11 @@ public class TerminalView extends BorderPane {
     private static List<TerminalRecordingStyleRun> captureTerminalStyleRuns(
         com.sithtermfx.core.model.TerminalTextBuffer textBuffer,
         ConnectionSettings settings) {
+        // The palette the live terminal draws (built-in until customised), so recordings match the screen.
         return de.kortty.core.TerminalScreenRenderer.styleRuns(textBuffer, settings != null
-            ? new de.kortty.core.TerminalScreenRenderer.Palette(settings::getAnsiColor, settings.isBoldAsBright())
+            ? new de.kortty.core.TerminalScreenRenderer.Palette(
+                (index, bright) -> TerminalPaletteSupport.effectiveHex(settings, index, bright),
+                settings.isBoldAsBright())
             : de.kortty.core.TerminalScreenRenderer.Palette.DEFAULT);
     }
 
@@ -2119,7 +2123,8 @@ public class TerminalView extends BorderPane {
                 isTerminalAgentCommandNameCaseInsensitive()),
             rawCommand -> shouldInterceptFilteredAgentShortcut(widget, rawCommand),
             rawCommand -> dispatchFilteredTerminalAgentShortcut(widget, rawCommand),
-            this::forwardJournalInputLine);
+            this::forwardJournalInputLine,
+            observableConnector.getCharset());
         terminalAgentShortcutInputFilters.put(
             observableConnector,
             new TerminalAgentShortcutInputFilterRegistration(widget, inputFilter));
@@ -3181,6 +3186,18 @@ public class TerminalView extends BorderPane {
         }
         PasteTracking tracking = codingAgentPasteTrackers.get(widget);
         return tracking != null && tracking.tracker().isEnabled();
+    }
+
+    /**
+     * The character encoding the pane's connector types text in (see
+     * {@link de.kortty.core.TerminalEncodingSupport}); UTF-8 without a pane or for a connector that
+     * does not resolve one.
+     */
+    public java.nio.charset.Charset connectorCharset(SithTermFxWidget widget) {
+        TtyConnector connector = widget != null ? unwrapTerminalEffectConnector(widget.getTtyConnector()) : null;
+        return connector instanceof ObservableTtyConnector observable && observable.getCharset() != null
+            ? observable.getCharset()
+            : StandardCharsets.UTF_8;
     }
 
     /**
@@ -6428,6 +6445,10 @@ public class TerminalView extends BorderPane {
         settings.setCursorColor(effective.getCursorColor());
         settings.setCursorStyle(effective.getCursorStyle());
         settings.setTerminalColorsEnabled(effective.isTerminalColorsEnabled());
+        // ANSI palette, selection colour and bold-as-bright (recordings): every pane provider reads this
+        // settings object, but caches the resolved palette, so refresh them before the repaint below.
+        settings.copyTerminalPaletteFrom(effective);
+        refreshPanePalettes();
         sharedFontSource.setFontSize(size);
 
         if (splitPane != null) {
@@ -6459,6 +6480,15 @@ public class TerminalView extends BorderPane {
         logger.debug("Applied connection settings: {} {}pt", family, size);
         // Effect panes keep their per-pane override (resolved in applyStyleStateColors / getTerminalFont),
         // so applying connection settings tab-wide never overwrites a pane that is running an effect.
+    }
+
+    /** Lets every pane re-read the ANSI palette and selection colour from {@link #settings}. */
+    private void refreshPanePalettes() {
+        paneProviders.values().forEach(KorTTYSettingsProvider::refreshPalette);
+        // The single-terminal fallback has no split pane that would have registered its provider.
+        if (terminalWidget != null && terminalWidget.getSettingsProvider() instanceof KorTTYSettingsProvider provider) {
+            provider.refreshPalette();
+        }
     }
 
     private boolean isThemeFontApplyEnabled() {
@@ -7040,6 +7070,17 @@ public class TerminalView extends BorderPane {
         private final java.util.function.IntSupplier backgroundTransparencySupplier;
         // Per-pane appearance override contributed by an active effect; null = inherit the baseline settings.
         private volatile PaneAppearanceOverride override;
+        // ANSI palette + selection resolved from the settings. Cached because the vendor asks for the
+        // palette once per drawn cell (TerminalPanel.getPalette); null until the constructor body ran.
+        private volatile PaletteColors paletteColors;
+
+        /**
+         * What {@link #refreshPalette()} resolved: {@code customized == false} keeps the built-in palette
+         * and inverse-video selection; a null {@code selection} falls back to the vendor default colour.
+         */
+        private record PaletteColors(boolean customized, com.sithtermfx.core.emulator.ColorPalette palette,
+                                     TextStyle selection) {
+        }
 
         public KorTTYSettingsProvider(ConnectionSettings settings, DynamicFontSizeSettingsProvider sharedFontSource,
                                       java.util.function.IntSupplier backgroundTransparencySupplier) {
@@ -7047,6 +7088,19 @@ public class TerminalView extends BorderPane {
             this.settings = settings;
             this.sharedFontSource = sharedFontSource;
             this.backgroundTransparencySupplier = backgroundTransparencySupplier;
+            refreshPalette();
+        }
+
+        /** Re-reads the ANSI palette and the selection colour; call after they changed in the settings. */
+        void refreshPalette() {
+            ConnectionSettings s = settings;
+            if (s == null || !s.isAnsiPaletteCustomized()) {
+                paletteColors = new PaletteColors(false, null, null);
+                return;
+            }
+            paletteColors = new PaletteColors(true,
+                    TerminalPaletteSupport.toColorPalette(s),
+                    TerminalPaletteSupport.selectionStyle(s.getSelectionColor()));
         }
 
         void setOverride(PaneAppearanceOverride override) {
@@ -7226,11 +7280,26 @@ public class TerminalView extends BorderPane {
             return false;
         }
         
+        // ---- Colors tab: untouched settings keep the built-in palette and inverse-video selection, so
+        // nothing changes for anyone who never customised them (ConnectionSettings.ansiPaletteCustomized). ----
+        @Override
+        public com.sithtermfx.core.emulator.ColorPalette getTerminalColorPalette() {
+            PaletteColors colors = paletteColors;
+            return colors != null && colors.palette() != null ? colors.palette() : super.getTerminalColorPalette();
+        }
+
+        @Override
+        public @NotNull TextStyle getSelectionColor() {
+            PaletteColors colors = paletteColors;
+            return colors != null && colors.selection() != null ? colors.selection() : super.getSelectionColor();
+        }
+
         @Override
         public boolean useInverseSelectionColor() {
-            return true;
+            PaletteColors colors = paletteColors;
+            return colors == null || !colors.customized();
         }
-        
+
         @Override
         public int getBufferMaxLinesCount() {
             // Honors the connection's scrollback setting (Settings > Terminal); the widget reads
