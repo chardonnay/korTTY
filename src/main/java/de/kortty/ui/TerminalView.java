@@ -3029,6 +3029,11 @@ public class TerminalView extends BorderPane {
             panel.selectedTextProperty().addListener((obs, oldVal, newVal) -> {
                 if (isTerminalCopyOnSelectEnabled() && newVal != null && !newVal.isEmpty()) {
                     panel.handleCopy(false, false);
+                    if (shouldMirrorToPrimarySelection(com.sithtermfx.core.util.Platform.current())) {
+                        // X11: middle-click pastes PRIMARY, so the selection must land there too.
+                        // PolicyAwareCopyPasteHandler keeps the internal-clipboard mode sealed.
+                        panel.handleCopy(false, true);
+                    }
                 }
             });
         }
@@ -6984,8 +6989,50 @@ public class TerminalView extends BorderPane {
         }
     }
 
+    /**
+     * Key binding of the terminal's own "Clear Buffer" action. On macOS it stays the vendor's
+     * Cmd+K. On Windows/Linux the vendor binds it to Ctrl+L and consumes the key before the shell
+     * sees it, so bash/psql/REPLs never get their ^L (redraw/clear screen) and the local scrollback
+     * is wiped instead. There it has no key binding at all, so Ctrl+L reaches the shell; the action
+     * stays reachable via the terminal's context menu. No Ctrl+Shift+K fallback: MainWindow already
+     * owns SHORTCUT+SHIFT+K (file browser left dock), and a canvas action would shadow it.
+     */
+    static com.sithtermfx.ui.TerminalActionPresentation clearBufferActionPresentation(boolean macOs) {
+        String name = I18n.get("terminal.contextMenu.clearBuffer");
+        if (macOs) {
+            return new com.sithtermfx.ui.TerminalActionPresentation(name,
+                    new javafx.scene.input.KeyCodeCombination(KeyCode.K, javafx.scene.input.KeyCombination.META_DOWN));
+        }
+        return new com.sithtermfx.ui.TerminalActionPresentation(name, Collections.emptyList());
+    }
+
+    /**
+     * Key binding of the terminal's own "Find" action. On macOS it stays the vendor's Cmd+F. On
+     * Windows/Linux the vendor binds Ctrl+F, which steals readline's forward-char and less/vim's
+     * page-forward from the shell, so there it has no key binding and ^F goes to the shell; Find
+     * stays reachable via the terminal's context menu and Edit &gt; Find. No Ctrl+Shift+F fallback:
+     * that is MainWindow's terminal-only fullscreen accelerator.
+     */
+    static com.sithtermfx.ui.TerminalActionPresentation findActionPresentation(boolean macOs) {
+        String name = I18n.get("terminal.contextMenu.find");
+        if (macOs) {
+            return new com.sithtermfx.ui.TerminalActionPresentation(name,
+                    new javafx.scene.input.KeyCodeCombination(KeyCode.F, javafx.scene.input.KeyCombination.META_DOWN));
+        }
+        return new com.sithtermfx.ui.TerminalActionPresentation(name, Collections.emptyList());
+    }
+
+    /**
+     * Whether copy-on-select also writes the X11 PRIMARY selection, so that a middle-click pastes
+     * the terminal selection in other applications (the X11 convention). Only Linux has one; on
+     * other platforms the vendor copy handler would fall back to the regular clipboard.
+     */
+    static boolean shouldMirrorToPrimarySelection(com.sithtermfx.core.util.Platform platform) {
+        return platform == com.sithtermfx.core.util.Platform.Linux;
+    }
+
     private static class KorTTYSettingsProvider extends DynamicFontSizeSettingsProvider {
-        
+
         private final ConnectionSettings settings;
         // Single tab-wide font size. May be null during super() construction (guarded below).
         private final DynamicFontSizeSettingsProvider sharedFontSource;
@@ -7137,6 +7184,17 @@ public class TerminalView extends BorderPane {
         @Override
         public boolean audibleBell() {
             return false; // Disable bell sound!
+        }
+
+        // On Windows/Linux Ctrl+L and Ctrl+F belong to the shell; see clearBufferActionPresentation.
+        @Override
+        public @NotNull com.sithtermfx.ui.TerminalActionPresentation getClearBufferActionPresentation() {
+            return clearBufferActionPresentation(com.sithtermfx.core.util.Platform.isMacOS());
+        }
+
+        @Override
+        public @NotNull com.sithtermfx.ui.TerminalActionPresentation getFindActionPresentation() {
+            return findActionPresentation(com.sithtermfx.core.util.Platform.isMacOS());
         }
 
         @Override
