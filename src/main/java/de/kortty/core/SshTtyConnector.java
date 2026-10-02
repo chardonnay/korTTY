@@ -461,6 +461,14 @@ public class SshTtyConnector implements ObservableTtyConnector {
             }
             throw new ConnectionConfigurationException(e.getMessage(), e);
         } catch (AuthenticationException e) {
+            // A rejected target host key still takes precedence, as in the other two branches: the
+            // key exchange runs while the key file is loaded, and a refused key is the security signal.
+            if (hostKeyVerifier != null && hostKeyVerifier.wasRejected()) {
+                logger.error("SSH host-key verification rejected connection to {}:{}",
+                    connection.getHost(), connection.getPort());
+                close();
+                throw new HostKeyVerificationException(hostKeyRejectionMessage(), e);
+            }
             // Thrown before the server is asked (e.g. a key file that cannot be loaded); it is as
             // permanent as a refused login, so it must reach the caller instead of a retry.
             logger.error("Authentication for {}:{} cannot proceed: {}",
