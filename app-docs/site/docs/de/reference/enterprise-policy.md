@@ -277,6 +277,8 @@ Mandate für das [Sitzungsjournal](../features/session-journal.md). Erzwungene W
 
 Automatisches Suchen und Ersetzen in jedem Journal – die Möglichkeit, eine ganze Kategorie von Geheimnissen aus dem Transkript herauszuhalten, anstatt sich darauf zu verlassen, dass der Benutzer es bemerkt. Jeder Eintrag stellt eine Regel dar, und eine Regel kann einen regulären Ausdruck verwenden.
 
+korTTY wendet dieselben Regeln auf eine Terminalauswahl und auf eine daran angehängte Datei an, bevor sie an ein KI-Profil gesendet werden, das weder ein integriertes Modell noch ein vertrauenswürdiger lokaler Endpunkt ist; siehe [Maskierung von Geheimnissen vor dem Senden](../features/ai-assistant.md#geheimnisse-vor-dem-senden-maskieren).
+
 | Schlüssel | Typ | Standard | Wirkung |
 | --- | --- | --- | --- |
 | `pattern` | Zeichenfolge | *erforderlich* | Der zu suchende Text. Wenn `regex` aktiviert ist, handelt es sich um einen regulären Ausdruck |
