@@ -2448,6 +2448,9 @@ public class TerminalView extends BorderPane {
                 }
             }
             sshConnector.setAccessReasonMemory(accessReasonMemory);
+            // The user opened this tab and sees its dialogs, so a changed host key may be reviewed
+            // and replaced here; background connections keep the plain warning.
+            sshConnector.setHostKeyReplacePolicy(de.kortty.core.SshHostKeyTrustManager.ReplacePolicy.INTERACTIVE);
             connector = sshConnector;
         }
         return connector;

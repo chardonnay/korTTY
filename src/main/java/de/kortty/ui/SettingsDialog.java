@@ -3294,12 +3294,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 apiRegion != null && !apiRegion.trim().isEmpty() ? apiRegion.trim() : null);
             String apiKeyPlain = translationApiKeyField.getText();
             if (apiKeyPlain != null && !apiKeyPlain.isEmpty()) {
-                char[] masterPassword = app.getMasterPasswordManager() != null ? app.getMasterPasswordManager().getMasterPassword() : null;
+                char[] masterPassword = masterPasswordOrOfferUnlock(I18n.get("settings.translation.error.vaultLocked"));
                 if (masterPassword == null) {
-                    Alert vaultLocked = new Alert(Alert.AlertType.WARNING, I18n.get("settings.translation.error.vaultLocked"));
-                    vaultLocked.setHeaderText(null);
-                    vaultLocked.showAndWait();
-                    // Abort save so dialog stays open; do not call setEncryptedTranslationApiKey
+                    // The locked message was shown. Abort save so dialog stays open; do not call
+                    // setEncryptedTranslationApiKey
                     return false;
                 } else {
                     try {
@@ -4366,6 +4364,13 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 char[] oldPasswordChars = oldPasswordField.getText().toCharArray();
                 MasterPasswordManager mpm = app.getMasterPasswordManager();
 
+                // A session started with the vault locked still holds its temporary SSH keys only
+                // encrypted with the current password. Unlock first so they are restored in memory
+                // and re-encrypted with the new password instead of being dropped by the save below.
+                if (mpm.isLocked() && mpm.verifyPassword(oldPasswordChars)) {
+                    app.onVaultUnlocked();
+                }
+
                 // Stage the change in memory only. master.key is the authority for which password
                 // unlocks the vault, so it is rewritten at the very end (the commit point) — if
                 // anything below fails, the old password still matches the data that is on disk.
@@ -4409,7 +4414,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                     // which would leave those stores encrypted with the old password.
                     List<String> failedStores = new ArrayList<>();
                     persistStore(failedStores, "connections.xml",
-                        () -> configManager.save(mpm.getDerivedKey()));
+                        () -> configManager.saveOrThrow(mpm.getDerivedKey()));
                     if (sshKeyManager != null) {
                         persistStore(failedStores, "ssh-keys.xml", sshKeyManager::save);
                     }
@@ -5658,11 +5663,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
             String plainApiKey = aiPlainApiKeysByProfileId.get(copy.getId());
             if (plainApiKey != null && !plainApiKey.isBlank()) {
-                char[] masterPassword = app.getMasterPasswordManager() != null ? app.getMasterPasswordManager().getMasterPassword() : null;
+                char[] masterPassword = masterPasswordOrOfferUnlock(I18n.get("settings.ai.error.vaultLocked"));
                 if (masterPassword == null) {
-                    Alert vaultLocked = new Alert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.vaultLocked"));
-                    vaultLocked.setHeaderText(null);
-                    vaultLocked.showAndWait();
                     return false;
                 }
                 try {
@@ -5732,6 +5734,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 globalSettings.getEncryptedAiBraveSearchApiKey(),
                 aiBraveSearchApiKeyField.getText(),
                 aiClearBraveSearchApiKeyCheck.isSelected()));
+        } catch (VaultUnlockSupport.UnlockDeclinedException declined) {
+            return false;
         } catch (Exception ex) {
             Alert alert = new Alert(Alert.AlertType.WARNING,
                 I18n.get("settings.ai.error.testFailed") + ": "
@@ -5759,13 +5763,25 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         boolean clearExisting) throws Exception {
 
         if (plainReplacement != null && !plainReplacement.isBlank()) {
-            char[] masterPassword = app.getMasterPasswordManager() != null ? app.getMasterPasswordManager().getMasterPassword() : null;
+            char[] masterPassword = masterPasswordOrOfferUnlock(I18n.get("settings.ai.error.vaultLocked"));
             if (masterPassword == null) {
-                throw new IllegalStateException(I18n.get("settings.ai.error.vaultLocked"));
+                // The locked message was shown already; the caller aborts without a second alert.
+                throw new VaultUnlockSupport.UnlockDeclinedException();
             }
             return encryptionService.encryptPassword(plainReplacement, masterPassword);
         }
         return clearExisting ? null : existingEncryptedValue;
+    }
+
+    /**
+     * The master password, offering Unlock Vault… while the vault is locked. {@code null} when it
+     * stays locked — the user has then seen {@code lockedMessage}, so no further alert is due.
+     */
+    private char[] masterPasswordOrOfferUnlock(String lockedMessage) {
+        return VaultUnlockSupport.masterPasswordOrOfferUnlock(
+            getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+            app != null ? app.getMasterPasswordManager() : null,
+            lockedMessage);
     }
 
     private void saveAiToggleFlagsToSettings(GlobalSettings targetSettings) {

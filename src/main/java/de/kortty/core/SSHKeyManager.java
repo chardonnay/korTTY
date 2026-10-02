@@ -3,8 +3,8 @@ package de.kortty.core;
 import de.kortty.model.SSHKey;
 import de.kortty.security.EncryptionService;
 import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
-import jakarta.xml.bind.Unmarshaller;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;
@@ -12,7 +12,8 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
+import java.io.ByteArrayInputStream;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -26,33 +27,49 @@ import java.util.Optional;
 public class SSHKeyManager {
     
     private static final Logger logger = LoggerFactory.getLogger(SSHKeyManager.class);
-    private static final String SSH_KEYS_FILE = "ssh-keys.xml";
+    public static final String SSH_KEYS_FILE = "ssh-keys.xml";
     private static final String SSH_KEYS_DIR = "ssh-keys";  // Subdirectory in .kortty for copied keys
+    
+    /** Shared, thread-safe JAXBContext; building one per load and save is the expensive part. */
+    private static final JAXBContext JAXB_CONTEXT;
+    static {
+        try {
+            JAXB_CONTEXT = JAXBContext.newInstance(SSHKeysWrapper.class, SSHKey.class);
+        } catch (JAXBException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
     
     private final Path configDir;
     private final List<SSHKey> keys = new ArrayList<>();
+    private final StoreFileGuard guard;
     
     public SSHKeyManager(Path configDir) {
         this.configDir = configDir;
+        this.guard = new StoreFileGuard(configDir.resolve(SSH_KEYS_FILE));
     }
     
     /**
-     * Loads SSH keys from configuration file
+     * Loads SSH keys from configuration file. A corrupt file is moved aside (see
+     * {@link #getLoadFailureBackup()}) and the keys in memory are kept. When the file cannot be
+     * read or moved aside this throws, and {@link #save()} refuses to write over it.
      */
     public void load() throws Exception {
-        Path file = configDir.resolve(SSH_KEYS_FILE);
-        if (!Files.exists(file)) {
+        Path file = guard.file();
+        guard.beginLoad();
+        if (guard.isMissing()) {
             logger.info("No SSH keys file found, starting with empty list");
             return;
         }
         
         try {
-            JAXBContext context = JAXBContext.newInstance(
-                SSHKeysWrapper.class, 
-                SSHKey.class
-            );
-            Unmarshaller unmarshaller = context.createUnmarshaller();
-            SSHKeysWrapper wrapper = (SSHKeysWrapper) unmarshaller.unmarshal(file.toFile());
+            Optional<SSHKeysWrapper> loaded = guard.read(content ->
+                (SSHKeysWrapper) JAXB_CONTEXT.createUnmarshaller().unmarshal(new ByteArrayInputStream(content)));
+            if (loaded.isEmpty()) {
+                logger.warn("Kept {} SSH keys in memory; the unreadable SSH keys file was moved aside", keys.size());
+                return;
+            }
+            SSHKeysWrapper wrapper = loaded.get();
             
             keys.clear();
             if (wrapper.getKeys() != null) {
@@ -67,30 +84,41 @@ public class SSHKeyManager {
     }
     
     /**
-     * Saves SSH keys to configuration file
+     * Saves SSH keys to configuration file: atomically, flushed to the disk, owner-only.
+     *
+     * @throws IllegalStateException when the last load could not read the file and left it in place
      */
     public void save() throws Exception {
-        Path file = configDir.resolve(SSH_KEYS_FILE);
+        Path file = guard.file();
         
         try {
+            guard.ensureWritable();
             SSHKeysWrapper wrapper = new SSHKeysWrapper();
             wrapper.setKeys(new ArrayList<>(keys));
             
-            JAXBContext context = JAXBContext.newInstance(
-                SSHKeysWrapper.class, 
-                SSHKey.class
-            );
-            Marshaller marshaller = context.createMarshaller();
+            Marshaller marshaller = JAXB_CONTEXT.createMarshaller();
             marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
+            StringWriter xml = new StringWriter();
+            marshaller.marshal(wrapper, xml);
             
             Files.createDirectories(configDir);
-            marshaller.marshal(wrapper, file.toFile());
+            AtomicFileWriter.writeStoreAtomically(file, xml.toString(), AtomicFileWriter.FileMode.OWNER_ONLY);
             
             logger.info("Saved {} SSH keys to {}", keys.size(), file);
         } catch (Exception e) {
             logger.error("Failed to save SSH keys to " + file, e);
             throw e;
         }
+    }
+
+    /** Where the last load moved an unreadable {@code ssh-keys.xml}, if it did. */
+    public Optional<Path> getLoadFailureBackup() {
+        return guard.getLoadFailureBackup();
+    }
+
+    /** Whether saving is refused because {@code ssh-keys.xml} could not be read. */
+    public boolean isSaveBlocked() {
+        return guard.isSaveBlocked();
     }
     
     /**
@@ -147,11 +175,15 @@ public class SSHKeyManager {
         
         Path keysDir = configDir.resolve(SSH_KEYS_DIR);
         Files.createDirectories(keysDir);
+        // The directory holds private keys: owner-only, like ~/.ssh (OpenSSH also refuses a
+        // private key that others can read).
+        AtomicFileWriter.restrictToOwner(keysDir);
         
         String fileName = sourcePath.getFileName().toString();
         Path targetPath = keysDir.resolve(key.getId() + "_" + fileName);
         
         Files.copy(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
+        AtomicFileWriter.restrictToOwner(targetPath);
         
         // Also copy .pub file if it exists
         Path pubSourcePath = sourcePath.resolveSibling(fileName + ".pub");

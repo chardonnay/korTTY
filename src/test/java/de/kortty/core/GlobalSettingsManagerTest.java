@@ -15,6 +15,8 @@ import de.kortty.model.GlobalSettings;
 import de.kortty.model.LlamaRuntimeUpdatePolicy;
 import de.kortty.ai.llama.LlamaBackend;
 import de.kortty.model.SnippetEditorProfile;
+import de.kortty.model.TeamworkSourceConfig;
+import de.kortty.model.TeamworkSourceType;
 import de.kortty.model.TerminalAgentExecutionTarget;
 import de.kortty.model.TerminalRecordingFormat;
 import de.kortty.model.TerminalRecordingScope;
@@ -616,6 +618,7 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    @SuppressWarnings("deprecation") // WEBM is no longer offered but must keep round-tripping
     void saveAndLoadPreservesTerminalRecordingSettings() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings-recording");
         try {
@@ -641,6 +644,54 @@ class GlobalSettingsManagerTest {
             assertThat(reloaded.getSettings().getTerminalRecordingIdlePauseSeconds()).isEqualTo(45);
             assertThat(reloaded.getSettings().getTerminalRecordingFfmpegPath()).isEqualTo("/usr/local/bin/ffmpeg");
             assertThat(reloaded.getSettings().isTerminalRecordingCaptureColorsEnabled()).isTrue();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    @SuppressWarnings("deprecation") // the legacy value must still load
+    void loadLegacyWebmRecordingFormatStillLoads() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-legacy-webm");
+        try {
+            Files.writeString(dir.resolve("global-settings.xml"), """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <globalSettings>
+                    <terminalRecordingFormat>WEBM</terminalRecordingFormat>
+                    <terminalRecordingDefaultScope>WHOLE_TAB</terminalRecordingDefaultScope>
+                </globalSettings>
+                """);
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().getTerminalRecordingFormat()).isEqualTo(TerminalRecordingFormat.WEBM);
+            assertThat(reloaded.getSettings().getTerminalRecordingDefaultScope()).isEqualTo(TerminalRecordingScope.WHOLE_TAB);
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void saveAndLoadKeepsStoredTeamworkSourceReadOnlyFlag() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-teamwork-read-only");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            TeamworkSourceConfig source = new TeamworkSourceConfig(TeamworkSourceType.SHARED_FILE, "/mnt/team/connections.xml");
+            source.setReadOnly(true);
+            manager.getSettings().setTeamworkSources(new java.util.ArrayList<>(List.of(source)));
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            assertThat(reloaded.getSettings().getTeamworkSources()).hasSize(1);
+            TeamworkSourceConfig loaded = reloaded.getSettings().getTeamworkSources().get(0);
+            assertThat(loaded.getId()).isEqualTo(source.getId());
+            assertThat(loaded.getLocation()).isEqualTo("/mnt/team/connections.xml");
+            assertThat(loaded.isReadOnly()).isTrue();
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);

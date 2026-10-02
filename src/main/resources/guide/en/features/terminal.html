@@ -799,7 +799,7 @@
 </tbody>
 </table>
 <h2 id="connecting-safely">Connecting safely<a class="headerlink" href="#connecting-safely" title="Permanent link">&para;</a></h2>
-<p>Interactive SSH terminals share host-key trust with SFTP and the SSH bootstrap used by Mosh. The first connection to a normalized host and port shows the key algorithm and OpenSSH SHA-256 fingerprint with <strong>No</strong> selected by default. After you verify and accept it, exact matches connect silently; a changed key is hard-blocked with no automatic retry. See <a href="connections.html#ssh-host-key-verification">SSH host-key verification</a>.</p>
+<p>Interactive SSH terminals share host-key trust with SFTP and the SSH bootstrap used by Mosh. The first connection to a normalized host and port shows the key algorithm and OpenSSH SHA-256 fingerprint with <strong>No</strong> selected by default. After you verify and accept it, exact matches connect silently; a changed key is hard-blocked with no automatic retry, and the alert offers <strong>Review and Replace…</strong> for a key you have verified with the server administrator. See <a href="connections.html#ssh-host-key-verification">SSH host-key verification</a>.</p>
 <p>Opening a same-server or newly selected connection in a split shows a progress dialog while the SSH handshake runs on a worker. The interface remains responsive for both the host-key confirmation and keyboard-interactive authentication prompts.</p>
 <p>Some failures are refused outright rather than retried, because repeating the attempt cannot change the outcome — a changed host key, a Mosh connection configured with a jump server, or a missing Mosh runtime. The terminal clears and shows the reason immediately instead of working through the retry count. See <a href="jump-server.html">Jump server</a> for the Mosh restriction.</p>
 <p>KorTTY's pinned SithTermFX build also includes a reviewed bottom-row boundary fix: moving over a hyperlink or the final visible terminal row no longer asks <code>TerminalTextBuffer</code> for the non-existent row at <code>line == height</code>.</p>
@@ -974,7 +974,7 @@
 <li>To enable recording automatically after every app restart, open <strong>Settings &gt; Video</strong> and enable <strong>Enable terminal recording after app restart</strong>.</li>
 <li>To enable recording only for this session, open <strong>Tools &gt; Video Manager...</strong> and select <strong>Enable terminal recording for this app session</strong>.</li>
 <li>Set the <strong>Storage path</strong>. If left at the default, KorTTY uses <code>~/.kortty/recordings</code>.</li>
-<li>Choose the default format and default split scope. KorTTY replay is always available; video export requires <code>ffmpeg</code>.</li>
+<li>Choose the <strong>Default scope</strong> (active split or whole tab). Recordings are always KorTTY replay files; video export is a separate step and requires <code>ffmpeg</code>.</li>
 <li>Enable or disable <strong>Auto-pause when the terminal is idle</strong> and set the idle threshold (default: 20 seconds).</li>
 <li>Optional: enable <strong>Capture terminal colors in new recordings</strong> if exported videos should reproduce terminal colors.</li>
 <li>Optional: set the <code>ffmpeg</code> path and click <strong>Check</strong>. If <code>ffmpeg</code> is missing, video export stays disabled but replay files remain usable.</li>

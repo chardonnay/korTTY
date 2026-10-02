@@ -2,14 +2,19 @@ package de.kortty.jobscheduler;
 
 import de.kortty.model.ServerConnection;
 import de.kortty.security.EncryptionService;
+import org.testng.SkipException;
 import org.testng.annotations.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.ZonedDateTime;
 import java.util.List;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.testng.Assert.expectThrows;
 
 class JobSchedulerRepositoryTest {
 
@@ -307,6 +312,99 @@ class JobSchedulerRepositoryTest {
             assertThat(sudoService.resolveSudoPassword(connection, master).orElseThrow()).isEqualTo("server-secret");
         } finally {
             Files.deleteIfExists(dir.resolve(JobSchedulerRepository.FILE_NAME));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void corruptSchedulerFileIsQuarantinedAndAFreshFileIsWritten() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-job-scheduler-corrupt");
+        byte[] truncated = "<jobScheduler><jobs><job><id>j1</id><name>Nightly".getBytes(StandardCharsets.UTF_8);
+        Path file = Files.write(dir.resolve(JobSchedulerRepository.FILE_NAME), truncated);
+        Path backup = null;
+        try {
+            JobSchedulerRepository repository = new JobSchedulerRepository(dir);
+            // Used to throw, and the shutdown save then wrote the empty scheduler over the file.
+            repository.load();
+
+            backup = repository.getLoadFailureBackup().orElseThrow();
+            assertThat(backup.getFileName().toString()).matches("job-scheduler\\.xml\\.corrupt-\\d{8}-\\d{6}");
+            assertThat(Files.readAllBytes(backup)).isEqualTo(truncated);
+            assertThat(repository.getJobs()).isEmpty();
+
+            ScheduledJob job = new ScheduledJob();
+            job.setName("After recovery");
+            repository.upsertJob(job);
+            repository.save();
+
+            JobSchedulerRepository reloaded = new JobSchedulerRepository(dir);
+            reloaded.load();
+            assertThat(reloaded.getJobs()).hasSize(1);
+            assertThat(reloaded.getJobs().get(0).getName()).isEqualTo("After recovery");
+            assertThat(Files.readAllBytes(backup)).isEqualTo(truncated);
+        } finally {
+            if (backup != null) {
+                Files.deleteIfExists(backup);
+            }
+            Files.deleteIfExists(file);
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void saveIsRefusedWhenTheUnreadableFileCouldNotBeMovedAside() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-job-scheduler-blocked");
+        if (Files.getFileAttributeView(dir, PosixFileAttributeView.class) == null
+            || "root".equals(System.getProperty("user.name"))) {
+            Files.deleteIfExists(dir);
+            throw new SkipException("needs POSIX directory permissions to make the rename fail");
+        }
+        byte[] truncated = "<jobScheduler><jobs>".getBytes(StandardCharsets.UTF_8);
+        Path file = Files.write(dir.resolve(JobSchedulerRepository.FILE_NAME), truncated);
+        try {
+            Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("r-x------"));
+            JobSchedulerRepository repository = new JobSchedulerRepository(dir);
+
+            expectThrows(Exception.class, repository::load);
+            assertThat(repository.isSaveBlocked()).isTrue();
+            assertThat(repository.getLoadFailureBackup()).isEmpty();
+
+            // What JobSchedulerService.shutdownSchedulerThreads does on quit.
+            repository.upsertJob(new ScheduledJob());
+            expectThrows(IllegalStateException.class, repository::save);
+        } finally {
+            Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rwx------"));
+        }
+        try {
+            assertThat(Files.readAllBytes(file)).isEqualTo(truncated);
+        } finally {
+            Files.deleteIfExists(file);
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void schedulerFileIsOwnerOnly() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-job-scheduler-mode");
+        Path file = dir.resolve(JobSchedulerRepository.FILE_NAME);
+        try {
+            JobSchedulerRepository repository = new JobSchedulerRepository(dir);
+            repository.save();
+            if (Files.getFileAttributeView(file, PosixFileAttributeView.class) == null) {
+                throw new SkipException("POSIX file attributes are not supported on this platform");
+            }
+            assertThat(PosixFilePermissions.toString(Files.getPosixFilePermissions(file))).isEqualTo("rw-------");
+
+            // A file an older korTTY created with the default umask is tightened on the next save.
+            Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-r--r--"));
+            repository.save();
+            assertThat(PosixFilePermissions.toString(Files.getPosixFilePermissions(file))).isEqualTo("rw-------");
+            try (var siblings = Files.list(dir)) {
+                assertThat(siblings.map(p -> p.getFileName().toString()).toList())
+                    .containsExactly(JobSchedulerRepository.FILE_NAME);
+            }
+        } finally {
+            Files.deleteIfExists(file);
             Files.deleteIfExists(dir);
         }
     }

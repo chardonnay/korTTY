@@ -27,7 +27,7 @@ import java.util.UUID;
 public class AiChatManager {
 
     private static final Logger logger = LoggerFactory.getLogger(AiChatManager.class);
-    private static final String AI_CHATS_FILE = "ai-chats.xml";
+    public static final String AI_CHATS_FILE = "ai-chats.xml";
 
     private final Path configDir;
     private final List<SavedAiChat> chats = new ArrayList<>();
