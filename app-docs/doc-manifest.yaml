@@ -233,8 +233,8 @@ pages:
     diagrams: [session-lifecycle.svg]
     last_synced_ref: "53a0d88a"
   - path: app-docs/site/docs/en/features/tunnels.md
-    owns_i18n: [tunnel., connEdit.tab.tunnels, connEdit.enableTunnels]
-    owns_code: [src/main/java/de/kortty/model/SSHTunnel.java, src/main/java/de/kortty/model/TunnelType.java, src/main/java/de/kortty/ui/TunnelEditDialog.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java]
+    owns_i18n: [tunnel., connEdit.tab.tunnels, connEdit.enableTunnels, statusBar.tunnel]
+    owns_code: [src/main/java/de/kortty/model/SSHTunnel.java, src/main/java/de/kortty/model/TunnelType.java, src/main/java/de/kortty/ui/TunnelEditDialog.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/core/SshTunnelManager.java, src/main/java/de/kortty/core/SshTunnelApprovals.java, src/main/java/de/kortty/ui/TunnelStatusSupport.java]
     last_synced_ref: "659b3bd9"
   - path: app-docs/site/docs/en/features/jump-server.md
     owns_i18n: [connEdit.jump, connEdit.enableJump, connEdit.tab.jumpServer]

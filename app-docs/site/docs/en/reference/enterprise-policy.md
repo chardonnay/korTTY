@@ -134,6 +134,7 @@ Patterns match the host string exactly as configured in the connection — korTT
 | `enforce-host-key-check` | boolean | `true` | SSH host key verification cannot be disabled anywhere — globally, per group or per connection |
 | `allow-telemetry` | boolean | `false` | Forbids anonymous usage statistics |
 | `allow-terminal-recording` | boolean | `false` | Forbids terminal session recording, including the session-level toggle |
+| `allow-port-forwarding` | boolean | `false` | Never opens the [SSH tunnels](../features/tunnels.md) configured on connections (local, remote and dynamic port forwarding); the tab's status bar says they are disabled by your organization. A jump server hop is not affected |
 | `clipboard-mode` | string | `system`, `internal` | `internal` confines korTTY to its own in-memory clipboard — see below |
 
 ### `[rule.teamwork]`, `[rule.snippets]`, `[rule.ai-profiles]`
