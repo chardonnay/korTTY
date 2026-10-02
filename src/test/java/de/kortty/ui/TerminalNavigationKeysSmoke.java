@@ -6,6 +6,8 @@ import com.sithtermfx.ui.SithTermFxWidget;
 import com.sithtermfx.ui.settings.DefaultSettingsProvider;
 import com.sithtermfx.ui.split.SplitRequest;
 import com.sithtermfx.ui.split.TerminalSplitPane;
+import de.kortty.core.Mosh4jTtyConnector;
+import de.kortty.model.ServerConnection;
 import javafx.application.Platform;
 import javafx.event.Event;
 import javafx.event.EventTarget;
@@ -39,6 +41,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *   <li>Ctrl+Left and Shift+Tab: {@code ESC[1;5D} and {@code ESC[Z} on both panes;</li>
  *   <li>Shift+Page Up: scrolls A's scrollback and writes nothing, but reaches the application in
  *       the alternate screen;</li>
+ *   <li>a pane whose unwrapped connector is mosh4j: plain Up stays {@code ESC O A} in normal mode;</li>
  *   <li>Ctrl+Tab: writes nothing (the window's tab switching takes it first);</li>
  *   <li>text, Enter and navigation keys in the find bar's text field: write nothing.</li>
  * </ul>
@@ -184,6 +187,22 @@ public final class TerminalNavigationKeysSmoke {
             ptyA.feed(ESC + "[?1049l");
             await("pane A never left the alternate screen", () -> onFxThread(() ->
                 !paneA.getTerminalTextBuffer().isUsingAlternateBuffer()));
+
+            // A mosh4j pane keeps SS3 arrows even in normal cursor mode (mosh-server rewrites them
+            // for the remote application); the split pane decides from the unwrapped connector.
+            Mosh4jTtyConnector mosh = new Mosh4jTtyConnector(
+                new ServerConnection("Smoke", "mosh.example.invalid", 22, "demo"), null);
+            onFxThread(() -> {
+                terminalSplitPane.setConnectorUnwrapper(connector -> connector == ptyA ? mosh : connector);
+                return null;
+            });
+            expectKey(canvasA, canvasA, KeyCode.UP, Mods.NONE, ptyA, ESC + "OA", ptyB, ESC + "OA");
+            expectKey(canvasA, canvasA, KeyCode.LEFT, Mods.CTRL, ptyA, ESC + "[1;5D", ptyB, ESC + "[1;5D");
+            onFxThread(() -> {
+                terminalSplitPane.setConnectorUnwrapper(null);
+                return null;
+            });
+            expectKey(canvasA, canvasA, KeyCode.UP, Mods.NONE, ptyA, ESC + "[A", ptyB, ESC + "OA");
 
             // Editing the search text in the find bar types nothing into any shell.
             TextField findField = onFxThread(() -> {
