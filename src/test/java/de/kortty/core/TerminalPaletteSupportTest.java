@@ -131,6 +131,87 @@ class TerminalPaletteSupportTest {
         assertThat(TerminalPaletteSupport.differsFromBuiltIn(invalid)).isFalse();
     }
 
+    /** What the Colors tab's pickers show for {@code settings}: the colours the terminal draws. */
+    private static String[] shownColours(ConnectionSettings settings, boolean bright) {
+        String[] shown = new String[ConnectionSettings.ANSI_COLOR_COUNT];
+        for (int i = 0; i < shown.length; i++) {
+            shown[i] = TerminalPaletteSupport.effectiveHex(settings, i, bright);
+        }
+        return shown;
+    }
+
+    @Test
+    void savingTheColorsTabUntouchedKeepsTheBuiltInLook() {
+        // A settings file from before the pickers saved: legacy model colours (#0000EE), flag off.
+        ConnectionSettings settings = new ConnectionSettings();
+
+        TerminalPaletteSupport.storeColorsTab(settings, shownColours(settings, false), shownColours(settings, true),
+                settings.getSelectionColor());
+
+        assertThat(settings.isAnsiPaletteCustomized()).isFalse();
+        assertThat(TerminalPaletteSupport.toColorPalette(settings)).isNull();
+        for (int i = 0; i < ConnectionSettings.ANSI_COLOR_COUNT; i++) {
+            assertThat(settings.getAnsiColor(i, false)).isEqualTo(TerminalPaletteSupport.builtInHex(i, false));
+            assertThat(settings.getAnsiColor(i, true)).isEqualTo(TerminalPaletteSupport.builtInHex(i, true));
+        }
+    }
+
+    @Test
+    void savingAChangedColourHandsAllSixteenAndTheSelectionToTheTerminal() {
+        ConnectionSettings settings = new ConnectionSettings();
+        String[] normal = shownColours(settings, false);
+        normal[1] = "#FF8800";
+
+        TerminalPaletteSupport.storeColorsTab(settings, normal, shownColours(settings, true), "#3399FF");
+
+        assertThat(settings.isAnsiPaletteCustomized()).isTrue();
+        ColorPalette palette = TerminalPaletteSupport.toColorPalette(settings);
+        assertThat(hex(palette.getForeground(TerminalColor.index(1)))).isEqualTo("#FF8800");
+        assertThat(hex(palette.getForeground(TerminalColor.index(4))))
+                .isEqualTo(TerminalPaletteSupport.builtInHex(4, false));
+        assertThat(settings.getSelectionColor()).isEqualTo("#3399FF");
+    }
+
+    @Test
+    void savingOnlyAChangedSelectionColourCustomizes() {
+        ConnectionSettings settings = new ConnectionSettings();
+
+        TerminalPaletteSupport.storeColorsTab(settings, shownColours(settings, false), shownColours(settings, true),
+                "#FFFF00");
+
+        assertThat(settings.isAnsiPaletteCustomized()).isTrue();
+        assertThat(settings.getSelectionColor()).isEqualTo("#FFFF00");
+    }
+
+    @Test
+    void savingTheBuiltInColoursAgainReturnsToTheBuiltInLook() {
+        // As an earlier save left it: the built-in colours except a customised red and selection.
+        ConnectionSettings settings = builtInSettings();
+        settings.setAnsiRed("#FF8800");
+        settings.setSelectionColor("#FFFF00");
+        settings.setAnsiPaletteCustomized(true);
+        String[] normal = shownColours(settings, false);
+        assertThat(normal[1]).isEqualTo("#FF8800"); // the pickers show the customised colour
+        normal[1] = TerminalPaletteSupport.builtInHex(1, false);
+
+        TerminalPaletteSupport.storeColorsTab(settings, normal, shownColours(settings, true),
+                ConnectionSettings.DEFAULT_SELECTION_COLOR);
+
+        assertThat(settings.isAnsiPaletteCustomized()).isFalse();
+        assertThat(TerminalPaletteSupport.toColorPalette(settings)).isNull();
+    }
+
+    @Test
+    void storeColorsTabNeedsEightColoursPerVariant() {
+        ConnectionSettings settings = new ConnectionSettings();
+        String[] eight = shownColours(settings, false);
+        assertThrows(IllegalArgumentException.class,
+                () -> TerminalPaletteSupport.storeColorsTab(settings, new String[7], eight, "#3399FF"));
+        assertThrows(IllegalArgumentException.class,
+                () -> TerminalPaletteSupport.storeColorsTab(settings, eight, new String[9], "#3399FF"));
+        assertThat(settings.getAnsiRed()).isEqualTo(new ConnectionSettings().getAnsiRed());
+    }
+
     @Test
     void selectionStyleUsesTheColourAsBackgroundWithContrastingText() {
         TextStyle yellow = TerminalPaletteSupport.selectionStyle("#FFFF00");

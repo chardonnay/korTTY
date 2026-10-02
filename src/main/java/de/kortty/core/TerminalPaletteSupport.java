@@ -70,6 +70,29 @@ public final class TerminalPaletteSupport {
     }
 
     /**
+     * Stores what the Colors tab shows — the 8 normal and 8 bright ANSI colours (index 0–7: black,
+     * red, green, yellow, blue, magenta, cyan, white) and the selection colour — and derives
+     * {@link ConnectionSettings#setAnsiPaletteCustomized} from {@link #differsFromBuiltIn}. Colours
+     * left at the built-in values keep the terminal's built-in look (palette and inverse-video
+     * selection); changing any of them hands all of them to the terminal.
+     *
+     * @throws IllegalArgumentException when {@code normal} or {@code bright} does not hold 8 colours
+     */
+    public static void storeColorsTab(@NotNull ConnectionSettings settings, @NotNull String[] normal,
+                                      @NotNull String[] bright, @Nullable String selection) {
+        if (normal.length != ConnectionSettings.ANSI_COLOR_COUNT || bright.length != ConnectionSettings.ANSI_COLOR_COUNT) {
+            throw new IllegalArgumentException("Expected " + ConnectionSettings.ANSI_COLOR_COUNT
+                    + " normal and bright colours, got " + normal.length + " and " + bright.length);
+        }
+        for (int i = 0; i < ConnectionSettings.ANSI_COLOR_COUNT; i++) {
+            settings.setAnsiColor(i, false, normal[i]);
+            settings.setAnsiColor(i, true, bright[i]);
+        }
+        settings.setSelectionColor(selection);
+        settings.setAnsiPaletteCustomized(differsFromBuiltIn(settings));
+    }
+
+    /**
      * The palette the terminal should draw, or {@code null} while the colours are not customised
      * so the caller keeps the built-in palette.
      */

@@ -3157,14 +3157,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         if (globalSettings != null) {
             globalSettings.setTerminalCursorBlink(cursorBlinkCheck.isSelected());
         }
-        settings.setSelectionColor(toHex(selectionColorPicker.getValue()));
+        String[] ansiNormalHex = new String[ConnectionSettings.ANSI_COLOR_COUNT];
+        String[] ansiBrightHex = new String[ConnectionSettings.ANSI_COLOR_COUNT];
         for (int i = 0; i < ConnectionSettings.ANSI_COLOR_COUNT; i++) {
-            settings.setAnsiColor(i, false, toHex(ansiNormalPickers[i].getValue()));
-            settings.setAnsiColor(i, true, toHex(ansiBrightPickers[i].getValue()));
+            ansiNormalHex[i] = toHex(ansiNormalPickers[i].getValue());
+            ansiBrightHex[i] = toHex(ansiBrightPickers[i].getValue());
         }
-        // Colours left at the built-in values keep the terminal's built-in look (palette and
-        // inverse-video selection); changing any of them hands all of them to the terminal.
-        settings.setAnsiPaletteCustomized(TerminalPaletteSupport.differsFromBuiltIn(settings));
+        // Also marks the palette customised exactly when the colours differ from the built-in look.
+        TerminalPaletteSupport.storeColorsTab(settings, ansiNormalHex, ansiBrightHex,
+                toHex(selectionColorPicker.getValue()));
         settings.setThemeId(selectedGlobalThemeId);
         settings.setTerminalColumns(columnsSpinner.getValue());
         settings.setTerminalRows(rowsSpinner.getValue());
