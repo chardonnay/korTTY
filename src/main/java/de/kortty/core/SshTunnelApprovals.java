@@ -59,8 +59,11 @@ public final class SshTunnelApprovals {
 
     /**
      * A stable fingerprint of what {@code tunnels} would open for {@code connection}: the server
-     * (host and port) and each tunnel's type and endpoints after defaults are applied, in a sorted
-     * order so reordering the list does not count as a change. Descriptions are left out.
+     * (host and port), whether the connection is the user's own or shared (Teamwork), and each
+     * tunnel's type and endpoints after defaults are applied, in a sorted order so reordering the
+     * list does not count as a change. Descriptions are left out. The source counts so that an
+     * approval of the user's own connection never covers a shared one that happens to carry the
+     * same id: the question for a shared connection says where its tunnels come from.
      */
     public static String tunnelSetHash(ServerConnection connection, List<SSHTunnel> tunnels) {
         List<String> lines = new ArrayList<>();
@@ -75,7 +78,8 @@ public final class SshTunnelApprovals {
         lines.sort(String::compareTo);
         StringBuilder canonical = new StringBuilder("v1\n");
         if (connection != null) {
-            canonical.append(normalizeHost(connection.getHost())).append(':').append(connection.getPort());
+            canonical.append(normalizeHost(connection.getHost())).append(':').append(connection.getPort())
+                .append(connection.isTeamworkConnection() ? "|shared" : "|own");
         }
         canonical.append('\n');
         for (String line : lines) {

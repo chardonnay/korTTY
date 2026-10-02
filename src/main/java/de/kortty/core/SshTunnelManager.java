@@ -362,7 +362,8 @@ public final class SshTunnelManager {
                 gen = ++generation;
                 pendingClose.addAll(active);
                 active.clear();
-                owner = session;
+                // Nothing runs on the session when the policy forbids tunnels.
+                owner = allowed ? session : null;
                 snapshot = allowed
                     ? endpoints.stream().map(Endpoints::initialStatus).toList()
                     : endpoints.stream().map(e -> e.initialStatus().with(

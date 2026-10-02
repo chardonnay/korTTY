@@ -102,9 +102,21 @@ class TerminalViewTunnelWiringTest {
 
         assertThat(start).contains("SshTunnelManager.enabledTunnels(connection)");
         assertThat(start).contains("portForwardingAllowedByPolicy()");
-        assertThat(start).contains("tunnelSetApproved(");
+        // The decision itself is SshTunnelApprovalGate's, pinned by SshTunnelApprovalGateTest.
+        assertThat(start).contains("tunnelApprovals.allows(");
         assertWithMessage("the forwards open off the FX thread")
             .that(start).contains("attachTunnelsInBackground(");
-        assertThat(start.indexOf("tunnelSetApproved(")).isLessThan(start.indexOf("attachTunnelsInBackground("));
+        assertThat(start.indexOf("tunnelApprovals.allows(")).isLessThan(start.indexOf("attachTunnelsInBackground("));
+    }
+
+    @Test
+    void typeAheadCanNeverApproveTheTunnels() throws IOException {
+        // The question pops up right after login, while the user may still be typing into the
+        // terminal: Enter or Space must decline, and opening needs a deliberate click.
+        String confirm = methodBody(source("TerminalView.java"), "private boolean confirmTunnelSet(");
+
+        assertThat(confirm).contains("openButton.setDefaultButton(false);");
+        assertThat(confirm).contains("skipButton.setDefaultButton(true);");
+        assertThat(confirm).contains("skipButton.requestFocus()");
     }
 }

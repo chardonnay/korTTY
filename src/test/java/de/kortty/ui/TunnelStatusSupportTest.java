@@ -7,6 +7,7 @@ import de.kortty.core.SshTunnelManager.State;
 import de.kortty.core.SshTunnelManager.TunnelStatus;
 import de.kortty.model.SSHTunnel;
 import de.kortty.model.TunnelType;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -17,9 +18,20 @@ import static com.google.common.truth.Truth.assertThat;
 
 class TunnelStatusSupportTest {
 
+    private Locale previous;
+
     @BeforeClass
     void english() {
+        previous = LanguageManager.getInstance().getCurrentLocale();
         LanguageManager.getInstance().setLocale(Locale.ENGLISH);
+    }
+
+    @AfterClass(alwaysRun = true)
+    void restoreLocale() {
+        // The locale is global: leave it as found so later tests see their own expectations.
+        if (previous != null) {
+            LanguageManager.getInstance().setLocale(previous);
+        }
     }
 
     private static SSHTunnel tunnel(TunnelType type, String localHost, int localPort, String remoteHost, int remotePort) {

@@ -407,10 +407,10 @@ public class TerminalView extends BorderPane {
     // Deep copies of the tunnel set last attached, reused when the tunnels move to another pane.
     private volatile List<SSHTunnel> attachedTunnels = List.of();
     private volatile boolean attachedTunnelsShared;
-    // Tunnel sets the user answered for in this tab; reconnects of the same tab do not ask again,
-    // even when the answer could not be stored. FX thread only.
-    private String declinedTunnelSetHash;
-    private String approvedTunnelSetHash;
+    // The one-time confirmation of the tab's tunnel sets; it also remembers this tab's answers, so
+    // reconnects of the same tab do not ask again. FX thread only.
+    private final de.kortty.core.SshTunnelApprovalGate tunnelApprovals =
+        new de.kortty.core.SshTunnelApprovalGate(SshTunnelApprovals::shared);
     private volatile TerminalRecordingSession terminalRecordingSession;
     private volatile TerminalRecordingScope terminalRecordingScope = TerminalRecordingScope.ACTIVE_SPLIT;
     private volatile List<SithTermFxWidget> terminalRecordingTargetWidgets = List.of();
@@ -6188,10 +6188,13 @@ public class TerminalView extends BorderPane {
         if (!tunnelHostIsCurrent(connector)) {
             return;
         }
+        // The previous owner's session is gone (the connect loop stopped its tunnels); until the
+        // attach below, no pane of this tab carries tunnels a pane close could move.
+        tunnelOwnerConnector = null;
+        attachedTunnels = List.of();
         List<SSHTunnel> tunnels = SshTunnelManager.enabledTunnels(connection);
         if (tunnels.isEmpty()) {
             tunnelManager.clear();
-            attachedTunnels = List.of();
             return;
         }
         if (!(connector instanceof SshTtyConnector sshConnector)) {
@@ -6209,7 +6212,10 @@ public class TerminalView extends BorderPane {
             return;
         }
         boolean shared = connection.isTeamworkConnection();
-        if (!tunnelSetApproved(tunnels, shared)) {
+        // Asked once per connection and tunnel set, remembered across restarts, asked again when
+        // the tunnels or the server change; tunnels that would be refused anyway are not part of
+        // the question.
+        if (!tunnelApprovals.allows(connection, tunnels, startable -> confirmTunnelSet(startable, shared))) {
             tunnelManager.markNotStarted(tunnels, SshTunnelManager.Failure.NOT_CONFIRMED);
             return;
         }
@@ -6232,41 +6238,11 @@ public class TerminalView extends BorderPane {
     }
 
     /**
-     * Whether the user allows this tunnel set to open: asked once per connection and tunnel set,
-     * remembered across restarts, and asked again when the tunnels or the server change. Tunnels
-     * that would be refused anyway (a shared connection's remote tunnel, an invalid port) are not
-     * part of the question. FX thread only.
+     * Shows the one-time question. It pops up right after login, while the user may still be
+     * typing into the terminal, so type-ahead must never answer it with yes: "Not Now" is the
+     * default and focused button (Enter, Space and Escape decline for this tab only), and
+     * "Open Tunnels" has to be chosen on purpose.
      */
-    private boolean tunnelSetApproved(List<SSHTunnel> tunnels, boolean shared) {
-        String hash = SshTunnelApprovals.tunnelSetHash(connection, tunnels);
-        if (hash.equals(declinedTunnelSetHash)) {
-            return false;
-        }
-        if (hash.equals(approvedTunnelSetHash)) {
-            return true;
-        }
-        List<SSHTunnel> startable = tunnels.stream()
-            .filter(tunnel -> SshTunnelManager.wouldStart(tunnel, shared))
-            .toList();
-        if (startable.isEmpty()) {
-            // Nothing would listen; the attach only records why each tunnel was refused.
-            return true;
-        }
-        SshTunnelApprovals approvals = SshTunnelApprovals.shared();
-        if (approvals.isApproved(connection.getId(), hash)) {
-            approvedTunnelSetHash = hash;
-            return true;
-        }
-        boolean allowed = confirmTunnelSet(startable, shared);
-        if (allowed) {
-            approvedTunnelSetHash = hash;
-            approvals.approve(connection.getId(), hash);
-        } else {
-            declinedTunnelSetHash = hash;
-        }
-        return allowed;
-    }
-
     private boolean confirmTunnelSet(List<SSHTunnel> startable, boolean shared) {
         javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.CONFIRMATION);
         DialogThemeHelper.applyTheme(alert);
@@ -6284,6 +6260,13 @@ public class TerminalView extends BorderPane {
         javafx.scene.control.ButtonType skip = new javafx.scene.control.ButtonType(
             I18n.get("tunnel.approval.skip"), javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE);
         alert.getButtonTypes().setAll(skip, open);
+        if (alert.getDialogPane().lookupButton(open) instanceof javafx.scene.control.Button openButton) {
+            openButton.setDefaultButton(false);
+        }
+        if (alert.getDialogPane().lookupButton(skip) instanceof javafx.scene.control.Button skipButton) {
+            skipButton.setDefaultButton(true);
+            alert.setOnShown(event -> skipButton.requestFocus());
+        }
         return alert.showAndWait().filter(open::equals).isPresent();
     }
 

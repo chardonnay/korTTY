@@ -364,6 +364,7 @@ class SshTunnelManagerIntegrationTest {
             .containsExactly(Failure.POLICY_DENIED, Failure.POLICY_DENIED);
         assertThat(isListening(port)).isFalse();
         assertThat(filter.listenRequests).isEmpty();
+        assertWithMessage("no tunnel runs on the session, so it is no owner").that(manager.ownerSession()).isNull();
     }
 
     @Test
