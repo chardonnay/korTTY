@@ -62,7 +62,7 @@ The same fields are edited in **AI > AI Manager > Profiles**, where the whole fo
 | Prompt optimization | dropdown | Auto (model detection), Generic, Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, GPT-OSS | Auto | (profile `promptPreset` field) |
 | Reasoning | dropdown | Disabled, None, Minimal, Low, Medium, High, Extra high | Disabled | (profile `reasoningEffort` field) |
 | Image input (vision) | dropdown | Auto (detect), Enabled, Disabled | Auto (detect) | (profile `visionSupport` field) |
-| Internet access | dropdown | Disabled, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio Toolpack | Disabled | (profile `internetAccessMode` field) |
+| Internet access | dropdown | Disabled, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio Toolpack (locked to Disabled, with a hint, for a native Anthropic Messages API URL) | Disabled | (profile `internetAccessMode` field) |
 | API Key (optional) | text | (password field) | — | (profile `encryptedApiKey` field) |
 | Max characters | number | 1–50,000,000 | 100,000 | (profile `maxSelectionChars` field) |
 | Timeout for this profile | check box + number | Own timeout off = follow the global timeout; on: 0–1440 minutes (0 = never time out) | Off | (profile `requestTimeoutMinutes` field) |
@@ -195,6 +195,8 @@ Credentials are encrypted and stored securely. Use the **Clear** toggle adjacent
     native API, which an embedded model never goes through — selecting one on an embedded profile
     fails the request with an explicit message instead of silently answering without web access.
     Local CLI profiles have no internet modes at all; the dropdown is disabled for them.
+
+    Native Anthropic Messages API profiles (an API URL ending in `/v1/messages`) have no internet modes either, because korTTY sends no web tools to that API: the dropdown is locked to **Disabled**, and a hint below it says why. A mode stored by an earlier version is shown as **Disabled** when the profile is opened and has no effect on requests.
 
     An organization can forbid web access entirely with the `allow-internet` policy key — see
     [Enterprise policy](../enterprise-policy.md).
