@@ -801,6 +801,10 @@
 </tr>
 </tbody>
 </table>
+<div class="admonition note">
+<p class="admonition-title">Temporäre SSH-Schlüssel und der Temp-Ordner</p>
+<p>Wenn diese Option aktiviert ist, bietet der Connection-Manager und die Schnellverbindung einen temporären SSH-Schlüssel an: ein privater Schlüssel, den Sie für die Sitzung einfügen statt einer Schlüsseldatei. Für Terminal-Tabs, Aufteilungen und SFTP liest korTTY einen temporären Schlüssel im Speicher ein und schreibt ihn niemals in eine Schlüsseldatei; eine gespeicherte Verbindung speichert den Schlüssel nur verschlüsselt mit Ihrem Master-Passwort in <code>connections.xml</code>. Geplante Aufgaben sind die einzige Ausnahme: weil ein Rsync-Job den Schlüssel an das externe <code>ssh</code> übergibt, schreibt der JobScheduler einen temporären Schlüssel in eine nur für den Eigentümer lesbare Datei im System-Temp-Ordner, solange er mit dem Server verbunden ist, und löscht ihn, wenn diese Verbindung geschlossen oder fehlschlägt. Schlüsseldateien, die frühere Versionen im Temp-Ordner hinterlassen haben (<code>kortty_temp_key_*.key</code>, <code>kortty_scheduler_key_*.key</code>), werden beim nächsten Start gelöscht, sofern sie Ihnen gehören und älter als fünf Minuten sind.</p>
+</div>
 <div class="admonition warning">
 <p class="admonition-title">Master-Passwort beim Start</p>
 <p>Wenn „Master-Passwort beim Start erforderlich“ deaktiviert ist, können verschlüsselte Passwörter und SSH-Schlüssel nicht automatisch ohne manuelle Passworteingabe entschlüsselt werden. Dies stellt ein Sicherheitsrisiko dar und sollte nur deaktiviert werden, wenn Sie die Konsequenzen verstehen.</p>
