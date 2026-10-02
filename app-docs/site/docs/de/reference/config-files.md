@@ -303,7 +303,7 @@ Textdatei mit den IDs der deaktivierten Terminaleffekt-Plugins (eine pro Zeile).
 ### coding-agents/
 Optionale Benutzerüberschreibungen für die Regeln der Coding-Agent-Erkennung, eine JSON-Datei pro Agent (`claude-code.json`, `codex.json`, `gemini-cli.json`).
 
-**Zweck:** Eine Datei hier ersetzt die im Paket enthaltene Regeldatei des gleichen Agenten vollständig. Eine ungültige Datei wird im Log als *coding-agents* Warnung gemeldet und die im Paket enthaltenen Regeln bleiben aktiv. Das Verzeichnis existiert erst, wenn Sie es erstellen. Siehe [Coding-Agents → Benutzerdefinierte Regeln](../features/coding-agents.md#eigene-regeln).
+**Zweck:** Eine Datei hier ersetzt die im Paket enthaltene Regeldatei des entsprechenden Agents vollständig. Eine ungültige Datei wird im Log als *Coding-Agents*-Warnung gemeldet und die im Paket enthaltenen Regeln bleiben aktiv. Das Verzeichnis existiert erst dann, wenn es erstellt wird. Siehe [Coding-Agents → Benutzerdefinierte Regeln](../features/coding-agents.md#eigene-regeln).
 
 ### kortty.log
 Anwendungsprotokolldatei.
@@ -341,7 +341,7 @@ Bildschirm-Snapshots werden mit [Projekten](../features/projects.md) gespeichert
 Sitzungsjournale – ein eigenständiges Verzeichnis pro Journal (Speicherort konfigurierbar unter **Einstellungen > Protokollierung > Sitzungsjournal**). Jedes Journalverzeichnis enthält `journal.xml` (das kuratierte Dokument: Metadaten, KI-Zusammenfassungen, Markierungen, Notizen, Screenshot-Referenzen), das Nur-Anhängen-Capture-Log `session-log.json` / `.xml` / `.yaml` (standardmäßig JSON Lines) mit zstd-komprimierten gedrehten Teilen (Teilgröße und Teileanzahl sind pro Verbindung auf der Registerkarte „Journal“ konfigurierbar, standardmäßig 25 MB und 20 Teile; Journale aus älteren Versionen behalten ihre gzip-komprimierte `.gz`-Teile), die generierte `journal.html`-Timeline-Seite und `screenshots/*.png`. Siehe [Sitzungsjournal](../features/session-journal.md).
 
 ### terminal-logs/
-Standardzielordner für [protokollierte Terminal-Logs pro Verbindung](../features/terminal.md#terminalprotokollierung), wenn das Logordnerfeld einer Verbindung leer bleibt. Dateibenennung, tägliche Rotation, Kompression und Aufbewahrung folgen der Protokollkonfiguration der Verbindung.
+Standardmäßige Zielordner für den [per-Verbindung-Terminal-Log](../features/terminal.md#terminalprotokollierung), wenn das Feld für den Log-Ordner einer Verbindung leer bleibt. Die Dateinamenerstellung, tägige Rotation, Kompression und Aufbewahrung folgen der Logging-Konfiguration der Verbindung.
 
 ### plugins/
 Vom Benutzer importierte Terminal-Effekt-Plugin-JARs.
