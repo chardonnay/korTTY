@@ -27,7 +27,7 @@ Verwalten Sie mehrere SSH-Sitzungen mit diesen Registerkartenoperationen:
 
 ## Sicher verbinden
 
-Interaktive SSH-Terminals teilen das Host-Schlüsselvertrauen mit SFTP sowie dem SSH-Bootstrap, der von Mosh verwendet wird. Die erste Verbindung zu einem normalisierten Host und Port zeigt den Schlüsselalgorithmus und den OpenSSH-SHA-256-Fingerprint mit **Nein** standardmäßig ausgewählt. Nach der Bestätigung und Annahme wird eine exakte Übereinstimmung stumm verbunden; ein geändertes Schlüssel wird hart blockiert und wird nicht automatisch erneut versucht. Siehe [SSH-Host-Schlüsselverifikation](connections.md#ssh-hostschlusseluberprufung).
+Interaktive SSH-Terminals teilen das Host-Schlüssel-Vertrauen mit SFTP und dem von Mosh verwendeten SSH-Bootstrap. Die erste Verbindung zu einem normalisierten Host und Port zeigt den Schlüsselalgorithmus sowie den OpenSSH-SHA-256-Fingerabdruck an, wobei **Nein** standardmäßig ausgewählt ist. Sobald Sie ihn verifizieren und akzeptieren, verbinden sich exakte Übereinstimmungen stillschweigend; ein geänderter Schlüssel wird hart blockiert, ohne automatische Wiederholung, und die Warnung bietet **Prüfen und ersetzen…** für einen Schlüssel, den Sie mit dem Server-Administrator verifiziert haben. Siehe [SSH-Hostschlüssel-Verifizierung](connections.md#ssh-hostschlusseluberprufung).
 
 Beim Öffnen einer Verbindung mit demselben Server oder einer neu ausgewählten Verbindung in einem Split wird ein Fortschrittsdialog angezeigt, während der SSH-Handshake auf einem Worker ausgeführt wird. Die Schnittstelle reagiert weiterhin sowohl auf die Host-Tasten-Bestätigung als auch auf Eingabeaufforderungen zur interaktiven Tastaturauthentifizierung.
 
@@ -205,7 +205,7 @@ Die Terminalaufzeichnung ist als ressourcenschonende Wiedergabefunktion konzipie
 1. Um die Aufzeichnung automatisch nach jedem App-Neustart zu aktivieren, öffnen Sie **Einstellungen > Video** und aktivieren Sie **Terminalaufzeichnung nach App-Neustart aktivieren**.
 2. Um die Aufzeichnung nur für diese Sitzung zu aktivieren, öffnen Sie **Tools > Video Manager...** und wählen Sie **Terminalaufzeichnung für diese App-Sitzung aktivieren**.
 3. Legen Sie den **Speicherpfad** fest. Wenn die Standardeinstellung beibehalten wird, verwendet KorTTY `~/.kortty/recordings`.
-4. Wählen Sie das Standardformat und den Standard-Split-Bereich. Die KorTTY-Wiedergabe ist immer verfügbar; Für den Videoexport ist `ffmpeg` erforderlich.
+4. Wählen Sie den **Standardbereich** (aktiven Split oder gesamten Tab). Aufzeichnungen sind immer KorTTY-Replay-Dateien; der Videoexport ist ein separater Schritt und erfordert `ffmpeg`.
 5. Aktivieren oder deaktivieren Sie **Auto-Pause, wenn das Terminal im Leerlauf ist** und legen Sie den Leerlaufschwellenwert fest (Standard: 20 Sekunden).
 6. Optional: Aktivieren Sie **Terminalfarben in neuen Aufnahmen erfassen**, wenn exportierte Videos Terminalfarben wiedergeben sollen.
 7. Optional: Legen Sie den `ffmpeg`-Pfad fest und klicken Sie auf **Prüfen**. Wenn `ffmpeg` fehlt, bleibt der Videoexport deaktiviert, Wiedergabedateien bleiben jedoch verwendbar.

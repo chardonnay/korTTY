@@ -808,7 +808,10 @@ public class SFTPManagerTab extends Tab {
                 ServerConnection connToUse = SftpConnectionSupport.connectionForSftp(connection, temporarySSHKey);
                 
                 sftpSession = new SFTPSession(connToUse, password);
-                
+                // The SFTP manager is a tab the user is looking at, so a changed host key may be
+                // reviewed and replaced here.
+                sftpSession.setHostKeyReplacePolicy(de.kortty.core.SshHostKeyTrustManager.ReplacePolicy.INTERACTIVE);
+
                 // Set SSHKeyManager if using public key (for non-temporary keys)
                 if (temporarySSHKey == null && connToUse.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
                     if (app != null && app.getSSHKeyManager() != null) {

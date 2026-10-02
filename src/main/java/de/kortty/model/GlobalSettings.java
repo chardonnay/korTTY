@@ -159,6 +159,7 @@ public class GlobalSettings {
     @XmlElement
     private String terminalRecordingStoragePath; // Blank/null = ~/.kortty/recordings
 
+    /** Kept for XML compatibility only: the recorder always writes KorTTY replay files. */
     @XmlElement
     private TerminalRecordingFormat terminalRecordingFormat = TerminalRecordingFormat.KORTTY_REPLAY;
 

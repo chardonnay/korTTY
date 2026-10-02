@@ -2,13 +2,15 @@ package de.kortty.core;
 
 import de.kortty.model.Theme;
 import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
-import jakarta.xml.bind.Unmarshaller;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlRootElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -23,61 +25,95 @@ import java.util.UUID;
 public class ThemeManager {
 
     private static final Logger logger = LoggerFactory.getLogger(ThemeManager.class);
-    private static final String THEMES_FILE = "themes.xml";
+    public static final String THEMES_FILE = "themes.xml";
     private static final String DEFAULT_THEME_ID = "default";
     private static final String DARK_THEME_ID = "dark";
 
-    private final Path configDir;
+    /** Shared, thread-safe JAXBContext; building one per load and save is the expensive part. */
+    private static final JAXBContext JAXB_CONTEXT;
+    static {
+        try {
+            JAXB_CONTEXT = JAXBContext.newInstance(ThemeList.class, Theme.class);
+        } catch (JAXBException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
+
+    private final StoreFileGuard guard;
     private ThemeList themeList;
 
     public ThemeManager(Path configDir) {
-        this.configDir = configDir;
+        this.guard = new StoreFileGuard(configDir.resolve(THEMES_FILE));
         this.themeList = new ThemeList();
     }
 
     /**
      * Loads themes from XML file.
      * Ensures default and dark themes exist.
+     *
+     * <p>A corrupt {@code themes.xml} is moved aside (see {@link #getLoadFailureBackup()}) BEFORE
+     * the built-in themes are written, so the defaults land in a fresh file instead of replacing
+     * the user's themes. When the file cannot be read or moved aside, the built-ins are only used
+     * in memory and {@link #save()} leaves the file alone.
      */
     public void load() {
-        Path themesFile = configDir.resolve(THEMES_FILE);
+        Path themesFile = guard.file();
+        guard.beginLoad();
 
-        if (!Files.exists(themesFile)) {
+        if (guard.isMissing()) {
             logger.info("Themes file not found, creating defaults");
             createDefaultThemes();
             return;
         }
 
         try {
-            JAXBContext context = JAXBContext.newInstance(ThemeList.class, Theme.class);
-            Unmarshaller unmarshaller = context.createUnmarshaller();
-            themeList = (ThemeList) unmarshaller.unmarshal(themesFile.toFile());
-            boolean updatedThemes = ensureThemeDefaults();
-            updatedThemes |= ensureBuiltInThemes();
-            if (updatedThemes) {
-                save();
+            Optional<ThemeList> loaded = guard.read(content ->
+                (ThemeList) JAXB_CONTEXT.createUnmarshaller().unmarshal(new ByteArrayInputStream(content)));
+            if (loaded.isPresent()) {
+                themeList = loaded.get();
+                boolean updatedThemes = ensureThemeDefaults();
+                updatedThemes |= ensureBuiltInThemes();
+                if (updatedThemes) {
+                    save();
+                }
+                logger.info("Loaded {} themes from {}", themeList.getThemes().size(), themesFile);
+                return;
             }
-            logger.info("Loaded {} themes from {}", themeList.getThemes().size(), themesFile);
+            logger.warn("The unreadable themes file was moved aside; writing the built-in themes to a fresh {}",
+                themesFile);
         } catch (Exception e) {
-            logger.error("Failed to load themes, using defaults", e);
-            createDefaultThemes();
+            logger.error("Failed to load themes; using the built-in themes without saving over {}", themesFile, e);
         }
+        createDefaultThemes();
     }
 
     /**
-     * Saves themes to XML file.
+     * Saves themes to XML file atomically. Logs instead of throwing, also when the last load could
+     * not read the file and left it in place (nothing is written then).
      */
     public void save() {
-        Path themesFile = configDir.resolve(THEMES_FILE);
+        Path themesFile = guard.file();
         try {
-            JAXBContext context = JAXBContext.newInstance(ThemeList.class, Theme.class);
-            Marshaller marshaller = context.createMarshaller();
+            guard.ensureWritable();
+            Marshaller marshaller = JAXB_CONTEXT.createMarshaller();
             marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
-            marshaller.marshal(themeList, themesFile.toFile());
+            StringWriter xml = new StringWriter();
+            marshaller.marshal(themeList, xml);
+            AtomicFileWriter.writeStoreAtomically(themesFile, xml.toString(), AtomicFileWriter.FileMode.PRESERVE);
             logger.info("Saved themes to {}", themesFile);
         } catch (Exception e) {
             logger.error("Failed to save themes", e);
         }
+    }
+
+    /** Where a load moved an unreadable {@code themes.xml}, if one did. */
+    public Optional<Path> getLoadFailureBackup() {
+        return guard.getLoadFailureBackup();
+    }
+
+    /** Whether saving is refused because {@code themes.xml} could not be read. */
+    public boolean isSaveBlocked() {
+        return guard.isSaveBlocked();
     }
 
     public List<Theme> getThemes() {

@@ -42,6 +42,16 @@ public final class JumpHostSupport {
     private JumpHostSupport() {
     }
 
+    /**
+     * The jump server's host key was refused (first use declined, or a changed key that was not
+     * replaced). Like a refused target key, retrying cannot resolve it, so callers must not retry.
+     */
+    public static final class JumpHostKeyRejectedException extends IOException {
+        JumpHostKeyRejectedException(Throwable cause) {
+            super("Jump server host key was not accepted.", cause);
+        }
+    }
+
     /** Whether {@code connection} declares a usable, enabled jump server. */
     public static boolean isActive(ServerConnection connection) {
         JumpServer jump = connection != null ? connection.getJumpServer() : null;
@@ -106,6 +116,22 @@ public final class JumpHostSupport {
             SshHostKeyTrustManager trustManager,
             char[] masterPassword,
             Duration timeout) throws IOException {
+        return open(connection, trustManager, masterPassword, timeout, SshHostKeyTrustManager.ReplacePolicy.NEVER);
+    }
+
+    /**
+     * Like {@link #open(ServerConnection, SshHostKeyTrustManager, char[], Duration)}, with the
+     * bastion's changed-key handling taken from the caller: a connect the user started passes
+     * {@link SshHostKeyTrustManager.ReplacePolicy#INTERACTIVE}, so a changed bastion key gets the
+     * same explicit review-and-replace path as the target. The bastion is verified strictly either
+     * way.
+     */
+    public static JumpTunnel open(
+            ServerConnection connection,
+            SshHostKeyTrustManager trustManager,
+            char[] masterPassword,
+            Duration timeout,
+            SshHostKeyTrustManager.ReplacePolicy replacePolicy) throws IOException {
 
         JumpServer jump = connection.getJumpServer();
         if (!isActive(connection)) {
@@ -130,7 +156,8 @@ public final class JumpHostSupport {
 
         SshClient jumpClient = SshClient.setUpDefaultClient();
         jumpClient.setKeyIdentityProvider(null);
-        SshHostKeyTrustManager.ConnectionVerifier verifier = trustManager.verifierFor(jumpEndpoint);
+        SshHostKeyTrustManager.ConnectionVerifier verifier =
+            trustManager.verifierFor(jumpEndpoint, HostKeyCheckMode.STRICT, replacePolicy);
         jumpClient.setServerKeyVerifier(verifier);
         jumpClient.start();
 
@@ -178,7 +205,7 @@ public final class JumpHostSupport {
         } catch (IOException e) {
             closeQuietly(jumpClient, jumpSession);
             if (verifier.wasRejected()) {
-                throw new IOException("Jump server host key was not accepted.", e);
+                throw new JumpHostKeyRejectedException(e);
             }
             throw e;
         } catch (Exception e) {

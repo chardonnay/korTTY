@@ -27,7 +27,7 @@ Manage multiple SSH sessions with these tab operations:
 
 ## Connecting safely
 
-Interactive SSH terminals share host-key trust with SFTP and the SSH bootstrap used by Mosh. The first connection to a normalized host and port shows the key algorithm and OpenSSH SHA-256 fingerprint with **No** selected by default. After you verify and accept it, exact matches connect silently; a changed key is hard-blocked with no automatic retry. See [SSH host-key verification](connections.md#ssh-host-key-verification).
+Interactive SSH terminals share host-key trust with SFTP and the SSH bootstrap used by Mosh. The first connection to a normalized host and port shows the key algorithm and OpenSSH SHA-256 fingerprint with **No** selected by default. After you verify and accept it, exact matches connect silently; a changed key is hard-blocked with no automatic retry, and the alert offers **Review and Replace…** for a key you have verified with the server administrator. See [SSH host-key verification](connections.md#ssh-host-key-verification).
 
 Opening a same-server or newly selected connection in a split shows a progress dialog while the SSH handshake runs on a worker. The interface remains responsive for both the host-key confirmation and keyboard-interactive authentication prompts.
 
@@ -205,7 +205,7 @@ Terminal recording is designed as a low-resource replay feature. KorTTY records 
 1. To enable recording automatically after every app restart, open **Settings > Video** and enable **Enable terminal recording after app restart**.
 2. To enable recording only for this session, open **Tools > Video Manager...** and select **Enable terminal recording for this app session**.
 3. Set the **Storage path**. If left at the default, KorTTY uses `~/.kortty/recordings`.
-4. Choose the default format and default split scope. KorTTY replay is always available; video export requires `ffmpeg`.
+4. Choose the **Default scope** (active split or whole tab). Recordings are always KorTTY replay files; video export is a separate step and requires `ffmpeg`.
 5. Enable or disable **Auto-pause when the terminal is idle** and set the idle threshold (default: 20 seconds).
 6. Optional: enable **Capture terminal colors in new recordings** if exported videos should reproduce terminal colors.
 7. Optional: set the `ffmpeg` path and click **Check**. If `ffmpeg` is missing, video export stays disabled but replay files remain usable.

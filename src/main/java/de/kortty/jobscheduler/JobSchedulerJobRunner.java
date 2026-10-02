@@ -284,7 +284,6 @@ public class JobSchedulerJobRunner {
                 connection,
                 hostKey,
                 remote,
-                remote.externalSshAuthMaterial(),
                 sudoPassword.orElse(null),
                 archivePassword,
                 targetCount,
@@ -309,7 +308,6 @@ public class JobSchedulerJobRunner {
         ServerConnection connection,
         PinnedHostKey hostKey,
         JobSchedulerRemoteSession remote,
-        JobSchedulerRemoteSession.ExternalSshAuthMaterial externalAuth,
         String sudoPassword,
         String archivePassword,
         int targetCount,
@@ -338,7 +336,9 @@ public class JobSchedulerJobRunner {
             case SFTP_CHOWN -> executeChown(action, remote, sudoPassword);
             case SFTP_COPY_REMOTE -> executeRemoteCopy(action, remote, sudoPassword);
             case SFTP_ARCHIVE -> executeArchive(action, remote, sudoPassword, archivePassword);
-            case RSYNC_SYNC -> rsyncSupport.run(job, connection, hostKey, externalAuth, targetCount, redactor);
+            // Only Rsync's external ssh needs the key as a file, so a temporary key is written only here.
+            case RSYNC_SYNC -> rsyncSupport.run(
+                job, connection, hostKey, remote.externalSshAuthMaterial(), targetCount, redactor);
         };
     }
 
