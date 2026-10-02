@@ -9,7 +9,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
@@ -17,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Encapsulates local and remote file-transfer operations for the SFTP UI.
@@ -126,7 +129,32 @@ public class SftpFileTransferService {
     }
 
     public Path renameLocal(Path path, String newName) throws IOException {
-        Path target = path.resolveSibling(newName);
+        return renameLocalEntry(path, newName);
+    }
+
+    /**
+     * Renames a local file or folder within its folder and returns the new path. An existing entry
+     * of the new name is never replaced; a change of case only works on a case-insensitive file
+     * system too (macOS, Windows), where the new name already "exists" as the entry itself.
+     *
+     * @throws IllegalArgumentException when {@code newName} is no valid entry name, see {@link #validateEntryName}
+     * @throws java.nio.file.FileAlreadyExistsException when another entry has the new name
+     */
+    public static Path renameLocalEntry(Path path, String newName) throws IOException {
+        String name = validateEntryName(newName);
+        Path target = path.resolveSibling(name);
+        if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+            if (!Files.isSameFile(path, target)) {
+                throw new FileAlreadyExistsException(target.toString());
+            }
+            if (path.getFileName() != null && !path.getFileName().toString().equals(name)) {
+                // Same entry under another case: Files.move would do nothing, so go through a temporary name.
+                Path temporary = path.resolveSibling(".kortty-rename-" + UUID.randomUUID());
+                Files.move(path, temporary);
+                return Files.move(temporary, target);
+            }
+            return path;
+        }
         return Files.move(path, target);
     }
 
@@ -169,7 +197,7 @@ public class SftpFileTransferService {
 
     public static String resolveSiblingRemoteFilePath(String originalRemotePath, String newFileName) {
         String normalizedOriginalPath = normalizeRemotePath(originalRemotePath);
-        String normalizedFileName = validateRemoteSiblingFileName(newFileName);
+        String normalizedFileName = validateEntryName(newFileName);
 
         int parentIndex = normalizedOriginalPath.lastIndexOf('/');
         String parentPath;
@@ -315,7 +343,14 @@ public class SftpFileTransferService {
         return normalizedPath;
     }
 
-    private static String validateRemoteSiblingFileName(String newFileName) {
+    /**
+     * Checks a name typed for a new or renamed entry, local or remote, and returns it trimmed. It
+     * must name one entry in the folder shown: not blank, not {@code .} or {@code ..}, and without
+     * {@code /}, {@code \} or a NUL character, so it can never point into another folder.
+     *
+     * @throws IllegalArgumentException with the reason when the name is not usable
+     */
+    public static String validateEntryName(String newFileName) {
         if (newFileName == null) {
             throw new IllegalArgumentException("File name must not be null");
         }
@@ -329,6 +364,9 @@ public class SftpFileTransferService {
         }
         if (normalizedFileName.contains("/") || normalizedFileName.contains("\\")) {
             throw new IllegalArgumentException("File name must not contain path separators");
+        }
+        if (normalizedFileName.indexOf('\0') >= 0) {
+            throw new IllegalArgumentException("File name must not contain a NUL character");
         }
 
         return normalizedFileName;

@@ -29,6 +29,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
@@ -43,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -404,6 +406,14 @@ public class SFTPManagerTab extends Tab {
             refreshLocal();
         });
 
+        Button newFolderLocalButton = new Button();
+        styleToolbarButton(newFolderLocalButton, FileBrowserIcons.NEW_FOLDER);
+        newFolderLocalButton.setTooltip(new Tooltip(I18n.get("filebrowser.tooltip.newFolder")));
+        newFolderLocalButton.setOnAction(e -> {
+            resetAutoCloseTimer();
+            createLocalFolder();
+        });
+
         Button deleteLocalButton = new Button(I18n.get("sftp.delete"));
         styleToolbarButton(deleteLocalButton, FileBrowserIcons.DELETE);
         deleteLocalButton.setTooltip(new Tooltip(I18n.get("sftp.contextMenu.delete")));
@@ -432,7 +442,8 @@ public class SFTPManagerTab extends Tab {
         });
         editLocalButton.getItems().add(editLocalSnippetItem);
         
-        localButtons.getChildren().addAll(localLabel, refreshLocalButton, deleteLocalButton, ownerLocalButton, editLocalButton);
+        localButtons.getChildren().addAll(localLabel, refreshLocalButton, newFolderLocalButton, deleteLocalButton,
+                ownerLocalButton, editLocalButton);
         
         // === Vertical separator ===
         Separator verticalSeparator = new Separator();
@@ -453,6 +464,15 @@ public class SFTPManagerTab extends Tab {
         refreshRemoteButton.setOnAction(e -> {
             resetAutoCloseTimer();
             refreshRemote();
+        });
+
+        Button newFolderRemoteButton = new Button();
+        styleToolbarButton(newFolderRemoteButton, FileBrowserIcons.NEW_FOLDER);
+        newFolderRemoteButton.setTooltip(new Tooltip(I18n.get("filebrowser.tooltip.newFolder")));
+        newFolderRemoteButton.setDisable(true);
+        newFolderRemoteButton.setOnAction(e -> {
+            resetAutoCloseTimer();
+            createRemoteFolder();
         });
 
         Button deleteRemoteButton = new Button(I18n.get("sftp.delete"));
@@ -518,7 +538,8 @@ public class SFTPManagerTab extends Tab {
         });
         editRemoteButton.getItems().add(editRemoteSnippetItem);
         
-        remoteButtons.getChildren().addAll(remoteLabel, refreshRemoteButton, deleteRemoteButton, ownerRemoteButton,
+        remoteButtons.getChildren().addAll(remoteLabel, refreshRemoteButton, newFolderRemoteButton, deleteRemoteButton,
+                ownerRemoteButton,
                 remoteSep1, uploadButton, downloadButton, remoteSep2, archiveButton, editRemoteButton);
         
         // Assemble main button box: local | separator | remote
@@ -545,6 +566,8 @@ public class SFTPManagerTab extends Tab {
             deleteRemoteButton.setDisable(!usable);
             ownerRemoteButton.setDisable(!usable);
             editRemoteButton.setDisable(!isRemoteConnected() || !isSingleEditableFileSelection(remoteTable));
+            // A new folder goes into the absolute folder a listing returned, not the unexpanded '~'.
+            newFolderRemoteButton.setDisable(!isRemoteConnected() || !remotePathResolved);
         };
 
         // Enable/disable buttons based on selection
@@ -657,6 +680,7 @@ public class SFTPManagerTab extends Tab {
         // Context menu for local table
         ContextMenu localContextMenu = createLocalContextMenu();
         localTable.setContextMenu(localContextMenu);
+        installFileKeys(localTable, this::renameLocalSelected, this::deleteLocalSelected);
         
         // Double-click to navigate
         localTable.setRowFactory(tv -> {
@@ -803,6 +827,7 @@ public class SFTPManagerTab extends Tab {
         // Context menu for remote table
         ContextMenu remoteContextMenu = createRemoteContextMenu();
         remoteTable.setContextMenu(remoteContextMenu);
+        installFileKeys(remoteTable, this::renameRemoteSelected, this::deleteRemoteSelected);
         
         // Setup data binding with filter and sort
         remoteItems = FXCollections.observableArrayList();
@@ -1677,6 +1702,18 @@ public class SFTPManagerTab extends Tab {
             resetAutoCloseTimer();
             deleteLocalSelected();
         });
+
+        MenuItem renameItem = new MenuItem(I18n.get("sftp.rename"));
+        renameItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            renameLocalSelected();
+        });
+
+        MenuItem newFolderItem = new MenuItem(I18n.get("filebrowser.context.newFolder"));
+        newFolderItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            createLocalFolder();
+        });
         
         MenuItem ownerItem = new MenuItem(I18n.get("sftp.contextMenu.setOwner"));
         ownerItem.setOnAction(e -> {
@@ -1703,9 +1740,11 @@ public class SFTPManagerTab extends Tab {
         });
         
         menu.getItems().addAll(
-            copyItem, deleteItem, 
-            new SeparatorMenuItem(), 
-            ownerItem, 
+            copyItem, renameItem, deleteItem,
+            new SeparatorMenuItem(),
+            newFolderItem,
+            new SeparatorMenuItem(),
+            ownerItem,
             new SeparatorMenuItem(), 
             archiveItem,
             new SeparatorMenuItem(),
@@ -1721,16 +1760,17 @@ public class SFTPManagerTab extends Tab {
             boolean isImageFile = isSingleFile && isImageFileType(selected.get(0).getName());
             
             copyItem.setDisable(!hasSelection);
+            renameItem.setDisable(singleNamedSelection(localTable) == null);
             deleteItem.setDisable(!hasSelection);
             ownerItem.setDisable(!hasSelection);
             archiveItem.setDisable(!hasSelection);
             editWithSnippetEditorItem.setDisable(!isSingleFile);
             openImageItem.setDisable(!isImageFile);
         });
-        
+
         return menu;
     }
-    
+
     private ContextMenu createRemoteContextMenu() {
         ContextMenu menu = new ContextMenu();
         
@@ -1744,6 +1784,18 @@ public class SFTPManagerTab extends Tab {
         deleteItem.setOnAction(e -> {
             resetAutoCloseTimer();
             deleteRemoteSelected();
+        });
+
+        MenuItem renameItem = new MenuItem(I18n.get("sftp.rename"));
+        renameItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            renameRemoteSelected();
+        });
+
+        MenuItem newFolderItem = new MenuItem(I18n.get("filebrowser.context.newFolder"));
+        newFolderItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            createRemoteFolder();
         });
         
         MenuItem ownerItem = new MenuItem(I18n.get("sftp.contextMenu.setOwner"));
@@ -1771,9 +1823,11 @@ public class SFTPManagerTab extends Tab {
         });
         
         menu.getItems().addAll(
-            copyItem, deleteItem, 
-            new SeparatorMenuItem(), 
-            ownerItem, 
+            copyItem, renameItem, deleteItem,
+            new SeparatorMenuItem(),
+            newFolderItem,
+            new SeparatorMenuItem(),
+            ownerItem,
             new SeparatorMenuItem(), 
             archiveItem,
             new SeparatorMenuItem(),
@@ -1789,16 +1843,221 @@ public class SFTPManagerTab extends Tab {
             boolean isImageFile = isSingleFile && isImageFileType(selected.get(0).getName());
             
             copyItem.setDisable(!hasSelection);
+            renameItem.setDisable(!isRemoteConnected() || singleNamedSelection(remoteTable) == null);
             deleteItem.setDisable(!hasSelection);
+            newFolderItem.setDisable(!isRemoteConnected() || !remotePathResolved);
             ownerItem.setDisable(!hasSelection);
             archiveItem.setDisable(!hasSelection);
             editWithSnippetEditorItem.setDisable(!isSingleFile);
             openImageItem.setDisable(!isImageFile);
         });
-        
+
         return menu;
     }
-    
+
+    /**
+     * F2 renames the selected entry, Delete (or Cmd/Ctrl+Backspace) deletes the selection after the
+     * usual confirmation, as in the file browser sidebar.
+     */
+    private void installFileKeys(TableView<SftpFileItem> table, Runnable rename, Runnable delete) {
+        table.setOnKeyPressed(event -> {
+            KeyCode code = event.getCode();
+            if (code == KeyCode.F2 && !event.isShortcutDown() && !event.isAltDown()) {
+                resetAutoCloseTimer();
+                rename.run();
+                event.consume();
+            } else if (code == KeyCode.DELETE || (code == KeyCode.BACK_SPACE && event.isShortcutDown())) {
+                resetAutoCloseTimer();
+                delete.run();
+                event.consume();
+            }
+        });
+    }
+
+    /** The one selected entry other than {@code ..}, or {@code null}. */
+    private static SftpFileItem singleNamedSelection(TableView<SftpFileItem> table) {
+        var selected = table.getSelectionModel().getSelectedItems();
+        if (selected == null || selected.size() != 1) {
+            return null;
+        }
+        SftpFileItem item = selected.get(0);
+        return item == null || item.isParentEntry() ? null : item;
+    }
+
+    /**
+     * Asks for the name of a new or renamed entry. While the name is not usable (see
+     * {@link SftpFileTransferService#validateEntryName}) the dialog stays open with an error.
+     *
+     * @return the trimmed name, or empty when the dialog was cancelled
+     */
+    private Optional<String> promptEntryName(String title, String header, String initialName) {
+        TextInputDialog dialog = new TextInputDialog(initialName);
+        dialog.setTitle(title);
+        dialog.setHeaderText(header);
+        dialog.setContentText(I18n.get("sftp.nameLabel"));
+        applyDarkTheme(dialog);
+        if (getTabPane() != null && getTabPane().getScene() != null) {
+            dialog.initOwner(getTabPane().getScene().getWindow());
+        }
+        Node okButton = dialog.getDialogPane().lookupButton(ButtonType.OK);
+        if (okButton != null) {
+            okButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+                String typed = dialog.getEditor().getText();
+                if (!isValidEntryName(typed)) {
+                    event.consume();
+                    showError(title, I18n.get("sftp.error.invalidName", typed == null ? "" : typed.trim()));
+                }
+            });
+        }
+        return dialog.showAndWait().map(String::trim);
+    }
+
+    static boolean isValidEntryName(String name) {
+        try {
+            SftpFileTransferService.validateEntryName(name);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    /** The message for a failed rename or new folder: "already exists" in words, otherwise the cause. */
+    private static String entryFailureMessage(Throwable failure, String name) {
+        Throwable cause = failure instanceof CompletionException && failure.getCause() != null
+            ? failure.getCause()
+            : failure;
+        return cause instanceof FileAlreadyExistsException
+            ? I18n.get("sftp.error.nameExists", name)
+            : failureMessage(cause);
+    }
+
+    private void renameLocalSelected() {
+        SftpFileItem item = singleNamedSelection(localTable);
+        if (item == null) {
+            return;
+        }
+        promptEntryName(I18n.get("sftp.rename"), I18n.get("sftp.renamePrompt", item.getName()), item.getName())
+            .filter(name -> !name.equals(item.getName()))
+            .ifPresent(name -> {
+                try {
+                    // Never over an existing entry of that name.
+                    SftpFileTransferService.renameLocalEntry(Paths.get(item.getPath()), name);
+                    statusLabel.setText(I18n.get("sftp.renamed", item.getName(), name));
+                } catch (IOException | RuntimeException e) {
+                    logger.error("Local rename failed: {} -> {}", item.getPath(), name, e);
+                    showError(I18n.get("sftp.error.renameFailed"), item.getName() + ": " + entryFailureMessage(e, name));
+                }
+                refreshLocal();
+            });
+    }
+
+    private void renameRemoteSelected() {
+        SftpFileItem item = singleNamedSelection(remoteTable);
+        if (item == null || !requireConnected()) {
+            return;
+        }
+        promptEntryName(I18n.get("sftp.rename"), I18n.get("sftp.renamePrompt", item.getName()), item.getName())
+            .filter(name -> !name.equals(item.getName()))
+            .ifPresent(name -> {
+                if (!requireConnected()) {
+                    return;
+                }
+                SFTPSession session = sftpSession;
+                String target = SftpFileTransferService.resolveSiblingRemoteFilePath(item.getPath(), name);
+                statusLabel.setText(I18n.get("sftp.renaming", item.getName(), name));
+                runRemoteOperation("SFTP-Rename", session, () -> {
+                    // A change of case only may "exist" on a case-insensitive server; let it decide.
+                    if (!name.equalsIgnoreCase(item.getName()) && remoteFileExists(session, target)) {
+                        throw new FileAlreadyExistsException(target);
+                    }
+                    session.renameFile(item.getPath(), target);
+                }, () -> statusLabel.setText(I18n.get("sftp.renamed", item.getName(), name)), failure -> {
+                    logger.error("Remote rename failed: {} -> {}", item.getPath(), target, failure);
+                    showError(I18n.get("sftp.error.renameFailed"),
+                        item.getName() + ": " + entryFailureMessage(failure, name));
+                });
+            });
+    }
+
+    private void createLocalFolder() {
+        Path targetDir = currentLocalPath;
+        promptEntryName(I18n.get("filebrowser.newFolder.title"), I18n.get("filebrowser.newFolder.header"), "")
+            .ifPresent(name -> {
+                try {
+                    Files.createDirectory(targetDir.resolve(name));
+                    statusLabel.setText(I18n.get("filebrowser.folder.created") + ": " + name);
+                } catch (IOException | RuntimeException e) {
+                    logger.error("Creating local folder {} in {} failed", name, targetDir, e);
+                    showError(I18n.get("filebrowser.error.createFolder"), entryFailureMessage(e, name));
+                }
+                refreshLocal();
+            });
+    }
+
+    private void createRemoteFolder() {
+        if (!requireConnected() || !remotePathResolved) {
+            return;
+        }
+        // Taken now: browsing on while the dialog is open must not change where the folder goes.
+        String targetDir = currentRemotePath;
+        promptEntryName(I18n.get("filebrowser.newFolder.title"), I18n.get("filebrowser.newFolder.header"), "")
+            .ifPresent(name -> {
+                if (!requireConnected()) {
+                    return;
+                }
+                SFTPSession session = sftpSession;
+                String folder = RemotePathSupport.appendRemotePath(targetDir, name);
+                runRemoteOperation("SFTP-NewFolder", session, () -> {
+                    if (remoteFileExists(session, folder)) {
+                        throw new FileAlreadyExistsException(folder);
+                    }
+                    // Strict: unlike an upload, New Folder never merges into an existing folder.
+                    session.createDirectory(folder);
+                }, () -> statusLabel.setText(I18n.get("filebrowser.folder.created") + ": " + name), failure -> {
+                    logger.error("Creating remote folder {} failed", folder, failure);
+                    showError(I18n.get("filebrowser.error.createFolder"), entryFailureMessage(failure, name));
+                });
+            });
+    }
+
+    /** A remote action for {@link #runRemoteOperation}. */
+    @FunctionalInterface
+    private interface RemoteOperation {
+        void run() throws Exception;
+    }
+
+    /**
+     * Runs {@code operation} on its own thread and then, on the FX thread, reports it and lists the
+     * remote folder again. A failure caused by a lost connection shows the Disconnected state
+     * instead of {@code onFailure}.
+     */
+    private void runRemoteOperation(String threadName, SFTPSession session, RemoteOperation operation,
+            Runnable onSuccess, java.util.function.Consumer<Exception> onFailure) {
+        new Thread(() -> {
+            Exception failure = null;
+            try {
+                operation.run();
+            } catch (Exception e) {
+                failure = e;
+            }
+            Exception result = failure;
+            Platform.runLater(() -> {
+                if (closing) {
+                    return;
+                }
+                if (result == null) {
+                    onSuccess.run();
+                } else if (!session.isConnected()) {
+                    requireConnected();
+                    return;
+                } else {
+                    onFailure.accept(result);
+                }
+                refreshRemote();
+            });
+        }, threadName).start();
+    }
+
     private void deleteRemoteSelected() {
         var selected = remoteTable.getSelectionModel().getSelectedItems();
         if (selected == null || selected.isEmpty()) return;

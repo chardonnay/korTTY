@@ -7,6 +7,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -147,6 +148,53 @@ class SftpFileTransferServiceTest {
         assertThat(expectThrows(IllegalArgumentException.class,
             () -> SftpFileTransferService.resolveSiblingRemoteFilePath("/etc/app.conf", "..")).getMessage())
             .isEqualTo("File name must not be '.' or '..'");
+    }
+
+    @Test
+    void validateEntryNameAcceptsOneNameInTheFolderShown() {
+        assertThat(SftpFileTransferService.validateEntryName("new name.txt")).isEqualTo("new name.txt");
+        assertThat(SftpFileTransferService.validateEntryName("  .hidden ")).isEqualTo(".hidden");
+        assertThat(SftpFileTransferService.validateEntryName("a:b")).isEqualTo("a:b");
+
+        for (String invalid : new String[] {"", "   ", ".", "..", "a/b", "a\\b", "/", "nul\0byte"}) {
+            expectThrows(IllegalArgumentException.class, () -> SftpFileTransferService.validateEntryName(invalid));
+        }
+        expectThrows(IllegalArgumentException.class, () -> SftpFileTransferService.validateEntryName(null));
+    }
+
+    @Test
+    void renameLocalEntryNeverReplacesAnotherEntry() throws Exception {
+        Path source = Files.writeString(tempDir.resolve("draft.txt"), "draft");
+        Path existing = Files.writeString(tempDir.resolve("final.txt"), "final");
+
+        expectThrows(FileAlreadyExistsException.class,
+            () -> SftpFileTransferService.renameLocalEntry(source, "final.txt"));
+        assertThat(Files.readString(source)).isEqualTo("draft");
+        assertThat(Files.readString(existing)).isEqualTo("final");
+
+        // A name that points elsewhere is refused before anything moves.
+        expectThrows(IllegalArgumentException.class,
+            () -> SftpFileTransferService.renameLocalEntry(source, "../escaped.txt"));
+        assertThat(Files.exists(source)).isTrue();
+
+        Path renamed = SftpFileTransferService.renameLocalEntry(source, " report.txt ");
+        assertThat(renamed).isEqualTo(tempDir.resolve("report.txt"));
+        assertThat(Files.readString(renamed)).isEqualTo("draft");
+        assertThat(Files.exists(source)).isFalse();
+    }
+
+    @Test
+    void renameLocalEntryChangesOnlyTheCase() throws Exception {
+        Path folder = Files.createDirectory(tempDir.resolve("case"));
+        Path source = Files.writeString(folder.resolve("readme.txt"), "text");
+
+        // On a case-insensitive file system (macOS, Windows) the new name "exists" as the file itself.
+        SftpFileTransferService.renameLocalEntry(source, "README.txt");
+
+        try (var entries = Files.list(folder)) {
+            assertThat(entries.map(path -> path.getFileName().toString()).toList()).containsExactly("README.txt");
+        }
+        assertThat(Files.readString(folder.resolve("README.txt"))).isEqualTo("text");
     }
 
     private static final class RecordingSftpSession extends SFTPSession {
