@@ -21,6 +21,8 @@ import java.util.Set;
  * @param clipboardMode              INTERNAL confines korTTY to its own in-memory clipboard
  * @param allowTelemetry             false forbids telemetry
  * @param allowTerminalRecording     false forbids terminal recording
+ * @param allowPortForwarding        false forbids every SSH tunnel (local, remote and dynamic
+ *                                   port forwarding) configured on a connection
  * @param allowCustomTeamworkSources false restricts teamwork to policy-provided sources
  * @param allowCustomScriptHeaders   false forbids creating own script headers
  * @param aiProfileAllowCreate       false forbids creating AI profiles
@@ -52,6 +54,7 @@ public record PolicyRule(
     ClipboardMode clipboardMode,
     Boolean allowTelemetry,
     Boolean allowTerminalRecording,
+    Boolean allowPortForwarding,
     Boolean allowCustomTeamworkSources,
     Boolean allowCustomScriptHeaders,
     Boolean aiProfileAllowCreate,
@@ -188,6 +191,7 @@ public record PolicyRule(
         private ClipboardMode clipboardMode;
         private Boolean allowTelemetry;
         private Boolean allowTerminalRecording;
+        private Boolean allowPortForwarding;
         private Boolean allowCustomTeamworkSources;
         private Boolean allowCustomScriptHeaders;
         private Boolean aiProfileAllowCreate;
@@ -214,6 +218,7 @@ public record PolicyRule(
         public Builder clipboardMode(ClipboardMode value) { this.clipboardMode = value; return this; }
         public Builder allowTelemetry(Boolean value) { this.allowTelemetry = value; return this; }
         public Builder allowTerminalRecording(Boolean value) { this.allowTerminalRecording = value; return this; }
+        public Builder allowPortForwarding(Boolean value) { this.allowPortForwarding = value; return this; }
         public Builder allowCustomTeamworkSources(Boolean value) { this.allowCustomTeamworkSources = value; return this; }
         public Builder allowCustomScriptHeaders(Boolean value) { this.allowCustomScriptHeaders = value; return this; }
         public Builder aiProfileAllowCreate(Boolean value) { this.aiProfileAllowCreate = value; return this; }
@@ -235,7 +240,7 @@ public record PolicyRule(
         public PolicyRule build() {
             return new PolicyRule(name, users, groups, servers, features, agentExecution,
                 requireMasterPassword, enforceHostKeyCheck, clipboardMode, allowTelemetry, allowTerminalRecording,
-                allowCustomTeamworkSources, allowCustomScriptHeaders, aiProfileAllowCreate,
+                allowPortForwarding, allowCustomTeamworkSources, allowCustomScriptHeaders, aiProfileAllowCreate,
                 aiProfileAllowEdit, aiProfileAllowInternet, allowRuntimeDownloads, allowModelDownloads, allowUserModels,
                 updatesEnabled, updateFeedUrl, loadIntoSnippetEditor, logging, sessionJournal,
                 snippetAnalysisMaxStoredContentBytes);

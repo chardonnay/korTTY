@@ -40,6 +40,12 @@ import java.util.regex.Pattern;
 /**
  * TtyConnector implementation for SSH connections using Apache MINA SSHD.
  * This connector integrates with SithTermFX for terminal emulation.
+ *
+ * <p>The connector never opens the connection's SSH tunnels itself: every split pane and every
+ * reconnect builds its own connector, so tunnels opened here would collide on their ports. The
+ * owning terminal tab attaches its {@link SshTunnelManager} to the session of its first pane
+ * instead; this class only installs the {@linkplain SshTunnelManager#clientForwardingFilter()
+ * client forwarding filter} remote tunnels need.
  */
 public class SshTtyConnector implements ObservableTtyConnector {
     
@@ -173,6 +179,10 @@ public class SshTtyConnector implements ObservableTtyConnector {
             
             // Create and start SSH client
             client = SshClient.setUpDefaultClient();
+            // MINA's client default rejects every channel the server opens, which would refuse each
+            // connection a remote tunnel delivers. Splits register no remote forwards, so for them
+            // the filter admits nothing either.
+            client.setForwardingFilter(SshTunnelManager.clientForwardingFilter());
             configureKeepAlive(client, connection.getSettings());
             
             // Configure supported auth methods explicitly.

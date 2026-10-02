@@ -38,7 +38,8 @@ public final class PolicyLoader {
         "terminal", "logging", "session-journal");
     private static final Set<String> SERVERS_KEYS = Set.of("mode", "hosts");
     private static final Set<String> SECURITY_KEYS = Set.of("require-master-password",
-        "enforce-host-key-check", "allow-telemetry", "allow-terminal-recording", "clipboard-mode");
+        "enforce-host-key-check", "allow-telemetry", "allow-terminal-recording", "allow-port-forwarding",
+        "clipboard-mode");
     private static final Set<String> RULE_TEAMWORK_KEYS = Set.of("allow-custom-sources");
     private static final Set<String> SNIPPETS_KEYS =
         Set.of("allow-custom-script-headers", "analysis-max-stored-content-bytes");
@@ -262,6 +263,7 @@ public final class PolicyLoader {
         builder.enforceHostKeyCheck(getBoolean(security, "enforce-host-key-check", securityContext));
         builder.allowTelemetry(getBoolean(security, "allow-telemetry", securityContext));
         builder.allowTerminalRecording(getBoolean(security, "allow-terminal-recording", securityContext));
+        builder.allowPortForwarding(getBoolean(security, "allow-port-forwarding", securityContext));
         String clipboardMode = getString(security, "clipboard-mode", securityContext);
         if (clipboardMode != null) {
             ClipboardMode mode = ClipboardMode.fromToml(clipboardMode);

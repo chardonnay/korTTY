@@ -33,7 +33,7 @@ public final class EffectivePolicy {
     /** No policy file: everything allowed, nothing managed. */
     private static final EffectivePolicy UNRESTRICTED = new EffectivePolicy(false, false, null,
         new EnumMap<>(PolicyFeature.class), AgentExecutionMode.ALLOW, false, false,
-        ClipboardMode.SYSTEM, true, true,
+        ClipboardMode.SYSTEM, true, true, true,
         true, true, true, true, true, true, true, true, true, null, LoadIntoEditorMode.ALLOW,
         EMPTY_LOGGING, EMPTY_SESSION_JOURNAL, null,
         List.of(), EnumSet.noneOf(ManagedSetting.class), List.of(), List.of(), List.of(), List.of());
@@ -48,6 +48,7 @@ public final class EffectivePolicy {
     private final ClipboardMode clipboardMode;
     private final boolean allowTelemetry;
     private final boolean allowTerminalRecording;
+    private final boolean allowPortForwarding;
     private final boolean allowCustomTeamworkSources;
     private final boolean allowCustomScriptHeaders;
     private final boolean aiProfileCreateAllowed;
@@ -74,6 +75,7 @@ public final class EffectivePolicy {
                             boolean requireMasterPassword, boolean enforceHostKeyCheck,
                             ClipboardMode clipboardMode,
                             boolean allowTelemetry, boolean allowTerminalRecording,
+                            boolean allowPortForwarding,
                             boolean allowCustomTeamworkSources, boolean allowCustomScriptHeaders,
                             boolean aiProfileCreateAllowed, boolean aiProfileEditAllowed,
                             boolean aiInternetAllowed,
@@ -99,6 +101,7 @@ public final class EffectivePolicy {
         this.clipboardMode = clipboardMode;
         this.allowTelemetry = allowTelemetry;
         this.allowTerminalRecording = allowTerminalRecording;
+        this.allowPortForwarding = allowPortForwarding;
         this.allowCustomTeamworkSources = allowCustomTeamworkSources;
         this.allowCustomScriptHeaders = allowCustomScriptHeaders;
         this.aiProfileCreateAllowed = aiProfileCreateAllowed;
@@ -137,7 +140,7 @@ public final class EffectivePolicy {
         }
         return new EffectivePolicy(true, true, null, denied, AgentExecutionMode.READ_ONLY,
             true, true, ClipboardMode.INTERNAL, false, false, false, false, false, false, false, false, false, false,
-            false, null, LoadIntoEditorMode.DENY, EMPTY_LOGGING, EMPTY_SESSION_JOURNAL, 0L,
+            false, false, null, LoadIntoEditorMode.DENY, EMPTY_LOGGING, EMPTY_SESSION_JOURNAL, 0L,
             List.of(), EnumSet.allOf(ManagedSetting.class),
             List.of(), List.of(), List.of(), List.of());
     }
@@ -192,6 +195,7 @@ public final class EffectivePolicy {
             PolicyRule::clipboardMode, ClipboardMode::mostRestrictive);
         Boolean allowTelemetry = resolver.resolveAllow(PolicyRule::allowTelemetry);
         Boolean allowTerminalRecording = resolver.resolveAllow(PolicyRule::allowTerminalRecording);
+        Boolean allowPortForwarding = resolver.resolveAllow(PolicyRule::allowPortForwarding);
         Boolean allowCustomTeamworkSources = resolver.resolveAllow(PolicyRule::allowCustomTeamworkSources);
         Boolean allowCustomScriptHeaders = resolver.resolveAllow(PolicyRule::allowCustomScriptHeaders);
         Boolean aiProfileAllowCreate = resolver.resolveAllow(PolicyRule::aiProfileAllowCreate);
@@ -215,6 +219,7 @@ public final class EffectivePolicy {
         }
         markManaged(managed, ManagedSetting.TELEMETRY, allowTelemetry);
         markManaged(managed, ManagedSetting.TERMINAL_RECORDING, allowTerminalRecording);
+        markManaged(managed, ManagedSetting.PORT_FORWARDING, allowPortForwarding);
         markManaged(managed, ManagedSetting.TEAMWORK, allowCustomTeamworkSources);
         markManaged(managed, ManagedSetting.SCRIPT_HEADERS, allowCustomScriptHeaders);
         markManaged(managed, ManagedSetting.AI_PROFILES, aiProfileAllowCreate);
@@ -258,6 +263,7 @@ public final class EffectivePolicy {
             orDefault(requireMasterPassword, false), orDefault(enforceHostKeyCheck, false),
             orDefault(clipboardMode, ClipboardMode.SYSTEM),
             orDefault(allowTelemetry, true), orDefault(allowTerminalRecording, true),
+            orDefault(allowPortForwarding, true),
             orDefault(allowCustomTeamworkSources, true), orDefault(allowCustomScriptHeaders, true),
             orDefault(aiProfileAllowCreate, true), orDefault(aiProfileAllowEdit, true),
             orDefault(aiProfileAllowInternet, true),
@@ -431,6 +437,15 @@ public final class EffectivePolicy {
 
     public boolean terminalRecordingAllowed() {
         return allowTerminalRecording;
+    }
+
+    /**
+     * False forbids every SSH tunnel configured on a connection: local, remote and dynamic port
+     * forwarding. Enforced where tunnels are opened ({@code SshTunnelManager.attach}), so no UI
+     * path can start one; a jump server's internal hop is not a user tunnel and is unaffected.
+     */
+    public boolean portForwardingAllowed() {
+        return allowPortForwarding;
     }
 
     public boolean customTeamworkSourcesAllowed() {
