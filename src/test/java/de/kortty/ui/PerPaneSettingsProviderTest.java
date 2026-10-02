@@ -143,6 +143,30 @@ public class PerPaneSettingsProviderTest {
         assertThat(fontSize(tracking)).isEqualTo(9f); // tracking pane follows zoom
     }
 
+    /**
+     * The context menu's Extras &gt; Font Size &gt; Increase/Decrease step through the clicked pane's
+     * provider. On a pane whose effect pins its size, a step must start from the tab-wide size, not
+     * move every other pane to the pinned size plus one step.
+     */
+    @Test
+    void stepZoomOnAPinnedPaneStepsTheSharedSize() throws Exception {
+        DynamicFontSizeSettingsProvider shared = new DynamicFontSizeSettingsProvider(14f);
+        Object pinned = newProvider(baselineSettings(), shared);
+        Object tracking = newProvider(baselineSettings(), shared);
+        setOverride(pinned, newOverride(null, null, null, null, null, 30f)); // pins 30pt
+
+        ((DynamicFontSizeSettingsProvider) pinned).increaseFontSize(2f);
+
+        assertThat(shared.getFontSize()).isEqualTo(16f);
+        assertThat(fontSize(tracking)).isEqualTo(16f);
+        assertThat(fontSize(pinned)).isEqualTo(30f);
+
+        ((DynamicFontSizeSettingsProvider) pinned).decreaseFontSize(2f);
+
+        assertThat(shared.getFontSize()).isEqualTo(14f);
+        assertThat(fontSize(tracking)).isEqualTo(14f);
+    }
+
     private static int bufferMaxLines(Object provider) {
         return ((SettingsProvider) provider).getBufferMaxLinesCount();
     }
