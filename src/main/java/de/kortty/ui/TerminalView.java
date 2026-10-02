@@ -6606,7 +6606,8 @@ public class TerminalView extends BorderPane {
      * Queues the screen text a project saved for this tab. It is shown dimmed, between two marker
      * rows, in the primary pane when the next connect succeeds — written straight into the emulator
      * before it starts reading the connection, so it is never sent to the server, never reaches the
-     * remote shell or its history, and is not part of the session journal.
+     * remote shell or its history, and is not fed to a session journal that starts with the
+     * connection (a journal enabled later seeds itself from the scrollback, block included).
      *
      * <p>Call it on the FX thread before {@link #connect()}. If every attempt fails, the block stays
      * queued and is shown on the next successful reconnect, exactly once.

@@ -49,7 +49,7 @@ When **Auto-Reconnect** is enabled, KorTTY automatically:
 
 - Restores all windows with their saved geometry (position and size)
 - Reconnects each SSH tab using the original connection settings
-- Shows each terminal tab's saved screen dimmed above the new session, framed by a *Restored output from* row with the date the project was saved and an *End of restored output* row. The text is written into the local terminal only and is never sent to the server: it does not reach the remote shell or its command history, and it is not recorded in the session journal. Control characters and escape sequences are removed from it before it is shown.
+- Shows each terminal tab's saved screen dimmed above the new session, framed by a *Restored output from* row with the date the project was saved and an *End of restored output* row. The text is written into the local terminal only and is never sent to the server: it does not reach the remote shell or its command history, and a session journal that starts with the connection does not record it (a journal you switch on later imports the scrollback, which then includes the restored rows). Control characters and escape sequences are removed from it before it is shown.
 - Restores the active tab and dashboard state
 
 If **Auto-Reconnect** is disabled, terminal tabs are not restored: opening the project applies the saved window geometry and reopens local file editor and image viewer tabs, while terminal, SFTP and remote file tabs are skipped. Open those connections again from the Connection Manager.
