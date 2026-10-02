@@ -2,6 +2,7 @@ package de.kortty.core;
 
 import de.kortty.model.AuthMethod;
 import de.kortty.model.ServerConnection;
+import de.kortty.ui.I18n;
 import org.apache.sshd.client.auth.keyboard.UserAuthKeyboardInteractiveFactory;
 import org.apache.sshd.client.auth.password.UserAuthPasswordFactory;
 import org.apache.sshd.client.auth.pubkey.UserAuthPublicKeyFactory;
@@ -42,15 +43,16 @@ class SFTPSessionTest {
         assertThat(factoryNames.contains(UserAuthPasswordFactory.class.getSimpleName())).isTrue();
     }
 
+    // The messages come from the active UI language; compare against the bundle, not a literal.
+
     @Test
     void detectsSftpSubsystemNegotiationFailure() {
-        RuntimeException failure = new RuntimeException(
-            "IoWriteFutureImpl[SftpChannelSubsystem][SSH_MSG_CHANNEL_DATA]: Failed (EOFException) to execute: Channel closing",
-            new EOFException("Channel closing"));
+        String cause = "IoWriteFutureImpl[SftpChannelSubsystem][SSH_MSG_CHANNEL_DATA]: Failed (EOFException) to execute: Channel closing";
+        RuntimeException failure = new RuntimeException(cause, new EOFException("Channel closing"));
 
         assertThat(SFTPSession.isSftpSubsystemNegotiationFailure(failure)).isTrue();
         assertThat(SFTPSession.sftpSubsystemFailureMessage(failure))
-            .contains("SFTP-Subsystem wurde nach erfolgreicher SSH-Authentifizierung vom Server abgelehnt oder geschlossen");
+            .isEqualTo(I18n.get("sftp.error.subsystemRejected", cause));
     }
 
     @Test
@@ -59,7 +61,7 @@ class SFTPSessionTest {
 
         assertThat(SFTPSession.isSftpSubsystemNegotiationFailure(failure)).isTrue();
         assertThat(SFTPSession.sftpSubsystemFailureMessage(failure))
-            .contains("Prüfe, ob SFTP für dieses Ziel bzw. den SSH-Proxy freigegeben ist");
+            .isEqualTo(I18n.get("sftp.error.subsystemRejected", "subsystem request failed on channel 0"));
     }
 
     @Test
@@ -68,6 +70,15 @@ class SFTPSessionTest {
 
         assertThat(SFTPSession.isSftpSubsystemNegotiationFailure(failure)).isFalse();
         assertThat(SFTPSession.sftpSubsystemFailureMessage(failure))
-            .isEqualTo("SFTP-Subsystem konnte nach erfolgreicher SSH-Authentifizierung nicht gestartet werden: permission denied");
+            .isEqualTo(I18n.get("sftp.error.subsystemStartFailed", "permission denied"));
+        assertThat(SFTPSession.sftpSubsystemFailureMessage(failure)).endsWith("permission denied");
+    }
+
+    @Test
+    void subsystemMessagesAreTranslatedNotGerman() {
+        // Before: always German, whatever the UI language.
+        assertThat(I18n.get("sftp.error.subsystemRejected", "x")).isNotEqualTo("sftp.error.subsystemRejected");
+        assertThat(I18n.get("sftp.error.subsystemStartFailed", "x")).isNotEqualTo("sftp.error.subsystemStartFailed");
+        assertThat(I18n.get("sftp.error.unknownCause")).isNotEqualTo("sftp.error.unknownCause");
     }
 }

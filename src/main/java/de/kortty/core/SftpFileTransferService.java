@@ -91,7 +91,8 @@ public class SftpFileTransferService {
     public synchronized void uploadDirectory(Path localDirectory, String remoteBasePath) throws IOException {
         SFTPSession activeSession = requireConnectedSession();
         String remoteDirectory = appendRemoteName(remoteBasePath, localDirectory.getFileName().toString());
-        activeSession.createDirectory(remoteDirectory);
+        // Uploading the same folder again merges into the existing remote folder.
+        activeSession.createDirectoryIfMissing(remoteDirectory);
         try (var stream = Files.list(localDirectory)) {
             for (Path child : stream.toList()) {
                 if (Files.isDirectory(child)) {
