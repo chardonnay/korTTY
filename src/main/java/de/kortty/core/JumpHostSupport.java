@@ -34,12 +34,49 @@ import java.time.Duration;
  *       address — the target's key is verified under {@code targetHost:targetPort} even though
  *       the TCP connection goes to the loopback forward.</li>
  * </ul>
+ *
+ * <p>Failures that retrying cannot fix — an incomplete jump setup, a jump password that cannot be
+ * used, a bastion host key the user rejected — are thrown as {@link PermanentJumpFailure}; network
+ * and handshake failures stay plain {@link IOException}s, so callers can keep retrying those.
  */
 public final class JumpHostSupport {
 
     private static final Logger logger = LoggerFactory.getLogger(JumpHostSupport.class);
 
     private JumpHostSupport() {
+    }
+
+    /**
+     * A jump-server failure that a retry cannot fix, so the caller must stop and tell the user
+     * instead of trying again. Its message is user-presentable as is.
+     */
+    public static final class PermanentJumpFailure extends IOException {
+        private static final long serialVersionUID = 1L;
+
+        /** Why the hop can never succeed as configured. */
+        public enum Kind {
+            /** The jump server is incomplete: no username, no key file, or a key that cannot be loaded. */
+            CONFIGURATION,
+            /** The stored jump password is missing, locked in the vault, or cannot be decrypted. */
+            CREDENTIALS,
+            /** The bastion's host key was rejected, by the user or against its pinned key. */
+            HOST_KEY_REJECTED
+        }
+
+        private final Kind kind;
+
+        PermanentJumpFailure(Kind kind, String message) {
+            this(kind, message, null);
+        }
+
+        PermanentJumpFailure(Kind kind, String message, Throwable cause) {
+            super(message, cause);
+            this.kind = java.util.Objects.requireNonNull(kind, "kind");
+        }
+
+        public Kind kind() {
+            return kind;
+        }
     }
 
     /** Whether {@code connection} declares a usable, enabled jump server. */
@@ -98,8 +135,15 @@ public final class JumpHostSupport {
      * to the target. Throws with a user-presentable message when the hop cannot be established;
      * never returns a half-open tunnel.
      *
+     * <p>The jump credentials are checked — and a stored password decrypted — before any socket is
+     * opened, so a locked vault or an incomplete setup never contacts the bastion or shows a
+     * host-key prompt for it.
+     *
      * @param masterPassword needed to decrypt the stored jump password; may be {@code null} for
-     *        key-based jumps or when no password is stored
+     *        key-based jumps
+     * @throws PermanentJumpFailure when the jump configuration or its credentials cannot work, or
+     *         the bastion's host key was rejected; retrying will not help
+     * @throws IOException when the bastion cannot be reached or the hop fails on the network
      */
     public static JumpTunnel open(
             ServerConnection connection,
@@ -109,17 +153,31 @@ public final class JumpHostSupport {
 
         JumpServer jump = connection.getJumpServer();
         if (!isActive(connection)) {
-            throw new IOException("Jump server is not configured for this connection.");
+            throw new PermanentJumpFailure(PermanentJumpFailure.Kind.CONFIGURATION,
+                "Jump server is not configured for this connection.");
         }
         String jumpUser = jump.getUsername();
         if (jumpUser == null || jumpUser.isBlank()) {
-            throw new IOException("Jump server username is missing.");
+            throw new PermanentJumpFailure(PermanentJumpFailure.Kind.CONFIGURATION,
+                "Jump server username is missing.");
         }
         // Validate the credential configuration before opening any socket: an incomplete jump setup
         // should fail fast, not after a connect attempt to the bastion.
-        if (jump.getAuthMethod() == AuthMethod.PUBLIC_KEY
-            && (jump.getPrivateKeyPath() == null || jump.getPrivateKeyPath().isBlank())) {
-            throw new IOException("Jump server is set to key authentication but no key file is configured.");
+        boolean keyAuth = jump.getAuthMethod() == AuthMethod.PUBLIC_KEY;
+        if (keyAuth && (jump.getPrivateKeyPath() == null || jump.getPrivateKeyPath().isBlank())) {
+            throw new PermanentJumpFailure(PermanentJumpFailure.Kind.CONFIGURATION,
+                "Jump server is set to key authentication but no key file is configured.");
+        }
+        // The same goes for the password: it needs the vault, and a locked vault must not first
+        // contact the bastion (and show its host-key prompt) only to fail afterwards.
+        String jumpPassword = null;
+        if (!keyAuth) {
+            jumpPassword = decryptJumpPassword(jump, masterPassword);
+            if (jumpPassword == null || jumpPassword.isEmpty()) {
+                throw new PermanentJumpFailure(PermanentJumpFailure.Kind.CREDENTIALS,
+                    "Jump server password is not available. Store it in the connection settings, "
+                        + "or unlock the master password vault.");
+            }
         }
 
         // The bastion's key is pinned under its own endpoint, with the same TOFU prompt as any
@@ -142,7 +200,7 @@ public final class JumpHostSupport {
                 .getSession();
             jumpSession.setKeyIdentityProvider(null);
 
-            if (jump.getAuthMethod() == AuthMethod.PUBLIC_KEY) {
+            if (keyAuth) {
                 // Presence already validated before connect; re-read the path here.
                 String keyPath = jump.getPrivateKeyPath();
                 // Passphrase-protected keys are not supported for the hop: the jump model stores
@@ -151,17 +209,12 @@ public final class JumpHostSupport {
                 try {
                     keyProvider.loadKeys(jumpSession).forEach(jumpSession::addPublicKeyIdentity);
                 } catch (Exception e) {
-                    throw new IOException(
+                    throw new PermanentJumpFailure(PermanentJumpFailure.Kind.CONFIGURATION,
                         "Jump server key could not be loaded (passphrase-protected keys are not supported for the hop): "
                             + e.getMessage(), e);
                 }
             } else {
-                String jumpPassword = decryptJumpPassword(jump, masterPassword);
-                if (jumpPassword == null || jumpPassword.isEmpty()) {
-                    throw new IOException(
-                        "Jump server password is not available. Store it in the connection settings, "
-                            + "or unlock the master password vault.");
-                }
+                // Resolved and checked before connecting.
                 jumpSession.addPasswordIdentity(jumpPassword);
             }
 
@@ -178,7 +231,8 @@ public final class JumpHostSupport {
         } catch (IOException e) {
             closeQuietly(jumpClient, jumpSession);
             if (verifier.wasRejected()) {
-                throw new IOException("Jump server host key was not accepted.", e);
+                throw new PermanentJumpFailure(PermanentJumpFailure.Kind.HOST_KEY_REJECTED,
+                    "Jump server host key was not accepted.", e);
             }
             throw e;
         } catch (Exception e) {
@@ -187,18 +241,20 @@ public final class JumpHostSupport {
         }
     }
 
-    private static String decryptJumpPassword(JumpServer jump, char[] masterPassword) throws IOException {
+    private static String decryptJumpPassword(JumpServer jump, char[] masterPassword) throws PermanentJumpFailure {
         String encrypted = jump.getEncryptedPassword();
         if (encrypted == null || encrypted.isBlank()) {
             return null;
         }
         if (masterPassword == null) {
-            throw new IOException("Master password vault is locked; the jump server password cannot be decrypted.");
+            throw new PermanentJumpFailure(PermanentJumpFailure.Kind.CREDENTIALS,
+                "Master password vault is locked; the jump server password cannot be decrypted.");
         }
         try {
             return new EncryptionService().decryptPassword(encrypted, masterPassword);
         } catch (Exception e) {
-            throw new IOException("Stored jump server password could not be decrypted.", e);
+            throw new PermanentJumpFailure(PermanentJumpFailure.Kind.CREDENTIALS,
+                "Stored jump server password could not be decrypted.", e);
         }
     }
 
