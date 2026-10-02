@@ -18,7 +18,7 @@ Der Verbindungseditor verfügt über folgende Registerkarten:
 
 | Registerkarte | Inhalt |
 | --- | --- |
-| Verbindung | Host, Port, Benutzername, Protokoll (SSH / Mosh / Local Shell), Authentifizierung (Passwort / Schlüssel / Tastatur-interaktiv), **Host-Schlüsselüberprüfung** (Standard verwenden / überprüfen / nicht überprüfen), Gruppen-/Ordnerzuweisung und optionales Freitext-[Tag](#tags). Für **Local Shell**-Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert. |
+| Verbindung | Host, Port, Benutzername, Protokoll (SSH / Mosh / Lokale Shell), Terminalemulation, **Zeichenkodierung** (Standard verwenden / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), Authentifizierung (Passwort / Schlüssel / keyboard-interactive), **Host-Key-Prüfung** (Standard verwenden / prüfen / nicht prüfen), Gruppen-/Ordnerzuweisung und ein optionaler Freitext [Tag](#tags). Für **Lokale Shell** Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert. Siehe [Zeichenkodierung](#zeichenkodierung). |
 | Terminaleinstellungen | Farben pro Verbindung, Schriftart, ANSI/TrueColor-Behandlung, Terminaleffekt |
 | SSH-Tunnel | Lokale / Remote- / dynamische Portweiterleitung |
 | Jump Server | Bastion-Host-Verkettung |
@@ -26,6 +26,10 @@ Der Verbindungseditor verfügt über folgende Registerkarten:
 | Journal | Pro Verbindung [Sitzungsjournal](session-journal.md): Aktivieren Sie das Journaling für diese Verbindung und konfigurieren Sie das Capture-Log und die KI-Zusammenfassung |
 | Fenstergeometrie | Gespeicherte Größe/Position für diese Verbindung |
 | KI | KI-Standardeinstellungen pro Verbindung: die [KI-Profil](ai-assistant.md) und KI-Skills, die von Terminal-KI-Funktionen auf dieser Verbindung verwendet werden |
+
+### Zeichenkodierung
+
+**Zeichenkodierung** legt fest, wie korTTY dekodiert, was die Sitzung dieser Verbindung ausgibt und wie Sie eingeben und einfügen, für Server deren Programme noch ISO-8859-1, ISO-8859-15 oder Windows-1252 statt UTF-8 schreiben. **Standard verwenden** folgt [Einstellungen → Terminal → Kodierung](../reference/settings/terminal.md#hinweise) für SSH-Verbindungen und bedeutet UTF-8 für lokale Shells. Mosh funktioniert nur mit UTF-8, daher ist das Dropdown bei Mosh-Verbindungen gesperrt und daneben steht eine entsprechende Notiz. Die Auswahl wird mit der Verbindung gespeichert, bleibt bei Duplizieren, Exportieren und Importieren erhalten und gilt beim nächsten Verbinden oder Wiederverbinden des Tabs.
 
 ## Tags
 

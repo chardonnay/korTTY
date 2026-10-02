@@ -61,6 +61,7 @@ Enthält alle gespeicherten SSH-Verbindungen mit ihren Einstellungen.
 - Überschreibungen des Terminal-Erscheinungsbilds (Schriftart, Farben, Größe)
 - SSH-Tunnel und Jump-Server-Konfiguration
 - Optionale Außerkraftsetzung der SSH-Hostschlüsselüberprüfung pro Verbindung (überprüfen, nicht überprüfen oder erben)
+- Optionale Zeichencodierung pro Verbindung (`encoding`; fehlt bedeutet die Vorgabe — siehe [Terminal → Kodierung](settings/terminal.md#hinweise))
 - Terminaleffekt-Plugins und Animationsgeschwindigkeit
 - Verbindungsspezifische Terminalprotokollierungseinstellungen
 - Einstellungen für das Sitzungsjournal pro Verbindung (aktivieren, typisierte Eingaben erfassen, KI-Zusammenfassungen, Zusammenfassungsintervall)
@@ -139,6 +140,7 @@ Globale Anwendungseinstellungen und Standardeinstellungen.
 
 #### Terminal und Anschlüsse
 
+- Standard-Kodierung des Terminals für SSH-Verbindungen, und `terminalEncodingConfirmed`, das protokolliert, dass ein von einer älteren Version gespeicherter Wert erneut gespeichert und angewendet wurde (siehe [Terminal → Kodierung](settings/terminal.md#hinweise))
 - Standardeinstellungen für die Terminalprotokollierung
 - Standardeinstellungen für das Terminaleffekt-Plugin
 - SSH Keep-Alive-Einstellungen
