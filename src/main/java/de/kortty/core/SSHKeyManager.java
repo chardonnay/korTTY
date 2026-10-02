@@ -57,7 +57,7 @@ public class SSHKeyManager {
     public void load() throws Exception {
         Path file = guard.file();
         guard.beginLoad();
-        if (!Files.exists(file)) {
+        if (guard.isMissing()) {
             logger.info("No SSH keys file found, starting with empty list");
             return;
         }

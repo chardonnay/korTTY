@@ -95,6 +95,33 @@ class MasterPasswordKeyFileTest {
         }
     }
 
+    @Test
+    void masterKeyWhoseExistenceCannotBeCheckedIsNeverTreatedAsAFreshProfile() throws Exception {
+        assertThat(new MasterPasswordManager(dir).isPasswordSet()).isFalse();
+        new MasterPasswordManager(dir).setupPassword("pass".toCharArray());
+        Path keyFile = dir.resolve(MasterPasswordManager.MASTER_KEY_FILE);
+        String original = Files.readString(keyFile);
+        requirePosix(dir);
+        if ("root".equals(System.getProperty("user.name"))) {
+            throw new SkipException("needs POSIX permissions that apply to the current user");
+        }
+        MasterPasswordManager manager = new MasterPasswordManager(dir);
+
+        // ~/.kortty cannot be searched, as with a network home directory that is briefly
+        // unreachable: Files.exists is false, but master.key is there. Reporting "not set" would
+        // start the first-run setup, which mints a new salt over it and orphans every secret.
+        Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rw-------"));
+        try {
+            assertThat(Files.exists(keyFile)).isFalse();
+            assertThat(manager.isPasswordSet()).isTrue();
+            expectThrows(IOException.class, () -> manager.verifyPassword("pass".toCharArray()));
+        } finally {
+            Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rwx------"));
+        }
+        assertThat(Files.readString(keyFile)).isEqualTo(original);
+        assertThat(manager.verifyPassword("pass".toCharArray())).isTrue();
+    }
+
     private static String withoutLine(String properties, String prefix) {
         StringBuilder kept = new StringBuilder();
         properties.lines().filter(line -> !line.startsWith(prefix)).forEach(line -> kept.append(line).append('\n'));

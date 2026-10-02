@@ -58,10 +58,16 @@ public class MasterPasswordManager {
     
     /**
      * Checks if a master password has been set up.
+     *
+     * <p>Only a {@code master.key} that is known not to exist counts as "not set". When its
+     * existence cannot be determined (a network home directory that is briefly unreachable,
+     * {@code ~/.kortty} not searchable) the first-run setup must not start: it would mint a new
+     * salt over the real {@code master.key} and orphan every stored secret. Unlocking then fails
+     * with an error that names the file instead.
      */
     public boolean isPasswordSet() {
         Path keyFile = configDir.resolve(MASTER_KEY_FILE);
-        return Files.exists(keyFile);
+        return !Files.notExists(keyFile);
     }
     
     /**

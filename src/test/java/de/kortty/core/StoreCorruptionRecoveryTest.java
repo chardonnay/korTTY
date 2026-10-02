@@ -200,6 +200,36 @@ class StoreCorruptionRecoveryTest {
     }
 
     @Test(dataProvider = "stores")
+    void fileWhoseExistenceCannotBeCheckedIsNotReplacedByAnEmptyStore(StoreKind kind) throws Exception {
+        requireEnforcedPosixPermissions();
+        Store writer = kind.factory().apply(dir);
+        writer.addEntry();
+        writer.save();
+        Path file = dir.resolve(kind.fileName());
+        byte[] valid = Files.readAllBytes(file);
+        Store store = kind.factory().apply(dir);
+
+        // During the load the directory cannot be searched — as with a network home directory
+        // that is briefly unreachable. Files.exists is false then, but the file is not missing.
+        Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rw-------"));
+        try {
+            if (kind.loadThrowsWhenBlocked()) {
+                expectThrows(IOException.class, store::load);
+            } else {
+                store.load();
+            }
+        } finally {
+            Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rwx------"));
+        }
+
+        // The directory is back: a store that had started empty would now write over the file.
+        assertThat(store.isSaveBlocked()).isTrue();
+        expectThrows(IllegalStateException.class, store::save);
+        assertThat(Files.readAllBytes(file)).isEqualTo(valid);
+        assertThat(siblings()).containsExactly(kind.fileName());
+    }
+
+    @Test(dataProvider = "stores")
     void secretStoresAreOwnerOnlyAfterSave(StoreKind kind) throws Exception {
         Store store = kind.factory().apply(dir);
         store.addEntry();

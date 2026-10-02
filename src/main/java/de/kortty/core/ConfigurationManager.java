@@ -51,7 +51,7 @@ public class ConfigurationManager {
     public void load(SecretKey key) {
         Path file = connectionsGuard.file();
         connectionsGuard.beginLoad();
-        if (!Files.exists(file)) {
+        if (connectionsGuard.isMissing()) {
             logger.info("No connections file found, starting with empty list");
             connections = new ArrayList<>();
             return;

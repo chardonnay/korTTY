@@ -60,7 +60,7 @@ public class ThemeManager {
         Path themesFile = guard.file();
         guard.beginLoad();
 
-        if (!Files.exists(themesFile)) {
+        if (guard.isMissing()) {
             logger.info("Themes file not found, creating defaults");
             createDefaultThemes();
             return;

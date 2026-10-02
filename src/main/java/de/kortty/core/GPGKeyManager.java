@@ -54,7 +54,7 @@ public class GPGKeyManager {
     public void load() throws Exception {
         Path file = guard.file();
         guard.beginLoad();
-        if (!Files.exists(file)) {
+        if (guard.isMissing()) {
             logger.info("No GPG keys file found, starting with empty list");
             return;
         }

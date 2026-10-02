@@ -60,7 +60,7 @@ public class CredentialManager {
     public void load() throws Exception {
         Path file = guard.file();
         guard.beginLoad();
-        if (!Files.exists(file)) {
+        if (guard.isMissing()) {
             logger.info("No credentials file found, starting with empty list");
             return;
         }

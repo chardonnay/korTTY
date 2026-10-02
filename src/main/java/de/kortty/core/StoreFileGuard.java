@@ -72,7 +72,18 @@ public final class StoreFileGuard {
     }
 
     /**
-     * Reads and parses the store file. The caller checks that the file exists first.
+     * Whether the store file is known not to exist, so the store may start empty (or with its
+     * defaults). Deliberately not {@code !Files.exists(file)}: that is also true when the existence
+     * cannot be determined — a network home directory that is briefly unreachable, a directory the
+     * user cannot search — and starting empty then lets the next save replace a valid file with
+     * an empty one. Such a file goes through {@link #read} instead, which blocks saving.
+     */
+    public boolean isMissing() {
+        return Files.notExists(file);
+    }
+
+    /**
+     * Reads and parses the store file. The caller checks {@link #isMissing()} first.
      *
      * @return the parsed data, or empty when the file did not parse and was moved aside (see
      *         {@link #getLoadFailureBackup()}); the caller then keeps its in-memory state
@@ -134,8 +145,8 @@ public final class StoreFileGuard {
      */
     public void ensureWritable() {
         if (saveBlocked) {
-            throw new IllegalStateException("Refusing to overwrite the unreadable " + file
-                + " — it could not be moved aside during load");
+            throw new IllegalStateException("Refusing to overwrite " + file
+                + " — it could not be loaded and was left in place");
         }
     }
 

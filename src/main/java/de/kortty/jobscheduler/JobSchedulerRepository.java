@@ -80,7 +80,7 @@ public class JobSchedulerRepository {
      */
     public synchronized void load() throws Exception {
         guard.beginLoad();
-        if (!Files.exists(file)) {
+        if (guard.isMissing()) {
             data = new SchedulerData();
             return;
         }

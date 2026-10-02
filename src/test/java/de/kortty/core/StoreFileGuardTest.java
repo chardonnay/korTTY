@@ -232,6 +232,30 @@ class StoreFileGuardTest {
     }
 
     @Test
+    void fileIsOnlyMissingWhenItIsKnownNotToExist() throws Exception {
+        Path file = dir.resolve("sample.xml");
+        StoreFileGuard guard = new StoreFileGuard(file);
+        assertThat(guard.isMissing()).isTrue();
+
+        Files.writeString(file, "<sample/>");
+        assertThat(guard.isMissing()).isFalse();
+
+        requireEnforcedPosixPermissions();
+        // A directory the user cannot search: Files.exists is false, but the file is there. A
+        // network home directory that is briefly unreachable looks the same.
+        Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rw-------"));
+        try {
+            assertThat(Files.exists(file)).isFalse();
+            assertThat(guard.isMissing()).isFalse();
+            expectThrows(IOException.class, () -> guard.read(JAXB_PARSER));
+            assertThat(guard.isSaveBlocked()).isTrue();
+        } finally {
+            Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rwx------"));
+        }
+        assertThat(Files.readString(file)).isEqualTo("<sample/>");
+    }
+
+    @Test
     void onlyMalformedContentCountsAsAParseFailure() {
         assertThat(StoreFileGuard.isParseFailure(
             new UnmarshalException(new SAXParseException("Premature end of file.", null)))).isTrue();

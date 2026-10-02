@@ -102,7 +102,7 @@ public class EnvironmentManager {
     public void load() {
         Path file = guard.file();
         guard.beginLoad();
-        if (!Files.exists(file)) {
+        if (guard.isMissing()) {
             customEnvironments.clear();
             logger.debug("No environments file found, using built-in only");
             return;

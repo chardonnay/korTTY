@@ -139,14 +139,53 @@ class ThemeManagerTest {
             assertThat(manager.getTheme("default")).isPresent();
             assertThat(manager.isSaveBlocked()).isTrue();
             assertThat(manager.getLoadFailureBackup()).isEmpty();
+            Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rwx------"));
+            // The directory is writable again, so only the block keeps an edit from replacing it.
             Theme custom = new Theme();
             custom.setName("Ops Custom");
             manager.addTheme(custom);
-            Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rwx------"));
             assertThat(Files.readAllBytes(themesFile)).isEqualTo(truncated);
             try (var siblings = Files.list(dir)) {
                 assertThat(siblings.map(p -> p.getFileName().toString()).toList()).containsExactly("themes.xml");
             }
+        } finally {
+            Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rwx------"));
+            Files.deleteIfExists(themesFile);
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void themesFileWhoseExistenceCannotBeCheckedIsNotReplacedByTheDefaults() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-themes");
+        if (Files.getFileAttributeView(dir, PosixFileAttributeView.class) == null
+            || "root".equals(System.getProperty("user.name"))) {
+            Files.deleteIfExists(dir);
+            throw new SkipException("needs POSIX directory permissions to hide the file");
+        }
+        Path themesFile = dir.resolve(ThemeManager.THEMES_FILE);
+        try {
+            ThemeManager writer = new ThemeManager(dir);
+            writer.load();
+            Theme custom = new Theme();
+            custom.setName("Ops Custom");
+            writer.addTheme(custom);
+            byte[] withCustomTheme = Files.readAllBytes(themesFile);
+
+            // The directory cannot be searched during the load (a network home directory that is
+            // briefly unreachable): the file is not missing, so no defaults are written over it.
+            ThemeManager manager = new ThemeManager(dir);
+            Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rw-------"));
+            try {
+                manager.load();
+            } finally {
+                Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rwx------"));
+            }
+
+            assertThat(manager.getTheme("default")).isPresent();
+            assertThat(manager.isSaveBlocked()).isTrue();
+            manager.addTheme(new Theme());
+            assertThat(Files.readAllBytes(themesFile)).isEqualTo(withCustomTheme);
         } finally {
             Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rwx------"));
             Files.deleteIfExists(themesFile);
