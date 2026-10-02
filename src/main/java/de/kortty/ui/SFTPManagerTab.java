@@ -686,16 +686,9 @@ public class SFTPManagerTab extends Tab {
         // Apply initial sort
         localTable.sort();
         
-        // Search filter
-        localSearchField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal == null || newVal.trim().isEmpty()) {
-                filteredLocalItems.setPredicate(p -> true);
-            } else {
-                String searchLower = newVal.toLowerCase();
-                filteredLocalItems.setPredicate(item -> 
-                    item.getName().toLowerCase().contains(searchLower));
-            }
-        });
+        // Search filter: a glob such as *.log, or a plain substring
+        localSearchField.textProperty().addListener((obs, oldVal, newVal) ->
+            filteredLocalItems.setPredicate(searchFilter(newVal)));
         
         panel.getChildren().addAll(titleLabel, pathBox, searchBox, localTable);
         VBox.setVgrow(localTable, Priority.ALWAYS);
@@ -825,16 +818,9 @@ public class SFTPManagerTab extends Tab {
         // Apply initial sort
         remoteTable.sort();
         
-        // Search filter
-        remoteSearchField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal == null || newVal.trim().isEmpty()) {
-                filteredRemoteItems.setPredicate(p -> true);
-            } else {
-                String searchLower = newVal.toLowerCase();
-                filteredRemoteItems.setPredicate(item -> 
-                    item.getName().toLowerCase().contains(searchLower));
-            }
-        });
+        // Search filter: a glob such as *.log, or a plain substring
+        remoteSearchField.textProperty().addListener((obs, oldVal, newVal) ->
+            filteredRemoteItems.setPredicate(searchFilter(newVal)));
         
         // Remote folders are listed in the background; the overlay shows while one loads.
         remoteLoadingOverlay = FileBrowserLoadingOverlay.create();
@@ -845,6 +831,16 @@ public class SFTPManagerTab extends Tab {
         return panel;
     }
     
+    /**
+     * The row filter of a search field: the text is compiled once per change (see
+     * {@link FileBrowserPaths#compileNameFilter}), and the parent entry {@code ..} always stays,
+     * so a filtered folder can still be left.
+     */
+    static java.util.function.Predicate<SftpFileItem> searchFilter(String text) {
+        java.util.function.Predicate<String> names = FileBrowserPaths.compileNameFilter(text);
+        return item -> item.isParentEntry() || names.test(item.getName());
+    }
+
     private void connectToSFTP() {
         connectToSFTP(null);
     }

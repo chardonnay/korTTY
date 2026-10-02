@@ -1,5 +1,6 @@
 package de.kortty.ui;
 
+import de.kortty.ui.sftp.SftpFileItem;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -74,6 +75,23 @@ class SFTPManagerTabRemotePathTest {
         // The value is part of a remote shell command line.
         assertThat(SFTPManagerTab.isAcceptedPermissionsInput("755; rm -rf ~", "644")).isFalse();
         assertThat(SFTPManagerTab.isAcceptedPermissionsInput("755 $(id)", "644")).isFalse();
+    }
+
+    @Test
+    void searchMatchesGlobsAndKeepsTheParentEntry() {
+        SftpFileItem parent = SftpFileItem.fromDetails("..", "/srv", false, "—", "", "", "", "", -1);
+        SftpFileItem log = SftpFileItem.fromDetails("App.LOG", "/srv/app/App.LOG", true, "1 B", "", "", "", "", 1);
+        SftpFileItem script = SftpFileItem.fromDetails("deploy.sh", "/srv/app/deploy.sh", true, "1 B", "", "", "", "", 1);
+
+        var logs = SFTPManagerTab.searchFilter("*.log");
+        assertThat(logs.test(log)).isTrue();
+        assertThat(logs.test(script)).isFalse();
+        // '..' stays, so a filtered folder can still be left.
+        assertThat(logs.test(parent)).isTrue();
+
+        assertThat(SFTPManagerTab.searchFilter("*.{py,sh}").test(script)).isTrue();
+        assertThat(SFTPManagerTab.searchFilter("ploy").test(script)).isTrue();
+        assertThat(SFTPManagerTab.searchFilter("").test(log)).isTrue();
     }
 
     @Test
