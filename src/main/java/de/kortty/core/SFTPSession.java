@@ -67,14 +67,6 @@ public class SFTPSession {
     }
 
     /**
-     * Sets the master password used to decrypt stored secrets for this session, without touching
-     * the key manager. {@code null} means the vault is locked.
-     */
-    public void setMasterPassword(char[] masterPassword) {
-        this.masterPassword = masterPassword;
-    }
-
-    /**
      * Hands this session the vault it needs, whatever the target's authentication method.
      *
      * <p>The master password is always set, because it also decrypts the stored jump server

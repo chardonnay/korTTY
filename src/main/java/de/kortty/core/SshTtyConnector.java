@@ -114,14 +114,6 @@ public class SshTtyConnector implements ObservableTtyConnector {
     }
 
     /**
-     * Sets the master password used to decrypt stored secrets for this connection, without
-     * touching the key manager. {@code null} means the vault is locked.
-     */
-    public void setMasterPassword(char[] masterPassword) {
-        this.masterPassword = masterPassword;
-    }
-
-    /**
      * Hands this connector the vault it needs, whatever the target's authentication method.
      *
      * <p>The master password is always set: besides a key passphrase it also decrypts the stored
