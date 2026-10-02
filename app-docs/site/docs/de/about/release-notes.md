@@ -13,7 +13,7 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 ### SSH und Sicherheit
 
 - **Temporäre SSH-Schlüssel werden nicht mehr im Temp-Ordner hinterlassen** — Jede Verbindung, jeder Split und jede SFTP-Sitzung mit einem temporären SSH-Schlüssel schrieb den privaten Schlüssel in eine Datei im Systemtemp-Ordner, die nie gelöscht wurde; dadurch blieb der Schlüssel lange auf dem Datenträger, nachdem er abgelaufen war, und das Debug-Log zeichnete den Anfang und das Ende des Schlüssels auf. Temporäre Schlüssel werden nun ausschließlich im Speicher gelesen und niemals protokolliert, und Schlüsseldateien, die frühere Versionen zurückgelassen haben, werden beim nächsten Start gelöscht, sofern sie Ihnen gehören. Siehe [Sicherheit](../reference/settings/security.md).
-- **Geplante Aufgaben löschen ihre temporäre Schlüsseldatei** — ein JobScheduler-Job mit einem temporären SSH-Schlüssel benötigt die Datei noch als Datei für Rsyncs externen `ssh`; diese Datei wird nun von Anfang an nur dem Eigentümer zugänglich erstellt und gelöscht, wenn der Job endet oder die Verbindung fehlschlägt, anstatt im Temp-Ordner zu verbleiben.
+- **Geplante Jobs halten temporäre Schlüssel ebenfalls von der Festplatte fern** — ein JobScheduler-Job mit einem temporären SSH-Schlüssel authentifiziert sich nun im Speicher wie ein Terminal-Tab. Nur ein Rsync-Job benötigt den Schlüssel noch als Datei für seine externe `ssh`; diese Datei wird von Anfang an nur dem Besitzer zugänglich erstellt und gelöscht, wenn der Job endet oder die Verbindung fehlschlägt, anstatt im temporären Ordner zu verbleiben.
 
 ### Lokale KI
 

@@ -1,9 +1,14 @@
 package de.kortty.core;
 
+import org.apache.sshd.common.config.keys.FilePasswordProvider;
 import org.apache.sshd.common.config.keys.KeyUtils;
+import org.apache.sshd.common.config.keys.writer.openssh.OpenSSHKeyEncryptionContext;
+import org.apache.sshd.common.config.keys.writer.openssh.OpenSSHKeyPairResourceWriter;
 import org.testng.annotations.Test;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.util.List;
 
@@ -72,6 +77,29 @@ class TemporarySshKeyMaterialTest {
         List<KeyPair> loaded = TemporarySshKeyMaterial.load(null, TemporarySshKeyMaterial.PREFIX + crlf);
 
         assertThat(KeyUtils.compareKeys(loaded.get(0).getPublic(), keyPair.getPublic())).isTrue();
+    }
+
+    @Test
+    void loadsAPassphraseProtectedKeyWithItsPassphraseOnly() throws Exception {
+        // The JobScheduler passes a stored key passphrase, as its former key file did.
+        KeyPair keyPair = TemporaryKeyTestFixtures.ed25519KeyPair();
+        OpenSSHKeyEncryptionContext encryption = new OpenSSHKeyEncryptionContext();
+        encryption.setPassword("correct horse");
+        encryption.setCipherName("AES");
+        encryption.setCipherType("256");
+        encryption.setCipherMode("CTR");
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        OpenSSHKeyPairResourceWriter.INSTANCE.writePrivateKey(keyPair, "kortty-test", encryption, out);
+        String encrypted = TemporarySshKeyMaterial.PREFIX + out.toString(StandardCharsets.UTF_8);
+
+        List<KeyPair> loaded = TemporarySshKeyMaterial.load(null, encrypted, FilePasswordProvider.of("correct horse"));
+
+        assertThat(KeyUtils.compareKeys(loaded.get(0).getPublic(), keyPair.getPublic())).isTrue();
+        IOException wrongPassphrase = expectThrows(IOException.class,
+            () -> TemporarySshKeyMaterial.load(null, encrypted, FilePasswordProvider.of("wrong")));
+        assertThat(wrongPassphrase).hasMessageThat().doesNotContain("correct horse");
+        assertThat(wrongPassphrase.getCause()).isNull();
+        expectThrows(IOException.class, () -> TemporarySshKeyMaterial.load(null, encrypted));
     }
 
     @Test
