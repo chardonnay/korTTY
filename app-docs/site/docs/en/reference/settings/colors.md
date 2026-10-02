@@ -15,24 +15,24 @@ Configure terminal display colors including text, background, cursor, selection,
 | Background | color | RGB hex color | #1E1E1E | `backgroundColor` |
 | Cursor | color | RGB hex color | #FFFFFF | `cursorColor` |
 | Cursor blinks | toggle | — | On | `terminalCursorBlink` (mirrored into `cursorStyle`) |
-| Selection | color | RGB hex color | #3399FF | `selectionColor` |
+| Selection | color | RGB hex color | #3399FF (inverse video until customized) | `selectionColor` |
 | Enable terminal colors | toggle | — | On | `terminalColorsEnabled` |
-| Normal: Black | color | RGB hex color | #000000 | `ansiBlack` |
-| Normal: Red | color | RGB hex color | #CD0000 | `ansiRed` |
-| Normal: Green | color | RGB hex color | #00CD00 | `ansiGreen` |
-| Normal: Yellow | color | RGB hex color | #CDCD00 | `ansiYellow` |
-| Normal: Blue | color | RGB hex color | #0000EE | `ansiBlue` |
-| Normal: Magenta | color | RGB hex color | #CD00CD | `ansiMagenta` |
-| Normal: Cyan | color | RGB hex color | #00CDCD | `ansiCyan` |
-| Normal: White | color | RGB hex color | #E5E5E5 | `ansiWhite` |
-| Bright: Black | color | RGB hex color | #7F7F7F | `ansiBrightBlack` |
-| Bright: Red | color | RGB hex color | #FF0000 | `ansiBrightRed` |
-| Bright: Green | color | RGB hex color | #00FF00 | `ansiBrightGreen` |
-| Bright: Yellow | color | RGB hex color | #FFFF00 | `ansiBrightYellow` |
-| Bright: Blue | color | RGB hex color | #5C5CFF | `ansiBrightBlue` |
-| Bright: Magenta | color | RGB hex color | #FF00FF | `ansiBrightMagenta` |
-| Bright: Cyan | color | RGB hex color | #00FFFF | `ansiBrightCyan` |
-| Bright: White | color | RGB hex color | #FFFFFF | `ansiBrightWhite` |
+| Normal: Black | color | RGB hex color | built-in palette | `ansiBlack` |
+| Normal: Red | color | RGB hex color | built-in palette | `ansiRed` |
+| Normal: Green | color | RGB hex color | built-in palette | `ansiGreen` |
+| Normal: Yellow | color | RGB hex color | built-in palette | `ansiYellow` |
+| Normal: Blue | color | RGB hex color | built-in palette | `ansiBlue` |
+| Normal: Magenta | color | RGB hex color | built-in palette | `ansiMagenta` |
+| Normal: Cyan | color | RGB hex color | built-in palette | `ansiCyan` |
+| Normal: White | color | RGB hex color | built-in palette | `ansiWhite` |
+| Bright: Black | color | RGB hex color | built-in palette | `ansiBrightBlack` |
+| Bright: Red | color | RGB hex color | built-in palette | `ansiBrightRed` |
+| Bright: Green | color | RGB hex color | built-in palette | `ansiBrightGreen` |
+| Bright: Yellow | color | RGB hex color | built-in palette | `ansiBrightYellow` |
+| Bright: Blue | color | RGB hex color | built-in palette | `ansiBrightBlue` |
+| Bright: Magenta | color | RGB hex color | built-in palette | `ansiBrightMagenta` |
+| Bright: Cyan | color | RGB hex color | built-in palette | `ansiBrightCyan` |
+| Bright: White | color | RGB hex color | built-in palette | `ansiBrightWhite` |
 
 ## Notes
 
@@ -44,3 +44,8 @@ Configure terminal display colors including text, background, cursor, selection,
 
 !!! note "ANSI Colors"
     The **Normal** and **Bright** color palettes define the 16 ANSI colors (0–7 normal, 8–15 bright) used when **Enable terminal colors** is on. Each set of 8 colors corresponds to black, red, green, yellow, blue, magenta, cyan, and white. When terminal colors are disabled, only the configured **Text Color** and **Background** are used, ignoring all ANSI and TrueColor sequences.
+
+    As long as you leave the palette and the **Selection** color untouched, the terminal keeps its built-in palette — the xterm colors, or the Windows console colors on Windows — and the pickers show exactly those colors. Change any of the 16 colors or the selection color and click **Save**: all 16 colors and the selection color then apply to every open terminal right away, without reconnecting, and korTTY remembers that you customized them (`ansiPaletteCustomized`). Setting every color back to its built-in value and the selection color back to #3399FF returns to the built-in look. Terminal recordings with [Capture terminal colors in recordings](video.md) use the same colors as the screen. Color profiles do not change the ANSI palette.
+
+!!! note "Selection"
+    While the palette and the selection color are untouched, selected text is drawn in inverse video. Once you have customized them, the selection is drawn in the **Selection** color with black or white text, whichever is easier to read on it.

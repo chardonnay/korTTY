@@ -32,6 +32,9 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 
 ## Notes
 
+!!! note "Bold as bright color"
+    This setting currently applies to terminal recordings only: with [Capture terminal colors in recordings](video.md) on, bold text in one of the 8 normal ANSI colors is stored in its bright variant. The live terminal draws bold text in its normal color either way.
+
 !!! note "Scrollback"
     Controls how many lines of output each terminal pane keeps in its scrollback buffer. The value is read when a terminal is created, so a change applies to newly opened tabs and split panes — already-open terminals keep their current buffer size. Larger values use more memory per pane.
 
