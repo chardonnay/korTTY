@@ -58,6 +58,15 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 
 Die Zoom-Tasten (++ctrl++ oder ++alt++ mit ++plus++ / ++minus++ / ++0++; ++cmd++ auf macOS) vergrößern das Terminal nur, wenn ein Terminal-Tab ausgewählt ist. In einem Snippet-Editor oder Dateieditor-Tab erreichen sie den Editor, und ++alt-graph+plus++ tippt dort sein Zeichen.
 
+## SFTP-Manager
+
+Diese Tasten funktionieren in der lokalen und der entfernten Liste eines SFTP-Manager-Tabs; siehe [Tasten](../features/sftp.md#tasten).
+
+| Verknüpfung | Aktion |
+| --- | --- |
+| ++f2++ | Umbenennen des ausgewählten Eintrags |
+| ++delete++ oder ++ctrl+backspace++ | Löschen Sie die Auswahl, nach Bestätigung |
+
 ## Snippet-Manager
 
 Diese Tastenkombinationen funktionieren im Snippet-Manager (Bibliotheks- und Bearbeitungs-Tab); siehe [Das Öffnen des Snippet-Managers](../features/snippets.md#offnen-des-snippet-managers).

@@ -62,21 +62,55 @@ Wenn der Server oder das Netzwerk die Sitzung beendet, zeigt die Statusleiste **
 
 **Neu verbinden** öffnet eine neue Sitzung mit denselben Anmeldeinformationen und listet den Ordner auf, in dem Sie sich befanden. Der Hostschlüssel des Servers wird wie bei der ersten Verbindung geprüft: ein unveränderter Schlüssel verbindet ohne Aufforderung, ein geänderter Schlüssel bleibt blockiert.
 
+## Wieder öffnen mit einem Projekt
+
+SFTP-Manager-Tabs werden mit einem [Projekt](projects.md#sftp-manager-tabs) gespeichert. Das Öffnen des Projekts mit **Automatisches Wiederverbinden** verbindet jeden Tab erneut mit den lokalen und entfernten Ordnern, in denen er sich zum Zeitpunkt des Speicherns befand. Ein Ordner, der nicht mehr existiert, öffnet stattdessen den Home-Ordner; auf der entfernten Seite sagt die Statusleiste dies an.
+
 ## Dateioperationen
 
-Der SFTP-Manager unterstützt eine umfassende Palette an Dateioperationen:
+Jedes Panel hat seine eigene Gruppe von Toolbar-Buttons unter den Listen (lokal links, remote rechts) und ein Rechtsklick-Kontextmenü:
 
 | Betrieb | Wie |
 |-----------|-----|
-| **Hochladen** | Lokale Datei(en) auswählen, auf Hochladen klicken (oder per Drag-and-Drop) |
-| **Herunterladen** | Wählen Sie die Remote-Datei(en) aus und klicken Sie auf „Herunterladen“. |
-| **Löschen** | Datei(en) auswählen, auf Löschen klicken |
-| **Umbenennen** | Wählen Sie eine Datei aus und klicken Sie auf „Umbenennen“ |
-| **Kopieren** | Dateien innerhalb desselben Panels kopieren (eine lokale Kopie läuft im Hintergrund). Ein remote Ordner, der in einen Ordner mit demselben Namen kopiert wird, wird dort zusammengeführt; das Kopieren eines Elements auf sich selbst oder in einen seiner eigenen Unterordner wird mit einem Fehler verweigert |
+| **Hochladen** | Wählen Sie lokale Dateien oder Ordner aus und klicken Sie auf **Hochladen**, oder ziehen Sie sie in das Remote-Panel; siehe [Ziehen und Ablegen](#ziehen-und-ablegen) |
+| **Herunterladen** | Wählen Sie Remote-Dateien oder Ordner aus und klicken Sie auf **Herunterladen**, oder ziehen Sie sie in das lokale Panel |
+| **Umbenennen** | Wählen Sie einen Eintrag aus und drücken Sie ++f2++, oder wählen Sie **Umbenennen** im Kontextmenü. Ein vorhandener Eintrag mit dem neuen Namen wird niemals ersetzt; stattdessen erhalten Sie einen Fehler |
+| **Neuer Ordner** | Klicken Sie auf die Ordner-Schaltfläche neben **Aktualisieren**, oder wählen Sie **Neuer Ordner** im Kontextmenü, in beiden Panels. Der Ordner wird im angezeigten Verzeichnis erstellt; ein bereits vorhandener Name ist ein Fehler |
+| **Löschen** | Wählen Sie Einträge aus und klicken Sie auf **Löschen**, wählen Sie **Löschen** im Kontextmenü, oder drücken Sie ++delete++ (++ctrl+backspace++, auf macOS ++cmd+backspace++). Sie bestätigen vor dem Löschen von etwas |
+| **Kopieren** | **Kopieren nach…** im Kontextmenü kopiert innerhalb derselben Seite: lokal in ein von Ihnen ausgewähltes Verzeichnis (im Hintergrund), remote in einen von Ihnen eingegebenen Pfad. Ein Remote-Verzeichnis, das an einer Stelle kopiert wird, an der bereits ein Verzeichnis mit diesem Namen existiert, wird in dieses zusammengeführt; das Kopieren eines Elements auf sich selbst oder in einen seiner eigenen Unterordner wird mit einem Fehler abgelehnt. |
 | **Im Snippet-Editor bearbeiten** | Wählen Sie genau eine lokale oder Remote-Datei aus und verwenden Sie dann das Symbolleistenmenü *Bearbeiten* oder das Kontextmenü mit der rechten Maustaste |
-| **Verzeichnis erstellen** | Klicken Sie in einem der beiden Fenster auf „Neuer Ordner“ |
-| **ZIP erstellen** | Wählen Sie mehrere Dateien/Verzeichnisse aus und klicken Sie auf „ZIP erstellen“ |
-| **Eigentümer/Berechtigungen festlegen** | Datei(en) auswählen, Kontextmenü oder Schaltfläche verwenden. Separate Felder für Benutzer-, Gruppen- und Oktalberechtigungen (z. B. 755) |
+| **Archivieren** | **Archivieren** in der Remote-Werkzeugleiste, oder **Archivieren...** im jeweiligen Kontextmenü, packt die Auswahl als ZIP, TAR.BZ2 oder 7z, je nach verfügbaren Tools auf dieser Seite |
+| **Besitzer/Berechtigungen setzen** | Wählen Sie Einträge aus, klicken dann auf **Rechte** oder wählen **Besitzer/Berechtigungen setzen...** im Kontextmenü. Separate Felder für Benutzer, Gruppe und oktale Berechtigungen (z.B., 755) |
+
+Ein Name für **Umbenennen** oder **Neuer Ordner** muss ein einzelnes Element im angezeigten Ordner sein: er darf nicht leer, `.` oder `..` sein, und darf `/` oder `\` nicht enthalten. Das Dialogfeld bleibt mit einem Fehler offen, bis der Name nutzbar ist.
+
+### Ziehen und Ablegen
+
+Sie können Einträge zwischen den beiden Panels ziehen, von Ihrem Desktop in den SFTP-Manager und in kleinen Mengen vom Server auf Ihren Desktop. Während Sie ziehen, wird das Panel oder die Ordnerzeile, in die der Drop erfolgen würde, hervorgehoben; ein Drop auf eine Ordnerzeile legt die Einträge in diesen Ordner, ein Drop an einer anderen Stelle in den angezeigten Ordner.
+
+| Ziehen | Ergebnis |
+|------|--------|
+| Lokale Zeilen auf das entfernte Panel | Hochgeladen, wie bei **Hochladen**: eine Datei mit demselben Namen auf dem Server wird ersetzt, ein Ordner wird zusammengeführt |
+| Dateien aus Finder, Explorer oder der Dateibrowser-Seitenleiste auf das Remote-Panel | hochgeladen – dieselbe Methode |
+| Remote-Zeilen auf das lokale Panel | Im Hintergrund heruntergeladen, wie bei **Herunterladen**: Ordner eingeschlossen, und eine lokale Datei mit demselben Namen wird ersetzt |
+| Dateien aus Finder, Explorer oder der Dateibrowser-Seitenleiste auf das lokale Panel | Kopiert im Hintergrund; ein bereits vorhandener Name bekommt eine Nummer, wie in `report (2).txt`, und eine Datei, die auf den Ordner fallen gelassen wird, bleibt unverändert |
+| Lokale Zeilen auf den Desktop oder ein anderes Programm | Als die Dateien selbst angeboten |
+| Remote Zeilen auf den Desktop oder ein anderes Programm | Nur für maximal 20 Dateien mit insgesamt höchstens 16 MB, keine Ordner |
+
+Ein Drag in dasselbe Panel bewirkt nichts; nutzen Sie dort **Kopieren nach...** oder **Umbenennen**.
+
+!!! note "Ziehen vom Server zum Desktop"
+    Der Desktop kann nur Dateien übernehmen, die bereits existieren, wenn der Drag beginnt. KorTTY lädt daher die gezogenen Remote-Dateien zunächst in einen privaten temporären Ordner, was das Fenster bis zu 5 Sekunden blockieren kann. Ordner, mehr als 20 Dateien, mehr als 16 MB oder ein Download, der länger dauert, können nur innerhalb des Fensters fallen gelassen werden; die Statusleiste weist darauf hin, und Sie legen sie stattdessen auf das lokale Panel. Ein Link auf dem Server zählt als die Datei, auf die er zeigt, sodass ein Link zu einer großen Datei ebenfalls nicht dem Desktop angeboten wird. Die temporären Kopien werden gelöscht, wenn Sie den nächsten Drag starten oder den Tab schließen.
+
+### Tasten
+
+Diese Tasten funktionieren in beiden Panels:
+
+| Taste | Aktion |
+|-----|--------|
+| ++f2++ (in der Liste) | Den ausgewählten Eintrag umbenennen |
+| ++delete++ oder ++ctrl+backspace++ (++cmd+backspace++ auf macOS, in der Liste) | Löschen der Auswahl, nach Bestätigung |
+| ++enter++ (im **Pfad** Feld) | Gehe zum eingegebenen Ordner |
 
 ### Dateien und Ordner hochladen
 
@@ -117,13 +151,16 @@ Die Dateimodus-Schaltflächen bieten folgende Speicheroptionen:
 
 ## Suche
 
-Beide Panels unterstützen die **Glob-Mustersuche** mit dem Platzhalter `*`. Zum Beispiel:
+Das Suchfeld über jeder Liste filtert den angezeigten Ordner während der Eingabe, ohne ihn zu verlassen; der übergeordnete Eintrag `..` bleibt sichtbar. korTTY bewertet die Platzhalter selbst, gleichartig für lokale und entfernte Namen. Ein Muster mit einem Platzhalter muss den gesamten Namen entsprechen, ohne Groß-/Kleinschreibung:
 
-- `*.log` findet alle Protokolldateien im aktuellen Verzeichnis
-- `*.{py,sh}` findet Python- und Shell-Dateien (wenn Ihre Shell die Klammererweiterung unterstützt)
-- `backup*` findet alle Dateien, die mit „backup“ beginnen"
+| Platzhalter | Trifft auf | Beispiel |
+|----------|---------|---------|
+| `*` | Beliebig viele Zeichen | `*.log` findet alle Logdateien, `backup*` alle Namen beginnend mit "backup" |
+| `?` | Genau ein Zeichen | `data?.csv` findet `data1.csv`, nicht `data10.csv` |
+| `[abc]`, `[a-z]` | Eines der aufgeführten Zeichen; `[!abc]` oder `[^abc]` eines, das nicht aufgeführt ist | `[ab]*` findet Namen beginnend mit a oder b |
+| `{py,sh}` | Eine der Alternativen | `*.{py,sh}` findet Python- und Shell-Dateien |
 
-Geben Sie das Muster in das Suchfeld ein, um angezeigte Dateien schnell zu filtern, ohne das aktuelle Verzeichnis zu verlassen.
+Text ohne Platzhalter passt überall im Namen, Groß-/Kleinschreibung ignorierend: `rep` findet `Report.txt`. Ein Muster, das nicht gelesen werden kann, wie ein nicht geschlossenes `[`, wird als einfacher Text gesucht.
 
 ---
 
