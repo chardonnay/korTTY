@@ -326,15 +326,15 @@ Application log file.
 ## Directories
 
 ### history/
-Compressed terminal session history.
+Screen snapshots saved with [projects](../features/projects.md).
 
-**Format:** GZIP-compressed text files, one per terminal session
+**Format:** GZIP-compressed UTF-8 text, one file per terminal tab of a saved project
 
-**Naming:** `{session-id}_{timestamp}.history.gz` (for session history from terminal logging)
+**Naming:** `{session-id}.history.gz`, referenced by file name from the project's `.kortty` file
 
-**Purpose:** Stores project/session scrollback history so reopened sessions can restore their terminal content.
+**Purpose:** Holds the last visible screen of each terminal tab's primary pane at the time the project was saved — not the scrollback, and not the screens of further split panes.
 
-**Access:** Terminal history is loaded automatically when you open a saved connection and displayed in the terminal history search feature.
+**Access:** Read only when a project is opened with **Auto-Reconnect** enabled; the text is then shown dimmed, locally, above the new session and is never sent to the server. No history search uses these files. korTTY only reads, writes and deletes plain `{session-id}.history.gz` names directly inside this folder. The files are not encrypted.
 
 !!! note
     Per-connection *Terminal Logging* does not write here: its generated log files go to the folder configured on the connection's Terminal Logging tab, or to `~/.kortty/terminal-logs/` when that folder is left empty.

@@ -764,11 +764,11 @@
 <li>Open <em>File &gt; Save Project</em> or press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-s">S</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-s">S</kbd></span> on macOS).</li>
 <li>Enter a <strong>name</strong> and optional <strong>description</strong> for the project.</li>
 <li>Configure <strong>Auto-Reconnect</strong>:</li>
-<li>When enabled, opening the project will automatically reconnect all saved SSH sessions.</li>
-<li>When disabled, windows and tabs are restored but you must manually reconnect.</li>
+<li>When enabled, opening the project automatically reconnects every saved terminal and SFTP tab.</li>
+<li>When disabled, opening the project restores the window geometry and the local file editor and image viewer tabs only; terminal, SFTP and remote file tabs are skipped.</li>
 <li>Click <em>Save</em>.</li>
 </ol>
-<p>Projects are stored as <code>.kortty</code> files in <code>~/.kortty/projects/</code>.</p>
+<p>Projects are <code>.kortty</code> files saved wherever you choose in the save dialog, for example in <code>~/.kortty/projects/</code>.</p>
 <h2 id="opening-a-project">Opening a Project<a class="headerlink" href="#opening-a-project" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Open <em>File &gt; Open Project</em> or press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-o">O</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-o">O</kbd></span> on macOS).</li>
@@ -799,7 +799,7 @@
 </tr>
 <tr>
 <td><strong>Connections</strong></td>
-<td>The saved connection names for each tab</td>
+<td>A reference to the saved connection of each tab, by its connection ID</td>
 </tr>
 <tr>
 <td><strong>Dashboard</strong></td>
@@ -811,7 +811,7 @@
 </tr>
 <tr>
 <td><strong>Terminal Sessions</strong></td>
-<td>Session state including cursor position and scrollback (if supported by the session)</td>
+<td>The last visible screen of each terminal tab's primary pane — not its scrollback and not the cursor position; the screens of further split panes are not saved</td>
 </tr>
 </tbody>
 </table>
@@ -824,17 +824,19 @@
 <ul>
 <li>Restores all windows with their saved geometry (position and size)</li>
 <li>Reconnects each SSH tab using the original connection settings</li>
+<li>Shows each terminal tab's saved screen dimmed above the new session, framed by a <em>Restored output from</em> row with the date the project was saved and an <em>End of restored output</em> row. The text is written into the local terminal only and is never sent to the server: it does not reach the remote shell or its command history, and a session journal that starts with the connection does not record it (a journal you switch on later imports the scrollback, which then includes the restored rows). Control characters and escape sequences are removed from it before it is shown.</li>
 <li>Restores the active tab and dashboard state</li>
 </ul>
-<p>If <strong>Auto-Reconnect</strong> is disabled, windows and tabs are restored but you must manually reconnect each tab by clicking it or using <em>Reconnect</em> from the context menu.</p>
+<p>If <strong>Auto-Reconnect</strong> is disabled, terminal tabs are not restored: opening the project applies the saved window geometry and reopens local file editor and image viewer tabs, while terminal, SFTP and remote file tabs are skipped. Open those connections again from the Connection Manager.</p>
 <h2 id="project-file-storage">Project File Storage<a class="headerlink" href="#project-file-storage" title="Permanent link">&para;</a></h2>
-<p>Projects are stored in <code>~/.kortty/projects/</code> as compressed <code>.kortty</code> files. Each project includes:</p>
+<p>A project is a plain XML file with the <code>.kortty</code> extension. Each project includes:</p>
 <ul>
 <li>Metadata (name, description, creation/modification timestamps)</li>
 <li>Complete window and tab state</li>
-<li>Connection references (by name)</li>
+<li>Connection references (by connection ID, so the connection must exist in your Connection Manager)</li>
 <li>Dashboard visibility and layout</li>
 </ul>
+<p>The saved screen text is not part of the <code>.kortty</code> file. It is stored separately as one gzip file per terminal tab, <code>~/.kortty/history/&lt;session-id&gt;.history.gz</code>, which the project references by file name — a project file you share therefore carries the layout but not the screen text. korTTY only ever reads, writes or deletes plain file names inside <code>~/.kortty/history/</code>; a project whose reference points anywhere else opens without that screen text.</p>
 <h2 id="use-cases">Use Cases<a class="headerlink" href="#use-cases" title="Permanent link">&para;</a></h2>
 <p>Projects are useful for:</p>
 <ul>
