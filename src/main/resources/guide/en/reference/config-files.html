@@ -809,6 +809,7 @@
 - Terminal appearance overrides (font, colors, size)
 - SSH tunnels and jump server configuration
 - Optional per-connection SSH host-key verification override (verify, don't verify, or inherit)
+- Optional per-connection character encoding (<code>encoding</code>; missing means the default — see <a href="settings/terminal.html#notes">Terminal → Encoding</a>)
 - Terminal effect plugins and animation speed
 - Connection-specific terminal logging settings
 - Per-connection session journal settings (enable, capture typed input, AI summaries, summary interval)
@@ -874,6 +875,7 @@
 </ul>
 <h4 id="terminal-and-connections">Terminal and connections<a class="headerlink" href="#terminal-and-connections" title="Permanent link">&para;</a></h4>
 <ul>
+<li>Default terminal encoding for SSH connections, and <code>terminalEncodingConfirmed</code>, which records that a value stored by an older version has been saved again and applies (see <a href="settings/terminal.html#notes">Terminal → Encoding</a>)</li>
 <li>Terminal logging defaults</li>
 <li>Terminal effect plugin defaults</li>
 <li>SSH keep-alive settings</li>

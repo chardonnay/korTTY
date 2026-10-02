@@ -809,6 +809,7 @@
 - Überschreibungen des Terminal-Erscheinungsbilds (Schriftart, Farben, Größe)
 - SSH-Tunnel und Jump-Server-Konfiguration
 - Optionale Außerkraftsetzung der SSH-Hostschlüsselüberprüfung pro Verbindung (überprüfen, nicht überprüfen oder erben)
+- Optionale Zeichencodierung pro Verbindung (<code>encoding</code>; fehlt bedeutet die Vorgabe — siehe <a href="settings/terminal.html#hinweise">Terminal → Kodierung</a>)
 - Terminaleffekt-Plugins und Animationsgeschwindigkeit
 - Verbindungsspezifische Terminalprotokollierungseinstellungen
 - Einstellungen für das Sitzungsjournal pro Verbindung (aktivieren, typisierte Eingaben erfassen, KI-Zusammenfassungen, Zusammenfassungsintervall)
@@ -874,6 +875,7 @@
 </ul>
 <h4 id="terminal-und-anschlusse">Terminal und Anschlüsse<a class="headerlink" href="#terminal-und-anschlusse" title="Permanent link">&para;</a></h4>
 <ul>
+<li>Standard-Kodierung des Terminals für SSH-Verbindungen, und <code>terminalEncodingConfirmed</code>, das protokolliert, dass ein von einer älteren Version gespeicherter Wert erneut gespeichert und angewendet wurde (siehe <a href="settings/terminal.html#hinweise">Terminal → Kodierung</a>)</li>
 <li>Standardeinstellungen für die Terminalprotokollierung</li>
 <li>Standardeinstellungen für das Terminaleffekt-Plugin</li>
 <li>SSH Keep-Alive-Einstellungen</li>
