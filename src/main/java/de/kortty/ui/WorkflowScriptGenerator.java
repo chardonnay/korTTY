@@ -445,10 +445,15 @@ public final class WorkflowScriptGenerator {
      * locked. Checked once on the FX thread before the parallel requests start.
      */
     boolean requiresVaultUnlock(RunExportData data) {
+        return requiresVaultUnlock(data != null ? data.profileId() : null);
+    }
+
+    /** {@link #requiresVaultUnlock(RunExportData)} for the profile id a run would use. */
+    boolean requiresVaultUnlock(String profileId) {
         GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
             ? app.getGlobalSettingsManager().getSettings()
             : null;
-        AiProfile profile = settings != null ? resolveProfile(settings, data != null ? data.profileId() : null) : null;
+        AiProfile profile = settings != null ? resolveProfile(settings, profileId) : null;
         if (profile == null || de.kortty.policy.PolicyAiProfileSupport.apiKeyOverride(profile) != null) {
             return false;
         }

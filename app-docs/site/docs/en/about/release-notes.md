@@ -46,7 +46,7 @@ What changed in the current release. The version this guide was built for is sho
 
 ### Security
 
-- **Unlock the vault after startup** — with *Require master password on startup* turned off, korTTY started with the vault locked and offered no way to enter the master password later. *Configuration → Security → Unlock Vault…* now opens the vault mid-session, and every "vault locked" message has an **Unlock Vault…** button that continues the save or request once the vault is open. Temporary SSH keys that a locked start could not decrypt are restored on unlock instead of being lost on the next save. See [Unlocking the vault later](../features/security.md#unlocking-the-vault-later).
+- **Unlock the vault after startup** — with *Require master password on startup* turned off, korTTY started with the vault locked and offered no way to enter the master password later. *Configuration → Security → Unlock Vault…* now opens the vault mid-session, and the "vault locked" messages for saving keys and passwords, AI Swarm, guide questions and workflow scripts have an **Unlock Vault…** button that continues the action once the vault is open. Temporary SSH keys that a locked start could not decrypt are restored on unlock instead of being lost on the next save. See [Unlocking the vault later](../features/security.md#unlocking-the-vault-later).
 
 ### Performance
 
