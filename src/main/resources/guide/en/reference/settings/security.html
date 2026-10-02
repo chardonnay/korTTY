@@ -801,6 +801,10 @@
 </tr>
 </tbody>
 </table>
+<div class="admonition note">
+<p class="admonition-title">Temporary SSH keys and the temp folder</p>
+<p>With this option on, the Connection Manager and Quick Connect offer a temporary SSH key: a private key you paste for the session instead of a key file. For terminal tabs, splits and SFTP, korTTY reads a temporary key in memory and never writes it to a key file; a saved connection keeps the key only encrypted with your master password in <code>connections.xml</code>. Scheduled jobs are the one exception: because an Rsync job hands the key to the external <code>ssh</code>, the JobScheduler writes a temporary key to an owner-only file in the system temp folder while it is connected to the server and deletes it when that connection closes or fails. Key files that earlier versions left in the temp folder (<code>kortty_temp_key_*.key</code>, <code>kortty_scheduler_key_*.key</code>) are deleted at the next start, as long as they belong to you and are older than five minutes.</p>
+</div>
 <div class="admonition warning">
 <p class="admonition-title">Master password on startup</p>
 <p>If "Require master password on startup" is disabled, encrypted passwords and SSH keys cannot be automatically decrypted without manual password entry. This is a security risk and should only be disabled if you understand the consequences.</p>
