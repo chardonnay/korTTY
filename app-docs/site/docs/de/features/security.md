@@ -117,7 +117,11 @@ Beim Erstellen oder Bearbeiten einer Verbindung:
 
 ## Interaktive SSH-Hostschlüssel-Vertrauensstellung
 
-Terminal- und SFTP-Verbindungen, einschließlich des von Mosh verwendeten SSH-Bootstraps, nutzen einen TOFU-Verifizierer (Trust-on-First-Use), der durch normalisierten Hostnamen und Port verschlüsselt ist. Bei der ersten Verwendung zeigt korTTY den Serverschlüsselalgorithmus und den OpenSSH SHA-256-Fingerabdruck an; Überprüfen Sie vor der Annahme, dass es außerhalb des Bandes liegt. Die Bestätigung lautet standardmäßig **Nein**. Ein zuvor vertrauenswürdiger passender Schlüssel wird stillschweigend akzeptiert, während ein geänderter Schlüssel mit den erwarteten und angebotenen Fingerabdrücken fest blockiert wird und nie automatisch erneut versucht wird.
+Terminal- und SFTP-Verbindungen, einschließlich des SSH-Bootstraps, der von Mosh verwendet wird, teilen einen Trust-on-First-Use (TOFU)-Verifizierer, der nach normalisiertem Hostnamen und Port gekennzeichnet ist. Beim ersten Einsatz zeigt korTTY den Server-Schlüsselalgorithmus und den OpenSSH-SHA-256-Fingerabdruck an; verifizieren Sie ihn außerhalb des Kanals, bevor Sie ihn akzeptieren. Die Bestätigung ist standardmäßig auf **Nein** gesetzt. Ein zuvor vertrauenswürdiger übereinstimmender Schlüssel wird stillschweigend akzeptiert, während ein geänderter Schlüssel mit dem erwarteten und angebotenen Fingerabdruck hart blockiert wird und niemals automatisch erneut versucht oder ersetzt wird.
+
+Ein geänderter Schlüssel kann nur durch eine explizite Entscheidung und ausschließlich in einer Verbindung ersetzt werden, die Sie selbst in einem Terminal-Tab oder im SFTP-Manager (einschließlich seines Sprungservers) geöffnet haben. **Prüfen und ersetzen…** in der Warnung zum geänderten Schlüssel zeigt den vertrauenswürdigen und den neuen Fingerabdruck nebeneinander; die Ersetzen-Schaltfläche bleibt deaktiviert, bis Sie bestätigen, dass Sie den neuen Fingerabdruck mit dem Server-Administrator verifiziert haben, und **Schließen** sowie **Abbrechen** bleiben die Standardknöpfe. Der Ersatz ist ein Compare-and-Swap: er wird nur gespeichert, solange der vertrauenswürdige Schlüssel noch exakt derselbe ist, den Sie überprüft haben; ein in einem anderen Fenster geänderter Schlüssel wird damit niemals überschrieben. Jeder Ersatz wird mit dem alten und dem neuen Fingerabdruck protokolliert. Hintergrund- und wiederhergestellte Verbindungen sowie der SSH-Bootstrap von Mosh behalten die reine Blockierung bei.
+
+**Konfiguration → Sicherheit → Bekannte Hosts…** listet, durchsucht und entfernt vertrauenswürdige Schlüssel. Die Entfernung funktioniert auf die gleiche Weise: sie löscht einen Schlüssel nur, solange er noch den in der Bestätigung angezeigten Fingerabdruck besitzt, und die nächste Verbindung fragt erneut wie beim ersten Einsatz. Mit dem Unternehmensrichtlinien-Schlüssel `enforce-host-key-check` sind sowohl Ersetzen als auch Entfernen deaktiviert, sodass nur ein Administrator einen vertrauenswürdigen Schlüssel ändern kann.
 
 Interaktive Pins werden atomar in `~/.kortty/ssh-host-keys.properties` geschrieben; Eine Companion-Sperre koordiniert gleichzeitige korTTY-Prozesse. Dieser Speicher unterscheidet sich von den verbindungs-ID-basierten Hostschlüssel-Pins des JobScheduler in `job-scheduler.xml`, die die unbeaufsichtigte SSH-, SFTP- und Rsync-Ausführung schützen.
 
@@ -188,7 +192,7 @@ Die folgenden sensiblen und sicherheitsrelevanten Daten werden in `~/.kortty/` g
 - Schützen Sie private Schlüsseldateien mit einer Passphrase.
 - Schlüssel nach `~/.kortty/ssh-keys/` kopieren, um sie in verschlüsselte Backups aufzunehmen; Schlüssel, die an ihren ursprünglichen Speicherorten verbleiben, werden nur referenziert und müssen separat migriert werden.
 - Schlüsseldateiberechtigungen einschränken (z. B. `chmod 600`).
-- Überprüfen Sie den Fingerabdruck eines Hostschlüssels bei der ersten Verwendung über einen vertrauenswürdigen Kanal, bevor Sie ihn akzeptieren. Behandeln Sie eine Warnung bezüglich eines geänderten Schlüssels als einen möglichen Serverneuaufbau, einen DNS-Fehler oder einen Man-in-the-Middle-Angriff und untersuchen Sie ihn, anstatt die Verbindung wiederholt wiederherzustellen.
+- Verifizieren Sie einen Fingerabdruck eines Hosts bei Erstverwendung über einen vertrauenswürdigen Kanal, bevor Sie ihn akzeptieren. Behandeln Sie eine Warnung über einen geänderten Schlüssel als möglichen Server-Neuaufbau, DNS-Fehler oder Man-in-the-Middle-Angriff und untersuchen Sie das Problem statt sich wiederholt neu zu verbinden. Verwenden Sie **Prüfen und ersetzen…** erst, nachdem der Server-Administrator den neuen Fingerabdruck bestätigt hat.
 
 ### JobScheduler
 
@@ -225,7 +229,7 @@ Die folgenden sensiblen und sicherheitsrelevanten Daten werden in `~/.kortty/` g
 | Master-Passwort-Hashing | PBKDF2 mit 310.000 Iterationen |
 | Anmeldeinformationsverschlüsselung | AES-256-GCM |
 | SSH-Schlüsselpassphrasen | Verschlüsselt mit AES-256-GCM und Master-Passwort |
-| Interaktive SSH/SFTP/Mosh-Hostschlüssel | Gemeinsam genutzter normalisierter Host:Port-TOFU, Bestätigung des Fingerabdrucks bei der ersten Verwendung (optional entspannt, um „Neu“ zu akzeptieren), stille exakte Übereinstimmung, harte Blockierung bei Änderung |
+| Interaktive SSH/SFTP/Mosh-Hostschlüssel | Geteilte normalisierte host:port TOFU, Bestätigung des Fingerabdrucks bei Erstverwendung (optional gelockert auf accept-new), stilles exaktes Match, harter Block bei Änderung; Ersetzung nur nach expliziter Fingerabdruckbestätigung, als compare-and-swap |
 | KI-API-Schlüssel | Verschlüsselt mit AES-256-GCM und Master-Passwort |
 | Eingebetteter llama.cpp | Nur-Loopback-Zufallsport, generierter API-Schlüssel, Offline-/gehärtete Server-Flags, Anforderungsleasing |
 | GGUF/Laufzeit-Lieferkette | Unveränderliche Revisionen, SHA-256-Verifizierung, signierter Laufzeitindex, dauerhafte Sperrquarantäne, Rollback nach fehlgeschlagener Integritätsprüfung oder erstem echten API-Start |

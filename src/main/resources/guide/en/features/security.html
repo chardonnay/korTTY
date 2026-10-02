@@ -850,7 +850,9 @@
 <li>The key path and passphrase are filled in automatically.</li>
 </ol>
 <h2 id="interactive-ssh-host-key-trust">Interactive SSH host-key trust<a class="headerlink" href="#interactive-ssh-host-key-trust" title="Permanent link">&para;</a></h2>
-<p>Terminal and SFTP connections, including the SSH bootstrap used by Mosh, share a trust-on-first-use (TOFU) verifier keyed by normalized host name and port. On first use, korTTY displays the server key algorithm and OpenSSH SHA-256 fingerprint; verify it out of band before accepting. The confirmation defaults to <strong>No</strong>. A previously trusted matching key is accepted silently, while a changed key is hard-blocked with the expected and offered fingerprints and is never retried automatically.</p>
+<p>Terminal and SFTP connections, including the SSH bootstrap used by Mosh, share a trust-on-first-use (TOFU) verifier keyed by normalized host name and port. On first use, korTTY displays the server key algorithm and OpenSSH SHA-256 fingerprint; verify it out of band before accepting. The confirmation defaults to <strong>No</strong>. A previously trusted matching key is accepted silently, while a changed key is hard-blocked with the expected and offered fingerprints and is never retried or replaced automatically.</p>
+<p>A changed key can be replaced only by an explicit decision, and only in a connection you opened yourself in a terminal tab or the SFTP manager (including its jump server). <strong>Review and Replace…</strong> in the changed-key alert shows the trusted and the new fingerprint side by side; the replace button stays disabled until you confirm that you verified the new fingerprint with the server administrator, and <strong>Close</strong> and <strong>Cancel</strong> remain the default buttons. The replacement is a compare-and-swap: it is stored only while the trusted key is still exactly the one you reviewed, so a key changed in another window in the meantime is never overwritten. Every replacement is logged with the old and the new fingerprint. Background and restored connections, and the SSH bootstrap of Mosh, keep the plain block.</p>
+<p><strong>Configuration → Security → Known Hosts…</strong> lists, searches and removes trusted keys. Removal works the same way: it deletes a key only while it still has the fingerprint shown in the confirmation, and the next connection asks again as on first use. With the enterprise policy key <code>enforce-host-key-check</code>, both replacing and removing are disabled, so only an administrator can change a trusted key.</p>
 <p>Interactive pins are written atomically to <code>~/.kortty/ssh-host-keys.properties</code>; a companion lock coordinates simultaneous korTTY processes. This store is distinct from the JobScheduler's connection-ID-based host-key pins in <code>job-scheduler.xml</code>, which protect unattended SSH, SFTP, and Rsync execution.</p>
 <h3 id="relaxing-host-key-verification">Relaxing host-key verification<a class="headerlink" href="#relaxing-host-key-verification" title="Permanent link">&para;</a></h3>
 <p>For lab or throwaway hosts you can turn the first-use prompt off and have korTTY accept an unknown key silently. This is an <strong>accept-new</strong> relaxation, not blind trust: a key that differs from one already pinned for that host is still hard-blocked, so a man-in-the-middle on a host you have connected to before is still caught. It is off by default and can be set at three scopes, in precedence order:</p>
@@ -950,7 +952,7 @@
 <li>Keep private key files protected with a passphrase.</li>
 <li>Copy keys to <code>~/.kortty/ssh-keys/</code> for inclusion in encrypted backups; keys left in their original locations are only referenced and must be migrated separately.</li>
 <li>Limit key file permissions (e.g., <code>chmod 600</code>).</li>
-<li>Verify a first-use host-key fingerprint through a trusted channel before accepting it. Treat a changed-key warning as a possible server rebuild, DNS error, or man-in-the-middle attack and investigate instead of reconnecting repeatedly.</li>
+<li>Verify a first-use host-key fingerprint through a trusted channel before accepting it. Treat a changed-key warning as a possible server rebuild, DNS error, or man-in-the-middle attack and investigate instead of reconnecting repeatedly. Use <strong>Review and Replace…</strong> only after the server administrator has confirmed the new fingerprint.</li>
 </ul>
 <h3 id="jobscheduler">JobScheduler<a class="headerlink" href="#jobscheduler" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1003,7 +1005,7 @@
 </tr>
 <tr>
 <td>Interactive SSH/SFTP/Mosh host keys</td>
-<td>Shared normalized host:port TOFU, first-use fingerprint confirmation (optionally relaxed to accept-new), silent exact match, hard block on change</td>
+<td>Shared normalized host:port TOFU, first-use fingerprint confirmation (optionally relaxed to accept-new), silent exact match, hard block on change; replacement only after explicit fingerprint confirmation, as a compare-and-swap</td>
 </tr>
 <tr>
 <td>AI API Keys</td>
