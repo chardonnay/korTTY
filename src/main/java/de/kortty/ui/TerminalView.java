@@ -7018,6 +7018,27 @@ public class TerminalView extends BorderPane {
             sharedFontSource.setFontSize(size);
         }
 
+        // The context menu's Increase/Decrease and SithTermFX's own zoom keys step through the pane's
+        // provider. Step the shared size itself, so a pane whose effect pins its own size does not
+        // move every other pane of the tab to that pinned size plus one step.
+        @Override
+        public void increaseFontSize(float delta) {
+            if (sharedFontSource == null) {
+                super.increaseFontSize(delta);
+                return;
+            }
+            sharedFontSource.increaseFontSize(delta);
+        }
+
+        @Override
+        public void decreaseFontSize(float delta) {
+            if (sharedFontSource == null) {
+                super.decreaseFontSize(delta);
+                return;
+            }
+            sharedFontSource.decreaseFontSize(delta);
+        }
+
         @Override
         public void addFontSizeListener(Runnable listener) {
             if (sharedFontSource == null) {
