@@ -205,7 +205,7 @@ Die Terminalaufzeichnung ist als ressourcenschonende Wiedergabefunktion konzipie
 1. Um die Aufzeichnung automatisch nach jedem App-Neustart zu aktivieren, öffnen Sie **Einstellungen > Video** und aktivieren Sie **Terminalaufzeichnung nach App-Neustart aktivieren**.
 2. Um die Aufzeichnung nur für diese Sitzung zu aktivieren, öffnen Sie **Tools > Video Manager...** und wählen Sie **Terminalaufzeichnung für diese App-Sitzung aktivieren**.
 3. Legen Sie den **Speicherpfad** fest. Wenn die Standardeinstellung beibehalten wird, verwendet KorTTY `~/.kortty/recordings`.
-4. Wählen Sie das Standardformat und den Standard-Split-Bereich. Die KorTTY-Wiedergabe ist immer verfügbar; Für den Videoexport ist `ffmpeg` erforderlich.
+4. Wählen Sie den **Standardbereich** (aktiven Split oder gesamten Tab). Aufzeichnungen sind immer KorTTY-Replay-Dateien; der Videoexport ist ein separater Schritt und erfordert `ffmpeg`.
 5. Aktivieren oder deaktivieren Sie **Auto-Pause, wenn das Terminal im Leerlauf ist** und legen Sie den Leerlaufschwellenwert fest (Standard: 20 Sekunden).
 6. Optional: Aktivieren Sie **Terminalfarben in neuen Aufnahmen erfassen**, wenn exportierte Videos Terminalfarben wiedergeben sollen.
 7. Optional: Legen Sie den `ffmpeg`-Pfad fest und klicken Sie auf **Prüfen**. Wenn `ffmpeg` fehlt, bleibt der Videoexport deaktiviert, Wiedergabedateien bleiben jedoch verwendbar.

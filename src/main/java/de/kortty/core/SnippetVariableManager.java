@@ -27,7 +27,7 @@ import java.util.Optional;
 public class SnippetVariableManager {
 
     private static final Logger logger = LoggerFactory.getLogger(SnippetVariableManager.class);
-    private static final String VARIABLES_FILE = "snippet-variables.xml";
+    public static final String VARIABLES_FILE = "snippet-variables.xml";
 
     /** Shared, thread-safe JAXBContext; a Marshaller/Unmarshaller is created per call. */
     private static final JAXBContext JAXB_CONTEXT;

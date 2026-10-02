@@ -3,8 +3,8 @@ package de.kortty.core;
 import de.kortty.model.EnvironmentDefinition;
 import de.kortty.model.StoredCredential;
 import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
-import jakarta.xml.bind.Unmarshaller;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;
@@ -12,6 +12,8 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -27,13 +29,25 @@ import java.util.UUID;
 public class EnvironmentManager {
 
     private static final Logger logger = LoggerFactory.getLogger(EnvironmentManager.class);
-    private static final String ENVIRONMENTS_FILE = "environments.xml";
+    public static final String ENVIRONMENTS_FILE = "environments.xml";
+
+    /** Shared, thread-safe JAXBContext; building one per load and save is the expensive part. */
+    private static final JAXBContext JAXB_CONTEXT;
+    static {
+        try {
+            JAXB_CONTEXT = JAXBContext.newInstance(EnvironmentsWrapper.class, EnvironmentDefinition.class);
+        } catch (JAXBException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
 
     private final Path configDir;
     private final List<EnvironmentDefinition> customEnvironments = new ArrayList<>();
+    private final StoreFileGuard guard;
 
     public EnvironmentManager(Path configDir) {
         this.configDir = configDir;
+        this.guard = new StoreFileGuard(configDir.resolve(ENVIRONMENTS_FILE));
     }
 
     /**
@@ -80,41 +94,70 @@ public class EnvironmentManager {
         }
     }
 
+    /**
+     * Loads the custom environments. Never throws: a corrupt file is moved aside (see
+     * {@link #getLoadFailureBackup()}) and a file that cannot be read stays in place and blocks
+     * saving; in both cases the environments in memory are kept.
+     */
     public void load() {
-        customEnvironments.clear();
-        Path file = configDir.resolve(ENVIRONMENTS_FILE);
-        if (!Files.exists(file)) {
+        Path file = guard.file();
+        guard.beginLoad();
+        if (guard.isMissing()) {
+            customEnvironments.clear();
             logger.debug("No environments file found, using built-in only");
             return;
         }
         try {
-            JAXBContext context = JAXBContext.newInstance(EnvironmentsWrapper.class, EnvironmentDefinition.class);
-            Unmarshaller unmarshaller = context.createUnmarshaller();
-            EnvironmentsWrapper wrapper = (EnvironmentsWrapper) unmarshaller.unmarshal(file.toFile());
-            if (wrapper.getEnvironments() != null) {
-                customEnvironments.addAll(wrapper.getEnvironments());
+            Optional<EnvironmentsWrapper> loaded = guard.read(content ->
+                (EnvironmentsWrapper) JAXB_CONTEXT.createUnmarshaller().unmarshal(new ByteArrayInputStream(content)));
+            if (loaded.isEmpty()) {
+                logger.warn("Kept {} custom environments in memory; the unreadable environments file was moved aside",
+                    customEnvironments.size());
+                return;
+            }
+            customEnvironments.clear();
+            if (loaded.get().getEnvironments() != null) {
+                customEnvironments.addAll(loaded.get().getEnvironments());
             }
             logger.info("Loaded {} custom environments from {}", customEnvironments.size(), file);
         } catch (Exception e) {
-            logger.warn("Failed to load environments, using built-in only: {}", e.getMessage());
+            logger.warn("Failed to load environments, keeping the {} in memory: {}",
+                customEnvironments.size(), e.toString());
         }
     }
 
+    /**
+     * Saves the custom environments atomically.
+     *
+     * @throws IllegalStateException when the last load could not read the file and left it in place
+     */
     public void save() throws Exception {
-        Path file = configDir.resolve(ENVIRONMENTS_FILE);
+        Path file = guard.file();
         try {
-            JAXBContext context = JAXBContext.newInstance(EnvironmentsWrapper.class, EnvironmentDefinition.class);
-            Marshaller marshaller = context.createMarshaller();
+            guard.ensureWritable();
+            Marshaller marshaller = JAXB_CONTEXT.createMarshaller();
             marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
             EnvironmentsWrapper wrapper = new EnvironmentsWrapper();
             wrapper.setEnvironments(new ArrayList<>(customEnvironments));
+            StringWriter xml = new StringWriter();
+            marshaller.marshal(wrapper, xml);
             Files.createDirectories(configDir);
-            marshaller.marshal(wrapper, file.toFile());
+            AtomicFileWriter.writeStoreAtomically(file, xml.toString(), AtomicFileWriter.FileMode.PRESERVE);
             logger.info("Saved {} custom environments to {}", customEnvironments.size(), file);
         } catch (Exception e) {
             logger.error("Failed to save environments", e);
             throw e;
         }
+    }
+
+    /** Where the last load moved an unreadable {@code environments.xml}, if it did. */
+    public Optional<Path> getLoadFailureBackup() {
+        return guard.getLoadFailureBackup();
+    }
+
+    /** Whether saving is refused because {@code environments.xml} could not be read. */
+    public boolean isSaveBlocked() {
+        return guard.isSaveBlocked();
     }
 
     /** Adds a custom environment; id is generated. Returns the new definition. */

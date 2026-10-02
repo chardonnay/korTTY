@@ -45,7 +45,7 @@ import java.util.stream.Collectors;
 public class SnippetManager {
     
     private static final Logger logger = LoggerFactory.getLogger(SnippetManager.class);
-    private static final String SNIPPETS_FILE = "snippets.xml";
+    public static final String SNIPPETS_FILE = "snippets.xml";
     /** Fixed, non-deletable category whose snippets serve as workflow-script headers. */
     public static final String SCRIPT_HEADER_CATEGORY = "Script-Header";
     /** Default operating systems offered for the snippet "System" column. */

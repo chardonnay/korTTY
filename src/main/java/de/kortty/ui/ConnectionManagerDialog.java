@@ -987,7 +987,8 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
     
     private void saveConnections() {
         try {
-            configManager.save(app.getMasterPasswordManager().getDerivedKey());
+            // saveOrThrow, not save: a refused or failed write must reach the error alert below.
+            configManager.saveOrThrow(app.getMasterPasswordManager().getDerivedKey());
             logger.info("Connections saved successfully");
             if (onConnectionsSavedCallback != null) {
                 javafx.application.Platform.runLater(onConnectionsSavedCallback);

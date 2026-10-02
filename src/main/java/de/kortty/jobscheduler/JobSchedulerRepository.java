@@ -1,8 +1,10 @@
 package de.kortty.jobscheduler;
 
+import de.kortty.core.AtomicFileWriter;
+import de.kortty.core.StoreFileGuard;
 import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
-import jakarta.xml.bind.Unmarshaller;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;
@@ -11,8 +13,8 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -31,38 +33,83 @@ public class JobSchedulerRepository {
     public static final String FILE_NAME = "job-scheduler.xml";
     private static final Logger logger = LoggerFactory.getLogger(JobSchedulerRepository.class);
 
+    /** Shared, thread-safe JAXBContext; building one per load and save is the expensive part. */
+    private static final JAXBContext JAXB_CONTEXT = createJaxbContext();
+
+    private static JAXBContext createJaxbContext() {
+        try {
+            return JAXBContext.newInstance(
+                SchedulerData.class,
+                ScheduledJob.class,
+                JobSchedule.class,
+                JobAction.class,
+                JobActionType.class,
+                JobArchiveFormat.class,
+                JournalDetailMode.class,
+                SftpSyncDirection.class,
+                RsyncDirection.class,
+                SudoCredential.class,
+                SudoSecretScope.class,
+                PinnedHostKey.class,
+                JobJournalEntry.class,
+                JobRunStatus.class,
+                de.kortty.model.AutomationJournalConfig.class,
+                de.kortty.model.AutomationJournalAiMode.class,
+                de.kortty.model.AutomationJournalKeepMode.class,
+                de.kortty.model.AutomationJournalRetentionMode.class
+            );
+        } catch (JAXBException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
+
     private final Path file;
+    private final StoreFileGuard guard;
     private SchedulerData data = new SchedulerData();
 
     public JobSchedulerRepository(Path configDir) {
         this.file = configDir.resolve(FILE_NAME);
+        this.guard = new StoreFileGuard(file);
     }
 
+    /**
+     * Loads {@code job-scheduler.xml}. A corrupt file is moved aside (see
+     * {@link #getLoadFailureBackup()}) and the jobs in memory are kept, so the scheduler starts
+     * empty instead of failing. When the file cannot be read or moved aside this throws, and
+     * {@link #save()} refuses to write over it.
+     */
     public synchronized void load() throws Exception {
-        if (!Files.exists(file)) {
+        guard.beginLoad();
+        if (guard.isMissing()) {
             data = new SchedulerData();
             return;
         }
-        JAXBContext context = jaxbContext();
-        Unmarshaller unmarshaller = context.createUnmarshaller();
-        try (InputStream in = Files.newInputStream(file)) {
-            data = (SchedulerData) unmarshaller.unmarshal(in);
+        Optional<SchedulerData> loaded = guard.read(content ->
+            (SchedulerData) JAXB_CONTEXT.createUnmarshaller().unmarshal(new ByteArrayInputStream(content)));
+        if (loaded.isEmpty()) {
+            logger.warn("Kept {} scheduled jobs in memory; the unreadable {} was moved aside",
+                data.getJobs().size(), file);
+            return;
         }
-        if (data == null) {
-            data = new SchedulerData();
-        }
+        data = loaded.get();
         data.normalize();
         logger.info("Loaded {} scheduled jobs from {}", data.getJobs().size(), file);
     }
 
+    /**
+     * Writes {@code job-scheduler.xml} atomically and owner-only: it holds the sudo secrets and
+     * pinned host keys of the scheduled jobs.
+     *
+     * @throws IllegalStateException when the last load could not read the file and left it in place
+     */
     public synchronized void save() throws Exception {
+        guard.ensureWritable();
         Files.createDirectories(file.getParent());
-        JAXBContext context = jaxbContext();
-        Marshaller marshaller = context.createMarshaller();
+        Marshaller marshaller = JAXB_CONTEXT.createMarshaller();
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
-        try (OutputStream out = Files.newOutputStream(file)) {
-            marshaller.marshal(data, out);
-        }
+        StringWriter xml = new StringWriter();
+        marshaller.marshal(data, xml);
+        AtomicFileWriter.writeStoreAtomically(file, xml.toString(), AtomicFileWriter.FileMode.OWNER_ONLY);
         // The scheduler ticks frequently and saves each time. Only surface this at INFO when there is
         // at least one active (enabled) job; otherwise it just clutters the log ("Saved 0 scheduled
         // jobs ..."). The empty/disabled case stays available at DEBUG for troubleshooting.
@@ -72,6 +119,16 @@ public class JobSchedulerRepository {
         } else {
             logger.debug("Saved {} scheduled jobs to {} (no active jobs)", data.getJobs().size(), file);
         }
+    }
+
+    /** Where the last load moved an unreadable {@code job-scheduler.xml}, if it did. */
+    public Optional<Path> getLoadFailureBackup() {
+        return guard.getLoadFailureBackup();
+    }
+
+    /** Whether saving is refused because {@code job-scheduler.xml} could not be read. */
+    public boolean isSaveBlocked() {
+        return guard.isSaveBlocked();
     }
 
     public synchronized List<ScheduledJob> getJobs() {
@@ -230,29 +287,6 @@ public class JobSchedulerRepository {
                 && left.getServerConnectionId().equals(right.getServerConnectionId());
         }
         return left.getGroupName() != null && left.getGroupName().equals(right.getGroupName());
-    }
-
-    private JAXBContext jaxbContext() throws Exception {
-        return JAXBContext.newInstance(
-            SchedulerData.class,
-            ScheduledJob.class,
-            JobSchedule.class,
-            JobAction.class,
-            JobActionType.class,
-            JobArchiveFormat.class,
-            JournalDetailMode.class,
-            SftpSyncDirection.class,
-            RsyncDirection.class,
-            SudoCredential.class,
-            SudoSecretScope.class,
-            PinnedHostKey.class,
-            JobJournalEntry.class,
-            JobRunStatus.class,
-            de.kortty.model.AutomationJournalConfig.class,
-            de.kortty.model.AutomationJournalAiMode.class,
-            de.kortty.model.AutomationJournalKeepMode.class,
-            de.kortty.model.AutomationJournalRetentionMode.class
-        );
     }
 
     @XmlRootElement(name = "jobScheduler")
