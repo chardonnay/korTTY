@@ -223,4 +223,25 @@ class SshTunnelManagerTest {
         assertThat(SshTunnelManager.plannedStatus(tunnel(TunnelType.LOCAL, "localhost", 8080, "0.0.0.0", 1), false)
             .exposed()).isFalse();
     }
+
+    @Test
+    void sameForwardsComparesWhatWouldListenAndWhereItGoes() {
+        SSHTunnel local = tunnel(TunnelType.LOCAL, "localhost", 8080, "db", 5432);
+        SSHTunnel relabelled = tunnel(TunnelType.LOCAL, null, 8080, "DB", 5432);
+        relabelled.setDescription("database");
+
+        // Defaults and case are applied, the description does not count: no restart for a label.
+        assertThat(SshTunnelManager.sameForwards(List.of(local), List.of(relabelled))).isTrue();
+        assertThat(SshTunnelManager.sameForwards(null, List.of())).isTrue();
+
+        assertThat(SshTunnelManager.sameForwards(List.of(local),
+            List.of(tunnel(TunnelType.LOCAL, "localhost", 8081, "db", 5432)))).isFalse();
+        assertThat(SshTunnelManager.sameForwards(List.of(local),
+            List.of(tunnel(TunnelType.LOCAL, "0.0.0.0", 8080, "db", 5432)))).isFalse();
+        assertThat(SshTunnelManager.sameForwards(List.of(local),
+            List.of(tunnel(TunnelType.REMOTE, "localhost", 8080, "db", 5432)))).isFalse();
+        assertThat(SshTunnelManager.sameForwards(List.of(local), List.of())).isFalse();
+        SSHTunnel dynamic = tunnel(TunnelType.DYNAMIC, "localhost", 1080, null, 0);
+        assertThat(SshTunnelManager.sameForwards(List.of(local, dynamic), List.of(dynamic, local))).isFalse();
+    }
 }

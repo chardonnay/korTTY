@@ -2895,8 +2895,25 @@ public class MainWindow {
             organizeTabsByGroup();
             updateDashboard();
         }
+        applyTunnelSettingsToOpenTabs();
     }
-    
+
+    /**
+     * Lets every open terminal tab, in every window, apply its connection's saved SSH tunnels
+     * right away: tunnels switched off or removed in the connection editor stop, changed or added
+     * ones open (after the one-time confirmation for a new tunnel set). A tab whose tunnels did
+     * not change keeps them running. FX thread only.
+     */
+    private static void applyTunnelSettingsToOpenTabs() {
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            for (TerminalTab terminalTab : window.terminalTabs()) {
+                if (terminalTab.getTerminalView() != null) {
+                    terminalTab.getTerminalView().applyTunnelSettings();
+                }
+            }
+        }
+    }
+
     private void showSettings() {
         SettingsDialog dialog = new SettingsDialog(stage, app, app.getConfigManager(),
                 app.getGlobalSettingsManager().getSettings(),
