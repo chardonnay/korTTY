@@ -48,6 +48,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoCloseable {
 
@@ -75,9 +76,10 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
     private String authenticatedPrivateKeyPassphrase;
     /**
      * Owner-only file holding a {@code TEMPORARY:} key for the external {@code ssh} of Rsync jobs,
-     * or {@code null}. Deleted by {@link #close()} and when {@link #connect()} fails.
+     * or {@code null}. Deleted by {@link #close()} and when {@link #connect()} fails. Atomic because
+     * a swarm runner connects lazily on its worker thread and closes from a teardown thread.
      */
-    private Path temporaryKeyFile;
+    private final AtomicReference<Path> temporaryKeyFile = new AtomicReference<>();
 
     public JobSchedulerRemoteSession(
         KorTTYApplication app,
@@ -620,11 +622,10 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
      * the startup sweep in {@code LegacyTemporaryKeyFileCleanup}.
      */
     private void deleteTemporaryKeyFile() {
-        Path file = temporaryKeyFile;
+        Path file = temporaryKeyFile.getAndSet(null);
         if (file == null) {
             return;
         }
-        temporaryKeyFile = null;
         if (file.equals(authenticatedPrivateKeyPath)) {
             authenticatedPrivateKeyPath = null;
         }
@@ -737,7 +738,7 @@ public class JobSchedulerRemoteSession implements RemoteCommandExecutor, AutoClo
             content = content + "\n";
         }
         Path tempFile = createOwnerOnlyTempFile();
-        temporaryKeyFile = tempFile;
+        temporaryKeyFile.set(tempFile);
         Files.writeString(tempFile, content, StandardCharsets.UTF_8);
         return tempFile;
     }
