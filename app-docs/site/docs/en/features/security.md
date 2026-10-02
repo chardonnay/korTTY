@@ -24,13 +24,19 @@ On first launch, you are prompted to create a master password (minimum 6 charact
 
 The master password itself is hashed with PBKDF2 (310,000 iterations) and never stored in plain text. The salt and hash are stored in `~/.kortty/master.key`.
 
-On subsequent launches, KorTTY prompts you to enter the master password to unlock encrypted data. Turning off **Require master password on startup** in **Settings > Security** hides this prompt, but stored passwords will not be accessible until you enter the master password manually.
+On subsequent launches, KorTTY prompts you to enter the master password to unlock encrypted data. Turning off **Require master password on startup** in **Settings > Security** hides this prompt and starts with the vault locked: stored passwords and keys stay unavailable until you unlock it (see [Unlocking the vault later](#unlocking-the-vault-later)).
 
 !!! danger "Optional auto-login weakens at-rest protection"
     The second Security option, **Disable master password prompt on startup (auto-login)**, also removes the prompt but keeps the vault fully usable: korTTY writes your master password to `~/.kortty/master.autounlock` — **obfuscated only, not encrypted**, with owner-only file permissions — and unlocks automatically on every start. The obfuscation key is embedded in the application, so file permissions are the only real boundary; anyone who can read `~/.kortty` or a backup can decrypt all saved secrets. On a brand-new profile the option bootstraps a default master password with no dialog at all. korTTY asks for confirmation before enabling it, it is meant for throwaway/test environments, and a [policy configuration](../reference/enterprise-policy.md) that requires a master password disables it. Details: [Security settings](../reference/settings/security.md).
 
 !!! note
     If you lose the master password, encrypted data cannot be recovered. Delete `master.key` and `credentials.xml`, restart, set a new master password, and re-enter your passwords.
+
+### Unlocking the vault later
+
+With the vault locked, choose **Configuration > Security > Unlock Vault…** and enter the master password; the menu item is greyed out while the vault is open. Every feature that needs a stored secret — saving an AI or translation API key, a Hugging Face token, a jump server password or a Job Scheduler password, an AI Swarm run on servers without an open terminal, a guide question or a generated workflow script with an encrypted AI key — shows its "vault locked" message with an **Unlock Vault…** button instead of a dead end. After a successful unlock the action continues; **Cancel** leaves the vault locked without a second error. A wrong password keeps the dialog open, and cancelling it never quits korTTY.
+
+Unlocking also restores the temporary SSH keys that could not be decrypted at the locked start; until then they stay stored encrypted, so saving connections in the meantime does not lose them. Windows that were already open while the vault was locked, such as the Connection Manager or the credential and key managers, do not pick up the unlock — reopen them to use stored secrets there.
 
 ## Encryption Model
 
