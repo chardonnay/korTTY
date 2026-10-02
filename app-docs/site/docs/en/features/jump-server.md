@@ -12,7 +12,7 @@ A jump server (bastion host) acts as an intermediate gateway to reach servers on
 
 korTTY authenticates to the jump server with the jump server's own credentials, opens a tunnel through it, and then opens the real SSH session to the target host through that tunnel. The target's credentials are used only for the target, and the jump server's credentials only for the jump server — neither host is offered the other's password or key.
 
-Both SSH terminal and SFTP connections to the target route through the jump server; there is nothing extra to configure for SFTP.
+Both SSH terminal and SFTP connections to the target route through the jump server; there is nothing extra to configure for SFTP. This works whatever the target's own authentication is — password, keyboard-interactive, SSH key or a temporary SSH key: the jump server's stored password is decrypted with your master password in every case.
 
 !!! warning
     Mosh connections cannot go through a jump server: a Mosh session runs over UDP, which the jump server's SSH tunnel (TCP) does not forward. korTTY refuses the combination up front — the Jump Server tab warns as soon as it is configured, and connecting fails immediately with a clear message instead of stalling after the SSH bootstrap. Use the SSH protocol for targets behind a bastion, or disable the jump server.
@@ -32,6 +32,12 @@ To configure a jump server for a connection:
     - **Password** — the password is stored encrypted with your master password. Leave the field empty when editing to keep the previously stored password.
     - **SSH key file (no passphrase)** — the path to an unencrypted private key file. Passphrase-protected keys are not supported for the jump hop.
 6. Click **Save**.
+
+## When the jump server cannot be used
+
+korTTY checks the jump server's credentials before it contacts the jump server. If the stored jump password cannot be used — none is stored, the master password vault is locked, or the stored value cannot be decrypted — connecting stops at once with a message that says so, without contacting the jump server, without asking about its host key and without working through the retry count. Unlock the vault with **Configuration > Security > Unlock Vault…** (see [Unlocking the vault later](security.md#unlocking-the-vault-later)) or store the password in the connection's **Jump Server** tab, then reconnect.
+
+An incomplete jump setup (no username, or key authentication without a usable key file) and a jump-server host key you rejected are refused the same way, because another attempt would fail identically. A jump server that cannot be reached, or a network error on the way, is still retried like any other connection failure.
 
 ## Host key verification
 

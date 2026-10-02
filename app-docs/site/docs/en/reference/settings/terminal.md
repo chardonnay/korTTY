@@ -50,7 +50,7 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 !!! note "Connection Retries"
     When enabled, failed SSH connections are automatically retried. Disabling this prevents automatic reconnection attempts for failed connections.
 
-    Retries only cover failures that a further attempt could resolve. A changed host key, a Mosh connection configured with a jump server, or a missing Mosh runtime is refused immediately regardless of this setting.
+    Retries only cover failures that a further attempt could resolve. A changed host key, a refused login, an SSH key file that is missing or cannot be read, a jump server whose stored password cannot be used or whose setup is incomplete, a Mosh connection configured with a jump server, or a missing Mosh runtime is refused immediately regardless of this setting.
 
 !!! note "Automatically reconnect lost connections"
     When enabled and an **established** SSH connection is lost (network drop, server gone), the tab reconnects on its own with increasing delays — 3, 5, 10, 20, 30, then every 60 seconds — and the red status bar counts down to the next attempt. A double-click on the bar still reconnects immediately, and a successful reconnect or closing the tab stops the automatic attempts. Failed logins and other permanent failures (authentication, host key, configuration) are never retried automatically, and a connection that never got established is not retried by this setting either — that is what *Enable connection retries* covers. See [Terminal sessions → Connection loss](../../features/terminal.md#connection-loss-and-automatic-reconnect).
