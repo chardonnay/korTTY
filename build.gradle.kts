@@ -3538,6 +3538,20 @@ tasks.register<JavaExec>("snippetManagerScreenshotStage") {
     }
 }
 
+tasks.register<JavaExec>("snippetProjectAnalysisScreenshotStage") {
+    group = "documentation"
+    description = "Shows the folder (project) analysis tab or, with -Pkortty.screenshotScene=preview, the " +
+        "multi-file review window, with demo data, for the docs screenshot capture."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SnippetProjectAnalysisScreenshotStage")
+    classpath = sourceSets.test.get().runtimeClasspath
+    args = listOf((findProperty("kortty.captureDoneFlag") as String?) ?: "")
+    listOf("kortty.screenshotScene", "kortty.workspaceWidth", "kortty.workspaceHeight",
+        "kortty.previewWidth", "kortty.previewHeight").forEach { key ->
+        (findProperty(key) as String?)?.let { systemProperty(key, it) }
+    }
+}
+
 tasks.register<JavaExec>("mainWindowScreenshotStage") {
     group = "documentation"
     description = "Shows the main window (optionally with a menu open) for the docs screenshot " +

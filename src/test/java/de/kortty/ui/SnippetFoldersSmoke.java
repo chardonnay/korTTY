@@ -168,6 +168,8 @@ public final class SnippetFoldersSmoke {
                 check(split.getOrientation() == javafx.geometry.Orientation.HORIZONTAL,
                     "the folder analysis shows the diagram beside the report");
                 check(split.getItems().size() == 2, "the diagram is shown by default");
+                check(store.cached(de.kortty.core.SnippetProjectAiSupport.folderKey(folder)).current().diagram() != null,
+                    "the generated diagram is stored with the folder analysis");
                 snapshot(pane, out.resolve("project-analysis-tab.png"));
                 javafx.scene.control.ToggleButton toggle = (javafx.scene.control.ToggleButton)
                     pane.lookup("#" + SnippetProjectAnalysisTab.DIAGRAM_TOGGLE_ID);

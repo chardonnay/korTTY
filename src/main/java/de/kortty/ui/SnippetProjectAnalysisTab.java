@@ -98,6 +98,8 @@ final class SnippetProjectAnalysisTab extends Tab {
     private final VBox planBox = new VBox(6);
     private final Set<String> excludedPaths = new HashSet<>();
     private SnippetAnalysisPanel panel;
+    /** The analysis the panel shows, so a change to that same record keeps the panel. */
+    private String renderedRecordId;
     private Task<?> running;
     private SnippetAnalysisStore.Subscription subscription;
 
@@ -370,27 +372,41 @@ final class SnippetProjectAnalysisTab extends Tab {
 
     private void render(SnippetAnalysisHistory history) {
         SnippetAnalysisRecord record = history != null ? history.current() : null;
+        if (panel != null && record != null && record.id().equals(renderedRecordId)) {
+            // The same analysis changed (its diagram was stored): keep the panel and its selection.
+            renderPlan(record);
+            return;
+        }
         if (panel != null) {
             panel.dispose();
             panel = null;
         }
         if (record == null) {
+            renderedRecordId = null;
             showEmptyState();
             renderPlan(null);
             applyButton.setDisable(true);
             return;
         }
         String profileId = record.provenance().profileId();
+        String recordId = record.id();
         SnippetAnalysisPanel newPanel = new SnippetAnalysisPanel(snippetManager.folderPath(folderId), "plain",
-            record.toScriptAnalysis(), () -> generateDiagram(profileId), profileId, null, null, null, null,
+            record.toScriptAnalysis(), () -> generateDiagram(profileId, recordId), profileId, null, null, null, null,
             AiLanguageSupport.resolveFallbackLanguageCode(null));
         panel = newPanel;
+        renderedRecordId = recordId;
         newPanel.useWideLayout(diagramToggle.isSelected());
         ScrollPane scroll = new ScrollPane(newPanel);
         scroll.setFitToWidth(true);
         scroll.setFitToHeight(true);
         reportHolder.getChildren().setAll(scroll);
-        newPanel.startDiagramIfAutoEnabled();
+        // A stored diagram is shown as it is; only an analysis without one asks the AI (once).
+        SnippetDiagramView.DiagramSource cached = SnippetAnalysisController.toDiagramSource(record, diagramText(context()));
+        if (cached != null) {
+            newPanel.diagramView().showCached(cached);
+        } else {
+            newPanel.startDiagramIfAutoEnabled();
+        }
         boolean stale = !record.source().sha256().equals(context().sha256());
         if (stale) {
             setStatus(I18n.get("snippets.project.stale"));
@@ -399,14 +415,32 @@ final class SnippetProjectAnalysisTab extends Tab {
         applyButton.setDisable(running != null);
     }
 
-    private CompletableFuture<SnippetDiagramView.DiagramSource> generateDiagram(String profileId) {
-        CompletableFuture<SnippetDiagramView.DiagramSource> future = new CompletableFuture<>();
-        ProjectContext context = context();
+    /** The folder's scripts one after another, as the diagram request reads them. */
+    private static String diagramText(ProjectContext context) {
         StringBuilder text = new StringBuilder();
         for (ProjectFile file : context.files()) {
             text.append("# ==== ").append(file.path()).append(" ====\n").append(file.content()).append('\n');
         }
-        String content = text.toString();
+        return text.toString();
+    }
+
+    /** Keeps a generated (or regenerated) diagram with the analysis, so reopening the tab costs no request. */
+    private void storeDiagram(String recordId, SnippetDiagramView.DiagramSource source, String content,
+                              String profileId) {
+        List<SnippetAnalysisRecord.CodeRef> refs = source.codeReferences() == null ? List.of()
+            : source.codeReferences().stream()
+                .map(ref -> new SnippetAnalysisRecord.CodeRef(ref.nodeId(), ref.label(), ref.startLine(), ref.endLine()))
+                .toList();
+        SnippetAnalysisRecord.AnalysisDiagram diagram = new SnippetAnalysisRecord.AnalysisDiagram(
+            source.diagramType().id(), source.mermaid(), refs, source.notice(), source.notice() != null,
+            SnippetDiagramSupport.contentHash(content), profileId, System.currentTimeMillis());
+        store.update(storeKey, history -> history.update(recordId, record -> record.withDiagram(diagram)));
+    }
+
+    private CompletableFuture<SnippetDiagramView.DiagramSource> generateDiagram(String profileId, String recordId) {
+        CompletableFuture<SnippetDiagramView.DiagramSource> future = new CompletableFuture<>();
+        ProjectContext context = context();
+        String content = diagramText(context);
         String language = dominantLanguage(context);
         SnippetEditDialog.AiAssist assist = SnippetAiAssistFactory.create(mainWindow);
         Task<SnippetDiagramView.DiagramSource> task = new Task<>() {
@@ -433,7 +467,13 @@ final class SnippetProjectAnalysisTab extends Tab {
                     SnippetDiagramType.LOGICAL_STRUCTURE, I18n.get("snippets.ai.analysis.diagram.fallback.generic"), null);
             }
         };
-        task.setOnSucceeded(event -> future.complete(task.getValue()));
+        task.setOnSucceeded(event -> {
+            SnippetDiagramView.DiagramSource source = task.getValue();
+            if (source != null && source.mermaid() != null && !source.mermaid().isBlank()) {
+                storeDiagram(recordId, source, content, profileId);
+            }
+            future.complete(source);
+        });
         task.setOnFailed(event -> future.completeExceptionally(task.getException()));
         task.setOnCancelled(event -> future.cancel(true));
         AiTaskRunner.start(task, "snippet-project-diagram");
