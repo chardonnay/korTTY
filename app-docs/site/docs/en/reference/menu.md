@@ -26,7 +26,7 @@ Connection entries (Quick Connect, Manage/Import/Export Connections) live in the
 | Cut | ++ctrl+x++ | Cut (disabled for terminal tabs) |
 | Copy | ++ctrl+c++ | Copy the terminal selection |
 | Paste | ++ctrl+v++ | Paste into the terminal |
-| Find… | ++ctrl+f++ | Search the active tab (terminal scrollback or open editor) |
+| Find… | ++ctrl+f++ | Search the active tab (terminal scrollback or open editor). On Windows and Linux a focused terminal sends ++ctrl+f++ to the shell, so open Find from this menu or the terminal's right-click menu there |
 
 ## Connections
 
