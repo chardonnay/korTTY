@@ -95,6 +95,32 @@ class SFTPManagerTabRemotePathTest {
     }
 
     @Test
+    void downloadedNamesStayInsideTheTargetFolder() throws IOException {
+        Path folder = Path.of("downloads").toAbsolutePath();
+        assertThat(SFTPManagerTab.localChild(folder, "report.txt")).isEqualTo(folder.resolve("report.txt"));
+        assertThat(SFTPManagerTab.localChild(folder, ".hidden")).isEqualTo(folder.resolve(".hidden"));
+
+        // The names come from the server: none may point outside the folder.
+        for (String name : new String[] {"..", ".", "", "../escaped", "sub/file", "/etc/passwd"}) {
+            org.testng.Assert.expectThrows(IOException.class, () -> SFTPManagerTab.localChild(folder, name));
+        }
+        org.testng.Assert.expectThrows(IOException.class, () -> SFTPManagerTab.localChild(folder, null));
+    }
+
+    @Test
+    void dragAndDropKeepsItsPromises() throws IOException {
+        String tab = read("src/main/java/de/kortty/ui/SFTPManagerTab.java");
+        // The tab's drag format is looked up before it is created: a second DataFormat would throw.
+        assertThat(tab).contains("DataFormat.lookupMimeType(mimeType)");
+        // A drag out of the window waits for the download at most the policy's time.
+        assertThat(tab).contains("download.get(SftpDragOutPolicy.MAX_WAIT.toMillis(), TimeUnit.MILLISECONDS)");
+        // Temporary copies are removed when the tab closes.
+        assertThat(tab).contains("remoteListExecutor.shutdownNow();\n        deleteDragOutDirectories();");
+        // Row drags end in the row, never in MainWindow's tab-drag DRAG_DONE handler.
+        assertThat(tab).contains("row.setOnDragDone(DragEvent::consume);");
+    }
+
+    @Test
     void transfersStreamAndMergeFolders() throws IOException {
         String session = read("src/main/java/de/kortty/core/SFTPSession.java");
         assertThat(session).doesNotContain("readAllBytes");

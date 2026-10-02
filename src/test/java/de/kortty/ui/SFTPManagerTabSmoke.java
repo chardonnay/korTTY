@@ -39,7 +39,8 @@ import java.util.function.BooleanSupplier;
 
 /**
  * Drives a real {@link SFTPManagerTab} against a loopback SFTP server: the background listing,
- * a failed navigation that keeps the folder, Size sorted by bytes, uploading a folder twice, the
+ * a failed navigation that keeps the folder, Size sorted by bytes, uploading a folder twice,
+ * wildcard search, Rename and New Folder on both sides, the transfers behind drag and drop, the
  * Disconnected state with Reconnect after the server stops, a quiet tab close, and tabs restored
  * from a project at their saved folders (or the home folders when those are gone). Runs in an
  * isolated {@code user.home}, so the host-key pin it accepts never reaches the real trust store.
@@ -152,6 +153,8 @@ public final class SFTPManagerTabSmoke {
             && status().equals(I18n.get("sftp.uploadComplete", "1")));
         check(noDialogOpen(), "a second upload of the same folder must not fail");
 
+        runFileOperations();
+
         // The server goes away: Disconnected with Reconnect, remote actions off.
         server.stop(true);
         waitFor("disconnected state", () -> status().equals(I18n.get("sftp.status.disconnected", "127.0.0.1"))
@@ -182,6 +185,115 @@ public final class SFTPManagerTabSmoke {
             "a closed tab must not report a lost connection");
 
         runRestore(port);
+    }
+
+    /**
+     * Wildcard search, New Folder and Rename on both sides (with an existing and an unusable name),
+     * and the transfers behind drag and drop: remote rows dropped on the local panel, local files
+     * dropped on a remote folder row, desktop files dropped on the local panel, and the temporary
+     * copies a drag out of the window offers. Ends in the remote root, where the steps after it
+     * expect the tab.
+     */
+    private static void runFileOperations() throws Exception {
+        call("navigateRemote", "/project");
+        waitFor("project listed", () -> "/project".equals(remotePath()) && names().contains("a.txt"));
+        call("navigateLocal", home.resolve("project").toString());
+        waitFor("local project listed", () -> localNames().contains("a.txt"));
+
+        // Search: a glob over the whole name, '..' stays.
+        fx(() -> {
+            ((TextField) field("remoteSearchField")).setText("*.TXT");
+            return null;
+        });
+        check(fx(() -> remoteTable().getItems().stream().map(SftpFileItem::getName).toList())
+            .equals(List.of("..", "a.txt")), "'*.TXT' must show '..' and a.txt only");
+        fx(() -> {
+            ((TextField) field("remoteSearchField")).setText("");
+            return null;
+        });
+
+        // New Folder on the server; the same name again is an error, '..' is no name.
+        callAsync("createRemoteFolder");
+        answerNameDialog("fresh");
+        waitFor("remote folder created", () -> Files.isDirectory(remoteRoot.resolve("project/fresh"))
+            && names().contains("fresh"));
+        callAsync("createRemoteFolder");
+        answerNameDialog("fresh");
+        closeDialogShowing(I18n.get("sftp.error.nameExists", "fresh"));
+        callAsync("createRemoteFolder");
+        typeIntoNameDialog("..");
+        clickOkInNameDialog();
+        closeDialogShowing(I18n.get("sftp.error.invalidName", ".."));
+        // The name dialog stays open with the unusable name; cancel it.
+        clickInDialog(ButtonType.CANCEL);
+        waitFor("dialogs closed", SFTPManagerTabSmoke::noDialogOpenQuietly);
+
+        // Rename on the server, never over an existing name.
+        fx(() -> select(remoteTable(), "a.txt"));
+        callAsync("renameRemoteSelected");
+        answerNameDialog("renamed.txt");
+        waitFor("remote rename", () -> Files.exists(remoteRoot.resolve("project/renamed.txt"))
+            && !Files.exists(remoteRoot.resolve("project/a.txt")) && names().contains("renamed.txt"));
+        fx(() -> select(remoteTable(), "renamed.txt"));
+        callAsync("renameRemoteSelected");
+        answerNameDialog("sub");
+        closeDialogShowing("renamed.txt: " + I18n.get("sftp.error.nameExists", "sub"));
+        check(Files.exists(remoteRoot.resolve("project/renamed.txt")), "a refused rename must keep the file");
+
+        // Local New Folder and Rename.
+        callAsync("createLocalFolder");
+        answerNameDialog("made-here");
+        waitFor("local folder created", () -> Files.isDirectory(home.resolve("project/made-here")));
+        fx(() -> select(localTable(), "a.txt"));
+        callAsync("renameLocalSelected");
+        answerNameDialog("local-renamed.txt");
+        waitFor("local rename", () -> Files.exists(home.resolve("project/local-renamed.txt"))
+            && !Files.exists(home.resolve("project/a.txt")));
+
+        // Remote rows dropped on the local panel: downloaded into the folder, folders included.
+        Path dropped = Files.createDirectories(home.resolve("dropped"));
+        List<SftpFileItem> remoteRows = fx(() -> remoteTable().getItems().stream()
+            .filter(item -> "renamed.txt".equals(item.getName()) || "sub".equals(item.getName()))
+            .toList());
+        callWith("downloadItems", new Class<?>[] {List.class, Path.class}, remoteRows, dropped);
+        waitFor("drop download", () -> "second".equals(readLocal(dropped.resolve("renamed.txt")))
+            && "b".equals(readLocal(dropped.resolve("sub/b.txt"))));
+
+        // Local files dropped on a remote folder row: uploaded into that folder.
+        callWith("uploadPaths", new Class<?>[] {List.class, String.class},
+            List.of(home.resolve("project/local-renamed.txt")), "/project/fresh");
+        waitFor("drop upload into folder row", () -> Files.exists(remoteRoot.resolve("project/fresh/local-renamed.txt")));
+
+        // Desktop files dropped on the local panel: copied, an existing name gets " (2)".
+        Path outside = Files.writeString(home.resolve("outside.txt"), "outside", StandardCharsets.UTF_8);
+        callWith("copyIntoLocal", new Class<?>[] {List.class, Path.class}, List.of(outside.toFile()), dropped);
+        waitFor("desktop drop copied", () -> "outside".equals(readLocal(dropped.resolve("outside.txt"))));
+        callWith("copyIntoLocal", new Class<?>[] {List.class, Path.class}, List.of(outside.toFile()), dropped);
+        waitFor("second desktop drop renamed", () -> "outside".equals(readLocal(dropped.resolve("outside (2).txt"))));
+
+        // A drag out of the window: small files are prepared as temporary copies, folders are not.
+        SftpFileItem renamed = fx(() -> remoteTable().getItems().stream()
+            .filter(item -> "renamed.txt".equals(item.getName())).findFirst().orElseThrow());
+        @SuppressWarnings("unchecked")
+        List<java.io.File> prepared = (List<java.io.File>) callWith("prepareDragOut",
+            new Class<?>[] {List.class}, List.of(renamed));
+        check(prepared.size() == 1 && "second".equals(readLocal(prepared.get(0).toPath())),
+            "a small remote file must be prepared for the desktop, got " + prepared);
+        Path tempFolder = prepared.get(0).toPath().getParent();
+        SftpFileItem folder = fx(() -> remoteTable().getItems().stream()
+            .filter(item -> "sub".equals(item.getName())).findFirst().orElseThrow());
+        @SuppressWarnings("unchecked")
+        List<java.io.File> none = (List<java.io.File>) callWith("prepareDragOut",
+            new Class<?>[] {List.class}, List.of(folder));
+        check(none.isEmpty(), "a folder must not be prepared for the desktop");
+        check(!Files.exists(tempFolder), "the previous drag's copies must be gone at the next drag");
+        check(status().equals(I18n.get("sftp.dragOut.tooLarge", "20", "16.0 MB")),
+            "a folder drag must say why it stays inside the window, got: " + status());
+        snapshot("file-operations");
+
+        call("navigateLocal", home.toString());
+        call("navigateRemote", "/");
+        waitFor("back in the root", () -> "/".equals(remotePath()) && names().contains("project"));
     }
 
     /**
@@ -287,6 +399,105 @@ public final class SFTPManagerTabSmoke {
                 table.getSelectionModel().select(item);
             }
         }
+    }
+
+    private static List<String> localNames() {
+        return localTable().getItems().stream().map(SftpFileItem::getName).toList();
+    }
+
+    private static Boolean select(TableView<SftpFileItem> table, String name) {
+        table.getSelectionModel().clearSelection();
+        for (SftpFileItem item : table.getItems()) {
+            if (name.equals(item.getName())) {
+                table.getSelectionModel().select(item);
+                return true;
+            }
+        }
+        throw new IllegalStateException("no row " + name);
+    }
+
+    private static String readLocal(Path path) {
+        try {
+            return Files.exists(path) ? Files.readString(path, StandardCharsets.UTF_8) : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** The open name dialog of Rename or New Folder (a TextInputDialog), or {@code null}. */
+    private static DialogPane nameDialog() {
+        for (Window window : Window.getWindows()) {
+            if (window.isShowing() && window.getScene() != null
+                    && window.getScene().getRoot() instanceof DialogPane pane
+                    && pane.lookup(".text-field") instanceof TextField) {
+                return pane;
+            }
+        }
+        return null;
+    }
+
+    private static void typeIntoNameDialog(String name) throws Exception {
+        waitFor("name dialog", () -> nameDialog() != null);
+        fx(() -> {
+            ((TextField) nameDialog().lookup(".text-field")).setText(name);
+            return null;
+        });
+    }
+
+    private static void clickOkInNameDialog() throws Exception {
+        fx(() -> {
+            ((Button) nameDialog().lookupButton(ButtonType.OK)).fire();
+            return null;
+        });
+    }
+
+    private static void answerNameDialog(String name) throws Exception {
+        typeIntoNameDialog(name);
+        clickOkInNameDialog();
+        waitFor("name dialog closed", () -> nameDialog() == null);
+    }
+
+    /** Closes the alert whose text is {@code text}; fails when no such alert appears. */
+    private static void closeDialogShowing(String text) throws Exception {
+        waitFor("dialog saying: " + text, () -> {
+            for (Window window : Window.getWindows()) {
+                if (window.isShowing() && window.getScene() != null
+                        && window.getScene().getRoot() instanceof DialogPane pane
+                        && text.equals(pane.getContentText())) {
+                    ((Button) pane.lookupButton(ButtonType.OK)).fire();
+                    return true;
+                }
+            }
+            return false;
+        });
+    }
+
+    /** On the FX thread: whether no dialog is open. */
+    private static boolean noDialogOpenQuietly() {
+        return Window.getWindows().stream().noneMatch(window -> window.isShowing()
+            && window.getScene() != null && window.getScene().getRoot() instanceof DialogPane);
+    }
+
+    /** Starts {@code method} on the FX thread without waiting: it may open a dialog and wait for it. */
+    private static void callAsync(String method) {
+        Platform.runLater(() -> {
+            try {
+                Method target = SFTPManagerTab.class.getDeclaredMethod(method);
+                target.setAccessible(true);
+                target.invoke(tab);
+            } catch (ReflectiveOperationException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    /** Calls {@code method} with declared parameter types on the FX thread and returns its result. */
+    private static Object callWith(String method, Class<?>[] types, Object... args) throws Exception {
+        return fx(() -> {
+            Method target = SFTPManagerTab.class.getDeclaredMethod(method, types);
+            target.setAccessible(true);
+            return target.invoke(tab, args);
+        });
     }
 
     private static String readRemote(String relative) {
