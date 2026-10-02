@@ -557,7 +557,7 @@ Built-in names are written in lower case and matched exactly, and they win over 
 A custom variable is a name declared in the Variable Manager. When a snippet uses it:
 
 - If the variable has a stored value, the value is inserted without asking.
-- If its value is empty, korTTY asks for it every time. Declare a variable with an empty value for anything that changes from one use to the next, such as a ticket number.
+- If its value is empty, korTTY asks for it every time. Declare a variable with an empty value for anything that changes from one use to the next, such as a ticket number. Only a script header, which is added without a dialog, inserts such a variable as empty text.
 - The dialog that asks has a **Remember** check box next to every field. It is off by default, so the value you type is used once and not stored; tick it to store the value in the Variable Manager for the next use.
 
 A name that is not declared is never asked for and stays as written, so declare a variable in the Variable Manager before you use it in a snippet. Declared names are matched ignoring case: a declared `path` also replaces `${PATH}`.
@@ -567,7 +567,7 @@ A name that is not declared is never asked for and stays as written, so declare 
 
 ### Escaping a placeholder
 
-Write `$${name}` to get the literal text `${name}`, for example for a shell variable that has the same name as a built-in (`$${date}`) or as a declared variable. The escape works for every placeholder, including `$${cursor}`.
+Write `$${name}` to get the literal text `${name}`, for example for a shell variable that has the same name as a built-in (`$${date}`) or as a declared variable. The escape works for every placeholder, including `$${cursor}`. Text that must keep a literal `$${name}`, as a Makefile or a Compose file does, is written `$$${name}`.
 
 ### Scheduled and swarm runs
 
