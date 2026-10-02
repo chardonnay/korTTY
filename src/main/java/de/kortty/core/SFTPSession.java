@@ -456,9 +456,17 @@ public class SFTPSession {
     }
     
     /**
-     * Copies a file or directory on the remote server.
+     * Copies a file or directory on the remote server. A folder copied onto an existing folder
+     * merges into it; a file of the same name is replaced.
+     *
+     * @throws IOException also when {@code destPath} is {@code sourcePath} itself or lies inside it
      */
     public void copyFile(String sourcePath, String destPath) throws IOException {
+        requireTargetOutsideSource(sourcePath, destPath);
+        copyTree(sourcePath, destPath);
+    }
+
+    private void copyTree(String sourcePath, String destPath) throws IOException {
         SftpClient.Attributes attrs = sftpClient.stat(sourcePath);
         if (attrs.isDirectory()) {
             // Copying onto an existing folder merges into it
@@ -468,7 +476,7 @@ public class SFTPSession {
             for (SftpClient.DirEntry entry : entries) {
                 String name = entry.getFilename();
                 if (name.equals(".") || name.equals("..")) continue;
-                copyFile(RemotePathSupport.appendRemotePath(sourcePath, name),
+                copyTree(RemotePathSupport.appendRemotePath(sourcePath, name),
                     RemotePathSupport.appendRemotePath(destPath, name));
             }
         } else {
@@ -484,7 +492,60 @@ public class SFTPSession {
             }
         }
     }
-    
+
+    /**
+     * Refuses a copy onto the source itself or into a folder inside it. Onto itself, opening the
+     * target with truncate empties every file before it is read, and since a folder copy merges into
+     * an existing folder, that would wipe a whole tree; into itself, the copy never ends. Both paths
+     * are compared after the server resolved them, so {@code ..}, {@code .} and symbolic links count.
+     */
+    private void requireTargetOutsideSource(String sourcePath, String destPath) throws IOException {
+        String dest = withoutTrailingSlashes(destPath.trim());
+        String source = resolvedPath(sourcePath);
+        // A target that does not exist yet: its folder resolved by the server, plus its name.
+        String target = RemotePathSupport.exists(sftpClient, dest)
+            ? resolvedPath(dest)
+            : RemotePathSupport.appendRemotePath(
+                resolvedPath(RemotePathSupport.parentRemotePath(dest)), remoteName(dest));
+        if (isSameOrInside(target, source)) {
+            throw new IOException(I18n.get("sftp.error.copyIntoItself", sourcePath, destPath));
+        }
+    }
+
+    /** Whether {@code target} is {@code source} or lies below it; both absolute and normalized. */
+    static boolean isSameOrInside(String target, String source) {
+        if (target.equals(source)) {
+            return true;
+        }
+        return target.startsWith(source.endsWith("/") ? source : source + "/");
+    }
+
+    /** The server's canonical form of {@code remotePath}; the textual normal form if it cannot say. */
+    private String resolvedPath(String remotePath) {
+        try {
+            String canonical = sftpClient.canonicalPath(remotePath);
+            if (canonical != null && canonical.startsWith("/")) {
+                return RemotePathSupport.normalizeAbsolutePath(canonical);
+            }
+        } catch (IOException e) {
+            logger.debug("Could not resolve remote path {}: {}", remotePath, e.getMessage());
+        }
+        return RemotePathSupport.normalizeAbsolutePath(remotePath);
+    }
+
+    private static String remoteName(String remotePath) {
+        int slash = remotePath.lastIndexOf('/');
+        return slash >= 0 ? remotePath.substring(slash + 1) : remotePath;
+    }
+
+    private static String withoutTrailingSlashes(String remotePath) {
+        String path = remotePath;
+        while (path.length() > 1 && path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        return path;
+    }
+
     /**
      * Renames a file on the remote server.
      */

@@ -860,6 +860,11 @@ public class SFTPManagerTab extends Tab {
                     return;
                 }
                 session.connect();
+                if (closing) {
+                    // The tab closed while connect() ran; its close may have come too early to stop it.
+                    closeQuietly(session);
+                    return;
+                }
 
                 Platform.runLater(() -> onConnected(connecting));
             } catch (Exception e) {
@@ -1166,14 +1171,14 @@ public class SFTPManagerTab extends Tab {
         }
         FileBrowserLoadingOverlay.show(remoteLoadingOverlay, false);
         if (error != null) {
+            // Back to the folder that is still shown.
+            remotePathField.setText(currentRemotePath);
             SFTPSession session = sftpSession;
             if (session == null || !session.isConnected()) {
                 showDisconnectedState();
                 return;
             }
             logger.error("Failed to list remote files", error);
-            // Back to the folder that is still shown.
-            remotePathField.setText(currentRemotePath);
             showError(I18n.get("error.title"), I18n.get("sftp.error.listRemoteFiles", failureMessage(error)));
             return;
         }
@@ -1189,7 +1194,8 @@ public class SFTPManagerTab extends Tab {
     /**
      * The absolute folder to list for what the user asked for. SFTP does not expand {@code ~}, so
      * {@code ~} and {@code ~/…} are resolved against the login directory; a relative path is taken
-     * relative to the folder currently shown.
+     * relative to the folder currently shown. {@code .} and {@code ..} are resolved, so Up and the
+     * {@code ..} row lead to the real parent after typing {@code ..} or {@code ../logs}.
      *
      * @param requested the typed or clicked path
      * @param basePath the folder currently shown ({@code ~} before the first listing)
@@ -1205,6 +1211,9 @@ public class SFTPManagerTab extends Tab {
         } else {
             String base = basePath != null && basePath.startsWith("/") ? basePath : home;
             resolved = RemotePathSupport.appendRemotePath(base, path);
+        }
+        if (resolved.startsWith("/")) {
+            return RemotePathSupport.normalizeAbsolutePath(resolved);
         }
         while (resolved.length() > 1 && resolved.endsWith("/")) {
             resolved = resolved.substring(0, resolved.length() - 1);
@@ -1506,6 +1515,10 @@ public class SFTPManagerTab extends Tab {
         if (item.isFile()) {
             Files.copy(source, target);
         } else {
+            // A folder copied into itself would keep walking the copies it just made.
+            if (target.toAbsolutePath().normalize().startsWith(source.toAbsolutePath().normalize())) {
+                throw new IOException(I18n.get("sftp.error.copyIntoItself", source, target));
+            }
             copyDirectory(source, target);
         }
     }

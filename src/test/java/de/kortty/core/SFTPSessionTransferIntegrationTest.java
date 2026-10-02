@@ -177,6 +177,31 @@ class SFTPSessionTransferIntegrationTest {
     }
 
     @Test
+    void copyFileOntoItselfOrIntoItsOwnFolderIsRefusedAndKeepsTheData() throws Exception {
+        Files.createDirectories(remoteRoot.resolve("proj/sub"));
+        Files.writeString(remoteRoot.resolve("proj/a.txt"), "alpha", StandardCharsets.UTF_8);
+        Files.writeString(remoteRoot.resolve("proj/sub/b.txt"), "beta", StandardCharsets.UTF_8);
+        session = connect();
+
+        // "Copy to..." offers the folder shown, i.e. the parent of the selection: the target is the
+        // source itself. Merging into it used to open every file with truncate before reading it.
+        assertThrows(IOException.class, () -> session.copyFile("/proj", "/proj"));
+        assertThrows(IOException.class, () -> session.copyFile("/proj", "/proj/"));
+        assertThrows(IOException.class, () -> session.copyFile("/proj/a.txt", "/proj/./a.txt"));
+        assertThrows(IOException.class, () -> session.copyFile("/proj/a.txt", "/proj/sub/../a.txt"));
+        // Into its own subfolder the copy would walk the copies it creates.
+        assertThrows(IOException.class, () -> session.copyFile("/proj", "/proj/sub/proj"));
+
+        assertThat(Files.readString(remoteRoot.resolve("proj/a.txt"), StandardCharsets.UTF_8)).isEqualTo("alpha");
+        assertThat(Files.readString(remoteRoot.resolve("proj/sub/b.txt"), StandardCharsets.UTF_8)).isEqualTo("beta");
+        assertThat(Files.exists(remoteRoot.resolve("proj/sub/proj"))).isFalse();
+
+        // A sibling whose name merely starts with the source's name is a different folder.
+        session.copyFile("/proj", "/proj-copy");
+        assertThat(Files.readString(remoteRoot.resolve("proj-copy/sub/b.txt"), StandardCharsets.UTF_8)).isEqualTo("beta");
+    }
+
+    @Test
     void disconnectListenerFiresWhenServerStops() throws Exception {
         session = newSession();
         CountDownLatch lost = new CountDownLatch(1);

@@ -40,6 +40,18 @@ class SFTPManagerTabRemotePathTest {
     }
 
     @Test
+    void dotSegmentsAreResolvedSoUpLeadsToTheRealParent() {
+        // Before: "/srv/app/.." was kept as the folder, so Up and the ".." row went back to /srv/app.
+        assertThat(SFTPManagerTab.resolveRemoteListingPath("..", "/srv/app", HOME)).isEqualTo("/srv");
+        assertThat(SFTPManagerTab.resolveRemoteListingPath("../logs", "/srv/app", HOME)).isEqualTo("/srv/logs");
+        assertThat(SFTPManagerTab.resolveRemoteListingPath("./sub/", "/srv/app", HOME)).isEqualTo("/srv/app/sub");
+        assertThat(SFTPManagerTab.resolveRemoteListingPath("/var//log/./../tmp", HOME, HOME)).isEqualTo("/var/tmp");
+        assertThat(SFTPManagerTab.resolveRemoteListingPath("~/..", "/srv", HOME)).isEqualTo("/home");
+        // ".." never climbs above the root.
+        assertThat(SFTPManagerTab.resolveRemoteListingPath("/../..", HOME, HOME)).isEqualTo("/");
+    }
+
+    @Test
     void onlyThreeOctalDigitsReachChmod() {
         assertThat(SFTPManagerTab.isAcceptedPermissionsInput("755", "644")).isTrue();
         assertThat(SFTPManagerTab.isAcceptedPermissionsInput("", "644")).isTrue();
