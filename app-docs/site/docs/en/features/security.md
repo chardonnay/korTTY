@@ -175,7 +175,7 @@ The following sensitive and security-related data is stored in `~/.kortty/`; sec
 ## Security Best Practices
 
 !!! warning
-    Selected terminal text sent to AI services can contain sensitive information such as credentials, hostnames, file paths, stack traces, or operational details. Before a selection goes to a profile other than an integrated model, korTTY masks the connection's password, your organization's replacement rules and well-known secret formats such as private keys, access tokens and passwords in URLs with `***` (see [Masking secrets before sending](ai-assistant.md#masking-secrets-before-sending)). That masking is pattern-based and misses secrets in other formats, so for sensitive data still prefer an integrated local GGUF model, or verify that you trust the remote endpoint before sending anything.
+    Selected terminal text sent to AI services can contain sensitive information such as credentials, hostnames, file paths, stack traces, or operational details. Before a selection goes to a profile other than an integrated model or a trusted local endpoint, korTTY masks the connection's password, your organization's replacement rules and well-known secret formats such as private keys, access tokens and passwords in URLs with `***` (see [Masking secrets before sending](ai-assistant.md#masking-secrets-before-sending)). That masking is pattern-based and misses secrets in other formats, so for sensitive data still prefer an integrated local GGUF model, or verify that you trust the remote endpoint before sending anything.
 
 ### Master Password
 

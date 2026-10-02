@@ -156,6 +156,49 @@ class AiOutboundRedactionTest {
     }
 
     @Test
+    void aChatSwitchedToAMaskingProfileMasksItsSelectionAttachmentAndConversation() {
+        // Opened on an integrated model, the chat holds the selection as it was, and that model's
+        // answer quoted the password. A follow-up after switching to a cloud profile must not
+        // hand either over.
+        String selection = "echo Sup3rSecret! " + AWS_KEY_ID;
+        AiFileAttachment attachment = new AiFileAttachment("env", "/srv/env", "DB_PASSWORD=hunter2");
+        String conversation = "Assistant\nThe password Sup3rSecret! is printed in clear text.";
+
+        AiOutboundRedaction.ChatContext local = AiOutboundRedaction.chatContextFor(
+            profile(AiConnectionMode.EMBEDDED_LLAMA_CPP, null), selection, attachment, conversation,
+            knownSecrets("Sup3rSecret!"));
+        assertThat(local.selectedText()).isEqualTo(selection);
+        assertThat(local.attachment()).isSameInstanceAs(attachment);
+        assertThat(local.conversation()).isEqualTo(conversation);
+
+        AiOutboundRedaction.ChatContext cloud = AiOutboundRedaction.chatContextFor(
+            profile(AiConnectionMode.HTTP_API, "https://api.openai.com/v1/chat/completions"),
+            selection, attachment, conversation, knownSecrets("Sup3rSecret!"));
+        assertThat(cloud.selectedText()).isEqualTo("echo *** AKIA***");
+        assertThat(cloud.attachment().content()).isEqualTo("DB_PASSWORD=***");
+        assertThat(cloud.attachment().fileName()).isEqualTo("env");
+        assertThat(cloud.conversation()).isEqualTo("Assistant\nThe password *** is printed in clear text.");
+    }
+
+    @Test
+    void aChatContextThatIsMaskedAlreadyStaysTheSame() {
+        AiOutboundRedaction.ChatContext again = AiOutboundRedaction.chatContextFor(
+            profile(AiConnectionMode.LOCAL_CLI, null), "echo *** AKIA***", null, "", knownSecrets("Sup3rSecret!"));
+        assertThat(again.selectedText()).isEqualTo("echo *** AKIA***");
+        assertThat(again.attachment()).isNull();
+        assertThat(again.conversation()).isEmpty();
+    }
+
+    @Test
+    void aReopenedSavedChatWithoutASessionStillMasksTheTokenFormats() {
+        AiOutboundRedaction.ChatContext saved = AiOutboundRedaction.chatContextFor(
+            profile(AiConnectionMode.HTTP_API, "http://127.0.0.1:4000/v1/chat/completions"),
+            "key " + AWS_KEY_ID, null, "token=abc123", null);
+        assertThat(saved.selectedText()).isEqualTo("key AKIA***");
+        assertThat(saved.conversation()).isEqualTo("token=***");
+    }
+
+    @Test
     void keepsAnAttachmentWithoutSecretsOrForAnExemptProfile() {
         AiFileAttachment clean = new AiFileAttachment("notes.txt", null, "nothing to hide");
         AiOutboundRedaction.MaskedAttachment unchanged = AiOutboundRedaction.redactAttachmentFor(

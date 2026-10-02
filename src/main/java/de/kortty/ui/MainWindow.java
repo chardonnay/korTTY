@@ -6248,6 +6248,8 @@ public class MainWindow {
             languageCode,
             null,
             false);
+        // Follow-ups may go to another profile; the tab masks them again with these secrets.
+        resultTab.setOutboundSecrets(knownSecrets);
         if (fileAttachment != null) {
             resultTab.setFileAttachment(fileAttachment);
         }
@@ -7969,7 +7971,8 @@ public class MainWindow {
         SessionJournalRedactor knownSecrets = aiSecretRedactor(terminalTab);
         RedactionResult maskedSelection = AiOutboundRedaction.redactFor(profile, selectedText, knownSecrets);
         if (attachmentCandidate == null) {
-            openDirectAiAskTab(profile, prompt, maskedSelection.text(), connectionDisplayName, connection, null);
+            openDirectAiAskTab(profile, prompt, maskedSelection.text(), connectionDisplayName, connection, null,
+                knownSecrets);
             updateStatusWithMaskedSecrets(null, maskedSelection.count());
             return;
         }
@@ -7981,7 +7984,7 @@ public class MainWindow {
             AiOutboundRedaction.MaskedAttachment maskedAttachment =
                 AiOutboundRedaction.redactAttachmentFor(profile, outcome.attachment(), knownSecrets);
             openDirectAiAskTab(profile, prompt, maskedSelection.text(), connectionDisplayName, connection,
-                maskedAttachment.attachment());
+                maskedAttachment.attachment(), knownSecrets);
             updateStatusWithMaskedSecrets(skipped, maskedSelection.count() + maskedAttachment.count());
         });
     }
@@ -7992,7 +7995,8 @@ public class MainWindow {
         String selectedText,
         String connectionDisplayName,
         ServerConnection connection,
-        @Nullable AiFileAttachment fileAttachment) {
+        @Nullable AiFileAttachment fileAttachment,
+        @Nullable SessionJournalRedactor knownSecrets) {
         // Answer the question about the terminal selection when one was captured; without a
         // selection the question itself stays the request text (previous behavior).
         String requestText = askRequestText(selectedText, prompt);
@@ -8008,6 +8012,8 @@ public class MainWindow {
             languageCode,
             null,
             false);
+        // Follow-ups may go to another profile; the tab masks them again with these secrets.
+        resultTab.setOutboundSecrets(knownSecrets);
         if (fileAttachment != null) {
             resultTab.setFileAttachment(fileAttachment);
         }

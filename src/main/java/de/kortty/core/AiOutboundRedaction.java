@@ -6,7 +6,8 @@ import de.kortty.model.AiProfile;
 /**
  * Masks secrets in terminal text before it is sent to an AI profile that may forward it off this
  * computer: the terminal-selection actions (Summarize, Solve Problem, Ask), their file attachment,
- * and Ask Agent with a selection.
+ * Ask Agent with a selection, and the follow-ups of the AI tab these open, whose profile the user
+ * can switch (see {@link #chatContextFor}).
  *
  * <p>Two passes, in this order: the known secrets of the session (the connection's password and
  * the organisation's {@code [[rule.session-journal.replace]]} rules — the same
@@ -90,19 +91,60 @@ public final class AiOutboundRedaction {
     }
 
     /**
+     * What an AI chat sends along with each follow-up — the selection it was opened with, its
+     * attachment and the conversation so far — as it may go to one profile.
+     *
+     * @param selectedText the selection, masked when the profile requires it
+     * @param attachment   the attachment, masked likewise; {@code null} when there is none
+     * @param conversation the earlier messages, masked likewise
+     */
+    public record ChatContext(String selectedText, AiFileAttachment attachment, String conversation) {
+    }
+
+    /**
+     * The chat context as it may be sent to {@code profile}. A chat opened with an integrated
+     * model (or a trusted local endpoint) holds the selection unmasked, and that model's answers
+     * may quote it; once the user switches the chat to a profile that masks, a follow-up must not
+     * hand that text over as it is. Masking text that is already masked changes nothing, so this
+     * is also right for a chat that started on a masking profile.
+     */
+    public static ChatContext chatContextFor(
+        AiProfile profile,
+        String selectedText,
+        AiFileAttachment attachment,
+        String conversation,
+        SessionJournalRedactor knownSecrets) {
+        if (!appliesTo(profile)) {
+            return new ChatContext(selectedText, attachment, conversation);
+        }
+        SessionJournalRedactor secrets = knownSecrets != null ? knownSecrets : policyRedactor();
+        return new ChatContext(
+            redact(selectedText, secrets).text(),
+            redactAttachmentFor(profile, attachment, secrets).attachment(),
+            redact(conversation, secrets).text());
+    }
+
+    /**
      * Masks the session's known secrets, then the well-known token formats; the count is the sum
      * of both passes.
      *
-     * @param knownSecrets the session's redactor, or {@code null} when there is no session (only
-     *                     the token formats are masked then)
+     * @param knownSecrets the session's redactor, or {@code null} when there is no session (a
+     *                     reopened saved chat): the organisation's replacement rules and the token
+     *                     formats are masked then
      */
     public static RedactionResult redact(String text, SessionJournalRedactor knownSecrets) {
         if (text == null || text.isEmpty()) {
             return RedactionResult.unchanged(text);
         }
-        RedactionResult known = knownSecrets != null
-            ? knownSecrets.redactCounting(text)
-            : RedactionResult.unchanged(text);
+        SessionJournalRedactor secrets = knownSecrets != null ? knownSecrets : policyRedactor();
+        RedactionResult known = secrets.redactCounting(text);
         return known.then(SecretTokenPatterns.redact(known.text()));
+    }
+
+    /** The organisation's {@code [[rule.session-journal.replace]]} rules alone, without a password. */
+    private static SessionJournalRedactor policyRedactor() {
+        SessionJournalRedactor redactor = new SessionJournalRedactor();
+        redactor.setReplacements(SessionJournalService.policyReplacements());
+        return redactor;
     }
 }

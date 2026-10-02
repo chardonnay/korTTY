@@ -169,8 +169,10 @@ A short, harmless prefix stays visible — the key's BEGIN and END lines, `ghp_*
 
 Integrated models (llama.cpp, MLX) run on this computer and receive the text unchanged. An HTTP endpoint on `localhost` is masked as well, because it may be a proxy or an SSH port forward that passes the text on to a cloud API. If such an endpoint really runs the model on this computer, LM Studio for example, turn on **Trusted local endpoint** in the profile (see [AI settings](../reference/settings/ai.md)); the option only takes effect for an API URL on `localhost` or `127.0.0.1`. Local CLI providers send the prompt to their vendor and are always masked.
 
+The AI tab's profile can be changed for follow-up prompts. Before each follow-up, korTTY masks the selection, the attached file and the earlier conversation again for the profile the tab uses now, so a chat that started on an integrated model does not hand the unmasked text, or an answer that quoted it, to a cloud profile.
+
 !!! warning "Masking is not complete"
-    Masking recognizes only the formats listed above. A secret in another format — an internal token, a password shown by another program, a value split across lines — is sent unchanged, so review the preview before sending and prefer an integrated local model for sensitive output. Masking covers terminal selections and their attached files; the probe and command output an AI Agent run sends to the model, AI Swarm runs and scheduled AI jobs are not masked.
+    Masking recognizes only the formats listed above. A secret in another format — an internal token, a password shown by another program, a value split across lines — is sent unchanged, so review the preview before sending and prefer an integrated local model for sensitive output. Masking covers terminal selections, their attached files and what the AI tab sends of them again with a follow-up. Text you type yourself, the probe and command output an AI Agent run sends to the model, AI Swarm runs and scheduled AI jobs are not masked.
 
 ### Attaching a selected file to the chat
 

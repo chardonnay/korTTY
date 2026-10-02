@@ -277,7 +277,7 @@ Mandates for the [session journal](../features/session-journal.md). Forced value
 
 Automatic search-and-replace in every journal — the way to keep a whole category of secret out of the transcript, instead of relying on the user to notice it. Each entry is one rule, and a rule may use a regular expression.
 
-korTTY applies the same rules to a terminal selection, and to a file attached to it, before they are sent to an AI profile that is not an integrated model; see [Masking secrets before sending](../features/ai-assistant.md#masking-secrets-before-sending).
+korTTY applies the same rules to a terminal selection, and to a file attached to it, before they are sent to an AI profile other than an integrated model or a trusted local endpoint; see [Masking secrets before sending](../features/ai-assistant.md#masking-secrets-before-sending).
 
 | Key | Type | Default | Effect |
 | --- | --- | --- | --- |
