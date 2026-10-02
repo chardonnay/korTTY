@@ -1049,6 +1049,7 @@
 <li><code>ssh</code> must be available in <code>PATH</code>.</li>
 <li>Host-key pinning is required unless the job explicitly disables host-key verification.</li>
 <li>Password and private-key passphrase authentication use a temporary owner-only <code>SSH_ASKPASS</code> helper. Secrets, helper paths, and temporary secret-file paths are redacted before journaling.</li>
+<li>A <a href="../reference/settings/security.html">temporary SSH key</a> is written to an owner-only file in the system temp folder for the external <code>ssh</code> and deleted when the job ends or its connection fails.</li>
 </ul>
 <h2 id="journal-tab">Journal Tab<a class="headerlink" href="#journal-tab" title="Permanent link">&para;</a></h2>
 <p>The <strong>Journal</strong> tab lists job runs with local KorTTY timestamps, status, job name, session journal, and summary. The columns <strong>Started</strong>, <strong>Status</strong>, <strong>Job</strong>, <strong>Session journal</strong>, and <strong>Summary</strong> are sortable; the default order shows the newest started entries first.</p>
