@@ -144,6 +144,32 @@ class TerminalViewTunnelWiringTest {
     }
 
     @Test
+    void savedTunnelsNeverOpenDuringALoginOrNextToAPendingConnectStart() throws IOException {
+        String view = source("TerminalView.java");
+
+        // The connector is assigned before its login, and its session is open while it is still
+        // authenticating: only a connected primary may carry tunnels applied from a save.
+        assertThat(methodBody(view, "private TtyConnector tunnelHostForSavedSettings() {"))
+            .contains("sshPrimary.isConnected()");
+
+        // A connect that just succeeded has queued startTunnelsAfterConnect, which reads the saved
+        // tunnels itself; a save in between must not attach (or ask) a second time.
+        String connect = methodBody(view, "public void connect() {");
+        int mark = connect.indexOf("pendingTunnelStartConnector = tunnelHostConnector;");
+        assertThat(mark).isAtLeast(0);
+        assertThat(mark).isLessThan(connect.indexOf("startTunnelsAfterConnect(tunnelHostConnector)"));
+        assertThat(methodBody(view, "private void startTunnelsAfterConnect(")).contains("pendingTunnelStartConnector = null;");
+
+        String apply = methodBody(view, "public void applyTunnelSettings() {");
+        int clear = apply.indexOf("tunnelManager.clear();");
+        int skip = apply.indexOf("pendingTunnelStartConnector == primary");
+        assertWithMessage("switched-off tunnels leave the status bar even while the tab is disconnected")
+            .that(apply.indexOf("primary == null")).isGreaterThan(clear);
+        assertThat(skip).isGreaterThan(clear);
+        assertThat(skip).isLessThan(apply.indexOf("openTunnels(host);"));
+    }
+
+    @Test
     void theConnectionEditorStoresTunnelsOnlyWhenSaved() throws IOException {
         String editor = source("ConnectionEditDialog.java");
         String tunnelsTab = methodBody(editor, "private Tab createTunnelsTab() {");

@@ -125,7 +125,7 @@ An administrator can forbid all tunnels with `allow-port-forwarding = false` in 
 - **Remove:** select a tunnel and click **Remove** to delete it from the connection.
 - **Multiple tunnels:** any number of tunnels can be configured on a single connection and opened together.
 
-Saving the connection applies the change to every open tab of that connection right away: switched-off or removed tunnels close, and a changed set of tunnels replaces the running one on the same session — after the one-time question if korTTY has not asked about that set yet. A tab whose tunnels did not change keeps them open, so editing only a description or another setting of the connection does not interrupt them. A tab that is disconnected at that moment opens the saved tunnels when it reconnects.
+Saving the connection applies the change to every open tab of that connection right away: switched-off or removed tunnels close, and a changed set of tunnels replaces the running one on the same session — after the one-time question unless you already allowed exactly that set. A tab whose tunnels did not change keeps them open, so editing only a description or another setting of the connection does not interrupt them. A tab that is disconnected or still logging in at that moment opens the saved tunnels once it is connected.
 
 ## Imported Tunnels
 

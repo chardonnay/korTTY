@@ -410,6 +410,9 @@ public class TerminalView extends BorderPane {
     // Deep copies of the tunnel set last read for this tab, whether it opened, was refused or was
     // declined: a saved connection whose tunnels still match it leaves the tab alone.
     private volatile List<SSHTunnel> evaluatedTunnels = List.of();
+    // The primary connector a successful connect has queued startTunnelsAfterConnect for, until
+    // that has run: that start reads the saved tunnels itself, so a save in between leaves it alone.
+    private volatile TtyConnector pendingTunnelStartConnector;
     // The one-time confirmation of the tab's tunnel sets; it also remembers this tab's answers, so
     // reconnects of the same tab do not ask again. FX thread only.
     private final de.kortty.core.SshTunnelApprovalGate tunnelApprovals =
@@ -5443,6 +5446,7 @@ public class TerminalView extends BorderPane {
                         // (they may ask once for confirmation) and off the connect retry path: a
                         // tunnel that cannot open must never turn into a reconnect.
                         final TtyConnector tunnelHostConnector = ttyConnector;
+                        pendingTunnelStartConnector = tunnelHostConnector;
                         Platform.runLater(() -> startTunnelsAfterConnect(tunnelHostConnector));
 
                         logger.info("Terminal session started for {} (attempt {}/{})", 
@@ -6186,6 +6190,9 @@ public class TerminalView extends BorderPane {
      * Runs on the JavaFX thread, see {@link #openTunnels}.
      */
     private void startTunnelsAfterConnect(TtyConnector connector) {
+        if (pendingTunnelStartConnector == connector) {
+            pendingTunnelStartConnector = null;
+        }
         if (!tunnelHostIsCurrent(connector)) {
             return;
         }
@@ -6270,11 +6277,12 @@ public class TerminalView extends BorderPane {
      * Applies the connection's saved SSH tunnels to this tab right away, after the connection
      * editor stored them: switched-off or removed tunnels stop, a changed set replaces the running
      * one on the session that carries it (asking first if that set was never confirmed), and an
-     * unchanged set keeps running untouched. While the tab is not connected nothing opens; the
-     * next connect reads the saved tunnels anyway. FX thread only.
+     * unchanged set keeps running untouched. While the tab is not connected nothing opens (only
+     * switched-off tunnels leave the status bar); the next connect reads the saved tunnels anyway.
+     * FX thread only.
      */
     public void applyTunnelSettings() {
-        if (tunnelManager.isClosed() || terminalWidget == null || ttyConnector == null) {
+        if (tunnelManager.isClosed() || terminalWidget == null) {
             return;
         }
         List<SSHTunnel> tunnels = SshTunnelManager.enabledTunnels(connection);
@@ -6287,6 +6295,12 @@ public class TerminalView extends BorderPane {
             attachedTunnels = List.of();
             evaluatedTunnels = List.of();
             tunnelManager.clear();
+            return;
+        }
+        // Disconnected (nothing can open now), or a connect that just succeeded is about to open
+        // the saved tunnels itself: applying them here as well would attach or ask twice.
+        TtyConnector primary = ttyConnector;
+        if (primary == null || pendingTunnelStartConnector == primary) {
             return;
         }
         // Unchanged: running, refused, declined or failed as before; saving again retries nothing.
@@ -6305,7 +6319,8 @@ public class TerminalView extends BorderPane {
     /**
      * The connector to open changed tunnels on: the pane that carries them now, else the primary
      * one, as long as it is connected. A Mosh primary counts too, so its status bar lists the new
-     * tunnels as not started. Null while the tab is not connected.
+     * tunnels as not started. Null while the tab is not connected, including the whole login of a
+     * connect: its session is already open then, but not authenticated yet.
      */
     private TtyConnector tunnelHostForSavedSettings() {
         SshTtyConnector owner = tunnelOwnerConnector;
@@ -6317,7 +6332,7 @@ public class TerminalView extends BorderPane {
             return null;
         }
         if (primary instanceof SshTtyConnector sshPrimary) {
-            return sshPrimary.getSession() != null && sshPrimary.getSession().isOpen() ? sshPrimary : null;
+            return sshPrimary.isConnected() && sshPrimary.getSession() != null ? sshPrimary : null;
         }
         return primary.isConnected() ? primary : null;
     }
