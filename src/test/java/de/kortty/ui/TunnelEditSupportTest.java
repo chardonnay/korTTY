@@ -178,6 +178,10 @@ class TunnelEditSupportTest {
         // Writing the list onto itself keeps it, and a list that cannot be changed is replaced.
         TunnelEditSupport.writeBack(connection, connection.getSshTunnels());
         assertThat(connection.getSshTunnels()).hasSize(1);
+        // No edited list at all (the tunnels were never loaded) must not wipe the stored tunnels.
+        TunnelEditSupport.writeBack(connection, null);
+        assertThat(connection.getSshTunnels()).isSameInstanceAs(shared);
+        assertThat(connection.getSshTunnels()).hasSize(1);
         connection.setSshTunnels(Collections.unmodifiableList(new ArrayList<>(working)));
         TunnelEditSupport.writeBack(connection, List.of());
         assertThat(connection.getSshTunnels()).isEmpty();

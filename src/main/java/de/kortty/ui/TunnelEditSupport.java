@@ -153,11 +153,15 @@ final class TunnelEditSupport {
      * Stores the edited tunnels on {@code connection} when the editor is saved. The connection's
      * list is updated in place: an open tab of the connection shares it (see
      * {@link ServerConnection#copyForAuth}) and reads it again when it applies the saved tunnels.
+     * {@code null} means the editor never loaded the tunnels, so they stay as they are; an empty
+     * list removes them all.
      */
     static void writeBack(ServerConnection connection, List<SSHTunnel> edited) {
         Objects.requireNonNull(connection, "connection");
-        List<SSHTunnel> tunnels = edited == null ? List.of()
-            : edited.stream().filter(Objects::nonNull).toList();
+        if (edited == null) {
+            return;
+        }
+        List<SSHTunnel> tunnels = edited.stream().filter(Objects::nonNull).toList();
         List<SSHTunnel> target = connection.getSshTunnels();
         if (target == null) {
             connection.setSshTunnels(new ArrayList<>(tunnels));
