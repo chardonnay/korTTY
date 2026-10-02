@@ -14,6 +14,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * Manages project saving and loading including terminal histories.
@@ -60,6 +61,11 @@ public class ProjectManager {
         for (WindowState window : project.getWindows()) {
             for (SessionState session : window.getTabs()) {
                 if (session.getTerminalHistory() != null) {
+                    if (!HistoryStorage.isValidSessionId(session.getSessionId())) {
+                        // A project loaded from a crafted file must not choose where its history
+                        // is written; a fresh id names a file inside history/ like any other.
+                        session.setSessionId(UUID.randomUUID().toString());
+                    }
                     String historyFile = historyStorage.saveHistory(
                             session.getSessionId(), 
                             session.getTerminalHistory()
@@ -98,10 +104,19 @@ public class ProjectManager {
         // Load terminal histories
         for (WindowState window : project.getWindows()) {
             for (SessionState session : window.getTabs()) {
-                if (session.getHistoryFilePath() != null) {
-                    String history = historyStorage.loadHistory(session.getHistoryFilePath());
-                    session.setTerminalHistory(history);
+                String historyFile = session.getHistoryFilePath();
+                if (historyFile == null) {
+                    continue;
                 }
+                if (!HistoryStorage.isValidHistoryFileName(historyFile)) {
+                    // Only plain names inside history/ are ever read or deleted. Drop the
+                    // reference so neither this load nor a later delete or re-save follows it.
+                    logger.warn("Ignoring a history reference outside the history directory in project {}",
+                            filePath.getFileName());
+                    session.setHistoryFilePath(null);
+                    continue;
+                }
+                session.setTerminalHistory(historyStorage.loadHistory(historyFile));
             }
         }
         
