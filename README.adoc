@@ -518,10 +518,10 @@ Copy the `MobaXterm.ini` file and import it via:
 
 === PuTTY Connection Manager
 
-Export your connections from PuTTY Connection Manager and import them via:
-*Connections → Import → PuTTY Connection Manager Files (*.xml)*
+Export your connections from PuTTY Connection Manager as a CSV file and import it via:
+*Connections → Import → PuTTY CM CSV Export (*.csv)*
 
-*Note:* Passwords are not imported for security reasons. You must re-enter them after import.
+*Note:* Passwords are not imported for security reasons. You must re-enter them after import. Local, remote and dynamic tunnels are imported; the CSV names no bind address, so every imported tunnel listens on `localhost` only.
 
 == Credential Management
 
@@ -700,7 +700,8 @@ KorTTY supports SSH port forwarding for secure tunneling:
 * *Remote Port Forwarding*: Forward remote ports to local hosts (`-R`)
 * *Dynamic Port Forwarding*: A SOCKS proxy on a local port (`-D`)
 * *Multiple Tunnels*: Configure multiple tunnels per connection
-* *Enable/Disable*: Toggle tunnels on/off without deleting configuration
+* *Enable/Disable*: Toggle a single tunnel, or all tunnels of a connection with "Enable SSH tunnels", without deleting the configuration
+* *Live changes*: Saving the connection applies tunnel changes to open tabs; switched-off tunnels close right away
 * *Status Bar*: The tab's status bar shows how many tunnels are active and why one failed
 
 === Usage
@@ -708,10 +709,11 @@ KorTTY supports SSH port forwarding for secure tunneling:
 1. *Configure Tunnel*:
 ** When creating/editing a connection, go to the "SSH Tunnels" tab
 ** Click "Add"
-** Select the tunnel type (Local, Remote or Dynamic)
-** Enter local host/port and remote host/port
+** Select the tunnel type (Local, Remote or Dynamic SOCKS proxy)
+** Enter the address and port that listen, then the host and port the connections go to; the field labels follow the type
 ** Add optional description
-** Enable/disable the tunnel as needed
+** Enable/disable the tunnel as needed (a new tunnel starts enabled)
+** The dialog warns when a bind address other than `localhost` lets other computers reach the tunnel
 
 2. *Local Port Forwarding*:
 ** Forwards a local port to a remote host:port
@@ -719,9 +721,9 @@ KorTTY supports SSH port forwarding for secure tunneling:
 ** Access `localhost:8080` to reach `remote-server:80` through the SSH tunnel
 
 3. *Remote Port Forwarding*:
-** The SSH server listens on remote host:port and forwards each connection to a local host:port
+** The SSH server listens on the remote bind address and port and forwards each connection to a local host:port
 ** Example: `localhost:8080` on the server `→ localhost:80` on your computer
-** Programs on the SSH server reach your `localhost:80` at `localhost:8080`; the server listens on its loopback address unless you enter another remote host
+** Programs on the SSH server reach your `localhost:80` at `localhost:8080`; the server listens on its loopback address unless you enter another remote bind address
 
 4. *When tunnels open*:
 ** Once per terminal tab, right after login; split panes do not open them again
