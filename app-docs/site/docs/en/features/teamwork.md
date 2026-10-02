@@ -22,7 +22,7 @@ Teamwork lets teams maintain a centralized library of connection configurations:
 
 ## Setting up teamwork sources
 
-Open **Teamwork → Teamwork Settings…** (or **Configuration → Global Settings… → Teamwork**) to configure sources.
+Open **Teamwork → Teamwork Settings…** to configure sources.
 
 ### Add a source
 
@@ -50,7 +50,7 @@ The Teamwork Settings dialog lists all sources with their type, location, and sy
 Use the buttons to:
 - **Add** — Create a new source.
 - **Edit** — Modify the selected source.
-- **Remove** — Delete the selected source.
+- **Delete** — Remove the selected source.
 - **Enable/Disable** — Toggle the enabled state for the selected sources.
 
 At the bottom, set the **Default Check Interval** (applies to new sources that don't specify one).
@@ -59,14 +59,16 @@ At the bottom, set the **Default Check Interval** (applies to new sources that d
 
 ### Background sync
 
-Once you save the Teamwork Settings:
+korTTY syncs teamwork sources in the background:
 
-1. KorTTY starts a background sync thread.
-2. Every N minutes (based on the minimum interval among enabled sources), it:
+1. When korTTY starts, it starts a background sync thread and syncs right away.
+2. Every N minutes (the shortest check interval among the sources enabled when korTTY started), it:
    - Pulls/clones each source (Git) or reads the file (Shared File).
    - Loads the connections XML.
    - Replaces the cached copy of each source it fetched and refreshes the Connection Manager.
 3. If a source update fails, the previous cached version is kept.
+
+Saving the Teamwork Settings syncs once right away. A changed check interval takes effect the next time korTTY starts.
 
 ### Manual sync
 
@@ -93,7 +95,7 @@ Create a `kortty-teamwork-connections.xml` file (or `connections.xml` for backwa
     <port>22</port>
     <username>deploy</username>
     <group>Production/Web</group>
-    <authMethod>SSH_KEY</authMethod>
+    <authMethod>PUBLIC_KEY</authMethod>
     <sshKeyId>key-prod-deploy</sshKeyId>
     <credentialId>cred-prod-user</credentialId>
   </connection>
