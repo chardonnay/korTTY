@@ -27,7 +27,7 @@ Verwalten Sie mehrere SSH-Sitzungen mit diesen Registerkartenoperationen:
 
 ## Sicher verbinden
 
-Interaktive SSH-Terminals teilen das Host-Schlüsselvertrauen mit SFTP sowie dem SSH-Bootstrap, der von Mosh verwendet wird. Die erste Verbindung zu einem normalisierten Host und Port zeigt den Schlüsselalgorithmus und den OpenSSH-SHA-256-Fingerprint mit **Nein** standardmäßig ausgewählt. Nach der Bestätigung und Annahme wird eine exakte Übereinstimmung stumm verbunden; ein geändertes Schlüssel wird hart blockiert und wird nicht automatisch erneut versucht. Siehe [SSH-Host-Schlüsselverifikation](connections.md#ssh-hostschlusseluberprufung).
+Interaktive SSH-Terminals teilen den Host-Key-Vertrauensstatus mit SFTP und dem von Mosh verwendeten SSH-Bootstrap. Die erste Verbindung zu einem normalisierten Host und Port zeigt den Schlüsselalgorithmus sowie die OpenSSH SHA-256-Fingerabdruck an, wobei **Nein** standardmäßig ausgewählt ist. Nach Ihrer Verifizierung und Akzeptanz verbinden sich exakte Übereinstimmungen stillschweigend; ein geänderter Schlüssel wird hart blockiert, ohne automatische Wiederholung. Siehe [SSH-Hostschlüssel-Verifizierung](connections.md#ssh-hostschlusseluberprufung).
 
 Beim Öffnen einer Verbindung mit demselben Server oder einer neu ausgewählten Verbindung in einem Split wird ein Fortschrittsdialog angezeigt, während der SSH-Handshake auf einem Worker ausgeführt wird. Die Schnittstelle reagiert weiterhin sowohl auf die Host-Tasten-Bestätigung als auch auf Eingabeaufforderungen zur interaktiven Tastaturauthentifizierung.
 
@@ -53,6 +53,19 @@ Wenn **Verlorene Verbindungen automatisch wiederherstellen** aktiviert ist (**Ei
 - **Registerkarten zwischen Fenstern verschieben**: Ziehen Sie eine Registerkarte aus der Registerkartenleiste und legen Sie sie auf der Registerkartenleiste eines anderen KorTTY-Fensters ab, um diese Registerkarte (und ihre Sitzung, einschließlich aller geteilten Terminals) in das andere Fenster zu verschieben.
 - **Tabs neu anordnen**: Ziehen Sie einen Tab innerhalb desselben Fensters, um seine Reihenfolge zu ändern; die Registerkarte „+“ bleibt am Ende.
 
+## Terminal-Kontextmenü
+
+Rechtsklick innerhalb eines Terminals öffnet dessen Kontextmenü; in einem geteilten Tab wirkt es auf das angeklickte Pane. Das Menü beginnt mit den Bearbeitungsbefehlen:
+
+| Eintrag | Was es tut |
+|-------|--------------|
+| **Kopieren** | Kopiert den ausgewählten Text in die Zwischenablage und behält die Auswahl bei. Ausgegraut, wenn nichts ausgewählt ist. |
+| **Einfügen** | Sendet den Text der Zwischenablage an die Sitzung, genauso wie die Einfügen-Verknüpfung. |
+| **Puffer löschen** | Löscht den Scrollback und den Bildschirm, behält jedoch die Prompt-Zeile bei. Während ein Vollbildprogramm wie `vim` oder `less` läuft, tut es nichts. |
+| **Suchen** | Öffnet die Suchleiste oben rechts im Bereich, genauso wie **Bearbeiten → Suchen...** (++ctrl+f++, ++cmd+f++ auf macOS). Tippen Sie zum Hervorheben von Übereinstimmungen, drücken ++enter++ oder ++down++ für die nächste Übereinstimmung und ++up++ für die vorherige, sowie ++esc++ zum Schließen der Leiste. |
+
+Darunter folgen die Einträge anderer Funktionen, in dieser Reihenfolge und einige nur dort, wo sie zutreffen: **Menüleiste anzeigen** (während die Menüleiste verborgen ist), **Im Snippet-Editor öffnen**, das **KI-Untermenü**, die Session-Journal-Screenshot- und Notizeinträge, **Thema**, **Terminal-Effekt**, **Neu verbinden** und **Befehls-Zeitstempel anzeigen**. Das **Extras**-Untermenü am Ende enthält **Terminal teilen**, **Schriftgröße** (siehe [Schriftgröße und Zoom](#schriftgroe-und-zoom)) und **Broadcast-Modus**.
+
 ## Schriftgröße und Zoom
 
 Passen Sie die Schriftgröße des aktiven Terminals im Handumdrehen an, ohne die Verbindung erneut herzustellen:
@@ -66,7 +79,7 @@ Passen Sie die Schriftgröße des aktiven Terminals im Handumdrehen an, ohne die
 
 Wenn Sie ++ctrl++ (oder ++cmd++ unter macOS) gedrückt halten und mit dem Mausrad über das Terminal scrollen, ändert sich die Schriftgröße – Rad nach oben vergrößert, Rad nach unten verkleinert – anstatt durch den Puffer zu scrollen. Dies ergänzt die Tastenkombinationen ++alt+plus++ / ++alt+minus++ / ++alt+0++.
 
-**Zoom zurücksetzen** stellt die Schriftgröße und -familie wieder her, die die Verbindung hatte, als Sie die Registerkarte geöffnet haben (oder die gespeicherten Einstellungen der Verbindung oder den globalen Standard). Das gleiche Zurücksetzen ist über das Terminal-Kontextmenü verfügbar: Rechtsklick → **Schriftgröße** → **Zurücksetzen**. Die Zoomstufe gilt nur für das aktuell fokussierte Terminal.
+**Zoom zurücksetzen** stellt die Schriftgröße und -familie wieder her, wie sie bei der Verbindung waren, als Sie den Tab geöffnet haben (oder die gespeicherten Einstellungen der Verbindung oder die globale Vorgabe). Das Kontextmenü des Terminals hat dieselben Steuerelemente: Rechtsklick → **Extras** → **Schriftgröße** → **Vergrößern**, **Verkleinern** (jeweils zwei Punkte pro Schritt) oder **Zurücksetzen**. Der Zoom-Level gilt für den aktuellen Tab – alle seine geteilten Bereiche ändern sich gemeinsam – und lässt andere Tabs unverändert.
 
 ## Hintergrundtransparenz
 
@@ -82,12 +95,12 @@ Der Schieberegler befindet sich nur in der Menüleiste im Fenster (die native ma
 
 ## Lokale Shell-Registerkarten
 
-Abgesehen von SSH und Mosh kann ein Terminal-Tab eine **Lokale Shell** hosten – die eigene Shell der lokalen Maschine, die über eine Pseudoterminal-Verbindung (siehe [Lokale Shell](connections.md#lokale-shell)) geöffnet wird. Einige Terminal-Verhaltensweisen sind lokaler Shell bewusst:
+Neben SSH und Mosh kann ein Terminal-Tab eine **Lokale Shell** hosten — die eigene Shell des lokalen Rechners, geöffnet über ein Pseudo-Terminal (siehe [Lokale Shell](connections.md#lokale-shell)). Einige Terminalfunktionen sind auf die Lokale Shell abgestimmt:
 
 - **++ctrl+d++ schließt den Tab für lokale cmd.exe/PowerShell-Sitzungen.** Diese Windows-Shells beenden sich nicht bei EOF, weshalb ++ctrl+d++ sonst keine Wirkung hätte. Für Shells der bash-Familie (Git Bash/Cygwin/WSL, macOS/Linux) und SSH hat ++ctrl+d++ seinen normalen Sinn für EOF – die Shell beendet sich und der lokale Tab wird automatisch geschlossen.
 - **Bestätigung schließen** verwendet den Wortlaut „Local-Shell“ anstelle von „SSH-Verbindung beenden?“ und die Eingabeaufforderung zum Schließen des Fensters ist transportneutral („Aktive Sitzungen“), da ein Fenster SSH-, Mosh- und Local-Shell-Registerkarten mischen kann.
 - **Das aktuelle Verzeichnis folgt der interaktiven Shell.** Unter macOS und Linux aktualisiert korTTY es vom lokalen Shell-Prozess; Native PowerShell- und cmd-Eingabeaufforderungen stellen absolute Windows-Pfade bereit. Nach `cd`, `pushd`, `popd` oder `Set-Location` löst **Im Snippet-Editor öffnen** einen ausgewählten Dateinamen in das aktuelle Verzeichnis und nicht in das Startverzeichnis der Registerkarte auf. Wenn das Verzeichnis nicht sicher bestimmt oder zugeordnet werden kann, stoppt korTTY mit einem Fehler, anstatt eine gleichnamige Datei aus dem falschen Verzeichnis zu öffnen.
-- **Nach einer Identitätswechsel wird „Im Snippet-Editor öffnen“ grau.** Sobald die Sitzung nicht mehr als die Identität läuft, mit der der Tab geöffnet wurde – nach `su`, einem inneren `ssh` oder einem Shell-Start-`sudo` – ist die Kontextmenü-Eintrag deaktiviert, sowohl in SSH-Tabs als auch in lokalen Shell-Tabs: Die verfolgten Verzeichnisse und die Dateizugriffe gehören weiterhin der ursprünglichen Anmeldung und würden die falsche Pfadauflösung ergeben. Der Eintrag wird automatisch wieder aktiv, sobald der Prompt den ursprünglichen Benutzer anzeigt (normalerweise nach `exit`). Ein lokaler Shell-Tab, dessen konfigurierte Shell-Befehl selbst ein Remote-Client wie `ssh` oder `mosh` ist, bleibt der Eintrag für den gesamten Tab deaktiviert. Falls die Belastung trotzdem ausgelöst wird, beendet korTTY mit einem Fehler statt die falsche Pfadauflösung vorzunehmen. Die KI-Kontextmenü-Aktionen folgen der gleichen Regel: Sie bieten nicht mehr die Option, den Inhalt der ausgewählten Datei dem Chat hinzuzufügen (siehe [Eine ausgewählte Datei dem Chat hinzufügen](ai-assistant.md#eine-ausgewahlte-datei-an-den-chat-anhangen)).
+- **Nach einem Identitätswechsel ist „Im Snippet-Editor öffnen“ ausgegraut.** Sobald die Sitzung nicht mehr als die Identität läuft, mit der der Tab geöffnet wurde – nach `su`, einem inneren `ssh` oder einer shell-öffnenden `sudo` – ist der Eintrag im Kontextmenü deaktiviert, sowohl in SSH-Tabs als auch in lokalen Shell-Tabs: die mit dem Tab verfolgten Verzeichnisse und Dateizugriffe gehören noch zum ursprünglichen Login und würden einen falschen Pfad auflösen. Der Eintrag wird automatisch wieder aktiviert, sobald der Prompt den ursprünglichen Benutzer erneut anzeigt (typischerweise nach `exit`). Ein lokaler Shell-Tab, dessen konfiguriertes Shell-Kommando selbst ein Remote-Client wie `ssh` oder `mosh` ist, hält den Eintrag für die gesamte Tab-Sitzung deaktiviert. Wird der Ladevorgang trotzdem ausgelöst, stoppt korTTY mit einem Fehler statt den falschen Pfad aufzulösen. Die KI-Kontextmenüaktionen folgen derselben Regel: sie bieten nicht mehr an, den Inhalt des ausgewählten Dateinamens anzuhängen (siehe [Eine ausgewählte Datei dem Chat hinzufügen](ai-assistant.md#eine-ausgewahlte-datei-an-den-chat-anhangen)).
 - **Zwischenablagetext bleibt in Agentenverknüpfungen erhalten.** Eingegebener und eingefügter Text durchläuft denselben Terminal-Eingabefilter, einschließlich Einfügen in Klammern und geteilter UTF-8-Eingabe, sodass ein eingefügter Dateiname Teil der `agent ...`-Anfrage bleibt und Enter ihn genau einmal versendet.
 
 ## Sitzungsjournal
