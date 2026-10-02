@@ -216,6 +216,9 @@ public class KorTTYApplication extends Application {
             Files.createDirectories(configDir);
             logger.info("Created configuration directory: {}", configDir);
         }
+        // Also an existing directory: older versions (and the logging setup, which can create
+        // ~/.kortty/logs before this point) created it with the default umask.
+        restrictConfigDirectoryToOwner(configDir);
         
         // Initialize managers
         configManager = new ConfigurationManager(configDir);
@@ -571,6 +574,11 @@ public class KorTTYApplication extends Application {
             // Create and show main window
             MainWindow mainWindow = new MainWindow(primaryStage);
             mainWindow.show();
+            try {
+                showStoreLoadFailures(mainWindow);
+            } catch (RuntimeException e) {
+                logger.warn("Could not show the notice about unreadable data files", e);
+            }
             startCodingAgentUi();
             startControlApi();
             startLlamaRuntimeUpdateCoordinator();
@@ -1270,6 +1278,71 @@ public class KorTTYApplication extends Application {
     public static Path getConfigDirectory() {
         String userHome = System.getProperty("user.home");
         return Path.of(userHome, ".kortty");
+    }
+
+    /**
+     * Keeps {@code ~/.kortty} at {@code rwx------}: it holds the connection list, the credential
+     * store and {@code master.key}. Only a directory the current user owns is changed, and a
+     * failure never stops the startup.
+     */
+    private static void restrictConfigDirectoryToOwner(Path configDir) {
+        try {
+            if (de.kortty.core.AtomicFileWriter.restrictToOwner(configDir)) {
+                logger.info("Restricted the configuration directory {} to its owner (rwx------)", configDir);
+            }
+        } catch (Exception e) {
+            logger.warn("Could not restrict the configuration directory {} to its owner", configDir, e);
+        }
+    }
+
+    /**
+     * Tells the user which data files could not be read at startup: the ones moved aside as
+     * {@code *.corrupt-<timestamp>} and the ones korTTY left in place and will not save over.
+     */
+    private void showStoreLoadFailures(MainWindow mainWindow) {
+        Path configDir = getConfigDirectory();
+        List<Path> movedAside = new java.util.ArrayList<>();
+        List<Path> blocked = new java.util.ArrayList<>();
+        if (configManager != null) {
+            collectStoreLoadFailure(configManager.getLoadFailureBackup(), configManager.isSaveBlocked(),
+                configDir.resolve(de.kortty.persistence.XMLConnectionRepository.CONNECTIONS_FILE), movedAside, blocked);
+        }
+        if (credentialManager != null) {
+            collectStoreLoadFailure(credentialManager.getLoadFailureBackup(), credentialManager.isSaveBlocked(),
+                configDir.resolve(CredentialManager.CREDENTIALS_FILE), movedAside, blocked);
+        }
+        if (sshKeyManager != null) {
+            collectStoreLoadFailure(sshKeyManager.getLoadFailureBackup(), sshKeyManager.isSaveBlocked(),
+                configDir.resolve(SSHKeyManager.SSH_KEYS_FILE), movedAside, blocked);
+        }
+        if (gpgKeyManager != null) {
+            collectStoreLoadFailure(gpgKeyManager.getLoadFailureBackup(), gpgKeyManager.isSaveBlocked(),
+                configDir.resolve(GPGKeyManager.GPG_KEYS_FILE), movedAside, blocked);
+        }
+        if (environmentManager != null) {
+            collectStoreLoadFailure(environmentManager.getLoadFailureBackup(), environmentManager.isSaveBlocked(),
+                configDir.resolve(EnvironmentManager.ENVIRONMENTS_FILE), movedAside, blocked);
+        }
+        if (themeManager != null) {
+            collectStoreLoadFailure(themeManager.getLoadFailureBackup(), themeManager.isSaveBlocked(),
+                configDir.resolve(ThemeManager.THEMES_FILE), movedAside, blocked);
+        }
+        if (jobSchedulerService != null) {
+            de.kortty.jobscheduler.JobSchedulerRepository schedulerRepository = jobSchedulerService.getRepository();
+            collectStoreLoadFailure(schedulerRepository.getLoadFailureBackup(), schedulerRepository.isSaveBlocked(),
+                configDir.resolve(de.kortty.jobscheduler.JobSchedulerRepository.FILE_NAME), movedAside, blocked);
+        }
+        if (!movedAside.isEmpty() || !blocked.isEmpty()) {
+            mainWindow.showStoreLoadFailureNotice(movedAside, blocked);
+        }
+    }
+
+    private static void collectStoreLoadFailure(java.util.Optional<Path> backup, boolean saveBlocked, Path file,
+                                                List<Path> movedAside, List<Path> blocked) {
+        backup.ifPresent(movedAside::add);
+        if (saveBlocked) {
+            blocked.add(file);
+        }
     }
     
     public ConfigurationManager getConfigManager() {

@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -93,6 +94,17 @@ public class BackupManager {
      */
     private static final List<String> MANAGED_BACKUP_DIRECTORIES = List.of(
         "projects", "ssh-keys", SnippetAnalysisStore.DIRECTORY_NAME);
+    /**
+     * Restored files korTTY itself writes owner-only: they name every host and user, hold the
+     * scheduler's sudo secrets, or (master.key) the salt and hash an attacker could guess the
+     * master password from. The other managed files keep the permissions of the file they replace.
+     */
+    private static final Set<String> OWNER_ONLY_RESTORED_FILES = Set.of(
+        XMLConnectionRepository.CONNECTIONS_FILE,
+        CredentialManager.CREDENTIALS_FILE,
+        SSHKeyManager.SSH_KEYS_FILE,
+        JobSchedulerRepository.FILE_NAME,
+        MasterPasswordManager.MASTER_KEY_FILE);
     
     /** What a backup file holds, read from its first bytes rather than from its name. */
     public enum BackupFormat {
@@ -688,6 +700,12 @@ public class BackupManager {
         }
     }
     
+    private static AtomicFileWriter.FileMode restoredFileMode(String fileName) {
+        return OWNER_ONLY_RESTORED_FILES.contains(fileName)
+            ? AtomicFileWriter.FileMode.OWNER_ONLY
+            : AtomicFileWriter.FileMode.PRESERVE;
+    }
+
     /**
      * Copies backup files from extract directory to config directory.
      */
@@ -709,7 +727,8 @@ public class BackupManager {
                 }
                 
                 Files.createDirectories(targetFile.getParent());
-                Files.copy(sourceFile, targetFile, StandardCopyOption.REPLACE_EXISTING);
+                // Never truncate a store in place: a failed copy keeps the local file intact.
+                AtomicFileWriter.copyStoreAtomically(sourceFile, targetFile, restoredFileMode(fileName));
                 filesImported[0]++;
                 logger.debug("Imported: {}", fileName);
             }

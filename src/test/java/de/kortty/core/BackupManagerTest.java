@@ -1,8 +1,10 @@
 package de.kortty.core;
 
+import de.kortty.jobscheduler.JobSchedulerRepository;
 import de.kortty.model.GPGKey;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.StoredCredential;
+import de.kortty.persistence.XMLConnectionRepository;
 import de.kortty.security.MasterPasswordManager;
 import org.testng.annotations.Test;
 
@@ -24,6 +26,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static org.testng.Assert.expectThrows;
 
 
@@ -403,6 +406,48 @@ public class BackupManagerTest {
             .restoreBackup(backup, "backup-pw", true);
 
         assertThat(result.masterKeyReplaced()).isFalse();
+    }
+
+    @Test
+    public void restoredSecretStoresAreOwnerOnlyAndNotTruncated() throws Exception {
+        Path root = Files.createTempDirectory("kortty-backup-restore-modes-");
+        Path configDir = sampleConfig(root);
+        Files.writeString(configDir.resolve(CredentialManager.CREDENTIALS_FILE), "<credentials/>");
+        Files.writeString(configDir.resolve(SSHKeyManager.SSH_KEYS_FILE), "<sshKeys/>");
+        Files.writeString(configDir.resolve(JobSchedulerRepository.FILE_NAME), "<jobScheduler/>");
+        Files.writeString(configDir.resolve(ThemeManager.THEMES_FILE), "<themes/>");
+        GlobalSettings settings = new GlobalSettings();
+        PasswordSetup password = usePasswordBackup(configDir, settings);
+        Path backup = new BackupManager(configDir, settings)
+            .createBackup(root.resolve("target"), password.credentials(), null, password.masterPassword());
+        Path restoreDir = Files.createDirectories(root.resolve("restore"));
+        // Local files an older korTTY left world-readable; the restore replaces them.
+        Path localConnections = Files.writeString(restoreDir.resolve(XMLConnectionRepository.CONNECTIONS_FILE),
+            "<connections><connection>local</connection></connections>");
+        Path localThemes = Files.writeString(restoreDir.resolve(ThemeManager.THEMES_FILE), "<themes>local</themes>");
+        if (Files.getFileAttributeView(localConnections, java.nio.file.attribute.PosixFileAttributeView.class) == null) {
+            throw new org.testng.SkipException("POSIX file attributes are not supported on this platform");
+        }
+        Files.setPosixFilePermissions(localConnections,
+            java.nio.file.attribute.PosixFilePermissions.fromString("rw-r--r--"));
+        Files.setPosixFilePermissions(localThemes, java.nio.file.attribute.PosixFilePermissions.fromString("rw-r--r--"));
+
+        new BackupManager(restoreDir, new GlobalSettings()).restoreBackup(backup, "backup-pw", true);
+
+        for (String secretStore : List.of(XMLConnectionRepository.CONNECTIONS_FILE, CredentialManager.CREDENTIALS_FILE,
+                SSHKeyManager.SSH_KEYS_FILE, JobSchedulerRepository.FILE_NAME, MasterPasswordManager.MASTER_KEY_FILE)) {
+            Path restored = restoreDir.resolve(secretStore);
+            assertWithMessage(secretStore).that(Files.readAllBytes(restored))
+                .isEqualTo(Files.readAllBytes(configDir.resolve(secretStore)));
+            assertWithMessage(secretStore)
+                .that(java.nio.file.attribute.PosixFilePermissions.toString(Files.getPosixFilePermissions(restored)))
+                .isEqualTo("rw-------");
+        }
+        // The other stores keep the permissions of the file they replace.
+        assertThat(Files.readString(localThemes)).isEqualTo("<themes/>");
+        assertThat(java.nio.file.attribute.PosixFilePermissions.toString(Files.getPosixFilePermissions(localThemes)))
+            .isEqualTo("rw-r--r--");
+        assertThat(fileNames(restoreDir).stream().filter(name -> name.endsWith(".tmp")).toList()).isEmpty();
     }
 
     @Test
