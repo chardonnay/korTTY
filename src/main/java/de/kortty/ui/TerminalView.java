@@ -2123,7 +2123,8 @@ public class TerminalView extends BorderPane {
                 isTerminalAgentCommandNameCaseInsensitive()),
             rawCommand -> shouldInterceptFilteredAgentShortcut(widget, rawCommand),
             rawCommand -> dispatchFilteredTerminalAgentShortcut(widget, rawCommand),
-            this::forwardJournalInputLine);
+            this::forwardJournalInputLine,
+            observableConnector.getCharset());
         terminalAgentShortcutInputFilters.put(
             observableConnector,
             new TerminalAgentShortcutInputFilterRegistration(widget, inputFilter));
@@ -3185,6 +3186,18 @@ public class TerminalView extends BorderPane {
         }
         PasteTracking tracking = codingAgentPasteTrackers.get(widget);
         return tracking != null && tracking.tracker().isEnabled();
+    }
+
+    /**
+     * The character encoding the pane's connector types text in (see
+     * {@link de.kortty.core.TerminalEncodingSupport}); UTF-8 without a pane or for a connector that
+     * does not resolve one.
+     */
+    public java.nio.charset.Charset connectorCharset(SithTermFxWidget widget) {
+        TtyConnector connector = widget != null ? unwrapTerminalEffectConnector(widget.getTtyConnector()) : null;
+        return connector instanceof ObservableTtyConnector observable && observable.getCharset() != null
+            ? observable.getCharset()
+            : StandardCharsets.UTF_8;
     }
 
     /**

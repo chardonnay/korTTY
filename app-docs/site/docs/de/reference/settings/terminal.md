@@ -32,6 +32,11 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 
 ## Hinweise
 
+!!! note "Kodierung"
+    Die Zeichenkodierung, mit der korTTY die Ausgabe einer SSH-Sitzung dekodiert und das kodiert, was Sie eingeben oder einfügen. Sie gilt für jede SSH-Verbindung, die auf dem Tab *Verbindung* des Verbindungseditors keine eigene **Zeichenkodierung** auswählt (siehe [Zeichenkodierung](../../features/connections.md#zeichenkodierung)). Lokale Shells verwenden UTF-8, sofern ihre Verbindung keine Kodierung festlegt, und Mosh nutzt stets UTF-8, weil mosh-server und mosh-client dies erfordern. Wählen Sie die Kodierung aus, die die Programme auf dem Server tatsächlich schreiben, in der Regel das, was `locale` dort meldet. Eine Änderung tritt beim nächsten Verbindungsaufbau oder bei einer erneuten Verbindung eines Tabs in Kraft; offene Tabs behalten ihre Kodierung. Zeichen, die die gewählte Kodierung nicht darstellen kann, werden als `?` übermittelt.
+
+    Frühere Versionen ignorierten diese Einstellung, sodass ein damals gewählter Wert nicht automatisch angewendet wird: SSH-Sitzungen bleiben UTF-8, und ein Hinweis unter dem Dropdown sagt dies, bis Sie die Einstellungen nach dem Öffnen der Terminal-Seite speichern. Wählen Sie **UTF-8** vor dem Speichern, wenn Sie den alten Wert nicht übernehmen möchten.
+
 !!! note "Fett als helle Farbe anzeigen"
     Diese Einstellung gilt derzeit nur für Terminalaufnahmen: mit [Terminalfarben in Aufnahmen erfassen](video.md) aktiviert, wird fetter Text einer der 8 normalen ANSI-Farben in seiner hellen Variante gespeichert. Das Live-Terminal zeichnet fetten Text in jeder Hinsicht immer noch in seiner normalen Farbe aus.
 

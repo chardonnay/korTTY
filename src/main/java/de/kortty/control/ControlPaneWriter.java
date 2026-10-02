@@ -88,9 +88,10 @@ public final class ControlPaneWriter {
     public WriteResult sendKeys(String paneId, List<String> keyNames) throws ControlApiException {
         requirePane(paneId);
         List<String> normalised = ControlKeyTable.normalise(keyNames);
-        byte[] payload = ControlKeyTable.encodeAll(normalised);
         int written = UiCalls.await(ui, ControlApiProtocol.UI_TIMEOUT_MILLIS,
             () -> unchecked(() -> {
+                // A single-character key name is typed text, so it follows the pane's encoding.
+                byte[] payload = ControlKeyTable.encodeAll(normalised, surface.charsetOf(paneId));
                 int bytes = surface.write(paneId, payload);
                 record(VERB_SEND_KEYS, paneId, "keys=" + normalised.size() + " bytes=" + bytes);
                 return bytes;
@@ -136,7 +137,8 @@ public final class ControlPaneWriter {
                     Map.of("pane", paneId, "shortcut", String.valueOf(surface.hostShortcutCommandName()),
                         "hint", "pass allow_shortcut_conflict:true to write it anyway"));
             }
-            byte[] payload = BracketedPaste.encode(text, bracketed, submit);
+            // In the pane's terminal encoding, like a keystroke: a Latin-1 SSH pane gets Latin-1 bytes.
+            byte[] payload = BracketedPaste.encode(text, bracketed, submit, surface.charsetOf(paneId));
             int written = surface.write(paneId, payload);
             record(verb, paneId, "bytes=" + written + " bracketed=" + bracketed
                 + " submitted=" + submit);
