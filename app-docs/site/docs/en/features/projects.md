@@ -11,11 +11,11 @@ Projects save and restore your complete workspace state—all open windows, tabs
 1. Open *File > Save Project* or press ++ctrl+s++ (++cmd+s++ on macOS).
 2. Enter a **name** and optional **description** for the project.
 3. Configure **Auto-Reconnect**:
-   - When enabled, opening the project will automatically reconnect all saved SSH sessions.
-   - When disabled, windows and tabs are restored but you must manually reconnect.
+   - When enabled, opening the project automatically reconnects every saved terminal and SFTP tab.
+   - When disabled, opening the project restores the window geometry and the local file editor and image viewer tabs only; terminal, SFTP and remote file tabs are skipped.
 4. Click *Save*.
 
-Projects are stored as `.kortty` files in `~/.kortty/projects/`.
+Projects are `.kortty` files saved wherever you choose in the save dialog, for example in `~/.kortty/projects/`.
 
 ## Opening a Project
 
@@ -35,10 +35,10 @@ A project captures the complete state of your workspace:
 |-----------|---------|
 | **Windows** | All open KorTTY windows and their positions/sizes |
 | **Tabs** | All terminal tabs in each window, including split-pane configurations |
-| **Connections** | The saved connection names for each tab |
+| **Connections** | A reference to the saved connection of each tab, by its connection ID |
 | **Dashboard** | Dashboard visibility and divider position |
 | **Active Tab** | Which tab was active in each window |
-| **Terminal Sessions** | Session state including cursor position and scrollback (if supported by the session) |
+| **Terminal Sessions** | The last visible screen of each terminal tab's primary pane — not its scrollback and not the cursor position; the screens of further split panes are not saved |
 
 !!! note
     AI result tabs and tool tabs (managers opened as tabs) are not saved with projects. They remain only in the current session and are lost when you close the tab or open a project.
@@ -49,18 +49,21 @@ When **Auto-Reconnect** is enabled, KorTTY automatically:
 
 - Restores all windows with their saved geometry (position and size)
 - Reconnects each SSH tab using the original connection settings
+- Shows each terminal tab's saved screen dimmed above the new session, framed by a *Restored output from* row with the date the project was saved and an *End of restored output* row. The text is written into the local terminal only and is never sent to the server: it does not reach the remote shell or its command history, and it is not recorded in the session journal. Control characters and escape sequences are removed from it before it is shown.
 - Restores the active tab and dashboard state
 
-If **Auto-Reconnect** is disabled, windows and tabs are restored but you must manually reconnect each tab by clicking it or using *Reconnect* from the context menu.
+If **Auto-Reconnect** is disabled, terminal tabs are not restored: opening the project applies the saved window geometry and reopens local file editor and image viewer tabs, while terminal, SFTP and remote file tabs are skipped. Open those connections again from the Connection Manager.
 
 ## Project File Storage
 
-Projects are stored in `~/.kortty/projects/` as compressed `.kortty` files. Each project includes:
+A project is a plain XML file with the `.kortty` extension. Each project includes:
 
 - Metadata (name, description, creation/modification timestamps)
 - Complete window and tab state
-- Connection references (by name)
+- Connection references (by connection ID, so the connection must exist in your Connection Manager)
 - Dashboard visibility and layout
+
+The saved screen text is not part of the `.kortty` file. It is stored separately as one gzip file per terminal tab, `~/.kortty/history/<session-id>.history.gz`, which the project references by file name — a project file you share therefore carries the layout but not the screen text. korTTY only ever reads, writes or deletes plain file names inside `~/.kortty/history/`; a project whose reference points anywhere else opens without that screen text.
 
 ## Use Cases
 
