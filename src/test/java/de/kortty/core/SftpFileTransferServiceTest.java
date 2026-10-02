@@ -2,6 +2,7 @@ package de.kortty.core;
 
 import de.kortty.model.ServerConnection;
 import de.kortty.ui.sftp.SftpFileItem;
+import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -195,6 +196,49 @@ class SftpFileTransferServiceTest {
             assertThat(entries.map(path -> path.getFileName().toString()).toList()).containsExactly("README.txt");
         }
         assertThat(Files.readString(folder.resolve("README.txt"))).isEqualTo("text");
+    }
+
+    @Test
+    void renameLocalEntryRefusesTheFileALinkPointsTo() throws Exception {
+        Path folder = Files.createDirectory(tempDir.resolve("links"));
+        Path file = Files.writeString(folder.resolve("a.txt"), "text");
+        Path link;
+        try {
+            link = Files.createSymbolicLink(folder.resolve("link"), file.getFileName());
+        } catch (UnsupportedOperationException | IOException e) {
+            throw new SkipException("Symbolic links are not available here: " + e);
+        }
+
+        // 'link' and 'a.txt' are the same file to Files.isSameFile, but two entries of the folder.
+        expectThrows(FileAlreadyExistsException.class, () -> SftpFileTransferService.renameLocalEntry(link, "a.txt"));
+
+        assertThat(Files.isSymbolicLink(link)).isTrue();
+        assertThat(Files.readString(file)).isEqualTo("text");
+        try (var entries = Files.list(folder)) {
+            assertThat(entries.map(path -> path.getFileName().toString()).toList())
+                .containsExactly("a.txt", "link");
+        }
+    }
+
+    @Test
+    void renameLocalEntryRefusesAHardLinkOfTheSameFile() throws Exception {
+        Path folder = Files.createDirectory(tempDir.resolve("hard"));
+        Path file = Files.writeString(folder.resolve("draft.txt"), "text");
+        Path second;
+        try {
+            second = Files.createLink(folder.resolve("copy.txt"), file);
+        } catch (UnsupportedOperationException | IOException e) {
+            throw new SkipException("Hard links are not available here: " + e);
+        }
+
+        expectThrows(FileAlreadyExistsException.class, () -> SftpFileTransferService.renameLocalEntry(file, "copy.txt"));
+
+        assertThat(Files.readString(file)).isEqualTo("text");
+        assertThat(Files.readString(second)).isEqualTo("text");
+        try (var entries = Files.list(folder)) {
+            assertThat(entries.map(path -> path.getFileName().toString()).toList())
+                .containsExactly("copy.txt", "draft.txt");
+        }
     }
 
     private static final class RecordingSftpSession extends SFTPSession {
