@@ -499,6 +499,54 @@ class AiServiceFactoryTest {
     }
 
     @Test
+    void anthropicMessagesEndpointMatchesNativeAndProxyUrlsOnly() {
+        assertThat(AiServiceFactory.isAnthropicMessagesEndpoint("https://api.anthropic.com/v1/messages")).isTrue();
+        assertThat(AiServiceFactory.isAnthropicMessagesEndpoint(" HTTPS://API.ANTHROPIC.COM/v1/messages ")).isTrue();
+        // A gateway that forwards the Messages API keeps the /v1/messages path.
+        assertThat(AiServiceFactory.isAnthropicMessagesEndpoint("https://llm-proxy.example.com/anthropic/v1/messages"))
+            .isTrue();
+
+        assertThat(AiServiceFactory.isAnthropicMessagesEndpoint("https://api.openai.com/v1/chat/completions")).isFalse();
+        assertThat(AiServiceFactory.isAnthropicMessagesEndpoint("http://localhost:1234/api/v1/chat")).isFalse();
+        assertThat(AiServiceFactory.isAnthropicMessagesEndpoint("")).isFalse();
+        assertThat(AiServiceFactory.isAnthropicMessagesEndpoint(null)).isFalse();
+    }
+
+    @Test
+    void createStillBuildsTheAnthropicServiceWhenALegacyProfileCarriesAnInternetMode() {
+        AiProfile profile = new AiProfile();
+        profile.setId("legacy-anthropic-with-tavily");
+        profile.setApiUrl("https://api.anthropic.com/v1/messages");
+        profile.setModel("claude-sonnet-4-5");
+        profile.setModelSelectionMode(AiModelSelectionMode.MANUAL);
+        profile.setInternetAccessMode(AiInternetAccessMode.KORTTY_TAVILY_TOOL);
+
+        // No behaviour change: the mode is ignored (and logged once), the request is not refused.
+        AiService service = unwrap(AiServiceFactory.create(profile, "key", AiInternetAccessConfiguration.disabled()));
+        AiService transport = service instanceof AiPromptPresetService preset ? preset.delegate() : service;
+
+        assertThat(transport).isInstanceOf(AnthropicAiService.class);
+        // create() already logged the warning for this profile; it is not repeated.
+        assertThat(AiServiceFactory.warnOnceAboutIgnoredAnthropicInternetMode(profile)).isFalse();
+    }
+
+    @Test
+    void ignoredAnthropicInternetModeIsWarnedOncePerProfile() {
+        AiProfile profile = new AiProfile();
+        profile.setId("warn-once-anthropic-profile");
+        profile.setInternetAccessMode(AiInternetAccessMode.BRAVE_SEARCH_MCP);
+
+        assertThat(AiServiceFactory.warnOnceAboutIgnoredAnthropicInternetMode(profile)).isTrue();
+        assertThat(AiServiceFactory.warnOnceAboutIgnoredAnthropicInternetMode(profile)).isFalse();
+
+        AiProfile disabled = new AiProfile();
+        disabled.setId("warn-once-anthropic-disabled");
+        disabled.setInternetAccessMode(AiInternetAccessMode.DISABLED);
+        assertThat(AiServiceFactory.warnOnceAboutIgnoredAnthropicInternetMode(disabled)).isFalse();
+        assertThat(AiServiceFactory.warnOnceAboutIgnoredAnthropicInternetMode(null)).isFalse();
+    }
+
+    @Test
     void policyForbiddingAiInternetRefusesAnInternetEnabledProfile() throws IOException {
         forbidAiInternet();
 

@@ -55,7 +55,13 @@ public class AiAgentPlanTab extends Tab {
     private static final double PLAN_FONT_STEP = 1.0;
 
     public interface ExecutionStarter {
-        void startAcceptedPlan(TerminalAgentModels.PlanRequest request, TerminalAgentModels.PlanReport report);
+        /**
+         * Starts the accepted plan's implementation run.
+         *
+         * @return {@code false} when the run was refused or cancelled (for example the warning for a
+         *     switched session was cancelled), so the tab can be used again
+         */
+        boolean startAcceptedPlan(TerminalAgentModels.PlanRequest request, TerminalAgentModels.PlanReport report);
     }
 
     private final MainWindow ownerWindow;
@@ -641,7 +647,13 @@ public class AiAgentPlanTab extends Tab {
         setBusy(true);
         cancelled.set(true);
         statusLabel.setText(I18n.get("ai.plan.status.execution"));
-        executionStarter.startAcceptedPlan(request, finalPlan);
+        if (!executionStarter.startAcceptedPlan(request, finalPlan)) {
+            // Nothing was started: hand the plan back so the user can implement it again or close
+            // the tab, instead of leaving it stuck on "Starting implementation".
+            cancelled.set(false);
+            setBusy(false);
+            statusLabel.setText(I18n.get("ai.plan.status.ready"));
+        }
     }
 
     private void cancelPlanning() {
