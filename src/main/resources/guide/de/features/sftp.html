@@ -842,8 +842,10 @@
 <h2 id="verbindung-verloren">Verbindung verloren<a class="headerlink" href="#verbindung-verloren" title="Permanent link">&para;</a></h2>
 <p>Wenn der Server oder das Netzwerk die Sitzung beendet, zeigt die Statusleiste <strong>Getrennt von</strong> <em>host</em> mit einer Schaltfläche <strong>Neu verbinden</strong>, und die Remote-Aktionen sind deaktiviert. Wenn die Verbindung ohne Mitteilung des Servers abbricht, führt die erste Remote-Aktion, die Sie versuchen (Refresh, Upload, Download usw.), wieder denselben Zustand aus, anstatt nichts zu tun.</p>
 <p><strong>Neu verbinden</strong> öffnet eine neue Sitzung mit denselben Anmeldeinformationen und listet den Ordner auf, in dem Sie sich befanden. Der Hostschlüssel des Servers wird wie bei der ersten Verbindung geprüft: ein unveränderter Schlüssel verbindet ohne Aufforderung, ein geänderter Schlüssel bleibt blockiert.</p>
+<h2 id="wieder-offnen-mit-einem-projekt">Wieder öffnen mit einem Projekt<a class="headerlink" href="#wieder-offnen-mit-einem-projekt" title="Permanent link">&para;</a></h2>
+<p>SFTP-Manager-Tabs werden mit einem <a href="projects.html#sftp-manager-tabs">Projekt</a> gespeichert. Das Öffnen des Projekts mit <strong>Automatisches Wiederverbinden</strong> verbindet jeden Tab erneut mit den lokalen und entfernten Ordnern, in denen er sich zum Zeitpunkt des Speicherns befand. Ein Ordner, der nicht mehr existiert, öffnet stattdessen den Home-Ordner; auf der entfernten Seite sagt die Statusleiste dies an.</p>
 <h2 id="dateioperationen">Dateioperationen<a class="headerlink" href="#dateioperationen" title="Permanent link">&para;</a></h2>
-<p>Der SFTP-Manager unterstützt eine umfassende Palette an Dateioperationen:</p>
+<p>Jedes Panel hat seine eigene Gruppe von Toolbar-Buttons unter den Listen (lokal links, remote rechts) und ein Rechtsklick-Kontextmenü:</p>
 <table>
 <thead>
 <tr>
@@ -854,39 +856,105 @@
 <tbody>
 <tr>
 <td><strong>Hochladen</strong></td>
-<td>Lokale Datei(en) auswählen, auf Hochladen klicken (oder per Drag-and-Drop)</td>
+<td>Wählen Sie lokale Dateien oder Ordner aus und klicken Sie auf <strong>Hochladen</strong>, oder ziehen Sie sie in das Remote-Panel; siehe <a href="#ziehen-und-ablegen">Ziehen und Ablegen</a></td>
 </tr>
 <tr>
 <td><strong>Herunterladen</strong></td>
-<td>Wählen Sie die Remote-Datei(en) aus und klicken Sie auf „Herunterladen“.</td>
-</tr>
-<tr>
-<td><strong>Löschen</strong></td>
-<td>Datei(en) auswählen, auf Löschen klicken</td>
+<td>Wählen Sie Remote-Dateien oder Ordner aus und klicken Sie auf <strong>Herunterladen</strong>, oder ziehen Sie sie in das lokale Panel</td>
 </tr>
 <tr>
 <td><strong>Umbenennen</strong></td>
-<td>Wählen Sie eine Datei aus und klicken Sie auf „Umbenennen“</td>
+<td>Wählen Sie einen Eintrag aus und drücken Sie <span class="keys"><kbd class="key-f2">F2</kbd></span>, oder wählen Sie <strong>Umbenennen</strong> im Kontextmenü. Ein vorhandener Eintrag mit dem neuen Namen wird niemals ersetzt; stattdessen erhalten Sie einen Fehler</td>
+</tr>
+<tr>
+<td><strong>Neuer Ordner</strong></td>
+<td>Klicken Sie auf die Ordner-Schaltfläche neben <strong>Aktualisieren</strong>, oder wählen Sie <strong>Neuer Ordner</strong> im Kontextmenü, in beiden Panels. Der Ordner wird im angezeigten Verzeichnis erstellt; ein bereits vorhandener Name ist ein Fehler</td>
+</tr>
+<tr>
+<td><strong>Löschen</strong></td>
+<td>Wählen Sie Einträge aus und klicken Sie auf <strong>Löschen</strong>, wählen Sie <strong>Löschen</strong> im Kontextmenü, oder drücken Sie <span class="keys"><kbd class="key-delete">Del</kbd></span> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-backspace">Backspace</kbd></span>, auf macOS <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-backspace">Backspace</kbd></span>). Sie bestätigen vor dem Löschen von etwas</td>
 </tr>
 <tr>
 <td><strong>Kopieren</strong></td>
-<td>Dateien innerhalb desselben Panels kopieren (eine lokale Kopie läuft im Hintergrund). Ein remote Ordner, der in einen Ordner mit demselben Namen kopiert wird, wird dort zusammengeführt; das Kopieren eines Elements auf sich selbst oder in einen seiner eigenen Unterordner wird mit einem Fehler verweigert</td>
+<td><strong>Kopieren nach…</strong> im Kontextmenü kopiert innerhalb derselben Seite: lokal in ein von Ihnen ausgewähltes Verzeichnis (im Hintergrund), remote in einen von Ihnen eingegebenen Pfad. Ein Remote-Verzeichnis, das an einer Stelle kopiert wird, an der bereits ein Verzeichnis mit diesem Namen existiert, wird in dieses zusammengeführt; das Kopieren eines Elements auf sich selbst oder in einen seiner eigenen Unterordner wird mit einem Fehler abgelehnt.</td>
 </tr>
 <tr>
 <td><strong>Im Snippet-Editor bearbeiten</strong></td>
 <td>Wählen Sie genau eine lokale oder Remote-Datei aus und verwenden Sie dann das Symbolleistenmenü <em>Bearbeiten</em> oder das Kontextmenü mit der rechten Maustaste</td>
 </tr>
 <tr>
-<td><strong>Verzeichnis erstellen</strong></td>
-<td>Klicken Sie in einem der beiden Fenster auf „Neuer Ordner“</td>
+<td><strong>Archivieren</strong></td>
+<td><strong>Archivieren</strong> in der Remote-Werkzeugleiste, oder <strong>Archivieren...</strong> im jeweiligen Kontextmenü, packt die Auswahl als ZIP, TAR.BZ2 oder 7z, je nach verfügbaren Tools auf dieser Seite</td>
 </tr>
 <tr>
-<td><strong>ZIP erstellen</strong></td>
-<td>Wählen Sie mehrere Dateien/Verzeichnisse aus und klicken Sie auf „ZIP erstellen“</td>
+<td><strong>Besitzer/Berechtigungen setzen</strong></td>
+<td>Wählen Sie Einträge aus, klicken dann auf <strong>Rechte</strong> oder wählen <strong>Besitzer/Berechtigungen setzen...</strong> im Kontextmenü. Separate Felder für Benutzer, Gruppe und oktale Berechtigungen (z.B., 755)</td>
+</tr>
+</tbody>
+</table>
+<p>Ein Name für <strong>Umbenennen</strong> oder <strong>Neuer Ordner</strong> muss ein einzelnes Element im angezeigten Ordner sein: er darf nicht leer, <code>.</code> oder <code>..</code> sein, und darf <code>/</code> oder <code>\</code> nicht enthalten. Das Dialogfeld bleibt mit einem Fehler offen, bis der Name nutzbar ist.</p>
+<h3 id="ziehen-und-ablegen">Ziehen und Ablegen<a class="headerlink" href="#ziehen-und-ablegen" title="Permanent link">&para;</a></h3>
+<p>Sie können Einträge zwischen den beiden Panels ziehen, von Ihrem Desktop in den SFTP-Manager und in kleinen Mengen vom Server auf Ihren Desktop. Während Sie ziehen, wird das Panel oder die Ordnerzeile, in die der Drop erfolgen würde, hervorgehoben; ein Drop auf eine Ordnerzeile legt die Einträge in diesen Ordner, ein Drop an einer anderen Stelle in den angezeigten Ordner.</p>
+<table>
+<thead>
+<tr>
+<th>Ziehen</th>
+<th>Ergebnis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lokale Zeilen auf das entfernte Panel</td>
+<td>Hochgeladen, wie bei <strong>Hochladen</strong>: eine Datei mit demselben Namen auf dem Server wird ersetzt, ein Ordner wird zusammengeführt</td>
 </tr>
 <tr>
-<td><strong>Eigentümer/Berechtigungen festlegen</strong></td>
-<td>Datei(en) auswählen, Kontextmenü oder Schaltfläche verwenden. Separate Felder für Benutzer-, Gruppen- und Oktalberechtigungen (z. B. 755)</td>
+<td>Dateien aus Finder, Explorer oder der Dateibrowser-Seitenleiste auf das Remote-Panel</td>
+<td>hochgeladen – dieselbe Methode</td>
+</tr>
+<tr>
+<td>Remote-Zeilen auf das lokale Panel</td>
+<td>Im Hintergrund heruntergeladen, wie bei <strong>Herunterladen</strong>: Ordner eingeschlossen, und eine lokale Datei mit demselben Namen wird ersetzt</td>
+</tr>
+<tr>
+<td>Dateien aus Finder, Explorer oder der Dateibrowser-Seitenleiste auf das lokale Panel</td>
+<td>Kopiert im Hintergrund; ein bereits vorhandener Name bekommt eine Nummer, wie in <code>report (2).txt</code>, und eine Datei, die auf den Ordner fallen gelassen wird, bleibt unverändert</td>
+</tr>
+<tr>
+<td>Lokale Zeilen auf den Desktop oder ein anderes Programm</td>
+<td>Als die Dateien selbst angeboten</td>
+</tr>
+<tr>
+<td>Remote Zeilen auf den Desktop oder ein anderes Programm</td>
+<td>Nur für maximal 20 Dateien mit insgesamt höchstens 16 MB, keine Ordner</td>
+</tr>
+</tbody>
+</table>
+<p>Ein Drag in dasselbe Panel bewirkt nichts; nutzen Sie dort <strong>Kopieren nach...</strong> oder <strong>Umbenennen</strong>.</p>
+<div class="admonition note">
+<p class="admonition-title">Ziehen vom Server zum Desktop</p>
+<p>Der Desktop kann nur Dateien übernehmen, die bereits existieren, wenn der Drag beginnt. KorTTY lädt daher die gezogenen Remote-Dateien zunächst in einen privaten temporären Ordner, was das Fenster bis zu 5 Sekunden blockieren kann. Ordner, mehr als 20 Dateien, mehr als 16 MB oder ein Download, der länger dauert, können nur innerhalb des Fensters fallen gelassen werden; die Statusleiste weist darauf hin, und Sie legen sie stattdessen auf das lokale Panel. Ein Link auf dem Server zählt als die Datei, auf die er zeigt, sodass ein Link zu einer großen Datei ebenfalls nicht dem Desktop angeboten wird. Die temporären Kopien werden gelöscht, wenn Sie den nächsten Drag starten oder den Tab schließen.</p>
+</div>
+<h3 id="tasten">Tasten<a class="headerlink" href="#tasten" title="Permanent link">&para;</a></h3>
+<p>Diese Tasten funktionieren in beiden Panels:</p>
+<table>
+<thead>
+<tr>
+<th>Taste</th>
+<th>Aktion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="keys"><kbd class="key-f2">F2</kbd></span> (in der Liste)</td>
+<td>Den ausgewählten Eintrag umbenennen</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-delete">Del</kbd></span> oder <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-backspace">Backspace</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-backspace">Backspace</kbd></span> auf macOS, in der Liste)</td>
+<td>Löschen der Auswahl, nach Bestätigung</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-enter">Enter</kbd></span> (im <strong>Pfad</strong> Feld)</td>
+<td>Gehe zum eingegebenen Ordner</td>
 </tr>
 </tbody>
 </table>
@@ -922,13 +990,39 @@
 </ul>
 <p><img alt="SFTP dual-panel file manager" src="../assets/screenshots/sftp/sftp-manager.png" /></p>
 <h2 id="suche">Suche<a class="headerlink" href="#suche" title="Permanent link">&para;</a></h2>
-<p>Beide Panels unterstützen die <strong>Glob-Mustersuche</strong> mit dem Platzhalter <code>*</code>. Zum Beispiel:</p>
-<ul>
-<li><code>*.log</code> findet alle Protokolldateien im aktuellen Verzeichnis</li>
-<li><code>*.{py,sh}</code> findet Python- und Shell-Dateien (wenn Ihre Shell die Klammererweiterung unterstützt)</li>
-<li><code>backup*</code> findet alle Dateien, die mit „backup“ beginnen"</li>
-</ul>
-<p>Geben Sie das Muster in das Suchfeld ein, um angezeigte Dateien schnell zu filtern, ohne das aktuelle Verzeichnis zu verlassen.</p>
+<p>Das Suchfeld über jeder Liste filtert den angezeigten Ordner während der Eingabe, ohne ihn zu verlassen; der übergeordnete Eintrag <code>..</code> bleibt sichtbar. korTTY bewertet die Platzhalter selbst, gleichartig für lokale und entfernte Namen. Ein Muster mit einem Platzhalter muss den gesamten Namen entsprechen, ohne Groß-/Kleinschreibung:</p>
+<table>
+<thead>
+<tr>
+<th>Platzhalter</th>
+<th>Trifft auf</th>
+<th>Beispiel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>*</code></td>
+<td>Beliebig viele Zeichen</td>
+<td><code>*.log</code> findet alle Logdateien, <code>backup*</code> alle Namen beginnend mit "backup"</td>
+</tr>
+<tr>
+<td><code>?</code></td>
+<td>Genau ein Zeichen</td>
+<td><code>data?.csv</code> findet <code>data1.csv</code>, nicht <code>data10.csv</code></td>
+</tr>
+<tr>
+<td><code>[abc]</code>, <code>[a-z]</code></td>
+<td>Eines der aufgeführten Zeichen; <code>[!abc]</code> oder <code>[^abc]</code> eines, das nicht aufgeführt ist</td>
+<td><code>[ab]*</code> findet Namen beginnend mit a oder b</td>
+</tr>
+<tr>
+<td><code>{py,sh}</code></td>
+<td>Eine der Alternativen</td>
+<td><code>*.{py,sh}</code> findet Python- und Shell-Dateien</td>
+</tr>
+</tbody>
+</table>
+<p>Text ohne Platzhalter passt überall im Namen, Groß-/Kleinschreibung ignorierend: <code>rep</code> findet <code>Report.txt</code>. Ein Muster, das nicht gelesen werden kann, wie ein nicht geschlossenes <code>[</code>, wird als einfacher Text gesucht.</p>
 <hr /></p>
     </article>
 </section>
