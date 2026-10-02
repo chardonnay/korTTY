@@ -1653,9 +1653,14 @@ public class TerminalView extends BorderPane {
         }
     }
 
+    /**
+     * Reads the live selection, which {@code selectedTextProperty()} only reflects once the selection
+     * gesture has ended. {@code getSelectedText()} is private to SithTermFX's {@code TerminalPanel};
+     * korTTY's panel is an anonymous subclass, so the lookup names the declaring class.
+     */
     private @Nullable String readSelectedTextDirectly(@NotNull com.sithtermfx.ui.TerminalPanel terminalPanel) {
         try {
-            var method = terminalPanel.getClass().getDeclaredMethod("getSelectedText");
+            var method = com.sithtermfx.ui.TerminalPanel.class.getDeclaredMethod("getSelectedText");
             method.setAccessible(true);
             Object value = method.invoke(terminalPanel);
             return value instanceof String str ? str : null;
@@ -2335,7 +2340,6 @@ public class TerminalView extends BorderPane {
     
     /**
      * Updates the font rendering for all terminal widgets when font size changes.
-     * Calls reinitFontAndResize() on each TerminalPanel via reflection since it's protected.
      */
     private void updateAllTerminalFonts() {
         if (splitPane == null) return;
@@ -2352,12 +2356,9 @@ public class TerminalView extends BorderPane {
      * thread. Used both by {@link #updateAllTerminalFonts()} and the per-pane effect appearance path.
      */
     private void reinitPaneFont(SithTermFxWidget widget) {
-        if (widget == null) return;
+        if (widget == null || widget.getTerminalPanel() == null) return;
         try {
-            var terminalPanel = widget.getTerminalPanel();
-            var method = terminalPanel.getClass().getDeclaredMethod("reinitFontAndResize");
-            method.setAccessible(true);
-            method.invoke(terminalPanel);
+            widget.getTerminalPanel().requestFontResize();
         } catch (Exception e) {
             logger.warn("Failed to update font for terminal widget: {}", e.getMessage());
         }
@@ -6345,14 +6346,8 @@ public class TerminalView extends BorderPane {
      */
     public void showFind() {
         SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
-        if (focused != null) {
-            try {
-                java.lang.reflect.Method m = focused.getClass().getDeclaredMethod("showFindComponent");
-                m.setAccessible(true);
-                m.invoke(focused);
-            } catch (Exception e) {
-                logger.warn("Could not invoke showFindComponent", e);
-            }
+        if (focused instanceof TerminalPaneActions actions) {
+            actions.showFind();
         }
     }
     
