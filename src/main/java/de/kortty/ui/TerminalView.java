@@ -26,6 +26,8 @@ import de.kortty.core.ConnectionSettingsSupport;
 import de.kortty.core.ActiveConnectionRegistry;
 import de.kortty.core.Mosh4jTtyConnector;
 import de.kortty.core.SshTtyConnector;
+import de.kortty.core.SshTunnelApprovals;
+import de.kortty.core.SshTunnelManager;
 import de.kortty.core.ObservableTtyConnector;
 import de.kortty.core.LocalShellTtyConnector;
 import de.kortty.core.agent.AgentCommandRunner;
@@ -43,6 +45,7 @@ import de.kortty.model.AiProfile;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.SSHTunnel;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.TerminalRecordingScope;
 import de.kortty.model.Theme;
@@ -395,6 +398,19 @@ public class TerminalView extends BorderPane {
     // every connector this view builds replays that answer instead.
     private final de.kortty.core.AccessReasonMemory accessReasonMemory =
         new de.kortty.core.AccessReasonMemory();
+    // The tab's SSH tunnels. Owned once per tab, not per pane: they are attached to the first SSH
+    // session after login, stopped before every reconnect and re-attached afterwards, and moved to
+    // a same-server split when the pane carrying them goes away. Split connectors never open any.
+    private final SshTunnelManager tunnelManager = new SshTunnelManager();
+    // The connector whose session carries the tunnels right now (primary pane or re-homed split).
+    private volatile SshTtyConnector tunnelOwnerConnector;
+    // Deep copies of the tunnel set last attached, reused when the tunnels move to another pane.
+    private volatile List<SSHTunnel> attachedTunnels = List.of();
+    private volatile boolean attachedTunnelsShared;
+    // Tunnel sets the user answered for in this tab; reconnects of the same tab do not ask again,
+    // even when the answer could not be stored. FX thread only.
+    private String declinedTunnelSetHash;
+    private String approvedTunnelSetHash;
     private volatile TerminalRecordingSession terminalRecordingSession;
     private volatile TerminalRecordingScope terminalRecordingScope = TerminalRecordingScope.ACTIVE_SPLIT;
     private volatile List<SithTermFxWidget> terminalRecordingTargetWidgets = List.of();
@@ -444,6 +460,9 @@ public class TerminalView extends BorderPane {
         this.settings = effective;
         this.defaultFontSize = settings.getFontSize();
         this.timestampGuttersVisibleState = isCommandTimestampsEnabled();
+        // The session carrying the tunnels closed while it still owned them: if its pane is gone
+        // (the user closed it or typed exit there), move them to another pane of the same server.
+        tunnelManager.setOwnerClosedListener(session -> Platform.runLater(this::rehomeTunnelsIfOwnerGone));
         
         initializeTerminal();
     }
@@ -1083,10 +1102,16 @@ public class TerminalView extends BorderPane {
 
     /** Called when a split pane is closed: stop its effect and release its per-pane state. */
     private void onPaneClosed(SithTermFxWidget widget) {
+        TtyConnector closingConnector = widget != null ? unwrapTerminalEffectConnector(widget.getTtyConnector()) : null;
         stopPaneEffect(widget);
         paneProviders.remove(widget);
         discardTerminalAgentRunsForWidget(widget);
         releasePaneState(widget);
+        if (closingConnector != null && closingConnector == tunnelOwnerConnector) {
+            // The pane is still part of the split pane while this hook runs; look for a new
+            // owner once it is gone.
+            Platform.runLater(this::rehomeTunnelsIfOwnerGone);
+        }
     }
 
     /**
@@ -5328,6 +5353,10 @@ public class TerminalView extends BorderPane {
                 attempt++;
                 
                 try {
+                    // The tunnels belong to the session this attempt replaces: release them
+                    // before it closes, so its close does not count as the owner going away and
+                    // the next session can bind the same ports.
+                    tunnelManager.stop();
                     // Clean up previous attempt if any. Report the replaced connector as gone
                     // here rather than relying on a disconnect event for a deliberate close; a
                     // no-op when it was already reported.
@@ -5407,6 +5436,12 @@ public class TerminalView extends BorderPane {
                             }
                         });
                         
+                        // The tunnels open on the primary session only, after the terminal is up
+                        // (they may ask once for confirmation) and off the connect retry path: a
+                        // tunnel that cannot open must never turn into a reconnect.
+                        final TtyConnector tunnelHostConnector = ttyConnector;
+                        Platform.runLater(() -> startTunnelsAfterConnect(tunnelHostConnector));
+
                         logger.info("Terminal session started for {} (attempt {}/{})", 
                                    connection.getDisplayName(), attempt, retryCount);
                         return; // Success!
@@ -6073,6 +6108,8 @@ public class TerminalView extends BorderPane {
         stopAllTerminalAgentShellKeepAlives();
         stopLogger();
         detachJournalDataListener();
+        // Released before the session closes; the reconnect that follows opens them again.
+        tunnelManager.stop();
         if (ttyConnector != null) {
             reportTerminalDisconnected(ttyConnector);
             releaseAgentShortcutInputInterceptor(ttyConnector);
@@ -6097,6 +6134,7 @@ public class TerminalView extends BorderPane {
         stopLogger();
         stopSessionJournal();
         stopAllEffects();
+        closeTunnels();
         if (ttyConnector != null) {
             reportTerminalDisconnected(ttyConnector);
             releaseAgentShortcutInputInterceptor(ttyConnector);
@@ -6138,6 +6176,184 @@ public class TerminalView extends BorderPane {
         terminalWidget = null;
     }
     
+    // ---- SSH tunnels ----------------------------------------------------------------------
+
+    /**
+     * Opens the connection's enabled SSH tunnels on the primary pane's freshly connected session.
+     * Runs on the JavaFX thread: the tunnel list is copied here, where the connection editor
+     * changes it, and a tunnel set the user has not confirmed yet is asked about once. The
+     * forwards themselves open on a background thread.
+     */
+    private void startTunnelsAfterConnect(TtyConnector connector) {
+        if (!tunnelHostIsCurrent(connector)) {
+            return;
+        }
+        List<SSHTunnel> tunnels = SshTunnelManager.enabledTunnels(connection);
+        if (tunnels.isEmpty()) {
+            tunnelManager.clear();
+            attachedTunnels = List.of();
+            return;
+        }
+        if (!(connector instanceof SshTtyConnector sshConnector)) {
+            // Mosh carries the terminal over UDP; there is no SSH session left to forward over.
+            // Say so in the status bar instead of ignoring the tunnels silently.
+            logger.info("SSH tunnels not started for {}:{}: the connection does not use the SSH protocol",
+                connection.getHost(), connection.getPort());
+            tunnelManager.markNotStarted(tunnels, SshTunnelManager.Failure.UNSUPPORTED_PROTOCOL);
+            return;
+        }
+        if (!SshTunnelManager.portForwardingAllowedByPolicy()) {
+            logger.info("SSH tunnels not started for {}:{}: port forwarding is disabled by policy",
+                connection.getHost(), connection.getPort());
+            tunnelManager.markNotStarted(tunnels, SshTunnelManager.Failure.POLICY_DENIED);
+            return;
+        }
+        boolean shared = connection.isTeamworkConnection();
+        if (!tunnelSetApproved(tunnels, shared)) {
+            tunnelManager.markNotStarted(tunnels, SshTunnelManager.Failure.NOT_CONFIRMED);
+            return;
+        }
+        // The question may have been open for a while: the tab may be closed or reconnected now.
+        if (!tunnelHostIsCurrent(connector)) {
+            return;
+        }
+        org.apache.sshd.client.session.ClientSession session = sshConnector.getSession();
+        if (session == null) {
+            return;
+        }
+        attachedTunnels = tunnels;
+        attachedTunnelsShared = shared;
+        tunnelOwnerConnector = sshConnector;
+        attachTunnelsInBackground(session, tunnels, shared);
+    }
+
+    private boolean tunnelHostIsCurrent(TtyConnector connector) {
+        return connector != null && connector == ttyConnector && terminalWidget != null && !tunnelManager.isClosed();
+    }
+
+    /**
+     * Whether the user allows this tunnel set to open: asked once per connection and tunnel set,
+     * remembered across restarts, and asked again when the tunnels or the server change. Tunnels
+     * that would be refused anyway (a shared connection's remote tunnel, an invalid port) are not
+     * part of the question. FX thread only.
+     */
+    private boolean tunnelSetApproved(List<SSHTunnel> tunnels, boolean shared) {
+        String hash = SshTunnelApprovals.tunnelSetHash(connection, tunnels);
+        if (hash.equals(declinedTunnelSetHash)) {
+            return false;
+        }
+        if (hash.equals(approvedTunnelSetHash)) {
+            return true;
+        }
+        List<SSHTunnel> startable = tunnels.stream()
+            .filter(tunnel -> SshTunnelManager.wouldStart(tunnel, shared))
+            .toList();
+        if (startable.isEmpty()) {
+            // Nothing would listen; the attach only records why each tunnel was refused.
+            return true;
+        }
+        SshTunnelApprovals approvals = SshTunnelApprovals.shared();
+        if (approvals.isApproved(connection.getId(), hash)) {
+            approvedTunnelSetHash = hash;
+            return true;
+        }
+        boolean allowed = confirmTunnelSet(startable, shared);
+        if (allowed) {
+            approvedTunnelSetHash = hash;
+            approvals.approve(connection.getId(), hash);
+        } else {
+            declinedTunnelSetHash = hash;
+        }
+        return allowed;
+    }
+
+    private boolean confirmTunnelSet(List<SSHTunnel> startable, boolean shared) {
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.applyTheme(alert);
+        if (getScene() != null && getScene().getWindow() != null) {
+            alert.initOwner(getScene().getWindow());
+        }
+        alert.setTitle(I18n.get("tunnel.approval.title"));
+        alert.setHeaderText(I18n.get("tunnel.approval.header"));
+        Label content = new Label(TunnelStatusSupport.approvalText(connection.getDisplayName(), startable, shared));
+        content.setWrapText(true);
+        content.setMaxWidth(560);
+        alert.getDialogPane().setContent(content);
+        javafx.scene.control.ButtonType open = new javafx.scene.control.ButtonType(
+            I18n.get("tunnel.approval.open"), javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
+        javafx.scene.control.ButtonType skip = new javafx.scene.control.ButtonType(
+            I18n.get("tunnel.approval.skip"), javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE);
+        alert.getButtonTypes().setAll(skip, open);
+        return alert.showAndWait().filter(open::equals).isPresent();
+    }
+
+    private void attachTunnelsInBackground(
+            org.apache.sshd.client.session.ClientSession session, List<SSHTunnel> tunnels, boolean shared) {
+        Thread attachThread = new Thread(() -> {
+            try {
+                tunnelManager.attach(session, tunnels, shared);
+            } catch (RuntimeException e) {
+                logger.warn("Opening SSH tunnels to {}:{} failed: {}",
+                    connection.getHost(), connection.getPort(), e.getMessage());
+            }
+        }, "SSH-Tunnels-" + connection.getHost());
+        attachThread.setDaemon(true);
+        attachThread.start();
+    }
+
+    /**
+     * Moves the tunnels to another pane of the same server once the pane that carried them is
+     * gone. Skipped while that pane is still there — then its transport died and the reconnect
+     * re-attaches. Splits to a different server never qualify. FX thread only.
+     */
+    private void rehomeTunnelsIfOwnerGone() {
+        if (tunnelManager.isClosed() || splitPane == null || terminalWidget == null) {
+            return;
+        }
+        SshTtyConnector owner = tunnelOwnerConnector;
+        List<SSHTunnel> tunnels = attachedTunnels;
+        if (owner == null || tunnels.isEmpty()) {
+            return;
+        }
+        SshTtyConnector candidate = null;
+        for (SithTermFxWidget widget : splitPane.getAllWidgets()) {
+            TtyConnector base = widget != null ? unwrapTerminalEffectConnector(widget.getTtyConnector()) : null;
+            if (base == owner) {
+                return;
+            }
+            if (candidate == null && base instanceof SshTtyConnector sshConnector
+                    && sshConnector.getConnection() == connection && sshConnector.getSession() != null) {
+                candidate = sshConnector;
+            }
+        }
+        if (candidate == null) {
+            logger.info("SSH tunnels to {}:{} stopped: no pane of the tab is connected to that server any more",
+                connection.getHost(), connection.getPort());
+            tunnelOwnerConnector = null;
+            tunnelManager.stop();
+            return;
+        }
+        org.apache.sshd.client.session.ClientSession session = candidate.getSession();
+        if (session == null) {
+            return;
+        }
+        logger.info("Moving SSH tunnels to {}:{} to another pane of the tab", connection.getHost(), connection.getPort());
+        tunnelOwnerConnector = candidate;
+        attachTunnelsInBackground(session, tunnels, attachedTunnelsShared);
+    }
+
+    /** Closes the tab's tunnels for good. Idempotent and non-blocking; part of {@link #cleanup()}. */
+    public void closeTunnels() {
+        tunnelManager.close();
+        tunnelOwnerConnector = null;
+        attachedTunnels = List.of();
+    }
+
+    /** The status of every configured tunnel of this tab, for the status bar. Never blocks. */
+    public List<SshTunnelManager.TunnelStatus> getTunnelStatuses() {
+        return tunnelManager.snapshot();
+    }
+
     /**
      * Checks if connected.
      */
