@@ -141,6 +141,17 @@ class ActiveConnectionRegistryTest {
     }
 
     @Test
+    void connectTimeAlwaysCarriesSeconds() {
+        // LocalDateTime.toString() would print 08:15 here, not 08:15:00.
+        Clock onTheMinute = Clock.fixed(Instant.parse("2026-10-02T08:15:00.250Z"), ZoneOffset.UTC);
+        ActiveConnectionRegistry registry = new ActiveConnectionRegistry(onTheMinute);
+        registry.connected(new Object(), "web", ActiveConnectionRegistry.PROTOCOL_SSH);
+
+        assertThat(registry.statistics().values())
+            .containsExactly("Connection: web, Protocol: SSH, Connected At: 2026-10-02T08:15:00");
+    }
+
+    @Test
     void rejectsAMissingKeyOrProtocol() {
         ActiveConnectionRegistry registry = new ActiveConnectionRegistry(FIXED_CLOCK);
 

@@ -7,7 +7,9 @@ import javax.management.MBeanAttributeInfo;
 import javax.management.MBeanServer;
 import javax.management.MBeanServerFactory;
 import javax.management.ObjectName;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -79,9 +81,14 @@ class SSHClientMonitorTest {
                 "BufferedTextSize", "UsedMemoryBytes", "MaxMemoryBytes", "UptimeSeconds", "Version");
 
             assertThat(server.getAttribute(name, "ActiveConnectionCount")).isEqualTo(2);
-            assertThat(server.getAttribute(name, "ActiveConnectionNames"))
-                .isEqualTo(List.of("prod-web", "laptop"));
-            assertThat((Map<?, ?>) server.getAttribute(name, "ConnectionStatistics")).hasSize(2);
+            Object names = server.getAttribute(name, "ActiveConnectionNames");
+            assertThat(names).isEqualTo(List.of("prod-web", "laptop"));
+            Object statistics = server.getAttribute(name, "ConnectionStatistics");
+            assertThat((Map<?, ?>) statistics).hasSize(2);
+            // Remote clients deserialize these; JDK-internal immutable collections (Stream.toList)
+            // travel as java.util.CollSer, which a Java 8 JMX client cannot load.
+            assertThat(names.getClass()).isEqualTo(ArrayList.class);
+            assertThat(statistics.getClass()).isEqualTo(LinkedHashMap.class);
             assertThat(server.getAttribute(name, "BufferedTextSize")).isEqualTo(0L);
         } finally {
             server.unregisterMBean(name);

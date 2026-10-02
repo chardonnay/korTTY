@@ -5,6 +5,8 @@ import de.kortty.core.ActiveConnectionRegistry;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -46,14 +48,17 @@ public class SSHClientMonitor implements SSHClientMonitorMBean {
         return 0L;
     }
 
+    // Attribute values are serialized to remote JMX clients, so they are plain ArrayList and
+    // LinkedHashMap: the JDK-internal immutable collections behind List.of/Stream.toList serialize
+    // through a proxy class that an older client JVM cannot load.
     @Override
     public List<String> getActiveConnectionNames() {
-        return registry.connectionNames();
+        return new ArrayList<>(registry.connectionNames());
     }
 
     @Override
     public Map<String, String> getConnectionStatistics() {
-        return registry.statistics();
+        return new LinkedHashMap<>(registry.statistics());
     }
 
     @Override

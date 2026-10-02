@@ -5,6 +5,7 @@ import de.kortty.model.ServerConnection;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -173,7 +174,9 @@ public final class ActiveConnectionRegistry {
 
     /**
      * One line per open connection, keyed by the entry id:
-     * {@code "Connection: <name>, Protocol: <protocol>, Connected At: <local time>"}.
+     * {@code "Connection: <name>, Protocol: <protocol>, Connected At: <local time>"}, where the
+     * time is always {@code yyyy-MM-ddTHH:mm:ss} (unlike {@link LocalDateTime#toString()}, which
+     * drops {@code :00} seconds).
      */
     public Map<String, String> statistics() {
         Map<String, String> statistics = new LinkedHashMap<>();
@@ -181,7 +184,7 @@ public final class ActiveConnectionRegistry {
             statistics.put(entry.id(),
                 "Connection: " + entry.name()
                     + ", Protocol: " + entry.protocol()
-                    + ", Connected At: " + entry.connectedAt());
+                    + ", Connected At: " + DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(entry.connectedAt()));
         }
         return statistics;
     }
