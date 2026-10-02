@@ -2388,6 +2388,7 @@ public class MainWindow {
                 connection,
                 password,
                 historyToRestore,
+                null,
                 temporarySSHKey,
                 connection != null ? connection.getTerminalEffectPluginId() : null,
                 connection != null ? connection.getTerminalEffectAnimationSpeed() : null);
@@ -2402,15 +2403,22 @@ public class MainWindow {
                 connection,
                 password,
                 historyToRestore,
+                null,
                 temporarySSHKey,
                 connection != null ? connection.getTerminalEffectPluginId() : null,
                 connection != null ? connection.getTerminalEffectAnimationSpeed() : null);
     }
 
+    /**
+     * @param historyToRestore screen text a project saved for this tab; shown locally, dimmed,
+     *     above the new session — never sent to the server
+     * @param historySavedAt when that text was saved (for the header row), {@code null} if unknown
+     */
     private TerminalTab openConnectionAndReturnTab(
             ServerConnection connection,
             String password,
             String historyToRestore,
+            java.time.LocalDateTime historySavedAt,
             de.kortty.model.TemporarySSHKey temporarySSHKey,
             String terminalEffectPluginId,
             Double terminalEffectAnimationSpeed) {
@@ -2465,6 +2473,11 @@ public class MainWindow {
             // Create terminal tab with SithTermFX
             // Note: Tab starts with NO group (tabGroup = null), even if connection has a group
             TerminalTab terminalTab = new TerminalTab(connection, password, keyToUse);
+            if (historyToRestore != null && !historyToRestore.isBlank()) {
+                // Queued before connect(): the view writes it into the emulator before the
+                // emulator starts reading the connection, so it never races the login output.
+                terminalTab.getTerminalView().setPendingRestoredHistory(historyToRestore, historySavedAt);
+            }
             registerTerminalTabForAiAgentDock(terminalTab);
             if (terminalEffectAnimationSpeed != null) {
                 terminalTab.getTerminalView().setTerminalEffectAnimationSpeed(terminalEffectAnimationSpeed);
@@ -2526,22 +2539,6 @@ public class MainWindow {
                                 connection.getDisplayName(), connection.getHost(), getProtocolLabel(connection.getProtocol())));
                         updateDashboard(); // Update dashboard when connection succeeds
                     });
-                    
-                    // Restore history after connection is established
-                    if (historyToRestore != null && !historyToRestore.isEmpty()) {
-                        // Wait a bit for terminal to be fully initialized
-                        new Thread(() -> {
-                            try {
-                                Thread.sleep(500); // Give terminal time to settle
-                                Platform.runLater(() -> {
-                                    terminalTab.getTerminalView().restoreHistory(historyToRestore);
-                                    logger.info("Terminal history restored for {}", connection.getDisplayName());
-                                });
-                            } catch (InterruptedException e) {
-                                logger.error("History restore interrupted", e);
-                            }
-                        }).start();
-                    }
                 } catch (Exception ex) {
                     logger.error("Connection failed", ex);
                     Platform.runLater(() -> {
@@ -5370,6 +5367,7 @@ public class MainWindow {
                                             connection,
                                             password,
                                             history,
+                                            project.getLastModified(),
                                             null,
                                             sessionState.getTerminalEffectPluginId(),
                                             sessionState.getTerminalEffectAnimationSpeed());
@@ -7802,26 +7800,62 @@ public class MainWindow {
         return AiProfileSelectionSupport.findByLookup(getAvailableAiProfiles(), lookup);
     }
 
-    private void launchTerminalAgent(TerminalTab terminalTab, TerminalAgentModels.Request request) {
-        launchTerminalAgent(terminalTab, request, null);
+    private boolean launchTerminalAgent(TerminalTab terminalTab, TerminalAgentModels.Request request) {
+        return launchTerminalAgent(terminalTab, request, null);
     }
 
-    private void launchTerminalAgent(
+    private boolean launchTerminalAgent(
         TerminalTab terminalTab,
         TerminalAgentModels.Request request,
         TerminalView.TerminalAgentRunContext runContext) {
-        launchTerminalAgent(terminalTab, request, runContext, null);
+        return launchTerminalAgent(terminalTab, request, runContext, null);
     }
 
-    private void launchTerminalAgent(
+    private boolean launchTerminalAgent(
         TerminalTab terminalTab,
         TerminalAgentModels.Request request,
         TerminalView.TerminalAgentRunContext runContext,
         String askSelectedText) {
+        return launchTerminalAgent(terminalTab, request, runContext, askSelectedText, null);
+    }
+
+    /**
+     * Every agent run goes through here — the dialog, the {@code agent ...} shortcut, Retry and the
+     * execution of an accepted plan — so the foreign-session check sits here and is evaluated when
+     * the run really starts. {@code acknowledgedConnector} is the connector whose foreign-session
+     * warning the user already accepted earlier in the same flow, so they are not asked twice.
+     *
+     * @return {@code true} when a run (or an Ask tab) was started, {@code false} when it was refused
+     *     or cancelled, so a caller such as the plan tab can give its controls back
+     */
+    private boolean launchTerminalAgent(
+        TerminalTab terminalTab,
+        TerminalAgentModels.Request request,
+        TerminalView.TerminalAgentRunContext runContext,
+        String askSelectedText,
+        @Nullable ObservableTtyConnector acknowledgedConnector) {
         AiProfile profile = findAiProfileById(request.profileId());
         if (profile == null) {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.profileMissing"));
-            return;
+            return false;
+        }
+        // An Ask only sends the question to the model and runs nothing on the target, so it needs
+        // no warning; every executing run does.
+        ObservableTtyConnector foreignSessionAcknowledgedFor = acknowledgedConnector;
+        TerminalView.TerminalAgentRunContext targetRunContext = runContext;
+        if (!request.queryOnly()) {
+            // Resolve the target pane once, so the pane whose identity the user confirms is the
+            // pane the run then uses, not one captured again after the modal warning closed.
+            targetRunContext = terminalTab != null
+                ? resolveTerminalAgentRunContext(terminalTab, runContext)
+                : runContext;
+            AgentTargetConfirmation confirmation =
+                confirmAgentTargetInForeignSession(terminalTab, targetRunContext, acknowledgedConnector);
+            if (!confirmation.proceed()) {
+                updateStatus(I18n.get("ai.agent.foreignSession.cancelled"));
+                return false;
+            }
+            foreignSessionAcknowledgedFor = confirmation.acknowledgedConnector();
         }
         logger.info("Launching terminal AI agent with profile '{}' ({})", getAiProfileDisplayName(profile), profile.getId());
         Map<String, Object> agentProps = new java.util.LinkedHashMap<>(TelemetryProps.aiProfileProps(profile));
@@ -7830,7 +7864,7 @@ public class MainWindow {
         AiService service = createAiServiceForProfile(profile, terminalTab != null ? terminalTab.getConnection() : null);
         if (!(service instanceof AiPromptService aiService)) {
             suggestAiWizard(I18n.get("ai.agent.title"));
-            return;
+            return false;
         }
 
         if (request.queryOnly()) {
@@ -7842,10 +7876,11 @@ public class MainWindow {
                 askSelectedText,
                 request.connectionDisplayName(),
                 terminalTab != null ? terminalTab.getConnection() : null);
-            return;
+            return true;
         }
 
-        TerminalView.TerminalAgentRunContext resolvedRunContext = resolveTerminalAgentRunContext(terminalTab, runContext);
+        TerminalView.TerminalAgentRunContext resolvedRunContext =
+            resolveTerminalAgentRunContext(terminalTab, targetRunContext);
         applyTerminalAgentWorkingDirectoryHint(resolvedRunContext);
 
         if (request.executionTarget() == TerminalAgentExecutionTarget.CHAT_WINDOW) {
@@ -7858,10 +7893,12 @@ public class MainWindow {
                 aiService,
                 agentRunnerFor(resolvedRunContext),
                 request);
-            return;
+            return true;
         }
 
-        runTerminalAgentInTerminalWindow(terminalTab, profile, aiService, request, resolvedRunContext);
+        runTerminalAgentInTerminalWindow(
+            terminalTab, profile, aiService, request, resolvedRunContext, foreignSessionAcknowledgedFor);
+        return true;
     }
 
     private void openDirectAiAskTab(
@@ -7956,7 +7993,8 @@ public class MainWindow {
         AiProfile profile,
         AiPromptService aiService,
         TerminalAgentModels.Request request,
-        TerminalView.TerminalAgentRunContext runContext) {
+        TerminalView.TerminalAgentRunContext runContext,
+        @Nullable ObservableTtyConnector foreignSessionAcknowledgedFor) {
         java.util.concurrent.atomic.AtomicBoolean cancelled = new java.util.concurrent.atomic.AtomicBoolean(false);
         java.util.concurrent.atomic.AtomicBoolean paused = new java.util.concurrent.atomic.AtomicBoolean(false);
         java.util.concurrent.atomic.AtomicReference<Thread> workerRef = new java.util.concurrent.atomic.AtomicReference<>();
@@ -7998,8 +8036,11 @@ public class MainWindow {
             }
         };
         // Reload must use the AI profile that is active *now*, not the one frozen into the
-        // original request, so switching profiles before pressing reload takes effect.
-        Runnable reloadRun = () -> relaunchTerminalAgentWithCurrentProfile(terminalTab, request, resolvedRunContext);
+        // original request, so switching profiles before pressing reload takes effect. It goes
+        // through the foreign-session check again (a su typed after the first run is caught),
+        // carrying the acknowledgement this run already got so the same warning is not repeated.
+        Runnable reloadRun = () -> relaunchTerminalAgentWithCurrentProfile(
+            terminalTab, request, resolvedRunContext, foreignSessionAcknowledgedFor);
         terminalTab.getTerminalView().setTerminalAgentInputLocked(
             resolvedRunContext,
             runId,
@@ -8185,6 +8226,83 @@ public class MainWindow {
             : null;
     }
 
+    /**
+     * Outcome of {@link #confirmAgentTargetInForeignSession}: whether the run may start, and the
+     * connector whose foreign-session warning the user has accepted in this flow (or {@code null}).
+     */
+    private record AgentTargetConfirmation(
+        boolean proceed,
+        @Nullable ObservableTtyConnector acknowledgedConnector) {
+    }
+
+    /**
+     * Asks before an AI agent or planning run starts in a pane whose shell is (suspected to be)
+     * running as another user or host — after {@code su}, {@code sudo -i} or a nested
+     * {@code ssh}. The agent never types into that shell: it runs its commands over a new exec
+     * channel of the tab's original SSH session, or as local processes in a local-shell tab, so
+     * it acts as the identity the tab was opened with while the prompt shows another one.
+     *
+     * <p>A warning already accepted for the same connector earlier in the flow
+     * ({@code acknowledgedConnector}) is not repeated. Must run on the JavaFX thread: the check
+     * reads the pane's screen buffer.</p>
+     */
+    private AgentTargetConfirmation confirmAgentTargetInForeignSession(
+        TerminalTab terminalTab,
+        @Nullable TerminalView.TerminalAgentRunContext runContext,
+        @Nullable ObservableTtyConnector acknowledgedConnector) {
+        TerminalView terminalView = terminalTab != null ? terminalTab.getTerminalView() : null;
+        if (terminalView == null) {
+            return new AgentTargetConfirmation(true, acknowledgedConnector);
+        }
+        TerminalView.TerminalAgentRunContext resolvedContext = runContext != null
+            ? runContext
+            : terminalView.captureTerminalAgentRunContext();
+        ObservableTtyConnector connector = resolvedContext != null ? resolvedContext.connector() : null;
+        boolean foreignSession = resolvedContext != null && terminalView.isForeignSessionActive(resolvedContext);
+        if (connector == null
+            || !TerminalAgentTargetNotice.requiresConfirmation(foreignSession, connector, acknowledgedConnector)) {
+            return new AgentTargetConfirmation(true, acknowledgedConnector);
+        }
+
+        ServerConnection connection = connector.getConnection() != null
+            ? connector.getConnection()
+            : terminalTab.getConnection();
+        boolean localShell = connector instanceof LocalShellTtyConnector
+            || (connection != null && connection.isLocalShell());
+        String target = TerminalAgentTargetNotice.describeTarget(
+            connector.getExpectedSessionUser(),
+            connector.getExpectedSessionHost(),
+            connection != null ? connection.getUsername() : null,
+            connection != null ? connection.getHost() : null,
+            localShell);
+
+        ButtonType continueButton = new ButtonType(
+            I18n.get("ai.agent.foreignSession.continue"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelButton = new ButtonType(I18n.get("dialog.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
+        Alert alert = new Alert(Alert.AlertType.WARNING, "", continueButton, cancelButton);
+        DialogThemeHelper.applyTheme(alert);
+        if (stage != null) {
+            alert.initOwner(stage);
+        }
+        alert.setTitle(I18n.get("ai.agent.foreignSession.title"));
+        alert.setHeaderText(I18n.get("ai.agent.foreignSession.header"));
+        alert.setContentText(I18n.get("ai.agent.foreignSession.message", target));
+        alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
+        // Cancel is the safe answer, so Enter must not start the run.
+        if (alert.getDialogPane().lookupButton(continueButton) instanceof Button continueNode) {
+            continueNode.setDefaultButton(false);
+        }
+        if (alert.getDialogPane().lookupButton(cancelButton) instanceof Button cancelNode) {
+            cancelNode.setDefaultButton(true);
+        }
+        boolean confirmed = alert.showAndWait().orElse(cancelButton) == continueButton;
+        logger.info("AI agent target pane runs a foreign session; the user {} the run",
+            confirmed ? "continued" : "cancelled");
+        return confirmed
+            ? new AgentTargetConfirmation(true, connector)
+            : new AgentTargetConfirmation(false, acknowledgedConnector);
+    }
+
     private void applyTerminalAgentWorkingDirectoryHint(TerminalView.TerminalAgentRunContext runContext) {
         if (runContext == null || runContext.connector() == null) {
             return;
@@ -8225,14 +8343,15 @@ public class MainWindow {
     private void relaunchTerminalAgentWithCurrentProfile(
         TerminalTab terminalTab,
         TerminalAgentModels.Request request,
-        TerminalView.TerminalAgentRunContext runContext) {
+        TerminalView.TerminalAgentRunContext runContext,
+        @Nullable ObservableTtyConnector foreignSessionAcknowledgedFor) {
         AiProfile currentProfile = resolveAiProfileForConnection(
             terminalTab != null ? terminalTab.getConnection() : null,
             AiWorkload.CODING);
         TerminalAgentModels.Request refreshedRequest = currentProfile != null
             ? withTerminalAgentProfileId(request, currentProfile.getId())
             : request;
-        launchTerminalAgent(terminalTab, refreshedRequest, runContext);
+        launchTerminalAgent(terminalTab, refreshedRequest, runContext, null, foreignSessionAcknowledgedFor);
     }
 
     /**
@@ -8299,6 +8418,27 @@ public class MainWindow {
             showError(I18n.get("ai.plan.title"), I18n.get("ai.agent.error.profileMissing"));
             return;
         }
+        // Planning probes the target with read-only commands and ends in an executing run, so it
+        // asks like the agent does. The acknowledgement is handed to the accepted plan's
+        // execution, which checks again on its own when it starts (a su typed while planning is
+        // caught there) but does not repeat a warning the user already accepted here.
+        // The terminal-window pane is captured before the check, so the pane whose identity the
+        // user confirms is the pane the planning probes then use.
+        TerminalAgentExecutionTarget executionTarget = getTerminalAgentExecutionTarget();
+        TerminalView.TerminalAgentRunContext resolvedRunContext = runContext;
+        if (executionTarget == TerminalAgentExecutionTarget.TERMINAL_WINDOW
+            && resolvedRunContext == null
+            && terminalTab != null
+            && terminalTab.getTerminalView() != null) {
+            resolvedRunContext = terminalTab.getTerminalView().captureTerminalAgentRunContext();
+        }
+        AgentTargetConfirmation confirmation =
+            confirmAgentTargetInForeignSession(terminalTab, resolvedRunContext, null);
+        if (!confirmation.proceed()) {
+            updateStatus(I18n.get("ai.agent.foreignSession.cancelled"));
+            return;
+        }
+        ObservableTtyConnector foreignSessionAcknowledgedFor = confirmation.acknowledgedConnector();
         logger.info("Launching terminal AI planning with profile '{}' ({})", getAiProfileDisplayName(profile), profile.getId());
         Telemetry.track(TelemetryEvents.AI_PLAN_RUN_STARTED, TelemetryProps.aiProfileProps(profile));
         AiService service = createAiServiceForProfile(profile, terminalTab != null ? terminalTab.getConnection() : null);
@@ -8307,13 +8447,6 @@ public class MainWindow {
             return;
         }
 
-        TerminalAgentExecutionTarget executionTarget = getTerminalAgentExecutionTarget();
-        TerminalView.TerminalAgentRunContext resolvedRunContext = runContext;
-        if (executionTarget == TerminalAgentExecutionTarget.TERMINAL_WINDOW
-            && resolvedRunContext == null
-            && terminalTab.getTerminalView() != null) {
-            resolvedRunContext = terminalTab.getTerminalView().captureTerminalAgentRunContext();
-        }
         applyTerminalAgentWorkingDirectoryHint(resolvedRunContext);
         TerminalView.TerminalAgentRunContext planRunContext = resolvedRunContext;
         AiAgentPlanTab planTab = new AiAgentPlanTab(
@@ -8325,7 +8458,8 @@ public class MainWindow {
             request,
             agentRunnerFor(planRunContext),
             () -> resolveTerminalAgentPreflightSessionId(terminalTab, request.sessionId(), planRunContext),
-            (planRequest, report) -> startAcceptedPlanExecution(terminalTab, profile, planRequest, report, planRunContext));
+            (planRequest, report) -> startAcceptedPlanExecution(
+                terminalTab, profile, planRequest, report, planRunContext, foreignSessionAcknowledgedFor));
         insertTemporaryTab(planTab);
         planTab.start();
     }
@@ -8342,15 +8476,16 @@ public class MainWindow {
         return sessionId;
     }
 
-    private void startAcceptedPlanExecution(
+    private boolean startAcceptedPlanExecution(
         TerminalTab terminalTab,
         AiProfile profile,
         TerminalAgentModels.PlanRequest planRequest,
         TerminalAgentModels.PlanReport report,
-        TerminalView.TerminalAgentRunContext runContext) {
+        TerminalView.TerminalAgentRunContext runContext,
+        @Nullable ObservableTtyConnector foreignSessionAcknowledgedFor) {
         if (!isTerminalAgentExecutionEnabled()) {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.executionDisabled"));
-            return;
+            return false;
         }
         TerminalAgentModels.Request request = new TerminalAgentModels.Request(
             planRequest.sessionId(),
@@ -8365,7 +8500,7 @@ public class MainWindow {
             false,
             shouldConfirmTerminalAgentMutatingCommandSets(),
             false);
-        launchTerminalAgent(terminalTab, request, runContext);
+        return launchTerminalAgent(terminalTab, request, runContext, null, foreignSessionAcknowledgedFor);
     }
 
     private void handleTerminalAgentShortcut(

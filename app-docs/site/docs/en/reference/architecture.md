@@ -98,7 +98,7 @@ KorTTY stores its main configuration, credentials, and session state under `~/.k
 ├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin IDs (one per line)
 ├── master.key                   # PBKDF2-hashed master password (310,000 iterations)
 ├── kortty.log                   # Application log file
-├── history/                     # Compressed terminal session logs
+├── history/                     # Project screen snapshots (gzip, one per terminal tab)
 ├── plugins/                     # Imported external terminal-effect plugin JARs
 ├── bundled-plugins/             # Runtime copies of bundled exportable plugin JARs
 ├── projects/                    # Project files (connection sets with saved layout)
@@ -349,7 +349,7 @@ Menu-bar status displays next runs / live countdown
 - **Log file**: `~/.kortty/kortty.log` (SLF4J with Logback backend)
 - **JMX monitoring**: MBean `de.kortty:type=SSHClient` exposes the live SSH and Mosh terminal connections (each split pane counts, local shells do not), memory and uptime; `BufferedTextSize` is not tracked and stays 0
 - **JobScheduler journal**: Detailed execution logs with configurable retention (14 days default, unlimited if set to 0)
-- **Terminal history**: Compressed session logs in `~/.kortty/history/`
+- **Project screen snapshots**: The last visible screen of each terminal tab of a saved project, gzip-compressed in `~/.kortty/history/` and shown locally (never sent to the server) when the project is reopened with Auto-Reconnect
 - **Terminal recording**: Optional replay files in `~/.kortty/recordings/`
 - **Test isolation**: The test Logback configuration writes to its own console only and never creates or appends to the real user's `~/.kortty/logs`
 
@@ -385,7 +385,7 @@ Menu-bar status displays next runs / live countdown
 ## Performance Considerations
 
 - **Lazy loading**: Connection details loaded on demand, not all at once
-- **Compression**: Terminal history and terminal logs use gzip; rotated session-journal parts use zstd (legacy `.gz` parts stay readable)
+- **Compression**: Project screen snapshots and terminal logs use gzip; rotated session-journal parts use zstd (legacy `.gz` parts stay readable)
 - **Throttling**: Terminal rendering updates are batched to reduce UI thread load
 - **Memory pooling**: Large buffers for terminal text and SFTP file listing are reused
 

@@ -758,53 +758,69 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="ssh-tunnel-portweiterleitung">SSH-Tunnel (Portweiterleitung)<a class="headerlink" href="#ssh-tunnel-portweiterleitung" title="Permanent link">&para;</a></h1>
-<p>SSH-Tunnel leiten den Datenverkehr sicher zwischen lokalen und Remote-Ports über eine verschlüsselte SSH-Verbindung weiter. korTTY unterstützt drei Tunneltypen: lokale Portweiterleitung, Remote-Portweiterleitung und dynamische Portweiterleitung (SOCKS-Proxy).</p>
+<p>SSH-Tunnels leiten den Datenverkehr sicher zwischen lokalen und entfernten Ports über eine verschlüsselte SSH-Verbindung weiter. korTTY unterstützt drei Tunnelarten: lokales Port-Forwarding, entferntes Port-Forwarding und dynamisches Port-Forwarding (SOCKS-Proxy). Sie funktionieren wie die Optionen <code>-L</code>, <code>-R</code> und <code>-D</code> von OpenSSH und laufen über die Login-Sitzung des Terminal-Tabs, sodass kein zweites Login erforderlich ist.</p>
 <h2 id="tunnel-konfigurieren">Tunnel konfigurieren<a class="headerlink" href="#tunnel-konfigurieren" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Öffnen Sie eine Verbindung zum Bearbeiten: <strong>Verbindungen &gt; Verbindungen verwalten</strong> → Verbindung auswählen → <strong>Bearbeiten</strong>.</li>
 <li>Navigieren Sie zur Registerkarte <strong>SSH-Tunnel</strong>.</li>
-<li>Klicken Sie auf <strong>Tunnel hinzufügen</strong> und konfigurieren Sie den Tunnel.</li>
+<li>Klicken Sie auf <strong>Hinzufügen</strong> und konfigurieren Sie den Tunnel.</li>
 </ol>
 <h3 id="tunnelkonfigurationsfelder">Tunnelkonfigurationsfelder<a class="headerlink" href="#tunnelkonfigurationsfelder" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
 <th>Feld</th>
-<th>Beschreibung</th>
+<th>Lokal (<code>-L</code>)</th>
+<th>Remote (<code>-R</code>)</th>
+<th>Dynamisch (<code>-D</code>)</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><strong>Typ</strong></td>
-<td>Lokal (<code>-L</code>), Remote (<code>-R</code>) oder Dynamisch (<code>-D</code>)</td>
+<td><code>LOCAL</code></td>
+<td><code>REMOTE</code></td>
+<td><code>DYNAMIC</code></td>
 </tr>
 <tr>
 <td><strong>Lokaler Host</strong></td>
-<td>Lokale Bindungsadresse (normalerweise <code>localhost</code>)</td>
+<td>Adresse, an die der Listener auf Ihrem Computer bindet (<code>localhost</code> bleibt privat)</td>
+<td>Ihr Computer leitet die Verbindungen an</td>
+<td>Adresse, an die der SOCKS-Proxy auf Ihrem Computer bindet</td>
 </tr>
 <tr>
 <td><strong>Lokaler Port</strong></td>
-<td>Lokale Portnummer</td>
+<td>Port, der auf Ihrem Computer lauscht</td>
+<td>Port des Dienstes auf Ihrem Computer</td>
+<td>Port des SOCKS-Proxys</td>
 </tr>
 <tr>
-<td><strong>Remote-Host</strong></td>
-<td>Zielhost aus Sicht des SSH-Servers</td>
+<td><strong>Remote Host</strong></td>
+<td>Zielhost, wie er vom SSH-Server gesehen wird</td>
+<td>Adresse, an die der SSH-Server lauscht (Standard <code>localhost</code>)</td>
+<td>Nicht verwendet</td>
 </tr>
 <tr>
-<td><strong>Remote-Port</strong></td>
-<td>Zielport auf dem Remote-Host</td>
+<td><strong>Remote Port</strong></td>
+<td>Zielport</td>
+<td>Port, an dem der SSH-Server lauscht</td>
+<td>Nicht verwendet</td>
 </tr>
 <tr>
 <td><strong>Beschreibung</strong></td>
-<td>Optionale Beschriftung für den Tunnel</td>
+<td>Optionaler Bezeichner für den Tunnel</td>
+<td>Optionaler Bezeichner</td>
+<td>Optionaler Bezeichner</td>
 </tr>
 <tr>
-<td><strong>Aktiviert</strong></td>
-<td>Ein-/Ausschalten, ohne die Konfiguration zu löschen</td>
+<td><strong>Tunnel aktivieren</strong></td>
+<td>Nur aktivierte Tunnel werden geöffnet</td>
+<td>Nur aktivierte Tunnel werden geöffnet</td>
+<td>Nur aktivierte Tunnel werden geöffnet</td>
 </tr>
 </tbody>
 </table>
-<p>Pro Verbindung können mehrere Tunnel konfiguriert werden. Deaktivierte Tunnel bleiben in der Konfiguration erhalten, werden jedoch beim Verbindungsaufbau nicht aktiviert.</p>
+<p>Mehrere Tunnel können pro Verbindung konfiguriert werden. Deaktivierte Tunnel bleiben in der Konfiguration, werden aber nicht geöffnet, wenn die Verbindung hergestellt wird.</p>
 <h2 id="tunneltypen">Tunneltypen<a class="headerlink" href="#tunneltypen" title="Permanent link">&para;</a></h2>
 <h3 id="lokale-portweiterleitung-l">Lokale Portweiterleitung (<code>-L</code>)<a class="headerlink" href="#lokale-portweiterleitung-l" title="Permanent link">&para;</a></h3>
 <p>Leiten Sie einen lokalen Port über den SSH-Tunnel an einen Remotedienst weiter.</p>
@@ -814,45 +830,69 @@
 <ul>
 <li><strong>Lokaler Host:</strong> <code>localhost</code></li>
 <li><strong>Lokaler Port:</strong> <code>8080</code></li>
-<li><strong>Remote-Host:</strong> <code>database-server</code> (oder IP)</li>
-<li><strong>Remote-Port:</strong> <code>5432</code></li>
+<li><strong>Remote Host:</strong> <code>database-server</code> (oder IP)</li>
+<li><strong>Remote Port:</strong> <code>5432</code></li>
 </ul>
-<p>Stellen Sie nach der Konfiguration mit <code>localhost:8080</code> auf Ihrem Computer eine Verbindung zur Remote-Datenbank her.</p>
+<p>Sobald Sie verbunden sind, verbinden Sie sich mit der Remote-Datenbank über <code>localhost:8080</code> auf Ihrem Rechner.</p>
 <h3 id="remote-port-weiterleitung-r">Remote-Port-Weiterleitung (<code>-R</code>)<a class="headerlink" href="#remote-port-weiterleitung-r" title="Permanent link">&para;</a></h3>
-<p>Machen Sie einen lokalen Dienst über das Netzwerk des Remote-Servers zugänglich.</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Remote:9090  --&gt;  SSH Server  --&gt;  Your machine:3000
+<p>Machen Sie einen lokalen Dienst auf dem SSH-Server zugänglich.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>SSH Server localhost:9090  --&gt;  Your machine:3000
 </span></code></pre></div>
-<p><strong>Beispielanwendungsfall:</strong> Ermöglichen Sie einem Remote-Teammitglied den Zugriff auf einen lokalen Entwicklungsserver auf Ihrem Computer.</p>
+<p><strong>Beispielanwendung:</strong> Lassen Sie ein Programm auf dem SSH-Server einen Entwicklungsserver auf Ihrem Rechner erreichen.</p>
 <ul>
-<li><strong>Remote-Port:</strong> <code>9090</code> (der Port, den die Remote-Seite verwendet, um Ihren Dienst zu erreichen)</li>
+<li><strong>Remote Host:</strong> <code>localhost</code> (die Adresse, auf der der SSH-Server lauscht)</li>
+<li><strong>Remote Port:</strong> <code>9090</code> (der Port, auf dem der SSH-Server lauscht)</li>
 <li><strong>Lokaler Host:</strong> <code>localhost</code></li>
 <li><strong>Lokaler Port:</strong> <code>3000</code> (Ihr lokaler Dienst)</li>
 </ul>
-<p>Nach der Verbindung kann der Remote-Computer unter <code>localhost:9090</code> auf Ihren Dienst zugreifen.</p>
+<p>Nach dem Verbinden erreichen Programme auf dem SSH-Server Ihren Dienst unter <code>localhost:9090</code>. Wie OpenSSH bittet korTTY den Server, nur auf seiner Loopback-Adresse zu lauschen. Durch Setzen von <strong>Remote Host</strong> auf <code>0.0.0.0</code> fordert der Server, auch Verbindungen aus seinem Netzwerk zu akzeptieren; dies geschieht nur, wenn die Einstellung <code>GatewayPorts</code> des Servers dies zulässt, und korTTY kennzeichnet einen solchen Tunnel in der Statusleiste als von anderen Computern erreichbar.</p>
 <h3 id="dynamische-portweiterleitung-d">Dynamische Portweiterleitung (<code>-D</code>)<a class="headerlink" href="#dynamische-portweiterleitung-d" title="Permanent link">&para;</a></h3>
-<p>Erstellen Sie einen SOCKS5-Proxy für den gesamten Netzwerkverkehr durch den SSH-Tunnel.</p>
+<p>Erstellen Sie einen SOCKS-Proxy für Netzwerkverkehr über den SSH-Tunnel.</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Your machine:1080  --&gt;  SSH Server  --&gt;  (any destination)
 </span></code></pre></div>
 <p><strong>Beispielhafter Anwendungsfall:</strong> Verschlüsseln Sie den gesamten Datenverkehr von Ihrem Browser oder Ihrer Anwendung, indem Sie ihn durch den SSH-Tunnel leiten.</p>
 <ul>
 <li><strong>Lokaler Port:</strong> <code>1080</code> (oder jeder verfügbare Port)</li>
 </ul>
-<p>Konfigurieren Sie Ihren Browser oder Ihre Anwendung so, dass <code>localhost:1080</code> als SOCKS5-Proxy verwendet wird. Der gesamte Datenverkehr wird sicher über den SSH-Server weitergeleitet.</p>
+<p>Konfigurieren Sie Ihren Browser oder Ihre Anwendung so, dass sie <code>localhost:1080</code> als SOCKS5-(oder SOCKS4)-Proxy verwendet. Hostnamen werden vom SSH-Server aufgelöst.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Für die dynamische Portweiterleitung ist nur der lokale Port erforderlich. Die Felder „Remote-Host“ und „Remote-Port“ werden nicht verwendet.</p>
+<p>Für Dynamic Port Forwarding werden nur der lokale Host und der lokale Port verwendet. Die Felder für Remote-Host und Remote-Port werden ignoriert.</p>
 </div>
+<h2 id="wenn-tunnel-geoffnet-sind">Wenn Tunnel geöffnet sind<a class="headerlink" href="#wenn-tunnel-geoffnet-sind" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Einmal pro Terminal-Tab:</strong> die Tunnel öffnen sich unmittelbar nach dem Login in der ersten SSH-Sitzung des Tabs und bleiben offen, solange der Tab verbunden ist. Aufgeteilte Panes öffnen sie nicht erneut und stehen auch nicht im Konflikt mit ihnen.</li>
+<li><strong>Einmal gefragt:</strong> Beim ersten Öffnen der Tunnel einer Verbindung listet korTTY sie auf und fragt <strong>Tunnel öffnen</strong> oder <strong>Nicht jetzt</strong>. <strong>Nicht jetzt</strong> ist die Standardschaltfläche, sodass ein Tastendruck, den Sie noch in das Terminal eingeben, wenn die Frage erscheint, sie nicht öffnet. Die Antwort wird für diese Verbindung gespeichert; korTTY fragt erneut, wenn sich die Tunnel oder der Server ändern. <strong>Nicht jetzt</strong> gilt für den Tab, einschließlich seiner Neuverbindungen – öffnen Sie die Verbindung in einem neuen Tab, um erneut gefragt zu werden.</li>
+<li><strong>Neu verbinden:</strong> Eine manuelle oder automatische Neuverbindung schließt zunächst die Tunnel und öffnet sie anschließend in der neuen Sitzung.</li>
+<li><strong>Pane schließen:</strong> Schließen Sie den Pane, in dem die Tunnel laufen (oder geben dort <code>exit</code> ein), während ein mit <strong>Rechts teilen (gleicher Server)</strong> oder <strong>Unten teilen (gleicher Server)</strong> geöffneter Pane offen bleibt, werden die Tunnel in diesen Pane verschoben. Mit <strong>Rechts teilen (neue Verbindung)</strong> oder <strong>Unten teilen (neue Verbindung)</strong> geöffnete Pane übernehmen sie nie, selbst wenn sie sich mit demselben Server verbinden.</li>
+<li><strong>Tab schließen</strong> schließt seine Tunnel.</li>
+<li><strong>Zwei Tabs, eine Verbindung:</strong> Jeder Tab öffnet eigene Tunnel, sodass im zweiten Tab ein lokaler oder dynamischer Tunnel meldet, dass die Adresse bereits verwendet wird, und ein Remote-Tunnel meldet, dass der SSH-Server ihn abgelehnt hat. Der erste Tab bleibt funktionsfähig.</li>
+<li><strong>Nicht geöffnet</strong> von SFTP-Tabs, Mosh-Verbindungen (die Statusleiste sagt, dass Tunnel das SSH-Protokoll benötigen), oder für Aufteilungen zu einem anderen Server.</li>
+<li><strong>Serverseitig:</strong> Der SSH-Server muss Weiterleitung zulassen (<code>AllowTcpForwarding</code> in OpenSSH). Ein Remote-Tunnel, den der Server ablehnt (Weiterleitung deaktiviert oder sein Port bereits auf dem Server in Benutzung), wird in der Statusleiste angezeigt; die anderen Tunnel bleiben offen.</li>
+</ul>
+<h3 id="statusleiste">Statusleiste<a class="headerlink" href="#statusleiste" title="Permanent link">&para;</a></h3>
+<p>Während ein Tab Tunnel hat, zeigt die Statusleiste <code>Tunnel: 2/3 aktiv</code>, gefolgt vom ersten Tunnel, der fehlgeschlagen ist und warum (zum Beispiel <code>Address already in use</code>) sowie dem ersten Tunnel, den andere Computer erreichen können. Bewegen Sie die Maus über die Statusleiste, um jeden Tunnel mit seinem Zustand anzuzeigen.</p>
+<h3 id="geteilte-verbindungen-teamarbeit">Geteilte Verbindungen (Teamarbeit)<a class="headerlink" href="#geteilte-verbindungen-teamarbeit" title="Permanent link">&para;</a></h3>
+<p>Tunnel einer Verbindung, die von einer <a href="teamwork.html">Teamarbeit</a>-Quelle stammt, wurden von der Person geschrieben, die die gemeinsame Datei bearbeitet; daher beschränkt korTTY sie:</p>
+<ul>
+<li>Remote-Tunnel werden nie geöffnet, egal welche Adresse sie angeben: Loopback auf einem gemeinsamen SSH-Server ist von jedem Konto darauf erreichbar.</li>
+<li>Lokale und dynamische Tunnel können nur auf <code>localhost</code> hören.</li>
+<li>Der Rest erfordert noch Ihre einmalige Bestätigung, die darauf hinweist, dass die Tunnel aus der gemeinsamen Datei stammen.</li>
+</ul>
+<p>Um einen anderen Tunnel zu verwenden, erstellen Sie Ihre eigene Verbindung zum selben Server und fügen dort den Tunnel hinzu; gemeinsame Verbindungen können im Connection-Manager nicht dupliziert werden.</p>
+<h3 id="organisationsrichtlinie">Organisationsrichtlinie<a class="headerlink" href="#organisationsrichtlinie" title="Permanent link">&para;</a></h3>
+<p>Ein Administrator kann alle Tunnel mit <code>allow-port-forwarding = false</code> in der <a href="../reference/enterprise-policy.html">Unternehmensrichtlinie</a> verbieten. Die Statusleiste sagt dann, dass Tunnel von Ihrer Organisation deaktiviert sind.</p>
 <h2 id="tunnel-verwalten">Tunnel verwalten<a class="headerlink" href="#tunnel-verwalten" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Aktivieren/Deaktivieren:</strong> Schalten Sie das Kontrollkästchen <strong>Aktiviert</strong> für einen Tunnel um, um ihn zu aktivieren oder zu deaktivieren, ohne die Konfiguration zu entfernen.</li>
+<li><strong>Aktivieren/Deaktivieren:</strong> Schalten Sie <strong>Tunnel aktivieren</strong> an einem Tunnel ein, um ihn zu aktivieren oder zu deaktivieren, ohne die Konfiguration zu entfernen.</li>
 <li><strong>Bearbeiten:</strong> Wählen Sie einen Tunnel aus und ändern Sie seine Einstellungen.</li>
-<li><strong>Löschen:</strong> Einen Tunnel aus der Verbindung entfernen.</li>
-<li><strong>Mehrere Tunnel:</strong> Es können beliebig viele Tunnel auf einer einzigen Verbindung konfiguriert und gleichzeitig aktiviert werden.</li>
+<li><strong>Entfernen:</strong> Entfernen Sie einen Tunnel von der Verbindung.</li>
+<li><strong>Mehrere Tunnel:</strong> Auf einer einzigen Verbindung können beliebig viele Tunnel konfiguriert und gleichzeitig geöffnet werden.</li>
 </ul>
-<p>Tunnel werden beim Öffnen der SSH-Verbindung eingerichtet und bleiben für die Dauer der Sitzung aktiv.</p>
+<p>Änderungen treten beim nächsten Verbindungsaufbau oder bei der Wiederverbindung des Tabs in Kraft.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>Wenn Sie die lokale oder Remote-Portweiterleitung an Ports unter 1024 (z. B. Port 80 oder 443) verwenden, sind für Ihr System möglicherweise erhöhte Berechtigungen erforderlich. Verwenden Sie die Ports 1024 und höher, um Berechtigungsprobleme zu vermeiden.</p>
+<p>Ports unter 1024 (wie 80 oder 443) erfordern erhöhte Privilegien: auf Ihrem Computer für lokale und dynamische Tunnel sowie ein Root-Login auf dem SSH-Server für entfernte Tunnel. Verwenden Sie Ports ab 1024, um Berechtigungsprobleme zu vermeiden.</p>
 </div></p>
     </article>
 </section>
