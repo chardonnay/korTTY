@@ -18,7 +18,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HexFormat;
+import java.util.stream.Stream;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
@@ -42,6 +44,15 @@ class SshTtyConnectorEncodingIntegrationTest {
         if (server != null) {
             server.stop(true);
             server = null;
+        }
+        if (tmp != null) {
+            // Host key and trust store: nothing of this test stays in the temp folder.
+            try (Stream<Path> entries = Files.walk(tmp)) {
+                for (Path entry : entries.sorted(Comparator.reverseOrder()).toList()) {
+                    Files.deleteIfExists(entry);
+                }
+            }
+            tmp = null;
         }
     }
 
