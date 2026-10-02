@@ -771,7 +771,7 @@
 <li><strong>One-way sync</strong> — korTTY never pushes to a repository or writes to a shared file. Shared connections are changed in the source itself and arrive with the next sync.</li>
 </ul>
 <h2 id="setting-up-teamwork-sources">Setting up teamwork sources<a class="headerlink" href="#setting-up-teamwork-sources" title="Permanent link">&para;</a></h2>
-<p>Open <strong>Teamwork → Teamwork Settings…</strong> (or <strong>Configuration → Global Settings… → Teamwork</strong>) to configure sources.</p>
+<p>Open <strong>Teamwork → Teamwork Settings…</strong> to configure sources.</p>
 <h3 id="add-a-source">Add a source<a class="headerlink" href="#add-a-source" title="Permanent link">&para;</a></h3>
 <ol>
 <li>Click <strong>Add</strong> to create a new source.</li>
@@ -815,20 +815,21 @@
 <p>Use the buttons to:
 - <strong>Add</strong> — Create a new source.
 - <strong>Edit</strong> — Modify the selected source.
-- <strong>Remove</strong> — Delete the selected source.
+- <strong>Delete</strong> — Remove the selected source.
 - <strong>Enable/Disable</strong> — Toggle the enabled state for the selected sources.</p>
 <p>At the bottom, set the <strong>Default Check Interval</strong> (applies to new sources that don't specify one).</p>
 <h2 id="how-synchronization-works">How synchronization works<a class="headerlink" href="#how-synchronization-works" title="Permanent link">&para;</a></h2>
 <h3 id="background-sync">Background sync<a class="headerlink" href="#background-sync" title="Permanent link">&para;</a></h3>
-<p>Once you save the Teamwork Settings:</p>
+<p>korTTY syncs teamwork sources in the background:</p>
 <ol>
-<li>KorTTY starts a background sync thread.</li>
-<li>Every N minutes (based on the minimum interval among enabled sources), it:</li>
+<li>When korTTY starts, it starts a background sync thread and syncs right away.</li>
+<li>Every N minutes (the shortest check interval among the sources enabled when korTTY started), it:</li>
 <li>Pulls/clones each source (Git) or reads the file (Shared File).</li>
 <li>Loads the connections XML.</li>
 <li>Replaces the cached copy of each source it fetched and refreshes the Connection Manager.</li>
 <li>If a source update fails, the previous cached version is kept.</li>
 </ol>
+<p>Saving the Teamwork Settings syncs once right away. A changed check interval takes effect the next time korTTY starts.</p>
 <h3 id="manual-sync">Manual sync<a class="headerlink" href="#manual-sync" title="Permanent link">&para;</a></h3>
 <p>Use <strong>Teamwork → Teamwork Settings…</strong> and click <strong>OK</strong> to trigger a sync immediately.</p>
 <h3 id="version-tracking">Version tracking<a class="headerlink" href="#version-tracking" title="Permanent link">&para;</a></h3>
@@ -846,7 +847,7 @@
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="nt">&lt;port&gt;</span>22<span class="nt">&lt;/port&gt;</span>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="nt">&lt;username&gt;</span>deploy<span class="nt">&lt;/username&gt;</span>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="nt">&lt;group&gt;</span>Production/Web<span class="nt">&lt;/group&gt;</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="nt">&lt;authMethod&gt;</span>SSH_KEY<span class="nt">&lt;/authMethod&gt;</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="nt">&lt;authMethod&gt;</span>PUBLIC_KEY<span class="nt">&lt;/authMethod&gt;</span>
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="nt">&lt;sshKeyId&gt;</span>key-prod-deploy<span class="nt">&lt;/sshKeyId&gt;</span>
 </span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span><span class="nt">&lt;credentialId&gt;</span>cred-prod-user<span class="nt">&lt;/credentialId&gt;</span>
 </span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">  </span><span class="nt">&lt;/connection&gt;</span>
