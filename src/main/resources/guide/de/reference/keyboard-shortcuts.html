@@ -822,7 +822,7 @@
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span></td>
-<td>Suchen Sie im aktiven Tab</td>
+<td>Suchen im aktiven Tab (in einem fokussierten Terminal auf Windows und Linux geht die Taste zur Shell, siehe <a href="#terminal">Terminal</a>)</td>
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span></td>
@@ -967,6 +967,39 @@
 </tbody>
 </table>
 <p>Die Zoom-Tasten (<span class="keys"><kbd class="key-control">Ctrl</kbd></span> oder <span class="keys"><kbd class="key-alt">Alt</kbd></span> mit <span class="keys"><kbd class="key-plus">+</kbd></span> / <span class="keys"><kbd class="key-minus">-</kbd></span> / <span class="keys"><kbd class="key-0">0</kbd></span>; <span class="keys"><kbd class="key-command">Cmd</kbd></span> auf macOS) vergrößern das Terminal nur, wenn ein Terminal-Tab ausgewählt ist. In einem Snippet-Editor oder Dateieditor-Tab erreichen sie den Editor, und <span class="keys"><kbd class="key-alt-graph">AltGr</kbd><span>+</span><kbd class="key-plus">+</kbd></span> tippt dort sein Zeichen.</p>
+<h2 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h2>
+<p>Diese Tasten gelten, solange ein Terminalbereich den Tastaturfokus hat.</p>
+<table>
+<thead>
+<tr>
+<th>Verknüpfung</th>
+<th>Aktion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-c">C</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-v">V</kbd></span></td>
+<td>Terminalauswahl kopieren / in das Terminal einfügen (Windows und Linux; <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-c">C</kbd></span> / <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-v">V</kbd></span> auf macOS)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-l">L</kbd></span> (Windows und Linux)</td>
+<td>An die Shell gesendet: zeichnet den Bildschirm neu oder löscht den Bildschirm in bash, psql oder einer REPL, und der Scrollback bleibt erhalten</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> (Windows und Linux)</td>
+<td>An die Shell gesendet: bewegt den Cursor um ein Zeichen vorwärts bei einem Bash-Prompt und scrollt vorwärts in <code>less</code> oder <code>vim</code></td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-k">K</kbd></span> (macOS)</td>
+<td>Puffer löschen: den Terminalbildschirm und seinen Scrollback leeren</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-f">F</kbd></span> (macOS)</td>
+<td>Suchen im Terminal-Scrollback</td>
+</tr>
+</tbody>
+</table>
+<p>Auf Windows und Linux haben <strong>Puffer löschen</strong> und <strong>Suchen</strong> keine eigenen Tasten, daher bleiben <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-l">L</kbd></span> und <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> bei den Programmen, die im Terminal laufen. Verwenden Sie Rechtsklick → <strong>Puffer löschen</strong> oder <strong>Suchen</strong> im Terminal, oder <strong>Bearbeiten → Suchen…</strong> mit der Maus. <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span> bleibt <strong>Nur korTTY Applikationsfenster</strong>, und <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-k">K</kbd></span> dockt den Dateibrowser weiterhin links an.</p>
 <h2 id="snippet-manager">Snippet-Manager<a class="headerlink" href="#snippet-manager" title="Permanent link">&para;</a></h2>
 <p>Diese Tastenkombinationen funktionieren im Snippet-Manager (Bibliotheks- und Bearbeitungs-Tab); siehe <a href="../features/snippets.html#offnen-des-snippet-managers">Das Öffnen des Snippet-Managers</a>.</p>
 <table>
