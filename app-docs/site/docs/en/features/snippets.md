@@ -443,12 +443,14 @@ Each item also carries the snippet's library folder: in the ZIP archive every re
 
 ### Analysing a folder as one project
 
+![Project analysis of a folder](../assets/screenshots/tools/project-analysis.png)
+
 Right-click a folder in the library tree — the main folder of a script collection or any sub-folder — and choose **Full code analysis (folder as project)**. A tab named after the folder opens next to the editor tabs. Every script of that folder and its sub-folders goes to the AI together, so the analysis can see problems between files: duplicated code, broken `source` or `import` paths, inconsistent interfaces, and executable flags or shebang lines that do not match how a file is used. A right-click on a single script analyses only that script, as before.
 
 - **Before starting** — The tab shows the folder, the number of files and an estimate of the tokens they take. Choose the **AI profile**, tick **Propose modularization** if wanted and click **Start analysis**; **Stop** cancels. **Files…** lets you leave files out. A folder larger than about 48,000 tokens — more than many models can read at once — opens that file choice first.
 - **The report** — The same report as for a single script. The report and, below it, the script header, text language and the collapsible **Hardening options**, **Input hardening** and **Code language** panels form the left column; the flow diagram of the whole folder sits to the right over the full height. **Flow diagram** in the tab's toolbar shows or hides it, and korTTY remembers the choice. Each finding names its file in square brackets in front of its title (`[lib/util.sh] Quote $1`); findings without a file concern several files.
 - **Applying** — Tick findings and click **Apply selected findings…**. korTTY rewrites each affected file one at a time, with the rest of the project as read-only context, and opens the result in the [multi-file review](#reviewing-changes-to-several-files). Accepted files replace the snippets' content; the previous content stays in each snippet's history.
-- **Stored with the folder** — The result is kept like a single analysis, under the folder, and survives restarts and [backups](backup.md). When files change afterwards, the tab says the analysis is out of date. Deleting the folder discards its analyses.
+- **Stored with the folder** — The result is kept like a single analysis, under the folder, together with its flow diagram, so reopening the tab shows both without a new AI request; **Regenerate** in the diagram options replaces the stored diagram. It survives restarts and [backups](backup.md). When files change afterwards, the tab says the analysis is out of date. Deleting the folder discards its analyses.
 
 ### Modularization
 
@@ -463,6 +465,8 @@ Tick **Propose modularization (split into files where useful)** in the **New ana
 ### Reviewing changes to several files
 
 Results that change several files — applied project findings and modularizations — open in a review window instead of the editor:
+
+![Reviewing a modularization: one tab per file and the directory tree](../assets/screenshots/tools/multi-file-preview.png)
 
 - **Tabs** — One tab per file with the usual side-by-side comparison; a new file is compared against an empty one. The tab shows the file's state: **+** new, **✎** changed, **=** unchanged.
 - **Directory tree** — On the left, the folder structure of the result with the same marks and ⚙ for executable files. **Directory tree** in the toolbar shows or hides it; korTTY keeps that choice while it runs. Selecting a file in the tree selects its tab, and the tree follows the selected tab.
