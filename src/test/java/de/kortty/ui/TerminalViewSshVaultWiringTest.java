@@ -41,11 +41,11 @@ class TerminalViewSshVaultWiringTest {
 
         SshTtyConnector forKey = TerminalView.sshConnectorWithVault(
             targetBehindPasswordJump(AuthMethod.PUBLIC_KEY), null, keyManager, MASTER);
-        SshTtyConnector passwordTargetConnector = TerminalView.sshConnectorWithVault(
+        SshTtyConnector withoutKey = TerminalView.sshConnectorWithVault(
             targetBehindPasswordJump(AuthMethod.PASSWORD), "pw", keyManager, MASTER);
 
         assertThat(field(forKey, "sshKeyManager")).isSameInstanceAs(keyManager);
-        assertThat(field(passwordTargetConnector, "sshKeyManager")).isNull();
+        assertThat(field(withoutKey, "sshKeyManager")).isNull();
     }
 
     @Test
