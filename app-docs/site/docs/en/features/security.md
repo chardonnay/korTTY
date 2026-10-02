@@ -64,11 +64,32 @@ Store centralized username/password credentials that can be reused across multip
 2. Fill in:
    - **Name** — Descriptive identifier
    - **Username** — Login username
+   - **Password Type** — **Stored Password**, or **External Command** to fetch the password from a password manager (see [Passwords from an external command](#passwords-from-an-external-command))
    - **Password** — Stored encrypted with AES-256-GCM
    - **Environment** — Production, Development, Test, or Staging
    - **Server Pattern** (optional) — Glob pattern (e.g., `*.example.com`, `10.0.0.*`) for automatic credential matching to connections
    - **Description** (optional) — Free-text notes
 3. Click **OK**.
+
+### Passwords from an external command
+
+Instead of storing the password, a credential can fetch it from your password manager every time it is needed. Choose **External Command** as the **Password Type** and enter a command that prints the password, for example:
+
+```bash
+op item get "db-prod" --fields password
+bw get password "db-prod"
+enpass-cli show "db-prod" -field password
+```
+
+- **Stored encrypted** — the command itself is encrypted with your master password, like a stored password.
+- **Shell** — the command runs in `/bin/sh` on macOS and Linux and in PowerShell on Windows, so on Windows write PowerShell syntax (`$env:NAME`, not `%NAME%`). In the Flatpak package the command runs on the host, where your password manager's command-line tool is installed.
+- **Output** — the first line the command prints is the password. If the command exits with an error, korTTY shows its exit code and error output; empty output counts as an error too.
+- **No prompts** — the command gets no input, so a tool that asks for a master password or PIN cannot be answered and fails at once. Unlock the password manager first, for example with `op signin`, or with `bw unlock` and `BW_SESSION` set in the environment korTTY was started from. The Flatpak package runs the command on the host without korTTY's environment, so there `BW_SESSION` must be set in your desktop session, or passed in the command itself (for example `bw get password my-server --session <key>`).
+- **10-second limit** — a command that has not finished after 10 seconds is stopped together with every process it started, and korTTY reports the timeout. A Touch ID or system dialog the tool opens by itself must be confirmed within that time.
+- **Runs every time** — the command runs whenever the password is needed: when you pick the credential in the connection editor and whenever a connection that uses it connects. Panes split from a connected tab reuse that tab's password.
+- **Test** — the **Test** button next to the command runs it once and shows how many characters came back, never the password itself.
+
+In the connection editor the password field shows *Retrieving password...* while the command runs, and korTTY stays responsive. Opening, duplicating or restoring a connection waits for the command before it connects, for at most the 10-second limit, and the window does not react during that time; if the command fails there, korTTY uses the connection's own saved password or asks for one.
 
 ### Using Credentials in Connections
 
@@ -76,7 +97,7 @@ When creating or editing a connection:
 
 1. Go to the **Connection** tab.
 2. Select a stored credential from the **Credentials** dropdown.
-3. Username and password are filled in automatically.
+3. Username and password are filled in automatically; for an external command once it has returned the password.
 
 The following diagram shows how credentials and SSH keys flow from encrypted storage to active connections:
 
@@ -87,6 +108,7 @@ The following diagram shows how credentials and SSH keys flow from encrypted sto
 - **Environment-specific** — Organize credentials by deployment environment
 - **Server Pattern Matching** — Automatically assign credentials to matching servers
 - **Encrypted Storage** — Passwords are encrypted with AES-256-GCM
+- **Password managers** — Fetch the password from a command such as `op`, `bw` or `enpass-cli` instead of storing it
 - **Automatic Usage** — Select credentials directly in connection settings
 
 ## SSH Key Management
@@ -123,7 +145,11 @@ When creating or editing a connection:
 
 ## Interactive SSH host-key trust
 
-Terminal and SFTP connections, including the SSH bootstrap used by Mosh, share a trust-on-first-use (TOFU) verifier keyed by normalized host name and port. On first use, korTTY displays the server key algorithm and OpenSSH SHA-256 fingerprint; verify it out of band before accepting. The confirmation defaults to **No**. A previously trusted matching key is accepted silently, while a changed key is hard-blocked with the expected and offered fingerprints and is never retried automatically.
+Terminal and SFTP connections, including the SSH bootstrap used by Mosh, share a trust-on-first-use (TOFU) verifier keyed by normalized host name and port. On first use, korTTY displays the server key algorithm and OpenSSH SHA-256 fingerprint; verify it out of band before accepting. The confirmation defaults to **No**. A previously trusted matching key is accepted silently, while a changed key is hard-blocked with the expected and offered fingerprints and is never retried or replaced automatically.
+
+A changed key can be replaced only by an explicit decision, and only in a connection you opened yourself in a terminal tab or the SFTP manager (including its jump server). **Review and Replace…** in the changed-key alert shows the trusted and the new fingerprint side by side; the replace button stays disabled until you confirm that you verified the new fingerprint with the server administrator, and **Close** and **Cancel** remain the default buttons. The replacement is a compare-and-swap: it is stored only while the trusted key is still exactly the one you reviewed, so a key changed in another window in the meantime is never overwritten. Every replacement is logged with the old and the new fingerprint. Background and restored connections, and the SSH bootstrap of Mosh, keep the plain block.
+
+**Configuration → Security → Known Hosts…** lists, searches and removes trusted keys. Removal works the same way: it deletes a key only while it still has the fingerprint shown in the confirmation, and the next connection asks again as on first use. With the enterprise policy key `enforce-host-key-check`, both replacing and removing are disabled, so only an administrator can change a trusted key.
 
 Interactive pins are written atomically to `~/.kortty/ssh-host-keys.properties`; a companion lock coordinates simultaneous korTTY processes. This store is distinct from the JobScheduler's connection-ID-based host-key pins in `job-scheduler.xml`, which protect unattended SSH, SFTP, and Rsync execution.
 
@@ -198,7 +224,7 @@ A data file with connections, credentials, SSH or GPG keys, environments, themes
 - Keep private key files protected with a passphrase.
 - Copy keys to `~/.kortty/ssh-keys/` for inclusion in encrypted backups; keys left in their original locations are only referenced and must be migrated separately.
 - Limit key file permissions (e.g., `chmod 600`). Copies in `~/.kortty/ssh-keys/` are made owner-only automatically.
-- Verify a first-use host-key fingerprint through a trusted channel before accepting it. Treat a changed-key warning as a possible server rebuild, DNS error, or man-in-the-middle attack and investigate instead of reconnecting repeatedly.
+- Verify a first-use host-key fingerprint through a trusted channel before accepting it. Treat a changed-key warning as a possible server rebuild, DNS error, or man-in-the-middle attack and investigate instead of reconnecting repeatedly. Use **Review and Replace…** only after the server administrator has confirmed the new fingerprint.
 
 ### JobScheduler
 
@@ -235,7 +261,7 @@ A data file with connections, credentials, SSH or GPG keys, environments, themes
 | Master Password Hashing | PBKDF2 with 310,000 iterations |
 | Credential Encryption | AES-256-GCM |
 | SSH Key Passphrases | Encrypted with AES-256-GCM and master password |
-| Interactive SSH/SFTP/Mosh host keys | Shared normalized host:port TOFU, first-use fingerprint confirmation (optionally relaxed to accept-new), silent exact match, hard block on change |
+| Interactive SSH/SFTP/Mosh host keys | Shared normalized host:port TOFU, first-use fingerprint confirmation (optionally relaxed to accept-new), silent exact match, hard block on change; replacement only after explicit fingerprint confirmation, as a compare-and-swap |
 | AI API Keys | Encrypted with AES-256-GCM and master password |
 | Embedded llama.cpp | Loopback-only random port, generated API key, offline/hardened server flags, request leases |
 | GGUF/runtime supply chain | Immutable revisions, SHA-256 verification, signed runtime index, durable revocation quarantine, rollback after failed health check or first real API start |
