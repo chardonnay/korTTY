@@ -331,6 +331,11 @@ public class TerminalView extends BorderPane {
     // Counts the lines a full scrollback drops from its top, so the absolute-line keys above can
     // follow their command lines instead of drifting (and colliding on the bottom row).
     private final Map<SithTermFxWidget, ScrollbackTrimTracker> scrollbackTrimTrackerByWidget = new ConcurrentHashMap<>();
+    // Panes whose restored marks wait for the remote history replay (restoreHistory): the shell
+    // echoes the saved text and then runs `clear;cat`, so the marks name the lines `cat` prints
+    // after that clear. Until the clear arrives - or, if the remote clear keeps the scrollback,
+    // until the first Enter - no trim may move or wipe them.
+    private final java.util.Set<SithTermFxWidget> historyReplayPendingWidgets = ConcurrentHashMap.newKeySet();
 
     // Optional listener called when timestamp gutter visibility is toggled (e.g. from context menu)
     private Runnable timestampToggleListener;
@@ -1112,6 +1117,7 @@ public class TerminalView extends BorderPane {
         }
         commandStartLineByWidget.remove(widget);
         scrollbackTrimTrackerByWidget.remove(widget);
+        historyReplayPendingWidgets.remove(widget);
         agentShortcutBuffers.remove(widget);
         TerminalModelListener recordingListener = terminalRecordingModelListeners.remove(widget);
         if (recordingListener != null && widget.getTerminalTextBuffer() != null) {
@@ -4922,6 +4928,9 @@ public class TerminalView extends BorderPane {
         javafx.event.EventHandler<KeyEvent> enterHandler = event -> {
             if (event.getCode() == KeyCode.ENTER) {
                 int startAbsoluteLine = resolveCursorLineAfterScrollbackTrim(widget);
+                // The user's first command ends any history replay: from here on the marks
+                // follow their lines.
+                historyReplayPendingWidgets.remove(widget);
                 if (startAbsoluteLine >= 0) {
                     recordTimestampForLine(widget, startAbsoluteLine, LocalDateTime.now());
                     commandStartLineByWidget.put(widget, startAbsoluteLine);
@@ -5090,18 +5099,41 @@ public class TerminalView extends BorderPane {
     }
 
     private void applyScrollbackTrim(SithTermFxWidget widget, ScrollbackTrimTracker.Trim trim) {
-        switch (trim.kind()) {
-            case CLEARED -> clearTimestampMarks(widget);
-            case SHIFT -> {
-                if (trim.lines() > 0) {
-                    shiftTimestampMarks(widget, trim.lines());
-                }
-            }
-            // UNKNOWN (a width reflow rebuilt the lines) keeps the marks where they are;
-            // SUSPENDED (alternate screen) leaves the primary history's marks untouched.
-            case UNKNOWN, SUSPENDED -> {
-            }
+        boolean historyReplayPending = historyReplayPendingWidgets.contains(widget);
+        if (historyReplayPending && scrollbackTrimEndsHistoryReplay(trim)) {
+            // The replay's own `clear`: the lines `cat` prints next are the ones the marks name.
+            historyReplayPendingWidgets.remove(widget);
         }
+        if (!scrollbackTrimMovesMarks(trim, historyReplayPending)) {
+            return;
+        }
+        if (trim.kind() == ScrollbackTrimTracker.Trim.Kind.CLEARED) {
+            clearTimestampMarks(widget);
+        } else {
+            shiftTimestampMarks(widget, trim.lines());
+        }
+    }
+
+    /**
+     * Whether a scrollback trim changes the recorded marks: a clear drops them and a real shift
+     * moves them, while an unknown trim (width reflow) or the alternate screen leaves them alone.
+     * While a remote history replay is pending nothing touches them: its echo and its
+     * {@code clear} come after the restored marks were installed for the lines it prints.
+     */
+    static boolean scrollbackTrimMovesMarks(ScrollbackTrimTracker.Trim trim, boolean historyReplayPending) {
+        if (trim == null || historyReplayPending) {
+            return false;
+        }
+        return switch (trim.kind()) {
+            case CLEARED -> true;
+            case SHIFT -> trim.lines() > 0;
+            case UNKNOWN, SUSPENDED -> false;
+        };
+    }
+
+    /** Whether {@code trim} is the {@code clear} of a pending remote history replay. */
+    static boolean scrollbackTrimEndsHistoryReplay(ScrollbackTrimTracker.Trim trim) {
+        return trim != null && trim.kind() == ScrollbackTrimTracker.Trim.Kind.CLEARED;
     }
 
     /** Moves every mark of the widget up by {@code lines}; marks that left the scrollback go. */
@@ -6232,6 +6264,7 @@ public class TerminalView extends BorderPane {
         awaitingCommandCompletionByWidget.clear();
         commandStartLineByWidget.clear();
         scrollbackTrimTrackerByWidget.clear();
+        historyReplayPendingWidgets.clear();
         agentShortcutBuffers.clear();
         terminalWidget = null;
     }
@@ -6740,7 +6773,15 @@ public class TerminalView extends BorderPane {
                     command.append("clear;cat ").append(tmpFile).append(";rm ").append(tmpFile).append("\n");
                     
                     ttyConnector.write(command.toString());
-                    
+                    // Marks restored for this tab name the lines `cat` prints after the `clear`;
+                    // the echo before it and the clear itself must not move or wipe them.
+                    SithTermFxWidget primary = terminalWidget;
+                    TreeMap<Integer, LocalDateTime> restoredMarks =
+                        primary != null ? timestampHistoryByWidget.get(primary) : null;
+                    if (restoredMarks != null && !restoredMarks.isEmpty()) {
+                        historyReplayPendingWidgets.add(primary);
+                    }
+
                     logger.info("Restored history ({} bytes)", cleanHistory.length());
                 } catch (Exception e) {
                     logger.error("Failed to restore terminal history", e);
