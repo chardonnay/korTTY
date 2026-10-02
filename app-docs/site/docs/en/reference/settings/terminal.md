@@ -47,6 +47,8 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 !!! note "Command Timestamps"
     When enabled, a sidebar appears on the left side of the terminal displaying the date and time each command was entered, useful for audit trails and session logging.
 
+    Each mark stays on its command line when the scrollback is full and the oldest lines are dropped, and a mark whose line has left the scrollback disappears with it. **Clear Buffer** in the terminal's right-click menu, and a `clear` that also empties the scrollback, remove all marks; the next command gets a fresh one. Opening and quitting a full-screen program such as `vim` or `less` does not move the marks. The day and month above each mark and the full date in the hover popup follow the korTTY UI language (for example `02.10.` in German, `10/02` in English), as does the elapsed time in the popup.
+
 !!! note "Connection Retries"
     When enabled, failed SSH connections are automatically retried. Disabling this prevents automatic reconnection attempts for failed connections.
 
