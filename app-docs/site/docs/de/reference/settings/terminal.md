@@ -32,6 +32,9 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 
 ## Hinweise
 
+!!! note "Fett als helle Farbe anzeigen"
+    Diese Einstellung gilt derzeit nur für Terminalaufnahmen: mit [Terminalfarben in Aufnahmen erfassen](video.md) aktiviert, wird fetter Text einer der 8 normalen ANSI-Farben in seiner hellen Variante gespeichert. Das Live-Terminal zeichnet fetten Text in jeder Hinsicht immer noch in seiner normalen Farbe aus.
+
 !!! note "Zurückscrollen"
     Steuert, wie viele Ausgabezeilen jeder Terminalbereich in seinem Scrollback-Puffer behält. Der Wert wird beim Erstellen eines Terminals gelesen, daher gilt eine Änderung für neu geöffnete Registerkarten und geteilte Bereiche – bereits geöffnete Terminals behalten ihre aktuelle Puffergröße. Größere Werte verbrauchen mehr Speicher pro Bereich.
 
