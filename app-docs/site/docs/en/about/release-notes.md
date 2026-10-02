@@ -23,7 +23,7 @@ What changed in the current release. The version this guide was built for is sho
 
 ### AI agent and profiles
 
-- **The AI agent asks before it runs in a switched session** — after `su`, `sudo -i` or a nested `ssh` in a terminal, the agent's commands would still run over the tab's original connection, as the user the tab was opened with, not as the user the prompt shows. AI Agent and AI Planning now warn first and name the `user@host` (or "on this computer" in a local-shell tab) the commands will really run as; **Cancel** is the default. The check also covers **Retry** and the execution of an accepted plan. See [Safety and failure handling](../features/ai-assistant.md#safety-and-failure-handling).
+- **The AI agent asks before it runs in a switched session** — after `su`, `sudo -i` or a nested `ssh` in a terminal, the agent's commands would still run over the tab's original connection, as the user the tab was opened with, not as the user the prompt shows. AI Agent and AI Planning now warn first and name the `user@host` (or "on this computer" in a local-shell tab) the commands will really run as; **Cancel** is the default. The check also covers rerunning a command with the activity panel's reload button and the execution of an accepted plan. See [Safety and failure handling](../features/ai-assistant.md#safety-and-failure-handling).
 - **No internet mode for native Anthropic profiles** — korTTY sends no web tools to the native Anthropic Messages API, so a mode such as KorTTY Tavily Tool had no effect there. For such profiles the **Internet access** dropdown is now locked to **Disabled** with a hint explaining why. See [AI internet access](../features/ai-assistant.md#ai-internet-access).
 
 ### AI usage and costs
