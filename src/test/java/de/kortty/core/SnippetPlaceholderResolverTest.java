@@ -66,6 +66,9 @@ class SnippetPlaceholderResolverTest {
         String resolved = resolve("$${date} $${target} $${HOME} $${cursor} ${target}", Map.of("target", "/srv"), declared("target"));
 
         assertThat(resolved).isEqualTo("${date} ${target} ${HOME} ${cursor} /srv");
+        // A literal $${name} (Makefile, Compose file) is written with one more dollar.
+        assertThat(resolve("$$${HOME} $$${target}", Map.of("target", "/srv"), declared("target")))
+            .isEqualTo("$${HOME} $${target}");
     }
 
     @Test
@@ -124,11 +127,11 @@ class SnippetPlaceholderResolverTest {
 
     @Test
     void undeclaredSimpleNamesSkipShellFormsEnvironmentNamesAndEscapes() {
-        String content = "${target} ${HOME} ${USER} ${PATH} ${PWD} ${1} ${@} ${1:-x} ${#a[@]} ${v%%.*}"
-            + " $${escaped} ${date} ${cursor} ${declared} ${target} ${other_1}";
+        String content = "${target} ${HOME} ${USER} ${PATH} ${PWD} ${1} ${@} ${_} ${1:-x} ${#a[@]} ${v%%.*}"
+            + " $${escaped} ${date} ${cursor} ${declared} ${target} ${other_1} ${_tmp}";
 
         assertThat(SnippetPlaceholderResolver.undeclaredSimpleNames(content, declared("declared")))
-            .containsExactly("target", "other_1").inOrder();
+            .containsExactly("target", "other_1", "_tmp").inOrder();
         assertThat(SnippetPlaceholderResolver.undeclaredSimpleNames("${HOSTNAME}", null))
             .containsExactly("HOSTNAME");
     }
