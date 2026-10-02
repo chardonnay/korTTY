@@ -534,7 +534,7 @@ Both diagram views — the standalone **Diagram** dialog and the **Full code ana
 
 ## Placeholder variables
 
-Snippets can contain placeholder variables that are replaced when you insert the snippet.
+Snippets can contain placeholders written as `${name}`. When you copy, insert or send a snippet, korTTY replaces exactly two kinds of them: the built-in variables below and the variables declared in the [Variable Manager](#variable-manager). Every other `${...}` reaches the editor, the clipboard or the shell exactly as written, so shell expansions such as `${HOME}`, `${1:-default}`, `${#array[@]}` and `${file%%.*}` keep working. The same rules apply everywhere a snippet is used: copying, inserting into an editor, both terminal sends, scheduled jobs, AI Swarm script runs and script headers.
 
 ### Built-in variables
 
@@ -548,18 +548,34 @@ These variables are automatically replaced:
 | `${hostname}` | Local machine hostname |
 | `${username}` | Current system username |
 | `${clipboard}` | Current clipboard content |
-| `${cursor}` | Cursor position (removed from text; position returned) |
+| `${cursor}` | Where the caret goes: **Insert into editor** places the caret there; copying and sending remove the marker |
+
+Built-in names are written in lower case and matched exactly, and they win over a declared variable of the same name.
 
 ### Custom variables
 
-Any `${variableName}` not in the built-in list is treated as a custom variable. When you insert the snippet:
+A custom variable is a name declared in the Variable Manager. When a snippet uses it:
 
-- KorTTY checks the Variable Manager for stored values
-- Variables without stored values prompt for input
+- If the variable has a stored value, the value is inserted without asking.
+- If its value is empty, korTTY asks for it every time. Declare a variable with an empty value for anything that changes from one use to the next, such as a ticket number.
+- The dialog that asks has a **Remember** check box next to every field. It is off by default, so the value you type is used once and not stored; tick it to store the value in the Variable Manager for the next use.
+
+A name that is not declared is never asked for and stays as written, so declare a variable in the Variable Manager before you use it in a snippet. Declared names are matched ignoring case: a declared `path` also replaces `${PATH}`.
+
+!!! warning "Stored values are plain text"
+    The Variable Manager keeps every value, including the ones you remember from the dialog, unencrypted in `~/.kortty/snippet-variables.xml`. Do not store or remember passwords, tokens or other secrets there.
+
+### Escaping a placeholder
+
+Write `$${name}` to get the literal text `${name}`, for example for a shell variable that has the same name as a built-in (`$${date}`) or as a declared variable. The escape works for every placeholder, including `$${cursor}`.
+
+### Scheduled and swarm runs
+
+JobScheduler snippet jobs and **Run script…** in the AI Swarm cannot ask for a value, so two more rules keep a variable nobody answered from silently turning into empty text: a declared variable without a stored value blocks the run, and so does an undeclared simple name such as `${target}`. Shell forms such as `${1:-default}`, `${#array[@]}` and `${file%%.*}`, positional and special parameters such as `${1}` and `${@}`, and the environment variables `${HOME}`, `${USER}`, `${PATH}` and `${PWD}` pass through. Write any other shell variable with the escape, for example `$${HOSTNAME}`.
 
 ### Variable Manager
 
-**Variables...** in the Snippet Manager opens the Variable Manager, where stored values are added, edited and deleted. The add/edit dialog explains both fields: the **Name** is what a snippet references as `${name}`, the **Value** is the stored default inserted for it. Several variables can be selected at once for deleting or exporting.
+**Variables...** in the Snippet Manager opens the Variable Manager, where stored values are added, edited and deleted. The add/edit dialog explains both fields: the **Name** is what a snippet references as `${name}`, the **Value** is the stored default inserted for it — leave the value empty to be asked every time. Several variables can be selected at once for deleting or exporting.
 
 - **Export...** — Saves the selected variables, or all variables when none is selected, as JSON, XML or YAML.
 - **Import...** — Reads variables from a JSON, XML or YAML file (the stored `snippet-variables.xml` can be imported directly). When imported variables already exist, you choose whether to overwrite their values or keep the existing ones.
@@ -570,15 +586,16 @@ The Snippet Manager can send a selected snippet directly to a terminal of its ma
 
 ### Send to Terminal
 
-- Keeps existing behavior
+- Replaces the [placeholders](#placeholder-variables) like every other use; a declared variable without a stored value is asked for before anything is sent, and cancelling the dialog sends nothing
 - Supported script languages are embedded as a terminal one-liner where possible
 - Other snippets use the existing fallback path
 
 ### Send to Terminal with Parameters
 
-- Opens a dialog for missing `${...}` placeholder variables and script arguments
+- Opens a dialog with every declared variable the snippet uses, pre-filled with its stored value and editable for this send, and a field for script arguments
+- A variable that already has a stored value starts with **Remember** ticked, so a changed value replaces the stored one; untick it to use the new value for this send only
 - Script arguments are entered one per line; empty lines are ignored
-- If you confirm without script arguments, the result is the same as **Send to Terminal**, but missing placeholder variables can still be filled in
+- If you confirm without script arguments, the result is the same as **Send to Terminal**, with the variable values you set in the dialog
 
 ### Script arguments
 
