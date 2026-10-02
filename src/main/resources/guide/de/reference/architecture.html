@@ -908,7 +908,7 @@
 </span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin IDs (one per line)
 </span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>├── master.key                   # PBKDF2-hashed master password (310,000 iterations)
 </span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>├── kortty.log                   # Application log file
-</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>├── history/                     # Compressed terminal session logs
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>├── history/                     # Project screen snapshots (gzip, one per terminal tab)
 </span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>├── plugins/                     # Imported external terminal-effect plugin JARs
 </span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>├── bundled-plugins/             # Runtime copies of bundled exportable plugin JARs
 </span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>├── projects/                    # Project files (connection sets with saved layout)
@@ -1391,7 +1391,7 @@
 <li><strong>Protokolldatei</strong>: <code>~/.kortty/kortty.log</code> (SLF4J mit Logback-Backend)</li>
 <li><strong>JMX-Überwachung</strong>: MBean <code>de.kortty:type=SSHClient</code> macht aktive Verbindungen, Speicher und gepufferte Textgröße verfügbar</li>
 <li><strong>JobScheduler-Journal</strong>: Detaillierte Ausführungsprotokolle mit konfigurierbarer Aufbewahrung (standardmäßig 14 Tage, unbegrenzt, wenn auf 0 gesetzt)</li>
-<li><strong>Terminalverlauf</strong>: Komprimierte Sitzungsprotokolle in <code>~/.kortty/history/</code></li>
+<li><strong>Projekt-Bildschirm-Snapshots</strong>: Der zuletzt sichtbare Bildschirm jedes Terminal-Tabs eines gespeicherten Projekts, gzip-komprimiert in <code>~/.kortty/history/</code> und lokal angezeigt (nie an den Server gesendet), wenn das Projekt mit Auto-Reconnect wieder geöffnet wird</li>
 <li><strong>Terminalaufzeichnung</strong>: Optionale Wiedergabedateien in <code>~/.kortty/recordings/</code></li>
 <li><strong>Testisolation</strong>: Die Test-Logback-Konfiguration schreibt nur auf die eigene Konsole und erstellt niemals die Konsole des echten Benutzers oder hängt an diese an <code>~/.kortty/logs</code></li>
 </ul>
@@ -1416,7 +1416,7 @@
 <ol>
 <li><strong>Terminale Auswirkungen</strong>: <code>TerminalEffectPlugin</code> implementieren und über <code>ServiceLoader</code> registrieren (siehe <code>TERMINAL_EFFECT_PLUGINS.adoc</code>)</li>
 <li><strong>Benutzerdefinierte Formatierer</strong>: Unterstützung für neue Sprachen im Snippet-Editor hinzugefügt</li>
-<li><strong>KI-Skills</strong>: Importieren Sie benutzerdefinierte KI-Auflistungen über <code>AI → KI-Manager → AI Skills</code></li>
+<li><strong>KI-Skills</strong>: Importieren Sie benutzerdefinierte KI-Anweisungssets über <code>AI → KI-Manager → AI Skills</code></li>
 </ol>
 <h3 id="fur-integratoren">Für Integratoren<a class="headerlink" href="#fur-integratoren" title="Permanent link">&para;</a></h3>
 <ol>
@@ -1428,7 +1428,7 @@
 <ul>
 <li><strong>Sitzungscaching</strong>: Aktive SSH-Verbindungen werden zwischengespeichert, um den Aufwand für die erneute Verbindung zu vermeiden</li>
 <li><strong>Lazy Loading</strong>: Verbindungsdetails werden bei Bedarf geladen, nicht alle auf einmal</li>
-<li><strong>Komprimierung</strong>: Terminalverlauf und Terminalprotokolle verwenden gzip; Teile des gedrehten Sitzungsjournals verwenden zstd (ältere <code>.gz</code>-Teile bleiben lesbar)</li>
+<li><strong>Kompression</strong>: Projekt-Bildschirm-Snapshots und Terminal-Logs verwenden gzip; rotierte Session-Journal-Teile nutzen zstd (veraltete <code>.gz</code>-Teile bleiben lesbar)</li>
 <li><strong>Drosselung</strong>: Terminal-Rendering-Updates werden stapelweise durchgeführt, um die Belastung des UI-Threads zu reduzieren</li>
 <li><strong>Speicherpooling</strong>: Große Puffer für Terminaltext und SFTP-Dateiauflistung werden wiederverwendet</li>
 </ul>

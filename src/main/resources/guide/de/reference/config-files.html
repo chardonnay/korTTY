@@ -1012,7 +1012,7 @@
 <p><strong>Zweck:</strong> Wenn Sie ein Terminaleffekt-Plugin über <em>Plugins &gt; Terminaleffekte</em> deaktivieren, wird seine ID in diese Datei geschrieben, sodass es nach dem Neustart deaktiviert bleibt.</p>
 <h3 id="coding-agents">coding-agents/<a class="headerlink" href="#coding-agents" title="Permanent link">&para;</a></h3>
 <p>Optionale Benutzerüberschreibungen für die Regeln der Coding-Agent-Erkennung, eine JSON-Datei pro Agent (<code>claude-code.json</code>, <code>codex.json</code>, <code>gemini-cli.json</code>).</p>
-<p><strong>Zweck:</strong> Eine Datei hier ersetzt die im Paket enthaltene Regeldatei des entsprechenden Agents vollständig. Eine ungültige Datei wird im Log als <em>Coding-Agents</em>-Warnung gemeldet und die im Paket enthaltenen Regeln bleiben aktiv. Das Verzeichnis existiert erst dann, wenn es erstellt wird. Siehe <a href="../features/coding-agents.html#eigene-regeln">Coding-Agents → Benutzerdefinierte Regeln</a>.</p>
+<p><strong>Zweck:</strong> Eine Datei hier ersetzt die im Paket enthaltene Regeldatei des gleichen Agenten vollständig. Eine ungültige Datei wird im Log als <em>coding-agents</em> Warnung gemeldet und die im Paket enthaltenen Regeln bleiben aktiv. Das Verzeichnis existiert erst, wenn Sie es erstellen. Siehe <a href="../features/coding-agents.html#eigene-regeln">Coding-Agents → Benutzerdefinierte Regeln</a>.</p>
 <h3 id="korttylog">kortty.log<a class="headerlink" href="#korttylog" title="Permanent link">&para;</a></h3>
 <p>Anwendungsprotokolldatei.</p>
 <p><strong>Enthält:</strong>
@@ -1029,11 +1029,11 @@
 </div>
 <h2 id="verzeichnisse">Verzeichnisse<a class="headerlink" href="#verzeichnisse" title="Permanent link">&para;</a></h2>
 <h3 id="history">history/<a class="headerlink" href="#history" title="Permanent link">&para;</a></h3>
-<p>Komprimierter Terminalsitzungsverlauf.</p>
-<p><strong>Format:</strong> GZIP-komprimierte Textdateien, eine pro Terminalsitzung</p>
-<p><strong>Benennung:</strong> <code>{session-id}_{timestamp}.history.gz</code> (für den Sitzungsverlauf aus der Terminalprotokollierung)</p>
-<p><strong>Zweck:</strong> Speichert den Projekt-/Sitzungs-Scrollback-Verlauf, damit wieder geöffnete Sitzungen ihren Terminalinhalt wiederherstellen können.</p>
-<p><strong>Zugriff:</strong> Der Terminalverlauf wird automatisch geladen, wenn Sie eine gespeicherte Verbindung öffnen, und in der Suchfunktion für den Terminalverlauf angezeigt.</p>
+<p>Bildschirm-Snapshots werden mit <a href="../features/projects.html">Projekten</a> gespeichert.</p>
+<p><strong>Format:</strong> GZIP-komprimierter UTF-8 Text, eine Datei pro Terminal-Tab eines gespeicherten Projekts.</p>
+<p><strong>Benennung:</strong> <code>{session-id}.history.gz</code>, referenziert durch Dateinamen aus der <code>.kortty</code> Datei des Projekts.</p>
+<p><strong>Verwendung:</strong> Enthält den zuletzt sichtbaren Bildschirm jedes Primärfensters eines Terminal-Tabs zum Zeitpunkt des Speicherns des Projekts – nicht den Scrollback und nicht die Bildschirme weiterer geteilter Paneele.</p>
+<p><strong>Zugriff:</strong> Nur beim Öffnen eines Projekts mit aktivierter <strong>Automatisches Wiederverbinden</strong>; der Text wird dann lokal, über die neue Sitzung hinweg gedimmt angezeigt und niemals an den Server gesendet. Keine Verlaufssuche verwendet diese Dateien. korTTY liest, schreibt und löscht ausschließlich einfache <code>{session-id}.history.gz</code> Namen direkt in diesem Ordner. Die Dateien sind nicht verschlüsselt.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Pro Verbindung schreibt <em>Terminal Logging</em> hier nicht: Die generierten Protokolldateien werden in den Ordner verschoben, der auf der Registerkarte „Terminal Logging“ der Verbindung konfiguriert ist, oder in <code>~/.kortty/terminal-logs/</code>, wenn dieser Ordner leer bleibt.</p>
@@ -1041,7 +1041,7 @@
 <h3 id="journals">journals/<a class="headerlink" href="#journals" title="Permanent link">&para;</a></h3>
 <p>Sitzungsjournale – ein eigenständiges Verzeichnis pro Journal (Speicherort konfigurierbar unter <strong>Einstellungen &gt; Protokollierung &gt; Sitzungsjournal</strong>). Jedes Journalverzeichnis enthält <code>journal.xml</code> (das kuratierte Dokument: Metadaten, KI-Zusammenfassungen, Markierungen, Notizen, Screenshot-Referenzen), das Nur-Anhängen-Capture-Log <code>session-log.json</code> / <code>.xml</code> / <code>.yaml</code> (standardmäßig JSON Lines) mit zstd-komprimierten gedrehten Teilen (Teilgröße und Teileanzahl sind pro Verbindung auf der Registerkarte „Journal“ konfigurierbar, standardmäßig 25 MB und 20 Teile; Journale aus älteren Versionen behalten ihre gzip-komprimierte <code>.gz</code>-Teile), die generierte <code>journal.html</code>-Timeline-Seite und <code>screenshots/*.png</code>. Siehe <a href="../features/session-journal.html">Sitzungsjournal</a>.</p>
 <h3 id="terminal-logs">terminal-logs/<a class="headerlink" href="#terminal-logs" title="Permanent link">&para;</a></h3>
-<p>Standardmäßige Zielordner für den <a href="../features/terminal.html#terminalprotokollierung">per-Verbindung-Terminal-Log</a>, wenn das Feld für den Log-Ordner einer Verbindung leer bleibt. Die Dateinamenerstellung, tägige Rotation, Kompression und Aufbewahrung folgen der Logging-Konfiguration der Verbindung.</p>
+<p>Standardzielordner für <a href="../features/terminal.html#terminalprotokollierung">protokollierte Terminal-Logs pro Verbindung</a>, wenn das Logordnerfeld einer Verbindung leer bleibt. Dateibenennung, tägliche Rotation, Kompression und Aufbewahrung folgen der Protokollkonfiguration der Verbindung.</p>
 <h3 id="plugins">plugins/<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h3>
 <p>Vom Benutzer importierte Terminal-Effekt-Plugin-JARs.</p>
 <p><strong>Zweck:</strong> Externe Terminal-Effekt-Plugins, die Sie über <em>Plugins &gt; Terminal-Effekte &gt; Importieren</em> importieren.</p>

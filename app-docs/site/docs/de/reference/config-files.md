@@ -303,7 +303,7 @@ Textdatei mit den IDs der deaktivierten Terminaleffekt-Plugins (eine pro Zeile).
 ### coding-agents/
 Optionale Benutzerüberschreibungen für die Regeln der Coding-Agent-Erkennung, eine JSON-Datei pro Agent (`claude-code.json`, `codex.json`, `gemini-cli.json`).
 
-**Zweck:** Eine Datei hier ersetzt die im Paket enthaltene Regeldatei des entsprechenden Agents vollständig. Eine ungültige Datei wird im Log als *Coding-Agents*-Warnung gemeldet und die im Paket enthaltenen Regeln bleiben aktiv. Das Verzeichnis existiert erst dann, wenn es erstellt wird. Siehe [Coding-Agents → Benutzerdefinierte Regeln](../features/coding-agents.md#eigene-regeln).
+**Zweck:** Eine Datei hier ersetzt die im Paket enthaltene Regeldatei des gleichen Agenten vollständig. Eine ungültige Datei wird im Log als *coding-agents* Warnung gemeldet und die im Paket enthaltenen Regeln bleiben aktiv. Das Verzeichnis existiert erst, wenn Sie es erstellen. Siehe [Coding-Agents → Benutzerdefinierte Regeln](../features/coding-agents.md#eigene-regeln).
 
 ### kortty.log
 Anwendungsprotokolldatei.
@@ -324,15 +324,15 @@ Anwendungsprotokolldatei.
 ## Verzeichnisse
 
 ### history/
-Komprimierter Terminalsitzungsverlauf.
+Bildschirm-Snapshots werden mit [Projekten](../features/projects.md) gespeichert.
 
-**Format:** GZIP-komprimierte Textdateien, eine pro Terminalsitzung
+**Format:** GZIP-komprimierter UTF-8 Text, eine Datei pro Terminal-Tab eines gespeicherten Projekts.
 
-**Benennung:** `{session-id}_{timestamp}.history.gz` (für den Sitzungsverlauf aus der Terminalprotokollierung)
+**Benennung:** `{session-id}.history.gz`, referenziert durch Dateinamen aus der `.kortty` Datei des Projekts.
 
-**Zweck:** Speichert den Projekt-/Sitzungs-Scrollback-Verlauf, damit wieder geöffnete Sitzungen ihren Terminalinhalt wiederherstellen können.
+**Verwendung:** Enthält den zuletzt sichtbaren Bildschirm jedes Primärfensters eines Terminal-Tabs zum Zeitpunkt des Speicherns des Projekts – nicht den Scrollback und nicht die Bildschirme weiterer geteilter Paneele.
 
-**Zugriff:** Der Terminalverlauf wird automatisch geladen, wenn Sie eine gespeicherte Verbindung öffnen, und in der Suchfunktion für den Terminalverlauf angezeigt.
+**Zugriff:** Nur beim Öffnen eines Projekts mit aktivierter **Automatisches Wiederverbinden**; der Text wird dann lokal, über die neue Sitzung hinweg gedimmt angezeigt und niemals an den Server gesendet. Keine Verlaufssuche verwendet diese Dateien. korTTY liest, schreibt und löscht ausschließlich einfache `{session-id}.history.gz` Namen direkt in diesem Ordner. Die Dateien sind nicht verschlüsselt.
 
 !!! note
     Pro Verbindung schreibt *Terminal Logging* hier nicht: Die generierten Protokolldateien werden in den Ordner verschoben, der auf der Registerkarte „Terminal Logging“ der Verbindung konfiguriert ist, oder in `~/.kortty/terminal-logs/`, wenn dieser Ordner leer bleibt.
@@ -341,7 +341,7 @@ Komprimierter Terminalsitzungsverlauf.
 Sitzungsjournale – ein eigenständiges Verzeichnis pro Journal (Speicherort konfigurierbar unter **Einstellungen > Protokollierung > Sitzungsjournal**). Jedes Journalverzeichnis enthält `journal.xml` (das kuratierte Dokument: Metadaten, KI-Zusammenfassungen, Markierungen, Notizen, Screenshot-Referenzen), das Nur-Anhängen-Capture-Log `session-log.json` / `.xml` / `.yaml` (standardmäßig JSON Lines) mit zstd-komprimierten gedrehten Teilen (Teilgröße und Teileanzahl sind pro Verbindung auf der Registerkarte „Journal“ konfigurierbar, standardmäßig 25 MB und 20 Teile; Journale aus älteren Versionen behalten ihre gzip-komprimierte `.gz`-Teile), die generierte `journal.html`-Timeline-Seite und `screenshots/*.png`. Siehe [Sitzungsjournal](../features/session-journal.md).
 
 ### terminal-logs/
-Standardmäßige Zielordner für den [per-Verbindung-Terminal-Log](../features/terminal.md#terminalprotokollierung), wenn das Feld für den Log-Ordner einer Verbindung leer bleibt. Die Dateinamenerstellung, tägige Rotation, Kompression und Aufbewahrung folgen der Logging-Konfiguration der Verbindung.
+Standardzielordner für [protokollierte Terminal-Logs pro Verbindung](../features/terminal.md#terminalprotokollierung), wenn das Logordnerfeld einer Verbindung leer bleibt. Dateibenennung, tägliche Rotation, Kompression und Aufbewahrung folgen der Protokollkonfiguration der Verbindung.
 
 ### plugins/
 Vom Benutzer importierte Terminal-Effekt-Plugin-JARs.

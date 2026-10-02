@@ -98,7 +98,7 @@ KorTTY speichert seine Hauptkonfiguration, Anmeldeinformationen und Sitzungsstat
 ├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin IDs (one per line)
 ├── master.key                   # PBKDF2-hashed master password (310,000 iterations)
 ├── kortty.log                   # Application log file
-├── history/                     # Compressed terminal session logs
+├── history/                     # Project screen snapshots (gzip, one per terminal tab)
 ├── plugins/                     # Imported external terminal-effect plugin JARs
 ├── bundled-plugins/             # Runtime copies of bundled exportable plugin JARs
 ├── projects/                    # Project files (connection sets with saved layout)
@@ -346,7 +346,7 @@ Menu-bar status displays next runs / live countdown
 - **Protokolldatei**: `~/.kortty/kortty.log` (SLF4J mit Logback-Backend)
 - **JMX-Überwachung**: MBean `de.kortty:type=SSHClient` macht aktive Verbindungen, Speicher und gepufferte Textgröße verfügbar
 - **JobScheduler-Journal**: Detaillierte Ausführungsprotokolle mit konfigurierbarer Aufbewahrung (standardmäßig 14 Tage, unbegrenzt, wenn auf 0 gesetzt)
-- **Terminalverlauf**: Komprimierte Sitzungsprotokolle in `~/.kortty/history/`
+- **Projekt-Bildschirm-Snapshots**: Der zuletzt sichtbare Bildschirm jedes Terminal-Tabs eines gespeicherten Projekts, gzip-komprimiert in `~/.kortty/history/` und lokal angezeigt (nie an den Server gesendet), wenn das Projekt mit Auto-Reconnect wieder geöffnet wird
 - **Terminalaufzeichnung**: Optionale Wiedergabedateien in `~/.kortty/recordings/`
 - **Testisolation**: Die Test-Logback-Konfiguration schreibt nur auf die eigene Konsole und erstellt niemals die Konsole des echten Benutzers oder hängt an diese an `~/.kortty/logs`
 
@@ -372,7 +372,7 @@ Menu-bar status displays next runs / live countdown
 
 1. **Terminale Auswirkungen**: `TerminalEffectPlugin` implementieren und über `ServiceLoader` registrieren (siehe `TERMINAL_EFFECT_PLUGINS.adoc`)
 2. **Benutzerdefinierte Formatierer**: Unterstützung für neue Sprachen im Snippet-Editor hinzugefügt
-3. **KI-Skills**: Importieren Sie benutzerdefinierte KI-Auflistungen über `AI → KI-Manager → AI Skills`
+3. **KI-Skills**: Importieren Sie benutzerdefinierte KI-Anweisungssets über `AI → KI-Manager → AI Skills`
 
 ### Für Integratoren
 
@@ -384,7 +384,7 @@ Menu-bar status displays next runs / live countdown
 
 - **Sitzungscaching**: Aktive SSH-Verbindungen werden zwischengespeichert, um den Aufwand für die erneute Verbindung zu vermeiden
 - **Lazy Loading**: Verbindungsdetails werden bei Bedarf geladen, nicht alle auf einmal
-- **Komprimierung**: Terminalverlauf und Terminalprotokolle verwenden gzip; Teile des gedrehten Sitzungsjournals verwenden zstd (ältere `.gz`-Teile bleiben lesbar)
+- **Kompression**: Projekt-Bildschirm-Snapshots und Terminal-Logs verwenden gzip; rotierte Session-Journal-Teile nutzen zstd (veraltete `.gz`-Teile bleiben lesbar)
 - **Drosselung**: Terminal-Rendering-Updates werden stapelweise durchgeführt, um die Belastung des UI-Threads zu reduzieren
 - **Speicherpooling**: Große Puffer für Terminaltext und SFTP-Dateiauflistung werden wiederverwendet
 
