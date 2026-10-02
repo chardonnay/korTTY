@@ -22,7 +22,11 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * Repository for storing and loading SSH connections in XML format.
@@ -52,6 +56,16 @@ public class XMLConnectionRepository {
     
     private final Path configDir;
     
+    /**
+     * A temporary SSH key exactly as {@code connections.xml} stores it: the key material still
+     * encrypted with the master-password key ({@code enc:} prefix included), plus its lifetime.
+     */
+    public record StoredTemporaryKey(String encryptedContent, Long expirationMinutes, boolean permanent) {
+        public StoredTemporaryKey {
+            Objects.requireNonNull(encryptedContent, "encryptedContent");
+        }
+    }
+
     public XMLConnectionRepository(Path configDir) {
         this.configDir = configDir;
     }
@@ -67,8 +81,19 @@ public class XMLConnectionRepository {
      * Saves connections to XML file using the provided key for at-rest encryption.
      */
     public void saveConnections(List<ServerConnection> connections, SecretKey key) throws Exception {
+        saveConnections(connections, key, Map.of());
+    }
+
+    /**
+     * Saves connections, writing {@code preserved} back verbatim for each connection id that has no
+     * temporary key in memory. A load while the vault was locked had to clear those keys in memory;
+     * this keeps the encrypted copies on disk until the vault is unlocked and they can be restored.
+     */
+    public void saveConnections(List<ServerConnection> connections, SecretKey key,
+                                Map<String, StoredTemporaryKey> preserved) throws Exception {
         ConnectionsWrapper wrapper = new ConnectionsWrapper();
-        wrapper.setConnections(prepareForPersistence(connections, key));
+        wrapper.setConnections(prepareForPersistence(connections, key,
+            preserved != null ? preserved : Map.of()));
         
         Marshaller marshaller = JAXB_CONTEXT.createMarshaller();
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
@@ -92,6 +117,15 @@ public class XMLConnectionRepository {
      * Loads connections from XML file using the provided key for at-rest decryption.
      */
     public List<ServerConnection> loadConnections(SecretKey key) throws Exception {
+        return loadConnections(key, null);
+    }
+
+    /**
+     * Loads connections like {@link #loadConnections(SecretKey)} and adds to {@code lockedKeyIds}
+     * the id of every connection whose encrypted temporary SSH key could not be decrypted because
+     * {@code key} is {@code null} (vault locked). Those keys are cleared in memory only.
+     */
+    public List<ServerConnection> loadConnections(SecretKey key, Collection<String> lockedKeyIds) throws Exception {
         Path file = configDir.resolve(CONNECTIONS_FILE);
         
         if (!Files.exists(file)) {
@@ -99,19 +133,68 @@ public class XMLConnectionRepository {
             return new ArrayList<>();
         }
         
-        Unmarshaller unmarshaller = JAXB_CONTEXT.createUnmarshaller();
-        
-        ConnectionsWrapper wrapper;
-        try (InputStream in = Files.newInputStream(file)) {
-            wrapper = (ConnectionsWrapper) unmarshaller.unmarshal(in);
-        }
-        
-        List<ServerConnection> connections = restoreAfterLoad(wrapper.getConnections(), key);
+        List<ServerConnection> connections = restoreAfterLoad(readWrapper(file).getConnections(), key, lockedKeyIds);
         logger.info("Loaded {} connections from {}", connections.size(), file);
         
         return connections != null ? connections : new ArrayList<>();
     }
     
+    /**
+     * Reads the temporary SSH keys from {@code connections.xml} without decrypting them, by
+     * connection id. Only encrypted keys are returned; empty when the file does not exist.
+     */
+    public Map<String, StoredTemporaryKey> readStoredTemporaryKeys() throws Exception {
+        Map<String, StoredTemporaryKey> stored = new LinkedHashMap<>();
+        Path file = configDir.resolve(CONNECTIONS_FILE);
+        if (!Files.exists(file)) {
+            return stored;
+        }
+        List<ServerConnection> persisted = readWrapper(file).getConnections();
+        if (persisted == null) {
+            return stored;
+        }
+        for (ServerConnection connection : persisted) {
+            if (connection == null || connection.getId() == null) {
+                continue;
+            }
+            String content = connection.getTemporaryKeyContent();
+            if (content != null && content.startsWith(ENCRYPTED_TEMP_KEY_PREFIX)) {
+                stored.put(connection.getId(), new StoredTemporaryKey(
+                    content, connection.getTemporaryKeyExpirationMinutes(), connection.isTemporaryKeyPermanent()));
+            }
+        }
+        return stored;
+    }
+
+    /**
+     * Decrypts {@code stored} with {@code key} and puts it on {@code target} the way a load with an
+     * unlocked vault would have: key material, lifetime and the {@code TEMPORARY:} key path.
+     *
+     * @throws Exception when {@code key} cannot decrypt the stored key; {@code target} is unchanged
+     */
+    public static void restoreTemporaryKey(ServerConnection target, StoredTemporaryKey stored, SecretKey key)
+            throws Exception {
+        Objects.requireNonNull(target, "target");
+        Objects.requireNonNull(stored, "stored");
+        Objects.requireNonNull(key, "key");
+        String encrypted = stored.encryptedContent();
+        if (!encrypted.startsWith(ENCRYPTED_TEMP_KEY_PREFIX)) {
+            throw new IllegalArgumentException("The stored temporary key is not encrypted");
+        }
+        String decrypted = new EncryptionService().decrypt(encrypted.substring(ENCRYPTED_TEMP_KEY_PREFIX.length()), key);
+        target.setTemporaryKeyContent(decrypted);
+        target.setTemporaryKeyExpirationMinutes(stored.expirationMinutes());
+        target.setTemporaryKeyPermanent(stored.permanent());
+        target.setPrivateKeyPath(TEMPORARY_KEY_PATH_PREFIX + decrypted);
+    }
+
+    private static ConnectionsWrapper readWrapper(Path file) throws Exception {
+        Unmarshaller unmarshaller = JAXB_CONTEXT.createUnmarshaller();
+        try (InputStream in = Files.newInputStream(file)) {
+            return (ConnectionsWrapper) unmarshaller.unmarshal(in);
+        }
+    }
+
     /**
      * Exports connections to a specified file.
      */
@@ -124,7 +207,7 @@ public class XMLConnectionRepository {
      */
     public void exportConnections(List<ServerConnection> connections, Path targetFile, SecretKey key) throws Exception {
         ConnectionsWrapper wrapper = new ConnectionsWrapper();
-        wrapper.setConnections(prepareForPersistence(connections, key));
+        wrapper.setConnections(prepareForPersistence(connections, key, Map.of()));
         
         Marshaller marshaller = JAXB_CONTEXT.createMarshaller();
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
@@ -154,7 +237,7 @@ public class XMLConnectionRepository {
             wrapper = (ConnectionsWrapper) unmarshaller.unmarshal(in);
         }
         
-        List<ServerConnection> connections = restoreAfterLoad(wrapper.getConnections(), key);
+        List<ServerConnection> connections = restoreAfterLoad(wrapper.getConnections(), key, null);
         logger.info("Imported {} connections from {}", connections.size(), sourceFile);
         
         return connections != null ? connections : new ArrayList<>();
@@ -162,7 +245,7 @@ public class XMLConnectionRepository {
 
     public static void writeConnections(List<ServerConnection> connections, OutputStream out, SecretKey key) throws Exception {
         ConnectionsWrapper wrapper = new ConnectionsWrapper();
-        wrapper.setConnections(prepareForPersistence(connections, key));
+        wrapper.setConnections(prepareForPersistence(connections, key, Map.of()));
 
         Marshaller marshaller = JAXB_CONTEXT.createMarshaller();
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
@@ -178,7 +261,7 @@ public class XMLConnectionRepository {
     public static List<ServerConnection> readConnections(InputStream in, SecretKey key) throws Exception {
         Unmarshaller unmarshaller = JAXB_CONTEXT.createUnmarshaller();
         ConnectionsWrapper wrapper = (ConnectionsWrapper) unmarshaller.unmarshal(in);
-        return restoreAfterLoad(wrapper.getConnections(), key);
+        return restoreAfterLoad(wrapper.getConnections(), key, null);
     }
 
     public static List<ServerConnection> readConnections(Path file, SecretKey key) throws Exception {
@@ -187,7 +270,8 @@ public class XMLConnectionRepository {
         }
     }
 
-    private static List<ServerConnection> prepareForPersistence(List<ServerConnection> connections, SecretKey key) throws Exception {
+    private static List<ServerConnection> prepareForPersistence(List<ServerConnection> connections, SecretKey key,
+                                                                Map<String, StoredTemporaryKey> preserved) throws Exception {
         List<ServerConnection> prepared = new ArrayList<>();
         if (connections == null) {
             return prepared;
@@ -198,17 +282,25 @@ public class XMLConnectionRepository {
             if (connection == null) {
                 continue;
             }
-            prepared.add(prepareForPersistence(connection, key, encryptionService));
+            prepared.add(prepareForPersistence(connection, key, encryptionService,
+                connection.getId() != null ? preserved.get(connection.getId()) : null));
         }
         return prepared;
     }
 
     private static ServerConnection prepareForPersistence(ServerConnection connection, SecretKey key,
-                                                          EncryptionService encryptionService) throws Exception {
+                                                          EncryptionService encryptionService,
+                                                          StoredTemporaryKey preserved) throws Exception {
         ServerConnection copy = ServerConnection.copyForAuth(connection);
         String tempKeyContent = extractTemporaryKeyContent(copy);
 
-        if (tempKeyContent != null && !tempKeyContent.isBlank()) {
+        if ((tempKeyContent == null || tempKeyContent.isBlank()) && preserved != null) {
+            // Cleared in memory by a locked load: keep the encrypted original on disk.
+            copy.setTemporaryKeyContent(preserved.encryptedContent());
+            copy.setTemporaryKeyExpirationMinutes(preserved.expirationMinutes());
+            copy.setTemporaryKeyPermanent(preserved.permanent());
+            copy.setPrivateKeyPath(TEMPORARY_KEY_PATH_MARKER);
+        } else if (tempKeyContent != null && !tempKeyContent.isBlank()) {
             if (key == null) {
                 throw new IllegalStateException("A master password must be unlocked before persisting temporary SSH keys.");
             }
@@ -221,20 +313,22 @@ public class XMLConnectionRepository {
         return copy;
     }
 
-    private static List<ServerConnection> restoreAfterLoad(List<ServerConnection> connections, SecretKey key) throws Exception {
+    private static List<ServerConnection> restoreAfterLoad(List<ServerConnection> connections, SecretKey key,
+                                                           Collection<String> lockedKeyIds) throws Exception {
         List<ServerConnection> restored = connections != null ? connections : new ArrayList<>();
         EncryptionService encryptionService = new EncryptionService();
         for (ServerConnection connection : restored) {
             if (connection == null) {
                 continue;
             }
-            restoreAfterLoad(connection, key, encryptionService);
+            restoreAfterLoad(connection, key, encryptionService, lockedKeyIds);
         }
         return restored;
     }
 
     private static void restoreAfterLoad(ServerConnection connection, SecretKey key,
-                                         EncryptionService encryptionService) throws Exception {
+                                         EncryptionService encryptionService,
+                                         Collection<String> lockedKeyIds) throws Exception {
         String persisted = connection.getTemporaryKeyContent();
         if (persisted == null || persisted.isBlank()) {
             if (TEMPORARY_KEY_PATH_MARKER.equals(connection.getPrivateKeyPath())) {
@@ -249,6 +343,9 @@ public class XMLConnectionRepository {
                 logger.warn("Temporary SSH key for connection '{}' could not be decrypted because the master password is locked",
                     connection.getDisplayName());
                 clearTemporaryKeyState(connection);
+                if (lockedKeyIds != null && connection.getId() != null) {
+                    lockedKeyIds.add(connection.getId());
+                }
                 return;
             }
             try {
