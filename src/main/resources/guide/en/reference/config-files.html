@@ -1029,11 +1029,11 @@
 </div>
 <h2 id="directories">Directories<a class="headerlink" href="#directories" title="Permanent link">&para;</a></h2>
 <h3 id="history">history/<a class="headerlink" href="#history" title="Permanent link">&para;</a></h3>
-<p>Compressed terminal session history.</p>
-<p><strong>Format:</strong> GZIP-compressed text files, one per terminal session</p>
-<p><strong>Naming:</strong> <code>{session-id}_{timestamp}.history.gz</code> (for session history from terminal logging)</p>
-<p><strong>Purpose:</strong> Stores project/session scrollback history so reopened sessions can restore their terminal content.</p>
-<p><strong>Access:</strong> Terminal history is loaded automatically when you open a saved connection and displayed in the terminal history search feature.</p>
+<p>Screen snapshots saved with <a href="../features/projects.html">projects</a>.</p>
+<p><strong>Format:</strong> GZIP-compressed UTF-8 text, one file per terminal tab of a saved project</p>
+<p><strong>Naming:</strong> <code>{session-id}.history.gz</code>, referenced by file name from the project's <code>.kortty</code> file</p>
+<p><strong>Purpose:</strong> Holds the last visible screen of each terminal tab's primary pane at the time the project was saved — not the scrollback, and not the screens of further split panes.</p>
+<p><strong>Access:</strong> Read only when a project is opened with <strong>Auto-Reconnect</strong> enabled; the text is then shown dimmed, locally, above the new session and is never sent to the server. No history search uses these files. korTTY only reads, writes and deletes plain <code>{session-id}.history.gz</code> names directly inside this folder. The files are not encrypted.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Per-connection <em>Terminal Logging</em> does not write here: its generated log files go to the folder configured on the connection's Terminal Logging tab, or to <code>~/.kortty/terminal-logs/</code> when that folder is left empty.</p>

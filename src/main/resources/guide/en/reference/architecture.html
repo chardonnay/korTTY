@@ -908,7 +908,7 @@
 </span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin IDs (one per line)
 </span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>├── master.key                   # PBKDF2-hashed master password (310,000 iterations)
 </span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>├── kortty.log                   # Application log file
-</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>├── history/                     # Compressed terminal session logs
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>├── history/                     # Project screen snapshots (gzip, one per terminal tab)
 </span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>├── plugins/                     # Imported external terminal-effect plugin JARs
 </span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>├── bundled-plugins/             # Runtime copies of bundled exportable plugin JARs
 </span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>├── projects/                    # Project files (connection sets with saved layout)
@@ -1395,7 +1395,7 @@
 <li><strong>Log file</strong>: <code>~/.kortty/kortty.log</code> (SLF4J with Logback backend)</li>
 <li><strong>JMX monitoring</strong>: MBean <code>de.kortty:type=SSHClient</code> exposes the live SSH and Mosh terminal connections (each split pane counts, local shells do not), memory and uptime; <code>BufferedTextSize</code> is not tracked and stays 0</li>
 <li><strong>JobScheduler journal</strong>: Detailed execution logs with configurable retention (14 days default, unlimited if set to 0)</li>
-<li><strong>Terminal history</strong>: Compressed session logs in <code>~/.kortty/history/</code></li>
+<li><strong>Project screen snapshots</strong>: The last visible screen of each terminal tab of a saved project, gzip-compressed in <code>~/.kortty/history/</code> and shown locally (never sent to the server) when the project is reopened with Auto-Reconnect</li>
 <li><strong>Terminal recording</strong>: Optional replay files in <code>~/.kortty/recordings/</code></li>
 <li><strong>Test isolation</strong>: The test Logback configuration writes to its own console only and never creates or appends to the real user's <code>~/.kortty/logs</code></li>
 </ul>
@@ -1430,7 +1430,7 @@
 <h2 id="performance-considerations">Performance Considerations<a class="headerlink" href="#performance-considerations" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Lazy loading</strong>: Connection details loaded on demand, not all at once</li>
-<li><strong>Compression</strong>: Terminal history and terminal logs use gzip; rotated session-journal parts use zstd (legacy <code>.gz</code> parts stay readable)</li>
+<li><strong>Compression</strong>: Project screen snapshots and terminal logs use gzip; rotated session-journal parts use zstd (legacy <code>.gz</code> parts stay readable)</li>
 <li><strong>Throttling</strong>: Terminal rendering updates are batched to reduce UI thread load</li>
 <li><strong>Memory pooling</strong>: Large buffers for terminal text and SFTP file listing are reused</li>
 </ul>
