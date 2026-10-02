@@ -267,10 +267,20 @@ public final class SnippetManagerScreenshotStage {
                 "The script only reads standard input.", "Fall back to `<>` so files can be passed.", 5)),
             false);
 
-        snippet(manager, "disk_usage_top10.sh", "#!/bin/sh\ndu -sh ./* 2>/dev/null | sort -rh | head -n 10\n",
+        Snippet disk = snippet(manager, "disk_usage_top10.sh", "#!/bin/sh\ndu -sh ./* 2>/dev/null | sort -rh | head -n 10\n",
             "bash", "Monitoring", List.of("disk"), "linux");
-        snippet(manager, "service_status.ps1", "Get-Service | Where-Object Status -eq 'Running' | Sort-Object Name\n",
+        Snippet services = snippet(manager, "service_status.ps1",
+            "Get-Service | Where-Object Status -eq 'Running' | Sort-Object Name\n",
             "powershell", "Monitoring", List.of("services"), "windows");
+        // Folders: the library tree shows ops/deploy, ops/maintenance and monitoring.
+        String deployFolder = manager.ensureFolderPath("ops/deploy", null);
+        String maintenanceFolder = manager.ensureFolderPath("ops/maintenance", null);
+        String monitoringFolder = manager.ensureFolderPath("monitoring", null);
+        deploySnippet.setFolderId(deployFolder);
+        backupSnippet.setFolderId(maintenanceFolder);
+        reportSnippet.setFolderId(monitoringFolder);
+        disk.setFolderId(monitoringFolder);
+        services.setFolderId(monitoringFolder);
         snippet(manager, "users_by_group.sql",
             "SELECT g.name, COUNT(*) AS members\nFROM demo_users u JOIN demo_groups g ON g.id = u.group_id\nGROUP BY g.name\nORDER BY members DESC;\n",
             "sql", "Database", List.of("report"), "any");

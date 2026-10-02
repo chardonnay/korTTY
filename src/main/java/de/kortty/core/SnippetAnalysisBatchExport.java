@@ -49,12 +49,35 @@ public final class SnippetAnalysisBatchExport {
 
     public enum Packaging { COMBINED, ZIP }
 
-    /** One report to export. */
-    public record Item(String snippetId, String snippetName, SnippetAnalysisReport report) {
+    /**
+     * One report to export. {@code folderPath} is the snippet's library folder ({@code a/b}, empty
+     * at the top level): a ZIP puts the report into that directory, combined reports show it.
+     */
+    public record Item(String snippetId, String snippetName, SnippetAnalysisReport report, String folderPath) {
         public Item {
             Objects.requireNonNull(report, "report");
             snippetName = snippetName != null ? snippetName : "";
+            folderPath = safeFolderPath(folderPath);
         }
+
+        public Item(String snippetId, String snippetName, SnippetAnalysisReport report) {
+            this(snippetId, snippetName, report, "");
+        }
+    }
+
+    /** Each segment made a safe directory name; empty, {@code .} and {@code ..} segments dropped. */
+    static String safeFolderPath(String folderPath) {
+        if (folderPath == null || folderPath.isBlank()) {
+            return "";
+        }
+        List<String> segments = new ArrayList<>();
+        for (String segment : folderPath.replace('\\', '/').split("/")) {
+            String safe = SnippetManager.sanitizeFolderName(segment);
+            if (!safe.isEmpty()) {
+                segments.add(safe);
+            }
+        }
+        return String.join("/", segments);
     }
 
     /** A selected snippet that has no stored analysis. */
@@ -289,10 +312,12 @@ public final class SnippetAnalysisBatchExport {
         Set<String> names = new HashSet<>();
         try (ZipOutputStream zip = new ZipOutputStream(out, StandardCharsets.UTF_8)) {
             for (Rendered part : rendered) {
-                putEntry(zip, names, part.fileName(), part.body());
+                String folder = part.item().folderPath();
+                String prefix = folder.isEmpty() ? "" : folder + "/";
+                putEntry(zip, names, prefix + part.fileName(), part.body());
                 if (format == Format.MARKDOWN && part.image() != null) {
                     String base = part.fileName().substring(0, part.fileName().length() - 3);
-                    putEntry(zip, names, base + ".diagram.png", part.image());
+                    putEntry(zip, names, prefix + base + ".diagram.png", part.image());
                 }
             }
             if (!skipped.isEmpty()) {
@@ -572,7 +597,8 @@ public final class SnippetAnalysisBatchExport {
 
     private static String entryTitle(Item item) {
         String name = item.snippetName().isBlank() ? item.report().header().scriptName() : item.snippetName();
-        return name == null || name.isBlank() ? SnippetAnalysisReportText.appTitle() : name;
+        String title = name == null || name.isBlank() ? SnippetAnalysisReportText.appTitle() : name;
+        return item.folderPath().isEmpty() ? title : item.folderPath() + " / " + title;
     }
 
     private static String summaryLine(int count, ExportOptions options) {

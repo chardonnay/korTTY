@@ -3579,6 +3579,15 @@ tasks.register<JavaExec>("snippetWorkspaceSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("snippetFoldersSmoke") {
+    group = "verification"
+    description = "Drives the snippet folder tree and the multi-file analysis preview (tabs and tree " +
+        "follow each other, the tree can be hidden, excluded files are not accepted)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SnippetFoldersSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("agentCompletionPopupSmoke") {
     group = "verification"
     description = "Shows the terminal AI-agent TAB history popup to verify it renders without throwing."

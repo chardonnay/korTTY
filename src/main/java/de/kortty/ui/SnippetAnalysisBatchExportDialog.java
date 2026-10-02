@@ -293,7 +293,7 @@ final class SnippetAnalysisBatchExportDialog extends ThemeAwareDialog<Void> {
                         contexts.get(index));
                     if (report != null) {
                         items.add(new SnippetAnalysisBatchExport.Item(exportable.get(index).getId(),
-                            exportable.get(index).getName(), report));
+                            exportable.get(index).getName(), report, folderPathOf(exportable.get(index))));
                     }
                 }
                 return new SnippetAnalysisExportService().exportBatch(target, format, packaging, items, skipped,
@@ -427,6 +427,17 @@ final class SnippetAnalysisBatchExportDialog extends ThemeAwareDialog<Void> {
             return locale != null ? locale : Locale.getDefault();
         } catch (RuntimeException e) {
             return Locale.getDefault();
+        }
+    }
+
+    /** The snippet's library folder path, so reports keep the folder structure ({@code ""} outside the app). */
+    private static String folderPathOf(de.kortty.model.Snippet snippet) {
+        try {
+            de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+            return app != null && app.getSnippetManager() != null && snippet.getFolderId() != null
+                ? app.getSnippetManager().folderPath(snippet.getFolderId()) : "";
+        } catch (RuntimeException e) {
+            return "";
         }
     }
 }

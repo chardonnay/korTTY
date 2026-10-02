@@ -1894,6 +1894,19 @@ public final class SnippetAiResponseSupport {
         return solution.isUsable() ? solution : null;
     }
 
+    /**
+     * The answer's JSON object for the project and modularization flows: read as it is, else once
+     * more after escaping raw quotes inside prose strings; {@code null} when neither parses.
+     */
+    static JsonObject parseLenientJsonObject(String responseText) {
+        JsonObject object = parseJsonObject(responseText);
+        if (object != null) {
+            return object;
+        }
+        String repaired = repairRawQuotesInStrings(responseText);
+        return repaired != null ? parseJsonObject(repaired) : null;
+    }
+
     private static JsonObject parseJsonObject(String responseText) {
         String jsonCandidate = extractJsonPayload(responseText);
         if (jsonCandidate == null) {

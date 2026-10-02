@@ -85,6 +85,72 @@ final class SnippetAiAssistFactory {
     }
 
     /**
+     * The folder analysis and modularization calls, resolved per request like {@link #create}.
+     * Returns {@code null} when no main window with AI profiles is available.
+     */
+    static SnippetProjectAi createProjectAi(Supplier<MainWindow> ownerWindowSupplier) {
+        MainWindow initialOwner = ownerWindowSupplier != null ? ownerWindowSupplier.get() : null;
+        if (initialOwner == null || initialOwner.getAvailableAiProfiles().isEmpty()) {
+            return null;
+        }
+        Supplier<MainWindow> owner = () -> {
+            MainWindow current = ownerWindowSupplier.get();
+            return current != null ? current : initialOwner;
+        };
+        SnippetAiRuntimeOptions options = new SnippetAiRuntimeOptions();
+        return new SnippetProjectAi() {
+            @Override
+            public SnippetAiResponseSupport.ScriptAnalysis analyzeProject(
+                    de.kortty.core.SnippetProjectAiSupport.ProjectContext context, String aiProfileId,
+                    String fallbackLanguageCode, String additionalInstructions,
+                    SnippetEditDialog.AiProvenanceListener provenanceListener) throws Exception {
+                MainWindow window = owner.get();
+                ResolvedProfile resolved = resolve(window, null, AiAction.ANALYZE_SNIPPET_PROJECT, aiProfileId, options);
+                ProvenanceReporter provenance = new ProvenanceReporter(provenanceListener, resolved.profile(), options,
+                    additionalInstructions);
+                return de.kortty.core.SnippetProjectAiSupport.analyzeProject(resolved.service(),
+                    (request, result) -> {
+                        window.recordAiUsageForProfile(resolved.profile(), request, result);
+                        provenance.recordUsage(result);
+                    },
+                    context, null, fallbackLanguageCode, additionalInstructions);
+            }
+
+            @Override
+            public de.kortty.core.SnippetModularizationSupport.ModularizationPlan planModularization(
+                    String sourceContext, String language, String aiProfileId, String fallbackLanguageCode,
+                    String additionalInstructions) throws Exception {
+                MainWindow window = owner.get();
+                ResolvedProfile resolved = resolve(window, null, AiAction.PLAN_SNIPPET_MODULARIZATION, aiProfileId, options);
+                return de.kortty.core.SnippetProjectAiSupport.planModularization(resolved.service(),
+                    (request, result) -> window.recordAiUsageForProfile(resolved.profile(), request, result),
+                    sourceContext, language, null, fallbackLanguageCode, additionalInstructions);
+            }
+
+            @Override
+            public String generateModule(String sourceContext, String originalSource,
+                                         de.kortty.core.SnippetModularizationSupport.ModularizationPlan plan,
+                                         de.kortty.core.SnippetModularizationSupport.ModuleFile target,
+                                         java.util.Map<String, String> written, String language, String aiProfileId,
+                                         String fallbackLanguageCode, String additionalInstructions,
+                                         String repairHint) throws Exception {
+                MainWindow window = owner.get();
+                ResolvedProfile resolved = resolve(window, null, AiAction.GENERATE_SNIPPET_MODULE, aiProfileId, options);
+                return de.kortty.core.SnippetProjectAiSupport.generateModule(resolved.service(),
+                    (request, result) -> window.recordAiUsageForProfile(resolved.profile(), request, result),
+                    sourceContext, originalSource, plan, target, written, language, null, fallbackLanguageCode,
+                    additionalInstructions, repairHint);
+            }
+
+            @Override
+            public SnippetAiResponseSupport.SnippetSecurityFix applyImprovements(
+                    SnippetEditDialog.ImprovementApplyRequest request) throws Exception {
+                return applySnippetImprovements(owner.get(), null, request, null, options);
+            }
+        };
+    }
+
+    /**
      * Resolves profile and service afresh for every action. This preserves explicit dialog choices,
      * security and connection assignments, and TEXT/CODING role changes made while the editor is open.
      */
@@ -371,7 +437,9 @@ final class SnippetAiAssistFactory {
             request.snippetLanguage(),
             connectionDisplayName,
             request.fallbackLanguageCode(),
-            request.additionalInstructions());
+            request.additionalInstructions(),
+            request.fileName(),
+            request.executable());
     }
 
     private static SnippetAiResponseSupport.SnippetSecurityFix applySnippetImprovements(

@@ -797,6 +797,25 @@ public final class SnippetAiWorkflowSupport {
         String connectionDisplayName,
         String fallbackLanguageCode,
         String additionalInstructions) throws Exception {
+        return analyzeSnippetCode(aiService, usageRecorder, fullContent, snippetLanguage, connectionDisplayName,
+            fallbackLanguageCode, additionalInstructions, null, null);
+    }
+
+    /**
+     * Like {@link #analyzeSnippetCode(AiService, UsageRecorder, String, String, String, String, String)},
+     * telling the model the file name and executable flag the snippet is written with, so it can
+     * check the shebang line and the flag against how the file is used.
+     */
+    public static SnippetAiResponseSupport.ScriptAnalysis analyzeSnippetCode(
+        AiService aiService,
+        UsageRecorder usageRecorder,
+        String fullContent,
+        String snippetLanguage,
+        String connectionDisplayName,
+        String fallbackLanguageCode,
+        String additionalInstructions,
+        String fileName,
+        Boolean executable) throws Exception {
 
         AiRequest request = new AiRequest(
             AiAction.ANALYZE_SNIPPET_CODE,
@@ -804,7 +823,8 @@ public final class SnippetAiWorkflowSupport {
             connectionDisplayName,
             fallbackLanguageCode,
             additionalInstructions,
-            buildAnalysisContext(fullContent, snippetLanguage, fallbackLanguageCode));
+            fileContextLine(fileName, executable)
+                + buildAnalysisContext(fullContent, snippetLanguage, fallbackLanguageCode));
         AiExecutionResult result = aiService.execute(request);
         if (result != null && usageRecorder != null) {
             usageRecorder.record(request, result);
@@ -2427,6 +2447,18 @@ public final class SnippetAiWorkflowSupport {
             + AiPromptBuilder.toSafeTextCodeBlock(findingsText)
             + "\nFull snippet to update:\n"
             + AiPromptBuilder.toSafeTextCodeBlock(fullContent);
+    }
+
+    /** "File: x.py (executable)" plus what to check about it; empty when the file name is unknown. */
+    static String fileContextLine(String fileName, Boolean executable) {
+        if (fileName == null || fileName.isBlank()) {
+            return "";
+        }
+        return "File: " + fileName.strip()
+            + (executable == null ? "" : Boolean.TRUE.equals(executable) ? " (written as an executable file)"
+                : " (written as a non-executable file)")
+            + "\nCheck that the shebang line and the executable flag fit how this file is used; report a "
+            + "mismatch as a design improvement.\n";
     }
 
     private static String buildAnalysisContext(String fullContent, String snippetLanguage, String fallbackLanguageCode) {

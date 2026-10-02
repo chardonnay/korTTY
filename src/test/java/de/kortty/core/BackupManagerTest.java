@@ -249,6 +249,46 @@ public class BackupManagerTest {
     }
 
     @Test
+    public void backupRestoresSnippetFoldersExecutableFlagsAndFolderAnalyses() throws Exception {
+        Path root = Files.createTempDirectory("kortty-backup-snippet-folders-");
+        Path configDir = Files.createDirectories(root.resolve("config"));
+        SnippetManager snippets = new SnippetManager(configDir);
+        String libId = snippets.ensureFolderPath("tools/lib", null);
+        de.kortty.model.Snippet script = new de.kortty.model.Snippet("helper", "def x():\n    pass\n", "python");
+        script.setExecutable(Boolean.FALSE);
+        script.setFileName("helper_lib.py");
+        snippets.addSnippet(script);
+        snippets.moveSnippetsToFolder(java.util.List.of(script.getId()), libId);
+        snippets.save();
+        String toolsId = snippets.findFolder(libId).orElseThrow().getParentId();
+        writeAnalyses(configDir, SnippetProjectAiSupport.folderKey(toolsId), 3);
+
+        char[] masterPassword = "master-pw".toCharArray();
+        CredentialManager credentialManager = new CredentialManager(configDir);
+        StoredCredential credential = new StoredCredential(
+            "backup", "user", StoredCredential.Environment.PRODUCTION);
+        credentialManager.setPassword(credential, "backup-pw", masterPassword);
+        credentialManager.addCredential(credential);
+        GlobalSettings settings = new GlobalSettings();
+        settings.setBackupEncryptionType(GlobalSettings.BackupEncryptionType.PASSWORD);
+        settings.setBackupCredentialId(credential.getId());
+        Path backupZip = new BackupManager(configDir, settings)
+            .createBackup(root.resolve("target"), credentialManager, null, masterPassword);
+
+        Path restoreDir = Files.createDirectories(root.resolve("restore"));
+        new BackupManager(restoreDir, new GlobalSettings()).importBackup(backupZip, "backup-pw", true);
+
+        SnippetManager restored = new SnippetManager(restoreDir);
+        restored.load();
+        de.kortty.model.Snippet copy = restored.findById(script.getId()).orElseThrow();
+        assertThat(restored.folderPath(copy.getFolderId())).isEqualTo("tools/lib");
+        assertThat(copy.getExecutable()).isFalse();
+        assertThat(copy.getFileName()).isEqualTo("helper_lib.py");
+        assertThat(revision(restoreDir.resolve(SnippetAnalysisStore.DIRECTORY_NAME),
+            SnippetProjectAiSupport.folderKey(toolsId))).isEqualTo(3L);
+    }
+
+    @Test
     public void managedBackupFilesIncludeOnlyRegenerableLocalAiMetadata() {
         assertThat(BackupManager.managedBackupFiles()).containsAtLeast(
             "llm/models.xml",

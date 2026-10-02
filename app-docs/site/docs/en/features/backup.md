@@ -38,9 +38,9 @@ The backup includes:
 | GPG keys | GPG public keys for backup encryption |
 | Settings | Global application settings, terminal configurations, themes, and AI profiles |
 | JobScheduler jobs | All scheduled jobs, host-key pins, and encrypted sudo passwords |
-| Snippets | Code snippets and script templates with metadata |
+| Snippets | Code snippets and script templates with metadata, their folder structure, file names and executable flags |
 | Snippet variables | Custom variables for snippet substitution |
-| Snippet analyses | The stored [Full code analyses](snippets.md#full-code-analysis) of every snippet, with their apply runs and diagrams |
+| Snippet analyses | The stored [Full code analyses](snippets.md#full-code-analysis) of every snippet and every [analysed folder](snippets.md#analysing-a-folder-as-one-project), with their apply runs, diagrams and modularization proposals |
 | AI chats | Saved AI conversation histories and profiles |
 | Local AI configuration | Local GGUF registrations and typed launch settings, Text/Coding roles, preferred runtime backend/update policy, and encrypted Hugging Face token |
 | Knowledge-store configuration | Store metadata and source paths, filters, sync modes, and embedding configuration; not the HNSW vectors |

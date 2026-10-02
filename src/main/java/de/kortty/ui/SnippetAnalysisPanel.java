@@ -28,6 +28,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.Hyperlink;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
@@ -180,6 +181,18 @@ public class SnippetAnalysisPanel extends VBox {
     private int fontSize;
 
     private final SnippetDiagramView diagramView;
+    /** The report above (or beside) the diagram. */
+    private SplitPane reportSplit;
+    /** The diagram with its header. */
+    private VBox diagramPane;
+    private boolean wideLayout;
+    /** Script header, text language and the collapsible option panels below the report. */
+    private final List<Node> optionNodes = new ArrayList<>();
+    /** The options stacked in one column (left of the diagram). */
+    private final VBox optionsColumn = new VBox(10);
+    private ScrollPane optionsScroll;
+    /** Below the report in the editor's side panel: options left, diagram right. */
+    private final SplitPane bottomSplit = new SplitPane();
 
     /**
      * @param onRerun     re-runs the analysis with the chosen profile id; {@code null} hides the re-run controls
@@ -245,21 +258,23 @@ public class SnippetAnalysisPanel extends VBox {
         HBox diagramHeader = new HBox(8, diagramTitle, diagramSpacer, autoGenerateBox);
         diagramHeader.setAlignment(Pos.CENTER_LEFT);
         VBox rightPane = new VBox(6, diagramHeader, diagramView);
+        this.diagramPane = rightPane;
         VBox.setVgrow(diagramView, Priority.ALWAYS);
 
         // The panel lives in a narrow side column of the editor, so the report sits above the
         // diagram rather than beside it.
-        rightPane.setPadding(new Insets(4, 0, 0, 0));
+        rightPane.setPadding(new Insets(4, 0, 0, 8));
         SplitPane splitPane = new SplitPane(findingsView, rightPane);
+        this.reportSplit = splitPane;
         splitPane.setOrientation(Orientation.VERTICAL);
-        splitPane.setDividerPositions(0.58);
+        splitPane.setDividerPositions(0.5);
         SplitPane.setResizableWithParent(rightPane, true);
         VBox.setVgrow(splitPane, Priority.ALWAYS);
         // The report/diagram area is what a short window should give up first — without a low
         // minimum it keeps its own height and the whole content starts scrolling far too early.
-        splitPane.setMinHeight(160);
-        splitPane.setPrefHeight(620);
-        Platform.runLater(() -> splitPane.setDividerPositions(0.58));
+        splitPane.setMinHeight(320);
+        splitPane.setPrefHeight(820);
+        Platform.runLater(() -> splitPane.setDividerPositions(0.5));
 
         setSpacing(10);
         getChildren().add(infoLabel);
@@ -272,8 +287,13 @@ public class SnippetAnalysisPanel extends VBox {
                 skillContext.autoSelected(),
                 skillContext.onSelectionChanged()));
         }
-        HBox textLanguageRow = new HBox(8,
-            new Label(I18n.get("snippets.textLanguage") + ":"), textLanguageCombo);
+        Label textLanguageLabel = new Label(I18n.get("snippets.textLanguage") + ":");
+        textLanguageLabel.setMinWidth(Region.USE_PREF_SIZE);
+        // In the options column next to the diagram the combo gives way, never the label.
+        textLanguageCombo.setMinWidth(80);
+        textLanguageCombo.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(textLanguageCombo, Priority.ALWAYS);
+        HBox textLanguageRow = new HBox(8, textLanguageLabel, textLanguageCombo);
         textLanguageRow.setAlignment(Pos.CENTER_LEFT);
         getChildren().addAll(buildToolbar(activeProfileId));
         HBox rerunRow = buildRerunRow(activeProfileId, onRerun, beforeRerun);
@@ -294,13 +314,32 @@ public class SnippetAnalysisPanel extends VBox {
         exportResultBox.getChildren().addAll(exportResultLabel, exportOpenLink, exportFolderLink);
         exportResultBox.setVisible(false);
         exportResultBox.setManaged(false);
-        getChildren().addAll(exportResultBox, splitPane, headerChooser,
-            textLanguageRow, buildHardeningPane(), buildInputHardeningPane());
+        optionNodes.addAll(List.of(headerChooser, textLanguageRow, buildHardeningPane(), buildInputHardeningPane()));
         // Only added when there is something to offer. Toggling `managed` inside a ScrollPane does
         // not trigger a relayout, so an empty pane would leave a visible gap instead of vanishing.
         if (migrationSelector.hasAnythingToOffer()) {
-            getChildren().add(buildMigrationPane());
+            optionNodes.add(buildMigrationPane());
         }
+        // Below the report: the options stacked on the left, the diagram beside them on the right,
+        // so a tall flow diagram gets the long side instead of a strip above the options.
+        optionsColumn.getChildren().setAll(optionNodes);
+        optionsColumn.setPadding(new Insets(4, 8, 0, 0));
+        ScrollPane optionsScroll = new ScrollPane(optionsColumn);
+        optionsScroll.setFitToWidth(true);
+        optionsScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        optionsScroll.setMinWidth(220);
+        optionsScroll.getStyleClass().add("edge-to-edge");
+        this.optionsScroll = optionsScroll;
+        bottomSplit.setOrientation(Orientation.HORIZONTAL);
+        bottomSplit.getItems().setAll(optionsScroll, rightPane);
+        SplitPane.setResizableWithParent(optionsScroll, false);
+        bottomSplit.setDividerPositions(0.42);
+        Platform.runLater(() -> bottomSplit.setDividerPositions(0.42));
+        splitPane.getItems().set(1, bottomSplit);
+        getChildren().addAll(exportResultBox, splitPane);
+        // The diagram's own toolbar starts folded away, like the hardening options, so the diagram
+        // gets the room; the user's choice is remembered.
+        diagramView.makeOptionsCollapsible(loadDiagramOptionsExpanded(), this::persistDiagramOptionsExpanded);
         setPadding(new Insets(10));
 
         hardeningSelector.addSelectionListener(this::fireSelectionChanged);
@@ -308,6 +347,51 @@ public class SnippetAnalysisPanel extends VBox {
         migrationSelector.addSelectionListener(this::fireSelectionChanged);
         headerChooser.setOnSelectionChanged(this::fireSelectionChanged);
         textLanguageCombo.valueProperty().addListener((obs, was, isNow) -> fireSelectionChanged());
+    }
+
+    /**
+     * For a wide host (the folder analysis tab): the diagram sits to the right of the report over
+     * the full height instead of below it, and can be hidden with {@link #setDiagramVisible}.
+     */
+    void useWideLayout(boolean diagramVisible) {
+        wideLayout = true;
+        // Left: the report with the options stacked below it; right: the diagram over the full
+        // height — a flow diagram is tall, so it gets the long side.
+        bottomSplit.getItems().clear();
+        reportSplit.getItems().clear();
+        optionsColumn.getChildren().clear();
+        VBox leftColumn = new VBox(10);
+        leftColumn.getChildren().add(findingsView);
+        leftColumn.getChildren().addAll(optionNodes);
+        VBox.setVgrow(findingsView, Priority.ALWAYS);
+        findingsView.setMinHeight(200);
+        leftColumn.setPadding(new Insets(0, 8, 0, 0));
+        reportSplit.getItems().setAll(leftColumn, diagramPane);
+        reportSplit.setOrientation(Orientation.HORIZONTAL);
+        diagramPane.setPadding(new Insets(0, 0, 0, 8));
+        reportSplit.setDividerPositions(0.55);
+        setDiagramVisible(diagramVisible);
+    }
+
+    /** Shows or hides the diagram; hidden, the report takes the whole width (or height). */
+    void setDiagramVisible(boolean visible) {
+        SplitPane container = wideLayout ? reportSplit : bottomSplit;
+        boolean shown = container.getItems().contains(diagramPane);
+        if (visible == shown) {
+            return;
+        }
+        if (visible) {
+            container.getItems().add(diagramPane);
+            double position = wideLayout ? 0.55 : 0.42;
+            container.setDividerPositions(position);
+            Platform.runLater(() -> container.setDividerPositions(position));
+        } else {
+            container.getItems().remove(diagramPane);
+        }
+    }
+
+    boolean isDiagramVisible() {
+        return (wideLayout ? reportSplit : bottomSplit).getItems().contains(diagramPane);
     }
 
     /** The AI profile this analysis was produced with; {@code null} means the default profile. */
@@ -931,12 +1015,30 @@ public class SnippetAnalysisPanel extends VBox {
     }
 
     private void updateMigrationHeader(Label header) {
-        header.setText(I18n.get("ai.migration.title") + " (" + migrationSelector.selectedCount() + ")");
+        header.setText(I18n.get("snippets.ai.analysis.codeLanguage") + " (" + migrationSelector.selectedCount() + ")");
     }
 
     /** Titles the input-hardening panel with a live "(N)" count of the effectively active sub-options. */
     private void updateInputHardeningHeader(Label header) {
         header.setText(I18n.get("ai.inputHardening.title") + " (" + inputHardeningSelector.selectedCount() + ")");
+    }
+
+    private boolean loadDiagramOptionsExpanded() {
+        GlobalSettings settings = SnippetAiDialogSupport.currentSettings();
+        return settings != null && Boolean.TRUE.equals(settings.getCodeAnalysisDiagramOptionsExpanded());
+    }
+
+    private void persistDiagramOptionsExpanded(boolean expanded) {
+        try {
+            GlobalSettingsManager manager = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            GlobalSettings settings = manager.getSettings();
+            if (settings != null) {
+                settings.setCodeAnalysisDiagramOptionsExpanded(expanded);
+                manager.save();
+            }
+        } catch (Exception ignored) {
+            // a preference that cannot be stored only resets on the next start
+        }
     }
 
     private boolean loadHardeningExpanded() {

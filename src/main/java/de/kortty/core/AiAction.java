@@ -28,7 +28,13 @@ public enum AiAction {
     APPLY_SNIPPET_SECURITY_FIXES,
     GENERATE_SNIPPET_ONE_LINER,
     GENERATE_SNIPPET_MERMAID,
-    GENERATE_ASCII_ART;
+    GENERATE_ASCII_ART,
+    /** Full code analysis of a snippet folder as one project (cross-file findings). */
+    ANALYZE_SNIPPET_PROJECT,
+    /** Proposes how a script (or a folder) splits into functional modules, one file each. */
+    PLAN_SNIPPET_MODULARIZATION,
+    /** Writes one file of an accepted modularization plan. */
+    GENERATE_SNIPPET_MODULE;
 
     /** Deterministic role routing; no model call is needed to classify the action. */
     public AiWorkload workload() {
@@ -60,7 +66,8 @@ public enum AiAction {
                  ANALYZE_SNIPPET_CODE, APPLY_SNIPPET_IMPROVEMENTS, IMPROVE_SNIPPET_CODE, ASSIST_SNIPPET_CODE,
                  MIGRATE_SNIPPET_LANGUAGE,
                  SECURITY_REVIEW_SNIPPET_CODE, APPLY_SNIPPET_SECURITY_FIXES, GENERATE_SNIPPET_ONE_LINER,
-                 GENERATE_SNIPPET_MERMAID -> true;
+                 GENERATE_SNIPPET_MERMAID, ANALYZE_SNIPPET_PROJECT, PLAN_SNIPPET_MODULARIZATION,
+                 GENERATE_SNIPPET_MODULE -> true;
             default -> false;
         };
     }
@@ -76,7 +83,7 @@ public enum AiAction {
         return switch (this) {
             case APPLY_SNIPPET_IMPROVEMENTS, APPLY_SNIPPET_SECURITY_FIXES, ASSIST_SNIPPET_CODE,
                  IMPROVE_SNIPPET_CODE, COMPLETE_SNIPPET_CODE, GENERATE_SNIPPET_ALTERNATIVES,
-                 GENERATE_SNIPPET_ONE_LINER, MIGRATE_SNIPPET_LANGUAGE -> true;
+                 GENERATE_SNIPPET_ONE_LINER, MIGRATE_SNIPPET_LANGUAGE, GENERATE_SNIPPET_MODULE -> true;
             default -> false;
         };
     }
@@ -109,7 +116,8 @@ public enum AiAction {
      */
     public boolean allowsHybridSkillClassification() {
         return switch (this) {
-            case APPLY_SNIPPET_IMPROVEMENTS, APPLY_SNIPPET_SECURITY_FIXES, COMPLETE_SNIPPET_CODE -> false;
+            case APPLY_SNIPPET_IMPROVEMENTS, APPLY_SNIPPET_SECURITY_FIXES, COMPLETE_SNIPPET_CODE,
+                 GENERATE_SNIPPET_MODULE -> false;
             default -> true;
         };
     }

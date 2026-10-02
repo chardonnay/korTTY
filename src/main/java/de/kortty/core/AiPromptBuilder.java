@@ -284,6 +284,51 @@ public final class AiPromptBuilder {
                 + "Write human-readable text in language code " + languageCode + ". "
                 + DIRECT_JSON_REPLY_RULE + " Do not rewrite code and do not include Markdown outside the JSON object.";
         }
+        if (request != null && request.action() == AiAction.ANALYZE_SNIPPET_PROJECT) {
+            return "You analyze a folder of scripts in depth as one project for a developer. "
+                + "Return exactly one JSON object with keys summary, dependencies, and improvements. "
+                + "summary is a short plain-language explanation of what the project does and how its files "
+                + "work together. dependencies is an array of external dependencies (programs, services or "
+                + "scripts outside the project); each has id, name, kind (script|program|service), purpose and "
+                + "suggestion. improvements is an array of concrete, individually-applicable improvements; each "
+                + "has id, file, category (security|optimization|design), severity, title, detail, "
+                + "recommendation and line. file is the project-relative path of the file the improvement "
+                + "changes, exactly as listed in the project; use the empty string only for a cross-file "
+                + "improvement that changes several files. line is a 1-based line number of that file. "
+                + "Look especially for problems between files: duplicated code, broken source or import "
+                + "paths, inconsistent interfaces, and executable flags or shebang lines that do not match "
+                + "how a file is used. Only report what the provided code supports; use empty arrays when "
+                + "nothing applies. Write human-readable text in language code " + languageCode + ". "
+                + DIRECT_JSON_REPLY_RULE + " Do not rewrite code and do not include Markdown outside the JSON object.";
+        }
+        if (request != null && request.action() == AiAction.PLAN_SNIPPET_MODULARIZATION) {
+            return "You decide whether code should be split into functional modules, one file per module, "
+                + "and propose the file structure. Return exactly one JSON object with keys recommended, "
+                + "rationale and files. recommended is true only when a split clearly helps: several separate "
+                + "responsibilities, a long script, or code that is reused; otherwise false with an empty files "
+                + "array. rationale explains the decision in one to three sentences. files lists every file "
+                + "of the result: each has path (relative, forward slashes, no .. segment, file name with the "
+                + "language's extension), purpose (one sentence), symbols (the functions, classes or variables "
+                + "the file defines), executable (true only for files run directly) and entryPoint (true for "
+                + "exactly one file: the one the user runs). Keep the original language. Modules must be "
+                + "loaded with the language's own mechanism relative to the entry point (Python packages "
+                + "with __init__.py, Perl use lib with .pm files, shell source of a path based on the "
+                + "script's own directory). Write rationale and purpose in language code " + languageCode + ". "
+                + DIRECT_JSON_REPLY_RULE + " Do not write any code and do not include Markdown outside the JSON object.";
+        }
+        if (request != null && request.action() == AiAction.GENERATE_SNIPPET_MODULE) {
+            return "You write exactly one file of an accepted modularization plan for existing code. "
+                + "Return exactly one JSON object with keys fileLines and summary. fileLines is an array with "
+                + "the complete content of the requested file, exactly one source line per string entry and no "
+                + "newline characters inside an entry; end with an empty entry for a trailing newline. "
+                + "Move the code that belongs to this file from the original verbatim wherever possible and "
+                + "keep its behavior. Import or source the other planned files exactly by the paths given in "
+                + "the plan, relative to the entry point's directory. Never omit or summarize code and never "
+                + "use placeholders. Every entry of fileLines is one JSON string: escape every double quote "
+                + "as \\\" and every backslash as \\\\. Write summary in language code " + languageCode + ". "
+                + codeTextLanguageRule(request, languageCode) + " "
+                + DIRECT_JSON_REPLY_RULE + " Do not include Markdown outside the JSON object.";
+        }
         if (request != null && request.action() == AiAction.APPLY_SNIPPET_IMPROVEMENTS) {
             boolean editMode = isEditModeApply(request);
             return "You apply only the selected improvements, dependency suggestions, and mandatory hardening requirements to the provided snippet. "
@@ -616,6 +661,22 @@ public final class AiPromptBuilder {
                     + "The replacement must be the full updated snippet content. "
                     + "Add one changes entry per region edited for a selected finding; anchor must be a line "
                     + "copied verbatim from replacement. Do not add entries for language-only normalization.\n");
+            case ANALYZE_SNIPPET_PROJECT -> prompt.append(
+                "Analyze the provided project (a folder of files) in depth.\n"
+                    + "Return exactly one JSON object with this shape:\n"
+                    + "{ \"summary\": \"...\", "
+                    + "\"dependencies\": [ { \"id\": \"D1\", \"name\": \"curl\", \"kind\": \"program\", \"purpose\": \"...\", \"suggestion\": \"...\" } ], "
+                    + "\"improvements\": [ { \"id\": \"SEC-1\", \"file\": \"lib/util.sh\", \"category\": \"security\", \"severity\": \"high\", \"title\": \"...\", \"detail\": \"...\", \"recommendation\": \"...\", \"line\": 1 } ] }\n"
+                    + "Use the file paths and the per-file 1-based line numbers of the project context.\n");
+            case PLAN_SNIPPET_MODULARIZATION -> prompt.append(
+                "Decide whether the provided code should be split into modules and propose the files.\n"
+                    + "Return exactly one JSON object with this shape:\n"
+                    + "{ \"recommended\": true, \"rationale\": \"...\", \"files\": [ { \"path\": \"main.py\", "
+                    + "\"purpose\": \"...\", \"symbols\": [\"main\"], \"executable\": true, \"entryPoint\": true } ] }\n");
+            case GENERATE_SNIPPET_MODULE -> prompt.append(
+                "Write the requested file of the modularization plan.\n"
+                    + "Return exactly one JSON object with this shape:\n"
+                    + "{ \"fileLines\": [\"first line\", \"next line\", \"\"], \"summary\": \"...\" }\n");
             case ANALYZE_SNIPPET_CODE -> prompt.append(
                 "Analyze the provided snippet in depth.\n"
                     + "Return exactly one JSON object with this shape:\n"
@@ -744,7 +805,8 @@ public final class AiPromptBuilder {
             || request.action() == AiAction.SECURITY_REVIEW_SNIPPET_CODE
             || request.action() == AiAction.APPLY_SNIPPET_SECURITY_FIXES
             || request.action() == AiAction.GENERATE_SNIPPET_ONE_LINER
-            || request.action() == AiAction.GENERATE_SNIPPET_MERMAID) {
+            || request.action() == AiAction.GENERATE_SNIPPET_MERMAID
+            || isSnippetProjectAction(request.action())) {
             if (request.userPrompt() != null && !request.userPrompt().isBlank()) {
                 prompt.append("Additional user instructions:\n")
                     .append(request.userPrompt().trim())
@@ -773,7 +835,8 @@ public final class AiPromptBuilder {
             || request.action() == AiAction.SECURITY_REVIEW_SNIPPET_CODE
             || request.action() == AiAction.APPLY_SNIPPET_SECURITY_FIXES
             || request.action() == AiAction.GENERATE_SNIPPET_ONE_LINER
-            || request.action() == AiAction.GENERATE_SNIPPET_MERMAID;
+            || request.action() == AiAction.GENERATE_SNIPPET_MERMAID
+            || isSnippetProjectAction(request.action());
         boolean replacesWholeSnippet = request.action() == AiAction.ASSIST_SNIPPET_CODE
             || request.action() == AiAction.APPLY_SNIPPET_IMPROVEMENTS
             || request.action() == AiAction.APPLY_SNIPPET_SECURITY_FIXES;
@@ -831,7 +894,8 @@ public final class AiPromptBuilder {
         if (request == null) {
             return false;
         }
-        if (request.action() == AiAction.COMPLETE_SNIPPET_CODE) {
+        if (request.action() == AiAction.COMPLETE_SNIPPET_CODE || isSnippetProjectAction(request.action())) {
+            // The project, plan and module requests always carry their complete sources in the context.
             return true;
         }
         return request.conversationContext() != null
@@ -840,6 +904,13 @@ public final class AiPromptBuilder {
             && (request.action() == AiAction.ANALYZE_SNIPPET_CODE
                 || request.action() == AiAction.GENERATE_SNIPPET_MERMAID
                 || request.action() == AiAction.APPLY_SNIPPET_IMPROVEMENTS);
+    }
+
+    /** The project analysis and modularization actions, whose context carries every source they need. */
+    static boolean isSnippetProjectAction(AiAction action) {
+        return action == AiAction.ANALYZE_SNIPPET_PROJECT
+            || action == AiAction.PLAN_SNIPPET_MODULARIZATION
+            || action == AiAction.GENERATE_SNIPPET_MODULE;
     }
 
     /**

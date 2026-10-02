@@ -72,7 +72,7 @@ public final class AiOutputTokenLimitSupport {
             case APPLY_SNIPPET_IMPROVEMENTS -> AiPromptBuilder.isEditModeApply(request)
                 ? EDIT_MODE_MAX_COMPLETION_TOKENS
                 : fullReplacementLimit(request.selectedText());
-            case APPLY_SNIPPET_SECURITY_FIXES, IMPROVE_SNIPPET_CODE, ASSIST_SNIPPET_CODE ->
+            case APPLY_SNIPPET_SECURITY_FIXES, IMPROVE_SNIPPET_CODE, ASSIST_SNIPPET_CODE, GENERATE_SNIPPET_MODULE ->
                 fullReplacementLimit(request.selectedText());
             case COMPLETE_SNIPPET_CODE -> COMPLETION_MAX_COMPLETION_TOKENS;
             case GENERATE_ASCII_ART -> ASCII_ART_MAX_COMPLETION_TOKENS;

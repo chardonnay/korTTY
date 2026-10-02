@@ -62,6 +62,10 @@ import java.util.regex.Pattern;
  */
 final class SnippetDiagramView extends VBox {
 
+    static final String OPTIONS_PANE_ID = "snippet-diagram-options";
+    /** The toolbar; wrapped in a collapsible panel by {@link #makeOptionsCollapsible}. */
+    private FlowPane toolbar;
+
     /**
      * One diagram to display. {@code notice} is an optional, already localized message shown above
      * the rendered diagram — used to say that this is the local fallback and why the AI diagram
@@ -264,7 +268,29 @@ final class SnippetDiagramView extends VBox {
         // notice to a single ellipsized line instead of letting the reason wrap.
         noticeLabel.setMinHeight(Region.USE_PREF_SIZE);
         setNotice(null);
-        getChildren().addAll(buildToolbar(showRegenerate), noticeLabel, diagramStack);
+        toolbar = buildToolbar(showRegenerate);
+        getChildren().addAll(toolbar, noticeLabel, diagramStack);
+    }
+
+    /**
+     * Puts the toolbar (regenerate, appearance, save/copy, zoom) into a "Diagram options" panel
+     * that can be folded away, so the diagram itself gets the room; {@code onExpandedChanged}
+     * remembers the choice.
+     */
+    void makeOptionsCollapsible(boolean expanded, java.util.function.Consumer<Boolean> onExpandedChanged) {
+        int index = getChildren().indexOf(toolbar);
+        if (index < 0) {
+            return;
+        }
+        javafx.scene.control.TitledPane options = new javafx.scene.control.TitledPane(
+            I18n.get("snippets.ai.analysis.diagram.options"), toolbar);
+        options.setId(OPTIONS_PANE_ID);
+        options.setExpanded(expanded);
+        options.setAnimated(false);
+        if (onExpandedChanged != null) {
+            options.expandedProperty().addListener((obs, was, now) -> onExpandedChanged.accept(now));
+        }
+        getChildren().set(index, options);
     }
 
     /** Shows (or, for {@code null}, hides) the notice above the diagram area. */

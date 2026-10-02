@@ -534,6 +534,9 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
                 }
             } else if (tab == previewTab) {
                 editorTabPane.getTabs().remove(previewTab);
+            } else if (tab instanceof SnippetProjectAnalysisTab projectTab) {
+                projectTab.dispose();
+                editorTabPane.getTabs().remove(projectTab);
             }
         }
     }
@@ -554,6 +557,27 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
             open.add(new SnippetEditorTabPolicy.OpenTab(shown.getId(), SnippetEditorTabPolicy.Kind.PREVIEW));
         }
         return open;
+    }
+
+    /** Opens (or selects) the project analysis tab of a folder. */
+    void openFolderAnalysis(String folderId) {
+        if (folderId == null || snippetManager.findFolder(folderId).isEmpty()) {
+            return;
+        }
+        for (Tab tab : editorTabPane.getTabs()) {
+            if (tab instanceof SnippetProjectAnalysisTab projectTab && folderId.equals(projectTab.folderId())) {
+                editorTabPane.getSelectionModel().select(tab);
+                return;
+            }
+        }
+        SnippetProjectAnalysisTab tab = new SnippetProjectAnalysisTab(snippetManager, folderId,
+            de.kortty.core.SnippetAnalysisStore.shared(), this::resolveMainWindow, this::hostWindow,
+            EditorSettingsHelper.loadSnippetSettings(), () -> {
+                library.refresh(false);
+                library.refreshCategoryFilter();
+            });
+        editorTabPane.getTabs().add(tab);
+        editorTabPane.getSelectionModel().select(tab);
     }
 
     private Optional<SnippetEditorTab> findEditorTab(String snippetId) {
@@ -1071,6 +1095,11 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
         persistGeometry();
         persistDividerPosition();
         library.dispose();
+        for (Tab tab : new ArrayList<>(editorTabPane.getTabs())) {
+            if (tab instanceof SnippetProjectAnalysisTab projectTab) {
+                projectTab.dispose();
+            }
+        }
         // Each editor fires its own DIALOG_HIDDEN: AI work cancelled, Monaco disposed, registry released.
         for (SnippetEditorTab tab : editorTabs()) {
             tab.closeWithoutPrompt();
@@ -1324,6 +1353,19 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
         @Override
         public MainWindow mainWindow() {
             return resolveMainWindow();
+        }
+
+        @Override
+        public void analyzeFolderRequested(String folderId) {
+            openFolderAnalysis(folderId);
+        }
+
+        @Override
+        public void analyzeSnippetRequested(Snippet snippet) {
+            openSnippet(snippet, null);
+            if (snippet != null && snippet.getId() != null) {
+                findEditorTab(snippet.getId()).ifPresent(tab -> Platform.runLater(() -> tab.editor().runFullCodeAnalysis()));
+            }
         }
 
         @Override
