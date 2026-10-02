@@ -68,6 +68,8 @@ Sobald Sie die Teamwork-Einstellungen gespeichert haben:
    - Ersetzt die zwischengespeicherte Kopie jeder abgerufenen Quelle und aktualisiert den Connection-Manager.
 3. Wenn eine Quellaktualisierung fehlschlägt, wird die vorherige zwischengespeicherte Version beibehalten.
 
+Durch das Speichern der Teamwork-Einstellungen wird sofort einmal synchronisiert. Ein geändertes Prüfintervall gilt ab dem nächsten Start von korTTY.
+
 ### Manuelle Synchronisierung
 
 Verwenden Sie **Teamwork → Teamwork-Einstellungen…** und klicken Sie auf **OK**, um sofort eine Synchronisierung auszulösen.
