@@ -1411,6 +1411,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                     imported.setSettings(new de.kortty.model.ConnectionSettings(conn.getSettings()));
                 }
                 imported.setTerminalEmulationType(conn.getTerminalEmulationType());
+                imported.setEncoding(conn.getEncoding());
                 
                 importList.add(imported);
             }

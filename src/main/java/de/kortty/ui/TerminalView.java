@@ -2115,7 +2115,8 @@ public class TerminalView extends BorderPane {
                 isTerminalAgentCommandNameCaseInsensitive()),
             rawCommand -> shouldInterceptFilteredAgentShortcut(widget, rawCommand),
             rawCommand -> dispatchFilteredTerminalAgentShortcut(widget, rawCommand),
-            this::forwardJournalInputLine);
+            this::forwardJournalInputLine,
+            observableConnector.getCharset());
         terminalAgentShortcutInputFilters.put(
             observableConnector,
             new TerminalAgentShortcutInputFilterRegistration(widget, inputFilter));
