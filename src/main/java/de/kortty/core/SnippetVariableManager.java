@@ -17,8 +17,10 @@ import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -133,6 +135,14 @@ public class SnippetVariableManager {
                 .findFirst();
     }
 
+    /**
+     * Whether a variable of this name exists, ignoring case. A declared variable with an empty value
+     * is asked for every time a snippet uses it.
+     */
+    public boolean isDeclared(String name) {
+        return findByName(name).isPresent();
+    }
+
     public String getValue(String name) {
         return findByName(name)
                 .map(SnippetVariable::getValue)
@@ -148,6 +158,27 @@ public class SnippetVariableManager {
         } else {
             variables.add(new SnippetVariable(name.trim(), value));
         }
+    }
+
+    /**
+     * Stores the values a user chose to remember when a snippet asked for them. Only the names in
+     * {@code remember} with a non-blank value are written; every other entered value was meant for one
+     * use and is not stored. Does not save.
+     *
+     * @return whether a stored value was added or changed, i.e. whether {@link #save()} is needed
+     */
+    public boolean remember(Map<String, String> values, Collection<String> remember) {
+        if (values == null || remember == null) return false;
+        boolean changed = false;
+        for (String name : remember) {
+            String value = values.get(name);
+            if (name == null || name.isBlank() || value == null || value.isBlank()) continue;
+            if (!value.equals(getValue(name))) {
+                addOrUpdate(name, value);
+                changed = true;
+            }
+        }
+        return changed;
     }
 
     public void remove(String name) {

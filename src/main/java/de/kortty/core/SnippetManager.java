@@ -50,7 +50,6 @@ public class SnippetManager {
     public static final String SCRIPT_HEADER_CATEGORY = "Script-Header";
     /** Default operating systems offered for the snippet "System" column. */
     private static final List<String> DEFAULT_OPERATING_SYSTEMS = List.of("Windows", "MacOS", "Linux");
-    private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\$\\{([^}]+)}");
     private static final Pattern UNSAFE_PLAIN_TEXT_FILENAME_CHARS = Pattern.compile("[\\\\/\\p{Cntrl}:*?\"<>|]");
     private static final Set<String> RESERVED_WINDOWS_FILE_NAMES = Set.of(
             "CON", "PRN", "AUX", "NUL",
@@ -1027,88 +1026,93 @@ public class SnippetManager {
     // ---- Placeholder Resolution ----
     
     /**
-     * Result of variable resolution: the resolved text and the cursor offset (if ${cursor} was present).
+     * The values of the built-in placeholders ({@code date}, {@code time}, {@code datetime},
+     * {@code hostname}, {@code username}, {@code clipboard}).
      */
-    public record ResolvedSnippet(String text, int cursorOffset) {}
-    
-    /**
-     * Resolves built-in variables in snippet content.
-     * Built-in: ${date}, ${time}, ${datetime}, ${hostname}, ${username}, ${clipboard}
-     * ${cursor} is removed and its position returned as cursorOffset.
-     * Any remaining ${...} variables are returned as-is for interactive prompting.
-     *
-     * @param content the snippet content with placeholders
-     * @return resolved content (custom variables still present)
-     */
-    public ResolvedSnippet resolveBuiltInVariables(String content) {
-        if (content == null) return new ResolvedSnippet("", -1);
-        
-        Map<String, String> builtins = new HashMap<>();
-        builtins.put("date", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
-        builtins.put("time", LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
-        builtins.put("datetime", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-        builtins.put("username", System.getProperty("user.name", "unknown"));
-        
-        try {
-            builtins.put("hostname", InetAddress.getLocalHost().getHostName());
-        } catch (Exception e) {
-            builtins.put("hostname", "localhost");
-        }
-        
-        // Clipboard content (must be called on FX thread or cached before). Honors the
-        // enterprise policy's internal clipboard mode.
-        try {
-            String clipboardText = KorttyClipboard.getText();
-            builtins.put("clipboard", clipboardText != null ? clipboardText : "");
-        } catch (Exception e) {
-            builtins.put("clipboard", "");
-        }
-        
-        // First pass: replace built-in variables
-        String resolved = content;
-        for (Map.Entry<String, String> entry : builtins.entrySet()) {
-            resolved = resolved.replace("${" + entry.getKey() + "}", entry.getValue());
-        }
-        
-        // Handle ${cursor} - find position and remove
-        int cursorOffset = -1;
-        int cursorIndex = resolved.indexOf("${cursor}");
-        if (cursorIndex >= 0) {
-            cursorOffset = cursorIndex;
-            resolved = resolved.replace("${cursor}", "");
-        }
-        
-        return new ResolvedSnippet(resolved, cursorOffset);
+    public Map<String, String> builtInValues() {
+        return builtInValues(SnippetPlaceholderResolver.BUILT_IN_NAMES);
     }
-    
-    /**
-     * Finds all custom (non-built-in) variable names in the content.
-     */
-    public List<String> findCustomVariables(String content) {
-        Set<String> builtins = Set.of("date", "time", "datetime", "hostname", "username", "clipboard", "cursor");
-        List<String> customVars = new ArrayList<>();
-        
-        if (content == null) return customVars;
-        
-        Matcher matcher = VARIABLE_PATTERN.matcher(content);
-        while (matcher.find()) {
-            String varName = matcher.group(1);
-            if (!builtins.contains(varName) && !customVars.contains(varName)) {
-                customVars.add(varName);
+
+    /** The values of the given built-ins only, so the host name and the clipboard are read on demand. */
+    private Map<String, String> builtInValues(Collection<String> names) {
+        Map<String, String> builtins = new HashMap<>();
+        LocalDateTime now = LocalDateTime.now();
+        for (String name : names) {
+            switch (name) {
+                case "date" -> builtins.put(name, now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+                case "time" -> builtins.put(name, now.format(DateTimeFormatter.ofPattern("HH:mm:ss")));
+                case "datetime" -> builtins.put(name, now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                case "username" -> builtins.put(name, System.getProperty("user.name", "unknown"));
+                case "hostname" -> {
+                    try {
+                        builtins.put(name, InetAddress.getLocalHost().getHostName());
+                    } catch (Exception e) {
+                        builtins.put(name, "localhost");
+                    }
+                }
+                case "clipboard" -> {
+                    // Must be called on the FX thread or cached before. Honors the enterprise
+                    // policy's internal clipboard mode.
+                    try {
+                        String clipboardText = KorttyClipboard.getText();
+                        builtins.put(name, clipboardText != null ? clipboardText : "");
+                    } catch (Exception e) {
+                        builtins.put(name, "");
+                    }
+                }
+                default -> {
+                }
             }
         }
-        return customVars;
+        return builtins;
     }
-    
+
     /**
-     * Replaces custom variables with provided values.
+     * Resolves the placeholders of {@code content} with {@link SnippetPlaceholderResolver}: the
+     * built-ins, and every declared variable with its value from {@code entered} (typed for this use)
+     * or else its stored value. Undeclared {@code ${...}} stay as written, {@code $${x}} becomes
+     * {@code ${x}}, and {@code ${cursor}} is removed with its offset reported.
+     *
+     * @param variables the Variable Manager, or {@code null} when nothing is declared
+     * @param entered   values entered for this use only; they win over the stored values
      */
-    public String replaceCustomVariables(String content, Map<String, String> values) {
-        String result = content;
-        for (Map.Entry<String, String> entry : values.entrySet()) {
-            result = result.replace("${" + entry.getKey() + "}", entry.getValue());
+    public SnippetPlaceholderResolver.ResolvedSnippet resolve(
+            String content, SnippetVariableManager variables, Map<String, String> entered) {
+        SnippetPlaceholderResolver.Declarations declarations = declarations(variables);
+        Map<String, String> values = new LinkedHashMap<>();
+        if (variables != null) {
+            for (String name : SnippetPlaceholderResolver.declaredVariables(content, declarations)) {
+                String stored = variables.getValue(name);
+                if (stored != null) {
+                    values.put(name, stored);
+                }
+            }
         }
-        return result;
+        if (entered != null) {
+            values.putAll(entered);
+        }
+        return SnippetPlaceholderResolver.resolve(
+            content,
+            builtInValues(SnippetPlaceholderResolver.referencedBuiltIns(content)),
+            values,
+            declarations);
+    }
+
+    /** The declared variables {@code content} uses, in order of first appearance (see the resolver). */
+    public List<String> declaredVariables(String content, SnippetVariableManager variables) {
+        return SnippetPlaceholderResolver.declaredVariables(content, declarations(variables));
+    }
+
+    /**
+     * The undeclared simple names in {@code content} that a scheduled or swarm run must refuse
+     * (see {@link SnippetPlaceholderResolver#undeclaredSimpleNames}).
+     */
+    public List<String> undeclaredSimpleNames(String content, SnippetVariableManager variables) {
+        return SnippetPlaceholderResolver.undeclaredSimpleNames(content, declarations(variables));
+    }
+
+    private static SnippetPlaceholderResolver.Declarations declarations(SnippetVariableManager variables) {
+        return variables != null ? variables::isDeclared : SnippetPlaceholderResolver.Declarations.none();
     }
     
     // ---- JSON Import / Export ----

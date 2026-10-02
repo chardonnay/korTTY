@@ -308,25 +308,7 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
     }
 
     private String substitutedHeaderById(String snippetId) {
-        KorTTYApplication app = KorTTYApplication.getInstance();
-        if (app == null || app.getSnippetManager() == null) {
-            return null;
-        }
-        var snippetManager = app.getSnippetManager();
-        Snippet header = snippetManager.findById(snippetId).orElse(null);
-        if (header == null || header.getContent() == null) {
-            return null;
-        }
-        String text = snippetManager.resolveBuiltInVariables(header.getContent()).text();
-        java.util.Map<String, String> vars = new java.util.HashMap<>();
-        if (app.getSnippetVariableManager() != null) {
-            app.getSnippetVariableManager().getAll().forEach(v -> {
-                if (v.getName() != null) {
-                    vars.put(v.getName(), v.getValue() != null ? v.getValue() : "");
-                }
-            });
-        }
-        return snippetManager.replaceCustomVariables(text, vars);
+        return ScriptHeaderSupport.substitutedHeaderById(snippetId);
     }
 
     // ---------------------------------------------------------------- generation

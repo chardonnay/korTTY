@@ -623,6 +623,7 @@ class AiI18nCoverageTest {
         "ai.swarm.script.dialog.run",
         "ai.swarm.script.error.noSnippet",
         "ai.swarm.script.error.variable",
+        "ai.swarm.script.error.undeclared",
         "ai.swarm.script.user.message",
         "ai.swarm.script.result.heading",
         "ai.swarm.script.table.server",

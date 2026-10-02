@@ -7,7 +7,6 @@ import de.kortty.core.swarm.SwarmSnippetExecutor;
 import de.kortty.model.Snippet;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -64,30 +63,31 @@ public class SwarmSnippetRunSupport {
     }
 
     /**
-     * Resolves built-in and custom snippet variables, then wraps the script into the base64
-     * one-liner with the given positional arguments. Mirrors the job scheduler's
-     * {@code resolveSnippetText}, but reports blocking reasons as i18n keys.
+     * Resolves the snippet's placeholders, then wraps the script into the base64 one-liner with the
+     * given positional arguments. Mirrors the job scheduler's {@code resolveSnippetText}: a declared
+     * variable without a stored value blocks, and so does an undeclared simple {@code ${name}} (the
+     * shell would expand a never-stored korTTY variable to an empty string), while shell forms such as
+     * {@code ${1:-x}}, the standard environment names and escaped {@code $${name}} pass through.
+     * Blocking reasons are reported as i18n keys.
      */
     public PreparedRun prepare(Snippet snippet, List<String> arguments) throws SnippetRunBlockedException {
         if (snippet == null || snippet.getContent() == null || snippet.getContent().isBlank()) {
             throw new SnippetRunBlockedException("snippets.oneliner.empty");
         }
-        SnippetManager.ResolvedSnippet resolved = snippetManager.resolveBuiltInVariables(snippet.getContent());
-        String text = resolved.text();
+        String content = snippet.getContent();
+        List<String> undeclared = snippetManager.undeclaredSimpleNames(content, variableManager);
+        if (!undeclared.isEmpty()) {
+            String name = undeclared.getFirst();
+            throw new SnippetRunBlockedException("ai.swarm.script.error.undeclared", "${" + name + "}", "$${" + name + "}");
+        }
+        for (String variable : snippetManager.declaredVariables(content, variableManager)) {
+            if (variableManager.getValue(variable) == null) {
+                throw new SnippetRunBlockedException("ai.swarm.script.error.variable", "${" + variable + "}");
+            }
+        }
+        String text = snippetManager.resolve(content, variableManager, Map.of()).text();
         if (text == null || text.isBlank()) {
             throw new SnippetRunBlockedException("snippets.oneliner.empty");
-        }
-        List<String> customVariables = snippetManager.findCustomVariables(text);
-        if (!customVariables.isEmpty()) {
-            Map<String, String> values = new LinkedHashMap<>();
-            for (String variable : customVariables) {
-                String value = variableManager != null ? variableManager.getValue(variable) : null;
-                if (value == null) {
-                    throw new SnippetRunBlockedException("ai.swarm.script.error.variable", "${" + variable + "}");
-                }
-                values.put(variable, value);
-            }
-            text = snippetManager.replaceCustomVariables(text, values);
         }
         List<String> effectiveArguments = arguments != null ? List.copyOf(arguments) : List.of();
         SnippetOneLiner.OneLinerResult oneLiner =

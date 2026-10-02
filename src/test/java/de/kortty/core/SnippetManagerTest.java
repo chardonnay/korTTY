@@ -413,4 +413,28 @@ class SnippetManagerTest {
         expectThrows(IllegalArgumentException.class,
             () -> manager.addOrUpdateSnippet(new Snippet("deploy.sh", "echo other", "bash")));
     }
+
+    @Test
+    void resolveUsesStoredValuesLetsEnteredValuesWinAndLeavesTheRestAlone() {
+        SnippetManager manager = new SnippetManager(tempDir);
+        SnippetVariableManager variables = new SnippetVariableManager(tempDir);
+        variables.addOrUpdate("host", "db01");
+        variables.addOrUpdate("ticket", "");
+        variables.addOrUpdate("port", "5432");
+        String content = "ssh ${host}:${port} ${ticket} ${HOME} $${host} ${username}${cursor}";
+
+        assertThat(manager.declaredVariables(content, variables)).containsExactly("host", "port", "ticket").inOrder();
+        assertThat(manager.undeclaredSimpleNames(content, variables)).isEmpty();
+
+        SnippetPlaceholderResolver.ResolvedSnippet resolved =
+            manager.resolve(content, variables, java.util.Map.of("ticket", "T-1", "port", "6543"));
+
+        String expected = "ssh db01:6543 T-1 ${HOME} ${host} " + System.getProperty("user.name", "unknown");
+        assertThat(resolved.text()).isEqualTo(expected);
+        assertThat(resolved.cursorOffset()).isEqualTo(expected.length());
+        // Without a Variable Manager nothing is declared, so only the built-ins are replaced.
+        assertThat(manager.resolve("${host} ${username}", null, null).text())
+            .isEqualTo("${host} " + System.getProperty("user.name", "unknown"));
+        assertThat(manager.builtInValues().keySet()).containsExactlyElementsIn(SnippetPlaceholderResolver.BUILT_IN_NAMES);
+    }
 }
