@@ -65,7 +65,35 @@ public class SFTPSession {
         this.sshKeyManager = sshKeyManager;
         this.masterPassword = masterPassword;
     }
-    
+
+    /**
+     * Sets the master password used to decrypt stored secrets for this session, without touching
+     * the key manager. {@code null} means the vault is locked.
+     */
+    public void setMasterPassword(char[] masterPassword) {
+        this.masterPassword = masterPassword;
+    }
+
+    /**
+     * Hands this session the vault it needs, whatever the target's authentication method.
+     *
+     * <p>The master password is always set, because it also decrypts the stored jump server
+     * password. The key manager is only used for a {@code PUBLIC_KEY} target that does not log in
+     * with a temporary key: a managed key referenced by the connection must never take the place
+     * of the temporary one.
+     *
+     * @param keyManager the managed SSH keys; may be {@code null}
+     * @param masterPassword the vault's master password, or {@code null} while the vault is locked
+     * @param temporaryKeyAuth whether this session authenticates with a temporary SSH key
+     */
+    public void configureVault(SSHKeyManager keyManager, char[] masterPassword, boolean temporaryKeyAuth) {
+        this.masterPassword = masterPassword;
+        this.sshKeyManager = !temporaryKeyAuth
+                && connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY
+            ? keyManager
+            : null;
+    }
+
     /**
      * Establishes the SFTP connection.
      */

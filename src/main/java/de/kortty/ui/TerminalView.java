@@ -2430,19 +2430,25 @@ public class TerminalView extends BorderPane {
             connector = new LocalShellTtyConnector(targetConnection);
         } else {
             SshTtyConnector sshConnector = new SshTtyConnector(targetConnection, targetPassword);
-            if (targetConnection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
-                de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
-                if (app != null && app.getSSHKeyManager() != null) {
-                    sshConnector.setSSHKeyManager(
-                            app.getSSHKeyManager(),
-                            app.getMasterPasswordManager().getMasterPassword()
-                    );
-                }
+            // Whatever the target's own authentication: a jump server's stored password is
+            // decrypted with the master password, so a password target needs the vault too. A new
+            // connector is built for every attempt, so a reconnect after unlocking picks it up.
+            de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+            if (app != null) {
+                sshConnector.configureVault(app.getSSHKeyManager(), masterPasswordOf(app));
             }
             sshConnector.setAccessReasonMemory(accessReasonMemory);
             connector = sshConnector;
         }
         return connector;
+    }
+
+    /** The open vault's master password, or {@code null} while it is locked or not set up. */
+    private static char[] masterPasswordOf(de.kortty.KorTTYApplication app) {
+        if (app == null || app.getMasterPasswordManager() == null) {
+            return null;
+        }
+        return app.getMasterPasswordManager().getMasterPassword();
     }
 
     private boolean connectConnector(TtyConnector connector) throws Exception {
@@ -5436,6 +5442,18 @@ public class TerminalView extends BorderPane {
                     lastError = e.getMessage();
                     logger.error("Host-key verification failed for {} - NOT retrying: {}",
                         connection.getDisplayName(), e.getMessage());
+
+                    clearTerminal();
+                    showMessage(e.getMessage());
+                } catch (SshTtyConnector.ConnectionConfigurationException e) {
+                    // The connection's own setup cannot work (e.g. the jump server password needs
+                    // the locked vault): retrying cannot change the outcome. Must precede the
+                    // AuthenticationException catch, which it extends.
+                    configurationRefused = true;
+                    lastError = e.getMessage();
+                    // Host/port only, for the CodeQL reason given at the IllegalStateException branch.
+                    logger.error("Connection setup unusable for {}:{} - NOT retrying: {}",
+                            connection.getHost(), connection.getPort(), e.getMessage());
 
                     clearTerminal();
                     showMessage(e.getMessage());
