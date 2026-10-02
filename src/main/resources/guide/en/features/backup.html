@@ -763,13 +763,13 @@
 <h2 id="features">Features<a class="headerlink" href="#features" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Encrypted backups</strong> — All backups are encrypted using either password-protected ZIP or GPG encryption</li>
-<li><strong>Configuration backup</strong> — Includes connections, credentials, SSH/GPG keys, trusted interactive SSH host keys, global settings, JobScheduler configuration, snippets and their stored code analyses, AI chat history, local-model registrations, and knowledge-store source metadata</li>
+<li><strong>Configuration backup</strong> — Includes connections, credentials, credential environments, SSH/GPG keys, trusted interactive SSH host keys, global settings, custom terminal themes, JobScheduler configuration, snippets and their stored code analyses, AI chat history, AI Swarm chats, local-model registrations (GGUF and MLX), and knowledge-store source metadata</li>
 <li><strong>Regenerable local AI data excluded</strong> — GGUF weights, native llama.cpp runtimes, signed-catalog cache, temporary sidecar files, and HNSW snapshots are intentionally not copied into the archive</li>
 <li><strong>Projects directory</strong> — All saved project workspaces are included in the backup</li>
 <li><strong>Automatic rotation</strong> — Old backups are automatically moved to an <code>old-backups</code> subdirectory with timestamps</li>
 <li><strong>Configurable retention</strong> — Set a maximum number of backups to keep (0 = unlimited; oldest backups are deleted automatically)</li>
 <li><strong>Import/restore</strong> — Restore from previously created backups with optional overwrite control</li>
-<li><strong>Flexible decryption</strong> — Both password-encrypted ZIP and GPG-encrypted formats are supported for import</li>
+<li><strong>Flexible decryption</strong> — Both password-encrypted ZIP and GPG-encrypted formats are supported for import; korTTY recognises the format from the file content, not from its name</li>
 </ul>
 <h2 id="creating-a-backup">Creating a backup<a class="headerlink" href="#creating-a-backup" title="Permanent link">&para;</a></h2>
 <ol>
@@ -777,7 +777,7 @@
 <li>Select a destination directory for the backup file</li>
 <li>The backup is created using the encryption method configured in <strong>Settings → Backup</strong></li>
 </ol>
-<p>KorTTY names the current backup <code>kortty-backup.zip</code> in the target directory. If a backup already exists there, it is automatically rotated into an <code>old-backups</code> subdirectory with a timestamp appended (e.g., <code>kortty-backup_2025-06-24_14-30-45.zip</code>).</p>
+<p>KorTTY names the current backup <code>kortty-backup.zip</code> (password-protected ZIP) or <code>kortty-backup.zip.gpg</code> (GPG) in the target directory. The new backup is written completely first; only then is any current backup of either kind already there rotated into an <code>old-backups</code> subdirectory with a timestamp appended, keeping its <code>.zip</code> or <code>.zip.gpg</code> ending (e.g., <code>kortty-backup_2025-06-24_14-30-45.zip.gpg</code>). If creating the backup fails, the existing current backup stays untouched.</p>
 <p>The backup includes:</p>
 <table>
 <thead>
@@ -796,6 +796,10 @@
 <td>Stored usernames and passwords (encrypted)</td>
 </tr>
 <tr>
+<td>Credential environments</td>
+<td>Your custom credential environments (<code>environments.xml</code>); the built-in ones need no backup</td>
+</tr>
+<tr>
 <td>SSH keys</td>
 <td>Key references with encrypted passphrases, plus the copied key files in <code>~/.kortty/ssh-keys/</code></td>
 </tr>
@@ -809,7 +813,11 @@
 </tr>
 <tr>
 <td>Settings</td>
-<td>Global application settings, terminal configurations, themes, and AI profiles</td>
+<td>Global application settings, terminal configurations, and AI profiles</td>
+</tr>
+<tr>
+<td>Themes</td>
+<td>Terminal color themes, including the ones you created (<code>themes.xml</code>)</td>
 </tr>
 <tr>
 <td>JobScheduler jobs</td>
@@ -832,8 +840,12 @@
 <td>Saved AI conversation histories and profiles</td>
 </tr>
 <tr>
+<td>AI Swarm chats</td>
+<td>Saved swarm chats, including the ones scheduled AI Swarm jobs store (<code>swarm-chats.xml</code>)</td>
+</tr>
+<tr>
 <td>Local AI configuration</td>
-<td>Local GGUF registrations and typed launch settings, Text/Coding roles, preferred runtime backend/update policy, and encrypted Hugging Face token</td>
+<td>Local GGUF registrations and typed launch settings, MLX model registrations, Text/Coding roles, preferred runtime backend/update policy, and encrypted Hugging Face token</td>
 </tr>
 <tr>
 <td>Knowledge-store configuration</td>
@@ -863,7 +875,7 @@
 <li>Optionally set <strong>Maximum Backups</strong> (0 = unlimited)</li>
 <li>Save</li>
 </ol>
-<p>GPG backups encrypt the backup file using the public key of your selected GPG key. KorTTY creates a temporary ZIP first, then encrypts it with <code>gpg --encrypt</code> and stores the <code>.gpg</code> file. The temporary ZIP is securely deleted after encryption.</p>
+<p>GPG backups are encrypted for the public key of your selected GPG key. KorTTY builds an unencrypted ZIP in a private temporary folder that only your user can read, encrypts it with <code>gpg</code>, stores the result as <code>kortty-backup.zip.gpg</code> and then deletes the temporary ZIP with its folder. Creating a GPG backup needs the installed <code>gpg</code> and the recipient's public key; restoring it needs <code>gpg</code> and the matching <strong>private</strong> key, so keep that key (and its passphrase) somewhere other than the backup.</p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
 <p>If you don't have GPG keys set up yet, use <strong>Management → Manage GPG Keys...</strong> to import keys from your system keyring or add them manually.</p>
@@ -871,35 +883,44 @@
 <h2 id="importing-a-backup">Importing a backup<a class="headerlink" href="#importing-a-backup" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Open <strong>Edit → Import Backup...</strong></li>
-<li>Select a backup file (<code>.zip</code> or <code>.gpg</code>)</li>
-<li>If the backup is password-protected, enter the password when prompted</li>
+<li>Select a backup file (<code>.zip</code> or <code>.zip.gpg</code>)</li>
+<li>If the backup is a password-protected ZIP, enter the password when prompted; GPG backups ask for no ZIP password — <code>gpg</code> may ask for the passphrase of your private key instead</li>
 <li>Choose whether to <strong>Overwrite Existing Files</strong>:</li>
-<li><strong>Checked</strong> — Backup files will replace any existing files in your configuration</li>
-<li><strong>Unchecked</strong> — Existing files are skipped; only missing files are imported</li>
-<li>Click <strong>Import</strong></li>
+<li><strong>OK</strong> — Backup files will replace any existing files in your configuration</li>
+<li><strong>Cancel</strong> — Existing files are skipped; only missing files are imported</li>
 <li><strong>Restart the application</strong> for all changes to take effect</li>
 </ol>
+<p>KorTTY recognises the backup format from the file content, not from its name, so GPG backups that older versions saved as <code>kortty-backup.zip</code> import as GPG backups too. A file that is neither a ZIP archive nor GPG-encrypted is rejected before anything is restored.</p>
+<p>After the import, korTTY reloads the restored connections, credentials, environments, SSH and GPG keys, settings, themes, snippets, snippet variables and saved AI and swarm chats, so a later save does not overwrite them with what was loaded before.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>Importing a backup with <strong>Overwrite</strong> enabled will replace your current settings, connections, and credentials. If you are unsure, uncheck this option to merge the backup without overwriting.</p>
+<p>Importing a backup with <strong>Overwrite</strong> enabled will replace your current settings, connections, and credentials. If you are unsure, choose <strong>Cancel</strong> to merge the backup without overwriting.</p>
+</div>
+<div class="admonition important">
+<p class="admonition-title">A backup with another master password</p>
+<p>If an overwriting import brings the <code>master.key</code> of another master password, everything korTTY has loaded still belongs to the old one. korTTY tells you to restart and quits without saving its current data, so the restored files stay as they are. Start korTTY again and unlock it with the master password of the backup.</p>
 </div>
 <h2 id="backup-file-contents">Backup file contents<a class="headerlink" href="#backup-file-contents" title="Permanent link">&para;</a></h2>
-<p>Both <code>.zip</code> and <code>.gpg</code> backups contain the same files:</p>
+<p>Both <code>.zip</code> and <code>.zip.gpg</code> backups contain the same files:</p>
 <ul>
 <li><code>connections.xml</code> — All SSH connections and groups</li>
 <li><code>credentials.xml</code> — Stored credentials (still encrypted with your master password)</li>
+<li><code>environments.xml</code> — Custom credential environments</li>
 <li><code>ssh-keys.xml</code> — SSH key references and encrypted passphrases</li>
 <li><code>ssh-keys/</code> — Copied SSH key files (only keys you placed there via <strong>Copy to User Directory</strong>; keys referenced in their original locations are not collected). Restored key files get owner-only permissions, and an import merges — it never deletes or, without <strong>Overwrite</strong>, replaces keys already present</li>
 <li><code>ssh-host-keys.properties</code> — Trusted public host keys for interactive Terminal, SFTP, and Mosh bootstrap connections (<code>ssh-host-keys.properties.lock</code> is intentionally excluded)</li>
 <li><code>gpg-keys.xml</code> — GPG public keys</li>
-<li><code>global-settings.xml</code> — Application settings, themes, AI profiles, terminal defaults</li>
+<li><code>global-settings.xml</code> — Application settings, AI profiles, terminal defaults</li>
+<li><code>themes.xml</code> — Terminal color themes, including your own</li>
 <li><code>job-scheduler.xml</code> — JobScheduler jobs, host-key pins, encrypted sudo passwords</li>
 <li><code>snippets.xml</code> — Code snippets and templates</li>
 <li><code>snippet-variables.xml</code> — Custom snippet variables</li>
 <li><code>snippet-analyses/</code> — Stored Full code analyses, one file per snippet. An import merges them: analyses that exist only locally are kept, missing ones are added, and with <strong>Overwrite</strong> a local file is replaced only when the backup's copy is newer. Unsaved snippet drafts (<code>snippet-drafts/</code>) are not included</li>
 <li><code>ai-chats.xml</code> — Saved AI conversations</li>
-<li><code>master.key</code> — Hash of your master password (for verification on import)</li>
+<li><code>swarm-chats.xml</code> — Saved AI Swarm chats</li>
+<li><code>master.key</code> — Salt and verification hash of your master password, so the restored secrets can be unlocked with it</li>
 <li><code>llm/models.xml</code> — Local GGUF registrations and runtime settings (model weights are not included)</li>
+<li><code>llm/mlx-models.json</code> — MLX model registrations (model weights are not included)</li>
 <li><code>rag/stores.json</code> — Knowledge-store and source configuration (vector snapshots are not included)</li>
 <li><code>projects/</code> — All saved project workspace files (<code>.kortty</code>)</li>
 </ul>
@@ -914,11 +935,12 @@
 <h2 id="backup-retention-and-cleanup">Backup retention and cleanup<a class="headerlink" href="#backup-retention-and-cleanup" title="Permanent link">&para;</a></h2>
 <p>When you create a new backup in a directory that already contains one, KorTTY:</p>
 <ol>
-<li>Creates the new backup as <code>kortty-backup.zip</code></li>
-<li>Moves the existing backup to <code>old-backups/kortty-backup_&lt;timestamp&gt;.zip</code></li>
+<li>Creates the new backup — <code>kortty-backup.zip</code> for a password-protected ZIP, <code>kortty-backup.zip.gpg</code> for GPG — and stops here, leaving the existing backup untouched, if that fails</li>
+<li>Moves every existing current backup, of either kind, to <code>old-backups/kortty-backup_&lt;timestamp&gt;.zip</code> or <code>old-backups/kortty-backup_&lt;timestamp&gt;.zip.gpg</code>; a backup rotated in the same second gets <code>-1</code>, <code>-2</code> … appended instead of replacing the earlier one</li>
 <li>If the number of old backups exceeds <strong>Maximum Backups</strong>, deletes the oldest ones</li>
 </ol>
-<p>To keep unlimited old backups, set <strong>Maximum Backups</strong> to <code>0</code> in <strong>Settings → Backup</strong>. To keep only the current backup, set <strong>Maximum Backups</strong> to <code>1</code> (old backups are still rotated but then immediately deleted).</p>
+<p><strong>Maximum Backups</strong> counts ZIP and GPG backups together. After you switch the encryption type, the first new backup also rotates the current backup of the other type, so the oldest old backup can be deleted one backup earlier than you might expect.</p>
+<p>To keep unlimited old backups, set <strong>Maximum Backups</strong> to <code>0</code> in <strong>Settings → Backup</strong>. To keep only one old backup next to the current one, set <strong>Maximum Backups</strong> to <code>1</code>.</p>
 <h2 id="using-backups-across-machines">Using backups across machines<a class="headerlink" href="#using-backups-across-machines" title="Permanent link">&para;</a></h2>
 <ol>
 <li><strong>Export your current configuration:</strong></li>
@@ -929,7 +951,7 @@
 <p><strong>Move the backup file:</strong></p>
 </li>
 <li>
-<p>Copy <code>kortty-backup.zip</code> (or <code>.gpg</code>) to machine B</p>
+<p>Copy <code>kortty-backup.zip</code> (or <code>kortty-backup.zip.gpg</code>) to machine B; for a GPG backup, machine B also needs <code>gpg</code> and the private key of the backup's GPG key</p>
 </li>
 <li>
 <p><strong>Import on the new machine:</strong></p>
@@ -937,7 +959,7 @@
 <li>On machine B, open <strong>Edit → Import Backup...</strong></li>
 <li>Select the backup file from step 2</li>
 <li>Enter the backup password if prompted</li>
-<li>Leave <strong>Overwrite</strong> unchecked unless you want to replace existing connections</li>
+<li>Choose <strong>Cancel</strong> in the overwrite question unless you want to replace existing connections</li>
 <li>Restart KorTTY</li>
 </ol>
 <p>All backed-up connections, settings, snippets, saved chats, interactive host-key trust decisions, model registrations, and knowledge-source definitions will be available on machine B. Restored host keys are still matched by normalized host name and port, so a changed key remains blocked after migration. Local model weights, runtime packages, source documents, and HNSW vectors must be restored or regenerated separately.</p>
@@ -947,6 +969,12 @@
 <dd>Verify the file path is correct and the file exists. Check the directory permissions.</dd>
 <dt><strong>"Password required for password-encrypted backup"</strong></dt>
 <dd>Password-protected backups need the correct password. Verify you are entering the credential password (from <strong>Settings → Backup</strong>), not your master password.</dd>
+<dt><strong>"… is not a korTTY backup: it is neither a ZIP archive nor a GPG-encrypted file"</strong></dt>
+<dd>The selected file is neither a ZIP archive nor GPG-encrypted data, for example a different file with a <code>.zip</code> name or a backup that was cut off while copying. Select the <code>kortty-backup.zip</code> or <code>kortty-backup.zip.gpg</code> file itself.</dd>
+<dt><strong>"GPG encryption failed"</strong></dt>
+<dd><code>gpg</code> could not encrypt the new backup: it is not installed, or the selected key's public key is neither in your GPG keyring nor available as the key file stored with the key in <strong>Manage GPG Keys...</strong>. The previous backup in the target directory is left as it was.</dd>
+<dt><strong>"GPG decryption failed"</strong></dt>
+<dd><code>gpg</code> could not decrypt the backup: the private key that matches the backup's GPG key is not in your keyring, <code>gpg</code> is not installed, or you cancelled the passphrase prompt. Import the private key into your GPG keyring (for example with <code>gpg --import</code>) and try again.</dd>
 <dt><strong>"GPG key not found"</strong></dt>
 <dd>The GPG key used for encryption is missing. Use <strong>Management → Manage GPG Keys...</strong> to import or add the key, then try again.</dd>
 <dt><strong>"No password selected for backup encryption" or "No GPG key selected"</strong></dt>
