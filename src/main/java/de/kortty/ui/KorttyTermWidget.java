@@ -1,5 +1,6 @@
 package de.kortty.ui;
 
+import com.sithtermfx.core.model.SithTerminal;
 import com.sithtermfx.core.model.StyleState;
 import com.sithtermfx.core.model.TerminalTextBuffer;
 import com.sithtermfx.ui.SithTermFxWidget;
@@ -34,6 +35,19 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
             @Override
             protected TerminalCopyPasteHandler createCopyPasteHandler() {
                 return new PolicyAwareCopyPasteHandler();
+            }
+
+            @Override
+            protected void clearBuffer(boolean keepLastLine) {
+                super.clearBuffer(keepLastLine);
+                // When SithTermFX keeps the prompt line it moves the emulator cursor to row 0, one row
+                // above the screen (rows count from 1). Until the next output corrects it, every
+                // repaint logs two "line out of bounds" errors, and a line feed lands on the kept
+                // prompt line instead of below it. Clamp it back onto the screen the way the next
+                // write would. This covers the context menu and SithTermFX's own clear shortcut.
+                if (KorttyTermWidget.this.getTerminal() instanceof SithTerminal terminal) {
+                    terminal.scrollY();
+                }
             }
         };
     }

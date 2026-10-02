@@ -55,6 +55,8 @@ public final class TerminalContextMenuActionsSmoke {
     private static final float DEFAULT_RESET_FONT_SIZE = 14f;
     private static final String PROMPT = "smoke-prompt$ ";
     private static final String PASTED = "pasted-by-context-menu-smoke";
+    private static final String TYPED_AFTER_CLEAR = "typed-after-clear";
+    private static final String NEXT_PROMPT = "next-prompt$ ";
 
     private TerminalContextMenuActionsSmoke() {
     }
@@ -181,6 +183,23 @@ public final class TerminalContextMenuActionsSmoke {
             });
             check(afterClear.contains(PROMPT.trim()), "Clear Buffer dropped the prompt line: \"" + afterClear + "\"");
             check(!afterClear.contains("line-58"), "Clear Buffer kept old output on screen: \"" + afterClear + "\"");
+            // SithTermFX's clear moves the emulator cursor to row 0, one row above the kept prompt line;
+            // KorttyTermWidget puts it back. Left there, every repaint logs "line out of bounds" and
+            // a line feed overwrites the prompt line instead of starting the line below it.
+            int cursorRowAfterClear = onFxThread(() -> widget.getTerminal().getCursorY());
+            check(cursorRowAfterClear == 1,
+                "Clear Buffer left the cursor on row " + cursorRowAfterClear + " instead of the kept prompt line");
+            // Typing continues the kept prompt line.
+            connector.feed(TYPED_AFTER_CLEAR);
+            await("output after Clear Buffer did not continue the kept prompt line", () -> onFxThread(() ->
+                widget.getTerminalTextBuffer().getScreenLines().contains(PROMPT + TYPED_AFTER_CLEAR)));
+            // Enter straight after a clear starts a new line below the kept prompt line.
+            check(fireMenuItem(canvas, "terminal.contextMenu.clearBuffer"), "Clear Buffer must be enabled");
+            connector.feed("\r\n" + NEXT_PROMPT);
+            await("a line feed after Clear Buffer overwrote the kept prompt line", () -> onFxThread(() -> {
+                String screen = widget.getTerminalTextBuffer().getScreenLines();
+                return screen.contains(PROMPT + TYPED_AFTER_CLEAR) && screen.contains(NEXT_PROMPT);
+            }));
 
             // Find: the find bar is added to the widget's pane.
             int childrenBeforeFind = onFxThread(() -> widget.getPane().getChildren().size());
