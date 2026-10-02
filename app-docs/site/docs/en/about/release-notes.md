@@ -88,5 +88,9 @@ What changed in the current release. The version this guide was built for is sho
 
 - **No more options that did nothing** — the Video Manager no longer offers a **Default format**: recordings were always written as korTTY replay files, and WebM or MKV videos come only from **Export**. A setting saved with the old WebM value still loads. The **Read-only** checkbox is gone from the teamwork source dialog as well, because korTTY never writes back to a teamwork source; a value stored earlier is kept. The [Teamwork](../features/teamwork.md) page now describes the one-way sync as it works. See [Terminal recording](../features/recording.md).
 
+### Local data files
+
+- **A crash or a damaged file no longer costs you your connections** — connections, credentials, SSH and GPG keys, environments, themes, scheduled jobs and `master.key` are now replaced atomically and flushed to the disk instead of being rewritten in place, and on macOS and Linux `~/.kortty` and the files holding secrets are made owner-only. A file korTTY cannot parse at startup is moved aside as `<name>.corrupt-<timestamp>` and listed in a notice instead of being overwritten with an empty list, and a file it cannot read at all is left untouched for the session. See [Stored security data](../features/security.md#stored-security-data).
+
 !!! note "Earlier releases"
     Only the current release is listed here, so the guide stays short in every language it is translated into. Every version is on the [GitHub releases page](https://github.com/chardonnay/korTTY/releases); the curated notes for earlier versions are kept in the repository, in `app-docs/release-notes-archive.md` and `app-docs/RELEASE_NOTES.adoc`.

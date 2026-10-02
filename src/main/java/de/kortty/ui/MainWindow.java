@@ -9661,6 +9661,40 @@ public class MainWindow {
         alert.show();
     }
 
+    /**
+     * Tells the user at startup which data files could not be read: {@code movedAside} lists the
+     * {@code *.corrupt-<timestamp>} copies korTTY continues without, {@code blocked} the files it
+     * left in place and will not save over in this session. Non-modal, so korTTY stays usable.
+     */
+    public void showStoreLoadFailureNotice(List<java.nio.file.Path> movedAside, List<java.nio.file.Path> blocked) {
+        List<java.nio.file.Path> moved = movedAside != null ? movedAside : List.of();
+        List<java.nio.file.Path> unwritable = blocked != null ? blocked : List.of();
+        if (moved.isEmpty() && unwritable.isEmpty()) {
+            return;
+        }
+        List<String> sections = new ArrayList<>();
+        if (!moved.isEmpty()) {
+            sections.add(I18n.get("storage.loadFailed.content", joinPaths(moved)));
+        }
+        if (!unwritable.isEmpty()) {
+            sections.add(I18n.get("storage.loadFailed.blocked", joinPaths(unwritable)));
+        }
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        DialogThemeHelper.applyTheme(alert);
+        alert.setTitle(I18n.get("storage.loadFailed.title"));
+        alert.setHeaderText(I18n.get("storage.loadFailed.header"));
+        alert.setContentText(String.join("\n\n", sections));
+        alert.getDialogPane().setMinHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
+        alert.initOwner(stage);
+        alert.initModality(javafx.stage.Modality.NONE);
+        alert.show();
+    }
+
+    private static String joinPaths(List<java.nio.file.Path> paths) {
+        return paths.stream().map(java.nio.file.Path::toString)
+            .collect(java.util.stream.Collectors.joining("\n"));
+    }
+
     private void showJobScheduler() {
         Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "job_scheduler"));
         showJobSchedulerWithDraft(null);

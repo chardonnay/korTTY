@@ -88,6 +88,8 @@ KorTTY recognises the backup format from the file content, not from its name, so
 
 After the import, korTTY reloads the restored connections, credentials, environments, SSH and GPG keys, settings, themes, snippets, snippet variables and saved AI and swarm chats, so a later save does not overwrite them with what was loaded before.
 
+Each restored file replaces the local one atomically, so an interrupted import never leaves a half-written file behind. On macOS and Linux, `connections.xml`, `credentials.xml`, `ssh-keys.xml`, `job-scheduler.xml` and `master.key` are restored owner-only (`rw-------`); the other files keep the permissions of the file they replace, and a file that did not exist locally is created owner-only. If a restored connections, credentials, SSH key, GPG key or environments file cannot be parsed, the reload moves it aside as `<name>.corrupt-<timestamp>` and korTTY keeps what it had loaded before, which its next save writes to a fresh file; a themes file that cannot be parsed is moved aside the same way and replaced by the built-in themes.
+
 !!! warning
     Importing a backup with **Overwrite** enabled will replace your current settings, connections, and credentials. If you are unsure, choose **Cancel** to merge the backup without overwriting.
 
@@ -176,6 +178,9 @@ All backed-up connections, settings, snippets, saved chats, interactive host-key
 
 **"No password selected for backup encryption" or "No GPG key selected"**
 : Configure a password credential or GPG key in **Settings → Backup** before creating a backup.
+
+**A `*.corrupt-<timestamp>` file appeared in `~/.kortty`**
+: korTTY could not parse that data file at startup or after an import, so it moved the original aside under this name without changing it and continued without its content. Repair the file and, with korTTY closed, move it back under its original name, or restore the file from a backup.
 
 **Import succeeded but changes did not take effect**
 : Restart KorTTY for imported settings to become active. If you imported credentials, you may also need to unlock the master password after restart.

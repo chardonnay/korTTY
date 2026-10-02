@@ -88,5 +88,9 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 
 - **Keine Optionen mehr, die nichts taten** — die Videoverwaltung bietet kein **Standardformat** mehr: Aufzeichnungen wurden immer als korTTY Replay-Dateien geschrieben, und WebM- oder MKV-Videos kommen nur aus **Exportieren**. Eine Einstellung, die mit dem alten WebM-Wert gespeichert wurde, lädt immer noch. Das **Nur lesen**-Kontrollkästchen fehlt ebenfalls im Teamarbeit-Quelldialog, weil korTTY nie zurückschreibt; ein früher gespeicherter Wert bleibt erhalten. Die [Teamarbeit](../features/teamwork.md)-Seite beschreibt jetzt die einseitige Synchronisation, wie sie funktioniert. Siehe [Terminal-Aufnahme](../features/recording.md).
 
+### Lokale Datendateien
+
+- **Ein Absturz oder eine beschädigte Datei kostet Sie nicht mehr Ihre Verbindungen** — Verbindungen, Anmeldedaten, SSH- und GPG-Schlüssel, Umgebungen, Themen, geplante Aufgaben und `master.key` werden jetzt atomar ersetzt und auf die Festplatte geschrieben, anstatt an Ort und Stelle neu geschrieben zu werden, und unter macOS sowie Linux `~/.kortty` und die Dateien, die Geheimnisse enthalten, werden auf Besitzerrechte beschränkt. Eine Datei, die korTTY beim Start nicht parsen kann, wird als ... verschoben. `<name>.corrupt-<timestamp>` und in einer Mitteilung aufgeführt, anstatt mit einer leeren Liste überschrieben zu werden, und eine Datei, die es überhaupt nicht lesen kann, bleibt für die Sitzung unverändert. Siehe [Gespeicherte Sicherheitsdaten](../features/security.md#gespeicherte-sicherheitsdaten).
+
 !!! note "Frühere Versionen"
     Hier wird nur die aktuelle Version aufgeführt, daher bleibt der Anleitung in jeder Sprache, in die er übersetzt wurde, kurz. Jede Version ist auf der [GitHub-Release-Seite ](https://github.com/chardonnay/korTTY/releases); Die kuratierten Notizen für frühere Versionen werden im Repository in `app-docs/release-notes-archive.md` und `app-docs/RELEASE_NOTES.adoc` aufbewahrt.

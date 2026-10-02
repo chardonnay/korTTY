@@ -892,6 +892,7 @@
 </ol>
 <p>KorTTY recognises the backup format from the file content, not from its name, so GPG backups that older versions saved as <code>kortty-backup.zip</code> import as GPG backups too. A file that is neither a ZIP archive nor GPG-encrypted is rejected before anything is restored.</p>
 <p>After the import, korTTY reloads the restored connections, credentials, environments, SSH and GPG keys, settings, themes, snippets, snippet variables and saved AI and swarm chats, so a later save does not overwrite them with what was loaded before.</p>
+<p>Each restored file replaces the local one atomically, so an interrupted import never leaves a half-written file behind. On macOS and Linux, <code>connections.xml</code>, <code>credentials.xml</code>, <code>ssh-keys.xml</code>, <code>job-scheduler.xml</code> and <code>master.key</code> are restored owner-only (<code>rw-------</code>); the other files keep the permissions of the file they replace, and a file that did not exist locally is created owner-only. If a restored connections, credentials, SSH key, GPG key or environments file cannot be parsed, the reload moves it aside as <code>&lt;name&gt;.corrupt-&lt;timestamp&gt;</code> and korTTY keeps what it had loaded before, which its next save writes to a fresh file; a themes file that cannot be parsed is moved aside the same way and replaced by the built-in themes.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>Importing a backup with <strong>Overwrite</strong> enabled will replace your current settings, connections, and credentials. If you are unsure, choose <strong>Cancel</strong> to merge the backup without overwriting.</p>
@@ -979,6 +980,8 @@
 <dd>The GPG key used for encryption is missing. Use <strong>Management → Manage GPG Keys...</strong> to import or add the key, then try again.</dd>
 <dt><strong>"No password selected for backup encryption" or "No GPG key selected"</strong></dt>
 <dd>Configure a password credential or GPG key in <strong>Settings → Backup</strong> before creating a backup.</dd>
+<dt><strong>A <code>*.corrupt-&lt;timestamp&gt;</code> file appeared in <code>~/.kortty</code></strong></dt>
+<dd>korTTY could not parse that data file at startup or after an import, so it moved the original aside under this name without changing it and continued without its content. Repair the file and, with korTTY closed, move it back under its original name, or restore the file from a backup.</dd>
 <dt><strong>Import succeeded but changes did not take effect</strong></dt>
 <dd>Restart KorTTY for imported settings to become active. If you imported credentials, you may also need to unlock the master password after restart.</dd>
 <dt><strong>Backup file is larger than expected</strong></dt>

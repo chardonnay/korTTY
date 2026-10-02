@@ -88,6 +88,8 @@ KorTTY erkennt das Backup-Format anhand des Dateiinhalts, nicht nach Namen; dahe
 
 Nach dem Import lädt korTTY die wiederhergestellten Verbindungen, Anmeldedaten, Umgebungen, SSH- und GPG-Schlüssel, Einstellungen, Themen, Snippets, Snippet-Variablen sowie gespeicherte KI- und Swarm-Chats neu. Ein späteres Speichern überschreibt sie daher nicht mit dem zuvor geladenen Inhalt.
 
+Jede wiederhergestellte Datei ersetzt die lokale atomar, sodass ein unterbrochener Import niemals eine halbfertige Datei zurücklässt. Auf macOS und Linux werden `connections.xml`, `credentials.xml`, `ssh-keys.xml`, `job-scheduler.xml` und `master.key` nur für den Eigentümer lesbar (`rw-------`) wiederhergestellt; die anderen Dateien behalten die Berechtigungen der Datei, die sie ersetzen, und eine Datei, die lokal nicht existierte, wird Eigentümer-berechtigt erstellt. Wenn wiederhergestellte Verbindungen, Anmeldeinformationen, SSH-Schlüssel, GPG-Schlüssel oder Umgebungsdateien nicht geparst werden können, wird der Reload sie als `<name>.corrupt-<timestamp>` seitlich verschieben und korTTY behält das, was es zuvor geladen hatte; die nächste Speicherung schreibt dies in eine neue Datei. Eine Themendatei, die nicht geparst werden kann, wird auf dieselbe Weise seitlich verschoben und durch die eingebauten Themen ersetzt.
+
 !!! warning
     Das Importieren eines Backups mit **Überschreiben** aktiviert wird Ihre aktuellen Einstellungen, Verbindungen und Anmeldedaten ersetzen. Wenn Sie unsicher sind, wählen Sie **Abbrechen**, um das Backup zu mergen, ohne zu überschreiben.
 
@@ -176,6 +178,9 @@ Alle gesicherten Verbindungen, Einstellungen, Snippets, gespeicherten Chats, int
 
 **„Kein Passwort für Backup-Verschlüsselung ausgewählt“ oder „Kein GPG-Schlüssel ausgewählt“**
 : Konfigurieren Sie unter **Einstellungen → Backup** ein Passwort oder einen GPG-Schlüssel, bevor Sie ein Backup erstellen.
+
+**Eine `*.corrupt-<timestamp>` Datei erschien in `~/.kortty`**
+: korTTY konnte die Datendatei beim Start oder nach einem Import nicht parsen, daher verschob es das Original unter diesem Namen ohne Änderungen und setzte den Betrieb fort. Reparieren Sie die Datei, und wenn korTTY geschlossen ist, verschieben Sie sie zurück unter ihren ursprünglichen Namen oder stellen die Datei aus einer Sicherung wieder her.
 
 **Der Import war erfolgreich, aber die Änderungen wurden nicht wirksam**
 : Starten Sie KorTTY neu, damit importierte Einstellungen aktiv werden. Wenn Sie Anmeldeinformationen importiert haben, müssen Sie nach dem Neustart möglicherweise auch das Master-Passwort entsperren.

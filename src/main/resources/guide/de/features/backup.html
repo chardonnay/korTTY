@@ -892,6 +892,7 @@
 </ol>
 <p>KorTTY erkennt das Backup-Format anhand des Dateiinhalts, nicht nach Namen; daher werden GPG-Backups, die ältere Versionen als <code>kortty-backup.zip</code> gespeichert haben, ebenfalls als GPG-Backups importiert. Eine Datei, die weder ein ZIP-Archiv noch GPG-verschlüsselt ist, wird vor jeglicher Wiederherstellung abgelehnt.</p>
 <p>Nach dem Import lädt korTTY die wiederhergestellten Verbindungen, Anmeldedaten, Umgebungen, SSH- und GPG-Schlüssel, Einstellungen, Themen, Snippets, Snippet-Variablen sowie gespeicherte KI- und Swarm-Chats neu. Ein späteres Speichern überschreibt sie daher nicht mit dem zuvor geladenen Inhalt.</p>
+<p>Jede wiederhergestellte Datei ersetzt die lokale atomar, sodass ein unterbrochener Import niemals eine halbfertige Datei zurücklässt. Auf macOS und Linux werden <code>connections.xml</code>, <code>credentials.xml</code>, <code>ssh-keys.xml</code>, <code>job-scheduler.xml</code> und <code>master.key</code> nur für den Eigentümer lesbar (<code>rw-------</code>) wiederhergestellt; die anderen Dateien behalten die Berechtigungen der Datei, die sie ersetzen, und eine Datei, die lokal nicht existierte, wird Eigentümer-berechtigt erstellt. Wenn wiederhergestellte Verbindungen, Anmeldeinformationen, SSH-Schlüssel, GPG-Schlüssel oder Umgebungsdateien nicht geparst werden können, wird der Reload sie als <code>&lt;name&gt;.corrupt-&lt;timestamp&gt;</code> seitlich verschieben und korTTY behält das, was es zuvor geladen hatte; die nächste Speicherung schreibt dies in eine neue Datei. Eine Themendatei, die nicht geparst werden kann, wird auf dieselbe Weise seitlich verschoben und durch die eingebauten Themen ersetzt.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>Das Importieren eines Backups mit <strong>Überschreiben</strong> aktiviert wird Ihre aktuellen Einstellungen, Verbindungen und Anmeldedaten ersetzen. Wenn Sie unsicher sind, wählen Sie <strong>Abbrechen</strong>, um das Backup zu mergen, ohne zu überschreiben.</p>
@@ -981,6 +982,8 @@
 <dd>Der zur Verschlüsselung verwendete GPG-Schlüssel fehlt. Verwenden Sie <strong>Verwaltung → GPG-Schlüssel verwalten...</strong>, um den Schlüssel zu importieren oder hinzuzufügen, und versuchen Sie es dann erneut.</dd>
 <dt><strong>„Kein Passwort für Backup-Verschlüsselung ausgewählt“ oder „Kein GPG-Schlüssel ausgewählt“</strong></dt>
 <dd>Konfigurieren Sie unter <strong>Einstellungen → Backup</strong> ein Passwort oder einen GPG-Schlüssel, bevor Sie ein Backup erstellen.</dd>
+<dt><strong>Eine <code>*.corrupt-&lt;timestamp&gt;</code> Datei erschien in <code>~/.kortty</code></strong></dt>
+<dd>korTTY konnte die Datendatei beim Start oder nach einem Import nicht parsen, daher verschob es das Original unter diesem Namen ohne Änderungen und setzte den Betrieb fort. Reparieren Sie die Datei, und wenn korTTY geschlossen ist, verschieben Sie sie zurück unter ihren ursprünglichen Namen oder stellen die Datei aus einer Sicherung wieder her.</dd>
 <dt><strong>Der Import war erfolgreich, aber die Änderungen wurden nicht wirksam</strong></dt>
 <dd>Starten Sie KorTTY neu, damit importierte Einstellungen aktiv werden. Wenn Sie Anmeldeinformationen importiert haben, müssen Sie nach dem Neustart möglicherweise auch das Master-Passwort entsperren.</dd>
 <dt><strong>Sicherungsdatei ist größer als erwartet</strong></dt>
