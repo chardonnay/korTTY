@@ -779,7 +779,7 @@
 <tr>
 <td><strong>Kern</strong></td>
 <td>SSH-Konnektivität, gemeinsames interaktives Host-Key-Vertrauen, Sitzungsverwaltung, KI-Integration, Terminalautomatisierung</td>
-<td><code>SSHSession</code>, <code>SshHostKeyTrustManager</code>, <code>AiChatManager</code>, <code>TerminalAgentService</code>, <code>Mosh4jTtyConnector</code></td>
+<td><code>SshTtyConnector</code>, <code>SshHostKeyTrustManager</code>, <code>AiChatManager</code>, <code>TerminalAgentService</code>, <code>Mosh4jTtyConnector</code></td>
 </tr>
 <tr>
 <td><strong>ai</strong></td>
@@ -941,8 +941,12 @@
 </thead>
 <tbody>
 <tr>
-<td><code>SSHSession</code></td>
-<td>Umschließt den Apache SSHD-Client und verwaltet den Verbindungslebenszyklus</td>
+<td><code>SshTtyConnector</code></td>
+<td>Apache SSHD Terminalverbindung eines Panels: Sprunghost, Authentifizierung, Shell-Kanal und Trennungserkennung</td>
+</tr>
+<tr>
+<td><code>ActiveConnectionRegistry</code></td>
+<td>Live-Liste der offenen SSH- und Mosh-Terminalverbindungen (eine pro Panel), gelesen vom JMX-MBean</td>
 </tr>
 <tr>
 <td><code>SshHostKeyTrustManager</code></td>
@@ -1354,7 +1358,7 @@
 </span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    ↓
 </span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>Shared host:port TOFU verification (Terminal/SFTP/Mosh bootstrap)
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    ↓
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>SSHSession (Apache SSHD or Mosh4j connector)
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>SshTtyConnector (Apache SSHD) or Mosh connector
 </span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    ↓
 </span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>Terminal Pane (SithTermFX rendering)
 </span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    ↓
@@ -1389,7 +1393,7 @@
 <h2 id="protokollierung-und-diagnose">Protokollierung und Diagnose<a class="headerlink" href="#protokollierung-und-diagnose" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Protokolldatei</strong>: <code>~/.kortty/kortty.log</code> (SLF4J mit Logback-Backend)</li>
-<li><strong>JMX-Überwachung</strong>: MBean <code>de.kortty:type=SSHClient</code> macht aktive Verbindungen, Speicher und gepufferte Textgröße verfügbar</li>
+<li><strong>JMX-Überwachung</strong>: MBean <code>de.kortty:type=SSHClient</code> gibt die Live SSH- und Mosh-Terminalverbindungen (jedes geteilte Panel zählt, lokale Shells nicht), Speicher und Betriebszeit aus; <code>BufferedTextSize</code> wird nicht verfolgt und bleibt 0</li>
 <li><strong>JobScheduler-Journal</strong>: Detaillierte Ausführungsprotokolle mit konfigurierbarer Aufbewahrung (standardmäßig 14 Tage, unbegrenzt, wenn auf 0 gesetzt)</li>
 <li><strong>Terminalverlauf</strong>: Komprimierte Sitzungsprotokolle in <code>~/.kortty/history/</code></li>
 <li><strong>Terminalaufzeichnung</strong>: Optionale Wiedergabedateien in <code>~/.kortty/recordings/</code></li>
@@ -1421,12 +1425,10 @@
 <h3 id="fur-integratoren">Für Integratoren<a class="headerlink" href="#fur-integratoren" title="Permanent link">&para;</a></h3>
 <ol>
 <li><strong>JAXB-Repositorys</strong>: Erweitern Sie <code>XMLConnectionRepository</code> oder <code>CredentialRepository</code>, um benutzerdefinierte Datenquellen hinzuzufügen</li>
-<li><strong>SSH-Sitzungs-Hooks</strong>: Unterklasse <code>SSHSession</code> zum Einfügen benutzerdefinierter Verbindungslogik</li>
 <li><strong>JobScheduler-Aktionen</strong>: Neue Aktionstypen zu <code>JobExecutor</code> hinzufügen (z. B. benutzerdefinierte SFTP-Vorgänge)</li>
 </ol>
 <h2 id="leistungsuberlegungen">Leistungsüberlegungen<a class="headerlink" href="#leistungsuberlegungen" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Sitzungscaching</strong>: Aktive SSH-Verbindungen werden zwischengespeichert, um den Aufwand für die erneute Verbindung zu vermeiden</li>
 <li><strong>Lazy Loading</strong>: Verbindungsdetails werden bei Bedarf geladen, nicht alle auf einmal</li>
 <li><strong>Komprimierung</strong>: Terminalverlauf und Terminalprotokolle verwenden gzip; Teile des gedrehten Sitzungsjournals verwenden zstd (ältere <code>.gz</code>-Teile bleiben lesbar)</li>
 <li><strong>Drosselung</strong>: Terminal-Rendering-Updates werden stapelweise durchgeführt, um die Belastung des UI-Threads zu reduzieren</li>
