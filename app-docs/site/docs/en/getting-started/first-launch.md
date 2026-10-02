@@ -10,7 +10,7 @@ On first launch, korTTY asks you to create a **master password**. This password 
 On subsequent launches you are prompted to enter the master password to unlock your encrypted data.
 
 !!! warning "Disabling the prompt"
-    **Settings → Security** offers two ways to skip the prompt. Turning off **Require master password on startup** hides the prompt, but stored passwords remain inaccessible until you enter the master password manually. **Disable master password prompt on startup (auto-login)** instead unlocks the vault automatically from a copy of your master password kept on disk — only obfuscated, not encrypted, so reserve it for throwaway or test environments. See the [Security settings](../reference/settings/security.md) for details, including unattended first launches that skip the setup dialog entirely.
+    **Settings → Security** offers two ways to skip the prompt. Turning off **Require master password on startup** hides the prompt and starts korTTY with the vault locked: stored passwords and keys stay unavailable until you choose **Configuration → Security → Unlock Vault…** or click **Unlock Vault…** in any "vault locked" message. **Disable master password prompt on startup (auto-login)** instead unlocks the vault automatically from a copy of your master password kept on disk — only obfuscated, not encrypted, so reserve it for throwaway or test environments. See the [Security settings](../reference/settings/security.md) for details, including unattended first launches that skip the setup dialog entirely.
 
 ## What is encrypted
 

@@ -66,6 +66,7 @@ import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -409,13 +410,11 @@ public class KorTTYApplication extends Application {
                     return;
                 }
             } else {
-                // Password is set but not required on startup
-                // We still need the derived key for decryption, but we can't get it without the password
-                // So we'll skip the dialog and try to proceed - if decryption fails later,
-                // the user will need to enter the password when needed
-                logger.info("Master password required on startup is disabled, skipping dialog");
-                // Note: We can't decrypt credentials/keys without the password, so those features
-                // will require password entry when first used
+                // Password is set but not required on startup: start with the vault locked. Stored
+                // secrets stay encrypted until the user unlocks it through Configuration > Security >
+                // Unlock Vault... or the Unlock Vault... button of a "vault locked" message
+                // (VaultUnlockSupport); onVaultUnlocked() then catches up on what this start skipped.
+                logger.info("Master password required on startup is disabled, starting with the vault locked");
             }
             
             // Load configuration
@@ -887,6 +886,25 @@ public class KorTTYApplication extends Application {
         return !macKeepAliveDisabled && isMacOs() && isPackagedMacApplication();
     }
     
+    /**
+     * Called on the FX thread after the vault was unlocked mid-session (see
+     * {@link de.kortty.ui.VaultUnlockSupport}). Restores the temporary SSH keys the locked start
+     * could not decrypt, then lets every open window refresh what depends on the vault.
+     */
+    public void onVaultUnlocked() {
+        logger.info("Master-password vault unlocked after startup");
+        if (configManager != null && masterPasswordManager != null && masterPasswordManager.getDerivedKey() != null) {
+            configManager.onVaultUnlocked(masterPasswordManager.getDerivedKey());
+        }
+        for (MainWindow window : new ArrayList<>(MainWindow.getOpenWindows())) {
+            try {
+                window.onVaultUnlocked();
+            } catch (RuntimeException e) {
+                logger.warn("A window could not refresh after the vault was unlocked", e);
+            }
+        }
+    }
+
     private boolean handleMasterPassword(Stage ownerStage) {
         MasterPasswordDialog dialog = new MasterPasswordDialog(ownerStage, masterPasswordManager);
         boolean confirmed = dialog.showAndWait();

@@ -310,6 +310,8 @@ public class MainWindow {
     private static final Set<MainWindow> applicationQuitApprovedWindows =
         Collections.newSetFromMap(new IdentityHashMap<>());
     private final List<CheckMenuItem> preventSleepMenuItems = new ArrayList<>();
+    /** "Unlock Vault…" in every menu bar of this window (window menu bar and system menu bar). */
+    private final List<MenuItem> unlockVaultMenuItems = new ArrayList<>();
     private Runnable powerManagementStateListener;
     private static volatile boolean applicationQuitRequested = false;
     private static volatile boolean schedulerDrainApproved = false;
@@ -1522,6 +1524,13 @@ public class MainWindow {
 
         Menu securityMenu = new Menu(I18n.get("menu.security"));
 
+        // Enabled only while a master password exists but was not entered this session.
+        MenuItem unlockVault = new MenuItem(I18n.get("menu.security.unlockVault"));
+        unlockVault.setOnAction(e -> unlockVaultFromMenu());
+        unlockVaultMenuItems.add(unlockVault);
+        securityMenu.setOnShowing(e -> syncUnlockVaultMenuItems());
+        syncUnlockVaultMenuItems();
+
         MenuItem manageCredentials = new MenuItem(I18n.get("menu.security.credentials"));
         manageCredentials.setAccelerator(new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         manageCredentials.setOnAction(e -> showCredentialManagement());
@@ -1534,7 +1543,8 @@ public class MainWindow {
         manageSSHKeys.setAccelerator(new KeyCodeCombination(KeyCode.I, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         manageSSHKeys.setOnAction(e -> showSSHKeyManagement());
 
-        securityMenu.getItems().addAll(manageCredentials, manageGPGKeys, manageSSHKeys);
+        securityMenu.getItems().addAll(unlockVault, new SeparatorMenuItem(),
+            manageCredentials, manageGPGKeys, manageSSHKeys);
 
         MenuItem settings = new MenuItem(I18n.get("menu.settings.global"));
         settings.setAccelerator(new KeyCodeCombination(KeyCode.COMMA, KeyCombination.SHORTCUT_DOWN));
@@ -1553,6 +1563,36 @@ public class MainWindow {
             new SeparatorMenuItem(),
             preventSleep);
         return configurationMenu;
+    }
+
+    private void syncUnlockVaultMenuItems() {
+        boolean locked = VaultUnlockSupport.isLocked(app.getMasterPasswordManager());
+        for (MenuItem item : unlockVaultMenuItems) {
+            item.setDisable(!locked);
+        }
+    }
+
+    /**
+     * Configuration › Security › Unlock Vault…. On the macOS system menu bar the enable-sync on
+     * showing is not guaranteed, so this is also a harmless no-op when the vault is already open.
+     */
+    private void unlockVaultFromMenu() {
+        if (!VaultUnlockSupport.isLocked(app.getMasterPasswordManager())) {
+            syncUnlockVaultMenuItems();
+            return;
+        }
+        // Success reaches this window through KorTTYApplication.onVaultUnlocked().
+        VaultUnlockSupport.unlock(stage, app.getMasterPasswordManager());
+    }
+
+    /**
+     * Called by {@link de.kortty.KorTTYApplication#onVaultUnlocked()} for every open window once the
+     * vault was unlocked after startup.
+     */
+    public void onVaultUnlocked() {
+        syncUnlockVaultMenuItems();
+        updateDashboard();
+        updateStatus(I18n.get("status.vaultUnlocked"));
     }
 
     private void installPowerManagementStateListener() {

@@ -3895,6 +3895,14 @@ tasks.register<JavaExec>("firstRunSetupDialogSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("vaultUnlockDialogSmoke") {
+    group = "verification"
+    description = "Opens the mid-session vault-unlock dialog against a locked temp profile, enters a wrong and the right password and asserts the vault unlocks; snapshots build/smoke/vault-unlock-dialog.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.VaultUnlockDialogSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("updateDownloadCompleteSmoke") {
     group = "verification"
     description = "Renders the update 'download complete' dialog and snapshots it to build/smoke/update-download-complete.png."

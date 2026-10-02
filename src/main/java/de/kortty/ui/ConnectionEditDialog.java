@@ -703,20 +703,26 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                     // silently, so failures surface as an alert and leave the stored password as is.
                     String jumpPassword = jumpPasswordField.getText();
                     if (jumpPassword != null && !jumpPassword.isEmpty()) {
-                        try {
-                            if (masterPassword == null) {
-                                throw new IllegalStateException(I18n.get("connEdit.jumpPasswordVaultLocked"));
+                        // Opened while the vault was locked: offer Unlock Vault… now. If it stays
+                        // locked the user has seen why, and the stored password is kept as is.
+                        char[] jumpMasterPassword = masterPassword != null
+                            ? masterPassword
+                            : VaultUnlockSupport.masterPasswordOrOfferUnlock(
+                                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+                                I18n.get("connEdit.jumpPasswordVaultLocked"));
+                        if (jumpMasterPassword != null) {
+                            try {
+                                EncryptionService encryptionService = new EncryptionService();
+                                jump.setEncryptedPassword(encryptionService.encryptPassword(jumpPassword, jumpMasterPassword));
+                            } catch (Exception ex) {
+                                logger.error("Could not encrypt the jump server password", ex);
+                                Alert alert = new Alert(Alert.AlertType.WARNING,
+                                    I18n.get("connEdit.jumpPasswordSaveFailed", String.valueOf(ex.getMessage())),
+                                    ButtonType.OK);
+                                DialogThemeHelper.applyTheme(alert);
+                                alert.setHeaderText(null);
+                                alert.showAndWait();
                             }
-                            EncryptionService encryptionService = new EncryptionService();
-                            jump.setEncryptedPassword(encryptionService.encryptPassword(jumpPassword, masterPassword));
-                        } catch (Exception ex) {
-                            logger.error("Could not encrypt the jump server password", ex);
-                            Alert alert = new Alert(Alert.AlertType.WARNING,
-                                I18n.get("connEdit.jumpPasswordSaveFailed", String.valueOf(ex.getMessage())),
-                                ButtonType.OK);
-                            DialogThemeHelper.applyTheme(alert);
-                            alert.setHeaderText(null);
-                            alert.showAndWait();
                         }
                     }
                 } else if (connection.getJumpServer() != null) {

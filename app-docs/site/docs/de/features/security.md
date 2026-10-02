@@ -24,13 +24,19 @@ Beim ersten Start werden Sie aufgefordert, ein Master-Passwort (mindestens 6 Zei
 
 Das Master-Passwort selbst wird mit PBKDF2 gehasht (310.000 Iterationen) und niemals im Klartext gespeichert. Das Salz und der Hash werden in `~/.kortty/master.key` gespeichert.
 
-Bei nachfolgenden Starts werden Sie von KorTTY aufgefordert, das Master-Passwort einzugeben, um verschlüsselte Daten zu entsperren. Wenn Sie **Master-Passwort beim Start anfordern** in **Einstellungen > Sicherheit** deaktivieren, wird diese Eingabeaufforderung ausgeblendet, aber auf gespeicherte Passwörter kann erst dann zugegriffen werden, wenn Sie das Master-Passwort manuell eingeben.
+Bei nachfolgenden Starts fordert KorTTY Sie auf, das Master-Passwort einzugeben, um verschlüsselte Daten zu entsperren. Das Deaktivieren von **Master-Passwort beim Programmstart anfordern** in **Einstellungen > Sicherheit** versteckt diese Aufforderung und startet mit dem Tresor gesperrt: gespeicherte Passwörter und Schlüssel bleiben unzugänglich, bis Sie ihn entsperren (siehe [Später den Tresor entsperren](#spater-den-tresor-entsperren)).
 
 !!! danger "Optionale automatische Anmeldung schwächt den Schutz im Ruhezustand"
     Die zweite Sicherheitsoption, **Master-Passwort-Eingabeaufforderung beim Start deaktivieren (automatische Anmeldung)**, entfernt die Eingabeaufforderung ebenfalls, hält den Tresor jedoch vollständig nutzbar: korTTY schreibt Ihr Master-Passwort in `~/.kortty/master.autounlock` – **Nur verschleiert, nicht verschlüsselt**, mit Dateiberechtigungen nur für den Besitzer – und wird bei jedem Start automatisch entsperrt. Der Verschleierungsschlüssel ist in die Anwendung eingebettet, sodass Dateiberechtigungen die einzige wirkliche Grenze darstellen. jeder, der lesen kann `~/.kortty` oder ein Backup kann alle gespeicherten Geheimnisse entschlüsseln. Bei einem brandneuen Profil führt die Option ein Standard-Master-Passwort ohne Dialog aus. korTTY fragt vor der Aktivierung nach einer Bestätigung, es ist für Wegwerf-/Testumgebungen gedacht und a [Richtlinienkonfiguration](../reference/enterprise-policy.md) das ein Master-Passwort erfordert, deaktiviert es. Einzelheiten: [Sicherheitseinstellungen](../reference/settings/security.md).
 
 !!! note
     Wenn Sie das Master-Passwort verlieren, können verschlüsselte Daten nicht wiederhergestellt werden. Löschen Sie `master.key` und `credentials.xml`, starten Sie neu, legen Sie ein neues Master-Passwort fest und geben Sie Ihre Passwörter erneut ein.
+
+### Später den Tresor entsperren
+
+Mit dem Tresor gesperrt wählen Sie **Konfiguration > Sicherheit > Tresor entsperren…** und geben das Master-Passwort ein; der Menüeintrag ist ausgegraut, solange der Tresor geöffnet ist. Das Speichern eines KI- oder Übersetzungs-API-Schlüssels, eines Hugging-Face-Tokens, eines Jump-Server-Passworts oder eines JobScheduler-Passworts, das Starten einer KI-Swarm-Ausführung auf Servern ohne geöffnetes Terminal, eine Frage an das Handbuch oder das Generieren eines ein- oder mehrseitigen Workflow-Skripts mit einem verschlüsselten KI-Schlüssel zeigen ihre Meldung "Tresor gesperrt" mit einer Schaltfläche **Tresor entsperren…** anstelle eines Sackganges. Einige Stellen berichten noch nur vom gesperrten Tresor, z. B. eine KI-Chat-Anfrage oder ein Schlüssel-Passphrase im Verbindungseditor; entsperren Sie zunächst den Tresor über das Menü. Nach einem erfolgreichen Entsperren setzt die Aktion fort; **Abbrechen** lässt den Tresor gesperrt, ohne einen zweiten Fehler zu erzeugen. Ein falsches Passwort hält das Dialogfeld offen, und das Abbrechen beendet korTTY nicht.
+
+Das Entsperren stellt auch die temporären SSH-Schlüssel wieder her, die beim gesperrten Start nicht entschlüsselt werden konnten; bis dahin bleiben sie verschlüsselt gespeichert, sodass das Speichern von Verbindungen in der Zwischenzeit nicht verloren geht. Fenster, die bereits geöffnet waren, während der Tresor gesperrt war, wie der Connection-Manager oder die Anmelde- und Schlüsselmanager, erkennen das Entsperren nicht – öffnen Sie sie erneut, um dort gespeicherte Geheimnisse zu nutzen.
 
 ## Verschlüsselungsmodell
 
