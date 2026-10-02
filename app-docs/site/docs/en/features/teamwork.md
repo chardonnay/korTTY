@@ -4,7 +4,7 @@ title: Teamwork (shared connections)
 
 # Teamwork (shared connections)
 
-Share SSH connections with your team by syncing them from a Git repository or shared file. Teamwork sources are loaded into the Connection Manager alongside your local connections, kept in sync automatically, and safely stripped of inline passwords so credentials come only from your local encrypted storage.
+Share SSH connections with your team by syncing them from a Git repository or shared file. Teamwork sources are loaded into the Connection Manager alongside your local connections, kept in sync automatically, and safely stripped of inline passwords so credentials come only from your local encrypted storage. Sync is one way: korTTY reads from a source and never writes back to it.
 
 
 ![Teamwork sync](../assets/diagrams/teamwork-sync-flow.svg)
@@ -14,11 +14,11 @@ Share SSH connections with your team by syncing them from a Git repository or sh
 Teamwork lets teams maintain a centralized library of connection configurations:
 
 - **Git repositories** — Clone and keep in sync with a Git repo containing a `kortty-teamwork-connections.xml` file (or legacy `connections.xml`).
-- **Shared files** — Load connections from a local or network path (read-only or read-write).
+- **Shared files** — Load connections from a local or network path. korTTY only reads the file.
 - **Automatic sync** — Background syncing at a configurable interval checks for updates.
 - **Credential security** — Shared connections do NOT carry inline passwords; only credential IDs and SSH key references.
 - **Local overrides** — Your local credentials and SSH keys are merged with shared connection definitions.
-- **Read-only mode** — Mark sources as read-only to prevent accidental writes back.
+- **One-way sync** — korTTY never pushes to a repository or writes to a shared file. Shared connections are changed in the source itself and arrive with the next sync.
 
 ## Setting up teamwork sources
 
@@ -34,8 +34,7 @@ Open **Teamwork → Teamwork Settings…** (or **Configuration → Global Settin
    - For Git: the clone URL.
    - For Shared File: a local/network file path (can be a file:// URI or a UNC path).
 4. Set the **Check Interval** (1–1440 minutes; default: 15).
-5. Optionally enable **Read-Only** to prevent writes back (Git sources only).
-6. Click **OK** to save.
+5. Click **OK** to save.
 
 ### Manage sources
 
@@ -73,13 +72,13 @@ Once you save the Teamwork Settings:
 
 Use **Teamwork → Teamwork Settings…** and click **OK** to trigger a sync immediately.
 
-### Conflict detection
+### Version tracking
 
 Each sync records a version token:
 - **Git** — The current commit hash.
 - **Shared File** — The file's last-modified timestamp.
 
-If a shared connection's version token changes between syncs, a new version was fetched. If you have made local edits to a teamwork connection and the source updates with a conflicting change, the local edits are preserved (no automatic overwrite).
+If a shared connection's version token changes between syncs, a new version was fetched. On every successful sync korTTY replaces its cached copy of the source with the version it just fetched; nothing is merged with local changes. For a Git source, korTTY resets its own clone to the remote branch, so anything changed inside that clone is discarded. Local overrides cover only credentials and SSH keys (see [Local overrides](#local-overrides)).
 
 ## Shared connection file format
 
@@ -113,19 +112,22 @@ If inline secrets are found in the shared file, KorTTY strips them automatically
 Once a source is synced:
 
 1. Open **Manage Connections…** (or press ++ctrl+m++).
-2. Teamwork connections appear in the tree with a **[Teamwork]** label and their source ID.
-3. Click a teamwork connection to view or use it.
-4. **Cannot edit directly** — Teamwork connections are read-only unless their source is marked as writable and you own edit rights (determined by `teamworkRole`).
+2. Switch to the **Teamwork connections** tab.
+3. Double-click a teamwork connection to connect.
+4. **Read-only** — Teamwork connections are read-only, and korTTY never writes changes back to a source. To change a shared connection, edit it in the repository or shared file; the change arrives with the next sync.
+
+Deleting a teamwork connection only hides it on this computer; the source is not changed. **Restore deleted** on the **Teamwork connections** tab brings hidden connections back, and **Refresh** reloads the list.
 
 ### Local overrides
 
-- The merged credential and SSH key references are resolved from your local storage.
+- The credential and SSH key references (`credentialId`, `sshKeyId`) of a shared connection are resolved from your local storage.
+- For shared connections that name neither, choose **Authentication for all team connections** on the **Teamwork connections** tab: a stored credential, an SSH key (with an optional **Default username (SSH key)**), or **Temporary SSH key**.
 - If a credential or key is not found locally, you are prompted to provide it when connecting.
-- Your local copy of a teamwork connection can override authentication by assigning a different credential or key.
+- Only authentication can be overridden locally. Host, port, group and the other connection settings always come from the source.
 
 ### Distinguish sources
 
-In the Connection Manager, teamwork connections are marked by their source ID. Hover over or inspect the connection properties to see which teamwork source it came from.
+Connections from every enabled source appear together on the **Teamwork connections** tab, arranged by the groups defined in the shared files. The tab does not show which source a connection came from; give each source its own group names if your team needs to tell them apart.
 
 ## Git repository setup
 
@@ -151,9 +153,9 @@ ssh-connections/
 └── README.md
 ```
 
-### Optional: store versions in Git
+### Version token
 
-Use the commit hash as the version token so KorTTY can detect updates:
+korTTY uses the commit hash of the tracked branch as the version token automatically. To see which version your team is on, run:
 
 ```bash
 git log -1 --pretty=%H
@@ -165,7 +167,7 @@ To share connections via a file:
 
 1. Export your connections to a file: **Connections → Export… → select connections → save as `.xml`**.
 2. Place the file on a shared network path (e.g., `//server/share/connections.xml`).
-3. Set read/write permissions as needed.
+3. Give team members read access to the file. korTTY only reads it, so only whoever maintains the file needs write access.
 4. Team members add the file path in **Teamwork → Teamwork Settings… → Add**.
 
 ### Example paths
@@ -188,7 +190,7 @@ To share connections via a file:
     For shared files on network paths, restrict read/write access to team members only. Ensure the path is not world-readable.
 
 !!! tip "Audit trail"
-    For Git-based teamwork, the commit history provides an audit trail. Review changes before pulling by checking the remote branch.
+    For Git-based teamwork, the commit history provides an audit trail. korTTY applies whatever the tracked branch contains at the next sync, so review changes before they are pushed to that branch.
 
 ## Troubleshooting
 
@@ -207,12 +209,6 @@ To share connections via a file:
 1. Open **Security → Credentials…** and **Security → SSH-Keys…**.
 2. Verify that the credential IDs or SSH key IDs in the shared connections exist locally.
 3. If missing, add them manually or ask your team administrator to provide the IDs.
-
-### Cannot push changes to Git repo
-
-1. Verify the Git URL uses SSH or an HTTPS token (not username/password).
-2. Ensure your SSH key is registered with the remote (GitHub, GitLab, etc.).
-3. In **Teamwork Settings**, mark the source as **Read-Only** if you don't need to write back.
 
 ### File path is not recognized (Windows/UNC)
 
