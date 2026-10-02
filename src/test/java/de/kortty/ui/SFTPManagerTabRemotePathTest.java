@@ -1,0 +1,74 @@
+package de.kortty.ui;
+
+import org.testng.annotations.Test;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import static com.google.common.truth.Truth.assertThat;
+
+/**
+ * The pure parts of the SFTP manager tab: which folder a typed path lists, which permission
+ * input may reach {@code chmod}, and source pins for the transfer fixes.
+ */
+class SFTPManagerTabRemotePathTest {
+
+    private static final String HOME = "/home/demo";
+
+    @Test
+    void tildeResolvesAgainstTheLoginDirectory() {
+        // SFTP itself does not expand '~'.
+        assertThat(SFTPManagerTab.resolveRemoteListingPath("~", "~", HOME)).isEqualTo(HOME);
+        assertThat(SFTPManagerTab.resolveRemoteListingPath("", "/srv", HOME)).isEqualTo(HOME);
+        assertThat(SFTPManagerTab.resolveRemoteListingPath("~/logs", "/srv", HOME)).isEqualTo("/home/demo/logs");
+    }
+
+    @Test
+    void absolutePathsStayAndLoseTrailingSlashes() {
+        assertThat(SFTPManagerTab.resolveRemoteListingPath("/var/log/", HOME, HOME)).isEqualTo("/var/log");
+        assertThat(SFTPManagerTab.resolveRemoteListingPath(" /etc ", HOME, HOME)).isEqualTo("/etc");
+        assertThat(SFTPManagerTab.resolveRemoteListingPath("/", HOME, HOME)).isEqualTo("/");
+    }
+
+    @Test
+    void relativePathsAreTakenFromTheFolderShown() {
+        assertThat(SFTPManagerTab.resolveRemoteListingPath("sub", "/srv/app", HOME)).isEqualTo("/srv/app/sub");
+        // Before the first listing there is no shown folder yet: the login directory is the base.
+        assertThat(SFTPManagerTab.resolveRemoteListingPath("sub", "~", HOME)).isEqualTo("/home/demo/sub");
+    }
+
+    @Test
+    void onlyThreeOctalDigitsReachChmod() {
+        assertThat(SFTPManagerTab.isAcceptedPermissionsInput("755", "644")).isTrue();
+        assertThat(SFTPManagerTab.isAcceptedPermissionsInput("", "644")).isTrue();
+        assertThat(SFTPManagerTab.isAcceptedPermissionsInput("644", "644")).isTrue();
+
+        assertThat(SFTPManagerTab.isAcceptedPermissionsInput("999", "644")).isFalse();
+        assertThat(SFTPManagerTab.isAcceptedPermissionsInput("75", "644")).isFalse();
+        assertThat(SFTPManagerTab.isAcceptedPermissionsInput("u+x", "644")).isFalse();
+        // The value is part of a remote shell command line.
+        assertThat(SFTPManagerTab.isAcceptedPermissionsInput("755; rm -rf ~", "644")).isFalse();
+        assertThat(SFTPManagerTab.isAcceptedPermissionsInput("755 $(id)", "644")).isFalse();
+    }
+
+    @Test
+    void transfersStreamAndMergeFolders() throws IOException {
+        String session = read("src/main/java/de/kortty/core/SFTPSession.java");
+        assertThat(session).doesNotContain("readAllBytes");
+        assertThat(session).contains("in.transferTo(out)");
+
+        String tab = read("src/main/java/de/kortty/ui/SFTPManagerTab.java");
+        // Uploading a folder again merges into the existing remote folder.
+        assertThat(tab).contains("session.createDirectoryIfMissing(remotePath)");
+        assertThat(tab).doesNotContain("sftpSession.createDirectory(");
+        // The remote listing runs on the listing executor, never on the FX thread.
+        assertThat(tab).contains(".supplyAsync(() -> listRemote(session, requestedPath, basePath), remoteListExecutor)");
+    }
+
+    /** With LF line endings: Windows CI checks sources out with CRLF. */
+    private static String read(String path) throws IOException {
+        return Files.readString(Path.of(path), StandardCharsets.UTF_8).replace("\r\n", "\n");
+    }
+}

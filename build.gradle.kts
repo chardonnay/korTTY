@@ -3480,6 +3480,14 @@ tasks.register<JavaExec>("dialogHostTabSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("sftpManagerTabSmoke") {
+    group = "verification"
+    description = "Drives the SFTP manager tab against a loopback SFTP server: background listing, size sort, folder re-upload, Disconnected and Reconnect."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SFTPManagerTabSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("uiFontScaleSmoke") {
     group = "verification"
     description = "Measures the computed font of a menu title, a label and a context-menu item " +
