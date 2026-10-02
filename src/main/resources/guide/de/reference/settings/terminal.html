@@ -930,7 +930,7 @@
 <div class="admonition note">
 <p class="admonition-title">Verbindungswiederholungsversuche</p>
 <p>Wenn diese Option aktiviert ist, werden fehlgeschlagene SSH-Verbindungen automatisch wiederholt. Wenn Sie dies deaktivieren, werden automatische Wiederverbindungsversuche bei fehlgeschlagenen Verbindungen verhindert.</p>
-<p>Wiederholungsversuche decken nur Fehler ab, die durch einen weiteren Versuch behoben werden könnten. Ein geänderter Hostschlüssel, eine mit einem Jump-Server konfigurierte Mosh-Verbindung oder eine fehlende Mosh-Laufzeit wird unabhängig von dieser Einstellung sofort abgelehnt.</p>
+<p>Wiederholungen decken nur Fehler ab, die durch einen weiteren Versuch behoben werden könnten. Ein geänderter Host-Key, eine verweigerte Anmeldung, eine SSH-Schlüsseldatei, die fehlt oder nicht gelesen werden kann, ein Sprungserver, dessen gespeichertes Passwort nicht verwendet werden kann oder dessen Einrichtung unvollständig ist, eine Mosh-Verbindung, die mit einem Sprungserver konfiguriert ist, oder ein fehlender Mosh-Laufzeitumgebung werden sofort abgelehnt, unabhängig von dieser Einstellung.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Verlorene Verbindungen automatisch wiederherstellen</p>

@@ -12,7 +12,7 @@ Ein Jump-Server (Bastion-Host) fungiert als Zwischengateway, um Server in einem 
 
 korTTY authentifiziert sich beim Jump-Server mit den eigenen Anmeldeinformationen des Jump-Servers, öffnet einen Tunnel dadurch und öffnet dann die echte SSH-Sitzung zum Zielhost über diesen Tunnel. Die Anmeldeinformationen des Ziels werden nur für das Ziel verwendet, und die Anmeldeinformationen des Jump-Servers werden nur für den Jump-Server verwendet – keinem Host wird das Kennwort oder der Schlüssel des anderen angeboten.
 
-Sowohl SSH-Terminal- als auch SFTP-Verbindungen zur Zielroute über den Jump-Server; Für SFTP muss nichts extra konfiguriert werden.
+Sowohl SSH-Terminals als auch SFTP-Verbindungen zum Ziel laufen über den Jump-Server; für SFTP muss nichts zusätzlich konfiguriert werden. Das funktioniert unabhängig von der eigenen Authentifizierung des Ziels – Passwort, keyboard-interactive, SSH-Schlüssel oder ein temporärer SSH-Schlüssel: ein gespeichertes Jump-Server-Passwort wird in jedem Fall mit Ihrem Master-Passwort entschlüsselt.
 
 !!! warning
     Mosh-Verbindungen können nicht über einen Jump-Server laufen: Eine Mosh-Sitzung läuft über UDP, das vom SSH-Tunnel (TCP) des Jump-Servers nicht weitergeleitet wird. korTTY lehnt die Kombination von vornherein ab – die Registerkarte „Jump Server“ warnt, sobald sie konfiguriert ist, und die Verbindung schlägt sofort mit einer eindeutigen Meldung fehl, anstatt nach dem SSH-Bootstrap ins Stocken zu geraten. Verwenden Sie das SSH-Protokoll für Ziele hinter einer Bastion oder deaktivieren Sie den Jump-Server.
@@ -32,6 +32,12 @@ So konfigurieren Sie einen Jump-Server für eine Verbindung:
     - **Passwort** – das Passwort wird verschlüsselt mit Ihrem Master-Passwort gespeichert. Lassen Sie das Feld beim Bearbeiten leer, um das zuvor gespeicherte Passwort beizubehalten.
     - **SSH-Schlüsseldatei (keine Passphrase)** – der Pfad zu einer unverschlüsselten privaten Schlüsseldatei. Passphrase-geschützte Schlüssel werden für den Jump Hop nicht unterstützt.
 6. Klicken Sie auf **Speichern**.
+
+## Wenn der Jump-Server nicht verwendet werden kann
+
+korTTY entschlüsselt ein gespeichertes Jump-Server-Passwort, bevor es den Jump-Server kontaktiert. Falls das gespeicherte Jump-Passwort nicht verwendet werden kann – keines ist gespeichert, der Master-Passwort-Tresor ist gesperrt oder der gespeicherte Wert lässt sich nicht entschlüsseln – stoppt die Verbindung sofort mit einer Meldung, ohne den Jump-Server zu kontaktieren, ohne nach dessen Host-Key zu fragen und ohne die Wiederholungsanzahl durchzugehen. Entsperren Sie den Tresor mit **Konfiguration > Sicherheit > Tresor entsperren…** (siehe [Später den Tresor entsperren](security.md#spater-den-tresor-entsperren)) oder speichern Sie das Passwort im **Jump-Server**-Tab der Verbindung, dann verbinden Sie sich erneut.
+
+Ein unvollständiges Jump-Setup (kein Benutzername, oder Schlüssel-Authentifizierung ohne nutzbaren Schlüsseldatei) und ein von Ihnen abgelehnter Jump-Server-Host-Key werden ebenfalls nur einmal gemeldet, anstatt erneut versucht zu werden, weil ein weiterer Versuch identisch scheitern würde. Ein Jump-Server, der nicht erreichbar ist, oder ein Netzwerkfehler auf dem Weg, wird wie jede andere Verbindungsfehlermeldung erneut versucht.
 
 ## Host-Schlüsselüberprüfung
 

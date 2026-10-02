@@ -762,7 +762,7 @@
 <h2 id="connection-flow">Connection flow<a class="headerlink" href="#connection-flow" title="Permanent link">&para;</a></h2>
 <p><img alt="Jump server flow" src="../assets/diagrams/jump-server-flow.svg" /></p>
 <p>korTTY authenticates to the jump server with the jump server's own credentials, opens a tunnel through it, and then opens the real SSH session to the target host through that tunnel. The target's credentials are used only for the target, and the jump server's credentials only for the jump server — neither host is offered the other's password or key.</p>
-<p>Both SSH terminal and SFTP connections to the target route through the jump server; there is nothing extra to configure for SFTP.</p>
+<p>Both SSH terminal and SFTP connections to the target route through the jump server; there is nothing extra to configure for SFTP. This works whatever the target's own authentication is — password, keyboard-interactive, SSH key or a temporary SSH key: a stored jump server password is decrypted with your master password in every case.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>Mosh connections cannot go through a jump server: a Mosh session runs over UDP, which the jump server's SSH tunnel (TCP) does not forward. korTTY refuses the combination up front — the Jump Server tab warns as soon as it is configured, and connecting fails immediately with a clear message instead of stalling after the SSH bootstrap. Use the SSH protocol for targets behind a bastion, or disable the jump server.</p>
@@ -786,6 +786,9 @@
 </li>
 <li>Click <strong>Save</strong>.</li>
 </ol>
+<h2 id="when-the-jump-server-cannot-be-used">When the jump server cannot be used<a class="headerlink" href="#when-the-jump-server-cannot-be-used" title="Permanent link">&para;</a></h2>
+<p>korTTY decrypts a stored jump server password before it contacts the jump server. If the stored jump password cannot be used — none is stored, the master password vault is locked, or the stored value cannot be decrypted — connecting stops at once with a message that says so, without contacting the jump server, without asking about its host key and without working through the retry count. Unlock the vault with <strong>Configuration &gt; Security &gt; Unlock Vault…</strong> (see <a href="security.html#unlocking-the-vault-later">Unlocking the vault later</a>) or store the password in the connection's <strong>Jump Server</strong> tab, then reconnect.</p>
+<p>An incomplete jump setup (no username, or key authentication without a usable key file) and a jump-server host key you rejected are also reported once instead of being retried, because another attempt would fail identically. A jump server that cannot be reached, or a network error on the way, is still retried like any other connection failure.</p>
 <h2 id="host-key-verification">Host key verification<a class="headerlink" href="#host-key-verification" title="Permanent link">&para;</a></h2>
 <p>The jump server's host key is verified on first use exactly like any other host: korTTY shows the key's SHA-256 fingerprint and asks you to confirm it, then pins it. On later connections a changed jump-server key is refused, the same trust-on-first-use protection the target host gets. The bastion is always checked strictly: <a href="security.html#relaxing-host-key-verification">relaxing host-key verification</a> applies to target hosts only, never to the jump hop.</p>
 <p>This holds even when host-key verification has been relaxed for the target: the per-connection, per-group and global opt-outs never cover the bastion, so its key is always verified strictly. See <a href="security.html#relaxing-host-key-verification">Relaxing host-key verification</a>.</p>
