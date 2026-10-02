@@ -1,7 +1,11 @@
 package de.kortty.core;
 
+import de.kortty.core.agent.AgentCommandRunner.ShellKind;
+import de.kortty.core.agent.LocalShellArgv;
 import de.kortty.model.StoredCredential;
+import de.kortty.platform.FlatpakSupport;
 import de.kortty.security.EncryptionService;
+import de.kortty.ui.I18n;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.Unmarshaller;
@@ -12,11 +16,23 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -26,7 +42,19 @@ public class CredentialManager {
     
     private static final Logger logger = LoggerFactory.getLogger(CredentialManager.class);
     private static final String CREDENTIALS_FILE = "credentials.xml";
-    
+
+    /** Deadline of an external password command, in seconds. */
+    static final int EXTERNAL_COMMAND_TIMEOUT_SECONDS = 10;
+    static final Duration EXTERNAL_COMMAND_TIMEOUT = Duration.ofSeconds(EXTERNAL_COMMAND_TIMEOUT_SECONDS);
+    /** Bytes kept per output stream of an external password command; the rest is discarded. */
+    static final int EXTERNAL_COMMAND_OUTPUT_LIMIT = 64 * 1024;
+    /** Characters of stderr shown when an external password command fails. */
+    private static final int ERROR_TEXT_LIMIT = 500;
+    private static final Duration DRAIN_JOIN_TIMEOUT = Duration.ofSeconds(2);
+    private static final Duration FLATPAK_TERMINATE_GRACE = Duration.ofMillis(300);
+    /** Appended to a PowerShell password command so a failing native tool fails the whole run. */
+    static final String POWERSHELL_EXIT_CODE_TRAILER = "\nif ($LASTEXITCODE) { exit $LASTEXITCODE }";
+
     private final Path configDir;
     private final List<StoredCredential> credentials = new ArrayList<>();
     
@@ -204,49 +232,202 @@ public class CredentialManager {
     }
     
     /**
-     * Executes a shell command and returns its stdout output as the password.
-     * Has a 10-second timeout to prevent hanging.
-     * 
+     * Runs the password command in the platform shell ({@code /bin/sh} on macOS/Linux, PowerShell on
+     * Windows, the host shell under Flatpak) and returns the first line of its stdout. The command
+     * gets no stdin and is stopped, together with every process it started, after
+     * {@value #EXTERNAL_COMMAND_TIMEOUT_SECONDS} seconds.
+     *
      * @param command the shell command to execute
-     * @return the trimmed stdout output
+     * @return the first line of the command's stdout
      * @throws Exception if the command fails, times out, or returns empty output
      */
     public static String executeExternalCommand(String command) throws Exception {
-        ProcessBuilder pb = new ProcessBuilder("/bin/sh", "-c", command);
-        pb.redirectErrorStream(false);
-        
-        Process process = pb.start();
-        
-        // Read stdout and stderr in parallel to prevent deadlocks
-        String stdout;
-        String stderr;
-        try (var stdoutStream = process.getInputStream();
-             var stderrStream = process.getErrorStream()) {
-            stdout = new String(stdoutStream.readAllBytes()).trim();
-            stderr = new String(stderrStream.readAllBytes()).trim();
+        return executeExternalCommand(command, EXTERNAL_COMMAND_TIMEOUT);
+    }
+
+    /** {@link #executeExternalCommand(String)} with an explicit deadline (tests use a short one). */
+    static String executeExternalCommand(String command, Duration timeout) throws Exception {
+        return runExternalCommand(
+            externalCommandArgv(command, LocalShellArgv.platformDefault(), System.getenv()), timeout);
+    }
+
+    /**
+     * The argv that runs {@code command} in {@code shell}. PowerShell reports a native tool's
+     * failure only when the script ends with it, so a trailer re-raises {@code $LASTEXITCODE}; the
+     * trailer sits on its own line so a trailing {@code #} comment in the command cannot swallow it.
+     * Under Flatpak the command is spawned on the host, where the password manager's CLI lives.
+     */
+    static List<String> externalCommandArgv(String command, ShellKind shell, Map<String, String> environment) {
+        Objects.requireNonNull(command, "command");
+        String script = shell == ShellKind.WINDOWS_POWERSHELL
+            ? command + POWERSHELL_EXIT_CODE_TRAILER
+            : command;
+        List<String> argv = LocalShellArgv.argv(shell, script);
+        // Without an explicit directory flatpak-spawn would reuse the sandbox's working directory,
+        // which need not exist on the host.
+        String workingDirectory = FlatpakSupport.isFlatpakEnvironment(environment)
+            ? System.getProperty("user.home")
+            : null;
+        return FlatpakSupport.hostCommand(argv, workingDirectory, environment);
+    }
+
+    /**
+     * Runs {@code argv} with stdin closed, drains stdout and stderr concurrently (each capped at
+     * {@value #EXTERNAL_COMMAND_OUTPUT_LIMIT} bytes, decoded as UTF-8) and enforces {@code timeout}
+     * even when a child keeps a pipe open. stdout is the password and is never logged.
+     */
+    static String runExternalCommand(List<String> argv, Duration timeout) throws Exception {
+        Process process = new ProcessBuilder(argv).start();
+        // No interactive prompts: a tool that reads stdin gets EOF at once instead of waiting forever.
+        try {
+            process.getOutputStream().close();
+        } catch (IOException ignored) {
+            // The process may already have exited.
         }
-        
-        boolean finished = process.waitFor(10, java.util.concurrent.TimeUnit.SECONDS);
+
+        CappedStreamDrain stdout = CappedStreamDrain.start(process.getInputStream(), "kortty-credential-command-stdout");
+        CappedStreamDrain stderr = CappedStreamDrain.start(process.getErrorStream(), "kortty-credential-command-stderr");
+
+        boolean finished;
+        try {
+            finished = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            destroyProcessTree(process);
+            Thread.currentThread().interrupt();
+            throw e;
+        }
         if (!finished) {
-            process.destroyForcibly();
-            throw new Exception("External command timed out after 10 seconds");
+            destroyProcessTree(process);
+            throw new IOException(I18n.get("credential.externalCommand.error.timeout", timeoutSeconds(timeout)));
         }
-        
+
+        // A grandchild that inherited the pipes can keep them open after the shell has exited; never
+        // wait for it longer than this.
+        stdout.awaitEnd(DRAIN_JOIN_TIMEOUT);
+        stderr.awaitEnd(DRAIN_JOIN_TIMEOUT);
+
         int exitCode = process.exitValue();
         if (exitCode != 0) {
-            String errorMsg = stderr.isEmpty() ? "exit code " + exitCode : stderr;
-            throw new Exception("External command failed: " + errorMsg);
+            String errorText = stderr.text().trim();
+            if (errorText.length() > ERROR_TEXT_LIMIT) {
+                errorText = errorText.substring(0, ERROR_TEXT_LIMIT) + "...";
+            }
+            throw new IOException(I18n.get("credential.externalCommand.error.failed", exitCode, errorText).trim());
         }
-        
-        if (stdout.isEmpty()) {
-            throw new Exception("External command returned empty output");
+
+        String output = stdout.text().trim();
+        if (output.isEmpty()) {
+            throw new IOException(I18n.get("credential.externalCommand.error.empty"));
         }
-        
-        // Return first line only (password should be a single line)
-        String[] lines = stdout.split("\\R", 2);
-        return lines[0];
+        // The password is the first line only.
+        return output.split("\\R", 2)[0];
     }
-    
+
+    /**
+     * Kills the command and everything it started. The descendants are collected first, because they
+     * are reparented once the shell is gone. Under Flatpak the real command runs on the host behind
+     * {@code flatpak-spawn}, which forwards SIGTERM but cannot forward SIGKILL, so it is asked to
+     * terminate first.
+     */
+    private static void destroyProcessTree(Process process) {
+        List<ProcessHandle> descendants = process.descendants().toList();
+        if (FlatpakSupport.isRunningInFlatpak()) {
+            process.destroy();
+            try {
+                process.waitFor(FLATPAK_TERMINATE_GRACE.toMillis(), TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        descendants.forEach(ProcessHandle::destroyForcibly);
+        process.destroyForcibly();
+    }
+
+    private static long timeoutSeconds(Duration timeout) {
+        return Math.max(1, (timeout.toMillis() + 999) / 1000);
+    }
+
+    /**
+     * Resolves {@link #getPassword} on a background daemon thread, so an external password command
+     * (which may wait for Touch ID or a vault unlock) never blocks the JavaFX thread. The future
+     * completes with the exception {@code getPassword} throws, unwrapped.
+     */
+    public CompletableFuture<String> getPasswordAsync(StoredCredential credential, char[] masterPassword) {
+        CompletableFuture<String> result = new CompletableFuture<>();
+        try {
+            CredentialCommandExecutor.INSTANCE.execute(() -> {
+                try {
+                    result.complete(getPassword(credential, masterPassword));
+                } catch (Throwable t) {
+                    result.completeExceptionally(t);
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            result.completeExceptionally(e);
+        }
+        return result;
+    }
+
+    /** Created on first use, so the threads only exist once a password is actually fetched. */
+    private static final class CredentialCommandExecutor {
+        private static final ExecutorService INSTANCE = Executors.newCachedThreadPool(runnable -> {
+            Thread thread = new Thread(runnable, "kortty-credential-command");
+            thread.setDaemon(true);
+            return thread;
+        });
+    }
+
+    /**
+     * Reads a stream to EOF on a daemon thread, keeping at most {@link #EXTERNAL_COMMAND_OUTPUT_LIMIT}
+     * bytes and discarding the rest, so a chatty tool can neither block on a full pipe nor exhaust
+     * memory.
+     */
+    private static final class CappedStreamDrain implements Runnable {
+        private final InputStream stream;
+        private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        private final Thread thread;
+
+        private CappedStreamDrain(InputStream stream, String threadName) {
+            this.stream = stream;
+            this.thread = new Thread(this, threadName);
+            this.thread.setDaemon(true);
+        }
+
+        static CappedStreamDrain start(InputStream stream, String threadName) {
+            CappedStreamDrain drain = new CappedStreamDrain(stream, threadName);
+            drain.thread.start();
+            return drain;
+        }
+
+        @Override
+        public void run() {
+            byte[] chunk = new byte[8192];
+            try (InputStream in = stream) {
+                int read;
+                while ((read = in.read(chunk)) >= 0) {
+                    synchronized (buffer) {
+                        int room = EXTERNAL_COMMAND_OUTPUT_LIMIT - buffer.size();
+                        if (room > 0) {
+                            buffer.write(chunk, 0, Math.min(read, room));
+                        }
+                    }
+                }
+            } catch (IOException ignored) {
+                // The process ended or was killed.
+            }
+        }
+
+        void awaitEnd(Duration timeout) throws InterruptedException {
+            thread.join(timeout.toMillis());
+        }
+
+        String text() {
+            synchronized (buffer) {
+                return buffer.toString(StandardCharsets.UTF_8);
+            }
+        }
+    }
+
     /**
      * Encrypts and stores a password for a credential
      */

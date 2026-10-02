@@ -48,6 +48,10 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private final SSHKeyManager sshKeyManager;
     private final char[] masterPassword;
     private ComboBox<StoredCredential> savedCredentialsCombo;
+    /** Fills the password field from the selected credential; external commands run off the FX thread. */
+    private final CredentialPasswordResolver credentialPasswordResolver = new CredentialPasswordResolver();
+    /** Set while the host filter rebuilds the credential list, so restoring the selection does not re-run its command. */
+    private boolean refreshingCredentialCombo;
     private ComboBox<SSHKey> savedSSHKeysCombo;
     private ComboBox<AiProfileOption> aiProfileCombo;
     private java.util.Map<String, javafx.beans.property.BooleanProperty> aiSkillChecksById;
@@ -251,27 +255,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
             });
         }
         savedCredentialsCombo.setOnAction(e -> {
-            StoredCredential selected = savedCredentialsCombo.getValue();
-            if (selected != null) {
-                try {
-                    usernameField.setText(selected.getUsername());
-                    if (credentialManager != null && masterPassword != null) {
-                        String password = credentialManager.getPassword(selected, masterPassword);
-                        if (password != null) {
-                            passwordField.setText(password);
-                            // Mark that password comes from credential store
-                            passwordField.setPromptText(I18n.get("connEdit.fromCredential") + ": " + selected.getName());
-                        }
-                    }
-                } catch (Exception ex) {
-                    Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle(I18n.get("error.title"));
-                    alert.setHeaderText(I18n.get("connEdit.decryptFailed"));
-                    alert.setContentText(ex.getMessage());
-                    alert.showAndWait();
-                }
-            } else {
-                passwordField.setPromptText("");
+            if (!refreshingCredentialCombo) {
+                onSavedCredentialSelected(savedCredentialsCombo.getValue());
             }
         });
         
@@ -1030,11 +1015,78 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         alert.showAndWait();
     }
     
+    /**
+     * Fills username and password from the selected credential. An external password command runs
+     * in the background: the password field is disabled and shows a progress prompt meanwhile, and
+     * only the result for the still-selected credential is applied.
+     */
+    private void onSavedCredentialSelected(StoredCredential selected) {
+        if (selected == null) {
+            credentialPasswordResolver.cancel();
+            updatePasswordFieldEnablement();
+            passwordField.setPromptText("");
+            return;
+        }
+        usernameField.setText(selected.getUsername());
+        if (credentialManager == null || masterPassword == null) {
+            credentialPasswordResolver.cancel();
+            updatePasswordFieldEnablement();
+            return;
+        }
+        credentialPasswordResolver.resolve(credentialManager, selected, masterPassword,
+            new CredentialPasswordResolver.Listener() {
+                @Override
+                public void started(StoredCredential credential) {
+                    passwordField.clear();
+                    passwordField.setPromptText(I18n.get("credential.externalCommand.running"));
+                    updatePasswordFieldEnablement();
+                }
+
+                @Override
+                public void resolved(StoredCredential credential, String password) {
+                    updatePasswordFieldEnablement();
+                    if (password != null) {
+                        passwordField.setText(password);
+                        // Mark that password comes from credential store
+                        passwordField.setPromptText(I18n.get("connEdit.fromCredential") + ": " + credential.getName());
+                    } else {
+                        passwordField.setPromptText("");
+                    }
+                }
+
+                @Override
+                public void failed(StoredCredential credential, Exception error) {
+                    updatePasswordFieldEnablement();
+                    passwordField.setPromptText("");
+                    showCredentialPasswordFailedAlert(error);
+                }
+            });
+    }
+
+    private void showCredentialPasswordFailedAlert(Exception error) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(I18n.get("error.title"));
+        alert.setHeaderText(I18n.get("connEdit.decryptFailed"));
+        alert.setContentText(error.getMessage());
+        if (getDialogPane().getScene() != null && getDialogPane().getScene().getWindow() != null) {
+            alert.initOwner(getDialogPane().getScene().getWindow());
+        }
+        alert.showAndWait();
+    }
+
+    /** The password field is editable only for SSH password auth with no credential lookup running. */
+    private void updatePasswordFieldEnablement() {
+        boolean local = protocolCombo.getValue() == ConnectionProtocol.LOCAL_SHELL;
+        boolean useKey = keyAuthRadio.isSelected();
+        boolean useTemporaryKey = temporaryKeyAuthRadio != null && temporaryKeyAuthRadio.isSelected();
+        passwordField.setDisable(local || useKey || useTemporaryKey || credentialPasswordResolver.isPending());
+    }
+
     private void updateAuthFields() {
         boolean useKey = keyAuthRadio.isSelected();
         boolean useTemporaryKey = temporaryKeyAuthRadio != null && temporaryKeyAuthRadio.isSelected();
-        
-        passwordField.setDisable(useKey || useTemporaryKey);
+
+        passwordField.setDisable(useKey || useTemporaryKey || credentialPasswordResolver.isPending());
         savedCredentialsCombo.setDisable(useKey || useTemporaryKey);
         savedSSHKeysCombo.setDisable(!useKey || useTemporaryKey);
         keyPathField.setDisable(!useKey || useTemporaryKey);
@@ -1766,17 +1818,27 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         
         // Remember current selection
         StoredCredential currentSelection = savedCredentialsCombo.getValue();
-        
-        savedCredentialsCombo.getItems().clear();
-        if (hostname != null && !hostname.trim().isEmpty()) {
-            java.util.List<StoredCredential> matchingCredentials = credentialManager.getAllCredentials().stream()
-                .filter(c -> c.matchesServer(hostname)).collect(java.util.stream.Collectors.toList());
-            savedCredentialsCombo.getItems().addAll(matchingCredentials);
-            
-            // Restore selection if it still matches
-            if (currentSelection != null && matchingCredentials.contains(currentSelection)) {
-                savedCredentialsCombo.setValue(currentSelection);
+
+        // Rebuilding the list clears and restores the value, which would otherwise re-run the
+        // credential's password command on every keystroke in the host field.
+        refreshingCredentialCombo = true;
+        try {
+            savedCredentialsCombo.getItems().clear();
+            if (hostname != null && !hostname.trim().isEmpty()) {
+                java.util.List<StoredCredential> matchingCredentials = credentialManager.getAllCredentials().stream()
+                    .filter(c -> c.matchesServer(hostname)).collect(java.util.stream.Collectors.toList());
+                savedCredentialsCombo.getItems().addAll(matchingCredentials);
+
+                // Restore selection if it still matches
+                if (currentSelection != null && matchingCredentials.contains(currentSelection)) {
+                    savedCredentialsCombo.setValue(currentSelection);
+                }
             }
+        } finally {
+            refreshingCredentialCombo = false;
+        }
+        if (savedCredentialsCombo.getValue() != currentSelection) {
+            onSavedCredentialSelected(savedCredentialsCombo.getValue());
         }
     }
 

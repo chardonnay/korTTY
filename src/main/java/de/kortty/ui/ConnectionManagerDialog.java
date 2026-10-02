@@ -1227,24 +1227,49 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                         storedCredentialCombo.getItems().addAll(credentialManager.getAllCredentials());
                     }
                     
-                    // When a stored credential is selected, decrypt and fill password field
+                    // When a stored credential is selected, fill the password field. An external
+                    // password command runs in the background; only the still-selected
+                    // credential's result is applied.
+                    CredentialPasswordResolver passwordResolver = new CredentialPasswordResolver();
+                    String enterPasswordPrompt = passwordField.getPromptText();
                     storedCredentialCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
-                        if (newVal != null && credentialManager != null && masterPassword != null) {
-                            try {
-                                String decryptedPassword = credentialManager.getPassword(newVal, masterPassword);
-                                if (decryptedPassword != null && !decryptedPassword.isEmpty()) {
-                                    passwordField.setText(decryptedPassword);
-                                }
-                            } catch (Exception e) {
-                                logger.warn("Failed to decrypt password for credential: {}", newVal.getName(), e);
-                                Alert alert = new Alert(Alert.AlertType.WARNING);
-                                alert.setTitle(I18n.get("error.title"));
-                                alert.setHeaderText(I18n.get("credential.passwordDecryptFailed"));
-                                alert.setContentText(I18n.get("credential.passwordDecryptFailedMessage", e.getMessage()));
-                                alert.showAndWait();
-                                passwordField.clear();
-                            }
+                        if (newVal == null || credentialManager == null || masterPassword == null) {
+                            passwordResolver.cancel();
+                            passwordField.setDisable(false);
+                            passwordField.setPromptText(enterPasswordPrompt);
+                            return;
                         }
+                        passwordResolver.resolve(credentialManager, newVal, masterPassword,
+                            new CredentialPasswordResolver.Listener() {
+                                @Override
+                                public void started(StoredCredential credential) {
+                                    passwordField.clear();
+                                    passwordField.setDisable(true);
+                                    passwordField.setPromptText(I18n.get("credential.externalCommand.running"));
+                                }
+
+                                @Override
+                                public void resolved(StoredCredential credential, String password) {
+                                    passwordField.setDisable(false);
+                                    passwordField.setPromptText(enterPasswordPrompt);
+                                    if (password != null && !password.isEmpty()) {
+                                        passwordField.setText(password);
+                                    }
+                                }
+
+                                @Override
+                                public void failed(StoredCredential credential, Exception e) {
+                                    passwordField.setDisable(false);
+                                    passwordField.setPromptText(enterPasswordPrompt);
+                                    logger.warn("Failed to resolve password for credential: {}", credential.getName(), e);
+                                    Alert alert = new Alert(Alert.AlertType.WARNING);
+                                    alert.setTitle(I18n.get("error.title"));
+                                    alert.setHeaderText(I18n.get("credential.passwordDecryptFailed"));
+                                    alert.setContentText(I18n.get("credential.passwordDecryptFailedMessage", e.getMessage()));
+                                    alert.showAndWait();
+                                    passwordField.clear();
+                                }
+                            });
                     });
                     
                     grid.add(passwordLabel, 0, 0);
