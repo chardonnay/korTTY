@@ -1604,6 +1604,70 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void defaultTerminalSettingsPersistTheAnsiPaletteAndItsCustomizedFlag() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-ansi-palette");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            ConnectionSettings defaults = new ConnectionSettings();
+            for (int i = 0; i < ConnectionSettings.ANSI_COLOR_COUNT; i++) {
+                defaults.setAnsiColor(i, false, "#1" + i + "1" + i + "1" + i);
+                defaults.setAnsiColor(i, true, "#2" + i + "2" + i + "2" + i);
+            }
+            defaults.setSelectionColor("#FFFF00");
+            defaults.setAnsiPaletteCustomized(true);
+            manager.getSettings().setDefaultTerminalSettings(defaults);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            ConnectionSettings loaded = reloaded.getSettings().getDefaultTerminalSettings();
+            assertThat(loaded.isAnsiPaletteCustomized()).isTrue();
+            assertThat(loaded.getSelectionColor()).isEqualTo("#FFFF00");
+            for (int i = 0; i < ConnectionSettings.ANSI_COLOR_COUNT; i++) {
+                assertThat(loaded.getAnsiColor(i, false)).isEqualTo("#1" + i + "1" + i + "1" + i);
+                assertThat(loaded.getAnsiColor(i, true)).isEqualTo("#2" + i + "2" + i + "2" + i);
+            }
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void anOlderSettingsFileWithoutTheFlagKeepsTheBuiltInPalette() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-ansi-legacy");
+        try {
+            // Written before the Colors tab saved its pickers: legacy colours, no ansiPaletteCustomized.
+            Files.writeString(dir.resolve("global-settings.xml"), """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <globalSettings>
+                    <defaultTerminalSettings>
+                        <useGlobalSettings>true</useGlobalSettings>
+                        <selectionColor>#3399FF</selectionColor>
+                        <ansiRed>#CD0000</ansiRed>
+                        <ansiBlue>#0000EE</ansiBlue>
+                    </defaultTerminalSettings>
+                </globalSettings>
+                """);
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+
+            ConnectionSettings loaded = reloaded.getSettings().getDefaultTerminalSettings();
+            assertThat(loaded.isAnsiPaletteCustomized()).isFalse();
+            assertThat(loaded.getAnsiBlue()).isEqualTo("#0000EE");
+            // ...so the terminal keeps drawing the built-in palette it always showed.
+            assertThat(TerminalPaletteSupport.toColorPalette(loaded)).isNull();
+            assertThat(TerminalPaletteSupport.effectiveHex(loaded, 4, false))
+                    .isEqualTo(TerminalPaletteSupport.builtInHex(4, false));
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void terminalCursorBlinkChoicePersistsAndOutranksAProfileStyle() throws Exception {
         Path dir = Files.createTempDirectory("kortty-cursor-blink-field");
         try {

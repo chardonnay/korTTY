@@ -41,6 +41,7 @@ import de.kortty.core.LibreTranslateTranslationService;
 import de.kortty.core.LocalAiTranslationService;
 import de.kortty.core.MicrosoftTranslationService;
 import de.kortty.core.TerminalAgentCommandSupport;
+import de.kortty.core.TerminalPaletteSupport;
 import de.kortty.core.YandexTranslationService;
 import de.kortty.core.LanguageManager;
 import de.kortty.core.LoggingConfiguration;
@@ -148,7 +149,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox cursorBlinkCheck;
     private final ColorPicker selectionColorPicker;
     private final CheckBox terminalColorsEnabledCheck;
-    
+    // The 16 ANSI colours, index 0-7 = black, red, green, yellow, blue, magenta, cyan, white.
+    private final ColorPicker[] ansiNormalPickers = new ColorPicker[ConnectionSettings.ANSI_COLOR_COUNT];
+    private final ColorPicker[] ansiBrightPickers = new ColorPicker[ConnectionSettings.ANSI_COLOR_COUNT];
+
     // Terminal size
     private final Spinner<Integer> columnsSpinner;
     private final Spinner<Integer> rowsSpinner;
@@ -694,18 +698,21 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         HBox normalColorsBox = new HBox(5);
         HBox brightColorsBox = new HBox(5);
         
-        for (int i = 0; i < 8; i++) {
-            ColorPicker normalPicker = new ColorPicker(Color.web(settings.getAnsiColor(i, false)));
+        for (int i = 0; i < ConnectionSettings.ANSI_COLOR_COUNT; i++) {
+            // Show what the terminal draws: the stored colours once customised, the built-in palette before.
+            ColorPicker normalPicker = new ColorPicker(Color.web(TerminalPaletteSupport.effectiveHex(settings, i, false)));
             normalPicker.setPrefWidth(40);
             normalPicker.setStyle("-fx-color-label-visible: false;");
             Tooltip.install(normalPicker, new Tooltip(colorNames[i]));
             normalColorsBox.getChildren().add(normalPicker);
-            
-            ColorPicker brightPicker = new ColorPicker(Color.web(settings.getAnsiColor(i, true)));
+            ansiNormalPickers[i] = normalPicker;
+
+            ColorPicker brightPicker = new ColorPicker(Color.web(TerminalPaletteSupport.effectiveHex(settings, i, true)));
             brightPicker.setPrefWidth(40);
             brightPicker.setStyle("-fx-color-label-visible: false;");
             Tooltip.install(brightPicker, new Tooltip(colorNames[i] + " " + I18n.get("color.bright")));
             brightColorsBox.getChildren().add(brightPicker);
+            ansiBrightPickers[i] = brightPicker;
         }
         normalColorsBox.disableProperty().bind(terminalColorsEnabledCheck.selectedProperty().not());
         brightColorsBox.disableProperty().bind(terminalColorsEnabledCheck.selectedProperty().not());
@@ -3163,7 +3170,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         if (globalSettings != null) {
             globalSettings.setTerminalCursorBlink(cursorBlinkCheck.isSelected());
         }
-        settings.setSelectionColor(toHex(selectionColorPicker.getValue()));
+        String[] ansiNormalHex = new String[ConnectionSettings.ANSI_COLOR_COUNT];
+        String[] ansiBrightHex = new String[ConnectionSettings.ANSI_COLOR_COUNT];
+        for (int i = 0; i < ConnectionSettings.ANSI_COLOR_COUNT; i++) {
+            ansiNormalHex[i] = toHex(ansiNormalPickers[i].getValue());
+            ansiBrightHex[i] = toHex(ansiBrightPickers[i].getValue());
+        }
+        // Also marks the palette customised exactly when the colours differ from the built-in look.
+        TerminalPaletteSupport.storeColorsTab(settings, ansiNormalHex, ansiBrightHex,
+                toHex(selectionColorPicker.getValue()));
         settings.setThemeId(selectedGlobalThemeId);
         settings.setTerminalColumns(columnsSpinner.getValue());
         settings.setTerminalRows(rowsSpinner.getValue());
