@@ -24,7 +24,7 @@ image::app-docs/diagrams/architecture.svg[KorTTY architecture,align=center]
 * *Theme Font Control*: Themes apply colors by default; font family/size are applied only when explicitly enabled in settings
 * *Terminal Effect Plugins*: Load, enable, disable, import, and export Java terminal-effect plugins from *Plugins → Terminal Effects*; effects can adjust terminal appearance, overlays, and output animation speed per session or saved connection
 * *Coding Agents*: Detects Claude Code, Codex and Gemini CLI running in local shell tabs and tracks whether each pane is working, blocked on a question, done or idle — shown as tab-title glyphs, dashboard chips and accents, a dockable Coding Agents panel with one-click answers (y/n/Enter/Esc/Ctrl+C) and a prompt box, a status-bar strip, an app-icon badge with the number of waiting agents and desktop notifications for panes you are not looking at; analysed locally, switchable in *Settings → Terminal → Coding agents*, rules overridable under ~/.kortty/coding-agents/<agent>.json
-* *Project Management*: Save and load connection sets with history
+* *Project Management*: Save and load connection sets; with Auto-Reconnect each terminal tab's last visible screen is shown dimmed above the new session, locally only and never sent to the server
 * *Import/Export*: Import connections from MTPuTTY, MobaXterm, and PuTTY Connection Manager
 * *Server Tags*: Optional free-text tag per connection — shown as a badge in the Connection Manager tree and Quick Connect, matched by every connection search, assigned or removed in bulk via the context menu (multi-selection and whole folders), with tag-based selection in the connection export dialog
 * *JMX Monitoring*: Monitor active connections, memory usage, etc.
@@ -465,7 +465,7 @@ All configuration files are stored under `~/.kortty/`:
 ├── coding-agents/      # User overrides for coding-agent detection rules
 ├── master.key          # Master password salt and verification hash
 ├── kortty.log          # Log file
-├── history/            # Terminal history (compressed)
+├── history/            # Project screen snapshots (gzip)
 ├── plugins/            # Imported terminal-effect plugin JARs
 ├── bundled-plugins/    # Runtime copies of bundled exportable terminal-effect plugin JARs
 ├── projects/           # Project files (.kortty)
@@ -751,21 +751,21 @@ KorTTY can automatically log terminal sessions for audit and debugging purposes:
 === Features
 
 * *Automatic Logging*: Log all terminal output to files
-* *Compressed Storage*: Logs are stored compressed in `~/.kortty/history/`
+* *Compressed Storage*: Closed log files are gzip-compressed (on by default) in the connection's log folder, or in `~/.kortty/terminal-logs/` when that folder is left empty
 * *Per-Connection Configuration*: Enable/disable logging per connection
 * *Timestamped Logs*: Each session creates a timestamped log file
 
 === Usage
 
 1. *Enable Logging*:
-** When creating/editing a connection, go to "Advanced" tab
-** Enable "Terminal Logging"
-** Logs are automatically saved to `~/.kortty/history/`
+** When creating/editing a connection, go to the "Terminal Logging" tab
+** Enable "Log terminal output to file"
+** Logs are saved to the chosen log folder, or to `~/.kortty/terminal-logs/` by default
 
 2. *Log Files*:
-** Logs are stored as compressed files
-** Format: `{connection-name}_{timestamp}.log.gz`
-** Located in `~/.kortty/history/`
+** Closed log files are stored compressed (gzip, on by default)
+** Format: `<date>-<time>-<server>_<number>`, for example `2026-08-04-14-30-12-web01_1.log.gz`
+** Located in the connection's log folder (default `~/.kortty/terminal-logs/`)
 
 == Connection Settings
 
