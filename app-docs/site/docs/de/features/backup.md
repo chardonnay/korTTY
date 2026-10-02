@@ -38,9 +38,9 @@ Das Backup umfasst:
 | GPG-Schlüssel | Öffentliche GPG-Schlüssel für die Backup-Verschlüsselung |
 | Einstellungen | Globale Anwendungseinstellungen, Terminalkonfigurationen, Themen und KI-Profile |
 | JobScheduler-Jobs | Alle geplanten Jobs, Hostschlüssel-Pins und verschlüsselten Sudo-Passwörter |
-| Snippets | Code-Snippets und Skript-Vorlagen mit Metadaten, deren Verzeichnisstruktur, Dateinamen und ausführbare Flags |
+| Snippets | Code-Snippets und Skriptvorlagen mit Metadaten |
 | Snippet-Variablen | Benutzerdefinierte Variablen für die Snippet-Ersetzung |
-| Snippet-Analysen | Die gespeicherten [Vollständigen Code-Analysen](snippets.md#vollstandige-code-analyse) aller Snippets und aller [analyseierten Verzeichnisse](snippets.md#ein-ordner-als-ein-projekt-analysieren), inklusive ihrer Anwendungsläufe, Diagramme und vorgeschlagenen Modulierungen |
+| Snippet-Analysen | Die gespeicherten [Vollcodeanalysen](snippets.md#vollstandige-code-analyse) jedes Snippets und jedes [analysierten Ordners](snippets.md#ordner-als-ein-projekt-analysieren), mit ihren Apply-Läufen, Diagrammen und Modularisierungsvorschlägen |
 | KI-Chats | Gespeicherte KI-Gesprächsverläufe und -Profile |
 | Lokale KI-Konfiguration | Lokale GGUF-Registrierungen und eingegebene Starteinstellungen, Text-/Codierungsrollen, bevorzugte Laufzeit-Backend-/Update-Richtlinie und verschlüsseltes Hugging Face-Token |
 | Wissensspeicherkonfiguration | Speichermetadaten und Quellpfade, Filter, Synchronisierungsmodi und Einbettungskonfiguration; nicht die HNSW-Vektoren |
