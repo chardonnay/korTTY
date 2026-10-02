@@ -762,8 +762,8 @@
 <h2 id="sftp-manager-offnen">SFTP-Manager öffnen<a class="headerlink" href="#sftp-manager-offnen" title="Permanent link">&para;</a></h2>
 <p>Sie können den SFTP-Manager auf zwei Arten öffnen:</p>
 <ul>
-<li><strong>Menü:</strong> Extras &gt; SFTP-Manager öffnen</li>
-<li><strong>Dashboard:</strong> Klicken Sie mit der rechten Maustaste auf eine Verbindung &gt; „SFTP-Manager öffnen“"</li>
+<li><strong>Menü:</strong> <em>Verbindungen → SFTP-Client...</em> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-u">U</kbd></span>, unter macOS <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-u">U</kbd></span>). Mit einem verbundenen Terminal-Tab vor sich öffnet es für den Server dieses Tabs; andernfalls wählen Sie zuerst eine Verbindung.</li>
+<li><strong>Dashboard:</strong> Rechtsklick auf eine verbundene Sitzung &gt; <strong>SFTP-Client...</strong></li>
 </ul>
 <p>Wenn die Verbindung einen temporären SSH-Schlüssel verwendet, der abgelaufen ist, werden Sie aufgefordert, einen neuen Schlüssel einzugeben, bevor die Verbindung fortgesetzt werden kann.</p>
 <h2 id="schnittstelle">Schnittstelle<a class="headerlink" href="#schnittstelle" title="Permanent link">&para;</a></h2>
@@ -806,7 +806,7 @@
 </tr>
 <tr>
 <td><strong>Größe</strong></td>
-<td>Dateigröße in lesbarer Form (Verzeichnisse zeigen — an)</td>
+<td>Dateigröße im menschenlesbaren Format (Verzeichnisse zeigen —); die Sortierung verwendet die exakte Byteanzahl, mit Ordnern zuerst</td>
 </tr>
 <tr>
 <td><strong>Datum</strong></td>
@@ -835,7 +835,13 @@
 <li><strong>Dateien, die mit „.“</strong> beginnen (z. B. <code>.bashrc</code>) – alphabetisch</li>
 <li><strong>Alle anderen Dateien</strong> – alphabetisch</li>
 </ol>
-<p>Klicken Sie auf eine beliebige Spaltenüberschrift, um nach dieser Spalte zu sortieren. Durch erneutes Klicken auf die Spalte „Typ“ wird zwischen aufsteigender und absteigender Reihenfolge umgeschaltet.</p>
+<p>Klicken Sie auf eine beliebige Spaltenüberschrift, um nach dieser Spalte zu sortieren. Durch erneutes Klicken der Typ-Spalte wird zwischen aufsteigender und absteigender Reihenfolge umgeschaltet. Das übergeordnete Verzeichnis (<code>..</code>) bleibt immer oben, unabhängig von Spalte und Richtung der Sortierung.</p>
+<h2 id="durchsuchen-des-servers">Durchsuchen des Servers<a class="headerlink" href="#durchsuchen-des-servers" title="Permanent link">&para;</a></h2>
+<p>Remote-Ordner werden im Hintergrund gelesen, sodass das Fenster auch bei Ordnern mit Zehntausenden von Einträgen reaktionsfähig bleibt. Während ein Ordner geladen wird, überdeckt ein <strong>Wird geladen…</strong>-Indikator die Remote-Liste. Das Pfadfeld und die Liste wechseln erst in den neuen Ordner, wenn er gelesen wurde; falls das Lesen fehlschlägt (Ordner existiert nicht oder Sie haben keine Rechte), wird ein Fehler angezeigt und der Ordner, in dem Sie sich befanden, bleibt bestehen.</p>
+<p>Geben Sie einen Pfad in das Remote-<strong>Pfad</strong>-Feld ein und drücken <span class="keys"><kbd class="key-enter">Enter</kbd></span>, um dorthin zu gelangen. <code>~</code> und <code>~/…</code> stehen für Ihr Login-Verzeichnis auf dem Server, und ein Pfad ohne führendes <code>/</code> wird relativ zum angezeigten Ordner interpretiert; <code>..</code> und <code>.</code> werden aufgelöst, sodass <code>../logs</code> den Geschwisterordner <code>logs</code> öffnet.</p>
+<h2 id="verbindung-verloren">Verbindung verloren<a class="headerlink" href="#verbindung-verloren" title="Permanent link">&para;</a></h2>
+<p>Wenn der Server oder das Netzwerk die Sitzung beendet, zeigt die Statusleiste <strong>Getrennt von</strong> <em>host</em> mit einer Schaltfläche <strong>Neu verbinden</strong>, und die Remote-Aktionen sind deaktiviert. Wenn die Verbindung ohne Mitteilung des Servers abbricht, führt die erste Remote-Aktion, die Sie versuchen (Refresh, Upload, Download usw.), wieder denselben Zustand aus, anstatt nichts zu tun.</p>
+<p><strong>Neu verbinden</strong> öffnet eine neue Sitzung mit denselben Anmeldeinformationen und listet den Ordner auf, in dem Sie sich befanden. Der Hostschlüssel des Servers wird wie bei der ersten Verbindung geprüft: ein unveränderter Schlüssel verbindet ohne Aufforderung, ein geänderter Schlüssel bleibt blockiert.</p>
 <h2 id="dateioperationen">Dateioperationen<a class="headerlink" href="#dateioperationen" title="Permanent link">&para;</a></h2>
 <p>Der SFTP-Manager unterstützt eine umfassende Palette an Dateioperationen:</p>
 <table>
@@ -864,7 +870,7 @@
 </tr>
 <tr>
 <td><strong>Kopieren</strong></td>
-<td>Dateien innerhalb desselben Panels kopieren</td>
+<td>Dateien innerhalb desselben Panels kopieren (eine lokale Kopie läuft im Hintergrund). Ein remote Ordner, der in einen Ordner mit demselben Namen kopiert wird, wird dort zusammengeführt; das Kopieren eines Elements auf sich selbst oder in einen seiner eigenen Unterordner wird mit einem Fehler verweigert</td>
 </tr>
 <tr>
 <td><strong>Im Snippet-Editor bearbeiten</strong></td>
@@ -884,6 +890,15 @@
 </tr>
 </tbody>
 </table>
+<h3 id="dateien-und-ordner-hochladen">Dateien und Ordner hochladen<a class="headerlink" href="#dateien-und-ordner-hochladen" title="Permanent link">&para;</a></h3>
+<p><strong>Hochladen</strong> kopiert die ausgewählten lokalen Dateien und Ordner in den entfernten Ordner, der angezeigt wurde, als Sie <strong>Hochladen</strong> geklickt haben; das Durchsuchen anderer Orte während es läuft ändert das Ziel nicht. <strong>Hochladen</strong> bleibt deaktiviert, bis der erste entfernte Ordner aufgelistet wurde, weil der Server <code>~</code> selbst nicht erweitert.</p>
+<ul>
+<li><strong>Das erneute Hochladen eines Ordners führt zu einer Zusammenführung</strong> in den bestehenden entfernten Ordner: Dateien mit demselben Namen werden ersetzt, andere entfernte Dateien bleiben erhalten.</li>
+<li><strong>Dateien werden gestreamt</strong>, sodass ihre Größe nicht durch den Speicher begrenzt ist; Dateien größer als 2 GB werden wie jede andere hochgeladen.</li>
+<li>Wenn die Verbindung während eines Uploads oder Downloads abbricht, stoppt der Rest des Batches mit einem <strong>Getrennt</strong>-Status statt eines Fehlers pro Datei.</li>
+</ul>
+<h3 id="berechtigungen">Berechtigungen<a class="headerlink" href="#berechtigungen" title="Permanent link">&para;</a></h3>
+<p>Das Berechtigungsfeld von <strong>Besitzer/Berechtigungen setzen</strong> und des Remote-Archivdialogs akzeptiert genau drei Oktalziffern, wie <code>755</code> oder <code>644</code>; lassen Sie es leer (oder unverändert), um den aktuellen Modus beizubehalten. Alles andere lässt das Dialogfeld mit einem Fehler offen, sodass kein anderer Text jemals <code>chmod</code> erreicht.</p>
 <h3 id="bearbeiten-von-dateien-mit-dem-snippet-editor">Bearbeiten von Dateien mit dem Snippet-Editor<a class="headerlink" href="#bearbeiten-von-dateien-mit-dem-snippet-editor" title="Permanent link">&para;</a></h3>
 <p>Die Aktion <strong>Im Snippet-Editor bearbeiten</strong> ist nur für eine einzelne ausgewählte Datei aktiviert. Es ist deaktiviert für:</p>
 <ul>
