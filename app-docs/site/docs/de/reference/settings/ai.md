@@ -62,7 +62,7 @@ Die gleichen Felder werden im **KI > KI-Manager > Profile** bearbeitet, wo das g
 | Prompt-Optimierung | Dropdown | Automatisch (Modellerkennung), Allgemein, Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, GPT-OSS | Automatisch | (Profilfeld `promptPreset`) |
 | Reasoning | Dropdown | Deaktiviert, Keine, Minimal, Niedrig, Mittel, Hoch, Extra hoch | Deaktiviert | (Profilfeld `reasoningEffort`) |
 | Bild-Eingabe (Vision) | Dropdown | Automatisch (erkennen), Aktiviert, Deaktiviert | Automatisch (erkennen) | (Profilfeld `visionSupport`) |
-| Internetzugriff | Dropdown | Deaktiviert, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio-Toolpack | Deaktiviert | (Profilfeld `internetAccessMode`) |
+| Internetzugriff | dropdown | Deaktiviert, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio Toolpack (gesperrt auf Deaktiviert, mit Hinweis, für eine native Anthropic Messages API URL) | Deaktiviert | (Profil `internetAccessMode` Feld) |
 | API-Schlüssel (optional) | Text | (Passwortfeld) | — | (Profilfeld `encryptedApiKey`) |
 | Maximale Zeichen | Zahl | 1–50.000.000 | 100.000 | (Profilfeld `maxSelectionChars`) |
 | Zeitlimit für dieses Profil | Kontrollkästchen + Zahl | Eigenes Zeitlimit aus = globales Zeitlimit folgen; ein: 0–1440 Minuten (0 = niemals abgelaufen) | Aus | (Profilfeld `requestTimeoutMinutes`) |
@@ -195,6 +195,8 @@ Die Anmeldeinformationen werden verschlüsselt und sicher gespeichert. Verwenden
     native API, das ein eingebettetes Modell niemals durchläuft – die Auswahl eines auf einem eingebetteten Profil
     falscht die Anfrage mit einer expliziten Nachricht statt stumm ohne Webzugriff zu antworten.
     Lokale CLI-Profile verfügen über keine Internet-Modi; das Dropdown-Menü ist für sie deaktiviert.
+
+    Native Anthropic Messages API-Profile (eine API-URL, die mit `/v1/messages` endet) haben ebenfalls keine Internet-Modi, weil korTTY keine Web-Tools an diese API sendet: das Dropdown ist auf **Deaktiviert** festgelegt, und ein Hinweis darunter erklärt warum. Ein von einer früheren Version gespeicherter Modus wird als **Deaktiviert** angezeigt, wenn das Profil geöffnet wird und hat keinen Einfluss auf Anfragen.
 
     Eine Organisation kann den Web-Zugriff vollständig verbieten, indem sie den `allow-internet`-Policy-Schlüssel verwendet — siehe
     [Enterprise-Politik](../enterprise-policy.md).

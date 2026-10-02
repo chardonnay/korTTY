@@ -290,6 +290,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final ComboBox<de.kortty.model.AiVisionMode> aiVisionCombo;
     private final Button aiRefreshReasoningButton;
     private final ComboBox<AiInternetAccessMode> aiInternetAccessModeCombo;
+    /** Shown below the internet combo while a native Anthropic Messages URL locks it to Disabled. */
+    private final Label aiInternetUnsupportedHintLabel;
     private final PasswordField aiApiKeyField;
     private final CheckBox aiClearApiKeyCheck;
     private final ComboBox<AiCliProviderDescriptor> aiCliProviderCombo;
@@ -2434,6 +2436,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiApiUrlField.textProperty().addListener((obs, oldValue, newValue) -> {
             refreshAiReasoningOptions(aiReasoningCombo.getValue());
             refreshLocalAiModels(false);
+            // Typing or pasting an Anthropic Messages URL locks the internet mode at once.
+            updateAiInternetAccessUi();
         });
         aiModelCombo.getEditor().textProperty().addListener((obs, oldValue, newValue) ->
             refreshAiReasoningOptions(aiReasoningCombo.getValue()));
@@ -2452,6 +2456,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             }
         });
         aiEditorGrid.add(aiInternetAccessModeCombo, 1, aiRow++);
+        aiInternetUnsupportedHintLabel = new Label(I18n.get("settings.ai.internet.anthropicUnsupported"));
+        aiInternetUnsupportedHintLabel.setWrapText(true);
+        aiInternetUnsupportedHintLabel.setStyle(MutedTextStyle.HINT);
+        aiInternetUnsupportedHintLabel.setVisible(false);
+        aiInternetUnsupportedHintLabel.setManaged(false);
+        aiEditorGrid.add(aiInternetUnsupportedHintLabel, 1, aiRow++);
 
         aiEditorGrid.add(new Label(I18n.get("settings.ai.apiKey")), 0, aiRow);
         aiApiKeyField = new PasswordField();
@@ -2666,6 +2676,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             } finally {
                 loadingAiProfile = false;
             }
+            // A stored native Anthropic profile with an internet mode (from before the lock) shows
+            // Disabled; the profile keeps that value when it is saved.
+            updateAiInternetAccessUi();
         });
         if (!aiProfiles.isEmpty()) {
             aiProfileListView.getSelectionModel().selectFirst();
@@ -5416,9 +5429,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiApiUrlField.setDisable(localMode);
         aiApiKeyField.setDisable(localMode);
         aiClearApiKeyCheck.setDisable(localMode || (aiApiKeyField.getText() != null && !aiApiKeyField.getText().isBlank()));
-        // Never re-enable what the policy locked: this refresh runs on every connection-mode change.
-        aiInternetAccessModeCombo.setDisable(localMode
-            || de.kortty.policy.PolicyManager.effective().isManaged(de.kortty.policy.ManagedSetting.AI_INTERNET));
+        updateAiInternetAccessUi();
         aiRefreshModelsButton.setDisable(localMode || !LocalLmModelResolver.canListModels(trimToNull(aiApiUrlField.getText())));
         aiRefreshReasoningButton.setDisable(selectedAiProfile == null);
         aiCliProviderCombo.setDisable(!cliMode);
@@ -5433,6 +5444,32 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         } else {
             aiCliStatusLabel.setText("");
         }
+    }
+
+    /**
+     * Same rule as the AI Manager ({@link AiManagerDialog#internetAccessLockedToDisabled}): the
+     * internet combo is off for local profiles and policy-managed settings, and a native Anthropic
+     * Messages profile is locked to Disabled with a hint, because its service sends no tools.
+     */
+    private void updateAiInternetAccessUi() {
+        if (aiInternetAccessModeCombo == null || aiInternetUnsupportedHintLabel == null) {
+            return;
+        }
+        AiConnectionMode mode = aiConnectionModeCombo != null ? aiConnectionModeCombo.getValue() : null;
+        boolean localMode = mode == AiConnectionMode.LOCAL_CLI || (mode != null && mode.isEmbedded());
+        String apiUrl = aiApiUrlField != null ? aiApiUrlField.getText() : null;
+        boolean lockedToDisabled = AiManagerDialog.internetAccessLockedToDisabled(mode, apiUrl);
+        // Never re-enable what the policy locked: this refresh runs on every connection-mode change.
+        aiInternetAccessModeCombo.setDisable(localMode
+            || lockedToDisabled
+            || de.kortty.policy.PolicyManager.effective().isManaged(de.kortty.policy.ManagedSetting.AI_INTERNET));
+        AiInternetAccessMode current = aiInternetAccessModeCombo.getValue();
+        // Not mid-load: the combo and URL may still belong to the previously selected profile.
+        if (lockedToDisabled && !loadingAiProfile && current != null && current.isEnabled()) {
+            aiInternetAccessModeCombo.setValue(AiInternetAccessMode.DISABLED);
+        }
+        aiInternetUnsupportedHintLabel.setVisible(lockedToDisabled);
+        aiInternetUnsupportedHintLabel.setManaged(lockedToDisabled);
     }
 
     private void refreshAiCliStatus() {
