@@ -758,17 +758,17 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="teamarbeit-gemeinsame-verbindungen">Teamarbeit (gemeinsame Verbindungen)<a class="headerlink" href="#teamarbeit-gemeinsame-verbindungen" title="Permanent link">&para;</a></h1>
-<p>Teilen Sie SSH-Verbindungen mit Ihrem Team, indem Sie sie aus einem Git-Repository oder einer freigegebenen Datei synchronisieren. Teamwork-Quellen werden zusammen mit Ihren lokalen Verbindungen in den Connection-Manager geladen, automatisch synchronisiert und sicher von Inline-Passwörtern befreit, sodass Anmeldeinformationen nur aus Ihrem lokalen verschlüsselten Speicher stammen.</p>
+<p>Teilen Sie SSH-Verbindungen mit Ihrem Team, indem Sie sie aus einem Git-Repository oder einer gemeinsamen Datei synchronisieren. Teamwork-Quellen werden zusammen mit Ihren lokalen Verbindungen in den Connection-Manager geladen, automatisch synchron gehalten und sicher von Inline-Passwörtern bereinigt, sodass die Anmeldedaten ausschließlich aus Ihrem lokalen verschlüsselten Speicher stammen. Die Synchronisation erfolgt einseitig: korTTY liest von einer Quelle und schreibt niemals zurück.</p>
 <p><img alt="Teamwork sync" src="../assets/diagrams/teamwork-sync-flow.svg" /></p>
 <h2 id="ubersicht">Übersicht<a class="headerlink" href="#ubersicht" title="Permanent link">&para;</a></h2>
 <p>Teamwork ermöglicht es Teams, eine zentrale Bibliothek von Verbindungskonfigurationen zu verwalten:</p>
 <ul>
 <li><strong>Git-Repositorys</strong> – Klonen Sie ein Git-Repository, das eine <code>kortty-teamwork-connections.xml</code>-Datei (oder eine ältere Datei <code>connections.xml</code>) enthält, und bleiben Sie mit diesem synchron.</li>
-<li><strong>Gemeinsame Dateien</strong> — Verbindungen aus einem lokalen oder Netzwerkpfad laden (nur zum Lesen oder zum Lesen-und-Schreiben).</li>
+<li><strong>Gemeinsame Dateien</strong> — Verbindungen aus einem lokalen oder Netzwerkpfad laden. korTTY liest die Datei nur.</li>
 <li><strong>Automatischer Synchronisierung</strong> — Hintergrund-Synchronisierung in einem konfigurierbaren Intervall überprüft nach Aktualisierungen.</li>
 <li><strong>Sicherheit der Anmeldeinformationen</strong> — Gemeinsame Verbindungen enthalten keine Passwörter direkt; lediglich Anmeldeinformationen-IDs und SSH-Schlüssel-Referenzen.</li>
 <li><strong>Local-Überwachungen</strong> — Ihre lokalen Anmeldeinformationen und SSH-Schlüssel werden mit den gemeinsamen Verbindungsbestimmungen kombiniert.</li>
-<li><strong>Schreibgeschützter Modus</strong> — Quellen als schreibgeschützt markieren, um versehentliches Zurückschreiben zu verhindern.</li>
+<li><strong>Einweg-Synchronisation</strong> — korTTY pusht nie in ein Repository oder schreibt in eine gemeinsame Datei. Gemeinsame Verbindungen werden in der Quelle selbst geändert und kommen mit der nächsten Synchronisation.</li>
 </ul>
 <h2 id="einrichten-von-teamwork-quellen">Einrichten von Teamwork-Quellen<a class="headerlink" href="#einrichten-von-teamwork-quellen" title="Permanent link">&para;</a></h2>
 <p>Öffnen Sie <strong>Teamarbeit → Teamarbeit-Einstellungen…</strong> (oder <strong>Konfiguration → Globale Einstellungen… → Teamarbeit</strong>) zur Konfiguration der Quellen.</p>
@@ -782,7 +782,6 @@
 <li>Für Git: die Klon-URL.</li>
 <li>Für freigegebene Dateien: ein lokaler/Netzwerk-Dateipfad (kann ein file://-URI oder ein UNC-Pfad sein).</li>
 <li>Legen Sie das <strong>Prüfintervall</strong> fest (1–1440 Minuten; Standard: 15).</li>
-<li>Aktivieren Sie optional <strong>Schreibgeschützt</strong>, um Rückschreibvorgänge zu verhindern (nur Git-Quellen).</li>
 <li>Klicken Sie zum Speichern auf <strong>OK</strong>.</li>
 </ol>
 <h3 id="quellen-verwalten">Quellen verwalten<a class="headerlink" href="#quellen-verwalten" title="Permanent link">&para;</a></h3>
@@ -827,16 +826,16 @@
 <li>Alle N Minuten (basierend auf dem Mindestintervall zwischen aktivierten Quellen) geschieht Folgendes:</li>
 <li>Zieht/klont jede Quelle (Git) oder liest die Datei (Shared File).</li>
 <li>Lädt die XML-Verbindungen.</li>
-<li>Führt die Ergebnisse im Cache und im Connection-Manager zusammen.</li>
+<li>Ersetzt die zwischengespeicherte Kopie jeder abgerufenen Quelle und aktualisiert den Connection-Manager.</li>
 <li>Wenn eine Quellaktualisierung fehlschlägt, wird die vorherige zwischengespeicherte Version beibehalten.</li>
 </ol>
 <h3 id="manuelle-synchronisierung">Manuelle Synchronisierung<a class="headerlink" href="#manuelle-synchronisierung" title="Permanent link">&para;</a></h3>
 <p>Verwenden Sie <strong>Teamwork → Teamwork-Einstellungen…</strong> und klicken Sie auf <strong>OK</strong>, um sofort eine Synchronisierung auszulösen.</p>
-<h3 id="konflikterkennung">Konflikterkennung<a class="headerlink" href="#konflikterkennung" title="Permanent link">&para;</a></h3>
+<h3 id="versionsverfolgung">Versionsverfolgung<a class="headerlink" href="#versionsverfolgung" title="Permanent link">&para;</a></h3>
 <p>Bei jeder Synchronisierung wird ein Versionstoken aufgezeichnet:
 - <strong>Git</strong> – Der aktuelle Commit-Hash.
 - <strong>Freigegebene Datei</strong> – Der zuletzt geänderte Zeitstempel der Datei.</p>
-<p>Wenn sich das Versionstoken einer gemeinsam genutzten Verbindung zwischen Synchronisierungen ändert, wurde eine neue Version abgerufen. Wenn Sie lokale Änderungen an einer Teamwork-Verbindung vorgenommen haben und die Quelle mit einer widersprüchlichen Änderung aktualisiert wird, bleiben die lokalen Änderungen erhalten (kein automatisches Überschreiben).</p>
+<p>Wenn sich das Versions-Token einer gemeinsamen Verbindung zwischen Synchronisationen ändert, wurde eine neue Version abgerufen. Bei jeder erfolgreichen Synchronisation ersetzt korTTY seine zwischengespeicherte Kopie der Quelle durch die gerade abgerufene Version; es werden keine lokalen Änderungen zusammengeführt. Für eine Git-Quelle setzt korTTY sein eigenes Klon auf den Remote-Branch zurück, sodass alles, was innerhalb dieses Klons geändert wurde, verworfen wird. Lokale Überschreibungen betreffen ausschließlich Anmeldeinformationen und SSH-Schlüssel (siehe <a href="#lokale-uberschreibungen">Lokale Überschreibungen</a>).</p>
 <h2 id="gemeinsam-genutztes-verbindungsdateiformat">Gemeinsam genutztes Verbindungsdateiformat<a class="headerlink" href="#gemeinsam-genutztes-verbindungsdateiformat" title="Permanent link">&para;</a></h2>
 <p>Erstellen Sie eine <code>kortty-teamwork-connections.xml</code>-Datei (oder <code>connections.xml</code> für Abwärtskompatibilität) im Stammverzeichnis Ihres Git-Repositorys oder Ihrer freigegebenen Datei:</p>
 <div class="language-xml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="cp">&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span>
@@ -864,18 +863,20 @@
 <p>Sobald eine Quelle synchronisiert ist:</p>
 <ol>
 <li>Öffnen Sie <strong>Verbindungen verwalten…</strong> (oder drücken Sie <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-m">M</kbd></span>).</li>
-<li>Teamwork-Verbindungen werden in der Baumstruktur mit der Bezeichnung <strong>[Teamwork]</strong> und ihrer Quell-ID angezeigt.</li>
-<li>Klicken Sie auf eine Teamwork-Verbindung, um sie anzuzeigen oder zu verwenden.</li>
-<li><strong>Kann nicht direkt bearbeitet werden</strong> – Teamwork-Verbindungen sind schreibgeschützt, es sei denn, ihre Quelle ist als beschreibbar markiert und Sie besitzen Bearbeitungsrechte (bestimmt durch <code>teamworkRole</code>).</li>
+<li>Wechseln Sie zum Tab <strong>Teamwork-Verbindungen</strong>.</li>
+<li>Doppelklicken Sie auf eine Teamwork-Verbindung, um sich zu verbinden.</li>
+<li><strong>Nur lesen</strong> — Teamwork-Verbindungen sind nur lesbar, und korTTY schreibt niemals Änderungen zurück in eine Quelle. Um eine geteilte Verbindung zu ändern, bearbeiten Sie sie im Repository oder der gemeinsamen Datei; die Änderung wird mit dem nächsten Sync übernommen.</li>
 </ol>
+<p>Das Löschen einer Teamwork-Verbindung versteckt sie nur auf diesem Computer; die Quelle wird nicht geändert. In der Schaltflächenspalte des Connection-Manager <strong>Gelöschte wiederherstellen</strong> bringt versteckte Verbindungen zurück und <strong>Aktualisieren</strong> lädt die Liste aus dem letzten Sync neu, ohne die Quelle erneut abzurufen.</p>
 <h3 id="lokale-uberschreibungen">Lokale Überschreibungen<a class="headerlink" href="#lokale-uberschreibungen" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Die zusammengeführten Anmeldeinformationen und SSH-Schlüsselreferenzen werden aus Ihrem lokalen Speicher aufgelöst.</li>
+<li>Die Referenzen für Anmeldeinformationen und SSH-Schlüssel (<code>credentialId</code>, <code>sshKeyId</code>) einer geteilten Verbindung werden aus Ihrem lokalen Speicher aufgelöst.</li>
+<li>Für geteilte Verbindungen, die keines von beiden angeben, wählen Sie <strong>Anmeldung für alle Teamwork-Verbindungen</strong> auf dem Tab <strong>Teamwork-Verbindungen</strong>: eine gespeicherte Anmeldeinformation, einen SSH-Key oder <strong>Temporärer SSH-Key</strong>. Eine gespeicherte Anmeldeinformation, die einen Benutzernamen enthält, verwendet diesen; für einen SSH-Key oder einen temporären Key ersetzt ein optionaler <strong>Standard-Benutzername (SSH-Schlüssel)</strong> den Benutzernamen aus der Quelle.</li>
 <li>Wenn lokal keine Anmeldeinformationen oder Schlüssel gefunden werden, werden Sie beim Herstellen der Verbindung aufgefordert, diese anzugeben.</li>
-<li>Ihre lokale Kopie einer Teamwork-Verbindung kann die Authentifizierung außer Kraft setzen, indem sie andere Anmeldeinformationen oder Schlüssel zuweist.</li>
+<li>Nur die Authentifizierung, einschließlich des Benutzernamens, kann lokal überschrieben werden. Host, Port, Gruppe und die übrigen Verbindungsparameter stammen immer aus der Quelle.</li>
 </ul>
 <h3 id="quellen-unterscheiden">Quellen unterscheiden<a class="headerlink" href="#quellen-unterscheiden" title="Permanent link">&para;</a></h3>
-<p>Im Connection-Manager werden Teamwork-Verbindungen anhand ihrer Quell-ID gekennzeichnet. Bewegen Sie den Mauszeiger über die Verbindungseigenschaften oder überprüfen Sie sie, um zu sehen, von welcher Teamwork-Quelle sie stammt.</p>
+<p>Verbindungen von jeder aktivierten Quelle erscheinen zusammen auf dem Tab <strong>Teamwork-Verbindungen</strong>, sortiert nach den in den gemeinsamen Dateien definierten Gruppen. Der Tab zeigt nicht an, aus welcher Quelle eine Verbindung stammt; geben Sie jeder Quelle eigene Gruppennamen, wenn Ihr Team sie unterscheiden muss.</p>
 <h2 id="git-repository-setup">Git-Repository-Setup<a class="headerlink" href="#git-repository-setup" title="Permanent link">&para;</a></h2>
 <p>So teilen Sie Verbindungen über Git:</p>
 <ol>
@@ -896,8 +897,8 @@
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>├── .gitignore
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>└── README.md
 </span></code></pre></div>
-<h3 id="optional-versionen-in-git-speichern">Optional: Versionen in Git speichern<a class="headerlink" href="#optional-versionen-in-git-speichern" title="Permanent link">&para;</a></h3>
-<p>Verwenden Sie den Commit-Hash als Versionstoken, damit KorTTY Updates erkennen kann:</p>
+<h3 id="versionstoken">Versionstoken<a class="headerlink" href="#versionstoken" title="Permanent link">&para;</a></h3>
+<p>korTTY verwendet automatisch den Commit-Hash des überwachten Branches als Versionstoken. Um zu sehen, welche Version Ihr Team verwendet, führen Sie aus:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>git<span class="w"> </span>log<span class="w"> </span>-1<span class="w"> </span>--pretty<span class="o">=</span>%H
 </span></code></pre></div>
 <h2 id="einrichtung-einer-freigegebenen-datei">Einrichtung einer freigegebenen Datei<a class="headerlink" href="#einrichtung-einer-freigegebenen-datei" title="Permanent link">&para;</a></h2>
@@ -905,7 +906,7 @@
 <ol>
 <li>Exportieren Sie Ihre Verbindungen in eine Datei: <strong>Verbindungen → Exportieren… → Verbindungen auswählen → Speichern als <code>.xml</code></strong>.</li>
 <li>Platzieren Sie die Datei auf einem freigegebenen Netzwerkpfad (z. B. <code>//server/share/connections.xml</code>).</li>
-<li>Legen Sie die Lese-/Schreibberechtigungen nach Bedarf fest.</li>
+<li>Geben Sie Teammitgliedern Lesezugriff auf die Datei. korTTY liest sie nur, daher benötigt ausschließlich derjenige, der die Datei pflegt, Schreibzugriff.</li>
 <li>Teammitglieder fügen den Dateipfad unter <strong>Teamwork → Teamwork-Einstellungen… → Hinzufügen</strong> hinzu.</li>
 </ol>
 <h3 id="beispielpfade">Beispielpfade<a class="headerlink" href="#beispielpfade" title="Permanent link">&para;</a></h3>
@@ -942,11 +943,11 @@
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Dateiberechtigungen</p>
-<p>Beschränken Sie den Lese-/Schreibzugriff für freigegebene Dateien auf Netzwerkpfaden nur auf Teammitglieder. Stellen Sie sicher, dass der Pfad nicht allgemein lesbar ist.</p>
+<p>Für gemeinsam genutzte Dateien auf Netzwerkpfaden geben Sie nur Teammitgliedern Lesezugriff und nur demjenigen, der die Datei pflegt, Schreibzugriff. Stellen Sie sicher, dass der Pfad nicht für alle lesbar ist. Wer die Datei ändern oder in den überwachten Git-Branch pushen kann, entscheidet, welche Hosts, Sprungserver und Tunnel die geteilten Verbindungen auf jedem Computer des Teammitglieds verwenden.</p>
 </div>
 <div class="admonition tip">
 <p class="admonition-title">Prüfpfad</p>
-<p>Für Git-basierte Teamarbeit bietet der Commit-Verlauf einen Prüfpfad. Überprüfen Sie die Änderungen, bevor Sie sie abrufen, indem Sie den Remote-Zweig überprüfen.</p>
+<p>Für die Git-basierte Zusammenarbeit liefert der Commit-Verlauf eine Prüfliste. korTTY übernimmt, was immer sich im verfolgten Branch bei der nächsten Synchronisation befindet, sodass Sie Änderungen prüfen, bevor sie in diesen Branch gepusht werden.</p>
 </div>
 <h2 id="fehlerbehebung">Fehlerbehebung<a class="headerlink" href="#fehlerbehebung" title="Permanent link">&para;</a></h2>
 <h3 id="quelle-wird-nicht-synchronisiert">Quelle wird nicht synchronisiert<a class="headerlink" href="#quelle-wird-nicht-synchronisiert" title="Permanent link">&para;</a></h3>
@@ -964,12 +965,6 @@
 <li>Öffnen Sie <strong>Sicherheit → Anmeldeinformationen…</strong> und <strong>Sicherheit → SSH-Schlüssel…</strong>.</li>
 <li>Stellen Sie sicher, dass die Anmeldeinformations-IDs oder SSH-Schlüssel-IDs in den gemeinsam genutzten Verbindungen lokal vorhanden sind.</li>
 <li>Wenn sie fehlen, fügen Sie sie manuell hinzu oder bitten Sie Ihren Teamadministrator, die IDs bereitzustellen.</li>
-</ol>
-<h3 id="anderungen-konnen-nicht-an-das-git-repository-ubertragen-werden">Änderungen können nicht an das Git-Repository übertragen werden<a class="headerlink" href="#anderungen-konnen-nicht-an-das-git-repository-ubertragen-werden" title="Permanent link">&para;</a></h3>
-<ol>
-<li>Stellen Sie sicher, dass die Git-URL SSH oder ein HTTPS-Token verwendet (nicht Benutzername/Passwort).</li>
-<li>Stellen Sie sicher, dass Ihr SSH-Schlüssel bei der Fernbedienung registriert ist (GitHub, GitLab usw.).</li>
-<li>Markieren Sie in den <strong>Teamwork-Einstellungen</strong> die Quelle als <strong>Schreibgeschützt</strong>, wenn Sie nicht zurückschreiben müssen.</li>
 </ol>
 <h3 id="dateipfad-wird-nicht-erkannt-windowsunc">Dateipfad wird nicht erkannt (Windows/UNC)<a class="headerlink" href="#dateipfad-wird-nicht-erkannt-windowsunc" title="Permanent link">&para;</a></h3>
 <p>Verwenden Sie Schrägstriche oder das URI-Format „file://“:</p>
