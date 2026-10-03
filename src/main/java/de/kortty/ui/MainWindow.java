@@ -11072,6 +11072,14 @@ public class MainWindow {
         });
         reloadAfterBackupImport("GPG keys", () -> app.getGpgKeyManager().load());
         reloadAfterBackupImport("global settings", () -> app.getGlobalSettingsManager().load());
+        // The highlighting service compiled the rule sets of the settings object just replaced: without
+        // this, the menus and open panes would keep the old sets and default until the next save.
+        reloadAfterBackupImport("keyword highlighting", () -> {
+            TerminalHighlightService highlightService = app.getTerminalHighlightService();
+            if (highlightService != null && !highlightService.isClosed()) {
+                highlightService.reload(app.getGlobalSettingsManager().getSettings());
+            }
+        });
         reloadAfterBackupImport("themes", () -> {
             if (app.getThemeManager() != null) {
                 app.getThemeManager().load();

@@ -72,6 +72,17 @@ class HighlightSettingsWiringTest {
     }
 
     @Test
+    void aRestoredBackupReachesTheHighlightingService() throws IOException {
+        String reload = region(source("MainWindow.java"), "private void reloadStoresAfterBackupImport() {", "\n    }\n");
+
+        int settings = reload.indexOf("reloadAfterBackupImport(\"global settings\"");
+        int highlighting = reload.indexOf("highlightService.reload(app.getGlobalSettingsManager().getSettings());");
+        assertThat(settings).isAtLeast(0);
+        assertWithMessage("the restored rule sets and default must replace the compiled ones")
+            .that(highlighting).isGreaterThan(settings);
+    }
+
+    @Test
     void theMainWindowResyncsItsToggleAfterASave() throws IOException {
         String settings = region(source("MainWindow.java"), "private void showSettings() {", "dialog.showAndWait();");
 
