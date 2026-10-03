@@ -65,11 +65,13 @@ class PastePacingWiringTest {
             + "            }\n"
             + "            if (isEventTargetWithinAgentActivityPanel(event)) {");
         String hold = body(view, "private boolean holdKeyWhilePacingPaste(KeyEvent event) {");
-        assertThat(hold).contains("if (pasteInputHold.isIdle()) {");
+        assertThat(hold).contains("if (pasteInputHold.isIdle() ||");
         // Only keys aimed inside a pane; the fallback to the focused pane would catch the agent panel too.
         assertThat(hold).contains("findWidgetContainingNode(target)");
         assertThat(hold).doesNotContain("resolveWidgetForKeyEvent");
-        assertThat(hold).contains("return pasteInputHold.filter(widget, event);");
+        assertThat(hold).contains("return pasteInputHold.filter(findWidgetContainingNode(target), event);");
+        assertWithMessage("keys for the find bar never reach the session, and its Esc closes the bar")
+            .that(hold).contains("isInsideTextInput(target)");
     }
 
     @Test

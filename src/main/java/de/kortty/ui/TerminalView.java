@@ -3898,16 +3898,17 @@ public class TerminalView extends BorderPane {
 
     /**
      * Holds a key aimed at a pane that is pacing a paste (see {@link PasteInputHold}). Only keys whose
-     * target lies inside a pane count; keys for the agent panel or other controls pass.
+     * target lies inside a pane count; keys for the agent panel or other controls pass, and so do
+     * keys for a text field inside the pane, such as the find bar: they never reach the session, and
+     * Esc there closes the find bar instead of stopping the paste.
      *
      * @return whether the key was consumed
      */
     private boolean holdKeyWhilePacingPaste(KeyEvent event) {
-        if (pasteInputHold.isIdle()) {
+        if (pasteInputHold.isIdle() || !(event.getTarget() instanceof Node target) || isInsideTextInput(target)) {
             return false;
         }
-        SithTermFxWidget widget = event.getTarget() instanceof Node target ? findWidgetContainingNode(target) : null;
-        return pasteInputHold.filter(widget, event);
+        return pasteInputHold.filter(findWidgetContainingNode(target), event);
     }
 
     private @Nullable SithTermFxWidget resolveWidgetForKeyEvent(@Nullable KeyEvent event) {
