@@ -699,8 +699,13 @@ public class FileEditorTab extends Tab {
         
         // Now remove this tab
         tabPane.getTabs().remove(this);
+        // Closed like with the tab's close button, which a plain removal is not: onClosed disposes
+        // the editor, and a tab restored from a project closes the SFTP session it opened for itself.
+        if (getOnClosed() != null) {
+            javafx.event.Event.fireEvent(this, new javafx.event.Event(Tab.CLOSED_EVENT));
+        }
     }
-    
+
     /**
      * Shows the find/replace panel.
      */
@@ -1506,8 +1511,19 @@ public class FileEditorTab extends Tab {
      * Used by snippet management to insert code snippets.
      */
     public void insertTextAtCursor(String text) {
+        insertTextAtCursor(text, -1);
+    }
+
+    /**
+     * Inserts text at the current cursor position and, when {@code caretOffset} is not negative,
+     * moves the caret to that offset within the inserted text (a snippet's {@code ${cursor}}).
+     */
+    public void insertTextAtCursor(String text, int caretOffset) {
         if (text == null || text.isEmpty()) return;
         int caretPos = codeArea.getCaretPosition();
         codeArea.insertText(caretPos, text);
+        if (caretOffset >= 0) {
+            codeArea.moveTo(caretPos + Math.min(caretOffset, text.length()));
+        }
     }
 }

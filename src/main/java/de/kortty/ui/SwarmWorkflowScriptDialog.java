@@ -185,6 +185,15 @@ public final class SwarmWorkflowScriptDialog {
                 profile != null ? profile.getId() : null,
                 profile != null ? profile.getName() : null,
                 query, buildHosts(connections), null, null);
+            // Offer to unlock before starting, like the single-server workflow dialog, instead of
+            // failing on the worker thread with a dead-end "vault locked" message.
+            Window unlockOwner = dialog.getDialogPane().getScene() != null
+                ? dialog.getDialogPane().getScene().getWindow() : null;
+            if (new WorkflowScriptGenerator(KorTTYApplication.getInstance()).requiresVaultUnlock(data.profileId())
+                && !VaultUnlockSupport.offerUnlock(unlockOwner, I18n.get("ai.workflow.error.vaultLocked"))) {
+                status.setText(I18n.get("ai.workflow.error.vaultLocked"));
+                return;
+            }
 
             generateButton.setDisable(true);
             busyIndicator.setVisible(true);
@@ -223,8 +232,13 @@ public final class SwarmWorkflowScriptDialog {
                 busyIndicator.setVisible(false);
                 busyIndicator.setManaged(false);
                 Throwable error = task.getException();
-                status.setText(error != null && error.getMessage() != null
-                    ? error.getMessage() : I18n.get("ai.result.error"));
+                if (error instanceof WorkflowScriptGenerator.GenerationException ge
+                    && ge.kind() == WorkflowScriptGenerator.FailureKind.VAULT_LOCKED) {
+                    status.setText(I18n.get("ai.workflow.error.vaultLocked"));
+                } else {
+                    status.setText(error != null && error.getMessage() != null
+                        ? error.getMessage() : I18n.get("ai.result.error"));
+                }
                 generateButton.setDisable(false);
                 activeTask.compareAndSet(task, null);
             });

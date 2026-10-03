@@ -28,7 +28,7 @@ KorTTY is organized into distinct functional modules. The diagram below groups t
 | **core** | SSH connectivity, shared interactive host-key trust, session management, AI integration, terminal automation | `SshTtyConnector`, `SshHostKeyTrustManager`, `AiChatManager`, `TerminalAgentService`, `Mosh4jTtyConnector` |
 | **ai** | Signed model/prompt catalog, Hugging Face metadata/downloads, embedded llama.cpp and MLX runtimes, and signed runtime packages | `AiCatalogService`, `HuggingFaceClient`, `LlamaRuntimeManager`, `LlamaRuntimePackageInstaller`, `EmbeddedMlxAiService`, `MlxRuntimeLocator` |
 | **rag** | Safe source scanning, extraction, chunking, embeddings, vector stores, synchronization, and bounded retrieval | `RagSourceScanner`, `RagSourceSynchronizer`, `LocalHnswStore`, `RagRuntimeService` |
-| **ui** | JavaFX user interface, dialogs, terminal views, SFTP manager | `TerminalView`, `TerminalTab`, `ConnectionEditDialog`, `SFTPManagerDialog`, `SnippetEditDialog` |
+| **ui** | JavaFX user interface, dialogs, terminal views, SFTP manager | `TerminalView`, `TerminalTab`, `ConnectionEditDialog`, `SFTPManagerTab`, `SnippetEditDialog` |
 | **model** | Domain objects for connections, credentials, snippets, jobs | `ServerConnection`, `StoredCredential`, `Snippet`, `JobSchedule` |
 | **jobscheduler** | Background job scheduling and execution | `JobSchedulerService`, `JobSchedulerJobRunner`, `JobJournalEntry` |
 | **security** | Master password, encryption/decryption, password vault | `MasterPasswordManager`, `EncryptionService`, `PasswordVault` |
@@ -166,7 +166,7 @@ The UI layer is built on JavaFX and organized into logical components:
 | `MainWindow` | Top-level application window containing menu bar, tab bar, terminal panes, dashboard, SFTP browser |
 | `TerminalPane` | Single terminal tab with split-pane support and inline AI activity panel |
 | `ConnectionDialog` | Multi-tab editor for connection details (SSH, tunnels, jump server, logging, etc.) |
-| `SFTPManagerDialog` | Dual-panel file manager for local and remote file operations |
+| `SFTPManagerTab` | Dual-panel file manager tab for local and remote file operations |
 | `SnippetEditor` | Monaco-powered code editor with syntax highlighting, AI assistance, and Mermaid flowcharts |
 | `LocalModelManagerPane` | Searches/downloads/imports GGUF files and controls concurrent llama.cpp sidecars |
 | `RagKnowledgeStorePane` | Creates knowledge stores, previews sources, displays persisted indexing state, synchronizes them, and runs retrieval tests |
@@ -184,7 +184,7 @@ The UI layer is built on JavaFX and organized into logical components:
 
 ### Host Key Verification
 
-- **Interactive Terminal/SFTP/Mosh bootstrap**: One shared TOFU verifier is keyed by normalized host name and port. First use shows the OpenSSH SHA-256 fingerprint with **No** as the default; an exact match is silent, while a changed key is hard-blocked without retry.
+- **Interactive Terminal/SFTP/Mosh bootstrap**: One shared TOFU verifier is keyed by normalized host name and port. First use shows the OpenSSH SHA-256 fingerprint with **No** as the default; an exact match is silent, while a changed key is hard-blocked without retry. Only a connection the user opened in a terminal tab or the SFTP manager may replace a changed key, after an explicit fingerprint confirmation and as a compare-and-swap against the reviewed key; background callers build their verifier with the never-replace policy.
 - **Interactive storage**: `ssh-host-keys.properties` stores public-key material through an atomic replacement guarded by both in-process and cross-process locks. Its transient `.lock` companion is not backed up.
 - **JobScheduler**: Unattended SSH, SFTP, and Rsync use separate connection-ID-based pins in `job-scheduler.xml`, including OpenSSH public-key material needed by Rsync. A per-job override can disable that verification only when the risk is explicitly accepted.
 

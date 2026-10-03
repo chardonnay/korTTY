@@ -115,6 +115,33 @@ public final class SessionJournalReplacer {
         return result;
     }
 
+    /**
+     * Applies every rule like {@link #apply} and reports how many matches were replaced. Each rule
+     * is counted against the text the previous rules left, so the count is what really changed.
+     */
+    public RedactionResult applyCounting(String text) {
+        if (text == null || text.isEmpty() || rules.isEmpty()) {
+            return RedactionResult.unchanged(text);
+        }
+        String result = text;
+        int total = 0;
+        for (Compiled compiled : rules) {
+            int matches = countMatches(compiled.pattern(), result);
+            if (matches == 0) {
+                continue;
+            }
+            Matcher matcher = compiled.pattern().matcher(result);
+            try {
+                result = matcher.replaceAll(compiled.replacement());
+            } catch (RuntimeException e) {
+                result = matcher.replaceAll(Matcher.quoteReplacement(compiled.rule().replacement()));
+                warnOnce(compiled, e);
+            }
+            total += matches;
+        }
+        return new RedactionResult(result, total);
+    }
+
     /** How many matches the rules find in this text — used for the dialog's dry run. */
     public int countMatches(String text) {
         if (text == null || text.isEmpty() || rules.isEmpty()) {
@@ -122,13 +149,19 @@ public final class SessionJournalReplacer {
         }
         int total = 0;
         for (Compiled compiled : rules) {
-            Matcher matcher = compiled.pattern().matcher(text);
-            while (matcher.find()) {
-                total++;
-                // A zero-width match would otherwise spin forever on the same index.
-                if (matcher.end() == matcher.start() && !matcher.hitEnd()) {
-                    matcher.region(matcher.end() + 1, text.length());
-                }
+            total += countMatches(compiled.pattern(), text);
+        }
+        return total;
+    }
+
+    private static int countMatches(Pattern pattern, String text) {
+        Matcher matcher = pattern.matcher(text);
+        int total = 0;
+        while (matcher.find()) {
+            total++;
+            // A zero-width match would otherwise spin forever on the same index.
+            if (matcher.end() == matcher.start() && !matcher.hitEnd()) {
+                matcher.region(matcher.end() + 1, text.length());
             }
         }
         return total;

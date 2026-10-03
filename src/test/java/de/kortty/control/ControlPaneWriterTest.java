@@ -160,6 +160,52 @@ class ControlPaneWriterTest {
     }
 
     @Test
+    void textIsTypedInThePanesTerminalEncoding() throws Exception {
+        // A Latin-1 SSH pane: "é" must arrive as E9, exactly as a keystroke would send it, not C3 A9.
+        surface.setCharset(PANE, StandardCharsets.ISO_8859_1);
+        boolean[] inHop = {false};
+        surface.setInUiHop(() -> inHop[0]);
+        writer = new ControlPaneWriter(surface, new UiDispatcher() {
+            @Override
+            public <T> CompletableFuture<T> submit(Supplier<T> task) {
+                inHop[0] = true;
+                try {
+                    return CompletableFuture.completedFuture(task.get());
+                } finally {
+                    inHop[0] = false;
+                }
+            }
+
+            @Override
+            public boolean isUiThread() {
+                return inHop[0];
+            }
+        }, (verb, pane, detail) -> audit.add(verb + " " + pane + " " + detail));
+
+        WriteResult text = writer.sendText(PANE, "é\nü", true, "always", false);
+        assertThat(surface.written(PANE)).isEqualTo(new byte[] {
+            0x1b, '[', '2', '0', '0', '~', (byte) 0xE9, '\r', (byte) 0xFC, 0x1b, '[', '2', '0', '1', '~', '\r'});
+        assertThat(text.bytesWritten()).isEqualTo(16);
+
+        writer.run(PANE, "ß");
+        writer.sendKeys(PANE, List.of("ä", "enter"));
+        byte[] all = surface.written(PANE);
+        assertThat(java.util.Arrays.copyOfRange(all, 16, all.length))
+            .isEqualTo(new byte[] {(byte) 0xDF, '\r', (byte) 0xE4, '\r'});
+        // Asked inside the UI hop, together with the write, so a reconnect cannot slip in between.
+        assertThat(surface.calls()).contains("charsetOf(inHop=true)");
+        assertThat(surface.calls()).doesNotContain("charsetOf(inHop=false)");
+    }
+
+    @Test
+    void aPaneWithoutItsOwnEncodingIsTypedInUtf8() throws Exception {
+        writer.sendText(PANE, "é", false, "never", false);
+        writer.sendKeys(PANE, List.of("ä"));
+
+        assertThat(surface.written(PANE)).isEqualTo("éä".getBytes(StandardCharsets.UTF_8));
+    }
+
+    @Test
     void anUnknownKeyNameIsASyntaxErrorNotAnInternalError() {
         ControlApiException failure =
             expectThrows(ControlApiException.class, () -> writer.sendKeys(PANE, List.of("hyperspace")));

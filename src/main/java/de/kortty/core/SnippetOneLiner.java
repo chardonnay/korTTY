@@ -380,6 +380,8 @@ public final class SnippetOneLiner {
 
     /**
      * Removes {@code #} shell comments outside single- and double-quoted segments (double quotes honor {@code \} escapes).
+     * Like the shell, a {@code #} only starts a comment at the beginning of a word, so {@code $#},
+     * {@code ${#array[@]}}, {@code ${name##prefix}} and {@code a#b} are kept.
      */
     static String stripCommentsShellLine(String line) {
         if (line == null || line.isEmpty()) {
@@ -418,7 +420,7 @@ public final class SnippetOneLiner {
                 }
                 continue;
             }
-            if (c == '#') {
+            if (c == '#' && (i == 0 || " \t;&|()<>".indexOf(line.charAt(i - 1)) >= 0)) {
                 break;
             }
             out.append(c);

@@ -979,6 +979,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         modified.setRetryCount(retrySpinner.getValue());
         modified.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : selected.getProtocol());
         applySelectedTerminalEmulation(modified, selected);
+        modified.setEncoding(selected.getEncoding());
         modified.setLogConfig(new de.kortty.model.TerminalLogConfig(selected.getLogConfig()));
         modified.setSessionJournalConfig(
             new de.kortty.model.SessionJournalConfig(selected.getSessionJournalConfig()));

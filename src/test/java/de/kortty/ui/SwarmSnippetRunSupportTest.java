@@ -6,8 +6,10 @@ import de.kortty.core.swarm.SwarmSnippetExecutor;
 import de.kortty.model.Snippet;
 import org.testng.annotations.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Base64;
 import java.util.List;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -54,7 +56,33 @@ class SwarmSnippetRunSupportTest {
         Path dir = Files.createTempDirectory("kortty-swarm-snippet-missing-var");
         try {
             SnippetManager snippetManager = new SnippetManager(dir);
+            SnippetVariableManager variableManager = new SnippetVariableManager(dir);
             Snippet snippet = new Snippet("Needs variable", "echo ${target}", "bash");
+            snippet.setId("snippet-1");
+            snippetManager.addSnippet(snippet);
+            // Declared, but asked for every time: a swarm run cannot ask.
+            variableManager.addOrUpdate("target", "");
+
+            try {
+                new SwarmSnippetRunSupport(snippetManager, variableManager).prepare(snippet, List.of());
+                throw new AssertionError("expected SnippetRunBlockedException");
+            } catch (SwarmSnippetRunSupport.SnippetRunBlockedException e) {
+                assertThat(e.messageKey()).isEqualTo("ai.swarm.script.error.variable");
+                assertThat(e.args()[0]).isEqualTo("${target}");
+            }
+        } finally {
+            Files.deleteIfExists(dir.resolve("snippets.xml"));
+            Files.deleteIfExists(dir.resolve("snippet-variables.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void undeclaredSimpleNameStillBlocks() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-swarm-snippet-undeclared");
+        try {
+            SnippetManager snippetManager = new SnippetManager(dir);
+            Snippet snippet = new Snippet("Clean target", "rm -rf \"${target}/\"", "bash");
             snippet.setId("snippet-1");
             snippetManager.addSnippet(snippet);
 
@@ -63,9 +91,36 @@ class SwarmSnippetRunSupportTest {
                     .prepare(snippet, List.of());
                 throw new AssertionError("expected SnippetRunBlockedException");
             } catch (SwarmSnippetRunSupport.SnippetRunBlockedException e) {
-                assertThat(e.messageKey()).isEqualTo("ai.swarm.script.error.variable");
-                assertThat(e.args()[0]).isEqualTo("${target}");
+                assertThat(e.messageKey()).isEqualTo("ai.swarm.script.error.undeclared");
+                assertThat(e.args()).asList().containsExactly("${target}", "$${target}").inOrder();
             }
+        } finally {
+            Files.deleteIfExists(dir.resolve("snippets.xml"));
+            Files.deleteIfExists(dir.resolve("snippet-variables.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void undeclaredShellExpansionIsNotBlocked() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-swarm-snippet-shell-forms");
+        try {
+            SnippetManager snippetManager = new SnippetManager(dir);
+            Snippet snippet = new Snippet("Shell forms",
+                "echo \"${HOME}\" \"${USER}\" \"${1:-def}\" ${#arr[@]} ${v%%.*} $${HOSTNAME}", "bash");
+            snippet.setId("snippet-1");
+            snippetManager.addSnippet(snippet);
+
+            SwarmSnippetRunSupport.PreparedRun prepared =
+                new SwarmSnippetRunSupport(snippetManager, new SnippetVariableManager(dir))
+                    .prepare(snippet, List.of());
+
+            String command = prepared.command();
+            int start = command.indexOf('\'');
+            String script = new String(
+                Base64.getDecoder().decode(command.substring(start + 1, command.indexOf('\'', start + 1))),
+                StandardCharsets.UTF_8);
+            assertThat(script).isEqualTo("echo \"${HOME}\" \"${USER}\" \"${1:-def}\" ${#arr[@]} ${v%%.*} ${HOSTNAME}");
         } finally {
             Files.deleteIfExists(dir.resolve("snippets.xml"));
             Files.deleteIfExists(dir.resolve("snippet-variables.xml"));

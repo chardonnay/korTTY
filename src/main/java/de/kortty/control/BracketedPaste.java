@@ -2,6 +2,7 @@ package de.kortty.control;
 
 import de.kortty.codingagent.KeyChordEncoder;
 import java.io.ByteArrayOutputStream;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
@@ -53,12 +54,23 @@ public final class BracketedPaste {
      * @return a fresh array, never shared with {@link #START} or {@link #END}
      */
     public static byte[] encode(String text, boolean bracketed, boolean submit) {
+        return encode(text, bracketed, submit, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * {@link #encode(String, boolean, boolean)} with the payload in {@code charset}, the pane's
+     * terminal encoding. The markers and the carriage return are ASCII in every encoding korTTY
+     * offers; a character {@code charset} cannot represent becomes {@code ?}, as when it is typed.
+     *
+     * @param charset the pane's encoding; UTF-8 when null
+     */
+    public static byte[] encode(String text, boolean bracketed, boolean submit, Charset charset) {
         String payload = text == null ? "" : text.replace("\r\n", "\n").replace('\n', '\r');
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         if (bracketed) {
             out.writeBytes(START);
         }
-        out.writeBytes(payload.getBytes(StandardCharsets.UTF_8));
+        out.writeBytes(payload.getBytes(charset != null ? charset : StandardCharsets.UTF_8));
         if (bracketed) {
             out.writeBytes(END);
         }

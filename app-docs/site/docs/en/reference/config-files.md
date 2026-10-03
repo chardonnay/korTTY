@@ -61,6 +61,7 @@ Contains all saved SSH connections with their settings.
 - Terminal appearance overrides (font, colors, size)
 - SSH tunnels and jump server configuration
 - Optional per-connection SSH host-key verification override (verify, don't verify, or inherit)
+- Optional per-connection character encoding (`encoding`; missing means the default — see [Terminal → Encoding](settings/terminal.md#notes))
 - Terminal effect plugins and animation speed
 - Connection-specific terminal logging settings
 - Per-connection session journal settings (enable, capture typed input, AI summaries, summary interval)
@@ -100,7 +101,7 @@ Manages centralized SSH key storage.
 
 ### ssh-host-keys.properties
 
-The versioned trust-on-first-use store for interactive Terminal and SFTP connections and the SSH bootstrap used by Mosh. Entries are keyed by normalized host name and port and contain the public-key algorithm, OpenSSH SHA-256 fingerprint, OpenSSH public-key line, and trust timestamp. A matching key is accepted silently after first-use confirmation; a changed key is hard-blocked and is not replaced automatically. When host-key verification is relaxed to accept-new for a connection, an unknown key is pinned without the confirmation prompt — a changed key is still refused in both modes.
+The versioned trust-on-first-use store for interactive Terminal and SFTP connections and the SSH bootstrap used by Mosh. Entries are keyed by normalized host name and port and contain the public-key algorithm, OpenSSH SHA-256 fingerprint, OpenSSH public-key line, and trust timestamp. A matching key is accepted silently after first-use confirmation; a changed key is hard-blocked and is not replaced automatically. Entries are replaced through **Review and Replace…** in the changed-key alert and removed under **Configuration → Security → Known Hosts…**; removing the last entry deletes the file, which counts as an empty store. When host-key verification is relaxed to accept-new for a connection, an unknown key is pinned without the confirmation prompt — a changed key is still refused in both modes.
 
 Writes use a temporary file plus atomic replacement, while `ssh-host-keys.properties.lock` coordinates separate korTTY processes so their pins are merged safely. The properties file is included in encrypted backups; the transient lock file is not. This endpoint-based store is separate from the JobScheduler host-key pins in `job-scheduler.xml`, which are keyed by connection ID for unattended operations.
 
@@ -139,6 +140,7 @@ Global application preferences and defaults.
 
 #### Terminal and connections
 
+- Default terminal encoding for SSH connections, and `terminalEncodingConfirmed`, which records that a value stored by an older version has been saved again and applies (see [Terminal → Encoding](settings/terminal.md#notes))
 - Terminal logging defaults
 - Terminal effect plugin defaults
 - SSH keep-alive settings

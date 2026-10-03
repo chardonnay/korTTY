@@ -10,6 +10,7 @@ import de.kortty.core.SnippetExecutableSupport;
 import de.kortty.core.SnippetFolderLayout;
 import de.kortty.core.SnippetManager;
 import de.kortty.core.SnippetOneLiner;
+import de.kortty.core.SnippetPlaceholderResolver;
 import de.kortty.core.SnippetTextFileImport;
 import de.kortty.core.SnippetVariableManager;
 import de.kortty.model.GPGKey;
@@ -1218,167 +1219,153 @@ final class SnippetLibraryPane extends BorderPane {
     private record TerminalParameterInput(String resolvedText, List<String> arguments) {
     }
 
-    private record TerminalParameterDialogResult(Map<String, String> variableValues, List<String> arguments) {
+    /** What a variable dialog returned: the values entered for this use and the names to remember. */
+    private record VariablePromptResult(Map<String, String> values, Set<String> remember) {
     }
-    
+
+    private record TerminalParameterDialogResult(VariablePromptResult variables, List<String> arguments) {
+    }
+
+    /** One row of a variable dialog: the name, the text its field starts with, and whether Remember starts ticked. */
+    private record VariableRow(String name, String initialValue, boolean rememberInitially) {
+    }
+
+    private static SnippetVariableManager variableManager() {
+        KorTTYApplication app = KorTTYApplication.getInstance();
+        return app != null ? app.getSnippetVariableManager() : null;
+    }
+
     /**
-     * Resolves built-in and custom variables without opening a dialog: stored custom values are used,
-     * any other custom placeholder is replaced with an empty string.
+     * Resolves a snippet for Copy, Insert into editor and Send to Terminal: built-ins and declared
+     * variables are replaced, a declared variable without a stored value is asked for, and every
+     * other {@code ${...}} stays as written. Returns {@code null} when the user cancels the dialog.
      */
-    private String resolveForTerminalWithoutPrompt(Snippet snippet) {
-        SnippetManager.ResolvedSnippet resolved = snippetManager.resolveBuiltInVariables(snippet.getContent());
-        String text = resolved.text();
-        List<String> customVars = snippetManager.findCustomVariables(text);
-        if (!customVars.isEmpty()) {
-            SnippetVariableManager varManager = KorTTYApplication.getInstance().getSnippetVariableManager();
-            Map<String, String> values = new LinkedHashMap<>();
-            for (String varName : customVars) {
-                String stored = varManager != null ? varManager.getValue(varName) : null;
-                values.put(varName, stored != null ? stored : "");
+    private SnippetPlaceholderResolver.ResolvedSnippet resolveAndPrompt(Snippet snippet) {
+        SnippetVariableManager varManager = variableManager();
+        String content = snippet.getContent();
+        List<VariableRow> missing = new ArrayList<>();
+        for (String name : snippetManager.declaredVariables(content, varManager)) {
+            if (varManager.getValue(name) == null) {
+                missing.add(new VariableRow(name, "", false));
             }
-            text = snippetManager.replaceCustomVariables(text, values);
         }
+        Map<String, String> entered = Map.of();
+        if (!missing.isEmpty()) {
+            VariablePromptResult prompted = promptForVariables(missing);
+            if (prompted == null) {
+                return null;
+            }
+            entered = prompted.values();
+            rememberValues(varManager, prompted);
+        }
+        SnippetPlaceholderResolver.ResolvedSnippet resolved = snippetManager.resolve(content, varManager, entered);
+
         snippetManager.incrementUsage(snippet);
         saveQuietly();
         refreshTable(false);
-        return text;
+        return resolved;
     }
 
-    private String resolveAndPrompt(Snippet snippet) {
-        // Resolve built-in variables
-        SnippetManager.ResolvedSnippet resolved = snippetManager.resolveBuiltInVariables(snippet.getContent());
-        String text = resolved.text();
-        
-        // Check for custom variables that need interactive prompting
-        List<String> customVars = snippetManager.findCustomVariables(text);
-        if (!customVars.isEmpty()) {
-            // Pre-fill from SnippetVariableManager where possible
-            SnippetVariableManager varManager = KorTTYApplication.getInstance().getSnippetVariableManager();
-            Map<String, String> prefilledValues = new LinkedHashMap<>();
-            List<String> missingVars = new java.util.ArrayList<>();
-            
-            for (String varName : customVars) {
-                String storedValue = varManager != null ? varManager.getValue(varName) : null;
-                if (storedValue != null) {
-                    prefilledValues.put(varName, storedValue);
-                } else {
-                    missingVars.add(varName);
-                }
-            }
-            
-            // Prompt only for variables without stored values
-            if (!missingVars.isEmpty()) {
-                Map<String, String> promptedValues = promptForVariables(missingVars);
-                if (promptedValues == null) return null; // User cancelled
-                prefilledValues.putAll(promptedValues);
-                
-                // Save newly entered values back to the variable manager
-                if (varManager != null) {
-                    for (Map.Entry<String, String> entry : promptedValues.entrySet()) {
-                        if (entry.getValue() != null && !entry.getValue().isBlank()) {
-                            varManager.addOrUpdate(entry.getKey(), entry.getValue());
-                        }
-                    }
-                    try { varManager.save(); } catch (Exception e) { logger.warn("Failed to save variables", e); }
-                }
-            }
-            
-            text = snippetManager.replaceCustomVariables(text, prefilledValues);
-        }
-        
-        // Track usage
-        snippetManager.incrementUsage(snippet);
-        saveQuietly();
-        refreshTable(false);
-        
-        return text;
-    }
-
+    /**
+     * Resolves a snippet for Send to Terminal with Parameters: every declared variable the snippet
+     * uses is listed, pre-filled with its stored value and editable for this send.
+     */
     private TerminalParameterInput resolveAndPromptForTerminalParameters(Snippet snippet) {
-        SnippetManager.ResolvedSnippet resolved = snippetManager.resolveBuiltInVariables(snippet.getContent());
-        String text = resolved.text();
-
-        List<String> customVars = snippetManager.findCustomVariables(text);
-        SnippetVariableManager varManager = KorTTYApplication.getInstance().getSnippetVariableManager();
-        Map<String, String> variableValues = new LinkedHashMap<>();
-        List<String> missingVars = new ArrayList<>();
-
-        for (String varName : customVars) {
-            String storedValue = varManager != null ? varManager.getValue(varName) : null;
-            if (storedValue != null) {
-                variableValues.put(varName, storedValue);
-            } else {
-                missingVars.add(varName);
-            }
+        SnippetVariableManager varManager = variableManager();
+        String content = snippet.getContent();
+        List<VariableRow> rows = new ArrayList<>();
+        for (String name : snippetManager.declaredVariables(content, varManager)) {
+            String stored = varManager.getValue(name);
+            rows.add(new VariableRow(name, stored != null ? stored : "", stored != null));
         }
 
-        TerminalParameterDialogResult dialogResult = promptForTerminalParameters(missingVars);
+        TerminalParameterDialogResult dialogResult = promptForTerminalParameters(rows);
         if (dialogResult == null) {
             return null;
         }
+        rememberValues(varManager, dialogResult.variables());
+        String text = snippetManager.resolve(content, varManager, dialogResult.variables().values()).text();
+        return new TerminalParameterInput(text, dialogResult.arguments());
+    }
 
-        variableValues.putAll(dialogResult.variableValues());
-        if (!customVars.isEmpty()) {
-            text = snippetManager.replaceCustomVariables(text, variableValues);
+    /** Stores only the values whose Remember box was ticked; the others were used once. */
+    private void rememberValues(SnippetVariableManager varManager, VariablePromptResult result) {
+        if (varManager == null || result == null) {
+            return;
         }
-
-        if (varManager != null && !dialogResult.variableValues().isEmpty()) {
-            for (Map.Entry<String, String> entry : dialogResult.variableValues().entrySet()) {
-                if (entry.getValue() != null && !entry.getValue().isBlank()) {
-                    varManager.addOrUpdate(entry.getKey(), entry.getValue());
-                }
-            }
+        if (varManager.remember(result.values(), result.remember())) {
             try {
                 varManager.save();
             } catch (Exception e) {
                 logger.warn("Failed to save variables", e);
             }
         }
-
-        return new TerminalParameterInput(text, dialogResult.arguments());
     }
-    
-    private Map<String, String> promptForVariables(List<String> varNames) {
-        Dialog<Map<String, String>> dialog = new Dialog<>();
+
+    /**
+     * Adds one row per variable to {@code grid}: its label, a value field and a Remember check box,
+     * and collects the fields and boxes by variable name.
+     */
+    private void addVariableRows(
+            GridPane grid,
+            List<VariableRow> rows,
+            Map<String, TextField> fields,
+            Map<String, CheckBox> rememberBoxes) {
+        int row = 0;
+        for (VariableRow variable : rows) {
+            Label label = new Label("${" + variable.name() + "}:");
+            TextField field = new TextField(variable.initialValue());
+            field.setPromptText(variable.name());
+            field.setPrefWidth(300);
+            CheckBox remember = new CheckBox(I18n.get("snippets.variables.remember"));
+            remember.setSelected(variable.rememberInitially());
+            remember.setTooltip(new Tooltip(I18n.get("snippets.variables.remember.tooltip")));
+            grid.add(label, 0, row);
+            grid.add(field, 1, row);
+            grid.add(remember, 2, row);
+            fields.put(variable.name(), field);
+            rememberBoxes.put(variable.name(), remember);
+            row++;
+        }
+    }
+
+    private static VariablePromptResult collectVariables(
+            Map<String, TextField> fields, Map<String, CheckBox> rememberBoxes) {
+        Map<String, String> values = new LinkedHashMap<>();
+        Set<String> remember = new LinkedHashSet<>();
+        fields.forEach((name, field) -> {
+            values.put(name, field.getText());
+            CheckBox box = rememberBoxes.get(name);
+            if (box != null && box.isSelected()) {
+                remember.add(name);
+            }
+        });
+        return new VariablePromptResult(values, remember);
+    }
+
+    private VariablePromptResult promptForVariables(List<VariableRow> rows) {
+        Dialog<VariablePromptResult> dialog = new Dialog<>();
         dialog.setTitle(I18n.get("snippets.promptVariable"));
         dialog.initOwner(ownerWindow());
-        
-        javafx.scene.layout.GridPane grid = new javafx.scene.layout.GridPane();
+
+        GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(8);
         grid.setPadding(new Insets(10));
-        
+
         Map<String, TextField> fields = new LinkedHashMap<>();
-        int row = 0;
-        for (String varName : varNames) {
-            Label label = new Label("${" + varName + "}:");
-            TextField field = new TextField();
-            field.setPromptText(varName);
-            field.setPrefWidth(300);
-            grid.add(label, 0, row);
-            grid.add(field, 1, row);
-            fields.put(varName, field);
-            row++;
-        }
-        
+        Map<String, CheckBox> rememberBoxes = new LinkedHashMap<>();
+        addVariableRows(grid, rows, fields, rememberBoxes);
+
         dialog.getDialogPane().setContent(grid);
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-        
-        dialog.setResultConverter(bt -> {
-            if (bt == ButtonType.OK) {
-                Map<String, String> values = new LinkedHashMap<>();
-                for (Map.Entry<String, TextField> entry : fields.entrySet()) {
-                    values.put(entry.getKey(), entry.getValue().getText());
-                }
-                return values;
-            }
-            return null;
-        });
-        
+
+        dialog.setResultConverter(bt -> bt == ButtonType.OK ? collectVariables(fields, rememberBoxes) : null);
+
         return dialog.showAndWait().orElse(null);
     }
 
-    private TerminalParameterDialogResult promptForTerminalParameters(List<String> varNames) {
+    private TerminalParameterDialogResult promptForTerminalParameters(List<VariableRow> rows) {
         Dialog<TerminalParameterDialogResult> dialog = new Dialog<>();
         dialog.setTitle(I18n.get("snippets.insertTerminal.parameters.title"));
         dialog.initOwner(ownerWindow());
@@ -1387,22 +1374,12 @@ final class SnippetLibraryPane extends BorderPane {
         layout.setPadding(new Insets(10));
 
         Map<String, TextField> fields = new LinkedHashMap<>();
-        if (varNames != null && !varNames.isEmpty()) {
-            javafx.scene.layout.GridPane grid = new javafx.scene.layout.GridPane();
+        Map<String, CheckBox> rememberBoxes = new LinkedHashMap<>();
+        if (rows != null && !rows.isEmpty()) {
+            GridPane grid = new GridPane();
             grid.setHgap(10);
             grid.setVgap(8);
-
-            int row = 0;
-            for (String varName : varNames) {
-                Label label = new Label("${" + varName + "}:");
-                TextField field = new TextField();
-                field.setPromptText(varName);
-                field.setPrefWidth(300);
-                grid.add(label, 0, row);
-                grid.add(field, 1, row);
-                fields.put(varName, field);
-                row++;
-            }
+            addVariableRows(grid, rows, fields, rememberBoxes);
             layout.getChildren().add(grid);
         }
 
@@ -1416,16 +1393,10 @@ final class SnippetLibraryPane extends BorderPane {
         dialog.getDialogPane().setContent(layout);
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
 
-        dialog.setResultConverter(bt -> {
-            if (bt != ButtonType.OK) {
-                return null;
-            }
-            Map<String, String> values = new LinkedHashMap<>();
-            for (Map.Entry<String, TextField> entry : fields.entrySet()) {
-                values.put(entry.getKey(), entry.getValue().getText());
-            }
-            return new TerminalParameterDialogResult(values, parseArgumentLines(argumentsArea.getText()));
-        });
+        dialog.setResultConverter(bt -> bt == ButtonType.OK
+            ? new TerminalParameterDialogResult(
+                collectVariables(fields, rememberBoxes), parseArgumentLines(argumentsArea.getText()))
+            : null);
 
         return dialog.showAndWait().orElse(null);
     }
@@ -1447,10 +1418,10 @@ final class SnippetLibraryPane extends BorderPane {
         Snippet selected = snippetTable.getSelectionModel().getSelectedItem();
         if (selected == null) return;
         
-        String resolved = resolveAndPrompt(selected);
+        SnippetPlaceholderResolver.ResolvedSnippet resolved = resolveAndPrompt(selected);
         if (resolved == null) return;
-        
-        de.kortty.core.KorttyClipboard.setText(resolved);
+
+        de.kortty.core.KorttyClipboard.setText(resolved.text());
         
         logger.info("Snippet '{}' copied to clipboard", selected.getName());
     }
@@ -1459,9 +1430,9 @@ final class SnippetLibraryPane extends BorderPane {
         Snippet selected = snippetTable.getSelectionModel().getSelectedItem();
         if (selected == null) return;
         
-        String resolved = resolveAndPrompt(selected);
+        SnippetPlaceholderResolver.ResolvedSnippet resolved = resolveAndPrompt(selected);
         if (resolved == null) return;
-        
+
         // The file editor tab of the workspace's main window (the last selected one in tab mode,
         // where the workspace tab itself is the selected tab).
         try {
@@ -1470,7 +1441,8 @@ final class SnippetLibraryPane extends BorderPane {
             
             FileEditorTab editorTab = mainWindow.snippetInsertTarget(FileEditorTab.class);
             if (editorTab != null) {
-                editorTab.insertTextAtCursor(resolved);
+                // ${cursor} places the caret inside the inserted snippet.
+                editorTab.insertTextAtCursor(resolved.text(), resolved.cursorOffset());
                 mainWindow.revealSnippetInsertTarget(editorTab);
                 logger.info("Snippet '{}' inserted into editor", selected.getName());
             } else {
@@ -1485,10 +1457,11 @@ final class SnippetLibraryPane extends BorderPane {
         Snippet selected = snippetTable.getSelectionModel().getSelectedItem();
         if (selected == null) return;
         
-        String resolved = resolveForTerminalWithoutPrompt(selected);
-        if (resolved.isBlank()) {
+        SnippetPlaceholderResolver.ResolvedSnippet resolvedSnippet = resolveAndPrompt(selected);
+        if (resolvedSnippet == null || resolvedSnippet.text().isBlank()) {
             return;
         }
+        String resolved = resolvedSnippet.text();
 
         String rawName = selected.getName();
         String displayName = (rawName != null && !rawName.isBlank()) ? rawName.trim() : I18n.get("snippets.insertTerminal.unnamed");

@@ -130,7 +130,7 @@ The run history keeps the final screen as the output. The AI describes the scree
 
 #### Snippet Script Jobs
 
-Snippet script jobs use the selected SnippetManager entry without requiring an open terminal tab. KorTTY resolves built-in snippet variables and stored SnippetManager variables before execution. Missing snippets, missing stored variable values, and unsupported snippet languages block the job and write the reason to the journal. Additional snippet parameters are entered one per line so values with spaces are passed as single script arguments.
+Snippet script jobs use the selected SnippetManager entry without requiring an open terminal tab. KorTTY resolves the snippet's placeholders before execution with the same rules as the Snippet Manager: built-in variables and declared variables with a stored value are replaced, and shell forms such as `${1:-default}` or `${HOME}` are handed to the shell as written. Missing snippets, a declared variable without a stored value, an undeclared simple name such as `${target}` (write `$${target}` to pass it to the shell), and unsupported snippet languages block the job and write the reason to the journal; see [Scheduled and swarm runs](snippets.md#scheduled-and-swarm-runs). Additional snippet parameters are entered one per line so values with spaces are passed as single script arguments.
 
 #### AI Swarm Jobs
 

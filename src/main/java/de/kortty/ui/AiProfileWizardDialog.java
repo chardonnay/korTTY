@@ -1279,11 +1279,12 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         String keyPlain = resolveApiKeyPlain();
 
         if (keyPlain != null && !keyPlain.isBlank()) {
-            char[] master = app != null && app.getMasterPasswordManager() != null
-                ? app.getMasterPasswordManager().getMasterPassword()
-                : null;
+            // Offers Unlock Vault… when locked; null means the user has seen the locked message.
+            char[] master = VaultUnlockSupport.masterPasswordOrOfferUnlock(
+                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+                app != null ? app.getMasterPasswordManager() : null,
+                I18n.get("settings.ai.error.vaultLocked"));
             if (master == null) {
-                showAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.vaultLocked"));
                 return;
             }
             try {

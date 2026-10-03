@@ -31,9 +31,11 @@ import javafx.scene.media.MediaView;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.stage.Window;
 import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,6 +75,8 @@ public class MasterPasswordDialog {
     
     private final Stage dialog;
     private final MasterPasswordManager passwordManager;
+    /** Mid-session unlock (see {@link #forUnlock}) rather than the startup login or setup. */
+    private final boolean unlockMode;
     private final boolean matrixTerminalDesign;
     private final boolean holographicInterfaceDesign;
     private final boolean klingonTacticalDesign;
@@ -82,14 +86,38 @@ public class MasterPasswordDialog {
     private boolean result = false;
     private CheckBox telemetryConsentCheck;
     
+    /**
+     * Startup dialog: the first-run setup when no master password exists yet, otherwise the login.
+     * Cancelling it is the caller's cue to quit the application.
+     */
     public MasterPasswordDialog(Stage owner, MasterPasswordManager passwordManager) {
+        this(owner, passwordManager, false);
+    }
+
+    /**
+     * Opens the vault in the middle of a session — after a start with "Require master password on
+     * startup" turned off. Always the login form, with unlock wording; cancelling only closes it.
+     *
+     * @throws IllegalStateException when no master password has been set up, so there is nothing
+     *                               to unlock
+     */
+    public static MasterPasswordDialog forUnlock(Window owner, MasterPasswordManager passwordManager) {
+        if (passwordManager == null || !passwordManager.isPasswordSet()) {
+            throw new IllegalStateException("No master password is set up, so there is no vault to unlock.");
+        }
+        return new MasterPasswordDialog(owner, passwordManager, true);
+    }
+
+    private MasterPasswordDialog(Window owner, MasterPasswordManager passwordManager, boolean unlockMode) {
         this.passwordManager = passwordManager;
+        this.unlockMode = unlockMode;
         this.matrixTerminalDesign = AppDesignStyleSupport.isMatrixTerminalActive();
         this.holographicInterfaceDesign = AppDesignStyleSupport.isHolographicInterfaceActive();
         this.klingonTacticalDesign = AppDesignStyleSupport.isKlingonTacticalActive();
         this.elegantDarkDesign = AppDesignStyleSupport.isElegantDarkActive();
         this.customAppDesign = AppDesignStyleSupport.isCustomAppDesignActive();
-        boolean passwordSet = passwordManager.isPasswordSet();
+        // Unlock mode never takes the setup branch: forUnlock() refuses a profile without a password.
+        boolean passwordSet = unlockMode || passwordManager.isPasswordSet();
         
         dialog = new Stage();
         dialog.initModality(Modality.APPLICATION_MODAL);
@@ -112,7 +140,7 @@ public class MasterPasswordDialog {
     }
     
     private void setupLoginDialog() {
-        dialog.setTitle(I18n.get("masterPassword.title"));
+        dialog.setTitle(loginWindowTitle());
 
         if (isElegantDarkDesign()) {
             setupElegantLoginDialog();
@@ -123,9 +151,10 @@ public class MasterPasswordDialog {
         root.setPadding(new Insets(34, 38, 30, 38));
         root.setAlignment(Pos.CENTER);
         
-        Label titleLabel = new Label(I18n.get("masterPassword.enter"));
+        Label titleLabel = new Label(I18n.get(unlockMode ? "masterPassword.unlock.header" : "masterPassword.enter"));
         titleLabel.setStyle("-fx-font-size: 1.2308em; -fx-font-weight: bold;");
         styleFieldLabel(titleLabel);
+        wrapUnlockHeader(titleLabel, TextAlignment.CENTER);
         
         PasswordField passwordField = new PasswordField();
         passwordField.setPromptText(I18n.get("masterPassword.password"));
@@ -137,9 +166,9 @@ public class MasterPasswordDialog {
         styleErrorLabel(errorLabel);
         errorLabel.setVisible(false);
         
-        Button loginButton = new Button(I18n.get("masterPassword.loginButton"));
+        Button loginButton = new Button(I18n.get(unlockMode ? "masterPassword.unlockButton" : "masterPassword.loginButton"));
         loginButton.setDefaultButton(true);
-        loginButton.setPrefWidth(100);
+        sizeLoginButton(loginButton, 100);
         stylePrimaryButton(loginButton);
         installButtonHoverGlow(loginButton);
         
@@ -181,8 +210,9 @@ public class MasterPasswordDialog {
         form.setPrefWidth(318);
         HBox.setHgrow(form, Priority.ALWAYS);
 
-        Label titleLabel = new Label(I18n.get("masterPassword.enter"));
+        Label titleLabel = new Label(I18n.get(unlockMode ? "masterPassword.unlock.header" : "masterPassword.enter"));
         styleFieldLabel(titleLabel);
+        wrapUnlockHeader(titleLabel, TextAlignment.LEFT);
 
         PasswordField passwordField = new PasswordField();
         passwordField.setPromptText(I18n.get("masterPassword.password"));
@@ -203,9 +233,9 @@ public class MasterPasswordDialog {
         errorLabel.setManaged(false);
         errorLabel.visibleProperty().addListener((obs, wasVisible, isVisible) -> errorLabel.setManaged(isVisible));
 
-        Button loginButton = new Button(I18n.get("masterPassword.loginButton"));
+        Button loginButton = new Button(I18n.get(unlockMode ? "masterPassword.unlockButton" : "masterPassword.loginButton"));
         loginButton.setDefaultButton(true);
-        loginButton.setPrefWidth(156);
+        sizeLoginButton(loginButton, 156);
         stylePrimaryButton(loginButton);
         installButtonHoverGlow(loginButton);
 
@@ -265,7 +295,7 @@ public class MasterPasswordDialog {
         leftCluster.setMinWidth(168);
         leftCluster.setPrefWidth(168);
 
-        Label title = new Label(I18n.get("masterPassword.title"));
+        Label title = new Label(loginWindowTitle());
         title.getStyleClass().add("elegant-window-title");
         title.setAlignment(Pos.CENTER);
         title.setMaxWidth(Double.MAX_VALUE);
@@ -330,6 +360,31 @@ public class MasterPasswordDialog {
 
         footer.getChildren().addAll(statusBox, spacer, cipher);
         return footer;
+    }
+
+    /**
+     * The login button keeps its fixed width; the unlock label is longer in several languages
+     * ("Déverrouiller", "Desbloquear"), so in unlock mode the width is a minimum instead.
+     */
+    private void sizeLoginButton(Button loginButton, double width) {
+        if (unlockMode) {
+            loginButton.setMinWidth(width);
+        } else {
+            loginButton.setPrefWidth(width);
+        }
+    }
+
+    /** The unlock header is a sentence, longer than "Enter Master Password": wrap it, never cut it. */
+    private void wrapUnlockHeader(Label header, TextAlignment alignment) {
+        if (unlockMode) {
+            header.setWrapText(true);
+            header.setTextAlignment(alignment);
+            header.setMinHeight(Region.USE_PREF_SIZE);
+        }
+    }
+
+    private String loginWindowTitle() {
+        return I18n.get(unlockMode ? "masterPassword.unlock.title" : "masterPassword.title");
     }
 
     private void installLoginHandlers(PasswordField passwordField, Label errorLabel, Button loginButton, Button cancelButton) {
@@ -1381,7 +1436,8 @@ public class MasterPasswordDialog {
     }
     
     public boolean showAndWait() {
-        logger.info("Showing master password dialog, isPasswordSet={}", passwordManager.isPasswordSet());
+        logger.info("Showing master password dialog, isPasswordSet={}, unlockMode={}",
+            passwordManager.isPasswordSet(), unlockMode);
         dialog.showAndWait();
         logger.info("Master password dialog closed, result={}", result);
         return result;

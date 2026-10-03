@@ -90,7 +90,7 @@ Legen Sie die Schriftart und -größe des Terminals und Editors fest.
 
 ![Themes settings tab](../../assets/screenshots/settings/themes.png)
 
-Erstellen, bearbeiten und verwalten Sie Terminal-Farbthemen. Themen definieren Farben (Text, Hintergrund, Cursor, ANSI) und Stil für alle Terminalsitzungen.
+Erstellen, bearbeiten und verwalten Sie Terminal-Farbschemata. Schemata definieren die Text-, Hintergrund- und Cursorfarben sowie das Styling für alle Terminal-Sitzungen; die 16 ANSI-Farben und die Auswahlfarbe stammen aus [Farben](colors.md).
 
 ### Themenverwaltung
 

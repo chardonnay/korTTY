@@ -1177,7 +1177,7 @@
 </li>
 </ul>
 <h2 id="placeholder-variables">Placeholder variables<a class="headerlink" href="#placeholder-variables" title="Permanent link">&para;</a></h2>
-<p>Snippets can contain placeholder variables that are replaced when you insert the snippet.</p>
+<p>Snippets can contain placeholders written as <code>${name}</code>. When you copy, insert or send a snippet, korTTY replaces exactly two kinds of them: the built-in variables below and the variables declared in the <a href="#variable-manager">Variable Manager</a>. Every other <code>${...}</code> reaches the editor, the clipboard or the shell exactly as written, so shell expansions such as <code>${HOME}</code>, <code>${1:-default}</code>, <code>${#array[@]}</code> and <code>${file%%.*}</code> keep working. The same rules apply everywhere a snippet is used: copying, inserting into an editor, both terminal sends, scheduled jobs, AI Swarm script runs and script headers.</p>
 <h3 id="built-in-variables">Built-in variables<a class="headerlink" href="#built-in-variables" title="Permanent link">&para;</a></h3>
 <p>These variables are automatically replaced:</p>
 <table>
@@ -1214,18 +1214,29 @@
 </tr>
 <tr>
 <td><code>${cursor}</code></td>
-<td>Cursor position (removed from text; position returned)</td>
+<td>Where the caret goes: <strong>Insert into editor</strong> places the caret there; copying and sending remove the marker</td>
 </tr>
 </tbody>
 </table>
+<p>Built-in names are written in lower case and matched exactly, and they win over a declared variable of the same name.</p>
 <h3 id="custom-variables">Custom variables<a class="headerlink" href="#custom-variables" title="Permanent link">&para;</a></h3>
-<p>Any <code>${variableName}</code> not in the built-in list is treated as a custom variable. When you insert the snippet:</p>
+<p>A custom variable is a name declared in the Variable Manager. When a snippet uses it:</p>
 <ul>
-<li>KorTTY checks the Variable Manager for stored values</li>
-<li>Variables without stored values prompt for input</li>
+<li>If the variable has a stored value, the value is inserted without asking.</li>
+<li>If its value is empty, korTTY asks for it every time. Declare a variable with an empty value for anything that changes from one use to the next, such as a ticket number. Only a script header, which is added without a dialog, inserts such a variable as empty text.</li>
+<li>The dialog that asks has a <strong>Remember</strong> check box next to every field. It is off by default, so the value you type is used once and not stored; tick it to store the value in the Variable Manager for the next use.</li>
 </ul>
+<p>A name that is not declared is never asked for and stays as written, so declare a variable in the Variable Manager before you use it in a snippet. Declared names are matched ignoring case: a declared <code>path</code> also replaces <code>${PATH}</code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Stored values are plain text</p>
+<p>The Variable Manager keeps every value, including the ones you remember from the dialog, unencrypted in <code>~/.kortty/snippet-variables.xml</code>. Do not store or remember passwords, tokens or other secrets there.</p>
+</div>
+<h3 id="escaping-a-placeholder">Escaping a placeholder<a class="headerlink" href="#escaping-a-placeholder" title="Permanent link">&para;</a></h3>
+<p>Write <code>$${name}</code> to get the literal text <code>${name}</code>, for example for a shell variable that has the same name as a built-in (<code>$${date}</code>) or as a declared variable. The escape works for every placeholder, including <code>$${cursor}</code>. Text that must keep a literal <code>$${name}</code>, as a Makefile or a Compose file does, is written <code>$$${name}</code>.</p>
+<h3 id="scheduled-and-swarm-runs">Scheduled and swarm runs<a class="headerlink" href="#scheduled-and-swarm-runs" title="Permanent link">&para;</a></h3>
+<p>JobScheduler snippet jobs and <strong>Run script…</strong> in the AI Swarm cannot ask for a value, so two more rules keep a variable nobody answered from silently turning into empty text: a declared variable without a stored value blocks the run, and so does an undeclared simple name such as <code>${target}</code>. Shell forms such as <code>${1:-default}</code>, <code>${#array[@]}</code> and <code>${file%%.*}</code>, positional and special parameters such as <code>${1}</code> and <code>${@}</code>, and the environment variables <code>${HOME}</code>, <code>${USER}</code>, <code>${PATH}</code> and <code>${PWD}</code> pass through. Write any other shell variable with the escape, for example <code>$${HOSTNAME}</code>.</p>
 <h3 id="variable-manager">Variable Manager<a class="headerlink" href="#variable-manager" title="Permanent link">&para;</a></h3>
-<p><strong>Variables...</strong> in the Snippet Manager opens the Variable Manager, where stored values are added, edited and deleted. The add/edit dialog explains both fields: the <strong>Name</strong> is what a snippet references as <code>${name}</code>, the <strong>Value</strong> is the stored default inserted for it. Several variables can be selected at once for deleting or exporting.</p>
+<p><strong>Variables...</strong> in the Snippet Manager opens the Variable Manager, where stored values are added, edited and deleted. The add/edit dialog explains both fields: the <strong>Name</strong> is what a snippet references as <code>${name}</code>, the <strong>Value</strong> is the stored default inserted for it — leave the value empty to be asked every time. Several variables can be selected at once for deleting or exporting.</p>
 <ul>
 <li><strong>Export...</strong> — Saves the selected variables, or all variables when none is selected, as JSON, XML or YAML.</li>
 <li><strong>Import...</strong> — Reads variables from a JSON, XML or YAML file (the stored <code>snippet-variables.xml</code> can be imported directly). When imported variables already exist, you choose whether to overwrite their values or keep the existing ones.</li>
@@ -1234,15 +1245,16 @@
 <p>The Snippet Manager can send a selected snippet directly to a terminal of its main window: the selected terminal tab, or — when the Snippet Manager is itself the selected tab — the terminal tab you used last (or the only one that is open). korTTY then switches to that tab and shows <strong>Sent to …</strong> in the status bar. <strong>Insert into editor</strong> picks the file editor tab the same way.</p>
 <h3 id="send-to-terminal">Send to Terminal<a class="headerlink" href="#send-to-terminal" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Keeps existing behavior</li>
+<li>Replaces the <a href="#placeholder-variables">placeholders</a> like every other use; a declared variable without a stored value is asked for before anything is sent, and cancelling the dialog sends nothing</li>
 <li>Supported script languages are embedded as a terminal one-liner where possible</li>
 <li>Other snippets use the existing fallback path</li>
 </ul>
 <h3 id="send-to-terminal-with-parameters">Send to Terminal with Parameters<a class="headerlink" href="#send-to-terminal-with-parameters" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Opens a dialog for missing <code>${...}</code> placeholder variables and script arguments</li>
+<li>Opens a dialog with every declared variable the snippet uses, pre-filled with its stored value and editable for this send, and a field for script arguments</li>
+<li>A variable that already has a stored value starts with <strong>Remember</strong> ticked, so a changed value replaces the stored one; untick it to use the new value for this send only</li>
 <li>Script arguments are entered one per line; empty lines are ignored</li>
-<li>If you confirm without script arguments, the result is the same as <strong>Send to Terminal</strong>, but missing placeholder variables can still be filled in</li>
+<li>If you confirm without script arguments, the result is the same as <strong>Send to Terminal</strong>, with the variable values you set in the dialog</li>
 </ul>
 <h3 id="script-arguments">Script arguments<a class="headerlink" href="#script-arguments" title="Permanent link">&para;</a></h3>
 <p>Supported for Bash/shell, Python, Perl, and Ruby snippets:</p>

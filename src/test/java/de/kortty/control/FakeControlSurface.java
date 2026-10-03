@@ -2,6 +2,8 @@ package de.kortty.control;
 
 import de.kortty.codingagent.PaneRef;
 import java.io.ByteArrayOutputStream;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,6 +29,8 @@ final class FakeControlSurface implements ControlSurface {
     private final Map<String, ByteArrayOutputStream> written = new LinkedHashMap<>();
 
     private final Map<String, Boolean> bracketedPaste = new LinkedHashMap<>();
+
+    private final Map<String, Charset> charsets = new LinkedHashMap<>();
 
     private final List<String> focusedPanes = new ArrayList<>();
 
@@ -90,6 +94,10 @@ final class FakeControlSurface implements ControlSurface {
 
     void setBracketedPaste(String paneId, boolean enabled) {
         bracketedPaste.put(paneId, enabled);
+    }
+
+    void setCharset(String paneId, Charset charset) {
+        charsets.put(paneId, charset);
     }
 
     void setHostShortcut(Predicate<String> hostShortcut, String commandName) {
@@ -248,6 +256,12 @@ final class FakeControlSurface implements ControlSurface {
     public boolean isBracketedPasteEnabled(String paneId) {
         record("isBracketedPasteEnabled");
         return Boolean.TRUE.equals(bracketedPaste.get(paneId));
+    }
+
+    @Override
+    public Charset charsetOf(String paneId) {
+        record("charsetOf");
+        return charsets.getOrDefault(paneId, StandardCharsets.UTF_8);
     }
 
     @Override
