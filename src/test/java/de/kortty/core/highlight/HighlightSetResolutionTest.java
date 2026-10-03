@@ -12,7 +12,10 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-/** Which rule set a pane shows: pane choice, then connection, then global default, then none. */
+/**
+ * Which rule set a pane shows: pane choice, then connection, then global default, then none — and how
+ * a saved default, master switch and deleted set reach the panes that are already open.
+ */
 class HighlightSetResolutionTest {
 
     private static final Predicate<String> KNOWN = Set.of(HighlightBuiltinSets.ERRORS, HighlightBuiltinSets.NETWORK,
@@ -133,5 +136,90 @@ class HighlightSetResolutionTest {
         service.reload(settings);
 
         assertThat(service.resolveSetId(() -> "gone")).isEqualTo(HighlightBuiltinSets.ERRORS);
+    }
+
+    // ---- The global default, as Settings -> Terminal saves it (reload runs on every save) ----
+
+    private TerminalOutputHighlighter attach(String paneChoice) {
+        HeadlessTerminalSession session = new HeadlessTerminalSession(80, 5);
+        return service.attach(session.buffer, () -> paneChoice, () -> { }, () -> { }, () -> false);
+    }
+
+    @Test
+    void aSavedDefaultMovesEveryPaneWithoutAChoiceOfItsOwn() {
+        TerminalOutputHighlighter inheriting = attach(null);
+        TerminalOutputHighlighter chosen = attach(HighlightBuiltinSets.NETWORK);
+        TerminalOutputHighlighter switchedOff = attach(TerminalHighlightService.NONE_ID);
+        GlobalSettings settings = new GlobalSettings();
+
+        settings.setDefaultHighlightRuleSetId(HighlightBuiltinSets.ERRORS);
+        service.reload(settings);
+
+        assertThat(inheriting.ruleSet().setId()).isEqualTo(HighlightBuiltinSets.ERRORS);
+        assertThat(chosen.ruleSet().setId()).isEqualTo(HighlightBuiltinSets.NETWORK);
+        assertThat(switchedOff.ruleSet()).isSameInstanceAs(CompiledHighlightSet.NONE);
+
+        settings.setDefaultHighlightRuleSetId(HighlightBuiltinSets.NETWORK_DEVICES);
+        service.reload(settings);
+        assertThat(inheriting.ruleSet().setId()).isEqualTo(HighlightBuiltinSets.NETWORK_DEVICES);
+        assertThat(chosen.ruleSet().setId()).isEqualTo(HighlightBuiltinSets.NETWORK);
+
+        settings.setDefaultHighlightRuleSetId(null);
+        service.reload(settings);
+        assertThat(inheriting.ruleSet()).isSameInstanceAs(CompiledHighlightSet.NONE);
+        assertThat(chosen.ruleSet().setId()).isEqualTo(HighlightBuiltinSets.NETWORK);
+    }
+
+    @Test
+    void aNewPaneStartsWithTheSavedDefault() {
+        GlobalSettings settings = new GlobalSettings();
+        settings.setDefaultHighlightRuleSetId(HighlightBuiltinSets.NETWORK);
+        service.reload(settings);
+
+        assertThat(attach(null).ruleSet().setId()).isEqualTo(HighlightBuiltinSets.NETWORK);
+    }
+
+    @Test
+    void aDefaultStoredAsNoneOrBlankMeansNone() {
+        GlobalSettings settings = new GlobalSettings();
+        for (String stored : new String[] {TerminalHighlightService.NONE_ID, " none ", "", "  "}) {
+            settings.setDefaultHighlightRuleSetId(stored);
+            service.reload(settings);
+            assertThat(service.resolveSetId(() -> null)).isNull();
+        }
+    }
+
+    @Test
+    void theDefaultCanBeAUserSet() {
+        HighlightRule rule = new HighlightRule("deploy", false);
+        rule.setBold(true);
+        GlobalSettings settings = new GlobalSettings();
+        settings.setHighlightRuleSets(List.of(new HighlightRuleSet("user-7", "Deploys", List.of(rule))));
+        settings.setDefaultHighlightRuleSetId("user-7");
+        service.reload(settings);
+
+        assertThat(service.resolveSetId(() -> null)).isEqualTo("user-7");
+
+        // Deleting the set leaves the stored id behind; it then means none.
+        settings.setHighlightRuleSets(List.of());
+        service.reload(settings);
+        assertThat(service.resolveSetId(() -> null)).isNull();
+    }
+
+    @Test
+    void theMasterSwitchOffHidesTheDefaultAndOnBringsItBack() {
+        TerminalOutputHighlighter pane = attach(null);
+        GlobalSettings settings = new GlobalSettings();
+        settings.setDefaultHighlightRuleSetId(HighlightBuiltinSets.ERRORS);
+
+        settings.setTerminalHighlightingEnabled(false);
+        service.reload(settings);
+        assertThat(pane.ruleSet()).isSameInstanceAs(CompiledHighlightSet.NONE);
+        assertThat(service.isEnabled()).isFalse();
+
+        settings.setTerminalHighlightingEnabled(true);
+        service.reload(settings);
+        assertThat(pane.ruleSet().setId()).isEqualTo(HighlightBuiltinSets.ERRORS);
+        assertThat(service.isEnabled()).isTrue();
     }
 }

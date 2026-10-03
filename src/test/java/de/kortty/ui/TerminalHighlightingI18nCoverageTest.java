@@ -14,7 +14,7 @@ import org.testng.annotations.Test;
 
 /**
  * Every keyword-highlighting string exists, translated, in all eight bundles: the built-in set names,
- * the validator's messages and the menu and status texts. Placeholders must survive translation, and
+ * the validator's messages, the menu and status texts and the Settings → Terminal section. Placeholders must survive translation, and
  * an apostrophe is written once, because LanguageManager fills {0} with String.replace rather than
  * MessageFormat (a doubled apostrophe would show up doubled).
  */
@@ -38,8 +38,15 @@ class TerminalHighlightingI18nCoverageTest {
         HighlightMenuSupport.STATUS_OFF_KEY,
         HighlightMenuSupport.DISABLED_KEY);
 
-    private static List<String> requiredKeys() {
+    /** The texts a user reads, which must not stay English in a translated bundle. */
+    private static List<String> translatedKeys() {
         List<String> keys = new ArrayList<>(MENU_KEYS);
+        keys.addAll(HighlightSettingsSupport.KEYS);
+        return keys;
+    }
+
+    private static List<String> requiredKeys() {
+        List<String> keys = new ArrayList<>(translatedKeys());
         for (String id : HighlightBuiltinSets.IDS) {
             keys.add(HighlightBuiltinSets.nameKey(id));
         }
@@ -62,7 +69,8 @@ class TerminalHighlightingI18nCoverageTest {
 
     @Test
     void placeholdersSurviveTranslation() throws Exception {
-        List<String> withArgument = new ArrayList<>(List.of(HighlightMenuSupport.STATUS_ON_KEY));
+        List<String> withArgument = new ArrayList<>(List.of(HighlightMenuSupport.STATUS_ON_KEY,
+            HighlightSettingsSupport.DEFAULT_SET_UNKNOWN_KEY));
         for (String key : HighlightRuleValidator.MESSAGE_KEYS) {
             if (HighlightRuleValidator.messageArguments(key).length > 0) {
                 withArgument.add(key);
@@ -81,7 +89,7 @@ class TerminalHighlightingI18nCoverageTest {
         Properties english = loadBundle("messages.properties");
         for (String bundle : BUNDLES.subList(1, BUNDLES.size())) {
             Properties localized = loadBundle(bundle);
-            for (String key : MENU_KEYS) {
+            for (String key : translatedKeys()) {
                 assertWithMessage(bundle + " still has the English text for " + key)
                     .that(localized.getProperty(key)).isNotEqualTo(english.getProperty(key));
             }

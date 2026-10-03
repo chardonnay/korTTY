@@ -140,6 +140,29 @@ class TerminalHighlightServiceTest {
     }
 
     @Test
+    void allowingFullScreenProgramsHighlightsARunningOneWithoutNewOutput() throws Exception {
+        HeadlessTerminalSession session = new HeadlessTerminalSession(80, 5);
+        GlobalSettings settings = new GlobalSettings();
+        settings.setDefaultHighlightRuleSetId(HighlightBuiltinSets.ERRORS);
+        service.reload(settings);
+        session.terminal.useAlternateBuffer(true);
+        session.print("ERROR in a full-screen program");
+        CountDownLatch restyled = new CountDownLatch(1);
+        TerminalOutputHighlighter highlighter = service.attach(session.buffer, () -> null, () -> { },
+            restyled::countDown, () -> false);
+
+        highlighter.runPassNow();
+        assertThat(HeadlessTerminalSession.isHighlighted(session.line(0), 0)).isFalse();
+
+        // The program prints nothing more; saving the option alone must reach it.
+        settings.setTerminalHighlightAlternateScreen(true);
+        service.reload(settings);
+
+        assertThat(restyled.await(10, TimeUnit.SECONDS)).isTrue();
+        assertThat(HeadlessTerminalSession.isHighlighted(session.line(0), 0)).isTrue();
+    }
+
+    @Test
     void stopClosesEveryPaneAndRefusesNewOnes() {
         HeadlessTerminalSession session = new HeadlessTerminalSession(80, 5);
         TerminalOutputHighlighter highlighter = attach(session, new AtomicReference<>());

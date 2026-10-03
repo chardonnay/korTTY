@@ -176,7 +176,8 @@ public final class TerminalHighlightService implements AutoCloseable {
      * Reads the highlighting settings and user sets, recompiles what changed and moves every pane to
      * the set it now resolves to. A set whose rules did not change keeps its compiled instance, so
      * panes showing it are not swept again. User sets with a missing, reserved or duplicate id, and
-     * those beyond {@link HighlightRuleValidator#MAX_USER_SETS}, are ignored (logged by id).
+     * those beyond {@link HighlightRuleValidator#MAX_USER_SETS}, are ignored (logged by id). Runs at
+     * startup and every time the settings are saved, on the FX thread.
      */
     public void reload(GlobalSettings settings) {
         Catalog previous = catalog.get();
@@ -221,7 +222,7 @@ public final class TerminalHighlightService implements AutoCloseable {
         catalog.set(new Catalog(enabled, defaultSetId, alternateScreen,
             Collections.unmodifiableMap(sets), Collections.unmodifiableMap(signatures),
             Collections.unmodifiableMap(names)));
-        refreshAll();
+        refreshAll(alternateScreen != previous.alternateScreen());
     }
 
     /**
@@ -362,9 +363,18 @@ public final class TerminalHighlightService implements AutoCloseable {
         return panes.size();
     }
 
-    private void refreshAll() {
+    /**
+     * Moves every pane to the set it resolves to now. When the full-screen option changed, every pane
+     * is also marked dirty, so a full-screen program that is running now is highlighted without waiting
+     * for its next output. Highlights already drawn inside such a program stay until it redraws them.
+     */
+    private void refreshAll(boolean alternateScreenChanged) {
         for (Map.Entry<TerminalOutputHighlighter, PaneSelection> pane : panes.entrySet()) {
-            pane.getKey().setRuleSet(resolve(pane.getValue()));
+            TerminalOutputHighlighter highlighter = pane.getKey();
+            highlighter.setRuleSet(resolve(pane.getValue()));
+            if (alternateScreenChanged) {
+                highlighter.markDirty();
+            }
         }
     }
 

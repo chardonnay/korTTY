@@ -4,7 +4,7 @@ title: Terminal
 
 # Terminal
 
-Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, and SSH connection management. Open via **Configuration → Global Settings → Terminal**; stored in `~/.kortty/global-settings.xml`.
+Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, keyword highlighting, and SSH connection management. Open via **Configuration → Global Settings → Terminal**; stored in `~/.kortty/global-settings.xml`.
 
 ![Terminal settings tab](../../assets/screenshots/settings/terminal.png)
 
@@ -20,6 +20,9 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Allow drag-and-drop file copy into terminal | toggle | — | On | `terminalDragDropEnabled` |
 | Copy selection to clipboard automatically | toggle | — | On | `terminalCopyOnSelectEnabled` |
 | Close active terminal windows without confirmation | toggle | — | Off | `closeActiveTerminalWindowsWithoutConfirmation` |
+| Highlight keywords in terminal output | toggle | — | On | `terminalHighlightingEnabled` |
+| Also highlight in full-screen programs (vim, less, htop) | toggle | — | Off | `terminalHighlightAlternateScreen` |
+| Default rule set: | dropdown | None, Errors and warnings, Network addresses, Network devices | None | `defaultHighlightRuleSetId` |
 | Enable SSH Keep-Alive | toggle | — | On | `sshKeepAliveEnabled` |
 | Interval (seconds): | number | 5–600 | 60 | `sshKeepAliveInterval` |
 | Enable connection retries | toggle | — | On | `connectionRetriesEnabled` |
@@ -45,6 +48,15 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 
 !!! note "Copy selection to clipboard automatically"
     When enabled, text you select in a terminal is copied to the clipboard as soon as you select it. On Linux it also becomes the X11 primary selection, so a middle-click pastes it in other applications such as xterm or gedit. With the enterprise policy's [internal clipboard mode](../enterprise-policy.md#internal-clipboard-mode) the selection stays inside korTTY on every platform.
+
+!!! note "Keyword highlighting"
+    **Highlight keywords in terminal output** is the master switch of [keyword highlighting](../../features/highlighting.md). While it is off, no pane is highlighted, whatever was chosen in a menu, with ++ctrl+shift+h++ (++cmd+shift+h++ on macOS) or as the default rule set, and the highlighting menus are greyed out. It is on by default, but nothing is highlighted until a rule set is chosen.
+
+    **Default rule set** is the set every terminal pane shows unless you choose another one for that pane. It is **None** by default, so highlighting stays off until you opt in here, in *View → Highlighting*, in a pane's context menu or with the shortcut. A set chosen for a pane in one of those places stays on top of the default until the pane is closed, and **None** chosen there keeps that pane plain whatever the default is. If the stored default names a rule set that no longer exists, the dropdown shows it as missing and panes show no highlighting.
+
+    **Also highlight in full-screen programs** extends highlighting to programs that use the terminal's alternate screen, such as `vim`, `less` and `htop`. It is off by default because these programs redraw their screen constantly and bring their own colors, so highlights can flicker there and fight the program's colors. Switching it off leaves the highlights a running program already shows until it redraws them.
+
+    All three apply to open terminals as soon as you save.
 
 !!! note "SSH Keep-Alive"
     When enabled, korTTY sends periodic keep-alive packets to prevent SSH sessions from timing out during idle periods. The interval setting controls how often (in seconds) these packets are sent. The spinner range is 5–600 seconds; the interval is disabled if SSH Keep-Alive is toggled off.

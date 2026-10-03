@@ -3022,6 +3022,8 @@ public class MainWindow {
                 UiFontScaleSupport.invalidateAutoCache();
                 refreshAppDesignForOpenWindows();
                 syncHideFullscreenScrollbarsMenuItems();
+                // The master switch or the default set may have changed what the focused pane shows.
+                syncHighlightingToggleItems();
                 applyTerminalScrollbarVisibilityForOpenTabs();
                 syncAiFeaturesMenuItemsEnabled();
                 refreshTerminalTabsUsingGlobalDefaults();

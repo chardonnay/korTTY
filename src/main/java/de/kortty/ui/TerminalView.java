@@ -3678,16 +3678,34 @@ public class TerminalView extends BorderPane {
             if (service == null || service.isClosed() || widget.getTerminalTextBuffer() == null) {
                 return;
             }
+            boolean[] attached = {false};
             terminalHighlighters.computeIfAbsent(widget, pane -> {
                 com.sithtermfx.ui.TerminalPanel panel = pane.getTerminalPanel();
-                return service.attach(pane.getTerminalTextBuffer(),
+                TerminalOutputHighlighter highlighter = service.attach(pane.getTerminalTextBuffer(),
                     () -> paneHighlightOverride.get(pane),
                     panel != null ? panel::repaint : () -> { },
                     () -> recordRestyledTerminalRecordingSnapshot(pane),
                     () -> panel != null && panel.getFindResult() != null);
+                attached[0] = highlighter != null;
+                return highlighter;
             });
+            if (attached[0]) {
+                reportInheritedHighlightSet(service, widget);
+            }
         } catch (RuntimeException e) {
             logger.warn("Keyword highlighting could not be attached to a terminal pane: {}", e.toString());
+        }
+    }
+
+    /**
+     * A new pane that starts out showing a set got it from the global default (it has no choice of its
+     * own yet), which counts as one activation for the anonymous statistics: class and source only.
+     */
+    private void reportInheritedHighlightSet(TerminalHighlightService service, SithTermFxWidget pane) {
+        String shown = service.resolveSetId(() -> paneHighlightOverride.get(pane));
+        if (shown != null) {
+            de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.TERMINAL_HIGHLIGHT_APPLIED,
+                HighlightTelemetry.props(shown, HighlightTelemetry.SOURCE_DEFAULT));
         }
     }
 
