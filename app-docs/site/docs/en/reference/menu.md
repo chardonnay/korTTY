@@ -144,3 +144,5 @@ On macOS the packaged app keeps running in the background (so the JobScheduler c
 - **Menu-bar (status) icon** — a system-tray icon with **New Window** and **Quit**; clicking the icon opens a new window.
 
 Both provide a reliable **Quit** even when every window is closed.
+
+The menu bar at the top of the screen stays as well when you close the last window, and while no korTTY window has the focus it can still be the menu bar of a window you closed. Its entries then act in the korTTY window you used last, which comes to the front, or open a new window first when none is open: **New Tab** opens Quick Connect there, **Manage Connections...** the Connection Manager. **New Window**, **Quit**, **Prevent System Sleep** and cancelling a running job need no window. **Close Tab**, **Close All Tabs**, **Close Window**, **Cut**, **Copy** and **Paste** do nothing from the menu bar of a closed window, so they never close a tab or paste into a window you are not looking at.
