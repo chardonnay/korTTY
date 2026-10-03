@@ -365,6 +365,7 @@ pages:
       - src/main/java/de/kortty/core/SessionJournalExportFilter.java
       - src/main/java/de/kortty/core/SessionJournalLogFilter.java
       - src/main/java/de/kortty/core/SessionJournalMarkerRules.java
+      - src/main/java/de/kortty/core/DeadlineCharSequence.java
       - src/main/java/de/kortty/core/SessionJournalMarkers.java
       - src/main/java/de/kortty/core/SessionJournalPageAppearance.java
       - src/main/java/de/kortty/core/SessionJournalTopicSelector.java
@@ -453,6 +454,7 @@ pages:
     owns_i18n: [settings.controlApi., controlApi.]
     owns_code:
       - src/main/java/de/kortty/control
+      - src/main/java/de/kortty/core/DeadlineCharSequence.java
       - src/main/java/de/kortty/ui/ControlApiUiBridge.java
       - src/main/java/de/kortty/ui/ControlApiPaneReader.java
       - src/main/java/de/kortty/paste/PasteSanitizer.java
