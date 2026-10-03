@@ -57,7 +57,7 @@ users = ["eve"]
 
 ## Server access control
 
-The `[rule.servers]` table restricts which servers a user may connect to — as an allow-list (`mode = "allow"`: only listed servers are reachable) or a deny-list (`mode = "deny"`: listed servers are blocked). The restriction is enforced centrally for every connection path: saved connections, QuickConnect, session restore, SFTP, teamwork-shared connections, AI swarm targets and scheduled jobs, including the jump host of a connection. Blocked connections stay visible in the connection manager but are grayed out with a lock marker, and any connect attempt shows a clear policy message.
+The `[rule.servers]` table restricts which servers a user may connect to — as an allow-list (`mode = "allow"`: only listed servers are reachable) or a deny-list (`mode = "deny"`: listed servers are blocked). The restriction is enforced centrally for every connection path: saved connections, QuickConnect, split panes that open a new connection, session restore, SFTP, teamwork-shared connections, AI swarm targets and scheduled jobs, including the jump host of a connection. Blocked connections stay visible in the connection manager but are grayed out with a lock marker, and any connect attempt shows a clear policy message.
 
 Patterns match the host string exactly as configured in the connection — korTTY never resolves DNS for policy checks, so host names and IP addresses are separate namespaces: if a server is reachable both ways, list both.
 

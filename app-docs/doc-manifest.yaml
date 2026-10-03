@@ -471,7 +471,7 @@ pages:
     last_synced_ref: "0dad374"
   - path: app-docs/site/docs/en/reference/enterprise-policy.md
     owns_i18n: [policy.]
-    owns_code: [src/main/java/de/kortty/policy, package/policy]
+    owns_code: [src/main/java/de/kortty/policy, package/policy, src/main/java/de/kortty/ui/SplitConnectionPolicy.java]
     diagrams: []
     screenshots: []
     last_synced_ref: "38bcd2b4"
