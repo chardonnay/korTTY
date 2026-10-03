@@ -1,18 +1,27 @@
 package de.kortty.ui;
 
+import de.kortty.core.SnippetManager;
 import de.kortty.core.SnippetOneLiner;
+import de.kortty.core.SnippetPlaceholderResolver;
+import de.kortty.model.Snippet;
 import org.testng.annotations.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static com.google.common.truth.Truth.assertThat;
 
 /**
  * What Send to Terminal types into the shell (the pure payload functions behind the snippet
  * library's Send to Terminal and Send to Terminal with Parameters). {@code SnippetOneLinerTest}
- * covers the one-liner forms themselves; this pins how the send wraps them.
+ * covers the one-liner forms themselves; this pins how the send wraps them, and when a use is
+ * counted relative to the caller's callback and the main-window lookup.
  */
 class SnippetTerminalSendTest {
 
@@ -20,6 +29,104 @@ class SnippetTerminalSendTest {
 
     private static String prefix(String banner) {
         return SnippetOneLiner.terminalStderrBannerShellPrefix(banner);
+    }
+
+    @Test
+    void aCountedUseIsSavedBeforeTheCallerIsTold() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-snippet-terminal-send");
+        try {
+            SnippetManager snippetManager = new SnippetManager(dir);
+            Snippet snippet = new Snippet("List", "ls -la", "bash");
+            snippet.setId("snippet-1");
+            snippetManager.addSnippet(snippet);
+            List<Integer> savedCountsSeenByCaller = new ArrayList<>();
+            SnippetTerminalSend send = new SnippetTerminalSend(
+                snippetManager,
+                () -> { throw new AssertionError("nothing is missing, so no dialog needs an owner"); },
+                () -> savedCountsSeenByCaller.add(savedUsageCount(dir, "snippet-1")));
+
+            SnippetPlaceholderResolver.ResolvedSnippet resolved = send.resolveAndPrompt(snippet);
+
+            assertThat(resolved.text()).isEqualTo("ls -la");
+            assertThat(snippet.getUsageCount()).isEqualTo(1);
+            assertThat(savedCountsSeenByCaller).containsExactly(1);
+        } finally {
+            deleteRecursively(dir);
+        }
+    }
+
+    @Test
+    void sendToTerminalCountsTheUseBeforeLookingForTheMainWindow() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-snippet-terminal-send-order");
+        try {
+            SnippetManager snippetManager = new SnippetManager(dir);
+            Snippet snippet = new Snippet("Query", "SELECT 1;", "sql");
+            snippetManager.addSnippet(snippet);
+            List<String> calls = new ArrayList<>();
+            SnippetTerminalSend send = new SnippetTerminalSend(
+                snippetManager,
+                () -> { throw new AssertionError("no dialog or alert expected"); },
+                () -> calls.add("afterUsage"));
+
+            send.sendToTerminal(snippet, () -> {
+                calls.add("mainWindow");
+                return null;
+            });
+
+            assertThat(calls).containsExactly("afterUsage", "mainWindow").inOrder();
+            assertThat(snippet.getUsageCount()).isEqualTo(1);
+        } finally {
+            deleteRecursively(dir);
+        }
+    }
+
+    @Test
+    void aBlankSnippetIsCountedButNeverSent() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-snippet-terminal-send-blank");
+        try {
+            SnippetManager snippetManager = new SnippetManager(dir);
+            Snippet snippet = new Snippet("Empty", "  \n", "bash");
+            snippetManager.addSnippet(snippet);
+            List<String> calls = new ArrayList<>();
+            SnippetTerminalSend send = new SnippetTerminalSend(
+                snippetManager,
+                () -> { throw new AssertionError("no dialog or alert expected"); },
+                () -> calls.add("afterUsage"));
+
+            send.sendToTerminal(snippet, () -> {
+                calls.add("mainWindow");
+                return null;
+            });
+
+            assertThat(calls).containsExactly("afterUsage");
+        } finally {
+            deleteRecursively(dir);
+        }
+    }
+
+    private static int savedUsageCount(Path dir, String snippetId) {
+        try {
+            SnippetManager reloaded = new SnippetManager(dir);
+            reloaded.load();
+            return reloaded.getAllSnippets().stream()
+                .filter(saved -> snippetId.equals(saved.getId()))
+                .findFirst()
+                .orElseThrow()
+                .getUsageCount();
+        } catch (Exception e) {
+            throw new AssertionError("the snippets file could not be read back", e);
+        }
+    }
+
+    private static void deleteRecursively(Path dir) throws Exception {
+        if (!Files.exists(dir)) {
+            return;
+        }
+        try (Stream<Path> paths = Files.walk(dir)) {
+            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(path);
+            }
+        }
     }
 
     @Test
