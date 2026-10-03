@@ -1066,7 +1066,7 @@
 <td><code>enforce-host-key-check</code></td>
 <td>boolean</td>
 <td><code>true</code></td>
-<td>SSH host key verification cannot be disabled anywhere — globally, per group or per connection</td>
+<td>SSH host key verification cannot be disabled anywhere — globally, per group or per connection — and trusted host keys cannot be removed or replaced in korTTY</td>
 </tr>
 <tr>
 <td><code>allow-telemetry</code></td>
@@ -1434,6 +1434,7 @@ at an internal endpoint.</p>
 </div>
 <h3 id="rulesession-journalreplace"><code>[[rule.session-journal.replace]]</code><a class="headerlink" href="#rulesession-journalreplace" title="Permanent link">&para;</a></h3>
 <p>Automatic search-and-replace in every journal — the way to keep a whole category of secret out of the transcript, instead of relying on the user to notice it. Each entry is one rule, and a rule may use a regular expression.</p>
+<p>korTTY applies the same rules to a terminal selection, and to a file attached to it, before they are sent to an AI profile other than an integrated model or a trusted local endpoint; see <a href="../features/ai-assistant.html#masking-secrets-before-sending">Masking secrets before sending</a>.</p>
 <table>
 <thead>
 <tr>

@@ -90,7 +90,7 @@ Set the terminal and editor typeface and size.
 
 ![Themes settings tab](../../assets/screenshots/settings/themes.png)
 
-Create, edit, and manage terminal color themes. Themes define colors (text, background, cursor, ANSI) and styling for all terminal sessions.
+Create, edit, and manage terminal color themes. Themes define the text, background and cursor colors and the styling for all terminal sessions; the 16 ANSI colors and the selection color come from [Colors](colors.md).
 
 ### Theme management
 

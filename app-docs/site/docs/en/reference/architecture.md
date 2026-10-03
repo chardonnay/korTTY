@@ -183,7 +183,7 @@ The UI layer is built on JavaFX and organized into logical components:
 
 ### Host Key Verification
 
-- **Interactive Terminal/SFTP/Mosh bootstrap**: One shared TOFU verifier is keyed by normalized host name and port. First use shows the OpenSSH SHA-256 fingerprint with **No** as the default; an exact match is silent, while a changed key is hard-blocked without retry.
+- **Interactive Terminal/SFTP/Mosh bootstrap**: One shared TOFU verifier is keyed by normalized host name and port. First use shows the OpenSSH SHA-256 fingerprint with **No** as the default; an exact match is silent, while a changed key is hard-blocked without retry. Only a connection the user opened in a terminal tab or the SFTP manager may replace a changed key, after an explicit fingerprint confirmation and as a compare-and-swap against the reviewed key; background callers build their verifier with the never-replace policy.
 - **Interactive storage**: `ssh-host-keys.properties` stores public-key material through an atomic replacement guarded by both in-process and cross-process locks. Its transient `.lock` companion is not backed up.
 - **JobScheduler**: Unattended SSH, SFTP, and Rsync use separate connection-ID-based pins in `job-scheduler.xml`, including OpenSSH public-key material needed by Rsync. A per-job override can disable that verification only when the risk is explicitly accepted.
 

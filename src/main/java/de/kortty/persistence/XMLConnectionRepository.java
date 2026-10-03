@@ -8,6 +8,7 @@ import de.kortty.model.JumpServer;
 import de.kortty.model.AuthMethod;
 import de.kortty.model.TunnelType;
 import de.kortty.model.ConnectionSource;
+import de.kortty.core.AtomicFileWriter;
 import de.kortty.security.EncryptionService;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Marshaller;
@@ -19,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import javax.crypto.SecretKey;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -34,7 +36,7 @@ import java.util.Objects;
 public class XMLConnectionRepository {
     
     private static final Logger logger = LoggerFactory.getLogger(XMLConnectionRepository.class);
-    private static final String CONNECTIONS_FILE = "connections.xml";
+    public static final String CONNECTIONS_FILE = "connections.xml";
     private static final String ENCRYPTED_TEMP_KEY_PREFIX = "enc:";
     private static final String TEMPORARY_KEY_PATH_PREFIX = "TEMPORARY:";
     private static final String TEMPORARY_KEY_PATH_MARKER = "TEMPORARY:__ENCRYPTED__";
@@ -78,7 +80,9 @@ public class XMLConnectionRepository {
     }
 
     /**
-     * Saves connections to XML file using the provided key for at-rest encryption.
+     * Saves connections to XML file using the provided key for at-rest encryption. The file is
+     * replaced atomically (a crash mid-save keeps the previous file) and written owner-only: it
+     * names every host and user even though the secrets in it are encrypted.
      */
     public void saveConnections(List<ServerConnection> connections, SecretKey key) throws Exception {
         saveConnections(connections, key, Map.of());
@@ -97,13 +101,18 @@ public class XMLConnectionRepository {
         
         Marshaller marshaller = JAXB_CONTEXT.createMarshaller();
         marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
+        StringWriter xml = new StringWriter(16 * 1024);
+        marshaller.marshal(wrapper, xml);
         
-        Path file = configDir.resolve(CONNECTIONS_FILE);
-        try (OutputStream out = Files.newOutputStream(file)) {
-            marshaller.marshal(wrapper, out);
-        }
+        Path file = connectionsFile();
+        AtomicFileWriter.writeStoreAtomically(file, xml.toString(), AtomicFileWriter.FileMode.OWNER_ONLY);
         
         logger.info("Saved {} connections to {}", connections.size(), file);
+    }
+
+    /** The {@code connections.xml} this repository reads and writes. */
+    public Path connectionsFile() {
+        return configDir.resolve(CONNECTIONS_FILE);
     }
     
     /**
@@ -126,7 +135,7 @@ public class XMLConnectionRepository {
      * {@code key} is {@code null} (vault locked). Those keys are cleared in memory only.
      */
     public List<ServerConnection> loadConnections(SecretKey key, Collection<String> lockedKeyIds) throws Exception {
-        Path file = configDir.resolve(CONNECTIONS_FILE);
+        Path file = connectionsFile();
         
         if (!Files.exists(file)) {
             logger.info("No connections file found, returning empty list");
@@ -145,7 +154,7 @@ public class XMLConnectionRepository {
      */
     public Map<String, StoredTemporaryKey> readStoredTemporaryKeys() throws Exception {
         Map<String, StoredTemporaryKey> stored = new LinkedHashMap<>();
-        Path file = configDir.resolve(CONNECTIONS_FILE);
+        Path file = connectionsFile();
         if (!Files.exists(file)) {
             return stored;
         }
@@ -259,9 +268,19 @@ public class XMLConnectionRepository {
     }
 
     public static List<ServerConnection> readConnections(InputStream in, SecretKey key) throws Exception {
+        return readConnections(in, key, null);
+    }
+
+    /**
+     * Reads connections like {@link #readConnections(InputStream, SecretKey)} and adds to
+     * {@code lockedKeyIds} the id of every connection whose encrypted temporary SSH key could not be
+     * decrypted because {@code key} is {@code null} (vault locked). Those keys are cleared in memory only.
+     */
+    public static List<ServerConnection> readConnections(InputStream in, SecretKey key,
+                                                         Collection<String> lockedKeyIds) throws Exception {
         Unmarshaller unmarshaller = JAXB_CONTEXT.createUnmarshaller();
         ConnectionsWrapper wrapper = (ConnectionsWrapper) unmarshaller.unmarshal(in);
-        return restoreAfterLoad(wrapper.getConnections(), key, null);
+        return restoreAfterLoad(wrapper.getConnections(), key, lockedKeyIds);
     }
 
     public static List<ServerConnection> readConnections(Path file, SecretKey key) throws Exception {

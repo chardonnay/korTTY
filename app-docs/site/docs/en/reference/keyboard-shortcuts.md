@@ -19,7 +19,7 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | ++ctrl+x++ | Cut (disabled for terminal tabs) |
 | ++ctrl+c++ | Copy |
 | ++ctrl+v++ | Paste |
-| ++ctrl+f++ | Find in the active tab |
+| ++ctrl+f++ | Find in the active tab (in a focused terminal on Windows and Linux the key goes to the shell, see [Terminal](#terminal)) |
 | ++ctrl+k++ | Quick Connect |
 | ++ctrl+m++ | Manage Connections |
 | ++ctrl+shift+u++ | SFTP client |
@@ -57,6 +57,20 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | ++ctrl+shift+f++ | Toggle Terminal-only Fullscreen |
 
 The zoom keys (++ctrl++ or ++alt++ with ++plus++ / ++minus++ / ++0++; ++cmd++ on macOS) zoom the terminal only while a terminal tab is selected. In a snippet editor or file editor tab they reach the editor, and ++alt-graph+plus++ types its character there.
+
+## Terminal
+
+These keys apply while a terminal pane has the keyboard focus.
+
+| Shortcut | Action |
+| --- | --- |
+| ++ctrl+shift+c++ / ++ctrl+shift+v++ | Copy the terminal selection / paste into the terminal (Windows and Linux; ++cmd+c++ / ++cmd+v++ on macOS) |
+| ++ctrl+l++ (Windows and Linux) | Sent to the shell: redraws or clears the screen in bash, psql or a REPL, and the scrollback is kept |
+| ++ctrl+f++ (Windows and Linux) | Sent to the shell: moves the cursor one character forward at a bash prompt and pages forward in `less` or `vim` |
+| ++cmd+k++ (macOS) | Clear Buffer: empty the terminal screen and its scrollback |
+| ++cmd+f++ (macOS) | Find in the terminal scrollback |
+
+On Windows and Linux, **Clear Buffer** and **Find** have no key of their own, so ++ctrl+l++ and ++ctrl+f++ stay with the programs running in the terminal. Use right-click → **Clear Buffer** or **Find** in the terminal, or **Edit → Find…** with the mouse. ++ctrl+shift+f++ stays Terminal-only Fullscreen and ++ctrl+shift+k++ still docks the file browser on the left.
 
 ## SFTP Manager
 

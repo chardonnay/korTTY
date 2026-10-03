@@ -65,4 +65,22 @@ class ConnectionSettingsSupportTest {
         assertThat(effective.getCursorStyle()).isEqualTo("BLINK_BLOCK");
         assertThat(effective.isTerminalColorsEnabled()).isTrue();
     }
+
+    @Test
+    void effectiveTerminalSettingsCarryTheGlobalAnsiPaletteAndSelection() {
+        ConnectionSettings globalDefaults = new ConnectionSettings();
+        globalDefaults.setAnsiRed("#FF8800");
+        globalDefaults.setSelectionColor("#FFFF00");
+        globalDefaults.setAnsiPaletteCustomized(true);
+
+        ConnectionSettings effective = ConnectionSettingsSupport.effectiveTerminalSettings(
+                new ConnectionSettings(), // uses the global settings
+                globalDefaults,
+                true);
+
+        assertThat(effective.isAnsiPaletteCustomized()).isTrue();
+        assertThat(effective.getAnsiRed()).isEqualTo("#FF8800");
+        assertThat(effective.getSelectionColor()).isEqualTo("#FFFF00");
+        assertThat(TerminalPaletteSupport.effectiveHex(effective, 1, false)).isEqualTo("#FF8800");
+    }
 }
