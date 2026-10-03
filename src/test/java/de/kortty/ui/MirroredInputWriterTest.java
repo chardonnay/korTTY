@@ -7,6 +7,8 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -129,7 +131,7 @@ class MirroredInputWriterTest {
     void aFailingWriteDoesNotStopTheTargetsLaterWrites() throws Exception {
         MirroredInputWriter writer = new MirroredInputWriter(pool);
         RecordingConnector target = new RecordingConnector();
-        target.failNextWrite();
+        target.failNextWrite(new IOException("channel closed"));
 
         writer.write(target, "lost");
         writer.write(target, "kept");
@@ -137,6 +139,48 @@ class MirroredInputWriterTest {
         target.awaitWrites(1);
         assertThat(target.writes()).containsExactly("kept");
         awaitIdle(writer);
+    }
+
+    @Test(timeOut = 10_000)
+    void aWriteThatThrowsAnErrorLeavesNoQueueBehindThatNobodyDrains() throws Exception {
+        // The Error leaves the drain task, as it would on the app's pool; swallowed here only so it
+        // does not end the test pool's worker with a stack trace in the log.
+        MirroredInputWriter writer = new MirroredInputWriter(task -> pool.execute(() -> {
+            try {
+                task.run();
+            } catch (LinkageError expected) {
+                // thrown by the connector below
+            }
+        }));
+        RecordingConnector target = new RecordingConnector();
+        target.failNextWrite(new LinkageError("plugin class missing"));
+
+        writer.write(target, "lost");
+        awaitIdle(writer);
+        writer.write(target, "kept");
+
+        target.awaitWrites(1);
+        assertThat(target.writes()).containsExactly("kept");
+        awaitIdle(writer);
+    }
+
+    /**
+     * TerminalSplitPane needs a live JavaFX scene, so its two broadcast paths are checked in the
+     * source: every mirrored write is queued on the writer, none is written on the key filter.
+     */
+    @Test
+    void theSplitPaneQueuesEveryMirroredWriteOnTheWriter() throws IOException {
+        String source = Files.readString(
+            Path.of("src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java"), StandardCharsets.UTF_8)
+            .replace("\r\n", "\n");
+
+        List<String> bodies = methodBodies(source, "private void broadcastToOthers(");
+
+        assertThat(bodies).hasSize(2);
+        for (String body : bodies) {
+            assertThat(body).contains("MirroredInputWriter.shared().write(connector, ");
+            assertThat(body).doesNotContainMatch("connector\\s*\\.\\s*write\\(");
+        }
     }
 
     @Test
@@ -151,6 +195,25 @@ class MirroredInputWriterTest {
 
         assertThat(seen).containsExactly(true, true).inOrder();
         assertThat(MirroredInput.active()).isFalse();
+    }
+
+    /** The brace-matched bodies of every method whose declaration starts with {@code signature}. */
+    private static List<String> methodBodies(String source, String signature) {
+        List<String> bodies = new ArrayList<>();
+        for (int at = source.indexOf(signature); at >= 0; at = source.indexOf(signature, at + 1)) {
+            int open = source.indexOf('{', at);
+            int depth = 0;
+            for (int i = open; i < source.length(); i++) {
+                char c = source.charAt(i);
+                if (c == '{') {
+                    depth++;
+                } else if (c == '}' && --depth == 0) {
+                    bodies.add(source.substring(open, i + 1));
+                    break;
+                }
+            }
+        }
+        return bodies;
     }
 
     /** The queue of a target is dropped once it runs empty, so closed panes leave nothing behind. */
@@ -169,7 +232,7 @@ class MirroredInputWriterTest {
         private final List<String> writes = new ArrayList<>();
         private final List<Boolean> activeDuringWrites = new ArrayList<>();
         private boolean firstWrite = true;
-        private boolean failNext;
+        private Throwable failNext;
 
         RecordingConnector() {
             this(null, null);
@@ -181,17 +244,22 @@ class MirroredInputWriterTest {
             this.releaseFirstWrite = releaseFirstWrite;
         }
 
-        synchronized void failNextWrite() {
-            failNext = true;
+        /** The next write throws {@code failure}, an {@link IOException} or an {@link Error}. */
+        synchronized void failNextWrite(Throwable failure) {
+            failNext = failure;
         }
 
         @Override
         public void write(String string) throws IOException {
             boolean block;
             synchronized (this) {
-                if (failNext) {
-                    failNext = false;
-                    throw new IOException("channel closed");
+                if (failNext != null) {
+                    Throwable failure = failNext;
+                    failNext = null;
+                    if (failure instanceof IOException io) {
+                        throw io;
+                    }
+                    throw (Error) failure;
                 }
                 block = firstWrite && releaseFirstWrite != null;
                 firstWrite = false;

@@ -132,6 +132,13 @@ public final class MirroredInputWriter {
                     logger.debug("Failed to broadcast to widget: {}", e.getMessage());
                 } catch (RuntimeException e) {
                     logger.warn("Failed to broadcast to widget", e);
+                } catch (Error e) {
+                    // This task ends here. Drop its queue, so the next key starts a new drain task
+                    // instead of piling up behind one that no longer runs.
+                    synchronized (queues) {
+                        queues.remove(target);
+                    }
+                    throw e;
                 }
             }
         }
