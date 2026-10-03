@@ -2095,6 +2095,38 @@ public class TerminalView extends BorderPane {
     }
 
     /**
+     * Moves the keyboard focus to the pane on {@code direction}'s side of the focused pane
+     * (Cmd+Option / Ctrl+Alt with an arrow key, <i>View → Panes</i>). FX thread.
+     *
+     * @return true when the focus moved; false at the edge or with a single pane
+     */
+    public boolean focusPane(PaneNavigator.PaneDirection direction) {
+        return splitPane != null && direction != null && splitPane.focusNeighbor(direction);
+    }
+
+    /**
+     * Moves the keyboard focus to the next ({@code forward}) or the previous pane of this tab,
+     * wrapping around (<i>View → Panes → Next Pane / Previous Pane</i>). FX thread.
+     *
+     * @return true when the focus moved; false with a single pane
+     */
+    public boolean focusNextPane(boolean forward) {
+        return splitPane != null && splitPane.focusNext(forward);
+    }
+
+    /** Whether this tab's broadcast mode is on: keys typed in one pane go to its other panes too. */
+    public boolean isBroadcastMode() {
+        return splitPane != null && splitPane.isBroadcastMode();
+    }
+
+    /** Switches this tab's broadcast mode, as <i>Extras → Broadcast Mode</i> in a pane's context menu does. */
+    public void setBroadcastMode(boolean enabled) {
+        if (splitPane != null) {
+            splitPane.setBroadcastMode(enabled);
+        }
+    }
+
+    /**
      * Whether the current session's transport died (network drop, server gone) rather than ending
      * through a normal remote exit. Drives keeping the tab open and the auto-reconnect trigger.
      */

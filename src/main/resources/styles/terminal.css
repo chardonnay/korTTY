@@ -1010,6 +1010,31 @@
     -fx-padding: 0 2 0 2;
 }
 
+/*
+ * Split panes: a ring around the pane the keyboard is in, drawn by a region in the pane's
+ * DECORATION overlay layer (TerminalSplitPane), only while the tab has two or more panes. The
+ * region is unmanaged and draws its border inside its own bounds, so the terminal never resizes
+ * for it. The pane the menu commands act on keeps a dimmer ring while the keyboard is elsewhere,
+ * for example in another window. A design can override both colours on .kortty-pane-cell.
+ */
+.kortty-pane-cell {
+    -kortty-pane-focus-color: #38bdf8;
+    -kortty-pane-last-focus-color: rgba(56, 189, 248, 0.4);
+}
+
+.kortty-pane-focus-ring {
+    -fx-border-color: transparent;
+    -fx-border-width: 2;
+}
+
+.kortty-pane-cell:last-focused .kortty-pane-focus-ring {
+    -fx-border-color: -kortty-pane-last-focus-color;
+}
+
+.kortty-pane-cell:focus-within .kortty-pane-focus-ring {
+    -fx-border-color: -kortty-pane-focus-color;
+}
+
 /* Dialog Pane */
 .dialog-pane {
     -fx-background-color: #2d2d2d;

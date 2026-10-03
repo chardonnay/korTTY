@@ -220,6 +220,22 @@ public class MainWindow {
         new KeyCodeCombination(KeyCode.SPACE, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
     /** What Cmd/Ctrl+Shift+Space can still type once korTTY took it: a space, or NUL for Ctrl+Space. */
     private static final Residue QUICK_SELECT_RESIDUE = Residue.of(" ", "\u0000");
+    // View > Panes > Focus Pane Left/Right/Up/Down: Cmd+Option or Ctrl+Alt with an arrow key, routed
+    // only while the selected terminal tab has two or more panes, so with one pane the arrows still
+    // reach the shell as xterm sends them. No plain Ctrl+letter, and arrows type no AltGr character.
+    private static final KeyCombination PANE_FOCUS_LEFT_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.LEFT, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
+    private static final KeyCombination PANE_FOCUS_RIGHT_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.RIGHT, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
+    private static final KeyCombination PANE_FOCUS_UP_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.UP, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
+    private static final KeyCombination PANE_FOCUS_DOWN_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.DOWN, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
+    private static final PaneShortcuts PANE_SHORTCUTS = new PaneShortcuts(Map.of(
+        PaneShortcuts.PaneAction.FOCUS_LEFT, PANE_FOCUS_LEFT_ACCELERATOR,
+        PaneShortcuts.PaneAction.FOCUS_RIGHT, PANE_FOCUS_RIGHT_ACCELERATOR,
+        PaneShortcuts.PaneAction.FOCUS_UP, PANE_FOCUS_UP_ACCELERATOR,
+        PaneShortcuts.PaneAction.FOCUS_DOWN, PANE_FOCUS_DOWN_ACCELERATOR));
     private static final String MENU_BAR_TOGGLE_SHORTCUT_LABEL = "Cmd/Ctrl+Shift+L";
     private static final int JOB_SCHEDULER_QUEUE_LIMIT = 5;
     private static final int MAX_CONCURRENT_TERMINAL_AGENT_RUNS = 5;
@@ -306,6 +322,9 @@ public class MainWindow {
     private CheckMenuItem systemTerminalOnlyFullscreenMenuItem;
     private CheckMenuItem highlightingToggleMenuItem;
     private CheckMenuItem systemHighlightingToggleMenuItem;
+    // View > Panes of the in-window and the macOS system menu bar, synced from the active tab.
+    private PaneMenuSupport.PaneMenu paneMenu;
+    private PaneMenuSupport.PaneMenu systemPaneMenu;
     private CheckMenuItem hideFullscreenScrollbarsMenuItem;
     private CheckMenuItem systemHideFullscreenScrollbarsMenuItem;
     private CheckMenuItem showTimestampsMenuItem;
@@ -523,6 +542,7 @@ public class MainWindow {
                 lastSelectedFileEditorTab = fileEditorTab;
             }
             updateEditMenuItemsForSelection();
+            syncPaneMenuItems();
             // See-through mode: only a terminal tab reveals the desktop; other/empty tabs stay opaque.
             refreshTransparentModeContainers();
             // When the agent panel is docked to the side, swap it to show only the now-active tab.
@@ -981,6 +1001,7 @@ public class MainWindow {
         applyMenuBarVisibility(true);
         syncDashboardMenuItems(shouldRestoreDashboardOnStartup());
         syncTimestampMenuItems(false);
+        syncPaneMenuItems();
         // The history belongs to the application: a new window offers what other windows closed.
         syncRecentlyClosedMenus();
         applyMainWindowThemeFromGlobalSettings();
@@ -2058,6 +2079,7 @@ public class MainWindow {
         terminalEffectMenu.setOnShowing(event ->
                 rebuildTerminalEffectMenu(terminalEffectMenu, getActiveTerminalTab(), includeEffectSpeedControl));
         Menu highlightingMenu = createHighlightingMenu(target);
+        Menu panesMenu = createPanesMenu(target);
 
         MenuItem fullscreen = new MenuItem(I18n.get("menu.view.fullscreen"));
         // F12 lives on the in-window bar; the macOS companion system bar has all accelerators
@@ -2098,9 +2120,111 @@ public class MainWindow {
         if (target != MenuBarTarget.SYSTEM) {
             viewMenu.getItems().addAll(new SeparatorMenuItem(), buildBackgroundTransparencyMenuItem());
         }
-        viewMenu.getItems().addAll(new SeparatorMenuItem(), highlightingMenu, terminalEffectMenu, new SeparatorMenuItem(),
-            fullscreen, terminalOnlyFullscreen, hideFullscreenScrollbars);
+        viewMenu.getItems().addAll(new SeparatorMenuItem(), panesMenu, highlightingMenu, terminalEffectMenu,
+            new SeparatorMenuItem(), fullscreen, terminalOnlyFullscreen, hideFullscreenScrollbars);
         return viewMenu;
+    }
+
+    /**
+     * View → Panes: the focus items carry the pane focus chords for display (the scene shortcut router
+     * handles the keys themselves while the keyboard is in a terminal tab with two or more panes),
+     * Next Pane and Previous Pane have none, and the broadcast item switches the active tab's broadcast
+     * mode. The items are synced from the active tab while the menu opens and before an accelerator or
+     * the menu bar of a closed macOS window runs one of them.
+     */
+    private Menu createPanesMenu(MenuBarTarget target) {
+        PaneMenuSupport.PaneMenu panes = PaneMenuSupport.create(new PaneMenuSupport.Commands() {
+            @Override
+            public void focus(PaneNavigator.PaneDirection direction) {
+                focusPaneInActiveTerminal(direction);
+            }
+
+            @Override
+            public void cycle(boolean forward) {
+                cyclePaneInActiveTerminal(forward);
+            }
+
+            @Override
+            public void toggleBroadcast() {
+                toggleBroadcastInActiveTerminal();
+            }
+        });
+        panes.focusItem(PaneNavigator.PaneDirection.LEFT).setAccelerator(PANE_FOCUS_LEFT_ACCELERATOR);
+        panes.focusItem(PaneNavigator.PaneDirection.RIGHT).setAccelerator(PANE_FOCUS_RIGHT_ACCELERATOR);
+        panes.focusItem(PaneNavigator.PaneDirection.UP).setAccelerator(PANE_FOCUS_UP_ACCELERATOR);
+        panes.focusItem(PaneNavigator.PaneDirection.DOWN).setAccelerator(PANE_FOCUS_DOWN_ACCELERATOR);
+        panes.menu().setOnShowing(event -> syncPaneMenuItems());
+        panes.menu().setOnMenuValidation(event -> syncPaneMenuItems());
+        if (target == MenuBarTarget.WINDOW) {
+            paneMenu = panes;
+        } else {
+            systemPaneMenu = panes;
+        }
+        return panes.menu();
+    }
+
+    /** The View → Panes state of the active tab: the number of its panes and its broadcast mode. */
+    private PaneMenuSupport.State activePaneMenuState() {
+        TerminalTab terminalTab = activeTerminalTab();
+        TerminalView view = terminalTab != null ? terminalTab.getTerminalView() : null;
+        if (view == null) {
+            return PaneMenuSupport.State.NO_TERMINAL;
+        }
+        return new PaneMenuSupport.State(true, view.getTerminalPaneCount(), view.isBroadcastMode());
+    }
+
+    /** Shows the active tab's panes and broadcast mode on View → Panes of both menu bars. */
+    private void syncPaneMenuItems() {
+        PaneMenuSupport.State state = activePaneMenuState();
+        PaneMenuSupport.sync(paneMenu, state);
+        PaneMenuSupport.sync(systemPaneMenu, state);
+    }
+
+    /** The number of panes of the selected terminal tab, 0 when no terminal tab is selected. */
+    private int activeTerminalPaneCount() {
+        TerminalTab terminalTab = activeTerminalTab();
+        TerminalView view = terminalTab != null ? terminalTab.getTerminalView() : null;
+        return view != null ? view.getTerminalPaneCount() : 0;
+    }
+
+    /** What a pane shortcut does once the scene shortcut router took its chord. */
+    private void runPaneShortcut(PaneShortcuts.PaneAction action) {
+        switch (action) {
+            case FOCUS_LEFT, FOCUS_RIGHT, FOCUS_UP, FOCUS_DOWN -> focusPaneInActiveTerminal(action.direction());
+        }
+    }
+
+    /** Moves the keyboard focus to the neighbouring pane of the active terminal tab; nothing at the edge. */
+    private void focusPaneInActiveTerminal(PaneNavigator.PaneDirection direction) {
+        TerminalTab terminalTab = activeTerminalTab();
+        if (terminalTab != null && terminalTab.getTerminalView() != null) {
+            terminalTab.getTerminalView().focusPane(direction);
+        }
+    }
+
+    /** Moves the keyboard focus to the next or previous pane of the active terminal tab, wrapping around. */
+    private void cyclePaneInActiveTerminal(boolean forward) {
+        TerminalTab terminalTab = activeTerminalTab();
+        if (terminalTab != null && terminalTab.getTerminalView() != null) {
+            terminalTab.getTerminalView().focusNextPane(forward);
+        }
+    }
+
+    /**
+     * View → Panes → Broadcast: switches the active tab's broadcast mode. The decision comes from the
+     * tab's mode, never from the check item, which JavaFX has already flipped when this runs; the
+     * items are re-synced afterwards. Switching it on needs a second pane, as in the context menu.
+     */
+    private void toggleBroadcastInActiveTerminal() {
+        TerminalTab terminalTab = activeTerminalTab();
+        TerminalView view = terminalTab != null ? terminalTab.getTerminalView() : null;
+        if (view != null) {
+            boolean on = view.isBroadcastMode();
+            if (on || view.getTerminalPaneCount() >= 2) {
+                view.setBroadcastMode(!on);
+            }
+        }
+        syncPaneMenuItems();
     }
 
     /**
@@ -2520,6 +2644,14 @@ public class MainWindow {
             int jumpSlot = slot;
             router.consume(press -> TabKeyboardShortcuts.slotOf(press) == jumpSlot, SceneShortcutRouter.ALWAYS,
                 () -> selectTabBySlot(jumpSlot), TabKeyboardShortcuts.JUMP_RESIDUE);
+        }
+        // Cmd+Option / Ctrl+Alt with an arrow key move the focus between the panes of the selected
+        // terminal tab, only while the keyboard is in that tab and it has two or more panes; otherwise
+        // the key reaches the shell as xterm sends it. Arrow keys type nothing, so no residue.
+        for (PaneShortcuts.PaneAction paneAction : PaneShortcuts.PaneAction.values()) {
+            router.consume(press -> PANE_SHORTCUTS.isChordOf(press, paneAction),
+                () -> isKeyboardInSelectedTerminal() && PaneShortcuts.applies(paneAction, activeTerminalPaneCount()),
+                () -> runPaneShortcut(paneAction), Residue.NONE);
         }
         return router;
     }
@@ -5128,6 +5260,8 @@ public class MainWindow {
         // this the new pane stays missing from the dashboard until some unrelated event happens to
         // rebuild it.
         updateDashboard();
+        // View > Panes needs two or more panes to move the focus.
+        syncPaneMenuItems();
     }
 
     /** Re-binds the docked side panel to the currently active terminal tab (spotlight model). */

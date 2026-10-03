@@ -3674,6 +3674,14 @@ tasks.register<JavaExec>("terminalSplitCloseButtonSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("paneKeyboardSmoke") {
+    group = "verification"
+    description = "Splits a terminal into a 2x2 grid with the base stylesheet and checks the focus ring and accessible name of every pane, that the ring is drawn only on the focused pane, that the pane focus moves to each neighbour, stops at the edges and wraps for next/previous without resizing a terminal, and that one pane shows no ring; pass a PNG path via --args to save a snapshot (needs a display)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("com.sithtermfx.ui.split.PaneKeyboardSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("aiManagerTabCssSmoke") {
     group = "verification"
     description = "Opens the AI Manager under every app design and fails on JavaFX CSS warnings for the selected tab."

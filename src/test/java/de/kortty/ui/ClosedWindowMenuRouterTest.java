@@ -201,6 +201,24 @@ class ClosedWindowMenuRouterTest {
     }
 
     @Test
+    void viewPanesOfAClosedWindowMovesTheFocusInTheFrontmostWindowButNeverSwitchesItsBroadcast() {
+        Desktop desktop = new Desktop();
+        Win closed = desktop.open("A");
+        Win open = desktop.open("B");
+        closed.open = false;
+        String panes = I18n.get(PaneMenuSupport.MENU_KEY);
+
+        click(closed.item("View", panes, I18n.get(PaneMenuSupport.FOCUS_LEFT_KEY)));
+        click(closed.item("View", panes, I18n.get(PaneMenuSupport.NEXT_KEY)));
+        click(closed.item("View", panes, I18n.get(PaneMenuSupport.BROADCAST_KEY)));
+
+        assertWithMessage("broadcast decides where B's typed keys go, so a closed window's menu bar leaves it alone")
+            .that(desktop.log).containsExactly("front B", "Focus LEFT in B", "front B", "Next Pane in B").inOrder();
+        click(open.item("View", panes, I18n.get(PaneMenuSupport.BROADCAST_KEY)));
+        assertThat(desktop.log).contains("Broadcast in B");
+    }
+
+    @Test
     void closingAndClipboardItemsOfAClosedWindowDoNothing() {
         Desktop desktop = new Desktop();
         Win closed = desktop.open("A");
@@ -333,6 +351,13 @@ class ClosedWindowMenuRouterTest {
             .contains("ClosedWindowMenuRouter.noWindowNeeded(preventSleep);");
         assertThat(methodBody(window, "private void rebuildJobSchedulerStatusMenuItems(Menu menu) {"))
             .contains("ClosedWindowMenuRouter.noWindowNeeded(cancel);");
+        // View > Panes: broadcast stays in its window, the focus items are routed like Find.
+        String panes = methodBody(source("PaneMenuSupport.java"), "static @NotNull PaneMenu create(@NotNull Commands commands, @NotNull Supplier");
+        assertThat(panes).contains("ClosedWindowMenuRouter.ownWindowOnly(broadcast);");
+        assertThat(panes).doesNotContain("noWindowNeeded(");
+        assertThat(panes.split("ClosedWindowMenuRouter\\.ownWindowOnly\\(", -1)).hasLength(2);
+        assertThat(methodBody(window, "private Menu createViewMenu(MenuBarTarget target) {"))
+            .contains("Menu panesMenu = createPanesMenu(target);");
     }
 
     // ---- helpers ------------------------------------------------------------------------------
@@ -415,6 +440,25 @@ class ClosedWindowMenuRouterTest {
             CheckMenuItem dashboard = new CheckMenuItem("Dashboard");
             dashboard.setOnAction(e -> log.add("Dashboard " + (dashboard.isSelected() ? "on" : "off") + " in " + name));
             view.getItems().add(dashboard);
+            // View > Panes as MainWindow builds it, with plain items for separators (no toolkit here).
+            PaneMenuSupport.PaneMenu panes = PaneMenuSupport.create(new PaneMenuSupport.Commands() {
+                @Override
+                public void focus(PaneNavigator.PaneDirection direction) {
+                    log.add("Focus " + direction + " in " + name);
+                }
+
+                @Override
+                public void cycle(boolean forward) {
+                    log.add((forward ? "Next" : "Previous") + " Pane in " + name);
+                }
+
+                @Override
+                public void toggleBroadcast() {
+                    log.add("Broadcast in " + name);
+                }
+            }, MenuItem::new);
+            PaneMenuSupport.sync(panes, new PaneMenuSupport.State(true, 2, false));
+            view.getItems().add(panes.menu());
             // Filled while it opens, like the job status menu.
             Menu jobs = new Menu("Jobs");
             jobs.setOnShowing(e -> {

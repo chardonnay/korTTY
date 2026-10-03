@@ -11,6 +11,9 @@ import com.sithtermfx.ui.TerminalPanel;
 import com.sithtermfx.ui.TerminalWidgetListener;
 import com.sithtermfx.ui.settings.SettingsProvider;
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
+import javafx.css.PseudoClass;
+import javafx.geometry.Bounds;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -39,6 +42,7 @@ import de.kortty.core.KorttyClipboard;
 import de.kortty.ui.I18n;
 import de.kortty.ui.KorttyTermWidget;
 import de.kortty.ui.MirroredInputWriter;
+import de.kortty.ui.PaneNavigator;
 import de.kortty.ui.TerminalLinkContextMenu;
 import de.kortty.ui.TerminalNavigationKeys;
 import de.kortty.ui.TerminalPaneActions;
@@ -52,6 +56,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -81,21 +86,43 @@ public class TerminalSplitPane extends StackPane {
 
     /**
      * The layers korTTY draws over one pane, from bottom to top, each one a {@link Pane} that
-     * {@link #paneOverlay} adds to the pane's wrapper on first use. A layer is unmanaged, so the
-     * wrapper never lays it out and the terminal never resizes because of it, and mouse-transparent,
-     * so every click and hover still reaches the terminal. Its {@link Node#getViewOrder() view order}
-     * keeps it above the terminal, the timestamp gutter, the agent panel and the effect overlays
-     * (all at view order 0), whenever any of them was added. It goes away with the pane.
+     * {@link #paneOverlay} adds to the pane's wrapper on first use. Below every layer, at view
+     * order 0, are the wrapper's own children: the terminal with its timestamp gutter and agent
+     * panel, the effect overlays and the close button. A layer is unmanaged, so the wrapper never
+     * lays it out and the terminal never resizes because of it, but it always has the wrapper's
+     * size; it is mouse-transparent, so every click, hover and drag still reaches the terminal and
+     * the wrapper's own handlers. Its {@link Node#getViewOrder() view order} keeps it above the
+     * wrapper's children and the layers declared before it, whatever was added to the wrapper
+     * later. It goes away with the pane.
      */
     public enum PaneOverlayLayer {
         /** The underline under a hovered terminal link, and quick select's boxes and labels. */
-        LINKS;
+        LINKS,
+        /** The ring around the pane the keyboard is in (with two or more panes), and later pane badges. */
+        DECORATION,
+        /** The drop zones shown while a pane is dragged onto this one to move it. */
+        DROP_ZONES;
 
         /** Below 0, and lower for a later layer, because JavaFX draws a lower view order on top. */
         public double viewOrder() {
             return -1.0 - ordinal();
         }
     }
+
+    /** Style class of every pane's wrapper, the node {@code :focus-within} is checked on. */
+    static final String PANE_CELL_STYLE_CLASS = "kortty-pane-cell";
+
+    /** Style class of the focus ring in a pane's {@link PaneOverlayLayer#DECORATION} layer. */
+    static final String FOCUS_RING_STYLE_CLASS = "kortty-pane-focus-ring";
+
+    /**
+     * Set on the wrapper of {@link #getFocusedWidget()}: the pane the menu commands act on keeps a
+     * dimmer ring while the keyboard is elsewhere, for example in another window.
+     */
+    static final PseudoClass LAST_FOCUSED = PseudoClass.getPseudoClass("last-focused");
+
+    /** A pane's accessible name with two or more panes: "Pane {0} of {1}". */
+    static final String PANE_ACCESSIBLE_NAME_KEY = "terminal.pane.accessibleName";
 
     private static final class ExtractResult {
         final SplitCell extracted;
@@ -605,16 +632,37 @@ public class TerminalSplitPane extends StackPane {
      */
     public @Nullable Pane paneOverlay(@Nullable SithTermFxWidget widget, @NotNull PaneOverlayLayer layer) {
         StackPane host = wrapperOf(widget);
-        if (host == null) {
-            return null;
-        }
-        if (host.getProperties().get(layer) instanceof Pane existing && existing.getParent() == host) {
+        return host != null ? overlayLayerOf(host, layer) : null;
+    }
+
+    /** The layer if the pane already has it; never creates one. */
+    private @Nullable Pane existingPaneOverlay(@Nullable SithTermFxWidget widget, @NotNull PaneOverlayLayer layer) {
+        StackPane host = wrapperOf(widget);
+        return host != null ? existingOverlayLayer(host, layer) : null;
+    }
+
+    /**
+     * The layer in {@code host}, a pane's wrapper, added on first use. It follows the wrapper's size,
+     * so a node of the layer can fill the pane; it is unmanaged, so that never resizes the terminal.
+     */
+    static @NotNull Pane overlayLayerOf(@NotNull StackPane host, @NotNull PaneOverlayLayer layer) {
+        Pane existing = existingOverlayLayer(host, layer);
+        if (existing != null) {
             return existing;
         }
         Pane created = createOverlayLayer(layer);
+        Bounds bounds = host.getLayoutBounds();
+        created.resize(bounds.getWidth(), bounds.getHeight());
+        host.layoutBoundsProperty().addListener((obs, oldBounds, newBounds) ->
+            created.resize(newBounds.getWidth(), newBounds.getHeight()));
         host.getProperties().put(layer, created);
         host.getChildren().add(created);
         return created;
+    }
+
+    private static @Nullable Pane existingOverlayLayer(@NotNull StackPane host, @NotNull PaneOverlayLayer layer) {
+        return host.getProperties().get(layer) instanceof Pane existing && existing.getParent() == host
+            ? existing : null;
     }
 
     /**
@@ -645,6 +693,89 @@ public class TerminalSplitPane extends StackPane {
         pane.setViewOrder(layer.viewOrder());
         pane.getStyleClass().add("terminal-pane-overlay");
         return pane;
+    }
+
+    /**
+     * The focus ring in a pane's {@link PaneOverlayLayer#DECORATION} layer, added on first use: a
+     * region as large as the layer, so as large as the pane, whose border the stylesheets draw while
+     * the pane has the keyboard focus ({@code .kortty-pane-cell:focus-within}) or is the pane the
+     * menu commands act on ({@code :last-focused}). Unmanaged and without padding, so showing it
+     * never resizes the terminal; mouse-transparent and not focusable.
+     */
+    static @NotNull Region focusRingOf(@NotNull Pane decorationLayer) {
+        Region existing = findFocusRing(decorationLayer);
+        if (existing != null) {
+            return existing;
+        }
+        Region ring = new Region();
+        ring.getStyleClass().add(FOCUS_RING_STYLE_CLASS);
+        ring.setManaged(false);
+        ring.setMouseTransparent(true);
+        ring.setPickOnBounds(false);
+        ring.setFocusTraversable(false);
+        ring.resize(decorationLayer.getWidth(), decorationLayer.getHeight());
+        ChangeListener<Number> fit = (obs, oldSize, newSize) ->
+            ring.resize(decorationLayer.getWidth(), decorationLayer.getHeight());
+        decorationLayer.widthProperty().addListener(fit);
+        decorationLayer.heightProperty().addListener(fit);
+        decorationLayer.getChildren().add(ring);
+        return ring;
+    }
+
+    /** The focus ring of a decoration layer, or {@code null} while it has none. */
+    static @Nullable Region findFocusRing(@NotNull Pane decorationLayer) {
+        for (Node child : decorationLayer.getChildren()) {
+            if (child instanceof Region region && region.getStyleClass().contains(FOCUS_RING_STYLE_CLASS)) {
+                return region;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * A pane's accessible name: "Pane 2 of 3" with two or more panes, numbered in
+     * {@link #getAllWidgets()} order as the dashboard numbers them; {@code null} for a single pane.
+     *
+     * @param index the pane's position, from 0
+     */
+    static @Nullable String paneAccessibleName(int index, int paneCount) {
+        return paneCount > 1 ? I18n.get(PANE_ACCESSIBLE_NAME_KEY, index + 1, paneCount) : null;
+    }
+
+    /**
+     * Brings every pane's focus ring and accessible name up to date with the number of panes: both
+     * only with two or more panes, where they tell the panes apart. Runs after every change to the
+     * tree, so a pane that joined gets them and the numbers follow a moved pane.
+     */
+    private void refreshPaneDecorations() {
+        List<SithTermFxWidget> panes = getAllWidgets();
+        boolean several = panes.size() > 1;
+        for (int i = 0; i < panes.size(); i++) {
+            SithTermFxWidget pane = panes.get(i);
+            Pane decoration = several
+                ? paneOverlay(pane, PaneOverlayLayer.DECORATION)
+                : existingPaneOverlay(pane, PaneOverlayLayer.DECORATION);
+            Region ring = decoration == null ? null
+                : several ? focusRingOf(decoration) : findFocusRing(decoration);
+            if (ring != null) {
+                ring.setVisible(several);
+            }
+            TerminalPanel panel = pane.getTerminalPanel();
+            if (panel != null && panel.getCanvas() != null) {
+                panel.getCanvas().setAccessibleText(paneAccessibleName(i, panes.size()));
+            }
+        }
+        refreshLastFocusedMarks();
+    }
+
+    /** Marks the wrapper of {@link #focusedWidget}, and only that one, {@link #LAST_FOCUSED}. */
+    private void refreshLastFocusedMarks() {
+        for (SithTermFxWidget pane : getAllWidgets()) {
+            StackPane wrapper = wrapperOf(pane);
+            if (wrapper != null) {
+                wrapper.pseudoClassStateChanged(LAST_FOCUSED, pane == focusedWidget);
+            }
+        }
     }
 
     private void notifyWidgetSplitCreated(@Nullable SithTermFxWidget widget, @NotNull SplitRequest request) {
@@ -1047,6 +1178,7 @@ public class TerminalSplitPane extends StackPane {
      */
     private void setFocusedWidgetInternal(@Nullable SithTermFxWidget widget) {
         focusedWidget = widget;
+        refreshLastFocusedMarks();
     }
 
     /**
@@ -1067,6 +1199,51 @@ public class TerminalSplitPane extends StackPane {
         }
         setFocusedWidgetInternal(widget);
         requestWidgetFocus(widget);
+    }
+
+    /**
+     * Moves the keyboard focus to the pane on {@code direction}'s side of the focused pane, as
+     * Cmd+Option / Ctrl+Alt with an arrow key and <i>View → Panes</i> do. The panes are measured in
+     * scene coordinates, the wrapper with its timestamp gutter and agent panel being the pane; see
+     * {@link PaneNavigator} for how a neighbour is chosen.
+     *
+     * @return true when the focus moved; false at the edge, with a single pane, or before layout
+     */
+    public boolean focusNeighbor(@NotNull PaneNavigator.PaneDirection direction) {
+        List<SithTermFxWidget> panes = getAllWidgets();
+        if (panes.size() < 2) {
+            return false;
+        }
+        SithTermFxWidget origin = panes.contains(focusedWidget) ? focusedWidget : panes.get(0);
+        Optional<SithTermFxWidget> target = PaneNavigator.neighbor(origin, panes, this::sceneBoundsOf, direction);
+        target.ifPresent(this::focusWidget);
+        return target.isPresent();
+    }
+
+    /**
+     * Moves the keyboard focus to the next ({@code forward}) or the previous pane in
+     * {@link #getAllWidgets()} order, wrapping around, as <i>View → Panes → Next Pane</i> and
+     * <i>Previous Pane</i> do.
+     *
+     * @return true when the focus moved; false with a single pane
+     */
+    public boolean focusNext(boolean forward) {
+        Optional<SithTermFxWidget> target = PaneNavigator.next(getAllWidgets(), focusedWidget, forward);
+        target.ifPresent(this::focusWidget);
+        return target.isPresent();
+    }
+
+    /** A pane's bounds in scene coordinates, or {@code null} while it is not laid out in a scene. */
+    private @Nullable PaneNavigator.Rect sceneBoundsOf(@NotNull SithTermFxWidget widget) {
+        StackPane host = wrapperOf(widget);
+        if (host == null || host.getScene() == null) {
+            return null;
+        }
+        Bounds bounds = host.localToScene(host.getLayoutBounds());
+        if (bounds == null || bounds.isEmpty()) {
+            return null;
+        }
+        return new PaneNavigator.Rect(bounds.getMinX(), bounds.getMinY(), bounds.getWidth(), bounds.getHeight());
     }
 
     public @NotNull List<SithTermFxWidget> getAllWidgets() {
@@ -1136,6 +1313,8 @@ public class TerminalSplitPane extends StackPane {
         getChildren().add(rootCell.getNode());
         VBox.setVgrow(rootCell.getNode(), Priority.ALWAYS);
         refreshDragAndDrop();
+        // The panes are numbered in tree order, which the move changed.
+        refreshPaneDecorations();
     }
 
     private void forEachLeafCell(@Nullable SplitCell cell, @NotNull java.util.function.Consumer<SplitCell> action) {
@@ -1309,6 +1488,7 @@ public class TerminalSplitPane extends StackPane {
             button.setVisible(showButtons);
             button.setManaged(showButtons);
         }
+        refreshPaneDecorations();
     }
 
     private class SplitCell {
@@ -1352,6 +1532,8 @@ public class TerminalSplitPane extends StackPane {
             wrapper.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
             VBox.setVgrow(wrapper, Priority.ALWAYS);
             wrapper.setUserData(widget);
+            // The stylesheets draw the focus ring from this cell's :focus-within and :last-focused.
+            wrapper.getStyleClass().add(PANE_CELL_STYLE_CLASS);
             widgetOverlayHosts.put(widget, wrapper);
             Button closeButton = new Button("x");
             closeButton.getStyleClass().add("split-close-button");
@@ -1509,12 +1691,20 @@ public class TerminalSplitPane extends StackPane {
 
     private static final String DROP_ZONE_OVERLAY_KEY = "sithtermfx.dropZoneOverlay";
 
+    /**
+     * The four drop zones shown while a pane is dragged onto another one, in the target pane's
+     * {@link PaneOverlayLayer#DROP_ZONES} layer, above its focus ring. Like the layer it is
+     * mouse-transparent: the wrapper's own drag filters (see {@code attachDragAndDropToCell}) accept
+     * the drag, track the placement and drop the pane.
+     */
     private static final class DropZoneOverlay {
         private final Pane pane;
+        private final Pane layer;
         private final Region wrapper;
         private final SithTermFxWidget targetWidget;
         private final String sourceId;
         private final TerminalSplitPane splitPane;
+        private final ChangeListener<Number> fitToLayer;
         private Placement currentPlacement;
         private final Region zoneAbove;
         private final Region zoneBelow;
@@ -1524,15 +1714,17 @@ public class TerminalSplitPane extends StackPane {
         private static final String STYLE_ZONE = "-fx-background-color: rgba(64,128,255,0.25);";
         private static final String STYLE_ZONE_HIGHLIGHT = "-fx-background-color: rgba(64,128,255,0.5);";
 
-        DropZoneOverlay(Region wrapper, SithTermFxWidget targetWidget, String sourceId, TerminalSplitPane splitPane) {
+        DropZoneOverlay(Region wrapper, Pane layer, SithTermFxWidget targetWidget, String sourceId,
+                        TerminalSplitPane splitPane) {
             this.wrapper = wrapper;
+            this.layer = layer;
             this.targetWidget = targetWidget;
             this.sourceId = sourceId;
             this.splitPane = splitPane;
             this.pane = new Pane();
-            pane.setMinSize(0, 0);
-            pane.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-            pane.setPickOnBounds(true);
+            pane.setManaged(false);
+            pane.setMouseTransparent(true);
+            pane.setPickOnBounds(false);
             zoneAbove = new Region();
             zoneBelow = new Region();
             zoneLeft = new Region();
@@ -1545,6 +1737,27 @@ public class TerminalSplitPane extends StackPane {
             currentPlacement = null;
             pane.widthProperty().addListener((o, a, b) -> layoutZones());
             pane.heightProperty().addListener((o, a, b) -> layoutZones());
+            fitToLayer = (o, a, b) -> fit();
+        }
+
+        /** Adds the zones to the layer, as large as the layer and so as the pane. */
+        void attach() {
+            layer.widthProperty().addListener(fitToLayer);
+            layer.heightProperty().addListener(fitToLayer);
+            layer.getChildren().add(pane);
+            fit();
+        }
+
+        /** Removes the zones; the layer stays with the pane for the next drag. */
+        void detach() {
+            layer.widthProperty().removeListener(fitToLayer);
+            layer.heightProperty().removeListener(fitToLayer);
+            layer.getChildren().remove(pane);
+        }
+
+        private void fit() {
+            pane.resize(layer.getWidth(), layer.getHeight());
+            layoutZones();
         }
 
         private void layoutZones() {
@@ -1590,30 +1803,19 @@ public class TerminalSplitPane extends StackPane {
 
         static void show(Region wrapper, SithTermFxWidget targetWidget, String sourceId, TerminalSplitPane splitPane) {
             hide(wrapper);
-            DropZoneOverlay overlay = new DropZoneOverlay(wrapper, targetWidget, sourceId, splitPane);
-            wrapper.getProperties().put(DROP_ZONE_OVERLAY_KEY, overlay);
-            if (wrapper instanceof StackPane) {
-                overlay.pane.setOnDragOver(e -> {
-                    if (e.getDragboard().hasContent(DRAG_TERMINAL_FORMAT)) {
-                        e.acceptTransferModes(TransferMode.ANY);
-                        updatePlacement(wrapper, e.getX(), e.getY());
-                    }
-                    e.consume();
-                });
-                overlay.pane.setOnDragDropped(e -> {
-                    boolean done = tryDrop(wrapper, splitPane);
-                    e.setDropCompleted(done);
-                    e.consume();
-                });
-                ((StackPane) wrapper).getChildren().add(overlay.pane);
-                Platform.runLater(overlay::layoutZones);
+            Pane layer = splitPane.paneOverlay(targetWidget, PaneOverlayLayer.DROP_ZONES);
+            if (layer == null) {
+                return;
             }
+            DropZoneOverlay overlay = new DropZoneOverlay(wrapper, layer, targetWidget, sourceId, splitPane);
+            wrapper.getProperties().put(DROP_ZONE_OVERLAY_KEY, overlay);
+            overlay.attach();
         }
 
         static void hide(Region wrapper) {
             Object old = wrapper.getProperties().remove(DROP_ZONE_OVERLAY_KEY);
-            if (old instanceof DropZoneOverlay && wrapper instanceof StackPane) {
-                ((StackPane) wrapper).getChildren().remove(((DropZoneOverlay) old).pane);
+            if (old instanceof DropZoneOverlay overlay) {
+                overlay.detach();
             }
         }
 

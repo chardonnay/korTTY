@@ -21,7 +21,7 @@ import static com.google.common.truth.Truth.assertWithMessage;
  * excludes the vendor class from {@code sithtermfx-ui}. If that order ever flipped, korTTY would
  * still compile against its own source, but the vendor class would load at runtime, and every
  * korTTY-only call ({@code getWidgetOverlayHost}, {@code paneOverlay}, {@code closeSplitPane}, the
- * prepared-connector split, the focused-pane tracking) would fail with {@code NoSuchMethodError} or
+ * prepared-connector split, the focused-pane tracking, the pane focus keys) would fail with {@code NoSuchMethodError} or
  * silently lose korTTY's fixes. This test fails first.
  *
  * <p>Toolkit-free: reflection loads the classes without initializing any JavaFX control.
@@ -46,6 +46,12 @@ public class TerminalSplitPaneShadowGuardTest {
         Method paneOverlay = TerminalSplitPane.class.getDeclaredMethod("paneOverlay",
             SithTermFxWidget.class, TerminalSplitPane.PaneOverlayLayer.class);
         assertThat(paneOverlay.getReturnType()).isEqualTo(Pane.class);
+
+        Method focusNeighbor = TerminalSplitPane.class.getDeclaredMethod("focusNeighbor",
+            de.kortty.ui.PaneNavigator.PaneDirection.class);
+        assertThat(focusNeighbor.getReturnType()).isEqualTo(boolean.class);
+        Method focusNext = TerminalSplitPane.class.getDeclaredMethod("focusNext", boolean.class);
+        assertThat(focusNext.getReturnType()).isEqualTo(boolean.class);
     }
 
     @Test
