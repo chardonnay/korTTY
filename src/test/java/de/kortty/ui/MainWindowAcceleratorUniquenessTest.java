@@ -108,12 +108,13 @@ class MainWindowAcceleratorUniquenessTest {
     }
 
     /**
-     * Credentials moved from Shortcut+Shift+P to Shortcut+Shift+M, so Shortcut+Shift+P is free for a
-     * command palette. Shortcut+M stays Manage Connections. Whichever item claims Shortcut+Shift+P
-     * later updates this pin; {@link #noTwoMenuItemsShareAnAccelerator()} keeps Credentials off it.
+     * Credentials moved from Shortcut+Shift+P to Shortcut+Shift+M, and Shortcut+Shift+P is the command
+     * palette now: its constant is the only Shortcut+Shift+P combination, set on View &gt; Command
+     * Palette. Shortcut+M stays Manage Connections. {@link #noTwoMenuItemsShareAnAccelerator()} keeps
+     * any other item off the palette's chord.
      */
     @Test
-    void credentialsUsesShortcutShiftMAndLeavesShortcutShiftPFree() throws IOException {
+    void credentialsUsesShortcutShiftMAndShortcutShiftPIsTheCommandPalette() throws IOException {
         String source = Files.readString(SOURCE, StandardCharsets.UTF_8).replace("\r\n", "\n");
 
         Map<String, String> constants = new LinkedHashMap<>();
@@ -135,7 +136,11 @@ class MainWindowAcceleratorUniquenessTest {
                 shortcutM.add(lineOf(source, combinationMatcher.start()));
             }
         }
-        assertThat(shortcutShiftP).isEmpty();
+        assertThat(constants).containsEntry("COMMAND_PALETTE_ACCELERATOR", "P+SHIFT_DOWN+SHORTCUT_DOWN");
+        assertThat(shortcutShiftP).hasSize(1);
+        assertThat(source).containsMatch("static final KeyCombination COMMAND_PALETTE_ACCELERATOR\\s*=\\s*"
+            + "new KeyCodeCombination\\(\\s*KeyCode\\.P,\\s*KeyCombination\\.SHORTCUT_DOWN,\\s*KeyCombination\\.SHIFT_DOWN\\s*\\)");
+        assertThat(source).contains("commandPalette.setAccelerator(COMMAND_PALETTE_ACCELERATOR);");
         assertThat(shortcutM).hasSize(1);
         assertThat(source).contains(
             "manageConnections.setAccelerator(new KeyCodeCombination(KeyCode.M, KeyCombination.SHORTCUT_DOWN));");

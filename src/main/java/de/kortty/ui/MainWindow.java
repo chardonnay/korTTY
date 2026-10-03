@@ -7,6 +7,11 @@ import de.kortty.telemetry.TelemetryProps;
 import de.kortty.ui.I18n;
 import de.kortty.ui.KeyTypedResidueGuard.Residue;
 import de.kortty.ui.actions.ActionIds;
+import de.kortty.ui.actions.ActionPaletteSource;
+import de.kortty.ui.actions.ActionRegistry;
+import de.kortty.ui.actions.AppAction;
+import de.kortty.ui.actions.MenuActionHarvester;
+import de.kortty.ui.actions.MenuStateRefresh;
 import de.kortty.core.AgentDashboardStatus;
 import com.sithtermfx.ui.SithTermFxWidget;
 import de.kortty.codingagent.CodingAgentActionException;
@@ -220,6 +225,10 @@ public class MainWindow {
         new KeyCodeCombination(KeyCode.SPACE, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
     /** What Cmd/Ctrl+Shift+Space can still type once korTTY took it: a space, or NUL for Ctrl+Space. */
     private static final Residue QUICK_SELECT_RESIDUE = Residue.of(" ", "\u0000");
+    // View > Command Palette, the chord Credentials gave up (it is Shortcut+Shift+M now). Not a plain
+    // Ctrl+letter, so on Windows/Linux Ctrl+P (the shell's previous-history key) stays with the shell.
+    private static final KeyCombination COMMAND_PALETTE_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
     private static final String MENU_BAR_TOGGLE_SHORTCUT_LABEL = "Cmd/Ctrl+Shift+L";
     private static final int JOB_SCHEDULER_QUEUE_LIMIT = 5;
     private static final int MAX_CONCURRENT_TERMINAL_AGENT_RUNS = 5;
@@ -246,6 +255,9 @@ public class MainWindow {
     private final boolean transparentWindowMode;
     private MenuBar menuBar;
     private MenuBar systemMenuBar;
+    // Created on first use: the window's actions for the command palette, and the palette itself.
+    private ActionRegistry actionRegistry;
+    private CommandPalettePopup commandPalette;
     private GuideTranslationIndicator guideTranslationIndicator;
     private String dynamicThemeStylesheetUrl;
     private DashboardView dashboardView;
@@ -1924,6 +1936,15 @@ public class MainWindow {
         Menu viewMenu = new Menu(I18n.get("menu.view"));
         boolean restoreDashboard = shouldRestoreDashboardOnStartup();
 
+        MenuItem commandPalette = menuItem("menu.view.commandPalette");
+        // Shown here; the scene shortcut router handles the key, also while a terminal has the focus.
+        commandPalette.setAccelerator(COMMAND_PALETTE_ACCELERATOR);
+        // After the menu has closed, so the palette takes the keyboard. From the menu bar of a closed
+        // macOS window it opens in the frontmost open window (ClosedWindowMenuRouter's default).
+        commandPalette.setOnAction(e -> Platform.runLater(this::showCommandPalette));
+        // Not a command of the palette itself.
+        ActionIds.exclude(commandPalette);
+
         CheckMenuItem dashboardItem = checkMenuItem("menu.view.dashboard");
         dashboardItem.setAccelerator(new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         dashboardItem.setSelected(restoreDashboard);
@@ -2117,7 +2138,8 @@ public class MainWindow {
             systemHideFullscreenScrollbarsMenuItem = hideFullscreenScrollbars;
         }
 
-        viewMenu.getItems().addAll(dashboardItem, timestampsItem, menuBarItem, fileBrowserMenu, aiAgentPanelMenu,
+        viewMenu.getItems().addAll(commandPalette, new SeparatorMenuItem(),
+            dashboardItem, timestampsItem, menuBarItem, fileBrowserMenu, aiAgentPanelMenu,
             journalLivePanelMenu, codingAgentPanelMenu,
             new SeparatorMenuItem(),
             zoomIn, zoomOut, resetZoom);
@@ -2500,6 +2522,11 @@ public class MainWindow {
         BooleanSupplier terminalSelected =
             () -> tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab;
         SceneShortcutRouter router = new SceneShortcutRouter(isMacOs())
+            // The command palette, in every tab and over a focused terminal. Pressed while the palette
+            // shows, the chord gets past its key firewall and closes it here. Shown at once, so the
+            // chord's KEY_TYPED goes to the palette, which drops it; on closing, the guard swallows it.
+            .consume(press -> PaletteKeys.isChord(press, COMMAND_PALETTE_ACCELERATOR), SceneShortcutRouter.ALWAYS,
+                this::toggleCommandPalette, PaletteKeys.RESIDUE)
             .consume(press -> press.matches(MENU_BAR_TOGGLE_ACCELERATOR), SceneShortcutRouter.ALWAYS,
                 () -> toggleMenuBarVisibility(menuBar == null || !menuBar.isVisible()), Residue.ofLetter('L'))
             .consume(press -> press.matches(TERMINAL_ONLY_FULLSCREEN_ACCELERATOR), SceneShortcutRouter.ALWAYS,
@@ -2558,6 +2585,84 @@ public class MainWindow {
     /** The chord that starts quick select, for the terminal view that ignores it while quick select runs. */
     static KeyCombination quickSelectAccelerator() {
         return QUICK_SELECT_ACCELERATOR;
+    }
+
+    /** The chord that opens and closes the command palette. */
+    static KeyCombination commandPaletteAccelerator() {
+        return COMMAND_PALETTE_ACCELERATOR;
+    }
+
+    /** Cmd/Ctrl+Shift+P: opens the command palette, or closes it while it shows. */
+    private void toggleCommandPalette() {
+        if (commandPalette != null && commandPalette.isShowing()) {
+            commandPalette.hide();
+        } else {
+            showCommandPalette();
+        }
+    }
+
+    /**
+     * View → Command Palette… and Cmd/Ctrl+Shift+P: brings the menu items' states up to date, then
+     * shows the palette over this window's commands, centred at the top of the window.
+     */
+    private void showCommandPalette() {
+        if (sceneRoot == null || sceneRoot.getScene() == null || sceneRoot.getScene().getWindow() == null) {
+            return;
+        }
+        refreshActionStates();
+        if (commandPalette == null) {
+            commandPalette = new CommandPalettePopup(
+                List.of(new ActionPaletteSource(actionRegistry(), KeyCombination::getDisplayText,
+                    de.kortty.policy.PolicyUiSupport::managedByOrganizationText,
+                    () -> I18n.get("palette.disabled"))),
+                PaletteKeys.passThrough(COMMAND_PALETTE_ACCELERATOR, isMacOs()));
+        }
+        commandPalette.show(sceneRoot);
+    }
+
+    /**
+     * The actions of this window: every item of the in-window menu bar, harvested afresh each time
+     * the palette opens (the menus that are rebuilt while they open are excluded), and then the tab
+     * actions that have no menu item.
+     */
+    private ActionRegistry actionRegistry() {
+        if (actionRegistry == null) {
+            ActionRegistry registry = new ActionRegistry();
+            registry.addContributor(() -> menuBar != null ? MenuActionHarvester.harvest(menuBar.getMenus()) : List.of());
+            List<AppAction> tabActions = List.of(
+                tabAction("palette.action.nextTab", new KeyCodeCombination(KeyCode.TAB, KeyCombination.CONTROL_DOWN),
+                    this::selectNextTab),
+                tabAction("palette.action.previousTab",
+                    new KeyCodeCombination(KeyCode.TAB, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN),
+                    this::selectPreviousTab));
+            registry.addContributor(() -> tabActions);
+            actionRegistry = registry;
+        }
+        return actionRegistry;
+    }
+
+    /** A tab action labelled and identified by {@code key}, shown with the Ctrl+Tab chord the router handles. */
+    private AppAction tabAction(String key, KeyCombination shownChord, Runnable run) {
+        return new AppAction(key, I18n.get(key), I18n.get("palette.category.tab"), shownChord, List.of(),
+            () -> tabPane.getTabs().size() > 1, null, run, true, false);
+    }
+
+    /**
+     * Brings the enabled and checked state of the in-window menu bar's items up to date before the
+     * command palette reads them. Some items are synced only when their menu opens, so every menu's
+     * opening handler runs here (File: Rename Tab and the close items; Security: Unlock Vault;
+     * Highlighting), and the syncs that otherwise run on other events are called directly. A feature
+     * whose items are synced in neither way adds its sync method here.
+     */
+    private void refreshActionStates() {
+        syncUnlockVaultMenuItems();
+        syncAiFeaturesMenuItemsEnabled();
+        syncPreventSleepMenuItems();
+        updateEditMenuItemsForSelection();
+        syncHighlightingToggleItems();
+        if (menuBar != null) {
+            MenuStateRefresh.refresh(menuBar.getMenus());
+        }
     }
 
     /** A terminal tab is selected and the keyboard focus is inside it, or nowhere. */

@@ -331,6 +331,12 @@ class ClosedWindowMenuRouterTest {
         }
         assertThat(methodBody(window, "private Menu createConfigurationMenu() {"))
             .contains("ClosedWindowMenuRouter.noWindowNeeded(preventSleep);");
+        // Like Find, the command palette opens in the frontmost open window (the default need).
+        String view = methodBody(window, "private Menu createViewMenu(MenuBarTarget target) {");
+        assertThat(view).contains("MenuItem commandPalette = menuItem(\"menu.view.commandPalette\");");
+        assertThat(view).doesNotContain("ClosedWindowMenuRouter.ownWindowOnly(commandPalette)");
+        assertThat(view).doesNotContain("ClosedWindowMenuRouter.noWindowNeeded(commandPalette)");
+        assertThat(edit).doesNotContain("ClosedWindowMenuRouter.ownWindowOnly(find)");
         assertThat(methodBody(window, "private void rebuildJobSchedulerStatusMenuItems(Menu menu) {"))
             .contains("ClosedWindowMenuRouter.noWindowNeeded(cancel);");
     }

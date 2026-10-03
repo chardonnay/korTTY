@@ -157,6 +157,7 @@ nav:
       - features/connections.md
       - features/terminal.md
       - features/highlighting.md
+      - features/command-palette.md
       - features/tunnels.md
       - features/jump-server.md
       - features/sftp.md

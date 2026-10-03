@@ -31,7 +31,7 @@ import java.util.function.Predicate;
  * the window behind; only the keys the pass-through predicate names get through. A result the
  * choosable predicate rejects is shown with {@link #UNAVAILABLE_STYLE_CLASS}, keeps the popup open
  * when chosen and is read out as disabled. The field reads out its prompt, every row its text, and
- * the width follows the UI font scale.
+ * the width follows the UI font scale. An optional footer sits below the list.
  *
  * @param <T> the result type
  */
@@ -110,6 +110,9 @@ final class QuickPickPopup<T> {
         });
 
         VBox root = new VBox(6, field, list);
+        if (builder.footer != null) {
+            root.getChildren().add(builder.footer);
+        }
         root.setId(builder.rootId);
         root.setPadding(new Insets(8));
         root.setPrefWidth(width);
@@ -259,6 +262,7 @@ final class QuickPickPopup<T> {
         };
         private Predicate<? super KeyEvent> passThrough = QuickPickKeyFirewall.NONE;
         private double width = DEFAULT_WIDTH;
+        private Node footer;
 
         private Builder(String rootId, String fieldId, String listId) {
             this.rootId = Objects.requireNonNull(rootId, "rootId");
@@ -329,6 +333,12 @@ final class QuickPickPopup<T> {
         /** The width before the UI font scale is applied. */
         Builder<T> width(double width) {
             this.width = width;
+            return this;
+        }
+
+        /** A node shown below the result list, such as a hint or the reason a result cannot be chosen. */
+        Builder<T> footer(@NotNull Node footer) {
+            this.footer = Objects.requireNonNull(footer, "footer");
             return this;
         }
 

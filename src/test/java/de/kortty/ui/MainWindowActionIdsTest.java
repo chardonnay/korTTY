@@ -188,6 +188,15 @@ class MainWindowActionIdsTest {
             "Menu terminalEffectMenu = ActionIds.exclude(createTerminalEffectMenu(null, includeEffectSpeedControl));");
     }
 
+    /** View &gt; Command Palette… opens the palette, so the palette does not list it as a command. */
+    @Test
+    void theCommandPaletteItemIsNoCommandOfThePalette() throws IOException {
+        String view = methodBody(source(), "private Menu createViewMenu(MenuBarTarget target) {");
+
+        assertThat(view).contains("MenuItem commandPalette = menuItem(\"menu.view.commandPalette\");");
+        assertThat(view).contains("ActionIds.exclude(commandPalette);");
+    }
+
     @Test
     void itemsThePolicyDeniesAreLockedNotJustDisabled() throws IOException {
         String source = source();

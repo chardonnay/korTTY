@@ -106,6 +106,7 @@ The three session-journal items stay visible but are disabled when an [enterpris
 
 | Item | Shortcut | Description |
 | --- | --- | --- |
+| Command Palette… | ++ctrl+shift+p++ | Open the [command palette](../features/command-palette.md) to find and run any menu command by typing part of its name; the shortcut also works while a terminal has the focus and with the menu bar hidden, and closes the palette again |
 | Show Dashboard | ++ctrl+shift+d++ | Toggle the connections dashboard |
 | Show Command Timestamps | ++ctrl+shift+t++ | Toggle inline command timestamps |
 | Show Menu Bar | ++ctrl+shift+l++ | Toggle the menu bar |
