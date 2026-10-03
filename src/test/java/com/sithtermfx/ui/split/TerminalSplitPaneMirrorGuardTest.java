@@ -69,11 +69,13 @@ public class TerminalSplitPaneMirrorGuardTest {
             .contains("return broadcastMode || isMirrorMember(widget);");
 
         // The typed characters, the control keys and both broadcast paths ask the same question.
-        assertThat(source).contains("widgetPane.addEventFilter(KeyEvent.KEY_TYPED, event -> {\n"
-            + "            if (!isMirroring(widget)) return;");
+        String typed = source.substring(source.indexOf("widgetPane.addEventFilter(KeyEvent.KEY_TYPED, event -> {\n"));
+        typed = typed.substring(0, typed.indexOf("\n        });\n"));
+        assertThat(typed).contains("\n            if (!isMirroring(widget)) return;");
         String route = sourceOf(source,
             "private void routeKeyPressed(@NotNull SithTermFxWidget widget, @NotNull KeyEvent event) {");
-        assertThat(route).contains("if (isMirroring(widget)) {\n                String sequence = getControlSequence(event);");
+        assertThat(route).contains("String sequence = getControlSequence(event);");
+        assertThat(route).contains("if (isMirroring(widget)) {\n                    broadcastToOthers(widget, sequence);");
         for (String path : List.of(typedPath(source), encodedPath(source))) {
             assertThat(path).contains("if (!isMirroring(sourceWidget)) return;");
             assertThat(path).doesNotContain("broadcastMode");

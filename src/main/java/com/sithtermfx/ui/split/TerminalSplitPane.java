@@ -289,6 +289,12 @@ public class TerminalSplitPane extends StackPane {
     // and in other tabs and windows (multi-exec); null while there is none.
     private @Nullable InputMirror inputMirror;
 
+    // The pane the last key was pressed in, and what the character of that key's KEY_TYPED may still
+    // mirror (BroadcastTargets.TypedMirror): set by routeKeyPressed, refined once the terminal saw
+    // the key, used up by the KEY_TYPED. One key at a time on the FX thread.
+    private @Nullable SithTermFxWidget typedMirrorPane;
+    private BroadcastTargets.TypedMirror typedMirror = BroadcastTargets.TypedMirror.PRINTABLE_ONLY;
+
     /** If set, called when user chooses "Reset" font size in context menu (e.g. to reset to connection/global default). */
     private Runnable resetZoomCallback;
 
@@ -576,6 +582,9 @@ public class TerminalSplitPane extends StackPane {
      * </ul>
      */
     private void routeKeyPressed(@NotNull SithTermFxWidget widget, @NotNull KeyEvent event) {
+        // Until this key is known to reach the pane's program, its KEY_TYPED mirrors no control character.
+        typedMirrorPane = widget;
+        typedMirror = BroadcastTargets.TypedMirror.PRINTABLE_ONLY;
         if (event.isConsumed()) {
             return;
         }
@@ -584,14 +593,21 @@ public class TerminalSplitPane extends StackPane {
             return;
         }
         if (!TerminalNavigationKeys.isNavigationKey(event.getCode())) {
-            if (isMirroring(widget)) {
-                String sequence = getControlSequence(event);
-                if (sequence != null) {
+            String sequence = getControlSequence(event);
+            if (sequence != null) {
+                // Enter, Backspace and Esc are mirrored here; whatever their KEY_TYPED carries is not.
+                typedMirror = BroadcastTargets.TypedMirror.NONE;
+                if (isMirroring(widget)) {
                     broadcastToOthers(widget, sequence);
                 }
+            } else if (isMirroring(widget)) {
+                // Copy and paste run in this pane only: the control character their KEY_TYPED still
+                // carries on Windows and Linux must not reach the other panes.
+                typedMirror = BroadcastTargets.TypedMirror.ofPress(runsPaneAction(widget, event));
             }
             return;
         }
+        typedMirror = BroadcastTargets.TypedMirror.NONE;
         if (TerminalNavigationKeys.isKorttyEncoded(widget.getEmulationType())
             && performsLocalScrollAction(widget, event)) {
             return;
@@ -602,6 +618,45 @@ public class TerminalSplitPane extends StackPane {
         }
         broadcastToOthers(widget, target -> encodeKeyFor(target, event));
         event.consume();
+    }
+
+    /**
+     * Records what the terminal did with a key pressed in {@code widget}. Runs on the canvas after
+     * SithTermFX's own key filter, which consumes a key it sent to the program (or ran an action on),
+     * so the key's KEY_TYPED mirrors a control character only when the pane sent one itself.
+     */
+    private void noteTerminalHandledKey(@NotNull SithTermFxWidget widget, @NotNull KeyEvent event) {
+        if (typedMirrorPane == widget) {
+            typedMirror = typedMirror.afterTerminal(event.isConsumed());
+        }
+    }
+
+    /**
+     * Whether the character of a KEY_TYPED event in {@code widget} goes to the panes that mirror it
+     * ({@link BroadcastTargets.TypedMirror}); the decision for the key pressed before it is used up.
+     */
+    private boolean mirrorsTypedCharacter(@NotNull SithTermFxWidget widget, char character) {
+        BroadcastTargets.TypedMirror decision = typedMirrorPane == widget
+            ? typedMirror : BroadcastTargets.TypedMirror.PRINTABLE_ONLY;
+        typedMirrorPane = null;
+        typedMirror = BroadcastTargets.TypedMirror.PRINTABLE_ONLY;
+        return decision.mirrors(character);
+    }
+
+    /**
+     * Whether SithTermFX runs an action of the pane on this key instead of sending it, such as copy or
+     * paste: the first action whose key combination matches decides, as in
+     * {@code TerminalAction.processEvent}, and it runs when it is enabled.
+     */
+    private static boolean runsPaneAction(@NotNull SithTermFxWidget widget, @NotNull KeyEvent event) {
+        try {
+            TerminalPanel panel = widget.getTerminalPanel();
+            TerminalAction action = panel != null ? firstMatchingAction(panel, event) : null;
+            return action != null && action.isEnabled(event);
+        } catch (RuntimeException e) {
+            logger.debug("Could not look up the pane action of a key: {}", e.getMessage());
+            return false;
+        }
     }
 
     /**
@@ -814,23 +869,31 @@ public class TerminalSplitPane extends StackPane {
         var widgetPane = widget.getPane();
         
         widgetPane.addEventFilter(KeyEvent.KEY_TYPED, event -> {
+            String character = event.getCharacter();
+            // Used up by every KEY_TYPED, mirrored or not, so it never applies to a later key.
+            boolean typedByPane = character != null && !character.isEmpty()
+                && mirrorsTypedCharacter(widget, character.charAt(0));
             if (!isMirroring(widget)) return;
             // Meta/Cmd chords are shortcuts, not text (menu accelerators such as Cmd+Shift+D only
             // consume KEY_PRESSED; macOS still delivers the paired KEY_TYPED character here).
             if (event.isMetaDown()) return;
             // Search text typed into the find bar is not shell input.
             if (!isTerminalKeyTarget(widget, event.getTarget())) return;
-            String character = event.getCharacter();
-            if (character != null && !character.isEmpty()) {
-                char c = character.charAt(0);
-                if (c == '\r' || c == '\t' || c == '\u001B' || c == '\u007F') {
-                    return;
-                }
-                broadcastToOthers(widget, character);
+            // Only what this pane sends to its own program: not the control character that copy,
+            // paste or a menu shortcut leaves in the KEY_TYPED (BroadcastTargets.TypedMirror).
+            if (!typedByPane) return;
+            char c = character.charAt(0);
+            if (c == '\r' || c == '\t' || c == '\u001B' || c == '\u007F') {
+                return;
             }
+            broadcastToOthers(widget, character);
         });
-        
+
         widgetPane.addEventFilter(KeyEvent.KEY_PRESSED, event -> routeKeyPressed(widget, event));
+        if (panel != null && panel.getCanvas() != null) {
+            // After SithTermFX's key filter on the canvas, added when the widget was built.
+            panel.getCanvas().addEventFilter(KeyEvent.KEY_PRESSED, event -> noteTerminalHandledKey(widget, event));
+        }
     }
 
     private void requestWidgetFocus(@NotNull SithTermFxWidget widget) {

@@ -51,6 +51,66 @@ public final class BroadcastTargets {
         SEND_AND_MIRROR
     }
 
+    /**
+     * Which character of a key's KEY_TYPED event the panes that mirror the pane it was pressed in may
+     * get, decided by what that pane did with the key's KEY_PRESSED. The character is mirrored only
+     * when the pane sends the key to its own program as well, so a key that ran a pane action or was
+     * left to a menu shortcut reaches no other pane either.
+     *
+     * <p>That matters for the control character Ctrl turns a letter into, which the KEY_TYPED of a
+     * Ctrl+Shift chord still carries on Windows and Linux: {@code U+0003} after Ctrl+Shift+C, the copy
+     * key, would interrupt the program in every mirrored pane, and {@code U+0016} after Ctrl+Shift+V,
+     * the paste key, would make the shells there insert the next key literally. SithTermFX sends a
+     * control character from the KEY_PRESSED, when the key's text is one, and ignores it in the
+     * KEY_TYPED; printable characters it sends from the KEY_TYPED.
+     */
+    public enum TypedMirror {
+        /**
+         * The pane ran an action on the key, such as copy or paste, or the key was sent and mirrored
+         * from its KEY_PRESSED already (Enter, Backspace, Esc and the navigation keys): its character
+         * is not mirrored.
+         */
+        NONE,
+        /**
+         * The terminal left the key alone, so it types a printable character into its program and
+         * nothing for a control character: only a printable character is mirrored. Also what a
+         * KEY_TYPED gets whose KEY_PRESSED never reached the pane.
+         */
+        PRINTABLE_ONLY,
+        /**
+         * The terminal sent the key to its program itself, such as Ctrl+C: its character stands for
+         * what it sent and is mirrored, a control character included.
+         */
+        ALL;
+
+        /**
+         * What a key may mirror before the terminal saw it.
+         *
+         * @param paneAction whether an action of the pane, such as copy or paste, runs on the key
+         */
+        public static @NotNull TypedMirror ofPress(boolean paneAction) {
+            return paneAction ? NONE : PRINTABLE_ONLY;
+        }
+
+        /**
+         * What the key may mirror once the terminal saw its KEY_PRESSED.
+         *
+         * @param terminalConsumed whether the terminal consumed it, which it does for a key it sent
+         */
+        public @NotNull TypedMirror afterTerminal(boolean terminalConsumed) {
+            return this == PRINTABLE_ONLY && terminalConsumed ? ALL : this;
+        }
+
+        /** Whether {@code character}, the key's KEY_TYPED character, goes to the mirrored panes. */
+        public boolean mirrors(char character) {
+            return switch (this) {
+                case NONE -> false;
+                case PRINTABLE_ONLY -> !Character.isISOControl(character);
+                case ALL -> true;
+            };
+        }
+    }
+
     private BroadcastTargets() {
     }
 
