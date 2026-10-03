@@ -1685,7 +1685,7 @@ public class TerminalView extends BorderPane {
     /**
      * Reads the live selection, which {@code selectedTextProperty()} only reflects once the selection
      * gesture has ended. {@code getSelectedText()} is private to SithTermFX's {@code TerminalPanel};
-     * korTTY's panel is an anonymous subclass, so the lookup names the declaring class.
+     * korTTY's panel is a subclass, so the lookup names the declaring class.
      */
     private @Nullable String readSelectedTextDirectly(@NotNull com.sithtermfx.ui.TerminalPanel terminalPanel) {
         try {
