@@ -134,7 +134,7 @@ public class CredentialEditDialog extends ThemeAwareDialog<CredentialResult> {
             environmentCombo.setValue(environmentManager.getEnvironments().isEmpty() ? null : environmentManager.getEnvironments().get(0));
         } else {
             for (StoredCredential.Environment e : StoredCredential.Environment.values()) {
-                environmentCombo.getItems().add(new EnvironmentDefinition(e.name(), e.getDisplayName()));
+                environmentCombo.getItems().add(new EnvironmentDefinition(e.name(), EnvironmentManager.builtInDisplayName(e)));
             }
             environmentCombo.setConverter(new javafx.util.StringConverter<>() {
                 @Override public String toString(EnvironmentDefinition d) { return d != null ? d.getDisplayName() : ""; }

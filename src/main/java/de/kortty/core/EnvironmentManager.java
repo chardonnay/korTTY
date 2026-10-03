@@ -2,6 +2,7 @@ package de.kortty.core;
 
 import de.kortty.model.EnvironmentDefinition;
 import de.kortty.model.StoredCredential;
+import de.kortty.ui.I18n;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
@@ -56,10 +57,15 @@ public class EnvironmentManager {
     public List<EnvironmentDefinition> getEnvironments() {
         List<EnvironmentDefinition> result = new ArrayList<>();
         for (StoredCredential.Environment e : StoredCredential.Environment.values()) {
-            result.add(new EnvironmentDefinition(e.name(), e.getDisplayName()));
+            result.add(new EnvironmentDefinition(e.name(), builtInDisplayName(e)));
         }
         result.addAll(customEnvironments);
         return result;
+    }
+
+    /** Localized label of a built-in environment; credentials keep storing its enum name. */
+    public static String builtInDisplayName(StoredCredential.Environment environment) {
+        return I18n.get(environment.i18nKey());
     }
 
     /**
@@ -67,11 +73,10 @@ public class EnvironmentManager {
      */
     public String getDisplayName(String environmentId) {
         if (environmentId == null || environmentId.isEmpty()) {
-            return StoredCredential.Environment.PRODUCTION.getDisplayName();
+            return builtInDisplayName(StoredCredential.Environment.PRODUCTION);
         }
         try {
-            StoredCredential.Environment e = StoredCredential.Environment.valueOf(environmentId);
-            return e.getDisplayName();
+            return builtInDisplayName(StoredCredential.Environment.valueOf(environmentId));
         } catch (IllegalArgumentException ignored) {
         }
         return customEnvironments.stream()
