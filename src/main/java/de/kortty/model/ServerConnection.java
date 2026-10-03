@@ -96,6 +96,14 @@ public class ServerConnection {
     private String tag;
 
     /**
+     * Color that marks this connection's terminal tabs, as {@code #RRGGBB}; {@code null} = no color
+     * of its own. Read through {@link de.kortty.core.ConnectionColorSupport#normalizeHex}, which
+     * ignores anything that is not a hex color (the value can come from a shared teamwork file).
+     */
+    @XmlElement
+    private String tabColor;
+
+    /**
      * Per-connection host-key verification override. {@code null} inherits from the group/global
      * setting; {@code true} relaxes to accept-new; {@code false} forces strict verification even if
      * the group or global setting disabled it. See {@link de.kortty.core.HostKeyCheckPolicy}.
@@ -207,6 +215,7 @@ public class ServerConnection {
         c.encoding = source.encoding;
         c.group = source.group;
         c.tag = source.tag;
+        c.tabColor = source.tabColor;
         c.disableHostKeyCheck = source.disableHostKeyCheck;
         c.usageCount = source.usageCount;
         c.lastUsed = source.lastUsed;
@@ -255,6 +264,7 @@ public class ServerConnection {
         c.encoding = source.encoding;
         c.group = source.group;
         c.tag = source.tag;
+        c.tabColor = source.tabColor;
         c.disableHostKeyCheck = source.disableHostKeyCheck;
         c.aiProfileId = source.aiProfileId;
         c.setAiSkillIds(source.getAiSkillIds());
@@ -279,6 +289,7 @@ public class ServerConnection {
         c.port = source.port;
         c.group = source.group;
         c.tag = source.tag;
+        c.tabColor = source.tabColor;
         c.protocol = source.protocol;
         c.localShellCommand = source.localShellCommand;
         c.localShellWorkingDirectory = source.localShellWorkingDirectory;
@@ -510,6 +521,15 @@ public class ServerConnection {
 
     public void setTag(String tag) {
         this.tag = tag;
+    }
+
+    /** The color that marks this connection's terminal tabs as stored; {@code null} when it has none. */
+    public String getTabColor() {
+        return tabColor;
+    }
+
+    public void setTabColor(String tabColor) {
+        this.tabColor = tabColor;
     }
 
     /** {@code null} = inherit, {@code true} = don't verify (accept-new), {@code false} = force strict. */

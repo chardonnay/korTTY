@@ -1,5 +1,6 @@
 package de.kortty.core;
 
+import com.sithtermfx.core.HyperlinkStyle;
 import com.sithtermfx.core.TerminalColor;
 import com.sithtermfx.core.TextStyle;
 import com.sithtermfx.core.model.TerminalTextBuffer;
@@ -33,6 +34,8 @@ public final class TerminalScreenRenderer {
     public interface AnsiColors {
         String hex(int index, boolean bright);
     }
+
+    private static final int MAX_LINK_STYLE_DEPTH = 8;
 
     private TerminalScreenRenderer() {
     }
@@ -69,7 +72,7 @@ public final class TerminalScreenRenderer {
             for (var entry : line.getEntries()) {
                 String text = entry.getText() != null ? entry.getText().toString() : "";
                 if (!text.isEmpty()) {
-                    TextStyle style = entry.getStyle();
+                    TextStyle style = drawnStyle(entry.getStyle());
                     runs.add(new TerminalRecordingStyleRun(
                         row,
                         column,
@@ -82,6 +85,28 @@ public final class TerminalScreenRenderer {
             }
         }
         return runs;
+    }
+
+    /**
+     * The style a cell's text is drawn with. A link cell holds a {@link HyperlinkStyle}, which has no
+     * colours or attributes of its own: an OSC 8 link keeps the text's style as its previous style, a
+     * link drawn over existing text as its original style, and its custom style carries the link
+     * colours. Unwrapping in that order keeps the colours, bold and inverse of linked text in
+     * recordings, which otherwise showed it in the default colour.
+     */
+    static TextStyle drawnStyle(TextStyle style) {
+        TextStyle current = style;
+        // A link opened inside another link wraps it; the depth bound only guards against a cycle.
+        for (int depth = 0; depth < MAX_LINK_STYLE_DEPTH && current instanceof HyperlinkStyle link; depth++) {
+            if (link.getPrevTextStyle() != null) {
+                current = link.getPrevTextStyle();
+            } else if (link.getOriginalStyle() != null) {
+                current = link.getOriginalStyle();
+            } else {
+                return link.getCustomStyle();
+            }
+        }
+        return current instanceof HyperlinkStyle link ? link.getCustomStyle() : current;
     }
 
     /** The snapshot drawn like a recording export frame (monospaced, black background). */

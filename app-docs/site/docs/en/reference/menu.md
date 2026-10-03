@@ -7,8 +7,13 @@ Every item in korTTY's menu bar, with its shortcut (where defined) and what it d
 | Item | Shortcut | Description |
 | --- | --- | --- |
 | New Tab | ++ctrl+t++ | Open Quick Connect in a new terminal tab |
+| Rename Tab… | | Give the active terminal tab a name of its own instead of the connection's name or the [title its shell set](../features/terminal.md#title-from-the-shell); an empty name shows that again. Available while a terminal tab is active. See [Working with tabs](../features/terminal.md#working-with-tabs) |
 | Close Tab | ++ctrl+w++ | Close the active terminal tab |
-| Close All Tabs | | Close every tab in the current window |
+| Close Other Tabs | | Close every other tab of the current window; the active tab stays open. Asks once when some of the closing terminals have split panes or a running command. The same entry is in a terminal tab's right-click menu. See [Working with tabs](../features/terminal.md#working-with-tabs) |
+| Close Tabs to the Right | | Close the tabs after the active tab, which stays open. Asks like Close Other Tabs. The same entry is in a terminal tab's right-click menu |
+| Close All Tabs | | Close every tab in the current window; Reopen Closed Tab brings the terminal tabs back |
+| Reopen Closed Tab | ++ctrl+alt+shift+t++ | Reopen the terminal tab you closed last (or the tabs one command closed together) with a new session; greyed out while there is nothing to reopen. The same entry is in a terminal tab's right-click menu. See [Working with tabs](../features/terminal.md#working-with-tabs) |
+| Recently Closed ▸ | | What you closed in this session, newest first: a tab, the tabs one command closed together, or *Window: …* for the tabs of a closed window. Choose an entry to reopen it; **Clear List** empties the list |
 | New Window | ++ctrl+shift+n++ | Open an additional, independent main window |
 | Close Window | ++ctrl+shift+w++ | Close the current window |
 | Open Project… | ++ctrl+o++ | Restore a saved project (windows, tabs, layout) |
@@ -27,6 +32,7 @@ Connection entries (Quick Connect, Manage/Import/Export Connections) live in the
 | Copy | ++ctrl+c++ | Copy the terminal selection |
 | Paste | ++ctrl+v++ | Paste into the terminal |
 | Find… | ++ctrl+f++ | Search the active tab (terminal scrollback or open editor). On Windows and Linux a focused terminal sends ++ctrl+f++ to the shell, so open Find from this menu or the terminal's right-click menu there |
+| Quick Select | ++ctrl+shift+space++ | Label every web address, path, e-mail address, UUID, IP address, git hash and number of four or more digits in the focused terminal pane; type a label to copy its text, or ++shift++ and the label to open a web or e-mail address, or in SSH and local-shell tabs a file path in the Snippet Editor. Disabled outside terminal tabs, see [Quick select](../features/terminal.md#quick-select) |
 
 ## Connections
 
@@ -40,13 +46,13 @@ Connection entries (Quick Connect, Manage/Import/Export Connections) live in the
 
 ## Security
 
-| Item | Description |
-| --- | --- |
-| Unlock Vault… | Enter the master password to unlock stored secrets when the startup prompt is off (disabled while unlocked) |
-| Credentials… | Manage stored credentials (encrypted) |
-| GPG-Keys… | Manage GPG keys used for backup encryption |
-| SSH-Keys… | Manage SSH keys and passphrases |
-| Known Hosts… | Review, search and remove trusted SSH host keys |
+| Item | Shortcut | Description |
+| --- | --- | --- |
+| Unlock Vault… | | Enter the master password to unlock stored secrets when the startup prompt is off (disabled while unlocked) |
+| Credentials… | ++ctrl+shift+m++ | Manage stored credentials (encrypted). The shortcut also works while a terminal has the focus |
+| GPG-Keys… | ++ctrl+shift+g++ | Manage GPG keys used for backup encryption |
+| SSH-Keys… | ++ctrl+shift+i++ | Manage SSH keys and passphrases |
+| Known Hosts… | | Review, search and remove trusted SSH host keys |
 
 ## Configuration
 
@@ -147,3 +153,5 @@ On macOS the packaged app keeps running in the background (so the JobScheduler c
 - **Menu-bar (status) icon** — a system-tray icon with **New Window** and **Quit**; clicking the icon opens a new window.
 
 Both provide a reliable **Quit** even when every window is closed.
+
+The menu bar at the top of the screen stays as well when you close the last window, and while no korTTY window has the focus it can still be the menu bar of a window you closed. Its entries then act in the korTTY window you used last, which comes to the front, or open a new window first when none is open: **New Tab** opens Quick Connect there, **Manage Connections...** the Connection Manager. **New Window**, **Quit**, **Prevent System Sleep** and cancelling a running job need no window. **Close Tab**, **Close All Tabs**, **Close Window**, **Cut**, **Copy** and **Paste** do nothing from the menu bar of a closed window, so they never close a tab or paste into a window you are not looking at.

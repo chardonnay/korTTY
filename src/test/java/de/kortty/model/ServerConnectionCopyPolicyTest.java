@@ -30,7 +30,8 @@ public class ServerConnectionCopyPolicyTest {
             "host", "port", "username", "protocol", "localShellCommand",
             "localShellWorkingDirectory", "authMethod", "privateKeyPath",
             "terminalEffectPluginId", "terminalEffectAnimationSpeed", "terminalEmulationType",
-            "encoding", "group", "tag", "disableHostKeyCheck", "aiProfileId", "aiSkillIds", "settings");
+            "encoding", "group", "tag", "tabColor", "disableHostKeyCheck", "aiProfileId", "aiSkillIds",
+            "settings");
 
     /** Duplicate deliberately leaves these behind; moving one to carried is a product decision. */
     private static final Set<String> DUPLICATE_EXCLUDED = Set.of(
@@ -44,7 +45,7 @@ public class ServerConnectionCopyPolicyTest {
             "connectionSource", "teamworkSourceId", "teamworkVersionToken", "teamworkRole");
 
     private static final Set<String> EXPORT_CARRIED = Set.of(
-            "name", "host", "port", "group", "tag", "protocol", "localShellCommand",
+            "name", "host", "port", "group", "tag", "tabColor", "protocol", "localShellCommand",
             "localShellWorkingDirectory", "authMethod", "privateKeyPath", "sshKeyId",
             "disableHostKeyCheck", "terminalEffectPluginId", "terminalEffectAnimationSpeed",
             "terminalEmulationType", "encoding", "highlightRuleSetId", "settings");

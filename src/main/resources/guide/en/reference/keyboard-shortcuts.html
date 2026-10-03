@@ -777,6 +777,10 @@
 <td>Close Tab</td>
 </tr>
 <tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-t">T</kbd></span></td>
+<td>Reopen the last closed terminal tab (also while a terminal has the focus)</td>
+</tr>
+<tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-n">N</kbd></span></td>
 <td>New Window</td>
 </tr>
@@ -791,6 +795,14 @@
 <tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span></td>
 <td>Previous Tab (<span class="keys"><kbd class="key-control">Ctrl</kbd></span> on macOS too)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-1">1</kbd></span> … <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-8">8</kbd></span></td>
+<td>Jump to the first to eighth tab of the window (top row or numpad)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-9">9</kbd></span></td>
+<td>Jump to the last tab of the window</td>
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-o">O</kbd></span></td>
@@ -825,6 +837,10 @@
 <td>Find in the active tab (in a focused terminal on Windows and Linux the key goes to the shell, see <a href="#terminal">Terminal</a>)</td>
 </tr>
 <tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-space">Space</kbd></span></td>
+<td>Quick Select: label the web addresses, paths, e-mail addresses, IP addresses, hashes and numbers the focused terminal pane shows, to copy one or open it with a key (terminal tabs only), see <a href="../features/terminal.html#quick-select">Quick select</a></td>
+</tr>
+<tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span></td>
 <td>Quick Connect</td>
 </tr>
@@ -837,8 +853,8 @@
 <td>SFTP client</td>
 </tr>
 <tr>
-<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span></td>
-<td>Manage credentials</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-m">M</kbd></span></td>
+<td>Manage credentials (also while a terminal has the focus)</td>
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-g">G</kbd></span></td>
@@ -967,6 +983,8 @@
 </tbody>
 </table>
 <p>The zoom keys (<span class="keys"><kbd class="key-control">Ctrl</kbd></span> or <span class="keys"><kbd class="key-alt">Alt</kbd></span> with <span class="keys"><kbd class="key-plus">+</kbd></span> / <span class="keys"><kbd class="key-minus">-</kbd></span> / <span class="keys"><kbd class="key-0">0</kbd></span>; <span class="keys"><kbd class="key-command">Cmd</kbd></span> on macOS) zoom the terminal only while a terminal tab is selected. In a snippet editor or file editor tab they reach the editor, and <span class="keys"><kbd class="key-alt-graph">AltGr</kbd><span>+</span><kbd class="key-plus">+</kbd></span> types its character there.</p>
+<p>The tab jump keys work in every tab, also while a terminal or an editor has the focus, and a number with no tab at its position does nothing. On macOS they are <span class="keys"><kbd class="key-command">Cmd</kbd></span> with a digit, and <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd></span> with a digit works too, so a French (AZERTY) Mac can reach its digits (macOS keeps <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-3">3</kbd></span> to <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-5">5</kbd></span> for screenshots). On Windows and Linux they are exactly <span class="keys"><kbd class="key-control">Ctrl</kbd></span> with a digit: <span class="keys"><kbd class="key-alt-graph">AltGr</kbd></span> combinations (which arrive as <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd></span>) and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-6">6</kbd></span> (the Cisco break sequence) still reach the terminal. A digit key that types <span class="keys"><kbd class="key-plus">+</kbd></span> or <span class="keys"><kbd class="key-minus">-</kbd></span> in your layout, such as the AZERTY 6 key, stays a zoom key instead. On Linux with a layout whose number row types other characters, the top-row digits may not jump; the numpad digits (with <span class="keys"><kbd class="key-num-lock">Num Lock</kbd></span> on) do.</p>
+<p>Reopen Closed Tab uses <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-t">T</kbd></span> because <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-t">T</kbd></span> toggles the command timestamps and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-t">T</kbd></span> the session journal. On Windows, <span class="keys"><kbd class="key-alt-graph">AltGr</kbd></span> arrives as <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd></span>, so on a layout where <span class="keys"><kbd class="key-alt-graph">AltGr</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-t">T</kbd></span> types a character (such as <code>Þ</code> on US-International) that combination reopens a closed tab instead, and the character is not typed.</p>
 <h2 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h2>
 <p>These keys work while a terminal pane has the focus. For how they behave with several panes, see <a href="../features/terminal.html#broadcast-mode">Broadcast mode</a>.</p>
 <table>
@@ -1021,8 +1039,25 @@
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span></td>
 <td>Next / previous tab, also while the terminal has the focus (the <span class="keys"><kbd class="key-control">Ctrl</kbd></span> key on macOS too)</td>
 </tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-1">1</kbd></span> … <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-9">9</kbd></span></td>
+<td>Jump to a tab, also while the terminal has the focus (<span class="keys"><kbd class="key-command">Cmd</kbd></span> on macOS, see <a href="#general">General</a>)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-t">T</kbd></span></td>
+<td>Reopen the last closed terminal tab, also while the terminal has the focus (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-option">Option</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-t">T</kbd></span> on macOS)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd></span> + click on a link</td>
+<td>Open the link in the browser or mail program (<span class="keys"><kbd class="key-command">Cmd</kbd></span> + click on macOS), also a web or e-mail address printed as plain text; a file path or <code>file:</code> link opens as text in the Snippet Editor in SSH and local-shell tabs; a plain click on a link does nothing, and right-click → <strong>Open Link</strong> or <strong>Open File in Snippet Editor</strong> works without the key, see <a href="../features/terminal.html#links-in-terminal-output">Links in terminal output</a></td>
+</tr>
+<tr>
+<td>a label's letters / <span class="keys"><kbd class="key-shift">Shift</kbd></span> + the last letter (while quick select runs)</td>
+<td>Copy the labelled text / open a web or e-mail address, or a file path in the Snippet Editor; <span class="keys"><kbd class="key-backspace">Backspace</kbd></span> takes back the first letter of a two-letter label, <span class="keys"><kbd class="key-escape">Esc</kbd></span> or any other key ends quick select, see <a href="../features/terminal.html#quick-select">Quick select</a></td>
+</tr>
 </tbody>
 </table>
+<p>On Windows and Linux, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-1">1</kbd></span> to <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-9">9</kbd></span> no longer reach the program in the terminal: korTTY's terminal never sent them as keys of their own, so no program loses a binding it could receive.</p>
 <p>On Windows and Linux, <strong>Clear Buffer</strong> and <strong>Find</strong> have no key of their own, so <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-l">L</kbd></span> and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> stay with the programs running in the terminal. Use right-click → <strong>Clear Buffer</strong> or <strong>Find</strong> in the terminal, or <strong>Edit → Find…</strong> with the mouse. <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span> stays Terminal-only Fullscreen and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-k">K</kbd></span> still docks the file browser on the left.</p>
 <p>Every other combination of <span class="keys"><kbd class="key-shift">Shift</kbd></span>, <span class="keys"><kbd class="key-control">Ctrl</kbd></span> and <span class="keys"><kbd class="key-alt">Alt</kbd></span> with the arrow keys, <span class="keys"><kbd class="key-home">Home</kbd></span> / <span class="keys"><kbd class="key-end">End</kbd></span>, <span class="keys"><kbd class="key-page-up">Page Up</kbd></span> / <span class="keys"><kbd class="key-page-down">Page Down</kbd></span>, <span class="keys"><kbd class="key-insert">Ins</kbd></span> / <span class="keys"><kbd class="key-delete">Del</kbd></span> and <span class="keys"><kbd class="key-f1">F1</kbd></span> to <span class="keys"><kbd class="key-f11">F11</kbd></span> is sent the way xterm sends it (<span class="keys"><kbd class="key-f12">F12</kbd></span> always toggles fullscreen), for example <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-page-up">Page Up</kbd></span> as <code>ESC [ 5 ; 5 ~</code> and <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f1">F1</kbd></span> as <code>ESC [ 1 ; 2 P</code>. The arrow keys follow the program's cursor-key mode: <code>mc</code> and <code>vim</code> switch it on and then receive <code>ESC O A</code>, while a shell receives <code>ESC [ A</code>. Connections with a non-xterm terminal emulation (Wyse, TeleVideo, HP, SCO ANSI, IBM 3270/5250, PETSCII) keep sending fixed sequences without modifiers.</p>
 <h2 id="sftp-manager">SFTP Manager<a class="headerlink" href="#sftp-manager" title="Permanent link">&para;</a></h2>

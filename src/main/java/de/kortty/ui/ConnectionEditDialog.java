@@ -9,6 +9,7 @@ import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.StoredCredential;
 import de.kortty.model.SSHKey;
+import de.kortty.core.ConnectionColorSupport;
 import de.kortty.core.CredentialManager;
 import de.kortty.core.SSHKeyManager;
 import de.kortty.core.ThemeManager;
@@ -117,6 +118,9 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private ComboBox<HighlightConnectionSupport.Choice> highlightRuleSetCombo;
     private ComboBox<TerminalEffectUiSupport.Option> terminalEffectCombo;
     private TerminalEffectUiSupport.AnimationSpeedControls terminalEffectSpeedControls;
+    /** "Terminal behavior" section: whether this connection's tabs get a color dot, and its color. */
+    private CheckBox tabColorCheck;
+    private ColorPicker tabColorPicker;
     
     // Terminal Logging
     private CheckBox enableLoggingCheck;
@@ -269,6 +273,10 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         savedCredentialsCombo = new ComboBox<>();
         savedCredentialsCombo.setPromptText(I18n.get("connEdit.selectCredential"));
         savedCredentialsCombo.setPrefWidth(300);
+        savedCredentialsCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override public String toString(StoredCredential c) { return c != null ? credentialLabel(c) : ""; }
+            @Override public StoredCredential fromString(String s) { return null; }
+        });
         updateCredentialCombo(connection.getHost());
         
         // Restore previously selected credential
@@ -597,6 +605,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 connection.setEncoding(encodingCombo.getValue() != null ? encodingCombo.getValue().value() : null);
                 connection.setGroup(getGroupText.isEmpty() ? null : getGroupText);
                 connection.setTag(getTagText.isEmpty() ? null : getTagText);
+                connection.setTabColor(tabColorCheck != null && tabColorCheck.isSelected() && tabColorPicker.getValue() != null
+                    ? TabColorPresentation.hexOf(tabColorPicker.getValue()) : null);
                 connection.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
                 connection.setRetryCount(retrySpinner.getValue());
                 connection.setDisableHostKeyCheck(
@@ -1340,11 +1350,24 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     }
 
     /**
-     * The "Terminal behavior" section: settings of the connection's terminals that apply whether or not
-     * the connection uses its own terminal settings, and also while terminal effects are switched off.
-     * Holds the keyword highlighting rule set of the connection's panes.
+     * The "Terminal behavior" section: settings of the connection's tabs and terminals that apply whether
+     * or not the connection uses its own terminal settings, and also while terminal effects are switched
+     * off. Holds the tab colour and the keyword highlighting rule set of the connection's panes.
      */
     private GridPane createTerminalBehaviorGrid() {
+        String storedColor = ConnectionColorSupport.normalizeHex(connection.getTabColor());
+        tabColorCheck = new CheckBox(I18n.get("connEdit.tabColor.enable"));
+        tabColorCheck.setSelected(storedColor != null);
+        tabColorCheck.setTooltip(new Tooltip(I18n.get("connEdit.tabColor.tooltip")));
+        tabColorPicker = new ColorPicker(Color.web(
+                storedColor != null ? storedColor : ConnectionColorSupport.PRESETS.get(0)));
+        for (String preset : ConnectionColorSupport.PRESETS) {
+            tabColorPicker.getCustomColors().add(Color.web(preset));
+        }
+        tabColorPicker.disableProperty().bind(tabColorCheck.selectedProperty().not());
+        HBox tabColorBox = new HBox(10, tabColorCheck, tabColorPicker);
+        tabColorBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
         de.kortty.core.highlight.TerminalHighlightService service = terminalHighlightService();
         String storedDefault = null;
         try {
@@ -1372,13 +1395,18 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         grid.setHgap(10);
         grid.setVgap(10);
         grid.setPadding(new Insets(10));
-        grid.add(highlightLabel, 0, 0);
-        grid.add(highlightRuleSetCombo, 1, 0);
+        int row = 0;
+        Label tabColorLabel = new Label(I18n.get("connEdit.tabColor"));
+        tabColorLabel.setTooltip(new Tooltip(I18n.get("connEdit.tabColor.tooltip")));
+        grid.add(tabColorLabel, 0, row);
+        grid.add(tabColorBox, 1, row++);
+        grid.add(highlightLabel, 0, row);
+        grid.add(highlightRuleSetCombo, 1, row++);
         if (service != null && !service.isClosed() && !service.isEnabled()) {
             Label disabledHint = new Label(I18n.get(HighlightConnectionSupport.DISABLED_KEY));
             disabledHint.setWrapText(true);
             disabledHint.setMaxWidth(520);
-            grid.add(disabledHint, 0, 1, 2, 1);
+            grid.add(disabledHint, 0, row, 2, 1);
         }
         return grid;
     }
@@ -1928,6 +1956,20 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         if (savedCredentialsCombo.getValue() != currentSelection) {
             onSavedCredentialSelected(savedCredentialsCombo.getValue());
         }
+    }
+
+    /** "name (user@environment)" with the environment's localized label. */
+    private static String credentialLabel(StoredCredential credential) {
+        de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+        String environment;
+        if (app != null && app.getEnvironmentManager() != null) {
+            environment = app.getEnvironmentManager().getDisplayName(credential.getEnvironmentId());
+        } else if (credential.getEnvironment() != null) {
+            environment = de.kortty.core.EnvironmentManager.builtInDisplayName(credential.getEnvironment());
+        } else {
+            environment = credential.getEnvironmentId();
+        }
+        return credential.getName() + " (" + credential.getUsername() + "@" + environment + ")";
     }
 
     private String protocolDisplayName(ConnectionProtocol protocol) {

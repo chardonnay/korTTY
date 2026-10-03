@@ -3658,6 +3658,22 @@ tasks.register<JavaExec>("terminalContextMenuActionsSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("terminalLinksSmoke") {
+    group = "verification"
+    description = "Clicks an OSC 8 link and a plain-text URL in a real terminal pane and checks they open only on a single, still Cmd/Ctrl+click, while plain double and triple clicks select; hovers them and checks the cursor, the underline in the LINKS layer, the target tooltip and the host-mismatch question; right-clicks them and checks Open Link and Copy Link Address lead the context menu; runs quick select and checks its labels, copy, Shift-open and that none of its keys reach the program; with a file handler, checks that a printed path and an OSC 8 file link open through it on a Cmd/Ctrl+click, the context menu and Shift with a label, and that a file link of another host does not (needs a display)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.TerminalLinksSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("terminalSplitCloseButtonSmoke") {
+    group = "verification"
+    description = "Splits and closes terminal panes and checks each pane keeps its overlay host and shows its close button only while it has a sibling (needs a display)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("com.sithtermfx.ui.split.TerminalSplitCloseButtonSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("aiManagerTabCssSmoke") {
     group = "verification"
     description = "Opens the AI Manager under every app design and fails on JavaFX CSS warnings for the selected tab."

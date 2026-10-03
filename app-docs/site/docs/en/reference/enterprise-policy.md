@@ -59,7 +59,7 @@ users = ["eve"]
 
 The `[rule.servers]` table restricts which servers a user may connect to — as an allow-list (`mode = "allow"`: only listed servers are reachable) or a deny-list (`mode = "deny"`: listed servers are blocked). The restriction is enforced centrally for every connection path: saved connections, QuickConnect, split panes (to a new connection or the same server), session restore, SFTP, teamwork-shared connections, AI swarm targets and scheduled jobs, including the jump host of a connection. Blocked connections stay visible in the connection manager but are grayed out with a lock marker, and any connect attempt shows a clear policy message.
 
-**Open Group** in Quick Connect skips every connection of the group whose server or jump server is blocked and names them all in one policy message; the other connections of the group still open. A tab's **Duplicate** checks the policy before it asks for a password, and an open tab checks it again on every connect and reconnect attempt, because editing a saved connection also changes the tabs already opened from it. If such an edit points a tab at a blocked server or jump server, its terminal shows the policy message and korTTY stops trying, including automatic reconnects.
+**Open Group** in Quick Connect skips every connection of the group whose server or jump server is blocked and names them all in one policy message; the other connections of the group still open. **Connect** in the Connection Manager, a tab's **Duplicate** and **Reopen Closed Tab** check the policy before they ask for a password, a temporary SSH key or the master password, and an open tab checks it again on every connect and reconnect attempt, because editing a saved connection also changes the tabs already opened from it. If such an edit points a tab at a blocked server or jump server, its terminal shows the policy message and korTTY stops trying, including automatic reconnects.
 
 Patterns match the host string exactly as configured in the connection — korTTY never resolves DNS for policy checks, so host names and IP addresses are separate namespaces: if a server is reachable both ways, list both.
 
@@ -210,7 +210,7 @@ groups = ["compliance"]
 
 | Key | Type | Values | Effect |
 | --- | --- | --- | --- |
-| `load-into-snippet-editor` | string | `allow`, `read-only`, `deny` | `read-only` keeps loading remote files into the snippet editor but forbids writing back to the target system; `deny` removes the feature entirely |
+| `load-into-snippet-editor` | string | `allow`, `read-only`, `deny` | `read-only` keeps loading remote files into the snippet editor but forbids writing back to the target system; `deny` removes the feature entirely, including opening file paths and `file:` links from terminal output ([Links in terminal output](../features/terminal.md#links-in-terminal-output)) |
 
 ### `[rule.logging]`
 

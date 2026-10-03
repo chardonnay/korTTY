@@ -8,10 +8,13 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | --- | --- |
 | ++ctrl+t++ | New Tab (Quick Connect) |
 | ++ctrl+w++ | Close Tab |
+| ++ctrl+alt+shift+t++ | Reopen the last closed terminal tab (also while a terminal has the focus) |
 | ++ctrl+shift+n++ | New Window |
 | ++ctrl+shift+w++ | Close Window |
 | ++ctrl+tab++ | Next Tab (++ctrl++ on macOS too) |
 | ++ctrl+shift+tab++ | Previous Tab (++ctrl++ on macOS too) |
+| ++ctrl+1++ … ++ctrl+8++ | Jump to the first to eighth tab of the window (top row or numpad) |
+| ++ctrl+9++ | Jump to the last tab of the window |
 | ++ctrl+o++ | Open Project |
 | ++ctrl+s++ | Save Project |
 | ++ctrl+shift+b++ | Create Backup |
@@ -20,10 +23,11 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | ++ctrl+c++ | Copy |
 | ++ctrl+v++ | Paste |
 | ++ctrl+f++ | Find in the active tab (in a focused terminal on Windows and Linux the key goes to the shell, see [Terminal](#terminal)) |
+| ++ctrl+shift+space++ | Quick Select: label the web addresses, paths, e-mail addresses, IP addresses, hashes and numbers the focused terminal pane shows, to copy one or open it with a key (terminal tabs only), see [Quick select](../features/terminal.md#quick-select) |
 | ++ctrl+k++ | Quick Connect |
 | ++ctrl+m++ | Manage Connections |
 | ++ctrl+shift+u++ | SFTP client |
-| ++ctrl+shift+p++ | Manage credentials |
+| ++ctrl+shift+m++ | Manage credentials (also while a terminal has the focus) |
 | ++ctrl+shift+g++ | Manage GPG keys |
 | ++ctrl+shift+i++ | Manage SSH keys |
 | ++ctrl+comma++ | Global Settings |
@@ -59,6 +63,10 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 
 The zoom keys (++ctrl++ or ++alt++ with ++plus++ / ++minus++ / ++0++; ++cmd++ on macOS) zoom the terminal only while a terminal tab is selected. In a snippet editor or file editor tab they reach the editor, and ++alt-graph+plus++ types its character there.
 
+The tab jump keys work in every tab, also while a terminal or an editor has the focus, and a number with no tab at its position does nothing. On macOS they are ++cmd++ with a digit, and ++cmd+shift++ with a digit works too, so a French (AZERTY) Mac can reach its digits (macOS keeps ++cmd+shift+3++ to ++cmd+shift+5++ for screenshots). On Windows and Linux they are exactly ++ctrl++ with a digit: ++alt-graph++ combinations (which arrive as ++ctrl+alt++) and ++ctrl+shift+6++ (the Cisco break sequence) still reach the terminal. A digit key that types ++plus++ or ++minus++ in your layout, such as the AZERTY 6 key, stays a zoom key instead. On Linux with a layout whose number row types other characters, the top-row digits may not jump; the numpad digits (with ++num-lock++ on) do.
+
+Reopen Closed Tab uses ++ctrl+alt+shift+t++ because ++ctrl+shift+t++ toggles the command timestamps and ++ctrl+alt+t++ the session journal. On Windows, ++alt-graph++ arrives as ++ctrl+alt++, so on a layout where ++alt-graph+shift+t++ types a character (such as `Þ` on US-International) that combination reopens a closed tab instead, and the character is not typed.
+
 ## Terminal
 
 These keys work while a terminal pane has the focus. For how they behave with several panes, see [Broadcast mode](../features/terminal.md#broadcast-mode).
@@ -76,6 +84,12 @@ These keys work while a terminal pane has the focus. For how they behave with se
 | ++shift+page-up++ / ++shift+page-down++ | Scroll korTTY's scrollback by a page; inside a full-screen program such as `vim`, `less` or `mc` the key goes to the program |
 | ++ctrl+up++ / ++ctrl+down++ | Scroll korTTY's scrollback by a line (++cmd+up++ / ++cmd+down++ on macOS); on Windows and Linux the keys go to a full-screen program instead while one runs |
 | ++ctrl+tab++ / ++ctrl+shift+tab++ | Next / previous tab, also while the terminal has the focus (the ++ctrl++ key on macOS too) |
+| ++ctrl+1++ … ++ctrl+9++ | Jump to a tab, also while the terminal has the focus (++cmd++ on macOS, see [General](#general)) |
+| ++ctrl+alt+shift+t++ | Reopen the last closed terminal tab, also while the terminal has the focus (++cmd+option+shift+t++ on macOS) |
+| ++ctrl++ + click on a link | Open the link in the browser or mail program (++cmd++ + click on macOS), also a web or e-mail address printed as plain text; a file path or `file:` link opens as text in the Snippet Editor in SSH and local-shell tabs; a plain click on a link does nothing, and right-click → **Open Link** or **Open File in Snippet Editor** works without the key, see [Links in terminal output](../features/terminal.md#links-in-terminal-output) |
+| a label's letters / ++shift++ + the last letter (while quick select runs) | Copy the labelled text / open a web or e-mail address, or a file path in the Snippet Editor; ++backspace++ takes back the first letter of a two-letter label, ++esc++ or any other key ends quick select, see [Quick select](../features/terminal.md#quick-select) |
+
+On Windows and Linux, ++ctrl+1++ to ++ctrl+9++ no longer reach the program in the terminal: korTTY's terminal never sent them as keys of their own, so no program loses a binding it could receive.
 
 On Windows and Linux, **Clear Buffer** and **Find** have no key of their own, so ++ctrl+l++ and ++ctrl+f++ stay with the programs running in the terminal. Use right-click → **Clear Buffer** or **Find** in the terminal, or **Edit → Find…** with the mouse. ++ctrl+shift+f++ stays Terminal-only Fullscreen and ++ctrl+shift+k++ still docks the file browser on the left. ++ctrl+shift+h++ switches keyword highlighting and does not reach the terminal, while plain ++ctrl+h++ still reaches the shell as backspace.
 

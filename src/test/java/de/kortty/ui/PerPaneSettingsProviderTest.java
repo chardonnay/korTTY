@@ -1,5 +1,6 @@
 package de.kortty.ui;
 
+import com.sithtermfx.core.HyperlinkStyle;
 import com.sithtermfx.core.TerminalColor;
 import com.sithtermfx.core.TextStyle;
 import com.sithtermfx.core.emulator.ColorPalette;
@@ -168,6 +169,21 @@ public class PerPaneSettingsProviderTest {
 
         assertThat(shared.getFontSize()).isEqualTo(14f);
         assertThat(fontSize(tracking)).isEqualTo(14f);
+    }
+
+    /**
+     * OSC 8 link text is drawn with its own colours. The vendor default, HOVER_WITH_BOTH_COLORS, drew a
+     * link that is not hovered with the bare link style, which has no colours, so coloured link text
+     * showed in the default colour; in custom-colour mode the link's custom style (the text's own
+     * colours) is always used and only underlined on hover.
+     */
+    @Test
+    void osc8LinksKeepTheirTextColours() throws Exception {
+        SettingsProvider pane = (SettingsProvider) newProvider(baselineSettings(), new DynamicFontSizeSettingsProvider(14f));
+
+        assertThat(pane.getHyperlinkHighlightingMode()).isEqualTo(HyperlinkStyle.HighlightMode.HOVER_WITH_CUSTOM_COLOR);
+        assertThat(new DefaultSettingsProvider().getHyperlinkHighlightingMode())
+                .isEqualTo(HyperlinkStyle.HighlightMode.HOVER_WITH_BOTH_COLORS); // the vendor default it replaces
     }
 
     private static int bufferMaxLines(Object provider) {

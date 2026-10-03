@@ -169,6 +169,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox commandTimestampsCheck;
     private final CheckBox terminalDragDropCheck;
     private final CheckBox terminalCopyOnSelectCheck;
+    private final CheckBox terminalLinkDetectionCheck;
     private final CheckBox closeActiveTerminalWindowsWithoutConfirmationCheck;
     private final CheckBox terminalRecordingAlwaysEnabledCheck;
     private final CheckBox terminalRecordingCaptureColorsCheck;
@@ -234,6 +235,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox rememberWindowGeometryCheck;
     private final CheckBox rememberDashboardStateCheck;
     private final CheckBox openToolWindowsAsTabsCheck;
+    private final CheckBox connectionColorBorderCheck;
+    private final CheckBox tabTitleFromShellCheck;
     private final CheckBox useFixedGeometryCheck;
     private final Spinner<Integer> fixedWidthSpinner;
     private final Spinner<Integer> fixedHeightSpinner;
@@ -788,6 +791,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalCopyOnSelectCheck.setSelected(globalSettings != null ? globalSettings.isTerminalCopyOnSelectEnabled() : true);
         terminalCopyOnSelectCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.copyOnSelect.tooltip")));
 
+        terminalLinkDetectionCheck = new CheckBox(I18n.get("settings.terminal.linkDetection"));
+        terminalLinkDetectionCheck.setSelected(globalSettings == null || globalSettings.isTerminalLinkDetectionEnabled());
+        terminalLinkDetectionCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.linkDetection.tooltip")));
+
         closeActiveTerminalWindowsWithoutConfirmationCheck = new CheckBox(I18n.get("settings.terminal.closeActiveWithoutConfirmation"));
         closeActiveTerminalWindowsWithoutConfirmationCheck.setSelected(globalSettings != null
             && globalSettings.isCloseActiveTerminalWindowsWithoutConfirmation());
@@ -915,6 +922,13 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         highlightingInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         highlightingInfo.setWrapText(true);
         terminalGrid.add(highlightingInfo, 0, terminalRow++, 2, 1);
+
+        // Links section
+        terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
+        Label linksHeader = new Label(I18n.get("settings.terminal.links.header"));
+        linksHeader.setStyle("-fx-font-weight: bold;");
+        terminalGrid.add(linksHeader, 0, terminalRow++, 2, 1);
+        terminalGrid.add(terminalLinkDetectionCheck, 0, terminalRow++, 2, 1);
 
         // SSH Keep-Alive section
         terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
@@ -1490,6 +1504,31 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Label toolWindowTabsInfoLabel = new Label(I18n.get("settings.window.toolWindowTabs.info"));
         toolWindowTabsInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         windowGrid.add(toolWindowTabsInfoLabel, 0, windowRow++, 2, 1);
+
+        // Tabs section
+        windowGrid.add(new Separator(), 0, windowRow++, 2, 1);
+
+        Label tabsHeader = new Label(I18n.get("settings.window.tabs.header"));
+        tabsHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 0.9231em;");
+        windowGrid.add(tabsHeader, 0, windowRow++, 2, 1);
+
+        connectionColorBorderCheck = new CheckBox(I18n.get("settings.window.connectionColorBorder"));
+        connectionColorBorderCheck.setSelected(globalSettings == null || globalSettings.isConnectionColorBorderEnabled());
+        connectionColorBorderCheck.setTooltip(new Tooltip(I18n.get("settings.window.connectionColorBorder.tooltip")));
+        windowGrid.add(connectionColorBorderCheck, 0, windowRow++, 2, 1);
+
+        Label connectionColorBorderInfoLabel = new Label(I18n.get("settings.window.connectionColorBorder.info"));
+        connectionColorBorderInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        windowGrid.add(connectionColorBorderInfoLabel, 0, windowRow++, 2, 1);
+
+        tabTitleFromShellCheck = new CheckBox(I18n.get("settings.window.tabTitleFromShell"));
+        tabTitleFromShellCheck.setSelected(globalSettings == null || globalSettings.isTabTitleFromShellEnabled());
+        tabTitleFromShellCheck.setTooltip(new Tooltip(I18n.get("settings.window.tabTitleFromShell.tooltip")));
+        windowGrid.add(tabTitleFromShellCheck, 0, windowRow++, 2, 1);
+
+        Label tabTitleFromShellInfoLabel = new Label(I18n.get("settings.window.tabTitleFromShell.info"));
+        tabTitleFromShellInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        windowGrid.add(tabTitleFromShellInfoLabel, 0, windowRow++, 2, 1);
 
         // Fixed geometry section
         windowGrid.add(new Separator(), 0, windowRow++, 2, 1);
@@ -3302,6 +3341,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setShowTerminalScrollbar(showTerminalScrollbarCheck.isSelected());
             globalSettings.setTerminalDragDropEnabled(terminalDragDropCheck.isSelected());
             globalSettings.setTerminalCopyOnSelectEnabled(terminalCopyOnSelectCheck.isSelected());
+            globalSettings.setTerminalLinkDetectionEnabled(terminalLinkDetectionCheck.isSelected());
             globalSettings.setCloseActiveTerminalWindowsWithoutConfirmation(
                 closeActiveTerminalWindowsWithoutConfirmationCheck.isSelected()
             );
@@ -3445,6 +3485,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setRememberWindowGeometry(rememberWindowGeometryCheck.isSelected());
             globalSettings.setRememberDashboardState(rememberDashboardStateCheck.isSelected());
             globalSettings.setOpenToolWindowsAsTabs(openToolWindowsAsTabsCheck.isSelected());
+            globalSettings.setConnectionColorBorderEnabled(connectionColorBorderCheck.isSelected());
+            globalSettings.setTabTitleFromShellEnabled(tabTitleFromShellCheck.isSelected());
             
             // Save fixed geometry settings
             globalSettings.setUseFixedWindowGeometry(useFixedGeometryCheck.isSelected());
@@ -3547,6 +3589,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("terminal", "scrollbar_visible", gs::isShowTerminalScrollbar, true));
             tracked.add(new TrackedSetting("terminal", "drag_drop_enabled", gs::isTerminalDragDropEnabled, true));
             tracked.add(new TrackedSetting("terminal", "copy_on_select", gs::isTerminalCopyOnSelectEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "link_detection", gs::isTerminalLinkDetectionEnabled, true));
             tracked.add(new TrackedSetting("terminal", "close_without_confirmation",
                 gs::isCloseActiveTerminalWindowsWithoutConfirmation, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_detection", gs::isCodingAgentDetectionEnabled, true));

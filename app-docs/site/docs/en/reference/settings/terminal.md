@@ -4,7 +4,7 @@ title: Terminal
 
 # Terminal
 
-Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, keyword highlighting, and SSH connection management. Open via **Configuration → Global Settings → Terminal**; stored in `~/.kortty/global-settings.xml`.
+Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, keyword highlighting, links, and SSH connection management. Open via **Configuration → Global Settings → Terminal**; stored in `~/.kortty/global-settings.xml`.
 
 ![Terminal settings tab](../../assets/screenshots/settings/terminal.png)
 
@@ -24,6 +24,7 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Also highlight in full-screen programs (vim, less, htop) | toggle | — | Off | `terminalHighlightAlternateScreen` |
 | Default rule set: | dropdown | None, Errors and warnings, Network addresses, Network devices, or a set of your own | None | `defaultHighlightRuleSetId` |
 | Edit Rules… | button | opens the rule-set editor | — | `highlightRuleSets` |
+| Detect web addresses, e-mail addresses and file paths in terminal text | toggle | — | On | `terminalLinkDetectionEnabled` |
 | Enable SSH Keep-Alive | toggle | — | On | `sshKeepAliveEnabled` |
 | Interval (seconds): | number | 5–600 | 60 | `sshKeepAliveInterval` |
 | Enable connection retries | toggle | — | On | `connectionRetriesEnabled` |
@@ -60,6 +61,9 @@ Configure terminal display and behavior settings, including dimensions, scrollba
     All three apply to open terminals as soon as you save.
 
     **Edit Rules…** opens the [rule-set editor](../../features/highlighting.md#your-own-rule-sets), where you create your own rule sets and look at the built-in ones. It stays available while the master switch is off, so you can prepare sets before switching highlighting on. The editor saves its changes when you confirm it, whether or not you then save the settings dialog, and afterwards the **Default rule set** dropdown lists your sets as they are now. If you delete the set the dropdown shows, it falls back to **None**.
+
+!!! note "Links"
+    With **Detect web addresses, e-mail addresses and file paths in terminal text** on, ++cmd++ + click (macOS) or ++ctrl++ + click (Windows, Linux) opens a web address, an e-mail address or a file path that a program printed as plain text: a web address in your default browser, an e-mail address as a new mail in your mail program, and in SSH and local-shell tabs a file path as text in the Snippet Editor. A plain click still only selects text. A change applies to the open terminals at once. Links that a program marks up itself with OSC 8 open with the same click either way. See [Links in terminal output](../../features/terminal.md#links-in-terminal-output).
 
 !!! note "SSH Keep-Alive"
     When enabled, korTTY sends periodic keep-alive packets to prevent SSH sessions from timing out during idle periods. The interval setting controls how often (in seconds) these packets are sent. The spinner range is 5–600 seconds; the interval is disabled if SSH Keep-Alive is toggled off.

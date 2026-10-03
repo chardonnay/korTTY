@@ -35,8 +35,11 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import de.kortty.core.KorttyClipboard;
 import de.kortty.ui.I18n;
+import de.kortty.ui.KorttyTermWidget;
 import de.kortty.ui.MirroredInputWriter;
+import de.kortty.ui.TerminalLinkContextMenu;
 import de.kortty.ui.TerminalNavigationKeys;
 import de.kortty.ui.TerminalPaneActions;
 import org.jetbrains.annotations.NotNull;
@@ -73,6 +76,24 @@ public class TerminalSplitPane extends StackPane {
     /** Drop placement when moving a split terminal. */
     public enum Placement {
         ABOVE, BELOW, LEFT_OF, RIGHT_OF
+    }
+
+    /**
+     * The layers korTTY draws over one pane, from bottom to top, each one a {@link Pane} that
+     * {@link #paneOverlay} adds to the pane's wrapper on first use. A layer is unmanaged, so the
+     * wrapper never lays it out and the terminal never resizes because of it, and mouse-transparent,
+     * so every click and hover still reaches the terminal. Its {@link Node#getViewOrder() view order}
+     * keeps it above the terminal, the timestamp gutter, the agent panel and the effect overlays
+     * (all at view order 0), whenever any of them was added. It goes away with the pane.
+     */
+    public enum PaneOverlayLayer {
+        /** The underline under a hovered terminal link, and quick select's boxes and labels. */
+        LINKS;
+
+        /** Below 0, and lower for a later layer, because JavaFX draws a lower view order on top. */
+        public double viewOrder() {
+            return -1.0 - ordinal();
+        }
     }
 
     private static final class ExtractResult {
@@ -179,6 +200,7 @@ public class TerminalSplitPane extends StackPane {
         this.connectorDecorator = connectorDecorator;
         this.rootCell = createInitialCell();
         getChildren().add(rootCell.getNode());
+        refreshSplitCloseButtons();
         VBox.setVgrow(this, Priority.ALWAYS);
         // Only allow pane-move drag with Shift+Alt/Option.
         addEventFilter(MouseEvent.DRAG_DETECTED, event -> {
@@ -428,7 +450,12 @@ public class TerminalSplitPane extends StackPane {
                                                    @Nullable TtyConnector preparedConnector) {
         // KorttyTermWidget routes terminal copy/paste through the policy-aware clipboard handler
         // (enterprise internal-clipboard mode).
-        SithTermFxWidget widget = new de.kortty.ui.KorttyTermWidget(80, 24, settingsProviderFactory.get());
+        de.kortty.ui.KorttyTermWidget korttyWidget =
+            new de.kortty.ui.KorttyTermWidget(80, 24, settingsProviderFactory.get());
+        SithTermFxWidget widget = korttyWidget;
+        // The hover underline of a link is drawn in the pane's own LINKS layer, created on first hover
+        // (the pane's wrapper does not exist yet).
+        korttyWidget.setLinkOverlay(() -> paneOverlay(widget, PaneOverlayLayer.LINKS));
         widgetConfigurator.accept(widget);
         TtyConnector connector = preparedConnector != null
             ? preparedConnector
@@ -541,6 +568,58 @@ public class TerminalSplitPane extends StackPane {
     /** Returns the per-pane StackPane wrapper used as the mount point for a per-pane effect overlay. */
     public @Nullable StackPane getWidgetOverlayHost(@Nullable SithTermFxWidget widget) {
         return widget != null ? widgetOverlayHosts.get(widget) : null;
+    }
+
+    /**
+     * The given overlay layer of a pane, created in the pane's wrapper on first use; see
+     * {@link PaneOverlayLayer}. Its origin is the wrapper's, which also holds the timestamp gutter
+     * and the agent panel, so place nodes through scene coordinates
+     * ({@code layer.sceneToLocal(canvas.localToScene(x, y))}).
+     *
+     * @return the layer, or {@code null} for a widget that is not (or no longer) a pane here
+     */
+    public @Nullable Pane paneOverlay(@Nullable SithTermFxWidget widget, @NotNull PaneOverlayLayer layer) {
+        StackPane host = wrapperOf(widget);
+        if (host == null) {
+            return null;
+        }
+        if (host.getProperties().get(layer) instanceof Pane existing && existing.getParent() == host) {
+            return existing;
+        }
+        Pane created = createOverlayLayer(layer);
+        host.getProperties().put(layer, created);
+        host.getChildren().add(created);
+        return created;
+    }
+
+    /**
+     * The wrapper of a pane: from {@link #getWidgetOverlayHost}, or else the {@link StackPane} above
+     * the widget's node whose user data is the widget. The map can miss a pane, because a leaf cell
+     * prunes it against the panes of the tree before the cell itself is part of that tree.
+     */
+    private @Nullable StackPane wrapperOf(@Nullable SithTermFxWidget widget) {
+        StackPane host = getWidgetOverlayHost(widget);
+        if (host != null || widget == null || widget.getPane() == null) {
+            return host;
+        }
+        for (Node node = widget.getPane().getParent(); node != null; node = node.getParent()) {
+            if (node instanceof StackPane wrapper && wrapper.getUserData() == widget) {
+                return wrapper;
+            }
+        }
+        return null;
+    }
+
+    /** An empty overlay layer: unmanaged, mouse-transparent, not focusable, at the layer's view order. */
+    static @NotNull Pane createOverlayLayer(@NotNull PaneOverlayLayer layer) {
+        Pane pane = new Pane();
+        pane.setManaged(false);
+        pane.setMouseTransparent(true);
+        pane.setPickOnBounds(false);
+        pane.setFocusTraversable(false);
+        pane.setViewOrder(layer.viewOrder());
+        pane.getStyleClass().add("terminal-pane-overlay");
+        return pane;
     }
 
     private void notifyWidgetSplitCreated(@Nullable SithTermFxWidget widget, @NotNull SplitRequest request) {
@@ -674,8 +753,32 @@ public class TerminalSplitPane extends StackPane {
         return widget instanceof TerminalPaneActions actions ? actions : null;
     }
 
+    /**
+     * <b>Open Link</b> and <b>Copy Link Address</b> (or <b>Open File in Snippet Editor</b> and
+     * <b>Copy Path</b> for a file) when the menu was opened on a link korTTY opens,
+     * none otherwise. Copy goes through {@link KorttyClipboard}, so the enterprise policy's internal
+     * clipboard keeps the address inside korTTY.
+     */
+    static @NotNull List<TerminalMenuAction> linkActions(@NotNull SithTermFxWidget widget) {
+        if (!(widget instanceof KorttyTermWidget korttyWidget)) {
+            return List.of();
+        }
+        List<TerminalMenuAction> actions = new ArrayList<>(2);
+        for (TerminalLinkContextMenu.Entry entry : TerminalLinkContextMenu.entries(
+                korttyWidget.contextMenuLink(), korttyWidget::openLink, KorttyClipboard::setText)) {
+            actions.add(new TerminalMenuAction(entry.i18nKey(), entry.action()));
+        }
+        return actions;
+    }
+
     private @NotNull ContextMenu createFullContextMenu(@NotNull SithTermFxWidget widget) {
         ContextMenu menu = new ContextMenu();
+        // Right-clicked on a link: the link's own entries come first, as in other terminals.
+        List<MenuItem> linkItems = toMenuItems(linkActions(widget));
+        if (!linkItems.isEmpty()) {
+            menu.getItems().addAll(linkItems);
+            menu.getItems().add(new SeparatorMenuItem());
+        }
         TerminalPaneActions actions = paneActionsOf(widget);
         if (actions != null) {
             List<MenuItem> editItems = toMenuItems(editActions(actions));
@@ -773,7 +876,9 @@ public class TerminalSplitPane extends StackPane {
      * is null or not connected leaves the tree untouched and answers null, so a programmatic caller
      * can surface the failure rather than watch nothing happen.
      *
-     * @param widget the pane to split; it stays open beside the new one
+     * @param widget the pane to split; it stays open beside the new one. A widget that is not a pane
+     *     of this split pane answers null before any pane is built, so the caller still owns
+     *     {@code preparedConnector}
      * @param mode always pass a mode explicitly — {@code splitHorizontally(null)} and
      *     {@code splitVertically(null)} fall back to {@link SplitRequest.SplitMode#NEW_CONNECTION},
      *     which asks the user for a new connection
@@ -785,18 +890,14 @@ public class TerminalSplitPane extends StackPane {
                                                   @NotNull SplitRequest.SplitMode mode,
                                                   @NotNull Orientation orientation,
                                                   @Nullable TtyConnector preparedConnector) {
+        if (!getAllWidgets().contains(widget)) {
+            return null;
+        }
         SplitRequest request = new SplitRequest(mode, widget);
         SithTermFxWidget newWidget = createWidget(request, preparedConnector);
         TtyConnector connector = newWidget.getTtyConnector();
         if (connector == null || !connector.isConnected()) {
-            // The widget configurator (and, with a connector, the decorator) already ran for this
-            // widget, so per-widget registrations exist although it never joins the tree: fire the
-            // close hook exactly as closeSplit does, or those registrations leak for the tab's life.
-            notifyWidgetClosed(newWidget);
-            try {
-                newWidget.close();
-            } catch (Exception ignored) {
-            }
+            releaseUnattachedWidget(newWidget);
             return null;
         }
         setupWidget(newWidget);
@@ -805,6 +906,7 @@ public class TerminalSplitPane extends StackPane {
         SplitCell newCell = new SplitCell(newWidget);
         SplitCell replacement = rootCell.replaceWidget(widget, newCell, orientation);
         if (replacement == null) {
+            releaseUnattachedWidget(newWidget);
             return null;
         }
         getChildren().clear();
@@ -815,6 +917,29 @@ public class TerminalSplitPane extends StackPane {
         refreshSplitCloseButtons();
         notifyWidgetSplitCreated(newWidget, request);
         return newWidget;
+    }
+
+    /**
+     * Releases a pane built for a split that never joined the tree. The widget configurator (and,
+     * with a connector, the decorator) already ran for it, so per-widget registrations exist: fire the
+     * close hook exactly as closeSplit does, or those registrations leak for the tab's life.
+     */
+    private void releaseUnattachedWidget(@NotNull SithTermFxWidget widget) {
+        notifyWidgetClosed(widget);
+        try {
+            widget.close();
+        } catch (Exception ignored) {
+        }
+        forgetWidget(widget);
+    }
+
+    /** Drops every per-widget entry of a pane that has left, or never joined, the tree. */
+    private void forgetWidget(@NotNull SithTermFxWidget widget) {
+        widgetLeftPanels.remove(widget);
+        widgetBottomPanels.remove(widget);
+        widgetBottomHosts.remove(widget);
+        widgetCloseButtons.remove(widget);
+        widgetOverlayHosts.remove(widget);
     }
 
     /**
@@ -843,11 +968,7 @@ public class TerminalSplitPane extends StackPane {
         } catch (Exception e) {
             logger.debug("Error closing widget: {}", e.getMessage());
         }
-        widgetLeftPanels.remove(widget);
-        widgetBottomPanels.remove(widget);
-        widgetBottomHosts.remove(widget);
-        widgetCloseButtons.remove(widget);
-        widgetOverlayHosts.remove(widget);
+        forgetWidget(widget);
         SplitCell replacement = rootCell.removeWidget(widget);
         if (replacement != rootCell) {
             getChildren().clear();
@@ -1215,7 +1336,9 @@ public class TerminalSplitPane extends StackPane {
             wrapper.getChildren().add(closeButton);
             widgetCloseButtons.put(widget, closeButton);
             this.node = wrapper;
-            refreshSplitCloseButtons();
+            // No refreshSplitCloseButtons() here: it prunes both maps against the tree, which this
+            // cell has not joined yet, so it would drop the entries just added. Whoever puts the cell
+            // into rootCell refreshes once it is there.
         }
 
         SplitCell(@NotNull SplitCell left, @NotNull SplitCell right, @NotNull Orientation orientation) {

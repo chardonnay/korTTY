@@ -183,7 +183,7 @@ public class SwarmAgentTab extends Tab {
 
         setClosable(true);
         setText(this.baseTitle);
-        setOnCloseRequest(event -> cancelSwarm());
+        setOnCloseRequest(event -> cancelForClose());
         setOnClosed(event -> handleTabClosed());
 
         // Profile combo
@@ -1001,9 +1001,31 @@ public class SwarmAgentTab extends Tab {
     }
 
     private void cancelSwarm() {
-        if (swarmControl != null) {
-            swarmControl.cancelAll();
+        cancelRun(swarmControl);
+    }
+
+    /**
+     * Cancels the run {@code control} steers, unless there is none or it was cancelled already.
+     *
+     * @return whether this call cancelled it
+     */
+    static boolean cancelRun(SwarmRunControl control) {
+        if (control == null || control.isSwarmCancelled()) {
+            return false;
         }
+        control.cancelAll();
+        return true;
+    }
+
+    /**
+     * Stops a running swarm or script run, because its tab closes; otherwise its agents would go
+     * on running commands on every server. The close button fires this tab's close request, but
+     * Close Tab, Close All Tabs, opening a project and closing the window only remove the tab
+     * from its pane, which fires no close event, so {@code MainWindow.disposeTabContent} calls
+     * this too. Idempotent; must run on the FX thread.
+     */
+    void cancelForClose() {
+        cancelSwarm();
     }
 
     /** Cancels any active run and removes this tab, e.g. when its saved chat is deleted elsewhere. */

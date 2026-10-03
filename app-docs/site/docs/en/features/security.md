@@ -34,7 +34,7 @@ On subsequent launches, KorTTY prompts you to enter the master password to unloc
 
 ### Unlocking the vault later
 
-With the vault locked, choose **Configuration > Security > Unlock Vault…** and enter the master password; the menu item is greyed out while the vault is open. Saving an AI or translation API key, a Hugging Face token, a jump server password or a Job Scheduler password, starting an AI Swarm run on servers without an open terminal, asking the guide a question and generating a single- or multi-server workflow script with an encrypted AI key show their "vault locked" message with an **Unlock Vault…** button instead of a dead end. Some places still only report the locked vault, for example an AI chat request or a key passphrase in the connection editor; unlock the vault from the menu first. After a successful unlock the action continues; **Cancel** leaves the vault locked without a second error. A wrong password keeps the dialog open, and cancelling it never quits korTTY.
+With the vault locked, choose **Configuration > Security > Unlock Vault…** and enter the master password; the menu item is greyed out while the vault is open. Saving an AI or translation API key, a Hugging Face token, a jump server password or a Job Scheduler password, starting an AI Swarm run on servers without an open terminal, asking the guide a question and generating a single- or multi-server workflow script with an encrypted AI key show their "vault locked" message with an **Unlock Vault…** button instead of a dead end. Connecting a saved connection whose password is stored in the vault, with **Connect** in the Connection Manager, a tab's **Duplicate** or **Reopen Closed Tab**, offers **Unlock Vault…** as well; if you do not unlock the vault there, korTTY asks you to type the password instead (see [Signing in](connections.md#signing-in)). Some places still only report the locked vault, for example an AI chat request or a key passphrase in the connection editor; unlock the vault from the menu first. After a successful unlock the action continues; **Cancel** leaves the vault locked without a second error. A wrong password keeps the dialog open, and cancelling it never quits korTTY.
 
 Unlocking also restores the temporary SSH keys that could not be decrypted at the locked start; until then they stay stored encrypted, so saving connections in the meantime does not lose them. Windows that were already open while the vault was locked, such as the Connection Manager or the credential and key managers, do not pick up the unlock — reopen them to use stored secrets there.
 
@@ -56,7 +56,7 @@ Store centralized username/password credentials that can be reused across multip
 
 ### Opening the Manager
 
-**Menu:** Management > Manage Credentials
+**Menu:** Configuration > Security > Credentials… (++ctrl+shift+m++, on macOS ++cmd+shift+m++). The shortcut also works while a terminal has the focus.
 
 ### Adding Credentials
 
@@ -66,7 +66,7 @@ Store centralized username/password credentials that can be reused across multip
    - **Username** — Login username
    - **Password Type** — **Stored Password**, or **External Command** to fetch the password from a password manager (see [Passwords from an external command](#passwords-from-an-external-command))
    - **Password** — Stored encrypted with AES-256-GCM
-   - **Environment** — Production, Development, Test, or Staging
+   - **Environment** — Production (the default), Development, Test, Staging, or one of your own (see [Environments and tab colors](#environments-and-tab-colors))
    - **Server Pattern** (optional) — Glob pattern (e.g., `*.example.com`, `10.0.0.*`) for automatic credential matching to connections
    - **Description** (optional) — Free-text notes
 3. Click **OK**.
@@ -103,6 +103,19 @@ The following diagram shows how credentials and SSH keys flow from encrypted sto
 
 ![Credential & encryption flow](../assets/diagrams/credential-flow.svg)
 
+### Environments and tab colors
+
+Every credential belongs to an environment: one of the built-in Production, Development, Test and Staging, or one you add. **Environments...** in the Credentials manager lists them; there you can add your own environments and rename or delete them. The built-in ones always stay, and an environment that a credential still uses cannot be deleted.
+
+Any environment, built-in or your own, can have a **tab color**: select it, tick **Mark this environment's tabs with a color** and pick the color. A terminal tab that signed in with a stored credential of that environment then shows the color as a dot in front of its title and as a frame around its terminal, just like a [connection's own tab color](connections.md#tab-color). Marking the Production environment red, for example, marks every tab that signs in with a production credential at once.
+
+- **Opt-in** — no environment has a color until you pick one. New credentials start out in Production, so a default color would mark most tabs as production tabs.
+- **The connection's own color comes first** — a connection with a tab color of its own shows that color, whatever environment its credential belongs to.
+- **Only credential-backed connections** — the color reaches tabs that signed in with a stored credential, including a [teamwork](teamwork.md) connection that uses the team's default credential. Connections that log in with an SSH key, a temporary key or a password of their own have no environment; give them a tab color of their own instead.
+- **Applied on OK** — color changes take effect when you click **OK** in the Environments dialog, and **Cancel** discards them. Open tabs in every window pick up the new colors at once, as they do when you move a credential to another environment.
+- **Not by color alone** — pointing at a tab colored this way names the color and the environment, for example *Tab color: purple (#7B1FA2), from the credential environment Lab* for an environment of your own named Lab. Screen readers read the same text for the dot.
+- **Stored in `environments.xml`** — together with your own environments; see [Configuration files](../reference/config-files.md#environmentsxml).
+
 ### Features
 
 - **Environment-specific** — Organize credentials by deployment environment
@@ -117,7 +130,7 @@ Centralized management of private SSH keys with encrypted passphrases.
 
 ### Opening the Manager
 
-**Menu:** Management > Manage SSH Keys
+**Menu:** Configuration > Security > SSH-Keys… (++ctrl+shift+i++, on macOS ++cmd+shift+i++)
 
 ### Adding Keys
 
@@ -169,7 +182,7 @@ Manage GPG keys for backup encryption and connection/snippet export encryption.
 
 ### Opening the Manager
 
-**Menu:** Management > Manage GPG Keys
+**Menu:** Configuration > Security > GPG-Keys… (++ctrl+shift+g++, on macOS ++cmd+shift+g++)
 
 ### Adding Keys
 

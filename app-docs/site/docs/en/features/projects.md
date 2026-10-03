@@ -34,7 +34,7 @@ A project captures the complete state of your workspace:
 | Component | Details |
 |-----------|---------|
 | **Windows** | All open KorTTY windows and their positions/sizes |
-| **Tabs** | All terminal tabs in each window, including split-pane configurations, plus SFTP Manager tabs with the local and remote folders they show, and file editor and image viewer tabs |
+| **Tabs** | All terminal tabs in each window, including split-pane configurations and the name of a [renamed tab](terminal.md#working-with-tabs), plus SFTP Manager tabs with the local and remote folders they show, and file editor and image viewer tabs |
 | **Connections** | A reference to the saved connection of each tab, by the connection's internal id, so renaming a connection does not break the project |
 | **Dashboard** | Dashboard visibility and divider position |
 | **Active Tab** | Which tab was active in each window |
@@ -49,6 +49,7 @@ When **Auto-Reconnect** is enabled, KorTTY automatically:
 
 - Restores all windows with their saved geometry (position and size)
 - Reconnects each SSH tab using the original connection settings
+- Gives each renamed terminal tab its name back; a tab you never renamed shows the connection's current name
 - Shows each terminal tab's saved screen dimmed above the new session, framed by a *Restored output from* row with the date the project was saved and an *End of restored output* row. The text is written into the local terminal only and is never sent to the server: it does not reach the remote shell or its command history, and a session journal that starts with the connection does not record it (a journal you switch on later imports the scrollback, which then includes the restored rows). Control characters and escape sequences are removed from it before it is shown.
 - Reopens each SFTP Manager tab at the local and remote folders it showed when the project was saved
 - Restores the active tab and dashboard state

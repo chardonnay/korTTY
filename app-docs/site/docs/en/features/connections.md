@@ -12,6 +12,18 @@ Open with ++ctrl+k++ (or **Connections → Quick Connect…**). Enter host, port
 
 **Connections → Manage Connections…** opens a searchable tree of saved connections (optionally grouped); the search field matches name, host, IP address or [tag](#tags), with `*` as a wildcard. From here you create, edit, duplicate, delete, tag, import and export connections.
 
+### Signing in
+
+**Connect** in the Connection Manager signs in to the selected connection in this order:
+
+1. korTTY checks your organization's [server access policy](../reference/enterprise-policy.md#server-access-control) first. A blocked server or jump server shows the policy message before korTTY asks you for anything.
+2. A shared [teamwork](teamwork.md) connection that names neither a credential nor an SSH key uses the team's default authentication.
+3. A connection with a temporary SSH key reuses that key while it is still valid and asks for a new one once it has expired.
+4. A local shell and SSH key authentication connect without a password.
+5. Otherwise korTTY uses the saved password, from the connection's stored credential first and then from the connection itself, and asks for the password when none is saved; **OK** stays greyed out until you type one. When the saved password is in the locked vault, korTTY first offers **Unlock Vault…** (see [Unlocking the vault later](security.md#unlocking-the-vault-later)); if you do not unlock it, korTTY asks you to type the password instead.
+
+Cancelling any of these questions opens no tab. **Duplicate** in a terminal tab's context menu signs in the same way, so it also asks for a new temporary SSH key when the tab's key has expired. **Reopen Closed Tab** and *File → Recently Closed* sign in the same way too, with the saved connection as it is now (see [Working with tabs](terminal.md#working-with-tabs)).
+
 ## Creating / editing a connection
 
 The connection editor has these tabs:
@@ -19,7 +31,7 @@ The connection editor has these tabs:
 | Tab | Contents |
 | --- | --- |
 | Connection | Host, port, username, protocol (SSH / Mosh / Local Shell), terminal emulation, **Character encoding** (use default / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), authentication (password / key / keyboard-interactive), **Host key verification** (use default / verify / don't verify), group/folder assignment and an optional free-text [tag](#tags). For **Local Shell** connections host, port, username and authentication are not required and are disabled. See [Character encoding](#character-encoding). |
-| Terminal Settings | Per-connection colors, font, ANSI/TrueColor handling, the **Terminal behavior** section with the [keyword highlighting](#keyword-highlighting) rule set, terminal effect |
+| Terminal Settings | Per-connection colors, font, ANSI/TrueColor handling, the **Terminal behavior** section with the [tab color](#tab-color) and the [keyword highlighting](#keyword-highlighting) rule set, terminal effect |
 | SSH Tunnels | Local / remote / dynamic port forwarding |
 | Jump Server | Bastion-host chaining |
 | Terminal Logging | Writes this connection's terminal output to a file — folder, format, daily rotation, compression and retention. See [Terminal logging](terminal.md#terminal-logging). |
@@ -44,10 +56,24 @@ Every saved connection can carry one optional free-text **tag** — a label such
 - **Bulk assign / remove** — select one or more servers and choose **Assign Tag** from the context menu to tag them in one step. The prompt is pre-filled when all selected connections already share the same tag, and clearing that pre-filled value removes the tag. **Remove Tag** clears the tag and is enabled only while the selection contains at least one tagged connection. The same two entries on a folder's context menu apply to every connection in that folder, subfolders included.
 - **Export by tag** — once at least one tag exists, the Connection Manager's export dialog offers a **Connections to export** choice: keep the pre-selected connections, or export **all connections with these tags** — pick one or more tags from the list, the header's connection count follows the selection live, and the export button stays disabled while nothing matches.
 
+## Tab color
+
+A **tab color** marks every terminal tab of a connection with a small colored dot in front of its title and a 3-pixel frame of the same color around its terminal, so a production server stands out from test machines at a glance. Set it on the connection editor's *Terminal Settings* tab, in the **Terminal behavior** section: tick **Mark this connection's tabs with a color** and pick the color. The picker offers red, orange, yellow, green, blue, purple and gray as custom colors, and any other color works too. The section applies whether or not the connection uses its own terminal settings, and it stays when terminal effects are switched off. Untick the box to remove the color.
+
+- **Not by color alone** — pointing at a colored tab shows a tooltip with the connection (`user@host`, or the connection's name for a local shell) and the color by name and code, for example *Tab color: red (#D32F2F), set on this connection*. Screen readers read the same text for the dot.
+- **Frame around the terminal** — the frame surrounds the whole tab content, all split panes and the status bars included. It takes 3 pixels on each side, so setting or removing a color resizes the connection's open terminals and full-screen programs redraw. To keep only the dot, switch off **Frame the terminal in its connection's tab color** in the [Window settings](../reference/settings/window.md#tabs).
+- **Applies at once** — saving in the Connection Manager recolors the open tabs of that connection in every window, and removing the color removes the dot and the frame. Tabs opened from a saved connection through Quick Connect, **Duplicate**, **Reopen Closed Tab** or a [project](projects.md) show its color too.
+- **Status colors stay** — the yellow tab while a connection is being made and the dark red tab of a failed or lost connection work as before; the dot and the frame are shown in addition and never replace them. A pane that **Split Right (new connection)** or **Split Down (new connection)** opened to another server is part of the same tab and sits inside the tab's frame, so it shows the tab's color, not its own.
+- **Stored with the connection** — the color is saved in `connections.xml` as `#RRGGBB` and survives duplicating, exporting and importing. A value that is not a hex color is ignored.
+- **Color from the credential's environment** — a connection without a tab color of its own can take the color of its stored credential's environment, for example red for every connection that signs in with a production credential. Give the environment a color in the Credentials manager under **Environments...**, see [Environments and tab colors](security.md#environments-and-tab-colors). The tooltip then names the environment instead of saying the color is set on the connection, and a color set on the connection always comes first.
+
+!!! warning "Shared connections bring their own color"
+    A [teamwork](teamwork.md) connection shows the color written in the shared file, so whoever maintains that file decides how its tabs are marked. That color also comes before the color of your own credential environment. Treat the color as a hint, not as proof of which server you are on: the tooltip still names the connection, and so does the tab title unless you renamed the tab or its [shell set a title](terminal.md#title-from-the-shell).
+
 ## Protocols
 
 === "SSH"
-    Standard SSH via Apache MINA SSHD. Supports password, public-key and keyboard-interactive authentication, keep-alive, and clickable OSC 8 hyperlinks for web and mail addresses (see [Links in terminal output](terminal.md#links-in-terminal-output)).
+    Standard SSH via Apache MINA SSHD. Supports password, public-key and keyboard-interactive authentication, keep-alive, and OSC 8 hyperlinks for web and mail addresses that open with ++cmd++ / ++ctrl++ + click (see [Links in terminal output](terminal.md#links-in-terminal-output)).
 
 === "Mosh"
     Roaming, latency-friendly Mosh transport (mosh4j). The Mosh backend is bundled in native builds; existing connections need no migration.

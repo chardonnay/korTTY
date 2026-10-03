@@ -90,7 +90,7 @@ pages:
     last_synced_ref: "a4a2351c"
   - path: app-docs/site/docs/en/reference/keyboard-shortcuts.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/ui/MainWindow.java, src/monaco/completion.js, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java, src/main/java/de/kortty/ui/TerminalNavigationKeys.java, src/main/java/de/kortty/ui/SceneShortcutRouter.java, src/main/java/de/kortty/ui/SceneShortcutKeys.java, src/main/java/de/kortty/ui/KeyTypedResidueGuard.java]
+    owns_code: [src/main/java/de/kortty/ui/MainWindow.java, src/monaco/completion.js, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java, src/main/java/de/kortty/ui/TerminalNavigationKeys.java, src/main/java/de/kortty/ui/SceneShortcutRouter.java, src/main/java/de/kortty/ui/SceneShortcutKeys.java, src/main/java/de/kortty/ui/KeyTypedResidueGuard.java, src/main/java/de/kortty/ui/TabKeyboardShortcuts.java]
     last_synced_ref: "a4a2351c"
 
   # ---- Reference: settings (one page per tab; each owns its settings.<tab>.) --
@@ -223,13 +223,13 @@ pages:
     last_synced_ref: "a4a2351c"
   # ---- Features --------------------------------------------------------------
   - path: app-docs/site/docs/en/features/connections.md
-    owns_i18n: [menu.connections., connEdit.tag, connEdit.encoding, connEdit.terminalBehavior, connManager.assignTag, connManager.removeTag, connExport.selection, quickConnect.tag]
-    owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/ConnectionManagerTreeView.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/ui/QuickConnectDialog.java, src/main/java/de/kortty/core/LocalShellTtyConnector.java, src/main/java/de/kortty/core/SshTtyConnector.java, src/main/java/de/kortty/core/SFTPSession.java, src/main/java/de/kortty/core/SshHostKeyTrustManager.java, src/main/java/de/kortty/core/TerminalEncodingSupport.java, src/main/java/de/kortty/ui/KnownHostsDialog.java, src/main/java/de/kortty/platform/FlatpakSupport.java]
+    owns_i18n: [menu.connections., connEdit.tag, connEdit.encoding, connEdit.terminalBehavior, connEdit.tabColor, connManager.assignTag, connManager.removeTag, connExport.selection, quickConnect.tag, dialog.passwordVaultLocked]
+    owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/ConnectionAuthResolver.java, src/main/java/de/kortty/core/ConnectionColorSupport.java, src/main/java/de/kortty/ui/ConnectionManagerTreeView.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/ui/QuickConnectDialog.java, src/main/java/de/kortty/core/LocalShellTtyConnector.java, src/main/java/de/kortty/core/SshTtyConnector.java, src/main/java/de/kortty/core/SFTPSession.java, src/main/java/de/kortty/core/SshHostKeyTrustManager.java, src/main/java/de/kortty/core/TerminalEncodingSupport.java, src/main/java/de/kortty/ui/KnownHostsDialog.java, src/main/java/de/kortty/platform/FlatpakSupport.java]
     diagrams: [connection-flow.svg, jump-server-flow.svg]
     last_synced_ref: "ab5f2d9d"
   - path: app-docs/site/docs/en/features/terminal.md
-    owns_i18n: [connEdit.log., connEdit.loggingInfo, quickConnect.log., quickConnect.section.terminalLog, terminal.log.]
-    owns_code: [src/main/java/de/kortty/ui/TerminalView.java, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/core/ObservableTtyConnector.java, src/main/java/de/kortty/core/LocalShellDirectoryChangeTracker.java, src/main/java/de/kortty/core/ShellSessionChangeTracker.java, src/main/java/de/kortty/core/RemoteTextFileSelectionSupport.java, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java, src/main/java/de/kortty/ui/TerminalNavigationKeys.java, src/main/java/de/kortty/ui/MirroredInputWriter.java, src/main/java/de/kortty/ui/MirroredInput.java, src/main/java/de/kortty/ui/KorttyTermWidget.java, src/main/java/de/kortty/ui/TerminalCellGeometry.java, src/main/java/de/kortty/ui/KorttyOsc8LinkInfoProvider.java, src/main/java/de/kortty/ui/KorttyLinkInfo.java, src/main/java/de/kortty/ui/TerminalLinkOpener.java, src/main/java/de/kortty/ui/TerminalPaneActions.java, src/main/java/de/kortty/core/TerminalLogger.java, src/main/java/de/kortty/core/TerminalLogNaming.java, src/main/java/de/kortty/core/TerminalLogRetention.java, src/main/java/de/kortty/model/TerminalLogConfig.java, src/main/java/de/kortty/core/SessionJournalRedactor.java, src/main/java/de/kortty/core/TerminalLinkDetector.java, src/main/java/de/kortty/core/TerminalPathToken.java]
+    owns_i18n: [connEdit.log., connEdit.loggingInfo, quickConnect.log., quickConnect.section.terminalLog, terminal.log., tab.contextMenu.rename, dialog.renameTab., tab.contextMenu.closeOthers, tab.contextMenu.closeToRight, dialog.closeTabs., tab.contextMenu.reopenClosed, tab.tooltip., terminal.links., terminal.contextMenu.openLink, terminal.contextMenu.copyLink, terminal.contextMenu.openFile, terminal.contextMenu.copyPath, terminal.quickSelect.]
+    owns_code: [src/main/java/de/kortty/ui/TerminalView.java, src/main/java/de/kortty/ui/TerminalTab.java, src/main/java/de/kortty/ui/TabColorPresentation.java, src/main/java/de/kortty/ui/TabCloseTargets.java, src/main/java/de/kortty/ui/TabKeyboardShortcuts.java, src/main/java/de/kortty/ui/ClosedTabHistory.java, src/main/java/de/kortty/ui/RecentlyClosedRecorder.java, src/main/java/de/kortty/ui/ShellTitleTracker.java, src/main/java/de/kortty/core/DisplayTextSanitizer.java, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/core/ObservableTtyConnector.java, src/main/java/de/kortty/core/LocalShellDirectoryChangeTracker.java, src/main/java/de/kortty/core/ShellSessionChangeTracker.java, src/main/java/de/kortty/core/RemoteTextFileSelectionSupport.java, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java, src/main/java/de/kortty/ui/TerminalNavigationKeys.java, src/main/java/de/kortty/ui/MirroredInputWriter.java, src/main/java/de/kortty/ui/MirroredInput.java, src/main/java/de/kortty/ui/KorttyTermWidget.java, src/main/java/de/kortty/ui/TerminalCellGeometry.java, src/main/java/de/kortty/ui/KorttyOsc8LinkInfoProvider.java, src/main/java/de/kortty/ui/KorttyLinkInfo.java, src/main/java/de/kortty/ui/TerminalLinkOpener.java, src/main/java/de/kortty/ui/TerminalLinkClickPolicy.java, src/main/java/de/kortty/ui/TerminalLinkResolver.java, src/main/java/de/kortty/ui/TerminalLinkHoverController.java, src/main/java/de/kortty/ui/TerminalLinkMismatchDialog.java, src/main/java/de/kortty/ui/TerminalLinkContextMenu.java, src/main/java/de/kortty/ui/TerminalFileLink.java, src/main/java/de/kortty/ui/TerminalFileLinkHandler.java, src/main/java/de/kortty/ui/TerminalQuickSelectController.java, src/main/java/de/kortty/ui/QuickSelectScreen.java, src/main/java/de/kortty/ui/QuickSelectSession.java, src/main/java/de/kortty/ui/QuickSelectInputGuard.java, src/main/java/de/kortty/core/QuickSelectLabels.java, src/main/java/de/kortty/ui/TerminalPaneActions.java, src/main/java/de/kortty/core/TerminalLogger.java, src/main/java/de/kortty/core/TerminalLogNaming.java, src/main/java/de/kortty/core/TerminalLogRetention.java, src/main/java/de/kortty/model/TerminalLogConfig.java, src/main/java/de/kortty/core/SessionJournalRedactor.java, src/main/java/de/kortty/core/TerminalLinkDetector.java, src/main/java/de/kortty/core/TerminalPathToken.java]
     diagrams: [session-lifecycle.svg]
     last_synced_ref: "53a0d88a"
   - path: app-docs/site/docs/en/features/highlighting.md
@@ -307,8 +307,8 @@ pages:
     screenshots: [ai/swarm-status-strip-states.png, ai/swarm-status-strip-many.png]
     last_synced_ref: "659b3bd9"
   - path: app-docs/site/docs/en/features/security.md
-    owns_i18n: []
-    owns_code: [src/main/java/de/kortty/security, src/main/java/de/kortty/core/CredentialManager.java, src/main/java/de/kortty/ui/VaultUnlockSupport.java, src/main/java/de/kortty/core/SshHostKeyTrustManager.java, src/main/java/de/kortty/ui/KnownHostsDialog.java, src/main/java/de/kortty/core/HostKeyCheckPolicy.java, src/main/java/de/kortty/core/HostKeyCheckMode.java, src/main/java/de/kortty/ai/catalog, src/main/java/de/kortty/ai/llama/LlamaRuntimeManager.java, src/main/java/de/kortty/ai/huggingface, src/main/java/de/kortty/ai/runtimeupdate, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/rag/HttpQdrantRestAdapter.java, src/main/java/de/kortty/rag/RagSourceScanner.java, src/main/java/de/kortty/rag/RagContextBuilder.java, src/main/java/de/kortty/rag/RagSecretSupport.java, src/main/java/de/kortty/core/AtomicFileWriter.java, src/main/java/de/kortty/core/CorruptFileQuarantine.java, src/main/java/de/kortty/core/StoreFileGuard.java]
+    owns_i18n: [credential.environments.color]
+    owns_code: [src/main/java/de/kortty/security, src/main/java/de/kortty/core/CredentialManager.java, src/main/java/de/kortty/core/EnvironmentManager.java, src/main/java/de/kortty/model/EnvironmentColor.java, src/main/java/de/kortty/ui/EnvironmentManagementDialog.java, src/main/java/de/kortty/ui/CredentialManagementDialog.java, src/main/java/de/kortty/ui/VaultUnlockSupport.java, src/main/java/de/kortty/core/SshHostKeyTrustManager.java, src/main/java/de/kortty/ui/KnownHostsDialog.java, src/main/java/de/kortty/core/HostKeyCheckPolicy.java, src/main/java/de/kortty/core/HostKeyCheckMode.java, src/main/java/de/kortty/ai/catalog, src/main/java/de/kortty/ai/llama/LlamaRuntimeManager.java, src/main/java/de/kortty/ai/huggingface, src/main/java/de/kortty/ai/runtimeupdate, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/rag/HttpQdrantRestAdapter.java, src/main/java/de/kortty/rag/RagSourceScanner.java, src/main/java/de/kortty/rag/RagContextBuilder.java, src/main/java/de/kortty/rag/RagSecretSupport.java, src/main/java/de/kortty/core/AtomicFileWriter.java, src/main/java/de/kortty/core/CorruptFileQuarantine.java, src/main/java/de/kortty/core/StoreFileGuard.java]
     diagrams: [credential-flow.svg, persistence-encryption-flow.svg]
     last_synced_ref: "659b3bd9"
   - path: app-docs/site/docs/en/features/backup.md
@@ -331,6 +331,7 @@ pages:
       - src/main/java/de/kortty/core/TerminalRecordingStyleRun.java
       - src/main/java/de/kortty/core/TerminalRecordingTimeJumpParser.java
       - src/main/java/de/kortty/core/TerminalRecordingTimeRange.java
+      - src/main/java/de/kortty/core/TerminalScreenRenderer.java
       - src/main/java/de/kortty/model/TerminalRecordingFormat.java
       - src/main/java/de/kortty/model/TerminalRecordingScope.java
       - src/main/java/de/kortty/ui/TerminalRecordingManagerDialog.java
@@ -455,7 +456,7 @@ pages:
     last_synced_ref: "65898ac2"
   - path: app-docs/site/docs/en/reference/config-files.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/persistence, src/main/java/de/kortty/model/ServerConnection.java, src/main/java/de/kortty/model/SnippetDiagram.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ai/llama/LlamaModelRegistry.java, src/main/java/de/kortty/rag/RagConfigurationManager.java]
+    owns_code: [src/main/java/de/kortty/persistence, src/main/java/de/kortty/model/ServerConnection.java, src/main/java/de/kortty/model/EnvironmentColor.java, src/main/java/de/kortty/model/SnippetDiagram.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ai/llama/LlamaModelRegistry.java, src/main/java/de/kortty/rag/RagConfigurationManager.java]
     last_synced_ref: "a4a2351c"
   - path: app-docs/site/docs/en/reference/control-api.md
     owns_i18n: [settings.controlApi., controlApi.]
@@ -482,7 +483,7 @@ pages:
     last_synced_ref: "0dad374"
   - path: app-docs/site/docs/en/reference/enterprise-policy.md
     owns_i18n: [policy.]
-    owns_code: [src/main/java/de/kortty/policy, package/policy, src/main/java/de/kortty/ui/SplitConnectionPolicy.java]
+    owns_code: [src/main/java/de/kortty/policy, package/policy, src/main/java/de/kortty/ui/SplitConnectionPolicy.java, src/main/java/de/kortty/ui/ConnectionAuthResolver.java]
     diagrams: []
     screenshots: []
     last_synced_ref: "38bcd2b4"

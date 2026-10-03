@@ -7,8 +7,13 @@ Jedes Element in der Menüleiste von korTTY, mit seiner Tastenkombination (falls
 | Element | Verknüpfung | Beschreibung |
 | --- | --- | --- |
 | Neuer Tab | ++ctrl+t++ | Öffnen Sie die Schnellverbindung in einem neuen Terminal-Tab |
+| Tab umbenennen… | | Dem aktiven Terminal-Tab statt des Verbindungsnamens oder des [Titels, den seine Shell gesetzt hat](../features/terminal.md#titel-aus-der-shell), einen eigenen Namen geben; ein leerer Name zeigt diesen wieder an. Verfügbar, solange ein Terminal-Tab aktiv ist. Siehe [Arbeiten mit Tabs](../features/terminal.md#arbeiten-mit-tabs) |
 | Tab schließen | ++ctrl+w++ | Schließen Sie die aktive Terminal-Registerkarte |
-| Alle Tabs schließen | | Alle Tabs im aktuellen Fenster schließen |
+| Andere Tabs schließen | | Alle anderen Tabs des aktuellen Fensters schließen; der aktive Tab bleibt geöffnet. Fragt einmal nach, wenn einige der zu schließenden Terminals geteilte Bereiche oder einen laufenden Befehl haben. Derselbe Eintrag steht im Rechtsklickmenü eines Terminal-Tabs. Siehe [Arbeiten mit Tabs](../features/terminal.md#arbeiten-mit-tabs) |
+| Tabs rechts davon schließen | | Die Tabs hinter dem aktiven Tab schließen, der geöffnet bleibt. Fragt wie „Andere Tabs schließen“ nach. Derselbe Eintrag steht im Rechtsklickmenü eines Terminal-Tabs |
+| Alle Tabs schließen | | Alle Tabs im aktuellen Fenster schließen; „Geschlossenen Tab wieder öffnen“ holt die Terminal-Tabs zurück |
+| Geschlossenen Tab wieder öffnen | ++ctrl+alt+shift+t++ | Den zuletzt geschlossenen Terminal-Tab (oder die Tabs, die ein Befehl gemeinsam geschlossen hat) mit einer neuen Sitzung wieder öffnen; ausgegraut, solange es nichts wieder zu öffnen gibt. Derselbe Eintrag steht im Rechtsklickmenü eines Terminal-Tabs. Siehe [Arbeiten mit Tabs](../features/terminal.md#arbeiten-mit-tabs) |
+| Zuletzt geschlossen ▸ | | Was Sie in dieser Sitzung geschlossen haben, das Neueste zuerst: ein Tab, die Tabs, die ein Befehl gemeinsam geschlossen hat, oder *Fenster: …* für die Tabs eines geschlossenen Fensters. Wählen Sie einen Eintrag, um ihn wieder zu öffnen; **Liste leeren** leert die Liste |
 | Neues Fenster | ++ctrl+shift+n++ | Öffnen Sie ein zusätzliches, unabhängiges Hauptfenster |
 | Fenster schließen | ++ctrl+shift+w++ | Schließen Sie das aktuelle Fenster |
 | Projekt öffnen… | ++ctrl+o++ | Ein gespeichertes Projekt wiederherstellen (Fenster, Registerkarten, Layout) |
@@ -27,6 +32,7 @@ Verbindungs-Einträge (Schnellverbindung, Verwalten/Importieren/Exportieren von 
 | Kopie | ++ctrl+c++ | Kopieren Sie die Terminalauswahl |
 | Paste | ++ctrl+v++ | In das Terminal einfügen |
 | Suchen… | ++ctrl+f++ | Suche im aktiven Tab (Terminal-Scrollback oder geöffneter Editor). Auf Windows und Linux sendet ein fokussiertes Terminal ++ctrl+f++ an die Shell, also öffnen Sie Suchen aus diesem Menü oder dem Rechtsklick-Menü des Terminals dort |
+| Schnellauswahl | ++ctrl+shift+space++ | Jede Webadresse, jeden Pfad, jede E-Mail-Adresse, UUID, IP-Adresse, jeden Git-Hash und jede Zahl mit vier oder mehr Ziffern im fokussierten Terminalbereich mit einem Kürzel versehen; tippen Sie ein Kürzel, um dessen Text zu kopieren, oder ++shift++ und das Kürzel, um eine Web- oder E-Mail-Adresse oder in SSH- und lokalen Shell-Tabs einen Dateipfad im Snippet-Editor zu öffnen. Außerhalb von Terminal-Tabs deaktiviert, siehe [Schnellauswahl](../features/terminal.md#schnellauswahl) |
 
 ## Verbindungen
 
@@ -40,13 +46,13 @@ Verbindungs-Einträge (Schnellverbindung, Verwalten/Importieren/Exportieren von 
 
 ## Sicherheit
 
-| Artikel | Beschreibung |
-| --- | --- |
-| Tresor entsperren… | Geben Sie das Master-Passwort ein, um gespeicherte Geheimnisse zu entsperren, wenn die Startaufforderung ausgeschaltet ist (ausgegraut, solange der Tresor entsperrt ist) |
-| Anmeldeinformationen… | Gespeicherte Anmeldeinformationen verwalten (verschlüsselt) |
-| GPG-Schlüssel… | GPG-Schlüssel verwalten, die für die Backup-Verschlüsselung verwendet werden |
-| SSH-Schlüssel… | SSH-Schlüssel und Passphrasen verwalten |
-| Bekannte Hosts… | Überprüfen, suchen und entfernen vertrauenswürdiger SSH-Hostschlüssel |
+| Element | Verknüpfung | Beschreibung |
+| --- | --- | --- |
+| Tresor entsperren… | | Das Master-Passwort eingeben, um gespeicherte Geheimnisse zu entsperren, wenn die Abfrage beim Start ausgeschaltet ist (ausgegraut, solange der Tresor entsperrt ist) |
+| Zugangsdaten… | ++ctrl+shift+m++ | Gespeicherte Zugangsdaten verwalten (verschlüsselt). Die Tastenkombination funktioniert auch, wenn ein Terminal den Fokus hat |
+| GPG-Schlüssel… | ++ctrl+shift+g++ | GPG-Schlüssel verwalten, die für die Backup-Verschlüsselung verwendet werden |
+| SSH-Schlüssel… | ++ctrl+shift+i++ | SSH-Schlüssel und Passphrasen verwalten |
+| Bekannte Hosts… | | Vertrauenswürdige SSH-Hostschlüssel prüfen, durchsuchen und entfernen |
 
 ## Konfiguration
 
@@ -147,3 +153,5 @@ Unter macOS läuft die gepackte App weiterhin im Hintergrund (damit der JobSched
 - **Menüleisten-(Status-)Symbol** – ein Taskleistensymbol mit **Neues Fenster** und **Beenden**; Durch Klicken auf das Symbol wird ein neues Fenster geöffnet.
 
 Beide bieten ein zuverlässiges **Beenden**, selbst wenn jedes Fenster geschlossen ist.
+
+Die Menüleiste oben auf dem Bildschirm bleibt ebenfalls bestehen, wenn Sie das letzte Fenster schließen, und solange kein korTTY-Fenster den Fokus hat, kann sie noch die Menüleiste eines Fensters sein, das Sie geschlossen haben. Ihre Einträge wirken dann im zuletzt verwendeten korTTY-Fenster, das in den Vordergrund kommt, oder öffnen zuerst ein neues Fenster, wenn keines geöffnet ist: **Neuer Tab** öffnet dort die Schnellverbindung, **Verbindungen verwalten...** den Connection-Manager. **Neues Fenster**, **Beenden**, **Ruhezustand verhindern** und das Abbrechen eines laufenden Jobs brauchen kein Fenster. **Tab schließen**, **Alle Tabs schließen**, **Fenster schließen**, **Ausschneiden**, **Kopieren** und **Einfügen** bewirken aus der Menüleiste eines geschlossenen Fensters nichts, sodass sie nie einen Tab schließen oder in ein Fenster einfügen, das Sie gerade nicht sehen.

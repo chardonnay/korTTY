@@ -758,7 +758,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h1>
-<p>Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einschließlich Abmessungen, Scrollback, Zeichenkodierung und SSH-Verbindungsverwaltung. Öffnen über <strong>Konfiguration → Globale Einstellungen → Terminal</strong>; in <code>~/.kortty/global-settings.xml</code> gespeichert.</p>
+<p>Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einschließlich Abmessungen, Scrollback, Zeichenkodierung, Links und SSH-Verbindungsverwaltung. Öffnen über <strong>Konfiguration → Globale Einstellungen → Terminal</strong>; in <code>~/.kortty/global-settings.xml</code> gespeichert.</p>
 <p><img alt="Terminal settings tab" src="../../assets/screenshots/settings/terminal.png" /></p>
 <table>
 <thead>
@@ -842,6 +842,13 @@
 <td><code>closeActiveTerminalWindowsWithoutConfirmation</code></td>
 </tr>
 <tr>
+<td>Web-Adressen, E-Mail-Adressen und Dateipfade im Terminaltext erkennen</td>
+<td>umschalten</td>
+<td>–</td>
+<td>Ein</td>
+<td><code>terminalLinkDetectionEnabled</code></td>
+</tr>
+<tr>
 <td>SSH Keep-Alive aktivieren</td>
 <td>umschalten</td>
 <td>–</td>
@@ -923,6 +930,10 @@
 <div class="admonition note">
 <p class="admonition-title">Markierung automatisch in Zwischenablage kopieren</p>
 <p>Wenn aktiviert, wird der von Ihnen im Terminal ausgewählte Text sofort in die Zwischenablage kopiert. Unter Linux wird er zudem zur X11-Hauptauswahl, sodass ein Mittelklick ihn in anderen Anwendungen wie xterm oder gedit einfügt. Mit dem internen Zwischenablage-Modus der Unternehmensrichtlinie <a href="../enterprise-policy.html#interner-zwischenablagemodus">interner Zwischenablage-Modus</a> bleibt die Auswahl innerhalb von korTTY auf jeder Plattform.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Links</p>
+<p>Wenn <strong>Web-Adressen, E-Mail-Adressen und Dateipfade im Terminaltext erkennen</strong> eingeschaltet ist, öffnet <span class="keys"><kbd class="key-command">Cmd</kbd></span> + Klick (macOS) bzw. <span class="keys"><kbd class="key-control">Ctrl</kbd></span> + Klick (Windows, Linux) eine Webadresse, eine E-Mail-Adresse oder einen Dateipfad, die ein Programm als Klartext ausgegeben hat: eine Webadresse in Ihrem Standardbrowser, eine E-Mail-Adresse als neue Mail in Ihrem Mailprogramm und in SSH- und lokalen Shell-Tabs einen Dateipfad als Text im Snippet-Editor. Ein einfacher Klick wählt weiterhin nur Text aus. Eine Änderung gilt sofort für die offenen Terminals. Links, die ein Programm selbst mit OSC 8 auszeichnet, öffnen sich in jedem Fall mit demselben Klick. Siehe <a href="../../features/terminal.html#links-in-der-terminalausgabe">Links in der Terminalausgabe</a>.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">SSH-Keep-Alive</p>

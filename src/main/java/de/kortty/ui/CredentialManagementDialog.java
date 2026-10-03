@@ -54,7 +54,7 @@ public class CredentialManagementDialog extends ThemeAwareDialog<Boolean> {
                         " [" + cred.getServerPattern() + "]" : " [" + I18n.get("credential.allServers") + "]";
                     String envName = environmentManager != null
                         ? environmentManager.getDisplayName(cred.getEnvironmentId())
-                        : (cred.getEnvironment() != null ? cred.getEnvironment().getDisplayName() : cred.getEnvironmentId());
+                        : (cred.getEnvironment() != null ? EnvironmentManager.builtInDisplayName(cred.getEnvironment()) : cred.getEnvironmentId());
                     setText(String.format("%s - %s @ %s%s",
                         cred.getName(),
                         cred.getUsername(),
@@ -116,6 +116,10 @@ public class CredentialManagementDialog extends ThemeAwareDialog<Boolean> {
         EnvironmentManagementDialog dialog = new EnvironmentManagementDialog(environmentManager, credentialManager);
         dialog.initOwner(getDialogPane().getScene().getWindow());
         dialog.showAndWait();
+        // The rows name each credential's environment, which may have been renamed.
+        credentialListView.refresh();
+        // Environment colors set on OK show on the open tabs at once.
+        MainWindow.refreshConnectionColorsInAllWindows();
     }
 
     private void addCredential() {
@@ -125,6 +129,7 @@ public class CredentialManagementDialog extends ThemeAwareDialog<Boolean> {
             credentialManager.addCredential(result.credential);
             saveCredentialSecrets(result);
             refreshCredentialList();
+            MainWindow.refreshConnectionColorsInAllWindows();
             de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.SECURITY_ENTRY_CHANGED,
                 java.util.Map.of("manager", "credentials", "op", "add", "via", "manual"));
         });
@@ -139,6 +144,8 @@ public class CredentialManagementDialog extends ThemeAwareDialog<Boolean> {
                 credentialManager.updateCredential(result.credential);
                 saveCredentialSecrets(result);
                 refreshCredentialList();
+                // A credential moved to another environment recolors the tabs that signed in with it.
+                MainWindow.refreshConnectionColorsInAllWindows();
                 de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.SECURITY_ENTRY_CHANGED,
                     java.util.Map.of("manager", "credentials", "op", "edit", "via", "manual"));
             });
@@ -175,6 +182,7 @@ public class CredentialManagementDialog extends ThemeAwareDialog<Boolean> {
                 if (response == ButtonType.OK) {
                     credentialManager.removeCredential(selected);
                     refreshCredentialList();
+                    MainWindow.refreshConnectionColorsInAllWindows();
                 }
             });
         }

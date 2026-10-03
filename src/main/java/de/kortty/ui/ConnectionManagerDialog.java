@@ -1402,6 +1402,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                     imported.setGroup(conn.getGroup());
                 }
                 imported.setTag(conn.getTag());
+                imported.setTabColor(de.kortty.core.ConnectionColorSupport.normalizeHex(conn.getTabColor()));
                 
                 // Username (conditional)
                 if (result.importUsername) {
