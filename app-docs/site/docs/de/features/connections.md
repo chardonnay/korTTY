@@ -43,7 +43,7 @@ Jede gespeicherte Verbindung kann ein optionales Freitext-**Tag** tragen – ein
 ## Protokolle
 
 === "SSH"
-    Standard-SSH über Apache MINA SSHD. Unterstützt Passwort-, Public-Key- und Tastatur-interaktive Authentifizierung, Keep-Alive und anklickbare OSC 8-Hyperlinks.
+    Standard SSH über Apache MINA SSHD. Unterstützt Passwort-, Public-Key- und keyboard-interactive-Authentifizierung, Keep-Alive und anklickbare OSC 8-Hyperlinks für Web- und Mailadressen (siehe [Links in der Terminalausgabe](terminal.md#links-in-der-terminalausgabe)).
 
 === "Mosh"
     Roaming, latenzfreundlicher Mosh-Transport (mosh4j). Das Mosh-Backend ist in nativen Builds gebündelt; Bestehende Verbindungen benötigen keine Migration.
