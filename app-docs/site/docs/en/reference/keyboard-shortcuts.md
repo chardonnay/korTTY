@@ -8,6 +8,7 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | --- | --- |
 | ++ctrl+t++ | New Tab (Quick Connect) |
 | ++ctrl+w++ | Close Tab |
+| ++ctrl+alt+shift+t++ | Reopen the last closed terminal tab (also while a terminal has the focus) |
 | ++ctrl+shift+n++ | New Window |
 | ++ctrl+shift+w++ | Close Window |
 | ++ctrl+tab++ | Next Tab (++ctrl++ on macOS too) |
@@ -62,6 +63,8 @@ The zoom keys (++ctrl++ or ++alt++ with ++plus++ / ++minus++ / ++0++; ++cmd++ on
 
 The tab jump keys work in every tab, also while a terminal or an editor has the focus, and a number with no tab at its position does nothing. On macOS they are ++cmd++ with a digit, and ++cmd+shift++ with a digit works too, so a French (AZERTY) Mac can reach its digits (macOS keeps ++cmd+shift+3++ to ++cmd+shift+5++ for screenshots). On Windows and Linux they are exactly ++ctrl++ with a digit: ++alt-graph++ combinations (which arrive as ++ctrl+alt++) and ++ctrl+shift+6++ (the Cisco break sequence) still reach the terminal. A digit key that types ++plus++ or ++minus++ in your layout, such as the AZERTY 6 key, stays a zoom key instead. On Linux with a layout whose number row types other characters, the top-row digits may not jump; the numpad digits (with ++num-lock++ on) do.
 
+Reopen Closed Tab uses ++ctrl+alt+shift+t++ because ++ctrl+shift+t++ toggles the command timestamps and ++ctrl+alt+t++ the session journal. On Windows, ++alt-graph++ arrives as ++ctrl+alt++, so on a layout where ++alt-graph+shift+t++ types a character (such as `Ŧ` on Croatian and Polish layouts) that combination reopens a closed tab instead, and the character is not typed.
+
 ## Terminal
 
 These keys work while a terminal pane has the focus. For how they behave with several panes, see [Broadcast mode](../features/terminal.md#broadcast-mode).
@@ -80,6 +83,7 @@ These keys work while a terminal pane has the focus. For how they behave with se
 | ++ctrl+up++ / ++ctrl+down++ | Scroll korTTY's scrollback by a line (++cmd+up++ / ++cmd+down++ on macOS); on Windows and Linux the keys go to a full-screen program instead while one runs |
 | ++ctrl+tab++ / ++ctrl+shift+tab++ | Next / previous tab, also while the terminal has the focus (the ++ctrl++ key on macOS too) |
 | ++ctrl+1++ … ++ctrl+9++ | Jump to a tab, also while the terminal has the focus (++cmd++ on macOS, see [General](#general)) |
+| ++ctrl+alt+shift+t++ | Reopen the last closed terminal tab, also while the terminal has the focus (++cmd+option+shift+t++ on macOS) |
 
 On Windows and Linux, ++ctrl+1++ to ++ctrl+9++ no longer reach the program in the terminal: korTTY's terminal never sent them as keys of their own, so no program loses a binding it could receive.
 

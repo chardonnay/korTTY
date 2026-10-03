@@ -114,6 +114,8 @@ public class TerminalTab extends Tab {
     private boolean moshInterruptedBarVisible = false;
     private Runnable externalConnectedCallback;
     private Runnable journalStateListener;
+    /** Told when the user closes the tab with its close button; see {@link #setOnUserCloseApproved}. */
+    private java.util.function.Consumer<TerminalTab> onUserCloseApproved;
     
     /** Longest name the user can give a tab, in characters. */
     static final int MAX_CUSTOM_TITLE_LENGTH = 120;
@@ -190,8 +192,27 @@ public class TerminalTab extends Tab {
                 event.consume(); // Cancel the close
                 return;
             }
+            // While the tab still holds its group, name and effect: Recently Closed remembers them.
+            notifyUserCloseApproved();
             releaseResources();
         });
+    }
+
+    /**
+     * Runs {@code callback} when the user closes this tab with its close button and agreed to any
+     * question, before the tab releases anything. The main window records the tab for Recently Closed
+     * there. A tab that closes on its own (its session ended) and the main window's own close commands
+     * do not run it.
+     */
+    void setOnUserCloseApproved(java.util.function.Consumer<TerminalTab> callback) {
+        this.onUserCloseApproved = callback;
+    }
+
+    private void notifyUserCloseApproved() {
+        java.util.function.Consumer<TerminalTab> callback = onUserCloseApproved;
+        if (callback != null) {
+            callback.accept(this);
+        }
     }
 
     /**

@@ -152,8 +152,8 @@ class TabCloseTargetsTest {
         assertThat(contextMenu).contains("I18n.get(\"tab.contextMenu.closeToRight\")");
         assertThat(contextMenu).contains("closeOtherTabs(terminalTab)");
         assertThat(contextMenu).contains("closeTabsToTheRight(terminalTab)");
-        assertThat(contextMenu).contains(
-            "contextMenu.setOnShowing(e -> syncTabCloseItems(terminalTab, closeOthersItem, closeToRightItem));");
+        String contextShowing = contextMenu.substring(contextMenu.indexOf("contextMenu.setOnShowing(e -> {"));
+        assertThat(contextShowing).contains("syncTabCloseItems(terminalTab, closeOthersItem, closeToRightItem);");
 
         String sync = methodBody(window, "private void syncTabCloseItems(");
         assertThat(sync).contains("TabCloseTargets.others(tabPane.getTabs(), anchor).isEmpty()");

@@ -11,8 +11,8 @@ import java.util.Properties;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
- * The keys of the tab basics (rename, and the tab commands that follow) exist in every bundled
- * language. Grows with each tab feature.
+ * The keys of the tab basics (rename, close others, reopen closed tabs and the tab commands that
+ * follow) exist in every bundled language. Grows with each tab feature.
  */
 class TabBasicsI18nCoverageTest {
 
@@ -38,7 +38,15 @@ class TabBasicsI18nCoverageTest {
             "tab.contextMenu.closeToRight",
             "dialog.closeTabs.title",
             "dialog.closeTabs.header",
-            "dialog.closeTabs.content");
+            "dialog.closeTabs.content",
+            "menu.file.reopenClosedTab",
+            "menu.file.recentlyClosed",
+            "menu.file.recentlyClosed.empty",
+            "menu.file.recentlyClosed.window",
+            "menu.file.recentlyClosed.clear",
+            "tab.contextMenu.reopenClosed",
+            "status.noClosedTab",
+            "dialog.closeAllTabs.content");
 
     @Test
     void everyTabBasicsKeyExistsInEveryBundledLocale() throws Exception {
@@ -70,6 +78,29 @@ class TabBasicsI18nCoverageTest {
                     .that(localized.getProperty("dialog.closeTabs.header")).contains("{0}");
             assertWithMessage(bundle + " drops the busy-terminal count from dialog.closeTabs.content")
                     .that(localized.getProperty("dialog.closeTabs.content")).contains("{0}");
+        }
+    }
+
+    @Test
+    void aClosedWindowsEntryListsItsTabs() throws Exception {
+        for (String bundle : BUNDLES) {
+            assertWithMessage(bundle + " drops the tab names from menu.file.recentlyClosed.window")
+                    .that(loadBundle(bundle).getProperty("menu.file.recentlyClosed.window")).contains("{0}");
+        }
+    }
+
+    @Test
+    void closeAllTabsPointsToReopenClosedTabInsteadOfSayingItCannotBeUndone() throws Exception {
+        for (String bundle : BUNDLES) {
+            Properties localized = loadBundle(bundle);
+            String content = localized.getProperty("dialog.closeAllTabs.content");
+            assertWithMessage(bundle + ": dialog.closeAllTabs.content should name the File menu")
+                    .that(content).contains(localized.getProperty("menu.file"));
+            assertWithMessage(bundle + ": dialog.closeAllTabs.content should name Reopen Closed Tab")
+                    .that(content).contains(localized.getProperty("menu.file.reopenClosedTab"));
+            assertWithMessage(bundle + ": the File menu and the tab menu call it the same")
+                    .that(localized.getProperty("tab.contextMenu.reopenClosed"))
+                    .isEqualTo(localized.getProperty("menu.file.reopenClosedTab"));
         }
     }
 

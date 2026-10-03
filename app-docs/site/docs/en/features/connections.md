@@ -22,7 +22,7 @@ Open with ++ctrl+k++ (or **Connections → Quick Connect…**). Enter host, port
 4. A local shell and SSH key authentication connect without a password.
 5. Otherwise korTTY uses the saved password, from the connection's stored credential first and then from the connection itself, and asks for the password when none is saved; **OK** stays greyed out until you type one. When the saved password is in the locked vault, korTTY first offers **Unlock Vault…** (see [Unlocking the vault later](security.md#unlocking-the-vault-later)); if you do not unlock it, korTTY asks you to type the password instead.
 
-Cancelling any of these questions opens no tab. **Duplicate** in a terminal tab's context menu signs in the same way, so it also asks for a new temporary SSH key when the tab's key has expired.
+Cancelling any of these questions opens no tab. **Duplicate** in a terminal tab's context menu signs in the same way, so it also asks for a new temporary SSH key when the tab's key has expired. **Reopen Closed Tab** and *File → Recently Closed* sign in the same way too, with the saved connection as it is now (see [Working with tabs](terminal.md#working-with-tabs)).
 
 ## Creating / editing a connection
 

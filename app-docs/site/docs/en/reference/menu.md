@@ -11,7 +11,9 @@ Every item in korTTY's menu bar, with its shortcut (where defined) and what it d
 | Close Tab | ++ctrl+w++ | Close the active terminal tab |
 | Close Other Tabs | | Close every other tab of the current window; the active tab stays open. Asks once when some of the closing terminals have split panes or a running command. The same entry is in a terminal tab's right-click menu. See [Working with tabs](../features/terminal.md#working-with-tabs) |
 | Close Tabs to the Right | | Close the tabs after the active tab, which stays open. Asks like Close Other Tabs. The same entry is in a terminal tab's right-click menu |
-| Close All Tabs | | Close every tab in the current window |
+| Close All Tabs | | Close every tab in the current window; Reopen Closed Tab brings the terminal tabs back |
+| Reopen Closed Tab | ++ctrl+alt+shift+t++ | Reopen the terminal tab you closed last (or the tabs one command closed together) with a new session; greyed out while there is nothing to reopen. The same entry is in a terminal tab's right-click menu. See [Working with tabs](../features/terminal.md#working-with-tabs) |
+| Recently Closed ▸ | | What you closed in this session, newest first: a tab, the tabs one command closed together, or *Window: …* for the tabs of a closed window. Choose an entry to reopen it; **Clear List** empties the list |
 | New Window | ++ctrl+shift+n++ | Open an additional, independent main window |
 | Close Window | ++ctrl+shift+w++ | Close the current window |
 | Open Project… | ++ctrl+o++ | Restore a saved project (windows, tabs, layout) |

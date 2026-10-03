@@ -197,6 +197,10 @@ public class MainWindow {
     // command palette; Shortcut+M (Manage Connections) is a different chord.
     private static final KeyCombination CREDENTIALS_ACCELERATOR =
         new KeyCodeCombination(KeyCode.M, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    // File > Reopen Closed Tab. Shortcut+Shift+T toggles the command timestamps and Shortcut+Alt+T
+    // the session journal, so the browsers' Shortcut+Shift+T takes Alt as well.
+    private static final KeyCombination REOPEN_CLOSED_TAB_ACCELERATOR = new KeyCodeCombination(
+        KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN, KeyCombination.SHIFT_DOWN);
     // F11 is intercepted system-wide by macOS ("Show Desktop") and F12 is used for regular OS
     // fullscreen, so terminal-only fullscreen uses a modifier combo instead of a bare function key.
     private static final KeyCombination TERMINAL_ONLY_FULLSCREEN_ACCELERATOR =
@@ -304,6 +308,12 @@ public class MainWindow {
     
     private static final List<MainWindow> openWindows = new ArrayList<>();
 
+    /** The terminal tabs the user closed in this session, across every window; see {@link ClosedTabHistory}. */
+    private static final ClosedTabHistory closedTabHistory = new ClosedTabHistory();
+    private static final RecentlyClosedRecorder recentlyClosedRecorder = new RecentlyClosedRecorder(closedTabHistory);
+    /** How many tab names a Recently Closed entry of several tabs shows before "+N" counts the rest. */
+    private static final int RECENTLY_CLOSED_NAMES = 3;
+
     /**
      * Mints {@link #windowId}. A counter rather than the list position: a window id that renumbered
      * itself whenever an earlier window closed would silently re-point every id a script is holding.
@@ -318,6 +328,10 @@ public class MainWindow {
     private final List<CheckMenuItem> preventSleepMenuItems = new ArrayList<>();
     /** "Unlock Vault…" in every menu bar of this window (window menu bar and system menu bar). */
     private final List<MenuItem> unlockVaultMenuItems = new ArrayList<>();
+    /** File › Reopen Closed Tab in every menu bar of this window. */
+    private final List<MenuItem> reopenClosedTabMenuItems = new ArrayList<>();
+    /** File › Recently Closed in every menu bar of this window, rebuilt whenever the history changes. */
+    private final List<Menu> recentlyClosedMenus = new ArrayList<>();
     private Runnable powerManagementStateListener;
     private static volatile boolean applicationQuitRequested = false;
     private static volatile boolean schedulerDrainApproved = false;
@@ -816,6 +830,9 @@ public class MainWindow {
                 // Every prompt passed (confirmClose or the quit approval): only now close the
                 // snippet workspace window and this window's standalone editors without asking.
                 closeSnippetEditorsWithoutPrompt();
+                // Before the tabs are released: the window's terminal tabs become one Recently Closed
+                // entry, unless korTTY ends with this window (Quit, or the last window on Windows and Linux).
+                recordClosedWindow(willCloseApplication());
                 closeAllTabs();
                 // Deregister file browser manager listener to prevent memory leaks and stale callbacks
                 if (fileBrowserManager != null && fileBrowserPositionListener != null) {
@@ -934,6 +951,8 @@ public class MainWindow {
         applyMenuBarVisibility(true);
         syncDashboardMenuItems(shouldRestoreDashboardOnStartup());
         syncTimestampMenuItems(false);
+        // The history belongs to the application: a new window offers what other windows closed.
+        syncRecentlyClosedMenus();
         applyMainWindowThemeFromGlobalSettings();
         syncAiFeaturesMenuItemsEnabled();
         startJobSchedulerStatusUpdates();
@@ -1363,6 +1382,16 @@ public class MainWindow {
         MenuItem closeAllTabs = new MenuItem(I18n.get("menu.file.closeAllTabs"));
         closeAllTabs.setOnAction(e -> confirmAndCloseAllTabs());
 
+        MenuItem reopenClosedTab = new MenuItem(I18n.get("menu.file.reopenClosedTab"));
+        // Shown here; the scene shortcut router handles the key, also while a terminal has the focus.
+        reopenClosedTab.setAccelerator(REOPEN_CLOSED_TAB_ACCELERATOR);
+        reopenClosedTab.setOnAction(e -> reopenClosedTab());
+        reopenClosedTabMenuItems.add(reopenClosedTab);
+
+        // Rebuilt from the application-wide history whenever it changes (syncRecentlyClosedMenus).
+        Menu recentlyClosed = new Menu(I18n.get("menu.file.recentlyClosed"));
+        recentlyClosedMenus.add(recentlyClosed);
+
         MenuItem newWindow = new MenuItem(I18n.get("menu.file.newWindow"));
         newWindow.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         newWindow.setOnAction(e -> openNewWindow());
@@ -1395,10 +1424,12 @@ public class MainWindow {
             Tab selected = tabPane.getSelectionModel().getSelectedItem();
             renameTab.setDisable(!(selected instanceof TerminalTab));
             syncTabCloseItems(selected, closeOthers, closeToRight);
+            syncRecentlyClosedMenus();
         });
 
         fileMenu.getItems().addAll(
-            newTab, renameTab, closeTab, closeOthers, closeToRight, closeAllTabs, new SeparatorMenuItem(),
+            newTab, renameTab, closeTab, closeOthers, closeToRight, closeAllTabs,
+            reopenClosedTab, recentlyClosed, new SeparatorMenuItem(),
             newWindow, closeWindow, new SeparatorMenuItem(),
             openProject, saveProject, new SeparatorMenuItem(),
             createBackup, importBackup, new SeparatorMenuItem(), quit);
@@ -2243,6 +2274,12 @@ public class MainWindow {
             // and Linux. Opened after the key event, since the dialog may run a nested event loop.
             .consume(press -> press.matches(CREDENTIALS_ACCELERATOR), SceneShortcutRouter.ALWAYS,
                 () -> Platform.runLater(this::showCredentialManagement), Residue.ofLetter('M'))
+            // Also with the menu bar hidden, the history empty (a status line says so) and a terminal
+            // focused. Ctrl+Alt+Shift+T is AltGr+Shift+T on Windows, which types a character on some
+            // layouts: whatever it types is swallowed. Reopened after the key event, as it may ask
+            // for a password.
+            .consume(press -> press.matches(REOPEN_CLOSED_TAB_ACCELERATOR), SceneShortcutRouter.ALWAYS,
+                () -> Platform.runLater(this::reopenClosedTab), Residue.anyCharacter())
             // Not consumed: the terminal pastes on its own, and the timestamp keeps the Paste menu
             // accelerator from pasting a second time (wasTriggeredByTerminalPasteShortcut).
             .observe(press -> press.matches(PASTE_ACCELERATOR), terminalSelected,
@@ -2542,6 +2579,8 @@ public class MainWindow {
                 });
             });
             
+            // Its close button remembers it for Recently Closed (moves between windows keep this).
+            terminalTab.setOnUserCloseApproved(MainWindow::recordClosedByButton);
             terminalTab.setOnClosed(e -> {
                 updateDashboard();
                 organizeTabsByGroup();
@@ -3480,7 +3519,11 @@ public class MainWindow {
         /** Close Other Tabs, in the tab context menu or the File menu. */
         CLOSE_OTHERS,
         /** Close Tabs to the Right, in the tab context menu or the File menu. */
-        CLOSE_TO_RIGHT
+        CLOSE_TO_RIGHT,
+        /** File → Close All Tabs. */
+        CLOSE_ALL,
+        /** A terminal tab's own close button; see {@link TerminalTab#setOnUserCloseApproved}. */
+        CLOSE_BUTTON
     }
 
     /** {@link #closeTabsByUser(List, Tab, CloseCause)} for a command that keeps no tab selected. */
@@ -3611,8 +3654,229 @@ public class MainWindow {
         return HostedCloseGuards.confirmTab(tab);
     }
 
-    /** Hook for remembering tabs the user closed, called after they agreed; records nothing yet. */
+    /**
+     * Remembers the terminal tabs among {@code tabs} for Recently Closed, as one entry: called once
+     * the user agreed to close them and before they release anything, so their group, name and effect
+     * are still there. Other kinds of tab are not remembered.
+     */
     private void recordUserClosedTabs(List<Tab> tabs, CloseCause cause) {
+        recordClosedTabs(tabs, cause);
+    }
+
+    /** A terminal tab's close button, after the user agreed to any question; the tab may be in any window. */
+    private static void recordClosedByButton(TerminalTab tab) {
+        recordClosedTabs(List.of(tab), CloseCause.CLOSE_BUTTON);
+    }
+
+    private static void recordClosedTabs(List<? extends Tab> tabs, CloseCause cause) {
+        try {
+            List<ClosedTabHistory.ClosedTab> closed = captureClosedTabs(tabs);
+            if (closed.isEmpty()) {
+                return;
+            }
+            recentlyClosedRecorder.tabsClosed(closed);
+            logger.debug("Remembered {} closed terminal tab(s) ({})", closed.size(), cause);
+        } catch (RuntimeException e) {
+            // Remembering is a convenience; it must never stop a close the user asked for.
+            logger.warn("Could not remember the closed tabs", e);
+        }
+        syncRecentlyClosedMenusInAllWindows();
+    }
+
+    /**
+     * What reopening each terminal tab among {@code tabs} needs, read while the tab still holds it: the
+     * connection (sanitised in {@link ClosedTabHistory.ClosedTab#capture}), the tab group, the name the
+     * user gave it and the terminal effect of its first pane.
+     */
+    private static List<ClosedTabHistory.ClosedTab> captureClosedTabs(List<? extends Tab> tabs) {
+        List<ClosedTabHistory.ClosedTab> closed = new ArrayList<>();
+        for (Tab tab : tabs) {
+            if (!(tab instanceof TerminalTab terminalTab) || !tab.isClosable() || terminalTab.getConnection() == null) {
+                continue;
+            }
+            TerminalView view = terminalTab.getTerminalView();
+            String effectId = view != null ? view.getTerminalEffectPluginId() : null;
+            closed.add(ClosedTabHistory.ClosedTab.capture(
+                terminalTab.getConnection(),
+                terminalTab.getTemporarySSHKey() != null,
+                terminalTab.getGroup(),
+                terminalTab.getCustomTitle(),
+                effectId,
+                effectId != null ? view.getTerminalEffectAnimationSpeed() : null));
+        }
+        return closed;
+    }
+
+    /**
+     * The user closed this window: its terminal tabs become one Recently Closed entry, unless
+     * {@code endsApplication}, which takes the history with it. Called before the tabs are released.
+     */
+    private void recordClosedWindow(boolean endsApplication) {
+        try {
+            recentlyClosedRecorder.windowClosed(captureClosedTabs(tabPane.getTabs()), endsApplication);
+        } catch (RuntimeException e) {
+            logger.warn("Could not remember the closed window's tabs", e);
+        }
+        syncRecentlyClosedMenusInAllWindows();
+    }
+
+    /**
+     * File → Reopen Closed Tab, the tab menu's Reopen Closed Tab and Cmd+Opt+Shift+T / Ctrl+Alt+Shift+T:
+     * brings back what the newest Recently Closed entry holds. With nothing to reopen the status line
+     * says so (the key works with the menu bar hidden, where a greyed-out item cannot show it).
+     */
+    private void reopenClosedTab() {
+        Optional<ClosedTabHistory.Entry> latest = closedTabHistory.latest();
+        if (latest.isEmpty()) {
+            updateStatus(I18n.get("status.noClosedTab"));
+            syncRecentlyClosedMenus();
+            return;
+        }
+        reopenClosedEntry(latest.get());
+    }
+
+    /**
+     * Reopens the tabs of {@code entry}, each with a new session. The tabs of a closed window open in
+     * a new window, or in this one while it has no tabs of its own (on macOS, the window you open after
+     * closing the last one). Each tab signs in through {@link #connectSavedConnection}, which checks
+     * the server policy first. A tab whose password, temporary key or vault question the user cancels
+     * stays in the history; the others leave it.
+     */
+    private void reopenClosedEntry(ClosedTabHistory.Entry entry) {
+        int position = closedTabHistory.take(entry);
+        if (position < 0) {
+            // A menu built before another window reopened it.
+            syncRecentlyClosedMenusInAllWindows();
+            return;
+        }
+        MainWindow target = this;
+        boolean newWindow = entry.window() && hasClosableTabs();
+        if (newWindow) {
+            target = new MainWindow(new Stage());
+            target.show();
+        }
+        List<ClosedTabHistory.ClosedTab> remaining = new ArrayList<>();
+        for (ClosedTabHistory.ClosedTab closed : entry.tabs()) {
+            if (target.reopenClosedTabHere(closed)) {
+                remaining.add(closed);
+            }
+        }
+        if (!remaining.isEmpty()) {
+            closedTabHistory.putBack(position, entry.withTabs(remaining));
+        }
+        syncRecentlyClosedMenusInAllWindows();
+        if (newWindow && !target.hasClosableTabs()) {
+            // Every tab was cancelled or refused: do not leave an empty window behind.
+            target.fireCloseRequest();
+        }
+    }
+
+    /**
+     * Opens one remembered tab in this window: the saved connection (or the remembered one, when it was
+     * never saved), with the tab group, the name and the terminal effect it had. A Quick Connect session
+     * that used a temporary SSH key asks for a new key; the remembered connection never holds one.
+     *
+     * @return whether the tab stays in the history (the user cancelled a sign-in question)
+     */
+    private boolean reopenClosedTabHere(ClosedTabHistory.ClosedTab closed) {
+        ClosedTabHistory.Target target =
+            ClosedTabHistory.resolveConnection(closed, id -> app.getConfigManager().getConnectionById(id));
+        ServerConnection connection = target.connection();
+        if (target.needsNewTemporaryKey()) {
+            // The policy comes before any question, as everywhere else.
+            Optional<String> blocked = de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(connection);
+            if (blocked.isPresent()) {
+                de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(blocked.get());
+                return false;
+            }
+            // Sets the new key on the copy, where the sign-in below finds it registered and valid.
+            if (requestNewTemporarySSHKey(connection) == null) {
+                return true;
+            }
+        }
+        ConnectionAuthResolver.Status status =
+            connectSavedConnection(connection, false, tab -> restoreClosedTabState(tab, closed));
+        return ClosedTabHistory.keepsEntry(status);
+    }
+
+    /** Gives a reopened tab the group, name and terminal effect it had when it was closed. */
+    private void restoreClosedTabState(TerminalTab tab, ClosedTabHistory.ClosedTab closed) {
+        // The tab opened in its connection's group; the group it had may differ, or be none.
+        String openedGroup = tab.getGroup();
+        tab.setGroup(closed.tabGroup());
+        tab.setCustomTitle(closed.customTitle());
+        if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
+            TerminalView view = tab.getTerminalView();
+            if (closed.terminalEffectSpeed() != null) {
+                view.setTerminalEffectAnimationSpeed(closed.terminalEffectSpeed());
+            }
+            view.setTerminalEffectPluginId(closed.terminalEffectPluginId());
+        }
+        if (!java.util.Objects.equals(openedGroup, tab.getGroup())) {
+            // Also rebuilds every tab's context menu.
+            organizeTabsByGroup();
+            updateDashboard();
+        }
+    }
+
+    private boolean hasClosableTabs() {
+        return tabPane.getTabs().stream().anyMatch(Tab::isClosable);
+    }
+
+    /** File → Recently Closed → Clear List: forgets every closed tab. */
+    private void clearRecentlyClosed() {
+        closedTabHistory.clear();
+        syncRecentlyClosedMenusInAllWindows();
+    }
+
+    /** {@link #syncRecentlyClosedMenus()} for every window: the history is shared, the menus are not. */
+    private static void syncRecentlyClosedMenusInAllWindows() {
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            window.syncRecentlyClosedMenus();
+        }
+    }
+
+    /**
+     * Greys out Reopen Closed Tab while there is nothing to reopen and rebuilds Recently Closed from the
+     * history, newest first, in every menu bar of this window.
+     */
+    private void syncRecentlyClosedMenus() {
+        boolean empty = closedTabHistory.isEmpty();
+        for (MenuItem item : reopenClosedTabMenuItems) {
+            item.setDisable(empty);
+        }
+        for (Menu menu : recentlyClosedMenus) {
+            menu.getItems().setAll(recentlyClosedMenuItems());
+        }
+    }
+
+    private List<MenuItem> recentlyClosedMenuItems() {
+        List<MenuItem> items = new ArrayList<>();
+        List<ClosedTabHistory.Entry> entries = closedTabHistory.entries();
+        if (entries.isEmpty()) {
+            MenuItem none = new MenuItem(I18n.get("menu.file.recentlyClosed.empty"));
+            none.setDisable(true);
+            items.add(none);
+            return items;
+        }
+        for (ClosedTabHistory.Entry entry : entries) {
+            MenuItem item = new MenuItem(recentlyClosedLabel(entry));
+            // Tab and connection names are shown as they are: an underscore is no mnemonic.
+            item.setMnemonicParsing(false);
+            item.setOnAction(e -> reopenClosedEntry(entry));
+            items.add(item);
+        }
+        items.add(new SeparatorMenuItem());
+        MenuItem clear = new MenuItem(I18n.get("menu.file.recentlyClosed.clear"));
+        clear.setOnAction(e -> clearRecentlyClosed());
+        items.add(clear);
+        return items;
+    }
+
+    /** A tab's name; the names of the tabs one command closed together; or "Window:" and its tabs' names. */
+    private static String recentlyClosedLabel(ClosedTabHistory.Entry entry) {
+        String names = entry.names(RECENTLY_CLOSED_NAMES);
+        return entry.window() ? I18n.get("menu.file.recentlyClosed.window", names) : names;
     }
 
     /**
@@ -3683,6 +3947,8 @@ public class MainWindow {
         if (!confirmHostedTabsClose()) {
             return false;
         }
+        // The user's Close All Tabs, unlike the other callers of closeAllTabs: one Recently Closed entry.
+        recordUserClosedTabs(new ArrayList<>(tabPane.getTabs()), CloseCause.CLOSE_ALL);
         closeAllTabs();
         return true;
     }
@@ -9695,6 +9961,7 @@ public class MainWindow {
                     syncTimestampMenuItems(active.isTimestampGuttersVisible());
                 }
             }));
+            tab.setOnUserCloseApproved(MainWindow::recordClosedByButton);
             tab.setOnClosed(e -> {
                 updateDashboard();
                 organizeTabsByGroup();
@@ -10684,6 +10951,7 @@ public class MainWindow {
                     syncTimestampMenuItems(active.isTimestampGuttersVisible());
                 }
             }));
+            newTab.setOnUserCloseApproved(MainWindow::recordClosedByButton);
             newTab.setOnClosed(e -> {
                 updateDashboard();
                 organizeTabsByGroup();
@@ -11102,9 +11370,15 @@ public class MainWindow {
         closeOthersItem.setOnAction(e -> closeOtherTabs(terminalTab));
         MenuItem closeToRightItem = new MenuItem(I18n.get("tab.contextMenu.closeToRight"));
         closeToRightItem.setOnAction(e -> closeTabsToTheRight(terminalTab));
-        contextMenu.getItems().addAll(closeOthersItem, closeToRightItem);
-        // The menu is built once per tab, so whether there is anything to close is decided as it opens.
-        contextMenu.setOnShowing(e -> syncTabCloseItems(terminalTab, closeOthersItem, closeToRightItem));
+        MenuItem reopenClosedItem = new MenuItem(I18n.get("tab.contextMenu.reopenClosed"));
+        reopenClosedItem.setOnAction(e -> reopenClosedTab());
+        contextMenu.getItems().addAll(closeOthersItem, closeToRightItem, reopenClosedItem);
+        // The menu is built once per tab, so whether there is anything to close (or to reopen) is
+        // decided as it opens.
+        contextMenu.setOnShowing(e -> {
+            syncTabCloseItems(terminalTab, closeOthersItem, closeToRightItem);
+            reopenClosedItem.setDisable(closedTabHistory.isEmpty());
+        });
 
         if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
             contextMenu.getItems().add(new SeparatorMenuItem());
