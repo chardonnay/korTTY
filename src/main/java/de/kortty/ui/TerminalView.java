@@ -42,6 +42,8 @@ import de.kortty.core.TerminalRecordingSession;
 import de.kortty.core.TerminalRecordingStyleRun;
 import de.kortty.core.TerminalColorControlSequenceFilter;
 import de.kortty.core.TerminalPaletteSupport;
+import de.kortty.core.highlight.HighlightTelemetry;
+import de.kortty.core.highlight.HighlightToggle;
 import de.kortty.core.highlight.TerminalHighlightService;
 import de.kortty.core.highlight.TerminalOutputHighlighter;
 import de.kortty.model.AiProfile;
@@ -385,6 +387,8 @@ public class TerminalView extends BorderPane {
      * connection's and then the global default. Never persisted; a new split inherits its parent's.
      */
     private final Map<SithTermFxWidget, String> paneHighlightOverride = new ConcurrentHashMap<>();
+    /** The rule set each pane showed last in this session, which the highlighting toggle switches back on. */
+    private final Map<SithTermFxWidget, String> paneLastHighlightSet = new ConcurrentHashMap<>();
     /** Canvas focus observers per pane (Stage 2): feed the focused-widget listeners and done-until-seen. */
     private final Map<SithTermFxWidget, javafx.beans.value.ChangeListener<Boolean>> paneFocusListeners =
         new ConcurrentHashMap<>();
@@ -654,6 +658,12 @@ public class TerminalView extends BorderPane {
             }
             if (!themeMenu.getItems().isEmpty()) {
                 items.add(themeMenu);
+                items.add(new javafx.scene.control.SeparatorMenuItem());
+            }
+            // Keyword highlighting does not depend on the effect plugins, so it sits outside their block.
+            javafx.scene.control.Menu highlightMenu = buildPaneHighlightMenu(widget);
+            if (highlightMenu != null) {
+                items.add(highlightMenu);
                 items.add(new javafx.scene.control.SeparatorMenuItem());
             }
             if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
@@ -3696,6 +3706,7 @@ public class TerminalView extends BorderPane {
             return;
         }
         paneHighlightOverride.remove(widget);
+        paneLastHighlightSet.remove(widget);
         TerminalOutputHighlighter highlighter = terminalHighlighters.remove(widget);
         if (highlighter == null) {
             return;
@@ -3717,6 +3728,7 @@ public class TerminalView extends BorderPane {
             releaseTerminalHighlighter(widget);
         }
         paneHighlightOverride.clear();
+        paneLastHighlightSet.clear();
     }
 
     /** The pane's runtime highlight choice: a set id, {@code "none"}, or {@code null} when it inherits. */
@@ -3732,6 +3744,7 @@ public class TerminalView extends BorderPane {
         if (pane == null) {
             return;
         }
+        rememberShownHighlightSet(pane);
         if (setId == null || setId.isBlank()) {
             paneHighlightOverride.remove(pane);
         } else {
@@ -3742,6 +3755,7 @@ public class TerminalView extends BorderPane {
         if (service != null && highlighter != null) {
             service.refresh(highlighter);
         }
+        rememberShownHighlightSet(pane);
     }
 
     /** The id of the rule set the pane shows now, or {@code null} when it shows none. */
@@ -3751,6 +3765,79 @@ public class TerminalView extends BorderPane {
             return null;
         }
         return service.resolveSetId(() -> paneHighlightOverride.get(pane));
+    }
+
+    /** The id of the rule set the pane would show without a runtime choice of its own, or {@code null}. */
+    private @Nullable String getInheritedHighlightSetId(@Nullable SithTermFxWidget pane) {
+        TerminalHighlightService service = terminalHighlightService();
+        if (pane == null || service == null) {
+            return null;
+        }
+        return service.resolveSetId(() -> null);
+    }
+
+    /** Keeps the set the pane shows now as the one the toggle switches back on. */
+    private void rememberShownHighlightSet(SithTermFxWidget pane) {
+        String shown = getEffectiveHighlightSetId(pane);
+        if (shown != null) {
+            paneLastHighlightSet.put(pane, shown);
+        }
+    }
+
+    /** What the highlighting menus show for the pane: the master switch, the sets and the pane's set. */
+    HighlightMenuSupport.State getHighlightMenuState(@Nullable SithTermFxWidget pane) {
+        TerminalHighlightService service = terminalHighlightService();
+        boolean paneAvailable = pane != null && terminalHighlighters.containsKey(pane);
+        return HighlightMenuSupport.state(service, paneAvailable, paneAvailable ? getEffectiveHighlightSetId(pane) : null);
+    }
+
+    /**
+     * Shows {@code setId} on the pane ({@value TerminalHighlightService#NONE_ID} for none), as picked in a
+     * highlighting menu. Runtime only: neither the connection nor the settings change.
+     */
+    public void chooseHighlightSet(@Nullable SithTermFxWidget pane, @Nullable String setId, String source) {
+        if (pane == null || setId == null || setId.isBlank() || !terminalHighlighters.containsKey(pane)) {
+            return;
+        }
+        applyHighlightChoice(pane, setId, source);
+    }
+
+    /**
+     * Switches the pane's highlighting off, or back on (see {@link HighlightToggle}), from the pane's
+     * real state; empty when nothing changed (no pane, or the master switch is off).
+     */
+    public Optional<HighlightToggle.Choice> toggleHighlighting(@Nullable SithTermFxWidget pane, String source) {
+        TerminalHighlightService service = terminalHighlightService();
+        if (pane == null || service == null || service.isClosed() || !terminalHighlighters.containsKey(pane)) {
+            return Optional.empty();
+        }
+        Optional<HighlightToggle.Choice> choice = HighlightToggle.toggle(service.isEnabled(),
+            getEffectiveHighlightSetId(pane), paneLastHighlightSet.get(pane), getInheritedHighlightSetId(pane),
+            service::isKnownSet);
+        choice.ifPresent(decided -> applyHighlightChoice(pane, decided.paneOverride(), source));
+        return choice;
+    }
+
+    /** Applies a runtime choice and reports the pane's new set once when it changed (class and source only). */
+    private void applyHighlightChoice(SithTermFxWidget pane, @Nullable String paneOverride, String source) {
+        String before = getEffectiveHighlightSetId(pane);
+        setPaneHighlightOverride(pane, paneOverride);
+        String after = getEffectiveHighlightSetId(pane);
+        if (!Objects.equals(before, after)) {
+            de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.TERMINAL_HIGHLIGHT_APPLIED,
+                HighlightTelemetry.props(after, source));
+        }
+    }
+
+    /** The pane's Highlighting submenu, or {@code null} while the highlighting service is not running. */
+    private javafx.scene.control.Menu buildPaneHighlightMenu(SithTermFxWidget widget) {
+        TerminalHighlightService service = terminalHighlightService();
+        if (widget == null || service == null || service.isClosed()) {
+            return null;
+        }
+        return HighlightMenuSupport.createPaneMenu(getHighlightMenuState(widget),
+            () -> toggleHighlighting(widget, HighlightTelemetry.SOURCE_MENU),
+            setId -> chooseHighlightSet(widget, setId, HighlightTelemetry.SOURCE_MENU));
     }
 
     private void installAgentShortcutEventDispatcher(SithTermFxWidget widget) {

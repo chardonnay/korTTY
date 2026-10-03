@@ -164,4 +164,22 @@ class TerminalHighlightServiceTest {
         assertThat(duty.delayNanos(1_015L)).isEqualTo(5L);
         assertThat(duty.delayNanos(1_020L)).isEqualTo(0L);
     }
+
+    @Test
+    void theMenusReadTheMasterSwitchAndTheUserSetNames() {
+        assertThat(service.isEnabled()).isTrue();
+        assertThat(service.userSetName("user-1")).isNull();
+
+        GlobalSettings settings = settingsWith(userSet("user-1", "error"));
+        settings.setTerminalHighlightingEnabled(false);
+        service.reload(settings);
+
+        assertThat(service.isEnabled()).isFalse();
+        assertThat(service.userSetName("user-1")).isEqualTo("Set user-1");
+        assertThat(service.userSetName(" user-1 ")).isEqualTo("Set user-1");
+        // Built-ins are named through i18n, not by the service.
+        assertThat(service.userSetName(HighlightBuiltinSets.ERRORS)).isNull();
+        assertThat(service.userSetName("unknown")).isNull();
+        assertThat(service.userSetName(null)).isNull();
+    }
 }

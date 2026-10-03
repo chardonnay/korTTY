@@ -73,7 +73,8 @@ public final class TerminalHighlightService implements AutoCloseable {
 
     /** Everything resolution needs, swapped as one value on {@link #reload}. */
     private record Catalog(boolean enabled, String defaultSetId, boolean alternateScreen,
-                           Map<String, CompiledHighlightSet> sets, Map<String, String> signatures) {
+                           Map<String, CompiledHighlightSet> sets, Map<String, String> signatures,
+                           Map<String, String> names) {
     }
 
     /** The built-ins are constant, so they are compiled once. */
@@ -168,7 +169,7 @@ public final class TerminalHighlightService implements AutoCloseable {
      */
     public TerminalHighlightService(ScheduledExecutorService executor) {
         this.executor = Objects.requireNonNull(executor, "executor");
-        this.catalog = new AtomicReference<>(new Catalog(true, null, false, Builtins.SETS, Map.of()));
+        this.catalog = new AtomicReference<>(new Catalog(true, null, false, Builtins.SETS, Map.of(), Map.of()));
     }
 
     /**
@@ -181,6 +182,7 @@ public final class TerminalHighlightService implements AutoCloseable {
         Catalog previous = catalog.get();
         Map<String, CompiledHighlightSet> sets = new LinkedHashMap<>(Builtins.SETS);
         Map<String, String> signatures = new LinkedHashMap<>();
+        Map<String, String> names = new LinkedHashMap<>();
         boolean enabled = true;
         String defaultSetId = null;
         boolean alternateScreen = false;
@@ -211,10 +213,14 @@ public final class TerminalHighlightService implements AutoCloseable {
                 }
                 sets.put(id, compiled);
                 signatures.put(id, signature);
+                if (set.getName() != null && !set.getName().isBlank()) {
+                    names.put(id, set.getName().trim());
+                }
             }
         }
         catalog.set(new Catalog(enabled, defaultSetId, alternateScreen,
-            Collections.unmodifiableMap(sets), Collections.unmodifiableMap(signatures)));
+            Collections.unmodifiableMap(sets), Collections.unmodifiableMap(signatures),
+            Collections.unmodifiableMap(names)));
         refreshAll();
     }
 
@@ -282,6 +288,19 @@ public final class TerminalHighlightService implements AutoCloseable {
     /** True when {@code id} names a set the panes can show right now (built-in or user). */
     public boolean isKnownSet(String id) {
         return id != null && catalog.get().sets().containsKey(id.trim());
+    }
+
+    /** The master switch: false means no pane shows any set, whatever is chosen. */
+    public boolean isEnabled() {
+        return catalog.get().enabled();
+    }
+
+    /**
+     * The stored name of a user set, or {@code null} for a built-in (whose name is translated from
+     * {@link HighlightBuiltinSets#nameKey}), an unnamed set or an unknown id.
+     */
+    public String userSetName(String id) {
+        return id != null ? catalog.get().names().get(id.trim()) : null;
     }
 
     /** The ids of every set the panes can show: built-ins first, then user sets in their stored order. */

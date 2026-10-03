@@ -6,6 +6,7 @@ import de.kortty.telemetry.TelemetryEvents;
 import de.kortty.telemetry.TelemetryProps;
 import de.kortty.ui.I18n;
 import de.kortty.ui.KeyTypedResidueGuard.Residue;
+import de.kortty.ui.actions.ActionIds;
 import de.kortty.core.AgentDashboardStatus;
 import com.sithtermfx.ui.SithTermFxWidget;
 import de.kortty.codingagent.CodingAgentActionException;
@@ -26,6 +27,9 @@ import de.kortty.core.AiExecutionResult;
 import de.kortty.core.AiInternetAccessConfiguration;
 import de.kortty.core.AiProfileSelectionSupport;
 import de.kortty.core.AiPromptService;
+import de.kortty.core.highlight.HighlightTelemetry;
+import de.kortty.core.highlight.HighlightToggle;
+import de.kortty.core.highlight.TerminalHighlightService;
 import de.kortty.core.swarm.SwarmCallback;
 import de.kortty.core.swarm.SwarmModels;
 import de.kortty.core.swarm.SwarmOrchestrator;
@@ -197,6 +201,10 @@ public class MainWindow {
     // fullscreen, so terminal-only fullscreen uses a modifier combo instead of a bare function key.
     private static final KeyCombination TERMINAL_ONLY_FULLSCREEN_ACCELERATOR =
         new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    // Keyword highlighting on/off for the focused pane. Never a plain Ctrl+letter: on Windows and
+    // Linux plain Ctrl+H is the shell's backspace and must keep reaching it.
+    private static final KeyCombination HIGHLIGHTING_TOGGLE_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.H, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
     private static final String MENU_BAR_TOGGLE_SHORTCUT_LABEL = "Cmd/Ctrl+Shift+L";
     private static final int JOB_SCHEDULER_QUEUE_LIMIT = 5;
     private static final int MAX_CONCURRENT_TERMINAL_AGENT_RUNS = 5;
@@ -279,6 +287,8 @@ public class MainWindow {
     private CheckMenuItem systemShowMenuBarMenuItem;
     private CheckMenuItem terminalOnlyFullscreenMenuItem;
     private CheckMenuItem systemTerminalOnlyFullscreenMenuItem;
+    private CheckMenuItem highlightingToggleMenuItem;
+    private CheckMenuItem systemHighlightingToggleMenuItem;
     private CheckMenuItem hideFullscreenScrollbarsMenuItem;
     private CheckMenuItem systemHideFullscreenScrollbarsMenuItem;
     private CheckMenuItem showTimestampsMenuItem;
@@ -1895,6 +1905,7 @@ public class MainWindow {
         Menu terminalEffectMenu = createTerminalEffectMenu(null, includeEffectSpeedControl);
         terminalEffectMenu.setOnShowing(event ->
                 rebuildTerminalEffectMenu(terminalEffectMenu, getActiveTerminalTab(), includeEffectSpeedControl));
+        Menu highlightingMenu = createHighlightingMenu(target);
 
         MenuItem fullscreen = new MenuItem(I18n.get("menu.view.fullscreen"));
         // F12 lives on the in-window bar; the macOS companion system bar has all accelerators
@@ -1935,7 +1946,7 @@ public class MainWindow {
         if (target != MenuBarTarget.SYSTEM) {
             viewMenu.getItems().addAll(new SeparatorMenuItem(), buildBackgroundTransparencyMenuItem());
         }
-        viewMenu.getItems().addAll(new SeparatorMenuItem(), terminalEffectMenu, new SeparatorMenuItem(),
+        viewMenu.getItems().addAll(new SeparatorMenuItem(), highlightingMenu, terminalEffectMenu, new SeparatorMenuItem(),
             fullscreen, terminalOnlyFullscreen, hideFullscreenScrollbars);
         return viewMenu;
     }
@@ -2000,6 +2011,76 @@ public class MainWindow {
         } catch (Exception e) {
             logger.warn("Could not persist background transparency setting", e);
         }
+    }
+
+    /**
+     * View → Highlighting: the Highlighting On item, which carries {@link #HIGHLIGHTING_TOGGLE_ACCELERATOR}
+     * for display (the scene shortcut router handles the key itself while a terminal tab is selected),
+     * and the rule-set list, rebuilt each time the menu opens. Both act on the focused pane of the active
+     * terminal tab, for this session only.
+     */
+    private Menu createHighlightingMenu(MenuBarTarget target) {
+        CheckMenuItem toggle = HighlightMenuSupport.createToggleItem(
+            () -> toggleHighlightingInActiveTerminal(HighlightTelemetry.SOURCE_MENU));
+        toggle.setAccelerator(HIGHLIGHTING_TOGGLE_ACCELERATOR);
+        ActionIds.tag(toggle, HighlightMenuSupport.TOGGLE_KEY);
+        if (target == MenuBarTarget.WINDOW) {
+            highlightingToggleMenuItem = toggle;
+        } else {
+            systemHighlightingToggleMenuItem = toggle;
+        }
+        Menu menu = HighlightMenuSupport.createViewMenu(toggle, activeHighlightMenuState(),
+            this::chooseHighlightSetInActiveTerminal);
+        menu.setOnShowing(event -> HighlightMenuSupport.refresh(menu, toggle, activeHighlightMenuState(),
+            this::chooseHighlightSetInActiveTerminal));
+        return menu;
+    }
+
+    /** The highlighting menus' state for the focused pane of the active terminal tab. */
+    private HighlightMenuSupport.State activeHighlightMenuState() {
+        TerminalTab terminalTab = getActiveTerminalTab();
+        if (terminalTab == null) {
+            return HighlightMenuSupport.state(app.getTerminalHighlightService(), false, null);
+        }
+        TerminalView view = terminalTab.getTerminalView();
+        return view.getHighlightMenuState(view.getFocusedWidget());
+    }
+
+    /**
+     * Cmd/Ctrl+Shift+H and View → Highlighting → Highlighting On: switches the focused pane's
+     * highlighting off or back on. The decision comes from the pane's state, never from the check
+     * item, which JavaFX has already flipped when this runs; the items are re-synced afterwards.
+     */
+    private void toggleHighlightingInActiveTerminal(String source) {
+        TerminalTab terminalTab = getActiveTerminalTab();
+        TerminalHighlightService service = app.getTerminalHighlightService();
+        if (terminalTab != null && service != null && !service.isClosed()) {
+            if (!service.isEnabled()) {
+                updateStatus(I18n.get(HighlightMenuSupport.DISABLED_KEY));
+            } else {
+                TerminalView view = terminalTab.getTerminalView();
+                Optional<HighlightToggle.Choice> choice = view.toggleHighlighting(view.getFocusedWidget(), source);
+                choice.ifPresent(decided ->
+                    updateStatus(HighlightMenuSupport.statusMessage(decided, service::userSetName)));
+            }
+        }
+        syncHighlightingToggleItems();
+    }
+
+    /** A set picked in View → Highlighting, for the focused pane of the active terminal tab. */
+    private void chooseHighlightSetInActiveTerminal(String setId) {
+        TerminalTab terminalTab = getActiveTerminalTab();
+        if (terminalTab != null) {
+            TerminalView view = terminalTab.getTerminalView();
+            view.chooseHighlightSet(view.getFocusedWidget(), setId, HighlightTelemetry.SOURCE_MENU);
+        }
+        syncHighlightingToggleItems();
+    }
+
+    private void syncHighlightingToggleItems() {
+        HighlightMenuSupport.State state = activeHighlightMenuState();
+        HighlightMenuSupport.syncToggle(highlightingToggleMenuItem, state);
+        HighlightMenuSupport.syncToggle(systemHighlightingToggleMenuItem, state);
     }
 
     private Menu createTerminalEffectMenu(TerminalTab terminalTab) {
@@ -2212,6 +2293,10 @@ public class MainWindow {
                 () -> toggleMenuBarVisibility(menuBar == null || !menuBar.isVisible()), Residue.ofLetter('L'))
             .consume(press -> press.matches(TERMINAL_ONLY_FULLSCREEN_ACCELERATOR), SceneShortcutRouter.ALWAYS,
                 this::toggleTerminalOnlyFullscreen, Residue.ofLetter('F'))
+            // Highlighting acts on the focused pane, so only while a terminal tab is selected. The
+            // residue includes U+0008, which Ctrl turns H into: it would reach the shell as a backspace.
+            .consume(press -> press.matches(HIGHLIGHTING_TOGGLE_ACCELERATOR), terminalSelected,
+                () -> toggleHighlightingInActiveTerminal(HighlightTelemetry.SOURCE_SHORTCUT), Residue.ofLetter('H'))
             // Not consumed: the terminal pastes on its own, and the timestamp keeps the Paste menu
             // accelerator from pasting a second time (wasTriggeredByTerminalPasteShortcut).
             .observe(press -> press.matches(PASTE_ACCELERATOR), terminalSelected,
