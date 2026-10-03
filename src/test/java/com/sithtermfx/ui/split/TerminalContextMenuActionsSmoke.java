@@ -10,6 +10,7 @@ import de.kortty.core.LanguageManager;
 import de.kortty.model.GlobalSettings;
 import de.kortty.paste.PasteDecision;
 import de.kortty.paste.PasteGuard;
+import de.kortty.paste.PastePacer;
 import de.kortty.paste.PasteProtectionSettings;
 import de.kortty.paste.PasteRules;
 import de.kortty.paste.PasteSource;
@@ -67,6 +68,10 @@ import java.util.concurrent.atomic.AtomicReference;
  * the real {@link PasteConfirmationDialog}: a multi-line paste into an unbracketed pane opens the
  * dialog with Cancel focused, a second paste while it is open opens no second dialog, Enter drops
  * the paste, and only Paste sends it.
+ *
+ * <p>Then the guard paces its pastes with the real timer on the FX thread: the lines reach the pty
+ * one pause apart and in order, a paste into the pane while it is pacing is dropped, and cancelling
+ * stops the remaining lines.
  *
  * <p>Copy and Paste go through the operating system clipboard. The smoke saves its text contents
  * first and puts them back when it ends.
@@ -143,7 +148,8 @@ public final class TerminalContextMenuActionsSmoke {
             System.exit(1);
         }
         System.out.println("SMOKE OK: terminal context menu Copy, Paste, Clear Buffer, Find and Font Size reach the pane;"
-            + " pastes go through the paste guard; the paste confirmation cancels on Enter and pastes on Paste");
+            + " pastes go through the paste guard; the paste confirmation cancels on Enter and pastes on Paste;"
+            + " a paced paste arrives line by line and stops when cancelled");
         System.exit(0);
     }
 
@@ -266,6 +272,7 @@ public final class TerminalContextMenuActionsSmoke {
 
             verifyPasteGuard((KorttyTermWidget) widget, connector, canvas, clipboard);
             verifyPasteConfirmation((KorttyTermWidget) widget, connector, canvas, clipboard);
+            verifyPastePacing((KorttyTermWidget) widget, connector, canvas, clipboard);
         } catch (Throwable error) {
             failure.compareAndSet(null, "Assertion failed: " + stack(error));
         } finally {
@@ -417,6 +424,62 @@ public final class TerminalContextMenuActionsSmoke {
         await("a single-line paste did not reach the pty",
             () -> connector.written().substring(plainMark).contains("single-line"));
         check(onFxThread(TerminalContextMenuActionsSmoke::pasteDialogCount) == 0, "a single-line paste asked");
+    }
+
+    /**
+     * The pane with a pacing guard, as {@code TerminalView} builds it when a line delay is set. Runs
+     * after {@link #verifyPasteConfirmation}, which leaves the pane unbracketed.
+     */
+    private static void verifyPastePacing(KorttyTermWidget widget, RecordingTtyConnector connector, Node canvas,
+                                          Clipboard clipboard) throws Exception {
+        List<String> events = new CopyOnWriteArrayList<>();
+        PastePacer pacer = new PastePacer(PastePacer.Scheduler.sharedTimer(Platform::runLater),
+            new PastePacer.Listener() {
+                @Override
+                public void progressed(Object key, int sent, int total) {
+                    events.add(sent + "/" + total);
+                }
+
+                @Override
+                public void ended(Object key, PastePacer.Outcome outcome, int sent, int total) {
+                    events.add(outcome.name());
+                }
+            });
+        PasteGuard guard = new PasteGuard(() -> PasteRules.NONE, (request, answer) -> answer.accept(false), pacer,
+            () -> 400);
+        onFxThread(() -> {
+            widget.setPasteHandler(guard::paste);
+            return null;
+        });
+
+        // The first line at once, the others one pause apart; a paste meanwhile is dropped.
+        int mark = connector.written().length();
+        clipboard.setContents(new StringSelection("pace-one\npace-two\npace-three"), null);
+        check(fireMenuItem(canvas, "terminal.contextMenu.paste"), "Paste must be enabled");
+        check(onFxThread(() -> pacer.isPacing(widget)), "a multi-line paste with a line delay is not paced");
+        await("the first paced line did not reach the pty",
+            () -> connector.written().substring(mark).contains("pace-one\r"));
+        check(!connector.written().substring(mark).contains("pace-three"),
+            "the last line came without its pauses: " + visible(connector.written().substring(mark)));
+        onFxThread(() -> {
+            widget.getTerminalPanel().handlePaste();
+            return null;
+        });
+        await("the paced paste did not finish", () -> !onFxThread(() -> pacer.isPacing(widget)));
+        String paced = connector.written().substring(mark);
+        check(paced.equals("pace-one\rpace-two\rpace-three"), "unexpected paced paste: " + visible(paced));
+        check(events.equals(List.of("1/3", "2/3", "3/3", "COMPLETED")), "unexpected pacing events: " + events);
+
+        // Cancelling stops the lines that are still waiting.
+        int cancelMark = connector.written().length();
+        clipboard.setContents(new StringSelection("stop-one\nstop-two\nstop-three"), null);
+        check(fireMenuItem(canvas, "terminal.contextMenu.paste"), "Paste must be enabled");
+        await("the first line of the second paced paste did not reach the pty",
+            () -> connector.written().substring(cancelMark).contains("stop-one\r"));
+        check(onFxThread(() -> pacer.cancel(widget)), "the pane was not pacing");
+        sleep(1_000);
+        String cancelled = connector.written().substring(cancelMark);
+        check(cancelled.equals("stop-one\r"), "lines after the cancel reached the pty: " + visible(cancelled));
     }
 
     private static DialogPane awaitPasteDialog() throws Exception {

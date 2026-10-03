@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +23,8 @@ import org.slf4j.LoggerFactory;
  *   <li>A confirmed paste is sent only if the pane can still receive text and still runs the session
  *       it was asked for: after a reconnect it is dropped instead of reaching a session nobody
  *       confirmed it for. Whether to bracket it is decided when it is sent.</li>
+ *   <li>With a {@link PastePacer} and a line delay above 0, a paste of several lines is sent line by
+ *       line. A paste into a pane that is still pacing an earlier one is dropped.</li>
  *   <li>Only sizes, sources and reason codes are logged, at DEBUG; never the text.</li>
  * </ul>
  *
@@ -35,6 +38,11 @@ public final class PasteGuard {
 
     private final PasteConfirmer confirmer;
 
+    /** Sends pastes line by line when {@link #lineDelayMs} asks for it; null sends every paste at once. */
+    private final PastePacer pacer;
+
+    private final IntSupplier lineDelayMs;
+
     /** The keys of the panes with a confirmation on screen, compared by reference. */
     private final Set<Object> pending = Collections.newSetFromMap(new IdentityHashMap<>());
 
@@ -43,8 +51,22 @@ public final class PasteGuard {
      * @param confirmer asks the user when the rules want confirmation
      */
     public PasteGuard(Supplier<PasteRules> rules, PasteConfirmer confirmer) {
+        this(rules, confirmer, null, () -> 0);
+    }
+
+    /**
+     * @param rules read on every paste, so a settings change applies to the next one
+     * @param confirmer asks the user when the rules want confirmation
+     * @param pacer sends a paste line by line; null sends every paste at once
+     * @param lineDelayMs the pause after each pasted line in milliseconds, read when a paste is sent;
+     *     0 sends it at once
+     */
+    public PasteGuard(Supplier<PasteRules> rules, PasteConfirmer confirmer, PastePacer pacer,
+            IntSupplier lineDelayMs) {
         this.rules = Objects.requireNonNull(rules, "rules");
         this.confirmer = Objects.requireNonNull(confirmer, "confirmer");
+        this.pacer = pacer;
+        this.lineDelayMs = Objects.requireNonNull(lineDelayMs, "lineDelayMs");
     }
 
     /**
@@ -60,6 +82,10 @@ public final class PasteGuard {
             return;
         }
         PasteSource from = source != null ? source : PasteSource.CLIPBOARD;
+        if (isPacing(target)) {
+            logger.debug("Paste dropped: the pane is still pacing a paste ({} chars, {})", text.length(), from);
+            return;
+        }
         boolean bracketed = target.bracketedPasteMode();
         Set<PasteReason> reasons = reasonsFor(text, bracketed);
         if (reasons.isEmpty()) {
@@ -111,16 +137,35 @@ public final class PasteGuard {
         return reasons != null ? reasons : Set.of();
     }
 
-    private static void send(PasteTarget target, String text, PasteSource source) {
+    private boolean isPacing(PasteTarget target) {
+        return pacer != null && pacer.isPacing(target.key());
+    }
+
+    private void send(PasteTarget target, String text, PasteSource source) {
         String payload = PasteSanitizer.encode(text, target.bracketedPasteMode(), target.charset());
         if (payload.isEmpty()) {
             logger.debug("Paste dropped: nothing left after removing bracketed-paste markers ({})", source);
             return;
         }
         try {
-            target.send(payload);
+            int delayMs = pacer != null ? currentLineDelayMs() : 0;
+            if (delayMs > 0) {
+                pacer.send(target, payload, delayMs);
+            } else {
+                target.send(payload);
+            }
         } catch (RuntimeException e) {
             logger.warn("Paste could not be sent ({} chars, {}): {}", payload.length(), source, e.toString());
+        }
+    }
+
+    /** The line delay as it is now; unreadable means 0, so the paste still goes out at once. */
+    private int currentLineDelayMs() {
+        try {
+            return PastePacer.clampLineDelayMs(lineDelayMs.getAsInt());
+        } catch (RuntimeException e) {
+            logger.debug("Paste line delay unreadable, pasting at once: {}", e.toString());
+            return 0;
         }
     }
 }

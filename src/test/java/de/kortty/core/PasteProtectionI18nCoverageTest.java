@@ -15,8 +15,8 @@ import java.util.regex.Pattern;
 import org.testng.annotations.Test;
 
 /**
- * Every text of the paste protection settings and of the paste confirmation exists in all eight
- * bundled languages, with the same placeholders as the English text.
+ * Every text of the paste protection settings, of the paste confirmation and of a paced paste exists
+ * in all eight bundled languages, with the same placeholders as the English text.
  */
 class PasteProtectionI18nCoverageTest {
 
@@ -42,6 +42,9 @@ class PasteProtectionI18nCoverageTest {
         "settings.terminal.paste.largeWarning",
         "settings.terminal.paste.largeWarning.unit",
         "settings.terminal.paste.largeWarning.tooltip",
+        "settings.terminal.paste.lineDelay",
+        "settings.terminal.paste.lineDelay.unit",
+        "settings.terminal.paste.lineDelay.tooltip",
         "settings.terminal.paste.info",
         "terminal.paste.confirm.title",
         "terminal.paste.confirm.header",
@@ -66,6 +69,7 @@ class PasteProtectionI18nCoverageTest {
         "terminal.paste.confirm.previewTruncated",
         "terminal.paste.confirm.settingsHint",
         "terminal.paste.confirm.paste",
+        "terminal.paste.pacing.progress",
         // Shared with other dialogs and the terminal's context menu.
         "dialog.cancel",
         "terminal.contextMenu.copy");
@@ -122,6 +126,7 @@ class PasteProtectionI18nCoverageTest {
             .containsExactly("{0}");
         assertThat(placeholders(english.getProperty("terminal.paste.confirm.reason.bidiCharacters")))
             .containsExactly("{0}");
+        assertThat(placeholders(english.getProperty("terminal.paste.pacing.progress"))).containsExactly("{0}", "{1}");
     }
 
     private static Set<String> placeholders(String value) {

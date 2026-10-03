@@ -13,8 +13,8 @@ import java.io.StringWriter;
 import org.testng.annotations.Test;
 
 /**
- * The two paste protection settings: what a fresh installation and an old settings file use, that
- * both survive the XML round trip, and that a damaged value never switches protection off.
+ * The paste protection settings: what a fresh installation and an old settings file use, that they
+ * survive the XML round trip, and that a damaged value never switches protection off.
  */
 class GlobalSettingsPasteProtectionTest {
 
@@ -106,5 +106,35 @@ class GlobalSettingsPasteProtectionTest {
         GlobalSettings negative = unmarshal(
             "<globalSettings><pasteLargeWarningKiB>-1</pasteLargeWarningKiB></globalSettings>");
         assertThat(negative.getPasteLargeWarningKiB()).isEqualTo(0);
+    }
+
+    @Test
+    void pastesAreNotPacedByDefaultNorAfterAnUpgrade() throws Exception {
+        assertThat(new GlobalSettings().getPasteLineDelayMs()).isEqualTo(0);
+        assertThat(unmarshal("<globalSettings></globalSettings>").getPasteLineDelayMs()).isEqualTo(0);
+    }
+
+    @Test
+    void theLineDelaySurvivesAnXmlRoundTrip() throws Exception {
+        GlobalSettings settings = new GlobalSettings();
+        settings.setPasteLineDelayMs(250);
+        String xml = marshal(settings);
+        assertThat(xml).contains("<pasteLineDelayMs>250</pasteLineDelayMs>");
+
+        assertThat(unmarshal(xml).getPasteLineDelayMs()).isEqualTo(250);
+    }
+
+    @Test
+    void theLineDelayIsClampedTo0Through1000() throws Exception {
+        GlobalSettings settings = new GlobalSettings();
+        settings.setPasteLineDelayMs(-10);
+        assertThat(settings.getPasteLineDelayMs()).isEqualTo(0);
+        settings.setPasteLineDelayMs(1001);
+        assertThat(settings.getPasteLineDelayMs()).isEqualTo(1000);
+
+        GlobalSettings tooLong = unmarshal("<globalSettings><pasteLineDelayMs>60000</pasteLineDelayMs></globalSettings>");
+        assertThat(tooLong.getPasteLineDelayMs()).isEqualTo(1000);
+        GlobalSettings negative = unmarshal("<globalSettings><pasteLineDelayMs>-1</pasteLineDelayMs></globalSettings>");
+        assertThat(negative.getPasteLineDelayMs()).isEqualTo(0);
     }
 }

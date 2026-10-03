@@ -1,6 +1,7 @@
 package de.kortty.model;
 
 import de.kortty.ai.llama.LlamaBackend;
+import de.kortty.paste.PastePacer;
 import de.kortty.paste.PasteProtectionSettings;
 import de.kortty.paste.PasteWarningMode;
 import jakarta.xml.bind.annotation.*;
@@ -329,6 +330,14 @@ public class GlobalSettings {
      */
     @XmlElement
     private Integer pasteLargeWarningKiB = PasteProtectionSettings.DEFAULT_LARGE_WARNING_KIB;
+
+    /**
+     * The pause in milliseconds after each line of a terminal paste, for devices that lose input
+     * arriving too fast; 0 = paste at once. Boxed so a settings file written before this setting
+     * existed falls back to 0.
+     */
+    @XmlElement
+    private Integer pasteLineDelayMs = 0;
 
     @XmlElement
     private boolean applyThemeFonts = false; // Apply font family/size when applying themes
@@ -1975,6 +1984,16 @@ public class GlobalSettings {
     /** @param pasteLargeWarningKiB the threshold in KiB, clamped to {@code 0..10240}; 0 turns the check off */
     public void setPasteLargeWarningKiB(int pasteLargeWarningKiB) {
         this.pasteLargeWarningKiB = PasteProtectionSettings.clampLargeWarningKiB(pasteLargeWarningKiB);
+    }
+
+    /** The pause after each line of a terminal paste in milliseconds, {@code 0..1000}; 0 = paste at once. */
+    public int getPasteLineDelayMs() {
+        return pasteLineDelayMs != null ? PastePacer.clampLineDelayMs(pasteLineDelayMs) : 0;
+    }
+
+    /** @param pasteLineDelayMs the pause in milliseconds, clamped to {@code 0..1000}; 0 pastes at once */
+    public void setPasteLineDelayMs(int pasteLineDelayMs) {
+        this.pasteLineDelayMs = PastePacer.clampLineDelayMs(pasteLineDelayMs);
     }
 
     public boolean isApplyThemeFonts() {

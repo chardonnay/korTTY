@@ -62,7 +62,8 @@ class PasteProtectionWiringTest {
 
         assertThat(view).contains("private final PasteGuard pasteGuard = new PasteGuard("
             + "() -> pasteRules(TerminalView::readGlobalSettings),\n"
-            + "        new PasteConfirmationDialog(this::pasteConfirmationOwner));");
+            + "        new PasteConfirmationDialog(this::pasteConfirmationOwner), pastePacer,\n"
+            + "        () -> pasteLineDelayMs(TerminalView::readGlobalSettings));");
         assertWithMessage("the placeholder that declined every confirmation is gone")
             .that(view).doesNotContain("answer.accept(false)");
         assertThat(body(view, "private static GlobalSettings readGlobalSettings() {"))

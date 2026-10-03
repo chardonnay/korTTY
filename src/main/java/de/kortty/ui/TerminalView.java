@@ -52,6 +52,7 @@ import de.kortty.model.TerminalRecordingScope;
 import de.kortty.model.Theme;
 import de.kortty.paste.PasteDecision;
 import de.kortty.paste.PasteGuard;
+import de.kortty.paste.PastePacer;
 import de.kortty.paste.PasteProtectionSettings;
 import de.kortty.paste.PasteRules;
 import de.kortty.plugin.terminaleffects.TerminalEffectAnimationSpeed;
@@ -387,13 +388,23 @@ public class TerminalView extends BorderPane {
     /** DECSET 2004 trackers per pane, registered on the pane's base connector data stream. */
     private final Map<SithTermFxWidget, PasteTracking> codingAgentPasteTrackers = new ConcurrentHashMap<>();
     /**
+     * Sends a paste line by line when Settings → Terminal → Paste protection sets a line delay. While
+     * a pane is pacing a paste, {@link #pasteInputHold} holds its keys (Esc stops the paste), broadcast
+     * mode skips it, and its corner shows the progress.
+     */
+    private final PastePacer pastePacer = new PastePacer(PastePacer.Scheduler.sharedTimer(Platform::runLater),
+        new PastePacingIndicators(this::pastePacingIndicatorHost));
+    private final PasteInputHold pasteInputHold = new PasteInputHold(pastePacer);
+    /**
      * Every paste into a pane of this tab: the paste shortcut, Edit → Paste, the context menu and a
      * middle-click. It asks first when Settings → Terminal → Paste protection says so (line breaks,
-     * control characters, a large paste), removes bracketed-paste markers from the text and brackets
-     * the paste itself when the program in the pane has bracketed paste enabled.
+     * control characters, a large paste), removes bracketed-paste markers from the text, brackets
+     * the paste itself when the program in the pane has bracketed paste enabled, and paces it when a
+     * line delay is set.
      */
     private final PasteGuard pasteGuard = new PasteGuard(() -> pasteRules(TerminalView::readGlobalSettings),
-        new PasteConfirmationDialog(this::pasteConfirmationOwner));
+        new PasteConfirmationDialog(this::pasteConfirmationOwner), pastePacer,
+        () -> pasteLineDelayMs(TerminalView::readGlobalSettings));
     private final List<Consumer<SithTermFxWidget>> focusedWidgetListeners = new CopyOnWriteArrayList<>();
     /** The pane whose canvas most recently gained keyboard focus (null before the first focus). */
     private volatile SithTermFxWidget lastFocusedWidget;
@@ -685,8 +696,12 @@ public class TerminalView extends BorderPane {
         // shortcut and Ctrl+D come first. Navigation keys are encoded below, in each pane's own
         // filter (TerminalSplitPane.routeKeyPressed), which needs the real connector type.
         splitPane.setConnectorUnwrapper(this::unwrapTerminalEffectConnector);
+        // A pane that is pacing a paste takes no keys, not even mirrored ones from broadcast mode,
+        // so none lands between two pasted lines; Esc stops the paste (PasteInputHold).
+        splitPane.setMirrorTargetGuard(widget -> !pastePacer.isPacing(widget));
+        splitPane.addEventFilter(KeyEvent.KEY_TYPED, this::holdKeyWhilePacingPaste);
         splitPane.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-            if (event.isConsumed()) {
+            if (event.isConsumed() || holdKeyWhilePacingPaste(event)) {
                 return;
             }
             if (isEventTargetWithinAgentActivityPanel(event)) {
@@ -1118,6 +1133,8 @@ public class TerminalView extends BorderPane {
     /** Called when a split pane is closed: stop its effect and release its per-pane state. */
     private void onPaneClosed(SithTermFxWidget widget) {
         TtyConnector closingConnector = widget != null ? unwrapTerminalEffectConnector(widget.getTtyConnector()) : null;
+        cancelPastePacing(widget);
+        pasteInputHold.release(widget);
         stopPaneEffect(widget);
         paneProviders.remove(widget);
         discardTerminalAgentRunsForWidget(widget);
@@ -2084,6 +2101,8 @@ public class TerminalView extends BorderPane {
         installAgentShortcutInputInterceptor(widget, baseConnector);
         installTerminalRecordingInputListener(baseConnector);
         bindCodingAgentMonitor(widget, baseConnector);
+        // A paced paste belongs to the session it started in; the rest of it never reaches the next one.
+        cancelPastePacing(widget);
         resetBracketedPasteModeForNewSession(widget, baseConnector);
         attachBracketedPasteTracker(widget, baseConnector);
         PaneEffect effect = paneEffects.get(widget);
@@ -3703,6 +3722,20 @@ public class TerminalView extends BorderPane {
         logger.debug("Installed terminal AI canvas event dispatcher");
     }
 
+    /**
+     * Holds a key aimed at a pane that is pacing a paste (see {@link PasteInputHold}). Only keys whose
+     * target lies inside a pane count; keys for the agent panel or other controls pass.
+     *
+     * @return whether the key was consumed
+     */
+    private boolean holdKeyWhilePacingPaste(KeyEvent event) {
+        if (pasteInputHold.isIdle()) {
+            return false;
+        }
+        SithTermFxWidget widget = event.getTarget() instanceof Node target ? findWidgetContainingNode(target) : null;
+        return pasteInputHold.filter(widget, event);
+    }
+
     private @Nullable SithTermFxWidget resolveWidgetForKeyEvent(@Nullable KeyEvent event) {
         if (event != null && event.getTarget() instanceof Node targetNode) {
             SithTermFxWidget widget = findWidgetContainingNode(targetNode);
@@ -5008,6 +5041,39 @@ public class TerminalView extends BorderPane {
             protection = PasteProtectionSettings.DEFAULTS;
         }
         return new PasteDecision(protection);
+    }
+
+    /**
+     * The pause after each pasted line, from the global settings as they are now; 0, which pastes at
+     * once, when they cannot be read.
+     *
+     * @param settings reads the global settings; may return null or throw
+     */
+    static int pasteLineDelayMs(Supplier<GlobalSettings> settings) {
+        try {
+            GlobalSettings current = settings.get();
+            return current != null ? current.getPasteLineDelayMs() : 0;
+        } catch (RuntimeException e) {
+            return 0;
+        }
+    }
+
+    /** Where a pane shows the progress of a paced paste: the pane's own wrapper in the split pane. */
+    private StackPane pastePacingIndicatorHost(Object paneKey) {
+        return paneKey instanceof SithTermFxWidget widget && splitPane != null
+            ? splitPane.getWidgetOverlayHost(widget) : null;
+    }
+
+    /** Stops the pane's paced paste, if it is pacing one; on the JavaFX thread, where the pacer lives. */
+    private void cancelPastePacing(SithTermFxWidget widget) {
+        if (widget == null) {
+            return;
+        }
+        if (Platform.isFxApplicationThread()) {
+            pastePacer.cancel(widget);
+        } else {
+            Platform.runLater(() -> pastePacer.cancel(widget));
+        }
     }
 
     /** The application's global settings; null (or an exception) while there is no application. */
@@ -6406,6 +6472,7 @@ public class TerminalView extends BorderPane {
      * Cleans up resources (closes connection and destroys UI). Use when closing the tab.
      */
     public void cleanup() {
+        pastePacer.cancelAll();
         cancelAllTerminalAgentRuns();
         stopAllTerminalAgentShellKeepAlives();
         detachTerminalRecordingSession();

@@ -22,6 +22,7 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Close active terminal windows without confirmation | toggle | — | Off | `closeActiveTerminalWindowsWithoutConfirmation` |
 | Warn about multi-line pastes: | dropdown | Off, Unless the program uses bracketed paste, Always | Unless the program uses bracketed paste | `pasteWarningMode` |
 | Warn about pastes larger than: | number | 0–10,240 KiB (0 = off) | 5 | `pasteLargeWarningKiB` |
+| Pause after each pasted line: | number | 0–1,000 ms (0 = off) | 0 | `pasteLineDelayMs` |
 | Enable SSH Keep-Alive | toggle | — | On | `sshKeepAliveEnabled` |
 | Interval (seconds): | number | 5–600 | 60 | `sshKeepAliveInterval` |
 | Enable connection retries | toggle | — | On | `connectionRetriesEnabled` |
@@ -50,6 +51,8 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 
 !!! note "Paste protection"
     Decides which terminal pastes ask before they reach the pane; the dialog itself is described under [Paste protection](../../features/terminal.md#paste-protection). **Warn about multi-line pastes** decides when a paste with a line break asks: **Unless the program uses bracketed paste** (the default) asks only when the program in the pane would receive each line break as Enter, **Always** asks for every paste with a line break, and **Off** never asks. Whenever it is not **Off**, a paste with control characters (such as Escape or Ctrl+C) or with invisible characters that change the text direction asks too, bracketed or not. **Warn about pastes larger than** asks for every paste above that size in KiB, whatever the dropdown says; 0 turns the size check off. Both apply to the next paste. They are stored as `pasteWarningMode` (`off`, `unless-bracketed` or `always`; an unknown value counts as `unless-bracketed`) and `pasteLargeWarningKiB`.
+
+    **Pause after each pasted line** is for devices such as switches, routers and console servers that lose input arriving too fast: a paste with several lines is sent one line at a time, with this many milliseconds after each line. While it runs, the pane takes no keyboard input and ++esc++ stops the paste (see [Pasting into slow devices](../../features/terminal.md#pasting-into-slow-devices)). 0 sends every paste at once. It is stored as `pasteLineDelayMs`.
 
     Whether a program uses bracketed paste is what the server reports, and any output can switch it on, also in a shell such as `sh` that does not handle it. Pasted line breaks then run without a warning, so choose **Always** if you work on production servers.
 

@@ -72,6 +72,7 @@ import de.kortty.model.TranslationApiProvider;
 import de.kortty.model.StoredCredential;
 import de.kortty.model.GPGKey;
 import de.kortty.model.WindowGeometry;
+import de.kortty.paste.PastePacer;
 import de.kortty.paste.PasteProtectionSettings;
 import de.kortty.paste.PasteWarningMode;
 import de.kortty.security.PasswordStrengthChecker;
@@ -174,6 +175,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox closeActiveTerminalWindowsWithoutConfirmationCheck;
     private final ComboBox<PasteWarningMode> pasteWarningModeCombo;
     private final Spinner<Integer> pasteLargeWarningSpinner;
+    private final Spinner<Integer> pasteLineDelaySpinner;
     private final CheckBox terminalRecordingAlwaysEnabledCheck;
     private final CheckBox terminalRecordingCaptureColorsCheck;
     private final CheckBox codingAgentDetectionCheck;
@@ -818,6 +820,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         pasteLargeWarningSpinner.setEditable(true);
         pasteLargeWarningSpinner.setPrefWidth(100);
         pasteLargeWarningSpinner.setTooltip(new Tooltip(I18n.get("settings.terminal.paste.largeWarning.tooltip")));
+        pasteLineDelaySpinner = new Spinner<>(0, PastePacer.MAX_LINE_DELAY_MS,
+            globalSettings != null ? globalSettings.getPasteLineDelayMs() : 0, 10);
+        pasteLineDelaySpinner.setEditable(true);
+        pasteLineDelaySpinner.setPrefWidth(100);
+        pasteLineDelaySpinner.setTooltip(new Tooltip(I18n.get("settings.terminal.paste.lineDelay.tooltip")));
         
         // SSH Keep-Alive settings
         sshKeepAliveCheck = new CheckBox(I18n.get("settings.terminal.sshKeepAlive"));
@@ -907,6 +914,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             new Label(I18n.get("settings.terminal.paste.largeWarning.unit")));
         pasteLargeWarningBox.setAlignment(Pos.CENTER_LEFT);
         terminalGrid.add(pasteLargeWarningBox, 1, terminalRow++);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.paste.lineDelay")), 0, terminalRow);
+        HBox pasteLineDelayBox = new HBox(10, pasteLineDelaySpinner,
+            new Label(I18n.get("settings.terminal.paste.lineDelay.unit")));
+        pasteLineDelayBox.setAlignment(Pos.CENTER_LEFT);
+        terminalGrid.add(pasteLineDelayBox, 1, terminalRow++);
         Label pasteProtectionInfo = new Label(I18n.get("settings.terminal.paste.info"));
         pasteProtectionInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         pasteProtectionInfo.setWrapText(true);
@@ -3300,6 +3312,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setPasteWarningMode(pasteWarningModeCombo.getValue());
             globalSettings.setPasteLargeWarningKiB(pasteLargeWarningSpinner.getValue() != null
                 ? pasteLargeWarningSpinner.getValue() : PasteProtectionSettings.DEFAULT_LARGE_WARNING_KIB);
+            globalSettings.setPasteLineDelayMs(pasteLineDelaySpinner.getValue() != null
+                ? pasteLineDelaySpinner.getValue() : 0);
             globalSettings.setCloseActiveTerminalWindowsWithoutConfirmation(
                 closeActiveTerminalWindowsWithoutConfirmationCheck.isSelected()
             );
@@ -3545,6 +3559,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 gs::isCloseActiveTerminalWindowsWithoutConfirmation, true));
             tracked.add(new TrackedSetting("terminal", "paste_warning_mode", () -> gs.getPasteWarningMode().id(), true));
             tracked.add(new TrackedSetting("terminal", "paste_large_warning_kib", gs::getPasteLargeWarningKiB, true));
+            tracked.add(new TrackedSetting("terminal", "paste_line_delay_ms", gs::getPasteLineDelayMs, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_detection", gs::isCodingAgentDetectionEnabled, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_notifications",
                 gs::isCodingAgentNotificationsEnabled, true));

@@ -365,4 +365,122 @@ class PasteGuardTest {
 
         assertThat(target.sent).isEmpty();
     }
+
+    /** Keeps the scheduled lines of a paced paste until the test runs them. */
+    private static final class QueuedScheduler implements PastePacer.Scheduler {
+        final List<Runnable> tasks = new ArrayList<>();
+
+        @Override
+        public PastePacer.Cancellable schedule(Runnable task, long delayMs) {
+            tasks.add(task);
+            return () -> tasks.remove(task);
+        }
+
+        void runAll() {
+            while (!tasks.isEmpty()) {
+                tasks.remove(0).run();
+            }
+        }
+    }
+
+    @Test
+    void withALineDelayAPasteGoesOutLineByLine() {
+        QueuedScheduler scheduler = new QueuedScheduler();
+        PastePacer pacer = new PastePacer(scheduler);
+        PasteGuard guard = new PasteGuard(() -> PasteRules.NONE, new RecordingConfirmer(), pacer, () -> 100);
+        FakeTarget target = new FakeTarget();
+        target.bracketed = true;
+
+        guard.paste(target, "one\ntwo\nthree", PasteSource.CLIPBOARD);
+
+        assertThat(target.sent).containsExactly(ESC + "[200~one\r");
+        assertThat(pacer.isPacing(target.key())).isTrue();
+        scheduler.runAll();
+        assertThat(target.sent).containsExactly(ESC + "[200~one\r", "two\r", "three" + ESC + "[201~").inOrder();
+    }
+
+    @Test
+    void aConfirmedPasteIsPacedToo() {
+        QueuedScheduler scheduler = new QueuedScheduler();
+        PastePacer pacer = new PastePacer(scheduler);
+        RecordingConfirmer confirmer = new RecordingConfirmer();
+        PasteGuard guard = new PasteGuard(() -> ALWAYS_MULTI_LINE, confirmer, pacer, () -> 100);
+        FakeTarget target = new FakeTarget();
+
+        guard.paste(target, "one\ntwo", PasteSource.CLIPBOARD);
+        assertThat(target.sent).isEmpty();
+        confirmer.answer(0, true);
+
+        assertThat(target.sent).containsExactly("one\r");
+        scheduler.runAll();
+        assertThat(target.sent).containsExactly("one\r", "two").inOrder();
+    }
+
+    @Test
+    void aPasteIntoAPaneThatIsStillPacingIsDroppedWithoutAsking() {
+        QueuedScheduler scheduler = new QueuedScheduler();
+        PastePacer pacer = new PastePacer(scheduler);
+        RecordingConfirmer confirmer = new RecordingConfirmer();
+        boolean[] ask = {false};
+        PasteGuard guard = new PasteGuard(() -> ask[0] ? ALWAYS_MULTI_LINE : PasteRules.NONE, confirmer, pacer,
+            () -> 100);
+        FakeTarget target = new FakeTarget();
+        guard.paste(target, "one\ntwo", PasteSource.CLIPBOARD);
+
+        ask[0] = true;
+        guard.paste(target, "three\nfour", PasteSource.CLIPBOARD);
+        ask[0] = false;
+        guard.paste(target, "five", PasteSource.SELECTION);
+        scheduler.runAll();
+
+        assertThat(confirmer.requests).isEmpty();
+        assertThat(target.sent).containsExactly("one\r", "two").inOrder();
+        // Once the paced paste is out, the pane takes pastes again.
+        guard.paste(target, "six", PasteSource.CLIPBOARD);
+        assertThat(target.sent).containsExactly("one\r", "two", "six").inOrder();
+    }
+
+    @Test
+    void withoutALineDelayThePasteGoesOutAtOnce() {
+        QueuedScheduler scheduler = new QueuedScheduler();
+        PastePacer pacer = new PastePacer(scheduler);
+        FakeTarget target = new FakeTarget();
+
+        new PasteGuard(() -> PasteRules.NONE, new RecordingConfirmer(), pacer, () -> 0)
+            .paste(target, "one\ntwo", PasteSource.CLIPBOARD);
+
+        assertThat(target.sent).containsExactly("one\rtwo");
+        assertThat(scheduler.tasks).isEmpty();
+    }
+
+    @Test
+    void anUnreadableLineDelayPastesAtOnce() {
+        QueuedScheduler scheduler = new QueuedScheduler();
+        PastePacer pacer = new PastePacer(scheduler);
+        FakeTarget target = new FakeTarget();
+
+        new PasteGuard(() -> PasteRules.NONE, new RecordingConfirmer(), pacer, () -> {
+            throw new IllegalStateException("no settings");
+        }).paste(target, "one\ntwo", PasteSource.CLIPBOARD);
+
+        assertThat(target.sent).containsExactly("one\rtwo");
+        assertThat(pacer.isPacing(target.key())).isFalse();
+    }
+
+    @Test
+    void theLineDelayIsReadWhenThePasteIsSent() {
+        QueuedScheduler scheduler = new QueuedScheduler();
+        PastePacer pacer = new PastePacer(scheduler);
+        RecordingConfirmer confirmer = new RecordingConfirmer();
+        int[] delay = {0};
+        PasteGuard guard = new PasteGuard(() -> ALWAYS_MULTI_LINE, confirmer, pacer, () -> delay[0]);
+        FakeTarget target = new FakeTarget();
+
+        guard.paste(target, "one\ntwo", PasteSource.CLIPBOARD);
+        delay[0] = 250;
+        confirmer.answer(0, true);
+
+        assertThat(target.sent).containsExactly("one\r");
+        assertThat(pacer.isPacing(target.key())).isTrue();
+    }
 }

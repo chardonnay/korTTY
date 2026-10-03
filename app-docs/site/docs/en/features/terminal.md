@@ -93,6 +93,14 @@ The dialog names the pane, the number of lines and the size, lists why it asks, 
 !!! warning "Bracketed paste is what the server says"
     Whether the program uses bracketed paste is what the program on the server tells the terminal, and any output can claim it: a crafted file you `cat`, or a login message, can switch it on in a shell that does not handle it, such as `sh` or the console of many network devices. Pasted line breaks then run as commands without a warning. If you work on production servers, choose **Always**.
 
+### Pasting into slow devices
+
+Switches, routers, console servers and other devices behind SSH can lose input that arrives faster than they read it, so a pasted configuration arrives with characters or whole lines missing. Set **Pause after each pasted line** under *Settings → Terminal → Paste protection* (0 to 1,000 ms; 0, the default, turns it off) and korTTY sends a paste with several lines one line at a time, with that pause after each line. A single line still goes out at once, and a paste that asks for confirmation is paced after you choose **Paste**.
+
+While the lines are sent, the bottom right corner of the pane shows how far the paste is, such as *Pasting line 3 of 40 · Esc stops*. The pane takes no keyboard input meanwhile, so nothing you type lands between two pasted lines; on macOS, ++cmd++ shortcuts keep working. Press ++esc++ to stop the paste: the remaining lines are not sent. When the program in the pane uses bracketed paste, the paced lines still arrive as one pasted block, and stopping ends that block, so the lines already sent stay in the program's input line without running.
+
+A new paste into the pane is ignored until the paced one is done, and in [broadcast mode](#broadcast-mode) the keys you type in the other panes are not sent into it. Closing the pane, a reconnect and closing the tab stop the paste.
+
 ## Links in terminal output
 
 Programs can print clickable links into the terminal with the OSC 8 escape sequence; GCC, for example, can link a warning to its documentation. Clicking such a link opens it in your default browser, or a `mailto` link in your mail program. Only `http`, `https`, `ftp`, `ftps` and `mailto` links are clickable, and a `mailto` link may only fill in recipients (`to`, `cc`, `bcc`), `subject`, `body` and `in-reply-to`.
@@ -161,6 +169,7 @@ When **Broadcast Mode** is enabled, keyboard input is sent simultaneously to all
 - **Encoded for each pane**: every pane receives a key the way its own program expects it. When one pane runs `mc` or `vim`, which switch the terminal to application cursor keys, its arrows arrive as `ESC O A` while a shell in the next pane gets `ESC [ A`, so history and completion work in both.
 - **Kept local**: the scrollback keys (++shift+page-up++ / ++shift+page-down++, and ++ctrl+up++ / ++ctrl+down++ on Windows and Linux or ++cmd+up++ / ++cmd+down++ on macOS) scroll only the focused pane. A full-screen program such as `vim` or `less` has no scrollback, so while one runs in the focused pane, ++shift+page-up++ / ++shift+page-down++ (and ++ctrl+up++ / ++ctrl+down++ on Windows and Linux) go to that program and, like the other keys, to every other pane.
 - **Not mirrored**: paste and snippets go only to the focused pane, and what you type into the find bar stays in the find bar.
+- **A pane that is pacing a paste is left out**: while a pane sends a paste line by line (see [Pasting into slow devices](#pasting-into-slow-devices)), the keys you type in the other panes are not sent into it, so none of them lands between two pasted lines.
 - **A stalled pane does not freeze korTTY**: the keys for the other panes are sent in the background, to each pane in the order you typed them, so a server that stops responding holds up only its own pane while the window and the other panes keep reacting.
 
 ## Terminal effects
