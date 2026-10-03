@@ -20,6 +20,7 @@ import de.kortty.codingagent.PaneRef;
 import de.kortty.codingagent.TabRollup;
 import de.kortty.codingagent.desktop.AppBadgeService;
 import de.kortty.core.AtomicFileWriter;
+import de.kortty.core.ConnectionColorSupport;
 import de.kortty.core.AiAction;
 import de.kortty.core.AiCliArgumentTemplate;
 import de.kortty.core.AiExecutionResult;
@@ -2581,6 +2582,7 @@ public class MainWindow {
             
             // Its close button remembers it for Recently Closed (moves between windows keep this).
             terminalTab.setOnUserCloseApproved(MainWindow::recordClosedByButton);
+            applyConnectionColor(terminalTab);
             terminalTab.setOnClosed(e -> {
                 updateDashboard();
                 organizeTabsByGroup();
@@ -3010,6 +3012,28 @@ public class MainWindow {
             updateDashboard();
         }
         applyTunnelSettingsToOpenTabs();
+        refreshConnectionColorsInAllWindows();
+    }
+
+    /**
+     * Shows the tab color of {@code tab}'s connection on the tab: the saved connection's, so edits
+     * in the Connection Manager apply, else the tab's own (see {@link ConnectionColorSupport#tabColorOf}).
+     */
+    private void applyConnectionColor(TerminalTab tab) {
+        tab.applyConnectionColor(ConnectionColorSupport.tabColorOf(
+                tab.getConnection(), app.getConfigManager()::getConnectionById));
+    }
+
+    /**
+     * Re-applies the connection colors of every open terminal tab, in every window, after connections
+     * were saved: a color set, changed or removed in the Connection Manager shows at once. FX thread only.
+     */
+    private static void refreshConnectionColorsInAllWindows() {
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            for (TerminalTab terminalTab : window.terminalTabs()) {
+                window.applyConnectionColor(terminalTab);
+            }
+        }
     }
 
     /**
@@ -9962,6 +9986,7 @@ public class MainWindow {
                 }
             }));
             tab.setOnUserCloseApproved(MainWindow::recordClosedByButton);
+            applyConnectionColor(tab);
             tab.setOnClosed(e -> {
                 updateDashboard();
                 organizeTabsByGroup();
@@ -10952,6 +10977,7 @@ public class MainWindow {
                 }
             }));
             newTab.setOnUserCloseApproved(MainWindow::recordClosedByButton);
+            applyConnectionColor(newTab);
             newTab.setOnClosed(e -> {
                 updateDashboard();
                 organizeTabsByGroup();

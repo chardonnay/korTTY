@@ -69,6 +69,7 @@ Contains all saved SSH connections with their settings.
 - Window geometry preferences
 - Group/folder organization
 - Optional free-text tag (used for search, bulk tagging and tag-based export)
+- Optional tab color (`tabColor`, `#RRGGBB`) that marks the connection's terminal tabs with a colored dot; anything that is not a hex color is ignored (see [Tab color](../features/connections.md#tab-color)). Connections from a [teamwork](../features/teamwork.md) file can carry it as well, so the file's maintainer decides how those tabs are marked.
 
 **Security:** Connection passwords are encrypted with AES-256-GCM using the master password.
 

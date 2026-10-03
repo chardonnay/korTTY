@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
@@ -50,5 +51,20 @@ public class ServerConnectionCopyForAuthTest {
                         + " resets it")
                 .that(dropped)
                 .isEmpty();
+    }
+
+    /**
+     * The tab color is a per-connection override: copyForAuth is the save funnel and the copy a tab
+     * of a teamwork or Quick Connect session holds, so a color must survive it and no color must
+     * stay no color.
+     */
+    @Test
+    void copyForAuthKeepsTheTabColorAndItsAbsence() {
+        ServerConnection colored = new ServerConnection("prod", "db.example.com", 22, "root");
+        colored.setTabColor("#D32F2F");
+        ServerConnection plain = new ServerConnection("dev", "dev.example.com", 22, "root");
+
+        assertThat(ServerConnection.copyForAuth(colored).getTabColor()).isEqualTo("#D32F2F");
+        assertThat(ServerConnection.copyForAuth(plain).getTabColor()).isNull();
     }
 }

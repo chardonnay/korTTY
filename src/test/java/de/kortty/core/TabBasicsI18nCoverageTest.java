@@ -11,8 +11,8 @@ import java.util.Properties;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
- * The keys of the tab basics (rename, close others, reopen closed tabs and the tab commands that
- * follow) exist in every bundled language. Grows with each tab feature.
+ * The keys of the tab basics (rename, close others, reopen closed tabs, the connection's tab color
+ * and the tab commands that follow) exist in every bundled language. Grows with each tab feature.
  */
 class TabBasicsI18nCoverageTest {
 
@@ -46,7 +46,13 @@ class TabBasicsI18nCoverageTest {
             "menu.file.recentlyClosed.clear",
             "tab.contextMenu.reopenClosed",
             "status.noClosedTab",
-            "dialog.closeAllTabs.content");
+            "dialog.closeAllTabs.content",
+            "connEdit.terminalBehavior",
+            "connEdit.tabColor",
+            "connEdit.tabColor.enable",
+            "connEdit.tabColor.tooltip",
+            "tab.tooltip.connection",
+            "tab.tooltip.connectionColor");
 
     @Test
     void everyTabBasicsKeyExistsInEveryBundledLocale() throws Exception {
@@ -101,6 +107,20 @@ class TabBasicsI18nCoverageTest {
             assertWithMessage(bundle + ": the File menu and the tab menu call it the same")
                     .that(localized.getProperty("tab.contextMenu.reopenClosed"))
                     .isEqualTo(localized.getProperty("menu.file.reopenClosedTab"));
+        }
+    }
+
+    @Test
+    void theTabColorTooltipNamesTheConnectionTheColorAndItsCode() throws Exception {
+        for (String bundle : BUNDLES) {
+            Properties localized = loadBundle(bundle);
+            assertWithMessage(bundle + " drops the connection from tab.tooltip.connection")
+                    .that(localized.getProperty("tab.tooltip.connection")).contains("{0}");
+            String color = localized.getProperty("tab.tooltip.connectionColor");
+            assertWithMessage(bundle + " drops the color name from tab.tooltip.connectionColor")
+                    .that(color).contains("{0}");
+            assertWithMessage(bundle + " drops the color code from tab.tooltip.connectionColor")
+                    .that(color).contains("{1}");
         }
     }
 

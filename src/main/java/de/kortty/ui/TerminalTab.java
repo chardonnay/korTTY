@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.ConnectionColorSupport;
 import de.kortty.core.ConnectionSettingsSupport;
 import de.kortty.core.DisplayTextSanitizer;
 import de.kortty.core.TerminalRecordingService;
@@ -128,6 +129,13 @@ public class TerminalTab extends Tab {
     // title can be re-rendered with the badge without losing the suffix.
     private volatile String agentStatusBadge = "";
     private volatile String lastTitleSuffix = "";
+    /**
+     * The tab header's graphic: one container for the tab's decorations, so markers added later sit
+     * beside the connection color dot. Set as the graphic only while it holds something.
+     */
+    private final HBox tabDecorations = new HBox(4);
+    /** The color dot in {@link #tabDecorations}, or null; FX thread only. */
+    private Node connectionColorSwatch;
     
     public TerminalTab(ServerConnection connection, String password) {
         this(connection, password, null);
@@ -159,6 +167,7 @@ public class TerminalTab extends Tab {
         createJournalBar();
         
         updateTabTitle();
+        tabDecorations.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         
         // Create container with terminal view and status bars
         javafx.scene.layout.VBox container = new javafx.scene.layout.VBox();
@@ -1742,6 +1751,50 @@ public class TerminalTab extends Tab {
     static String customTitleFromInput(String input, String connectionName) {
         String title = normalizeCustomTitle(input);
         return title != null && title.equals(connectionName) ? null : title;
+    }
+
+    /**
+     * Marks the tab with its connection's color: a dot in the tab header, and a tooltip that names
+     * the connection and the color, which is also what screen readers read for the dot. {@code null}
+     * or a value that is not a hex color removes both. The tab's style is left alone: it shows the
+     * connection status (yellow while connecting, dark red when the connection failed). Safe to call
+     * from any thread.
+     */
+    public void applyConnectionColor(String hex) {
+        String color = ConnectionColorSupport.normalizeHex(hex);
+        if (Platform.isFxApplicationThread()) {
+            showConnectionColor(color);
+        } else {
+            Platform.runLater(() -> showConnectionColor(color));
+        }
+    }
+
+    private void showConnectionColor(String color) {
+        if (connectionColorSwatch != null) {
+            tabDecorations.getChildren().remove(connectionColorSwatch);
+            connectionColorSwatch = null;
+        }
+        if (color == null) {
+            setTooltip(null);
+        } else {
+            String colorLine = I18n.get("tab.tooltip.connectionColor",
+                I18n.get(TabColorPresentation.familyKey(ConnectionColorSupport.family(color))), color);
+            String connectionLine = I18n.get("tab.tooltip.connection", connectionEndpoint());
+            connectionColorSwatch = TabColorPresentation.swatch(color,
+                TabColorPresentation.describe(colorLine, connectionLine, ", "));
+            tabDecorations.getChildren().add(0, connectionColorSwatch);
+            setTooltip(new Tooltip(TabColorPresentation.describe(colorLine, connectionLine, "\n")));
+        }
+        setGraphic(tabDecorations.getChildren().isEmpty() ? null : tabDecorations);
+    }
+
+    /** {@code user@host} of the tab's connection; the connection's name for a local shell or without either. */
+    private String connectionEndpoint() {
+        if (connection.getProtocol() == ConnectionProtocol.LOCAL_SHELL) {
+            return getConnectionTitle();
+        }
+        String endpoint = effectiveTitle(null, null, connection.getUsername(), connection.getHost());
+        return endpoint.isEmpty() ? getConnectionTitle() : endpoint;
     }
 
     /** Sets the AI-agent status badge (✋/⚡/⏸/✓ or "") shown as a prefix on the tab title. */
