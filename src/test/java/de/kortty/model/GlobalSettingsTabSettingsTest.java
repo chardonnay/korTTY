@@ -47,6 +47,28 @@ class GlobalSettingsTabSettingsTest {
         assertThat(settings.isConnectionColorBorderEnabled()).isTrue();
     }
 
+    @Test
+    void theShellTitleIsOnByDefaultAndSurvivesTheRoundTrip() throws Exception {
+        assertWithMessage("tabs follow the title the shell sets unless the user switches it off")
+                .that(new GlobalSettings().isTabTitleFromShellEnabled()).isTrue();
+
+        GlobalSettings off = new GlobalSettings();
+        off.setTabTitleFromShellEnabled(false);
+        assertThat(marshal(off)).contains("<tabTitleFromShellEnabled>false</tabTitleFromShellEnabled>");
+        assertThat(roundTrip(off).isTabTitleFromShellEnabled()).isFalse();
+
+        GlobalSettings on = new GlobalSettings();
+        on.setTabTitleFromShellEnabled(true);
+        assertThat(roundTrip(on).isTabTitleFromShellEnabled()).isTrue();
+    }
+
+    @Test
+    void aSettingsFileFromBeforeTheShellTitleExistedKeepsItOn() throws Exception {
+        GlobalSettings settings = unmarshal("<globalSettings><showMenuBar>true</showMenuBar></globalSettings>");
+
+        assertThat(settings.isTabTitleFromShellEnabled()).isTrue();
+    }
+
     private static GlobalSettings roundTrip(GlobalSettings settings) throws Exception {
         return unmarshal(marshal(settings));
     }

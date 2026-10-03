@@ -12,8 +12,8 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * The keys of the tab basics (rename, close others, reopen closed tabs, the connection's tab color,
- * its frame and the credential environment colors, and the tab commands that follow) exist in every
- * bundled language. Grows with each tab feature.
+ * its frame, the credential environment colors, the title the shell sets, and the tab commands that
+ * follow) exist in every bundled language. Grows with each tab feature.
  */
 class TabBasicsI18nCoverageTest {
 
@@ -62,7 +62,12 @@ class TabBasicsI18nCoverageTest {
             "credential.environments.color",
             "credential.environments.color.enable",
             "credential.environments.color.info",
-            "credential.environments.color.swatch");
+            "credential.environments.color.swatch",
+            "settings.window.tabTitleFromShell",
+            "settings.window.tabTitleFromShell.tooltip",
+            "settings.window.tabTitleFromShell.info",
+            "tab.tooltip.shellTitle",
+            "dialog.renameTab.headerShellTitle");
 
     @Test
     void everyTabBasicsKeyExistsInEveryBundledLocale() throws Exception {
@@ -83,6 +88,20 @@ class TabBasicsI18nCoverageTest {
         for (String bundle : BUNDLES) {
             assertWithMessage(bundle + " drops the connection name placeholder from dialog.renameTab.header")
                     .that(loadBundle(bundle).getProperty("dialog.renameTab.header")).contains("{0}");
+        }
+    }
+
+    @Test
+    void aTabNamedByItsShellStillNamesItsConnection() throws Exception {
+        for (String bundle : BUNDLES) {
+            Properties localized = loadBundle(bundle);
+            assertWithMessage(bundle + " drops the connection name from tab.tooltip.shellTitle")
+                    .that(localized.getProperty("tab.tooltip.shellTitle")).contains("{0}");
+            String header = localized.getProperty("dialog.renameTab.headerShellTitle");
+            assertWithMessage(bundle + " drops the shell's title from dialog.renameTab.headerShellTitle")
+                    .that(header).contains("{0}");
+            assertWithMessage(bundle + " drops the connection name from dialog.renameTab.headerShellTitle")
+                    .that(header).contains("{1}");
         }
     }
 

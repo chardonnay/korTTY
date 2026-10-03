@@ -71,7 +71,7 @@ Rather than duplicating the method list here, ask korTTY: `api.schema` returns t
 | `agent` | `agent.list`, `agent.get`, `agent.explain`, `agent.prompt`, `agent.send_keys`, `agent.wait`, `agent.rename`, `agent.start` | Work with the coding agents korTTY has detected — see [Coding agents](../features/coding-agents.md). |
 | `notification` | `notification.show` | Raise one desktop notification. |
 
-The title `tab.list` reports for a terminal tab is its name without the coding-agent glyph, the group prefix or the `(DISCONNECT)` suffix: the name you gave it with [Rename Tab](../features/terminal.md#working-with-tabs), otherwise the connection's name. Renaming stays with you in the user interface.
+The title `tab.list` reports for a terminal tab is its name without the coding-agent glyph, the group prefix or the `(DISCONNECT)` suffix: the name you gave it with [Rename Tab](../features/terminal.md#working-with-tabs), otherwise the [title its shell set](../features/terminal.md#title-from-the-shell), otherwise the connection's name. The shell's title is chosen by the server, so a client that needs to know which host a tab is connected to should not rely on the title alone. Renaming stays with you in the user interface.
 
 `tab.create`, `tab.close` and `tab.rename` are **reserved**: they answer a definite "not implemented in this version" rather than an unknown-method error, and they are listed as reserved in `api.schema`, so a client can tell "korTTY will never do this for you" apart from "you spelled it wrong".
 

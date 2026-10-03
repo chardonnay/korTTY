@@ -231,6 +231,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox rememberDashboardStateCheck;
     private final CheckBox openToolWindowsAsTabsCheck;
     private final CheckBox connectionColorBorderCheck;
+    private final CheckBox tabTitleFromShellCheck;
     private final CheckBox useFixedGeometryCheck;
     private final Spinner<Integer> fixedWidthSpinner;
     private final Spinner<Integer> fixedHeightSpinner;
@@ -1458,6 +1459,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Label connectionColorBorderInfoLabel = new Label(I18n.get("settings.window.connectionColorBorder.info"));
         connectionColorBorderInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         windowGrid.add(connectionColorBorderInfoLabel, 0, windowRow++, 2, 1);
+
+        tabTitleFromShellCheck = new CheckBox(I18n.get("settings.window.tabTitleFromShell"));
+        tabTitleFromShellCheck.setSelected(globalSettings == null || globalSettings.isTabTitleFromShellEnabled());
+        tabTitleFromShellCheck.setTooltip(new Tooltip(I18n.get("settings.window.tabTitleFromShell.tooltip")));
+        windowGrid.add(tabTitleFromShellCheck, 0, windowRow++, 2, 1);
+
+        Label tabTitleFromShellInfoLabel = new Label(I18n.get("settings.window.tabTitleFromShell.info"));
+        tabTitleFromShellInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        windowGrid.add(tabTitleFromShellInfoLabel, 0, windowRow++, 2, 1);
 
         // Fixed geometry section
         windowGrid.add(new Separator(), 0, windowRow++, 2, 1);
@@ -3409,6 +3419,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setRememberDashboardState(rememberDashboardStateCheck.isSelected());
             globalSettings.setOpenToolWindowsAsTabs(openToolWindowsAsTabsCheck.isSelected());
             globalSettings.setConnectionColorBorderEnabled(connectionColorBorderCheck.isSelected());
+            globalSettings.setTabTitleFromShellEnabled(tabTitleFromShellCheck.isSelected());
             
             // Save fixed geometry settings
             globalSettings.setUseFixedWindowGeometry(useFixedGeometryCheck.isSelected());

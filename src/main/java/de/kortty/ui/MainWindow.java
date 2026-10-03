@@ -3063,6 +3063,18 @@ public class MainWindow {
     }
 
     /**
+     * Lets every open terminal tab, in every window, show or drop the title its shell set, after the
+     * Window setting for it was saved. FX thread only.
+     */
+    private static void refreshShellTitlesInAllWindows() {
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            for (TerminalTab terminalTab : window.terminalTabs()) {
+                terminalTab.refreshShellTitle();
+            }
+        }
+    }
+
+    /**
      * Lets every open terminal tab, in every window, apply its connection's saved SSH tunnels
      * right away: tunnels switched off or removed in the connection editor stop, changed or added
      * ones open (after the one-time confirmation for a new tunnel set). A tab whose tunnels did
@@ -3096,6 +3108,7 @@ public class MainWindow {
                 syncAiFeaturesMenuItemsEnabled();
                 refreshTerminalTabsUsingGlobalDefaults();
                 refreshConnectionColorsInAllWindows();
+                refreshShellTitlesInAllWindows();
                 refreshTerminalRecordingControlsVisibility();
                 refreshOpenChatColorProfiles();
                 if (menuBar != null && !menuBar.isVisible()) {
@@ -11535,22 +11548,24 @@ public class MainWindow {
     
     /**
      * Asks for a new name for {@code terminalTab}, prefilled with the name it shows now. The name
-     * replaces the connection's name in the tab title only: the agent badge, the group prefix and the
-     * connection-status suffix stay. An empty name, or the connection's own name, makes the tab show
-     * the connection's name again.
+     * replaces the connection's name (or the title the shell set) in the tab title only: the agent
+     * badge, the group prefix and the connection-status suffix stay. An empty name, or the name the
+     * tab shows on its own, makes the tab follow the shell's title and the connection's name again.
      */
     private void promptRenameTab(TerminalTab terminalTab) {
-        String connectionTitle = terminalTab.getConnectionTitle();
+        String automaticTitle = terminalTab.getAutomaticTitle();
         String customTitle = terminalTab.getCustomTitle();
-        TextInputDialog dialog = new TextInputDialog(customTitle != null ? customTitle : connectionTitle);
+        TextInputDialog dialog = new TextInputDialog(customTitle != null ? customTitle : automaticTitle);
         DialogThemeHelper.applyTheme(dialog);
         dialog.initOwner(stage);
         dialog.setTitle(I18n.get("dialog.renameTab.title"));
-        dialog.setHeaderText(I18n.get("dialog.renameTab.header", connectionTitle));
+        dialog.setHeaderText(terminalTab.getShellTitle() != null
+            ? I18n.get("dialog.renameTab.headerShellTitle", automaticTitle, terminalTab.getConnectionTitle())
+            : I18n.get("dialog.renameTab.header", automaticTitle));
         dialog.setContentText(I18n.get("dialog.renameTab.prompt") + ":");
-        dialog.getEditor().setPromptText(connectionTitle);
+        dialog.getEditor().setPromptText(automaticTitle);
         dialog.showAndWait().ifPresent(input ->
-            terminalTab.setCustomTitle(TerminalTab.customTitleFromInput(input, connectionTitle)));
+            terminalTab.setCustomTitle(TerminalTab.customTitleFromInput(input, automaticTitle)));
     }
 
     /**

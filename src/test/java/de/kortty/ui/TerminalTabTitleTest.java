@@ -57,21 +57,49 @@ class TerminalTabTitleTest {
 
     @Test
     void theCustomTitleReplacesOnlyTheConnectionName() {
-        String name = TerminalTab.effectiveTitle("Billing primary", "db-07", "root", "10.0.0.7");
+        String name = TerminalTab.effectiveTitle("Billing primary", null, "db-07", "root", "10.0.0.7");
         assertThat(TerminalTab.composeTitle(List.of("⚡"), "Ops", name, " (DISCONNECT)"))
             .isEqualTo("⚡ [Ops] Billing primary (DISCONNECT)");
     }
 
     @Test
     void effectiveTitleFallsBackFromCustomTitleToDisplayNameToUserAtHost() {
-        assertThat(TerminalTab.effectiveTitle("Billing", "db-07", "root", "db7")).isEqualTo("Billing");
-        assertThat(TerminalTab.effectiveTitle(null, "db-07", "root", "db7")).isEqualTo("db-07");
-        assertThat(TerminalTab.effectiveTitle("  ", "db-07", "root", "db7")).isEqualTo("db-07");
-        assertThat(TerminalTab.effectiveTitle(null, null, "root", "db7")).isEqualTo("root@db7");
-        assertThat(TerminalTab.effectiveTitle(null, " ", "root", "db7")).isEqualTo("root@db7");
-        assertThat(TerminalTab.effectiveTitle(null, null, null, "db7")).isEqualTo("db7");
-        assertThat(TerminalTab.effectiveTitle(null, null, "root", null)).isEqualTo("root");
-        assertThat(TerminalTab.effectiveTitle(null, null, null, null)).isEmpty();
+        assertThat(TerminalTab.effectiveTitle("Billing", null, "db-07", "root", "db7")).isEqualTo("Billing");
+        assertThat(TerminalTab.effectiveTitle(null, null, "db-07", "root", "db7")).isEqualTo("db-07");
+        assertThat(TerminalTab.effectiveTitle("  ", null, "db-07", "root", "db7")).isEqualTo("db-07");
+        assertThat(TerminalTab.effectiveTitle(null, null, null, "root", "db7")).isEqualTo("root@db7");
+        assertThat(TerminalTab.effectiveTitle(null, null, " ", "root", "db7")).isEqualTo("root@db7");
+        assertThat(TerminalTab.effectiveTitle(null, null, null, null, "db7")).isEqualTo("db7");
+        assertThat(TerminalTab.effectiveTitle(null, null, null, "root", null)).isEqualTo("root");
+        assertThat(TerminalTab.effectiveTitle(null, null, null, null, null)).isEmpty();
+    }
+
+    @DataProvider
+    Object[][] titleSlotPrecedence() {
+        // custom title, shell title, display name, user, host, expected name
+        return new Object[][] {
+            {"Billing", "root@db7: /var/log", "db-07", "root", "db7", "Billing"},
+            {null, "root@db7: /var/log", "db-07", "root", "db7", "root@db7: /var/log"},
+            {"  ", "root@db7: /var/log", "db-07", "root", "db7", "root@db7: /var/log"},
+            {null, null, "db-07", "root", "db7", "db-07"},
+            {null, "   ", "db-07", "root", "db7", "db-07"},
+            {null, "vim", null, "root", "db7", "vim"},
+            {null, null, null, "root", "db7", "root@db7"},
+        };
+    }
+
+    @Test(dataProvider = "titleSlotPrecedence")
+    void theShellTitleRanksBelowTheCustomTitleAndAboveTheConnectionName(
+            String custom, String shell, String displayName, String user, String host, String expected) {
+        assertThat(TerminalTab.effectiveTitle(custom, shell, displayName, user, host)).isEqualTo(expected);
+    }
+
+    @Test
+    void theShellTitleFillsOnlyTheNameSlot() {
+        String name = TerminalTab.effectiveTitle(null, "root@db7: ~", "db-07", "root", "db7");
+        assertWithMessage("the badges, the group and the status suffix stay around a title from the shell")
+            .that(TerminalTab.composeTitle(List.of("⚡"), "Ops", name, " (DISCONNECT)"))
+            .isEqualTo("⚡ [Ops] root@db7: ~ (DISCONNECT)");
     }
 
     @Test
@@ -97,6 +125,29 @@ class TerminalTabTitleTest {
     }
 
     @Test
+    void confirmingTheShellsTitleKeepsFollowingTheShellAndTypingTheConnectionNamePinsIt() {
+        // The rename dialog compares with what the tab shows on its own: the shell's title here.
+        String automatic = "root@db7: ~";
+        assertThat(TerminalTab.customTitleFromInput("root@db7: ~", automatic)).isNull();
+        assertThat(TerminalTab.customTitleFromInput("", automatic)).isNull();
+        assertWithMessage("the connection's name is a real choice while the shell names the tab")
+            .that(TerminalTab.customTitleFromInput("db-07", automatic)).isEqualTo("db-07");
+    }
+
+    @Test
+    void theTooltipNamesTheConnectionWhenTheShellNamesTheTab() {
+        assertThat(TerminalTab.tooltipText("Connection: root@db7", null, null)).isNull();
+        assertThat(TerminalTab.tooltipText("Connection: root@db7", " ", "")).isNull();
+        assertThat(TerminalTab.tooltipText("Connection: root@db7", "Title set by the shell; the connection is named db-07", null))
+            .isEqualTo("Connection: root@db7\nTitle set by the shell; the connection is named db-07");
+        assertThat(TerminalTab.tooltipText("Connection: root@db7", null, "Tab color: red (#D32F2F)"))
+            .isEqualTo("Connection: root@db7\nTab color: red (#D32F2F)");
+        assertThat(TerminalTab.tooltipText("Connection: root@db7", "Title set by the shell", "Tab color: red"))
+            .isEqualTo("Connection: root@db7\nTitle set by the shell\nTab color: red");
+        assertThat(TerminalTab.tooltipText(null, "Title set by the shell", null)).isEqualTo("Title set by the shell");
+    }
+
+    @Test
     void confirmingTheConnectionNameKeepsFollowingTheConnection() {
         assertThat(TerminalTab.customTitleFromInput("db-07", "db-07")).isNull();
         assertThat(TerminalTab.customTitleFromInput("  db-07 ", "db-07")).isNull();
@@ -117,6 +168,88 @@ class TerminalTabTitleTest {
         assertThat(setter).contains("normalizeCustomTitle(title)");
         assertWithMessage("a rename must not drop the (DISCONNECT) suffix")
             .that(setter).contains("updateTabTitle(lastTitleSuffix)");
+    }
+
+    @Test
+    void everyPaneReportsItsTitleThroughTheTrackerOnTheFxThread() throws IOException {
+        String view = source("TerminalView.java");
+
+        assertWithMessage("the hand-over to the tab is marshalled onto the FX thread")
+            .that(view).contains("new ShellTitleTracker<>(Platform::runLater, this::getFocusedWidget, "
+                + "TerminalView::isTabTitleFromShellEnabled);");
+        assertWithMessage("every pane, the first and every split, registers when its handlers are set up")
+            .that(methodBody(view, "private void setupWidgetEventHandlers(SithTermFxWidget widget) {"))
+            .contains("installShellTitleListener(widget);");
+        String install = methodBody(view, "private void installShellTitleListener(SithTermFxWidget widget) {");
+        assertThat(install).contains("terminal.addApplicationTitleListener(listener);");
+        assertWithMessage("the emulator thread only hands the raw title to the tracker")
+            .that(install).contains("title -> shellTitles.titleChanged(widget, title)");
+        assertThat(install).doesNotContain("setText(");
+
+        assertThat(methodBody(view, "private void releasePaneState(SithTermFxWidget widget) {"))
+            .contains("releaseShellTitleListener(widget);");
+        assertThat(methodBody(view, "private void releaseShellTitleListener(SithTermFxWidget widget) {"))
+            .contains("removeApplicationTitleListener(listener)");
+        assertThat(methodBody(view, "public void cleanup() {")).contains("releaseAllShellTitleListeners();");
+        assertWithMessage("the tab shows the title of the pane the user works in")
+            .that(methodBody(view, "private void onPaneFocused(SithTermFxWidget widget) {"))
+            .contains("shellTitles.publish();");
+
+        String connect = methodBody(view, "public void connect() {");
+        int reset = connect.indexOf("shellTitles.paneReset(terminalWidget);");
+        assertWithMessage("a reconnect drops the old session's title before the new session starts")
+            .that(reset).isAtLeast(0);
+        assertThat(reset).isLessThan(connect.indexOf("terminalWidget.setTtyConnector("));
+    }
+
+    @Test
+    void theShellTitleNeverChangesAColor() throws IOException {
+        String tab = source("TerminalTab.java");
+
+        assertThat(tab).contains("this.terminalView.setShellTitleListener(this::onShellTitleChanged);");
+        String onTitle = methodBody(tab, "private void onShellTitleChanged(String title) {");
+        assertThat(onTitle).contains("updateTabTitle(lastTitleSuffix)");
+        for (String colorCall : List.of("setStyle", "setBorder", "setGraphic", "applyConnectionColor",
+                "showConnectionColor", "setTabErrorColor", "resetTabColor")) {
+            assertWithMessage("a title from the server must not touch " + colorCall)
+                .that(onTitle).doesNotContain(colorCall);
+        }
+        assertWithMessage("the effective title ranks the custom title first")
+            .that(methodBody(tab, "public String getEffectiveTitle() {"))
+            .contains("effectiveTitle(customTitle, shellTitle,");
+        assertWithMessage("the tooltip says which connection a tab named by its shell is")
+            .that(methodBody(tab, "private void refreshTooltip() {"))
+            .contains("I18n.get(\"tab.tooltip.shellTitle\", getConnectionTitle())");
+    }
+
+    @Test
+    void theRenameDialogStartsFromWhatTheTabShowsOnItsOwn() throws IOException {
+        String prompt = methodBody(source("MainWindow.java"), "private void promptRenameTab(TerminalTab terminalTab) {");
+
+        assertThat(prompt).contains("String automaticTitle = terminalTab.getAutomaticTitle();");
+        assertThat(prompt).contains("TerminalTab.customTitleFromInput(input, automaticTitle)");
+        assertThat(prompt).contains("I18n.get(\"dialog.renameTab.headerShellTitle\", automaticTitle, terminalTab.getConnectionTitle())");
+    }
+
+    @Test
+    void theWindowSettingSwitchesTheShellTitleInEveryWindow() throws IOException {
+        String dialog = source("SettingsDialog.java");
+        assertThat(dialog).contains("new CheckBox(I18n.get(\"settings.window.tabTitleFromShell\"))");
+        assertThat(dialog).contains(
+            "tabTitleFromShellCheck.setSelected(globalSettings == null || globalSettings.isTabTitleFromShellEnabled());");
+        assertThat(dialog).contains(
+            "globalSettings.setTabTitleFromShellEnabled(tabTitleFromShellCheck.isSelected());");
+        int header = dialog.indexOf("I18n.get(\"settings.window.tabs.header\")");
+        int check = dialog.indexOf("I18n.get(\"settings.window.tabTitleFromShell\")");
+        int fixedGeometry = dialog.indexOf("I18n.get(\"settings.window.fixedGeometry.header\")");
+        assertWithMessage("the switch sits in the Tabs section of the Window tab")
+            .that(check).isGreaterThan(header);
+        assertThat(check).isLessThan(fixedGeometry);
+
+        String window = source("MainWindow.java");
+        assertThat(methodBody(window, "private void showSettings() {")).contains("refreshShellTitlesInAllWindows();");
+        assertThat(methodBody(window, "private static void refreshShellTitlesInAllWindows() {"))
+            .contains("terminalTab.refreshShellTitle();");
     }
 
     @Test
@@ -162,6 +295,9 @@ class TerminalTabTitleTest {
             save.indexOf("} else if (tab instanceof SFTPManagerTab"));
         assertWithMessage("only a name the user gave is saved, so an unrenamed tab keeps following its connection")
             .that(terminal).contains("sessionState.setTabTitle(terminalTab.getCustomTitle());");
+        assertWithMessage("a title the server set is never written into a project")
+            .that(terminal).doesNotContain("getShellTitle()");
+        assertThat(terminal).doesNotContain("getEffectiveTitle()");
 
         String load = methodBody(window, "private void loadProject(Project project) {");
         String restore = load.substring(load.indexOf("case TERMINAL -> {"), load.indexOf("case SFTP_MANAGER -> {"));

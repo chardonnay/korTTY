@@ -255,7 +255,9 @@ class TabColorPresentationTest {
         assertWithMessage("the tab style shows the connection status; the retry looks for #8B0000 in it")
                 .that(show).doesNotContain("setStyle");
         assertThat(show).contains("setGraphic(");
-        assertThat(show).contains("setTooltip(");
+        assertWithMessage("the color line goes into the one tooltip the tab has, next to a shell-title note")
+                .that(show).contains("refreshTooltip();");
+        assertThat(methodBody(tab, "private void refreshTooltip() {")).contains("setTooltip(");
         assertThat(methodBody(tab,
                 "public void applyConnectionColor(String hex, String environmentName, boolean showFrame) {"))
                 .contains("ConnectionColorSupport.normalizeHex(hex)");

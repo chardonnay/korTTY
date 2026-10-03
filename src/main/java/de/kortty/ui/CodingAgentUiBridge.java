@@ -285,7 +285,8 @@ public final class CodingAgentUiBridge implements FocusOracle, PaneLocator, Pane
 
     /**
      * The tab title without the agent glyph, the group prefix or the status suffix: the name the
-     * user gave the tab, else the connection's display name or user@host.
+     * user gave the tab, else the title its shell set (cleaned), else the connection's display name
+     * or user@host.
      */
     static String tabTitleOf(TerminalTab tab) {
         if (tab == null) {

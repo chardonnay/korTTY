@@ -125,6 +125,12 @@ public class TerminalTab extends Tab {
     private String tabGroup = null;
     /** The name the user gave this tab instead of the connection's, sanitised; null when none. */
     private volatile String customTitle;
+    /**
+     * The title the program in the focused pane set (OSC 0/2), already cleaned by
+     * {@link ShellTitleTracker}; null when there is none or the Window setting is off. Ranks below
+     * {@link #customTitle} and above the connection's name, and is text only: it never changes a color.
+     */
+    private volatile String shellTitle;
     // AI-agent status badge prefix (✋/⚡/⏸/✓ or "") and the last connection-status suffix, so the
     // title can be re-rendered with the badge without losing the suffix.
     private volatile String agentStatusBadge = "";
@@ -136,6 +142,8 @@ public class TerminalTab extends Tab {
     private final HBox tabDecorations = new HBox(4);
     /** The color dot in {@link #tabDecorations}, or null; FX thread only. */
     private Node connectionColorSwatch;
+    /** The tooltip line about the tab color, or null without a color; FX thread only. */
+    private String connectionColorLine;
     /**
      * The tab's content: the terminal view with its split panes, and the status bars below it. Its
      * border is the frame in the connection's tab color and nothing else (see {@link #showConnectionColor}).
@@ -160,6 +168,7 @@ public class TerminalTab extends Tab {
         this.terminalView.setJournalScreenshotHandler(widget ->
             Platform.runLater(() -> takeJournalScreenshot(widget)));
         this.terminalView.setJournalNoteHandler(() -> Platform.runLater(this::addJournalNote));
+        this.terminalView.setShellTitleListener(this::onShellTitleChanged);
 
         // Create status bar (connection duration / key validity)
         createStatusBar();
@@ -1686,12 +1695,17 @@ public class TerminalTab extends Tab {
 
     /**
      * The name a tab goes by, without badges, group or suffix: the custom title the user gave it,
-     * else the connection's display name, else {@code user@host} (or whichever of the two is set).
-     * Empty only when there is nothing at all to show.
+     * else the title the program in the terminal set ({@code shellTitle}, already cleaned), else the
+     * connection's display name, else {@code user@host} (or whichever of the two is set). Empty only
+     * when there is nothing at all to show.
      */
-    static String effectiveTitle(String customTitle, String displayName, String username, String host) {
+    static String effectiveTitle(String customTitle, String shellTitle, String displayName, String username,
+                                 String host) {
         if (customTitle != null && !customTitle.isBlank()) {
             return customTitle;
+        }
+        if (shellTitle != null && !shellTitle.isBlank()) {
+            return shellTitle;
         }
         if (displayName != null && !displayName.isBlank()) {
             return displayName;
@@ -1713,15 +1727,46 @@ public class TerminalTab extends Tab {
      * Safe to call from any thread.
      */
     public String getEffectiveTitle() {
-        return effectiveTitle(customTitle, connection.getDisplayName(), connection.getUsername(), connection.getHost());
+        return effectiveTitle(customTitle, shellTitle, connection.getDisplayName(), connection.getUsername(),
+            connection.getHost());
     }
 
-    /** The name the tab shows without a custom title: the connection's display name or user@host. */
+    /** The connection's display name or user@host: what the tab shows without a custom or shell title. */
     public String getConnectionTitle() {
-        return effectiveTitle(null, connection.getDisplayName(), connection.getUsername(), connection.getHost());
+        return effectiveTitle(null, null, connection.getDisplayName(), connection.getUsername(), connection.getHost());
     }
 
-    /** The name the user gave this tab, or {@code null} when it shows the connection's name. */
+    /**
+     * What the tab shows without a custom title: the title the shell set, else the connection's name.
+     * The rename dialog offers it and goes back to it when the name is cleared.
+     */
+    public String getAutomaticTitle() {
+        return effectiveTitle(null, shellTitle, connection.getDisplayName(), connection.getUsername(),
+            connection.getHost());
+    }
+
+    /** The title the program in the focused pane set, cleaned; {@code null} when none is shown. */
+    public String getShellTitle() {
+        return shellTitle;
+    }
+
+    /**
+     * The program in the focused pane set a new title, or the focus moved to a pane with another one
+     * ({@code null}: none). Only the name slot changes; the badges, the group, the status suffix and
+     * every color stay as they are. FX thread.
+     */
+    private void onShellTitleChanged(String title) {
+        shellTitle = title;
+        updateTabTitle(lastTitleSuffix);
+        refreshTooltip();
+    }
+
+    /** Re-reads the title the program set, after the Window setting changed. FX thread. */
+    public void refreshShellTitle() {
+        terminalView.refreshShellTitle();
+    }
+
+    /** The name the user gave this tab, or {@code null} when it shows the shell's title or the connection's name. */
     public String getCustomTitle() {
         return customTitle;
     }
@@ -1735,6 +1780,7 @@ public class TerminalTab extends Tab {
     public void setCustomTitle(String title) {
         customTitle = normalizeCustomTitle(title);
         updateTabTitle(lastTitleSuffix);
+        refreshTooltip();
     }
 
     /**
@@ -1747,14 +1793,15 @@ public class TerminalTab extends Tab {
     }
 
     /**
-     * The custom title the rename dialog's input stands for. A name equal to the connection's own
-     * name is no custom title, so confirming the prefilled name unchanged keeps the tab following
-     * the connection, and a later rename of the connection still shows. Blank input clears the
-     * custom title.
+     * The custom title the rename dialog's input stands for. A name equal to the one the tab shows
+     * on its own ({@code automaticName}: the shell's title, else the connection's name) is no custom
+     * title, so confirming the prefilled name unchanged keeps the tab following the shell and the
+     * connection, and a later rename of the connection still shows. Blank input clears the custom
+     * title.
      */
-    static String customTitleFromInput(String input, String connectionName) {
+    static String customTitleFromInput(String input, String automaticName) {
         String title = normalizeCustomTitle(input);
-        return title != null && title.equals(connectionName) ? null : title;
+        return title != null && title.equals(automaticName) ? null : title;
     }
 
     /**
@@ -1789,7 +1836,7 @@ public class TerminalTab extends Tab {
             connectionColorSwatch = null;
         }
         if (color == null) {
-            setTooltip(null);
+            connectionColorLine = null;
         } else {
             String family = I18n.get(TabColorPresentation.familyKey(ConnectionColorSupport.family(color)));
             String colorLine = environmentName == null
@@ -1799,9 +1846,51 @@ public class TerminalTab extends Tab {
             connectionColorSwatch = TabColorPresentation.swatch(color,
                 TabColorPresentation.describe(colorLine, connectionLine, ", "));
             tabDecorations.getChildren().add(0, connectionColorSwatch);
-            setTooltip(new Tooltip(TabColorPresentation.describe(colorLine, connectionLine, "\n")));
+            connectionColorLine = colorLine;
         }
+        refreshTooltip();
         setGraphic(tabDecorations.getChildren().isEmpty() ? null : tabDecorations);
+    }
+
+    /**
+     * Sets the tab's tooltip from what it shows: when the name comes from the shell, which connection
+     * the tab really is, and the tab color with its source. No tooltip without either. Any thread.
+     */
+    private void refreshTooltip() {
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(this::refreshTooltip);
+            return;
+        }
+        String shellLine = customTitle == null && shellTitle != null
+            ? I18n.get("tab.tooltip.shellTitle", getConnectionTitle())
+            : null;
+        String text = tooltipText(I18n.get("tab.tooltip.connection", connectionEndpoint()), shellLine,
+            connectionColorLine);
+        if (text == null) {
+            setTooltip(null);
+        } else if (getTooltip() != null) {
+            getTooltip().setText(text);
+        } else {
+            setTooltip(new Tooltip(text));
+        }
+    }
+
+    /**
+     * The tab tooltip: the connection line ({@code user@host}), then the note that the name comes from
+     * the shell, then the tab color line, each on its own line. {@code null} when there is neither a
+     * shell note nor a color, since the connection line alone would only repeat the tab's name.
+     */
+    static String tooltipText(String connectionLine, String shellTitleLine, String colorLine) {
+        if ((shellTitleLine == null || shellTitleLine.isBlank()) && (colorLine == null || colorLine.isBlank())) {
+            return null;
+        }
+        java.util.StringJoiner text = new java.util.StringJoiner("\n");
+        for (String line : java.util.Arrays.asList(connectionLine, shellTitleLine, colorLine)) {
+            if (line != null && !line.isBlank()) {
+                text.add(line);
+            }
+        }
+        return text.toString();
     }
 
     /** {@code user@host} of the tab's connection; the connection's name for a local shell or without either. */
@@ -1809,7 +1898,7 @@ public class TerminalTab extends Tab {
         if (connection.getProtocol() == ConnectionProtocol.LOCAL_SHELL) {
             return getConnectionTitle();
         }
-        String endpoint = effectiveTitle(null, null, connection.getUsername(), connection.getHost());
+        String endpoint = effectiveTitle(null, null, null, connection.getUsername(), connection.getHost());
         return endpoint.isEmpty() ? getConnectionTitle() : endpoint;
     }
 

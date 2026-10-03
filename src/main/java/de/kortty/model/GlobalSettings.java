@@ -130,6 +130,11 @@ public class GlobalSettings {
     @XmlElement
     private boolean connectionColorBorderEnabled = true;
 
+    // A terminal tab shows the title the program in its focused pane sets (OSC 0/2) in place of the
+    // connection's name, unless the user renamed the tab. A settings file without it keeps it on.
+    @XmlElement
+    private boolean tabTitleFromShellEnabled = true;
+
     @XmlElement
     private boolean jobSchedulerMenuStatusEnabled = true; // Show JobScheduler status in the menu bar
 
@@ -1407,6 +1412,15 @@ public class GlobalSettings {
 
     public void setConnectionColorBorderEnabled(boolean connectionColorBorderEnabled) {
         this.connectionColorBorderEnabled = connectionColorBorderEnabled;
+    }
+
+    /** Whether a terminal tab shows the title the program in it sets (OSC 0/2) in place of the connection's name (Window settings). */
+    public boolean isTabTitleFromShellEnabled() {
+        return tabTitleFromShellEnabled;
+    }
+
+    public void setTabTitleFromShellEnabled(boolean tabTitleFromShellEnabled) {
+        this.tabTitleFromShellEnabled = tabTitleFromShellEnabled;
     }
 
     public boolean isJobSchedulerMenuStatusEnabled() {
