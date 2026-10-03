@@ -766,7 +766,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h1>
-<p>Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, keyword highlighting, links, and SSH connection management. Open via <strong>Configuration → Global Settings → Terminal</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
+<p>Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, keyword highlighting, links, paste protection, and SSH connection management. Open via <strong>Configuration → Global Settings → Terminal</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
 <p><img alt="Terminal settings tab" src="../../assets/screenshots/settings/terminal.png" /></p>
 <table>
 <thead>
@@ -829,7 +829,7 @@
 <td><code>commandTimestampsEnabled</code></td>
 </tr>
 <tr>
-<td>Allow drag-and-drop file copy into terminal</td>
+<td>Allow drag and drop into the terminal (files copy over SFTP, text is pasted)</td>
 <td>toggle</td>
 <td>—</td>
 <td>On</td>
@@ -883,6 +883,27 @@
 <td>—</td>
 <td>On</td>
 <td><code>terminalLinkDetectionEnabled</code></td>
+</tr>
+<tr>
+<td>Warn about multi-line pastes:</td>
+<td>dropdown</td>
+<td>Off, Unless the program uses bracketed paste, Always</td>
+<td>Unless the program uses bracketed paste</td>
+<td><code>pasteWarningMode</code></td>
+</tr>
+<tr>
+<td>Warn about pastes larger than:</td>
+<td>number</td>
+<td>0–10,240 KiB (0 = off)</td>
+<td>5</td>
+<td><code>pasteLargeWarningKiB</code></td>
+</tr>
+<tr>
+<td>Pause after each pasted line:</td>
+<td>number</td>
+<td>0–1,000 ms (0 = off)</td>
+<td>0</td>
+<td><code>pasteLineDelayMs</code></td>
 </tr>
 <tr>
 <td>Enable SSH Keep-Alive</td>
@@ -980,6 +1001,12 @@
 <p>With <strong>Detect web addresses, e-mail addresses and file paths in terminal text</strong> on, <span class="keys"><kbd class="key-command">Cmd</kbd></span> + click (macOS) or <span class="keys"><kbd class="key-control">Ctrl</kbd></span> + click (Windows, Linux) opens a web address, an e-mail address or a file path that a program printed as plain text: a web address in your default browser, an e-mail address as a new mail in your mail program, and in SSH and local-shell tabs a file path as text in the Snippet Editor. A plain click still only selects text. A change applies to the open terminals at once. Links that a program marks up itself with OSC 8 open with the same click either way. See <a href="../../features/terminal.html#links-in-terminal-output">Links in terminal output</a>.</p>
 </div>
 <div class="admonition note">
+<p class="admonition-title">Paste protection</p>
+<p>Decides which terminal pastes ask before they reach the pane; the dialog itself is described under <a href="../../features/terminal.html#paste-protection">Paste protection</a>. <strong>Warn about multi-line pastes</strong> decides when a paste with a line break asks: <strong>Unless the program uses bracketed paste</strong> (the default) asks only when the program in the pane would receive each line break as Enter, <strong>Always</strong> asks for every paste with a line break, and <strong>Off</strong> never asks. Whenever it is not <strong>Off</strong>, a paste with control characters (such as Escape or Ctrl+C) or with invisible characters that change the text direction asks too, bracketed or not. <strong>Warn about pastes larger than</strong> asks for every paste above that size in KiB, whatever the dropdown says; 0 turns the size check off. Both apply to the next paste. They are stored as <code>pasteWarningMode</code> (<code>off</code>, <code>unless-bracketed</code> or <code>always</code>; an unknown value counts as <code>unless-bracketed</code>) and <code>pasteLargeWarningKiB</code>.</p>
+<p><strong>Pause after each pasted line</strong> is for devices such as switches, routers and console servers that lose input arriving too fast: a paste with several lines is sent one line at a time, with this many milliseconds after each line. While it runs, the pane takes no keyboard input and <span class="keys"><kbd class="key-escape">Esc</kbd></span> stops the paste (see <a href="../../features/terminal.html#pasting-into-slow-devices">Pasting into slow devices</a>). 0 sends every paste at once. It is stored as <code>pasteLineDelayMs</code>.</p>
+<p>Whether a program uses bracketed paste is what the server reports, and any output can switch it on, also in a shell such as <code>sh</code> that does not handle it. Pasted line breaks then run without a warning, so choose <strong>Always</strong> if you work on production servers.</p>
+</div>
+<div class="admonition note">
 <p class="admonition-title">SSH Keep-Alive</p>
 <p>When enabled, korTTY sends periodic keep-alive packets to prevent SSH sessions from timing out during idle periods. The interval setting controls how often (in seconds) these packets are sent. The spinner range is 5–600 seconds; the interval is disabled if SSH Keep-Alive is toggled off.</p>
 </div>
@@ -988,8 +1015,9 @@
 <p>This is the global, lowest-precedence host-key setting: it relaxes verification to accept-new for every connection that does not set its own or its group's override. Accept-new still hard-blocks a changed key on a host already pinned, and a jump server's own key is always verified strictly — but disabling first-use verification removes protection against a man-in-the-middle on the very first connection. Off by default. Per-connection and per-group overrides are set in the Connection Manager; see <a href="../../features/security.html#relaxing-host-key-verification">Security → Relaxing host-key verification</a>.</p>
 </div>
 <div class="admonition note">
-<p class="admonition-title">Drag-and-Drop File Copy</p>
+<p class="admonition-title">Drag and drop into the terminal</p>
 <p>When enabled, you can drop files or folders from your file manager (Finder on macOS, Explorer on Windows) directly into the terminal window. The files will be copied to the remote SSH server via SFTP.</p>
+<p>Text dropped onto a terminal pane, from a browser, an editor or another korTTY window, is pasted into the pane under the pointer, through <a href="../../features/terminal.html#paste-protection">paste protection</a> like any other paste; see <a href="../../features/terminal.html#dropping-text">Dropping text</a>. A drag that carries files and their path as text copies the files. With the enterprise policy's <a href="../enterprise-policy.html#internal-clipboard-mode">internal clipboard mode</a>, text dragged from another application is refused. When this setting is off, the terminal takes neither files nor text.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Command Timestamps</p>

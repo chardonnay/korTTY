@@ -57,6 +57,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntFunction;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import javafx.scene.layout.HBox;
@@ -157,6 +158,10 @@ public class TerminalSplitPane extends StackPane {
     // Strips the host app's connector decorators so key routing sees the real connector type.
     private UnaryOperator<TtyConnector> connectorUnwrapper = UnaryOperator.identity();
 
+    // Mirror guard: decides whether a pane may receive broadcast input; the host app skips panes
+    // that must not get keys from other panes, such as one that is sending a paced paste.
+    private Predicate<SithTermFxWidget> mirrorTargetGuard = widget -> true;
+
     /** If set, called when user chooses "Reset" font size in context menu (e.g. to reset to connection/global default). */
     private Runnable resetZoomCallback;
 
@@ -213,19 +218,17 @@ public class TerminalSplitPane extends StackPane {
     }
     
     /**
-     * Broadcasts input to all OTHER widgets (not the source widget). The writes are queued on
+     * Broadcasts input to all OTHER widgets (not the source widget) that the mirror guard accepts
+     * ({@link #setMirrorTargetGuard}). The writes are queued on
      * {@link MirroredInputWriter}, so a pane whose connection stalls never blocks the FX thread.
      */
     private void broadcastToOthers(@NotNull SithTermFxWidget sourceWidget, @NotNull String data) {
         if (!broadcastMode) return;
         
-        List<SithTermFxWidget> allWidgets = getAllWidgets();
-        for (SithTermFxWidget widget : allWidgets) {
-            if (widget != sourceWidget) {
-                TtyConnector connector = widget.getTtyConnector();
-                if (connector != null && connector.isConnected()) {
-                    MirroredInputWriter.shared().write(connector, data);
-                }
+        for (SithTermFxWidget widget : mirrorTargets(getAllWidgets(), sourceWidget, this::acceptsMirroredInput)) {
+            TtyConnector connector = widget.getTtyConnector();
+            if (connector != null && connector.isConnected()) {
+                MirroredInputWriter.shared().write(connector, data);
             }
         }
     }
@@ -243,10 +246,7 @@ public class TerminalSplitPane extends StackPane {
                                    @NotNull Function<SithTermFxWidget, byte[]> bytesFor) {
         if (!broadcastMode) return;
 
-        for (SithTermFxWidget widget : getAllWidgets()) {
-            if (widget == sourceWidget) {
-                continue;
-            }
+        for (SithTermFxWidget widget : mirrorTargets(getAllWidgets(), sourceWidget, this::acceptsMirroredInput)) {
             TtyConnector connector = widget.getTtyConnector();
             if (connector == null || !connector.isConnected()) {
                 continue;
@@ -256,6 +256,31 @@ public class TerminalSplitPane extends StackPane {
                 continue;
             }
             MirroredInputWriter.shared().write(connector, bytes);
+        }
+    }
+
+    /**
+     * The panes that get the input broadcast from {@code source}: every other pane the guard accepts,
+     * in the order given.
+     */
+    static <W> @NotNull List<W> mirrorTargets(@NotNull List<W> panes, @Nullable W source,
+                                              @NotNull Predicate<? super W> guard) {
+        List<W> targets = new ArrayList<>();
+        for (W pane : panes) {
+            if (pane != source && guard.test(pane)) {
+                targets.add(pane);
+            }
+        }
+        return targets;
+    }
+
+    /** Whether the mirror guard lets {@code widget} receive broadcast input; a failing guard says no. */
+    private boolean acceptsMirroredInput(@NotNull SithTermFxWidget widget) {
+        try {
+            return mirrorTargetGuard.test(widget);
+        } catch (RuntimeException e) {
+            logger.debug("Mirror guard failed, the pane gets no broadcast input: {}", e.getMessage());
+            return false;
         }
     }
 
@@ -643,6 +668,14 @@ public class TerminalSplitPane extends StackPane {
      */
     public void setConnectorUnwrapper(@Nullable UnaryOperator<TtyConnector> connectorUnwrapper) {
         this.connectorUnwrapper = connectorUnwrapper != null ? connectorUnwrapper : UnaryOperator.identity();
+    }
+
+    /**
+     * Sets the mirror guard: broadcast mode sends a pane's keys only to the other panes for which
+     * {@code guard} returns true, read at every key. Null lets every pane receive them, the default.
+     */
+    public void setMirrorTargetGuard(@Nullable Predicate<SithTermFxWidget> guard) {
+        this.mirrorTargetGuard = guard != null ? guard : widget -> true;
     }
 
     /**

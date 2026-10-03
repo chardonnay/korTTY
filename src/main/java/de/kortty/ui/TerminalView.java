@@ -30,6 +30,7 @@ import de.kortty.core.SshTtyConnector;
 import de.kortty.core.SshTunnelApprovals;
 import de.kortty.core.SshTunnelManager;
 import de.kortty.core.ObservableTtyConnector;
+import de.kortty.core.KorttyClipboard;
 import de.kortty.core.LocalShellTtyConnector;
 import de.kortty.core.agent.AgentCommandRunner;
 import de.kortty.core.agent.AgentCommandRunners;
@@ -55,6 +56,12 @@ import de.kortty.model.SSHTunnel;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.TerminalRecordingScope;
 import de.kortty.model.Theme;
+import de.kortty.paste.PasteDecision;
+import de.kortty.paste.PasteGuard;
+import de.kortty.paste.PastePacer;
+import de.kortty.paste.PasteProtectionSettings;
+import de.kortty.paste.PasteRules;
+import de.kortty.paste.PasteSource;
 import de.kortty.plugin.terminaleffects.TerminalEffectAnimationSpeed;
 import de.kortty.plugin.terminaleffects.TerminalEffectAppearance;
 import de.kortty.plugin.terminaleffects.TerminalEffectConnectorWrapper;
@@ -117,6 +124,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import javafx.scene.control.ProgressIndicator;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -416,6 +424,24 @@ public class TerminalView extends BorderPane {
         new ConcurrentHashMap<>();
     /** DECSET 2004 trackers per pane, registered on the pane's base connector data stream. */
     private final Map<SithTermFxWidget, PasteTracking> codingAgentPasteTrackers = new ConcurrentHashMap<>();
+    /**
+     * Sends a paste line by line when Settings → Terminal → Paste protection sets a line delay. While
+     * a pane is pacing a paste, {@link #pasteInputHold} holds its keys (Esc stops the paste), broadcast
+     * mode skips it, and its corner shows the progress.
+     */
+    private final PastePacer pastePacer = new PastePacer(PastePacer.Scheduler.sharedTimer(Platform::runLater),
+        new PastePacingIndicators(this::pastePacingIndicatorHost));
+    private final PasteInputHold pasteInputHold = new PasteInputHold(pastePacer);
+    /**
+     * Every paste into a pane of this tab: the paste shortcut, Edit → Paste, the context menu, a
+     * middle-click and text dropped onto a pane. It asks first when Settings → Terminal → Paste
+     * protection says so (line breaks, control characters, a large paste), removes bracketed-paste
+     * markers from the text, brackets the paste itself when the program in the pane has bracketed
+     * paste enabled, and paces it when a line delay is set.
+     */
+    private final PasteGuard pasteGuard = new PasteGuard(() -> pasteRules(TerminalView::readGlobalSettings),
+        new PasteConfirmationDialog(this::pasteConfirmationOwner), pastePacer,
+        () -> pasteLineDelayMs(TerminalView::readGlobalSettings));
     private final List<Consumer<SithTermFxWidget>> focusedWidgetListeners = new CopyOnWriteArrayList<>();
     /** The pane whose canvas most recently gained keyboard focus (null before the first focus). */
     private volatile SithTermFxWidget lastFocusedWidget;
@@ -732,8 +758,12 @@ public class TerminalView extends BorderPane {
         // shortcut and Ctrl+D come first. Navigation keys are encoded below, in each pane's own
         // filter (TerminalSplitPane.routeKeyPressed), which needs the real connector type.
         splitPane.setConnectorUnwrapper(this::unwrapTerminalEffectConnector);
+        // A pane that is pacing a paste takes no keys, not even mirrored ones from broadcast mode,
+        // so none lands between two pasted lines; Esc stops the paste (PasteInputHold).
+        splitPane.setMirrorTargetGuard(widget -> !pastePacer.isPacing(widget));
+        splitPane.addEventFilter(KeyEvent.KEY_TYPED, this::holdKeyWhilePacingPaste);
         splitPane.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-            if (event.isConsumed()) {
+            if (event.isConsumed() || holdKeyWhilePacingPaste(event)) {
                 return;
             }
             if (isEventTargetWithinAgentActivityPanel(event)) {
@@ -1174,6 +1204,8 @@ public class TerminalView extends BorderPane {
     /** Called when a split pane is closed: stop its effect and release its per-pane state. */
     private void onPaneClosed(SithTermFxWidget widget) {
         TtyConnector closingConnector = widget != null ? unwrapTerminalEffectConnector(widget.getTtyConnector()) : null;
+        cancelPastePacing(widget);
+        pasteInputHold.release(widget);
         stopPaneEffect(widget);
         paneProviders.remove(widget);
         discardTerminalAgentRunsForWidget(widget);
@@ -1811,22 +1843,26 @@ public class TerminalView extends BorderPane {
         return fmt != null && db.hasContent(fmt);
     }
 
+    /**
+     * Drops onto the terminal: files are copied to the server over SFTP, text is pasted into the pane
+     * under the pointer through {@link #pasteGuard}. {@link TerminalTextDropDecision} decides which,
+     * and leaves split-pane moves and every other drag alone.
+     */
     private void setupDragDrop() {
         // Handlers on this BorderPane (used when drag is over empty area; rarely with terminal in center)
-        setOnDragOver(event -> handleFileDragOver(event));
-        setOnDragDropped(event -> handleFileDragDropped(event));
-        // Capture-phase filters on split pane so we get file drops before cell filters; terminal content is in center so drag target is usually a cell node
+        setOnDragOver(event -> handleTerminalDragOver(event));
+        setOnDragDropped(event -> handleTerminalDragDropped(event));
+        // Capture-phase filters on split pane so we get drops before cell filters; terminal content is in center so drag target is usually a cell node
         if (splitPane != null) {
             splitPane.addEventFilter(DragEvent.DRAG_OVER, event -> {
-                logger.debug("splitPane DRAG_OVER filter: hasFiles={}", event.getDragboard().hasFiles());
-                if (handleFileDragOver(event)) {
-                    logger.debug("splitPane DRAG_OVER filter: handling, consuming event");
+                if (handleTerminalDragOver(event)) {
                     event.consume();
                 }
             });
             splitPane.addEventFilter(DragEvent.DRAG_DROPPED, event -> {
-                logger.debug("splitPane DRAG_DROPPED filter: hasFiles={}", event.getDragboard().hasFiles());
-                if (handleFileDragDropped(event)) {
+                logger.debug("splitPane DRAG_DROPPED filter: hasFiles={}, hasString={}",
+                    event.getDragboard().hasFiles(), event.getDragboard().hasString());
+                if (handleTerminalDragDropped(event)) {
                     logger.debug("splitPane DRAG_DROPPED filter: handling, consuming event");
                     event.consume();
                 }
@@ -1834,12 +1870,146 @@ public class TerminalView extends BorderPane {
         }
     }
 
+    /** What a drag over this tab does: see {@link TerminalTextDropDecision}. */
+    private TerminalTextDropDecision.Action terminalDropAction(DragEvent event) {
+        Dragboard db = event.getDragboard();
+        TerminalTextDropDecision.Drag drag = new TerminalTextDropDecision.Drag(isSplitPaneDrag(db), db.hasFiles(),
+            db.hasString(), db.getTransferModes().contains(TransferMode.COPY), event.getGestureSource() != null);
+        return TerminalTextDropDecision.decide(drag, isTerminalDragDropEnabled(), KorttyClipboard.isInternalMode());
+    }
+
+    /** Returns true if the event was handled (caller should consume). */
+    private boolean handleTerminalDragOver(DragEvent event) {
+        return switch (terminalDropAction(event)) {
+            case COPY_FILES -> handleFileDragOver(event);
+            case PASTE_TEXT -> handleTextDragOver(event);
+            // Accepts nothing; over a pane nothing below it may take the text either.
+            case REFUSE -> textDropPane(event) != null;
+            case IGNORE -> false;
+        };
+    }
+
+    /** Returns true if the event was handled (caller should consume). */
+    private boolean handleTerminalDragDropped(DragEvent event) {
+        return switch (terminalDropAction(event)) {
+            case COPY_FILES -> handleFileDragDropped(event);
+            case PASTE_TEXT -> handleTextDragDropped(event);
+            case REFUSE -> refuseTextDrop(event);
+            case IGNORE -> false;
+        };
+    }
+
+    /**
+     * A text drag over a pane is accepted as a copy, never a move, when the pane under the pointer can
+     * take a paste now. Returns whether the pointer is over a pane at all.
+     */
+    private boolean handleTextDragOver(DragEvent event) {
+        KorttyTermWidget pane = textDropPane(event);
+        if (pane == null) {
+            return false;
+        }
+        if (pane.pasteTarget().canReceive() && !pastePacer.isPacing(pane)) {
+            event.acceptTransferModes(TransferMode.COPY);
+        }
+        return true;
+    }
+
+    /**
+     * Pastes dropped text into the pane under the pointer. The paste runs once the drag has ended,
+     * because its confirmation is a window and should not open inside the platform's drag loop; the
+     * dragboard is read now, while it still holds the text.
+     */
+    private boolean handleTextDragDropped(DragEvent event) {
+        KorttyTermWidget pane = textDropPane(event);
+        if (pane == null) {
+            return false;
+        }
+        String text = event.getDragboard().getString();
+        boolean pasting = text != null && !text.isEmpty() && pane.pasteTarget().canReceive();
+        event.setDropCompleted(pasting);
+        if (pasting) {
+            Platform.runLater(() -> pasteDroppedText(pane, text));
+        }
+        return true;
+    }
+
+    /** A text drop the clipboard policy keeps out: nothing is pasted, and nothing below takes it. */
+    private boolean refuseTextDrop(DragEvent event) {
+        event.setDropCompleted(false);
+        logger.debug("Text drop refused: internal clipboard mode keeps out text from other applications");
+        return textDropPane(event) != null;
+    }
+
+    /**
+     * Makes the pane the text was dropped on the focused pane and pastes the text into it, through
+     * paste protection like every other paste.
+     */
+    private void pasteDroppedText(KorttyTermWidget pane, String text) {
+        if (!terminalPanes().contains(pane)) {
+            logger.debug("Dropped text not pasted: the pane closed first ({} chars)", text.length());
+            return;
+        }
+        if (splitPane != null) {
+            splitPane.focusWidget(pane);
+        } else {
+            Node focusTarget = getPrimaryKeyEventTarget(pane);
+            if (focusTarget != null) {
+                focusTarget.requestFocus();
+            }
+        }
+        pasteGuard.paste(pane.pasteTarget(), text, PasteSource.DROP);
+    }
+
+    /**
+     * The pane a text drop lands on: the one under the pointer, which need not be the focused pane.
+     * Null over anything else, such as the panels beside or below a pane, and over a text field
+     * inside a pane, such as the find bar.
+     */
+    private @Nullable KorttyTermWidget textDropPane(DragEvent event) {
+        if (event.getTarget() instanceof Node target && isInsideTextInput(target)) {
+            return null;
+        }
+        for (SithTermFxWidget widget : terminalPanes()) {
+            if (widget instanceof KorttyTermWidget pane
+                    && isUnderPointer(pane.getPane(), event.getSceneX(), event.getSceneY())) {
+                return pane;
+            }
+        }
+        return null;
+    }
+
+    private List<SithTermFxWidget> terminalPanes() {
+        if (splitPane != null) {
+            return splitPane.getAllWidgets();
+        }
+        return terminalWidget != null ? List.of(terminalWidget) : List.of();
+    }
+
+    private static boolean isInsideTextInput(Node node) {
+        for (Node current = node; current != null; current = current.getParent()) {
+            if (current instanceof javafx.scene.control.TextInputControl) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Whether the scene point lies on {@code node}, which is shown: in a scene and visible up to the root. */
+    private static boolean isUnderPointer(@Nullable Node node, double sceneX, double sceneY) {
+        if (node == null || node.getScene() == null) {
+            return false;
+        }
+        for (Node current = node; current != null; current = current.getParent()) {
+            if (!current.isVisible()) {
+                return false;
+            }
+        }
+        javafx.geometry.Bounds bounds = node.localToScene(node.getLayoutBounds());
+        return bounds != null && bounds.contains(sceneX, sceneY);
+    }
+
     /** Returns true if the event was handled (caller should consume). */
     private boolean handleFileDragOver(DragEvent event) {
-        if (isSplitPaneDrag(event.getDragboard())) return false;
-        if (!isTerminalDragDropEnabled()) return false;
-        Dragboard db = event.getDragboard();
-        if (!db.hasFiles()) return false;
         TtyConnector conn = getFocusedConnector();
         if (conn instanceof SshTtyConnector ssh && ssh.isConnected() && ssh.getSession() != null) {
             event.acceptTransferModes(TransferMode.COPY);
@@ -1850,10 +2020,7 @@ public class TerminalView extends BorderPane {
 
     /** Returns true if the event was handled (caller should consume). */
     private boolean handleFileDragDropped(DragEvent event) {
-        if (isSplitPaneDrag(event.getDragboard())) return false;
-        if (!isTerminalDragDropEnabled()) return false;
         Dragboard db = event.getDragboard();
-        if (!db.hasFiles()) return false;
         TtyConnector conn = getFocusedConnector();
         if (!(conn instanceof SshTtyConnector ssh) || !ssh.isConnected() || ssh.getSession() == null) {
             event.setDropCompleted(false);
@@ -2164,6 +2331,9 @@ public class TerminalView extends BorderPane {
         installAgentShortcutInputInterceptor(widget, baseConnector);
         installTerminalRecordingInputListener(baseConnector);
         bindCodingAgentMonitor(widget, baseConnector);
+        // A paced paste belongs to the session it started in; the rest of it never reaches the next one.
+        cancelPastePacing(widget);
+        resetBracketedPasteModeForNewSession(widget, baseConnector);
         attachBracketedPasteTracker(widget, baseConnector);
         PaneEffect effect = paneEffects.get(widget);
         TtyConnector decorated = baseConnector;
@@ -2183,6 +2353,28 @@ public class TerminalView extends BorderPane {
             decorated,
             () -> settings == null || settings.isTerminalColorsEnabled(),
             this::reportTerminalActivity);
+    }
+
+    /**
+     * A widget keeps its emulator across a reconnect, and with it the bracketed-paste flag the old
+     * session's program set; a terminal paste would then be bracketed for a program that may not
+     * handle it. So a new session on the widget starts unbracketed until its program enables the
+     * mode. A rebind to the same connector, as after a Mosh network interruption, continues the same
+     * session and keeps the flag.
+     */
+    private void resetBracketedPasteModeForNewSession(SithTermFxWidget widget, TtyConnector baseConnector) {
+        if (widget instanceof KorttyTermWidget korttyWidget
+                && startsNewTerminalSession(unwrapTerminalEffectConnector(widget.getTtyConnector()), baseConnector)) {
+            korttyWidget.resetBracketedPasteMode();
+        }
+    }
+
+    /**
+     * Whether binding {@code next} gives the pane a new session rather than continuing the one on
+     * {@code bound}; both are base connectors, without korTTY's wrappers.
+     */
+    static boolean startsNewTerminalSession(TtyConnector bound, TtyConnector next) {
+        return bound != next;
     }
 
     private TtyConnector unwrapTerminalEffectConnector(TtyConnector connector) {
@@ -3153,6 +3345,7 @@ public class TerminalView extends BorderPane {
 
     private void setupWidgetEventHandlers(SithTermFxWidget widget) {
         installAgentShortcutEventDispatcher(widget);
+        installPasteHandler(widget);
         Node keyEventTarget = getPrimaryKeyEventTarget(widget);
         javafx.event.EventHandler<KeyEvent> keyPressedHandler = event -> {
             if (event.isConsumed()) {
@@ -3265,6 +3458,53 @@ public class TerminalView extends BorderPane {
         } catch (Exception e) {
             return true;
         }
+    }
+
+    /** Sends the pane's pastes through {@link #pasteGuard} instead of SithTermFX's own paste code. */
+    private void installPasteHandler(SithTermFxWidget widget) {
+        if (!(widget instanceof KorttyTermWidget korttyWidget)) {
+            return;
+        }
+        korttyWidget.describePasteTarget(() -> pasteTargetLabel(korttyWidget), () -> connectorCharset(korttyWidget),
+            () -> splitPane != null && splitPane.isBroadcastMode());
+        korttyWidget.setPasteHandler(pasteGuard::paste);
+    }
+
+    /**
+     * How a paste confirmation names the pane: the connection the pane runs. A pane opened with
+     * Split (new connection) runs a connection of its own, maybe to another server, so the tab's
+     * connection would name the wrong host.
+     */
+    private String pasteTargetLabel(SithTermFxWidget widget) {
+        TtyConnector bound = widget != null ? unwrapTerminalEffectConnector(widget.getTtyConnector()) : null;
+        return paneConnectionLabel(connectionOf(bound), connection);
+    }
+
+    /**
+     * The name of the pane's own connection, or of the tab's while the pane has none (before it is
+     * connected, or for a connector that does not say); "" when neither is known.
+     */
+    static String paneConnectionLabel(@Nullable ServerConnection pane, @Nullable ServerConnection tab) {
+        ServerConnection shown = pane != null ? pane : tab;
+        String label = shown != null ? shown.getDisplayName() : null;
+        return label != null ? label : "";
+    }
+
+    /** The connection a base connector (without korTTY's wrappers) runs, or null when it does not say. */
+    static @Nullable ServerConnection connectionOf(@Nullable TtyConnector connector) {
+        if (connector instanceof SshTtyConnector ssh) {
+            return ssh.getConnection();
+        }
+        if (connector instanceof Mosh4jTtyConnector mosh) {
+            return mosh.getConnection();
+        }
+        if (connector instanceof NativeMoshTtyConnector nativeMosh) {
+            return nativeMosh.getConnection();
+        }
+        if (connector instanceof LocalShellTtyConnector localShell) {
+            return localShell.getConnection();
+        }
+        return null;
     }
 
     /**
@@ -4150,6 +4390,21 @@ public class TerminalView extends BorderPane {
         });
         canvas.getProperties().put(AGENT_SHORTCUT_DISPATCHER_INSTALLED_KEY, Boolean.TRUE);
         logger.debug("Installed terminal AI canvas event dispatcher");
+    }
+
+    /**
+     * Holds a key aimed at a pane that is pacing a paste (see {@link PasteInputHold}). Only keys whose
+     * target lies inside a pane count; keys for the agent panel or other controls pass, and so do
+     * keys for a text field inside the pane, such as the find bar: they never reach the session, and
+     * Esc there closes the find bar instead of stopping the paste.
+     *
+     * @return whether the key was consumed
+     */
+    private boolean holdKeyWhilePacingPaste(KeyEvent event) {
+        if (pasteInputHold.isIdle() || !(event.getTarget() instanceof Node target) || isInsideTextInput(target)) {
+            return false;
+        }
+        return pasteInputHold.filter(findWidgetContainingNode(target), event);
     }
 
     private @Nullable SithTermFxWidget resolveWidgetForKeyEvent(@Nullable KeyEvent event) {
@@ -5441,6 +5696,66 @@ public class TerminalView extends BorderPane {
             case "plan" -> TerminalAgentCommandSupport.getPlanCommandName(normalizedCommand) + " " + prompt;
             default -> null;
         };
+    }
+
+    /**
+     * The paste protection rules for the next paste, from the global settings as they are now, so a
+     * change in Settings applies at once. Without readable settings the defaults apply, never "off".
+     *
+     * @param settings reads the global settings; may return null or throw
+     */
+    static PasteRules pasteRules(Supplier<GlobalSettings> settings) {
+        PasteProtectionSettings protection;
+        try {
+            protection = PasteProtectionSettings.from(settings.get());
+        } catch (RuntimeException e) {
+            protection = PasteProtectionSettings.DEFAULTS;
+        }
+        return new PasteDecision(protection);
+    }
+
+    /**
+     * The pause after each pasted line, from the global settings as they are now; 0, which pastes at
+     * once, when they cannot be read.
+     *
+     * @param settings reads the global settings; may return null or throw
+     */
+    static int pasteLineDelayMs(Supplier<GlobalSettings> settings) {
+        try {
+            GlobalSettings current = settings.get();
+            return current != null ? current.getPasteLineDelayMs() : 0;
+        } catch (RuntimeException e) {
+            return 0;
+        }
+    }
+
+    /** Where a pane shows the progress of a paced paste: the pane's own wrapper in the split pane. */
+    private StackPane pastePacingIndicatorHost(Object paneKey) {
+        return paneKey instanceof SithTermFxWidget widget && splitPane != null
+            ? splitPane.getWidgetOverlayHost(widget) : null;
+    }
+
+    /** Stops the pane's paced paste, if it is pacing one; on the JavaFX thread, where the pacer lives. */
+    private void cancelPastePacing(SithTermFxWidget widget) {
+        if (widget == null) {
+            return;
+        }
+        if (Platform.isFxApplicationThread()) {
+            pastePacer.cancel(widget);
+        } else {
+            Platform.runLater(() -> pastePacer.cancel(widget));
+        }
+    }
+
+    /** The application's global settings; null (or an exception) while there is no application. */
+    private static GlobalSettings readGlobalSettings() {
+        var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
+        return gsm != null ? gsm.getSettings() : null;
+    }
+
+    /** The window a paste confirmation belongs to: this tab's window, once it has one. */
+    private Window pasteConfirmationOwner() {
+        return getScene() != null ? getScene().getWindow() : null;
     }
 
     private boolean isTerminalCopyOnSelectEnabled() {
@@ -6917,6 +7232,7 @@ public class TerminalView extends BorderPane {
      * Cleans up resources (closes connection and destroys UI). Use when closing the tab.
      */
     public void cleanup() {
+        pastePacer.cancelAll();
         releaseAllShellTitleListeners();
         cancelAllTerminalAgentRuns();
         stopAllTerminalAgentShellKeepAlives();
@@ -7461,7 +7777,7 @@ public class TerminalView extends BorderPane {
     }
     
     /**
-     * Pastes from clipboard.
+     * Pastes the clipboard into the focused pane, through {@link #pasteGuard} like every terminal paste.
      */
     public void pasteFromClipboard() {
         SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;

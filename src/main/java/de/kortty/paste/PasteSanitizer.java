@@ -19,9 +19,19 @@ import java.nio.charset.Charset;
  * computed in one pass with a constant look-back, because a crafted multi-megabyte paste of nested
  * half-markers would otherwise stall the thread doing the paste.
  *
+ * <p>{@link #encode(String, boolean, Charset)} builds what a terminal paste sends: the text without
+ * markers, its line breaks turned into the carriage return a pressed Enter produces, and the
+ * markers korTTY adds itself when the program in the pane has enabled bracketed paste.
+ *
  * <p>Pure, any thread.
  */
 public final class PasteSanitizer {
+
+    /** The DECSET 2004 start marker, {@code ESC [ 2 0 0 ~}. */
+    public static final String START_MARKER = "\u001b[200~";
+
+    /** The DECSET 2004 end marker, {@code ESC [ 2 0 1 ~}. */
+    public static final String END_MARKER = "\u001b[201~";
 
     /** The 7-bit control sequence introducer's first character. */
     private static final char ESC = '\u001b';
@@ -62,6 +72,63 @@ public final class PasteSanitizer {
      */
     public static String stripBracketMarkers(String text, Charset charset) {
         return strip(text, eightBitIntroducer(charset));
+    }
+
+    /**
+     * The text with every line break as the carriage return Enter sends: {@code CR LF} and a lone
+     * {@code LF} each become one {@code CR}, and a lone {@code CR} stays. Clipboards hold
+     * {@code CR LF} on Windows and {@code LF} elsewhere, while a terminal program expects Enter.
+     *
+     * @param text the text to paste
+     * @return {@code text} itself when it holds no {@code LF}; "" for null
+     */
+    public static String normaliseLineBreaks(String text) {
+        if (text == null) {
+            return "";
+        }
+        int first = text.indexOf('\n');
+        if (first < 0) {
+            return text;
+        }
+        StringBuilder out = new StringBuilder(text.length());
+        out.append(text, 0, first);
+        for (int i = first; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c != '\n') {
+                out.append(c);
+            } else if (i == 0 || text.charAt(i - 1) != '\r') {
+                // The LF of a CR LF pair adds nothing: its CR is already in the output.
+                out.append('\r');
+            }
+        }
+        return out.toString();
+    }
+
+    /**
+     * {@link #encode(String, boolean, Charset)} for a pane that types text in UTF-8.
+     */
+    public static String encode(String text, boolean bracketed) {
+        return encode(text, bracketed, null);
+    }
+
+    /**
+     * What a terminal paste of {@code text} sends: the text without bracketed-paste markers (always,
+     * so a paste can neither end the program's paste early nor fake one), its line breaks normalised
+     * ({@link #normaliseLineBreaks}), and wrapped in {@link #START_MARKER} and {@link #END_MARKER}
+     * when {@code bracketed}.
+     *
+     * @param text the text to paste
+     * @param bracketed whether the program in the pane has enabled bracketed paste (DECSET 2004)
+     * @param charset the encoding the pane sends text in, which decides the 8-bit marker form; null
+     *     means UTF-8
+     * @return the payload; "" for null or empty text, which is never wrapped
+     */
+    public static String encode(String text, boolean bracketed, Charset charset) {
+        String payload = normaliseLineBreaks(stripBracketMarkers(text, charset));
+        if (payload.isEmpty() || !bracketed) {
+            return payload;
+        }
+        return START_MARKER + payload + END_MARKER;
     }
 
     /** The character {@code charset} writes as the single byte {@code 9B}, or {@link #CSI} for none. */

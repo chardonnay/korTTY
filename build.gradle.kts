@@ -4095,6 +4095,14 @@ tasks.register<JavaExec>("generateTerminalTabScreenshot") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("generatePasteConfirmationScreenshot") {
+    group = "build"
+    description = "Renders the paste confirmation dialog screenshot for the manual via Scene.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.PasteConfirmationScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.jar {
     val implementationTitle = project.name
     val implementationVersion = project.version

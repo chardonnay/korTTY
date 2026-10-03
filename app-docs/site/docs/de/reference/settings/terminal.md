@@ -4,7 +4,7 @@ title: Terminal
 
 # Terminal
 
-Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einschließlich Abmessungen, Scrollback, Zeichenkodierung, Hervorhebung von Schlüsselwörtern, Links und SSH-Verbindungsverwaltung. Öffnen über **Konfiguration → Globale Einstellungen → Terminal**; in `~/.kortty/global-settings.xml` gespeichert.
+Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einschließlich Abmessungen, Scrollback, Zeichenkodierung, Hervorhebung von Schlüsselwörtern, Links, Einfügeschutz und SSH-Verbindungsverwaltung. Öffnen über **Konfiguration → Globale Einstellungen → Terminal**; in `~/.kortty/global-settings.xml` gespeichert.
 
 ![Terminal settings tab](../../assets/screenshots/settings/terminal.png)
 
@@ -17,7 +17,7 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 | Fett wie helle Farbe | umschalten | — | Ein | `boldAsBright` |
 | Bildlaufleiste im Terminal anzeigen | umschalten | – | Ein | `showTerminalScrollbar` |
 | Befehlszeitstempel anzeigen | umschalten | – | Aus | `commandTimestampsEnabled` |
-| Dateikopie per Drag-and-Drop in das Terminal zulassen | umschalten | – | Ein | `terminalDragDropEnabled` |
+| Drag-and-Drop ins Terminal erlauben (Dateien werden per SFTP kopiert, Text wird eingefügt) | umschalten | – | Ein | `terminalDragDropEnabled` |
 | Auswahl automatisch in die Zwischenablage kopieren | umschalten | – | Ein | `terminalCopyOnSelectEnabled` |
 | Aktive Terminalfenster ohne Bestätigung schließen | umschalten | – | Aus | `closeActiveTerminalWindowsWithoutConfirmation` |
 | Schlüsselwörter in der Terminalausgabe hervorheben | umschalten | – | Ein | `terminalHighlightingEnabled` |
@@ -25,6 +25,9 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 | Standard-Regelsatz: | Dropdown | Keiner, Fehler und Warnungen, Netzwerkadressen, Netzwerkgeräte oder ein eigener Regelsatz | Keiner | `defaultHighlightRuleSetId` |
 | Regeln bearbeiten… | Schaltfläche | öffnet den Regelsatz-Editor | – | `highlightRuleSets` |
 | Web-Adressen, E-Mail-Adressen und Dateipfade im Terminaltext erkennen | umschalten | – | Ein | `terminalLinkDetectionEnabled` |
+| Bei mehrzeiligem Einfügen warnen: | Dropdown | Aus, Außer das Programm verwendet Bracketed Paste, Immer | Außer das Programm verwendet Bracketed Paste | `pasteWarningMode` |
+| Warnen, wenn eingefügter Text größer ist als: | Nummer | 0–10.240 KiB (0 = aus) | 5 | `pasteLargeWarningKiB` |
+| Pause nach jeder eingefügten Zeile: | Nummer | 0–1.000 ms (0 = aus) | 0 | `pasteLineDelayMs` |
 | SSH Keep-Alive aktivieren | umschalten | – | Ein | `sshKeepAliveEnabled` |
 | Intervall (Sekunden): | Nummer | 5–600 | 60 | `sshKeepAliveInterval` |
 | Verbindungswiederholungen aktivieren | umschalten | – | Ein | `connectionRetriesEnabled` |
@@ -65,14 +68,23 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 !!! note "Links"
     Wenn **Web-Adressen, E-Mail-Adressen und Dateipfade im Terminaltext erkennen** eingeschaltet ist, öffnet ++cmd++ + Klick (macOS) bzw. ++ctrl++ + Klick (Windows, Linux) eine Webadresse, eine E-Mail-Adresse oder einen Dateipfad, die ein Programm als Klartext ausgegeben hat: eine Webadresse in Ihrem Standardbrowser, eine E-Mail-Adresse als neue Mail in Ihrem Mailprogramm und in SSH- und lokalen Shell-Tabs einen Dateipfad als Text im Snippet-Editor. Ein einfacher Klick wählt weiterhin nur Text aus. Eine Änderung gilt sofort für die offenen Terminals. Links, die ein Programm selbst mit OSC 8 auszeichnet, öffnen sich in jedem Fall mit demselben Klick. Siehe [Links in der Terminalausgabe](../../features/terminal.md#links-in-der-terminalausgabe).
 
+!!! note "Einfügeschutz"
+    Legt fest, welcher ins Terminal eingefügte Text nachfragt, bevor er den Bereich erreicht; der Dialog selbst ist unter [Einfügeschutz](../../features/terminal.md#einfugeschutz) beschrieben. **Bei mehrzeiligem Einfügen warnen** legt fest, wann eingefügter Text mit Zeilenumbruch nachfragt: **Außer das Programm verwendet Bracketed Paste** (der Standard) fragt nur nach, wenn das Programm im Bereich jeden Zeilenumbruch als Enter empfangen würde, **Immer** fragt bei jedem eingefügten Text mit Zeilenumbruch nach, und **Aus** fragt nie nach. Solange die Einstellung nicht **Aus** ist, fragt auch eingefügter Text mit Steuerzeichen (etwa Escape oder Strg+C) oder mit unsichtbaren Zeichen, die die Schreibrichtung ändern, nach, ob mit Bracketed Paste oder ohne. **Warnen, wenn eingefügter Text größer ist als** fragt bei jedem eingefügten Text über dieser Größe in KiB nach, unabhängig von der Auswahl im Dropdown; 0 schaltet die Größenprüfung ab. Beide Einstellungen gelten ab dem nächsten Einfügen. Sie werden als `pasteWarningMode` (`off`, `unless-bracketed` oder `always`; ein unbekannter Wert gilt als `unless-bracketed`) und `pasteLargeWarningKiB` gespeichert.
+
+    **Pause nach jeder eingefügten Zeile** ist für Geräte wie Switches, Router und Konsolenserver gedacht, die zu schnell eintreffende Eingaben verlieren: Mehrzeiliger eingefügter Text wird Zeile für Zeile gesendet, mit so vielen Millisekunden Pause nach jeder Zeile. Währenddessen nimmt der Bereich keine Tastatureingaben an, und ++esc++ bricht das Einfügen ab (siehe [Einfügen in langsame Geräte](../../features/terminal.md#einfugen-in-langsame-gerate)). 0 sendet jeden eingefügten Text auf einmal. Die Einstellung wird als `pasteLineDelayMs` gespeichert.
+
+    Ob ein Programm Bracketed Paste verwendet, meldet der Server, und jede Ausgabe kann es einschalten, auch in einer Shell wie `sh`, die es nicht beherrscht. Eingefügte Zeilenumbrüche werden dann ohne Warnung ausgeführt; wählen Sie daher **Immer**, wenn Sie auf Produktionsservern arbeiten.
+
 !!! note "SSH-Keep-Alive"
     Wenn korTTY aktiviert ist, sendet es regelmäßig Keep-Alive-Pakete, um zu verhindern, dass SSH-Sitzungen während Leerlaufzeiten ablaufen. Die Intervalleinstellung steuert, wie oft (in Sekunden) diese Pakete gesendet werden. Der Spinnerbereich beträgt 5–600 Sekunden; Das Intervall ist deaktiviert, wenn SSH Keep-Alive ausgeschaltet ist.
 
 !!! warning "Hostschlüsselüberprüfung für alle Verbindungen deaktivieren"
     Dies ist die globale Einstellung mit der niedrigsten Priorität für den Host-Schlüssel: Sie entspannt die Prüfung und akzeptiert für jede Verbindung, die keine eigene oder die eigene Gruppeneinstellung überschreibt. Accept-new blockiert weiterhin geänderte Schlüssel bei einem Host, der bereits festgelegt wurde, und der Schlüssel eines Jump-Server ist stets streng überprüft — jedoch entfernt die Deaktivierung der ersten-Nutzung-Prüfung die Sicherheit vor einem Man-in-the-Middle bei der ersten Verbindung. Standardmäßig deaktiviert. Per-Verbindung- und per-Gruppen-Überwachungen werden im Connection-Manager konfiguriert; siehe [Sicherheit → Lockerung der Host-Schlüssel-Prüfung](../../features/security.md#lockere-uberprufung-des-hostschlussels).
 
-!!! note "Drag-and-Drop-Datei kopieren"
+!!! note "Drag-and-Drop ins Terminal"
     Wenn diese Option aktiviert ist, können Sie Dateien oder Ordner aus Ihrem Dateimanager (Finder unter macOS, Explorer unter Windows) direkt im Terminalfenster ablegen. Die Dateien werden über SFTP auf den Remote-SSH-Server kopiert.
+
+    Text, der aus einem Browser, einem Editor oder einem anderen korTTY-Fenster auf einen Terminalbereich gezogen wird, wird in den Bereich unter dem Mauszeiger eingefügt und durchläuft wie jedes andere Einfügen den [Einfügeschutz](../../features/terminal.md#einfugeschutz); siehe [Text ablegen](../../features/terminal.md#text-ablegen). Ein Ziehvorgang, der Dateien und ihren Pfad als Text mitbringt, kopiert die Dateien. Mit dem [internen Zwischenablagemodus](../enterprise-policy.md#interner-zwischenablagemodus) der Unternehmensrichtlinie wird Text, der aus einer anderen Anwendung gezogen wird, abgelehnt. Ist diese Einstellung aus, nimmt das Terminal weder Dateien noch Text an.
 
 !!! note "Befehlszeitstempel"
     Wenn diese Option aktiviert ist, wird auf der linken Seite des Terminals eine Seitenleiste angezeigt, in der das Datum und die Uhrzeit der Eingabe jedes Befehls angezeigt werden. Dies ist nützlich für Audit-Trails und Sitzungsprotokollierung.

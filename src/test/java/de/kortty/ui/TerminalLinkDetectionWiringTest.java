@@ -44,7 +44,7 @@ public class TerminalLinkDetectionWiringTest {
             "globalSettings.setTerminalLinkDetectionEnabled(terminalLinkDetectionCheck.isSelected());");
         assertThat(dialog).contains(
             "tracked.add(new TrackedSetting(\"terminal\", \"link_detection\", gs::isTerminalLinkDetectionEnabled, true));");
-        // Under its own Links header, right before the SSH keep-alive section.
+        // Under its own Links header, ahead of the SSH keep-alive section.
         int header = dialog.indexOf("new Label(I18n.get(\"settings.terminal.links.header\"))");
         int checkbox = dialog.indexOf("terminalGrid.add(terminalLinkDetectionCheck, 0, terminalRow++, 2, 1);");
         int keepAlive = dialog.indexOf("terminalGrid.add(sshKeepAliveCheck, 0, terminalRow++, 2, 1);");

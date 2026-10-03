@@ -1,5 +1,9 @@
 package de.kortty.ui;
 
+import com.sithtermfx.core.Terminal;
+import com.sithtermfx.core.TerminalMode;
+import com.sithtermfx.core.TerminalOutputStream;
+import com.sithtermfx.core.TtyConnector;
 import com.sithtermfx.core.compatibility.Point;
 import com.sithtermfx.core.model.SithTerminal;
 import com.sithtermfx.core.model.StyleState;
@@ -10,10 +14,14 @@ import com.sithtermfx.ui.TerminalPanel;
 import com.sithtermfx.ui.settings.SettingsProvider;
 import de.kortty.core.PolicyAwareCopyPasteHandler;
 import de.kortty.core.TerminalLinkDetector;
+import de.kortty.paste.PasteSource;
+import de.kortty.paste.PasteTarget;
 import de.kortty.ui.TerminalLinkClickPolicy.Hit;
 import de.kortty.ui.TerminalLinkClickPolicy.HitKind;
 import javafx.application.Platform;
 import javafx.geometry.Dimension2D;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.text.Font;
 import org.jetbrains.annotations.Contract;
@@ -21,15 +29,24 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.net.URI;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /**
  * korTTY's terminal widget: a {@link SithTermFxWidget} whose panel routes every copy/paste path
  * (shortcuts, context menu, middle-click/primary selection) through the policy-aware clipboard
  * handler, so the enterprise policy's internal-clipboard mode covers the terminal completely.
+ *
+ * <p>Once a {@link PasteHandler} is installed, every paste leaves SithTermFX's own paste code: the
+ * paste action, the context menu, Edit → Paste and a local middle-click hand the text and
+ * {@link #pasteTarget()} to the handler, which decides what reaches the pane. The widget also
+ * reports whether the program in the pane really has bracketed paste enabled
+ * ({@link #isBracketedPasteMode()}), which SithTermFX's own flag gets wrong after a terminal reset.
  *
  * <p>It also exposes the context-menu commands as {@link TerminalPaneActions}, calling SithTermFX's
  * public API directly. The panel is a subclass, {@link KorttyTerminalPanel}, so a declared-method
@@ -51,6 +68,36 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
     /** Points per Increase/Decrease step of the context menu's font-size submenu. */
     static final float FONT_SIZE_STEP = 2f;
 
+    /**
+     * Reads the text of a paste. The panel's own handler is private to SithTermFX; this one behaves
+     * the same (it keeps no state), including the enterprise policy's internal-clipboard mode.
+     */
+    private static final PolicyAwareCopyPasteHandler PASTE_READER = new PolicyAwareCopyPasteHandler();
+
+    /** Receives a pane's pastes instead of SithTermFX's own paste code. */
+    @FunctionalInterface
+    public interface PasteHandler {
+
+        /**
+         * Called on the JavaFX thread for every paste into the pane.
+         *
+         * @param target the pane, the same object for every paste
+         * @param text the clipboard or selection text, unchanged
+         * @param source where the text came from
+         */
+        void paste(@NotNull PasteTarget target, @NotNull String text, @NotNull PasteSource source);
+    }
+
+    private final WidgetPasteTarget pasteTarget = new WidgetPasteTarget();
+
+    private @Nullable PasteHandler pasteHandler;
+
+    private Supplier<String> pasteTargetLabel = () -> "";
+
+    private Supplier<Charset> pasteTargetCharset = () -> StandardCharsets.UTF_8;
+
+    private BooleanSupplier pasteTargetBroadcast = () -> false;
+
     public KorttyTermWidget(int columns, int lines, SettingsProvider settingsProvider) {
         super(columns, lines, settingsProvider);
         // Replace SithTermFX's default OSC 8 provider before the pane is started: it opens file:
@@ -58,6 +105,100 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
         // keeps a file: link only while the pane's file handler opens files, as text.
         KorttyTerminalPanel panel = (KorttyTerminalPanel) getTerminalPanel();
         setLinkInfoProvider(new KorttyOsc8LinkInfoProvider(panel::fileLinksEnabled));
+        // A filter runs before SithTermFX's own click handler on the canvas, so consuming the click
+        // keeps SithTermFX from pasting the selection itself. Mouse reports to the program go out
+        // on press and release, which this leaves alone. It takes only the middle button; the
+        // panel's link click filter takes the primary one.
+        getTerminalPanel().getCanvas().addEventFilter(MouseEvent.MOUSE_CLICKED, this::pasteOnMiddleClick);
+    }
+
+    /**
+     * Routes the pane's pastes to {@code handler}; null gives them back to SithTermFX. JavaFX thread.
+     */
+    public void setPasteHandler(@Nullable PasteHandler handler) {
+        pasteHandler = handler;
+    }
+
+    /**
+     * What {@link #pasteTarget()} reports about the pane beyond what the widget knows itself.
+     *
+     * @param label how the user knows the pane, usually the connection's name
+     * @param charset the encoding the pane's connector sends text in
+     * @param broadcastActive whether broadcast mode is on in the pane's tab
+     */
+    public void describePasteTarget(@NotNull Supplier<String> label, @NotNull Supplier<Charset> charset,
+            @NotNull BooleanSupplier broadcastActive) {
+        pasteTargetLabel = Objects.requireNonNull(label, "label");
+        pasteTargetCharset = Objects.requireNonNull(charset, "charset");
+        pasteTargetBroadcast = Objects.requireNonNull(broadcastActive, "broadcastActive");
+    }
+
+    /** The pane as a paste target: one object for the widget's whole life, keyed by the widget. */
+    public @NotNull PasteTarget pasteTarget() {
+        return pasteTarget;
+    }
+
+    /**
+     * Whether the program in the pane has bracketed paste (DECSET 2004) enabled. SithTermFX keeps a
+     * flag that a terminal reset ({@code ESC c}, the {@code reset} command) does not clear, so this
+     * also asks the emulator, whose mode a reset does clear. See {@link #effectiveBracketedPasteMode}.
+     */
+    public boolean isBracketedPasteMode() {
+        boolean panelFlag = getTerminalPanel() instanceof KorttyTerminalPanel panel && panel.bracketedPasteMode;
+        return effectiveBracketedPasteMode(panelFlag, getTerminal());
+    }
+
+    /**
+     * Forgets the pane's bracketed-paste state, for a new session on this widget: the program that
+     * enabled it is gone, and the next one enables it again when it handles bracketed paste.
+     */
+    public void resetBracketedPasteMode() {
+        getTerminalPanel().setBracketedPasteMode(false);
+    }
+
+    /**
+     * Whether a pane is in bracketed-paste mode: the program switched it on (the flag the emulator
+     * reports to the panel) and the emulator still has the mode, which a terminal reset clears
+     * without telling the panel.
+     *
+     * @param panelFlag the last value the emulator reported through {@code setBracketedPasteMode}
+     * @param terminal the pane's emulator; a terminal other than SithTermFX's is trusted on the flag
+     */
+    static boolean effectiveBracketedPasteMode(boolean panelFlag, @Nullable Terminal terminal) {
+        return panelFlag
+            && (!(terminal instanceof SithTerminal sith) || sith.isModelEnabled(TerminalMode.BracketedPasteMode));
+    }
+
+    /**
+     * Whether SithTermFX would paste the selection for this click: a middle-click with paste on
+     * middle-click enabled that the terminal handles itself instead of reporting it to the program.
+     */
+    static boolean isLocalMiddleClickPaste(@Nullable MouseButton button, boolean pasteOnMiddleClick,
+            boolean localMouseAction) {
+        return button == MouseButton.MIDDLE && pasteOnMiddleClick && localMouseAction;
+    }
+
+    private void pasteOnMiddleClick(MouseEvent event) {
+        PasteHandler handler = pasteHandler;
+        if (handler == null || event.isConsumed()) {
+            return;
+        }
+        TerminalPanel panel = getTerminalPanel();
+        if (!isLocalMiddleClickPaste(event.getButton(), getSettingsProvider().pasteOnMiddleMouseClick(),
+                panel.isLocalMouseAction(event))) {
+            return;
+        }
+        // SithTermFX focuses the pane on every click; the consumed click no longer reaches it.
+        panel.getCanvas().requestFocus();
+        event.consume();
+        paste(handler, PasteSource.SELECTION);
+    }
+
+    private void paste(PasteHandler handler, PasteSource source) {
+        String text = PASTE_READER.getContents(source == PasteSource.SELECTION);
+        if (text != null) {
+            handler.paste(pasteTarget, text, source);
+        }
     }
 
     @Override
@@ -162,6 +303,9 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
      * {@code clearBuffer(boolean)} needs the widget's terminal.
      */
     public final class KorttyTerminalPanel extends TerminalPanel {
+
+        /** A copy of SithTermFX's private bracketed-paste flag, which the emulator sets through the panel. */
+        private volatile boolean bracketedPasteMode;
 
         /** Where a Cmd/Ctrl+click sends a link. */
         private TerminalLinkOpener linkOpener = TerminalLinkOpener.system();
@@ -322,6 +466,27 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
             return new PolicyAwareCopyPasteHandler();
         }
 
+        /**
+         * Every paste except the middle-click one ends here: the paste action, the context menu and
+         * Edit → Paste. With a {@link PasteHandler} installed the handler gets the text instead of
+         * SithTermFX, which would send embedded paste markers on as they are.
+         */
+        @Override
+        public void handlePaste() {
+            PasteHandler handler = pasteHandler;
+            if (handler == null) {
+                super.handlePaste();
+                return;
+            }
+            KorttyTermWidget.this.paste(handler, PasteSource.CLIPBOARD);
+        }
+
+        @Override
+        public void setBracketedPasteMode(boolean bracketedPasteModeEnabled) {
+            super.setBracketedPasteMode(bracketedPasteModeEnabled);
+            bracketedPasteMode = bracketedPasteModeEnabled;
+        }
+
         @Override
         protected void clearBuffer(boolean keepLastLine) {
             super.clearBuffer(keepLastLine);
@@ -366,6 +531,60 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
             int rows = (int) Math.round(getPixelHeight() / charSize.getHeight());
             return new TerminalCellGeometry(getInsetX(), charSize.getWidth(), charSize.getHeight(), columns, rows,
                 getScrollOrigin(), buffer.getWidth(), buffer.getHeight(), buffer.getHistoryLinesCount());
+        }
+    }
+
+    /**
+     * The widget as a {@link PasteTarget}. It writes through the panel's terminal output stream, the
+     * call and the single writer thread SithTermFX's own paste uses, so type-ahead, korTTY's input
+     * filters, recordings and the session journal see a paste exactly as before.
+     */
+    private final class WidgetPasteTarget implements PasteTarget {
+
+        @Override
+        public Object key() {
+            return KorttyTermWidget.this;
+        }
+
+        @Override
+        public boolean bracketedPasteMode() {
+            return isBracketedPasteMode();
+        }
+
+        @Override
+        public boolean canReceive() {
+            TtyConnector connector = getTtyConnector();
+            return getTerminalPanel().getTerminalOutputStream() != null && connector != null && connector.isConnected();
+        }
+
+        @Override
+        public Object session() {
+            return getTtyConnector();
+        }
+
+        @Override
+        public void send(String payload) {
+            TerminalOutputStream output = getTerminalPanel().getTerminalOutputStream();
+            if (output != null) {
+                output.sendString(payload, true);
+            }
+        }
+
+        @Override
+        public String label() {
+            String label = pasteTargetLabel.get();
+            return label != null ? label : "";
+        }
+
+        @Override
+        public Charset charset() {
+            Charset charset = pasteTargetCharset.get();
+            return charset != null ? charset : StandardCharsets.UTF_8;
+        }
+
+        @Override
+        public boolean broadcastActive() {
+            return pasteTargetBroadcast.getAsBoolean();
         }
     }
 }

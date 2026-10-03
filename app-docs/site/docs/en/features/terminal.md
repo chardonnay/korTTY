@@ -81,11 +81,50 @@ Right-click inside a terminal to open its context menu; in a split tab it acts o
 | Entry | What it does |
 |-------|--------------|
 | **Copy** | Copies the selected text to the clipboard and keeps the selection. Greyed out while nothing is selected. |
-| **Paste** | Sends the clipboard text to the session, the same way the paste shortcut does. |
+| **Paste** | Sends the clipboard text to the session, the same way the paste shortcut does (see [Pasting text](#pasting-text)). |
 | **Clear Buffer** | Clears the scrollback and the screen but keeps the prompt line. While a full-screen program such as `vim` or `less` is running, it does nothing. |
 | **Find** | Opens the find bar at the top right of the pane, the same as **Edit → Find...** (++ctrl+f++, ++cmd+f++ on macOS). Type to highlight matches, press ++enter++ or ++down++ for the next match and ++up++ for the previous one, and ++esc++ to close the bar. |
 
 Below them come the entries of other features, in this order and some only where they apply: **Show Menu Bar** (while the menu bar is hidden), **Open in Snippet Editor**, the **AI** submenu, the session-journal screenshot and note entries, **Theme**, **Highlighting** (see [Keyword highlighting](highlighting.md)), **Terminal Effect**, **Reconnect** and **Show Command Timestamps**. The **Extras** submenu at the end holds **Split Terminal**, **Font Size** (see [Font size and zoom](#font-size-and-zoom)) and **Broadcast Mode**.
+
+## Pasting text
+
+Every way of pasting into a terminal goes through korTTY: *Edit → Paste*, ++cmd+v++ on macOS, ++ctrl+shift+v++ on Windows and Linux, **Paste** in the right-click menu, a middle-click, which pastes the X11 primary selection on Linux and the clipboard elsewhere, and text you [drop onto a pane](#dropping-text). The text goes to the pane you paste into, and its line breaks arrive as Enter, the way they do when you type them.
+
+When the program in the pane has switched on bracketed paste, as bash, zsh, fish and most editors do while they wait for input, korTTY wraps the text in the bracketed-paste markers. The program then receives it as one pasted block instead of typed keys, so a line break in it does not run a command on its own. Bracketed-paste markers inside the text itself are removed first, including the 8-bit form that a single-byte [character encoding](connections.md#character-encoding) sends, so text copied from a web page or a file can neither end the paste early nor have its remaining lines run as typed commands.
+
+After a reconnect, and after a terminal reset (the `reset` command, or `ESC c` in the output), a pane does not use bracketed paste until its program switches it on again, so pasted line breaks act as Enter until then. A Mosh connection that recovers from a network interruption continues the same session and keeps the state.
+
+### Paste protection
+
+Some pastes ask before they reach the pane. korTTY then shows what you are about to paste, and nothing is sent until you choose **Paste**. Which pastes ask is set under *Settings → Terminal → Paste protection* (see [Terminal settings](../reference/settings/terminal.md)):
+
+- **Line breaks**: by default a paste with a line break asks unless the program in the pane uses bracketed paste, because each line break would then act as Enter and run a command. A single line that ends in a line break asks as well, since it would run at once. With **Always**, every paste with a line break asks, bracketed or not; with **Off**, none does.
+- **Control characters**: a paste that contains control characters, such as Escape, Ctrl+C or Ctrl+Z, or invisible characters that change the text direction asks whenever the warning is not **Off**, even when the program uses bracketed paste. The terminal on the server acts on Ctrl+C, Ctrl+Z and Ctrl+S before the program sees the paste, and direction-changing characters make text look different from what is sent. Ordinary text never contains them.
+- **Size**: a paste larger than 5 KiB asks, whatever the warning setting, because a large paste can flood a slow program or device and is hard to check. Set the size to 0 to turn this check off.
+
+![Paste confirmation](../assets/screenshots/main/paste-confirmation.png)
+
+The dialog names the pane by the connection it runs, which for a pane opened with **Split Right (new connection)** or **Split Down (new connection)** can be another server than the tab's, and shows the number of lines and the size, lists why it asks, and says whether the program in the pane uses bracketed paste. Its preview shows the start of the text, with control characters as symbols (such as ␛ for Escape) and invisible characters as `<U+XXXX>`. It also says when the text comes from the middle-click selection, when bracketed-paste markers in it are removed, and when broadcast mode is on: a paste always goes only to the pane you paste into. **Copy** in the preview's right-click menu follows the enterprise policy's [internal clipboard mode](../reference/enterprise-policy.md#internal-clipboard-mode).
+
+**Cancel** is the default button and has the focus, so ++enter++, ++space++ and ++esc++ all drop the paste and typing ahead can never confirm it. Click **Paste** to paste, or press ++tab++ to reach it and ++space++ to press it. A second paste into the same pane while the dialog is open is ignored, and a paste you confirm after the pane has reconnected is dropped instead of reaching the new session.
+
+!!! warning "Bracketed paste is what the server says"
+    Whether the program uses bracketed paste is what the program on the server tells the terminal, and any output can claim it: a crafted file you `cat`, or a login message, can switch it on in a shell that does not handle it, such as `sh` or the console of many network devices. Pasted line breaks then run as commands without a warning. If you work on production servers, choose **Always**.
+
+### Pasting into slow devices
+
+Switches, routers, console servers and other devices behind SSH can lose input that arrives faster than they read it, so a pasted configuration arrives with characters or whole lines missing. Set **Pause after each pasted line** under *Settings → Terminal → Paste protection* (0 to 1,000 ms; 0, the default, turns it off) and korTTY sends a paste with several lines one line at a time, with that pause after each line. A single line still goes out at once, and a paste that asks for confirmation is paced after you choose **Paste**.
+
+While the lines are sent, the bottom right corner of the pane shows how far the paste is, such as *Pasting line 3 of 40 · Esc stops*. The pane takes no keyboard input meanwhile, so nothing you type lands between two pasted lines; on macOS, ++cmd++ shortcuts keep working, and the pane's find bar still takes what you type. Press ++esc++ to stop the paste: the remaining lines are not sent. When the program in the pane uses bracketed paste, the paced lines still arrive as one pasted block, and stopping ends that block, so the lines already sent stay in the program's input line without running.
+
+A new paste into the pane is ignored until the paced one is done, and in [broadcast mode](#broadcast-mode) the keys you type in the other panes are not sent into it. Closing the pane, a reconnect and closing the tab stop the paste.
+
+### Dropping text
+
+Drag text from another application, such as a browser or an editor, or from another korTTY window, and drop it onto a terminal pane to paste it there. It goes into the pane under the pointer, which need not be the pane you were typing in, and that pane becomes the focused pane. Dropped text is a paste like any other: bracketed-paste markers in it are removed, [paste protection](#paste-protection) asks first when its rules say so, with a note in the dialog that the text was dropped onto the terminal, and a line delay paces it. The text is always copied, so the application you drag it from keeps it. A pane that is not connected, or is still pacing a paste, does not take the drop.
+
+Dropped files are copied to the server over SFTP instead, in SSH tabs. A drag that carries files together with their path as text, as one from Finder or Explorer does, copies the files and never pastes the path. Both need **Allow drag and drop into the terminal** under *Settings → Terminal* (on by default); with it off, the terminal takes neither files nor text. With the enterprise policy's [internal clipboard mode](../reference/enterprise-policy.md#internal-clipboard-mode), text dragged from another application is refused, as a paste from the operating system clipboard is, while text dragged within korTTY is still pasted.
 
 ## Links in terminal output
 
@@ -182,6 +221,7 @@ When **Broadcast Mode** is enabled, keyboard input is sent simultaneously to all
 - **Encoded for each pane**: every pane receives a key the way its own program expects it. When one pane runs `mc` or `vim`, which switch the terminal to application cursor keys, its arrows arrive as `ESC O A` while a shell in the next pane gets `ESC [ A`, so history and completion work in both.
 - **Kept local**: the scrollback keys (++shift+page-up++ / ++shift+page-down++, and ++ctrl+up++ / ++ctrl+down++ on Windows and Linux or ++cmd+up++ / ++cmd+down++ on macOS) scroll only the focused pane. A full-screen program such as `vim` or `less` has no scrollback, so while one runs in the focused pane, ++shift+page-up++ / ++shift+page-down++ (and ++ctrl+up++ / ++ctrl+down++ on Windows and Linux) go to that program and, like the other keys, to every other pane.
 - **Not mirrored**: paste and snippets go only to the focused pane, and what you type into the find bar stays in the find bar.
+- **A pane that is pacing a paste is left out**: while a pane sends a paste line by line (see [Pasting into slow devices](#pasting-into-slow-devices)), the keys you type in the other panes are not sent into it, so none of them lands between two pasted lines.
 - **A stalled pane does not freeze korTTY**: the keys for the other panes are sent in the background, to each pane in the order you typed them, so a server that stops responding holds up only its own pane while the window and the other panes keep reacting.
 
 ## Terminal effects

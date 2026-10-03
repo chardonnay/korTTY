@@ -8,14 +8,25 @@ import com.sithtermfx.ui.SithTermFxWidget;
 import com.sithtermfx.ui.settings.DynamicFontSizeSettingsProvider;
 import de.kortty.core.LanguageManager;
 import de.kortty.model.GlobalSettings;
+import de.kortty.paste.PasteDecision;
+import de.kortty.paste.PasteGuard;
+import de.kortty.paste.PastePacer;
+import de.kortty.paste.PasteProtectionSettings;
+import de.kortty.paste.PasteRules;
+import de.kortty.paste.PasteSource;
 import de.kortty.ui.I18n;
 import de.kortty.ui.KorttyTermWidget;
+import de.kortty.ui.PasteConfirmationDialog;
 import javafx.application.Platform;
 import javafx.event.Event;
 import javafx.geometry.Point2D;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.DialogPane;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.input.KeyCode;
@@ -48,6 +59,20 @@ import java.util.concurrent.atomic.AtomicReference;
  * find bar, and the font size. Run via the {@code terminalContextMenuActionsSmoke} Gradle task.
  * Exit 0 = OK.
  *
+ * <p>It then installs korTTY's paste guard on the pane, as {@code TerminalView} does, and checks
+ * that a paste loses an embedded bracketed-paste end marker, is bracketed once the program enables
+ * bracketed paste and no longer after a terminal reset ({@code ESC c}), and that a local middle-click
+ * pastes once, through the guard and not through SithTermFX.
+ *
+ * <p>Last, the pane gets the guard {@code TerminalView} builds, with the default paste protection and
+ * the real {@link PasteConfirmationDialog}: a multi-line paste into an unbracketed pane opens the
+ * dialog with Cancel focused, a second paste while it is open opens no second dialog, Enter drops
+ * the paste, and only Paste sends it.
+ *
+ * <p>Then the guard paces its pastes with the real timer on the FX thread: the lines reach the pty
+ * one pause apart and in order, a paste into the pane while it is pacing is dropped, and cancelling
+ * stops the remaining lines.
+ *
  * <p>Copy and Paste go through the operating system clipboard. The smoke saves its text contents
  * first and puts them back when it ends.
  */
@@ -60,6 +85,7 @@ public final class TerminalContextMenuActionsSmoke {
     private static final String PASTED = "pasted-by-context-menu-smoke";
     private static final String TYPED_AFTER_CLEAR = "typed-after-clear";
     private static final String NEXT_PROMPT = "next-prompt$ ";
+    private static final String ESC = "\u001b";
     /** Distance in pixels of the select-all drag from the canvas corners. */
     private static final double DRAG_INSET = 5;
 
@@ -80,7 +106,13 @@ public final class TerminalContextMenuActionsSmoke {
                 LanguageManager.getInstance().initialize(new GlobalSettings());
                 TerminalSplitPane terminalSplitPane = new TerminalSplitPane(
                     () -> {
-                        DynamicFontSizeSettingsProvider provider = new DynamicFontSizeSettingsProvider(INITIAL_FONT_SIZE);
+                        // korTTY's own settings provider pastes on middle-click; SithTermFX's default does not.
+                        DynamicFontSizeSettingsProvider provider = new DynamicFontSizeSettingsProvider(INITIAL_FONT_SIZE) {
+                            @Override
+                            public boolean pasteOnMiddleMouseClick() {
+                                return true;
+                            }
+                        };
                         providers.add(provider);
                         return provider;
                     },
@@ -115,7 +147,9 @@ public final class TerminalContextMenuActionsSmoke {
             System.err.println("SMOKE FAILURE: " + failure.get());
             System.exit(1);
         }
-        System.out.println("SMOKE OK: terminal context menu Copy, Paste, Clear Buffer, Find and Font Size reach the pane");
+        System.out.println("SMOKE OK: terminal context menu Copy, Paste, Clear Buffer, Find and Font Size reach the pane;"
+            + " pastes go through the paste guard; the paste confirmation cancels on Enter and pastes on Paste;"
+            + " a paced paste arrives line by line and stops when cancelled");
         System.exit(0);
     }
 
@@ -235,6 +269,10 @@ public final class TerminalContextMenuActionsSmoke {
             check(fireMenuItem(canvas, "terminal.contextMenu.reset"), "Reset must be enabled");
             check(provider.getFontSize() == DEFAULT_RESET_FONT_SIZE,
                 "Reset did not restore the default font size: " + provider.getFontSize());
+
+            verifyPasteGuard((KorttyTermWidget) widget, connector, canvas, clipboard);
+            verifyPasteConfirmation((KorttyTermWidget) widget, connector, canvas, clipboard);
+            verifyPastePacing((KorttyTermWidget) widget, connector, canvas, clipboard);
         } catch (Throwable error) {
             failure.compareAndSet(null, "Assertion failed: " + stack(error));
         } finally {
@@ -243,6 +281,251 @@ public final class TerminalContextMenuActionsSmoke {
             }
             done.countDown();
         }
+    }
+
+    /**
+     * The pane with korTTY's paste guard installed, the way {@code TerminalView} installs it. Runs last:
+     * the terminal reset it sends clears the screen.
+     */
+    private static void verifyPasteGuard(KorttyTermWidget widget, RecordingTtyConnector connector, Node canvas,
+                                         Clipboard clipboard) throws Exception {
+        List<PasteSource> guardedPastes = new CopyOnWriteArrayList<>();
+        PasteGuard guard = new PasteGuard(() -> PasteRules.NONE, (request, answer) -> answer.accept(false));
+        onFxThread(() -> {
+            widget.setPasteHandler((target, text, source) -> {
+                guardedPastes.add(source);
+                guard.paste(target, text, source);
+            });
+            return null;
+        });
+
+        // An end marker in the clipboard never reaches the pty; line breaks become CR.
+        int mark = connector.written().length();
+        clipboard.setContents(new StringSelection("echo one" + ESC + "[201~\necho two"), null);
+        check(fireMenuItem(canvas, "terminal.contextMenu.paste"), "Paste must be enabled");
+        await("guarded Paste did not reach the pty", () -> connector.written().substring(mark).contains("echo two"));
+        String unbracketed = connector.written().substring(mark);
+        check(unbracketed.equals("echo one\recho two"), "unexpected unbracketed paste: " + visible(unbracketed));
+        check(guardedPastes.equals(List.of(PasteSource.CLIPBOARD)), "the context menu bypassed the paste guard");
+
+        // The program enables bracketed paste: the paste is wrapped once, without the clipboard's marker.
+        connector.feed(ESC + "[?2004h");
+        await("ESC[?2004h did not enable bracketed paste", () -> onFxThread(widget::isBracketedPasteMode));
+        int bracketedMark = connector.written().length();
+        clipboard.setContents(new StringSelection("a" + ESC + "[201~\nb"), null);
+        check(fireMenuItem(canvas, "terminal.contextMenu.paste"), "Paste must be enabled");
+        String expectedBracketed = ESC + "[200~a\rb" + ESC + "[201~";
+        await("bracketed Paste did not reach the pty",
+            () -> connector.written().substring(bracketedMark).contains(expectedBracketed));
+        String bracketed = connector.written().substring(bracketedMark);
+        check(bracketed.equals(expectedBracketed), "unexpected bracketed paste: " + visible(bracketed));
+
+        // A terminal reset ends bracketed paste, although SithTermFX's own flag stays set.
+        connector.feed(ESC + "c");
+        await("ESC c did not end bracketed paste", () -> !onFxThread(widget::isBracketedPasteMode));
+        int resetMark = connector.written().length();
+        clipboard.setContents(new StringSelection("after\nreset"), null);
+        check(fireMenuItem(canvas, "terminal.contextMenu.paste"), "Paste must be enabled");
+        await("Paste after the reset did not reach the pty",
+            () -> connector.written().substring(resetMark).contains("reset"));
+        String afterReset = connector.written().substring(resetMark);
+        check(afterReset.equals("after\rreset"), "paste after a reset was still bracketed: " + visible(afterReset));
+
+        // A local middle-click pastes once, through the guard; SithTermFX's own handler never sees it.
+        int pastesBeforeClick = guardedPastes.size();
+        int middleMark = connector.written().length();
+        String middle = "middle-click-paste";
+        clipboard.setContents(new StringSelection(middle), null);
+        // On X11 a middle-click reads the primary selection; elsewhere it reads the clipboard.
+        Clipboard selection = onFxThread(() -> Toolkit.getDefaultToolkit().getSystemSelection());
+        if (selection != null) {
+            selection.setContents(new StringSelection(middle), null);
+        }
+        onFxThread(() -> {
+            Point2D screen = canvas.localToScreen(40, 40);
+            Event.fireEvent(canvas, new MouseEvent(MouseEvent.MOUSE_CLICKED, 40, 40, screen.getX(), screen.getY(),
+                MouseButton.MIDDLE, 1, false, false, false, false, false, false, false, false, true, true, null));
+            return null;
+        });
+        await("middle-click did not paste", () -> connector.written().substring(middleMark).contains(middle));
+        sleep(300);
+        String clicked = connector.written().substring(middleMark);
+        check(clicked.equals(middle), "middle-click pasted " + visible(clicked) + " instead of once");
+        check(guardedPastes.size() == pastesBeforeClick + 1
+                && guardedPastes.get(pastesBeforeClick) == PasteSource.SELECTION,
+            "the middle-click bypassed the paste guard: " + guardedPastes);
+        check(onFxThread(() -> canvas.getScene().getFocusOwner() == canvas), "the middle-click did not focus the pane");
+    }
+
+    /**
+     * The pane with the guard {@code TerminalView} builds: default paste protection and the real
+     * confirmation dialog. Runs after {@link #verifyPasteGuard}, which leaves the pane unbracketed.
+     */
+    private static void verifyPasteConfirmation(KorttyTermWidget widget, RecordingTtyConnector connector, Node canvas,
+                                                Clipboard clipboard) throws Exception {
+        PasteGuard guard = new PasteGuard(() -> new PasteDecision(PasteProtectionSettings.DEFAULTS),
+            new PasteConfirmationDialog(() -> canvas.getScene().getWindow()));
+        onFxThread(() -> {
+            widget.setPasteHandler(guard::paste);
+            return null;
+        });
+        check(!onFxThread(widget::isBracketedPasteMode), "the pane is still bracketed");
+        String lines = "echo smoke-one\necho smoke-two";
+        clipboard.setContents(new StringSelection(lines), null);
+
+        // Asked, nothing sent yet, Cancel has the focus; Enter (type-ahead) drops the paste.
+        int cancelMark = connector.written().length();
+        check(fireMenuItem(canvas, "terminal.contextMenu.paste"), "Paste must be enabled");
+        DialogPane dialog = awaitPasteDialog();
+        await("Cancel did not get the focus", () -> onFxThread(() ->
+            dialog.getScene().getFocusOwner() == dialogButton(dialog, ButtonBar.ButtonData.CANCEL_CLOSE)));
+        check(onFxThread(() -> dialogButton(dialog, ButtonBar.ButtonData.CANCEL_CLOSE).isDefaultButton()),
+            "Cancel is not the default button");
+        check(!onFxThread(() -> dialogButton(dialog, ButtonBar.ButtonData.OK_DONE).isDefaultButton()),
+            "Paste must not be the default button");
+        onFxThread(() -> {
+            widget.getTerminalPanel().handlePaste();
+            return null;
+        });
+        check(onFxThread(TerminalContextMenuActionsSmoke::pasteDialogCount) == 1,
+            "a second paste while the dialog is open opened another dialog");
+        check(connector.written().length() == cancelMark, "the paste was sent before it was confirmed");
+        onFxThread(() -> {
+            Node focused = dialog.getScene().getFocusOwner();
+            Event.fireEvent(focused, new KeyEvent(KeyEvent.KEY_PRESSED, "", "", KeyCode.ENTER,
+                false, false, false, false));
+            Event.fireEvent(focused, new KeyEvent(KeyEvent.KEY_RELEASED, "", "", KeyCode.ENTER,
+                false, false, false, false));
+            return null;
+        });
+        await("Enter did not close the paste dialog", () -> onFxThread(TerminalContextMenuActionsSmoke::pasteDialogCount) == 0);
+        sleep(300);
+        check(connector.written().length() == cancelMark,
+            "Enter pasted: " + visible(connector.written().substring(cancelMark)));
+
+        // Paste sends the text, line breaks as CR.
+        int acceptMark = connector.written().length();
+        check(fireMenuItem(canvas, "terminal.contextMenu.paste"), "Paste must be enabled");
+        DialogPane second = awaitPasteDialog();
+        onFxThread(() -> {
+            dialogButton(second, ButtonBar.ButtonData.OK_DONE).fire();
+            return null;
+        });
+        await("the confirmed paste did not reach the pty",
+            () -> connector.written().substring(acceptMark).contains("smoke-two"));
+        String accepted = connector.written().substring(acceptMark);
+        check(accepted.equals("echo smoke-one\recho smoke-two"), "unexpected confirmed paste: " + visible(accepted));
+        check(onFxThread(TerminalContextMenuActionsSmoke::pasteDialogCount) == 0, "Paste did not close the dialog");
+
+        // A single line asks nothing and goes straight to the pane.
+        int plainMark = connector.written().length();
+        clipboard.setContents(new StringSelection("single-line"), null);
+        check(fireMenuItem(canvas, "terminal.contextMenu.paste"), "Paste must be enabled");
+        await("a single-line paste did not reach the pty",
+            () -> connector.written().substring(plainMark).contains("single-line"));
+        check(onFxThread(TerminalContextMenuActionsSmoke::pasteDialogCount) == 0, "a single-line paste asked");
+    }
+
+    /**
+     * The pane with a pacing guard, as {@code TerminalView} builds it when a line delay is set. Runs
+     * after {@link #verifyPasteConfirmation}, which leaves the pane unbracketed.
+     */
+    private static void verifyPastePacing(KorttyTermWidget widget, RecordingTtyConnector connector, Node canvas,
+                                          Clipboard clipboard) throws Exception {
+        List<String> events = new CopyOnWriteArrayList<>();
+        PastePacer pacer = new PastePacer(PastePacer.Scheduler.sharedTimer(Platform::runLater),
+            new PastePacer.Listener() {
+                @Override
+                public void progressed(Object key, int sent, int total) {
+                    events.add(sent + "/" + total);
+                }
+
+                @Override
+                public void ended(Object key, PastePacer.Outcome outcome, int sent, int total) {
+                    events.add(outcome.name());
+                }
+            });
+        PasteGuard guard = new PasteGuard(() -> PasteRules.NONE, (request, answer) -> answer.accept(false), pacer,
+            () -> 400);
+        onFxThread(() -> {
+            widget.setPasteHandler(guard::paste);
+            return null;
+        });
+
+        // The first line at once, the others one pause apart; a paste meanwhile is dropped.
+        int mark = connector.written().length();
+        clipboard.setContents(new StringSelection("pace-one\npace-two\npace-three"), null);
+        check(fireMenuItem(canvas, "terminal.contextMenu.paste"), "Paste must be enabled");
+        check(onFxThread(() -> pacer.isPacing(widget)), "a multi-line paste with a line delay is not paced");
+        await("the first paced line did not reach the pty",
+            () -> connector.written().substring(mark).contains("pace-one\r"));
+        check(!connector.written().substring(mark).contains("pace-three"),
+            "the last line came without its pauses: " + visible(connector.written().substring(mark)));
+        onFxThread(() -> {
+            widget.getTerminalPanel().handlePaste();
+            return null;
+        });
+        await("the paced paste did not finish", () -> !onFxThread(() -> pacer.isPacing(widget)));
+        String paced = connector.written().substring(mark);
+        check(paced.equals("pace-one\rpace-two\rpace-three"), "unexpected paced paste: " + visible(paced));
+        check(events.equals(List.of("1/3", "2/3", "3/3", "COMPLETED")), "unexpected pacing events: " + events);
+
+        // Cancelling stops the lines that are still waiting.
+        int cancelMark = connector.written().length();
+        clipboard.setContents(new StringSelection("stop-one\nstop-two\nstop-three"), null);
+        check(fireMenuItem(canvas, "terminal.contextMenu.paste"), "Paste must be enabled");
+        await("the first line of the second paced paste did not reach the pty",
+            () -> connector.written().substring(cancelMark).contains("stop-one\r"));
+        check(onFxThread(() -> pacer.cancel(widget)), "the pane was not pacing");
+        sleep(1_000);
+        String cancelled = connector.written().substring(cancelMark);
+        check(cancelled.equals("stop-one\r"), "lines after the cancel reached the pty: " + visible(cancelled));
+    }
+
+    private static DialogPane awaitPasteDialog() throws Exception {
+        AtomicReference<DialogPane> found = new AtomicReference<>();
+        await("the paste did not open the confirmation dialog", () -> {
+            found.set(onFxThread(TerminalContextMenuActionsSmoke::pasteDialog));
+            return found.get() != null;
+        });
+        return found.get();
+    }
+
+    /** The open paste confirmation, or null. FX thread. */
+    private static DialogPane pasteDialog() {
+        for (Window window : Window.getWindows()) {
+            if (window.isShowing() && window.getScene() != null
+                    && window.getScene().getRoot().lookup("." + PasteConfirmationDialog.STYLE_CLASS) instanceof DialogPane pane) {
+                return pane;
+            }
+        }
+        return null;
+    }
+
+    /** How many paste confirmations are open. FX thread. */
+    private static int pasteDialogCount() {
+        int count = 0;
+        for (Window window : Window.getWindows()) {
+            if (window.isShowing() && window.getScene() != null
+                    && window.getScene().getRoot().lookup("." + PasteConfirmationDialog.STYLE_CLASS) != null) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static Button dialogButton(DialogPane dialog, ButtonBar.ButtonData data) {
+        for (ButtonType type : dialog.getButtonTypes()) {
+            if (type.getButtonData() == data) {
+                return (Button) dialog.lookupButton(type);
+            }
+        }
+        throw new AssertionError("the paste dialog has no " + data + " button");
+    }
+
+    /** Escape characters made readable for a failure message. */
+    private static String visible(String text) {
+        return "\"" + text.replace(ESC, "ESC").replace("\r", "\\r").replace("\n", "\\n") + "\"";
     }
 
     /**

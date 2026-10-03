@@ -4,7 +4,7 @@ title: Terminal
 
 # Terminal
 
-Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, keyword highlighting, links, and SSH connection management. Open via **Configuration → Global Settings → Terminal**; stored in `~/.kortty/global-settings.xml`.
+Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, keyword highlighting, links, paste protection, and SSH connection management. Open via **Configuration → Global Settings → Terminal**; stored in `~/.kortty/global-settings.xml`.
 
 ![Terminal settings tab](../../assets/screenshots/settings/terminal.png)
 
@@ -17,7 +17,7 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Bold as bright color | toggle | — | On | `boldAsBright` |
 | Show scrollbar in terminal | toggle | — | On | `showTerminalScrollbar` |
 | Show command timestamps | toggle | — | Off | `commandTimestampsEnabled` |
-| Allow drag-and-drop file copy into terminal | toggle | — | On | `terminalDragDropEnabled` |
+| Allow drag and drop into the terminal (files copy over SFTP, text is pasted) | toggle | — | On | `terminalDragDropEnabled` |
 | Copy selection to clipboard automatically | toggle | — | On | `terminalCopyOnSelectEnabled` |
 | Close active terminal windows without confirmation | toggle | — | Off | `closeActiveTerminalWindowsWithoutConfirmation` |
 | Highlight keywords in terminal output | toggle | — | On | `terminalHighlightingEnabled` |
@@ -25,6 +25,9 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Default rule set: | dropdown | None, Errors and warnings, Network addresses, Network devices, or a set of your own | None | `defaultHighlightRuleSetId` |
 | Edit Rules… | button | opens the rule-set editor | — | `highlightRuleSets` |
 | Detect web addresses, e-mail addresses and file paths in terminal text | toggle | — | On | `terminalLinkDetectionEnabled` |
+| Warn about multi-line pastes: | dropdown | Off, Unless the program uses bracketed paste, Always | Unless the program uses bracketed paste | `pasteWarningMode` |
+| Warn about pastes larger than: | number | 0–10,240 KiB (0 = off) | 5 | `pasteLargeWarningKiB` |
+| Pause after each pasted line: | number | 0–1,000 ms (0 = off) | 0 | `pasteLineDelayMs` |
 | Enable SSH Keep-Alive | toggle | — | On | `sshKeepAliveEnabled` |
 | Interval (seconds): | number | 5–600 | 60 | `sshKeepAliveInterval` |
 | Enable connection retries | toggle | — | On | `connectionRetriesEnabled` |
@@ -65,14 +68,23 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 !!! note "Links"
     With **Detect web addresses, e-mail addresses and file paths in terminal text** on, ++cmd++ + click (macOS) or ++ctrl++ + click (Windows, Linux) opens a web address, an e-mail address or a file path that a program printed as plain text: a web address in your default browser, an e-mail address as a new mail in your mail program, and in SSH and local-shell tabs a file path as text in the Snippet Editor. A plain click still only selects text. A change applies to the open terminals at once. Links that a program marks up itself with OSC 8 open with the same click either way. See [Links in terminal output](../../features/terminal.md#links-in-terminal-output).
 
+!!! note "Paste protection"
+    Decides which terminal pastes ask before they reach the pane; the dialog itself is described under [Paste protection](../../features/terminal.md#paste-protection). **Warn about multi-line pastes** decides when a paste with a line break asks: **Unless the program uses bracketed paste** (the default) asks only when the program in the pane would receive each line break as Enter, **Always** asks for every paste with a line break, and **Off** never asks. Whenever it is not **Off**, a paste with control characters (such as Escape or Ctrl+C) or with invisible characters that change the text direction asks too, bracketed or not. **Warn about pastes larger than** asks for every paste above that size in KiB, whatever the dropdown says; 0 turns the size check off. Both apply to the next paste. They are stored as `pasteWarningMode` (`off`, `unless-bracketed` or `always`; an unknown value counts as `unless-bracketed`) and `pasteLargeWarningKiB`.
+
+    **Pause after each pasted line** is for devices such as switches, routers and console servers that lose input arriving too fast: a paste with several lines is sent one line at a time, with this many milliseconds after each line. While it runs, the pane takes no keyboard input and ++esc++ stops the paste (see [Pasting into slow devices](../../features/terminal.md#pasting-into-slow-devices)). 0 sends every paste at once. It is stored as `pasteLineDelayMs`.
+
+    Whether a program uses bracketed paste is what the server reports, and any output can switch it on, also in a shell such as `sh` that does not handle it. Pasted line breaks then run without a warning, so choose **Always** if you work on production servers.
+
 !!! note "SSH Keep-Alive"
     When enabled, korTTY sends periodic keep-alive packets to prevent SSH sessions from timing out during idle periods. The interval setting controls how often (in seconds) these packets are sent. The spinner range is 5–600 seconds; the interval is disabled if SSH Keep-Alive is toggled off.
 
 !!! warning "Disable host key verification for all connections"
     This is the global, lowest-precedence host-key setting: it relaxes verification to accept-new for every connection that does not set its own or its group's override. Accept-new still hard-blocks a changed key on a host already pinned, and a jump server's own key is always verified strictly — but disabling first-use verification removes protection against a man-in-the-middle on the very first connection. Off by default. Per-connection and per-group overrides are set in the Connection Manager; see [Security → Relaxing host-key verification](../../features/security.md#relaxing-host-key-verification).
 
-!!! note "Drag-and-Drop File Copy"
+!!! note "Drag and drop into the terminal"
     When enabled, you can drop files or folders from your file manager (Finder on macOS, Explorer on Windows) directly into the terminal window. The files will be copied to the remote SSH server via SFTP.
+
+    Text dropped onto a terminal pane, from a browser, an editor or another korTTY window, is pasted into the pane under the pointer, through [paste protection](../../features/terminal.md#paste-protection) like any other paste; see [Dropping text](../../features/terminal.md#dropping-text). A drag that carries files and their path as text copies the files. With the enterprise policy's [internal clipboard mode](../enterprise-policy.md#internal-clipboard-mode), text dragged from another application is refused. When this setting is off, the terminal takes neither files nor text.
 
 !!! note "Command Timestamps"
     When enabled, a sidebar appears on the left side of the terminal displaying the date and time each command was entered, useful for audit trails and session logging.

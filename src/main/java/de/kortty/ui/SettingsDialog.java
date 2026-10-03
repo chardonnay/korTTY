@@ -72,6 +72,9 @@ import de.kortty.model.TranslationApiProvider;
 import de.kortty.model.StoredCredential;
 import de.kortty.model.GPGKey;
 import de.kortty.model.WindowGeometry;
+import de.kortty.paste.PastePacer;
+import de.kortty.paste.PasteProtectionSettings;
+import de.kortty.paste.PasteWarningMode;
 import de.kortty.security.PasswordStrengthChecker;
 import de.kortty.security.MasterPasswordManager;
 import de.kortty.security.MasterPasswordReEncryptor;
@@ -171,6 +174,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox terminalCopyOnSelectCheck;
     private final CheckBox terminalLinkDetectionCheck;
     private final CheckBox closeActiveTerminalWindowsWithoutConfirmationCheck;
+    private final ComboBox<PasteWarningMode> pasteWarningModeCombo;
+    private final Spinner<Integer> pasteLargeWarningSpinner;
+    private final Spinner<Integer> pasteLineDelaySpinner;
     private final CheckBox terminalRecordingAlwaysEnabledCheck;
     private final CheckBox terminalRecordingCaptureColorsCheck;
     private final CheckBox codingAgentDetectionCheck;
@@ -801,6 +807,35 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         closeActiveTerminalWindowsWithoutConfirmationCheck.setTooltip(
             new Tooltip(I18n.get("settings.terminal.closeActiveWithoutConfirmation.tooltip"))
         );
+
+        // Paste protection: when a terminal paste asks before it reaches the pane.
+        pasteWarningModeCombo = new ComboBox<>();
+        pasteWarningModeCombo.getItems().setAll(PasteWarningMode.values());
+        pasteWarningModeCombo.setValue(globalSettings != null
+            ? globalSettings.getPasteWarningMode() : PasteWarningMode.DEFAULT);
+        pasteWarningModeCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(PasteWarningMode mode) {
+                return mode != null ? I18n.get(pasteWarningModeKey(mode)) : "";
+            }
+
+            @Override
+            public PasteWarningMode fromString(String text) {
+                return null;
+            }
+        });
+        pasteWarningModeCombo.setTooltip(new Tooltip(I18n.get("settings.terminal.paste.warningMode.tooltip")));
+        pasteLargeWarningSpinner = new Spinner<>(0, PasteProtectionSettings.MAX_LARGE_WARNING_KIB,
+            globalSettings != null ? globalSettings.getPasteLargeWarningKiB()
+                : PasteProtectionSettings.DEFAULT_LARGE_WARNING_KIB);
+        pasteLargeWarningSpinner.setEditable(true);
+        pasteLargeWarningSpinner.setPrefWidth(100);
+        pasteLargeWarningSpinner.setTooltip(new Tooltip(I18n.get("settings.terminal.paste.largeWarning.tooltip")));
+        pasteLineDelaySpinner = new Spinner<>(0, PastePacer.MAX_LINE_DELAY_MS,
+            globalSettings != null ? globalSettings.getPasteLineDelayMs() : 0, 10);
+        pasteLineDelaySpinner.setEditable(true);
+        pasteLineDelaySpinner.setPrefWidth(100);
+        pasteLineDelaySpinner.setTooltip(new Tooltip(I18n.get("settings.terminal.paste.lineDelay.tooltip")));
         
         // SSH Keep-Alive settings
         sshKeepAliveCheck = new CheckBox(I18n.get("settings.terminal.sshKeepAlive"));
@@ -929,6 +964,28 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         linksHeader.setStyle("-fx-font-weight: bold;");
         terminalGrid.add(linksHeader, 0, terminalRow++, 2, 1);
         terminalGrid.add(terminalLinkDetectionCheck, 0, terminalRow++, 2, 1);
+
+        // Paste protection section
+        terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
+        Label pasteProtectionHeader = new Label(I18n.get("settings.terminal.paste.header"));
+        pasteProtectionHeader.setStyle("-fx-font-weight: bold;");
+        terminalGrid.add(pasteProtectionHeader, 0, terminalRow++, 2, 1);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.paste.warningMode")), 0, terminalRow);
+        terminalGrid.add(pasteWarningModeCombo, 1, terminalRow++);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.paste.largeWarning")), 0, terminalRow);
+        HBox pasteLargeWarningBox = new HBox(10, pasteLargeWarningSpinner,
+            new Label(I18n.get("settings.terminal.paste.largeWarning.unit")));
+        pasteLargeWarningBox.setAlignment(Pos.CENTER_LEFT);
+        terminalGrid.add(pasteLargeWarningBox, 1, terminalRow++);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.paste.lineDelay")), 0, terminalRow);
+        HBox pasteLineDelayBox = new HBox(10, pasteLineDelaySpinner,
+            new Label(I18n.get("settings.terminal.paste.lineDelay.unit")));
+        pasteLineDelayBox.setAlignment(Pos.CENTER_LEFT);
+        terminalGrid.add(pasteLineDelayBox, 1, terminalRow++);
+        Label pasteProtectionInfo = new Label(I18n.get("settings.terminal.paste.info"));
+        pasteProtectionInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        pasteProtectionInfo.setWrapText(true);
+        terminalGrid.add(pasteProtectionInfo, 0, terminalRow++, 2, 1);
 
         // SSH Keep-Alive section
         terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
@@ -3342,6 +3399,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setTerminalDragDropEnabled(terminalDragDropCheck.isSelected());
             globalSettings.setTerminalCopyOnSelectEnabled(terminalCopyOnSelectCheck.isSelected());
             globalSettings.setTerminalLinkDetectionEnabled(terminalLinkDetectionCheck.isSelected());
+            globalSettings.setPasteWarningMode(pasteWarningModeCombo.getValue());
+            globalSettings.setPasteLargeWarningKiB(pasteLargeWarningSpinner.getValue() != null
+                ? pasteLargeWarningSpinner.getValue() : PasteProtectionSettings.DEFAULT_LARGE_WARNING_KIB);
+            globalSettings.setPasteLineDelayMs(pasteLineDelaySpinner.getValue() != null
+                ? pasteLineDelaySpinner.getValue() : 0);
             globalSettings.setCloseActiveTerminalWindowsWithoutConfirmation(
                 closeActiveTerminalWindowsWithoutConfirmationCheck.isSelected()
             );
@@ -3592,6 +3654,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("terminal", "link_detection", gs::isTerminalLinkDetectionEnabled, true));
             tracked.add(new TrackedSetting("terminal", "close_without_confirmation",
                 gs::isCloseActiveTerminalWindowsWithoutConfirmation, true));
+            tracked.add(new TrackedSetting("terminal", "paste_warning_mode", () -> gs.getPasteWarningMode().id(), true));
+            tracked.add(new TrackedSetting("terminal", "paste_large_warning_kib", gs::getPasteLargeWarningKiB, true));
+            tracked.add(new TrackedSetting("terminal", "paste_line_delay_ms", gs::getPasteLineDelayMs, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_detection", gs::isCodingAgentDetectionEnabled, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_notifications",
                 gs::isCodingAgentNotificationsEnabled, true));
@@ -4318,7 +4383,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         return TerminalCursorStyleSupport.withStoredBlinkingPreference(currentStyle, blink);
     }
 
-    
+    /** The label key of a choice in the paste protection dropdown. */
+    private static String pasteWarningModeKey(PasteWarningMode mode) {
+        return switch (mode) {
+            case OFF -> "settings.terminal.paste.mode.off";
+            case UNLESS_BRACKETED -> "settings.terminal.paste.mode.unlessBracketed";
+            case ALWAYS -> "settings.terminal.paste.mode.always";
+        };
+    }
+
     public void addChangeListener(Runnable listener) {
         changeListeners.add(listener);
     }

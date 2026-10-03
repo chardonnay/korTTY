@@ -10,6 +10,7 @@ import org.testng.annotations.Test;
 
 import java.lang.reflect.Method;
 import java.security.CodeSource;
+import java.util.function.Predicate;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
@@ -40,6 +41,7 @@ public class TerminalSplitPaneShadowGuardTest {
         assertThat(preparedSplit.getReturnType()).isEqualTo(SithTermFxWidget.class);
 
         TerminalSplitPane.class.getDeclaredMethod("setFocusedWidgetInternal", SithTermFxWidget.class);
+        TerminalSplitPane.class.getDeclaredMethod("setMirrorTargetGuard", Predicate.class);
 
         Method paneOverlay = TerminalSplitPane.class.getDeclaredMethod("paneOverlay",
             SithTermFxWidget.class, TerminalSplitPane.PaneOverlayLayer.class);
