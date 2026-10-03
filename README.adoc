@@ -40,7 +40,7 @@ image::app-docs/diagrams/architecture.svg[KorTTY architecture,align=center]
 * *JobScheduler Journal and Shutdown Safety*: Persist redacted or full journals, search journal entries across all fields or selected columns with wildcard terms, sort and delete entries from the UI, store local timestamps, auto-delete entries older than 14 days by default, and warn before quitting while background jobs are still running
 * *Power Management*: On macOS and Windows, enable *Configuration → Prevent System Sleep* to keep the computer awake only while a terminal is connected, a future or running JobScheduler job exists, or an AI request is in progress; with none of these activities the computer may sleep normally. macOS App Nap is suppressed only during running jobs, active AI requests, and recent terminal I/O, while background UI animations and polling are parked and display sleep remains available
 * *JobScheduler Security Controls*: Require pinned SSH host keys by default, allow explicit per-job host-key verification disablement, store server/group sudo passwords encrypted, and block secret-dependent jobs while the master password is locked
-* *Interactive SSH Host-Key Trust*: Terminal, SFTP and Mosh bootstrap connections use a shared persistent per-host:port TOFU store with a default-deny first-use prompt and hard blocking on key changes
+* *Interactive SSH Host-Key Trust*: Terminal, SFTP and Mosh bootstrap connections use a shared persistent per-host:port TOFU store with a default-deny first-use prompt and hard blocking on key changes; a changed key is replaced only after an explicit fingerprint review, and trusted keys can be searched and removed under Configuration → Security → Known Hosts…
 * *JobScheduler Script, SFTP, and Rsync Actions*: Run SnippetManager scripts with searchable script selection and additional per-job parameters; show only fields used by the selected scheduler action; upload, download, sync, delete, rename, mkdir, chmod, chown, remote-copy, and archive via SFTP; synchronize one or more directories via external `rsync` over SSH
 * *ASCII Art*: Generate FIGlet banners with multiple styles, or let the AI draw an ASCII picture from a subject word with a retry button for new variations; shared zoomable preview (Tools menu)
 * *Window Geometry Storage*: Automatic restoration of window position and size
@@ -466,7 +466,7 @@ All configuration files are stored under `~/.kortty/`:
 ├── job-scheduler.xml   # JobScheduler jobs, host-key pins, sudo secrets, journal
 ├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin ids
 ├── coding-agents/      # User overrides for coding-agent detection rules
-├── master-password-hash # Master password hash
+├── master.key          # Master password salt and verification hash
 ├── kortty.log          # Log file
 ├── history/            # Project screen snapshots (gzip)
 ├── plugins/            # Imported terminal-effect plugin JARs
@@ -614,8 +614,8 @@ image::app-docs/diagrams/backup-restore.svg[Backup and restore flow,align=center
 
 2. *Import Backup*:
 ** *Edit → Import Backup...*
-** Select backup file (.zip or .gpg)
-** Enter password if required
+** Select backup file (`kortty-backup.zip` or `kortty-backup.zip.gpg`); the format is read from the file content
+** Enter the ZIP password if prompted (GPG backups need the matching private key instead)
 ** Choose whether to overwrite existing files
 ** All settings are restored from the backup
 
@@ -1006,19 +1006,20 @@ The integrated SFTP Manager enables direct file transfers between your local sys
 === Features
 
 * *Two-Panel View*: Local and remote files side by side
-* *Columns*: Name, Type, Size, Date, *User*, *Group*, Permissions (sortable)
+* *Columns*: Name, Type, Size, Date, *User*, *Group*, Permissions (sortable; Size by byte count)
+* *Robust Transfers*: Uploading a folder again merges into the remote folder, uploads are streamed (no size limit), remote folders load in the background, and a lost connection shows *Disconnected* with a *Reconnect* button
 * *Default Sort*: By type — parent directory (`..`) first, then dot-prefix directories, then other directories, then dot-prefix files, then other files (each group alphabetically)
-* *Drag & Drop*: Easy file moving
-* *File Operations*: Delete, rename, copy files and directories
+* *Drag & Drop*: Drag local rows or files from the desktop onto the remote panel to upload them and remote rows onto the local panel to download them, also straight into a folder row; up to 20 files with 16 MB together can be dragged from the server to the desktop
+* *File Operations*: Rename (F2 or context menu), New Folder (toolbar button or context menu), delete (Delete key) and copy files and directories
 * *Snippet Editor File Editing*: Select exactly one local or remote file and choose *Edit → Edit in Snippet Editor* or the context-menu entry. The editor can overwrite the original file, save a local copy or same-folder remote copy under another name, or save the content as a Snippet Manager snippet.
 * *Owner/Permissions*: Set owner, group, and permissions (chmod) locally and remotely; separate User/Group fields in dialogs
-* *ZIP Archiving*: Create ZIP archives from multiple files/directories
-* *Search*: Glob pattern search (`*`) in both panels
+* *Archiving*: Pack files and directories as ZIP, TAR.BZ2 or 7z, depending on the tools available
+* *Search*: Wildcard search (`*`, `?`, `[abc]`, `{a,b}`) over the whole name in both panels; plain text matches anywhere in the name
 
 === Access
 
-* *Dashboard*: Right-click on a server → "Open SFTP Manager"
-* *Menu*: *Tools → Open SFTP Manager...*
+* *Dashboard*: Right-click a connected session → "SFTP-Client..."
+* *Menu*: *Connections → SFTP-Client...* (Ctrl/Cmd+Shift+U)
 
 == Window and Dashboard Management
 

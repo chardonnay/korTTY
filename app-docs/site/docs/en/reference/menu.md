@@ -26,7 +26,7 @@ Connection entries (Quick Connect, Manage/Import/Export Connections) live in the
 | Cut | ++ctrl+x++ | Cut (disabled for terminal tabs) |
 | Copy | ++ctrl+c++ | Copy the terminal selection |
 | Paste | ++ctrl+v++ | Paste into the terminal |
-| Find… | ++ctrl+f++ | Search the active tab (terminal scrollback or open editor) |
+| Find… | ++ctrl+f++ | Search the active tab (terminal scrollback or open editor). On Windows and Linux a focused terminal sends ++ctrl+f++ to the shell, so open Find from this menu or the terminal's right-click menu there |
 
 ## Connections
 
@@ -42,9 +42,11 @@ Connection entries (Quick Connect, Manage/Import/Export Connections) live in the
 
 | Item | Description |
 | --- | --- |
+| Unlock Vault… | Enter the master password to unlock stored secrets when the startup prompt is off (disabled while unlocked) |
 | Credentials… | Manage stored credentials (encrypted) |
 | GPG-Keys… | Manage GPG keys used for backup encryption |
 | SSH-Keys… | Manage SSH keys and passphrases |
+| Known Hosts… | Review, search and remove trusted SSH host keys |
 
 ## Configuration
 

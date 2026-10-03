@@ -20,6 +20,7 @@ import de.kortty.model.WindowGeometry;
 import de.kortty.plugin.terminaleffects.TerminalEffectAnimationSpeed;
 import com.sithtermfx.core.emulator.EmulationType;
 import de.kortty.core.TerminalEmulationSupport;
+import de.kortty.core.TerminalEncodingSupport;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert;
@@ -48,6 +49,10 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private final SSHKeyManager sshKeyManager;
     private final char[] masterPassword;
     private ComboBox<StoredCredential> savedCredentialsCombo;
+    /** Fills the password field from the selected credential; external commands run off the FX thread. */
+    private final CredentialPasswordResolver credentialPasswordResolver = new CredentialPasswordResolver();
+    /** Set while the host filter rebuilds the credential list, so restoring the selection does not re-run its command. */
+    private boolean refreshingCredentialCombo;
     private ComboBox<SSHKey> savedSSHKeysCombo;
     private ComboBox<AiProfileOption> aiProfileCombo;
     private java.util.Map<String, javafx.beans.property.BooleanProperty> aiSkillChecksById;
@@ -58,6 +63,10 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private final Spinner<Integer> portSpinner;
     private final ComboBox<ConnectionProtocol> protocolCombo;
     private final ComboBox<EmulationType> terminalEmulationCombo;
+    /** Per-connection terminal encoding; the first entry (value null) uses the default. */
+    private final ComboBox<EncodingChoice> encodingCombo;
+    /** Shown beside the locked encoding picker for Mosh: a disabled control shows no tooltip. */
+    private final Label encodingMoshHint;
     private final TextField usernameField;
     private final PasswordField passwordField;
     private final TextField groupField;
@@ -233,6 +242,20 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         TerminalEmulationComboBoxSupport.configureComboBox(terminalEmulationCombo);
         TerminalEmulationComboBoxSupport.select(terminalEmulationCombo, connection.getTerminalEmulationType());
         terminalEmulationCombo.setPrefWidth(300);
+
+        encodingCombo = new ComboBox<>();
+        encodingCombo.getItems().add(new EncodingChoice(null, I18n.get("connEdit.encoding.inherit")));
+        for (String encoding : TerminalEncodingSupport.offeredEncodings(connection.getEncoding())) {
+            encodingCombo.getItems().add(new EncodingChoice(encoding, encoding));
+        }
+        String storedEncoding = TerminalEncodingSupport.displayName(connection.getEncoding());
+        encodingCombo.setValue(encodingCombo.getItems().stream()
+            .filter(choice -> java.util.Objects.equals(choice.value(), storedEncoding))
+            .findFirst().orElse(encodingCombo.getItems().get(0)));
+        encodingCombo.setPrefWidth(300);
+        encodingCombo.setTooltip(new Tooltip(I18n.get("connEdit.encoding.tooltip")));
+        encodingMoshHint = new Label(I18n.get("connEdit.encoding.moshUtf8Only"));
+        encodingMoshHint.setStyle(MutedTextStyle.HINT);
         
         usernameField = new TextField(connection.getUsername());
         usernameField.setPromptText("root");
@@ -253,27 +276,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
             });
         }
         savedCredentialsCombo.setOnAction(e -> {
-            StoredCredential selected = savedCredentialsCombo.getValue();
-            if (selected != null) {
-                try {
-                    usernameField.setText(selected.getUsername());
-                    if (credentialManager != null && masterPassword != null) {
-                        String password = credentialManager.getPassword(selected, masterPassword);
-                        if (password != null) {
-                            passwordField.setText(password);
-                            // Mark that password comes from credential store
-                            passwordField.setPromptText(I18n.get("connEdit.fromCredential") + ": " + selected.getName());
-                        }
-                    }
-                } catch (Exception ex) {
-                    Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle(I18n.get("error.title"));
-                    alert.setHeaderText(I18n.get("connEdit.decryptFailed"));
-                    alert.setContentText(ex.getMessage());
-                    alert.showAndWait();
-                }
-            } else {
-                passwordField.setPromptText("");
+            if (!refreshingCredentialCombo) {
+                onSavedCredentialSelected(savedCredentialsCombo.getValue());
             }
         });
         
@@ -417,6 +421,11 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
         connectionGrid.add(new Label(I18n.get("connEdit.terminalEmulation")), 0, row);
         connectionGrid.add(terminalEmulationCombo, 1, row++);
+
+        connectionGrid.add(new Label(I18n.get("connEdit.encoding")), 0, row);
+        HBox encodingBox = new HBox(10, encodingCombo, encodingMoshHint);
+        encodingBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        connectionGrid.add(encodingBox, 1, row++);
         
         connectionGrid.add(new Label(I18n.get("connEdit.group")), 0, row);
         connectionGrid.add(groupField, 1, row++);
@@ -551,10 +560,15 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         if (temporaryKeyArea != null) temporaryKeyArea.textProperty().addListener((obs, oldVal, newVal) -> validateForm(saveButton));
         protocolCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
             updateLocalShellFields();
+            updateEncodingField();
             validateForm(saveButton);
         });
         updateLocalShellFields();
+        updateEncodingField();
         validateForm(saveButton);
+        // A password command still running when the dialog closes must not report back afterwards
+        // (for example with a timeout alert about a dialog that is gone).
+        addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> credentialPasswordResolver.cancel());
         
         // Result converter
         setResultConverter(dialogButton -> {
@@ -578,6 +592,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 }
                 connection.setTerminalEmulationType(TerminalEmulationSupport.storedValue(
                     TerminalEmulationComboBoxSupport.selectedEmulation(terminalEmulationCombo)));
+                connection.setEncoding(encodingCombo.getValue() != null ? encodingCombo.getValue().value() : null);
                 connection.setGroup(getGroupText.isEmpty() ? null : getGroupText);
                 connection.setTag(getTagText.isEmpty() ? null : getTagText);
                 connection.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
@@ -705,20 +720,26 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                     // silently, so failures surface as an alert and leave the stored password as is.
                     String jumpPassword = jumpPasswordField.getText();
                     if (jumpPassword != null && !jumpPassword.isEmpty()) {
-                        try {
-                            if (masterPassword == null) {
-                                throw new IllegalStateException(I18n.get("connEdit.jumpPasswordVaultLocked"));
+                        // Opened while the vault was locked: offer Unlock Vault… now. If it stays
+                        // locked the user has seen why, and the stored password is kept as is.
+                        char[] jumpMasterPassword = masterPassword != null
+                            ? masterPassword
+                            : VaultUnlockSupport.masterPasswordOrOfferUnlock(
+                                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+                                I18n.get("connEdit.jumpPasswordVaultLocked"));
+                        if (jumpMasterPassword != null) {
+                            try {
+                                EncryptionService encryptionService = new EncryptionService();
+                                jump.setEncryptedPassword(encryptionService.encryptPassword(jumpPassword, jumpMasterPassword));
+                            } catch (Exception ex) {
+                                logger.error("Could not encrypt the jump server password", ex);
+                                Alert alert = new Alert(Alert.AlertType.WARNING,
+                                    I18n.get("connEdit.jumpPasswordSaveFailed", String.valueOf(ex.getMessage())),
+                                    ButtonType.OK);
+                                DialogThemeHelper.applyTheme(alert);
+                                alert.setHeaderText(null);
+                                alert.showAndWait();
                             }
-                            EncryptionService encryptionService = new EncryptionService();
-                            jump.setEncryptedPassword(encryptionService.encryptPassword(jumpPassword, masterPassword));
-                        } catch (Exception ex) {
-                            logger.error("Could not encrypt the jump server password", ex);
-                            Alert alert = new Alert(Alert.AlertType.WARNING,
-                                I18n.get("connEdit.jumpPasswordSaveFailed", String.valueOf(ex.getMessage())),
-                                ButtonType.OK);
-                            DialogThemeHelper.applyTheme(alert);
-                            alert.setHeaderText(null);
-                            alert.showAndWait();
                         }
                     }
                 } else if (connection.getJumpServer() != null) {
@@ -809,6 +830,14 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
     /** Tri-state host-key override entry; value null=inherit, FALSE=verify, TRUE=don't verify. */
     private record HostKeyChoice(Boolean value, String label) {
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
+    /** Terminal encoding entry; value null = use the default (Settings → Terminal, UTF-8 for local shells). */
+    private record EncodingChoice(String value, String label) {
         @Override
         public String toString() {
             return label;
@@ -1032,11 +1061,78 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         alert.showAndWait();
     }
     
+    /**
+     * Fills username and password from the selected credential. An external password command runs
+     * in the background: the password field is disabled and shows a progress prompt meanwhile, and
+     * only the result for the still-selected credential is applied.
+     */
+    private void onSavedCredentialSelected(StoredCredential selected) {
+        if (selected == null) {
+            credentialPasswordResolver.cancel();
+            updatePasswordFieldEnablement();
+            passwordField.setPromptText("");
+            return;
+        }
+        usernameField.setText(selected.getUsername());
+        if (credentialManager == null || masterPassword == null) {
+            credentialPasswordResolver.cancel();
+            updatePasswordFieldEnablement();
+            return;
+        }
+        credentialPasswordResolver.resolve(credentialManager, selected, masterPassword,
+            new CredentialPasswordResolver.Listener() {
+                @Override
+                public void started(StoredCredential credential) {
+                    passwordField.clear();
+                    passwordField.setPromptText(I18n.get("credential.externalCommand.running"));
+                    updatePasswordFieldEnablement();
+                }
+
+                @Override
+                public void resolved(StoredCredential credential, String password) {
+                    updatePasswordFieldEnablement();
+                    if (password != null) {
+                        passwordField.setText(password);
+                        // Mark that password comes from credential store
+                        passwordField.setPromptText(I18n.get("connEdit.fromCredential") + ": " + credential.getName());
+                    } else {
+                        passwordField.setPromptText("");
+                    }
+                }
+
+                @Override
+                public void failed(StoredCredential credential, Exception error) {
+                    updatePasswordFieldEnablement();
+                    passwordField.setPromptText("");
+                    showCredentialPasswordFailedAlert(error);
+                }
+            });
+    }
+
+    private void showCredentialPasswordFailedAlert(Exception error) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(I18n.get("error.title"));
+        alert.setHeaderText(I18n.get("connEdit.decryptFailed"));
+        alert.setContentText(error.getMessage());
+        if (getDialogPane().getScene() != null && getDialogPane().getScene().getWindow() != null) {
+            alert.initOwner(getDialogPane().getScene().getWindow());
+        }
+        alert.showAndWait();
+    }
+
+    /** The password field is editable only for SSH password auth with no credential lookup running. */
+    private void updatePasswordFieldEnablement() {
+        boolean local = protocolCombo.getValue() == ConnectionProtocol.LOCAL_SHELL;
+        boolean useKey = keyAuthRadio.isSelected();
+        boolean useTemporaryKey = temporaryKeyAuthRadio != null && temporaryKeyAuthRadio.isSelected();
+        passwordField.setDisable(local || useKey || useTemporaryKey || credentialPasswordResolver.isPending());
+    }
+
     private void updateAuthFields() {
         boolean useKey = keyAuthRadio.isSelected();
         boolean useTemporaryKey = temporaryKeyAuthRadio != null && temporaryKeyAuthRadio.isSelected();
-        
-        passwordField.setDisable(useKey || useTemporaryKey);
+
+        passwordField.setDisable(useKey || useTemporaryKey || credentialPasswordResolver.isPending());
         savedCredentialsCombo.setDisable(useKey || useTemporaryKey);
         savedSSHKeysCombo.setDisable(!useKey || useTemporaryKey);
         keyPathField.setDisable(!useKey || useTemporaryKey);
@@ -1746,17 +1842,27 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         
         // Remember current selection
         StoredCredential currentSelection = savedCredentialsCombo.getValue();
-        
-        savedCredentialsCombo.getItems().clear();
-        if (hostname != null && !hostname.trim().isEmpty()) {
-            java.util.List<StoredCredential> matchingCredentials = credentialManager.getAllCredentials().stream()
-                .filter(c -> c.matchesServer(hostname)).collect(java.util.stream.Collectors.toList());
-            savedCredentialsCombo.getItems().addAll(matchingCredentials);
-            
-            // Restore selection if it still matches
-            if (currentSelection != null && matchingCredentials.contains(currentSelection)) {
-                savedCredentialsCombo.setValue(currentSelection);
+
+        // Rebuilding the list clears and restores the value, which would otherwise re-run the
+        // credential's password command on every keystroke in the host field.
+        refreshingCredentialCombo = true;
+        try {
+            savedCredentialsCombo.getItems().clear();
+            if (hostname != null && !hostname.trim().isEmpty()) {
+                java.util.List<StoredCredential> matchingCredentials = credentialManager.getAllCredentials().stream()
+                    .filter(c -> c.matchesServer(hostname)).collect(java.util.stream.Collectors.toList());
+                savedCredentialsCombo.getItems().addAll(matchingCredentials);
+
+                // Restore selection if it still matches
+                if (currentSelection != null && matchingCredentials.contains(currentSelection)) {
+                    savedCredentialsCombo.setValue(currentSelection);
+                }
             }
+        } finally {
+            refreshingCredentialCombo = false;
+        }
+        if (savedCredentialsCombo.getValue() != currentSelection) {
+            onSavedCredentialSelected(savedCredentialsCombo.getValue());
         }
     }
 
@@ -1792,6 +1898,16 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
             shellPresetCombo.getValue(),
             customShellCommandField.getText(),
             gitBashCommand, cygwinCommand, wslCommand);
+    }
+
+    /**
+     * Mosh is always UTF-8, so the encoding picker is locked for it and the hint beside it says why.
+     * Only the hint's visibility changes: it keeps its place, so the grid needs no relayout.
+     */
+    private void updateEncodingField() {
+        boolean utf8Only = TerminalEncodingSupport.isUtf8Only(protocolCombo.getValue());
+        encodingCombo.setDisable(utf8Only);
+        encodingMoshHint.setVisible(utf8Only);
     }
 
     /** Enables shell fields and disables SSH fields for LOCAL_SHELL, and vice-versa. */

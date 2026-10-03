@@ -442,7 +442,8 @@ public class SwarmAgentTab extends Tab {
 
     /**
      * Open targets plus ephemeral headless targets for this run. Returns {@code null} (after
-     * showing the vault error) when headless targets need stored secrets but the vault is locked.
+     * showing the vault message with its Unlock Vault… offer) when headless targets need stored
+     * secrets and the vault stays locked.
      */
     private List<SwarmTarget> buildRunTargets() {
         List<SwarmTarget> runTargets = new ArrayList<>(targets);
@@ -450,11 +451,10 @@ public class SwarmAgentTab extends Tab {
         if (headless.isEmpty()) {
             return runTargets;
         }
-        char[] masterPassword = KorTTYApplication.getInstance().getMasterPasswordManager() != null
-            ? KorTTYApplication.getInstance().getMasterPasswordManager().getMasterPassword()
-            : null;
+        char[] masterPassword = VaultUnlockSupport.masterPasswordOrOfferUnlock(
+            windowOf(), KorTTYApplication.getInstance().getMasterPasswordManager(),
+            I18n.get("ai.swarm.error.masterPasswordLocked"));
         if (masterPassword == null) {
-            showError(I18n.get("ai.swarm.error.masterPasswordLocked"));
             return null;
         }
         for (ServerConnection connection : headless) {

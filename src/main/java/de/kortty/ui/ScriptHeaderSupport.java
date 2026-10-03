@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.SnippetVariableManager;
 import de.kortty.model.Snippet;
 
 import java.util.HashMap;
@@ -9,7 +10,8 @@ import java.util.Map;
 /**
  * Shared resolution of the user's "Script-Header" snippets (the fixed, non-deletable "Script-Header"
  * category managed by {@code SnippetManager}) into ready-to-inject text: built-in variables (date,
- * creator, …) and custom variables are substituted, exactly as the workflow-script generator does.
+ * creator, …) and declared variables are substituted with the same rules as every other snippet use
+ * ({@code SnippetPlaceholderResolver}); undeclared {@code ${...}} stay as written.
  * Extracted so more than one dialog can offer "add a script header" without duplicating the substitution.
  */
 final class ScriptHeaderSupport {
@@ -34,15 +36,16 @@ final class ScriptHeaderSupport {
         if (header == null || header.getContent() == null) {
             return null;
         }
-        String text = snippetManager.resolveBuiltInVariables(header.getContent()).text();
+        // A header is inserted without asking, so a declared variable without a value becomes empty.
+        SnippetVariableManager variables = app.getSnippetVariableManager();
         Map<String, String> vars = new HashMap<>();
-        if (app.getSnippetVariableManager() != null) {
-            app.getSnippetVariableManager().getAll().forEach(variable -> {
+        if (variables != null) {
+            variables.getAll().forEach(variable -> {
                 if (variable.getName() != null) {
                     vars.put(variable.getName(), variable.getValue() != null ? variable.getValue() : "");
                 }
             });
         }
-        return snippetManager.replaceCustomVariables(text, vars);
+        return snippetManager.resolve(header.getContent(), variables, vars).text();
     }
 }

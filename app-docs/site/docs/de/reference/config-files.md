@@ -62,6 +62,7 @@ Enthält alle gespeicherten SSH-Verbindungen mit ihren Einstellungen.
 - Überschreibungen des Terminal-Erscheinungsbilds (Schriftart, Farben, Größe)
 - SSH-Tunnel und Jump-Server-Konfiguration
 - Optionale Außerkraftsetzung der SSH-Hostschlüsselüberprüfung pro Verbindung (überprüfen, nicht überprüfen oder erben)
+- Optionale Zeichencodierung pro Verbindung (`encoding`; fehlt bedeutet die Vorgabe — siehe [Terminal → Kodierung](settings/terminal.md#hinweise))
 - Terminaleffekt-Plugins und Animationsgeschwindigkeit
 - Verbindungsspezifische Terminalprotokollierungseinstellungen
 - Einstellungen für das Sitzungsjournal pro Verbindung (aktivieren, typisierte Eingaben erfassen, KI-Zusammenfassungen, Zusammenfassungsintervall)
@@ -101,7 +102,7 @@ Verwaltet die zentrale SSH-Schlüsselspeicherung.
 
 ### ssh-host-keys.properties
 
-Der versionierte Trust-on-First-Use-Speicher für interaktive Terminal- und SFTP-Verbindungen und der von Mosh verwendete SSH-Bootstrap. Einträge werden durch normalisierten Hostnamen und Port verschlüsselt und enthalten den Public-Key-Algorithmus, den OpenSSH-SHA-256-Fingerabdruck, die OpenSSH-Public-Key-Zeile und den Vertrauenszeitstempel. Ein passender Schlüssel wird nach der Bestätigung der ersten Verwendung stillschweigend akzeptiert; Ein geänderter Schlüssel ist fest gesperrt und wird nicht automatisch ersetzt. Wenn die Überprüfung des Hostschlüssels für eine Verbindung auf „Akzeptieren neuer“ gelockert wird, wird ein unbekannter Schlüssel ohne Bestätigungsaufforderung angeheftet – ein geänderter Schlüssel wird in beiden Modi weiterhin abgelehnt.
+Der versionierte Trust-on-First-Use-Speicher für interaktive Terminal- und SFTP-Verbindungen sowie das SSH-Bootstrap, das von Mosh verwendet wird. Die Einträge sind nach normalisiertem Hostnamen und Port indexiert und enthalten den Public-Key-Algorithmus, den OpenSSH-SHA-256-Fingerabdruck, die OpenSSH-Public-Key-Zeile und den Trust-Zeitstempel. Ein passender Schlüssel wird nach der Bestätigung bei der ersten Verwendung stillschweigend akzeptiert; ein geänderter Schlüssel wird hart blockiert und nicht automatisch ersetzt. Einträge werden über **Prüfen und ersetzen…** in der Warnung zum geänderten Schlüssel ersetzt und unter **Konfiguration → Sicherheit → Bekannte Hosts…** entfernt; das Entfernen des letzten Eintrags löscht die Datei, was als leerer Wissensspeicher gilt. Wenn die Host-Key-Verifikation auf "accept-new" für eine Verbindung gelockert wird, wird ein unbekannter Schlüssel ohne Bestätigungsprompt festgehalten – ein geänderter Schlüssel wird in beiden Modi weiterhin abgelehnt.
 
 Schreibvorgänge verwenden eine temporäre Datei plus atomare Ersetzung, während `ssh-host-keys.properties.lock` separate korTTY-Prozesse koordiniert, sodass ihre Pins sicher zusammengeführt werden. Die Eigenschaftendatei ist in verschlüsselten Backups enthalten; die vorübergehende Sperrdatei ist es nicht. Dieser endpunktbasierte Speicher ist von den JobScheduler-Hostschlüssel-Pins in `job-scheduler.xml` getrennt, die für unbeaufsichtigte Vorgänge nach Verbindungs-ID kodiert sind.
 
@@ -144,6 +145,7 @@ Globale Anwendungseinstellungen und Standardeinstellungen.
 
 #### Terminal und Anschlüsse
 
+- Standard-Kodierung des Terminals für SSH-Verbindungen, und `terminalEncodingConfirmed`, das protokolliert, dass ein von einer älteren Version gespeicherter Wert erneut gespeichert und angewendet wurde (siehe [Terminal → Kodierung](settings/terminal.md#hinweise))
 - Standardeinstellungen für die Terminalprotokollierung
 - Standardeinstellungen für das Terminaleffekt-Plugin
 - SSH Keep-Alive-Einstellungen

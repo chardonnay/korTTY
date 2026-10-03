@@ -5,7 +5,6 @@ import de.kortty.core.SnippetOneLiner;
 import de.kortty.core.SnippetVariableManager;
 import de.kortty.model.Snippet;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -47,26 +46,31 @@ public class JobSchedulerSnippetSupport {
             "Snippet script: " + safeSnippetName(snippet) + "\nArguments: " + arguments.size());
     }
 
+    /**
+     * Resolves the snippet like every other use (see {@code SnippetPlaceholderResolver}), but a
+     * scheduled run cannot ask for a value: a declared variable without a stored value blocks, and so
+     * does an undeclared simple {@code ${name}} — most likely a korTTY variable that was never stored,
+     * which the shell would otherwise expand to an empty string. Shell forms such as {@code ${1:-x}},
+     * the standard environment names and escaped {@code $${name}} pass through.
+     */
     private String resolveSnippetText(Snippet snippet) throws JobBlockedException {
-        SnippetManager.ResolvedSnippet resolved = snippetManager.resolveBuiltInVariables(snippet.getContent());
-        String text = resolved.text();
+        String content = snippet.getContent();
+        List<String> undeclared = snippetManager.undeclaredSimpleNames(content, variableManager);
+        if (!undeclared.isEmpty()) {
+            String name = undeclared.getFirst();
+            throw new JobBlockedException("Snippet variable is not declared: ${" + name + "}. Declare it with a value in "
+                + "the Variable Manager, or write $${" + name + "} to pass it to the shell unchanged.");
+        }
+        for (String variable : snippetManager.declaredVariables(content, variableManager)) {
+            if (variableManager.getValue(variable) == null) {
+                throw new JobBlockedException("Snippet variable has no stored value: ${" + variable + "}");
+            }
+        }
+        String text = snippetManager.resolve(content, variableManager, Map.of()).text();
         if (text == null || text.isBlank()) {
             throw new JobBlockedException("Snippet script is empty: " + safeSnippetName(snippet));
         }
-        List<String> customVariables = snippetManager.findCustomVariables(text);
-        if (customVariables.isEmpty()) {
-            return text;
-        }
-
-        Map<String, String> values = new LinkedHashMap<>();
-        for (String variable : customVariables) {
-            String value = variableManager != null ? variableManager.getValue(variable) : null;
-            if (value == null) {
-                throw new JobBlockedException("Snippet variable has no stored value: ${" + variable + "}");
-            }
-            values.put(variable, value);
-        }
-        return snippetManager.replaceCustomVariables(text, values);
+        return text;
     }
 
     private String requireNonBlank(String value, String message) throws JobBlockedException {

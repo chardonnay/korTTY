@@ -19,7 +19,7 @@ import java.util.stream.Stream;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
- * Every {@code snippets.workspace.*} and {@code snippets.draft.*}, {@code snippets.saveAsNew.*} and {@code snippets.batchExport.*} key used by the workspace code exists in all 8 bundles with
+ * Every {@code snippets.workspace.*} and {@code snippets.draft.*}, {@code snippets.saveAsNew.*}, {@code snippets.batchExport.*}, {@code snippets.variables.*} (and the other listed families) key used by the workspace code exists in all 8 bundles with
  * the same placeholders as the English one.
  */
 class SnippetWorkspaceI18nCoverageTest {
@@ -29,7 +29,7 @@ class SnippetWorkspaceI18nCoverageTest {
     private static final List<String> LOCALES = List.of("", "_de", "_es", "_fr", "_hr", "_it", "_nl", "_pt");
     private static final Pattern KEY_USE = Pattern.compile(
         "\"(snippets\\.(?:(?:workspace|draft|saveAsNew|batchExport|folder|executable|transfer|modularize|preview|project"
-            + "|analyze)\\.[A-Za-z.]*[A-Za-z]|folder|fileName))\"");
+            + "|analyze|variables)\\.[A-Za-z.]*[A-Za-z]|folder|fileName))\"");
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{\\d+}");
 
     @Test
@@ -56,6 +56,9 @@ class SnippetWorkspaceI18nCoverageTest {
                 } else if (english.getProperty(key) != null
                     && !placeholders(value).equals(placeholders(english.getProperty(key)))) {
                     problems.add("messages" + locale + ": placeholders differ for " + key);
+                } else if (value.contains("''")) {
+                    // LanguageManager substitutes {n} with String.replace, not MessageFormat: '' shows twice.
+                    problems.add("messages" + locale + ": doubled apostrophe in " + key);
                 }
             }
         }

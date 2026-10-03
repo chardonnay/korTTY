@@ -131,7 +131,7 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
 | Schlüssel | Typ | Werte | Wirkung |
 | --- | --- | --- | --- |
 | `require-master-password` | boolean | `true` | Erzwingt das Master-Passwort-Gate beim Start; Die Einstellung ist gesperrt |
-| `enforce-host-key-check` | boolean | `true` | Die Überprüfung des SSH-Hostschlüssels kann nirgendwo deaktiviert werden – global, pro Gruppe oder pro Verbindung |
+| `enforce-host-key-check` | boolean | `true` | SSH-Host-Key-Prüfung kann nirgendwo deaktiviert werden — global, pro Gruppe oder pro Verbindung — und vertrauenswürdige Host-Keys können in korTTY nicht entfernt oder ersetzt werden. |
 | `allow-telemetry` | boolean | `false` | Verbietet anonyme Nutzungsstatistiken |
 | `allow-terminal-recording` | boolean | `false` | Verbietet die Aufzeichnung von Terminalsitzungen, einschließlich der Umschaltung auf Sitzungsebene |
 | `allow-port-forwarding` | boolean | `false` | Öffnet niemals die [SSH-Tunnel](../features/tunnels.md), die auf Verbindungen (lokales, entferntes und dynamisches Port-Forwarding) konfiguriert sind; die Statusleiste des Tabs sagt, sie seien von Ihrer Organisation deaktiviert. Ein Jump-Server-Hop ist nicht betroffen |
@@ -277,6 +277,8 @@ Mandate für das [Sitzungsjournal](../features/session-journal.md). Erzwungene W
 ### `[[rule.session-journal.replace]]`
 
 Automatisches Suchen und Ersetzen in jedem Journal – die Möglichkeit, eine ganze Kategorie von Geheimnissen aus dem Transkript herauszuhalten, anstatt sich darauf zu verlassen, dass der Benutzer es bemerkt. Jeder Eintrag stellt eine Regel dar, und eine Regel kann einen regulären Ausdruck verwenden.
+
+korTTY wendet dieselben Regeln auf eine Terminalauswahl und auf eine daran angehängte Datei an, bevor sie an ein KI-Profil gesendet werden, das weder ein integriertes Modell noch ein vertrauenswürdiger lokaler Endpunkt ist; siehe [Maskierung von Geheimnissen vor dem Senden](../features/ai-assistant.md#geheimnisse-vor-dem-senden-maskieren).
 
 | Schlüssel | Typ | Standard | Wirkung |
 | --- | --- | --- | --- |

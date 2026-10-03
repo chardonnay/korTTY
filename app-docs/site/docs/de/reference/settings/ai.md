@@ -53,6 +53,7 @@ Die gleichen Felder werden im **KI > KI-Manager > Profile** bearbeitet, wo das g
 | Profilname | Text | — | KI-Profil | (Feld Profil `name`) |
 | Verbindung | Dropdown | HTTP-API, Lokale CLI, Integriertes llama.cpp, Integriertes MLX (Apple-Silizium; nur auf Mac-Geräten mit Apple-Silizium verfügbar) | HTTP-API | (Profilfeld `connectionMode`) |
 | API-URL | Text | — | — | (Profilfeld `apiUrl`) |
+| Vertrauenswürdiger lokaler Endpunkt: Terminal-Auswahlen ohne Maskierung von Geheimnissen senden | Kontrollkästchen | Nur verfügbar für ein HTTP-API-Profil, dessen API-URL auf `localhost` oder `127.0.0.1` liegt. Ein: Terminalauswahlen und angehängte Dateien erreichen diesen Endpunkt ohne Maskierung – schalten Sie es nur ein, wenn der Endpunkt das Modell selbst ausführt, nicht für einen Proxy oder eine SSH-Portweiterleitung zu einer Cloud-API. Siehe [Maskierung von Geheimnissen vor dem Senden](../../features/ai-assistant.md#geheimnisse-vor-dem-senden-maskieren) | Aus | (profile `trustedLocalEndpoint` field) |
 | CLI-Anbieter | Dropdown | (registrierte Anbieter) | — | (Profilfeld `cliProviderId`) |
 | CLI-Executable | Text | — | — | (Profilfeld `cliExecutablePath`) |
 | Modell | Dropdown/Text | (bearbeitbar; "Standard", vorgeschlagene Modelle von Cloud-Anbietern mit kurzen Vorschlägen plus live geladene Modelle; "Automatisch" nur für lokale LM Studio-Endpunkte) | — | (Profilfeld `model`) |

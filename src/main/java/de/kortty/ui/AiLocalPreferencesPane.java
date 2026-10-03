@@ -183,9 +183,10 @@ final class AiLocalPreferencesPane extends VBox {
     }
 
     private boolean encryptToken(GlobalSettings settings, String token) {
-        char[] master = app != null && app.getMasterPasswordManager() != null
-            ? app.getMasterPasswordManager().getMasterPassword()
-            : null;
+        char[] master = VaultUnlockSupport.masterPasswordOrOfferUnlock(
+            getScene() != null ? getScene().getWindow() : null,
+            app != null ? app.getMasterPasswordManager() : null,
+            I18n.get("settings.ai.error.vaultLocked"));
         if (master == null) {
             status.setText(I18n.get("settings.ai.error.vaultLocked"));
             return false;

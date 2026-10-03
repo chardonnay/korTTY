@@ -66,6 +66,7 @@ import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -138,6 +139,11 @@ public class KorTTYApplication extends Application {
     private boolean macDesktopHandlersRegistered = false;
     private Boolean packagedMacApp;
     private volatile boolean shuttingDown = false;
+    /**
+     * Set when a backup import replaced {@code master.key}: every store in memory still belongs
+     * to the old master key, so the shutdown must not write them over the restored files.
+     */
+    private volatile boolean restoredBackupAwaitsRestart = false;
     private de.kortty.policy.PolicyManager policyManager;
     
     public static void main(String[] args) {
@@ -214,6 +220,9 @@ public class KorTTYApplication extends Application {
             Files.createDirectories(configDir);
             logger.info("Created configuration directory: {}", configDir);
         }
+        // Also an existing directory: older versions (and the logging setup, which can create
+        // ~/.kortty/logs before this point) created it with the default umask.
+        restrictConfigDirectoryToOwner(configDir);
         
         // Initialize managers
         configManager = new ConfigurationManager(configDir);
@@ -399,13 +408,11 @@ public class KorTTYApplication extends Application {
                     return;
                 }
             } else {
-                // Password is set but not required on startup
-                // We still need the derived key for decryption, but we can't get it without the password
-                // So we'll skip the dialog and try to proceed - if decryption fails later,
-                // the user will need to enter the password when needed
-                logger.info("Master password required on startup is disabled, skipping dialog");
-                // Note: We can't decrypt credentials/keys without the password, so those features
-                // will require password entry when first used
+                // Password is set but not required on startup: start with the vault locked. Stored
+                // secrets stay encrypted until the user unlocks it through Configuration > Security >
+                // Unlock Vault... or the Unlock Vault... button of a "vault locked" message
+                // (VaultUnlockSupport); onVaultUnlocked() then catches up on what this start skipped.
+                logger.info("Master password required on startup is disabled, starting with the vault locked");
             }
             
             // Load configuration
@@ -568,6 +575,11 @@ public class KorTTYApplication extends Application {
             // Create and show main window
             MainWindow mainWindow = new MainWindow(primaryStage);
             mainWindow.show();
+            try {
+                showStoreLoadFailures(mainWindow);
+            } catch (RuntimeException e) {
+                logger.warn("Could not show the notice about unreadable data files", e);
+            }
             startCodingAgentUi();
             startControlApi();
             startLlamaRuntimeUpdateCoordinator();
@@ -671,15 +683,23 @@ public class KorTTYApplication extends Application {
         }
         shuttingDown = true;
         logger.info("Shutting down {}...", APP_NAME);
+        // After an import that replaced master.key the in-memory stores belong to the old key:
+        // writing them now would overwrite the restored files (and re-encrypt the restored
+        // connections with the wrong key), so the restored files are left as they are.
+        boolean saveStores = !restoredBackupAwaitsRestart;
+        if (!saveStores) {
+            logger.warn("Skipping the store saves: a restored backup with a different master key awaits the restart");
+        }
 
         // A geometry save scheduled by a dialog that closed just now must land before halt(0).
-        if (globalSettingsManager != null) {
+        if (globalSettingsManager != null && saveStores) {
             globalSettingsManager.flushPendingSave();
         }
 
         // Save configuration
         try {
-            if (configManager != null && masterPasswordManager != null && masterPasswordManager.getDerivedKey() != null) {
+            if (saveStores && configManager != null && masterPasswordManager != null
+                    && masterPasswordManager.getDerivedKey() != null) {
                 configManager.save(masterPasswordManager.getDerivedKey());
             }
         } catch (Exception e) {
@@ -737,19 +757,19 @@ public class KorTTYApplication extends Application {
         if (sessionJournalHtmlRenderer != null) {
             shutdownStep("stop session journal HTML renderer", sessionJournalHtmlRenderer::stop);
         }
-        if (gpgKeyManager != null) {
+        if (gpgKeyManager != null && saveStores) {
             shutdownStep("save GPG keys", gpgKeyManager::save);
         }
-        if (credentialManager != null) {
+        if (credentialManager != null && saveStores) {
             shutdownStep("save credentials", credentialManager::save);
         }
-        if (sshKeyManager != null) {
+        if (sshKeyManager != null && saveStores) {
             shutdownStep("save SSH keys", sshKeyManager::save);
         }
-        if (snippetManager != null) {
+        if (snippetManager != null && saveStores) {
             shutdownStep("save snippets", snippetManager::save);
         }
-        if (snippetAnalysisStore != null) {
+        if (snippetAnalysisStore != null && saveStores) {
             // After the snippets save (which can make a pending draft analysis persistable);
             // halt(0) skips shutdown hooks, so the queued writes must land here.
             shutdownStep("flush snippet analyses",
@@ -758,16 +778,16 @@ public class KorTTYApplication extends Application {
         if (snippetDraftStore != null) {
             shutdownStep("flush snippet drafts", () -> snippetDraftStore.flush(2_000));
         }
-        if (snippetVariableManager != null) {
+        if (snippetVariableManager != null && saveStores) {
             shutdownStep("save snippet variables", snippetVariableManager::save);
         }
-        if (aiChatManager != null) {
+        if (aiChatManager != null && saveStores) {
             shutdownStep("save AI chats", aiChatManager::save);
         }
-        if (swarmChatManager != null) {
+        if (swarmChatManager != null && saveStores) {
             shutdownStep("save swarm chats", swarmChatManager::save);
         }
-        if (globalSettingsManager != null) {
+        if (globalSettingsManager != null && saveStores) {
             shutdownStep("save global settings", globalSettingsManager::save);
         }
         if (teamworkRecycleBinService != null) {
@@ -777,7 +797,7 @@ public class KorTTYApplication extends Application {
             shutdownStep("stop teamwork sync", teamworkSyncService::stop);
         }
         if (jobSchedulerService != null) {
-            shutdownStep("stop job scheduler", jobSchedulerService::shutdownSchedulerThreads);
+            shutdownStep("stop job scheduler", () -> jobSchedulerService.shutdownSchedulerThreads(saveStores));
         }
         shutdownStep("stop local knowledge-store coordination",
             de.kortty.rag.RagCoordinator::shutdownDefault);
@@ -855,6 +875,25 @@ public class KorTTYApplication extends Application {
         return !macKeepAliveDisabled && isMacOs() && isPackagedMacApplication();
     }
     
+    /**
+     * Called on the FX thread after the vault was unlocked mid-session (see
+     * {@link de.kortty.ui.VaultUnlockSupport}). Restores the temporary SSH keys the locked start
+     * could not decrypt, then lets every open window refresh what depends on the vault.
+     */
+    public void onVaultUnlocked() {
+        logger.info("Master-password vault unlocked after startup");
+        if (configManager != null && masterPasswordManager != null && masterPasswordManager.getDerivedKey() != null) {
+            configManager.onVaultUnlocked(masterPasswordManager.getDerivedKey());
+        }
+        for (MainWindow window : new ArrayList<>(MainWindow.getOpenWindows())) {
+            try {
+                window.onVaultUnlocked();
+            } catch (RuntimeException e) {
+                logger.warn("A window could not refresh after the vault was unlocked", e);
+            }
+        }
+    }
+
     private boolean handleMasterPassword(Stage ownerStage) {
         MasterPasswordDialog dialog = new MasterPasswordDialog(ownerStage, masterPasswordManager);
         boolean confirmed = dialog.showAndWait();
@@ -1251,6 +1290,71 @@ public class KorTTYApplication extends Application {
         String userHome = System.getProperty("user.home");
         return Path.of(userHome, ".kortty");
     }
+
+    /**
+     * Keeps {@code ~/.kortty} at {@code rwx------}: it holds the connection list, the credential
+     * store and {@code master.key}. Only a directory the current user owns is changed, and a
+     * failure never stops the startup.
+     */
+    private static void restrictConfigDirectoryToOwner(Path configDir) {
+        try {
+            if (de.kortty.core.AtomicFileWriter.restrictToOwner(configDir)) {
+                logger.info("Restricted the configuration directory {} to its owner (rwx------)", configDir);
+            }
+        } catch (Exception e) {
+            logger.warn("Could not restrict the configuration directory {} to its owner", configDir, e);
+        }
+    }
+
+    /**
+     * Tells the user which data files could not be read at startup: the ones moved aside as
+     * {@code *.corrupt-<timestamp>} and the ones korTTY left in place and will not save over.
+     */
+    private void showStoreLoadFailures(MainWindow mainWindow) {
+        Path configDir = getConfigDirectory();
+        List<Path> movedAside = new java.util.ArrayList<>();
+        List<Path> blocked = new java.util.ArrayList<>();
+        if (configManager != null) {
+            collectStoreLoadFailure(configManager.getLoadFailureBackup(), configManager.isSaveBlocked(),
+                configDir.resolve(de.kortty.persistence.XMLConnectionRepository.CONNECTIONS_FILE), movedAside, blocked);
+        }
+        if (credentialManager != null) {
+            collectStoreLoadFailure(credentialManager.getLoadFailureBackup(), credentialManager.isSaveBlocked(),
+                configDir.resolve(CredentialManager.CREDENTIALS_FILE), movedAside, blocked);
+        }
+        if (sshKeyManager != null) {
+            collectStoreLoadFailure(sshKeyManager.getLoadFailureBackup(), sshKeyManager.isSaveBlocked(),
+                configDir.resolve(SSHKeyManager.SSH_KEYS_FILE), movedAside, blocked);
+        }
+        if (gpgKeyManager != null) {
+            collectStoreLoadFailure(gpgKeyManager.getLoadFailureBackup(), gpgKeyManager.isSaveBlocked(),
+                configDir.resolve(GPGKeyManager.GPG_KEYS_FILE), movedAside, blocked);
+        }
+        if (environmentManager != null) {
+            collectStoreLoadFailure(environmentManager.getLoadFailureBackup(), environmentManager.isSaveBlocked(),
+                configDir.resolve(EnvironmentManager.ENVIRONMENTS_FILE), movedAside, blocked);
+        }
+        if (themeManager != null) {
+            collectStoreLoadFailure(themeManager.getLoadFailureBackup(), themeManager.isSaveBlocked(),
+                configDir.resolve(ThemeManager.THEMES_FILE), movedAside, blocked);
+        }
+        if (jobSchedulerService != null) {
+            de.kortty.jobscheduler.JobSchedulerRepository schedulerRepository = jobSchedulerService.getRepository();
+            collectStoreLoadFailure(schedulerRepository.getLoadFailureBackup(), schedulerRepository.isSaveBlocked(),
+                configDir.resolve(de.kortty.jobscheduler.JobSchedulerRepository.FILE_NAME), movedAside, blocked);
+        }
+        if (!movedAside.isEmpty() || !blocked.isEmpty()) {
+            mainWindow.showStoreLoadFailureNotice(movedAside, blocked);
+        }
+    }
+
+    private static void collectStoreLoadFailure(java.util.Optional<Path> backup, boolean saveBlocked, Path file,
+                                                List<Path> movedAside, List<Path> blocked) {
+        backup.ifPresent(movedAside::add);
+        if (saveBlocked) {
+            blocked.add(file);
+        }
+    }
     
     public ConfigurationManager getConfigManager() {
         return configManager;
@@ -1575,6 +1679,23 @@ public class KorTTYApplication extends Application {
     
     public BackupManager getBackupManager() {
         return backupManager;
+    }
+    
+    /**
+     * Marks that a backup import wrote a different {@code master.key}. The connections,
+     * credentials and other stores in memory were loaded with the old key; saving them at
+     * shutdown would re-encrypt the restored connections with that key and overwrite the other
+     * restored files, so {@link #performShutdown()} skips those saves and the next start loads
+     * the restored files with the backup's master password.
+     */
+    public void markRestoredBackupAwaitsRestart() {
+        restoredBackupAwaitsRestart = true;
+        logger.warn("A restored backup replaced the master key; korTTY will not save its stores until it restarts");
+    }
+
+    /** Whether {@link #markRestoredBackupAwaitsRestart()} was called in this run. */
+    public boolean isRestoredBackupAwaitingRestart() {
+        return restoredBackupAwaitsRestart;
     }
     
     public TeamworkSyncService getTeamworkSyncService() {
