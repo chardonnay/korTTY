@@ -3447,8 +3447,9 @@ public class MainWindow {
     private void closeCurrentTab() {
         Tab currentTab = tabPane.getSelectionModel().getSelectedItem();
         if (currentTab != null && currentTab.isClosable()) {
-            // Cmd+W bypasses the tab's close request: a hosted snippet editor/workspace asks here.
-            if (currentTab instanceof DialogHostTab hostTab && !hostTab.confirmClose()) {
+            // Cmd+W bypasses the tab's close request: a hosted snippet editor/workspace or a file
+            // editor with unsaved changes asks here (Save / Discard / Cancel).
+            if (!HostedCloseGuards.confirmTab(currentTab)) {
                 return;
             }
             disposeTabContent(currentTab);
@@ -3509,8 +3510,8 @@ public class MainWindow {
     }
 
     /**
-     * Closes all closable tabs once every hosted snippet editor/workspace agreed (unsaved changes:
-     * Save / Discard / Cancel). A single Cancel keeps every tab open.
+     * Closes all closable tabs once every hosted snippet editor/workspace and file editor agreed
+     * (unsaved changes: Save / Discard / Cancel). A single Cancel keeps every tab open.
      *
      * @return {@code true} when the tabs were closed
      */
@@ -3522,7 +3523,10 @@ public class MainWindow {
         return true;
     }
 
-    /** Asks every hosted snippet editor/workspace tab of this window; see {@link HostedCloseGuards}. */
+    /**
+     * Asks every hosted snippet editor/workspace tab and every file editor tab with unsaved changes
+     * of this window; see {@link HostedCloseGuards}.
+     */
     private boolean confirmHostedTabsClose() {
         return HostedCloseGuards.confirmTabs(tabPane.getTabs(), tab -> tabPane.getSelectionModel().select(tab));
     }
@@ -5262,7 +5266,8 @@ public class MainWindow {
         if (file != null) {
             try {
                 Project project = projectManager.loadProject(file.toPath());
-                // Loading replaces every tab: hosted snippet editors ask about unsaved work first.
+                // Loading replaces every tab: hosted snippet editors and file editors ask about
+                // unsaved work first.
                 if (!confirmHostedTabsClose()) {
                     return;
                 }
