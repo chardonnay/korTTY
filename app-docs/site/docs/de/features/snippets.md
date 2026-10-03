@@ -534,7 +534,7 @@ Beide Diagramm-Ansichten — das eigenständige Diagramm-Dialogfeld und die Voll
 
 ## Platzhaltervariablen
 
-Snippets können Platzhaltervariablen enthalten, die ersetzt werden, wenn Sie das Snippet einfügen.
+Snippets können Platzhalter enthalten, die als `${name}` geschrieben sind. Wenn Sie ein Snippet kopieren, einfügen oder senden, ersetzt korTTY genau zwei Arten von ihnen: die eingebauten Variablen unten und die in [Variablenmanager](#variablen-manager) deklarierten Variablen. Jeder andere `${...}` gelangt genau so in den Editor, die Zwischenablage oder die Shell, wie er geschrieben ist, sodass Shell-Erweiterungen wie `${HOME}`, `${1:-default}`, `${#array[@]}` und `${file%%.*}` weiterhin funktionieren. Die gleichen Regeln gelten überall dort, wo ein Snippet verwendet wird: Kopieren, Einfügen in einen Editor, beide Terminalsendungen, geplante Jobs, KI-Swarm-Skriptläufe und Skript-Header.
 
 ### Eingebaute Variablen
 
@@ -548,18 +548,34 @@ Diese Variablen werden automatisch ersetzt:
 | `${hostname}` | Hostname der lokalen Maschine |
 | `${username}` | Aktueller Systembenutzername |
 | `${clipboard}` | Aktueller Inhalt der Zwischenablage |
-| `${cursor}` | Cursorposition (aus dem Text entfernt; Position zurückgegeben) |
+| `${cursor}` | Wo der Cursor hinführt: **Einfügen in Editor** setzt den Cursor dort; Kopieren und Senden entfernen die Markierung |
+
+Eingebaute Namen werden kleingeschrieben und müssen exakt übereinstimmen; sie haben Vorrang vor einer deklarierten Variable mit demselben Namen.
 
 ### Benutzerdefinierte Variablen
 
-Jeder `${variableName}`, der nicht in der integrierten Liste enthalten ist, wird als benutzerdefinierte Variable behandelt. Wenn Sie das Snippet einfügen:
+Eine benutzerdefinierte Variable ist ein Name, der im Variablenmanager deklariert wurde. Wenn ein Snippet sie verwendet:
 
-- KorTTY überprüft den Variablenmanager auf gespeicherte Werte
-- Variablen ohne gespeicherte Werte erfordern eine Eingabe
+- Wenn die Variable einen gespeicherten Wert hat, wird der Wert ohne Nachfrage eingefügt.
+- Wenn ihr Wert leer ist, fragt korTTY jedes Mal danach. Deklarieren Sie eine Variable mit einem leeren Wert für alles, was von einer Verwendung zur nächsten wechselt, wie z. B. eine Ticketnummer. Nur ein Skriptkopf, der ohne Dialog hinzugefügt wird, setzt so eine Variable als leeren Text.
+- Das Dialogfeld, das fragt, hat neben jedem Feld ein **Merken**-Kontrollkästchen. Es ist standardmäßig deaktiviert, sodass der eingegebene Wert einmalig verwendet und nicht gespeichert wird; aktivieren Sie es, um den Wert im Variablenmanager für die nächste Verwendung zu speichern.
+
+Ein nicht deklarierter Name wird nie abgefragt und bleibt wie geschrieben; daher sollten Sie eine Variable im Variablenmanager deklarieren, bevor Sie sie in einem Snippet verwenden. Deklarierte Namen werden ohne Groß-/Kleinschreibung abgeglichen: ein deklarierter `path` ersetzt auch `${PATH}`.
+
+!!! warning "Gespeicherte Werte sind Klartext"
+    Der Variablenmanager speichert jeden Wert, einschließlich derjenigen, die Sie im Dialog merken, unverschlüsselt in `~/.kortty/snippet-variables.xml`. Speichern oder merken Sie dort keine Passwörter, Token oder andere Geheimnisse.
+
+### Einen Platzhalter maskieren
+
+Schreiben Sie `$${name}`, um den wörtlichen Text `${name}` zu erhalten, zum Beispiel für eine Shell-Variable, die denselben Namen wie ein eingebautes (`$${date}`) oder eine deklarierte Variable hat. Das Maskieren funktioniert für jeden Platzhalter, einschließlich `$${cursor}`. Text, der einen wörtlichen `$${name}` behalten muss, wie ein Makefile oder eine Compose-Datei, wird `$$${name}` geschrieben.
+
+### Geplante und Swarm-Ausführungen
+
+JobScheduler Snippet-Jobs und **Skript ausführen…** im KI-Swarm können keinen Wert abfragen, daher sorgen zwei weitere Regeln dafür, dass eine Variable, die niemand beantwortet hat, stillschweigend zu leerem Text wird: Eine deklarierte Variable ohne gespeicherten Wert blockiert die Ausführung, ebenso ein nicht deklarierter einfacher Name wie `${target}`. Shell-Formen wie `${1:-default}`, `${#array[@]}` und `${file%%.*}`, Positions- und Spezialparameter wie `${1}` und `${@}` sowie die Umgebungsvariablen `${HOME}`, `${USER}`, `${PATH}` und `${PWD}` werden durchgelassen. Schreiben Sie jede andere Shell-Variable mit dem Escape, z. B. `$${HOSTNAME}`.
 
 ### Variablen-Manager
 
-**Variablen...** im Snippet-Manager öffnet den Variable Manager, wo gespeicherte Werte hinzugefügt, bearbeitet und gelöscht werden. Das Dialogfeld zum Hinzufügen/Bearbeiten erklärt beide Felder: das **Name** ist, was ein Snippet als `${name}` referenziert, das **Wert** ist der gespeicherte Standardwert, der dafür eingefügt wird. Mehrere Variablen können gleichzeitig zum Löschen oder Exportieren ausgewählt werden.
+**Variablen…** im Snippet-Manager öffnet den Variablen-Manager, in dem gespeicherte Werte hinzugefügt, bearbeitet und gelöscht werden können. Das Dialogfeld zum Hinzufügen/Bearbeiten erklärt beide Felder: Der **Name** ist das, worauf ein Snippet als `${name}` verweist, der **Wert** ist der gespeicherte Standardwert, der dafür eingesetzt wird — lassen Sie den Wert leer, um jedes Mal gefragt zu werden. Mehrere Variablen können gleichzeitig zum Löschen oder Exportieren ausgewählt werden.
 
 - **Export...** — Speichert die ausgewählten Variablen, oder alle Variablen, wenn keine ausgewählt ist, als JSON, XML oder YAML.
 - **Import...** — Liest Variablen aus einer JSON, XML oder YAML-Datei (der gespeicherte `snippet-variables.xml` kann direkt importiert werden). Wenn bereits vorhandene Variablen importiert werden, wählen Sie, ob deren Werte überschrieben oder die bestehenden beibehalten werden sollen.
@@ -570,15 +586,16 @@ Der Snippet-Manager kann ein ausgewähltes Snippet direkt an ein Terminal seines
 
 ### An Terminal senden
 
-- Behält das vorhandene Verhalten bei
+- Ersetzt die [Platzhalter](#platzhaltervariablen) wie bei jeder anderen Verwendung; eine deklarierte Variable ohne gespeicherten Wert wird vor dem Senden abgefragt, und das Abbrechen des Dialogs sendet nichts
 - Unterstützte Skriptsprachen werden nach Möglichkeit als Terminal-Einzeiler eingebettet
 - Andere Snippets verwenden den vorhandenen Fallback-Pfad
 
 ### Mit Parametern an Terminal senden
 
-- Öffnet einen Dialog für fehlende `${...}`-Platzhaltervariablen und Skriptargumente
+- Öffnet ein Dialogfeld mit jeder deklarierten Variable, die das Snippet verwendet, vorausgefüllt mit ihrem gespeicherten Wert und für diesen Versand bearbeitbar, sowie ein Feld für Skriptargumente
+- Eine Variable, die bereits einen gespeicherten Wert hat, startet mit **Merken** aktiviert, sodass ein geänderter Wert den gespeicherten ersetzt; deaktivieren Sie es, um nur für diesen Versand einen neuen Wert zu verwenden
 - Script-Argumente werden einzeln pro Zeile eingegeben; Leerzeilen werden ignoriert
-- Wenn Sie ohne Skriptargumente bestätigen, ist das Ergebnis dasselbe wie bei **An Terminal senden**, fehlende Platzhaltervariablen können jedoch weiterhin ausgefüllt werden
+- Wenn Sie ohne Skriptargumente bestätigen, ist das Ergebnis gleich **An Terminal senden**, mit den in dem Dialog festgelegten Variablenwerten
 
 ### Script-Argumente
 
