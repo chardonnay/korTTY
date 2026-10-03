@@ -66,6 +66,12 @@ Rechtsklick innerhalb eines Terminals öffnet dessen Kontextmenü; in einem gete
 
 Darunter folgen die Einträge anderer Funktionen, in dieser Reihenfolge und einige nur dort, wo sie zutreffen: **Menüleiste anzeigen** (während die Menüleiste verborgen ist), **Im Snippet-Editor öffnen**, das **KI-Untermenü**, die Session-Journal-Screenshot- und Notizeinträge, **Thema**, **Terminal-Effekt**, **Neu verbinden** und **Befehls-Zeitstempel anzeigen**. Das **Extras**-Untermenü am Ende enthält **Terminal teilen**, **Schriftgröße** (siehe [Schriftgröße und Zoom](#schriftgroe-und-zoom)) und **Broadcast-Modus**.
 
+## Links in der Terminalausgabe
+
+Programme können anklickbare Links in das Terminal mit der OSC 8-Escape-Sequenz ausgeben; GCC kann beispielsweise eine Warnung auf seine Dokumentation verlinken. Ein Klick auf einen solchen Link öffnet ihn in Ihrem Standardbrowser, einen `mailto`-Link in Ihrem Mailprogramm. Nur `http`, `https`, `ftp`, `ftps` und `mailto`-Links sind anklickbar, und ein `mailto`-Link kann nur Empfänger ausfüllen (`to`, `cc`, `bcc`), `subject`, `body` und `in-reply-to`.
+
+Alle anderen Links bleiben als einfacher Text und tun nichts, wenn sie angeklickt werden: `file:`-Links wie die von `ls --hyperlink` und `eza --hyperlink`, die Dateinamen setzen, `news:`, `javascript:` und `data:`-Links, `mailto`-Links mit einem anderen Feld (einige Mailprogramme hängen die in einem `attach`-Feld genannte lokale Datei an), und Links, die Leerzeichen, Steuerzeichen oder unsichtbare Richtungsänderungen (bidi) enthalten oder länger als 8 KB sind. Wohin ein Link zeigt, bestimmt, wer ihn ausgibt – ein Server, eine Logdatei, die Sie mit `cat` anzeigen, ein Programm –, deshalb übergibt korTTY einen Link nie an den Dateiöffner des Betriebssystems, der Programme und Skripte starten würde.
+
 ## Schriftgröße und Zoom
 
 Passen Sie die Schriftgröße des aktiven Terminals im Handumdrehen an, ohne die Verbindung erneut herzustellen:
