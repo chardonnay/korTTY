@@ -1,5 +1,6 @@
 package de.kortty.ui;
 
+import de.kortty.ui.sftp.SftpFileItem;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -74,6 +75,49 @@ class SFTPManagerTabRemotePathTest {
         // The value is part of a remote shell command line.
         assertThat(SFTPManagerTab.isAcceptedPermissionsInput("755; rm -rf ~", "644")).isFalse();
         assertThat(SFTPManagerTab.isAcceptedPermissionsInput("755 $(id)", "644")).isFalse();
+    }
+
+    @Test
+    void searchMatchesGlobsAndKeepsTheParentEntry() {
+        SftpFileItem parent = SftpFileItem.fromDetails("..", "/srv", false, "—", "", "", "", "", -1);
+        SftpFileItem log = SftpFileItem.fromDetails("App.LOG", "/srv/app/App.LOG", true, "1 B", "", "", "", "", 1);
+        SftpFileItem script = SftpFileItem.fromDetails("deploy.sh", "/srv/app/deploy.sh", true, "1 B", "", "", "", "", 1);
+
+        var logs = SFTPManagerTab.searchFilter("*.log");
+        assertThat(logs.test(log)).isTrue();
+        assertThat(logs.test(script)).isFalse();
+        // '..' stays, so a filtered folder can still be left.
+        assertThat(logs.test(parent)).isTrue();
+
+        assertThat(SFTPManagerTab.searchFilter("*.{py,sh}").test(script)).isTrue();
+        assertThat(SFTPManagerTab.searchFilter("ploy").test(script)).isTrue();
+        assertThat(SFTPManagerTab.searchFilter("").test(log)).isTrue();
+    }
+
+    @Test
+    void downloadedNamesStayInsideTheTargetFolder() throws IOException {
+        Path folder = Path.of("downloads").toAbsolutePath();
+        assertThat(SFTPManagerTab.localChild(folder, "report.txt")).isEqualTo(folder.resolve("report.txt"));
+        assertThat(SFTPManagerTab.localChild(folder, ".hidden")).isEqualTo(folder.resolve(".hidden"));
+
+        // The names come from the server: none may point outside the folder.
+        for (String name : new String[] {"..", ".", "", "../escaped", "sub/file", "/etc/passwd"}) {
+            org.testng.Assert.expectThrows(IOException.class, () -> SFTPManagerTab.localChild(folder, name));
+        }
+        org.testng.Assert.expectThrows(IOException.class, () -> SFTPManagerTab.localChild(folder, null));
+    }
+
+    @Test
+    void dragAndDropKeepsItsPromises() throws IOException {
+        String tab = read("src/main/java/de/kortty/ui/SFTPManagerTab.java");
+        // The tab's drag format is looked up before it is created: a second DataFormat would throw.
+        assertThat(tab).contains("DataFormat.lookupMimeType(mimeType)");
+        // A drag out of the window waits for the download at most the policy's time.
+        assertThat(tab).contains("download.get(SftpDragOutPolicy.MAX_WAIT.toMillis(), TimeUnit.MILLISECONDS)");
+        // Temporary copies are removed when the tab closes.
+        assertThat(tab).contains("remoteListExecutor.shutdownNow();\n        deleteDragOutDirectories();");
+        // Row drags end in the row, never in MainWindow's tab-drag DRAG_DONE handler.
+        assertThat(tab).contains("row.setOnDragDone(DragEvent::consume);");
     }
 
     @Test

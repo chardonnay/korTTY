@@ -72,6 +72,15 @@ Diese Tasten gelten, solange ein Terminalbereich den Tastaturfokus hat.
 
 Auf Windows und Linux haben **Puffer löschen** und **Suchen** keine eigenen Tasten, daher bleiben ++ctrl+l++ und ++ctrl+f++ bei den Programmen, die im Terminal laufen. Verwenden Sie Rechtsklick → **Puffer löschen** oder **Suchen** im Terminal, oder **Bearbeiten → Suchen…** mit der Maus. ++ctrl+shift+f++ bleibt **Nur korTTY Applikationsfenster**, und ++ctrl+shift+k++ dockt den Dateibrowser weiterhin links an.
 
+## SFTP-Manager
+
+Diese Tasten funktionieren in der lokalen und der entfernten Liste eines SFTP-Manager-Tabs; siehe [Tasten](../features/sftp.md#tasten).
+
+| Verknüpfung | Aktion |
+| --- | --- |
+| ++f2++ | Ausgewählten Eintrag umbenennen |
+| ++delete++ oder ++ctrl+backspace++ | Auswahl nach Bestätigung löschen |
+
 ## Snippet-Manager
 
 Diese Tastenkombinationen funktionieren im Snippet-Manager (Bibliotheks- und Bearbeitungs-Tab); siehe [Das Öffnen des Snippet-Managers](../features/snippets.md#offnen-des-snippet-managers).

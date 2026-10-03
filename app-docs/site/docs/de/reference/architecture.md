@@ -28,7 +28,7 @@ KorTTY ist in verschiedene Funktionsmodule unterteilt. Das folgende Diagramm gru
 | **Kern** | SSH-Konnektivität, gemeinsames interaktives Host-Key-Vertrauen, Sitzungsverwaltung, KI-Integration, Terminalautomatisierung | `SSHSession`, `SshHostKeyTrustManager`, `AiChatManager`, `TerminalAgentService`, `Mosh4jTtyConnector` |
 | **ai** | Signierter Modell-/Eingabeaufforderungskatalog, Hugging Face-Metadaten/Downloads, eingebettete llama.cpp- und MLX-Laufzeiten und signierte Laufzeitpakete | `AiCatalogService`, `HuggingFaceClient`, `LlamaRuntimeManager`, `LlamaRuntimePackageInstaller`, `EmbeddedMlxAiService`, `MlxRuntimeLocator` |
 | **rag** | Sicherer Quellscanning, Extraktion, Chunking, Embeddings, Vektor-Speicher, Synchronisation und begrenztes Abrufen | `RagSourceScanner`, `RagSourceSynchronizer`, `LocalHnswStore`, `RagRuntimeService` |
-| **ui** | JavaFX-Benutzeroberfläche, Dialoge, Terminalansichten, SFTP-Manager | `TerminalView`, `TerminalTab`, `ConnectionEditDialog`, `SFTPManagerDialog`, `SnippetEditDialog` |
+| **ui** | JavaFX-Benutzeroberfläche, Dialoge, Terminalansichten, SFTP-Manager | `TerminalView`, `TerminalTab`, `ConnectionEditDialog`, `SFTPManagerTab`, `SnippetEditDialog` |
 | **Modell** | Domänenobjekte für Verbindungen, Anmeldeinformationen, Snippets, Jobs | `ServerConnection`, `StoredCredential`, `Snippet`, `JobSchedule` |
 | **Jobscheduler** | Hintergrundjobplanung und -ausführung | `JobSchedulerService`, `JobSchedulerJobRunner`, `JobJournalEntry` |
 | **Sicherheit** | Master-Passwort, Verschlüsselung/Entschlüsselung, Passwort-Tresor | `MasterPasswordManager`, `EncryptionService`, `PasswordVault` |
@@ -165,7 +165,7 @@ Die UI-Ebene basiert auf JavaFX und ist in logische Komponenten unterteilt:
 | `MainWindow` | Anwendungsfenster der obersten Ebene mit Menüleiste, Registerkartenleiste, Terminalbereichen, Dashboard, SFTP-Browser |
 | `TerminalPane` | Einzelne Terminal-Registerkarte mit Split-Panee-Unterstützung und Inline-KI-Aktivitätspanel |
 | `ConnectionDialog` | Multi-Tab-Editor für Verbindungsdetails (SSH, Tunnel, Jump-Server, Protokollierung usw.) |
-| `SFTPManagerDialog` | Dual-Panel-Dateimanager für lokale und Remote-Dateioperationen |
+| `SFTPManagerTab` | Zweispaltiger Dateimanager-Tab für lokale und entfernte Dateioperationen |
 | `SnippetEditor` | Monaco-basierter Code-Editor mit Syntaxhervorhebung, KI-Unterstützung und Mermaid-Flussdiagrammen |
 | `LocalModelManagerPane` | Sucht/lädt/importiert GGUF-Dateien und steuert gleichzeitige llama.cpp-Sidecars |
 | `RagKnowledgeStorePane` | Erstellt Wissensspeicher, zeigt Quellenvorschau an, zeigt den persistierten Indexzustand an, synchronisiert sie und führt Abfragen zur Wiederfindung durch |

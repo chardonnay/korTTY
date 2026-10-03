@@ -72,6 +72,15 @@ These keys apply while a terminal pane has the keyboard focus.
 
 On Windows and Linux, **Clear Buffer** and **Find** have no key of their own, so ++ctrl+l++ and ++ctrl+f++ stay with the programs running in the terminal. Use right-click → **Clear Buffer** or **Find** in the terminal, or **Edit → Find…** with the mouse. ++ctrl+shift+f++ stays Terminal-only Fullscreen and ++ctrl+shift+k++ still docks the file browser on the left.
 
+## SFTP Manager
+
+These keys work in the local and the remote list of an SFTP Manager tab; see [Keys](../features/sftp.md#keys).
+
+| Shortcut | Action |
+| --- | --- |
+| ++f2++ | Rename the selected entry |
+| ++delete++ or ++ctrl+backspace++ | Delete the selection, after confirmation |
+
 ## Snippet Manager
 
 These keys work in the Snippet Manager (library and editor tabs); see [Opening the Snippet Manager](../features/snippets.md#opening-the-snippet-manager).

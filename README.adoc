@@ -995,12 +995,12 @@ The integrated SFTP Manager enables direct file transfers between your local sys
 * *Columns*: Name, Type, Size, Date, *User*, *Group*, Permissions (sortable; Size by byte count)
 * *Robust Transfers*: Uploading a folder again merges into the remote folder, uploads are streamed (no size limit), remote folders load in the background, and a lost connection shows *Disconnected* with a *Reconnect* button
 * *Default Sort*: By type — parent directory (`..`) first, then dot-prefix directories, then other directories, then dot-prefix files, then other files (each group alphabetically)
-* *Drag & Drop*: Easy file moving
-* *File Operations*: Delete, rename, copy files and directories
+* *Drag & Drop*: Drag local rows or files from the desktop onto the remote panel to upload them and remote rows onto the local panel to download them, also straight into a folder row; up to 20 files with 16 MB together can be dragged from the server to the desktop
+* *File Operations*: Rename (F2 or context menu), New Folder (toolbar button or context menu), delete (Delete key) and copy files and directories
 * *Snippet Editor File Editing*: Select exactly one local or remote file and choose *Edit → Edit in Snippet Editor* or the context-menu entry. The editor can overwrite the original file, save a local copy or same-folder remote copy under another name, or save the content as a Snippet Manager snippet.
 * *Owner/Permissions*: Set owner, group, and permissions (chmod) locally and remotely; separate User/Group fields in dialogs
-* *ZIP Archiving*: Create ZIP archives from multiple files/directories
-* *Search*: Glob pattern search (`*`) in both panels
+* *Archiving*: Pack files and directories as ZIP, TAR.BZ2 or 7z, depending on the tools available
+* *Search*: Wildcard search (`*`, `?`, `[abc]`, `{a,b}`) over the whole name in both panels; plain text matches anywhere in the name
 
 === Access
 

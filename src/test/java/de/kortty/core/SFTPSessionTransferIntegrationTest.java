@@ -140,6 +140,30 @@ class SFTPSessionTransferIntegrationTest {
     }
 
     @Test
+    void renameFileMovesTheEntryAndKeepsAnExistingTarget() throws Exception {
+        Files.createDirectories(remoteRoot.resolve("dir/sub"));
+        Files.writeString(remoteRoot.resolve("dir/old.txt"), "old", StandardCharsets.UTF_8);
+        Files.writeString(remoteRoot.resolve("dir/taken.txt"), "taken", StandardCharsets.UTF_8);
+        session = connect();
+
+        String target = SftpFileTransferService.resolveSiblingRemoteFilePath("/dir/old.txt", "new name.txt");
+        session.renameFile("/dir/old.txt", target);
+
+        assertThat(target).isEqualTo("/dir/new name.txt");
+        assertThat(Files.exists(remoteRoot.resolve("dir/old.txt"))).isFalse();
+        assertThat(Files.readString(remoteRoot.resolve("dir/new name.txt"), StandardCharsets.UTF_8)).isEqualTo("old");
+
+        // Folders rename the same way.
+        session.renameFile("/dir/sub", "/dir/renamed");
+        assertThat(Files.isDirectory(remoteRoot.resolve("dir/renamed"))).isTrue();
+
+        // A plain SFTP rename never replaces an existing entry.
+        assertThrows(IOException.class, () -> session.renameFile("/dir/new name.txt", "/dir/taken.txt"));
+        assertThat(Files.readString(remoteRoot.resolve("dir/taken.txt"), StandardCharsets.UTF_8)).isEqualTo("taken");
+        assertThat(Files.readString(remoteRoot.resolve("dir/new name.txt"), StandardCharsets.UTF_8)).isEqualTo("old");
+    }
+
+    @Test
     void uploadDirectoryTwiceMergesIntoExistingTree() throws Exception {
         Path tree = Files.createDirectories(tmp.resolve("local/project"));
         Files.writeString(tree.resolve("a.txt"), "first", StandardCharsets.UTF_8);

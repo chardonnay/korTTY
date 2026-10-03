@@ -15,6 +15,8 @@ import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
 import de.kortty.model.SnippetDiagram;
 import de.kortty.model.TemporarySSHKey;
+import de.kortty.ui.sftp.SftpDragOutPolicy;
+import de.kortty.ui.sftp.SftpDragPayload;
 import de.kortty.ui.sftp.SftpFileItem;
 import de.kortty.ui.sftp.SftpFileItemComparators;
 import javafx.animation.KeyFrame;
@@ -29,6 +31,12 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.DataFormat;
+import javafx.scene.input.DragEvent;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.*;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
@@ -43,8 +51,10 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
@@ -54,6 +64,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -62,6 +73,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * SFTP Manager as a Tab for file transfers between local and remote systems.
@@ -100,6 +113,13 @@ public class SFTPManagerTab extends Tab {
     private Button reconnectButton;
     private Runnable localSelectionActions = () -> { };
     private Runnable remoteSelectionActions = () -> { };
+    /** Names this tab in the drag payload of its remote rows; only this tab acts on those entries. */
+    private final String dragSourceId = UUID.randomUUID().toString();
+    /**
+     * Temporary folders with remote files prepared for a drop outside the window (FX thread). Kept
+     * until the next drag or until the tab closes, because the drop target may still be copying.
+     */
+    private final List<Path> dragOutDirectories = new ArrayList<>();
 
     private enum RemoteState { CONNECTING, CONNECTED, DISCONNECTED }
 
@@ -404,6 +424,14 @@ public class SFTPManagerTab extends Tab {
             refreshLocal();
         });
 
+        Button newFolderLocalButton = new Button();
+        styleToolbarButton(newFolderLocalButton, FileBrowserIcons.NEW_FOLDER);
+        newFolderLocalButton.setTooltip(new Tooltip(I18n.get("filebrowser.tooltip.newFolder")));
+        newFolderLocalButton.setOnAction(e -> {
+            resetAutoCloseTimer();
+            createLocalFolder();
+        });
+
         Button deleteLocalButton = new Button(I18n.get("sftp.delete"));
         styleToolbarButton(deleteLocalButton, FileBrowserIcons.DELETE);
         deleteLocalButton.setTooltip(new Tooltip(I18n.get("sftp.contextMenu.delete")));
@@ -432,7 +460,8 @@ public class SFTPManagerTab extends Tab {
         });
         editLocalButton.getItems().add(editLocalSnippetItem);
         
-        localButtons.getChildren().addAll(localLabel, refreshLocalButton, deleteLocalButton, ownerLocalButton, editLocalButton);
+        localButtons.getChildren().addAll(localLabel, refreshLocalButton, newFolderLocalButton, deleteLocalButton,
+                ownerLocalButton, editLocalButton);
         
         // === Vertical separator ===
         Separator verticalSeparator = new Separator();
@@ -453,6 +482,15 @@ public class SFTPManagerTab extends Tab {
         refreshRemoteButton.setOnAction(e -> {
             resetAutoCloseTimer();
             refreshRemote();
+        });
+
+        Button newFolderRemoteButton = new Button();
+        styleToolbarButton(newFolderRemoteButton, FileBrowserIcons.NEW_FOLDER);
+        newFolderRemoteButton.setTooltip(new Tooltip(I18n.get("filebrowser.tooltip.newFolder")));
+        newFolderRemoteButton.setDisable(true);
+        newFolderRemoteButton.setOnAction(e -> {
+            resetAutoCloseTimer();
+            createRemoteFolder();
         });
 
         Button deleteRemoteButton = new Button(I18n.get("sftp.delete"));
@@ -518,7 +556,8 @@ public class SFTPManagerTab extends Tab {
         });
         editRemoteButton.getItems().add(editRemoteSnippetItem);
         
-        remoteButtons.getChildren().addAll(remoteLabel, refreshRemoteButton, deleteRemoteButton, ownerRemoteButton,
+        remoteButtons.getChildren().addAll(remoteLabel, refreshRemoteButton, newFolderRemoteButton, deleteRemoteButton,
+                ownerRemoteButton,
                 remoteSep1, uploadButton, downloadButton, remoteSep2, archiveButton, editRemoteButton);
         
         // Assemble main button box: local | separator | remote
@@ -545,6 +584,8 @@ public class SFTPManagerTab extends Tab {
             deleteRemoteButton.setDisable(!usable);
             ownerRemoteButton.setDisable(!usable);
             editRemoteButton.setDisable(!isRemoteConnected() || !isSingleEditableFileSelection(remoteTable));
+            // A new folder goes into the absolute folder a listing returned, not the unexpanded '~'.
+            newFolderRemoteButton.setDisable(!isRemoteConnected() || !remotePathResolved);
         };
 
         // Enable/disable buttons based on selection
@@ -657,6 +698,7 @@ public class SFTPManagerTab extends Tab {
         // Context menu for local table
         ContextMenu localContextMenu = createLocalContextMenu();
         localTable.setContextMenu(localContextMenu);
+        installFileKeys(localTable, this::renameLocalSelected, this::deleteLocalSelected);
         
         // Double-click to navigate
         localTable.setRowFactory(tv -> {
@@ -669,8 +711,12 @@ public class SFTPManagerTab extends Tab {
                     }
                 }
             });
+            installLocalRowDrag(row);
             return row;
         });
+        localTable.setOnDragOver(event -> onLocalDragOver(event, null));
+        localTable.setOnDragExited(event -> localTable.getStyleClass().remove(DROP_TARGET));
+        localTable.setOnDragDropped(event -> onLocalDragDropped(event, null));
         
         // Setup data binding with filter and sort
         localItems = FXCollections.observableArrayList();
@@ -686,16 +732,9 @@ public class SFTPManagerTab extends Tab {
         // Apply initial sort
         localTable.sort();
         
-        // Search filter
-        localSearchField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal == null || newVal.trim().isEmpty()) {
-                filteredLocalItems.setPredicate(p -> true);
-            } else {
-                String searchLower = newVal.toLowerCase();
-                filteredLocalItems.setPredicate(item -> 
-                    item.getName().toLowerCase().contains(searchLower));
-            }
-        });
+        // Search filter: a glob such as *.log, or a plain substring
+        localSearchField.textProperty().addListener((obs, oldVal, newVal) ->
+            filteredLocalItems.setPredicate(searchFilter(newVal)));
         
         panel.getChildren().addAll(titleLabel, pathBox, searchBox, localTable);
         VBox.setVgrow(localTable, Priority.ALWAYS);
@@ -804,12 +843,17 @@ public class SFTPManagerTab extends Tab {
                     }
                 }
             });
+            installRemoteRowDrag(row);
             return row;
         });
+        remoteTable.setOnDragOver(event -> onRemoteDragOver(event, null));
+        remoteTable.setOnDragExited(event -> remoteTable.getStyleClass().remove(DROP_TARGET));
+        remoteTable.setOnDragDropped(event -> onRemoteDragDropped(event, null));
         
         // Context menu for remote table
         ContextMenu remoteContextMenu = createRemoteContextMenu();
         remoteTable.setContextMenu(remoteContextMenu);
+        installFileKeys(remoteTable, this::renameRemoteSelected, this::deleteRemoteSelected);
         
         // Setup data binding with filter and sort
         remoteItems = FXCollections.observableArrayList();
@@ -825,16 +869,9 @@ public class SFTPManagerTab extends Tab {
         // Apply initial sort
         remoteTable.sort();
         
-        // Search filter
-        remoteSearchField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal == null || newVal.trim().isEmpty()) {
-                filteredRemoteItems.setPredicate(p -> true);
-            } else {
-                String searchLower = newVal.toLowerCase();
-                filteredRemoteItems.setPredicate(item -> 
-                    item.getName().toLowerCase().contains(searchLower));
-            }
-        });
+        // Search filter: a glob such as *.log, or a plain substring
+        remoteSearchField.textProperty().addListener((obs, oldVal, newVal) ->
+            filteredRemoteItems.setPredicate(searchFilter(newVal)));
         
         // Remote folders are listed in the background; the overlay shows while one loads.
         remoteLoadingOverlay = FileBrowserLoadingOverlay.create();
@@ -845,6 +882,16 @@ public class SFTPManagerTab extends Tab {
         return panel;
     }
     
+    /**
+     * The row filter of a search field: the text is compiled once per change (see
+     * {@link FileBrowserPaths#compileNameFilter}), and the parent entry {@code ..} always stays,
+     * so a filtered folder can still be left.
+     */
+    static java.util.function.Predicate<SftpFileItem> searchFilter(String text) {
+        java.util.function.Predicate<String> names = FileBrowserPaths.compileNameFilter(text);
+        return item -> item.isParentEntry() || names.test(item.getName());
+    }
+
     private void connectToSFTP() {
         connectToSFTP(null);
     }
@@ -1043,6 +1090,7 @@ public class SFTPManagerTab extends Tab {
             autoCloseTimer.stop();
         }
         remoteListExecutor.shutdownNow();
+        deleteDragOutDirectories();
         SFTPSession session = sftpSession;
         if (session != null) {
             closeQuietly(session);
@@ -1351,49 +1399,61 @@ public class SFTPManagerTab extends Tab {
     private void uploadSelected() {
         var selected = localTable.getSelectionModel().getSelectedItems();
         if (selected == null || selected.isEmpty()) return;
+
+        // Collect items to upload (filter out "..")
+        List<Path> paths = new ArrayList<>();
+        for (var item : selected) {
+            if (!item.isParentEntry()) {
+                paths.add(Paths.get(item.getPath()));
+            }
+        }
+        // Taken now, on the FX thread: browsing on while the upload runs must not change its target.
+        uploadPaths(paths, currentRemotePath);
+    }
+
+    /**
+     * Uploads local files and folders into {@code targetDir}, one after another on one thread: the
+     * Upload button, local rows dragged onto the remote panel and files dropped there from the
+     * desktop. {@code targetDir} is the folder shown or the folder row dropped on, taken on the FX
+     * thread.
+     */
+    private void uploadPaths(List<Path> paths, String targetDir) {
+        if (paths == null || paths.isEmpty()) return;
         if (!requireConnected()) return;
         // The target must be the absolute folder a listing returned, not the unexpanded '~'.
         if (!remotePathResolved) return;
 
-        // Collect items to upload (filter out "..")
-        List<SftpFileItem> itemsToUpload = new ArrayList<>();
-        for (var item : selected) {
-            if (!item.getName().equals("..")) {
-                itemsToUpload.add(item);
-            }
-        }
-        if (itemsToUpload.isEmpty()) return;
-
-        // Taken now, on the FX thread: browsing on while the upload runs must not change its target.
+        List<Path> toUpload = paths.stream().filter(path -> path.getFileName() != null).toList();
+        if (toUpload.isEmpty()) return;
         SFTPSession session = sftpSession;
-        String targetDir = currentRemotePath;
 
         // One thread for the whole batch, one file after another. MINA's SFTP client tags every
         // request with an id, so a listing or another transfer may share the session meanwhile.
         new Thread(() -> {
-            int total = itemsToUpload.size();
+            int total = toUpload.size();
             int current = 0;
             int failed = 0;
 
-            for (var item : itemsToUpload) {
+            for (Path path : toUpload) {
                 current++;
                 final int num = current;
+                String name = path.getFileName().toString();
                 Platform.runLater(() -> statusLabel.setText(
-                    I18n.get("sftp.uploading", item.getName()) + " (" + num + "/" + total + ")"));
+                    I18n.get("sftp.uploading", name) + " (" + num + "/" + total + ")"));
 
                 try {
-                    uploadSingleFile(session, item, targetDir);
+                    uploadPath(session, path, targetDir);
                 } catch (Exception e) {
                     failed++;
                     if (!session.isConnected()) {
                         // The connection is gone: the rest fails too, and the tab shows Disconnected.
-                        logger.warn("Upload stopped, the SFTP connection was lost: {}", item.getName(), e);
+                        logger.warn("Upload stopped, the SFTP connection was lost: {}", name, e);
                         failed += total - current;
                         break;
                     }
-                    logger.error("Upload failed: {}", item.getName(), e);
+                    logger.error("Upload failed: {}", name, e);
                     final String errorMsg = failureMessage(e);
-                    Platform.runLater(() -> showError(I18n.get("sftp.error.upload"), item.getName() + ": " + errorMsg));
+                    Platform.runLater(() -> showError(I18n.get("sftp.error.upload"), name + ": " + errorMsg));
                 }
             }
             
@@ -1410,14 +1470,14 @@ public class SFTPManagerTab extends Tab {
         }, "SFTP-Upload").start();
     }
     
-    private void uploadSingleFile(SFTPSession session, SftpFileItem item, String targetDir) throws Exception {
-        String remotePath = RemotePathSupport.appendRemotePath(targetDir, item.getName());
+    private void uploadPath(SFTPSession session, Path localPath, String targetDir) throws Exception {
+        String remotePath = RemotePathSupport.appendRemotePath(targetDir, localPath.getFileName().toString());
 
-        if (item.isFile()) {
-            session.uploadFile(Paths.get(item.getPath()), remotePath);
-        } else {
+        if (Files.isDirectory(localPath)) {
             // Upload directory recursively
-            uploadDirectoryRecursive(session, Paths.get(item.getPath()), remotePath);
+            uploadDirectoryRecursive(session, localPath, remotePath);
+        } else {
+            session.uploadFile(localPath, remotePath);
         }
     }
 
@@ -1439,22 +1499,29 @@ public class SFTPManagerTab extends Tab {
     private void downloadSelected() {
         var selected = remoteTable.getSelectionModel().getSelectedItems();
         if (selected == null || selected.isEmpty()) return;
-        if (!requireConnected()) return;
 
         // Collect items to download (filter out "..")
         List<SftpFileItem> itemsToDownload = new ArrayList<>();
         for (var item : selected) {
-            if (!item.getName().equals("..")) {
+            if (!item.isParentEntry()) {
                 itemsToDownload.add(item);
             }
         }
-        if (itemsToDownload.isEmpty()) return;
-
         // Taken now, on the FX thread: browsing on while the download runs must not change its target.
-        SFTPSession session = sftpSession;
-        Path targetDir = currentLocalPath;
+        downloadItems(itemsToDownload, currentLocalPath);
+    }
 
-        // One thread for the whole batch, one file after another (see uploadSelected).
+    /**
+     * Downloads remote files and folders into {@code targetDir}, one after another on one thread:
+     * the Download button and remote rows dragged onto the local panel, into the folder shown or the
+     * folder row dropped on.
+     */
+    private void downloadItems(List<SftpFileItem> itemsToDownload, Path targetDir) {
+        if (itemsToDownload == null || itemsToDownload.isEmpty()) return;
+        if (!requireConnected()) return;
+        SFTPSession session = sftpSession;
+
+        // One thread for the whole batch, one file after another (see uploadPaths).
         new Thread(() -> {
             int total = itemsToDownload.size();
             int current = 0;
@@ -1498,7 +1565,7 @@ public class SFTPManagerTab extends Tab {
     }
 
     private void downloadSingleFile(SFTPSession session, SftpFileItem item, Path targetDir) throws Exception {
-        Path localPath = targetDir.resolve(item.getName());
+        Path localPath = localChild(targetDir, item.getName());
 
         if (item.isFile()) {
             session.downloadFile(item.getPath(), localPath);
@@ -1516,7 +1583,7 @@ public class SFTPManagerTab extends Tab {
             if (name.equals(".") || name.equals("..")) continue;
 
             String remoteEntry = RemotePathSupport.appendRemotePath(remotePath, name);
-            Path localEntry = localDir.resolve(name);
+            Path localEntry = localChild(localDir, name);
 
             if (entry.getAttributes().isDirectory()) {
                 downloadDirectoryRecursive(session, remoteEntry, localEntry);
@@ -1524,6 +1591,28 @@ public class SFTPManagerTab extends Tab {
                 session.downloadFile(remoteEntry, localEntry);
             }
         }
+    }
+
+    /**
+     * The entry {@code name} inside the local {@code folder}. Names come from the server, so one
+     * that would end up elsewhere ({@code ..}, {@code a/b}, an absolute path, {@code a\b} on
+     * Windows) is refused instead of being written outside the folder.
+     */
+    static Path localChild(Path folder, String name) throws IOException {
+        if (name == null || name.isEmpty() || ".".equals(name) || "..".equals(name)) {
+            throw new IOException(I18n.get("sftp.error.invalidName", String.valueOf(name)));
+        }
+        Path child;
+        try {
+            child = folder.resolve(name);
+        } catch (java.nio.file.InvalidPathException e) {
+            throw new IOException(I18n.get("sftp.error.invalidName", name), e);
+        }
+        if (!folder.equals(child.getParent()) || child.getFileName() == null
+                || !name.equals(child.getFileName().toString())) {
+            throw new IOException(I18n.get("sftp.error.invalidName", name));
+        }
+        return child;
     }
 
     private void copyLocalSelected() {
@@ -1561,20 +1650,73 @@ public class SFTPManagerTab extends Tab {
                 }
                 return failures;
             })
-            .whenComplete((failures, error) -> Platform.runLater(() -> {
-                statusProgressBar.setVisible(false);
-                statusProgressBar.setProgress(0);
-                refreshLocal();
-                if (error != null) {
-                    showError(I18n.get("sftp.error.copy"), failureMessage(error));
-                } else if (failures.isEmpty()) {
-                    statusLabel.setText(I18n.get("sftp.copied",
-                        String.join(", ", items.stream().map(SftpFileItem::getName).toList())));
-                } else {
-                    statusLabel.setText(I18n.get("sftp.error.copy"));
-                    showError(I18n.get("sftp.error.copy"), String.join("\n", failures));
+            .whenComplete((failures, error) -> Platform.runLater(() -> finishLocalCopy(
+                items.stream().map(SftpFileItem::getName).toList(), failures, error)));
+    }
+
+    /** Ends a background local copy: hides the progress, lists the folder again and reports. */
+    private void finishLocalCopy(List<String> copiedNames, List<String> failures, Throwable error) {
+        statusProgressBar.setVisible(false);
+        statusProgressBar.setProgress(0);
+        refreshLocal();
+        if (error != null) {
+            showError(I18n.get("sftp.error.copy"), failureMessage(error));
+        } else if (!failures.isEmpty()) {
+            statusLabel.setText(I18n.get("sftp.error.copy"));
+            showError(I18n.get("sftp.error.copy"), String.join("\n", failures));
+        } else if (!copiedNames.isEmpty()) {
+            statusLabel.setText(I18n.get("sftp.copied", String.join(", ", copiedNames)));
+        }
+    }
+
+    /** What a copy of dropped files did: the names copied and the failures, one line each. */
+    private record LocalCopyResult(List<String> copied, List<String> failures) { }
+
+    /**
+     * Copies files dropped from outside the panel (Finder, Explorer, the file browser sidebar, or
+     * the prepared files of another SFTP tab) into a local folder, in the background. An existing
+     * name gets a " (2)" suffix instead of being replaced; a file dropped onto the folder it is in
+     * is left alone.
+     */
+    private void copyIntoLocal(List<File> files, Path targetDir) {
+        List<Path> sources = files.stream().map(File::toPath).toList();
+        Path target = targetDir.toAbsolutePath().normalize();
+        statusProgressBar.setVisible(true);
+        statusProgressBar.setProgress(ProgressIndicator.INDETERMINATE_PROGRESS);
+        CompletableFuture
+            .supplyAsync(() -> {
+                List<String> copied = new ArrayList<>();
+                List<String> failures = new ArrayList<>();
+                for (Path source : sources) {
+                    Path fileName = source.getFileName();
+                    Path parent = source.toAbsolutePath().normalize().getParent();
+                    if (fileName == null || target.equals(parent)) {
+                        continue;
+                    }
+                    String name = fileName.toString();
+                    Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.copying", name)));
+                    try {
+                        Path destination = FileBrowserPaths.uniqueDestination(target, name);
+                        if (Files.isDirectory(source, LinkOption.NOFOLLOW_LINKS)) {
+                            if (isLocalCopyIntoItself(source, destination)) {
+                                throw new IOException(I18n.get("sftp.error.copyIntoItself", source, destination));
+                            }
+                            copyDirectory(source, destination);
+                        } else {
+                            Files.copy(source, destination);
+                        }
+                        copied.add(name);
+                    } catch (IOException | RuntimeException e) {
+                        logger.error("Copying the dropped {} into {} failed", source, target, e);
+                        failures.add(name + ": " + failureMessage(e));
+                    }
                 }
-            }));
+                return new LocalCopyResult(copied, failures);
+            })
+            .whenComplete((result, error) -> Platform.runLater(() -> finishLocalCopy(
+                result == null ? List.of() : result.copied(),
+                result == null ? List.of() : result.failures(),
+                error)));
     }
 
     private void copyLocalItem(SftpFileItem item, Path targetDir) throws IOException {
@@ -1670,6 +1812,357 @@ public class SFTPManagerTab extends Tab {
         }, "SFTP-RemoteCopy").start();
     }
     
+    // ---------- Drag and drop ----------
+
+    /** The style class of the panel or folder row a drag would drop into. */
+    private static final String DROP_TARGET = "drop-target";
+
+    /**
+     * The drag format of remote rows (see {@link SftpDragPayload}). Created on first use, through a
+     * lookup first: a {@link DataFormat} exists once per JVM, and a second {@code new} would throw.
+     */
+    private static final class DragFormats {
+        static final DataFormat REMOTE_ITEMS = lookupOrCreate("application/x-kortty-sftp-remote-items");
+
+        private static DataFormat lookupOrCreate(String mimeType) {
+            DataFormat existing = DataFormat.lookupMimeType(mimeType);
+            return existing != null ? existing : new DataFormat(mimeType);
+        }
+    }
+
+    /** A local row starts a drag of the selection as files and takes drops when it is a folder. */
+    private void installLocalRowDrag(TableRow<SftpFileItem> row) {
+        row.setOnDragDetected(event -> startLocalDrag(row, event));
+        row.setOnDragOver(event -> onLocalDragOver(event, row));
+        row.setOnDragExited(event -> row.getStyleClass().remove(DROP_TARGET));
+        row.setOnDragDropped(event -> onLocalDragDropped(event, row));
+        // Ours: MainWindow treats a DRAG_DONE that reaches the tab pane as the end of a tab drag.
+        row.setOnDragDone(DragEvent::consume);
+    }
+
+    /** A remote row starts a drag of the selection and takes drops when it is a folder. */
+    private void installRemoteRowDrag(TableRow<SftpFileItem> row) {
+        row.setOnDragDetected(event -> startRemoteDrag(row, event));
+        row.setOnDragOver(event -> onRemoteDragOver(event, row));
+        row.setOnDragExited(event -> row.getStyleClass().remove(DROP_TARGET));
+        row.setOnDragDropped(event -> onRemoteDragDropped(event, row));
+        row.setOnDragDone(DragEvent::consume);
+    }
+
+    /**
+     * The rows a drag from {@code row} carries: the selection, or the row alone when it is not part
+     * of the selection. Never the parent entry {@code ..}.
+     */
+    private static List<SftpFileItem> dragSelection(TableView<SftpFileItem> table, TableRow<SftpFileItem> row) {
+        SftpFileItem item = row.getItem();
+        if (row.isEmpty() || item == null || item.isParentEntry()) {
+            return List.of();
+        }
+        if (!table.getSelectionModel().isSelected(row.getIndex())) {
+            table.getSelectionModel().clearAndSelect(row.getIndex());
+        }
+        return table.getSelectionModel().getSelectedItems().stream()
+            .filter(selected -> selected != null && !selected.isParentEntry())
+            .toList();
+    }
+
+    /** The folder entry of {@code row}, or {@code null} for a file row, the parent entry or no row. */
+    private static SftpFileItem folderRow(TableRow<SftpFileItem> row) {
+        if (row == null || row.isEmpty()) {
+            return null;
+        }
+        SftpFileItem item = row.getItem();
+        return item != null && !item.isFile() && !item.isParentEntry() ? item : null;
+    }
+
+    /** Whether the drag started on a row of {@code table}. */
+    private static boolean startedIn(Object gestureSource, TableView<SftpFileItem> table) {
+        return gestureSource instanceof TableRow<?> row && row.getTableView() == table;
+    }
+
+    /** Marks the folder row a drag is over, or the whole panel when {@code row} is {@code null}. */
+    private static void showDropTarget(TableView<SftpFileItem> table, TableRow<SftpFileItem> row) {
+        if (row == null) {
+            if (!table.getStyleClass().contains(DROP_TARGET)) {
+                table.getStyleClass().add(DROP_TARGET);
+            }
+        } else {
+            table.getStyleClass().remove(DROP_TARGET);
+            if (!row.getStyleClass().contains(DROP_TARGET)) {
+                row.getStyleClass().add(DROP_TARGET);
+            }
+        }
+    }
+
+    private static void clearDropTarget(TableView<SftpFileItem> table, TableRow<SftpFileItem> row) {
+        table.getStyleClass().remove(DROP_TARGET);
+        if (row != null) {
+            row.getStyleClass().remove(DROP_TARGET);
+        }
+    }
+
+    /** The remote entries of a drag that started in this tab; empty for any other drag. */
+    private Optional<List<SftpDragPayload.Entry>> ownRemoteEntries(Dragboard dragboard) {
+        if (!dragboard.hasContent(DragFormats.REMOTE_ITEMS)) {
+            return Optional.empty();
+        }
+        return dragboard.getContent(DragFormats.REMOTE_ITEMS) instanceof String text
+            ? SftpDragPayload.decode(text, dragSourceId)
+            : Optional.empty();
+    }
+
+    private void startLocalDrag(TableRow<SftpFileItem> row, javafx.scene.input.MouseEvent event) {
+        List<SftpFileItem> items = dragSelection(localTable, row);
+        if (items.isEmpty()) {
+            return;
+        }
+        resetAutoCloseTimer();
+        // As files: the remote panel uploads them, the desktop and other programs copy them.
+        ClipboardContent content = new ClipboardContent();
+        content.putFiles(items.stream().map(item -> new File(item.getPath())).toList());
+        Dragboard dragboard = row.startDragAndDrop(TransferMode.COPY);
+        dragboard.setContent(content);
+        event.consume();
+    }
+
+    /**
+     * Starts a drag of remote rows. It always carries the entries, so the local panel of this tab
+     * downloads any selection, folders included. A small selection of files is also downloaded
+     * into a temporary folder first, so the desktop and other programs can take it as files.
+     */
+    private void startRemoteDrag(TableRow<SftpFileItem> row, javafx.scene.input.MouseEvent event) {
+        if (!isRemoteConnected()) {
+            return;
+        }
+        List<SftpFileItem> items = dragSelection(remoteTable, row);
+        if (items.isEmpty()) {
+            return;
+        }
+        resetAutoCloseTimer();
+        ClipboardContent content = new ClipboardContent();
+        content.put(DragFormats.REMOTE_ITEMS, SftpDragPayload.encode(dragSourceId, items.stream()
+            .map(item -> new SftpDragPayload.Entry(item.getPath(), !item.isFile()))
+            .toList()));
+        List<File> prepared = prepareDragOut(items);
+        if (!prepared.isEmpty()) {
+            content.putFiles(prepared);
+        }
+        Dragboard dragboard = row.startDragAndDrop(TransferMode.COPY);
+        dragboard.setContent(content);
+        event.consume();
+    }
+
+    /**
+     * Downloads a small selection of remote files into a new temporary folder so the drag can offer
+     * them outside the window. JavaFX cannot offer files that are fetched only on drop, so this
+     * waits on the FX thread, for at most {@link SftpDragOutPolicy#MAX_WAIT}. For folders, a large
+     * selection, a timeout or a failure it returns no files and says why in the status bar; the drag
+     * then works inside the window only.
+     */
+    private List<File> prepareDragOut(List<SftpFileItem> items) {
+        // The copies of the previous drag were dropped by now.
+        deleteDragOutDirectories();
+        if (SftpDragOutPolicy.check(items) != SftpDragOutPolicy.Verdict.ALLOWED) {
+            statusLabel.setText(I18n.get("sftp.dragOut.tooLarge",
+                String.valueOf(SftpDragOutPolicy.MAX_FILES), formatSize(SftpDragOutPolicy.MAX_TOTAL_BYTES)));
+            return List.of();
+        }
+        SFTPSession session = sftpSession;
+        if (session == null || !session.isConnected()) {
+            return List.of();
+        }
+        Path directory;
+        try {
+            directory = Files.createTempDirectory("kortty-sftp-drag-");
+        } catch (IOException e) {
+            logger.warn("Could not create a folder for dragging remote files out", e);
+            statusLabel.setText(I18n.get("sftp.dragOut.failed", failureMessage(e)));
+            return List.of();
+        }
+        dragOutDirectories.add(directory);
+        FutureTask<List<File>> download = new FutureTask<>(() -> downloadForDragOut(session, items, directory));
+        Thread worker = new Thread(download, "SFTP-DragOut");
+        worker.setDaemon(true);
+        worker.start();
+        try {
+            return download.get(SftpDragOutPolicy.MAX_WAIT.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            download.cancel(true);
+            logger.info("Remote files for a drag out of the window took longer than {}", SftpDragOutPolicy.MAX_WAIT);
+            statusLabel.setText(I18n.get("sftp.dragOut.timeout",
+                String.valueOf(SftpDragOutPolicy.MAX_WAIT.toSeconds())));
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof DragOutTooLarge) {
+                logger.info("Remote files for a drag out of the window resolve to more than the caps allow");
+                statusLabel.setText(I18n.get("sftp.dragOut.tooLarge",
+                    String.valueOf(SftpDragOutPolicy.MAX_FILES), formatSize(SftpDragOutPolicy.MAX_TOTAL_BYTES)));
+            } else {
+                logger.warn("Could not download remote files for a drag out of the window", e.getCause());
+                statusLabel.setText(I18n.get("sftp.dragOut.failed", failureMessage(e.getCause())));
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            download.cancel(true);
+        }
+        return List.of();
+    }
+
+    /** The dragged names resolve to a folder, a device or more bytes than a drag out of the window may carry. */
+    static final class DragOutTooLarge extends IOException {
+        DragOutTooLarge(SftpDragOutPolicy.Verdict verdict) {
+            super("Not offered outside the window: " + verdict);
+        }
+    }
+
+    /**
+     * Runs on the drag-out worker: one download after another into {@code directory}. First every
+     * name is resolved on the server and checked against the caps once more
+     * ({@link SftpDragOutPolicy#checkResolved}): the listing shows a symbolic link with the size of
+     * the link, and a download that runs past the wait cannot be stopped, so a link to a large file
+     * or to {@code /dev/zero} would otherwise keep filling the temporary folder in the background.
+     */
+    static List<File> downloadForDragOut(SFTPSession session, List<SftpFileItem> items, Path directory)
+            throws IOException {
+        List<SftpDragOutPolicy.Resolved> resolved = new ArrayList<>(items.size());
+        for (SftpFileItem item : items) {
+            checkDragOutCancelled();
+            SftpClient.Attributes attributes = session.getAttributes(item.getPath());
+            var flags = attributes.getFlags();
+            resolved.add(new SftpDragOutPolicy.Resolved(
+                flags.contains(SftpClient.Attribute.Perms) ? attributes.getPermissions() : 0,
+                flags.contains(SftpClient.Attribute.Size) ? attributes.getSize() : -1));
+        }
+        SftpDragOutPolicy.Verdict verdict = SftpDragOutPolicy.checkResolved(resolved);
+        if (verdict != SftpDragOutPolicy.Verdict.ALLOWED) {
+            throw new DragOutTooLarge(verdict);
+        }
+        List<File> files = new ArrayList<>(items.size());
+        for (SftpFileItem item : items) {
+            checkDragOutCancelled();
+            Path target = localChild(directory, item.getName());
+            session.downloadFile(item.getPath(), target);
+            files.add(target.toFile());
+        }
+        return files;
+    }
+
+    private static void checkDragOutCancelled() throws java.io.InterruptedIOException {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new java.io.InterruptedIOException("Drag-out download cancelled");
+        }
+    }
+
+    /** Deletes the temporary folders of earlier drags out of the window; a busy one is retried later. */
+    private void deleteDragOutDirectories() {
+        dragOutDirectories.removeIf(SFTPManagerTab::deleteTreeQuietly);
+    }
+
+    /** Deletes a temporary tree; {@code true} once nothing of it is left. */
+    private static boolean deleteTreeQuietly(Path root) {
+        if (!Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
+            return true;
+        }
+        try (var stream = Files.walk(root)) {
+            for (Path path : stream.sorted(java.util.Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(path);
+            }
+            return true;
+        } catch (IOException | java.io.UncheckedIOException e) {
+            logger.debug("Could not delete the drag-out folder {} yet", root, e);
+            return false;
+        }
+    }
+
+    /**
+     * The local panel takes this tab's remote rows (downloaded into the folder) and files from
+     * anywhere else (copied); never its own rows.
+     */
+    private boolean acceptsLocalDrop(DragEvent event) {
+        if (startedIn(event.getGestureSource(), localTable)) {
+            return false;
+        }
+        Dragboard dragboard = event.getDragboard();
+        return (isRemoteConnected() && ownRemoteEntries(dragboard).isPresent()) || dragboard.hasFiles();
+    }
+
+    private void onLocalDragOver(DragEvent event, TableRow<SftpFileItem> row) {
+        if (row != null && folderRow(row) == null) {
+            // A file row: the table below takes the drag, for the folder shown.
+            return;
+        }
+        if (acceptsLocalDrop(event)) {
+            event.acceptTransferModes(TransferMode.COPY);
+            showDropTarget(localTable, row);
+            event.consume();
+        }
+    }
+
+    private void onLocalDragDropped(DragEvent event, TableRow<SftpFileItem> row) {
+        SftpFileItem folder = folderRow(row);
+        if (row != null && folder == null) {
+            return;
+        }
+        clearDropTarget(localTable, row);
+        boolean accepted = false;
+        if (acceptsLocalDrop(event)) {
+            resetAutoCloseTimer();
+            Path target = folder != null ? Paths.get(folder.getPath()) : currentLocalPath;
+            Dragboard dragboard = event.getDragboard();
+            Optional<List<SftpDragPayload.Entry>> remote = ownRemoteEntries(dragboard);
+            if (remote.isPresent() && isRemoteConnected()) {
+                // Downloaded again in the background, folders included; the prepared copies are for the desktop.
+                downloadItems(remote.get().stream()
+                    .map(entry -> SftpFileItem.fromDetails(entry.name(), entry.path(), !entry.directory(),
+                        "", "", "", "", "", -1))
+                    .toList(), target);
+            } else {
+                copyIntoLocal(dragboard.getFiles(), target);
+            }
+            accepted = true;
+        }
+        event.setDropCompleted(accepted);
+        event.consume();
+    }
+
+    /**
+     * The remote panel takes files (uploaded into the folder shown or the folder row): local rows,
+     * the desktop, other programs, and the prepared files of another SFTP tab; never its own rows.
+     */
+    private boolean acceptsRemoteDrop(DragEvent event) {
+        return !startedIn(event.getGestureSource(), remoteTable)
+            && event.getDragboard().hasFiles()
+            && isRemoteConnected()
+            && remotePathResolved;
+    }
+
+    private void onRemoteDragOver(DragEvent event, TableRow<SftpFileItem> row) {
+        if (row != null && folderRow(row) == null) {
+            return;
+        }
+        if (acceptsRemoteDrop(event)) {
+            event.acceptTransferModes(TransferMode.COPY);
+            showDropTarget(remoteTable, row);
+            event.consume();
+        }
+    }
+
+    private void onRemoteDragDropped(DragEvent event, TableRow<SftpFileItem> row) {
+        SftpFileItem folder = folderRow(row);
+        if (row != null && folder == null) {
+            return;
+        }
+        clearDropTarget(remoteTable, row);
+        boolean accepted = false;
+        if (acceptsRemoteDrop(event)) {
+            resetAutoCloseTimer();
+            String target = folder != null ? folder.getPath() : currentRemotePath;
+            uploadPaths(event.getDragboard().getFiles().stream().map(File::toPath).toList(), target);
+            accepted = true;
+        }
+        event.setDropCompleted(accepted);
+        event.consume();
+    }
+
     private ContextMenu createLocalContextMenu() {
         ContextMenu menu = new ContextMenu();
         
@@ -1683,6 +2176,18 @@ public class SFTPManagerTab extends Tab {
         deleteItem.setOnAction(e -> {
             resetAutoCloseTimer();
             deleteLocalSelected();
+        });
+
+        MenuItem renameItem = new MenuItem(I18n.get("sftp.rename"));
+        renameItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            renameLocalSelected();
+        });
+
+        MenuItem newFolderItem = new MenuItem(I18n.get("filebrowser.context.newFolder"));
+        newFolderItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            createLocalFolder();
         });
         
         MenuItem ownerItem = new MenuItem(I18n.get("sftp.contextMenu.setOwner"));
@@ -1710,9 +2215,11 @@ public class SFTPManagerTab extends Tab {
         });
         
         menu.getItems().addAll(
-            copyItem, deleteItem, 
-            new SeparatorMenuItem(), 
-            ownerItem, 
+            copyItem, renameItem, deleteItem,
+            new SeparatorMenuItem(),
+            newFolderItem,
+            new SeparatorMenuItem(),
+            ownerItem,
             new SeparatorMenuItem(), 
             archiveItem,
             new SeparatorMenuItem(),
@@ -1728,16 +2235,17 @@ public class SFTPManagerTab extends Tab {
             boolean isImageFile = isSingleFile && isImageFileType(selected.get(0).getName());
             
             copyItem.setDisable(!hasSelection);
+            renameItem.setDisable(singleNamedSelection(localTable) == null);
             deleteItem.setDisable(!hasSelection);
             ownerItem.setDisable(!hasSelection);
             archiveItem.setDisable(!hasSelection);
             editWithSnippetEditorItem.setDisable(!isSingleFile);
             openImageItem.setDisable(!isImageFile);
         });
-        
+
         return menu;
     }
-    
+
     private ContextMenu createRemoteContextMenu() {
         ContextMenu menu = new ContextMenu();
         
@@ -1751,6 +2259,18 @@ public class SFTPManagerTab extends Tab {
         deleteItem.setOnAction(e -> {
             resetAutoCloseTimer();
             deleteRemoteSelected();
+        });
+
+        MenuItem renameItem = new MenuItem(I18n.get("sftp.rename"));
+        renameItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            renameRemoteSelected();
+        });
+
+        MenuItem newFolderItem = new MenuItem(I18n.get("filebrowser.context.newFolder"));
+        newFolderItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            createRemoteFolder();
         });
         
         MenuItem ownerItem = new MenuItem(I18n.get("sftp.contextMenu.setOwner"));
@@ -1778,9 +2298,11 @@ public class SFTPManagerTab extends Tab {
         });
         
         menu.getItems().addAll(
-            copyItem, deleteItem, 
-            new SeparatorMenuItem(), 
-            ownerItem, 
+            copyItem, renameItem, deleteItem,
+            new SeparatorMenuItem(),
+            newFolderItem,
+            new SeparatorMenuItem(),
+            ownerItem,
             new SeparatorMenuItem(), 
             archiveItem,
             new SeparatorMenuItem(),
@@ -1796,16 +2318,221 @@ public class SFTPManagerTab extends Tab {
             boolean isImageFile = isSingleFile && isImageFileType(selected.get(0).getName());
             
             copyItem.setDisable(!hasSelection);
+            renameItem.setDisable(!isRemoteConnected() || singleNamedSelection(remoteTable) == null);
             deleteItem.setDisable(!hasSelection);
+            newFolderItem.setDisable(!isRemoteConnected() || !remotePathResolved);
             ownerItem.setDisable(!hasSelection);
             archiveItem.setDisable(!hasSelection);
             editWithSnippetEditorItem.setDisable(!isSingleFile);
             openImageItem.setDisable(!isImageFile);
         });
-        
+
         return menu;
     }
-    
+
+    /**
+     * F2 renames the selected entry, Delete (or Cmd/Ctrl+Backspace) deletes the selection after the
+     * usual confirmation, as in the file browser sidebar.
+     */
+    private void installFileKeys(TableView<SftpFileItem> table, Runnable rename, Runnable delete) {
+        table.setOnKeyPressed(event -> {
+            KeyCode code = event.getCode();
+            if (code == KeyCode.F2 && !event.isShortcutDown() && !event.isAltDown()) {
+                resetAutoCloseTimer();
+                rename.run();
+                event.consume();
+            } else if (code == KeyCode.DELETE || (code == KeyCode.BACK_SPACE && event.isShortcutDown())) {
+                resetAutoCloseTimer();
+                delete.run();
+                event.consume();
+            }
+        });
+    }
+
+    /** The one selected entry other than {@code ..}, or {@code null}. */
+    private static SftpFileItem singleNamedSelection(TableView<SftpFileItem> table) {
+        var selected = table.getSelectionModel().getSelectedItems();
+        if (selected == null || selected.size() != 1) {
+            return null;
+        }
+        SftpFileItem item = selected.get(0);
+        return item == null || item.isParentEntry() ? null : item;
+    }
+
+    /**
+     * Asks for the name of a new or renamed entry. While the name is not usable (see
+     * {@link SftpFileTransferService#validateEntryName}) the dialog stays open with an error.
+     *
+     * @return the trimmed name, or empty when the dialog was cancelled
+     */
+    private Optional<String> promptEntryName(String title, String header, String initialName) {
+        TextInputDialog dialog = new TextInputDialog(initialName);
+        dialog.setTitle(title);
+        dialog.setHeaderText(header);
+        dialog.setContentText(I18n.get("sftp.nameLabel"));
+        applyDarkTheme(dialog);
+        if (getTabPane() != null && getTabPane().getScene() != null) {
+            dialog.initOwner(getTabPane().getScene().getWindow());
+        }
+        Node okButton = dialog.getDialogPane().lookupButton(ButtonType.OK);
+        if (okButton != null) {
+            okButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+                String typed = dialog.getEditor().getText();
+                if (!isValidEntryName(typed)) {
+                    event.consume();
+                    showError(title, I18n.get("sftp.error.invalidName", typed == null ? "" : typed.trim()));
+                }
+            });
+        }
+        return dialog.showAndWait().map(String::trim);
+    }
+
+    static boolean isValidEntryName(String name) {
+        try {
+            SftpFileTransferService.validateEntryName(name);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    /** The message for a failed rename or new folder: "already exists" in words, otherwise the cause. */
+    private static String entryFailureMessage(Throwable failure, String name) {
+        Throwable cause = failure instanceof CompletionException && failure.getCause() != null
+            ? failure.getCause()
+            : failure;
+        return cause instanceof FileAlreadyExistsException
+            ? I18n.get("sftp.error.nameExists", name)
+            : failureMessage(cause);
+    }
+
+    private void renameLocalSelected() {
+        SftpFileItem item = singleNamedSelection(localTable);
+        if (item == null) {
+            return;
+        }
+        promptEntryName(I18n.get("sftp.rename"), I18n.get("sftp.renamePrompt", item.getName()), item.getName())
+            .filter(name -> !name.equals(item.getName()))
+            .ifPresent(name -> {
+                try {
+                    // Never over an existing entry of that name.
+                    SftpFileTransferService.renameLocalEntry(Paths.get(item.getPath()), name);
+                    statusLabel.setText(I18n.get("sftp.renamed", item.getName(), name));
+                } catch (IOException | RuntimeException e) {
+                    logger.error("Local rename failed: {} -> {}", item.getPath(), name, e);
+                    showError(I18n.get("sftp.error.renameFailed"), item.getName() + ": " + entryFailureMessage(e, name));
+                }
+                refreshLocal();
+            });
+    }
+
+    private void renameRemoteSelected() {
+        SftpFileItem item = singleNamedSelection(remoteTable);
+        if (item == null || !requireConnected()) {
+            return;
+        }
+        promptEntryName(I18n.get("sftp.rename"), I18n.get("sftp.renamePrompt", item.getName()), item.getName())
+            .filter(name -> !name.equals(item.getName()))
+            .ifPresent(name -> {
+                if (!requireConnected()) {
+                    return;
+                }
+                SFTPSession session = sftpSession;
+                String target = SftpFileTransferService.resolveSiblingRemoteFilePath(item.getPath(), name);
+                statusLabel.setText(I18n.get("sftp.renaming", item.getName(), name));
+                runRemoteOperation("SFTP-Rename", session, () -> {
+                    // Not every server refuses to replace an existing target on rename: check first.
+                    if (remoteRenameTargetTaken(session, item.getName(), target, name)) {
+                        throw new FileAlreadyExistsException(target);
+                    }
+                    session.renameFile(item.getPath(), target);
+                }, () -> statusLabel.setText(I18n.get("sftp.renamed", item.getName(), name)), failure -> {
+                    logger.error("Remote rename failed: {} -> {}", item.getPath(), target, failure);
+                    showError(I18n.get("sftp.error.renameFailed"),
+                        item.getName() + ": " + entryFailureMessage(failure, name));
+                });
+            });
+    }
+
+    private void createLocalFolder() {
+        Path targetDir = currentLocalPath;
+        promptEntryName(I18n.get("filebrowser.newFolder.title"), I18n.get("filebrowser.newFolder.header"), "")
+            .ifPresent(name -> {
+                try {
+                    Files.createDirectory(targetDir.resolve(name));
+                    statusLabel.setText(I18n.get("filebrowser.folder.created") + ": " + name);
+                } catch (IOException | RuntimeException e) {
+                    logger.error("Creating local folder {} in {} failed", name, targetDir, e);
+                    showError(I18n.get("filebrowser.error.createFolder"), entryFailureMessage(e, name));
+                }
+                refreshLocal();
+            });
+    }
+
+    private void createRemoteFolder() {
+        if (!requireConnected() || !remotePathResolved) {
+            return;
+        }
+        // Taken now: browsing on while the dialog is open must not change where the folder goes.
+        String targetDir = currentRemotePath;
+        promptEntryName(I18n.get("filebrowser.newFolder.title"), I18n.get("filebrowser.newFolder.header"), "")
+            .ifPresent(name -> {
+                if (!requireConnected()) {
+                    return;
+                }
+                SFTPSession session = sftpSession;
+                String folder = RemotePathSupport.appendRemotePath(targetDir, name);
+                runRemoteOperation("SFTP-NewFolder", session, () -> {
+                    if (remoteFileExists(session, folder)) {
+                        throw new FileAlreadyExistsException(folder);
+                    }
+                    // Strict: unlike an upload, New Folder never merges into an existing folder.
+                    session.createDirectory(folder);
+                }, () -> statusLabel.setText(I18n.get("filebrowser.folder.created") + ": " + name), failure -> {
+                    logger.error("Creating remote folder {} failed", folder, failure);
+                    showError(I18n.get("filebrowser.error.createFolder"), entryFailureMessage(failure, name));
+                });
+            });
+    }
+
+    /** A remote action for {@link #runRemoteOperation}. */
+    @FunctionalInterface
+    private interface RemoteOperation {
+        void run() throws Exception;
+    }
+
+    /**
+     * Runs {@code operation} on its own thread and then, on the FX thread, reports it and lists the
+     * remote folder again. A failure caused by a lost connection shows the Disconnected state
+     * instead of {@code onFailure}.
+     */
+    private void runRemoteOperation(String threadName, SFTPSession session, RemoteOperation operation,
+            Runnable onSuccess, java.util.function.Consumer<Exception> onFailure) {
+        new Thread(() -> {
+            Exception failure = null;
+            try {
+                operation.run();
+            } catch (Exception e) {
+                failure = e;
+            }
+            Exception result = failure;
+            Platform.runLater(() -> {
+                if (closing) {
+                    return;
+                }
+                if (result == null) {
+                    onSuccess.run();
+                } else if (!session.isConnected()) {
+                    requireConnected();
+                    return;
+                } else {
+                    onFailure.accept(result);
+                }
+                refreshRemote();
+            });
+        }, threadName).start();
+    }
+
     private void deleteRemoteSelected() {
         var selected = remoteTable.getSelectionModel().getSelectedItems();
         if (selected == null || selected.isEmpty()) return;
@@ -3830,6 +4557,25 @@ public class SFTPManagerTab extends Tab {
         }
         snippet.setDiagrams(diagramCopies);
         return snippet;
+    }
+
+    /**
+     * Whether renaming the entry {@code currentName} to {@code target} (named {@code newName}) would
+     * meet another entry. A change of case only is looked up in the folder's listing, spelled
+     * exactly: on a case-insensitive server the new name "exists" as the entry itself, while on a
+     * case-sensitive one it can be a second file that a rename might replace.
+     */
+    static boolean remoteRenameTargetTaken(SFTPSession session, String currentName, String target, String newName)
+            throws IOException {
+        if (!newName.equalsIgnoreCase(currentName)) {
+            return remoteFileExists(session, target);
+        }
+        for (SftpClient.DirEntry entry : session.listFiles(RemotePathSupport.parentRemotePath(target))) {
+            if (newName.equals(entry.getFilename())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean remoteFileExists(SFTPSession session, String remotePath) {

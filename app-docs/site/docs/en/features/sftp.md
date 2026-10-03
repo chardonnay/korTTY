@@ -68,19 +68,49 @@ SFTP Manager tabs are saved with a [project](projects.md#sftp-manager-tabs). Ope
 
 ## File operations
 
-The SFTP Manager supports a full range of file operations:
+Each panel has its own group of toolbar buttons below the lists (local on the left, remote on the right) and a right-click context menu:
 
 | Operation | How |
 |-----------|-----|
-| **Upload** | Select local file(s), click Upload (or drag and drop) |
-| **Download** | Select remote file(s), click Download |
-| **Delete** | Select file(s), click Delete |
-| **Rename** | Select a file, click Rename |
-| **Copy** | Copy files within the same panel (a local copy runs in the background). A remote folder copied where a folder of that name exists merges into it; copying an item onto itself or into one of its own subfolders is refused with an error |
+| **Upload** | Select local files or folders and click **Upload**, or drag them onto the remote panel; see [Drag and drop](#drag-and-drop) |
+| **Download** | Select remote files or folders and click **Download**, or drag them onto the local panel |
+| **Rename** | Select one entry and press ++f2++, or choose **Rename** in the context menu. An existing entry of the new name is never replaced; you get an error instead |
+| **New Folder** | Click the folder button next to **Refresh**, or choose **New Folder** in the context menu, in either panel. The folder is created in the folder shown; a name that already exists is an error |
+| **Delete** | Select entries and click **Delete**, choose **Delete** in the context menu, or press ++delete++ (++ctrl+backspace++, on macOS ++cmd+backspace++). You confirm before anything is deleted |
+| **Copy** | **Copy to...** in the context menu copies within the same side: locally into a folder you pick (in the background), remotely into a folder path you type. A remote folder copied where a folder of that name exists merges into it; copying an item onto itself or into one of its own subfolders is refused with an error |
 | **Edit in Snippet Editor** | Select exactly one local or remote file, then use the *Edit* toolbar menu or the right-click context menu |
-| **Create Directory** | Click "New Folder" in either panel |
-| **Create ZIP** | Select multiple files/directories, click "Create ZIP" |
-| **Set Owner/Permissions** | Select file(s), use context menu or button. Separate fields for User, Group, and octal permissions (e.g., 755) |
+| **Archive** | **Archive** in the remote toolbar, or **Archive...** in either context menu, packs the selection as ZIP, TAR.BZ2 or 7z, depending on the tools available on that side |
+| **Set Owner/Permissions** | Select entries, then click **Rights** or choose **Set Owner/Permissions...** in the context menu. Separate fields for User, Group, and octal permissions (e.g., 755) |
+
+A name for **Rename** or **New Folder** must be a single entry in the folder shown: it may not be empty, `.` or `..`, or contain `/` or `\`. The dialog stays open with an error until the name is usable.
+
+### Drag and drop
+
+You can drag entries between the two panels, from your desktop into the SFTP Manager, and in small amounts from the server to your desktop. While you drag, the panel or the folder row that would take the drop is highlighted; dropping on a folder row puts the entries into that folder, dropping anywhere else into the folder shown.
+
+| Drag | Result |
+|------|--------|
+| Local rows onto the remote panel | Uploaded, as with **Upload**: a file of the same name on the server is replaced, a folder merges |
+| Files from Finder, Explorer or the file browser sidebar onto the remote panel | Uploaded the same way |
+| Remote rows onto the local panel | Downloaded in the background, as with **Download**: folders included, and a local file of the same name is replaced |
+| Files from Finder, Explorer or the file browser sidebar onto the local panel | Copied in the background; a name that is already there gets a number, as in `report (2).txt`, and a file dropped onto the folder it is in is left alone |
+| Local rows onto the desktop or another program | Offered as the files themselves |
+| Remote rows onto the desktop or another program | Only for at most 20 files with at most 16 MB together, and no folders |
+
+A drag into the same panel does nothing; use **Copy to...** or **Rename** there.
+
+!!! note "Dragging from the server to the desktop"
+    The desktop can only take files that already exist when the drag starts. korTTY therefore downloads the dragged remote files into a private temporary folder first, which can hold the window for up to 5 seconds. Folders, more than 20 files, more than 16 MB or a download that takes longer can only be dropped inside the window; the status bar says so, and you drop them on the local panel instead. A link on the server counts as the file it points to, so a link to a large file is not offered to the desktop either. The temporary copies are deleted when you start the next drag or close the tab.
+
+### Keys
+
+These keys work in both panels:
+
+| Key | Action |
+|-----|--------|
+| ++f2++ (in the list) | Rename the selected entry |
+| ++delete++ or ++ctrl+backspace++ (++cmd+backspace++ on macOS, in the list) | Delete the selection, after confirmation |
+| ++enter++ (in the **Path** field) | Go to the typed folder |
 
 ### Uploading files and folders
 
@@ -121,13 +151,16 @@ The file-mode buttons provide these save choices:
 
 ## Search
 
-Both panels support **glob pattern search** using the `*` wildcard. For example:
+The search field above each list filters the folder shown as you type, without leaving it; the parent entry `..` stays visible. korTTY evaluates the wildcards itself, the same way for local and remote names. A pattern with a wildcard has to match the whole name, ignoring case:
 
-- `*.log` finds all log files in the current directory
-- `*.{py,sh}` finds Python and shell files (if your shell supports brace expansion)
-- `backup*` finds all files starting with "backup"
+| Wildcard | Matches | Example |
+|----------|---------|---------|
+| `*` | Any number of characters | `*.log` finds all log files, `backup*` all names starting with "backup" |
+| `?` | Exactly one character | `data?.csv` finds `data1.csv`, not `data10.csv` |
+| `[abc]`, `[a-z]` | One of the listed characters; `[!abc]` or `[^abc]` one that is not listed | `[ab]*` finds names starting with a or b |
+| `{py,sh}` | One of the alternatives | `*.{py,sh}` finds Python and shell files |
 
-Enter the pattern in the search field to quickly filter displayed files without leaving the current directory.
+Text without a wildcard matches anywhere in the name, ignoring case: `rep` finds `Report.txt`. A pattern that cannot be read, such as an unclosed `[`, is searched for as plain text.
 
 ---
 
