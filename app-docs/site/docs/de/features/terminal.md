@@ -23,7 +23,7 @@ Verwalten Sie mehrere SSH-Sitzungen mit diesen Registerkartenoperationen:
 | **Nächster Tab** | ++ctrl+Tab++ |
 | **Vorheriger Tab** | ++ctrl+shift+Tab++ |
 | **Erneut verbinden** | Klicken Sie mit der rechten Maustaste auf eine Registerkarte, den Terminalbereich oder einen Servereintrag im Dashboard. Ist die Verbindung aktiv, wird sie sofort geschlossen und wieder aufgebaut; Wenn die Verbindung getrennt wird, wird sie wiederhergestellt. Das Terminalfenster bleibt geöffnet. |
-| **Registerkartengruppen** | Klicken Sie mit der rechten Maustaste auf eine Registerkarte, um sie zur besseren Organisation einer benannten Gruppe zuzuweisen. |
+| **Tab-Gruppen** | Rechtsklicken Sie auf einen Tab, um ihn einer benannten Gruppe zuzuweisen und so die Organisation zu verbessern; **Keine Gruppe** entfernt ihn wieder aus seiner Gruppe. Das gleiche Menü bietet **Duplizieren**, das einen weiteren Tab zur gleichen Verbindung öffnet. |
 
 ## Sicher verbinden
 

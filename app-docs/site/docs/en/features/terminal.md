@@ -23,7 +23,7 @@ Manage multiple SSH sessions with these tab operations:
 | **Next Tab** | ++ctrl+Tab++ |
 | **Previous Tab** | ++ctrl+shift+Tab++ |
 | **Reconnect** | Right-click a tab, the terminal area, or a server entry in the Dashboard. If the connection is active, it is closed and re-established immediately; if disconnected, it is re-established. The terminal window stays open. |
-| **Tab Groups** | Right-click a tab to assign it to a named group for better organization |
+| **Tab Groups** | Right-click a tab to assign it to a named group for better organization; **No Group** takes it out of its group again. The same menu offers **Duplicate**, which opens another tab to the same connection. |
 
 ## Connecting safely
 

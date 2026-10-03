@@ -10931,7 +10931,7 @@ public class MainWindow {
             updateStatus(I18n.get("status.reconnecting", terminalTab.getConnection().getDisplayName()));
         });
         
-        MenuItem duplicateItem = new MenuItem("Duplizieren");
+        MenuItem duplicateItem = new MenuItem(I18n.get("tab.contextMenu.duplicate"));
         duplicateItem.setOnAction(e -> duplicateTab(terminalTab));
         contextMenu.getItems().add(duplicateItem);
         
@@ -10974,7 +10974,7 @@ public class MainWindow {
         String currentGroup = terminalTab.getGroup();
         
         // Menu item to remove from group
-        MenuItem removeGroupItem = new MenuItem("Keine Gruppe");
+        MenuItem removeGroupItem = new MenuItem(I18n.get("tab.contextMenu.noGroup"));
         removeGroupItem.setOnAction(e -> {
             terminalTab.setGroup(null);
             organizeTabsByGroup();

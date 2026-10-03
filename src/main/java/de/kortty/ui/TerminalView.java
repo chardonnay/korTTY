@@ -332,6 +332,9 @@ public class TerminalView extends BorderPane {
     private final Map<SithTermFxWidget, PauseTransition> commandCompletionTimerByWidget = new ConcurrentHashMap<>();
     // Absolute line where the current command started (Enter pressed).
     private final Map<SithTermFxWidget, Integer> commandStartLineByWidget = new ConcurrentHashMap<>();
+    // Counts the lines a full scrollback drops from its top, so the absolute-line keys above can
+    // follow their command lines instead of drifting (and colliding on the bottom row).
+    private final Map<SithTermFxWidget, ScrollbackTrimTracker> scrollbackTrimTrackerByWidget = new ConcurrentHashMap<>();
 
     // Optional listener called when timestamp gutter visibility is toggled (e.g. from context menu)
     private Runnable timestampToggleListener;
@@ -1112,6 +1115,7 @@ public class TerminalView extends BorderPane {
             completionTimer.stop();
         }
         commandStartLineByWidget.remove(widget);
+        scrollbackTrimTrackerByWidget.remove(widget);
         agentShortcutBuffers.remove(widget);
         TerminalModelListener recordingListener = terminalRecordingModelListeners.remove(widget);
         if (recordingListener != null && widget.getTerminalTextBuffer() != null) {
@@ -4956,11 +4960,15 @@ public class TerminalView extends BorderPane {
         // runs during the TerminalSplitPane constructor when splitPane is not yet assigned.
         syncGutterFromHistory(widget, gutter);
         
+        var terminalPanel = widget.getTerminalPanel();
+        var textBuffer = terminalPanel.getTerminalTextBuffer();
+        scrollbackTrimTrackerByWidget.put(widget, ScrollbackTrimTracker.forBuffer(textBuffer));
+
         // Always listen for Enter key to record timestamps (even when gutter is hidden).
         // Register on the primary focusable target only; attaching to parent + child duplicates the event.
         javafx.event.EventHandler<KeyEvent> enterHandler = event -> {
             if (event.getCode() == KeyCode.ENTER) {
-                int startAbsoluteLine = getCurrentAbsoluteCursorLine(widget);
+                int startAbsoluteLine = resolveCursorLineAfterScrollbackTrim(widget);
                 if (startAbsoluteLine >= 0) {
                     recordTimestampForLine(widget, startAbsoluteLine, LocalDateTime.now());
                     commandStartLineByWidget.put(widget, startAbsoluteLine);
@@ -4971,9 +4979,7 @@ public class TerminalView extends BorderPane {
         getPrimaryKeyEventTarget(widget).addEventFilter(KeyEvent.KEY_PRESSED, enterHandler);
         
         // Synchronize gutter with terminal scrollbar
-        var terminalPanel = widget.getTerminalPanel();
         ScrollBar scrollBar = terminalPanel.getScrollBar();
-        var textBuffer = terminalPanel.getTerminalTextBuffer();
         
         // Update gutter on scroll changes
         scrollBar.valueProperty().addListener((obs, oldV, newV) -> {
@@ -4991,7 +4997,15 @@ public class TerminalView extends BorderPane {
         
         // Update gutter when terminal content changes (new output, resize)
         textBuffer.addModelListener(() -> {
+            // Runs where the change happened - usually the emulator thread, holding the buffer
+            // lock - so every scroll step is counted, even a burst longer than the whole
+            // scrollback that the FX thread only gets to see after the fact.
+            ScrollbackTrimTracker trimTracker = scrollbackTrimTrackerByWidget.get(widget);
+            if (trimTracker != null) {
+                trimTracker.observe();
+            }
             Platform.runLater(() -> {
+                drainScrollbackTrim(widget);
                 updateGutterScrollState(gutter, scrollBar, textBuffer, terminalPanel);
                 // Add timestamp when prompt appears (cursor at start of new line from server output).
                 // For command end tracking, use a short quiet-time debounce after Enter:
@@ -5064,7 +5078,7 @@ public class TerminalView extends BorderPane {
             return;
         }
         try {
-            int absoluteLine = getCurrentAbsoluteCursorLine(widget);
+            int absoluteLine = resolveCursorLineAfterScrollbackTrim(widget);
             if (absoluteLine < 0) {
                 return;
             }
@@ -5077,6 +5091,108 @@ public class TerminalView extends BorderPane {
             awaitingCommandCompletionByWidget.put(widget, false);
         } catch (Exception e) {
             logger.debug("Failed to record command completion timestamp: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Applies any pending scrollback trim to the recorded marks, then returns the absolute cursor
+     * line. Both are read under the buffer lock so no trim can slip in between: the new mark's key
+     * and the shift already applied to the older marks describe the same buffer state, and any
+     * later trim moves all of them together.
+     */
+    private int resolveCursorLineAfterScrollbackTrim(SithTermFxWidget widget) {
+        ScrollbackTrimTracker tracker = scrollbackTrimTrackerByWidget.get(widget);
+        var textBuffer = widget.getTerminalTextBuffer();
+        if (tracker == null || textBuffer == null) {
+            return getCurrentAbsoluteCursorLine(widget);
+        }
+        ScrollbackTrimTracker.Trim trim;
+        int absoluteLine;
+        textBuffer.lock();
+        try {
+            trim = tracker.poll();
+            absoluteLine = getCurrentAbsoluteCursorLine(widget);
+        } finally {
+            textBuffer.unlock();
+        }
+        applyScrollbackTrim(widget, trim);
+        return absoluteLine;
+    }
+
+    /**
+     * Applies what the widget's scrollback dropped since the last look to its marks (FX thread).
+     * Runs in the model listener's deferred half, after its synchronous half already observed the
+     * change, so it drains without taking the buffer lock once per output event.
+     */
+    private void drainScrollbackTrim(SithTermFxWidget widget) {
+        ScrollbackTrimTracker tracker = scrollbackTrimTrackerByWidget.get(widget);
+        if (tracker == null) {
+            return;
+        }
+        try {
+            applyScrollbackTrim(widget, tracker.drain());
+        } catch (RuntimeException e) {
+            logger.debug("Could not track scrollback trim: {}", e.getMessage());
+        }
+    }
+
+    private void applyScrollbackTrim(SithTermFxWidget widget, ScrollbackTrimTracker.Trim trim) {
+        if (!scrollbackTrimMovesMarks(trim)) {
+            return;
+        }
+        if (trim.kind() == ScrollbackTrimTracker.Trim.Kind.CLEARED) {
+            clearTimestampMarks(widget);
+        } else {
+            shiftTimestampMarks(widget, trim.lines());
+        }
+    }
+
+    /**
+     * Whether a scrollback trim changes the recorded marks: a clear drops them and a real shift
+     * moves them, while an unknown trim (width reflow) or the alternate screen leaves them alone.
+     * A restored project's screen is replayed locally before the session starts and clears
+     * nothing, so restored marks need no extra protection.
+     */
+    static boolean scrollbackTrimMovesMarks(ScrollbackTrimTracker.Trim trim) {
+        if (trim == null) {
+            return false;
+        }
+        return switch (trim.kind()) {
+            case CLEARED -> true;
+            case SHIFT -> trim.lines() > 0;
+            case UNKNOWN, SUSPENDED -> false;
+        };
+    }
+
+    /** Moves every mark of the widget up by {@code lines}; marks that left the scrollback go. */
+    private void shiftTimestampMarks(SithTermFxWidget widget, int lines) {
+        TreeMap<Integer, LocalDateTime> history = timestampHistoryByWidget.get(widget);
+        if (history != null && !history.isEmpty()) {
+            TreeMap<Integer, LocalDateTime> shifted = TimestampHistory.shift(history, lines);
+            // replace(), not put(): a pane released meanwhile must not get its entry back.
+            if (timestampHistoryByWidget.replace(widget, history, shifted)) {
+                TimestampGutter gutter = gutterMap.get(widget);
+                if (gutter != null) {
+                    gutter.setAllTimestamps(shifted);
+                }
+            }
+        }
+        commandStartLineByWidget.computeIfPresent(widget, (w, line) -> {
+            int shiftedLine = TimestampHistory.shiftLine(line, lines);
+            return shiftedLine >= 0 ? shiftedLine : null;
+        });
+        lastTimestampLineByWidget.computeIfPresent(widget,
+            (w, line) -> TimestampHistory.shiftLine(line, lines));
+    }
+
+    /** Drops every mark of the widget: its scrollback was cleared (Clear Buffer, ESC[3J, reset). */
+    private void clearTimestampMarks(SithTermFxWidget widget) {
+        timestampHistoryByWidget.computeIfPresent(widget, (w, history) -> new TreeMap<>());
+        commandStartLineByWidget.remove(widget);
+        lastTimestampLineByWidget.computeIfPresent(widget, (w, line) -> -1);
+        TimestampGutter gutter = gutterMap.get(widget);
+        if (gutter != null) {
+            gutter.clearTimestamps();
         }
     }
 
@@ -5145,6 +5261,11 @@ public class TerminalView extends BorderPane {
         }
         int lastLine = restored.isEmpty() ? -1 : restored.lastKey();
         lastTimestampLineByWidget.put(primary, lastLine);
+        // Trims counted before the restore refer to the replaced marks, not to these.
+        ScrollbackTrimTracker tracker = scrollbackTrimTrackerByWidget.get(primary);
+        if (tracker != null) {
+            tracker.reset();
+        }
     }
     
     /**
@@ -6194,6 +6315,7 @@ public class TerminalView extends BorderPane {
         timestampHistoryByWidget.clear();
         awaitingCommandCompletionByWidget.clear();
         commandStartLineByWidget.clear();
+        scrollbackTrimTrackerByWidget.clear();
         agentShortcutBuffers.clear();
         terminalWidget = null;
     }
