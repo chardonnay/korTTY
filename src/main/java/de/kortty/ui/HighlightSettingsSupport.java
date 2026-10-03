@@ -18,7 +18,8 @@ import java.util.function.Function;
  * they are unit-tested without the JavaFX toolkit; {@code SettingsDialog} lays out the controls.
  *
  * <p>The dropdown offers <b>None</b>, the built-in sets and the user's sets, in the order of the
- * View → Highlighting menu. A stored default that names no set the panes can show (a deleted user
+ * View → Highlighting menu; <b>Edit Rules…</b> next to it opens the rule-set editor, after which the
+ * dropdown is rebuilt ({@link #selectionAfterRuleEdit}). A stored default that names no set the panes can show (a deleted user
  * set, or one the service ignores) stays selectable under a "missing" label, so saving the page for
  * an unrelated change does not silently drop it; the panes treat it as none either way.
  */
@@ -41,11 +42,14 @@ final class HighlightSettingsSupport {
     static final String DEFAULT_SET_UNKNOWN_KEY = "settings.terminal.highlighting.defaultSet.unknown";
     /** The hint below the section. */
     static final String INFO_KEY = "settings.terminal.highlighting.info";
+    /** The button next to the default-set dropdown that opens the rule-set editor. */
+    static final String EDIT_RULES_KEY = "settings.terminal.highlighting.editRules";
+    static final String EDIT_RULES_TOOLTIP_KEY = "settings.terminal.highlighting.editRules.tooltip";
 
     /** Every key of the section, for the i18n coverage test. */
     static final List<String> KEYS = List.of(HEADER_KEY, ENABLED_KEY, ENABLED_TOOLTIP_KEY, ALTERNATE_SCREEN_KEY,
         ALTERNATE_SCREEN_TOOLTIP_KEY, DEFAULT_SET_KEY, DEFAULT_SET_TOOLTIP_KEY, DEFAULT_SET_NONE_KEY,
-        DEFAULT_SET_UNKNOWN_KEY, INFO_KEY);
+        DEFAULT_SET_UNKNOWN_KEY, INFO_KEY, EDIT_RULES_KEY, EDIT_RULES_TOOLTIP_KEY);
 
     private HighlightSettingsSupport() {
     }
@@ -124,6 +128,24 @@ final class HighlightSettingsSupport {
      */
     static String telemetryValue(@Nullable String defaultSetId) {
         return HighlightTelemetry.setClass(defaultSetId);
+    }
+
+    /**
+     * The dropdown's selection after the rule-set editor saved: a set the editor deleted (one the panes
+     * could show before and cannot now) becomes None — the editor already cleared it as the stored
+     * default — and every other selection, including a set that was missing before, stays as it was.
+     *
+     * @param selection the dropdown's set id before the editor opened, {@code null} for None
+     * @param idsBefore {@link #selectableSetIds} before the editor opened
+     * @param idsAfter {@link #selectableSetIds} after it saved
+     */
+    static @Nullable String selectionAfterRuleEdit(@Nullable String selection, @NotNull List<String> idsBefore,
+                                                   @NotNull List<String> idsAfter) {
+        String id = normalize(selection);
+        if (id == null) {
+            return null;
+        }
+        return idsBefore.contains(id) && !idsAfter.contains(id) ? null : id;
     }
 
     /** A stored id as the dropdown compares it: trimmed, and {@code null} for blank or "none". */

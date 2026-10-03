@@ -2016,8 +2016,8 @@ public class MainWindow {
     /**
      * View → Highlighting: the Highlighting On item, which carries {@link #HIGHLIGHTING_TOGGLE_ACCELERATOR}
      * for display (the scene shortcut router handles the key itself while a terminal tab is selected),
-     * and the rule-set list, rebuilt each time the menu opens. Both act on the focused pane of the active
-     * terminal tab, for this session only.
+     * the rule-set list, rebuilt each time the menu opens, and Manage Rule Sets… below it. The first two
+     * act on the focused pane of the active terminal tab, for this session only.
      */
     private Menu createHighlightingMenu(MenuBarTarget target) {
         CheckMenuItem toggle = HighlightMenuSupport.createToggleItem(
@@ -2029,7 +2029,9 @@ public class MainWindow {
         } else {
             systemHighlightingToggleMenuItem = toggle;
         }
-        Menu menu = HighlightMenuSupport.createViewMenu(toggle, activeHighlightMenuState(),
+        MenuItem manage = HighlightMenuSupport.createManageItem(this::openHighlightRulesEditor);
+        ActionIds.tag(manage, HighlightMenuSupport.MANAGE_KEY);
+        Menu menu = HighlightMenuSupport.createViewMenu(toggle, manage, activeHighlightMenuState(),
             this::chooseHighlightSetInActiveTerminal);
         menu.setOnShowing(event -> HighlightMenuSupport.refresh(menu, toggle, activeHighlightMenuState(),
             this::chooseHighlightSetInActiveTerminal));
@@ -2074,6 +2076,15 @@ public class MainWindow {
             TerminalView view = terminalTab.getTerminalView();
             view.chooseHighlightSet(view.getFocusedWidget(), setId, HighlightTelemetry.SOURCE_MENU);
         }
+        syncHighlightingToggleItems();
+    }
+
+    /**
+     * View → Highlighting → Manage Rule Sets…: the rule-set editor, opened on the set the focused pane
+     * shows. Saving writes the settings and reloads the highlighting, so every pane follows at once.
+     */
+    private void openHighlightRulesEditor() {
+        HighlightRulesDialog.showAndSave(stage, app, activeHighlightMenuState().shownSetId());
         syncHighlightingToggleItems();
     }
 

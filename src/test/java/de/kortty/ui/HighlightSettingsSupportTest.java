@@ -143,4 +143,35 @@ class HighlightSettingsSupportTest {
             .isEqualTo(HighlightBuiltinSets.NETWORK_DEVICES);
         assertThat(HighlightSettingsSupport.telemetryValue("3f2c9a1e-my-production-set")).isEqualTo("custom");
     }
+
+    @Test
+    void afterTheRuleEditorTheDropdownKeepsItsSelectionUnlessThatSetWasDeleted() {
+        List<String> before = List.of(HighlightBuiltinSets.ERRORS, "web", "db");
+        List<String> after = List.of(HighlightBuiltinSets.ERRORS, "db", "new");
+
+        assertThat(HighlightSettingsSupport.selectionAfterRuleEdit("web", before, after)).isNull();
+        assertThat(HighlightSettingsSupport.selectionAfterRuleEdit("db", before, after)).isEqualTo("db");
+        assertThat(HighlightSettingsSupport.selectionAfterRuleEdit(HighlightBuiltinSets.ERRORS, before, after))
+            .isEqualTo(HighlightBuiltinSets.ERRORS);
+        assertThat(HighlightSettingsSupport.selectionAfterRuleEdit(null, before, after)).isNull();
+        assertThat(HighlightSettingsSupport.selectionAfterRuleEdit(TerminalHighlightService.NONE_ID, before, after))
+            .isNull();
+        // A stored default that was already missing before the edit stays visible as missing.
+        assertThat(HighlightSettingsSupport.selectionAfterRuleEdit("gone-long-ago", before, after))
+            .isEqualTo("gone-long-ago");
+    }
+
+    @Test
+    void theDropdownListsASetCreatedInTheEditorAfterTheServiceReloads() {
+        List<String> before = HighlightSettingsSupport.selectableSetIds(service);
+        loadUserSet("user-9", "Routers");
+        List<String> after = HighlightSettingsSupport.selectableSetIds(service);
+
+        String kept = HighlightSettingsSupport.selectionAfterRuleEdit(HighlightBuiltinSets.NETWORK, before, after);
+        List<HighlightSettingsSupport.DefaultSetChoice> choices =
+            HighlightSettingsSupport.defaultSetChoices(after, service::userSetName, kept);
+
+        assertThat(choices.stream().map(HighlightSettingsSupport.DefaultSetChoice::label).toList()).contains("Routers");
+        assertThat(HighlightSettingsSupport.selected(choices, kept).setId()).isEqualTo(HighlightBuiltinSets.NETWORK);
+    }
 }

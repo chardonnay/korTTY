@@ -22,7 +22,8 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Close active terminal windows without confirmation | toggle | — | Off | `closeActiveTerminalWindowsWithoutConfirmation` |
 | Highlight keywords in terminal output | toggle | — | On | `terminalHighlightingEnabled` |
 | Also highlight in full-screen programs (vim, less, htop) | toggle | — | Off | `terminalHighlightAlternateScreen` |
-| Default rule set: | dropdown | None, Errors and warnings, Network addresses, Network devices | None | `defaultHighlightRuleSetId` |
+| Default rule set: | dropdown | None, Errors and warnings, Network addresses, Network devices, or a set of your own | None | `defaultHighlightRuleSetId` |
+| Edit Rules… | button | opens the rule-set editor | — | `highlightRuleSets` |
 | Enable SSH Keep-Alive | toggle | — | On | `sshKeepAliveEnabled` |
 | Interval (seconds): | number | 5–600 | 60 | `sshKeepAliveInterval` |
 | Enable connection retries | toggle | — | On | `connectionRetriesEnabled` |
@@ -57,6 +58,8 @@ Configure terminal display and behavior settings, including dimensions, scrollba
     **Also highlight in full-screen programs** extends highlighting to programs that use the terminal's alternate screen, such as `vim`, `less` and `htop`. It is off by default because these programs redraw their screen constantly and bring their own colors, so highlights can flicker there and fight the program's colors. Switching it off leaves the highlights a running program already shows until it redraws them.
 
     All three apply to open terminals as soon as you save.
+
+    **Edit Rules…** opens the [rule-set editor](../../features/highlighting.md#your-own-rule-sets), where you create your own rule sets and look at the built-in ones. It stays available while the master switch is off, so you can prepare sets before switching highlighting on. The editor saves its changes when you confirm it, whether or not you then save the settings dialog, and afterwards the **Default rule set** dropdown lists your sets as they are now. If you delete the set the dropdown shows, it falls back to **None**.
 
 !!! note "SSH Keep-Alive"
     When enabled, korTTY sends periodic keep-alive packets to prevent SSH sessions from timing out during idle periods. The interval setting controls how often (in seconds) these packets are sent. The spinner range is 5–600 seconds; the interval is disabled if SSH Keep-Alive is toggled off.

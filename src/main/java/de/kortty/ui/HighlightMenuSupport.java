@@ -26,9 +26,11 @@ import java.util.function.Supplier;
  * item and a radio list — <b>None</b>, the built-in sets, then the user's sets — and both act on one
  * pane only, for the running session: nothing is saved to the connection or the settings.
  *
- * <p>The radio list is rebuilt every time the menu opens, because the pane, its set and the list of
- * sets change underneath it; its items are therefore {@link ActionIds#exclude excluded} from the
- * action harvest, where a copy would go stale. The check item is created once per menu bar and is
+ * <p>Below the list, <b>Manage Rule Sets…</b> opens the rule-set editor. The radio list is rebuilt every
+ * time the menu opens, because the pane, its set and the list of sets change underneath it; its items
+ * are therefore {@link ActionIds#exclude excluded} from the action harvest, where a copy would go
+ * stale, and marked so a rebuild replaces exactly them and keeps the items around them. The check item
+ * and the Manage item are created once per menu bar; the check item is
  * driven by the pane's state: JavaFX flips a {@link CheckMenuItem} before its action runs, so its
  * action never reads {@code isSelected()} and the item is re-synced afterwards (see
  * {@link HighlightToggle}).
@@ -51,6 +53,11 @@ public final class HighlightMenuSupport {
     public static final String STATUS_OFF_KEY = "menu.view.highlighting.statusOff";
     /** Status-bar text when the toggle cannot act because the master switch is off. */
     public static final String DISABLED_KEY = "menu.view.highlighting.disabled";
+    /** The item below the list that opens the rule-set editor. */
+    public static final String MANAGE_KEY = "menu.view.highlighting.manage";
+
+    /** Marks the items of the rebuilt radio list, so a rebuild replaces exactly them. */
+    static final String LIST_ITEM_PROPERTY = "kortty.highlight.listItem";
 
     /** The check item and the separator below it, which a rebuild keeps. */
     static final int LEADING_ITEMS = 2;
@@ -178,48 +185,90 @@ public final class HighlightMenuSupport {
     }
 
     /**
+     * A new <b>Manage Rule Sets…</b> item that runs {@code onManage}. It stays enabled while the master
+     * switch is off or no pane is focused: rule sets can be prepared at any time.
+     */
+    static MenuItem createManageItem(@NotNull Runnable onManage) {
+        Objects.requireNonNull(onManage, "onManage");
+        MenuItem item = new MenuItem(I18n.get(MANAGE_KEY));
+        item.setOnAction(event -> onManage.run());
+        return item;
+    }
+
+    /**
      * The View menu's submenu around an already created check item; the radio list is filled now and
      * again by the caller's {@code onShowing}.
      */
     static Menu createViewMenu(@NotNull CheckMenuItem toggle, @NotNull State state, @NotNull Consumer<String> onChoose) {
-        return createViewMenu(toggle, state, onChoose, SEPARATORS);
+        return createViewMenu(toggle, null, state, onChoose, SEPARATORS);
+    }
+
+    /** As above, with {@code manage} (when not {@code null}) below the list, after a separator. */
+    static Menu createViewMenu(@NotNull CheckMenuItem toggle, @Nullable MenuItem manage, @NotNull State state,
+                               @NotNull Consumer<String> onChoose) {
+        return createViewMenu(toggle, manage, state, onChoose, SEPARATORS);
     }
 
     static Menu createViewMenu(@NotNull CheckMenuItem toggle, @NotNull State state, @NotNull Consumer<String> onChoose,
                                @NotNull Supplier<? extends MenuItem> separators) {
+        return createViewMenu(toggle, null, state, onChoose, separators);
+    }
+
+    static Menu createViewMenu(@NotNull CheckMenuItem toggle, @Nullable MenuItem manage, @NotNull State state,
+                               @NotNull Consumer<String> onChoose, @NotNull Supplier<? extends MenuItem> separators) {
         Menu menu = new Menu(I18n.get(MENU_KEY));
         menu.getItems().addAll(toggle, separators.get());
+        if (manage != null) {
+            menu.getItems().addAll(separators.get(), manage);
+        }
         refresh(menu, toggle, state, onChoose, separators);
         return menu;
     }
 
     /** The pane context menu's submenu, built for one opening: the check item without accelerator, then the list. */
     static Menu createPaneMenu(@NotNull State state, @NotNull Runnable onToggle, @NotNull Consumer<String> onChoose) {
-        return createPaneMenu(state, onToggle, onChoose, SEPARATORS);
+        return createPaneMenu(state, onToggle, onChoose, null, SEPARATORS);
+    }
+
+    /** As above, with <b>Manage Rule Sets…</b> below the list when {@code onManage} is not {@code null}. */
+    static Menu createPaneMenu(@NotNull State state, @NotNull Runnable onToggle, @NotNull Consumer<String> onChoose,
+                               @Nullable Runnable onManage) {
+        return createPaneMenu(state, onToggle, onChoose, onManage, SEPARATORS);
     }
 
     static Menu createPaneMenu(@NotNull State state, @NotNull Runnable onToggle, @NotNull Consumer<String> onChoose,
                                @NotNull Supplier<? extends MenuItem> separators) {
+        return createPaneMenu(state, onToggle, onChoose, null, separators);
+    }
+
+    static Menu createPaneMenu(@NotNull State state, @NotNull Runnable onToggle, @NotNull Consumer<String> onChoose,
+                               @Nullable Runnable onManage, @NotNull Supplier<? extends MenuItem> separators) {
         Menu menu = new Menu(I18n.get(MENU_KEY));
         CheckMenuItem toggle = createToggleItem(onToggle);
         menu.getItems().addAll(toggle, separators.get());
+        if (onManage != null) {
+            menu.getItems().addAll(separators.get(), createManageItem(onManage));
+        }
         refresh(menu, toggle, state, onChoose, separators);
         return menu;
     }
 
-    /** Replaces everything after the first {@code keep} items of {@code menu} with the radio list. */
+    /**
+     * Replaces the radio list of {@code menu} — the items an earlier rebuild added, or nothing the first
+     * time — with a fresh one, right after the first {@code keep} items. Items around the list, such as
+     * the Manage item below it, stay where they are.
+     */
     static void rebuildSetItems(@NotNull Menu menu, int keep, @NotNull State state, @NotNull Consumer<String> onChoose,
                                 @NotNull Supplier<? extends MenuItem> separators) {
         List<MenuItem> items = menu.getItems();
-        if (items.size() > keep) {
-            items.subList(keep, items.size()).clear();
-        }
+        items.removeIf(HighlightMenuSupport::isListItem);
+        List<MenuItem> list = new ArrayList<>();
         ToggleGroup group = new ToggleGroup();
         String shown = state.shownSetId() != null ? state.shownSetId() : TerminalHighlightService.NONE_ID;
         boolean disable = !state.actionable();
         for (Entry entry : state.entries()) {
             if (entry.separatorBefore()) {
-                items.add(ActionIds.exclude(separators.get()));
+                list.add(listItem(separators.get()));
             }
             RadioMenuItem item = new RadioMenuItem(entry.label());
             item.setToggleGroup(group);
@@ -227,7 +276,18 @@ public final class HighlightMenuSupport {
             item.setDisable(disable);
             String setId = entry.setId();
             item.setOnAction(event -> onChoose.accept(setId));
-            items.add(ActionIds.exclude(item));
+            list.add(listItem(item));
         }
+        items.addAll(Math.min(keep, items.size()), list);
+    }
+
+    /** Whether {@code item} belongs to the rebuilt radio list. */
+    static boolean isListItem(@Nullable MenuItem item) {
+        return item != null && Boolean.TRUE.equals(item.getProperties().get(LIST_ITEM_PROPERTY));
+    }
+
+    private static <T extends MenuItem> T listItem(T item) {
+        item.getProperties().put(LIST_ITEM_PROPERTY, Boolean.TRUE);
+        return ActionIds.exclude(item);
     }
 }

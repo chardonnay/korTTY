@@ -221,4 +221,61 @@ class HighlightMenuSupportTest {
         assertThat(on).doesNotContain("{0}");
         assertThat(off).isEqualTo(I18n.get(HighlightMenuSupport.STATUS_OFF_KEY));
     }
+
+    @Test
+    void manageRuleSetsStaysBelowTheListAcrossRebuildsAndIsHarvested() {
+        AtomicInteger opened = new AtomicInteger();
+        CheckMenuItem toggle = HighlightMenuSupport.createToggleItem(() -> { });
+        MenuItem manage = ActionIds.tag(HighlightMenuSupport.createManageItem(opened::incrementAndGet),
+            HighlightMenuSupport.MANAGE_KEY);
+        Menu menu = HighlightMenuSupport.createViewMenu(toggle, manage, HighlightMenuSupport.state(service, true, null),
+            id -> { }, SEPARATORS);
+        int before = menu.getItems().size();
+
+        loadUserSet("user-1", "Production");
+        HighlightMenuSupport.refresh(menu, toggle, HighlightMenuSupport.state(service, true, "user-1"), id -> { },
+            SEPARATORS);
+        HighlightMenuSupport.refresh(menu, toggle, HighlightMenuSupport.state(service, true, "user-1"), id -> { },
+            SEPARATORS);
+
+        List<MenuItem> items = menu.getItems();
+        assertThat(items.get(0)).isSameInstanceAs(toggle);
+        assertThat(items.getLast()).isSameInstanceAs(manage);
+        assertThat(isSeparator(items.get(items.size() - 2))).isTrue();
+        assertThat(HighlightMenuSupport.isListItem(items.get(items.size() - 2))).isFalse();
+        // One more separator and one more set, the Manage item still once.
+        assertThat(items).hasSize(before + 2);
+        assertThat(items.stream().filter(item -> item == manage).count()).isEqualTo(1);
+        assertThat(manage.getText()).isEqualTo(I18n.get(HighlightMenuSupport.MANAGE_KEY));
+        assertThat(ActionIds.isExcluded(manage)).isFalse();
+        assertThat(ActionIds.idOf(manage)).isEqualTo(HighlightMenuSupport.MANAGE_KEY);
+        for (MenuItem item : items.subList(HighlightMenuSupport.LEADING_ITEMS, items.size() - 2)) {
+            assertThat(HighlightMenuSupport.isListItem(item)).isTrue();
+            assertThat(ActionIds.isExcluded(item)).isTrue();
+        }
+        manage.fire();
+        assertThat(opened.get()).isEqualTo(1);
+    }
+
+    @Test
+    void thePaneMenuOffersManageRuleSetsEvenWhenItCannotSwitchSets() {
+        GlobalSettings off = new GlobalSettings();
+        off.setTerminalHighlightingEnabled(false);
+        service.reload(off);
+        AtomicInteger opened = new AtomicInteger();
+
+        Menu menu = HighlightMenuSupport.createPaneMenu(HighlightMenuSupport.state(service, false, null), () -> { },
+            id -> { }, opened::incrementAndGet, SEPARATORS);
+
+        MenuItem manage = menu.getItems().getLast();
+        assertThat(manage.getText()).isEqualTo(I18n.get(HighlightMenuSupport.MANAGE_KEY));
+        assertThat(manage.isDisable()).isFalse();
+        assertThat(radios(menu).stream().allMatch(MenuItem::isDisable)).isTrue();
+        manage.fire();
+        assertThat(opened.get()).isEqualTo(1);
+
+        Menu withoutManage = HighlightMenuSupport.createPaneMenu(HighlightMenuSupport.state(service, true, null),
+            () -> { }, id -> { }, SEPARATORS);
+        assertThat(withoutManage.getItems().getLast()).isInstanceOf(RadioMenuItem.class);
+    }
 }

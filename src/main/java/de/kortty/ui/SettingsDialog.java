@@ -903,7 +903,14 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalGrid.add(terminalHighlightingEnabledCheck, 0, terminalRow++, 2, 1);
         terminalGrid.add(terminalHighlightAlternateScreenCheck, 0, terminalRow++, 2, 1);
         terminalGrid.add(new Label(I18n.get(HighlightSettingsSupport.DEFAULT_SET_KEY)), 0, terminalRow);
-        terminalGrid.add(defaultHighlightSetCombo, 1, terminalRow++);
+        // The editor stays reachable with the master switch off: rule sets can be prepared at any time.
+        Button editHighlightRulesButton = new Button(I18n.get(HighlightSettingsSupport.EDIT_RULES_KEY));
+        editHighlightRulesButton.setTooltip(new Tooltip(I18n.get(HighlightSettingsSupport.EDIT_RULES_TOOLTIP_KEY)));
+        editHighlightRulesButton.setOnAction(event -> editHighlightRules());
+        editHighlightRulesButton.setMinWidth(Region.USE_PREF_SIZE);
+        HBox defaultHighlightSetRow = new HBox(8, defaultHighlightSetCombo, editHighlightRulesButton);
+        defaultHighlightSetRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        terminalGrid.add(defaultHighlightSetRow, 1, terminalRow++);
         Label highlightingInfo = new Label(I18n.get(HighlightSettingsSupport.INFO_KEY));
         highlightingInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         highlightingInfo.setWrapText(true);
@@ -6639,6 +6646,30 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             new Alert(Alert.AlertType.ERROR, I18n.get("settings.translation.error.generationFailed") + ": " + (t != null ? t.getMessage() : "")).showAndWait();
         });
         new Thread(task).start();
+    }
+
+    /**
+     * Edit Rules…: the rule-set editor. It saves on its own OK — the sets are not part of this dialog's
+     * OK or Cancel — and writes into the same settings object this dialog applies its fields to, so
+     * neither side loses the other's changes. Afterwards the default-set dropdown lists the sets as they
+     * are now and keeps its selection unless the editor deleted that set.
+     */
+    private void editHighlightRules() {
+        de.kortty.core.highlight.TerminalHighlightService service =
+            app != null ? app.getTerminalHighlightService() : null;
+        de.kortty.core.GlobalSettingsManager manager = app != null ? app.getGlobalSettingsManager() : null;
+        String selection = HighlightSettingsSupport.storedValue(defaultHighlightSetCombo.getValue());
+        java.util.List<String> idsBefore = HighlightSettingsSupport.selectableSetIds(service);
+        javafx.stage.Window owner = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
+        if (!HighlightRulesDialog.showAndSave(owner, globalSettings, manager, service, selection)) {
+            return;
+        }
+        java.util.List<String> idsAfter = HighlightSettingsSupport.selectableSetIds(service);
+        String kept = HighlightSettingsSupport.selectionAfterRuleEdit(selection, idsBefore, idsAfter);
+        java.util.List<HighlightSettingsSupport.DefaultSetChoice> choices = HighlightSettingsSupport.defaultSetChoices(
+            idsAfter, service != null ? service::userSetName : null, kept);
+        defaultHighlightSetCombo.getItems().setAll(choices);
+        defaultHighlightSetCombo.setValue(HighlightSettingsSupport.selected(choices, kept));
     }
 
     /**

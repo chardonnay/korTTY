@@ -3855,7 +3855,17 @@ public class TerminalView extends BorderPane {
         }
         return HighlightMenuSupport.createPaneMenu(getHighlightMenuState(widget),
             () -> toggleHighlighting(widget, HighlightTelemetry.SOURCE_MENU),
-            setId -> chooseHighlightSet(widget, setId, HighlightTelemetry.SOURCE_MENU));
+            setId -> chooseHighlightSet(widget, setId, HighlightTelemetry.SOURCE_MENU),
+            () -> Platform.runLater(() -> openHighlightRulesEditor(widget)));
+    }
+
+    /**
+     * The pane menu's Manage Rule Sets…: the rule-set editor, opened on the set this pane shows. Saving
+     * writes the settings and reloads the highlighting, so every pane follows at once.
+     */
+    private void openHighlightRulesEditor(SithTermFxWidget widget) {
+        javafx.stage.Window owner = getScene() != null ? getScene().getWindow() : null;
+        HighlightRulesDialog.showAndSave(owner, KorTTYApplication.getInstance(), getEffectiveHighlightSetId(widget));
     }
 
     private void installAgentShortcutEventDispatcher(SithTermFxWidget widget) {

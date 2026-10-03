@@ -378,8 +378,8 @@ public final class TerminalHighlightService implements AutoCloseable {
         }
     }
 
-    /** Everything about a set that changes how it matches or looks; equal signatures compile alike. */
-    static String signature(HighlightRuleSet set) {
+    /** Everything about a set's rules that changes how it matches or looks; equal signatures compile alike. */
+    public static String signature(HighlightRuleSet set) {
         StringBuilder signature = new StringBuilder();
         for (HighlightRule rule : set.getRules()) {
             if (rule == null) {

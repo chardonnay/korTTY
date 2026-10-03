@@ -6,7 +6,7 @@ title: Keyword highlighting
 
 korTTY can color words and patterns in terminal output as it arrives — errors in red, warnings underlined, IP and MAC addresses, interface names and link states on network devices — so the lines that matter stand out while output scrolls by. Highlighting only changes how the text looks: what the server sent, what you copy, the terminal log and what the AI features read stay exactly the same.
 
-Highlighting is off until you switch it on, for one pane with a menu or the shortcut, or for every pane with a [default rule set](#default-rule-set-and-settings). Each terminal pane shows at most one **rule set** at a time, and korTTY ships three built-in sets.
+Highlighting is off until you switch it on, for one pane with a menu or the shortcut, or for every pane with a [default rule set](#default-rule-set-and-settings). Each terminal pane shows at most one **rule set** at a time. korTTY ships three built-in sets, and you can create [your own](#your-own-rule-sets).
 
 ## Built-in rule sets
 
@@ -25,6 +25,8 @@ Highlighting works per pane: in a split tab every pane can show a different set,
 - **Keyboard**: ++ctrl+shift+h++ (++cmd+shift+h++ on macOS) switches highlighting on or off for the pane that has the keyboard focus. Switching it back on brings back the set that pane showed last; a pane that never showed one starts with the default rule set, or with **Errors and warnings** when there is no default. The status bar names the set that is now on.
 - **View → Highlighting**: **Highlighting On** does the same as the shortcut. Below it, pick **None** or a rule set for the focused pane of the active tab.
 - **Terminal context menu**: right-click a pane and open **Highlighting** for the same entries, applied to the pane you clicked. The submenu is there even when terminal effects are switched off.
+
+Both menus list your own rule sets below the built-in ones and end with **Manage Rule Sets…**, which opens the [rule-set editor](#your-own-rule-sets) on the set the pane shows.
 
 !!! note
     A set you choose in these menus or with the shortcut applies to the running session only and is not saved: the next tab you open for the same connection starts with the default rule set, which is **None** unless you chose one in the settings. This differs from **View → Terminal Effect**, which stores the effect on the connection.
@@ -49,6 +51,27 @@ A pane shows the first of these that applies:
 
 A rule set that no longer exists is skipped, so the next level decides. Saving the settings moves every open pane to the set it now resolves to, so a new default appears at once in every pane without a choice of its own.
 
+## Your own rule sets
+
+The rule-set editor creates and changes your own rule sets. Open it with *View → Highlighting → Manage Rule Sets…*, with **Manage Rule Sets…** in a pane's **Highlighting** context submenu, or with **Edit Rules…** next to the default rule set in *Configuration → Global Settings → Terminal*.
+
+![The rule-set editor with a set of your own, its rules, a test text and the preview](../assets/screenshots/highlighting/rules-dialog.png)
+
+- **Rule sets** on the left lists the built-in sets, marked *built-in*, and then yours. The built-in sets are read-only, but you can select one to read its patterns. **Duplicate** copies the selected set, built-in or your own, into a new set you can change; **New** starts an empty set with one rule to fill in, and **Delete** removes one of your sets.
+- **Rule set name** is the name the menus and the default rule set dropdown show.
+- **Rules** lists the set's rules in priority order: where two rules match the same text, the upper rule wins, as in the built-in sets. Use ▲ and ▼ to change the order, **Add Rule** to add a rule below the selected one and **Remove Rule** to delete it. **On** switches a rule off without deleting it. **Pattern** shows each pattern in the look it gives, **Applies to** whether it colors the matched text or the whole line, **Hits** how many places it highlights in the test text below, and **Check** whether something is wrong with it.
+- Below the table you edit the selected rule. **Pattern** is a word or phrase to find, or a Java regular expression when **Regular expression** is on. **Ignore case** matches upper and lower case alike, and **Whole word** only matches where the hit is not part of a longer word, so `error` marks `ERROR:` but not `terror`. **Applies to** colors either the **Matched text** or the **Whole line**, soft-wrapped rows included.
+- **Text color** and **Background** are **Unchanged** (the program's own color), one of the 16 theme colors, or **Custom** with a color picker. Theme colors follow your color settings and the colors of each connection, like the built-in sets; a custom color stays the same everywhere. **Style** adds **Bold**, **Italic** or **Underline**. A rule needs at least one color or style.
+
+The **Test text** at the bottom starts with sample log and network-device lines; replace it with output of your own. **Preview** shows it the way a terminal pane would, using the same matching, the same rule order and the same time limit, and it follows every change as you type. The editor keeps your test text until korTTY quits; it is not saved.
+
+**Check** says **Invalid** for a rule that cannot work, **Off** for a rule you switched off, **Slow** for a rule that needed more than half of its time limit on a line of the test text, and **Too slow** for a rule that ran out of time there, which a terminal would switch off. Hover over the word, or select the rule, for the explanation. While any rule or set has a problem, **OK** is disabled and the line above the buttons names the first one, for example a missing pattern, a regular expression that does not compile, or a pattern such as `a*` that also matches empty text.
+
+**OK** saves your rule sets to `global-settings.xml` at once and moves every open pane to its updated set; **Cancel** discards all changes. Deleting the set that is your default rule set sets the default back to **None**. A pane that showed a deleted set falls back to the default rule set.
+
+!!! tip
+    To adapt a built-in set, select it, click **Duplicate** and change the copy. The built-in sets themselves stay as korTTY ships them, so a later version can improve their patterns.
+
 ## How highlighting behaves
 
 - New output is highlighted a moment after it appears (about 50 ms), on a background thread, so a fast `cat` or a log tail keeps its speed.
@@ -62,11 +85,13 @@ A rule set that no longer exists is skipped, so the next level decides. Saving t
 
 ## Limits
 
-Each rule gets at most 2 ms per line of output. A rule that runs out of time three times — usually a regular expression that backtracks badly — is switched off for that pane until you choose a set again. A line, soft-wrapped rows included, is checked up to its first 8,192 characters.
+Each rule gets at most 2 ms per line of output. A rule that runs out of time three times — usually a regular expression that backtracks badly — is switched off for that pane until you choose a set again. A line, soft-wrapped rows included, is checked up to its first 8,192 characters. The editor's **Check** column warns about slow rules before they reach a terminal.
+
+You can create up to 32 rule sets with up to 64 rules each, and a pattern can be up to 512 characters long.
 
 ## Security and privacy
 
 !!! warning
     A highlight is not a trust signal. The server decides what it prints, so it can print text that matches a rule, just as it can color its own output. Highlighting never changes what is sent or received.
 
-Rule sets stay on your computer, and the log names rules and sets by their ids only, never by their patterns or by the text they matched. If you allowed [anonymous usage statistics](../about/anonymous-data.md), korTTY reports which built-in set was switched on (any set of your own counts only as "custom") and whether that happened from a menu, with the shortcut or through the default rule set, and which of the three settings you changed, with the default rule set again reported only as a built-in set, "custom" or "none" — never patterns, set names or terminal text.
+Rule sets stay on your computer, in `global-settings.xml` (see [Configuration files](../reference/config-files.md#global-settingsxml)), and the log names rules and sets by their ids only, never by their patterns or by the text they matched. If you allowed [anonymous usage statistics](../about/anonymous-data.md), korTTY reports which built-in set was switched on (any set of your own counts only as "custom") and whether that happened from a menu, with the shortcut or through the default rule set, and which of the three settings you changed, with the default rule set again reported only as a built-in set, "custom" or "none" — never patterns, set names or terminal text.
