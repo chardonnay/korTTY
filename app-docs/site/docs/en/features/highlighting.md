@@ -18,6 +18,8 @@ Highlighting is off until you switch it on, for one pane with a menu or the shor
 
 The built-in sets use the theme's ANSI colors, so they follow your color settings and the colors of each connection. Every rule also makes its text bold or underlined, so a match still stands out for color-blind users and in a monochrome theme.
 
+![Three terminal panes, each showing one built-in rule set: Errors and warnings on an application log, Network devices on a switch's interface list and Network addresses on ip output](../assets/screenshots/highlighting/terminal-highlighting.png)
+
 ## Switching highlighting on and off
 
 Highlighting works per pane: in a split tab every pane can show a different set, and a new split takes over a set chosen for the pane it was split from; without such a choice it follows its own connection.
@@ -81,7 +83,7 @@ The rule-set editor creates and changes your own rule sets. Open it with *View â
 
 The **Test text** at the bottom starts with sample log and network-device lines; replace it with output of your own. **Preview** shows it the way a terminal pane would, using the same matching, the same rule order and the same time limit, and it follows every change as you type. The editor keeps your test text until korTTY quits; it is not saved.
 
-**Check** says **Invalid** for a rule that cannot work, **Off** for a rule you switched off, **Slow** for a rule that needed more than half of its time limit on a line of the test text, and **Too slow** for a rule that ran out of time there, which a terminal would switch off. Hover over the word, or select the rule, for the explanation. While any rule or set has a problem, **OK** is disabled and the line above the buttons names the first one, for example a missing pattern, a regular expression that does not compile, or a pattern such as `a*` that also matches empty text.
+**Check** says **Invalid** for a rule that cannot work, **Off** for a rule you switched off, **Slow** for a rule that needed more than half of its time limit on a line of the test text, and **Too slow** for a rule that ran out of time there and highlights nothing on that line; a terminal pane switches such a rule off once it has run out of time on three lines (see [Limits](#limits)). Hover over the word, or select the rule, for the explanation. While any rule or set has a problem, **OK** is disabled and the line above the buttons names the first one, for example a missing pattern, a regular expression that does not compile, or a pattern such as `a*` that also matches empty text.
 
 **OK** saves your rule sets to `global-settings.xml` at once and moves every open pane to its updated set; **Cancel** discards all changes. Deleting the set that is your default rule set sets the default back to **None**. A pane that showed a deleted set falls back to the next level: its connection's rule set, else the default rule set.
 

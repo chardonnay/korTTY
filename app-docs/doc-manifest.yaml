@@ -236,6 +236,7 @@ pages:
     owns_i18n: [highlight., menu.view.highlighting, connEdit.highlighting]
     owns_code: [src/main/java/de/kortty/core/highlight, src/main/java/de/kortty/model/HighlightRule.java, src/main/java/de/kortty/model/HighlightRuleSet.java, src/main/java/de/kortty/ui/HighlightMenuSupport.java, src/main/java/de/kortty/ui/HighlightSettingsSupport.java, src/main/java/de/kortty/ui/HighlightRulesDialog.java, src/main/java/de/kortty/ui/HighlightRulesEditorModel.java, src/main/java/de/kortty/ui/HighlightColorChoices.java, src/main/java/de/kortty/ui/HighlightConnectionSupport.java]
     screenshots:
+      - highlighting/terminal-highlighting.png
       - highlighting/rules-dialog.png
     last_synced_ref: "f0767bfb"
   - path: app-docs/site/docs/en/features/tunnels.md
