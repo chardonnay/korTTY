@@ -138,7 +138,8 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
     /**
      * The link the terminal's context menu was opened on: the one under the last right-button press
      * in this pane, as it was at that press, or {@code null} when that press was on no link or another
-     * press came after it. The menu offers Open Link and Copy Link Address for it, see
+     * press came after it. The menu offers Open Link and Copy Link Address for it (Open File in Snippet
+     * Editor and Copy Path for a file), see
      * {@link TerminalLinkContextMenu}. Call it on the JavaFX thread.
      */
     public @Nullable TerminalLinkResolver.Link contextMenuLink() {

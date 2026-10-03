@@ -87,7 +87,7 @@ public class TerminalSplitPane extends StackPane {
      * (all at view order 0), whenever any of them was added. It goes away with the pane.
      */
     public enum PaneOverlayLayer {
-        /** The underline under a hovered terminal link. */
+        /** The underline under a hovered terminal link, and quick select's boxes and labels. */
         LINKS;
 
         /** Below 0, and lower for a later layer, because JavaFX draws a lower view order on top. */
@@ -753,7 +753,8 @@ public class TerminalSplitPane extends StackPane {
     }
 
     /**
-     * <b>Open Link</b> and <b>Copy Link Address</b> when the menu was opened on a link korTTY opens,
+     * <b>Open Link</b> and <b>Copy Link Address</b> (or <b>Open File in Snippet Editor</b> and
+     * <b>Copy Path</b> for a file) when the menu was opened on a link korTTY opens,
      * none otherwise. Copy goes through {@link KorttyClipboard}, so the enterprise policy's internal
      * clipboard keeps the address inside korTTY.
      */
