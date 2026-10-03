@@ -19,8 +19,8 @@ import org.jetbrains.annotations.Nullable;
  * handler, so the enterprise policy's internal-clipboard mode covers the terminal completely.
  *
  * <p>It also exposes the context-menu commands as {@link TerminalPaneActions}, calling SithTermFX's
- * public API directly. The panel is a {@link KorttyTerminalPanel}, which declares none of these
- * methods, so a reflective lookup of them on the runtime class finds nothing.
+ * public API directly. The panel is a subclass, {@link KorttyTerminalPanel}, so a declared-method
+ * lookup on its runtime class misses every SithTermFX method that it does not override itself.
  */
 public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneActions {
 
@@ -70,8 +70,9 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
     }
 
     /**
-     * The widget's terminal panel. It is the one place where korTTY overrides or hooks SithTermFX's
-     * panel. It is an inner class because {@code clearBuffer(boolean)} needs the widget's terminal.
+     * The widget's terminal panel, korTTY's subclass of SithTermFX's {@link TerminalPanel}. korTTY's
+     * overrides of the panel's methods belong here. It is an inner class because
+     * {@code clearBuffer(boolean)} needs the widget's terminal.
      */
     public final class KorttyTerminalPanel extends TerminalPanel {
 
