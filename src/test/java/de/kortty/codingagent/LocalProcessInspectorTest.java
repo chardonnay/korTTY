@@ -16,6 +16,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -30,6 +31,9 @@ class LocalProcessInspectorTest {
     private static final Predicate<ProcessHandle> IS_SLEEP = handle -> handle.info().command()
         .map(command -> LocalProcessInspector.executableBasename(command).equals("sleep"))
         .orElse(false);
+
+    /** How long a fake agent must survive its start before the test trusts it to keep running. */
+    private static final long EXEC_SETTLE_MILLIS = 250;
 
     // ---- executableBasename ---------------------------------------------------------------------
 
@@ -291,19 +295,23 @@ class LocalProcessInspectorTest {
     @Test(timeOut = 30_000)
     void sourceForDelegatesToFindAgentProcessWhenThePidIsPresent() throws Exception {
         skipOnWindows();
-        // A copy of sleep named "claude" is, by executable basename, a Claude Code process.
+        // A copy of bash named "claude" is, by executable basename, a Claude Code process; blocked on
+        // its stdin it runs until destroyed and never forks. Not a copy of sleep: a multicall coreutils
+        // (uutils on Ubuntu 26.04, busybox) picks the utility from the executable's own name, so a
+        // "claude" copy of it exits within a millisecond as an unknown utility.
         Path dir = Files.createTempDirectory("kortty-codingagent-inspector");
         Path fakeAgent = dir.resolve("claude");
-        Files.copy(sleepBinary(), fakeAgent);
+        Files.copy(bashBinary(), fakeAgent);
         assertThat(fakeAgent.toFile().setExecutable(true)).isTrue();
         adHocSignOnMac(fakeAgent);
         Process agent;
         try {
-            agent = new ProcessBuilder(fakeAgent.toString(), "30").start();
+            agent = new ProcessBuilder(fakeAgent.toString(), "-c", "read -r line").start();
         } catch (IOException e) {
-            throw new SkipException("copied sleep binary cannot be started here: " + e.getMessage());
+            throw new SkipException("copied bash binary cannot be started here: " + e.getMessage());
         }
         try {
+            requireStillRunning(agent, fakeAgent);
             AtomicInteger pidReads = new AtomicInteger();
             Supplier<Optional<AgentProcess>> source = new LocalProcessInspector().sourceFor(() -> {
                 pidReads.incrementAndGet();
@@ -315,7 +323,6 @@ class LocalProcessInspectorTest {
             Optional<AgentProcess> result = Optional.empty();
             int polls = 0;
             while (polls < 50 && result.isEmpty()) {
-                requireStillRunning(agent, fakeAgent);
                 polls++;
                 result = source.get();
                 if (result.isEmpty()) {
@@ -349,9 +356,9 @@ class LocalProcessInspectorTest {
     // ---- toAgentProcess -------------------------------------------------------------------------
 
     @Test
-    void toAgentProcessFallsBackWhenInfoIsMissing() {
-        Optional<AgentProcess> process = LocalProcessInspector.toAgentProcess(
-            new FakeHandle(77L, Optional.empty(), Optional.empty()), CodingAgentKind.CLAUDE_CODE);
+    void toAgentProcessFallsBackWhenOnlyTheCommandLineIsReported() {
+        Optional<AgentProcess> process = LocalProcessInspector.toAgentProcess(new FakeHandle(77L,
+            Optional.empty(), Optional.of("/usr/local/bin/claude --resume"), Optional.empty()));
 
         assertThat(process).isPresent();
         assertThat(process.get().pid()).isEqualTo(77L);
@@ -364,17 +371,41 @@ class LocalProcessInspectorTest {
     void toAgentProcessCopiesCommandAndStartInstant() {
         Instant started = Instant.parse("2026-09-13T10:15:30Z");
         Optional<AgentProcess> process = LocalProcessInspector.toAgentProcess(
-            new FakeHandle(78L, Optional.of("/usr/local/bin/claude"), Optional.of(started)), CodingAgentKind.CLAUDE_CODE);
+            new FakeHandle(78L, Optional.of("/usr/local/bin/claude"), Optional.of(started)));
 
         assertThat(process).isPresent();
+        assertThat(process.get().kind()).isEqualTo(CodingAgentKind.CLAUDE_CODE);
         assertThat(process.get().command()).isEqualTo("/usr/local/bin/claude");
         assertThat(process.get().startedAt()).isEqualTo(started);
     }
 
     @Test
-    void toAgentProcessIsEmptyForNullInputAndFailingInfo() {
-        assertThat(LocalProcessInspector.toAgentProcess(null, CodingAgentKind.CODEX)).isEmpty();
-        assertThat(LocalProcessInspector.toAgentProcess(new FakeHandle(1L, Optional.empty(), Optional.empty()), null))
+    void toAgentProcessClassifiesAndSnapshotsFromOneInfoRead() {
+        // The agent exits right after the first read; from then on the OS reports nothing about it.
+        AtomicInteger infoReads = new AtomicInteger();
+        ProcessHandle exiting = new FakeHandle(79L, Optional.of("/usr/local/bin/claude"), Optional.empty()) {
+            @Override
+            public Info info() {
+                return infoReads.getAndIncrement() == 0
+                    ? super.info()
+                    : new FakeHandle(79L, Optional.empty(), Optional.empty()).info();
+            }
+        };
+
+        Optional<AgentProcess> process = LocalProcessInspector.toAgentProcess(exiting);
+
+        assertThat(process).isPresent();
+        assertThat(process.get().command()).isEqualTo("/usr/local/bin/claude");
+        assertThat(infoReads.get()).isEqualTo(1);
+    }
+
+    @Test
+    void toAgentProcessIsEmptyForNullNonAgentsAndFailingInfo() {
+        assertThat(LocalProcessInspector.toAgentProcess(null)).isEmpty();
+        // An exited or zombie process reports neither a command nor a command line.
+        assertThat(LocalProcessInspector.toAgentProcess(new FakeHandle(1L, Optional.empty(), Optional.empty())))
+            .isEmpty();
+        assertThat(LocalProcessInspector.toAgentProcess(new FakeHandle(3L, Optional.of("/bin/zsh"), Optional.empty())))
             .isEmpty();
         ProcessHandle throwing = new FakeHandle(2L, Optional.empty(), Optional.empty()) {
             @Override
@@ -382,7 +413,7 @@ class LocalProcessInspectorTest {
                 throw new UnsupportedOperationException("no process info");
             }
         };
-        assertThat(LocalProcessInspector.toAgentProcess(throwing, CodingAgentKind.CODEX)).isEmpty();
+        assertThat(LocalProcessInspector.toAgentProcess(throwing)).isEmpty();
     }
 
     // ---- Helpers --------------------------------------------------------------------------------
@@ -393,6 +424,10 @@ class LocalProcessInspectorTest {
 
     private static Path shBinary() {
         return absoluteBinary("sh", "/bin/sh", "/usr/bin/sh");
+    }
+
+    private static Path bashBinary() {
+        return absoluteBinary("bash", "/bin/bash", "/usr/bin/bash");
     }
 
     /**
@@ -417,12 +452,16 @@ class LocalProcessInspectorTest {
      * Turns a fake agent that died on start into an accurate skip rather than a puzzling "no agent
      * found" further down. On Apple Silicon a copied system binary can be refused by the code-signing
      * enforcement and killed immediately, which leaves the process tree with nothing to find.
+     *
+     * <p>Such a copy dies within milliseconds of starting, so this waits out that window once, before
+     * the first poll. Checking liveness before each poll instead races the exit: a poll can classify
+     * the copy while it lives and then read it back after it is gone.
      */
-    private static void requireStillRunning(Process agent, Path fakeAgent) {
-        if (agent.isAlive()) {
+    private static void requireStillRunning(Process agent, Path fakeAgent) throws InterruptedException {
+        if (!agent.waitFor(EXEC_SETTLE_MILLIS, TimeUnit.MILLISECONDS)) {
             return;
         }
-        throw new SkipException("the copy of sleep at " + fakeAgent + " exited immediately with "
+        throw new SkipException("the copy of bash at " + fakeAgent + " exited immediately with "
             + agent.exitValue() + "; this platform will not run a copied system binary, so there is"
             + " no live process to impersonate an agent");
     }
@@ -462,15 +501,22 @@ class LocalProcessInspectorTest {
         }
     }
 
-    /** Minimal ProcessHandle whose info() reports exactly the given command and start instant. */
+    /** Minimal ProcessHandle whose info() reports exactly the given command, command line and start instant. */
     private static class FakeHandle implements ProcessHandle {
         private final long pid;
         private final Optional<String> command;
+        private final Optional<String> commandLine;
         private final Optional<Instant> startInstant;
 
+        /** A handle whose command line is just its command, as for a process started without arguments. */
         FakeHandle(long pid, Optional<String> command, Optional<Instant> startInstant) {
+            this(pid, command, command, startInstant);
+        }
+
+        FakeHandle(long pid, Optional<String> command, Optional<String> commandLine, Optional<Instant> startInstant) {
             this.pid = pid;
             this.command = command;
+            this.commandLine = commandLine;
             this.startInstant = startInstant;
         }
 
@@ -504,7 +550,7 @@ class LocalProcessInspectorTest {
 
                 @Override
                 public Optional<String> commandLine() {
-                    return command;
+                    return commandLine;
                 }
 
                 @Override
