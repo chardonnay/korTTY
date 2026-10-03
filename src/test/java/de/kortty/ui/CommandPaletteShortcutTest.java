@@ -101,6 +101,21 @@ class CommandPaletteShortcutTest {
             .contains("Platform.runLater(entry.run());");
     }
 
+    /** A hidden palette holds no rows, which point to tabs, terminals and snippets that may close. */
+    @Test
+    void aHiddenPaletteLetsGoOfItsRows() throws IOException {
+        String popup = Files.readString(Path.of("src/main/java/de/kortty/ui/CommandPalettePopup.java"),
+            StandardCharsets.UTF_8).replace("\r\n", "\n");
+        String picker = Files.readString(Path.of("src/main/java/de/kortty/ui/QuickPickPopup.java"),
+            StandardCharsets.UTF_8).replace("\r\n", "\n");
+
+        assertThat(popup).contains(".onHidden(model::close)");
+        assertThat(picker).contains("popup.setOnHidden(event -> {\n"
+            + "            list.getItems().clear();\n"
+            + "            onHidden.run();\n"
+            + "        });");
+    }
+
     /**
      * The router consumes before the focused terminal sees a key, so a plain Shortcut+letter there
      * would take a control character away from the shell on Windows and Linux. Every chord constant

@@ -33,7 +33,8 @@ import java.util.function.Predicate;
  * the window behind; only the keys the pass-through predicate names get through. A result the
  * choosable predicate rejects is shown with {@link #UNAVAILABLE_STYLE_CLASS}, keeps the popup open
  * when chosen and is read out as disabled. The field reads out its prompt, every row its text, and
- * the width follows the UI font scale. An optional footer sits below the list.
+ * the width follows the UI font scale. An optional footer sits below the list. Once the popup has
+ * closed it holds no results, so what they point to is not kept alive while it is hidden.
  *
  * @param <T> the result type
  */
@@ -130,6 +131,13 @@ final class QuickPickPopup<T> {
         popup.getContent().add(root);
         popup.setAutoHide(true);
         popup.setHideOnEscape(true);
+        // However it closes (a choice, Esc, a click outside): the results go, so a hidden popup does
+        // not keep what they point to, such as a closed tab, in memory until it shows again.
+        Runnable onHidden = builder.onHidden;
+        popup.setOnHidden(event -> {
+            list.getItems().clear();
+            onHidden.run();
+        });
         // On the popup's scene, not its root: with no focus owner the owner window sends the key
         // events to the scene itself, and they must not slip past the firewall then either.
         popup.getScene().addEventHandler(KeyEvent.ANY,
@@ -308,6 +316,8 @@ final class QuickPickPopup<T> {
         private Predicate<? super KeyEvent> passThrough = QuickPickKeyFirewall.NONE;
         private double width = DEFAULT_WIDTH;
         private Node footer;
+        private Runnable onHidden = () -> {
+        };
 
         private Builder(String rootId, String fieldId, String listId) {
             this.rootId = Objects.requireNonNull(rootId, "rootId");
@@ -395,6 +405,15 @@ final class QuickPickPopup<T> {
         /** A node shown below the result list, such as a hint or the reason a result cannot be chosen. */
         Builder<T> footer(@NotNull Node footer) {
             this.footer = Objects.requireNonNull(footer, "footer");
+            return this;
+        }
+
+        /**
+         * Runs each time the popup has closed, however it closed, after the results were cleared; a
+         * caller that keeps results of its own lets go of them here.
+         */
+        Builder<T> onHidden(@NotNull Runnable onHidden) {
+            this.onHidden = Objects.requireNonNull(onHidden, "onHidden");
             return this;
         }
 

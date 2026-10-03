@@ -262,6 +262,30 @@ class CommandPaletteModelTest {
         assertThat(titles(model.query("find"))).containsExactly("Find", "Find Next").inOrder();
     }
 
+    /**
+     * Rows point to tabs, terminals and snippets. Once the palette has closed the model lets go of
+     * them, so a tab closed while the palette is hidden is not kept in memory by it, and the next
+     * query reads the sources again.
+     */
+    @Test
+    void closingForgetsTheRowsUntilTheNextOpening() {
+        AtomicInteger reads = new AtomicInteger();
+        List<PaletteEntry> current = new ArrayList<>(List.of(entry(Kind.TAB, "tab:1", "web-01", "")));
+        CommandPaletteModel model = new CommandPaletteModel(List.of(source(Kind.TAB, () -> {
+            reads.incrementAndGet();
+            return List.copyOf(current);
+        })), new MruList<>(MruList.DEFAULT_CAPACITY));
+        model.open();
+        assertThat(titles(model.query("#"))).containsExactly("web-01");
+
+        current.clear();
+        model.close();
+        assertThat(reads.get()).isEqualTo(1);
+
+        assertThat(model.query("#")).isEmpty();
+        assertThat(reads.get()).isEqualTo(2);
+    }
+
     @Test
     void aFailingSourceAndRowsOfAnotherKindAreLeftOut() {
         CommandPaletteModel model = model(

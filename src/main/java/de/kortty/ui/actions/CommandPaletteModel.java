@@ -98,6 +98,15 @@ public final class CommandPaletteModel {
         snapshot = List.copyOf(entries);
     }
 
+    /**
+     * Forgets the rows of the last {@link #open()}, once the palette has closed: they point to tabs,
+     * terminals and snippets, which must not stay in memory because of a hidden palette after they
+     * were closed or deleted. A query after this reads the sources again.
+     */
+    public void close() {
+        snapshot = null;
+    }
+
     /** The kinds that have a source; only their scope prefixes are recognized. */
     public Set<Kind> kinds() {
         Set<Kind> kinds = EnumSet.noneOf(Kind.class);

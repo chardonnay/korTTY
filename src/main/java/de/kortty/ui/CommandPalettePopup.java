@@ -107,6 +107,8 @@ final class CommandPalettePopup {
             .passThrough(passThrough)
             .width(WIDTH)
             .footer(footer)
+            // A hidden palette keeps no rows: they point to tabs, terminals and snippets.
+            .onHidden(model::close)
             .build();
         picker.field().textProperty().addListener((obs, was, now) -> showHint());
         picker.list().getSelectionModel().selectedItemProperty().addListener((obs, was, now) -> showHint());
