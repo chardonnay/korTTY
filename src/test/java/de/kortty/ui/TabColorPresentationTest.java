@@ -29,10 +29,10 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * The connection color on a terminal tab: a small outlined dot that screen readers can read, a
- * family name for every color, the optional frame around the terminal, and the wiring that keeps
- * them off the tab's status style and the terminal view's style and fresh in every window. The
- * wiring is pinned against the sources, since neither {@link MainWindow} nor {@link TerminalTab}
- * can be built without a JavaFX stage.
+ * family name for every color, the optional frame around the terminal, the credential environment
+ * a color can come from, and the wiring that keeps them off the tab's status style and the terminal
+ * view's style and fresh in every window. The wiring is pinned against the sources, since neither
+ * {@link MainWindow} nor {@link TerminalTab} nor the dialogs can be built without a JavaFX stage.
  */
 class TabColorPresentationTest {
 
@@ -137,6 +137,19 @@ class TabColorPresentationTest {
     }
 
     @Test
+    void theEnvironmentNameInTheTooltipIsCleanedAndCappedAndNeverBlank() {
+        assertThat(TabColorPresentation.environmentLabel("Production", "PRODUCTION")).isEqualTo("Production");
+        assertThat(TabColorPresentation.environmentLabel("  Lab\u202E\007 east\n", "custom-1"))
+                .isEqualTo("Lab east");
+        assertWithMessage("a name with nothing visible falls back to the environment's id")
+                .that(TabColorPresentation.environmentLabel("\u200F\000 ", "custom-1")).isEqualTo("custom-1");
+        assertThat(TabColorPresentation.environmentLabel(null, "STAGING")).isEqualTo("STAGING");
+        String longName = "x".repeat(200);
+        assertThat(TabColorPresentation.environmentLabel(longName, "custom-1"))
+                .hasLength(TabColorPresentation.MAX_ENVIRONMENT_NAME_LENGTH);
+    }
+
+    @Test
     void everyColorFamilyIsNamedInEveryLanguage() throws IOException {
         for (String bundle : BUNDLES) {
             Properties localized = loadBundle(bundle);
@@ -174,12 +187,54 @@ class TabColorPresentationTest {
 
         assertThat(methodBody(window, "private void refreshAllTerminalTabsConnectionSettings() {"))
                 .contains("refreshConnectionColorsInAllWindows();");
-        String refresh = methodBody(window, "private static void refreshConnectionColorsInAllWindows() {");
+        String refresh = methodBody(window, "static void refreshConnectionColorsInAllWindows() {");
         assertThat(refresh).contains("for (MainWindow window : new ArrayList<>(openWindows)) {");
         assertThat(refresh).contains("window.applyConnectionColor(terminalTab);");
         String apply = methodBody(window, "private void applyConnectionColor(TerminalTab tab) {");
-        assertThat(apply).contains("ConnectionColorSupport.tabColorOf(");
+        assertThat(apply).contains("ConnectionColorSupport.effectiveTabColor(");
+        assertThat(apply).contains("this::credentialEnvironmentId, this::environmentColor");
+        assertThat(apply).contains("TabColorPresentation.environmentLabel(");
         assertThat(apply).contains("TabColorPresentation.frameEnabled(app.getGlobalSettingsManager().getSettings())");
+        assertThat(methodBody(window, "private String credentialEnvironmentId(String credentialId) {"))
+                .contains(".map(StoredCredential::getEnvironmentId)");
+        assertThat(methodBody(window, "private String environmentColor(String environmentId) {"))
+                .contains("app.getEnvironmentManager().getColor(environmentId)");
+    }
+
+    @Test
+    void credentialAndEnvironmentEditsRecolorTheOpenTabs() throws IOException {
+        String dialog = source("CredentialManagementDialog.java");
+
+        for (String method : List.of("private void showEnvironments() {", "private void addCredential() {",
+                "private void editCredential() {", "private void removeCredential() {")) {
+            assertWithMessage("%s must refresh the tab colors in every window", method)
+                    .that(methodBody(dialog, method)).contains("MainWindow.refreshConnectionColorsInAllWindows();");
+        }
+        int imported = source("MainWindow.java").indexOf("reloadStoresAfterBackupImport();\n");
+        assertThat(imported).isAtLeast(0);
+        assertWithMessage("a restored backup can bring other connections, credentials and environment colors")
+                .that(source("MainWindow.java").substring(imported, imported + 200))
+                .contains("refreshConnectionColorsInAllWindows();");
+    }
+
+    @Test
+    void theEnvironmentsDialogAppliesItsColorsOnlyOnOkAndTogetherWithTheSave() throws IOException {
+        String dialog = source("EnvironmentManagementDialog.java");
+
+        assertThat(dialog).contains("this.colorEdits = environmentManager.getColors();");
+        assertWithMessage("colors are edited in the dialog's copy, so Cancel discards them")
+                .that(dialog).doesNotContain("environmentManager.setColor(");
+        assertThat(occurrences(dialog, "environmentManager.replaceColors(")).isEqualTo(2);
+        int ok = dialog.indexOf("if (buttonType == ButtonType.OK) {");
+        int apply = dialog.indexOf("Map<String, String> previousColors = environmentManager.replaceColors(colorEdits);");
+        int save = dialog.indexOf("environmentManager.save();");
+        int restore = dialog.indexOf("environmentManager.replaceColors(previousColors);");
+        assertThat(ok).isAtLeast(0);
+        assertThat(apply).isGreaterThan(ok);
+        assertThat(save).isGreaterThan(apply);
+        assertWithMessage("a failed save puts the previous colors back")
+                .that(restore).isGreaterThan(save);
+        assertThat(methodBody(dialog, "private void storeColorEdit() {")).contains("colorEdits.put(");
     }
 
     @Test
@@ -195,20 +250,33 @@ class TabColorPresentationTest {
     void theConnectionColorNeverTouchesTheTabStatusStyle() throws IOException {
         String tab = source("TerminalTab.java");
 
-        String show = methodBody(tab, "private void showConnectionColor(String color, boolean showFrame) {");
+        String show = methodBody(tab,
+                "private void showConnectionColor(String color, String environmentName, boolean showFrame) {");
         assertWithMessage("the tab style shows the connection status; the retry looks for #8B0000 in it")
                 .that(show).doesNotContain("setStyle");
         assertThat(show).contains("setGraphic(");
         assertThat(show).contains("setTooltip(");
-        assertThat(methodBody(tab, "public void applyConnectionColor(String hex, boolean showFrame) {"))
+        assertThat(methodBody(tab,
+                "public void applyConnectionColor(String hex, String environmentName, boolean showFrame) {"))
                 .contains("ConnectionColorSupport.normalizeHex(hex)");
+    }
+
+    @Test
+    void theTooltipSaysWhetherTheColorIsTheConnectionsOrTheEnvironments() throws IOException {
+        String show = methodBody(source("TerminalTab.java"),
+                "private void showConnectionColor(String color, String environmentName, boolean showFrame) {");
+
+        assertThat(show).contains("environmentName == null");
+        assertThat(show).contains("I18n.get(\"tab.tooltip.connectionColor\", family, color)");
+        assertThat(show).contains("I18n.get(\"tab.tooltip.environmentColor\", family, color, environmentName)");
     }
 
     @Test
     void theFrameIsTheBorderOfTheTabContentAroundThePanesAndStatusBars() throws IOException {
         String tab = source("TerminalTab.java");
 
-        String show = methodBody(tab, "private void showConnectionColor(String color, boolean showFrame) {");
+        String show = methodBody(tab,
+                "private void showConnectionColor(String color, String environmentName, boolean showFrame) {");
         assertThat(show).contains("TabColorPresentation.frameFor(color, showFrame)");
         assertThat(show).contains("content.setBorder(frame);");
         assertWithMessage("the terminal view's style belongs to the see-through window mode")

@@ -12,6 +12,7 @@ KorTTY stores all application data and configuration under the `~/.kortty/` dire
 ~/.kortty/
 ├── connections.xml                    # Saved SSH connections
 ├── credentials.xml                    # Stored credentials (encrypted)
+├── environments.xml                   # Your own credential environments and environment tab colors
 ├── ssh-keys.xml                       # SSH key management
 ├── gpg-keys.xml                       # GPG keys for backup encryption
 ├── global-settings.xml                # Global application settings
@@ -81,11 +82,20 @@ Centralized credential storage for username/password pairs.
 
 **Includes:**
 - Credential name, username, password
-- Environment (Production, Development, Test, Staging)
+- Environment (Production, Development, Test, Staging, or one of your own from `environments.xml`)
 - Server pattern (glob patterns like `*.example.com` or `10.0.0.*`)
 - Auto-assignment to connections matching the pattern
 
 **Security:** All passwords are encrypted with AES-256-GCM.
+
+### environments.xml
+Your own credential environments and the tab colors of all environments (see [Environments and tab colors](../features/security.md#environments-and-tab-colors)).
+
+**Includes:**
+- Custom environments with their id and display name (`<environment id="custom-…" displayName="Lab"/>`); the built-in Production, Development, Test and Staging are not stored
+- Optional tab colors of built-in and custom environments (`<colors><color id="PRODUCTION" color="#D32F2F"/></colors>`); a value that is not a hex color, or the color of an environment that no longer exists, is ignored
+
+A file without colors, as earlier versions wrote it, loads unchanged. Without the file korTTY has only the built-in environments, and no environment has a color.
 
 ### ssh-keys.xml
 Manages centralized SSH key storage.
@@ -448,7 +458,7 @@ All files are stored in the same `~/.kortty/` directory across platforms:
 
 When you create a backup via *Edit > Create Backup*, the following configuration is included:
 
-- All `.xml` configuration files (connections, credentials, SSH key references and passphrases, GPG keys, global settings, JobScheduler, snippets, snippet variables, AI chats)
+- All `.xml` configuration files (connections, credentials, credential environments, SSH key references and passphrases, GPG keys, global settings, JobScheduler, snippets, snippet variables, AI chats)
 - `master.key`
 - `projects/` directory
 - `ssh-keys/` directory — copied SSH key files (restored with owner-only permissions; imports merge and never delete local keys)

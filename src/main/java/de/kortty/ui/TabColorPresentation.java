@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.core.ConnectionColorSupport;
+import de.kortty.core.DisplayTextSanitizer;
 import de.kortty.model.GlobalSettings;
 import javafx.scene.AccessibleRole;
 import javafx.scene.layout.Border;
@@ -29,6 +30,9 @@ final class TabColorPresentation {
 
     /** Style class of the color dot, for app designs that want to restyle it. */
     static final String SWATCH_STYLE_CLASS = "tab-connection-color";
+
+    /** The longest environment name a tab's tooltip shows, in characters. */
+    static final int MAX_ENVIRONMENT_NAME_LENGTH = 60;
 
     private TabColorPresentation() {
     }
@@ -94,6 +98,17 @@ final class TabColorPresentation {
     /** The i18n key naming {@code family} in the tab's tooltip, for example {@code tab.tooltip.color.red}. */
     static String familyKey(ConnectionColorSupport.Family family) {
         return "tab.tooltip.color." + family.name().toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * The name of the credential environment a tab's color comes from, as its tooltip shows it:
+     * the display name with control and bidi characters removed and capped at
+     * {@link #MAX_ENVIRONMENT_NAME_LENGTH} characters, or the environment's id when nothing visible
+     * is left of the name.
+     */
+    static String environmentLabel(String displayName, String environmentId) {
+        String name = DisplayTextSanitizer.sanitize(displayName, MAX_ENVIRONMENT_NAME_LENGTH);
+        return name.isEmpty() ? DisplayTextSanitizer.sanitize(environmentId, MAX_ENVIRONMENT_NAME_LENGTH) : name;
     }
 
     /**

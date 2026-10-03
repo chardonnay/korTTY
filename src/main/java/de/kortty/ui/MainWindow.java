@@ -3017,21 +3017,44 @@ public class MainWindow {
 
     /**
      * Shows the tab color of {@code tab}'s connection on the tab: the saved connection's, so edits
-     * in the Connection Manager apply, else the tab's own (see {@link ConnectionColorSupport#tabColorOf}),
+     * in the Connection Manager apply, else the tab's own, else the color of the environment of the
+     * stored credential the tab signed in with (see {@link ConnectionColorSupport#effectiveTabColor}),
      * with the frame around the terminal unless the Window settings switch it off.
      */
     private void applyConnectionColor(TerminalTab tab) {
-        tab.applyConnectionColor(ConnectionColorSupport.tabColorOf(
-                tab.getConnection(), app.getConfigManager()::getConnectionById),
+        ConnectionColorSupport.TabColor color = ConnectionColorSupport.effectiveTabColor(
+                tab.getConnection(), app.getConfigManager()::getConnectionById,
+                this::credentialEnvironmentId, this::environmentColor);
+        String environmentName = color != null && color.source() == ConnectionColorSupport.Source.ENVIRONMENT
+                ? TabColorPresentation.environmentLabel(
+                        app.getEnvironmentManager().getDisplayName(color.environmentId()), color.environmentId())
+                : null;
+        tab.applyConnectionColor(color != null ? color.hex() : null, environmentName,
             TabColorPresentation.frameEnabled(app.getGlobalSettingsManager().getSettings()));
     }
 
+    /** The environment id of the stored credential {@code credentialId}, or null when there is no such credential. */
+    private String credentialEnvironmentId(String credentialId) {
+        if (app.getCredentialManager() == null) {
+            return null;
+        }
+        return app.getCredentialManager().findCredentialById(credentialId)
+                .map(StoredCredential::getEnvironmentId)
+                .orElse(null);
+    }
+
+    /** The tab color of the credential environment {@code environmentId}, or null when it has none. */
+    private String environmentColor(String environmentId) {
+        return app.getEnvironmentManager() != null ? app.getEnvironmentManager().getColor(environmentId) : null;
+    }
+
     /**
-     * Re-applies the connection colors of every open terminal tab, in every window, after connections
-     * or the global settings were saved: a color set, changed or removed in the Connection Manager, and
+     * Re-applies the connection colors of every open terminal tab, in every window, after connections,
+     * credentials, environments or the global settings were saved: a color set, changed or removed in
+     * the Connection Manager or the Environments dialog, a credential moved to another environment, and
      * the frame switched on or off in the Window settings, show at once. FX thread only.
      */
-    private static void refreshConnectionColorsInAllWindows() {
+    static void refreshConnectionColorsInAllWindows() {
         for (MainWindow window : new ArrayList<>(openWindows)) {
             for (TerminalTab terminalTab : window.terminalTabs()) {
                 window.applyConnectionColor(terminalTab);
@@ -11258,6 +11281,8 @@ public class MainWindow {
             success.showAndWait();
             
             reloadStoresAfterBackupImport();
+            // Restored connections, credentials and environments can bring other tab colors.
+            refreshConnectionColorsInAllWindows();
             
             updateStatus(I18n.get("backup.import.successHeader") + ": " + filesImported + " " + I18n.get("backup.import.files"));
         });

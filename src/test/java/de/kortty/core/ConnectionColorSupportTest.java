@@ -1,6 +1,8 @@
 package de.kortty.core;
 
 import de.kortty.core.ConnectionColorSupport.Family;
+import de.kortty.core.ConnectionColorSupport.Source;
+import de.kortty.core.ConnectionColorSupport.TabColor;
 import de.kortty.model.ServerConnection;
 import org.testng.annotations.Test;
 
@@ -13,7 +15,8 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * The tab color of a connection: only hex colors are accepted (the value can come from a shared
- * teamwork file), the saved connection wins over a tab's copy of it, and every color has a family
+ * teamwork file), the saved connection wins over a tab's copy of it, a connection without a color
+ * of its own takes the color of its stored credential's environment, and every color has a family
  * name for the tooltip, so the color is never the only cue.
  */
 public class ConnectionColorSupportTest {
@@ -77,6 +80,106 @@ public class ConnectionColorSupportTest {
         assertThat(ConnectionColorSupport.tabColorOf(null, id -> null)).isNull();
         assertThat(ConnectionColorSupport.tabColorOf(spoofed, id -> null)).isNull();
         assertThat(ConnectionColorSupport.tabColorOf(connection("plain", null), id -> null)).isNull();
+    }
+
+    // ---- environment fallback -----------------------------------------------------------------
+
+    /** Credentials by id with their environment, and environment colors, as the stores hold them. */
+    private static final Map<String, String> CREDENTIAL_ENVIRONMENTS = Map.of(
+            "cred-prod", "PRODUCTION",
+            "cred-lab", "custom-lab",
+            "cred-test", "TEST");
+    private static final Map<String, String> ENVIRONMENT_COLORS = Map.of(
+            "PRODUCTION", "#d32f2f",
+            "custom-lab", "#7B1FA2",
+            "TEST", "yellow; -fx-background-color: #8B0000");
+
+    @Test
+    void theConnectionsOwnColorComesBeforeTheEnvironmentColor() {
+        ServerConnection colored = connection("prod-db", "#388E3C");
+        colored.setCredentialId("cred-prod");
+
+        TabColor color = ConnectionColorSupport.effectiveTabColor(colored, id -> null,
+                CREDENTIAL_ENVIRONMENTS::get, ENVIRONMENT_COLORS::get);
+
+        assertThat(color).isEqualTo(new TabColor("#388E3C", Source.CONNECTION, null));
+    }
+
+    @Test
+    void aConnectionWithoutAColorTakesItsCredentialsEnvironmentColor() {
+        ServerConnection plain = connection("prod-db", null);
+        plain.setCredentialId("cred-prod");
+        ServerConnection lab = connection("lab-box", null);
+        lab.setCredentialId("cred-lab");
+
+        assertThat(ConnectionColorSupport.effectiveTabColor(plain, id -> null,
+                CREDENTIAL_ENVIRONMENTS::get, ENVIRONMENT_COLORS::get))
+                .isEqualTo(new TabColor("#D32F2F", Source.ENVIRONMENT, "PRODUCTION"));
+        assertThat(ConnectionColorSupport.effectiveTabColor(lab, id -> null,
+                CREDENTIAL_ENVIRONMENTS::get, ENVIRONMENT_COLORS::get))
+                .isEqualTo(new TabColor("#7B1FA2", Source.ENVIRONMENT, "custom-lab"));
+    }
+
+    @Test
+    void noCredentialAMissingCredentialOrAnEnvironmentWithoutAColorMeanNoColor() {
+        ServerConnection keyAuth = connection("key-host", null);
+        ServerConnection blankCredential = connection("blank", null);
+        blankCredential.setCredentialId(" ");
+        ServerConnection deletedCredential = connection("orphan", null);
+        deletedCredential.setCredentialId("cred-deleted");
+        ServerConnection uncolored = connection("staging", null);
+        uncolored.setCredentialId("cred-staging");
+        Map<String, String> withStaging = new HashMap<>(CREDENTIAL_ENVIRONMENTS);
+        withStaging.put("cred-staging", "STAGING");
+
+        for (ServerConnection connection : List.of(keyAuth, blankCredential, deletedCredential, uncolored)) {
+            assertWithMessage("tab color of %s", connection.getName())
+                    .that(ConnectionColorSupport.effectiveTabColor(connection, id -> null,
+                            withStaging::get, ENVIRONMENT_COLORS::get))
+                    .isNull();
+        }
+        assertThat(ConnectionColorSupport.effectiveTabColor(null, id -> null,
+                CREDENTIAL_ENVIRONMENTS::get, ENVIRONMENT_COLORS::get)).isNull();
+    }
+
+    @Test
+    void anInvalidStoredEnvironmentColorIsIgnored() {
+        ServerConnection test = connection("test-box", null);
+        test.setCredentialId("cred-test");
+
+        assertThat(ConnectionColorSupport.effectiveTabColor(test, id -> null,
+                CREDENTIAL_ENVIRONMENTS::get, ENVIRONMENT_COLORS::get)).isNull();
+    }
+
+    @Test
+    void theEnvironmentComesFromTheCredentialTheTabSignedInWith() {
+        // A teamwork connection names no credential; the teamwork default login fills one into the
+        // tab's copy, which keeps the id. The saved connection must not take it away again.
+        ServerConnection shared = connection("shared-db", null);
+        ServerConnection tabCopy = ServerConnection.copyForAuth(shared);
+        tabCopy.setCredentialId("cred-prod");
+        Map<String, ServerConnection> store = new HashMap<>(Map.of(shared.getId(), shared));
+
+        assertThat(ConnectionColorSupport.effectiveTabColor(tabCopy, store::get,
+                CREDENTIAL_ENVIRONMENTS::get, ENVIRONMENT_COLORS::get))
+                .isEqualTo(new TabColor("#D32F2F", Source.ENVIRONMENT, "PRODUCTION"));
+
+        shared.setTabColor("#1976D2");
+        assertWithMessage("a color set on the saved connection still comes first")
+                .that(ConnectionColorSupport.effectiveTabColor(tabCopy, store::get,
+                        CREDENTIAL_ENVIRONMENTS::get, ENVIRONMENT_COLORS::get))
+                .isEqualTo(new TabColor("#1976D2", Source.CONNECTION, null));
+    }
+
+    @Test
+    void withoutTheCredentialOrEnvironmentStoresOnlyTheConnectionColorCounts() {
+        ServerConnection plain = connection("prod-db", null);
+        plain.setCredentialId("cred-prod");
+
+        assertThat(ConnectionColorSupport.effectiveTabColor(plain, id -> null, null, ENVIRONMENT_COLORS::get)).isNull();
+        assertThat(ConnectionColorSupport.effectiveTabColor(plain, id -> null, CREDENTIAL_ENVIRONMENTS::get, null)).isNull();
+        assertThat(ConnectionColorSupport.effectiveTabColor(connection("own", "#616161"), null, null, null))
+                .isEqualTo(new TabColor("#616161", Source.CONNECTION, null));
     }
 
     @Test

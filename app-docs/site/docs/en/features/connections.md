@@ -61,9 +61,10 @@ A **tab color** marks every terminal tab of a connection with a small colored do
 - **Applies at once** — saving in the Connection Manager recolors the open tabs of that connection in every window, and removing the color removes the dot and the frame. Tabs opened from a saved connection through Quick Connect, **Duplicate**, **Reopen Closed Tab** or a [project](projects.md) show its color too.
 - **Status colors stay** — the yellow tab while a connection is being made and the dark red tab of a failed or lost connection work as before; the dot and the frame are shown in addition and never replace them. A pane that **Split Right (new connection)** or **Split Down (new connection)** opened to another server is part of the same tab and sits inside the tab's frame, so it shows the tab's color, not its own.
 - **Stored with the connection** — the color is saved in `connections.xml` as `#RRGGBB` and survives duplicating, exporting and importing. A value that is not a hex color is ignored.
+- **Color from the credential's environment** — a connection without a tab color of its own can take the color of its stored credential's environment, for example red for every connection that signs in with a production credential. Give the environment a color in the Credentials manager under **Environments...**, see [Environments and tab colors](security.md#environments-and-tab-colors). The tooltip then names the environment instead of saying the color is set on the connection, and a color set on the connection always comes first.
 
 !!! warning "Shared connections bring their own color"
-    A [teamwork](teamwork.md) connection shows the color written in the shared file, so whoever maintains that file decides how its tabs are marked. Treat the color as a hint, not as proof of which server you are on: the tooltip and the tab title still name the connection.
+    A [teamwork](teamwork.md) connection shows the color written in the shared file, so whoever maintains that file decides how its tabs are marked. That color also comes before the color of your own credential environment. Treat the color as a hint, not as proof of which server you are on: the tooltip and the tab title still name the connection.
 
 ## Protocols
 

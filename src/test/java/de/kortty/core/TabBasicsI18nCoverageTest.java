@@ -11,9 +11,9 @@ import java.util.Properties;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
- * The keys of the tab basics (rename, close others, reopen closed tabs, the connection's tab color
- * and its frame, and the tab commands that follow) exist in every bundled language. Grows with each
- * tab feature.
+ * The keys of the tab basics (rename, close others, reopen closed tabs, the connection's tab color,
+ * its frame and the credential environment colors, and the tab commands that follow) exist in every
+ * bundled language. Grows with each tab feature.
  */
 class TabBasicsI18nCoverageTest {
 
@@ -57,7 +57,12 @@ class TabBasicsI18nCoverageTest {
             "settings.window.tabs.header",
             "settings.window.connectionColorBorder",
             "settings.window.connectionColorBorder.tooltip",
-            "settings.window.connectionColorBorder.info");
+            "settings.window.connectionColorBorder.info",
+            "tab.tooltip.environmentColor",
+            "credential.environments.color",
+            "credential.environments.color.enable",
+            "credential.environments.color.info",
+            "credential.environments.color.swatch");
 
     @Test
     void everyTabBasicsKeyExistsInEveryBundledLocale() throws Exception {
@@ -126,6 +131,23 @@ class TabBasicsI18nCoverageTest {
                     .that(color).contains("{0}");
             assertWithMessage(bundle + " drops the color code from tab.tooltip.connectionColor")
                     .that(color).contains("{1}");
+        }
+    }
+
+    @Test
+    void theEnvironmentColorTooltipNamesTheColorItsCodeAndTheEnvironment() throws Exception {
+        for (String bundle : BUNDLES) {
+            Properties localized = loadBundle(bundle);
+            String tooltip = localized.getProperty("tab.tooltip.environmentColor");
+            for (String placeholder : List.of("{0}", "{1}", "{2}")) {
+                assertWithMessage("%s drops %s from tab.tooltip.environmentColor", bundle, placeholder)
+                        .that(tooltip).contains(placeholder);
+            }
+            String swatch = localized.getProperty("credential.environments.color.swatch");
+            assertWithMessage("%s drops the color name from credential.environments.color.swatch", bundle)
+                    .that(swatch).contains("{0}");
+            assertWithMessage("%s drops the color code from credential.environments.color.swatch", bundle)
+                    .that(swatch).contains("{1}");
         }
     }
 

@@ -9,9 +9,11 @@ import java.util.regex.Pattern;
 
 /**
  * The color that marks a connection's terminal tabs, for example red for production servers.
- * A connection stores it as {@code #RRGGBB} ({@link ServerConnection#getTabColor()}); everything
- * that shows it reads it through {@link #normalizeHex}, so a value that is not a hex color (the field
- * can arrive from a shared teamwork file) is ignored instead of reaching the UI. Pure: no JavaFX.
+ * A connection stores it as {@code #RRGGBB} ({@link ServerConnection#getTabColor()}); a connection
+ * without one can take the color of its stored credential's environment (see
+ * {@link #effectiveTabColor}). Everything that shows a color reads it through {@link #normalizeHex},
+ * so a value that is not a hex color (the field can arrive from a shared teamwork file) is ignored
+ * instead of reaching the UI. Pure: no JavaFX.
  */
 public final class ConnectionColorSupport {
 
@@ -28,6 +30,22 @@ public final class ConnectionColorSupport {
      */
     public enum Family {
         RED, ORANGE, YELLOW, GREEN, CYAN, BLUE, PURPLE, PINK, GRAY, BLACK, WHITE
+    }
+
+    /** Where a tab's color comes from, so the tooltip can say it. */
+    public enum Source {
+        /** Set on the connection itself. */
+        CONNECTION,
+        /** The color of the environment of the stored credential the tab signed in with. */
+        ENVIRONMENT
+    }
+
+    /**
+     * The color a terminal tab shows ({@code #RRGGBB}) and where it comes from;
+     * {@code environmentId} names the environment for {@link Source#ENVIRONMENT} and is
+     * {@code null} otherwise.
+     */
+    public record TabColor(String hex, Source source, String environmentId) {
     }
 
     private ConnectionColorSupport() {
@@ -73,6 +91,45 @@ public final class ConnectionColorSupport {
                 ? savedById.apply(tabConnection.getId())
                 : null;
         return normalizeHex((saved != null ? saved : tabConnection).getTabColor());
+    }
+
+    /**
+     * The color a terminal tab of {@code tabConnection} shows, or {@code null} for none: the
+     * connection's own tab color first ({@link #tabColorOf}), else the color of the environment of
+     * the stored credential the tab signed in with. That credential is read from the tab's own
+     * connection: a teamwork default login or Quick Connect fills it into the tab's copy, and the
+     * saved connection with the same id does not name it (a teamwork connection names no
+     * credential). Only connections with a stored credential have an environment. A missing credential, an
+     * environment without a color and a stored value that is not a hex color all mean no color.
+     *
+     * @param savedById               looks a saved connection up by id; may return {@code null}
+     * @param credentialEnvironmentId the environment id of the stored credential with the given id,
+     *                                {@code null} when there is no such credential
+     * @param environmentColor        the stored tab color of the environment with the given id, or
+     *                                {@code null}
+     */
+    public static TabColor effectiveTabColor(ServerConnection tabConnection,
+                                             Function<String, ServerConnection> savedById,
+                                             Function<String, String> credentialEnvironmentId,
+                                             Function<String, String> environmentColor) {
+        if (tabConnection == null) {
+            return null;
+        }
+        String own = tabColorOf(tabConnection, savedById);
+        if (own != null) {
+            return new TabColor(own, Source.CONNECTION, null);
+        }
+        String credentialId = tabConnection.getCredentialId();
+        if (credentialId == null || credentialId.isBlank() || credentialEnvironmentId == null
+                || environmentColor == null) {
+            return null;
+        }
+        String environmentId = credentialEnvironmentId.apply(credentialId);
+        if (environmentId == null || environmentId.isBlank()) {
+            return null;
+        }
+        String color = normalizeHex(environmentColor.apply(environmentId));
+        return color != null ? new TabColor(color, Source.ENVIRONMENT, environmentId) : null;
     }
 
     /**
