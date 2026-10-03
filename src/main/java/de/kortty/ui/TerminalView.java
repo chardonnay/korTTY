@@ -68,6 +68,7 @@ import de.kortty.plugin.terminaleffects.TerminalEffectConnectorWrapper;
 import de.kortty.plugin.terminaleffects.TerminalEffectContext;
 import de.kortty.plugin.terminaleffects.TerminalEffectPlugin;
 import de.kortty.plugin.terminaleffects.TerminalEffectSession;
+import de.kortty.shellintegration.ShellIntegrationEvent;
 import javafx.application.Platform;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
@@ -757,7 +758,7 @@ public class TerminalView extends BorderPane {
         // Key handling at split-pane level runs before every pane: the agent input lock, the agent
         // shortcut and Ctrl+D come first. Navigation keys are encoded below, in each pane's own
         // filter (TerminalSplitPane.routeKeyPressed), which needs the real connector type.
-        splitPane.setConnectorUnwrapper(this::unwrapTerminalEffectConnector);
+        splitPane.setConnectorUnwrapper(TerminalView::unwrapTerminalEffectConnector);
         // A pane that is pacing a paste takes no keys, not even mirrored ones from broadcast mode,
         // so none lands between two pasted lines; Esc stops the paste (PasteInputHold).
         splitPane.setMirrorTargetGuard(widget -> !pastePacer.isPacing(widget));
@@ -2337,22 +2338,40 @@ public class TerminalView extends BorderPane {
         attachBracketedPasteTracker(widget, baseConnector);
         PaneEffect effect = paneEffects.get(widget);
         TtyConnector decorated = baseConnector;
-        if (effect == null || effect.session == null) {
-            return new TerminalColorFilteringTtyConnector(
-                decorated,
-                () -> settings == null || settings.isTerminalColorsEnabled(),
-                this::reportTerminalActivity);
+        if (effect != null && effect.session != null) {
+            try {
+                decorated = effect.session.wrapConnector(widget, baseConnector);
+            } catch (Exception e) {
+                logger.warn("Terminal effect '{}' failed to wrap connector: {}", effect.pluginId, e.getMessage());
+                decorated = baseConnector;
+            }
         }
-        try {
-            decorated = effect.session.wrapConnector(widget, baseConnector);
-        } catch (Exception e) {
-            logger.warn("Terminal effect '{}' failed to wrap connector: {}", effect.pluginId, e.getMessage());
-            decorated = baseConnector;
-        }
-        return new TerminalColorFilteringTtyConnector(
+        return withShellIntegration(widget, new TerminalColorFilteringTtyConnector(
             decorated,
             () -> settings == null || settings.isTerminalColorsEnabled(),
-            this::reportTerminalActivity);
+            this::reportTerminalActivity));
+    }
+
+    /**
+     * Makes {@link ShellIntegrationTtyConnector} the outermost connector, so it sees exactly what the
+     * emulator reads, for the emulations that read OSC the way it expects. The emulation is the one
+     * {@link #applyTerminalEmulation} just set, which the widget's next emulator is created with.
+     */
+    private TtyConnector withShellIntegration(SithTermFxWidget widget, TtyConnector decorated) {
+        if (widget == null || !ShellIntegrationTtyConnector.appliesTo(widget.getEmulationType())) {
+            return decorated;
+        }
+        return new ShellIntegrationTtyConnector(decorated, event -> onShellIntegrationEvent(widget, event));
+    }
+
+    /**
+     * Receives a pane's OSC 133/9/777 events on its emulator thread, at the point of the output
+     * where they stood. Nothing acts on them yet.
+     */
+    private void onShellIntegrationEvent(SithTermFxWidget widget, ShellIntegrationEvent event) {
+        if (logger.isDebugEnabled()) {
+            logger.debug("Shell integration event in pane {}: {}", System.identityHashCode(widget), event.summary());
+        }
     }
 
     /**
@@ -2377,9 +2396,19 @@ public class TerminalView extends BorderPane {
         return bound != next;
     }
 
-    private TtyConnector unwrapTerminalEffectConnector(TtyConnector connector) {
+    /**
+     * The base connector of a pane, with every wrapper korTTY puts around it taken off, in whatever
+     * order they are stacked: {@link ShellIntegrationTtyConnector}, the colour filter and the
+     * terminal effects' wrappers. Per-pane state is keyed by this connector, never by a wrapper: a
+     * Mosh recovery re-decorates a live pane while its emulator still reads the old chain.
+     */
+    static TtyConnector unwrapTerminalEffectConnector(TtyConnector connector) {
         TtyConnector current = connector;
         while (true) {
+            if (current instanceof ShellIntegrationTtyConnector wrapper) {
+                current = wrapper.delegate();
+                continue;
+            }
             if (current instanceof TerminalColorFilteringTtyConnector wrapper) {
                 current = wrapper.delegate();
                 continue;
@@ -8288,7 +8317,7 @@ public class TerminalView extends BorderPane {
      * - Font zoom via Cmd+Plus/Minus (or Ctrl+Plus/Minus)
      * - Font zoom via right-click context menu
      */
-    private static final class TerminalColorFilteringTtyConnector implements TtyConnector {
+    static final class TerminalColorFilteringTtyConnector implements TtyConnector {
 
         private final TtyConnector delegate;
         private final BooleanSupplier terminalColorsEnabled;
@@ -8296,7 +8325,7 @@ public class TerminalView extends BorderPane {
         private final TerminalColorControlSequenceFilter filter = new TerminalColorControlSequenceFilter();
         private final StringBuilder pendingOutput = new StringBuilder();
 
-        private TerminalColorFilteringTtyConnector(
+        TerminalColorFilteringTtyConnector(
                 TtyConnector delegate,
                 BooleanSupplier terminalColorsEnabled,
                 Runnable activityCallback) {

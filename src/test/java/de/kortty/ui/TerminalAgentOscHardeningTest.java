@@ -2,6 +2,7 @@ package de.kortty.ui;
 
 import de.kortty.core.SshTtyConnector;
 import de.kortty.model.ServerConnection;
+import de.kortty.shellintegration.ShellIntegrationEvent;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -64,6 +65,26 @@ class TerminalAgentOscHardeningTest {
 
         receiveRemoteOutput(connector, CRAFTED_OUTPUT, readSize);
 
+        assertThat(connector.getCurrentRemoteDirectory()).isEqualTo("~");
+    }
+
+    @Test(dataProvider = "readSizes")
+    void theShellIntegrationSplitterPassesTheAgentSequenceOnUntouched(int readSize) throws Exception {
+        // The pane's outermost connector owns OSC 777;notify only; every other 777 subcommand,
+        // korTTY-agent included, must reach the emulator unchanged and raise no event.
+        SshTtyConnector direct = connector();
+        String expected = readAll(direct, CRAFTED_OUTPUT, readSize);
+
+        SshTtyConnector connector = connector();
+        Receiver receiver = Receiver.attachTo(connector);
+        List<ShellIntegrationEvent> events = new CopyOnWriteArrayList<>();
+        String throughSplitter = readAll(new ShellIntegrationTtyConnector(connector, events::add), connector,
+            CRAFTED_OUTPUT, readSize);
+
+        assertThat(throughSplitter).isEqualTo(expected);
+        assertThat(throughSplitter).contains("\u001B]777;korTTY-agent;execute;");
+        assertThat(events).isEmpty();
+        assertThat(receiver.dispatched).isEmpty();
         assertThat(connector.getCurrentRemoteDirectory()).isEqualTo("~");
     }
 
@@ -136,6 +157,25 @@ class TerminalAgentOscHardeningTest {
         while (connector.read(buffer, 0, readSize) > 0) {
             // The connector notifies its data listeners on every read.
         }
+    }
+
+    private static String readAll(SshTtyConnector connector, String output, int readSize) throws Exception {
+        return readAll(connector, connector, output, readSize);
+    }
+
+    /** What the emulator would read from {@code reader}, the outermost connector over {@code connector}. */
+    private static String readAll(com.sithtermfx.core.TtyConnector reader, SshTtyConnector connector, String output,
+                                  int readSize) throws Exception {
+        field(connector, "reader").set(connector, new InputStreamReader(
+            new ByteArrayInputStream(output.getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8));
+        ((AtomicBoolean) field(connector, "connected").get(connector)).set(true);
+        StringBuilder read = new StringBuilder();
+        char[] buffer = new char[readSize];
+        int count;
+        while ((count = reader.read(buffer, 0, readSize)) > 0) {
+            read.append(buffer, 0, count);
+        }
+        return read.toString();
     }
 
     private static String agentOsc(String kind, String cwd, String prompt, String terminator) {
