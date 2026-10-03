@@ -604,6 +604,9 @@ public class TerminalView extends BorderPane {
         // Right-click context menu will show: Font size options + Split right/down + Close split
         splitPane = new TerminalSplitPane(providerFactory, connectorFactory, widget -> {
             registerPaneProvider(widget);
+            // Multi-exec can take in every pane; the supplier reads the field, because the first
+            // pane is set up inside the constructor, before splitPane is assigned.
+            MultiExecCoordinator.shared().register(widget, () -> splitPane);
             setupWidgetEventHandlers(widget);
             configurePlainTextLinks(widget);
             applyCursorShape(widget);
@@ -630,10 +633,13 @@ public class TerminalView extends BorderPane {
             }
         });
         // Telemetry: count broadcast toggles (never keystrokes — the data path stays uninstrumented).
-        splitPane.setOnBroadcastModeChanged(enabled ->
+        splitPane.setOnBroadcastModeChanged(enabled -> {
             de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.BROADCAST_TOGGLED, Map.of(
                 "enabled", enabled,
-                "split_count", splitPane != null ? splitPane.getWidgetCount() : 0)));
+                "split_count", splitPane != null ? splitPane.getWidgetCount() : 0));
+            // The tab marker and the status bars show broadcast mode next to multi-exec.
+            MultiExecCoordinator.shared().refreshMarkers();
+        });
         splitPane.setResetZoomCallback(this::resetZoom); // Reset zoom to connection or global default (not hardcoded 14)
         
         // Register extra context menu items: Theme, Reconnect, Timestamp toggle
@@ -780,6 +786,11 @@ public class TerminalView extends BorderPane {
             pastePacer::isPacing, this::hasTerminalAgentRuns, this::codingAgentStateOf));
         splitPane.setMirrorInputRule(source -> MirrorPasswordRule.receiversOf(
             cursorLineOf(source), TerminalView::cursorLineOf));
+        // Multi-exec: the keys typed in a member pane go to the other members of every tab and
+        // window too, through the same guard (of the tab holding each target), password rule and
+        // per-pane encoding; Extras in a pane's context menu lets the pane join or leave.
+        splitPane.setInputMirror(MultiExecCoordinator.shared());
+        splitPane.setMirrorMenuItemsFactory(this::multiExecMenuItems);
         splitPane.addEventFilter(KeyEvent.KEY_TYPED, this::holdKeyWhilePacingPaste);
         splitPane.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             if (event.isConsumed() || holdKeyWhilePacingPaste(event)) {
@@ -1248,6 +1259,8 @@ public class TerminalView extends BorderPane {
         }
         gutterMap.remove(widget);
         paneOrigins.forget(widget);
+        // A closed pane leaves multi-exec and is never mirrored into again.
+        MultiExecCoordinator.shared().forget(widget);
         lastTimestampLineByWidget.remove(widget);
         timestampHistoryByWidget.remove(widget);
         awaitingCommandCompletionByWidget.remove(widget);
@@ -2198,6 +2211,30 @@ public class TerminalView extends BorderPane {
         if (splitPane != null) {
             splitPane.setBroadcastMode(enabled);
         }
+    }
+
+    /** Whether {@code pane} is this tab's split pane; multi-exec counts the windows its members are in. */
+    boolean holdsSplitPane(@Nullable TerminalSplitPane pane) {
+        return pane != null && pane == splitPane;
+    }
+
+    /** How many of this tab's panes take part in {@link MultiExecCoordinator multi-exec}. */
+    public int multiExecMemberCount() {
+        return MultiExecCoordinator.shared().countIn(getOrderedWidgets());
+    }
+
+    /**
+     * <i>Extras → Multi-exec: Include This Pane</i> in a pane's context menu, below <b>Broadcast
+     * Mode</b>: its check mark shows whether the pane takes part, and choosing it lets the pane join or
+     * leave, decided from the members, not from the item, which JavaFX has already flipped.
+     */
+    private List<javafx.scene.control.MenuItem> multiExecMenuItems(SithTermFxWidget widget) {
+        MultiExecCoordinator multiExec = MultiExecCoordinator.shared();
+        javafx.scene.control.CheckMenuItem include =
+            new javafx.scene.control.CheckMenuItem(I18n.get(MultiExecMarkers.PANE_TOGGLE_KEY));
+        include.setSelected(multiExec.isMember(widget));
+        include.setOnAction(event -> multiExec.togglePane(widget));
+        return List.of(include);
     }
 
     /**

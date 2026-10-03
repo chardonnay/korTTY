@@ -310,7 +310,8 @@ class PaneMenuSupportTest {
 
         String viewMenu = methodBody(source, "private Menu createViewMenu(MenuBarTarget target) {");
         assertThat(viewMenu).contains("Menu panesMenu = createPanesMenu(target);");
-        assertThat(viewMenu).contains("panesMenu, highlightingMenu, terminalEffectMenu");
+        // View > Multi-exec follows View > Panes, then Highlighting.
+        assertThat(viewMenu).contains("panesMenu, multiExecMenu, highlightingMenu,");
 
         String panes = methodBody(source, "private Menu createPanesMenu(MenuBarTarget target) {");
         assertThat(panes).contains("panes.menu().setOnShowing(event -> syncPaneMenuItems());");

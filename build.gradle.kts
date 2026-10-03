@@ -3682,6 +3682,14 @@ tasks.register<JavaExec>("paneKeyboardSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("multiExecSmoke") {
+    group = "verification"
+    description = "Lets three panes of two tabs take part in multi-exec, one of them with a connection whose writes never return, and checks that typed keys and Enter reach the member in the other tab while the FX thread keeps answering, that a pane outside multi-exec and one its tab's guard holds back get nothing, that the members show the badge and the status chip counts panes and tabs, and that Stop and closing a pane take panes out; pass a PNG path via --args to save a snapshot (needs a display)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.MultiExecSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("aiManagerTabCssSmoke") {
     group = "verification"
     description = "Opens the AI Manager under every app design and fails on JavaFX CSS warnings for the selected tab."

@@ -11,6 +11,7 @@ import com.sithtermfx.ui.TerminalPanel;
 import com.sithtermfx.ui.TerminalWidgetListener;
 import com.sithtermfx.ui.settings.SettingsProvider;
 import javafx.application.Platform;
+import javafx.beans.binding.DoubleBinding;
 import javafx.beans.value.ChangeListener;
 import javafx.css.PseudoClass;
 import javafx.geometry.Bounds;
@@ -101,7 +102,11 @@ public class TerminalSplitPane extends StackPane {
     public enum PaneOverlayLayer {
         /** The underline under a hovered terminal link, and quick select's boxes and labels. */
         LINKS,
-        /** The ring around the pane the keyboard is in (with two or more panes), and a zoomed pane's badge. */
+        /**
+         * The ring around the pane the keyboard is in (with two or more panes), a zoomed pane's badge,
+         * and the outline and badge of a pane whose typing goes to other panes (multi-exec or
+         * broadcast mode).
+         */
         DECORATION,
         /** The drop zones shown while a pane is dragged onto this one to move it. */
         DROP_ZONES;
@@ -153,6 +158,32 @@ public class TerminalSplitPane extends StackPane {
 
     /** Set on the zoom badge while hidden panes receive the keys typed in the zoomed pane. */
     static final PseudoClass MIRRORING = PseudoClass.getPseudoClass("mirroring");
+
+    /** The badge of a pane that takes part in multi-exec: "Multi-exec"; the dashboard's mark reads it too. */
+    public static final String MULTI_EXEC_BADGE_KEY = "terminal.pane.multiExecBadge";
+
+    /** The badge of each pane of a tab in broadcast mode: "Broadcast". */
+    static final String BROADCAST_BADGE_KEY = "terminal.pane.broadcastBadge";
+
+    /** Style class of the badge of a pane whose typing goes to other panes, in its DECORATION layer. */
+    static final String MIRROR_BADGE_STYLE_CLASS = "kortty-pane-mirror-badge";
+
+    /** Style class of that badge's icon. */
+    static final String MIRROR_BADGE_ICON_STYLE_CLASS = "kortty-pane-mirror-badge-icon";
+
+    /** Style class of the amber outline of a pane whose typing goes to other panes. */
+    static final String MIRROR_OUTLINE_STYLE_CLASS = "kortty-pane-mirror-outline";
+
+    /**
+     * A block that forks into three lines to its right, 10 by 10: what you type in one pane goes on to
+     * others. The pane badge, the tab marker, the dashboard and the status bar of multi-exec show it,
+     * so none of them is text and colour alone.
+     */
+    public static final String MIRROR_ICON_PATH =
+        "M0 3.5H3V6.5H0Z M3 4.4H5V5.6H3Z M5 0.8H6.2V9.2H5Z M6.2 0.8H10V2H6.2Z M6.2 4.4H10V5.6H6.2Z M6.2 8H10V9.2H6.2Z";
+
+    /** The gap between the mirror badge and a zoomed pane's badge right of it. */
+    private static final double MIRROR_BADGE_GAP = 6;
 
     /** Four corners pointing out, 10 by 10: the badge's icon, so the badge is not text and colour alone. */
     private static final String ZOOM_BADGE_ICON_PATH =
@@ -222,6 +253,10 @@ public class TerminalSplitPane extends StackPane {
 
     // Optional supplier of extra menu items to add to the context menu (e.g. timestamp toggle)
     private Function<SithTermFxWidget, List<MenuItem>> extraMenuItemsFactory;
+
+    // Optional supplier of the items below Broadcast Mode in the context menu's Extras submenu
+    // (the host app's multi-exec toggle).
+    private Function<SithTermFxWidget, List<MenuItem>> mirrorMenuItemsFactory;
 
     // Optional hook invoked when a widget is closed (split close or close-all) so owners can release
     // per-widget resources such as terminal-agent runs/panels.
@@ -496,6 +531,15 @@ public class TerminalSplitPane extends StackPane {
      */
     public int countHeldMirrorTargets() {
         return BroadcastTargets.countHeld(getAllWidgets(), TerminalSplitPane::isConnected, this::acceptsMirroredInput);
+    }
+
+    /**
+     * Whether the mirror guard holds back {@code widget}, one of this split pane's panes, now: it is
+     * connected but gets no keys from other panes, as a pane does that paces a paste. False for a
+     * pane of another split pane. Multi-exec counts its members this way for the status bar.
+     */
+    public boolean isHeldMirrorTarget(@NotNull SithTermFxWidget widget) {
+        return holdsWidget(widget) && isConnected(widget) && !acceptsMirroredInput(widget);
     }
 
     private static boolean isConnected(@NotNull SithTermFxWidget widget) {
@@ -806,6 +850,14 @@ public class TerminalSplitPane extends StackPane {
         this.extraMenuItemsFactory = factory;
     }
 
+    /**
+     * Sets the items the context menu's <i>Extras</i> submenu shows below <b>Broadcast Mode</b> for a
+     * pane, built each time the menu opens; korTTY's multi-exec toggle goes there.
+     */
+    public void setMirrorMenuItemsFactory(@Nullable Function<SithTermFxWidget, List<MenuItem>> factory) {
+        this.mirrorMenuItemsFactory = factory;
+    }
+
     /** Sets a hook invoked for each widget being closed (split close or close-all). */
     public void setOnWidgetClosed(@Nullable Consumer<SithTermFxWidget> onWidgetClosed) {
         this.onWidgetClosed = onWidgetClosed;
@@ -907,29 +959,56 @@ public class TerminalSplitPane extends StackPane {
      * never resizes the terminal; mouse-transparent and not focusable.
      */
     static @NotNull Region focusRingOf(@NotNull Pane decorationLayer) {
-        Region existing = findFocusRing(decorationLayer);
-        if (existing != null) {
-            return existing;
-        }
-        Region ring = new Region();
-        ring.getStyleClass().add(FOCUS_RING_STYLE_CLASS);
-        ring.setManaged(false);
-        ring.setMouseTransparent(true);
-        ring.setPickOnBounds(false);
-        ring.setFocusTraversable(false);
-        ring.resize(decorationLayer.getWidth(), decorationLayer.getHeight());
-        ChangeListener<Number> fit = (obs, oldSize, newSize) ->
-            ring.resize(decorationLayer.getWidth(), decorationLayer.getHeight());
-        decorationLayer.widthProperty().addListener(fit);
-        decorationLayer.heightProperty().addListener(fit);
-        decorationLayer.getChildren().add(ring);
-        return ring;
+        return layerFillingRegion(decorationLayer, FOCUS_RING_STYLE_CLASS);
     }
 
     /** The focus ring of a decoration layer, or {@code null} while it has none. */
     static @Nullable Region findFocusRing(@NotNull Pane decorationLayer) {
-        for (Node child : decorationLayer.getChildren()) {
-            if (child instanceof Region region && region.getStyleClass().contains(FOCUS_RING_STYLE_CLASS)) {
+        return findStyledRegion(decorationLayer, FOCUS_RING_STYLE_CLASS);
+    }
+
+    /**
+     * The amber outline in a pane's {@link PaneOverlayLayer#DECORATION} layer, added on first use:
+     * shown while what you type in the pane goes to other panes, through multi-exec or broadcast
+     * mode. Like the focus ring it is as large as the pane, unmanaged, without padding,
+     * mouse-transparent and not focusable; the stylesheets draw it just inside the ring, so both show.
+     */
+    static @NotNull Region mirrorOutlineOf(@NotNull Pane decorationLayer) {
+        return layerFillingRegion(decorationLayer, MIRROR_OUTLINE_STYLE_CLASS);
+    }
+
+    /** The mirror outline of a decoration layer, or {@code null} while it has none. */
+    static @Nullable Region findMirrorOutline(@NotNull Pane decorationLayer) {
+        return findStyledRegion(decorationLayer, MIRROR_OUTLINE_STYLE_CLASS);
+    }
+
+    /**
+     * The region with {@code styleClass} in {@code layer}, added on first use: as large as the layer
+     * and following its size, unmanaged, without padding, mouse-transparent and not focusable, so
+     * the stylesheets can draw a border over the pane's edge that never resizes the terminal.
+     */
+    private static @NotNull Region layerFillingRegion(@NotNull Pane layer, @NotNull String styleClass) {
+        Region existing = findStyledRegion(layer, styleClass);
+        if (existing != null) {
+            return existing;
+        }
+        Region region = new Region();
+        region.getStyleClass().add(styleClass);
+        region.setManaged(false);
+        region.setMouseTransparent(true);
+        region.setPickOnBounds(false);
+        region.setFocusTraversable(false);
+        region.resize(layer.getWidth(), layer.getHeight());
+        ChangeListener<Number> fit = (obs, oldSize, newSize) -> region.resize(layer.getWidth(), layer.getHeight());
+        layer.widthProperty().addListener(fit);
+        layer.heightProperty().addListener(fit);
+        layer.getChildren().add(region);
+        return region;
+    }
+
+    private static @Nullable Region findStyledRegion(@NotNull Pane layer, @NotNull String styleClass) {
+        for (Node child : layer.getChildren()) {
+            if (child instanceof Region region && region.getStyleClass().contains(styleClass)) {
                 return region;
             }
         }
@@ -950,16 +1029,22 @@ public class TerminalSplitPane extends StackPane {
      * Brings every pane's focus ring and accessible name up to date with the number of panes: both
      * only with two or more panes, where they tell the panes apart. A zoomed pane fills the tab alone,
      * so no pane shows a ring, the zoomed one shows the zoom badge instead, and its name says it is
-     * zoomed. Runs after every change to the tree, to the zoom and to broadcast mode, so a pane that
-     * joined gets them, the numbers follow a moved pane and the badge counts the right panes.
+     * zoomed. A pane whose typing goes to other panes, as a member of the input mirror (multi-exec)
+     * or in a tab whose broadcast mode is on, shows an amber outline and a badge that says which, and
+     * its name says it too. Runs after every change to the tree, to the zoom, to broadcast mode and
+     * to the input mirror's members ({@link #refreshMirrorMarkers}), so a pane that joined gets them,
+     * the numbers follow a moved pane and the badges count the right panes.
      */
     private void refreshPaneDecorations() {
         List<SithTermFxWidget> panes = getAllWidgets();
         boolean several = panes.size() > 1;
         int hiddenReceivers = zoomedWidget != null ? hiddenMirrorReceivers(zoomedWidget, panes) : 0;
         String badgeText = zoomedWidget != null ? zoomBadgeText(panes.size() - 1, hiddenReceivers) : null;
+        List<String> mirrorTexts = new ArrayList<>(panes.size());
         for (int i = 0; i < panes.size(); i++) {
             SithTermFxWidget pane = panes.get(i);
+            String mirrorText = mirrorBadgeText(isMirrorMember(pane), broadcastMode && several);
+            mirrorTexts.add(mirrorText);
             Pane decoration = several
                 ? paneOverlay(pane, PaneOverlayLayer.DECORATION)
                 : existingPaneOverlay(pane, PaneOverlayLayer.DECORATION);
@@ -971,12 +1056,104 @@ public class TerminalSplitPane extends StackPane {
             TerminalPanel panel = pane.getTerminalPanel();
             if (panel != null && panel.getCanvas() != null) {
                 String name = paneAccessibleName(i, panes.size());
-                panel.getCanvas().setAccessibleText(pane == zoomedWidget && name != null
-                    ? name + ", " + badgeText : name);
+                String text = pane == zoomedWidget && name != null ? name + ", " + badgeText : name;
+                panel.getCanvas().setAccessibleText(joinAccessibleText(text, mirrorText));
             }
         }
         refreshLastFocusedMarks();
         refreshZoomBadge(badgeText, hiddenReceivers > 0);
+        // After the zoom badge, so a zoomed pane's mirror badge can sit left of it.
+        for (int i = 0; i < panes.size(); i++) {
+            refreshMirrorMarker(panes.get(i), mirrorTexts.get(i));
+        }
+    }
+
+    /**
+     * Redraws the outline and badge of every pane whose typing goes to other panes, and the zoom
+     * badge's count; the input mirror calls it when its members changed.
+     */
+    public void refreshMirrorMarkers() {
+        refreshPaneDecorations();
+    }
+
+    /**
+     * The badge of a pane whose typing goes to other panes: "Multi-exec" for a member of the input
+     * mirror, else "Broadcast" in a tab whose broadcast mode reaches other panes; {@code null} for a
+     * pane whose typing stays in it.
+     */
+    static @Nullable String mirrorBadgeText(boolean multiExecMember, boolean broadcasting) {
+        if (multiExecMember) {
+            return I18n.get(MULTI_EXEC_BADGE_KEY);
+        }
+        return broadcasting ? I18n.get(BROADCAST_BADGE_KEY) : null;
+    }
+
+    /** A pane's accessible text: its name, then its mirror badge, each left out when there is none. */
+    static @Nullable String joinAccessibleText(@Nullable String name, @Nullable String mirrorText) {
+        if (mirrorText == null) {
+            return name;
+        }
+        return name != null ? name + ", " + mirrorText : mirrorText;
+    }
+
+    /**
+     * Shows the outline and the badge with {@code text} on {@code pane}, or hides them for a
+     * {@code null} text. The badge sits at the top right, left of the pane's × or, on a zoomed pane,
+     * left of the zoom badge. Like the ring both are mouse-transparent and never resize the terminal.
+     */
+    private void refreshMirrorMarker(@NotNull SithTermFxWidget pane, @Nullable String text) {
+        Pane decoration = text != null
+            ? paneOverlay(pane, PaneOverlayLayer.DECORATION)
+            : existingPaneOverlay(pane, PaneOverlayLayer.DECORATION);
+        if (decoration == null) {
+            return;
+        }
+        Region outline = text != null ? mirrorOutlineOf(decoration) : findMirrorOutline(decoration);
+        if (outline != null) {
+            outline.setVisible(text != null);
+        }
+        Label badge = findMirrorBadge(decoration);
+        if (text == null) {
+            if (badge != null) {
+                badge.setVisible(false);
+            }
+            return;
+        }
+        if (badge == null) {
+            badge = createMirrorBadge();
+            decoration.getChildren().add(badge);
+        }
+        badge.setText(text);
+        badge.setVisible(true);
+        Label zoomed = pane == zoomedWidget ? zoomBadge : null;
+        DoubleBinding right = zoomed != null && zoomed.getParent() == decoration
+            ? zoomed.layoutXProperty().subtract(MIRROR_BADGE_GAP)
+            : decoration.widthProperty().subtract(ZOOM_BADGE_RIGHT_INSET);
+        badge.layoutXProperty().bind(right.subtract(badge.widthProperty()));
+    }
+
+    /** The mirror badge of a decoration layer, or {@code null} while it has none. */
+    private static @Nullable Label findMirrorBadge(@NotNull Pane decorationLayer) {
+        for (Node child : decorationLayer.getChildren()) {
+            if (child instanceof Label label && label.getStyleClass().contains(MIRROR_BADGE_STYLE_CLASS)) {
+                return label;
+            }
+        }
+        return null;
+    }
+
+    /** The mirror badge: an icon and a text, mouse-transparent and not focusable, styled by the stylesheets. */
+    private static @NotNull Label createMirrorBadge() {
+        SVGPath icon = new SVGPath();
+        icon.setContent(MIRROR_ICON_PATH);
+        icon.getStyleClass().add(MIRROR_BADGE_ICON_STYLE_CLASS);
+        Label badge = new Label();
+        badge.setGraphic(icon);
+        badge.getStyleClass().add(MIRROR_BADGE_STYLE_CLASS);
+        badge.setMouseTransparent(true);
+        badge.setFocusTraversable(false);
+        badge.setLayoutY(ZOOM_BADGE_TOP_INSET);
+        return badge;
     }
 
     /**
@@ -1314,6 +1491,16 @@ public class TerminalSplitPane extends StackPane {
             MenuItem heldInfo = new MenuItem(held);
             heldInfo.setDisable(true);
             extrasMenu.getItems().add(heldInfo);
+        }
+        if (mirrorMenuItemsFactory != null) {
+            try {
+                List<MenuItem> mirrorItems = mirrorMenuItemsFactory.apply(widget);
+                if (mirrorItems != null) {
+                    extrasMenu.getItems().addAll(mirrorItems);
+                }
+            } catch (RuntimeException e) {
+                logger.debug("Mirror menu items failed: {}", e.getMessage());
+            }
         }
         return extrasMenu;
     }

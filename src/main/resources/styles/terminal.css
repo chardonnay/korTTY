@@ -1068,6 +1068,66 @@
     -fx-fill: -kortty-pane-badge-mirror-color;
 }
 
+/*
+ * Multi-exec and broadcast mode: a pane whose typing goes to other panes shows an amber outline,
+ * just inside the focus ring so both show, and a badge at its top right ("Multi-exec" or
+ * "Broadcast"), left of the zoom badge on a zoomed pane. Both sit in the pane's DECORATION layer,
+ * so they never resize the terminal and never take a click.
+ */
+.kortty-pane-mirror-outline {
+    -fx-border-color: -kortty-pane-badge-mirror-color;
+    -fx-border-width: 2;
+    -fx-border-insets: 2;
+}
+
+.kortty-pane-mirror-badge {
+    -fx-background-color: -kortty-pane-badge-background;
+    -fx-background-radius: 4;
+    -fx-border-color: -kortty-pane-badge-mirror-color;
+    -fx-border-radius: 4;
+    -fx-border-width: 1;
+    -fx-text-fill: -kortty-pane-badge-text;
+    -fx-padding: 2 8 2 6;
+    -fx-graphic-text-gap: 6;
+    -fx-font-size: 0.8462em;
+}
+
+.kortty-pane-mirror-badge .kortty-pane-mirror-badge-icon {
+    -fx-fill: -kortty-pane-badge-mirror-color;
+}
+
+/*
+ * The same marker outside the panes: the icon in a tab's header, on a dashboard row, and the chip in
+ * every window's status bar while panes take part in multi-exec. The chip is amber with dark text on
+ * every theme; the selectors carry the status bar's class so a theme's label colour does not win.
+ */
+.tab-mirror-marker,
+.dashboard-multi-exec-mark {
+    -fx-fill: #f59e0b;
+}
+
+.status-bar .kortty-multi-exec-status {
+    -fx-background-color: #f59e0b;
+    -fx-background-radius: 4;
+    -fx-padding: 0 4 0 6;
+}
+
+.status-bar .kortty-multi-exec-status .kortty-multi-exec-status-icon {
+    -fx-fill: #1a1a1a;
+}
+
+.status-bar .kortty-multi-exec-status .kortty-multi-exec-status-text {
+    -fx-text-fill: #1a1a1a;
+}
+
+.status-bar .kortty-multi-exec-status .kortty-multi-exec-status-stop {
+    -fx-text-fill: #1a1a1a;
+    -fx-underline: true;
+    -fx-font-weight: bold;
+    -fx-padding: 0 2 0 2;
+    -fx-border-width: 0;
+}
+
 /* Dialog Pane */
 .dialog-pane {
     -fx-background-color: #2d2d2d;

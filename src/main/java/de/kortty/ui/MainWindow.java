@@ -9,6 +9,7 @@ import de.kortty.ui.KeyTypedResidueGuard.Residue;
 import de.kortty.ui.actions.ActionIds;
 import de.kortty.core.AgentDashboardStatus;
 import com.sithtermfx.ui.SithTermFxWidget;
+import com.sithtermfx.ui.split.TerminalSplitPane;
 import de.kortty.codingagent.CodingAgentActionException;
 import de.kortty.codingagent.CodingAgentActions;
 import de.kortty.codingagent.CodingAgentEntry;
@@ -336,6 +337,12 @@ public class MainWindow {
     // View > Panes of the in-window and the macOS system menu bar, synced from the active tab.
     private PaneMenuSupport.PaneMenu paneMenu;
     private PaneMenuSupport.PaneMenu systemPaneMenu;
+    // View > Multi-exec of both menu bars, synced from the active tab and the members.
+    private MultiExecMenuSupport.MultiExecMenu multiExecMenu;
+    private MultiExecMenuSupport.MultiExecMenu systemMultiExecMenu;
+    // The multi-exec chip in the status bar, and this window's subscription to multi-exec changes.
+    private MultiExecStatusBar multiExecStatusBar;
+    private AutoCloseable multiExecListener;
     private CheckMenuItem hideFullscreenScrollbarsMenuItem;
     private CheckMenuItem systemHideFullscreenScrollbarsMenuItem;
     private CheckMenuItem showTimestampsMenuItem;
@@ -682,6 +689,8 @@ public class MainWindow {
                 updateDashboard();
                 updateAllTabContextMenus();
                 sourceWindow.updateAllTabContextMenus();
+                // The tab's panes keep their multi-exec membership; the window counts changed.
+                MultiExecCoordinator.shared().refreshMarkers();
             } else {
                 updateDashboard();
                 updateAllTabContextMenus();
@@ -727,6 +736,8 @@ public class MainWindow {
                 updateDashboard();
                 updateAllTabContextMenus();
                 sourceWindow.updateAllTabContextMenus();
+                // The tab's panes keep their multi-exec membership; the window counts changed.
+                MultiExecCoordinator.shared().refreshMarkers();
             } else {
                 updateDashboard();
                 updateAllTabContextMenus();
@@ -743,6 +754,7 @@ public class MainWindow {
         statusRow.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(statusSpacer, Priority.ALWAYS);
         installCodingAgentStatusStrip(statusSpacer);
+        installMultiExecStatusBar(statusSpacer);
         statusBar = new VBox(statusRow);
         statusBar.getStyleClass().add("status-bar");
         statusLabel.getStyleClass().add("status-label");
@@ -886,6 +898,8 @@ public class MainWindow {
                 // entry, unless korTTY ends with this window (Quit, or the last window on Windows and Linux).
                 recordClosedWindow(willCloseApplication());
                 closeAllTabs();
+                // Its panes left multi-exec with the tabs; the other windows' chips have counted that.
+                releaseMultiExecListener();
                 // Deregister file browser manager listener to prevent memory leaks and stale callbacks
                 if (fileBrowserManager != null && fileBrowserPositionListener != null) {
                     fileBrowserManager.removePositionListener(fileBrowserPositionListener);
@@ -2091,6 +2105,7 @@ public class MainWindow {
                 rebuildTerminalEffectMenu(terminalEffectMenu, getActiveTerminalTab(), includeEffectSpeedControl));
         Menu highlightingMenu = createHighlightingMenu(target);
         Menu panesMenu = createPanesMenu(target);
+        Menu multiExecMenu = createMultiExecMenu(target);
 
         MenuItem fullscreen = new MenuItem(I18n.get("menu.view.fullscreen"));
         // F12 lives on the in-window bar; the macOS companion system bar has all accelerators
@@ -2131,8 +2146,8 @@ public class MainWindow {
         if (target != MenuBarTarget.SYSTEM) {
             viewMenu.getItems().addAll(new SeparatorMenuItem(), buildBackgroundTransparencyMenuItem());
         }
-        viewMenu.getItems().addAll(new SeparatorMenuItem(), panesMenu, highlightingMenu, terminalEffectMenu,
-            new SeparatorMenuItem(), fullscreen, terminalOnlyFullscreen, hideFullscreenScrollbars);
+        viewMenu.getItems().addAll(new SeparatorMenuItem(), panesMenu, multiExecMenu, highlightingMenu,
+            terminalEffectMenu, new SeparatorMenuItem(), fullscreen, terminalOnlyFullscreen, hideFullscreenScrollbars);
         return viewMenu;
     }
 
@@ -2208,6 +2223,8 @@ public class MainWindow {
         PaneMenuSupport.State state = activePaneMenuState();
         PaneMenuSupport.sync(paneMenu, state);
         PaneMenuSupport.sync(systemPaneMenu, state);
+        // View > Multi-exec follows the same events: the active tab, its panes and its focused pane.
+        syncMultiExecMenuItems();
     }
 
     /** The number of panes of the selected terminal tab, 0 when no terminal tab is selected. */
@@ -5296,6 +5313,9 @@ public class MainWindow {
             }
             tab.setAgentStatusBadge(badge);
         }
+        // Runs every second in the foreground window: an AI agent run that started or ended in a
+        // member pane changes how many members multi-exec leaves out.
+        refreshMultiExecStatus();
     }
 
     /**
@@ -5307,6 +5327,8 @@ public class MainWindow {
         if (codingAgentStatusStrip != null) {
             codingAgentStatusStrip.refresh();
         }
+        // A coding agent that waits for a decision gets no mirrored keys: the chip counts it.
+        refreshMultiExecStatus();
     }
 
     private void startAgentStatusIndicatorTimer() {
@@ -5339,6 +5361,8 @@ public class MainWindow {
         updateDashboard();
         // View > Panes needs two or more panes to move the focus.
         syncPaneMenuItems();
+        // The tab marker counts the tab's panes.
+        refreshMirrorTabMarkers();
     }
 
     /** Re-binds the docked side panel to the currently active terminal tab (spotlight model). */
@@ -5658,6 +5682,164 @@ public class MainWindow {
             logger.warn("Coding-agent status strip could not be installed: {}", e.toString());
             codingAgentStatusStrip = null;
         }
+    }
+
+    /**
+     * Puts the multi-exec chip into the status bar, right of the spacer, and subscribes this window
+     * to multi-exec, so the chip, the tab markers, View → Multi-exec and the dashboard follow every
+     * change in any window. The subscription ends when the window closes.
+     */
+    private void installMultiExecStatusBar(Region statusSpacer) {
+        if (statusRow == null) {
+            return;
+        }
+        multiExecStatusBar = new MultiExecStatusBar();
+        multiExecStatusBar.setOnStop(() -> MultiExecCoordinator.shared().stop());
+        int spacerIndex = statusRow.getChildren().indexOf(statusSpacer);
+        statusRow.getChildren().add(spacerIndex < 0 ? statusRow.getChildren().size() : spacerIndex + 1,
+            multiExecStatusBar);
+        multiExecListener = MultiExecCoordinator.shared().addListener(this::onMultiExecChanged);
+        refreshMultiExecStatus();
+    }
+
+    /** Ends this window's multi-exec subscription; the window closed. */
+    private void releaseMultiExecListener() {
+        AutoCloseable listener = multiExecListener;
+        multiExecListener = null;
+        if (listener != null) {
+            try {
+                listener.close();
+            } catch (Exception e) {
+                logger.debug("Could not unsubscribe from multi-exec: {}", e.toString());
+            }
+        }
+    }
+
+    /**
+     * Multi-exec changed, here or in another window, or a tab's broadcast mode was switched: the
+     * status chip, the markers of this window's tabs, View → Multi-exec and the dashboard rows.
+     */
+    private void onMultiExecChanged() {
+        refreshMultiExecStatus();
+        refreshMirrorTabMarkers();
+        syncMultiExecMenuItems();
+        if (dashboardView != null && dashboardVisible) {
+            dashboardView.refreshRows();
+        }
+    }
+
+    /** Updates the status chip: how many panes take part, in how many tabs and windows, and how many are left out. */
+    private void refreshMultiExecStatus() {
+        if (multiExecStatusBar == null) {
+            return;
+        }
+        MultiExecCoordinator multiExec = MultiExecCoordinator.shared();
+        if (multiExec.memberCount() == 0) {
+            multiExecStatusBar.update(MultiExecMembership.Counts.NONE, 0);
+            return;
+        }
+        multiExecStatusBar.update(multiExec.counts(MainWindow::windowHoldingSplitPane), multiExec.countHeld());
+    }
+
+    /** The open window whose terminal tab holds {@code splitPane}, or {@code null}. */
+    private static MainWindow windowHoldingSplitPane(TerminalSplitPane splitPane) {
+        for (MainWindow window : openWindows) {
+            for (TerminalTab tab : window.terminalTabs()) {
+                TerminalView view = tab.getTerminalView();
+                if (view != null && view.holdsSplitPane(splitPane)) {
+                    return window;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Marks each terminal tab of this window whose typing goes to other panes (multi-exec or broadcast mode). */
+    private void refreshMirrorTabMarkers() {
+        for (TerminalTab tab : terminalTabs()) {
+            TerminalView view = tab.getTerminalView();
+            if (view == null) {
+                tab.setMirrorMarker(null);
+                continue;
+            }
+            tab.setMirrorMarker(MultiExecMarkers.tabMarkerText(view.multiExecMemberCount(),
+                view.getTerminalPaneCount(), view.isBroadcastMode()));
+        }
+    }
+
+    /** The focused pane of the active terminal tab, or {@code null}. */
+    private SithTermFxWidget activeFocusedPane() {
+        TerminalTab terminalTab = activeTerminalTab();
+        TerminalView view = terminalTab != null ? terminalTab.getTerminalView() : null;
+        return view != null ? view.getFocusedWidget() : null;
+    }
+
+    /** Every pane of every terminal tab of this window. */
+    private List<SithTermFxWidget> windowPanes() {
+        List<SithTermFxWidget> panes = new ArrayList<>();
+        for (TerminalTab tab : terminalTabs()) {
+            if (tab.getTerminalView() != null) {
+                panes.addAll(tab.getTerminalView().getOrderedWidgets());
+            }
+        }
+        return panes;
+    }
+
+    /**
+     * View → Multi-exec: the focused pane, all panes of the active tab or of the window join or leave
+     * multi-exec, or it stops. Every command decides from the members, never from a check item.
+     */
+    private Menu createMultiExecMenu(MenuBarTarget target) {
+        MultiExecMenuSupport.MultiExecMenu menu = MultiExecMenuSupport.create(new MultiExecMenuSupport.Commands() {
+            @Override
+            public void togglePane() {
+                MultiExecCoordinator.shared().togglePane(activeFocusedPane());
+                syncMultiExecMenuItems();
+            }
+
+            @Override
+            public void toggleTab() {
+                TerminalTab terminalTab = activeTerminalTab();
+                if (terminalTab != null && terminalTab.getTerminalView() != null) {
+                    MultiExecCoordinator.shared().toggleAll(terminalTab.getTerminalView().getOrderedWidgets());
+                }
+                syncMultiExecMenuItems();
+            }
+
+            @Override
+            public void includeWindow() {
+                MultiExecCoordinator.shared().setPanes(windowPanes(), true);
+                syncMultiExecMenuItems();
+            }
+
+            @Override
+            public void stop() {
+                MultiExecCoordinator.shared().stop();
+                syncMultiExecMenuItems();
+            }
+        });
+        menu.menu().setOnShowing(event -> syncMultiExecMenuItems());
+        menu.menu().setOnMenuValidation(event -> syncMultiExecMenuItems());
+        if (target == MenuBarTarget.WINDOW) {
+            multiExecMenu = menu;
+        } else {
+            systemMultiExecMenu = menu;
+        }
+        return menu.menu();
+    }
+
+    /** Shows the active tab's and the window's multi-exec state on View → Multi-exec of both menu bars. */
+    private void syncMultiExecMenuItems() {
+        MultiExecCoordinator multiExec = MultiExecCoordinator.shared();
+        TerminalTab terminalTab = activeTerminalTab();
+        TerminalView view = terminalTab != null ? terminalTab.getTerminalView() : null;
+        SithTermFxWidget focused = view != null ? view.getFocusedWidget() : null;
+        MultiExecMenuSupport.State state = new MultiExecMenuSupport.State(view != null,
+            focused != null && multiExec.isMember(focused),
+            view != null && multiExec.includesAll(view.getOrderedWidgets()),
+            !terminalTabs().isEmpty(), multiExec.memberCount());
+        MultiExecMenuSupport.sync(multiExecMenu, state);
+        MultiExecMenuSupport.sync(systemMultiExecMenu, state);
     }
 
     /** This window's docked Coding Agents panel, or null while it was never shown. */
@@ -6138,6 +6320,13 @@ public class MainWindow {
     }
     
     private void handleDashboardAction(TerminalTab terminalTab, DashboardView.DashboardAction action) {
+        if (action == DashboardView.DashboardAction.TOGGLE_MULTI_EXEC) {
+            // Multi-exec has no telemetry of its own yet; it is not counted as a dashboard action.
+            if (terminalTab != null && terminalTab.getTerminalView() != null) {
+                MultiExecCoordinator.shared().toggleAll(terminalTab.getTerminalView().getOrderedWidgets());
+            }
+            return;
+        }
         Telemetry.track(TelemetryEvents.DASHBOARD_ACTION,
             Map.of("action", action.name().toLowerCase(Locale.ROOT)));
         switch (action) {
@@ -6185,6 +6374,12 @@ public class MainWindow {
     private void handleDashboardPaneAction(TerminalTab terminalTab, SithTermFxWidget widget, PaneRef pane,
                                            DashboardView.PaneAction action) {
         if (action == null) {
+            return;
+        }
+        if (action == DashboardView.PaneAction.TOGGLE_MULTI_EXEC) {
+            // Any pane of any window joins or leaves multi-exec, without switching to it; not a
+            // coding-agent action, so not counted as one.
+            MultiExecCoordinator.shared().togglePane(widget);
             return;
         }
         Telemetry.track(TelemetryEvents.CODING_AGENT_ACTION,
@@ -12125,6 +12320,17 @@ public class MainWindow {
             contextMenu.getItems().add(journalMenu);
         }
 
+        // Multi-exec: every pane of this tab joins, or leaves when all of them take part. The members
+        // decide, never the check mark, which JavaFX has already flipped when the action runs.
+        CheckMenuItem multiExecItem = new CheckMenuItem(I18n.get(MultiExecMarkers.TAB_TOGGLE_KEY));
+        multiExecItem.setOnAction(e -> {
+            TerminalView view = terminalTab.getTerminalView();
+            if (view != null) {
+                MultiExecCoordinator.shared().toggleAll(view.getOrderedWidgets());
+            }
+        });
+        contextMenu.getItems().add(multiExecItem);
+
         contextMenu.getItems().add(new SeparatorMenuItem());
         MenuItem closeOthersItem = new MenuItem(I18n.get("tab.contextMenu.closeOthers"));
         closeOthersItem.setOnAction(e -> closeOtherTabs(terminalTab));
@@ -12138,6 +12344,9 @@ public class MainWindow {
         contextMenu.setOnShowing(e -> {
             syncTabCloseItems(terminalTab, closeOthersItem, closeToRightItem);
             reopenClosedItem.setDisable(closedTabHistory.isEmpty());
+            TerminalView multiExecView = terminalTab.getTerminalView();
+            multiExecItem.setSelected(multiExecView != null
+                && MultiExecCoordinator.shared().includesAll(multiExecView.getOrderedWidgets()));
         });
 
         if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
