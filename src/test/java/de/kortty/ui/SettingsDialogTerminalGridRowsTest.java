@@ -21,8 +21,8 @@ import static com.google.common.truth.Truth.assertThat;
  *
  * <p>Building the dialog needs a JavaFX toolkit, so, like {@link AiSelectionRedactionWiringTest},
  * this test reads the source: every {@code terminalGrid.add} takes its row from the counter, a
- * label in column 0 that keeps the row shares it with exactly one control in column 1, and nothing
- * but the declaration assigns the counter.</p>
+ * label in column 0 that keeps the row shares it with exactly one control in column 1, nothing
+ * but the declaration assigns the counter, and it only advances as the row of such a call.</p>
  */
 class SettingsDialogTerminalGridRowsTest {
 
@@ -62,12 +62,20 @@ class SettingsDialogTerminalGridRowsTest {
     void onlyTheDeclarationAssignsTheCounter() throws IOException {
         String code = source();
         assertThat(code).contains("int terminalRow = 0;");
-        Matcher writes = Pattern.compile("\\bterminalRow\\s*(?:\\+=|-=|--|=(?!=))").matcher(code);
+        assertThat(count(code, "\\bterminalRow\\s*(?:[-+*/%&|^]|<<|>>>?)?=(?!=)")).isEqualTo(1);
+        assertThat(count(code, "\\bterminalRow\\s*--|(?:\\+\\+|--)\\s*terminalRow\\b")).isEqualTo(0);
+        // A stray "terminalRow++;" would leave an empty row, i.e. an extra gap in the tab.
+        long rowArguments = addCalls(code).stream().filter(args -> args.size() > 2 && args.get(2).equals(NEXT_ROW)).count();
+        assertThat(count(code, "\\bterminalRow\\s*\\+\\+")).isEqualTo(rowArguments);
+    }
+
+    private static int count(String code, String regex) {
+        Matcher matcher = Pattern.compile(regex).matcher(code);
         int count = 0;
-        while (writes.find()) {
+        while (matcher.find()) {
             count++;
         }
-        assertThat(count).isEqualTo(1);
+        return count;
     }
 
     /** SettingsDialog with comments and string literals removed; CRLF-safe. */
