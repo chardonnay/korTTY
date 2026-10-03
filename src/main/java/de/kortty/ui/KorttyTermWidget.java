@@ -9,6 +9,7 @@ import com.sithtermfx.core.model.SithTerminal;
 import com.sithtermfx.core.model.StyleState;
 import com.sithtermfx.core.model.TerminalTextBuffer;
 import com.sithtermfx.ui.SithTermFxWidget;
+import com.sithtermfx.ui.TerminalAction;
 import com.sithtermfx.ui.TerminalCopyPasteHandler;
 import com.sithtermfx.ui.TerminalPanel;
 import com.sithtermfx.ui.settings.SettingsProvider;
@@ -33,6 +34,8 @@ import org.slf4j.LoggerFactory;
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -67,6 +70,11 @@ import java.util.function.Supplier;
  *
  * <p>Every bell the program in the pane rings goes to the {@linkplain #setBellListener bell listener}
  * as well; the bell itself stays silent.
+ *
+ * <p>korTTY's own key actions for the pane, such as Previous Prompt and Next Prompt, come before
+ * SithTermFX's ({@link #setLeadingTerminalActions}): SithTermFX and the split pane's key routing both
+ * let the first action whose key matches decide, and an action that is disabled at the time leaves
+ * the key to the program in the pane.
  */
 public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneActions {
 
@@ -294,6 +302,17 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
     }
 
     /**
+     * Sets korTTY's key actions for this pane, which SithTermFX tries before its own (copy, paste,
+     * scrolling, find). Each is asked whether it is enabled on every matching key press; a disabled
+     * one leaves the key to the program in the pane, exactly as if it did not exist. Keep them hidden
+     * ({@link TerminalAction#withHidden}): korTTY builds the pane's context menu itself. An empty list
+     * removes them. Call it on the JavaFX thread.
+     */
+    public void setLeadingTerminalActions(@NotNull List<TerminalAction> actions) {
+        ((KorttyTerminalPanel) getTerminalPanel()).leadingActions = List.copyOf(actions);
+    }
+
+    /**
      * The link the terminal's context menu was opened on: the one under the last right-button press
      * in this pane, as it was at that press, or {@code null} when that press was on no link or another
      * press came after it. The menu offers Open Link and Copy Link Address for it (Open File in Snippet
@@ -341,6 +360,9 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
 
         /** Told about every bell; none until the terminal view sets it. Called on the emulator thread. */
         private volatile @Nullable Runnable bellListener;
+
+        /** korTTY's key actions, tried before SithTermFX's; none until the terminal view sets them. */
+        private volatile List<TerminalAction> leadingActions = List.of();
 
         private final TerminalLinkHoverController linkHover;
 
@@ -521,6 +543,25 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
                 }
             }
             super.beep();
+        }
+
+        /**
+         * SithTermFX's key actions with korTTY's in front ({@link #setLeadingTerminalActions}).
+         * SithTermFX builds a new list on every key press and runs the first action whose key matches;
+         * the split pane's key routing asks the same list, so both see korTTY's first.
+         */
+        @Override
+        public List<TerminalAction> getActions() {
+            List<TerminalAction> own = leadingActions;
+            List<TerminalAction> actions = super.getActions();
+            // Null only if SithTermFX asked while this panel's own fields were not set yet.
+            if (own == null || own.isEmpty()) {
+                return actions;
+            }
+            List<TerminalAction> all = new ArrayList<>(own.size() + actions.size());
+            all.addAll(own);
+            all.addAll(actions);
+            return all;
         }
 
         @Override

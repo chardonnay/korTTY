@@ -6,6 +6,7 @@ import de.kortty.telemetry.TelemetryEvents;
 import de.kortty.telemetry.TelemetryProps;
 import de.kortty.ui.I18n;
 import de.kortty.ui.KeyTypedResidueGuard.Residue;
+import de.kortty.shellintegration.PromptNavigator;
 import de.kortty.ui.actions.ActionIds;
 import de.kortty.core.AgentDashboardStatus;
 import com.sithtermfx.ui.SithTermFxWidget;
@@ -220,6 +221,14 @@ public class MainWindow {
         new KeyCodeCombination(KeyCode.SPACE, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
     /** What Cmd/Ctrl+Shift+Space can still type once korTTY took it: a space, or NUL for Ctrl+Space. */
     private static final Residue QUICK_SELECT_RESIDUE = Residue.of(" ", "\u0000");
+    // Edit > Previous Prompt / Next Prompt: jump between the prompts that shell integration (OSC 133)
+    // marks. The pane's own key actions use these constants (ShellIntegrationController) and act only
+    // while the pane has prompt marks on its normal screen; otherwise the key reaches the program as
+    // before. Not a plain Ctrl+letter, and SithTermFX's line scroll is Shortcut+Up/Down without Shift.
+    private static final KeyCombination PREVIOUS_PROMPT_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.UP, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    private static final KeyCombination NEXT_PROMPT_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.DOWN, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
     private static final String MENU_BAR_TOGGLE_SHORTCUT_LABEL = "Cmd/Ctrl+Shift+L";
     private static final int JOB_SCHEDULER_QUEUE_LIMIT = 5;
     private static final int MAX_CONCURRENT_TERMINAL_AGENT_RUNS = 5;
@@ -351,6 +360,8 @@ public class MainWindow {
     private final List<MenuItem> unlockVaultMenuItems = new ArrayList<>();
     /** File › Reopen Closed Tab in every menu bar of this window. */
     private final List<MenuItem> reopenClosedTabMenuItems = new ArrayList<>();
+    /** Edit › Previous Prompt and Next Prompt in every menu bar of this window; terminal tabs only. */
+    private final List<MenuItem> promptNavigationMenuItems = new ArrayList<>();
     /** File › Recently Closed in every menu bar of this window, rebuilt whenever the history changes. */
     private final List<Menu> recentlyClosedMenus = new ArrayList<>();
     private Runnable powerManagementStateListener;
@@ -1578,9 +1589,21 @@ public class MainWindow {
         } else {
             systemQuickSelectMenuItem = quickSelect;
         }
+
+        // Shown here; while a terminal has the focus its pane's own key actions take the keys.
+        MenuItem previousPrompt = ActionIds.tag(new MenuItem(I18n.get("menu.edit.previousPrompt")),
+            "menu.edit.previousPrompt");
+        previousPrompt.setAccelerator(PREVIOUS_PROMPT_ACCELERATOR);
+        previousPrompt.setOnAction(e -> jumpToPromptInCurrentTab(PromptNavigator.Direction.PREVIOUS));
+        MenuItem nextPrompt = ActionIds.tag(new MenuItem(I18n.get("menu.edit.nextPrompt")), "menu.edit.nextPrompt");
+        nextPrompt.setAccelerator(NEXT_PROMPT_ACCELERATOR);
+        nextPrompt.setOnAction(e -> jumpToPromptInCurrentTab(PromptNavigator.Direction.NEXT));
+        promptNavigationMenuItems.add(previousPrompt);
+        promptNavigationMenuItems.add(nextPrompt);
         updateEditMenuItemsForSelection();
 
-        editMenu.getItems().addAll(cut, copy, paste, new SeparatorMenuItem(), find, quickSelect);
+        editMenu.getItems().addAll(cut, copy, paste, new SeparatorMenuItem(), find, quickSelect,
+            new SeparatorMenuItem(), previousPrompt, nextPrompt);
         return editMenu;
     }
 
@@ -2543,6 +2566,16 @@ public class MainWindow {
     /** The chord that starts quick select, for the terminal view that ignores it while quick select runs. */
     static KeyCombination quickSelectAccelerator() {
         return QUICK_SELECT_ACCELERATOR;
+    }
+
+    /** The key of Previous Prompt, for the terminal panes' own key action (ShellIntegrationController). */
+    static KeyCombination previousPromptAccelerator() {
+        return PREVIOUS_PROMPT_ACCELERATOR;
+    }
+
+    /** The key of Next Prompt, for the terminal panes' own key action (ShellIntegrationController). */
+    static KeyCombination nextPromptAccelerator() {
+        return NEXT_PROMPT_ACCELERATOR;
     }
 
     /** A terminal tab is selected and the keyboard focus is inside it, or nowhere. */
@@ -4676,6 +4709,10 @@ public class MainWindow {
         if (systemQuickSelectMenuItem != null) {
             systemQuickSelectMenuItem.setDisable(disableQuickSelect);
         }
+        // Prompt navigation moves in a terminal's scrollback; elsewhere the keys stay with the tab.
+        for (MenuItem item : promptNavigationMenuItems) {
+            item.setDisable(!(currentTab instanceof TerminalTab));
+        }
     }
 
     private boolean invokeCutMethodIfPresent(Node focusOwner) {
@@ -4740,6 +4777,26 @@ public class MainWindow {
             terminalTab.showFind();
         } else if (currentTab instanceof FileEditorTab editorTab) {
             editorTab.showFind();
+        }
+    }
+
+    /**
+     * Edit &gt; Previous Prompt / Next Prompt: scrolls the focused terminal pane to a prompt its shell
+     * marked. When it cannot, the status line says why: no marks (no shell integration in that shell),
+     * a full-screen program, or shell integration switched off.
+     */
+    private void jumpToPromptInCurrentTab(PromptNavigator.Direction direction) {
+        if (!(tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab terminalTab)) {
+            return;
+        }
+        String status = switch (terminalTab.jumpToPrompt(direction)) {
+            case JUMPED, NO_TARGET -> null;
+            case NO_PROMPTS -> I18n.get("terminal.shellIntegration.status.noPrompts");
+            case FULL_SCREEN -> I18n.get("terminal.shellIntegration.status.fullScreen");
+            case DISABLED -> I18n.get("terminal.shellIntegration.status.disabled");
+        };
+        if (status != null) {
+            updateStatus(status);
         }
     }
 

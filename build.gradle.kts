@@ -3666,6 +3666,14 @@ tasks.register<JavaExec>("terminalLinksSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("shellIntegrationPromptSmoke") {
+    group = "verification"
+    description = "Feeds shell output with OSC 133 marks into a real terminal pane and checks that Cmd/Ctrl+Shift+Up and Down jump between its prompts without reaching the program, that a jump starts from a view scrolled by hand, and that the keys reach the program without marks, on the alternate screen and with shell integration off (needs a display)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.ShellIntegrationPromptSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("terminalSplitCloseButtonSmoke") {
     group = "verification"
     description = "Splits and closes terminal panes and checks each pane keeps its overlay host and shows its close button only while it has a sibling (needs a display)."

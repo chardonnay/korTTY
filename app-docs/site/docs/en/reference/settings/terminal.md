@@ -4,7 +4,7 @@ title: Terminal
 
 # Terminal
 
-Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, keyword highlighting, links, paste protection, notifications, and SSH connection management. Open via **Configuration → Global Settings → Terminal**; stored in `~/.kortty/global-settings.xml`.
+Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, keyword highlighting, links, paste protection, shell integration, notifications, and SSH connection management. Open via **Configuration → Global Settings → Terminal**; stored in `~/.kortty/global-settings.xml`.
 
 ![Terminal settings tab](../../assets/screenshots/settings/terminal.png)
 
@@ -28,6 +28,7 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Warn about multi-line pastes: | dropdown | Off, Unless the program uses bracketed paste, Always | Unless the program uses bracketed paste | `pasteWarningMode` |
 | Warn about pastes larger than: | number | 0–10,240 KiB (0 = off) | 5 | `pasteLargeWarningKiB` |
 | Pause after each pasted line: | number | 0–1,000 ms (0 = off) | 0 | `pasteLineDelayMs` |
+| Use the command marks of shells set up for shell integration (OSC 133) | toggle | — | On | `shellIntegrationEnabled` |
 | Desktop notification when the bell rings in a tab you are not looking at | toggle | — | Off | `terminalBellNotificationsEnabled` |
 | Enable SSH Keep-Alive | toggle | — | On | `sshKeepAliveEnabled` |
 | Interval (seconds): | number | 5–600 | 60 | `sshKeepAliveInterval` |
@@ -75,6 +76,9 @@ Configure terminal display and behavior settings, including dimensions, scrollba
     **Pause after each pasted line** is for devices such as switches, routers and console servers that lose input arriving too fast: a paste with several lines is sent one line at a time, with this many milliseconds after each line. While it runs, the pane takes no keyboard input and ++esc++ stops the paste (see [Pasting into slow devices](../../features/terminal.md#pasting-into-slow-devices)). 0 sends every paste at once. It is stored as `pasteLineDelayMs`.
 
     Whether a program uses bracketed paste is what the server reports, and any output can switch it on, also in a shell such as `sh` that does not handle it. Pasted line breaks then run without a warning, so choose **Always** if you work on production servers.
+
+!!! note "Shell integration"
+    With **Use the command marks of shells set up for shell integration (OSC 133)** on, korTTY reads the invisible marks that a shell with korTTY's snippet in its startup file prints around every prompt and command, and ++cmd+shift+up++ / ++cmd+shift+down++ (++ctrl+shift+up++ / ++ctrl+shift+down++ on Windows and Linux), *Edit → Previous Prompt / Next Prompt* and the terminal's right-click menu jump between the prompts. The snippets for bash, zsh and fish are on the [Shell integration](../../features/shell-integration.md#setting-it-up) page; without them nothing changes. Switched off, the prompt keys reach the program in the terminal and the right-click menu has no shell-integration entries. The setting is read on every mark and key press, so a change applies to open tabs as soon as you save.
 
 !!! note "Notifications"
     A program that rings the terminal bell in a tab you are not looking at always marks that tab with 🔔 until you look at it; this needs no setting. **Desktop notification when the bell rings in a tab you are not looking at** adds a desktop notification titled `korTTY · ` and the tab's name, at most one per pane every 10 seconds. It is off by default because shells ring the bell on every failed Tab completion, and a pane with a detected coding agent gets none while the coding-agent notifications are on. The setting is read on every bell, so a change applies to open tabs as soon as you save. See [Terminal notifications](../../features/terminal-notifications.md).

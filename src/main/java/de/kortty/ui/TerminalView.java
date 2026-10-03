@@ -69,6 +69,7 @@ import de.kortty.plugin.terminaleffects.TerminalEffectContext;
 import de.kortty.plugin.terminaleffects.TerminalEffectPlugin;
 import de.kortty.plugin.terminaleffects.TerminalEffectSession;
 import de.kortty.shellintegration.BellCoalescer;
+import de.kortty.shellintegration.PromptNavigator;
 import de.kortty.shellintegration.ShellIntegrationEvent;
 import javafx.application.Platform;
 import javafx.animation.KeyFrame;
@@ -367,6 +368,9 @@ public class TerminalView extends BorderPane {
     // Counts the lines a full scrollback drops from its top, so the absolute-line keys above can
     // follow their command lines instead of drifting (and colliding on the bottom row).
     private final Map<SithTermFxWidget, ScrollbackTrimTracker> scrollbackTrimTrackerByWidget = new ConcurrentHashMap<>();
+    // OSC 133 command marks per pane and prompt navigation; marks are runtime-only.
+    private final ShellIntegrationController shellIntegration = new ShellIntegrationController(
+        TerminalView::isShellIntegrationEnabled, MainWindow.previousPromptAccelerator(), MainWindow.nextPromptAccelerator());
 
     // Optional listener called when timestamp gutter visibility is toggled (e.g. from context menu)
     private Runnable timestampToggleListener;
@@ -705,6 +709,12 @@ public class TerminalView extends BorderPane {
                 if (journalScreenshotHandler != null || journalNoteHandler != null) {
                     items.add(new javafx.scene.control.SeparatorMenuItem());
                 }
+            }
+            // Shell integration: the prompt entries while the pane has OSC 133 marks, else how to set it up.
+            List<javafx.scene.control.MenuItem> shellIntegrationItems = buildShellIntegrationMenuItems(widget);
+            if (!shellIntegrationItems.isEmpty()) {
+                items.addAll(shellIntegrationItems);
+                items.add(new javafx.scene.control.SeparatorMenuItem());
             }
             javafx.scene.control.Menu themeMenu = new javafx.scene.control.Menu(I18n.get("theme.menu"));
             try {
@@ -1254,6 +1264,7 @@ public class TerminalView extends BorderPane {
         if (widget instanceof KorttyTermWidget korttyWidget) {
             korttyWidget.setBellListener(null);
         }
+        shellIntegration.detach(widget);
         releaseBracketedPasteTracker(widget);
         if (terminalRecordingTargetWidgets.contains(widget)) {
             terminalRecordingTargetWidgets = terminalRecordingTargetWidgets.stream()
@@ -2372,11 +2383,23 @@ public class TerminalView extends BorderPane {
 
     /**
      * Receives a pane's OSC 133/9/777 events on its emulator thread, at the point of the output
-     * where they stood. Nothing acts on them yet.
+     * where they stood: the OSC 133 marks go to {@link #shellIntegration}.
      */
     private void onShellIntegrationEvent(SithTermFxWidget widget, ShellIntegrationEvent event) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Shell integration event in pane {}: {}", System.identityHashCode(widget), event.summary());
+        if (logger.isTraceEnabled()) {
+            logger.trace("Shell integration event in pane {}: {}", System.identityHashCode(widget), event.summary());
+        }
+        shellIntegration.onEvent(widget, event);
+    }
+
+    /** {@code GlobalSettings.shellIntegrationEnabled}; on when the settings cannot be read, as by default. */
+    private static boolean isShellIntegrationEnabled() {
+        try {
+            var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            var gs = gsm != null ? gsm.getSettings() : null;
+            return gs == null || gs.isShellIntegrationEnabled();
+        } catch (Exception e) {
+            return true;
         }
     }
 
@@ -3433,6 +3456,7 @@ public class TerminalView extends BorderPane {
         installPaneFocusObserver(widget);
         installShellTitleListener(widget);
         installBellListener(widget);
+        shellIntegration.attach(widget);
     }
 
     /**
@@ -7312,6 +7336,7 @@ public class TerminalView extends BorderPane {
         releaseAllCodingAgentMonitors();
         releaseAllTerminalHighlighters();
         releaseAllCodingAgentPaneState();
+        shellIntegration.detachAll();
         stopLogger();
         stopSessionJournal();
         stopAllEffects();
@@ -7848,6 +7873,60 @@ public class TerminalView extends BorderPane {
         }
     }
     
+    /**
+     * Scrolls the focused pane to its previous or next prompt (Edit &gt; Previous Prompt / Next
+     * Prompt), see {@link ShellIntegrationController#jump}.
+     */
+    ShellIntegrationController.JumpResult jumpToPrompt(PromptNavigator.Direction direction) {
+        SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+        if (focused == null) {
+            return ShellIntegrationController.JumpResult.NO_PROMPTS;
+        }
+        return shellIntegration.jump(focused, direction);
+    }
+
+    /**
+     * The shell-integration entries of {@code widget}'s context menu: Previous Prompt and Next Prompt
+     * while the pane has prompt marks (greyed out while a full-screen program runs), otherwise Set Up
+     * Shell Integration…, which opens the guide page with the shell snippets. None while shell
+     * integration is off or the pane's emulation cannot carry the marks.
+     */
+    private List<javafx.scene.control.MenuItem> buildShellIntegrationMenuItems(SithTermFxWidget widget) {
+        return switch (shellIntegration.contextMenuEntries(widget)) {
+            case NONE -> List.of();
+            case NAVIGATION -> {
+                boolean available = shellIntegration.canNavigate(widget);
+                javafx.scene.control.MenuItem previous = new javafx.scene.control.MenuItem(
+                    I18n.get("terminal.contextMenu.shellIntegration.previousPrompt"));
+                previous.setOnAction(e -> shellIntegration.jump(widget, PromptNavigator.Direction.PREVIOUS));
+                previous.setDisable(!available);
+                javafx.scene.control.MenuItem next = new javafx.scene.control.MenuItem(
+                    I18n.get("terminal.contextMenu.shellIntegration.nextPrompt"));
+                next.setOnAction(e -> shellIntegration.jump(widget, PromptNavigator.Direction.NEXT));
+                next.setDisable(!available);
+                yield List.of(previous, next);
+            }
+            case SETUP -> {
+                javafx.scene.control.MenuItem setup = new javafx.scene.control.MenuItem(
+                    I18n.get("terminal.contextMenu.shellIntegration.setup"));
+                setup.setOnAction(e -> openShellIntegrationGuide());
+                yield List.of(setup);
+            }
+        };
+    }
+
+    /** The guide section with the shell snippets, which Set Up Shell Integration… opens. */
+    static final String SHELL_INTEGRATION_GUIDE_LOCATION = "features/shell-integration.html#setting-it-up";
+
+    private void openShellIntegrationGuide() {
+        try {
+            javafx.stage.Window window = getScene() != null ? getScene().getWindow() : null;
+            GuideViewer.show(KorTTYApplication.getInstance(), window, SHELL_INTEGRATION_GUIDE_LOCATION);
+        } catch (RuntimeException e) {
+            logger.warn("Could not open the shell integration guide", e);
+        }
+    }
+
     /**
      * Pastes the clipboard into the focused pane, through {@link #pasteGuard} like every terminal paste.
      */

@@ -177,6 +177,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final ComboBox<PasteWarningMode> pasteWarningModeCombo;
     private final Spinner<Integer> pasteLargeWarningSpinner;
     private final Spinner<Integer> pasteLineDelaySpinner;
+    private final CheckBox shellIntegrationCheck;
     private final CheckBox terminalBellNotificationsCheck;
     private final CheckBox terminalRecordingAlwaysEnabledCheck;
     private final CheckBox terminalRecordingCaptureColorsCheck;
@@ -838,6 +839,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         pasteLineDelaySpinner.setPrefWidth(100);
         pasteLineDelaySpinner.setTooltip(new Tooltip(I18n.get("settings.terminal.paste.lineDelay.tooltip")));
 
+        // Shell integration: OSC 133 command marks and prompt navigation.
+        shellIntegrationCheck = new CheckBox(I18n.get("settings.terminal.shellIntegration.enabled"));
+        shellIntegrationCheck.setSelected(globalSettings == null || globalSettings.isShellIntegrationEnabled());
+        shellIntegrationCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.shellIntegration.enabled.tooltip")));
+
         // Notifications: a bell in a tab the user is not looking at.
         terminalBellNotificationsCheck = new CheckBox(I18n.get("settings.terminal.notify.bell"));
         terminalBellNotificationsCheck.setSelected(globalSettings != null
@@ -993,6 +999,17 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         pasteProtectionInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         pasteProtectionInfo.setWrapText(true);
         terminalGrid.add(pasteProtectionInfo, 0, terminalRow++, 2, 1);
+
+        // Shell integration section
+        terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
+        Label shellIntegrationHeader = new Label(I18n.get("settings.terminal.shellIntegration.header"));
+        shellIntegrationHeader.setStyle("-fx-font-weight: bold;");
+        terminalGrid.add(shellIntegrationHeader, 0, terminalRow++, 2, 1);
+        terminalGrid.add(shellIntegrationCheck, 0, terminalRow++, 2, 1);
+        Label shellIntegrationInfo = new Label(I18n.get("settings.terminal.shellIntegration.info"));
+        shellIntegrationInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        shellIntegrationInfo.setWrapText(true);
+        terminalGrid.add(shellIntegrationInfo, 0, terminalRow++, 2, 1);
 
         // Notifications section
         terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
@@ -3422,6 +3439,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 ? pasteLargeWarningSpinner.getValue() : PasteProtectionSettings.DEFAULT_LARGE_WARNING_KIB);
             globalSettings.setPasteLineDelayMs(pasteLineDelaySpinner.getValue() != null
                 ? pasteLineDelaySpinner.getValue() : 0);
+            globalSettings.setShellIntegrationEnabled(shellIntegrationCheck.isSelected());
             globalSettings.setTerminalBellNotificationsEnabled(terminalBellNotificationsCheck.isSelected());
             globalSettings.setCloseActiveTerminalWindowsWithoutConfirmation(
                 closeActiveTerminalWindowsWithoutConfirmationCheck.isSelected()
@@ -3676,6 +3694,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("terminal", "paste_warning_mode", () -> gs.getPasteWarningMode().id(), true));
             tracked.add(new TrackedSetting("terminal", "paste_large_warning_kib", gs::getPasteLargeWarningKiB, true));
             tracked.add(new TrackedSetting("terminal", "paste_line_delay_ms", gs::getPasteLineDelayMs, true));
+            tracked.add(new TrackedSetting("terminal", "shell_integration", gs::isShellIntegrationEnabled, true));
             tracked.add(new TrackedSetting("terminal", "bell_notifications", gs::isTerminalBellNotificationsEnabled, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_detection", gs::isCodingAgentDetectionEnabled, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_notifications",

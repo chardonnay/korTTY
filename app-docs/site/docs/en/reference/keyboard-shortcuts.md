@@ -83,6 +83,7 @@ These keys work while a terminal pane has the focus. For how they behave with se
 | ++option+left++ / ++option+right++ | Move one word left / right on macOS (sends `ESC b` / `ESC f`, as Terminal.app does) |
 | ++shift+page-up++ / ++shift+page-down++ | Scroll korTTY's scrollback by a page; inside a full-screen program such as `vim`, `less` or `mc` the key goes to the program |
 | ++ctrl+up++ / ++ctrl+down++ | Scroll korTTY's scrollback by a line (++cmd+up++ / ++cmd+down++ on macOS); on Windows and Linux the keys go to a full-screen program instead while one runs |
+| ++ctrl+shift+up++ / ++ctrl+shift+down++ | Jump to the previous / next prompt (++cmd+shift+up++ / ++cmd+shift+down++ on macOS) in a pane whose shell is set up for [shell integration](../features/shell-integration.md); in a pane without prompt marks, and while a full-screen program runs, the keys reach the program as before |
 | ++ctrl+tab++ / ++ctrl+shift+tab++ | Next / previous tab, also while the terminal has the focus (the ++ctrl++ key on macOS too) |
 | ++ctrl+1++ … ++ctrl+9++ | Jump to a tab, also while the terminal has the focus (++cmd++ on macOS, see [General](#general)) |
 | ++ctrl+alt+shift+t++ | Reopen the last closed terminal tab, also while the terminal has the focus (++cmd+option+shift+t++ on macOS) |

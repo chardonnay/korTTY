@@ -353,6 +353,13 @@ public class GlobalSettings {
     private boolean closeActiveTerminalWindowsWithoutConfirmation = false; // Ask before closing active terminal windows by default
 
     /**
+     * Shell integration: korTTY reads the OSC 133 command marks that a shell set up for shell integration sends, and offers
+     * prompt navigation. On by default; nothing changes for a shell that sends no marks.
+     */
+    @XmlElement
+    private boolean shellIntegrationEnabled = true;
+
+    /**
      * Desktop notification when a program rings the bell in a terminal tab the user is not looking
      * at. Off by default: shells ring on every failed Tab completion. The tab's bell mark does not
      * depend on it.
@@ -2077,6 +2084,18 @@ public class GlobalSettings {
 
     public void setCloseActiveTerminalWindowsWithoutConfirmation(boolean closeActiveTerminalWindowsWithoutConfirmation) {
         this.closeActiveTerminalWindowsWithoutConfirmation = closeActiveTerminalWindowsWithoutConfirmation;
+    }
+
+    /**
+     * Whether korTTY reads the OSC 133 command marks of the terminal panes (prompt navigation). Read
+     * on every mark and key press, so a change applies to open tabs at once.
+     */
+    public boolean isShellIntegrationEnabled() {
+        return shellIntegrationEnabled;
+    }
+
+    public void setShellIntegrationEnabled(boolean shellIntegrationEnabled) {
+        this.shellIntegrationEnabled = shellIntegrationEnabled;
     }
 
     /**

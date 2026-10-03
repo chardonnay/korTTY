@@ -62,6 +62,7 @@ nav:
   - Funktionen:
       - features/connections.md
       - features/terminal.md
+      - features/shell-integration.md
       - features/terminal-notifications.md
       - features/highlighting.md
       - features/tunnels.md

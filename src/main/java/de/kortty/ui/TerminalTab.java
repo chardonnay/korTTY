@@ -1581,6 +1581,14 @@ public class TerminalTab extends Tab {
     public void startQuickSelect() {
         terminalView.startQuickSelect();
     }
+
+    /**
+     * Scrolls the focused pane to its previous or next prompt (Edit &gt; Previous Prompt / Next
+     * Prompt); the pane needs shell integration in its shell.
+     */
+    ShellIntegrationController.JumpResult jumpToPrompt(de.kortty.shellintegration.PromptNavigator.Direction direction) {
+        return terminalView.jumpToPrompt(direction);
+    }
     
     /**
      * Toggles the timestamp gutter visibility.
