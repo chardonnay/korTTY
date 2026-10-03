@@ -1,0 +1,175 @@
+package de.kortty.ui;
+
+import de.kortty.core.ConfigurationManager;
+import de.kortty.core.CredentialManager;
+import de.kortty.core.GPGKeyManager;
+import de.kortty.core.LanguageManager;
+import de.kortty.model.GlobalSettings;
+import javafx.application.Platform;
+import javafx.embed.swing.SwingFXUtils;
+import javafx.scene.Node;
+import javafx.scene.SnapshotParameters;
+import javafx.scene.control.DialogPane;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
+import javafx.scene.image.WritableImage;
+import javafx.scene.paint.Color;
+import javafx.scene.transform.Transform;
+
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.lang.reflect.Field;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Locale;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+/**
+ * Offline generator for the manual's Settings &rarr; Window tab screenshot.
+ *
+ * <p>Mirrors {@link TerminalTabScreenshotGenerator}: builds the REAL {@link SettingsDialog}
+ * headless (null owner/app, empty managers on a temp dir), applies the dialog theme, selects
+ * the Window tab and snapshots the dialog pane at 2x, at the height the tab needs, to
+ * {@code app-docs/screenshots/settings/window.png}.</p>
+ *
+ * <p>The tab is left at its shipped defaults, so the Tabs section shows the state a new
+ * installation is in: the frame and the shell's title on, Ctrl+Tab in tab bar order.</p>
+ *
+ * <p>Run via the {@code generateWindowTabScreenshot} Gradle task. Exit 0 = OK.</p>
+ */
+public final class WindowTabScreenshotGenerator {
+
+    private static final int WIDTH = 1120;
+
+    /** Padding below the last row of the tab's grid, in unscaled pixels. */
+    private static final double BOTTOM_MARGIN = 24;
+
+    /** Height used for the first layout pass, before the content's real height is known. */
+    private static final int MEASURE_HEIGHT = 1600;
+
+    private static final String OUTPUT_FILE = "app-docs/screenshots/settings/window.png";
+
+    private WindowTabScreenshotGenerator() {
+    }
+
+    public static void main(String[] args) throws Exception {
+        // JavaFX labels ButtonType.CANCEL from its own resources in the JVM locale of the moment
+        // the class loads, which can be before the app language is set; the manual is English.
+        Locale.setDefault(Locale.ENGLISH);
+        CountDownLatch done = new CountDownLatch(1);
+        AtomicReference<String> failure = new AtomicReference<>();
+
+        Platform.startup(() -> {
+            try {
+                writeScreenshot();
+                done.countDown();
+            } catch (Throwable t) {
+                failure.compareAndSet(null, stack(t));
+                done.countDown();
+            }
+        });
+
+        boolean finished = done.await(60, TimeUnit.SECONDS);
+        Platform.runLater(Platform::exit);
+        if (!finished) {
+            System.err.println("SCREENSHOT GENERATION TIMEOUT");
+            System.exit(2);
+        }
+        String fail = failure.get();
+        if (fail != null) {
+            System.err.println("SCREENSHOT GENERATION FAILURE: " + fail);
+            System.exit(1);
+        }
+        System.exit(0);
+    }
+
+    private static void writeScreenshot() throws Exception {
+        Path tempDir = Files.createTempDirectory("kortty-window-screenshot");
+
+        GlobalSettings settings = new GlobalSettings();
+        settings.setLanguage("en");
+        LanguageManager.getInstance().initialize(settings);
+
+        SettingsDialog dialog = new SettingsDialog(
+            null,
+            null,
+            new ConfigurationManager(tempDir),
+            settings,
+            new CredentialManager(tempDir),
+            new GPGKeyManager(tempDir));
+        DialogThemeHelper.applyTheme(dialog);
+
+        DialogPane pane = dialog.getDialogPane();
+        TabPane tabPane = tabPaneOf(dialog);
+        Node content = selectWindowTab(tabPane);
+        // The Window tab is shorter than the dialog's minimum, which would push the button bar
+        // out of a snapshot cut to the tab's height; the screenshot shows the tab at its own size.
+        tabPane.setMinHeight(0);
+
+        // The tab's content is built lazily on selection, so its height is only known after a
+        // layout pass. Measure at a deliberately tall size, then snapshot at exactly the height
+        // the content needs instead of trailing hundreds of empty pixels. The grid is stretched
+        // to fill the tab, so its laid-out height is the space it was given, not the space it
+        // wants — only prefHeight reports the latter.
+        layoutAt(pane, MEASURE_HEIGHT);
+        double chrome = MEASURE_HEIGHT - content.getLayoutBounds().getHeight();
+        double wanted = content.prefHeight(content.getLayoutBounds().getWidth());
+        layoutAt(pane, Math.ceil(chrome + wanted + BOTTOM_MARGIN));
+
+        SnapshotParameters params = new SnapshotParameters();
+        params.setFill(Color.web("#1e1e1e"));
+        params.setTransform(Transform.scale(2, 2)); // match the Retina crispness of the other shots
+        WritableImage image = pane.snapshot(params, null);
+
+        BufferedImage buffered = SwingFXUtils.fromFXImage(image, null);
+        File outFile = new File(OUTPUT_FILE);
+        File parent = outFile.getParentFile();
+        if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
+            throw new IllegalStateException("Cannot create output dir: " + parent.getAbsolutePath());
+        }
+        ImageIO.write(buffered, "png", outFile);
+        System.out.println("Generated " + outFile.getAbsolutePath()
+            + " (" + buffered.getWidth() + "x" + buffered.getHeight() + ")");
+    }
+
+    private static void layoutAt(DialogPane pane, double height) {
+        pane.setMinSize(WIDTH, height);
+        pane.setPrefSize(WIDTH, height);
+        pane.setMaxSize(WIDTH, height);
+        pane.applyCss();
+        pane.resize(WIDTH, height);
+        pane.layout();
+    }
+
+    private static TabPane tabPaneOf(SettingsDialog dialog) throws Exception {
+        Field tabPaneField = SettingsDialog.class.getDeclaredField("mainTabPane");
+        tabPaneField.setAccessible(true);
+        return (TabPane) tabPaneField.get(dialog);
+    }
+
+    private static Node selectWindowTab(TabPane tabPane) {
+        String windowTitle = I18n.get("settings.tab.window");
+        for (Tab tab : tabPane.getTabs()) {
+            if (windowTitle.equals(tab.getText())) {
+                tabPane.getSelectionModel().select(tab);
+                Node content = LazyTabContent.ensureContent(tab);
+                if (content == null) {
+                    throw new IllegalStateException("Window tab has no content after selection");
+                }
+                return content;
+            }
+        }
+        throw new IllegalStateException("Window tab not found in SettingsDialog");
+    }
+
+    private static String stack(Throwable t) {
+        StringWriter writer = new StringWriter();
+        t.printStackTrace(new PrintWriter(writer));
+        return writer.toString();
+    }
+}

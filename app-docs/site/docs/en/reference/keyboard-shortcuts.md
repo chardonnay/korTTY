@@ -12,8 +12,8 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | ++ctrl+alt+shift+t++ | Reopen the last closed terminal tab (also while a terminal has the focus) |
 | ++ctrl+shift+n++ | New Window |
 | ++ctrl+shift+w++ | Close Window |
-| ++ctrl+tab++ | Next Tab (++ctrl++ on macOS too) |
-| ++ctrl+shift+tab++ | Previous Tab (++ctrl++ on macOS too) |
+| ++ctrl+tab++ | Next Tab (++ctrl++ on macOS too); with [most-recently-used order](settings/window.md#tabs) on, the tab used before the current one |
+| ++ctrl+shift+tab++ | Previous Tab (++ctrl++ on macOS too); with most-recently-used order on, the tab used longest ago |
 | ++ctrl+1++ … ++ctrl+8++ | Jump to the first to eighth tab of the window (top row or numpad) |
 | ++ctrl+9++ | Jump to the last tab of the window |
 | ++ctrl+o++ | Open Project |
@@ -65,6 +65,8 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 The zoom keys (++ctrl++ or ++alt++ with ++plus++ / ++minus++ / ++0++; ++cmd++ on macOS) zoom the terminal only while a terminal tab is selected. In a snippet editor or file editor tab they reach the editor, and ++alt-graph+plus++ types its character there.
 
 The tab jump keys work in every tab, also while a terminal or an editor has the focus, and a number with no tab at its position does nothing. On macOS they are ++cmd++ with a digit, and ++cmd+shift++ with a digit works too, so a French (AZERTY) Mac can reach its digits (macOS keeps ++cmd+shift+3++ to ++cmd+shift+5++ for screenshots). On Windows and Linux they are exactly ++ctrl++ with a digit: ++alt-graph++ combinations (which arrive as ++ctrl+alt++) and ++ctrl+shift+6++ (the Cisco break sequence) still reach the terminal. A digit key that types ++plus++ or ++minus++ in your layout, such as the AZERTY 6 key, stays a zoom key instead. On Linux with a layout whose number row types other characters, the top-row digits may not jump; the numpad digits (with ++num-lock++ on) do.
+
+++ctrl+tab++ and ++ctrl+shift+tab++ follow the tab bar unless **Ctrl+Tab switches tabs in the order they were last used** is on in the [Window settings](settings/window.md#tabs). Then ++ctrl+tab++ goes back to the tab you used before the current one; keep ++ctrl++ held and press ++tab++ again to go further back, add ++shift++ to step the other way, and release ++ctrl++ at the tab you want. Only that tab counts as used. Any other key ends the step-through first and then acts on the tab you stopped at.
 
 Reopen Closed Tab uses ++ctrl+alt+shift+t++ because ++ctrl+shift+t++ toggles the command timestamps and ++ctrl+alt+t++ the session journal. On Windows, ++alt-graph++ arrives as ++ctrl+alt++, so on a layout where ++alt-graph+shift+t++ types a character (such as `Þ` on US-International) that combination reopens a closed tab instead, and the character is not typed.
 

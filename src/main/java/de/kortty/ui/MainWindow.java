@@ -262,11 +262,14 @@ public class MainWindow {
     private ActionRegistry actionRegistry;
     private CommandPalettePopup commandPalette;
     // The order this window's tabs were last selected in, the most recent first; the command
-    // palette lists the tabs in it.
+    // palette lists the tabs in it, and so does Ctrl+Tab when the Window setting asks for it.
     private final TabMruTracker<Tab> tabMru = new TabMruTracker<>();
     // Set while tabs are removed and re-added in bulk (see reorganizeTabs), so the selection
     // passing over them does not count as using them.
     private boolean reorganizingTabs;
+    // Set while a step of a Ctrl+Tab cycle in most-recently-used order selects its tab: only the
+    // tab the cycle stops at counts as used (see switchTabFromKeyboard).
+    private boolean steppingTabCycle;
     private GuideTranslationIndicator guideTranslationIndicator;
     private String dynamicThemeStylesheetUrl;
     private DashboardView dashboardView;
@@ -536,8 +539,10 @@ public class MainWindow {
             if (oldTab instanceof TerminalTab oldTerminalTab) {
                 oldTerminalTab.getTerminalView().setTerminalActive(false);
             }
-            if (newTab != null && !reorganizingTabs) {
-                tabMru.touch(newTab);
+            if (newTab != null && !reorganizingTabs && !steppingTabCycle) {
+                // Chosen some other way (the mouse, a closed tab, the palette): a Ctrl+Tab cycle
+                // still running ends here, and the tab counts as used.
+                tabMru.commit(newTab);
             }
             if (newTab instanceof TerminalTab terminalTab) {
                 terminalTab.getTerminalView().setTerminalActive(true);
@@ -789,6 +794,13 @@ public class MainWindow {
         // Window-wide keyboard shortcuts (menu bar, fullscreen, zoom, tab switching) go through one
         // ordered scene router; it also swallows the KEY_TYPED residue of every chord it consumes.
         createSceneShortcutRouter().install(scene);
+        // A Ctrl+Tab cycle in most-recently-used order also ends when the window loses the focus;
+        // the router ends it on the Ctrl release and on any other key.
+        stage.focusedProperty().addListener((observable, wasFocused, focused) -> {
+            if (!focused) {
+                commitTabCycle();
+            }
+        });
 
         stage.setScene(scene);
         AppDesignStyleSupport.installGlobalWindowStyler();
@@ -2540,6 +2552,9 @@ public class MainWindow {
         BooleanSupplier terminalSelected =
             () -> tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab;
         SceneShortcutRouter router = new SceneShortcutRouter(isMacOs())
+            // Any other key ends a Ctrl+Tab cycle in most-recently-used order first, so the key acts
+            // on the tab the cycle stopped at, which then counts as used. Not consumed.
+            .observe(SceneShortcutKeys::endsTabCycle, tabMru::isCycling, this::commitTabCycle)
             // The command palette, in every tab and over a focused terminal. Pressed while the palette
             // shows, the chord gets past its key firewall and closes it here. Shown at once, so the
             // chord's KEY_TYPED goes to the palette, which drops it; on closing, the guard swallows it.
@@ -2585,9 +2600,11 @@ public class MainWindow {
             // Ctrl+Tab switches the tab even while a terminal has the focus (the terminal would
             // otherwise take it as a Tab key).
             .consume(SceneShortcutKeys::isNextTab, SceneShortcutRouter.ALWAYS,
-                this::selectNextTab, SceneShortcutKeys.TAB_RESIDUE)
+                () -> switchTabFromKeyboard(false), SceneShortcutKeys.TAB_RESIDUE)
             .consume(SceneShortcutKeys::isPreviousTab, SceneShortcutRouter.ALWAYS,
-                this::selectPreviousTab, SceneShortcutKeys.TAB_RESIDUE);
+                () -> switchTabFromKeyboard(true), SceneShortcutKeys.TAB_RESIDUE)
+            // Releasing Ctrl ends a Ctrl+Tab cycle; the release is not consumed.
+            .observeRelease(SceneShortcutKeys::endsTabCycleOnRelease, tabMru::isCycling, this::commitTabCycle);
         // Cmd/Ctrl+1..9 jump to a tab in every tab, the terminal included (exactly Ctrl on Windows
         // and Linux, so AltGr and Ctrl+Shift+6 still reach it). Registered after the zoom keys, which
         // win where a layout puts Plus or Minus on a digit key. No menu item carries a digit
@@ -2709,10 +2726,10 @@ public class MainWindow {
             registry.addContributor(() -> menuBar != null ? MenuActionHarvester.harvest(menuBar.getMenus()) : List.of());
             List<AppAction> tabActions = List.of(
                 tabAction("palette.action.nextTab", new KeyCodeCombination(KeyCode.TAB, KeyCombination.CONTROL_DOWN),
-                    this::selectNextTab),
+                    () -> switchTabOnce(false)),
                 tabAction("palette.action.previousTab",
                     new KeyCodeCombination(KeyCode.TAB, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN),
-                    this::selectPreviousTab));
+                    () -> switchTabOnce(true)));
             registry.addContributor(() -> tabActions);
             List<KeyCombination> clearBufferChords =
                 TerminalView.clearBufferActionPresentation(isMacOs()).getKeyCombinations();
@@ -4794,6 +4811,54 @@ public class MainWindow {
             .orElse("");
     }
     
+    /**
+     * Ctrl+Tab and Ctrl+Shift+Tab: the next or previous tab of the tab bar or, with "Ctrl+Tab
+     * switches tabs in the order they were last used" on (Window settings), one step of a cycle
+     * through the tabs in that order. The cycle ends, and only the tab it stopped at counts as used,
+     * when Ctrl is released, another key is pressed, a tab is chosen some other way or the window
+     * loses the focus.
+     */
+    private void switchTabFromKeyboard(boolean backwards) {
+        if (!isTabSwitchMostRecentFirst()) {
+            if (backwards) {
+                selectPreviousTab();
+            } else {
+                selectNextTab();
+            }
+            return;
+        }
+        Tab next = tabMru.advance(tabPane.getTabs(), tabPane.getSelectionModel().getSelectedItem(), backwards);
+        if (next == null) {
+            return;
+        }
+        steppingTabCycle = true;
+        try {
+            tabPane.getSelectionModel().select(next);
+        } finally {
+            steppingTabCycle = false;
+        }
+    }
+
+    /** The palette's Next Tab and Previous Tab: one step like Ctrl+Tab, counted at once, as no Ctrl key is held. */
+    private void switchTabOnce(boolean backwards) {
+        switchTabFromKeyboard(backwards);
+        commitTabCycle();
+    }
+
+    /** Ends a running Ctrl+Tab cycle; the tab it stopped at becomes the most recently used one. */
+    private void commitTabCycle() {
+        if (tabMru.isCycling()) {
+            tabMru.commit(tabPane.getSelectionModel().getSelectedItem());
+        }
+    }
+
+    /** Whether Ctrl+Tab follows the most-recently-used order (Window settings); off when unknown. */
+    private boolean isTabSwitchMostRecentFirst() {
+        GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings() : null;
+        return settings != null && settings.isTabSwitchMostRecentFirst();
+    }
+
     private void selectNextTab() {
         if (tabPane.getTabs().isEmpty()) {
             return;

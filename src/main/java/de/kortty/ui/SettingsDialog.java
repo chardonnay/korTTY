@@ -243,6 +243,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox openToolWindowsAsTabsCheck;
     private final CheckBox connectionColorBorderCheck;
     private final CheckBox tabTitleFromShellCheck;
+    private final CheckBox tabSwitchMostRecentFirstCheck;
     private final CheckBox useFixedGeometryCheck;
     private final Spinner<Integer> fixedWidthSpinner;
     private final Spinner<Integer> fixedHeightSpinner;
@@ -1586,6 +1587,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Label tabTitleFromShellInfoLabel = new Label(I18n.get("settings.window.tabTitleFromShell.info"));
         tabTitleFromShellInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         windowGrid.add(tabTitleFromShellInfoLabel, 0, windowRow++, 2, 1);
+
+        tabSwitchMostRecentFirstCheck = new CheckBox(I18n.get("settings.window.tabSwitchMostRecentFirst"));
+        tabSwitchMostRecentFirstCheck.setSelected(globalSettings != null && globalSettings.isTabSwitchMostRecentFirst());
+        tabSwitchMostRecentFirstCheck.setTooltip(new Tooltip(I18n.get("settings.window.tabSwitchMostRecentFirst.tooltip")));
+        windowGrid.add(tabSwitchMostRecentFirstCheck, 0, windowRow++, 2, 1);
+
+        Label tabSwitchMostRecentFirstInfoLabel = new Label(I18n.get("settings.window.tabSwitchMostRecentFirst.info"));
+        tabSwitchMostRecentFirstInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        windowGrid.add(tabSwitchMostRecentFirstInfoLabel, 0, windowRow++, 2, 1);
 
         // Fixed geometry section
         windowGrid.add(new Separator(), 0, windowRow++, 2, 1);
@@ -3549,6 +3559,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setOpenToolWindowsAsTabs(openToolWindowsAsTabsCheck.isSelected());
             globalSettings.setConnectionColorBorderEnabled(connectionColorBorderCheck.isSelected());
             globalSettings.setTabTitleFromShellEnabled(tabTitleFromShellCheck.isSelected());
+            globalSettings.setTabSwitchMostRecentFirst(tabSwitchMostRecentFirstCheck.isSelected());
             
             // Save fixed geometry settings
             globalSettings.setUseFixedWindowGeometry(useFixedGeometryCheck.isSelected());

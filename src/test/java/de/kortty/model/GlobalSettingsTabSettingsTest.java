@@ -69,6 +69,31 @@ class GlobalSettingsTabSettingsTest {
         assertThat(settings.isTabTitleFromShellEnabled()).isTrue();
     }
 
+    @Test
+    void ctrlTabStaysPositionalByDefault() {
+        assertWithMessage("Ctrl+Tab by position is the documented behavior; most-recently-used order is opt-in")
+                .that(new GlobalSettings().isTabSwitchMostRecentFirst()).isFalse();
+    }
+
+    @Test
+    void theMostRecentlyUsedOrderSurvivesTheRoundTripUnderItsDocumentedName() throws Exception {
+        GlobalSettings on = new GlobalSettings();
+        on.setTabSwitchMostRecentFirst(true);
+        assertThat(marshal(on)).contains("<tabSwitchMostRecentFirst>true</tabSwitchMostRecentFirst>");
+        assertThat(roundTrip(on).isTabSwitchMostRecentFirst()).isTrue();
+
+        GlobalSettings off = new GlobalSettings();
+        off.setTabSwitchMostRecentFirst(false);
+        assertThat(roundTrip(off).isTabSwitchMostRecentFirst()).isFalse();
+    }
+
+    @Test
+    void aSettingsFileFromBeforeTheMostRecentlyUsedOrderExistedKeepsCtrlTabPositional() throws Exception {
+        GlobalSettings settings = unmarshal("<globalSettings><showMenuBar>true</showMenuBar></globalSettings>");
+
+        assertThat(settings.isTabSwitchMostRecentFirst()).isFalse();
+    }
+
     private static GlobalSettings roundTrip(GlobalSettings settings) throws Exception {
         return unmarshal(marshal(settings));
     }

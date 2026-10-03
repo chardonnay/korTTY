@@ -27,8 +27,9 @@ class TabPaletteWiringTest {
     void theSelectionTouchesAndTheRemovalForgetsUnlessTabsAreReorganized() throws IOException {
         String setup = methodBody(source(MAIN_WINDOW), "private void setupUI() {");
 
-        assertThat(setup).contains("if (newTab != null && !reorganizingTabs) {\n"
-            + "                tabMru.touch(newTab);\n            }");
+        // commit touches the tab, and also ends a Ctrl+Tab cycle that the selection did not come from.
+        assertThat(setup).contains("if (newTab != null && !reorganizingTabs && !steppingTabCycle) {");
+        assertThat(setup).contains("tabMru.commit(newTab);\n            }");
         assertThat(setup).contains("if (!reorganizingTabs) {\n"
             + "                            tabMru.remove(removedTab);\n                        }");
     }

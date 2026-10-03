@@ -4,7 +4,7 @@ title: Window
 
 # Window
 
-This tab configures window geometry behavior, dashboard state retention, menu bar visibility, the frame around the terminal of a colored connection, and whether terminal tabs take the title the shell sets. Open via **Configuration → Global Settings → Window**; stored in `~/.kortty/global-settings.xml`.
+This tab configures window geometry behavior, dashboard state retention, menu bar visibility, the frame around the terminal of a colored connection, whether terminal tabs take the title the shell sets, and the order in which ++ctrl+tab++ switches tabs. Open via **Configuration → Global Settings → Window**; stored in `~/.kortty/global-settings.xml`.
 
 ![Window settings tab](../../assets/screenshots/settings/window.png)
 
@@ -15,6 +15,7 @@ This tab configures window geometry behavior, dashboard state retention, menu ba
 | Open tool windows as tabs | toggle | — | Off | `openToolWindowsAsTabs` |
 | Frame the terminal in its connection's tab color | toggle | — | On | `connectionColorBorderEnabled` |
 | Name terminal tabs after the title the shell sets | toggle | — | On | `tabTitleFromShellEnabled` |
+| Ctrl+Tab switches tabs in the order they were last used | toggle | — | Off | `tabSwitchMostRecentFirst` |
 | Use fixed window geometry | toggle | — | Off | `useFixedWindowGeometry` |
 | Width: | number | 400–4000 | — | `fixedWindowGeometry.width` |
 | Height: | number | 300–3000 | — | `fixedWindowGeometry.height` |
@@ -42,3 +43,5 @@ With **Remember window geometry** enabled, KorTTY stores the position and size o
     The frame takes 3 pixels on each side of the terminal. Turning it on or off therefore resizes the open terminals of every colored connection, and giving a connection a tab color or removing it resizes that connection's terminals: the remote side receives the new size, and full-screen programs such as `vim`, `htop` or `less` redraw.
 
 **Name terminal tabs after the title the shell sets** lets a terminal tab show the title that the shell or another program in it sets with the OSC 0 or OSC 2 escape sequence, such as `user@host: directory`, in place of the connection's name; a tab with split panes shows the title of its focused pane. A name you gave a tab with [Rename Tab](../../features/terminal.md#working-with-tabs) still comes first. The server decides this title, so it is cleaned of control and bidi characters, capped at 80 characters and never changes the tab color; pointing at such a tab shows the connection it belongs to. Switch it off to keep the connection's names on every tab. The change applies to the open tabs of every window as soon as you save. See [Title from the shell](../../features/terminal.md#title-from-the-shell).
+
+**Ctrl+Tab switches tabs in the order they were last used** changes what ++ctrl+tab++ and ++ctrl+shift+tab++ do (++ctrl++ on macOS too). Off, they go to the next and the previous tab of the tab bar. On, ++ctrl+tab++ goes back to the tab you used before the current one, so one press switches between your two latest tabs. Keep ++ctrl++ held and press ++tab++ again to go further back through the tabs, from the most to the least recently used, add ++shift++ to step the other way, and release ++ctrl++ at the tab you want; ++ctrl+shift+tab++ on its own starts at the tab you used longest ago. Only the tab you stop at counts as used, so the tabs you pass on the way keep their places in the order. Pressing any other key, choosing a tab with the mouse or switching to another window also ends the step-through at the tab it reached, and the key you pressed then acts on that tab. The order is the one the [command palette](../../features/command-palette.md#switching-tabs) lists the tabs in: it lasts as long as the window and is never saved. The change applies to every window as soon as you save; the palette's **Next Tab** and **Previous Tab** follow it too.

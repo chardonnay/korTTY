@@ -89,6 +89,39 @@ class SceneShortcutKeysTest {
         assertThat(SceneShortcutKeys.TAB_RESIDUE.matches("a")).isFalse();
     }
 
+    @Test
+    void anyOtherKeyEndsACtrlTabCycleButCtrlTabAndTheModifiersDoNot() {
+        for (boolean macOs : new boolean[] {MAC, PC}) {
+            assertThat(SceneShortcutKeys.endsTabCycle(key(KeyCode.TAB, "\t", "", false, true, false, false, macOs))).isFalse();
+            assertThat(SceneShortcutKeys.endsTabCycle(key(KeyCode.TAB, "\t", "", true, true, false, false, macOs))).isFalse();
+            // Shift is added to step backwards; Windows repeats a held Ctrl as further presses.
+            assertThat(SceneShortcutKeys.endsTabCycle(key(KeyCode.SHIFT, "", "", true, true, false, false, macOs))).isFalse();
+            assertThat(SceneShortcutKeys.endsTabCycle(key(KeyCode.CONTROL, "", "", false, true, false, false, macOs))).isFalse();
+            assertThat(SceneShortcutKeys.endsTabCycle(key(KeyCode.ALT, "", "", false, true, true, false, macOs))).isFalse();
+            assertThat(SceneShortcutKeys.endsTabCycle(key(KeyCode.META, "", "", false, true, false, true, macOs))).isFalse();
+            // Ctrl+W, a letter, Escape, Enter or a plain Tab act on the tab the cycle stopped at.
+            assertThat(SceneShortcutKeys.endsTabCycle(key(KeyCode.W, "w", "", false, true, false, false, macOs))).isTrue();
+            assertThat(SceneShortcutKeys.endsTabCycle(key(KeyCode.A, "a", "", false, false, false, false, macOs))).isTrue();
+            assertThat(SceneShortcutKeys.endsTabCycle(key(KeyCode.ESCAPE, "", "", false, true, false, false, macOs))).isTrue();
+            assertThat(SceneShortcutKeys.endsTabCycle(key(KeyCode.ENTER, "", "", false, false, false, false, macOs))).isTrue();
+            assertThat(SceneShortcutKeys.endsTabCycle(key(KeyCode.TAB, "\t", "", false, false, false, false, macOs))).isTrue();
+        }
+    }
+
+    @Test
+    void releasingCtrlEndsACtrlTabCycle() {
+        for (boolean macOs : new boolean[] {MAC, PC}) {
+            // The Ctrl release itself, whether or not the platform still reports Ctrl as down.
+            assertThat(SceneShortcutKeys.endsTabCycleOnRelease(key(KeyCode.CONTROL, "", "", false, false, false, false, macOs))).isTrue();
+            assertThat(SceneShortcutKeys.endsTabCycleOnRelease(key(KeyCode.CONTROL, "", "", false, true, false, false, macOs))).isTrue();
+            // A release after Ctrl went up elsewhere.
+            assertThat(SceneShortcutKeys.endsTabCycleOnRelease(key(KeyCode.TAB, "\t", "", false, false, false, false, macOs))).isTrue();
+            // Tab and Shift going up while Ctrl is still held keep the cycle going.
+            assertThat(SceneShortcutKeys.endsTabCycleOnRelease(key(KeyCode.TAB, "\t", "", false, true, false, false, macOs))).isFalse();
+            assertThat(SceneShortcutKeys.endsTabCycleOnRelease(key(KeyCode.SHIFT, "", "", false, true, false, false, macOs))).isFalse();
+        }
+    }
+
     private static KeyPress key(KeyCode code, String text, String character, boolean shift, boolean ctrl,
                                 boolean alt, boolean meta, boolean macOs) {
         return new KeyPress(code, text, character, shift, ctrl, alt, meta, macOs);

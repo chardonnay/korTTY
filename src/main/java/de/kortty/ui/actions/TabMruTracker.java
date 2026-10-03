@@ -1,5 +1,7 @@
 package de.kortty.ui.actions;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -19,6 +21,10 @@ import java.util.Set;
  * ignores the selection changes meanwhile, then calls {@link #retainOnly} and touches the tab it
  * ends up showing.
  *
+ * <p>Ctrl+Tab in most-recently-used order steps through the tabs with {@link #advance}: the first
+ * step takes a snapshot of the order, so the tabs the cycle passes over do not reorder it, and
+ * {@link #commit} ends the cycle and counts only the tab it stopped at as used.
+ *
  * @param <T> the tab type
  */
 public final class TabMruTracker<T> {
@@ -27,6 +33,9 @@ public final class TabMruTracker<T> {
     public static final int CAPACITY = 100;
 
     private final MruList<T> used = new MruList<>(CAPACITY);
+    // The order the running Ctrl+Tab cycle steps through, taken at its first step; null between cycles.
+    private List<T> cycle;
+    private int cyclePosition;
 
     /** {@code tab} was just selected: it becomes the most recently used tab. */
     public void touch(T tab) {
@@ -70,5 +79,57 @@ public final class TabMruTracker<T> {
     /** The remembered tabs, the most recent first; open or not. */
     public List<T> recent() {
         return used.items();
+    }
+
+    /**
+     * One Ctrl+Tab step through the tabs in most-recently-used order, and the tab to select, or
+     * {@code null} when no tab is open. The first step of a cycle takes the {@link #order} of
+     * {@code open} with {@code current} (the selected tab) first, so the first step forward reaches
+     * the tab used before it and the first step backwards the one used longest ago; later steps go on
+     * from there and wrap around. The order is not changed until {@link #commit}. A tab of the
+     * snapshot that has closed meanwhile is skipped, and a tab opened during the cycle is not
+     * reached; when every tab of the snapshot has closed, a new cycle starts over {@code open}.
+     */
+    public @Nullable T advance(List<? extends T> open, @Nullable T current, boolean backwards) {
+        if (open.isEmpty()) {
+            cycle = null;
+            return null;
+        }
+        if (cycle == null) {
+            List<T> snapshot = new ArrayList<>(order(open));
+            if (current != null && snapshot.remove(current)) {
+                snapshot.add(0, current);
+            }
+            cycle = snapshot;
+            cyclePosition = 0;
+        }
+        Set<T> openTabs = new HashSet<>(open);
+        int size = cycle.size();
+        for (int step = 1; step <= size; step++) {
+            int index = Math.floorMod(cyclePosition + (backwards ? -step : step), size);
+            T tab = cycle.get(index);
+            if (openTabs.contains(tab)) {
+                cyclePosition = index;
+                return tab;
+            }
+        }
+        cycle = null;
+        return advance(open, current, backwards);
+    }
+
+    /**
+     * Ends the running Ctrl+Tab cycle, if any, and counts {@code selected}, the tab it stopped at, as
+     * the most recently used tab; with no cycle running it only {@link #touch touches} the tab.
+     */
+    public void commit(@Nullable T selected) {
+        cycle = null;
+        if (selected != null) {
+            touch(selected);
+        }
+    }
+
+    /** Whether a Ctrl+Tab cycle has started and not yet been {@link #commit committed}. */
+    public boolean isCycling() {
+        return cycle != null;
     }
 }

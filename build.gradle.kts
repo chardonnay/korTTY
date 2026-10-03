@@ -4104,6 +4104,14 @@ tasks.register<JavaExec>("generateTerminalTabScreenshot") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("generateWindowTabScreenshot") {
+    group = "build"
+    description = "Renders the Settings > Window tab screenshot for the manual via Scene.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.WindowTabScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("generatePasteConfirmationScreenshot") {
     group = "build"
     description = "Renders the paste confirmation dialog screenshot for the manual via Scene.snapshot."
