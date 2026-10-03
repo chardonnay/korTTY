@@ -57,6 +57,21 @@ class DisplayTextSanitizerTest {
     }
 
     @Test
+    void unicodeLineAndParagraphSeparatorsBecomeASpaceToo() {
+        // Not controls, but a line break wherever the text is shown, a desktop notification included.
+        assertThat(DisplayTextSanitizer.stripControlsAndBidi("user@host Connection: root@prod"))
+            .isEqualTo("user@host Connection: root@prod");
+        assertThat(DisplayTextSanitizer.stripControlsAndBidi("a b")).isEqualTo("a b");
+        assertThat(DisplayTextSanitizer.stripControlsAndBidi("a   b")).isEqualTo("a b");
+        assertThat(DisplayTextSanitizer.sanitize(" prod ", 120)).isEqualTo("prod");
+        assertThat(DisplayTextSanitizer.isLineSeparator(0x2028)).isTrue();
+        assertThat(DisplayTextSanitizer.isLineSeparator(0x2029)).isTrue();
+        assertThat(DisplayTextSanitizer.isLineSeparator('\n')).isFalse();
+        assertThat(DisplayTextSanitizer.isUnsafe(0x2028)).isTrue();
+        assertThat(DisplayTextSanitizer.toVisible("a b")).isEqualTo("a<U+2028>b");
+    }
+
+    @Test
     void escapeSequencesLoseTheirIntroducer() {
         // The text after ESC is harmless once the escape character itself is gone.
         assertThat(DisplayTextSanitizer.stripControlsAndBidi("\u001B[31mred\u001B[0m")).isEqualTo("[31mred[0m");

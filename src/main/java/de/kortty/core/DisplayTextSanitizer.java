@@ -9,6 +9,8 @@ import java.util.Locale;
  * <ul>
  *   <li>C0 controls (U+0000–U+001F), DEL (U+007F) and C1 controls (U+0080–U+009F), among them the
  *       escape character and line breaks that would split or restyle the line;</li>
+ *   <li>the Unicode line and paragraph separators (U+2028, U+2029), which break a line like a line
+ *       feed wherever the text ends up, for example in a desktop notification;</li>
  *   <li>the Unicode bidi controls (U+061C, U+200E, U+200F, U+202A–U+202E, U+2066–U+2069), which
  *       make a name read differently from the characters it is made of.</li>
  * </ul>
@@ -34,14 +36,19 @@ public final class DisplayTextSanitizer {
             || (codePoint >= 0x2066 && codePoint <= 0x2069);
     }
 
+    /** True for U+2028 LINE SEPARATOR and U+2029 PARAGRAPH SEPARATOR, the Unicode line breaks that are no controls. */
+    public static boolean isLineSeparator(int codePoint) {
+        return codePoint == 0x2028 || codePoint == 0x2029;
+    }
+
     /** True for a character {@link #stripControlsAndBidi} removes or turns into a space. */
     public static boolean isUnsafe(int codePoint) {
-        return isControl(codePoint) || isBidiControl(codePoint);
+        return isControl(codePoint) || isBidiControl(codePoint) || isLineSeparator(codePoint);
     }
 
     /**
-     * Removes every control and bidi control. A line break, tab, vertical tab, form feed or next-line
-     * character becomes a space, so the words on either side of it stay apart; a CR LF pair, or a
+     * Removes every control and bidi control. A line break, tab, vertical tab, form feed, next-line,
+     * line separator or paragraph separator character becomes a space, so the words on either side of it stay apart; a CR LF pair, or a
      * break right after a space, adds no second space.
      *
      * @return the cleaned text; {@code ""} for {@code null}
@@ -99,7 +106,8 @@ public final class DisplayTextSanitizer {
     /**
      * Shows every control and bidi control instead of removing it: a C0 control becomes its Unicode
      * control picture (U+2400–U+241F, for example {@code ␛} for escape and {@code ␊} for a line
-     * feed), DEL becomes {@code ␡}, and a C1 or bidi control becomes a {@code <U+XXXX>} tag. All
+     * feed), DEL becomes {@code ␡}, and a C1 control, a line or paragraph separator or a bidi control
+     * becomes a {@code <U+XXXX>} tag. All
      * other characters are kept.
      *
      * @return the visible form; {@code ""} for {@code null}
@@ -127,6 +135,6 @@ public final class DisplayTextSanitizer {
 
     private static boolean isLineOrTabBreak(int codePoint) {
         return codePoint == '\t' || codePoint == '\n' || codePoint == 0x0B || codePoint == '\f'
-            || codePoint == '\r' || codePoint == 0x85;
+            || codePoint == '\r' || codePoint == 0x85 || isLineSeparator(codePoint);
     }
 }
