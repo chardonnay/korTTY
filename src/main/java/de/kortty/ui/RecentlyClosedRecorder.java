@@ -2,6 +2,8 @@ package de.kortty.ui;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
  * Which closes go into the {@link ClosedTabHistory}: only the ones the user asked for, each as one
@@ -51,5 +53,26 @@ final class RecentlyClosedRecorder {
         if (!endsApplication && !tabs.isEmpty()) {
             history.push(new ClosedTabHistory.Entry(tabs, true));
         }
+    }
+
+    /**
+     * The window a reopen acts in: {@code asking} while it is open. A window that is closed already
+     * can still ask on macOS, where the menu bar of a closed window stays the application's menu bar
+     * once the last window closed, so its File menu still offers Reopen Closed Tab and Recently
+     * Closed. Then the focused or last open window takes over, or a new window when none is open;
+     * the closed window itself is never used, since tabs opened there would never be seen.
+     *
+     * @param isOpen     whether a window is still open
+     * @param openWindow the focused or last open window, or {@code null} when none is open
+     * @param newWindow  opens a new window and returns it, or {@code null} when that failed; only
+     *                   called when no window is open
+     * @return the window to reopen in, or {@code null} when there is none
+     */
+    static <W> W reopenWindow(W asking, Predicate<W> isOpen, Supplier<W> openWindow, Supplier<W> newWindow) {
+        if (asking != null && isOpen.test(asking)) {
+            return asking;
+        }
+        W open = openWindow.get();
+        return open != null ? open : newWindow.get();
     }
 }

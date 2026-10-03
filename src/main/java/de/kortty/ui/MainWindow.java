@@ -3807,6 +3807,14 @@ public class MainWindow {
      * stays in the history; the others leave it.
      */
     private void reopenClosedEntry(ClosedTabHistory.Entry entry) {
+        MainWindow asked = reopenWindow();
+        if (asked != this) {
+            // This window is closed: on macOS its menu bar outlives it once the last window closed.
+            if (asked != null) {
+                asked.reopenClosedEntry(entry);
+            }
+            return;
+        }
         int position = closedTabHistory.take(entry);
         if (position < 0) {
             // A menu built before another window reopened it.
@@ -3885,6 +3893,19 @@ public class MainWindow {
 
     private boolean hasClosableTabs() {
         return tabPane.getTabs().stream().anyMatch(Tab::isClosable);
+    }
+
+    /**
+     * The window this window's Reopen Closed Tab and Recently Closed act in: this one while it is
+     * open, else the focused or last open window, else a new one (see
+     * {@link RecentlyClosedRecorder#reopenWindow}).
+     */
+    private MainWindow reopenWindow() {
+        return RecentlyClosedRecorder.reopenWindow(this, openWindows::contains,
+            MainWindow::getFocusedOrLastOpenWindow, () -> {
+                reopenOrCreateWindow();
+                return getFocusedOrLastOpenWindow();
+            });
     }
 
     /** File → Recently Closed → Clear List: forgets every closed tab. */

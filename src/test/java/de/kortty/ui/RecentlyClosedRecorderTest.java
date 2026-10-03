@@ -227,6 +227,59 @@ class RecentlyClosedRecorderTest {
             .that(here).doesNotContain("openConnectionAndReturnTab(");
     }
 
+    @Test
+    void anOpenWindowReopensInItself() {
+        List<String> opened = new ArrayList<>();
+
+        String window = RecentlyClosedRecorder.reopenWindow("asking", "asking"::equals,
+            () -> "other", () -> {
+                opened.add("new");
+                return "new";
+            });
+
+        assertThat(window).isEqualTo("asking");
+        assertThat(opened).isEmpty();
+    }
+
+    @Test
+    void aClosedWindowHandsTheReopenToAnOpenWindowWithoutOpeningAnother() {
+        // On macOS the menu bar of the last closed window stays the application's menu bar.
+        List<String> opened = new ArrayList<>();
+
+        String window = RecentlyClosedRecorder.reopenWindow("closed", w -> false,
+            () -> "open", () -> {
+                opened.add("new");
+                return "new";
+            });
+
+        assertThat(window).isEqualTo("open");
+        assertThat(opened).isEmpty();
+    }
+
+    @Test
+    void aClosedWindowWithNoWindowLeftOpensANewOne() {
+        String window = RecentlyClosedRecorder.reopenWindow("closed", w -> false, () -> null, () -> "new");
+
+        assertThat(window).isEqualTo("new");
+        assertThat(RecentlyClosedRecorder.<String>reopenWindow("closed", w -> false, () -> null, () -> null)).isNull();
+    }
+
+    @Test
+    void reopeningNeverOpensTabsInAClosedWindow() throws IOException {
+        String window = source("MainWindow.java");
+
+        String entry = methodBody(window, "private void reopenClosedEntry(ClosedTabHistory.Entry entry) {");
+        int redirect = entry.indexOf("MainWindow asked = reopenWindow();");
+        int take = entry.indexOf("closedTabHistory.take(entry)");
+        assertWithMessage("the window is chosen before the entry leaves the history").that(redirect).isAtLeast(0);
+        assertThat(take).isGreaterThan(redirect);
+        assertThat(entry).contains("asked.reopenClosedEntry(entry);");
+        assertThat(methodBody(window, "private MainWindow reopenWindow() {"))
+            .contains("RecentlyClosedRecorder.reopenWindow(this, openWindows::contains,");
+        assertWithMessage("File → Reopen Closed Tab goes through the same entry point")
+            .that(methodBody(window, "private void reopenClosedTab() {")).contains("reopenClosedEntry(latest.get());");
+    }
+
     // ---- helpers -----------------------------------------------------------------------------
 
     private static ClosedTab tab(String host) {
