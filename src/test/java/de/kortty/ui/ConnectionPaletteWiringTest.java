@@ -38,6 +38,17 @@ class ConnectionPaletteWiringTest {
         assertThat(connect).contains("if (recordUsage) {");
     }
 
+    /**
+     * The palette counts its connects, teamwork rows included, and a shared file may reuse the id of
+     * a saved connection: the use is counted for saved connections only, recognised by their source.
+     */
+    @Test
+    void aTeamworkConnectionNeverCountsAsAUseOfASavedOne() throws IOException {
+        String record = methodBody(source(MAIN_WINDOW), "private void recordConnectionUsage(ServerConnection connection) {");
+
+        assertThat(record).contains("connection.getId() != null && !connection.isTeamworkConnection()");
+    }
+
     @Test
     void teamworkConnectionsDependOnThePolicyAndSkipTheRecycleBin() throws IOException {
         String rows = methodBody(source(ROWS),

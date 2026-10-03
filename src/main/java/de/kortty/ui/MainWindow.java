@@ -3420,9 +3420,13 @@ public class MainWindow {
         });
     }
 
-    /** Counts a use of the saved connection behind {@code connection}; teamwork and unsaved connections are skipped. */
+    /**
+     * Counts a use of the saved connection behind {@code connection}; teamwork and unsaved connections
+     * are skipped. A teamwork connection is skipped by its source, not only by its id: a shared file
+     * may reuse the id of a saved connection, whose use it must not count.
+     */
     private void recordConnectionUsage(ServerConnection connection) {
-        ServerConnection stored = connection.getId() != null
+        ServerConnection stored = connection.getId() != null && !connection.isTeamworkConnection()
                 ? app.getConfigManager().getConnectionById(connection.getId())
                 : null;
         if (stored == null) {
