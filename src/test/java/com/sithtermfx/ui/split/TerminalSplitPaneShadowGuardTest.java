@@ -4,6 +4,7 @@ import com.sithtermfx.core.TtyConnector;
 import com.sithtermfx.ui.SithTermFxWidget;
 import de.kortty.ui.KorttyTermWidget;
 import javafx.geometry.Orientation;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import org.testng.annotations.Test;
@@ -22,8 +23,8 @@ import static com.google.common.truth.Truth.assertWithMessage;
  * excludes the vendor class from {@code sithtermfx-ui}. If that order ever flipped, korTTY would
  * still compile against its own source, but the vendor class would load at runtime, and every
  * korTTY-only call ({@code getWidgetOverlayHost}, {@code paneOverlay}, {@code closeSplitPane}, the
- * prepared-connector split, the focused-pane tracking, the pane focus keys) would fail with {@code NoSuchMethodError} or
- * silently lose korTTY's fixes. This test fails first.
+ * prepared-connector split, the focused-pane tracking, the pane focus keys, the input mirror) would
+ * fail with {@code NoSuchMethodError} or silently lose korTTY's fixes. This test fails first.
  *
  * <p>Toolkit-free: reflection loads the classes without initializing any JavaFX control.
  */
@@ -46,6 +47,10 @@ public class TerminalSplitPaneShadowGuardTest {
         TerminalSplitPane.class.getDeclaredMethod("setMirrorInputRule", Function.class);
         Method heldTargets = TerminalSplitPane.class.getDeclaredMethod("countHeldMirrorTargets");
         assertThat(heldTargets.getReturnType()).isEqualTo(int.class);
+        TerminalSplitPane.class.getDeclaredMethod("setInputMirror", InputMirror.class);
+        Method encodeKeyFor = TerminalSplitPane.class.getDeclaredMethod("encodeKeyFor",
+            SithTermFxWidget.class, KeyEvent.class);
+        assertThat(encodeKeyFor.getReturnType()).isEqualTo(byte[].class);
 
         Method paneOverlay = TerminalSplitPane.class.getDeclaredMethod("paneOverlay",
             SithTermFxWidget.class, TerminalSplitPane.PaneOverlayLayer.class);

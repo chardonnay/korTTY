@@ -88,8 +88,15 @@ public class TerminalSplitPaneZoomTest {
 
         assertThat(decorations).contains("ring.setVisible(several && zoomedWidget == null);");
         assertThat(decorations).contains("refreshZoomBadge(badgeText, hiddenReceivers > 0);");
-        assertWithMessage("the badge counts the hidden panes broadcast mode still reaches")
-            .that(decorations).contains("mirrorTargets(panes, zoomedWidget, this::receivesMirroredInput)");
+        assertWithMessage("the badge counts the hidden panes broadcast mode or the input mirror still reaches")
+            .that(decorations).contains("hiddenMirrorReceivers(zoomedWidget, panes)");
+        String receivers = methodBody(source, "private int hiddenMirrorReceivers(");
+        assertWithMessage("the same targets the keys go to, held panes left out")
+            .that(receivers).contains("for (SithTermFxWidget target : mirrorTargetsOf(zoomed)) {");
+        assertWithMessage("members in other tabs are not hidden panes of this one")
+            .that(receivers).contains("if (panes.contains(target)) {");
+        assertWithMessage("a new input mirror while zoomed updates the badge")
+            .that(methodBody(source, "public void setInputMirror(")).contains("refreshPaneDecorations();");
         assertWithMessage("a screen reader hears that the pane is zoomed")
             .that(decorations).contains("name + \", \" + badgeText");
         assertThat(methodBody(source, "private void refreshZoomBadge("))
