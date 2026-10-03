@@ -21,6 +21,11 @@ import java.util.function.Predicate;
  * reliable place to assemble the command submitted with Enter. The filter deliberately remains
  * independent of JavaFX and connector implementations; {@link TerminalView} supplies the command
  * policy and dispatch callbacks.</p>
+ *
+ * <p>An Enter that broadcast mode mirrored from another pane ({@link MirroredInput#active()}) never
+ * starts an agent run: the agent runs only in the pane the command was typed in, not once more in
+ * every pane that mirrors it. The mirrored line is still forwarded to the shell and reported to the
+ * journal sink like any other line.</p>
  */
 final class TerminalAgentShortcutInputFilter {
 
@@ -230,7 +235,9 @@ final class TerminalAgentShortcutInputFilter {
             currentLineStart[0] = outgoing.size();
             return;
         }
-        if (commandInterceptor.test(rawCommand)) {
+        // Mirrored from the pane the user types in, which starts the run itself. The interceptor is
+        // not even asked: it resets the shortcut state of this pane as if a run were starting here.
+        if (!MirroredInput.active() && commandInterceptor.test(rawCommand)) {
             // Bytes from earlier writes are already visible in the PTY. Ctrl+U clears those; bytes
             // for the current logical line that are still in this write are removed before sending.
             truncate(outgoing, currentLineStart[0]);

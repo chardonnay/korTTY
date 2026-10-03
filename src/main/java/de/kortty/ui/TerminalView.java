@@ -17,6 +17,8 @@ import de.kortty.KorTTYApplication;
 import de.kortty.codingagent.BracketedPasteTracker;
 import de.kortty.codingagent.CodingAgentMonitor;
 import de.kortty.codingagent.CodingAgentService;
+import de.kortty.codingagent.CodingAgentState;
+import de.kortty.codingagent.DetectionResult;
 import de.kortty.codingagent.LocalProcessInspector;
 import de.kortty.codingagent.PaneRef;
 import de.kortty.codingagent.TerminalScreenCapture;
@@ -770,8 +772,14 @@ public class TerminalView extends BorderPane {
         // filter (TerminalSplitPane.routeKeyPressed), which needs the real connector type.
         splitPane.setConnectorUnwrapper(this::unwrapTerminalEffectConnector);
         // A pane that is pacing a paste takes no keys, not even mirrored ones from broadcast mode,
-        // so none lands between two pasted lines; Esc stops the paste (PasteInputHold).
-        splitPane.setMirrorTargetGuard(widget -> !pastePacer.isPacing(widget));
+        // so none lands between two pasted lines; Esc stops the paste (PasteInputHold). Broadcast
+        // mode also leaves out a pane an AI agent run drives and one whose coding agent waits for a
+        // decision, where a mirrored "y" and Enter would answer it (MirrorTargetGuard), and sends a
+        // key typed at a password prompt only to the panes at one too (MirrorPasswordRule).
+        splitPane.setMirrorTargetGuard(MirrorTargetGuard.accepting(
+            pastePacer::isPacing, this::hasTerminalAgentRuns, this::codingAgentStateOf));
+        splitPane.setMirrorInputRule(source -> MirrorPasswordRule.receiversOf(
+            cursorLineOf(source), TerminalView::cursorLineOf));
         splitPane.addEventFilter(KeyEvent.KEY_TYPED, this::holdKeyWhilePacingPaste);
         splitPane.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             if (event.isConsumed() || holdKeyWhilePacingPaste(event)) {
@@ -4053,6 +4061,20 @@ public class TerminalView extends BorderPane {
         return Optional.ofNullable(codingAgentMonitors.get(widget));
     }
 
+    /**
+     * The state of the coding agent {@code widget} shows, from its monitor's latest detection, or
+     * null when it shows none. The monitor publishes before the registry hears of it, so a pane is
+     * known to be blocked as early as possible.
+     */
+    private @Nullable CodingAgentState codingAgentStateOf(@Nullable SithTermFxWidget widget) {
+        CodingAgentMonitor monitor = widget != null ? codingAgentMonitors.get(widget) : null;
+        if (monitor == null) {
+            return null;
+        }
+        DetectionResult detection = monitor.current();
+        return detection != null && detection.agentDetected() ? detection.state() : null;
+    }
+
     /** The widget whose monitor is identified by {@code pane}, if it belongs to this tab. */
     public Optional<SithTermFxWidget> codingAgentWidgetFor(PaneRef pane) {
         if (pane == null) {
@@ -6253,6 +6275,31 @@ public class TerminalView extends BorderPane {
         TimestampGutter gutter = gutterMap.get(widget);
         if (gutter != null) {
             gutter.clearTimestamps();
+        }
+    }
+
+    /**
+     * The text of the screen line the cursor of {@code widget} is on, read under the buffer lock, or
+     * null when there is none to read. Broadcast mode reads it per key to tell a password prompt
+     * ({@link MirrorPasswordRule}); it is one line, so the lock is held only briefly.
+     */
+    static @Nullable String cursorLineOf(@Nullable SithTermFxWidget widget) {
+        try {
+            Terminal terminal = widget != null ? widget.getTerminal() : null;
+            com.sithtermfx.core.model.TerminalTextBuffer buffer = widget != null ? widget.getTerminalTextBuffer() : null;
+            if (terminal == null || buffer == null) {
+                return null;
+            }
+            buffer.lock();
+            try {
+                int row = terminal.getCursorY() - 1; // the cursor is 1-based
+                return row >= 0 && row < buffer.getHeight() ? buffer.getLine(row).getText() : null;
+            } finally {
+                buffer.unlock();
+            }
+        } catch (RuntimeException e) {
+            logger.trace("Could not read the cursor line: {}", e.getMessage());
+            return null;
         }
     }
 
