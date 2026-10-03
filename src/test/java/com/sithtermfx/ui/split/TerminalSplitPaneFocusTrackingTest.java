@@ -79,6 +79,15 @@ public class TerminalSplitPaneFocusTrackingTest {
         assertThat(methodBody(source, "private void setupContextMenu(")).contains("setFocusedWidgetInternal(widget)");
     }
 
+    /** The rule itself is pinned by TerminalSplitPaneCloseFocusTest; this pins that closing a pane uses it. */
+    @Test
+    public void closingAPaneKeepsTheFocusedPaneWhenItSurvives() throws IOException {
+        String source = Files.readString(SOURCE, StandardCharsets.UTF_8);
+
+        assertThat(methodBody(source, "private void closeSplit("))
+            .contains("setFocusedWidgetInternal(paneFocusedAfterClose(focusedWidget, widget, getAllWidgets()))");
+    }
+
     /** The text from {@code signature} to the brace closing its body, or null when it is absent. */
     private static String methodBody(String source, String signature) {
         int start = source.indexOf(signature);

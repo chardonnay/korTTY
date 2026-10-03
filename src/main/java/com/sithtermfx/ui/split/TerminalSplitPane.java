@@ -860,10 +860,29 @@ public class TerminalSplitPane extends StackPane {
                 getChildren().add(rootCell.getNode());
                 VBox.setVgrow(rootCell.getNode(), Priority.ALWAYS);
             }
-            setFocusedWidgetInternal(rootCell != null ? findFirstWidget(rootCell) : null);
+            setFocusedWidgetInternal(paneFocusedAfterClose(focusedWidget, widget, getAllWidgets()));
             refreshDragAndDrop();
             refreshSplitCloseButtons();
         }
+    }
+
+    /**
+     * The focused pane once {@code closed} has left the tree. Closing another pane (its session
+     * ended, its close button, the Control API) does not move the keyboard focus, so the focused pane
+     * stays; only when the focused pane itself is gone does the first remaining pane take over.
+     *
+     * @param remaining the panes still in the tree, in {@link #getAllWidgets()} order
+     */
+    static <W> @Nullable W paneFocusedAfterClose(@Nullable W focused, @NotNull W closed,
+                                                 @NotNull List<W> remaining) {
+        if (focused != null && focused != closed) {
+            for (W pane : remaining) {
+                if (pane == focused) {
+                    return focused;
+                }
+            }
+        }
+        return remaining.isEmpty() ? null : remaining.get(0);
     }
 
     public @Nullable SithTermFxWidget getFocusedWidget() {
@@ -1334,20 +1353,6 @@ public class TerminalSplitPane extends StackPane {
             if (leftCell != null) leftCell.closeAll();
             if (rightCell != null) rightCell.closeAll();
         }
-    }
-
-    private @Nullable SithTermFxWidget findFirstWidget(@NotNull SplitCell cell) {
-        if (cell.widget != null) {
-            return cell.widget;
-        }
-        if (cell.leftCell != null) {
-            SithTermFxWidget w = findFirstWidget(cell.leftCell);
-            if (w != null) return w;
-        }
-        if (cell.rightCell != null) {
-            return findFirstWidget(cell.rightCell);
-        }
-        return null;
     }
 
     private static final String DROP_ZONE_OVERLAY_KEY = "sithtermfx.dropZoneOverlay";
