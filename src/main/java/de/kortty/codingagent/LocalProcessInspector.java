@@ -44,7 +44,7 @@ public final class LocalProcessInspector {
     /** Suffixes dropped from an executable or script base name before matching, longest first. */
     private static final List<String> STRIPPED_SUFFIXES = List.of(".exe", ".cmd", ".bat", ".com", ".mjs", ".cjs", ".js");
 
-    /** Marker returned by {@link #toAgentProcess} when the OS does not report the command path. */
+    /** Marker returned by {@link #toAgentProcess} when the process classified by its command line but the OS does not report its command path. */
     private static final String UNKNOWN_COMMAND = "?";
 
     /** Directory below which an agent's package directory ({@code <kind-id>}) identifies the agent. */
@@ -68,11 +68,7 @@ public final class LocalProcessInspector {
             return Optional.empty();
         }
         Optional<ProcessHandle> newest = newestLiveDescendant(shellPid, handle -> classifyHandle(handle).isPresent());
-        if (newest.isEmpty()) {
-            return Optional.empty();
-        }
-        ProcessHandle handle = newest.get();
-        return classifyHandle(handle).flatMap(kind -> toAgentProcess(handle, kind));
+        return newest.flatMap(LocalProcessInspector::toAgentProcess);
     }
 
     /**
@@ -200,16 +196,25 @@ public final class LocalProcessInspector {
         }
     }
 
-    /** Snapshot of {@code handle} as an {@link AgentProcess}; command falls back to {@code "?"}, startedAt to null. */
-    static Optional<AgentProcess> toAgentProcess(ProcessHandle handle, CodingAgentKind kind) {
-        if (handle == null || kind == null) {
+    /**
+     * Classifies {@code handle} and snapshots it as an {@link AgentProcess}, both from one
+     * {@link ProcessHandle.Info} read; command falls back to {@code "?"}, startedAt to null.
+     *
+     * <p>One read, because the agent can exit between two: an exited (or zombie) process reports
+     * neither command nor command line, so a second read would pair the kind the first one found with
+     * {@code "?"}. From a single read such a process simply does not classify.
+     *
+     * @return the agent process, or empty for null, a process that is not an agent, or unreadable
+     *     process info; never throws
+     */
+    static Optional<AgentProcess> toAgentProcess(ProcessHandle handle) {
+        if (handle == null) {
             return Optional.empty();
         }
         try {
             ProcessHandle.Info info = handle.info();
-            String command = info.command().orElse(UNKNOWN_COMMAND);
-            Instant startedAt = info.startInstant().orElse(null);
-            return Optional.of(new AgentProcess(handle.pid(), kind, command, startedAt));
+            return classifyInfo(info).map(kind -> new AgentProcess(handle.pid(), kind,
+                info.command().orElse(UNKNOWN_COMMAND), info.startInstant().orElse(null)));
         } catch (RuntimeException e) {
             logger.debug("Cannot read process info: {}", e.toString());
             return Optional.empty();
@@ -220,13 +225,16 @@ public final class LocalProcessInspector {
 
     private static Optional<CodingAgentKind> classifyHandle(ProcessHandle handle) {
         try {
-            ProcessHandle.Info info = handle.info();
-            List<String> arguments = info.arguments().map(List::of).orElse(List.of());
-            return classify(info.command().orElse(null), arguments, info.commandLine().orElse(null));
+            return classifyInfo(handle.info());
         } catch (RuntimeException e) {
             logger.debug("Cannot classify process: {}", e.toString());
             return Optional.empty();
         }
+    }
+
+    private static Optional<CodingAgentKind> classifyInfo(ProcessHandle.Info info) {
+        List<String> arguments = info.arguments().map(List::of).orElse(List.of());
+        return classify(info.command().orElse(null), arguments, info.commandLine().orElse(null));
     }
 
     private static boolean isLiveAndAccepted(ProcessHandle handle, Predicate<ProcessHandle> accept) {
