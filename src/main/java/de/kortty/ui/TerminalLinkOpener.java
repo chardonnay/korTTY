@@ -9,6 +9,8 @@ import org.slf4j.LoggerFactory;
 import java.net.IDN;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
@@ -25,7 +27,8 @@ import java.util.function.Consumer;
  * {@code javascript:}, {@code data:} and every other scheme are refused, and so are targets longer
  * than {@link #MAX_URI_LENGTH}, targets with whitespace, control characters or invisible format
  * characters (among them the bidi overrides that make a link read differently from where it goes),
- * and targets that are not a strict {@link URI} with a host. This class never uses
+ * targets that are not a strict {@link URI} with a host, and {@code mailto} links that set a field
+ * other than {@link #ALLOWED_MAIL_FIELDS}. This class never uses
  * {@code java.awt.Desktop} and never starts a process itself: SithTermFX's default OSC 8 handler
  * opened {@code file:} links with {@code Desktop.open}, which launches executables.
  *
@@ -38,6 +41,13 @@ public final class TerminalLinkOpener {
 
     /** Schemes that may be opened; every other link stays plain text. */
     static final Set<String> ALLOWED_SCHEMES = Set.of("http", "https", "ftp", "ftps", "mailto");
+
+    /**
+     * Header fields a {@code mailto} link may fill in. Every other field is refused, above all
+     * {@code attach} and {@code attachment}: some mail programs attach the local file such a field
+     * names, so a link could put a private key into a prepared mail.
+     */
+    static final Set<String> ALLOWED_MAIL_FIELDS = Set.of("to", "cc", "bcc", "subject", "body", "in-reply-to");
 
     private static final Logger logger = LoggerFactory.getLogger(TerminalLinkOpener.class);
 
@@ -60,8 +70,8 @@ public final class TerminalLinkOpener {
 
     /**
      * Parses {@code target} strictly and returns it only if it may be opened: an allowed scheme, a
-     * host for the hierarchical schemes (an internationalised host is converted to punycode), and
-     * none of the characters or lengths refused above.
+     * host for the hierarchical schemes (an internationalised host is converted to punycode), only
+     * allowed fields for {@code mailto}, and none of the characters or lengths refused above.
      */
     public static @NotNull Optional<URI> allowedBrowseUri(@Nullable String target) {
         if (target == null || target.isEmpty() || target.length() > MAX_URI_LENGTH
@@ -75,7 +85,7 @@ public final class TerminalLinkOpener {
                 return Optional.empty();
             }
             if ("mailto".equalsIgnoreCase(scheme)) {
-                return uri.isOpaque() ? Optional.of(uri) : Optional.empty();
+                return uri.isOpaque() && hasOnlyAllowedMailFields(uri) ? Optional.of(uri) : Optional.empty();
             }
             return Optional.ofNullable(withServerHost(uri));
         } catch (URISyntaxException | IllegalArgumentException e) {
@@ -124,6 +134,30 @@ public final class TerminalLinkOpener {
             i += Character.charCount(codePoint);
         }
         return false;
+    }
+
+    /**
+     * True if every header field in the query of an opaque {@code mailto} URI is one of
+     * {@link #ALLOWED_MAIL_FIELDS}. Field names are compared percent-decoded and case-insensitively,
+     * so {@code %61ttach} and {@code Attach} are refused as well.
+     */
+    private static boolean hasOnlyAllowedMailFields(@NotNull URI uri) {
+        String part = uri.getRawSchemeSpecificPart();
+        int query = part.indexOf('?');
+        if (query < 0) {
+            return true;
+        }
+        for (String field : part.substring(query + 1).split("&", -1)) {
+            if (field.isEmpty()) {
+                continue;
+            }
+            int equals = field.indexOf('=');
+            String name = URLDecoder.decode(equals >= 0 ? field.substring(0, equals) : field, StandardCharsets.UTF_8);
+            if (!ALLOWED_MAIL_FIELDS.contains(name.toLowerCase(Locale.ROOT))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

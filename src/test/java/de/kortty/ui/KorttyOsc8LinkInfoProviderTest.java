@@ -12,6 +12,7 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.lang.reflect.Array;
 import java.lang.reflect.Proxy;
 import java.net.URI;
@@ -62,6 +63,7 @@ public class KorttyOsc8LinkInfoProviderTest {
             {"javascript:alert(1)"},
             {"news:comp.lang.java"},
             {"data:text/plain,hi"},
+            {"mailto:someone@example.com?attach=/etc/passwd"},
             {"https://exa‮mple.com/"},
         };
     }
@@ -116,11 +118,31 @@ public class KorttyOsc8LinkInfoProviderTest {
 
         // In the constructor, so the provider is in place before any pane is started.
         int constructor = widget.indexOf("super(columns, lines, settingsProvider);");
-        int install = widget.indexOf("setLinkInfoProvider(new KorttyOsc8LinkInfoProvider());");
+        int install = widget.indexOf("\n        setLinkInfoProvider(new KorttyOsc8LinkInfoProvider());\n");
         int panelFactory = widget.indexOf("protected TerminalPanel createTerminalPanel(");
         assertThat(constructor).isAtLeast(0);
         assertThat(install).isGreaterThan(constructor);
         assertThat(install).isLessThan(panelFactory);
+    }
+
+    @Test
+    public void everyTerminalWidgetIsAKorttyTermWidget() throws IOException {
+        // A plain SithTermFxWidget, or another subclass of it, would keep SithTermFX's Desktop.open provider.
+        List<Path> offenders;
+        try (var files = Files.walk(Path.of("src/main/java"))) {
+            offenders = files.filter(path -> path.toString().endsWith(".java"))
+                .filter(path -> !path.endsWith(Path.of("de/kortty/ui/KorttyTermWidget.java")))
+                .filter(path -> {
+                    try {
+                        String source = Files.readString(path, StandardCharsets.UTF_8);
+                        return source.contains("new SithTermFxWidget(") || source.contains("extends SithTermFxWidget");
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                })
+                .toList();
+        }
+        assertThat(offenders).isEmpty();
     }
 
     /** The compiled class, so comments that mention {@code java.awt.Desktop} do not count. */

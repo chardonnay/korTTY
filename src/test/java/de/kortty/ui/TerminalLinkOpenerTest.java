@@ -26,6 +26,8 @@ public class TerminalLinkOpenerTest {
             {"ftp://ftp.example.com/pub/file.txt"},
             {"ftps://user@ftp.example.com:990/"},
             {"mailto:someone@example.com"},
+            {"mailto:someone@example.com?Subject=Build%20failed&body=Log&cc=a@example.com&bcc=b@example.com&"},
+            {"mailto:?to=someone@example.com&in-reply-to=%3Cid@example.com%3E"},
             {"https://[::1]:8443/"},
             {"https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-Wunused-variable"},
         };
@@ -49,6 +51,12 @@ public class TerminalLinkOpenerTest {
             {"data:text/html,<script>alert(1)</script>"},
             {"vbscript:msgbox(1)"},
             {"smb://host/share"},
+            // Mail fields beyond recipients, subject and body; attach= makes some clients attach a local file.
+            {"mailto:someone@example.com?attach=/home/user/.ssh/id_ed25519"},
+            {"mailto:someone@example.com?subject=hi&Attachment=file:///etc/passwd"},
+            {"mailto:someone@example.com?%61ttach=~/.ssh/id_rsa"},
+            {"mailto:someone@example.com?X-Mailer=x"},
+            {"mailto://someone@example.com"},
             // No scheme, no host, or not a valid URI at all.
             {"example.com/path"},
             {"//example.com/path"},
