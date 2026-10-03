@@ -75,6 +75,24 @@ public class TerminalSplitPane extends StackPane {
         ABOVE, BELOW, LEFT_OF, RIGHT_OF
     }
 
+    /**
+     * The layers korTTY draws over one pane, from bottom to top, each one a {@link Pane} that
+     * {@link #paneOverlay} adds to the pane's wrapper on first use. A layer is unmanaged, so the
+     * wrapper never lays it out and the terminal never resizes because of it, and mouse-transparent,
+     * so every click and hover still reaches the terminal. Its {@link Node#getViewOrder() view order}
+     * keeps it above the terminal, the timestamp gutter, the agent panel and the effect overlays
+     * (all at view order 0), whenever any of them was added. It goes away with the pane.
+     */
+    public enum PaneOverlayLayer {
+        /** The underline under a hovered terminal link. */
+        LINKS;
+
+        /** Below 0, and lower for a later layer, because JavaFX draws a lower view order on top. */
+        public double viewOrder() {
+            return -1.0 - ordinal();
+        }
+    }
+
     private static final class ExtractResult {
         final SplitCell extracted;
         final SplitCell replacement;
@@ -428,7 +446,12 @@ public class TerminalSplitPane extends StackPane {
                                                    @Nullable TtyConnector preparedConnector) {
         // KorttyTermWidget routes terminal copy/paste through the policy-aware clipboard handler
         // (enterprise internal-clipboard mode).
-        SithTermFxWidget widget = new de.kortty.ui.KorttyTermWidget(80, 24, settingsProviderFactory.get());
+        de.kortty.ui.KorttyTermWidget korttyWidget =
+            new de.kortty.ui.KorttyTermWidget(80, 24, settingsProviderFactory.get());
+        SithTermFxWidget widget = korttyWidget;
+        // The hover underline of a link is drawn in the pane's own LINKS layer, created on first hover
+        // (the pane's wrapper does not exist yet).
+        korttyWidget.setLinkOverlay(() -> paneOverlay(widget, PaneOverlayLayer.LINKS));
         widgetConfigurator.accept(widget);
         TtyConnector connector = preparedConnector != null
             ? preparedConnector
@@ -541,6 +564,58 @@ public class TerminalSplitPane extends StackPane {
     /** Returns the per-pane StackPane wrapper used as the mount point for a per-pane effect overlay. */
     public @Nullable StackPane getWidgetOverlayHost(@Nullable SithTermFxWidget widget) {
         return widget != null ? widgetOverlayHosts.get(widget) : null;
+    }
+
+    /**
+     * The given overlay layer of a pane, created in the pane's wrapper on first use; see
+     * {@link PaneOverlayLayer}. Its origin is the wrapper's, which also holds the timestamp gutter
+     * and the agent panel, so place nodes through scene coordinates
+     * ({@code layer.sceneToLocal(canvas.localToScene(x, y))}).
+     *
+     * @return the layer, or {@code null} for a widget that is not (or no longer) a pane here
+     */
+    public @Nullable Pane paneOverlay(@Nullable SithTermFxWidget widget, @NotNull PaneOverlayLayer layer) {
+        StackPane host = wrapperOf(widget);
+        if (host == null) {
+            return null;
+        }
+        if (host.getProperties().get(layer) instanceof Pane existing && existing.getParent() == host) {
+            return existing;
+        }
+        Pane created = createOverlayLayer(layer);
+        host.getProperties().put(layer, created);
+        host.getChildren().add(created);
+        return created;
+    }
+
+    /**
+     * The wrapper of a pane: from {@link #getWidgetOverlayHost}, or else the {@link StackPane} above
+     * the widget's node whose user data is the widget. The map can miss a pane, because a leaf cell
+     * prunes it against the panes of the tree before the cell itself is part of that tree.
+     */
+    private @Nullable StackPane wrapperOf(@Nullable SithTermFxWidget widget) {
+        StackPane host = getWidgetOverlayHost(widget);
+        if (host != null || widget == null || widget.getPane() == null) {
+            return host;
+        }
+        for (Node node = widget.getPane().getParent(); node != null; node = node.getParent()) {
+            if (node instanceof StackPane wrapper && wrapper.getUserData() == widget) {
+                return wrapper;
+            }
+        }
+        return null;
+    }
+
+    /** An empty overlay layer: unmanaged, mouse-transparent, not focusable, at the layer's view order. */
+    static @NotNull Pane createOverlayLayer(@NotNull PaneOverlayLayer layer) {
+        Pane pane = new Pane();
+        pane.setManaged(false);
+        pane.setMouseTransparent(true);
+        pane.setPickOnBounds(false);
+        pane.setFocusTraversable(false);
+        pane.setViewOrder(layer.viewOrder());
+        pane.getStyleClass().add("terminal-pane-overlay");
+        return pane;
     }
 
     private void notifyWidgetSplitCreated(@Nullable SithTermFxWidget widget, @NotNull SplitRequest request) {

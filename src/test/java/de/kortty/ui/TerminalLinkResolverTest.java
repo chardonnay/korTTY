@@ -147,7 +147,7 @@ public class TerminalLinkResolverTest {
         assertThat(link).isNotNull();
         assertThat(link.kind()).isEqualTo(AUTO);
         assertThat(link.target()).isNull();
-        assertThat(link.hit()).isEqualTo(new Hit(AUTO, null));
+        assertThat(link.hit()).isEqualTo(new Hit(AUTO, null, link.text()));
     }
 
     @Test
@@ -162,6 +162,8 @@ public class TerminalLinkResolverTest {
         assertThat(osc8).isNotNull();
         assertThat(osc8.kind()).isEqualTo(OSC8);
         assertThat(osc8.target()).isEqualTo(URI.create("https://example.com/osc8"));
+        // The click gate gets the visible text too, to compare its host with the target's.
+        assertThat(osc8.hit()).isEqualTo(new Hit(OSC8, URI.create("https://example.com/osc8"), "osc8"));
     }
 
     @Test
@@ -176,7 +178,7 @@ public class TerminalLinkResolverTest {
         });
 
         assertThat(resolver.hitAt(fixture.buffer, new Point(2, 0)))
-            .isEqualTo(new Hit(AUTO, URI.create("https://example.com/")));
+            .isEqualTo(new Hit(AUTO, URI.create("https://example.com/"), "https://example.com/"));
         enabled[0] = false;
         assertThat(resolver.hitAt(fixture.buffer, new Point(2, 0))).isEqualTo(Hit.NONE);
         assertThat(asked.get()).isEqualTo(2);

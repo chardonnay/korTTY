@@ -10,11 +10,17 @@ import com.sithtermfx.ui.TerminalPanel;
 import com.sithtermfx.ui.settings.SettingsProvider;
 import de.kortty.core.PolicyAwareCopyPasteHandler;
 import de.kortty.core.TerminalLinkDetector;
+import de.kortty.ui.TerminalLinkClickPolicy.Hit;
+import de.kortty.ui.TerminalLinkClickPolicy.HitKind;
+import javafx.application.Platform;
 import javafx.geometry.Dimension2D;
+import javafx.scene.layout.Pane;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.net.URI;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -30,7 +36,9 @@ import java.util.function.Supplier;
  * <p>OSC 8 links go through {@link KorttyOsc8LinkInfoProvider}, which keeps only web and mail links,
  * and open only on a Cmd/Ctrl+click through {@link TerminalLinkClickPolicy}. The same click opens a
  * web or e-mail address printed as plain text, which {@link TerminalLinkResolver} finds on demand
- * for the kinds set with {@link #setPlainTextLinkKinds}; none until then.
+ * for the kinds set with {@link #setPlainTextLinkKinds}; none until then. Resting the mouse on a link
+ * shows its target ({@link TerminalLinkHoverController}), and an OSC 8 link whose text names another
+ * host than it opens asks first ({@link TerminalLinkMismatchDialog}).
  */
 public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneActions {
 
@@ -93,6 +101,15 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
     }
 
     /**
+     * Sets where the underline of a hovered link is drawn: the pane's {@code LINKS} overlay layer,
+     * which {@code TerminalSplitPane} creates on first use. The supplier may return {@code null}
+     * while there is no layer; the hover then shows the cursor and the tooltip only.
+     */
+    public void setLinkOverlay(@NotNull Supplier<Pane> overlay) {
+        ((KorttyTerminalPanel) getTerminalPanel()).setLinkOverlay(overlay);
+    }
+
+    /**
      * The widget's terminal panel, korTTY's subclass of SithTermFX's {@link TerminalPanel}. korTTY's
      * overrides of the panel's methods belong here. It is an inner class because
      * {@code clearBuffer(boolean)} needs the widget's terminal.
@@ -105,17 +122,34 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
         /** The kinds of links found in plain text; none until the terminal view sets them. */
         private Supplier<Set<TerminalLinkDetector.Kind>> plainTextLinkKinds = Set::of;
 
+        /** The pane's overlay layer for the hover underline; none until the split pane sets it. */
+        private Supplier<Pane> linkOverlay = () -> null;
+
+        /** Asks before an OSC 8 link whose text names another host opens. */
+        private TerminalLinkMismatchDialog.Confirmation mismatchConfirmation = TerminalLinkMismatchDialog::confirm;
+
+        private final TerminalLinkHoverController linkHover;
+
         KorttyTerminalPanel(@NotNull SettingsProvider settingsProvider, @NotNull TerminalTextBuffer terminalTextBuffer,
                 @NotNull StyleState styleState) {
             super(settingsProvider, terminalTextBuffer, styleState);
+            TerminalLinkResolver links = new TerminalLinkResolver(() -> plainTextLinkKinds.get());
             // Links open only on a single, still Cmd/Ctrl+click; SithTermFX's plain-click navigation
             // is a no-op in KorttyLinkInfo. A canvas filter, so it runs before SithTermFX's handler.
-            TerminalLinkClickPolicy.install(this, new TerminalLinkResolver(() -> plainTextLinkKinds.get()),
-                target -> linkOpener.open(target));
+            TerminalLinkClickPolicy.install(this, links, this::openLink);
+            // Hover: underline, cursor and target tooltip. Added after SithTermFX's own mouse handlers,
+            // so the cursor it sets wins over SithTermFX's.
+            linkHover = TerminalLinkHoverController.install(this,
+                (buffer, cell) -> TerminalLinkResolver.linkAt(buffer, cell, plainTextLinkKinds.get()),
+                () -> linkOverlay.get());
         }
 
         void setPlainTextLinkKinds(@NotNull Supplier<Set<TerminalLinkDetector.Kind>> kinds) {
             plainTextLinkKinds = Objects.requireNonNull(kinds, "kinds");
+        }
+
+        void setLinkOverlay(@NotNull Supplier<Pane> overlay) {
+            linkOverlay = Objects.requireNonNull(overlay, "overlay");
         }
 
         /**
@@ -124,6 +158,42 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
          */
         void setLinkOpener(@NotNull TerminalLinkOpener opener) {
             linkOpener = Objects.requireNonNull(opener, "opener");
+        }
+
+        /**
+         * Replaces the host-mismatch dialog with a stand-in, for {@code terminalLinksSmoke}. Call it
+         * on the JavaFX thread.
+         */
+        void setMismatchConfirmation(@NotNull TerminalLinkMismatchDialog.Confirmation confirmation) {
+            mismatchConfirmation = Objects.requireNonNull(confirmation, "confirmation");
+        }
+
+        /** The hover handling of this panel, for {@code terminalLinksSmoke}. */
+        @NotNull TerminalLinkHoverController linkHover() {
+            return linkHover;
+        }
+
+        /**
+         * Opens a Cmd/Ctrl+clicked link. An OSC 8 link whose text names another host than its target
+         * opens only after the user confirms; the question is asked once the click is handled.
+         */
+        private void openLink(@NotNull Hit hit) {
+            URI target = hit.target();
+            if (target == null) {
+                return;
+            }
+            Optional<String> shownHost = hit.kind() == HitKind.OSC8
+                ? TerminalLinkOpener.visibleHostMismatch(hit.text(), target)
+                : Optional.empty();
+            if (shownHost.isEmpty()) {
+                linkOpener.open(target);
+                return;
+            }
+            Platform.runLater(() -> {
+                if (mismatchConfirmation.confirm(getCanvas(), shownHost.get(), target)) {
+                    linkOpener.open(target);
+                }
+            });
         }
 
         @Override

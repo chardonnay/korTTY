@@ -194,13 +194,18 @@ public class TerminalLinkClickPolicyTest {
         String widget = source("src/main/java/de/kortty/ui/KorttyTermWidget.java").replaceAll("\\s+", " ");
 
         int panelConstructor = widget.indexOf("super(settingsProvider, terminalTextBuffer, styleState);");
-        int install = widget.indexOf("TerminalLinkClickPolicy.install(this, "
-            + "new TerminalLinkResolver(() -> plainTextLinkKinds.get()), target -> linkOpener.open(target));");
+        int install = widget.indexOf("TerminalLinkClickPolicy.install(this, links, this::openLink);");
         int nextMember = widget.indexOf("void setPlainTextLinkKinds(", panelConstructor);
         assertThat(panelConstructor).isAtLeast(0);
+        assertThat(widget).contains(
+            "TerminalLinkResolver links = new TerminalLinkResolver(() -> plainTextLinkKinds.get());");
         assertThat(install).isGreaterThan(panelConstructor);
         assertThat(install).isLessThan(nextMember);
         assertThat(widget).contains("private TerminalLinkOpener linkOpener = TerminalLinkOpener.system();");
+        // Every opened link goes through the opener's allowlist, after the host-mismatch question.
+        assertThat(widget).contains("linkOpener.open(target);");
+        assertThat(NoHyperlinkFilterGuardTest.codeOnly(source("src/main/java/de/kortty/ui/KorttyTermWidget.java")))
+            .doesNotContain("Desktop");
     }
 
     @Test

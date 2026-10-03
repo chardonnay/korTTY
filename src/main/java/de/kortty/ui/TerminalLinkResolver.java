@@ -26,12 +26,12 @@ import java.util.function.Supplier;
  * Finds the link under one cell of a terminal text buffer: an OSC 8 link a program printed around
  * its text, or a link korTTY finds in plain text.
  *
- * <p>Plain text is searched on demand, only when a click (and later a hover, the context menu or
- * quick select) asks for one cell, never while output arrives. SithTermFX's own mechanism for
- * plain-text links, a {@code HyperlinkFilter}, runs on every write and keeps stale or cut-short
- * targets when a link arrives in pieces, so korTTY registers none (see
- * {@code NoHyperlinkFilterGuardTest}). Searching on demand costs nothing while a program prints, and it
- * always sees the text as it is on screen now.
+ * <p>Plain text is searched on demand, only when a click or the mouse moving onto another cell
+ * ({@link TerminalLinkHoverController}) asks for one cell, never while output arrives. SithTermFX's
+ * own mechanism for plain-text links, a {@code HyperlinkFilter}, runs on every write and keeps stale
+ * or cut-short targets when a link arrives in pieces, so korTTY registers none (see
+ * {@code NoHyperlinkFilterGuardTest}). Searching on demand costs nothing while a program prints, and
+ * it always sees the text as it is on screen now.
  *
  * <p>The search covers the logical line around the cell: the rows it wraps from and into, at most
  * {@value #MAX_ROWS_AROUND} rows on each side and {@value #MAX_WINDOW_CHARS} characters in all (a
@@ -80,7 +80,7 @@ public final class TerminalLinkResolver implements TerminalLinkClickPolicy.HitRe
 
         /** The link as the click policy sees it. */
         public @NotNull Hit hit() {
-            return new Hit(kind, target);
+            return new Hit(kind, target, text);
         }
     }
 

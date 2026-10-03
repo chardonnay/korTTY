@@ -74,14 +74,22 @@ public final class TerminalLinkClickPolicy {
      *
      * @param kind   what kind of link it is
      * @param target the validated target to open, or {@code null} when the link must not be opened
+     * @param text   the text the link covers on screen, empty when unknown; for an OSC 8 link it can
+     *               name another host than {@code target}, see {@link TerminalLinkOpener#visibleHostMismatch}
      */
-    public record Hit(@NotNull HitKind kind, @Nullable URI target) {
+    public record Hit(@NotNull HitKind kind, @Nullable URI target, @NotNull String text) {
 
         /** No link under the cell. */
         public static final Hit NONE = new Hit(HitKind.NONE, null);
 
         public Hit {
             Objects.requireNonNull(kind, "kind");
+            Objects.requireNonNull(text, "text");
+        }
+
+        /** A link whose text is not known. */
+        public Hit(@NotNull HitKind kind, @Nullable URI target) {
+            this(kind, target, "");
         }
     }
 
@@ -135,18 +143,18 @@ public final class TerminalLinkClickPolicy {
      * Adds the click filter to {@code panel}'s canvas.
      *
      * @param resolver finds the link under the clicked cell, normally a {@link TerminalLinkResolver}
-     * @param opener   opens the target of an {@link Action#OPEN} click, normally through
-     *                 {@link TerminalLinkOpener#open}
+     * @param opener   opens the link of an {@link Action#OPEN} click, one with a target, normally
+     *                 through {@link TerminalLinkOpener#open}
      */
     static void install(@NotNull KorttyTermWidget.KorttyTerminalPanel panel, @NotNull HitResolver resolver,
-            @NotNull Consumer<URI> opener) {
+            @NotNull Consumer<Hit> opener) {
         Objects.requireNonNull(resolver, "resolver");
         Objects.requireNonNull(opener, "opener");
         panel.getCanvas().addEventFilter(MouseEvent.MOUSE_CLICKED, event -> onClicked(panel, resolver, opener, event));
     }
 
     private static void onClicked(@NotNull KorttyTermWidget.KorttyTerminalPanel panel, @NotNull HitResolver resolver,
-            @NotNull Consumer<URI> opener, @NotNull MouseEvent event) {
+            @NotNull Consumer<Hit> opener, @NotNull MouseEvent event) {
         if (event.isConsumed() || event.getButton() != MouseButton.PRIMARY) {
             return;
         }
@@ -166,7 +174,7 @@ public final class TerminalLinkClickPolicy {
         switch (action) {
             case OPEN -> {
                 if (hit.target() != null) {
-                    opener.accept(hit.target());
+                    opener.accept(hit);
                 }
             }
             case SELECT_WORD -> panel.selectionProperty().set(wordSelection(buffer, cell));

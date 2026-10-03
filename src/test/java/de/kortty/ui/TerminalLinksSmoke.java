@@ -14,9 +14,12 @@ import javafx.event.Event;
 import javafx.geometry.Orientation;
 import javafx.geometry.Point2D;
 import javafx.scene.Node;
+import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Region;
+import javafx.scene.shape.Line;
 import javafx.stage.Stage;
 import org.jetbrains.annotations.NotNull;
 
@@ -36,8 +39,13 @@ import java.util.concurrent.atomic.AtomicReference;
  * plain double or triple click selects the word or the line, that clicks on plain text still reach
  * SithTermFX, that a Cmd/Ctrl+click opens a URL printed as plain text only while plain-text link
  * detection is on (and every other click on it still reaches SithTermFX), and that a click
- * swallowed on a link in another split pane moves the focused pane there. Run via the
- * {@code terminalLinksSmoke} Gradle task. Exit 0 = OK.
+ * swallowed on a link in another split pane moves the focused pane there.
+ *
+ * <p>It also checks the hover: resting on a plain URL shows the hand cursor, an underline in the
+ * pane's LINKS layer exactly under the URL's cells (to the right of a timestamp-style gutter), and
+ * the target tooltip; resting on an OSC 8 link shows its real target; leaving, other text and new
+ * output take everything away; and an OSC 8 link whose text names another host opens only after the
+ * confirmation. Run via the {@code terminalLinksSmoke} Gradle task. Exit 0 = OK.
  */
 public final class TerminalLinksSmoke {
 
@@ -45,6 +53,10 @@ public final class TerminalLinksSmoke {
     private static final String TARGET = "https://example.com/docs";
     private static final String OSC8_LINE = "see \u001b]8;;" + TARGET + "\u001b\\docs-link\u001b]8;;\u001b\\ now";
     private static final String PLAIN_URL = "https://example.com/plain";
+    private static final String DECEPTIVE_TARGET = "https://evil.example/login";
+    private static final String DECEPTIVE_LINE =
+        "\u001b]8;;" + DECEPTIVE_TARGET + "\u001b\\https://example.com/login\u001b]8;;\u001b\\";
+    private static final double GUTTER_WIDTH = 40;
     private static final boolean MAC = System.getProperty("os.name", "").toLowerCase().contains("mac");
 
     private TerminalLinksSmoke() {
@@ -62,8 +74,17 @@ public final class TerminalLinksSmoke {
         Platform.startup(() -> {
             try {
                 LanguageManager.getInstance().initialize(new GlobalSettings());
+                // A fixed-width left panel stands in for the timestamp gutter, so the hover underline
+                // has to be placed through scene coordinates to land under the text.
                 TerminalSplitPane splitPane = new TerminalSplitPane(
-                    () -> new DynamicFontSizeSettingsProvider(14f), request -> new FeedingTtyConnector());
+                    () -> new DynamicFontSizeSettingsProvider(14f), request -> new FeedingTtyConnector(), widget -> { },
+                    widget -> {
+                        Region gutter = new Region();
+                        gutter.setMinWidth(GUTTER_WIDTH);
+                        gutter.setPrefWidth(GUTTER_WIDTH);
+                        gutter.setMaxWidth(GUTTER_WIDTH);
+                        return gutter;
+                    });
                 paneRef.set(splitPane);
                 Stage stage = new Stage();
                 stageRef.set(stage);
@@ -96,7 +117,8 @@ public final class TerminalLinksSmoke {
             System.err.println("SMOKE FAILURE: " + failure.get());
             System.exit(1);
         }
-        System.out.println("SMOKE OK: terminal links open only on a single, still Cmd/Ctrl+click" + note.get());
+        System.out.println("SMOKE OK: terminal links open only on a single, still Cmd/Ctrl+click, and a hover shows"
+            + " where they go" + note.get());
         System.exit(0);
     }
 
@@ -178,6 +200,9 @@ public final class TerminalLinksSmoke {
             check(click(canvas, onPlainUrl, 1, true, false, true, reachedHandlers), "Cmd/Ctrl+click on a plain URL was not swallowed");
             check(List.of(TARGET, PLAIN_URL).equals(opened), "Cmd/Ctrl+click on a plain URL opened " + opened);
 
+            verifyHover(splitPane, widget, panel, canvas, connector, onLink, onPlainText, onPlainUrl);
+            verifyHostMismatch(panel, canvas, connector, opened, reachedHandlers);
+
             // A swallowed click on a link in another pane still moves the focused pane there.
             SithTermFxWidget second = onFxThread(() -> splitPane.splitWidget(widget, SplitRequest.SplitMode.NEW_CONNECTION,
                 Orientation.HORIZONTAL, new FeedingTtyConnector()));
@@ -204,6 +229,151 @@ public final class TerminalLinksSmoke {
         }
     }
 
+    /**
+     * Hover: the plain URL gets the hand cursor, an underline under exactly its cells and the target
+     * tooltip; the OSC 8 link gets its real target (SithTermFX underlines it); plain text, leaving
+     * the pane and new output that moves the URL away take everything away again.
+     */
+    private static void verifyHover(TerminalSplitPane splitPane, SithTermFxWidget widget,
+                                    KorttyTermWidget.KorttyTerminalPanel panel, Node canvas,
+                                    FeedingTtyConnector connector, Point2D onLink, Point2D onPlainText,
+                                    Point2D onPlainUrl) throws Exception {
+        TerminalLinkHoverController hover = onFxThread(panel::linkHover);
+        check(onFxThread(() -> splitPane.paneOverlay(widget, TerminalSplitPane.PaneOverlayLayer.LINKS)) != null,
+            "the pane has no LINKS overlay layer");
+
+        move(canvas, onPlainUrl);
+        TerminalLinkResolver.Link plain = onFxThread(hover::hoveredLink);
+        check(plain != null && PLAIN_URL.equals(plain.text()), "hovering the plain URL showed " + plain);
+        check(onFxThread(() -> canvas.getCursor() == Cursor.HAND), "the plain URL has no hand cursor");
+        List<Line> underline = onFxThread(hover::underline);
+        check(underline.size() == 1, "the plain URL has " + underline.size() + " underline segments");
+        // The underline starts at the left edge of the URL's first cell (column 6) in the scene,
+        // which is right of the gutter, and is as wide as the URL.
+        double[] expected = onFxThread(() -> {
+            TerminalCellGeometry geometry = panel.cellGeometry();
+            Point2D left = canvas.localToScene(geometry.insetX() + 6 * geometry.cellWidth(), 0);
+            return new double[] {left.getX(), PLAIN_URL.length() * geometry.cellWidth(),
+                canvas.localToScene(0, 0).getX()};
+        });
+        double[] drawn = onFxThread(() -> {
+            Line line = underline.get(0);
+            Point2D start = line.localToScene(line.getStartX(), line.getStartY());
+            return new double[] {start.getX(), line.getEndX() - line.getStartX()};
+        });
+        check(expected[2] >= GUTTER_WIDTH, "the canvas does not sit right of the gutter: " + expected[2]);
+        check(Math.abs(drawn[0] - expected[0]) < 0.5 && Math.abs(drawn[1] - expected[1]) < 0.5,
+            "the underline starts at x=" + drawn[0] + " and is " + drawn[1] + " wide instead of x="
+                + expected[0] + ", " + expected[1] + " wide");
+        await("the plain URL's tooltip never showed", () -> {
+            String text = onFxThread(hover::shownTooltipText);
+            return text != null && text.endsWith("\n" + PLAIN_URL);
+        });
+
+        // Plain text: no link, the default cursor, no underline, no tooltip.
+        move(canvas, onPlainText);
+        check(onFxThread(hover::hoveredLink) == null, "plain text shows a link");
+        check(onFxThread(() -> canvas.getCursor() == Cursor.DEFAULT), "the hand cursor stuck on plain text");
+        check(onFxThread(hover::underline).isEmpty(), "the underline stayed on plain text");
+        check(onFxThread(hover::shownTooltipText) == null, "the tooltip stayed on plain text");
+
+        // The OSC 8 link: its real target in the tooltip; SithTermFX draws the underline itself.
+        move(canvas, onLink);
+        check(onFxThread(() -> canvas.getCursor() == Cursor.HAND), "the OSC 8 link has no hand cursor");
+        check(onFxThread(hover::underline).isEmpty(), "korTTY drew a second underline under the OSC 8 link");
+        await("the OSC 8 link's tooltip never showed its target", () -> {
+            String text = onFxThread(hover::shownTooltipText);
+            return text != null && text.endsWith("\n" + TARGET);
+        });
+
+        // Leaving the pane takes everything away.
+        onFxThread(() -> {
+            Event.fireEvent(canvas, mouse(canvas, MouseEvent.MOUSE_EXITED, onLink));
+            return null;
+        });
+        check(onFxThread(hover::hoveredLink) == null, "the link stayed after the mouse left the pane");
+        check(onFxThread(() -> canvas.getCursor() == Cursor.DEFAULT), "the hand cursor stuck after leaving");
+        check(onFxThread(hover::shownTooltipText) == null, "the tooltip stayed after the mouse left the pane");
+
+        // New output that moves the URL away: the underline follows the text, not the old cells.
+        move(canvas, onPlainUrl);
+        check(onFxThread(hover::underline).size() == 1, "the plain URL lost its underline");
+        connector.feed("\u001b[H\u001b[2J");
+        await("the underline stayed under text that is gone", () -> onFxThread(() ->
+            hover.hoveredLink() == null && hover.underline().isEmpty() && canvas.getCursor() == Cursor.DEFAULT));
+        // The same lines again, from the top, for the checks that follow.
+        connector.feed(OSC8_LINE + "\r\nplain text here\r\nvisit " + PLAIN_URL + " now\r\n");
+        await("the lines never came back after the clear", () -> onFxThread(() ->
+            widget.getTerminalTextBuffer().getScreenLines().startsWith("see docs-link now")
+                && widget.getTerminalTextBuffer().getScreenLines().contains("visit " + PLAIN_URL + " now")));
+        onFxThread(() -> {
+            Event.fireEvent(canvas, mouse(canvas, MouseEvent.MOUSE_EXITED, onPlainText));
+            return null;
+        });
+    }
+
+    /**
+     * An OSC 8 link whose text shows https://example.com/login but which goes to another host opens
+     * only after the confirmation, and not at all when it is declined.
+     */
+    private static void verifyHostMismatch(KorttyTermWidget.KorttyTerminalPanel panel, Node canvas,
+                                           FeedingTtyConnector connector, List<String> opened,
+                                           AtomicBoolean reachedHandlers) throws Exception {
+        List<String> asked = new CopyOnWriteArrayList<>();
+        AtomicBoolean answer = new AtomicBoolean(false);
+        onFxThread(() -> {
+            panel.setMismatchConfirmation((owner, shownHost, target) -> {
+                asked.add(shownHost + " -> " + target);
+                return answer.get();
+            });
+            return null;
+        });
+        int before = opened.size();
+        connector.feed(DECEPTIVE_LINE + "\r\n");
+        await("the deceptive link never reached the terminal buffer", () -> onFxThread(() ->
+            panel.getTerminalTextBuffer().getScreenLines().contains("https://example.com/login")));
+        int line = onFxThread(() -> {
+            String[] lines = panel.getTerminalTextBuffer().getScreenLines().split("\n", -1);
+            for (int row = 0; row < lines.length; row++) {
+                if (lines[row].startsWith("https://example.com/login")) {
+                    return row;
+                }
+            }
+            return -1;
+        });
+        check(line >= 0, "the deceptive link is on no screen line");
+        Point2D onDeceptive = cellCenter(panel, 3, line);
+
+        check(click(canvas, onDeceptive, 1, true, false, true, reachedHandlers),
+            "Cmd/Ctrl+click on the deceptive link was not swallowed");
+        await("the host mismatch was not asked about", () -> asked.size() == 1);
+        check(asked.get(0).equals("example.com -> " + DECEPTIVE_TARGET), "the question was " + asked);
+        Thread.sleep(200);
+        check(opened.size() == before, "a declined mismatch opened " + opened);
+
+        answer.set(true);
+        check(click(canvas, onDeceptive, 1, true, false, true, reachedHandlers),
+            "Cmd/Ctrl+click on the deceptive link was not swallowed");
+        await("a confirmed mismatch did not open the link", () -> opened.size() == before + 1);
+        check(DECEPTIVE_TARGET.equals(opened.get(before)), "a confirmed mismatch opened " + opened);
+    }
+
+    /** Fires a MOUSE_MOVED at {@code point}, as the mouse resting there. */
+    private static void move(Node canvas, Point2D point) throws Exception {
+        onFxThread(() -> {
+            Event.fireEvent(canvas, mouse(canvas, MouseEvent.MOUSE_MOVED, point));
+            return null;
+        });
+    }
+
+    /** A mouse event at {@code point} in {@code canvas} coordinates (a MouseEvent takes scene coordinates). */
+    private static MouseEvent mouse(Node canvas, javafx.event.EventType<MouseEvent> type, Point2D point) {
+        Point2D scene = canvas.localToScene(point);
+        Point2D screen = canvas.localToScreen(point);
+        return new MouseEvent(type, scene.getX(), scene.getY(), screen.getX(), screen.getY(), MouseButton.NONE, 0,
+            false, false, false, false, false, false, false, false, false, true, null);
+    }
+
     /** The centre of a cell in canvas coordinates, while the panel shows the bottom of the buffer. */
     private static Point2D cellCenter(KorttyTermWidget.KorttyTerminalPanel panel, int column, int line) throws Exception {
         return onFxThread(() -> {
@@ -223,10 +393,12 @@ public final class TerminalLinksSmoke {
                                  boolean still, AtomicBoolean reachedHandlers) throws Exception {
         return onFxThread(() -> {
             reachedHandlers.set(false);
+            // A MouseEvent takes scene coordinates; the canvas sits right of the gutter.
+            Point2D scene = canvas.localToScene(point);
             Point2D screen = canvas.localToScreen(point);
             boolean control = shortcut && !MAC;
             boolean meta = shortcut && MAC;
-            Event.fireEvent(canvas, new MouseEvent(MouseEvent.MOUSE_CLICKED, point.getX(), point.getY(),
+            Event.fireEvent(canvas, new MouseEvent(MouseEvent.MOUSE_CLICKED, scene.getX(), scene.getY(),
                 screen.getX(), screen.getY(), MouseButton.PRIMARY, clickCount, false, control, alt, meta,
                 false, false, false, false, false, still, null));
             return !reachedHandlers.get();
