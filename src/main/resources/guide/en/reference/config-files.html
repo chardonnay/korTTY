@@ -809,6 +809,7 @@
 - Terminal appearance overrides (font, colors, size)
 - SSH tunnels and jump server configuration
 - Optional per-connection SSH host-key verification override (verify, don't verify, or inherit)
+- Optional per-connection character encoding (<code>encoding</code>; missing means the default — see <a href="settings/terminal.html#notes">Terminal → Encoding</a>)
 - Terminal effect plugins and animation speed
 - Connection-specific terminal logging settings
 - Per-connection session journal settings (enable, capture typed input, AI summaries, summary interval)
@@ -841,7 +842,7 @@
 <p>SSH keys referenced in this file can be kept in their original location or copied to <code>~/.kortty/ssh-keys/</code> via the <em>Copy to User Directory</em> action in SSH key management. Copied keys are included in encrypted backups; keys left in their original locations are only referenced and must be migrated separately.</p>
 </div>
 <h3 id="ssh-host-keysproperties">ssh-host-keys.properties<a class="headerlink" href="#ssh-host-keysproperties" title="Permanent link">&para;</a></h3>
-<p>The versioned trust-on-first-use store for interactive Terminal and SFTP connections and the SSH bootstrap used by Mosh. Entries are keyed by normalized host name and port and contain the public-key algorithm, OpenSSH SHA-256 fingerprint, OpenSSH public-key line, and trust timestamp. A matching key is accepted silently after first-use confirmation; a changed key is hard-blocked and is not replaced automatically. When host-key verification is relaxed to accept-new for a connection, an unknown key is pinned without the confirmation prompt — a changed key is still refused in both modes.</p>
+<p>The versioned trust-on-first-use store for interactive Terminal and SFTP connections and the SSH bootstrap used by Mosh. Entries are keyed by normalized host name and port and contain the public-key algorithm, OpenSSH SHA-256 fingerprint, OpenSSH public-key line, and trust timestamp. A matching key is accepted silently after first-use confirmation; a changed key is hard-blocked and is not replaced automatically. Entries are replaced through <strong>Review and Replace…</strong> in the changed-key alert and removed under <strong>Configuration → Security → Known Hosts…</strong>; removing the last entry deletes the file, which counts as an empty store. When host-key verification is relaxed to accept-new for a connection, an unknown key is pinned without the confirmation prompt — a changed key is still refused in both modes.</p>
 <p>Writes use a temporary file plus atomic replacement, while <code>ssh-host-keys.properties.lock</code> coordinates separate korTTY processes so their pins are merged safely. The properties file is included in encrypted backups; the transient lock file is not. This endpoint-based store is separate from the JobScheduler host-key pins in <code>job-scheduler.xml</code>, which are keyed by connection ID for unattended operations.</p>
 <h3 id="gpg-keysxml">gpg-keys.xml<a class="headerlink" href="#gpg-keysxml" title="Permanent link">&para;</a></h3>
 <p>Stores GPG key information for backup encryption.</p>
@@ -874,6 +875,7 @@
 </ul>
 <h4 id="terminal-and-connections">Terminal and connections<a class="headerlink" href="#terminal-and-connections" title="Permanent link">&para;</a></h4>
 <ul>
+<li>Default terminal encoding for SSH connections, and <code>terminalEncodingConfirmed</code>, which records that a value stored by an older version has been saved again and applies (see <a href="settings/terminal.html#notes">Terminal → Encoding</a>)</li>
 <li>Terminal logging defaults</li>
 <li>Terminal effect plugin defaults</li>
 <li>SSH keep-alive settings</li>

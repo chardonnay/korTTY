@@ -11,7 +11,6 @@ import de.kortty.core.TerminalRecordingService.ExportProgress;
 import de.kortty.core.TerminalRecordingTimeJumpParser;
 import de.kortty.core.TerminalRecordingTimeRange;
 import de.kortty.model.GlobalSettings;
-import de.kortty.model.TerminalRecordingFormat;
 import de.kortty.model.TerminalRecordingScope;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -67,7 +66,6 @@ public class TerminalRecordingManagerDialog extends ThemeAwareDialog<Void> {
     private final GlobalSettings settings;
     private final CheckBox recordingEnabledCheck = new CheckBox(I18n.get("recording.manager.enabled"));
     private final TextField storagePathField = new TextField();
-    private final ComboBox<TerminalRecordingFormat> formatCombo = new ComboBox<>();
     private final ComboBox<TerminalRecordingScope> scopeCombo = new ComboBox<>();
     private final CheckBox captureColorsCheck = new CheckBox(I18n.get("recording.manager.captureColors"));
     private final CheckBox autoPauseCheck = new CheckBox(I18n.get("recording.manager.autoPause"));
@@ -102,7 +100,6 @@ public class TerminalRecordingManagerDialog extends ThemeAwareDialog<Void> {
         storagePathField.setPrefColumnCount(36);
         ffmpegPathField.setPrefColumnCount(36);
         idleSecondsSpinner.setEditable(true);
-        formatCombo.getItems().addAll(TerminalRecordingFormat.KORTTY_REPLAY, TerminalRecordingFormat.WEBM);
         scopeCombo.getItems().addAll(TerminalRecordingScope.ACTIVE_SPLIT, TerminalRecordingScope.WHOLE_TAB);
 
         Button browseStorage = new Button(I18n.get("recording.manager.browse"));
@@ -134,8 +131,6 @@ public class TerminalRecordingManagerDialog extends ThemeAwareDialog<Void> {
         HBox pathBox = new HBox(8, storagePathField, browseStorage);
         HBox.setHgrow(storagePathField, Priority.ALWAYS);
         form.add(pathBox, 1, row++);
-        form.add(new Label(I18n.get("recording.manager.format")), 0, row);
-        form.add(formatCombo, 1, row++);
         form.add(new Label(I18n.get("recording.manager.defaultScope")), 0, row);
         form.add(scopeCombo, 1, row++);
         form.add(captureColorsCheck, 1, row++);
@@ -179,7 +174,6 @@ public class TerminalRecordingManagerDialog extends ThemeAwareDialog<Void> {
         storagePathField.setText(settings.getTerminalRecordingStoragePath() != null
             ? settings.getTerminalRecordingStoragePath()
             : TerminalRecordingService.resolveRecordingDirectory(settings).toString());
-        formatCombo.setValue(settings.getTerminalRecordingFormat());
         scopeCombo.setValue(settings.getTerminalRecordingDefaultScope());
         captureColorsCheck.setSelected(settings.isTerminalRecordingCaptureColorsEnabled());
         autoPauseCheck.setSelected(settings.isTerminalRecordingAutoPauseEnabled());
@@ -193,7 +187,6 @@ public class TerminalRecordingManagerDialog extends ThemeAwareDialog<Void> {
         try {
             TerminalRecordingRuntimeState.setSessionRecordingEnabled(recordingEnabledCheck.isSelected());
             settings.setTerminalRecordingStoragePath(storagePathField.getText());
-            settings.setTerminalRecordingFormat(formatCombo.getValue());
             settings.setTerminalRecordingDefaultScope(scopeCombo.getValue());
             settings.setTerminalRecordingCaptureColorsEnabled(captureColorsCheck.isSelected());
             settings.setTerminalRecordingAutoPauseEnabled(autoPauseCheck.isSelected());

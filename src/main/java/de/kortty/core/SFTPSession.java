@@ -2,6 +2,7 @@ package de.kortty.core;
 
 import de.kortty.model.ServerConnection;
 import de.kortty.security.EncryptionService;
+import de.kortty.ui.I18n;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.auth.UserAuthFactory;
 import org.apache.sshd.client.auth.keyboard.UserAuthKeyboardInteractiveFactory;
@@ -18,11 +19,15 @@ import org.slf4j.LoggerFactory;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Manages SFTP connections for file transfer.
@@ -34,16 +39,23 @@ public class SFTPSession {
     private final ServerConnection connection;
     private final String password;
     private final SshHostKeyTrustManager hostKeyTrustManager;
+    private volatile SshHostKeyTrustManager.ReplacePolicy hostKeyReplacePolicy =
+        SshHostKeyTrustManager.ReplacePolicy.NEVER;
     private SSHKeyManager sshKeyManager;
     private char[] masterPassword;
-    
+
     private SshClient client;
     private ClientSession session;
     private SftpClient sftpClient;
     private String currentRemotePath = "~";
     /** Established bastion hop when the connection has an enabled jump server; null otherwise. */
     private JumpHostSupport.JumpTunnel jumpTunnel;
-    
+    /** Told once when the connection ends without {@link #close()} being called. */
+    private volatile Runnable disconnectListener;
+    /** Set by {@link #close()} before anything is closed, so a deliberate close is never reported. */
+    private volatile boolean closingDeliberately;
+    private final AtomicBoolean disconnectReported = new AtomicBoolean();
+
     public SFTPSession(ServerConnection connection, String password) {
         this(connection, password, SshHostKeyTrustManager.shared());
     }
@@ -65,7 +77,50 @@ public class SFTPSession {
         this.sshKeyManager = sshKeyManager;
         this.masterPassword = masterPassword;
     }
-    
+
+    /**
+     * Hands this session the vault it needs, whatever the target's authentication method.
+     *
+     * <p>The master password is always set, because it also decrypts the stored jump server
+     * password. The key manager is only used for a {@code PUBLIC_KEY} target that does not log in
+     * with a temporary key: a managed key referenced by the connection must never take the place
+     * of the temporary one.
+     *
+     * @param keyManager the managed SSH keys; may be {@code null}
+     * @param masterPassword the vault's master password, or {@code null} while the vault is locked
+     * @param temporaryKeyAuth whether this session authenticates with a temporary SSH key
+     */
+    public void configureVault(SSHKeyManager keyManager, char[] masterPassword, boolean temporaryKeyAuth) {
+        this.masterPassword = masterPassword;
+        this.sshKeyManager = !temporaryKeyAuth
+                && connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY
+            ? keyManager
+            : null;
+    }
+
+    /**
+     * Registers a callback for a connection that ends on its own: the server or the network closed
+     * the SSH session or the SFTP channel. It runs at most once, on an SSHD I/O thread, and never
+     * because of {@link #close()}. A network drop without a FIN only surfaces once an operation fails
+     * or TCP gives up.
+     *
+     * @param listener the callback, or {@code null} to remove it
+     */
+    public void setDisconnectListener(Runnable listener) {
+        this.disconnectListener = listener;
+    }
+
+    /**
+     * Whether a changed host key (of the target or of its jump server) may be reviewed and replaced
+     * during {@link #connect()}. Only the SFTP manager tab sets
+     * {@link SshHostKeyTrustManager.ReplacePolicy#INTERACTIVE}; the default
+     * {@link SshHostKeyTrustManager.ReplacePolicy#NEVER} keeps restored editors and other
+     * background transfers on the plain mismatch warning.
+     */
+    public void setHostKeyReplacePolicy(SshHostKeyTrustManager.ReplacePolicy replacePolicy) {
+        this.hostKeyReplacePolicy = replacePolicy != null ? replacePolicy : SshHostKeyTrustManager.ReplacePolicy.NEVER;
+    }
+
     /**
      * Establishes the SFTP connection.
      */
@@ -158,8 +213,9 @@ public class SFTPSession {
         // Note: EdDSA signature support is automatically enabled when the eddsa dependency
         // is on the classpath. The client will detect and use EdDSA signatures automatically.
         
+        SshHostKeyTrustManager.ReplacePolicy replacePolicy = hostKeyReplacePolicy;
         client.setServerKeyVerifier(hostKeyTrustManager.verifierFor(
-            connection, HostKeyCheckPolicy.resolveFromSettings(connection)));
+            connection, HostKeyCheckPolicy.resolveFromSettings(connection), replacePolicy));
         client.start();
         
         int timeoutSeconds = connection.getConnectionTimeoutSeconds();
@@ -174,7 +230,8 @@ public class SFTPSession {
         int connectPort = connection.getPort();
         if (JumpHostSupport.isActive(connection)) {
             jumpTunnel = JumpHostSupport.open(
-                connection, hostKeyTrustManager, masterPassword, Duration.ofSeconds(timeoutSeconds));
+                connection, hostKeyTrustManager, masterPassword, Duration.ofSeconds(timeoutSeconds),
+                replacePolicy);
             connectHost = jumpTunnel.localHost();
             connectPort = jumpTunnel.localPort();
             // Log raw host:port rather than connection.getDisplayName(): the latter can fall back to
@@ -206,6 +263,9 @@ public class SFTPSession {
             } catch (IOException | RuntimeException e) {
                 throw new IOException(sftpSubsystemFailureMessage(e), e);
             }
+            // Both: the server can end the SFTP channel alone and keep the SSH session open.
+            session.addCloseFutureListener(future -> reportDisconnect());
+            sftpClient.getClientChannel().addCloseFutureListener(future -> reportDisconnect());
         } catch (Exception e) {
             if (jumpTunnel != null) {
                 jumpTunnel.close();
@@ -242,15 +302,25 @@ public class SFTPSession {
         );
     }
 
+    private void reportDisconnect() {
+        Runnable listener = disconnectListener;
+        if (closingDeliberately || listener == null || !disconnectReported.compareAndSet(false, true)) {
+            return;
+        }
+        logger.info("SFTP connection to {}:{} ended", connection.getHost(), connection.getPort());
+        try {
+            listener.run();
+        } catch (RuntimeException e) {
+            logger.warn("SFTP disconnect listener failed", e);
+        }
+    }
+
     static String sftpSubsystemFailureMessage(Throwable failure) {
         String causeMessage = safeFailureMessage(failure);
         if (isSftpSubsystemNegotiationFailure(failure)) {
-            return "SFTP-Subsystem wurde nach erfolgreicher SSH-Authentifizierung vom Server abgelehnt oder geschlossen. "
-                + "Es wurde keine SFTP-Version ausgehandelt. Prüfe, ob SFTP für dieses Ziel bzw. den SSH-Proxy "
-                + "freigegeben ist. Technische Ursache: " + causeMessage;
+            return I18n.get("sftp.error.subsystemRejected", causeMessage);
         }
-        return "SFTP-Subsystem konnte nach erfolgreicher SSH-Authentifizierung nicht gestartet werden: "
-            + causeMessage;
+        return I18n.get("sftp.error.subsystemStartFailed", causeMessage);
     }
 
     static boolean isSftpSubsystemNegotiationFailure(Throwable failure) {
@@ -273,7 +343,7 @@ public class SFTPSession {
 
     private static String safeFailureMessage(Throwable failure) {
         if (failure == null) {
-            return "unbekannter Fehler";
+            return I18n.get("sftp.error.unknownCause");
         }
         String message = failure.getMessage();
         if (message == null || message.isBlank()) {
@@ -324,17 +394,17 @@ public class SFTPSession {
     }
     
     /**
-     * Downloads a file from local to remote.
+     * Uploads a local file to {@code remotePath}, replacing a remote file of that name.
+     *
+     * <p>The file is streamed, so its size is limited neither by the heap nor by the 2 GB maximum
+     * of a Java array.
      */
     public void uploadFile(Path localPath, String remotePath) throws IOException {
-        long fileSize = java.nio.file.Files.size(localPath);
-        byte[] fileData = java.nio.file.Files.readAllBytes(localPath);
-        
-        // Write file using String path with OpenMode
-        try (java.io.OutputStream out = sftpClient.write(remotePath, 
-                java.util.EnumSet.of(SftpClient.OpenMode.Write, SftpClient.OpenMode.Create, SftpClient.OpenMode.Truncate))) {
-            out.write(fileData);
-            logger.info("Uploaded {} bytes from {} to {}", fileData.length, localPath, remotePath);
+        try (InputStream in = Files.newInputStream(localPath);
+             OutputStream out = sftpClient.write(remotePath,
+                 EnumSet.of(SftpClient.OpenMode.Write, SftpClient.OpenMode.Create, SftpClient.OpenMode.Truncate))) {
+            long bytes = in.transferTo(out);
+            logger.info("Uploaded {} bytes from {} to {}", bytes, localPath, remotePath);
         }
     }
     
@@ -366,10 +436,26 @@ public class SFTPSession {
     }
     
     /**
-     * Creates a directory on the remote server.
+     * Creates a directory on the remote server; fails when anything already exists there.
      */
     public void createDirectory(String remotePath) throws IOException {
         sftpClient.mkdir(remotePath);
+    }
+
+    /**
+     * Creates a directory unless it already exists, so uploading a folder again merges into it.
+     *
+     * @throws IOException when something that is not a directory is in the way, or the server refuses
+     */
+    public void createDirectoryIfMissing(String remotePath) throws IOException {
+        RemotePathSupport.ensureDirectory(sftpClient, remotePath);
+    }
+
+    /**
+     * Creates a directory and every missing parent; existing directories are kept.
+     */
+    public void createDirectories(String remotePath) throws IOException {
+        RemotePathSupport.mkdirs(sftpClient, remotePath);
     }
     
     /**
@@ -385,21 +471,28 @@ public class SFTPSession {
     }
     
     /**
-     * Copies a file or directory on the remote server.
+     * Copies a file or directory on the remote server. A folder copied onto an existing folder
+     * merges into it; a file of the same name is replaced.
+     *
+     * @throws IOException also when {@code destPath} is {@code sourcePath} itself or lies inside it
      */
     public void copyFile(String sourcePath, String destPath) throws IOException {
+        requireTargetOutsideSource(sourcePath, destPath);
+        copyTree(sourcePath, destPath);
+    }
+
+    private void copyTree(String sourcePath, String destPath) throws IOException {
         SftpClient.Attributes attrs = sftpClient.stat(sourcePath);
         if (attrs.isDirectory()) {
-            // Create destination directory
-            sftpClient.mkdir(destPath);
+            // Copying onto an existing folder merges into it
+            RemotePathSupport.ensureDirectory(sftpClient, destPath);
             // Copy contents recursively
             List<SftpClient.DirEntry> entries = listFiles(sourcePath);
             for (SftpClient.DirEntry entry : entries) {
                 String name = entry.getFilename();
                 if (name.equals(".") || name.equals("..")) continue;
-                String src = sourcePath.endsWith("/") ? sourcePath + name : sourcePath + "/" + name;
-                String dst = destPath.endsWith("/") ? destPath + name : destPath + "/" + name;
-                copyFile(src, dst);
+                copyTree(RemotePathSupport.appendRemotePath(sourcePath, name),
+                    RemotePathSupport.appendRemotePath(destPath, name));
             }
         } else {
             // Copy file
@@ -414,7 +507,60 @@ public class SFTPSession {
             }
         }
     }
-    
+
+    /**
+     * Refuses a copy onto the source itself or into a folder inside it. Onto itself, opening the
+     * target with truncate empties every file before it is read, and since a folder copy merges into
+     * an existing folder, that would wipe a whole tree; into itself, the copy never ends. Both paths
+     * are compared after the server resolved them, so {@code ..}, {@code .} and symbolic links count.
+     */
+    private void requireTargetOutsideSource(String sourcePath, String destPath) throws IOException {
+        String dest = withoutTrailingSlashes(destPath.trim());
+        String source = resolvedPath(sourcePath);
+        // A target that does not exist yet: its folder resolved by the server, plus its name.
+        String target = RemotePathSupport.exists(sftpClient, dest)
+            ? resolvedPath(dest)
+            : RemotePathSupport.appendRemotePath(
+                resolvedPath(RemotePathSupport.parentRemotePath(dest)), remoteName(dest));
+        if (isSameOrInside(target, source)) {
+            throw new IOException(I18n.get("sftp.error.copyIntoItself", sourcePath, destPath));
+        }
+    }
+
+    /** Whether {@code target} is {@code source} or lies below it; both absolute and normalized. */
+    static boolean isSameOrInside(String target, String source) {
+        if (target.equals(source)) {
+            return true;
+        }
+        return target.startsWith(source.endsWith("/") ? source : source + "/");
+    }
+
+    /** The server's canonical form of {@code remotePath}; the textual normal form if it cannot say. */
+    private String resolvedPath(String remotePath) {
+        try {
+            String canonical = sftpClient.canonicalPath(remotePath);
+            if (canonical != null && canonical.startsWith("/")) {
+                return RemotePathSupport.normalizeAbsolutePath(canonical);
+            }
+        } catch (IOException e) {
+            logger.debug("Could not resolve remote path {}: {}", remotePath, e.getMessage());
+        }
+        return RemotePathSupport.normalizeAbsolutePath(remotePath);
+    }
+
+    private static String remoteName(String remotePath) {
+        int slash = remotePath.lastIndexOf('/');
+        return slash >= 0 ? remotePath.substring(slash + 1) : remotePath;
+    }
+
+    private static String withoutTrailingSlashes(String remotePath) {
+        String path = remotePath;
+        while (path.length() > 1 && path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        return path;
+    }
+
     /**
      * Renames a file on the remote server.
      */
@@ -513,6 +659,8 @@ public class SFTPSession {
      * Closes the SFTP connection.
      */
     public void close() {
+        // First, so the close futures below never report this as a lost connection.
+        closingDeliberately = true;
         try {
             if (sftpClient != null) {
                 sftpClient.close();
@@ -535,7 +683,9 @@ public class SFTPSession {
     }
     
     public boolean isConnected() {
-        return sftpClient != null && session != null && session.isOpen();
+        SftpClient client = sftpClient;
+        ClientSession current = session;
+        return client != null && client.isOpen() && current != null && current.isOpen();
     }
     
     /**
@@ -694,7 +844,7 @@ public class SFTPSession {
         }
         
         if (keyPath == null || keyPath.trim().isEmpty()) {
-            throw new Exception("Kein SSH-Key-Pfad angegeben");
+            throw new Exception(I18n.get("sftp.error.noKeyPath"));
         }
         
         // A temporary SSH key is parsed in memory and never written to disk.
@@ -715,7 +865,7 @@ public class SFTPSession {
         
         java.nio.file.Path keyFilePath = java.nio.file.Paths.get(keyPath);
         if (!java.nio.file.Files.exists(keyFilePath)) {
-            throw new Exception("SSH-Key-Datei existiert nicht: " + keyPath);
+            throw new Exception(I18n.get("sftp.error.keyFileMissing", keyPath));
         }
         
         // Use passphrase from manager if available, otherwise from connection (decrypt only; never use plain)
@@ -746,7 +896,7 @@ public class SFTPSession {
             Iterable<java.security.KeyPair> keyPairs = keyPairProvider.loadKeys(session);
             
             if (keyPairs == null) {
-                throw new Exception("Konnte SSH-Key nicht laden: " + keyPath);
+                throw new Exception(I18n.get("sftp.error.keyLoadFailed", keyPath));
             }
             
             // Add all key pairs to session
@@ -757,13 +907,13 @@ public class SFTPSession {
             }
             
             if (count == 0) {
-                throw new Exception("Keine KeyPairs in SSH-Key-Datei gefunden: " + keyPath);
+                throw new Exception(I18n.get("sftp.error.noKeyPairs", keyPath));
             }
             
             logger.info("Added {} public key identity/identities from {}", count, keyPath);
         } catch (Exception e) {
             logger.error("Failed to load SSH key from " + keyPath, e);
-            throw new Exception("SSH-Key-Authentifizierung fehlgeschlagen: " + e.getMessage(), e);
+            throw new Exception(I18n.get("sftp.error.keyAuthFailed", safeFailureMessage(e)), e);
         }
     }
 }

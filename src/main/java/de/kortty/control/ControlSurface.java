@@ -1,6 +1,8 @@
 package de.kortty.control;
 
 import de.kortty.codingagent.PaneRef;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 
@@ -73,6 +75,15 @@ public interface ControlSurface {
 
     /** Whether the pane has enabled DECSET 2004. */
     boolean isBracketedPasteEnabled(String paneId);
+
+    /**
+     * The character encoding the pane's session decodes output with and encodes typed text in, so
+     * that text the API types arrives as the bytes the same keystrokes would produce; UTF-8 when the
+     * pane is unknown or its connector does not resolve one.
+     */
+    default Charset charsetOf(String paneId) {
+        return StandardCharsets.UTF_8;
+    }
 
     /** Whether korTTY's own AI shortcut filter would swallow {@code firstLine}. */
     boolean wouldHostShortcutIntercept(String firstLine);

@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiCostCalculator;
 import de.kortty.core.AiInternetAccessConfiguration;
+import de.kortty.core.AiOutboundRedaction;
 import de.kortty.core.AiCliArgumentPreset;
 import de.kortty.core.AiCliArgumentTemplate;
 import de.kortty.core.AiCliProviderDescriptor;
@@ -110,6 +111,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private final TextField profileNameField;
     private final ComboBox<AiConnectionMode> connectionModeCombo;
     private final TextField apiUrlField;
+    /** Opt-out from masking secrets; enabled only for an HTTP profile with a loopback URL. */
+    private final CheckBox trustedLocalEndpointCheck;
     private final ComboBox<String> modelCombo;
     private final TextField cliCustomModelField;
     private final Button refreshModelsButton;
@@ -185,6 +188,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         profileNameField = new TextField();
         connectionModeCombo = new ComboBox<>();
         apiUrlField = new TextField();
+        trustedLocalEndpointCheck = new CheckBox(I18n.get("settings.ai.trustedLocalEndpoint"));
+        trustedLocalEndpointCheck.setTooltip(new Tooltip(I18n.get("settings.ai.trustedLocalEndpoint.tooltip")));
         modelCombo = new ComboBox<>();
         modelCombo.setEditable(true);
         ComboBoxEditorSync.install(modelCombo);
@@ -529,6 +534,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         editorGrid.add(new Label(I18n.get("settings.ai.apiUrl")), 0, row);
         apiUrlField.setPrefWidth(360);
         editorGrid.add(apiUrlField, 1, row++);
+        trustedLocalEndpointCheck.setWrapText(true);
+        editorGrid.add(trustedLocalEndpointCheck, 1, row++);
 
         editorGrid.add(new Label(I18n.get("settings.ai.cli.provider")), 0, row);
         cliProviderCombo.setPrefWidth(260);
@@ -594,6 +601,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             refreshLocalModels(false);
             // Typing or pasting an Anthropic Messages URL locks the internet mode at once.
             updateInternetAccessUi();
+            updateTrustedLocalEndpointUi();
         });
         modelCombo.getEditor().textProperty().addListener((obs, oldValue, newValue) ->
             refreshReasoningOptions(reasoningCombo.getValue()));
@@ -1682,6 +1690,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         apiKeyField.setDisable(managedLocalMode);
         clearApiKeyCheck.setDisable(managedLocalMode || (apiKeyField.getText() != null && !apiKeyField.getText().isBlank()));
         updateInternetAccessUi();
+        updateTrustedLocalEndpointUi();
         refreshModelsButton.setDisable(cliMode
             || (!embeddedMode && !LocalLmModelResolver.canListModels(trimToNull(apiUrlField.getText()))));
         refreshReasoningButton.setDisable(selectedProfile == null || profileTestRunning.get());
@@ -1723,6 +1732,15 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         }
         internetUnsupportedHintLabel.setVisible(lockedToDisabled);
         internetUnsupportedHintLabel.setManaged(lockedToDisabled);
+    }
+
+    /**
+     * The "trusted local endpoint" option only means something for an HTTP profile on a loopback
+     * URL; otherwise it is greyed out and not stored (see {@link #snapshotSelectedProfileState}).
+     */
+    private void updateTrustedLocalEndpointUi() {
+        trustedLocalEndpointCheck.setDisable(!AiOutboundRedaction.canTrustLocalEndpoint(
+            connectionModeCombo.getValue(), trimToNull(apiUrlField.getText())));
     }
 
     /**
@@ -1776,6 +1794,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         selectedProfile.setName(trimToNull(profileNameField.getText()));
         selectedProfile.setConnectionMode(connectionModeCombo.getValue());
         selectedProfile.setApiUrl(trimToNull(apiUrlField.getText()));
+        selectedProfile.setTrustedLocalEndpoint(trustedLocalEndpointCheck.isSelected()
+            && AiOutboundRedaction.canTrustLocalEndpoint(selectedProfile.getConnectionMode(), selectedProfile.getApiUrl()));
         selectedProfile.setCliProviderId(selectedCliProviderId());
         selectedProfile.setCliExecutablePath(trimToNull(cliExecutableField.getText()));
         selectedProfile.setCliArgumentsTemplate(trimToNull(cliArgumentsTemplateArea.getText()));
@@ -1853,6 +1873,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             profileNameField.clear();
             connectionModeCombo.setValue(AiConnectionMode.HTTP_API);
             apiUrlField.clear();
+            trustedLocalEndpointCheck.setSelected(false);
             cliProviderCombo.getSelectionModel().select(AiCliProviderRegistry.defaultProvider());
             cliExecutableField.clear();
             cliArgumentsTemplateArea.clear();
@@ -1891,6 +1912,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         profileNameField.setText(profile.getName() != null ? profile.getName() : "");
         connectionModeCombo.setValue(profile.getConnectionMode());
         apiUrlField.setText(profile.getApiUrl() != null ? profile.getApiUrl() : "");
+        trustedLocalEndpointCheck.setSelected(profile.isTrustedLocalEndpoint());
         cliProviderCombo.getSelectionModel().select(
             AiCliProviderRegistry.find(profile.getCliProviderId()).orElse(AiCliProviderRegistry.defaultProvider()));
         cliExecutableField.setText(profile.getCliExecutablePath() != null ? profile.getCliExecutablePath() : "");
@@ -1996,10 +2018,12 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             String plainApiKey = plainApiKeysByProfileId.get(copy.getId());
             if (plainApiKey != null && !plainApiKey.isBlank()) {
                 char[] masterPassword = app.getMasterPasswordManager() != null ? app.getMasterPasswordManager().getMasterPassword() : null;
+                if (masterPassword == null && !quiet) {
+                    // Offers Unlock Vault…; null means the user has seen the locked message already.
+                    masterPassword = VaultUnlockSupport.masterPasswordOrOfferUnlock(
+                        vaultPromptOwner(), app.getMasterPasswordManager(), I18n.get("settings.ai.error.vaultLocked"));
+                }
                 if (masterPassword == null) {
-                    if (!quiet) {
-                        showSimpleAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.vaultLocked"));
-                    }
                     return false;
                 }
                 try {
@@ -2421,6 +2445,12 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         } catch (Exception e) {
             return fallback;
         }
+    }
+
+    private javafx.stage.Window vaultPromptOwner() {
+        return getDialogPane().getScene() != null && getDialogPane().getScene().getWindow() != null
+            ? getDialogPane().getScene().getWindow()
+            : ownerWindow.getStage();
     }
 
     private void showSimpleAlert(Alert.AlertType type, String message) {

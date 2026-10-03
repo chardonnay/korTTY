@@ -451,23 +451,11 @@ public class LocalFileBrowser extends VBox {
     }
 
     private Node buildLoadingOverlay() {
-        ProgressIndicator indicator = new ProgressIndicator();
-        indicator.setMaxSize(36, 36);
-        Label label = new Label(I18n.get("filebrowser.loading"));
-        VBox box = new VBox(8, indicator, label);
-        box.setAlignment(javafx.geometry.Pos.CENTER);
-        box.getStyleClass().add("file-browser-loading");
-        box.setVisible(false);
-        box.setManaged(false);
-        box.setMouseTransparent(true);
-        return box;
+        return FileBrowserLoadingOverlay.create();
     }
 
     private void showLoading(boolean loading) {
-        if (loadingOverlay != null) {
-            loadingOverlay.setVisible(loading);
-            loadingOverlay.setManaged(loading);
-        }
+        FileBrowserLoadingOverlay.show(loadingOverlay, loading);
     }
 
     // ---- Keyboard / drop / rename / copy-path ----

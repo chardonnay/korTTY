@@ -10,8 +10,8 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++ctrl+w++ | Tab schließen |
 | ++ctrl+shift+n++ | Neues Fenster |
 | ++ctrl+shift+w++ | Fenster schließen |
-| ++ctrl+tab++ | Nächste Registerkarte |
-| ++ctrl+shift+tab++ | Vorheriger Tab |
+| ++ctrl+tab++ | Nächster Tab (++ctrl++ auch auf macOS) |
+| ++ctrl+shift+tab++ | Vorheriger Tab (++ctrl++ auch auf macOS) |
 | ++ctrl+o++ | Projekt öffnen |
 | ++ctrl+s++ | Projekt speichern |
 | ++ctrl+shift+b++ | Backup erstellen |
@@ -19,7 +19,7 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++ctrl+x++ | Ausschneiden (deaktiviert für Anschlusslaschen) |
 | ++ctrl+c++ | Kopie |
 | ++ctrl+v++ | Einfügen |
-| ++ctrl+f++ | Suchen Sie im aktiven Tab |
+| ++ctrl+f++ | Suchen im aktiven Tab (in einem fokussierten Terminal auf Windows und Linux geht die Taste zur Shell, siehe [Terminal](#terminal)) |
 | ++ctrl+k++ | Schnellverbindung |
 | ++ctrl+m++ | Verbindungen verwalten |
 | ++ctrl+shift+u++ | SFTP-Client |
@@ -57,6 +57,37 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++ctrl+shift+f++ | Schalten Sie den Nur-Terminal-Vollbildmodus um |
 
 Die Zoom-Tasten (++ctrl++ oder ++alt++ mit ++plus++ / ++minus++ / ++0++; ++cmd++ auf macOS) vergrößern das Terminal nur, wenn ein Terminal-Tab ausgewählt ist. In einem Snippet-Editor oder Dateieditor-Tab erreichen sie den Editor, und ++alt-graph+plus++ tippt dort sein Zeichen.
+
+## Terminal
+
+Diese Tasten funktionieren, solange ein Terminalbereich den Fokus hat. Wie sie sich bei mehreren Bereichen verhalten, siehe [Broadcast-Modus](../features/terminal.md#broadcast-modus).
+
+| Verknüpfung | Aktion |
+| --- | --- |
+| ++ctrl+shift+c++ / ++ctrl+shift+v++ | Terminalauswahl kopieren / in das Terminal einfügen (Windows und Linux; ++cmd+c++ / ++cmd+v++ auf macOS) |
+| ++ctrl+l++ (Windows und Linux) | An die Shell gesendet: zeichnet den Bildschirm neu oder löscht den Bildschirm in bash, psql oder einer REPL, und der Scrollback bleibt erhalten |
+| ++ctrl+f++ (Windows und Linux) | An die Shell gesendet: bewegt den Cursor um ein Zeichen vorwärts bei einem Bash-Prompt und scrollt vorwärts in `less` oder `vim` |
+| ++cmd+k++ (macOS) | Puffer löschen: den Terminalbildschirm und seinen Scrollback leeren |
+| ++cmd+f++ (macOS) | Suchen im Terminal-Scrollback |
+| ++shift+tab++ | Back-tab (`ESC [ Z`), zum Beispiel um in einem Vollbildprogramm ein Feld oder einen Tab zurückzugehen |
+| ++ctrl+left++ / ++ctrl+right++ | In der Shell ein Wort nach links / rechts springen (Windows und Linux) |
+| ++option+left++ / ++option+right++ | Unter macOS ein Wort nach links / rechts springen (sendet `ESC b` / `ESC f` wie Terminal.app) |
+| ++shift+page-up++ / ++shift+page-down++ | Den Scrollback von korTTY um eine Seite scrollen; in einem Vollbildprogramm wie `vim`, `less` oder `mc` geht die Taste an das Programm |
+| ++ctrl+up++ / ++ctrl+down++ | Den Scrollback von korTTY um eine Zeile scrollen (++cmd+up++ / ++cmd+down++ unter macOS); unter Windows und Linux gehen die Tasten stattdessen an ein laufendes Vollbildprogramm |
+| ++ctrl+tab++ / ++ctrl+shift+tab++ | Nächster / vorheriger Tab, auch wenn das Terminal den Fokus hat (auch unter macOS mit ++ctrl++) |
+
+Auf Windows und Linux haben **Puffer löschen** und **Suchen** keine eigenen Tasten, daher bleiben ++ctrl+l++ und ++ctrl+f++ bei den Programmen, die im Terminal laufen. Verwenden Sie Rechtsklick → **Puffer löschen** oder **Suchen** im Terminal, oder **Bearbeiten → Suchen…** mit der Maus. ++ctrl+shift+f++ bleibt **Nur korTTY Applikationsfenster**, und ++ctrl+shift+k++ dockt den Dateibrowser weiterhin links an.
+
+Jede andere Kombination von ++shift++, ++ctrl++ und ++alt++ mit den Pfeiltasten, ++home++ / ++end++, ++page-up++ / ++page-down++, ++insert++ / ++delete++ und ++f1++ bis ++f11++ wird so gesendet, wie xterm es sendet (++f12++ schaltet immer den Vollbildmodus um), zum Beispiel ++ctrl+page-up++ als `ESC [ 5 ; 5 ~` und ++shift+f1++ als `ESC [ 1 ; 2 P`. Die Pfeiltasten folgen dem Cursor-Key-Modus des Programms: `mc` und `vim` schalten ihn ein und dann empfangen sie `ESC O A`, während eine Shell `ESC [ A` erhält. Verbindungen mit einer Nicht-xterm-Terminalemulation (Wyse, TeleVideo, HP, SCO ANSI, IBM 3270/5250, PETSCII) senden weiterhin feste Sequenzen ohne Modifikatoren.
+
+## SFTP-Manager
+
+Diese Tasten funktionieren in der lokalen und der entfernten Liste eines SFTP-Manager-Tabs; siehe [Tasten](../features/sftp.md#tasten).
+
+| Verknüpfung | Aktion |
+| --- | --- |
+| ++f2++ | Ausgewählten Eintrag umbenennen |
+| ++delete++ oder ++ctrl+backspace++ | Auswahl nach Bestätigung löschen |
 
 ## Snippet-Manager
 

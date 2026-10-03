@@ -2,6 +2,7 @@ package de.kortty.control;
 
 import de.kortty.codingagent.KeyChord;
 import java.io.ByteArrayOutputStream;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -62,12 +63,22 @@ public final class ControlKeyTable {
      *     the vocabulary — never {@link IllegalArgumentException}
      */
     public static byte[] encode(String keyName) throws ControlApiException {
+        return encode(keyName, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * {@link #encode(String)} with a single printable character in {@code charset}, the pane's
+     * terminal encoding. The named keys are ASCII sequences in every encoding korTTY offers.
+     *
+     * @param charset the pane's encoding; UTF-8 when null
+     */
+    public static byte[] encode(String keyName, Charset charset) throws ControlApiException {
         String canonical = canonicalise(keyName);
         byte[] bytes = TABLE.get(canonical);
         if (bytes != null) {
             return bytes.clone();
         }
-        return canonical.getBytes(StandardCharsets.UTF_8);
+        return canonical.getBytes(charset != null ? charset : StandardCharsets.UTF_8);
     }
 
     /**
@@ -77,10 +88,15 @@ public final class ControlKeyTable {
      *     {@link ControlErrorCode#UNKNOWN_KEY} for an unknown name
      */
     public static byte[] encodeAll(List<String> keyNames) throws ControlApiException {
+        return encodeAll(keyNames, StandardCharsets.UTF_8);
+    }
+
+    /** {@link #encodeAll(List)} with single printable characters in {@code charset}. */
+    public static byte[] encodeAll(List<String> keyNames, Charset charset) throws ControlApiException {
         requireKeys(keyNames);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         for (String name : keyNames) {
-            out.writeBytes(encode(name));
+            out.writeBytes(encode(name, charset));
         }
         return out.toByteArray();
     }

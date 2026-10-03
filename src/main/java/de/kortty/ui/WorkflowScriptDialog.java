@@ -347,6 +347,14 @@ public final class WorkflowScriptDialog extends ThemeAwareDialog<Void> {
         if (generating) {
             return;
         }
+        // One unlock offer up front — otherwise every parallel suggestion fails on its own.
+        if (generator.requiresVaultUnlock(runData)
+            && !VaultUnlockSupport.offerUnlock(
+                getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+                I18n.get("ai.workflow.error.vaultLocked"))) {
+            setStatus(I18n.get("ai.workflow.error.vaultLocked"), true);
+            return;
+        }
         List<ScriptLanguage> languages = generationLanguages();
         int count = suggestionsSpinner.getValue() != null ? suggestionsSpinner.getValue() : 1;
         disposeResultEditors();
