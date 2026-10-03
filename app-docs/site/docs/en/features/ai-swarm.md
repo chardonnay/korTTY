@@ -71,7 +71,7 @@ Switching the checkbox on first shows the cost warning with an estimate of the t
 
 The toolbar offers the same four controls for the **whole swarm**: **Pause**, **Resume**, **Restart**, and **Stop**. Pausing is cooperative — each agent pauses at its next safe checkpoint (the badge shows *Pausing…* until it takes effect), and elapsed timers stop while paused.
 
-Closing the swarm tab stops a running swarm or script run like **Stop**, whether you close it with its close button, **Close Tab** (++ctrl+w++, ++cmd+w++ on macOS), **Close All Tabs**, by opening a project or by closing the window, so no agent goes on running commands on its server after the tab is gone.
+Closing the swarm tab stops a running swarm or script run like **Stop**, whether you close it with its close button, **Close Tab** (++ctrl+w++, ++cmd+w++ on macOS), **Close Other Tabs**, **Close Tabs to the Right**, **Close All Tabs**, by opening a project or by closing the window, so no agent goes on running commands on its server after the tab is gone.
 
 ## Read-only mode and approvals
 

@@ -1349,6 +1349,13 @@ public class MainWindow {
         closeTab.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN));
         closeTab.setOnAction(e -> closeCurrentTab());
 
+        // Both act around the selected tab of any kind; no shortcut either.
+        MenuItem closeOthers = new MenuItem(I18n.get("menu.file.closeOtherTabs"));
+        closeOthers.setOnAction(e -> closeOtherTabs(tabPane.getSelectionModel().getSelectedItem()));
+
+        MenuItem closeToRight = new MenuItem(I18n.get("menu.file.closeTabsToRight"));
+        closeToRight.setOnAction(e -> closeTabsToTheRight(tabPane.getSelectionModel().getSelectedItem()));
+
         MenuItem closeAllTabs = new MenuItem(I18n.get("menu.file.closeAllTabs"));
         closeAllTabs.setOnAction(e -> confirmAndCloseAllTabs());
 
@@ -1380,11 +1387,14 @@ public class MainWindow {
         quit.setOnAction(e -> requestApplicationQuit());
 
         // Both macOS menu bars come from this factory, so each one sets its own state when it opens.
-        fileMenu.setOnShowing(e -> renameTab.setDisable(
-            !(tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab)));
+        fileMenu.setOnShowing(e -> {
+            Tab selected = tabPane.getSelectionModel().getSelectedItem();
+            renameTab.setDisable(!(selected instanceof TerminalTab));
+            syncTabCloseItems(selected, closeOthers, closeToRight);
+        });
 
         fileMenu.getItems().addAll(
-            newTab, renameTab, closeTab, closeAllTabs, new SeparatorMenuItem(),
+            newTab, renameTab, closeTab, closeOthers, closeToRight, closeAllTabs, new SeparatorMenuItem(),
             newWindow, closeWindow, new SeparatorMenuItem(),
             openProject, saveProject, new SeparatorMenuItem(),
             createBackup, importBackup, new SeparatorMenuItem(), quit);
@@ -3422,20 +3432,33 @@ public class MainWindow {
         /** File → Close Tab, Cmd/Ctrl+W. */
         CLOSE_TAB_COMMAND,
         /** Close in a Dashboard connection's context menu. */
-        DASHBOARD
+        DASHBOARD,
+        /** Close Other Tabs, in the tab context menu or the File menu. */
+        CLOSE_OTHERS,
+        /** Close Tabs to the Right, in the tab context menu or the File menu. */
+        CLOSE_TO_RIGHT
+    }
+
+    /** {@link #closeTabsByUser(List, Tab, CloseCause)} for a command that keeps no tab selected. */
+    private boolean closeTabsByUser(List<Tab> tabs, CloseCause cause) {
+        return closeTabsByUser(tabs, null, cause);
     }
 
     /**
      * Closes tabs on the user's request from a command other than the tab's own close button.
      * Removing a tab from the list fires none of its close events, so this asks what the close
-     * button would ask first (a busy terminal, a hosted snippet editor with unsaved changes); a
-     * single Cancel keeps every tab open. Then it records, disposes and removes them in one go.
-     * Tabs that close on their own (a session that ended), moves between windows, regrouping and
-     * window teardown do not come here.
+     * button would ask first (a busy terminal, a hosted snippet editor with unsaved changes; for
+     * several tabs one question covers the terminals, see {@link #confirmUserCloseAll}); a single
+     * Cancel keeps every tab open. Then it records, disposes and removes them in one go. Tabs that
+     * close on their own (a session that ended), moves between windows, regrouping and window
+     * teardown do not come here.
      *
+     * @param keepSelected the tab the command acts around (Close Other Tabs, Close Tabs to the
+     *     Right), or {@code null}: it is selected before the others go, so the selection does not
+     *     wander through the closing tabs
      * @return {@code true} when the tabs were closed
      */
-    private boolean closeTabsByUser(List<Tab> tabs, CloseCause cause) {
+    private boolean closeTabsByUser(List<Tab> tabs, Tab keepSelected, CloseCause cause) {
         List<Tab> targets = new ArrayList<>();
         for (Tab tab : tabs) {
             // A stale Dashboard row may still name a tab that moved to another window.
@@ -3446,19 +3469,89 @@ public class MainWindow {
         if (targets.isEmpty()) {
             return false;
         }
-        for (Tab tab : targets) {
-            if (!confirmUserClose(tab)) {
-                return false;
-            }
+        if (!confirmUserCloseAll(targets)) {
+            return false;
         }
         // A session that ended while its question was open closed its tab itself and released it.
         targets.removeIf(tab -> !tabPane.getTabs().contains(tab));
+        if (keepSelected != null && !targets.contains(keepSelected) && tabPane.getTabs().contains(keepSelected)) {
+            tabPane.getSelectionModel().select(keepSelected);
+        }
         recordUserClosedTabs(targets, cause);
         for (Tab tab : targets) {
             disposeTabContent(tab);
         }
         tabPane.getTabs().removeAll(targets);
         return true;
+    }
+
+    /**
+     * What closing {@code targets} asks first; {@code true} when they may all close. A single tab
+     * asks what its close button would ask. Several tabs ask one question for all the terminals
+     * among them that would ask on their own, then each hosted editor with unsaved work, selected so
+     * the user sees which one asks; the editors go last because their Save choice already saves.
+     */
+    private boolean confirmUserCloseAll(List<Tab> targets) {
+        if (targets.size() == 1) {
+            return confirmUserClose(targets.get(0));
+        }
+        return confirmBusyTerminalsClose(targets)
+            && HostedCloseGuards.confirmTabs(targets, tab -> tabPane.getSelectionModel().select(tab));
+    }
+
+    /**
+     * One question instead of one per terminal: how many tabs close, and in how many of them the
+     * close button would have asked ({@link TerminalTab#needsCloseConfirmation()}: split panes or a
+     * command still running). Idle terminals and other tabs alone ask nothing, and neither does
+     * anything when the setting to close active terminals without confirmation is on.
+     */
+    private boolean confirmBusyTerminalsClose(List<Tab> targets) {
+        int busyTerminals = 0;
+        for (Tab tab : targets) {
+            if (tab instanceof TerminalTab terminalTab && terminalTab.needsCloseConfirmation()) {
+                busyTerminals++;
+            }
+        }
+        GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
+        boolean closeActiveWithoutConfirmation = globalSettings != null
+            && globalSettings.isCloseActiveTerminalWindowsWithoutConfirmation();
+        if (!TabCloseTargets.needsSummaryConfirmation(busyTerminals, closeActiveWithoutConfirmation)) {
+            return true;
+        }
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.applyTheme(alert);
+        alert.initOwner(stage);
+        alert.setTitle(I18n.get("dialog.closeTabs.title"));
+        alert.setHeaderText(I18n.get("dialog.closeTabs.header", targets.size()));
+        alert.setContentText(I18n.get("dialog.closeTabs.content", busyTerminals));
+        return alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
+    }
+
+    /** Close Other Tabs: every closable tab of this window except {@code anchor}, which stays selected. */
+    private void closeOtherTabs(Tab anchor) {
+        closeTabsAround(anchor, TabCloseTargets.others(tabPane.getTabs(), anchor), CloseCause.CLOSE_OTHERS);
+    }
+
+    /** Close Tabs to the Right: the closable tabs after {@code anchor}, which stays selected. */
+    private void closeTabsToTheRight(Tab anchor) {
+        closeTabsAround(anchor, TabCloseTargets.toTheRight(tabPane.getTabs(), anchor), CloseCause.CLOSE_TO_RIGHT);
+    }
+
+    private void closeTabsAround(Tab anchor, List<Tab> targets, CloseCause cause) {
+        if (closeTabsByUser(targets, anchor, cause)) {
+            updateDashboard();
+            // The group lists of the remaining tabs' menus no longer offer groups that just closed.
+            updateAllTabContextMenus();
+        }
+    }
+
+    /**
+     * Disables Close Other Tabs and Close Tabs to the Right while they would close nothing around
+     * {@code anchor}. Called when their menu opens: tabs open, close and move in the meantime.
+     */
+    private void syncTabCloseItems(Tab anchor, MenuItem closeOthers, MenuItem closeToRight) {
+        closeOthers.setDisable(TabCloseTargets.others(tabPane.getTabs(), anchor).isEmpty());
+        closeToRight.setDisable(TabCloseTargets.toTheRight(tabPane.getTabs(), anchor).isEmpty());
     }
 
     /** The question the tab's close button would ask; {@code true} when it may close. */
@@ -11067,6 +11160,15 @@ public class MainWindow {
             journalMenu.getItems().addAll(journalToggleItem, journalShotItem, journalNoteItem);
             contextMenu.getItems().add(journalMenu);
         }
+
+        contextMenu.getItems().add(new SeparatorMenuItem());
+        MenuItem closeOthersItem = new MenuItem(I18n.get("tab.contextMenu.closeOthers"));
+        closeOthersItem.setOnAction(e -> closeOtherTabs(terminalTab));
+        MenuItem closeToRightItem = new MenuItem(I18n.get("tab.contextMenu.closeToRight"));
+        closeToRightItem.setOnAction(e -> closeTabsToTheRight(terminalTab));
+        contextMenu.getItems().addAll(closeOthersItem, closeToRightItem);
+        // The menu is built once per tab, so whether there is anything to close is decided as it opens.
+        contextMenu.setOnShowing(e -> syncTabCloseItems(terminalTab, closeOthersItem, closeToRightItem));
 
         if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
             contextMenu.getItems().add(new SeparatorMenuItem());

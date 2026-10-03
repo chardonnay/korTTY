@@ -31,7 +31,14 @@ class TabBasicsI18nCoverageTest {
             "tab.contextMenu.rename",
             "dialog.renameTab.title",
             "dialog.renameTab.header",
-            "dialog.renameTab.prompt");
+            "dialog.renameTab.prompt",
+            "menu.file.closeOtherTabs",
+            "menu.file.closeTabsToRight",
+            "tab.contextMenu.closeOthers",
+            "tab.contextMenu.closeToRight",
+            "dialog.closeTabs.title",
+            "dialog.closeTabs.header",
+            "dialog.closeTabs.content");
 
     @Test
     void everyTabBasicsKeyExistsInEveryBundledLocale() throws Exception {
@@ -52,6 +59,17 @@ class TabBasicsI18nCoverageTest {
         for (String bundle : BUNDLES) {
             assertWithMessage(bundle + " drops the connection name placeholder from dialog.renameTab.header")
                     .that(loadBundle(bundle).getProperty("dialog.renameTab.header")).contains("{0}");
+        }
+    }
+
+    @Test
+    void theCloseTabsQuestionCountsTheTabsAndTheBusyOnes() throws Exception {
+        for (String bundle : BUNDLES) {
+            Properties localized = loadBundle(bundle);
+            assertWithMessage(bundle + " drops the tab count from dialog.closeTabs.header")
+                    .that(localized.getProperty("dialog.closeTabs.header")).contains("{0}");
+            assertWithMessage(bundle + " drops the busy-terminal count from dialog.closeTabs.content")
+                    .that(localized.getProperty("dialog.closeTabs.content")).contains("{0}");
         }
     }
 

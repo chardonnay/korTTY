@@ -120,8 +120,8 @@ class AiTabCloseCancellationTest {
         assertThat(swarmBranch.indexOf("swarmTab.cancelForClose();"))
             .isLessThan(swarmBranch.indexOf("swarmTab.handleTabClosed();"));
 
-        assertWithMessage("Close Tab and the Dashboard's Close release through disposeTabContent")
-            .that(methodBody(window, "private boolean closeTabsByUser(List<Tab> tabs, CloseCause cause) {"))
+        assertWithMessage("Close Tab, the Dashboard's Close and Close Other Tabs/to the Right release through disposeTabContent")
+            .that(methodBody(window, "private boolean closeTabsByUser(List<Tab> tabs, Tab keepSelected, CloseCause cause) {"))
             .contains("disposeTabContent(tab);");
         assertWithMessage("Close All Tabs, opening a project and closing the window release through disposeTabContent")
             .that(methodBody(window, "private void closeAllTabs() {"))
