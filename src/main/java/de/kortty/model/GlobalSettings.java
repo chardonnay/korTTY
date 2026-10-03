@@ -353,6 +353,14 @@ public class GlobalSettings {
     private boolean closeActiveTerminalWindowsWithoutConfirmation = false; // Ask before closing active terminal windows by default
 
     /**
+     * Desktop notification when a program rings the bell in a terminal tab the user is not looking
+     * at. Off by default: shells ring on every failed Tab completion. The tab's bell mark does not
+     * depend on it.
+     */
+    @XmlElement
+    private boolean terminalBellNotificationsEnabled = false;
+
+    /**
      * When a terminal paste with line breaks asks for confirmation: the {@link PasteWarningMode#id()}
      * {@code off}, {@code unless-bracketed} or {@code always}. Missing, blank or unknown values mean
      * {@code unless-bracketed}, so a damaged file never switches paste protection off.
@@ -2069,6 +2077,18 @@ public class GlobalSettings {
 
     public void setCloseActiveTerminalWindowsWithoutConfirmation(boolean closeActiveTerminalWindowsWithoutConfirmation) {
         this.closeActiveTerminalWindowsWithoutConfirmation = closeActiveTerminalWindowsWithoutConfirmation;
+    }
+
+    /**
+     * Whether a bell in a terminal tab the user is not looking at also shows a desktop notification,
+     * at most one per pane every 10 seconds. Read on every bell, so a change applies at once.
+     */
+    public boolean isTerminalBellNotificationsEnabled() {
+        return terminalBellNotificationsEnabled;
+    }
+
+    public void setTerminalBellNotificationsEnabled(boolean terminalBellNotificationsEnabled) {
+        this.terminalBellNotificationsEnabled = terminalBellNotificationsEnabled;
     }
 
     /** When a terminal paste with line breaks asks for confirmation; never null. */

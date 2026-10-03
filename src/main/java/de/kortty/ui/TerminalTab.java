@@ -135,6 +135,15 @@ public class TerminalTab extends Tab {
     // title can be re-rendered with the badge without losing the suffix.
     private volatile String agentStatusBadge = "";
     private volatile String lastTitleSuffix = "";
+    /** The mark a tab gets when a program in it asks for attention while the user is not looking at it. */
+    static final String ATTENTION_BADGE = "🔔";
+    /**
+     * The attention mark in the title, {@link #ATTENTION_BADGE} or ""; it follows the agent status.
+     * Set by {@link TerminalAttentionNotifier}, cleared when the tab is seen. FX thread only.
+     */
+    private String attentionBadge = "";
+    /** Why the tab is marked, for its tooltip; null while it is not. FX thread only. */
+    private String attentionLine;
     /**
      * The tab header's graphic: one container for the tab's decorations, so markers added later sit
      * beside the connection color dot. Set as the graphic only while it holds something.
@@ -169,6 +178,8 @@ public class TerminalTab extends Tab {
             Platform.runLater(() -> takeJournalScreenshot(widget)));
         this.terminalView.setJournalNoteHandler(() -> Platform.runLater(this::addJournalNote));
         this.terminalView.setShellTitleListener(this::onShellTitleChanged);
+        // A bell in a pane the user is not looking at marks the tab and may notify (Settings → Terminal).
+        this.terminalView.setBellListener(widget -> TerminalAttentionNotifier.shared().onBell(this, widget));
 
         // Create status bar (connection duration / key validity)
         createStatusBar();
@@ -1675,14 +1686,14 @@ public class TerminalTab extends Tab {
         String effectiveSuffix = suffix != null ? suffix : "";
         lastTitleSuffix = effectiveSuffix;
         Platform.runLater(() -> setText(composeTitle(
-            List.of(agentStatusBadge), tabGroup, getEffectiveTitle(), effectiveSuffix)));
+            List.of(agentStatusBadge, attentionBadge), tabGroup, getEffectiveTitle(), effectiveSuffix)));
     }
 
     /**
      * The tab title from its slots, in this order: the badges, the {@code [group]} prefix of the tab
      * group (not the connection group), the tab's name and the connection-status suffix such as
-     * {@code " (DISCONNECT)"}. {@code badges} is in slot order; the AI-agent status is the only one
-     * so far, and badges added later (for example an activity marker) go after it. Empty badges and
+     * {@code " (DISCONNECT)"}. {@code badges} is in slot order: the AI-agent status, then the
+     * attention mark ({@link #ATTENTION_BADGE}); badges added later go after them. Empty badges and
      * a blank group are left out.
      */
     static String composeTitle(List<String> badges, String group, String name, String suffix) {
@@ -1872,7 +1883,7 @@ public class TerminalTab extends Tab {
             ? I18n.get("tab.tooltip.shellTitle", getConnectionTitle())
             : null;
         String text = tooltipText(I18n.get("tab.tooltip.connection", connectionEndpoint()), shellLine,
-            connectionColorLine);
+            connectionColorLine, attentionLine);
         if (text == null) {
             setTooltip(null);
         } else if (getTooltip() != null) {
@@ -1888,11 +1899,20 @@ public class TerminalTab extends Tab {
      * shell note nor a color, since the connection line alone would only repeat the tab's name.
      */
     static String tooltipText(String connectionLine, String shellTitleLine, String colorLine) {
-        if ((shellTitleLine == null || shellTitleLine.isBlank()) && (colorLine == null || colorLine.isBlank())) {
+        return tooltipText(connectionLine, shellTitleLine, colorLine, null);
+    }
+
+    /**
+     * {@link #tooltipText(String, String, String)} with the reason for the attention mark as the last
+     * line, which also makes a tooltip on its own, so the mark is always explained in words.
+     */
+    static String tooltipText(String connectionLine, String shellTitleLine, String colorLine, String attentionLine) {
+        if ((shellTitleLine == null || shellTitleLine.isBlank()) && (colorLine == null || colorLine.isBlank())
+                && (attentionLine == null || attentionLine.isBlank())) {
             return null;
         }
         java.util.StringJoiner text = new java.util.StringJoiner("\n");
-        for (String line : java.util.Arrays.asList(connectionLine, shellTitleLine, colorLine)) {
+        for (String line : java.util.Arrays.asList(connectionLine, shellTitleLine, colorLine, attentionLine)) {
             if (line != null && !line.isBlank()) {
                 text.add(line);
             }
@@ -1907,6 +1927,33 @@ public class TerminalTab extends Tab {
         }
         String endpoint = effectiveTitle(null, null, null, connection.getUsername(), connection.getHost());
         return endpoint.isEmpty() ? getConnectionTitle() : endpoint;
+    }
+
+    /**
+     * Marks the tab with {@link #ATTENTION_BADGE} after the agent status, and adds {@code reason} to
+     * its tooltip, until the user looks at the tab ({@link #clearAttention}). A later reason replaces
+     * the earlier one. FX thread.
+     */
+    public void markAttention(String reason) {
+        String line = reason != null && !reason.isBlank() ? reason : null;
+        if (ATTENTION_BADGE.equals(attentionBadge) && java.util.Objects.equals(line, attentionLine)) {
+            return;
+        }
+        attentionBadge = ATTENTION_BADGE;
+        attentionLine = line;
+        updateTabTitle(lastTitleSuffix);
+        refreshTooltip();
+    }
+
+    /** Removes the attention mark: the user is looking at the tab now. FX thread. */
+    public void clearAttention() {
+        if (attentionBadge.isEmpty() && attentionLine == null) {
+            return;
+        }
+        attentionBadge = "";
+        attentionLine = null;
+        updateTabTitle(lastTitleSuffix);
+        refreshTooltip();
     }
 
     /** Sets the AI-agent status badge (✋/⚡/⏸/✓ or "") shown as a prefix on the tab title. */

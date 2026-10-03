@@ -4,7 +4,7 @@ title: Terminal
 
 # Terminal
 
-Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, keyword highlighting, links, paste protection, and SSH connection management. Open via **Configuration → Global Settings → Terminal**; stored in `~/.kortty/global-settings.xml`.
+Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, keyword highlighting, links, paste protection, notifications, and SSH connection management. Open via **Configuration → Global Settings → Terminal**; stored in `~/.kortty/global-settings.xml`.
 
 ![Terminal settings tab](../../assets/screenshots/settings/terminal.png)
 
@@ -28,6 +28,7 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Warn about multi-line pastes: | dropdown | Off, Unless the program uses bracketed paste, Always | Unless the program uses bracketed paste | `pasteWarningMode` |
 | Warn about pastes larger than: | number | 0–10,240 KiB (0 = off) | 5 | `pasteLargeWarningKiB` |
 | Pause after each pasted line: | number | 0–1,000 ms (0 = off) | 0 | `pasteLineDelayMs` |
+| Desktop notification when the bell rings in a tab you are not looking at | toggle | — | Off | `terminalBellNotificationsEnabled` |
 | Enable SSH Keep-Alive | toggle | — | On | `sshKeepAliveEnabled` |
 | Interval (seconds): | number | 5–600 | 60 | `sshKeepAliveInterval` |
 | Enable connection retries | toggle | — | On | `connectionRetriesEnabled` |
@@ -74,6 +75,9 @@ Configure terminal display and behavior settings, including dimensions, scrollba
     **Pause after each pasted line** is for devices such as switches, routers and console servers that lose input arriving too fast: a paste with several lines is sent one line at a time, with this many milliseconds after each line. While it runs, the pane takes no keyboard input and ++esc++ stops the paste (see [Pasting into slow devices](../../features/terminal.md#pasting-into-slow-devices)). 0 sends every paste at once. It is stored as `pasteLineDelayMs`.
 
     Whether a program uses bracketed paste is what the server reports, and any output can switch it on, also in a shell such as `sh` that does not handle it. Pasted line breaks then run without a warning, so choose **Always** if you work on production servers.
+
+!!! note "Notifications"
+    A program that rings the terminal bell in a tab you are not looking at always marks that tab with 🔔 until you look at it; this needs no setting. **Desktop notification when the bell rings in a tab you are not looking at** adds a desktop notification titled `korTTY · ` and the tab's name, at most one per pane every 10 seconds. It is off by default because shells ring the bell on every failed Tab completion, and a pane with a detected coding agent gets none while the coding-agent notifications are on. The setting is read on every bell, so a change applies to open tabs as soon as you save. See [Terminal notifications](../../features/terminal-notifications.md).
 
 !!! note "SSH Keep-Alive"
     When enabled, korTTY sends periodic keep-alive packets to prevent SSH sessions from timing out during idle periods. The interval setting controls how often (in seconds) these packets are sent. The spinner range is 5–600 seconds; the interval is disabled if SSH Keep-Alive is toggled off.

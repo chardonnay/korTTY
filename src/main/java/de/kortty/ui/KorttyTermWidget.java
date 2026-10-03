@@ -27,6 +27,8 @@ import javafx.scene.text.Font;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.nio.charset.Charset;
@@ -62,8 +64,13 @@ import java.util.function.Supplier;
  * another host than it opens asks first ({@link TerminalLinkMismatchDialog}). A right-click on a link
  * adds Open Link and Copy Link Address, or Open File and Copy Path, to the context menu
  * ({@link #contextMenuLink()}).
+ *
+ * <p>Every bell the program in the pane rings goes to the {@linkplain #setBellListener bell listener}
+ * as well; the bell itself stays silent.
  */
 public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneActions {
+
+    private static final Logger logger = LoggerFactory.getLogger(KorttyTermWidget.class);
 
     /** Points per Increase/Decrease step of the context menu's font-size submenu. */
     static final float FONT_SIZE_STEP = 2f;
@@ -277,6 +284,16 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
     }
 
     /**
+     * Sets who is told that a program in the pane rang the bell (BEL). It runs on the pane's emulator
+     * thread, once for every BEL in the output, so it must be cheap and must not block: hand the
+     * work on, coalesced, as {@link de.kortty.shellintegration.BellCoalescer} does. {@code null}
+     * stops the reports. The bell stays silent either way.
+     */
+    public void setBellListener(@Nullable Runnable listener) {
+        ((KorttyTerminalPanel) getTerminalPanel()).bellListener = listener;
+    }
+
+    /**
      * The link the terminal's context menu was opened on: the one under the last right-button press
      * in this pane, as it was at that press, or {@code null} when that press was on no link or another
      * press came after it. The menu offers Open Link and Copy Link Address for it (Open File in Snippet
@@ -321,6 +338,9 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
 
         /** Opens the files links point to; none until the terminal view sets it. Read on the emulator thread too. */
         private volatile @Nullable TerminalFileLinkHandler fileLinkHandler;
+
+        /** Told about every bell; none until the terminal view sets it. Called on the emulator thread. */
+        private volatile @Nullable Runnable bellListener;
 
         private final TerminalLinkHoverController linkHover;
 
@@ -479,6 +499,28 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
                 return;
             }
             KorttyTermWidget.this.paste(handler, PasteSource.CLIPBOARD);
+        }
+
+        /**
+         * Every bell of every emulation ends here: the panel is the terminal's display, and the
+         * emulators ring through {@code Terminal.beep()}. The listener hears it first, then
+         * SithTermFX's own handling runs, which stays silent because korTTY's settings provider
+         * answers {@code audibleBell()} with false. This runs on the emulator thread for every BEL,
+         * thousands of them when a binary file is printed, and a failing listener must not stop
+         * that thread.
+         */
+        @Override
+        public void beep() {
+            Runnable listener = bellListener;
+            if (listener != null) {
+                try {
+                    listener.run();
+                } catch (RuntimeException e) {
+                    // The emulator thread keeps reading; a lost bell report is all that happens.
+                    logger.debug("Bell listener failed: {}", e.toString());
+                }
+            }
+            super.beep();
         }
 
         @Override

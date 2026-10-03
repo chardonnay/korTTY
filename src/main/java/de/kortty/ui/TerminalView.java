@@ -68,6 +68,7 @@ import de.kortty.plugin.terminaleffects.TerminalEffectConnectorWrapper;
 import de.kortty.plugin.terminaleffects.TerminalEffectContext;
 import de.kortty.plugin.terminaleffects.TerminalEffectPlugin;
 import de.kortty.plugin.terminaleffects.TerminalEffectSession;
+import de.kortty.shellintegration.BellCoalescer;
 import de.kortty.shellintegration.ShellIntegrationEvent;
 import javafx.application.Platform;
 import javafx.animation.KeyFrame;
@@ -454,6 +455,8 @@ public class TerminalView extends BorderPane {
         new ShellTitleTracker<>(Platform::runLater, this::getFocusedWidget, TerminalView::isTabTitleFromShellEnabled);
     /** Each pane's title listener on its terminal, so a closing pane can take it off again. */
     private final Map<SithTermFxWidget, TerminalApplicationTitleListener> shellTitleListeners = new ConcurrentHashMap<>();
+    /** Told on the FX thread which pane rang the bell; set by the tab, null once the tab is cleaned up. */
+    private volatile Consumer<SithTermFxWidget> bellListener;
 
     /** A bracketed-paste tracker together with the connector it listens on, so a rebind can detach it. */
     private record PasteTracking(BracketedPasteTracker tracker, ObservableTtyConnector connector) {}
@@ -1248,6 +1251,9 @@ public class TerminalView extends BorderPane {
         releaseTerminalHighlighter(widget);
         releasePaneFocusObserver(widget);
         releaseShellTitleListener(widget);
+        if (widget instanceof KorttyTermWidget korttyWidget) {
+            korttyWidget.setBellListener(null);
+        }
         releaseBracketedPasteTracker(widget);
         if (terminalRecordingTargetWidgets.contains(widget)) {
             terminalRecordingTargetWidgets = terminalRecordingTargetWidgets.stream()
@@ -3426,6 +3432,41 @@ public class TerminalView extends BorderPane {
         attachTerminalHighlighter(widget);
         installPaneFocusObserver(widget);
         installShellTitleListener(widget);
+        installBellListener(widget);
+    }
+
+    /**
+     * Reports the bells of {@code widget} to {@link #setBellListener the tab}. The pane rings on its
+     * emulator thread, for every BEL; a {@link BellCoalescer} counts them there and hands them to the
+     * FX thread in one task, so a flood of bells never floods the FX queue. Removed in
+     * {@link #releasePaneState}.
+     */
+    private void installBellListener(SithTermFxWidget widget) {
+        if (widget instanceof KorttyTermWidget korttyWidget) {
+            BellCoalescer bells = new BellCoalescer(Platform::runLater, count -> onPaneBell(widget));
+            korttyWidget.setBellListener(bells::ring);
+        }
+    }
+
+    /** A pane rang the bell; FX thread. A pane closed or a tab cleaned up since then is ignored. */
+    private void onPaneBell(SithTermFxWidget widget) {
+        Consumer<SithTermFxWidget> listener = bellListener;
+        if (listener == null || !getOrderedWidgets().contains(widget)) {
+            return;
+        }
+        try {
+            listener.accept(widget);
+        } catch (RuntimeException e) {
+            logger.debug("Bell handling failed: {}", e.toString());
+        }
+    }
+
+    /**
+     * Sets who is told, on the FX thread, that a program in one of this tab's panes rang the bell.
+     * Bells that arrive in quick succession are reported once.
+     */
+    public void setBellListener(Consumer<SithTermFxWidget> listener) {
+        bellListener = listener;
     }
 
     /**
@@ -7261,6 +7302,8 @@ public class TerminalView extends BorderPane {
      * Cleans up resources (closes connection and destroys UI). Use when closing the tab.
      */
     public void cleanup() {
+        // A bell still on its way to the FX thread must not mark or announce a closed tab.
+        bellListener = null;
         pastePacer.cancelAll();
         releaseAllShellTitleListeners();
         cancelAllTerminalAgentRuns();

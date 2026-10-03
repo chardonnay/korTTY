@@ -519,6 +519,8 @@ public class MainWindow {
                 terminalTab.getTerminalView().setTerminalActive(true);
                 Platform.runLater(() -> terminalTab.getTerminalView().focusTerminal());
                 lastSelectedTerminalTab = terminalTab;
+                // The user looks at the tab now: its bell mark has done its job.
+                clearAttentionOfSeenTab();
             } else if (newTab instanceof FileEditorTab fileEditorTab) {
                 lastSelectedFileEditorTab = fileEditorTab;
             }
@@ -1150,6 +1152,8 @@ public class MainWindow {
     private void updateForegroundActivity() {
         boolean foreground = isForegroundWindow();
         if (foreground) {
+            // The window came to the front: its selected tab is seen again.
+            clearAttentionOfSeenTab();
             startJobSchedulerStatusUpdates();
             if (!terminalTabs().isEmpty()) {
                 startAgentStatusIndicatorTimer();
@@ -1170,6 +1174,18 @@ public class MainWindow {
         }
         onCodingAgentFocusContextChanged();
         AppDesignAnimator.refreshAll();
+    }
+
+    /**
+     * Removes the attention mark of the tab the user is looking at: the selected terminal tab of this
+     * window while it is in front (see {@link PaneSeenOracle}). Called on tab selection and when the
+     * window comes to the front.
+     */
+    private void clearAttentionOfSeenTab() {
+        TerminalTab seen = isForegroundWindow() ? getActiveTerminalTab() : null;
+        if (seen != null) {
+            seen.clearAttention();
+        }
     }
 
     /** True while this window is showing, not iconified and focused (the foreground window). */

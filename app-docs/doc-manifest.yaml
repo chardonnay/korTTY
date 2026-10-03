@@ -233,6 +233,10 @@ pages:
     diagrams: [session-lifecycle.svg]
     screenshots: [main/paste-confirmation.png]
     last_synced_ref: "53a0d88a"
+  - path: app-docs/site/docs/en/features/terminal-notifications.md
+    owns_i18n: [terminal.notify.]
+    owns_code: [src/main/java/de/kortty/shellintegration/TerminalNotificationPolicy.java, src/main/java/de/kortty/shellintegration/BellCoalescer.java, src/main/java/de/kortty/ui/TerminalAttentionNotifier.java, src/main/java/de/kortty/ui/PaneSeenOracle.java, src/main/java/de/kortty/ui/KorttyTermWidget.java, src/main/java/de/kortty/ui/TerminalTab.java]
+    last_synced_ref: "f5cf36c3"
   - path: app-docs/site/docs/en/features/highlighting.md
     owns_i18n: [highlight., menu.view.highlighting, connEdit.highlighting]
     owns_code: [src/main/java/de/kortty/core/highlight, src/main/java/de/kortty/model/HighlightRule.java, src/main/java/de/kortty/model/HighlightRuleSet.java, src/main/java/de/kortty/ui/HighlightMenuSupport.java, src/main/java/de/kortty/ui/HighlightSettingsSupport.java, src/main/java/de/kortty/ui/HighlightRulesDialog.java, src/main/java/de/kortty/ui/HighlightRulesEditorModel.java, src/main/java/de/kortty/ui/HighlightColorChoices.java, src/main/java/de/kortty/ui/HighlightConnectionSupport.java]
