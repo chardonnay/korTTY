@@ -11,10 +11,10 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * The main window's close guards for hosted snippet editors: the snippet workspace and standalone
- * snippet editors, in a main-window tab or in their own window. Every method only asks (and saves
- * when the user chooses Save); none of them closes anything, so a caller that aborts after an
- * approval — a later prompt was cancelled — leaves every editor open and intact.
+ * The main window's close guards for unsaved work: the snippet workspace and standalone snippet
+ * editors, in a main-window tab or in their own window, and file editor tabs. Every method only
+ * asks (and saves when the user chooses Save); none of them closes anything, so a caller that
+ * aborts after an approval — a later prompt was cancelled — leaves every editor open and intact.
  *
  * <p>Contract: FX thread only.
  */
@@ -24,25 +24,50 @@ final class HostedCloseGuards {
     }
 
     /**
-     * Asks every {@link DialogHostTab} in {@code tabs} whose dialog guards its close, in tab order.
-     * A tab that has to ask is selected first ({@code select}) so the user sees what the prompt is
-     * about. Stops at the first veto.
+     * Asks every tab in {@code tabs} that guards its close, in tab order: a {@link DialogHostTab}
+     * whose dialog has unsaved work, or a tab that is a {@link HostedCloseGuard} itself (a
+     * {@link FileEditorTab} with unsaved changes). A tab that has to ask is selected first
+     * ({@code select}) so the user sees what the prompt is about. Stops at the first veto.
      *
      * @return {@code true} when every guarded tab may be disposed
      */
     static boolean confirmTabs(List<? extends Tab> tabs, Consumer<Tab> select) {
         for (Tab tab : new ArrayList<>(tabs)) {
-            if (!(tab instanceof DialogHostTab hostTab) || !tab.isClosable() || !hostTab.needsCloseConfirmation()) {
+            if (!tab.isClosable() || !needsCloseConfirmation(tab)) {
                 continue;
             }
             if (select != null) {
                 select.accept(tab);
             }
-            if (!hostTab.confirmClose()) {
+            if (!confirmTab(tab)) {
                 return false;
             }
         }
         return true;
+    }
+
+    /**
+     * What the tab's own close button would ask about unsaved work, for a path that bypasses the
+     * tab's close request (Cmd/Ctrl+W, File → Close Tab). Tabs that guard nothing may close.
+     *
+     * @return {@code true} when {@code tab} may be disposed
+     */
+    static boolean confirmTab(Tab tab) {
+        if (tab instanceof DialogHostTab hostTab) {
+            return hostTab.confirmClose();
+        }
+        if (tab instanceof HostedCloseGuard guard) {
+            return guard.confirmHostedClose();
+        }
+        return true;
+    }
+
+    /** Whether {@link #confirmTab(Tab)} would ask anything right now; never prompts. */
+    static boolean needsCloseConfirmation(Tab tab) {
+        if (tab instanceof DialogHostTab hostTab) {
+            return hostTab.needsCloseConfirmation();
+        }
+        return tab instanceof HostedCloseGuard guard && guard.needsCloseConfirmation();
     }
 
     /**

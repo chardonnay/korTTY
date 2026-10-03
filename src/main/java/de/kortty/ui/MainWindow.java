@@ -2692,7 +2692,16 @@ public class MainWindow {
             if (result.connection() == null) {
                 return null;
             }
-            
+
+            // Enterprise server policy, as for Quick Connect: refuse a blocked target or jump host
+            // before prompting for a password or persisting the connection. null reads as
+            // "cancelled" in TerminalView, so no connector is built for it.
+            java.util.Optional<String> splitBlocked = SplitConnectionPolicy.blockedTarget(result.connection());
+            if (splitBlocked.isPresent()) {
+                de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(splitBlocked.get());
+                return null;
+            }
+
             String password = result.password();
             String finalPassword = ensurePasswordForConnection(result.connection(), password);
             if (!result.connection().isLocalShell()
@@ -3391,14 +3400,70 @@ public class MainWindow {
 
     private void closeCurrentTab() {
         Tab currentTab = tabPane.getSelectionModel().getSelectedItem();
-        if (currentTab != null && currentTab.isClosable()) {
-            // Cmd+W bypasses the tab's close request: a hosted snippet editor/workspace asks here.
-            if (currentTab instanceof DialogHostTab hostTab && !hostTab.confirmClose()) {
-                return;
-            }
-            disposeTabContent(currentTab);
-            tabPane.getTabs().remove(currentTab);
+        if (currentTab != null) {
+            closeTabsByUser(List.of(currentTab), CloseCause.CLOSE_TAB_COMMAND);
         }
+    }
+
+    /** Which command closed tabs through {@link #closeTabsByUser}. */
+    private enum CloseCause {
+        /** File → Close Tab, Cmd/Ctrl+W. */
+        CLOSE_TAB_COMMAND,
+        /** Close in a Dashboard connection's context menu. */
+        DASHBOARD
+    }
+
+    /**
+     * Closes tabs on the user's request from a command other than the tab's own close button.
+     * Removing a tab from the list fires none of its close events, so this asks what the close
+     * button would ask first (a busy terminal, a hosted snippet editor with unsaved changes); a
+     * single Cancel keeps every tab open. Then it records, disposes and removes them in one go.
+     * Tabs that close on their own (a session that ended), moves between windows, regrouping and
+     * window teardown do not come here.
+     *
+     * @return {@code true} when the tabs were closed
+     */
+    private boolean closeTabsByUser(List<Tab> tabs, CloseCause cause) {
+        List<Tab> targets = new ArrayList<>();
+        for (Tab tab : tabs) {
+            // A stale Dashboard row may still name a tab that moved to another window.
+            if (tab != null && tab.isClosable() && tabPane.getTabs().contains(tab) && !targets.contains(tab)) {
+                targets.add(tab);
+            }
+        }
+        if (targets.isEmpty()) {
+            return false;
+        }
+        for (Tab tab : targets) {
+            if (!confirmUserClose(tab)) {
+                return false;
+            }
+        }
+        // A session that ended while its question was open closed its tab itself and released it.
+        targets.removeIf(tab -> !tabPane.getTabs().contains(tab));
+        recordUserClosedTabs(targets, cause);
+        for (Tab tab : targets) {
+            disposeTabContent(tab);
+        }
+        tabPane.getTabs().removeAll(targets);
+        return true;
+    }
+
+    /** The question the tab's close button would ask; {@code true} when it may close. */
+    private static boolean confirmUserClose(Tab tab) {
+        if (tab instanceof TerminalTab terminalTab) {
+            return terminalTab.confirmUserClose();
+        }
+        if (tab instanceof DialogHostTab hostTab) {
+            // A hosted snippet editor/workspace asks about unsaved changes (Save / Discard / Cancel).
+            return hostTab.confirmClose();
+        }
+        // A file editor with unsaved changes asks the same (Save / Discard / Cancel).
+        return HostedCloseGuards.confirmTab(tab);
+    }
+
+    /** Hook for remembering tabs the user closed, called after they agreed; records nothing yet. */
+    private void recordUserClosedTabs(List<Tab> tabs, CloseCause cause) {
     }
 
     /**
@@ -3409,8 +3474,8 @@ public class MainWindow {
      */
     private void disposeTabContent(Tab tab) {
         if (tab instanceof TerminalTab terminalTab) {
-            terminalTab.closeRecordingResources();
-            terminalTab.getTerminalView().cleanup();
+            // What its close button releases, the auto-reconnect and status-bar timers included.
+            terminalTab.releaseResources();
         } else if (tab instanceof FileEditorTab editorTab) {
             editorTab.dispose();
         } else if (tab instanceof AiResultTab aiResultTab) {
@@ -3454,8 +3519,8 @@ public class MainWindow {
     }
 
     /**
-     * Closes all closable tabs once every hosted snippet editor/workspace agreed (unsaved changes:
-     * Save / Discard / Cancel). A single Cancel keeps every tab open.
+     * Closes all closable tabs once every hosted snippet editor/workspace and file editor agreed
+     * (unsaved changes: Save / Discard / Cancel). A single Cancel keeps every tab open.
      *
      * @return {@code true} when the tabs were closed
      */
@@ -3467,7 +3532,10 @@ public class MainWindow {
         return true;
     }
 
-    /** Asks every hosted snippet editor/workspace tab of this window; see {@link HostedCloseGuards}. */
+    /**
+     * Asks every hosted snippet editor/workspace tab and every file editor tab with unsaved changes
+     * of this window; see {@link HostedCloseGuards}.
+     */
     private boolean confirmHostedTabsClose() {
         return HostedCloseGuards.confirmTabs(tabPane.getTabs(), tab -> tabPane.getSelectionModel().select(tab));
     }
@@ -5110,11 +5178,11 @@ public class MainWindow {
                 break;
                 
             case CLOSE:
-                // Close the tab
-                disposeTabContent(terminalTab);
-                tabPane.getTabs().remove(terminalTab);
-                updateDashboard();
-                updateStatus(I18n.get("status.tabClosed", terminalTab.getConnection().getDisplayName()));
+                // Asks like the tab's close button when the terminal is busy.
+                if (closeTabsByUser(List.of(terminalTab), CloseCause.DASHBOARD)) {
+                    updateDashboard();
+                    updateStatus(I18n.get("status.tabClosed", terminalTab.getConnection().getDisplayName()));
+                }
                 break;
                 
             case RECONNECT:
@@ -5207,7 +5275,8 @@ public class MainWindow {
         if (file != null) {
             try {
                 Project project = projectManager.loadProject(file.toPath());
-                // Loading replaces every tab: hosted snippet editors ask about unsaved work first.
+                // Loading replaces every tab: hosted snippet editors and file editors ask about
+                // unsaved work first.
                 if (!confirmHostedTabsClose()) {
                     return;
                 }
@@ -9419,22 +9488,18 @@ public class MainWindow {
 
         logger.info("Opening {} connections from group: {}", policyPartition.allowed().size(), groupName);
         
-        // Create password vault for retrieving stored passwords
-        PasswordVault vault = new PasswordVault(
-                app.getMasterPasswordManager().getEncryptionService(),
-                app.getMasterPasswordManager().getMasterPassword()
-        );
-        
         int opened = 0;
+        List<String> skippedWithoutPassword = new ArrayList<>();
         for (ServerConnection conn : policyPartition.allowed()) {
-            // Retrieve password from vault
-            String password = vault != null ? vault.retrievePassword(conn) : "";
-            
-            if (password == null || password.isEmpty()) {
+            // As in Duplicate: local shells and SSH key auth open without a password; a password
+            // login needs a stored one (credential store or vault) and is skipped without it.
+            GroupOpenSupport.Decision decision = GroupOpenSupport.decide(conn, this::getConnectionPassword);
+            if (!decision.open()) {
                 logger.warn("No password found for connection: {}", conn.getDisplayName());
-                // Skip this connection or show password dialog
+                skippedWithoutPassword.add(conn.getDisplayName());
                 continue;
             }
+            String password = decision.password();
             
             // Increment usage count
             conn.incrementUsageCount();
@@ -9486,6 +9551,24 @@ public class MainWindow {
         
         updateStatus(I18n.get("status.groupOpened", groupName, opened));
         updateDashboard();
+        if (!skippedWithoutPassword.isEmpty()) {
+            showGroupMembersSkippedWithoutPassword(groupName, skippedWithoutPassword);
+        }
+    }
+
+    /**
+     * Names the members of {@code groupName} that Open Group skipped because they log in with a
+     * password and none is stored, so they do not just silently stay closed.
+     */
+    private void showGroupMembersSkippedWithoutPassword(String groupName, List<String> skipped) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        DialogThemeHelper.applyTheme(alert);
+        alert.initOwner(stage);
+        alert.setTitle(I18n.get("quickConnect.openGroup"));
+        alert.setHeaderText(I18n.get("quickConnect.groupSkipped.header", skipped.size(), groupName));
+        alert.setContentText(I18n.get("quickConnect.groupSkipped.content",
+            "• " + String.join("\n• ", skipped)));
+        alert.show();
     }
     
     

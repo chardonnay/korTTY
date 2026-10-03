@@ -38,9 +38,6 @@ public final class SessionJournalMarkerRules {
     /** Budget per entry for the on-demand pass, where the user is waiting on a progress hint. */
     public static final long BATCH_BUDGET_MILLIS = 1_000;
 
-    /** How often the bounded sequence checks the clock; often enough to stop, rare enough to be free. */
-    private static final int BUDGET_CHECK_INTERVAL = 1024;
-
     public record Compiled(SessionJournalMarkerRule rule, Pattern pattern) {
     }
 
@@ -128,11 +125,11 @@ public final class SessionJournalMarkerRules {
         for (Compiled compiled : rules) {
             long deadline = System.nanoTime() + Math.max(1L, budgetMillis) * 1_000_000L;
             try {
-                Matcher matcher = compiled.pattern().matcher(new BoundedCharSequence(haystack, deadline));
+                Matcher matcher = compiled.pattern().matcher(new DeadlineCharSequence(haystack, deadline));
                 if (matcher.find()) {
                     return compiled.rule();
                 }
-            } catch (MatchBudgetExceeded e) {
+            } catch (DeadlineCharSequence.DeadlineExceeded e) {
                 logger.warn("Session journal marker rule '{}' exceeded its match budget and was skipped",
                     compiled.rule().getPattern());
             }
@@ -198,55 +195,5 @@ public final class SessionJournalMarkerRules {
             }
         }
         return changed;
-    }
-
-    /** Thrown out of {@link BoundedCharSequence} when a pattern runs past its deadline. */
-    private static final class MatchBudgetExceeded extends RuntimeException {
-        MatchBudgetExceeded() {
-            super(null, null, false, false);
-        }
-    }
-
-    /**
-     * A CharSequence that aborts the match once the deadline passes. The regex engine reads
-     * through {@code charAt}, so checking the clock there is the only way to interrupt
-     * catastrophic backtracking — an input-length cap bounds the input, not the work.
-     */
-    private static final class BoundedCharSequence implements CharSequence {
-
-        private final CharSequence delegate;
-        private final long deadlineNanos;
-        private int countdown = BUDGET_CHECK_INTERVAL;
-
-        BoundedCharSequence(CharSequence delegate, long deadlineNanos) {
-            this.delegate = delegate;
-            this.deadlineNanos = deadlineNanos;
-        }
-
-        @Override
-        public int length() {
-            return delegate.length();
-        }
-
-        @Override
-        public char charAt(int index) {
-            if (--countdown <= 0) {
-                countdown = BUDGET_CHECK_INTERVAL;
-                if (System.nanoTime() > deadlineNanos) {
-                    throw new MatchBudgetExceeded();
-                }
-            }
-            return delegate.charAt(index);
-        }
-
-        @Override
-        public CharSequence subSequence(int start, int end) {
-            return new BoundedCharSequence(delegate.subSequence(start, end), deadlineNanos);
-        }
-
-        @Override
-        public String toString() {
-            return delegate.toString();
-        }
     }
 }

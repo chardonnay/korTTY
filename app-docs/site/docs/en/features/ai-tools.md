@@ -32,7 +32,7 @@ The base command name is configurable in **Settings > AI**. If you rename `agent
 - Disable the per-run setup dialog (uses the configured default profile when disabled)
 
 !!! note
-    KorTTY recognizes these shortcuts in the connector input path before normal shell execution. Keyboard input and clipboard paste are assembled from the same byte stream, so pasted file names and Unicode text are included in the request, the complete prompt is saved in agent history, and one Enter produces exactly one agent run.
+    KorTTY recognizes these shortcuts in the connector input path before normal shell execution. Keyboard input and clipboard paste are assembled from the same byte stream, so pasted file names and Unicode text are included in the request, the complete prompt is saved in agent history, and one Enter produces exactly one agent run. Only what you type or paste is recognized: text that the server prints, for example a file shown with `cat` that contains a crafted escape sequence, cannot start an agent run.
 
 ### Command purposes
 
