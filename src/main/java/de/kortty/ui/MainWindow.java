@@ -7504,12 +7504,32 @@ public class MainWindow {
         task.setOnSucceeded(event -> editorOpener.accept(task.getValue()));
         task.setOnFailed(event -> {
             Throwable failure = task.getException();
-            logger.error("Failed to load selected terminal text as text file '{}'", selectedFileName, failure);
+            if (request instanceof LinkedTerminalFile) {
+                logLinkedTerminalFileFailure(selectedFileName, failure);
+            } else {
+                logger.error("Failed to load selected terminal text as text file '{}'", selectedFileName, failure);
+            }
             showTerminalTextFileLoadFailure(request, failure);
         });
         Thread thread = new Thread(task, "terminal-text-file-loader");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    /**
+     * Logs a failed open of a file a terminal link names. Any path printed in the output can be
+     * Cmd/Ctrl+clicked, so a missing, binary or oversized file is an everyday outcome that the
+     * dialog already explains: it is logged at INFO by its reason only, never as an ERROR (which
+     * would also count in the error telemetry), and the path, which can say more than the user
+     * wants in a log, only at DEBUG. Anything unexpected stays an ERROR, still without the path.
+     */
+    private static void logLinkedTerminalFileFailure(String path, @Nullable Throwable failure) {
+        if (failure instanceof TerminalTextFileLoadException loadFailure) {
+            logger.info("Could not open the file a terminal link names: {}", loadFailure.reason());
+        } else {
+            logger.error("Failed to open the file a terminal link names", failure);
+        }
+        logger.debug("Linked terminal file that failed to open: '{}'", path, failure);
     }
 
     // SFTP reads are naturally bounded by transfer time; a local read has no such deterrent

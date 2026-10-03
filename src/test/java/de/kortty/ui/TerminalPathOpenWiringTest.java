@@ -65,6 +65,28 @@ public class TerminalPathOpenWiringTest {
     }
 
     @Test
+    public void aLinkedFileThatFailsToOpenIsNoErrorAndKeepsItsPathOutOfTheLog() throws IOException {
+        String mainWindow = source("src/main/java/de/kortty/ui/MainWindow.java");
+        int task = mainWindow.indexOf("private void runTerminalTextFileLoadTask(");
+        String failed = mainWindow.substring(task, mainWindow.indexOf("thread.start();", task));
+        int method = mainWindow.indexOf(
+            "private static void logLinkedTerminalFileFailure(String path, @Nullable Throwable failure) {");
+        assertThat(method).isAtLeast(0);
+        String beforeDebug = mainWindow.substring(method, mainWindow.indexOf("logger.debug(", method));
+
+        // A Cmd/Ctrl+click on any printed path can name a missing file: no ERROR, so no error telemetry.
+        assertThat(failed).contains("if (request instanceof LinkedTerminalFile) { "
+            + "logLinkedTerminalFileFailure(selectedFileName, failure); } else {");
+        assertThat(beforeDebug).contains("if (failure instanceof TerminalTextFileLoadException loadFailure) { "
+            + "logger.info(\"Could not open the file a terminal link names: {}\", loadFailure.reason()); }");
+        // The path is logged at DEBUG only.
+        assertThat(NoHyperlinkFilterGuardTest.codeOnly(beforeDebug.substring(beforeDebug.indexOf('{'))))
+            .doesNotContain("path");
+        assertThat(mainWindow.substring(method)).contains(
+            "logger.debug(\"Linked terminal file that failed to open: '{}'\", path, failure);");
+    }
+
+    @Test
     public void onlySshAndLocalShellPanesFindPathsAndKeepFileLinks() throws IOException {
         String view = source("src/main/java/de/kortty/ui/TerminalView.java");
 
