@@ -1,4 +1,4 @@
-package de.kortty.control;
+package de.kortty.core;
 
 import java.util.Objects;
 
@@ -8,8 +8,11 @@ import java.util.Objects;
  * <p>This bounds catastrophic backtracking: a pattern such as {@code (a+)+$} over a long line can run
  * for hours inside {@code java.util.regex}, and neither a thread interrupt nor a future's timeout
  * stops it. Matching over this sequence does stop, because the matcher itself has to read a character
- * to keep going. Together with the 512-character pattern cap and the 256 KiB text cap it means a
- * wait can never outlive its own timeout or pin the timer thread.
+ * to keep going. A cap on the input length bounds the input, not the work, so this is the one guard
+ * every match of a user-supplied pattern runs behind: the control API's {@code pane.wait_output},
+ * where together with the 512-character pattern cap and the 256 KiB text cap it means a wait can
+ * never outlive its own timeout or pin the timer thread, and the session journal's auto-marker rules,
+ * where a runaway rule must not stall journal capture.
  *
  * <p>The clock is sampled every {@value #CHECK_MASK}+1 reads rather than on every read, which keeps
  * the overhead invisible while bounding the overshoot to microseconds.
@@ -61,7 +64,7 @@ public final class DeadlineCharSequence implements CharSequence {
 
     /**
      * Thrown by {@link #charAt(int)} once the deadline has passed. It carries no stack trace: it is a
-     * control-flow signal the waiter catches, not a diagnosable failure.
+     * control-flow signal the caller catches, not a diagnosable failure.
      */
     public static final class DeadlineExceeded extends RuntimeException {
 
