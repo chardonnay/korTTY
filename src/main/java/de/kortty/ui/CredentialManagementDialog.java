@@ -54,7 +54,7 @@ public class CredentialManagementDialog extends ThemeAwareDialog<Boolean> {
                         " [" + cred.getServerPattern() + "]" : " [" + I18n.get("credential.allServers") + "]";
                     String envName = environmentManager != null
                         ? environmentManager.getDisplayName(cred.getEnvironmentId())
-                        : (cred.getEnvironment() != null ? cred.getEnvironment().getDisplayName() : cred.getEnvironmentId());
+                        : (cred.getEnvironment() != null ? EnvironmentManager.builtInDisplayName(cred.getEnvironment()) : cred.getEnvironmentId());
                     setText(String.format("%s - %s @ %s%s",
                         cred.getName(),
                         cred.getUsername(),

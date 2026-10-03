@@ -3666,6 +3666,14 @@ tasks.register<JavaExec>("terminalLinksSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("terminalSplitCloseButtonSmoke") {
+    group = "verification"
+    description = "Splits and closes terminal panes and checks each pane keeps its overlay host and shows its close button only while it has a sibling (needs a display)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("com.sithtermfx.ui.split.TerminalSplitCloseButtonSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("aiManagerTabCssSmoke") {
     group = "verification"
     description = "Opens the AI Manager under every app design and fails on JavaFX CSS warnings for the selected tab."

@@ -72,30 +72,20 @@ public class StoredCredential {
     @XmlEnum
     public enum Environment {
         @XmlEnumValue("PRODUCTION")
-        PRODUCTION("Produktion"),
+        PRODUCTION,
         
         @XmlEnumValue("DEVELOPMENT")
-        DEVELOPMENT("Entwicklung"),
+        DEVELOPMENT,
         
         @XmlEnumValue("TEST")
-        TEST("Test"),
+        TEST,
         
         @XmlEnumValue("STAGING")
-        STAGING("Staging");
+        STAGING;
         
-        private final String displayName;
-        
-        Environment(String displayName) {
-            this.displayName = displayName;
-        }
-        
-        public String getDisplayName() {
-            return displayName;
-        }
-        
-        @Override
-        public String toString() {
-            return displayName;
+        /** i18n key of the label (resolved via EnvironmentManager); the stored value stays the enum name. */
+        public String i18nKey() {
+            return "credential.environments.name." + name();
         }
     }
     
@@ -177,21 +167,9 @@ public class StoredCredential {
         return hostname.matches(regex);
     }
     
-    /** Display name for the current environment (caller may use EnvironmentManager for custom ids). */
-    public String getEnvironmentDisplayName(java.util.function.Function<String, String> displayNameResolver) {
-        String id = getEnvironmentId();
-        if (displayNameResolver != null) {
-            String resolved = displayNameResolver.apply(id);
-            if (resolved != null) return resolved;
-        }
-        if (environment != null) return environment.getDisplayName();
-        return id;
-    }
-
     @Override
     public String toString() {
-        String envName = environment != null ? environment.getDisplayName() : (environmentId != null ? environmentId : Environment.PRODUCTION.getDisplayName());
-        return name + " (" + username + "@" + envName + ")";
+        return name + " (" + username + "@" + getEnvironmentId() + ")";
     }
     
     @Override
