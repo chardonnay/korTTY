@@ -70,6 +70,7 @@ Enthält alle gespeicherten SSH-Verbindungen mit ihren Einstellungen.
 - Einstellungen für Fenstergeometrie
 - Gruppen-/Ordnerorganisation
 - Optionaler Freitext-Tag (wird für Suche, Massen-Tagging und Tag-basierten Export verwendet)
+- Optionaler Regelsatz für die Hervorhebung von Schlüsselwörtern (`highlightRuleSetId`): die ID eines mitgelieferten oder eigenen Regelsatzes, `none` für keine Hervorhebung oder nicht vorhanden, um dem Standard-Regelsatz zu folgen (siehe [Regelsatz pro Verbindung](../features/highlighting.md#regelsatz-pro-verbindung)). Verbindungen aus einer [Teamarbeit](../features/teamwork.md)-Datei können ihn ebenfalls enthalten; die ID eines Regelsatzes, der auf Ihrem Computer nicht existiert, wird ignoriert.
 - Optionale Tab-Farbe (`tabColor`, `#RRGGBB`), die die Terminal-Tabs der Verbindung mit einem farbigen Punkt markiert; alles, was keine Hex-Farbe ist, wird ignoriert (siehe [Tab-Farbe](../features/connections.md#tab-farbe)). Verbindungen aus einer [Teamarbeit](../features/teamwork.md)-Datei können sie ebenfalls enthalten, sodass derjenige, der die Datei pflegt, entscheidet, wie diese Tabs markiert werden.
 
 **Sicherheit:** Verbindungspasswörter werden mit AES-256-GCM unter Verwendung des Master-Passworts verschlüsselt.
@@ -163,6 +164,12 @@ Globale Anwendungseinstellungen und Standardeinstellungen.
 - Standardeinstellungen für das Terminaleffekt-Plugin
 - SSH Keep-Alive-Einstellungen
 - Verbindungszeitlimit und Standardwerte für Wiederholungsversuche
+
+#### Hervorhebung von Schlüsselwörtern
+
+- Der Hauptschalter (`terminalHighlightingEnabled`), die Hervorhebung in Vollbildprogrammen (`terminalHighlightAlternateScreen`) und der Standard-Regelsatz (`defaultHighlightRuleSetId`, die ID eines mitgelieferten oder eigenen Regelsatzes; leer bedeutet keiner)
+- Ihre eigenen Regelsätze (`highlightRuleSets`), wie sie im [Regelsatz-Editor](../features/highlighting.md#ihre-eigenen-regelsatze) bearbeitet werden: Jeder Regelsatz hat eine stabile ID, einen Namen und seine Regeln in Prioritätsreihenfolge, und jede Regel hat ihre ID, ob sie eingeschaltet ist, das Muster, ob es ein regulärer Ausdruck ist, Groß-/Kleinschreibung ignorieren, ganzes Wort, ob sie den Treffer oder die ganze Zeile färbt, die Text- und Hintergrundfarbe (`#RRGGBB`, eine Themenfarbe von `ansi:0` bis `ansi:15` oder leer, um die Farbe des Programms beizubehalten) sowie fett, kursiv und unterstrichen
+- Die mitgelieferten Regelsätze werden nicht gespeichert: Sie werden mit korTTY ausgeliefert, sodass eine neue Version sie verbessern kann, und ihre IDs beginnen mit `builtin.`, was Ihre eigenen Regelsätze nicht verwenden können
 
 #### AI, Modelle und Wissensspeicher
 

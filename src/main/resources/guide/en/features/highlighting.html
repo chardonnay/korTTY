@@ -1,0 +1,936 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+
+<head>
+        <title>Keyword highlighting - korTTY Guide</title>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/guide/en/features/highlighting.html">
+        <meta name="author" content="korTTY">
+        <link rel="stylesheet" href="../assets/css/darcula-highlight.min.css">
+        <link rel="stylesheet" href="../assets/css/bootstrap.min.css">
+        <link rel="stylesheet" href="../assets/css/dracula-ui.min.css">
+        <link rel="stylesheet" href="../assets/css/mkdocs.min.css">
+        <link href="../assets/stylesheets/kortty.css" rel="stylesheet">
+        <link rel="icon" type="image/x-icon" href="../assets/images/favicon.png">
+
+
+</head>
+
+<body class="drac-bg-black-secondary drac-text-grey-ternary drac-text drac-scrollbar-purple">
+
+    <main class="d-flex">
+
+        <!-- block sidebar -->
+            <nav id="sidebar" class="sidebar drac-bg-black">
+    <div class="custom-menu">
+        <button type="button" id="sidebarCollapse" class="btn btn-primary">
+            <i class="fa fa-bars"></i>
+            <span class="sr-only">Menu</span>
+        </button>
+    </div>
+
+    <div class="p-4">
+        
+            <img class="logo" src="../assets/images/favicon.png" height="150px">
+        
+
+        <div class="drac-text-center">
+            
+                <span class="drac-text drac-line-height drac-text-white">korTTY Guide</span>
+            
+        </div>
+
+        <div class="drac-box flex-column">
+            <ul class="dot-ul">
+                <li><div class="dot-li drac-bg-cyan"></div></li>
+                <li><div class="dot-li drac-bg-green"></div></li>
+                <li><div class="dot-li drac-bg-orange"></div></li>
+                <li><div class="dot-li drac-bg-pink"></div></li>
+                <li><div class="dot-li drac-bg-purple"></div></li>
+                <li><div class="dot-li drac-bg-red"></div></li>
+                <li><div class="dot-li drac-bg-yellow"></div></li>
+            </ul>
+        </div>
+
+        <hr class="drac-divider" />
+
+        <!-- block menu -->
+        <ul class="mb-5 drac-list drac-list-none">
+            
+            <li class="drac-box">
+                <a href="../index.html"
+                    class="
+                    drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+                    Home
+                </a>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#getting-started-collapse" aria-expanded="false">
+                    Getting started
+                </a>
+                <div class="collapse" id="getting-started-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/installation.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Installation
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/building-packages.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Building korTTY packages
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/first-launch.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            First launch — master password
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/main-window.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Main window overview
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#reference-collapse" aria-expanded="false">
+                    Reference
+                </a>
+                <div class="collapse" id="reference-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/menu.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Menu reference
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/keyboard-shortcuts.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Keyboard shortcuts
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/architecture.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Architecture
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/config-files.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Configuration files
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/enterprise-policy.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Policy configuration
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/control-api.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Control API
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/cli.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Control CLI
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="#" class="
+            drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+            data-bs-toggle="collapse" data-bs-target="#settings-collapse" aria-expanded="false">
+            Settings
+        </a>
+
+        <div class="collapse" id="settings-collapse">
+            <ul class="mb-5 drac-list drac-list-none">
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/index.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Settings reference
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/appearance.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Appearance, themes & font
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/colors.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Colors
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/terminal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/window.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Window
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/resources.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Resources
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/logging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Logging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/export.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Export
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/backup.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Backup
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/updates.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Updates
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/security.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Security
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/language.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Language
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/translation.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Translation
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/video.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Video
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/ai.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/ai-skills.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI Skills
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/sftp.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SFTP Manager
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/editor.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Editor
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="#" class="
+            drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+            data-bs-toggle="collapse" data-bs-target="#snippet-editor-collapse" aria-expanded="false">
+            Snippet editor
+        </a>
+
+        <div class="collapse" id="snippet-editor-collapse">
+            <ul class="mb-5 drac-list drac-list-none">
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/snippet-editor/index.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Snippet Editor
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/hardening-options.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Hardening options
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/input-hardening.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Input hardening
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/language-migration.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Language unification
+        </a>
+    </li>
+            </ul>
+        </div>
+    </li>
+            </ul>
+        </div>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class=" active 
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover"
+                    data-bs-toggle="collapse" data-bs-target="#features-collapse" aria-expanded="true">
+                    Features
+                </a>
+                <div class="collapse show" id="features-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="connections.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Connections
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="terminal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal sessions
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="highlighting.html"
+            class=" active 
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Keyword highlighting
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="tunnels.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SSH Tunnels (Port Forwarding)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="jump-server.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Jump Server (Bastion Host)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="sftp.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SFTP file manager
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="file-browser.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            File browser
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="snippets.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Snippet manager
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="jobscheduler.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            JobScheduler
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="projects.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Projects (workspaces)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="teamwork.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Teamwork (shared connections)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ai-assistant.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI assistant
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="local-models.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Local models (llama.cpp and MLX)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="rag.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            RAG knowledge stores
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ai-tools.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal AI agent & tools
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ai-swarm.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI Swarm
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="security.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Security — credentials, keys & encryption
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="backup.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Backup & restore
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="recording.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal recording
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="session-journal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Session journal
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ascii-art.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            ASCII art
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="terminal-effect-plugins.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal effect plugins
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="coding-agents.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Coding agents
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="i18n.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Languages & dynamic translation
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#about-collapse" aria-expanded="false">
+                    About
+                </a>
+                <div class="collapse" id="about-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/release-notes.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Release notes
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/feedback.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Feedback & support
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/anonymous-data.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Anonymous data for application optimization
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+        </ul>
+        <!-- endblock -->
+    </div>
+</nav>
+        <!-- endblock -->
+
+        <nav class="divider drac-bg-purple-cyan"></nav>
+
+        <div class="content">
+            <!-- block header -->
+
+                <header>
+    <nav class="navbar navbar-expand-xl drac-bg-purple">
+        <div class="container-fluid">
+            
+            <button class="navbar-toggler w-100 text-center" type="button" data-bs-toggle="collapse" data-bs-target="#navbarsMenu"
+                aria-controls="navbarsMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse flex-column ml-auto" id="navbarsMenu">
+                <ul class="navbar-nav text-md-center">
+
+                    <!-- block preview -->
+                    <li class="nav-item">
+                            
+        <div class="container">
+            <div class="row row-preview">
+                <div class="col">
+                    <a href="terminal.html"
+                        class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover">
+                        <i class="fa fa-arrow-left"></i> Previous
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="tunnels.html"
+                        class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover" style="padding-left: 3%;">
+                        Next <i class="fa fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+                    </li>
+                    <!--  endblock -->
+
+                    <!-- block search -->
+                    <li class="nav-item">
+
+
+
+
+
+<div role="search" class="search-box kt-search">
+	<form id="rtd-search-form" class="wy-form kt-search-form" action="../search.html" method="get">
+		<input type="text" name="q" id="mkdocs-search-query"
+		class="kt-search-input drac-input drac-input-search drac-input-white drac-text-white drac-bg-black-secondary"
+		placeholder="Search"
+		autocomplete="off" title="Type search term here" /><button type="button" class="kt-search-clear" hidden
+		        aria-label="Clear search" title="Clear search">&times;</button>
+	</form>
+	<div id="mkdocs-search-results" class="kt-search-suggest"
+	     data-no-results-text="No results found"
+	     data-preparing-text="Preparing search …"
+	     data-more-text="Show {n} more results"></div>
+	<script>
+	  (function () {
+	    var box = document.currentScript.parentNode;
+	    var panel = box.querySelector('.kt-search-suggest');
+	    var input = box.querySelector('#mkdocs-search-query');
+	    var clear = box.querySelector('.kt-search-clear');
+
+	    // Emptying the panel is what hides it (CSS :empty), so closing is just that.
+	    function close () { while (panel.firstChild) { panel.removeChild(panel.firstChild); } }
+	    // The button is only useful once there is something to clear.
+	    function sync () { clear.hidden = !input.value; }
+
+	    input.addEventListener('input', sync);
+	    clear.addEventListener('click', function () {
+	      input.value = '';
+	      sync();
+	      // search/main.js renders on keyup, which a programmatic clear never fires, so
+	      // the panel has to be emptied here or the old hits would outlive the query.
+	      close();
+	      input.focus();
+	    });
+
+	    document.addEventListener('click', function (e) { if (!box.contains(e.target)) { close(); } });
+
+	    // Escape has to be handled on keyUP, and on the document rather than the input.
+	    // search/main.js binds doSearch to the field's keyup, so anything that closed the
+	    // panel on keydown was undone microseconds later by that re-render — which is why
+	    // Escape appeared to do nothing at all. Listening on the document means this runs
+	    // after the field's own handler has already re-rendered, so closing sticks.
+	    // What the panel looked like BEFORE that re-render is the interesting state, so it
+	    // is captured on keydown: the usual two steps, Escape dismisses the suggestions,
+	    // Escape again empties the box.
+	    var panelWasOpen = false;
+	    document.addEventListener('keydown', function (e) {
+	      if (e.key === 'Escape') {
+	        panelWasOpen = !!panel.firstChild;
+	      }
+	    });
+	    document.addEventListener('keyup', function (e) {
+	      if (e.key !== 'Escape') {
+	        return;
+	      }
+	      // Only clear the field while it has focus — Escape elsewhere on the page is not ours.
+	      if (!panelWasOpen && document.activeElement === input && input.value) {
+	        input.value = '';
+	        sync();
+	      }
+	      close();
+	    });
+
+	    sync();  // a ?q= deep link arrives with the field already filled
+	  })();
+	</script>
+</div>
+                    </li>
+                    <!--  endblock -->
+
+                    <!-- block source -->
+                    <li class="nav-item">
+                        
+                    </li>
+                    <!--  endblock -->
+
+                </ul>
+            </div>
+
+        </div>
+    </nav>
+</header>
+<div class="kt-lang-bar">
+  <a class="kt-lang-switch" href="../../de/features/highlighting.html"
+     title="Deutsch" hreflang="de">DE</a>
+</div>
+
+            <!-- endblock -->
+
+            <!-- block content -->
+                <section class="p-md-5 section-content">
+    <article>
+        <p><h1 id="keyword-highlighting">Keyword highlighting<a class="headerlink" href="#keyword-highlighting" title="Permanent link">&para;</a></h1>
+<p>korTTY can color words and patterns in terminal output as it arrives — errors in red, warnings underlined, IP and MAC addresses, interface names and link states on network devices — so the lines that matter stand out while output scrolls by. Highlighting only changes how the text looks: what the server sent, what you copy, the terminal log and what the AI features read stay exactly the same.</p>
+<p>Highlighting is off until you switch it on, for one pane with a menu or the shortcut, for every terminal of a connection with the <a href="#rule-set-per-connection">connection's rule set</a>, or for every pane with a <a href="#default-rule-set-and-settings">default rule set</a>. Each terminal pane shows at most one <strong>rule set</strong> at a time. korTTY ships three built-in sets, and you can create <a href="#your-own-rule-sets">your own</a>.</p>
+<h2 id="built-in-rule-sets">Built-in rule sets<a class="headerlink" href="#built-in-rule-sets" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Rule set</th>
+<th>What it marks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Errors and warnings</strong></td>
+<td><code>error</code>, <code>failed</code>, <code>failure</code>, <code>fatal</code>, <code>critical</code>, <code>denied</code>, <code>refused</code>, <code>panic</code>, <code>exception</code>, <code>traceback</code> and <code>segmentation fault</code> in bold red; exception class names such as <code>NullPointerException</code> or <code>ValueError</code> in red; <code>warning</code>, <code>deprecated</code> and <code>timed out</code> underlined in yellow. Words match whole and in any case, so <code>ERROR:</code> is marked but <code>terror</code> is not.</td>
+</tr>
+<tr>
+<td><strong>Network addresses</strong></td>
+<td>IPv4 addresses with an optional prefix length (<code>10.0.0.1/24</code>), IPv6 addresses including compressed forms (<code>fe80::1%eth0</code>), and MAC addresses with colons, dashes or in Cisco's dotted form (<code>aabb.ccdd.eeff</code>), all underlined. Numbers that only look like an address, such as <code>999.1.1.1</code>, are left alone.</td>
+</tr>
+<tr>
+<td><strong>Network devices</strong></td>
+<td>Link and session states on switches and routers: <code>down</code>, <code>err-disabled</code>, <code>notconnect</code>, <code>administratively down</code>, <code>inactive</code> and similar in bold red, <code>up</code>, <code>connected</code>, <code>established</code> and <code>forwarding</code> in bold green, and interface names as Cisco, Arista and Juniper print them (<code>Gi0/1</code>, <code>TenGigabitEthernet1/0/1</code>, <code>Eth1/2</code>, <code>xe-0/0/0</code>, <code>ae0</code>) underlined in cyan.</td>
+</tr>
+</tbody>
+</table>
+<p>The built-in sets use the theme's ANSI colors, so they follow your color settings and the colors of each connection. Every rule also makes its text bold or underlined, so a match still stands out for color-blind users and in a monochrome theme.</p>
+<p><img alt="Three terminal panes, each showing one built-in rule set: Errors and warnings on an application log, Network devices on a switch's interface list and Network addresses on ip output" src="../assets/screenshots/highlighting/terminal-highlighting.png" /></p>
+<h2 id="switching-highlighting-on-and-off">Switching highlighting on and off<a class="headerlink" href="#switching-highlighting-on-and-off" title="Permanent link">&para;</a></h2>
+<p>Highlighting works per pane: in a split tab every pane can show a different set, and a new split takes over a set chosen for the pane it was split from; without such a choice it follows its own connection.</p>
+<ul>
+<li><strong>Keyboard</strong>: <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span> on macOS) switches highlighting on or off for the pane that has the keyboard focus. Switching it back on brings back the set that pane showed last; a pane that never showed one starts with its connection's rule set or the default rule set, or with <strong>Errors and warnings</strong> when there is neither. The status bar names the set that is now on.</li>
+<li><strong>View → Highlighting</strong>: <strong>Highlighting On</strong> does the same as the shortcut. Below it, pick <strong>None</strong> or a rule set for the focused pane of the active tab.</li>
+<li><strong>Terminal context menu</strong>: right-click a pane and open <strong>Highlighting</strong> for the same entries, applied to the pane you clicked. The submenu is there even when terminal effects are switched off.</li>
+</ul>
+<p>Both menus list your own rule sets below the built-in ones and end with <strong>Manage Rule Sets…</strong>, which opens the <a href="#your-own-rule-sets">rule-set editor</a> on the set the pane shows.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>A set you choose in these menus or with the shortcut applies to the running session only and is not saved: the next tab you open for the same connection starts with the <a href="#rule-set-per-connection">connection's rule set</a> or, if it has none, the default rule set, which is <strong>None</strong> unless you chose one in the settings. To keep a set for a connection, choose it in the connection editor. This differs from <strong>View → Terminal Effect</strong>, which stores the effect on the connection.</p>
+</div>
+<p>The shortcut also works while the menu bar is hidden and in terminal-only fullscreen. On Windows and Linux korTTY keeps <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span> for itself, so it does not reach the program in the terminal; plain <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-h">H</kbd></span> still reaches the shell as backspace.</p>
+<h2 id="default-rule-set-and-settings">Default rule set and settings<a class="headerlink" href="#default-rule-set-and-settings" title="Permanent link">&para;</a></h2>
+<p>The <strong>Keyword highlighting</strong> section of <em>Configuration → Global Settings → Terminal</em> holds three settings that apply to every pane; see <a href="../reference/settings/terminal.html#notes">Terminal settings</a> for the details.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Highlight keywords in terminal output</strong></td>
+<td>On</td>
+<td>The master switch. Off means no pane is highlighted, whatever was chosen anywhere; the highlighting menus are greyed out and the shortcut only shows a note in the status bar.</td>
+</tr>
+<tr>
+<td><strong>Also highlight in full-screen programs (vim, less, htop)</strong></td>
+<td>Off</td>
+<td>Highlights inside programs that use the alternate screen as well.</td>
+</tr>
+<tr>
+<td><strong>Default rule set</strong></td>
+<td>None</td>
+<td>The set every pane shows unless its connection or the pane has a set of its own. Choose a set here to have highlighting on in every new and open terminal.</td>
+</tr>
+</tbody>
+</table>
+<p>A pane shows the first of these that applies:</p>
+<ol>
+<li>the set chosen for that pane in a menu or with the shortcut, including <strong>None</strong>;</li>
+<li>the <a href="#rule-set-per-connection">connection's rule set</a>, including <strong>None</strong>;</li>
+<li>the default rule set;</li>
+<li>no highlighting.</li>
+</ol>
+<p>A rule set that no longer exists is skipped, so the next level decides. Saving the settings moves every open pane to the set it now resolves to, so a new default appears at once in every pane whose connection and pane have no choice of their own.</p>
+<h2 id="rule-set-per-connection">Rule set per connection<a class="headerlink" href="#rule-set-per-connection" title="Permanent link">&para;</a></h2>
+<p>A connection can have a rule set of its own, for example <strong>Network devices</strong> for your switches and routers and <strong>Errors and warnings</strong> for application servers. Open the connection in the Connection Manager, switch to the <em>Terminal Settings</em> tab and pick the set under <strong>Keyword highlighting</strong> in the <strong>Terminal behavior</strong> section:</p>
+<table>
+<thead>
+<tr>
+<th>Choice</th>
+<th>What the connection's terminals show</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Use the default (…)</strong></td>
+<td>The <a href="#default-rule-set-and-settings">default rule set</a>; the entry names the set the default shows now. New and existing connections start with this choice.</td>
+</tr>
+<tr>
+<td><strong>None (no highlighting for this connection)</strong></td>
+<td>No highlighting, whatever the default rule set is.</td>
+</tr>
+<tr>
+<td>A built-in set or one of your own</td>
+<td>That set, in every pane of the connection.</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>The section applies whether or not the connection uses its own terminal settings, and it stays when terminal effects are switched off. While the master switch in <em>Settings → Terminal</em> is off, the section says so and no set shows.</li>
+<li>Saving in the Connection Manager moves the open panes of that connection, in every window, to the new set at once. A pane with a set chosen in a menu or with the shortcut keeps that choice until you change it there.</li>
+<li>Tabs opened from the saved connection through Quick Connect, <strong>Duplicate</strong> or a <a href="projects.html">project</a> use its set. A pane opened with <strong>Split Right (new connection)</strong> or <strong>Split Down (new connection)</strong> follows the connection it was opened to, unless it took over a set chosen for the pane it was split from.</li>
+<li>The choice is stored with the connection in <code>connections.xml</code> and survives duplicating, exporting and importing; an export carries only the id of the set, never its rules. A set that no longer exists — because you deleted it, or because the connection was exported on another computer or comes from a shared <a href="teamwork.html">teamwork</a> file — is shown as <strong>Missing rule set</strong> in the dropdown, and the connection's panes follow the default rule set until you pick another one. The built-in sets have the same id on every computer.</li>
+</ul>
+<h2 id="your-own-rule-sets">Your own rule sets<a class="headerlink" href="#your-own-rule-sets" title="Permanent link">&para;</a></h2>
+<p>The rule-set editor creates and changes your own rule sets. Open it with <em>View → Highlighting → Manage Rule Sets…</em>, with <strong>Manage Rule Sets…</strong> in a pane's <strong>Highlighting</strong> context submenu, or with <strong>Edit Rules…</strong> next to the default rule set in <em>Configuration → Global Settings → Terminal</em>.</p>
+<p><img alt="The rule-set editor with a set of your own, its rules, a test text and the preview" src="../assets/screenshots/highlighting/rules-dialog.png" /></p>
+<ul>
+<li><strong>Rule sets</strong> on the left lists the built-in sets, marked <em>built-in</em>, and then yours. The built-in sets are read-only, but you can select one to read its patterns. <strong>Duplicate</strong> copies the selected set, built-in or your own, into a new set you can change; <strong>New</strong> starts an empty set with one rule to fill in, and <strong>Delete</strong> removes one of your sets.</li>
+<li><strong>Rule set name</strong> is the name the menus and the default rule set dropdown show.</li>
+<li><strong>Rules</strong> lists the set's rules in priority order: where two rules match the same text, the upper rule wins, as in the built-in sets. Use ▲ and ▼ to change the order, <strong>Add Rule</strong> to add a rule below the selected one and <strong>Remove Rule</strong> to delete it. <strong>On</strong> switches a rule off without deleting it. <strong>Pattern</strong> shows each pattern in the look it gives, <strong>Applies to</strong> whether it colors the matched text or the whole line, <strong>Hits</strong> how many places it highlights in the test text below, and <strong>Check</strong> whether something is wrong with it.</li>
+<li>Below the table you edit the selected rule. <strong>Pattern</strong> is a word or phrase to find, or a Java regular expression when <strong>Regular expression</strong> is on. <strong>Ignore case</strong> matches upper and lower case alike, and <strong>Whole word</strong> only matches where the hit is not part of a longer word, so <code>error</code> marks <code>ERROR:</code> but not <code>terror</code>. <strong>Applies to</strong> colors either the <strong>Matched text</strong> or the <strong>Whole line</strong>, soft-wrapped rows included.</li>
+<li><strong>Text color</strong> and <strong>Background</strong> are <strong>Unchanged</strong> (the program's own color), one of the 16 theme colors, or <strong>Custom</strong> with a color picker. Theme colors follow your color settings and the colors of each connection, like the built-in sets; a custom color stays the same everywhere. <strong>Style</strong> adds <strong>Bold</strong>, <strong>Italic</strong> or <strong>Underline</strong>. A rule needs at least one color or style.</li>
+</ul>
+<p>The <strong>Test text</strong> at the bottom starts with sample log and network-device lines; replace it with output of your own. <strong>Preview</strong> shows it the way a terminal pane would, using the same matching, the same rule order and the same time limit, and it follows every change as you type. The editor keeps your test text until korTTY quits; it is not saved.</p>
+<p><strong>Check</strong> says <strong>Invalid</strong> for a rule that cannot work, <strong>Off</strong> for a rule you switched off, <strong>Slow</strong> for a rule that needed more than half of its time limit on a line of the test text, and <strong>Too slow</strong> for a rule that ran out of time there and highlights nothing on that line; a terminal pane switches such a rule off once it has run out of time on three lines (see <a href="#limits">Limits</a>). Hover over the word, or select the rule, for the explanation. While any rule or set has a problem, <strong>OK</strong> is disabled and the line above the buttons names the first one, for example a missing pattern, a regular expression that does not compile, or a pattern such as <code>a*</code> that also matches empty text.</p>
+<p><strong>OK</strong> saves your rule sets to <code>global-settings.xml</code> at once and moves every open pane to its updated set; <strong>Cancel</strong> discards all changes. Deleting the set that is your default rule set sets the default back to <strong>None</strong>. A pane that showed a deleted set falls back to the next level: its connection's rule set, else the default rule set.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>To adapt a built-in set, select it, click <strong>Duplicate</strong> and change the copy. The built-in sets themselves stay as korTTY ships them, so a later version can improve their patterns.</p>
+</div>
+<h2 id="how-highlighting-behaves">How highlighting behaves<a class="headerlink" href="#how-highlighting-behaves" title="Permanent link">&para;</a></h2>
+<ul>
+<li>New output is highlighted a moment after it appears (about 50 ms), on a background thread, so a fast <code>cat</code> or a log tail keeps its speed.</li>
+<li>A match can continue across a soft-wrapped line, and patterns match wide characters such as CJK text and emoji.</li>
+<li>Choosing another set, or <strong>None</strong>, re-colors the screen at once and the scrollback progressively, newest lines first. <strong>None</strong> restores the original colors everywhere.</li>
+<li>Full-screen programs such as <code>vim</code>, <code>less</code> and <code>htop</code> are not highlighted unless you allow it in the <a href="#default-rule-set-and-settings">settings</a>: they redraw constantly and bring their own colors, so highlights would flicker and fight them.</li>
+<li>When output floods in faster than it can be checked, lines more than 10,000 rows above the bottom are left as they are.</li>
+<li>Text a program marks as concealed stays hidden, and links keep their own style.</li>
+<li>Highlights also show on connections whose terminal colors are switched off, and they appear in <a href="recording.html">terminal recordings</a>, because they are part of what the pane shows.</li>
+<li>While the find bar shows results, korTTY waits with re-coloring the scrollback after you switch sets, so the matches you are looking at stay marked. A line that is highlighted while the find bar is open can lose its find mark; search again to bring it back.</li>
+</ul>
+<h2 id="limits">Limits<a class="headerlink" href="#limits" title="Permanent link">&para;</a></h2>
+<p>Each rule gets at most 2 ms per line of output. A rule that runs out of time three times — usually a regular expression that backtracks badly — is switched off for that pane until you choose a set again. A line, soft-wrapped rows included, is checked up to its first 8,192 characters. The editor's <strong>Check</strong> column warns about slow rules before they reach a terminal.</p>
+<p>You can create up to 32 rule sets with up to 64 rules each, and a pattern can be up to 512 characters long.</p>
+<h2 id="security-and-privacy">Security and privacy<a class="headerlink" href="#security-and-privacy" title="Permanent link">&para;</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>A highlight is not a trust signal. The server decides what it prints, so it can print text that matches a rule, just as it can color its own output. Highlighting never changes what is sent or received.</p>
+</div>
+<p>Rule sets stay on your computer, in <code>global-settings.xml</code> (see <a href="../reference/config-files.html#global-settingsxml">Configuration files</a>), and the log names rules and sets by their ids only, never by their patterns or by the text they matched. If you allowed <a href="../about/anonymous-data.html">anonymous usage statistics</a>, korTTY reports which built-in set was switched on (any set of your own counts only as "custom") and whether that happened from a menu, with the shortcut, through the connection's rule set or through the default rule set, and which of the three settings you changed, with the default rule set again reported only as a built-in set, "custom" or "none" — never patterns, set names or terminal text.</p></p>
+    </article>
+</section>
+            <!-- endblock -->
+
+            <!-- block footer -->
+<footer class="kt-footer">
+  <div class="kt-footer__line">MIT-licensed &middot; Developed by Daniel Mengel</div>
+  <div class="kt-footer__line">korTTY <strong>v2.18.0</strong></div>
+</footer>
+
+            <!-- endblock -->
+        </div>
+
+    </main>
+
+        <script>var base_url = '..';</script>
+        <script src="../assets/js/jquery-3.3.1.slim.min.js"></script>
+        <script src="../assets/js/bootstrap.bundle.min.js"></script>
+        <script src="../assets/js/mkdocs.js"></script>
+			<script src="../assets/javascripts/kt-zoom.js" defer></script>
+			<script src="../search/main.js" defer></script>
+
+</body>
+
+</html>

@@ -4048,6 +4048,25 @@ tasks.register<JavaExec>("generateSessionJournalScreenshots") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("generateHighlightRulesScreenshot") {
+    group = "build"
+    description = "Renders the highlight rule-set editor screenshot for the manual " +
+        "(app-docs/screenshots/highlighting/rules-dialog.png) headless via Node.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.HighlightRulesScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("generateHighlightingTerminalScreenshot") {
+    group = "build"
+    description = "Renders the manual's keyword highlighting picture " +
+        "(app-docs/screenshots/highlighting/terminal-highlighting.png): three real terminal panes with demo " +
+        "output, one per built-in rule set, captured via Node.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.HighlightingTerminalScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("generateCodingAgentScreenshots") {
     group = "build"
     description = "Renders the Coding Agents panel, status strip, dashboard rows and app-icon badge " +

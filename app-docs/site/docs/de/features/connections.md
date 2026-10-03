@@ -31,7 +31,7 @@ Der Verbindungseditor verfügt über folgende Registerkarten:
 | Registerkarte | Inhalt |
 | --- | --- |
 | Verbindung | Host, Port, Benutzername, Protokoll (SSH / Mosh / Lokale Shell), Terminalemulation, **Zeichenkodierung** (Standard verwenden / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), Authentifizierung (Passwort / Schlüssel / keyboard-interactive), **Host-Key-Prüfung** (Standard verwenden / prüfen / nicht prüfen), Gruppen-/Ordnerzuweisung und ein optionaler Freitext [Tag](#tags). Für **Lokale Shell** Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert. Siehe [Zeichenkodierung](#zeichenkodierung). |
-| Terminal-Einstellungen | Farben pro Verbindung, Schriftart, ANSI/TrueColor-Behandlung, der Abschnitt **Terminal-Verhalten** mit der [Tab-Farbe](#tab-farbe), Terminal-Effekt |
+| Terminal-Einstellungen | Farben pro Verbindung, Schriftart, ANSI/TrueColor-Behandlung, der Abschnitt **Terminal-Verhalten** mit der [Tab-Farbe](#tab-farbe) und dem Regelsatz für die [Hervorhebung von Schlüsselwörtern](#hervorhebung-von-schlusselwortern), Terminal-Effekt |
 | SSH-Tunnel | Lokale / Remote- / dynamische Portweiterleitung |
 | Jump Server | Bastion-Host-Verkettung |
 | Terminal-Logging | Schreibt den Terminal-Ausgang dieser Verbindung in eine Datei – Ordner, Format, tägige Rotation, Kompression und Aufbewahrung. Siehe [Terminal-Logging](terminal.md#terminalprotokollierung). |
@@ -42,6 +42,10 @@ Der Verbindungseditor verfügt über folgende Registerkarten:
 ### Zeichenkodierung
 
 **Zeichenkodierung** legt fest, wie korTTY dekodiert, was die Sitzung dieser Verbindung ausgibt und wie Sie eingeben und einfügen, für Server deren Programme noch ISO-8859-1, ISO-8859-15 oder Windows-1252 statt UTF-8 schreiben. **Standard verwenden** folgt [Einstellungen → Terminal → Kodierung](../reference/settings/terminal.md#hinweise) für SSH-Verbindungen und bedeutet UTF-8 für lokale Shells. Mosh funktioniert nur mit UTF-8, daher ist das Dropdown bei Mosh-Verbindungen gesperrt und daneben steht eine entsprechende Notiz. Die Auswahl wird mit der Verbindung gespeichert, bleibt bei Duplizieren, Exportieren und Importieren erhalten und gilt beim nächsten Verbinden oder Wiederverbinden des Tabs.
+
+### Hervorhebung von Schlüsselwörtern
+
+Der Abschnitt **Terminal-Verhalten** der Registerkarte *Terminal-Einstellungen* wählt den Regelsatz für die [Hervorhebung von Schlüsselwörtern](highlighting.md#regelsatz-pro-verbindung), den die Terminals dieser Verbindung zeigen: **Standard verwenden** folgt dem Standard-Regelsatz unter *Einstellungen → Terminal*, **Keiner** lässt sie ohne Hervorhebung, oder Sie wählen einen mitgelieferten oder einen eigenen Regelsatz, zum Beispiel **Netzwerkgeräte** für Switches. Der Abschnitt gilt unabhängig davon, ob die Verbindung eigene Terminal-Einstellungen verwendet, und auch, wenn Terminal-Effekte ausgeschaltet sind. Die Wahl wird mit der Verbindung gespeichert und bleibt beim Duplizieren, Exportieren und Importieren erhalten, und beim Speichern im Connection-Manager gilt sie sofort für die geöffneten Terminals der Verbindung. Ein Regelsatz, der für einen einzelnen Bereich in einem Menü oder mit ++ctrl+shift+h++ (++cmd+shift+h++ auf macOS) gewählt wurde, hat für diesen Bereich weiterhin Vorrang.
 
 ## Tags
 

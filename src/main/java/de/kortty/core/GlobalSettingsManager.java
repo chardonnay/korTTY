@@ -37,7 +37,7 @@ public class GlobalSettingsManager {
 
     /**
      * Shared, thread-safe JAXBContext for the settings graph. Building it is the expensive part of
-     * a save (annotation scan over 15 classes: ~25 ms warm, 100+ ms in a cold JVM) and it used to be
+     * a save (annotation scan over 17 classes: ~25 ms warm, 100+ ms in a cold JVM) and it used to be
      * rebuilt on every load and save — i.e. on every dialog close, on the FX thread.
      */
     private static final JAXBContext JAXB_CONTEXT;
@@ -58,7 +58,9 @@ public class GlobalSettingsManager {
                 de.kortty.model.TeamworkSourceConfig.class,
                 de.kortty.model.TeamworkSourceType.class,
                 de.kortty.model.SessionJournalMarkerDefinition.class,
-                de.kortty.model.SessionJournalMarkerRule.class
+                de.kortty.model.SessionJournalMarkerRule.class,
+                de.kortty.model.HighlightRule.class,
+                de.kortty.model.HighlightRuleSet.class
             );
         } catch (JAXBException e) {
             throw new ExceptionInInitializerError(e);

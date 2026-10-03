@@ -108,6 +108,7 @@ public class KorTTYApplication extends Application {
     private ThemeManager themeManager;
     private TerminalEffectPluginManager terminalEffectPluginManager;
     private CodingAgentService codingAgentService;
+    private de.kortty.core.highlight.TerminalHighlightService terminalHighlightService;
     // Coding-agent UI services (Stage 2): registry + verbs + navigation + notifications + badge.
     private CodingAgentRegistry codingAgentRegistry;
     private CodingAgentActions codingAgentActions;
@@ -271,6 +272,9 @@ public class KorTTYApplication extends Application {
             },
             Platform::runLater,
             CodingAgentService.defaultScheduler());
+        // Keyword highlighting of terminal output: one shared thread; dormant while no set is active.
+        terminalHighlightService = new de.kortty.core.highlight.TerminalHighlightService(
+            de.kortty.core.highlight.TerminalHighlightService.defaultScheduler());
         initCodingAgentUiServices();
         initControlApi(configDir);
         aiChatManager = new AiChatManager(configDir);
@@ -463,6 +467,14 @@ public class KorTTYApplication extends Application {
                     globalSettingsManager.getSettings().getAppDesign());
             } catch (Exception e) {
                 logger.warn("Failed to reload global settings", e);
+            }
+            if (terminalHighlightService != null) {
+                // Rule sets and the default set come from the settings loaded just above.
+                try {
+                    terminalHighlightService.reload(globalSettingsManager.getSettings());
+                } catch (RuntimeException e) {
+                    logger.warn("Failed to load the keyword highlighting rule sets: {}", e.toString());
+                }
             }
             try {
                 themeManager.load();
@@ -744,6 +756,9 @@ public class KorTTYApplication extends Application {
         }
         if (codingAgentService != null) {
             shutdownStep("stop coding agent detection", codingAgentService::stop);
+        }
+        if (terminalHighlightService != null) {
+            shutdownStep("stop keyword highlighting", terminalHighlightService::stop);
         }
         if (sessionJournalSummarizer != null) {
             shutdownStep("stop session journal summarizer", sessionJournalSummarizer::stop);
@@ -1416,6 +1431,11 @@ public class KorTTYApplication extends Application {
     /** Coding-agent detection for local shell panes; null before {@code init()} (e.g. in unit tests). */
     public CodingAgentService getCodingAgentService() {
         return codingAgentService;
+    }
+
+    /** Keyword highlighting of terminal output; null before {@code init()} (e.g. in unit tests). */
+    public de.kortty.core.highlight.TerminalHighlightService getTerminalHighlightService() {
+        return terminalHighlightService;
     }
 
     /**

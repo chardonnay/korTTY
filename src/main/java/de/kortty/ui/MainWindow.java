@@ -6,6 +6,7 @@ import de.kortty.telemetry.TelemetryEvents;
 import de.kortty.telemetry.TelemetryProps;
 import de.kortty.ui.I18n;
 import de.kortty.ui.KeyTypedResidueGuard.Residue;
+import de.kortty.ui.actions.ActionIds;
 import de.kortty.core.AgentDashboardStatus;
 import com.sithtermfx.ui.SithTermFxWidget;
 import de.kortty.codingagent.CodingAgentActionException;
@@ -27,6 +28,9 @@ import de.kortty.core.AiExecutionResult;
 import de.kortty.core.AiInternetAccessConfiguration;
 import de.kortty.core.AiProfileSelectionSupport;
 import de.kortty.core.AiPromptService;
+import de.kortty.core.highlight.HighlightTelemetry;
+import de.kortty.core.highlight.HighlightToggle;
+import de.kortty.core.highlight.TerminalHighlightService;
 import de.kortty.core.swarm.SwarmCallback;
 import de.kortty.core.swarm.SwarmModels;
 import de.kortty.core.swarm.SwarmOrchestrator;
@@ -206,6 +210,10 @@ public class MainWindow {
     // fullscreen, so terminal-only fullscreen uses a modifier combo instead of a bare function key.
     private static final KeyCombination TERMINAL_ONLY_FULLSCREEN_ACCELERATOR =
         new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    // Keyword highlighting on/off for the focused pane. Never a plain Ctrl+letter: on Windows and
+    // Linux plain Ctrl+H is the shell's backspace and must keep reaching it.
+    private static final KeyCombination HIGHLIGHTING_TOGGLE_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.H, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
     // Edit > Quick Select. Not a plain Ctrl+letter, so on Windows/Linux Ctrl+L/F/D/P/R stay with the
     // shell; SithTermFX encodes Ctrl+Space (NUL) only without Shift.
     private static final KeyCombination QUICK_SELECT_ACCELERATOR =
@@ -296,6 +304,8 @@ public class MainWindow {
     private CheckMenuItem systemShowMenuBarMenuItem;
     private CheckMenuItem terminalOnlyFullscreenMenuItem;
     private CheckMenuItem systemTerminalOnlyFullscreenMenuItem;
+    private CheckMenuItem highlightingToggleMenuItem;
+    private CheckMenuItem systemHighlightingToggleMenuItem;
     private CheckMenuItem hideFullscreenScrollbarsMenuItem;
     private CheckMenuItem systemHideFullscreenScrollbarsMenuItem;
     private CheckMenuItem showTimestampsMenuItem;
@@ -2047,6 +2057,7 @@ public class MainWindow {
         Menu terminalEffectMenu = createTerminalEffectMenu(null, includeEffectSpeedControl);
         terminalEffectMenu.setOnShowing(event ->
                 rebuildTerminalEffectMenu(terminalEffectMenu, getActiveTerminalTab(), includeEffectSpeedControl));
+        Menu highlightingMenu = createHighlightingMenu(target);
 
         MenuItem fullscreen = new MenuItem(I18n.get("menu.view.fullscreen"));
         // F12 lives on the in-window bar; the macOS companion system bar has all accelerators
@@ -2087,7 +2098,7 @@ public class MainWindow {
         if (target != MenuBarTarget.SYSTEM) {
             viewMenu.getItems().addAll(new SeparatorMenuItem(), buildBackgroundTransparencyMenuItem());
         }
-        viewMenu.getItems().addAll(new SeparatorMenuItem(), terminalEffectMenu, new SeparatorMenuItem(),
+        viewMenu.getItems().addAll(new SeparatorMenuItem(), highlightingMenu, terminalEffectMenu, new SeparatorMenuItem(),
             fullscreen, terminalOnlyFullscreen, hideFullscreenScrollbars);
         return viewMenu;
     }
@@ -2152,6 +2163,104 @@ public class MainWindow {
         } catch (Exception e) {
             logger.warn("Could not persist background transparency setting", e);
         }
+    }
+
+    /**
+     * View → Highlighting: the Highlighting On item, which carries {@link #HIGHLIGHTING_TOGGLE_ACCELERATOR}
+     * for display (the scene shortcut router handles the key itself while a terminal tab is selected),
+     * the rule-set list, rebuilt each time the menu opens, and Manage Rule Sets… below it. The first two
+     * act on the focused pane of the active terminal tab, for this session only.
+     */
+    private Menu createHighlightingMenu(MenuBarTarget target) {
+        CheckMenuItem toggle = HighlightMenuSupport.createToggleItem(
+            () -> toggleHighlightingInActiveTerminal(HighlightTelemetry.SOURCE_MENU));
+        toggle.setAccelerator(HIGHLIGHTING_TOGGLE_ACCELERATOR);
+        ActionIds.tag(toggle, HighlightMenuSupport.TOGGLE_KEY);
+        if (target == MenuBarTarget.WINDOW) {
+            highlightingToggleMenuItem = toggle;
+        } else {
+            systemHighlightingToggleMenuItem = toggle;
+        }
+        MenuItem manage = HighlightMenuSupport.createManageItem(this::openHighlightRulesEditor);
+        ActionIds.tag(manage, HighlightMenuSupport.MANAGE_KEY);
+        Menu menu = HighlightMenuSupport.createViewMenu(toggle, manage, activeHighlightMenuState(),
+            this::chooseHighlightSetInActiveTerminal);
+        menu.setOnShowing(event -> HighlightMenuSupport.refresh(menu, toggle, activeHighlightMenuState(),
+            this::chooseHighlightSetInActiveTerminal));
+        return menu;
+    }
+
+    /** The highlighting menus' state for the focused pane of the active terminal tab. */
+    private HighlightMenuSupport.State activeHighlightMenuState() {
+        TerminalTab terminalTab = getActiveTerminalTab();
+        if (terminalTab == null) {
+            return HighlightMenuSupport.state(app.getTerminalHighlightService(), false, null);
+        }
+        TerminalView view = terminalTab.getTerminalView();
+        return view.getHighlightMenuState(view.getFocusedWidget());
+    }
+
+    /**
+     * Cmd/Ctrl+Shift+H and View → Highlighting → Highlighting On: switches the focused pane's
+     * highlighting off or back on. The decision comes from the pane's state, never from the check
+     * item, which JavaFX has already flipped when this runs; the items are re-synced afterwards.
+     */
+    private void toggleHighlightingInActiveTerminal(String source) {
+        TerminalTab terminalTab = getActiveTerminalTab();
+        TerminalHighlightService service = app.getTerminalHighlightService();
+        if (terminalTab != null && service != null && !service.isClosed()) {
+            if (!service.isEnabled()) {
+                updateStatus(I18n.get(HighlightMenuSupport.DISABLED_KEY));
+            } else {
+                TerminalView view = terminalTab.getTerminalView();
+                Optional<HighlightToggle.Choice> choice = view.toggleHighlighting(view.getFocusedWidget(), source);
+                choice.ifPresent(decided ->
+                    updateStatus(HighlightMenuSupport.statusMessage(decided, service::userSetName)));
+            }
+        }
+        syncHighlightingToggleItems();
+    }
+
+    /** A set picked in View → Highlighting, for the focused pane of the active terminal tab. */
+    private void chooseHighlightSetInActiveTerminal(String setId) {
+        TerminalTab terminalTab = getActiveTerminalTab();
+        if (terminalTab != null) {
+            TerminalView view = terminalTab.getTerminalView();
+            view.chooseHighlightSet(view.getFocusedWidget(), setId, HighlightTelemetry.SOURCE_MENU);
+        }
+        syncHighlightingToggleItems();
+    }
+
+    /**
+     * View → Highlighting → Manage Rule Sets…: the rule-set editor, opened on the set the focused pane
+     * shows. Saving writes the settings and reloads the highlighting, so every pane follows at once.
+     */
+    private void openHighlightRulesEditor() {
+        HighlightRulesDialog.showAndSave(stage, app, activeHighlightMenuState().shownSetId());
+        syncHighlightingToggleItems();
+    }
+
+    private void syncHighlightingToggleItems() {
+        HighlightMenuSupport.State state = activeHighlightMenuState();
+        HighlightMenuSupport.syncToggle(highlightingToggleMenuItem, state);
+        HighlightMenuSupport.syncToggle(systemHighlightingToggleMenuItem, state);
+    }
+
+    /**
+     * After the Connection Manager saved: a connection's rule set may have changed, so every pane in every
+     * window that inherits from its connection moves to the set it resolves to now (the service is shared
+     * by all windows). A failure here must never break saving connections.
+     */
+    private void refreshHighlightingAfterConnectionsSaved() {
+        TerminalHighlightService service = app.getTerminalHighlightService();
+        if (service != null && !service.isClosed()) {
+            try {
+                service.refreshAll();
+            } catch (RuntimeException e) {
+                logger.warn("Keyword highlighting could not follow the saved connections: {}", e.toString());
+            }
+        }
+        syncHighlightingToggleItems();
     }
 
     private Menu createTerminalEffectMenu(TerminalTab terminalTab) {
@@ -2364,6 +2473,10 @@ public class MainWindow {
                 () -> toggleMenuBarVisibility(menuBar == null || !menuBar.isVisible()), Residue.ofLetter('L'))
             .consume(press -> press.matches(TERMINAL_ONLY_FULLSCREEN_ACCELERATOR), SceneShortcutRouter.ALWAYS,
                 this::toggleTerminalOnlyFullscreen, Residue.ofLetter('F'))
+            // Highlighting acts on the focused pane, so only while a terminal tab is selected. The
+            // residue includes U+0008, which Ctrl turns H into: it would reach the shell as a backspace.
+            .consume(press -> press.matches(HIGHLIGHTING_TOGGLE_ACCELERATOR), terminalSelected,
+                () -> toggleHighlightingInActiveTerminal(HighlightTelemetry.SOURCE_SHORTCUT), Residue.ofLetter('H'))
             // Routed so a focused terminal cannot take Ctrl+Shift+M (a carriage return) on Windows
             // and Linux. Opened after the key event, since the dialog may run a nested event loop.
             .consume(press -> press.matches(CREDENTIALS_ACCELERATOR), SceneShortcutRouter.ALWAYS,
@@ -3084,6 +3197,7 @@ public class MainWindow {
      * Called when connections are saved in Connection Manager so changes take effect immediately.
      */
     private void refreshAllTerminalTabsConnectionSettings() {
+        refreshHighlightingAfterConnectionsSaved();
         boolean groupChanged = false;
         for (Tab tab : tabPane.getTabs()) {
             if (tab instanceof TerminalTab terminalTab) {
@@ -3217,6 +3331,8 @@ public class MainWindow {
                 UiFontScaleSupport.invalidateAutoCache();
                 refreshAppDesignForOpenWindows();
                 syncHideFullscreenScrollbarsMenuItems();
+                // The master switch or the default set may have changed what the focused pane shows.
+                syncHighlightingToggleItems();
                 applyTerminalScrollbarVisibilityForOpenTabs();
                 syncAiFeaturesMenuItemsEnabled();
                 refreshTerminalTabsUsingGlobalDefaults();
@@ -11702,6 +11818,14 @@ public class MainWindow {
         });
         reloadAfterBackupImport("GPG keys", () -> app.getGpgKeyManager().load());
         reloadAfterBackupImport("global settings", () -> app.getGlobalSettingsManager().load());
+        // The highlighting service compiled the rule sets of the settings object just replaced: without
+        // this, the menus and open panes would keep the old sets and default until the next save.
+        reloadAfterBackupImport("keyword highlighting", () -> {
+            TerminalHighlightService highlightService = app.getTerminalHighlightService();
+            if (highlightService != null && !highlightService.isClosed()) {
+                highlightService.reload(app.getGlobalSettingsManager().getSettings());
+            }
+        });
         reloadAfterBackupImport("themes", () -> {
             if (app.getThemeManager() != null) {
                 app.getThemeManager().load();

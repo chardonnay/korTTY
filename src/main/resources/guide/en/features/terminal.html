@@ -409,6 +409,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="highlighting.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Keyword highlighting
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="tunnels.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -649,7 +657,7 @@
                     </a>
                 </div>
                 <div class="col">
-                    <a href="tunnels.html"
+                    <a href="highlighting.html"
                         class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover" style="padding-left: 3%;">
                         Next <i class="fa fa-arrow-right"></i>
                     </a>
@@ -879,7 +887,7 @@
 </tr>
 </tbody>
 </table>
-<p>Below them come the entries of other features, in this order and some only where they apply: <strong>Show Menu Bar</strong> (while the menu bar is hidden), <strong>Open in Snippet Editor</strong>, the <strong>AI</strong> submenu, the session-journal screenshot and note entries, <strong>Theme</strong>, <strong>Terminal Effect</strong>, <strong>Reconnect</strong> and <strong>Show Command Timestamps</strong>. The <strong>Extras</strong> submenu at the end holds <strong>Split Terminal</strong>, <strong>Font Size</strong> (see <a href="#font-size-and-zoom">Font size and zoom</a>) and <strong>Broadcast Mode</strong>.</p>
+<p>Below them come the entries of other features, in this order and some only where they apply: <strong>Show Menu Bar</strong> (while the menu bar is hidden), <strong>Open in Snippet Editor</strong>, the <strong>AI</strong> submenu, the session-journal screenshot and note entries, <strong>Theme</strong>, <strong>Highlighting</strong> (see <a href="highlighting.html">Keyword highlighting</a>), <strong>Terminal Effect</strong>, <strong>Reconnect</strong> and <strong>Show Command Timestamps</strong>. The <strong>Extras</strong> submenu at the end holds <strong>Split Terminal</strong>, <strong>Font Size</strong> (see <a href="#font-size-and-zoom">Font size and zoom</a>) and <strong>Broadcast Mode</strong>.</p>
 <h2 id="links-in-terminal-output">Links in terminal output<a class="headerlink" href="#links-in-terminal-output" title="Permanent link">&para;</a></h2>
 <p>Programs can print clickable links into the terminal with the OSC 8 escape sequence; GCC, for example, can link a warning to its documentation. To open such a link, hold <span class="keys"><kbd class="key-command">Cmd</kbd></span> (macOS) or <span class="keys"><kbd class="key-control">Ctrl</kbd></span> (Windows and Linux) and click it: it opens in your default browser, or a <code>mailto</code> link in your mail program. Only <code>http</code>, <code>https</code>, <code>ftp</code>, <code>ftps</code> and <code>mailto</code> links open in the browser or mail program (<code>file:</code> links open as text in the Snippet Editor, see below), and a <code>mailto</code> link may only fill in recipients (<code>to</code>, <code>cc</code>, <code>bcc</code>), <code>subject</code>, <code>body</code> and <code>in-reply-to</code>.</p>
 <p>The same click opens a web or e-mail address that a program prints as plain text, such as the address in a log line, a compiler message or a <code>git push</code> hint: a web address opens in your default browser, and an e-mail address such as <code>ops@example.com</code> opens as a new mail to it. A full stop, comma, quote or closing bracket right after an address is not part of it, and an address that wraps onto the next rows is found from any of its rows. KorTTY looks for the address only when you click, in the text the terminal shows at that moment, so an address that a program printed in several pieces opens whole, and printing output does not get any slower. It reads at most 16 rows above and below the click (fewer in a very wide terminal) and leaves an address that runs on beyond them alone rather than opening it cut short. What the paragraphs below say about clicking a link and about links that never open applies to these addresses too. To turn this off, clear <strong>Detect web addresses, e-mail addresses and file paths in terminal text</strong> in <a href="../reference/settings/terminal.html#notes">Settings → Terminal → Links</a>; links marked up with OSC 8 keep working.</p>

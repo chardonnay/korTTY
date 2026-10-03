@@ -59,6 +59,7 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | ++f1++ | Open the manual (**Help → Manual**) |
 | ++f12++ | Toggle Fullscreen |
 | ++ctrl+shift+f++ | Toggle Terminal-only Fullscreen |
+| ++ctrl+shift+h++ | Switch [keyword highlighting](../features/highlighting.md) on or off for the focused terminal pane |
 
 The zoom keys (++ctrl++ or ++alt++ with ++plus++ / ++minus++ / ++0++; ++cmd++ on macOS) zoom the terminal only while a terminal tab is selected. In a snippet editor or file editor tab they reach the editor, and ++alt-graph+plus++ types its character there.
 
@@ -90,7 +91,7 @@ These keys work while a terminal pane has the focus. For how they behave with se
 
 On Windows and Linux, ++ctrl+1++ to ++ctrl+9++ no longer reach the program in the terminal: korTTY's terminal never sent them as keys of their own, so no program loses a binding it could receive.
 
-On Windows and Linux, **Clear Buffer** and **Find** have no key of their own, so ++ctrl+l++ and ++ctrl+f++ stay with the programs running in the terminal. Use right-click → **Clear Buffer** or **Find** in the terminal, or **Edit → Find…** with the mouse. ++ctrl+shift+f++ stays Terminal-only Fullscreen and ++ctrl+shift+k++ still docks the file browser on the left.
+On Windows and Linux, **Clear Buffer** and **Find** have no key of their own, so ++ctrl+l++ and ++ctrl+f++ stay with the programs running in the terminal. Use right-click → **Clear Buffer** or **Find** in the terminal, or **Edit → Find…** with the mouse. ++ctrl+shift+f++ stays Terminal-only Fullscreen and ++ctrl+shift+k++ still docks the file browser on the left. ++ctrl+shift+h++ switches keyword highlighting and does not reach the terminal, while plain ++ctrl+h++ still reaches the shell as backspace.
 
 Every other combination of ++shift++, ++ctrl++ and ++alt++ with the arrow keys, ++home++ / ++end++, ++page-up++ / ++page-down++, ++insert++ / ++delete++ and ++f1++ to ++f11++ is sent the way xterm sends it (++f12++ always toggles fullscreen), for example ++ctrl+page-up++ as `ESC [ 5 ; 5 ~` and ++shift+f1++ as `ESC [ 1 ; 2 P`. The arrow keys follow the program's cursor-key mode: `mc` and `vim` switch it on and then receive `ESC O A`, while a shell receives `ESC [ A`. Connections with a non-xterm terminal emulation (Wyse, TeleVideo, HP, SCO ANSI, IBM 3270/5250, PETSCII) keep sending fixed sequences without modifiers.
 

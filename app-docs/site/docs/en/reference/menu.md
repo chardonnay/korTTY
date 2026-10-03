@@ -115,6 +115,9 @@ The three session-journal items stay visible but are disabled when an [enterpris
 | Zoom Out | ++alt+minus++ | Decrease terminal font size |
 | Reset Zoom | ++alt+0++ | Reset terminal font size |
 | Background Transparency | | Slider (0–100 %) that makes the terminal background see-through to the desktop while the text stays sharp; every split pane inherits the value. The value is saved across restarts; fullscreen temporarily renders terminal backgrounds opaque and restores the value when you leave. Switching it on or off needs a restart, so the status bar shows a hint when you cross that threshold. Shown in the in-window menu bar only. |
+| Highlighting ▸ Highlighting On | ++ctrl+shift+h++ | Switch [keyword highlighting](../features/highlighting.md) on or off for the focused pane of the active tab; switching it back on restores the set the pane showed last. Applies to the running session only |
+| Highlighting ▸ None / rule set | | Choose the rule set the focused pane shows: **None**, a built-in set (**Errors and warnings**, **Network addresses**, **Network devices**) or one of your own. Applies to the running session only |
+| Highlighting ▸ Manage Rule Sets… | | Open the [rule-set editor](../features/highlighting.md#your-own-rule-sets) to create, change, duplicate or delete your own rule sets and look at the built-in ones; it opens on the set the focused pane shows |
 | Fullscreen | ++f12++ | Toggle window fullscreen |
 | Terminal-only Fullscreen | ++ctrl+shift+f++ | Show the whole korTTY window — menus, tabs and status bar included — kept at its previous window size and centered on an empty fullscreen background, hiding the desktop and other windows |
 | Hide terminal scrollbars in fullscreen | | Also hide scrollbars while in fullscreen |

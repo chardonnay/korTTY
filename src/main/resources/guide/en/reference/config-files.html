@@ -409,6 +409,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/highlighting.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Keyword highlighting
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/tunnels.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -818,6 +826,7 @@
 - Window geometry preferences
 - Group/folder organization
 - Optional free-text tag (used for search, bulk tagging and tag-based export)
+- Optional keyword highlighting rule set (<code>highlightRuleSetId</code>): the id of a built-in or your own rule set, <code>none</code> for no highlighting, or missing to follow the default rule set (see <a href="../features/highlighting.html#rule-set-per-connection">Rule set per connection</a>). Connections from a <a href="../features/teamwork.html">teamwork</a> file can carry it as well; the id of a rule set that does not exist on your computer is ignored.
 - Optional tab color (<code>tabColor</code>, <code>#RRGGBB</code>) that marks the connection's terminal tabs with a colored dot; anything that is not a hex color is ignored (see <a href="../features/connections.html#tab-color">Tab color</a>). Connections from a <a href="../features/teamwork.html">teamwork</a> file can carry it as well, so the file's maintainer decides how those tabs are marked.</p>
 <p><strong>Security:</strong> Connection passwords are encrypted with AES-256-GCM using the master password.</p>
 <div class="admonition note">
@@ -893,6 +902,12 @@
 <li>Terminal effect plugin defaults</li>
 <li>SSH keep-alive settings</li>
 <li>Connection timeout and retry defaults</li>
+</ul>
+<h4 id="keyword-highlighting">Keyword highlighting<a class="headerlink" href="#keyword-highlighting" title="Permanent link">&para;</a></h4>
+<ul>
+<li>The master switch (<code>terminalHighlightingEnabled</code>), highlighting in full-screen programs (<code>terminalHighlightAlternateScreen</code>) and the default rule set (<code>defaultHighlightRuleSetId</code>, the id of a built-in or your own set; empty means none)</li>
+<li>Your own rule sets (<code>highlightRuleSets</code>), as edited in the <a href="../features/highlighting.html#your-own-rule-sets">rule-set editor</a>: each set has a stable id, a name and its rules in priority order, and each rule its id, whether it is on, the pattern, whether it is a regular expression, ignore case, whole word, whether it colors the match or the whole line, the text and background colors (<code>#RRGGBB</code>, a theme color <code>ansi:0</code> to <code>ansi:15</code>, or empty to keep the program's color) and bold, italic and underline</li>
+<li>The built-in rule sets are not stored: they come with korTTY, so a new version can improve them, and their ids start with <code>builtin.</code>, which your own sets cannot use</li>
 </ul>
 <h4 id="ai-models-and-knowledge-stores">AI, models and knowledge stores<a class="headerlink" href="#ai-models-and-knowledge-stores" title="Permanent link">&para;</a></h4>
 <ul>

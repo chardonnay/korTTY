@@ -1378,6 +1378,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                 imported.setAuthMethod(conn.getAuthMethod());
                 imported.setTerminalEffectPluginId(conn.getTerminalEffectPluginId());
                 imported.setTerminalEffectAnimationSpeed(conn.getTerminalEffectAnimationSpeed());
+                imported.setHighlightRuleSetId(conn.getHighlightRuleSetId());
                 
                 // SSH Key (conditional or replaced)
                 if (result.replaceSSHKey && result.replacementSSHKey != null) {

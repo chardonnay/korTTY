@@ -4,7 +4,7 @@ title: Terminal
 
 # Terminal
 
-Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, links, and SSH connection management. Open via **Configuration → Global Settings → Terminal**; stored in `~/.kortty/global-settings.xml`.
+Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, keyword highlighting, links, and SSH connection management. Open via **Configuration → Global Settings → Terminal**; stored in `~/.kortty/global-settings.xml`.
 
 ![Terminal settings tab](../../assets/screenshots/settings/terminal.png)
 
@@ -20,6 +20,10 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Allow drag-and-drop file copy into terminal | toggle | — | On | `terminalDragDropEnabled` |
 | Copy selection to clipboard automatically | toggle | — | On | `terminalCopyOnSelectEnabled` |
 | Close active terminal windows without confirmation | toggle | — | Off | `closeActiveTerminalWindowsWithoutConfirmation` |
+| Highlight keywords in terminal output | toggle | — | On | `terminalHighlightingEnabled` |
+| Also highlight in full-screen programs (vim, less, htop) | toggle | — | Off | `terminalHighlightAlternateScreen` |
+| Default rule set: | dropdown | None, Errors and warnings, Network addresses, Network devices, or a set of your own | None | `defaultHighlightRuleSetId` |
+| Edit Rules… | button | opens the rule-set editor | — | `highlightRuleSets` |
 | Detect web addresses, e-mail addresses and file paths in terminal text | toggle | — | On | `terminalLinkDetectionEnabled` |
 | Enable SSH Keep-Alive | toggle | — | On | `sshKeepAliveEnabled` |
 | Interval (seconds): | number | 5–600 | 60 | `sshKeepAliveInterval` |
@@ -46,6 +50,17 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 
 !!! note "Copy selection to clipboard automatically"
     When enabled, text you select in a terminal is copied to the clipboard as soon as you select it. On Linux it also becomes the X11 primary selection, so a middle-click pastes it in other applications such as xterm or gedit. With the enterprise policy's [internal clipboard mode](../enterprise-policy.md#internal-clipboard-mode) the selection stays inside korTTY on every platform.
+
+!!! note "Keyword highlighting"
+    **Highlight keywords in terminal output** is the master switch of [keyword highlighting](../../features/highlighting.md). While it is off, no pane is highlighted, whatever was chosen in a menu, with ++ctrl+shift+h++ (++cmd+shift+h++ on macOS), for a connection or as the default rule set, and the highlighting menus are greyed out. It is on by default, but nothing is highlighted until a rule set is chosen.
+
+    **Default rule set** is the set every terminal pane shows unless its connection has a rule set of its own (see [Rule set per connection](../../features/highlighting.md#rule-set-per-connection)) or you choose another one for that pane. It is **None** by default, so highlighting stays off until you opt in here, for a connection in the connection editor, in *View → Highlighting*, in a pane's context menu or with the shortcut. A set chosen for a pane in one of those places stays on top of the default until the pane is closed, and **None** chosen there keeps that pane plain whatever the default is. If the stored default names a rule set that no longer exists, the dropdown shows it as missing and panes show no highlighting.
+
+    **Also highlight in full-screen programs** extends highlighting to programs that use the terminal's alternate screen, such as `vim`, `less` and `htop`. It is off by default because these programs redraw their screen constantly and bring their own colors, so highlights can flicker there and fight the program's colors. Switching it off leaves the highlights a running program already shows until it redraws them.
+
+    All three apply to open terminals as soon as you save.
+
+    **Edit Rules…** opens the [rule-set editor](../../features/highlighting.md#your-own-rule-sets), where you create your own rule sets and look at the built-in ones. It stays available while the master switch is off, so you can prepare sets before switching highlighting on. The editor saves its changes when you confirm it, whether or not you then save the settings dialog, and afterwards the **Default rule set** dropdown lists your sets as they are now. If you delete the set the dropdown shows, it falls back to **None**.
 
 !!! note "Links"
     With **Detect web addresses, e-mail addresses and file paths in terminal text** on, ++cmd++ + click (macOS) or ++ctrl++ + click (Windows, Linux) opens a web address, an e-mail address or a file path that a program printed as plain text: a web address in your default browser, an e-mail address as a new mail in your mail program, and in SSH and local-shell tabs a file path as text in the Snippet Editor. A plain click still only selects text. A change applies to the open terminals at once. Links that a program marks up itself with OSC 8 open with the same click either way. See [Links in terminal output](../../features/terminal.md#links-in-terminal-output).

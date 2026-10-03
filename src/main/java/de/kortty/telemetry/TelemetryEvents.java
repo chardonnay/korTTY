@@ -25,6 +25,7 @@ public final class TelemetryEvents {
     public static final String FILE_LOADED_AS_TEXT = "file_loaded_as_text";
     public static final String TERMINAL_LOG_STARTED = "terminal_log_started";
     public static final String TERMINAL_EFFECT_APPLIED = "terminal_effect_applied";
+    public static final String TERMINAL_HIGHLIGHT_APPLIED = "terminal_highlight_applied";
 
     // Projects / backups / connections / panels
     public static final String PROJECT_ACTION = "project_action";

@@ -409,6 +409,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="highlighting.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Keyword highlighting
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="tunnels.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -790,7 +798,7 @@
 </tr>
 <tr>
 <td>Terminal Settings</td>
-<td>Per-connection colors, font, ANSI/TrueColor handling, the <strong>Terminal behavior</strong> section with the <a href="#tab-color">tab color</a>, terminal effect</td>
+<td>Per-connection colors, font, ANSI/TrueColor handling, the <strong>Terminal behavior</strong> section with the <a href="#tab-color">tab color</a> and the <a href="#keyword-highlighting">keyword highlighting</a> rule set, terminal effect</td>
 </tr>
 <tr>
 <td>SSH Tunnels</td>
@@ -820,6 +828,8 @@
 </table>
 <h3 id="character-encoding">Character encoding<a class="headerlink" href="#character-encoding" title="Permanent link">&para;</a></h3>
 <p><strong>Character encoding</strong> sets how korTTY decodes what this connection's session prints and encodes what you type and paste, for servers whose programs still write ISO-8859-1, ISO-8859-15 or Windows-1252 instead of UTF-8. <strong>Use default</strong> follows <a href="../reference/settings/terminal.html#notes">Settings → Terminal → Encoding</a> for SSH connections and means UTF-8 for local shells. Mosh only works with UTF-8, so the dropdown is locked for Mosh connections and a note beside it says so. The choice is stored with the connection, survives duplicating, exporting and importing, and applies the next time the tab connects or reconnects.</p>
+<h3 id="keyword-highlighting">Keyword highlighting<a class="headerlink" href="#keyword-highlighting" title="Permanent link">&para;</a></h3>
+<p>The <strong>Terminal behavior</strong> section of the <em>Terminal Settings</em> tab picks the <a href="highlighting.html#rule-set-per-connection">keyword highlighting</a> rule set this connection's terminals show: <strong>Use the default</strong> follows the default rule set of <em>Settings → Terminal</em>, <strong>None</strong> keeps them plain, or pick a built-in set or one of your own, for example <strong>Network devices</strong> for switches. The section applies whether or not the connection uses its own terminal settings, and also while terminal effects are switched off. The choice is stored with the connection, survives duplicating, exporting and importing, and saving in the Connection Manager applies it to the connection's open terminals at once. A set chosen for a single pane in a menu or with <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span> on macOS) still wins for that pane.</p>
 <h2 id="tags">Tags<a class="headerlink" href="#tags" title="Permanent link">&para;</a></h2>
 <p>Every saved connection can carry one optional free-text <strong>tag</strong> — a label such as <code>prod</code>, <code>staging</code> or a customer name — independent of the group/folder hierarchy. Set it on the connection editor's <em>Connection</em> tab (next to the group), or in bulk in the Connection Manager. Tags are stored with the connection in <code>connections.xml</code> and survive duplicating, exporting and importing.</p>
 <ul>

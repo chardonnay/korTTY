@@ -70,6 +70,7 @@ Contains all saved SSH connections with their settings.
 - Window geometry preferences
 - Group/folder organization
 - Optional free-text tag (used for search, bulk tagging and tag-based export)
+- Optional keyword highlighting rule set (`highlightRuleSetId`): the id of a built-in or your own rule set, `none` for no highlighting, or missing to follow the default rule set (see [Rule set per connection](../features/highlighting.md#rule-set-per-connection)). Connections from a [teamwork](../features/teamwork.md) file can carry it as well; the id of a rule set that does not exist on your computer is ignored.
 - Optional tab color (`tabColor`, `#RRGGBB`) that marks the connection's terminal tabs with a colored dot; anything that is not a hex color is ignored (see [Tab color](../features/connections.md#tab-color)). Connections from a [teamwork](../features/teamwork.md) file can carry it as well, so the file's maintainer decides how those tabs are marked.
 
 **Security:** Connection passwords are encrypted with AES-256-GCM using the master password.
@@ -163,6 +164,12 @@ Global application preferences and defaults.
 - Terminal effect plugin defaults
 - SSH keep-alive settings
 - Connection timeout and retry defaults
+
+#### Keyword highlighting
+
+- The master switch (`terminalHighlightingEnabled`), highlighting in full-screen programs (`terminalHighlightAlternateScreen`) and the default rule set (`defaultHighlightRuleSetId`, the id of a built-in or your own set; empty means none)
+- Your own rule sets (`highlightRuleSets`), as edited in the [rule-set editor](../features/highlighting.md#your-own-rule-sets): each set has a stable id, a name and its rules in priority order, and each rule its id, whether it is on, the pattern, whether it is a regular expression, ignore case, whole word, whether it colors the match or the whole line, the text and background colors (`#RRGGBB`, a theme color `ansi:0` to `ansi:15`, or empty to keep the program's color) and bold, italic and underline
+- The built-in rule sets are not stored: they come with korTTY, so a new version can improve them, and their ids start with `builtin.`, which your own sets cannot use
 
 #### AI, models and knowledge stores
 

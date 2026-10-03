@@ -85,7 +85,7 @@ Right-click inside a terminal to open its context menu; in a split tab it acts o
 | **Clear Buffer** | Clears the scrollback and the screen but keeps the prompt line. While a full-screen program such as `vim` or `less` is running, it does nothing. |
 | **Find** | Opens the find bar at the top right of the pane, the same as **Edit → Find...** (++ctrl+f++, ++cmd+f++ on macOS). Type to highlight matches, press ++enter++ or ++down++ for the next match and ++up++ for the previous one, and ++esc++ to close the bar. |
 
-Below them come the entries of other features, in this order and some only where they apply: **Show Menu Bar** (while the menu bar is hidden), **Open in Snippet Editor**, the **AI** submenu, the session-journal screenshot and note entries, **Theme**, **Terminal Effect**, **Reconnect** and **Show Command Timestamps**. The **Extras** submenu at the end holds **Split Terminal**, **Font Size** (see [Font size and zoom](#font-size-and-zoom)) and **Broadcast Mode**.
+Below them come the entries of other features, in this order and some only where they apply: **Show Menu Bar** (while the menu bar is hidden), **Open in Snippet Editor**, the **AI** submenu, the session-journal screenshot and note entries, **Theme**, **Highlighting** (see [Keyword highlighting](highlighting.md)), **Terminal Effect**, **Reconnect** and **Show Command Timestamps**. The **Extras** submenu at the end holds **Split Terminal**, **Font Size** (see [Font size and zoom](#font-size-and-zoom)) and **Broadcast Mode**.
 
 ## Links in terminal output
 

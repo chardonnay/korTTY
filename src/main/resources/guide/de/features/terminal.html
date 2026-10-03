@@ -409,6 +409,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="highlighting.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Hervorhebung von Schlüsselwörtern
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="tunnels.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -649,7 +657,7 @@
                     </a>
                 </div>
                 <div class="col">
-                    <a href="tunnels.html"
+                    <a href="highlighting.html"
                         class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover" style="padding-left: 3%;">
                         Next <i class="fa fa-arrow-right"></i>
                     </a>
@@ -879,7 +887,7 @@
 </tr>
 </tbody>
 </table>
-<p>Darunter folgen die Einträge anderer Funktionen, in dieser Reihenfolge und einige nur dort, wo sie zutreffen: <strong>Menüleiste anzeigen</strong> (während die Menüleiste verborgen ist), <strong>Im Snippet-Editor öffnen</strong>, das <strong>KI-Untermenü</strong>, die Session-Journal-Screenshot- und Notizeinträge, <strong>Thema</strong>, <strong>Terminal-Effekt</strong>, <strong>Neu verbinden</strong> und <strong>Befehls-Zeitstempel anzeigen</strong>. Das <strong>Extras</strong>-Untermenü am Ende enthält <strong>Terminal teilen</strong>, <strong>Schriftgröße</strong> (siehe <a href="#schriftgroe-und-zoom">Schriftgröße und Zoom</a>) und <strong>Broadcast-Modus</strong>.</p>
+<p>Darunter folgen die Einträge anderer Funktionen, in dieser Reihenfolge und einige nur dort, wo sie zutreffen: <strong>Menüleiste anzeigen</strong> (während die Menüleiste verborgen ist), <strong>Im Snippet-Editor öffnen</strong>, das <strong>KI-Untermenü</strong>, die Session-Journal-Screenshot- und Notizeinträge, <strong>Thema</strong>, <strong>Hervorhebung</strong> (siehe <a href="highlighting.html">Hervorhebung von Schlüsselwörtern</a>), <strong>Terminal-Effekt</strong>, <strong>Neu verbinden</strong> und <strong>Befehls-Zeitstempel anzeigen</strong>. Das <strong>Extras</strong>-Untermenü am Ende enthält <strong>Terminal teilen</strong>, <strong>Schriftgröße</strong> (siehe <a href="#schriftgroe-und-zoom">Schriftgröße und Zoom</a>) und <strong>Broadcast-Modus</strong>.</p>
 <h2 id="links-in-der-terminalausgabe">Links in der Terminalausgabe<a class="headerlink" href="#links-in-der-terminalausgabe" title="Permanent link">&para;</a></h2>
 <p>Programme können mit der OSC-8-Escape-Sequenz anklickbare Links im Terminal ausgeben; GCC kann zum Beispiel eine Warnung mit ihrer Dokumentation verlinken. Um einen solchen Link zu öffnen, halten Sie <span class="keys"><kbd class="key-command">Cmd</kbd></span> (macOS) bzw. <span class="keys"><kbd class="key-control">Ctrl</kbd></span> (Windows und Linux) gedrückt und klicken ihn an: Er öffnet sich in Ihrem Standardbrowser, ein <code>mailto</code>-Link in Ihrem Mailprogramm. Nur <code>http</code>-, <code>https</code>-, <code>ftp</code>-, <code>ftps</code>- und <code>mailto</code>-Links öffnen sich im Browser oder Mailprogramm (<code>file:</code>-Links öffnen sich als Text im Snippet-Editor, siehe unten), und ein <code>mailto</code>-Link darf nur Empfänger (<code>to</code>, <code>cc</code>, <code>bcc</code>), <code>subject</code>, <code>body</code> und <code>in-reply-to</code> ausfüllen.</p>
 <p>Derselbe Klick öffnet eine Web- oder E-Mail-Adresse, die ein Programm als Klartext ausgibt, etwa die Adresse in einer Logzeile, einer Compiler-Meldung oder einem <code>git push</code>-Hinweis: Eine Webadresse öffnet sich in Ihrem Standardbrowser, eine E-Mail-Adresse wie <code>ops@example.com</code> als neue Mail an diese Adresse. Ein Punkt, Komma, Anführungszeichen oder eine schließende Klammer direkt nach einer Adresse gehört nicht dazu, und eine Adresse, die in die nächsten Zeilen umbricht, wird von jeder ihrer Zeilen aus gefunden. korTTY sucht die Adresse erst, wenn Sie klicken, und zwar in dem Text, den das Terminal in diesem Moment anzeigt; so öffnet sich auch eine Adresse vollständig, die ein Programm in mehreren Teilen ausgegeben hat, und die Ausgabe wird nicht langsamer. korTTY liest höchstens 16 Zeilen über und unter dem Klick (in einem sehr breiten Terminal weniger) und lässt eine Adresse, die darüber hinausreicht, unberührt, statt sie abgeschnitten zu öffnen. Was die folgenden Absätze über das Anklicken eines Links und über Links sagen, die sich nie öffnen, gilt auch für diese Adressen. Um dies auszuschalten, deaktivieren Sie <strong>Web-Adressen, E-Mail-Adressen und Dateipfade im Terminaltext erkennen</strong> unter <a href="../reference/settings/terminal.html#hinweise">Einstellungen → Terminal → Links</a>; mit OSC 8 ausgezeichnete Links funktionieren weiterhin.</p>

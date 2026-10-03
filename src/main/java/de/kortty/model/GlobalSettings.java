@@ -297,6 +297,29 @@ public class GlobalSettings {
     @XmlElement
     private String sessionJournalPageTheme; // auto (follow the OS) | light | dark
 
+    // ---- Terminal keyword highlighting ----
+
+    /**
+     * User-defined highlight rule sets. The built-in sets come from
+     * {@code de.kortty.core.highlight.HighlightBuiltinSets} and are not stored, so they can improve
+     * between releases without a migration.
+     */
+    @XmlElementWrapper(name = "highlightRuleSets")
+    @XmlElement(name = "ruleSet")
+    private java.util.List<HighlightRuleSet> highlightRuleSets = new java.util.ArrayList<>();
+
+    /** Master switch: off forces every pane to show its output unhighlighted, whatever is selected. */
+    @XmlElement
+    private boolean terminalHighlightingEnabled = true;
+
+    /** Set used by panes whose connection has no choice of its own; null = none (opt-in). */
+    @XmlElement
+    private String defaultHighlightRuleSetId;
+
+    /** Also highlight inside full-screen programs (vim, less, htop); off because they redraw constantly. */
+    @XmlElement
+    private boolean terminalHighlightAlternateScreen = false;
+
     // ---- PDF export branding (shared by session journal and AI chat exports) ----
 
     @XmlElement
@@ -1897,6 +1920,46 @@ public class GlobalSettings {
     public void setSessionJournalPageMonoFont(String sessionJournalPageMonoFont) {
         String trimmed = sessionJournalPageMonoFont != null ? sessionJournalPageMonoFont.trim() : "";
         this.sessionJournalPageMonoFont = trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /** User-defined highlight rule sets only; the built-ins are added by {@code HighlightBuiltinSets}. */
+    public java.util.List<HighlightRuleSet> getHighlightRuleSets() {
+        if (highlightRuleSets == null) {
+            highlightRuleSets = new java.util.ArrayList<>();
+        }
+        return highlightRuleSets;
+    }
+
+    public void setHighlightRuleSets(java.util.List<HighlightRuleSet> sets) {
+        this.highlightRuleSets = sets != null
+            ? new java.util.ArrayList<>(sets) : new java.util.ArrayList<>();
+    }
+
+    public boolean isTerminalHighlightingEnabled() {
+        return terminalHighlightingEnabled;
+    }
+
+    public void setTerminalHighlightingEnabled(boolean terminalHighlightingEnabled) {
+        this.terminalHighlightingEnabled = terminalHighlightingEnabled;
+    }
+
+    /** Id of the default highlight rule set, or {@code null} when panes start without one. */
+    public String getDefaultHighlightRuleSetId() {
+        return defaultHighlightRuleSetId != null && !defaultHighlightRuleSetId.isBlank()
+            ? defaultHighlightRuleSetId.trim() : null;
+    }
+
+    public void setDefaultHighlightRuleSetId(String defaultHighlightRuleSetId) {
+        String trimmed = defaultHighlightRuleSetId != null ? defaultHighlightRuleSetId.trim() : "";
+        this.defaultHighlightRuleSetId = trimmed.isEmpty() ? null : trimmed;
+    }
+
+    public boolean isTerminalHighlightAlternateScreen() {
+        return terminalHighlightAlternateScreen;
+    }
+
+    public void setTerminalHighlightAlternateScreen(boolean terminalHighlightAlternateScreen) {
+        this.terminalHighlightAlternateScreen = terminalHighlightAlternateScreen;
     }
 
     public boolean isPdfWatermarkEnabled() {

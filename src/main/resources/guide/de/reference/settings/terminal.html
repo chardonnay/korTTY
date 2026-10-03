@@ -409,6 +409,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../../features/highlighting.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Hervorhebung von Schlüsselwörtern
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../../features/tunnels.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -758,7 +766,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h1>
-<p>Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einschließlich Abmessungen, Scrollback, Zeichenkodierung, Links und SSH-Verbindungsverwaltung. Öffnen über <strong>Konfiguration → Globale Einstellungen → Terminal</strong>; in <code>~/.kortty/global-settings.xml</code> gespeichert.</p>
+<p>Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einschließlich Abmessungen, Scrollback, Zeichenkodierung, Hervorhebung von Schlüsselwörtern, Links und SSH-Verbindungsverwaltung. Öffnen über <strong>Konfiguration → Globale Einstellungen → Terminal</strong>; in <code>~/.kortty/global-settings.xml</code> gespeichert.</p>
 <p><img alt="Terminal settings tab" src="../../assets/screenshots/settings/terminal.png" /></p>
 <table>
 <thead>
@@ -840,6 +848,34 @@
 <td>–</td>
 <td>Aus</td>
 <td><code>closeActiveTerminalWindowsWithoutConfirmation</code></td>
+</tr>
+<tr>
+<td>Schlüsselwörter in der Terminalausgabe hervorheben</td>
+<td>umschalten</td>
+<td>–</td>
+<td>Ein</td>
+<td><code>terminalHighlightingEnabled</code></td>
+</tr>
+<tr>
+<td>Auch in Vollbildprogrammen hervorheben (vim, less, htop)</td>
+<td>umschalten</td>
+<td>–</td>
+<td>Aus</td>
+<td><code>terminalHighlightAlternateScreen</code></td>
+</tr>
+<tr>
+<td>Standard-Regelsatz:</td>
+<td>Dropdown</td>
+<td>Keiner, Fehler und Warnungen, Netzwerkadressen, Netzwerkgeräte oder ein eigener Regelsatz</td>
+<td>Keiner</td>
+<td><code>defaultHighlightRuleSetId</code></td>
+</tr>
+<tr>
+<td>Regeln bearbeiten…</td>
+<td>Schaltfläche</td>
+<td>öffnet den Regelsatz-Editor</td>
+<td>–</td>
+<td><code>highlightRuleSets</code></td>
 </tr>
 <tr>
 <td>Web-Adressen, E-Mail-Adressen und Dateipfade im Terminaltext erkennen</td>
@@ -930,6 +966,14 @@
 <div class="admonition note">
 <p class="admonition-title">Markierung automatisch in Zwischenablage kopieren</p>
 <p>Wenn aktiviert, wird der von Ihnen im Terminal ausgewählte Text sofort in die Zwischenablage kopiert. Unter Linux wird er zudem zur X11-Hauptauswahl, sodass ein Mittelklick ihn in anderen Anwendungen wie xterm oder gedit einfügt. Mit dem internen Zwischenablage-Modus der Unternehmensrichtlinie <a href="../enterprise-policy.html#interner-zwischenablagemodus">interner Zwischenablage-Modus</a> bleibt die Auswahl innerhalb von korTTY auf jeder Plattform.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Hervorhebung von Schlüsselwörtern</p>
+<p><strong>Schlüsselwörter in der Terminalausgabe hervorheben</strong> ist der Hauptschalter der <a href="../../features/highlighting.html">Hervorhebung von Schlüsselwörtern</a>. Solange er ausgeschaltet ist, wird kein Bereich hervorgehoben, gleich was in einem Menü, mit <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span> auf macOS), für eine Verbindung oder als Standard-Regelsatz gewählt wurde, und die Hervorhebungsmenüs sind ausgegraut. Er ist standardmäßig eingeschaltet, aber es wird nichts hervorgehoben, bis ein Regelsatz gewählt ist.</p>
+<p><strong>Standard-Regelsatz</strong> ist der Regelsatz, den jeder Terminalbereich zeigt, sofern weder seine Verbindung einen eigenen Regelsatz hat (siehe <a href="../../features/highlighting.html#regelsatz-pro-verbindung">Regelsatz pro Verbindung</a>) noch Sie für diesen Bereich einen anderen wählen. Standardmäßig ist er <strong>Keiner</strong>, sodass die Hervorhebung ausgeschaltet bleibt, bis Sie sie bewusst einschalten: hier, für eine Verbindung im Verbindungseditor, unter <em>Ansicht → Hervorhebung</em>, im Kontextmenü eines Bereichs oder mit dem Tastenkürzel. Ein an einer dieser Stellen für einen Bereich gewählter Regelsatz hat Vorrang vor dem Standard, bis der Bereich geschlossen wird, und wenn Sie dort <strong>Keine</strong> wählen, bleibt dieser Bereich ohne Hervorhebung, gleich welcher Standard gilt. Nennt der gespeicherte Standard einen Regelsatz, der nicht mehr existiert, zeigt das Dropdown ihn als fehlend an, und die Bereiche zeigen keine Hervorhebung.</p>
+<p><strong>Auch in Vollbildprogrammen hervorheben</strong> erweitert die Hervorhebung auf Programme, die den alternativen Bildschirm des Terminals verwenden, etwa <code>vim</code>, <code>less</code> und <code>htop</code>. Die Option ist standardmäßig ausgeschaltet, weil diese Programme ihren Bildschirm ständig neu zeichnen und eigene Farben mitbringen, sodass Hervorhebungen dort flackern und mit den Farben des Programms kollidieren können. Wenn Sie sie ausschalten, bleiben Hervorhebungen, die ein laufendes Programm bereits zeigt, bestehen, bis es sie neu zeichnet.</p>
+<p>Alle drei gelten für geöffnete Terminals, sobald Sie speichern.</p>
+<p><strong>Regeln bearbeiten…</strong> öffnet den <a href="../../features/highlighting.html#ihre-eigenen-regelsatze">Regelsatz-Editor</a>, in dem Sie eigene Regelsätze anlegen und die mitgelieferten ansehen. Die Schaltfläche bleibt verfügbar, solange der Hauptschalter ausgeschaltet ist, sodass Sie Regelsätze vorbereiten können, bevor Sie die Hervorhebung einschalten. Der Editor speichert seine Änderungen, sobald Sie ihn bestätigen, gleich ob Sie danach den Einstellungsdialog speichern, und anschließend listet das Dropdown <strong>Standard-Regelsatz</strong> Ihre Regelsätze in ihrem aktuellen Stand. Löschen Sie den Regelsatz, den das Dropdown zeigt, fällt es auf <strong>Keiner</strong> zurück.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Links</p>

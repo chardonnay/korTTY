@@ -67,6 +67,15 @@ public class ServerConnection {
     @XmlElement
     private Double terminalEffectAnimationSpeed;
 
+    /**
+     * Keyword highlighting rule set this connection's terminal panes show: the id of a built-in or user
+     * set, {@code "none"} for explicitly no highlighting, or {@code null} to follow the global default.
+     * A pane's own runtime choice still wins; an id that names no set (a set deleted since, or one from
+     * a shared teamwork file) is skipped. See {@link de.kortty.core.highlight.TerminalHighlightService}.
+     */
+    @XmlElement
+    private String highlightRuleSetId;
+
     /** SithTermFX terminal emulation type stored as enum name. */
     @XmlElement
     private String terminalEmulationType = "XTERM";
@@ -201,6 +210,7 @@ public class ServerConnection {
         c.windowGeometry = source.windowGeometry;
         c.terminalEffectPluginId = source.terminalEffectPluginId;
         c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
+        c.highlightRuleSetId = source.highlightRuleSetId;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
         c.group = source.group;
@@ -249,6 +259,7 @@ public class ServerConnection {
         c.privateKeyPath = source.privateKeyPath;
         c.terminalEffectPluginId = source.terminalEffectPluginId;
         c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
+        c.highlightRuleSetId = source.highlightRuleSetId;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
         c.group = source.group;
@@ -288,6 +299,7 @@ public class ServerConnection {
         c.disableHostKeyCheck = source.disableHostKeyCheck;
         c.terminalEffectPluginId = source.terminalEffectPluginId;
         c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
+        c.highlightRuleSetId = source.highlightRuleSetId;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
         c.username = includeUsername ? source.username : "";
@@ -459,6 +471,20 @@ public class ServerConnection {
 
     public void setTerminalEffectAnimationSpeed(Double terminalEffectAnimationSpeed) {
         this.terminalEffectAnimationSpeed = terminalEffectAnimationSpeed;
+    }
+
+    /**
+     * The connection's keyword highlighting rule set as stored: a set id, {@code "none"} for no
+     * highlighting, or {@code null} to follow the global default rule set.
+     */
+    public String getHighlightRuleSetId() {
+        return highlightRuleSetId;
+    }
+
+    /** Sets the connection's rule set; {@code null} or blank follows the global default. */
+    public void setHighlightRuleSetId(String highlightRuleSetId) {
+        this.highlightRuleSetId = highlightRuleSetId != null && !highlightRuleSetId.isBlank()
+                ? highlightRuleSetId.trim() : null;
     }
 
     public String getTerminalEmulationType() {
