@@ -75,14 +75,19 @@ public final class ActionRegistry {
         return Optional.empty();
     }
 
-    /** Runs the action with this id if it exists and is enabled right now; returns whether it ran. */
+    /**
+     * Runs the action with this id if it exists and is enabled right now; returns whether it was
+     * started (see {@link #runIfEnabled}).
+     */
     public boolean run(String id) {
         return find(id).map(ActionRegistry::runIfEnabled).orElse(false);
     }
 
     /**
-     * Runs {@code action} if it is enabled at this moment. The state is read again here, because a
-     * snapshot can be older than the click or key press that chose the action.
+     * Runs {@code action} if it is enabled at this moment and returns whether it was started. The
+     * state is read again here, because a snapshot can be older than the click or key press that
+     * chose the action. A harvested menu item can still refuse in its own {@code onMenuValidation}
+     * handler (see {@link MenuItemActivation}); that is not reported here.
      */
     public static boolean runIfEnabled(AppAction action) {
         if (action == null || !action.isEnabled()) {

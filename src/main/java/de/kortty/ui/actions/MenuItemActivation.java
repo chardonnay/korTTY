@@ -16,6 +16,8 @@ import javafx.scene.control.RadioMenuItem;
  *
  * <p>One deliberate difference: an item inside a disabled menu is refused as well. The accelerator
  * would still fire it, but the mouse cannot reach it, and neither should a palette.
+ *
+ * <p>Call it on the FX thread, like any other change to a menu item.
  */
 public final class MenuItemActivation {
 

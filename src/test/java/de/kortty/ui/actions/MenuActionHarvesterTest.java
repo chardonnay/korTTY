@@ -102,6 +102,22 @@ class MenuActionHarvesterTest {
     }
 
     @Test
+    void mnemonicIsStrippedExactlyAsJavaFxShowsIt() {
+        // Expected values were read from JavaFX 21.0.12's MnemonicInfo.getText() for the same input.
+        assertThat(MenuActionHarvester.stripMnemonic("_Save As")).isEqualTo("Save As");
+        assertThat(MenuActionHarvester.stripMnemonic("Snake__Case")).isEqualTo("Snake_Case");
+        assertThat(MenuActionHarvester.stripMnemonic("Save_As_Draft")).isEqualTo("SaveAs_Draft");
+        assertThat(MenuActionHarvester.stripMnemonic("_A__B")).isEqualTo("A__B");
+        assertThat(MenuActionHarvester.stripMnemonic("x__y_z")).isEqualTo("x_yz");
+        assertThat(MenuActionHarvester.stripMnemonic("a _ b")).isEqualTo("a _ b");
+        assertThat(MenuActionHarvester.stripMnemonic("_ x")).isEqualTo("_ x");
+        assertThat(MenuActionHarvester.stripMnemonic("x_")).isEqualTo("x_");
+        assertThat(MenuActionHarvester.stripMnemonic("\u4fdd\u5b58(_S)")).isEqualTo("\u4fdd\u5b58(S)");
+        assertThat(MenuActionHarvester.stripMnemonic("_(J)Open")).isEqualTo("Open");
+        assertThat(MenuActionHarvester.stripMnemonic("")).isEmpty();
+    }
+
+    @Test
     void taggedItemKeepsItsStableId() {
         MenuItem quickConnect = ActionIds.tag(new MenuItem("Quick Connect..."), "menu.file.quickConnect");
 

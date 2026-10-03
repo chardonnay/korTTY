@@ -30,7 +30,7 @@ import java.util.function.BooleanSupplier;
  * the {@link ActionIds#tag tagged} id, or else {@code menu:} plus a slug of that path, which
  * follows the UI language and is therefore not stable. An item is enabled while neither it nor any
  * menu above it is disabled, read when asked. Running an action goes through
- * {@link MenuItemActivation}.
+ * {@link MenuItemActivation}. Harvest, and read or run the actions, on the FX thread only.
  */
 public final class MenuActionHarvester {
 
@@ -140,8 +140,8 @@ public final class MenuActionHarvester {
     }
 
     /**
-     * The text a menu shows for {@code item}: without the mnemonic underscore (when the item parses
-     * mnemonics; a doubled underscore stands for one), without a trailing "..." or "\u2026", trimmed.
+     * The text a menu shows for {@code item}: without the mnemonic marker (when the item parses
+     * mnemonics, see {@link #stripMnemonic}), without a trailing "..." or "\u2026", trimmed.
      */
     static String displayLabel(MenuItem item) {
         String text = item.getText();
@@ -158,26 +158,35 @@ public final class MenuActionHarvester {
         return label.strip();
     }
 
-    private static String stripMnemonic(String text) {
-        StringBuilder out = new StringBuilder(text.length());
-        boolean mnemonicSeen = false;
-        for (int i = 0; i < text.length(); i++) {
+    /**
+     * Removes the mnemonic marker the way JavaFX's {@code MnemonicInfo} does (checked against the
+     * 21.0.12 bytecode): before the first mnemonic, "__" stands for one underscore; the first "_x",
+     * where x is neither an underscore nor whitespace, loses its underscore, and an extended "_(x)"
+     * is dropped whole; everything after that mnemonic is kept as it is.
+     */
+    static String stripMnemonic(String text) {
+        int length = text.length();
+        StringBuilder out = new StringBuilder(length);
+        int i = 0;
+        while (i < length) {
             char c = text.charAt(i);
-            if (c == '_' && i + 1 < text.length()) {
-                char next = text.charAt(i + 1);
-                if (next == '_') {
-                    out.append('_');
-                    i++;
-                    continue;
-                }
-                if (!mnemonicSeen) {
-                    mnemonicSeen = true;
-                    continue;
-                }
+            char next = i + 1 < length ? text.charAt(i + 1) : 0;
+            if (c == '_' && next == '_') {
+                out.append('_');
+                i += 2;
+            } else if (c == '_' && next == '(' && i + 3 < length
+                    && !Character.isWhitespace(text.charAt(i + 2)) && text.charAt(i + 3) == ')') {
+                i += 4;
+                break;
+            } else if (c == '_' && i + 1 < length && !Character.isWhitespace(next)) {
+                i += 1;
+                break;
+            } else {
+                out.append(c);
+                i++;
             }
-            out.append(c);
         }
-        return out.toString();
+        return out.append(text, i, length).toString();
     }
 
     private static String untaggedId(List<String> categoryLabels, String label) {
