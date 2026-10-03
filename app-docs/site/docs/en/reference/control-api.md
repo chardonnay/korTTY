@@ -97,6 +97,8 @@ Every parameter called `pane` also accepts a bare tab id, meaning that tab's foc
 
 `pane.send_text`, `pane.run` and the single-character keys of `pane.send_keys` are encoded in the pane's [character encoding](../features/connections.md#character-encoding), so they arrive as the bytes the same keystrokes would produce: an SSH pane set to ISO-8859-1 receives `é` as the single byte `E9`, not as UTF-8. A character that encoding cannot represent is sent as `?`. The `agent.*` methods always send UTF-8, which is what the coding agents read.
 
+When `pane.send_text` wraps its text in bracketed paste — `bracketed` is `always`, or `auto` found several lines and a pane that enabled it — korTTY first removes any bracketed-paste markers from the text itself (`ESC[200~`, `ESC[201~` and their 8-bit `CSI` forms), so the text cannot end the paste early and have its remaining lines run as typed commands. An unbracketed write, which includes every `pane.run`, is sent byte for byte. `agent.prompt` always removes these markers, bracketed or not.
+
 ### Splitting
 
 `pane.split` works **only** on a pane whose tab is a local shell. Anything else is refused with `unsupported`. The new shell is started without any dialog, so a script never ends up waiting on a window it cannot see; a split that would need a new connection needs a human, and is not offered.

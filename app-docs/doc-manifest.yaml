@@ -426,6 +426,7 @@ pages:
       - src/main/java/de/kortty/ui/CodingAgentStripSupport.java
       - src/main/java/de/kortty/ui/CodingAgentUiBridge.java
       - src/main/java/de/kortty/ui/DashboardAgentMarks.java
+      - src/main/java/de/kortty/paste/PasteSanitizer.java
     diagrams: [coding-agents.svg]
     screenshots: [coding-agents/dashboard.png, coding-agents/panel.png, coding-agents/status-strip.png, coding-agents/badge-icon.png]
     last_synced_ref: "0dad374"
@@ -454,6 +455,7 @@ pages:
       - src/main/java/de/kortty/control
       - src/main/java/de/kortty/ui/ControlApiUiBridge.java
       - src/main/java/de/kortty/ui/ControlApiPaneReader.java
+      - src/main/java/de/kortty/paste/PasteSanitizer.java
     diagrams: []
     screenshots: []
     last_synced_ref: "0dad374"

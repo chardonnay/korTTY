@@ -1,6 +1,7 @@
 package de.kortty.control;
 
 import de.kortty.codingagent.KeyChordEncoder;
+import de.kortty.paste.PasteSanitizer;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -15,7 +16,8 @@ import java.util.Map;
  * <p>This mirrors {@code KeyChordEncoder.promptPayload} — {@code \n} becomes {@code \r} because that
  * is what a real key press produces, and the submitting {@code \r} sits <strong>outside</strong> the
  * paste markers so the application receives the payload as pasted text and the carriage return as a
- * key press.
+ * key press. A bracketed payload loses any markers of its own ({@link PasteSanitizer}), so it cannot
+ * end the paste early; an unbracketed one is written byte for byte.
  *
  * <p>Pure, any thread.
  */
@@ -49,7 +51,8 @@ public final class BracketedPaste {
      * The bytes one text write puts on the pty.
      *
      * @param text the text as the client sent it; {@code \r\n} and {@code \n} both become {@code \r}
-     * @param bracketed whether to wrap the payload in the DECSET 2004 markers
+     * @param bracketed whether to wrap the payload in the DECSET 2004 markers; when true, markers
+     *     inside {@code text} are removed
      * @param submit whether to append a carriage return outside the markers
      * @return a fresh array, never shared with {@link #START} or {@link #END}
      */
@@ -65,7 +68,9 @@ public final class BracketedPaste {
      * @param charset the pane's encoding; UTF-8 when null
      */
     public static byte[] encode(String text, boolean bracketed, boolean submit, Charset charset) {
-        String payload = text == null ? "" : text.replace("\r\n", "\n").replace('\n', '\r');
+        // Only a bracketed write is sanitized: "never" and an unbracketed "auto" stay byte-exact.
+        String source = bracketed ? PasteSanitizer.stripBracketMarkers(text) : text;
+        String payload = source == null ? "" : source.replace("\r\n", "\n").replace('\n', '\r');
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         if (bracketed) {
             out.writeBytes(START);
