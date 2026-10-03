@@ -521,6 +521,34 @@ class TerminalOutputHighlighterTest {
     }
 
     @Test
+    void aLineOnWhichEveryRuleRunsOutOfTimeStillCompletes() {
+        // Six rules that all run out of their 2 ms on these lines: together they need more than the
+        // 12 ms of one pass, so only the first line of a pass, which must always complete, gets them
+        // all. Its last rule must still end on its own budget, not on the pass deadline, or the line is
+        // retried forever and the rules are never switched off.
+        HeadlessTerminalSession session = new HeadlessTerminalSession(1_000, 40);
+        List<HighlightRule> slowRules = new ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            HighlightRule slow = new HighlightRule("(a+)+$", true);
+            slow.setBold(true);
+            slowRules.add(slow);
+        }
+        for (int i = 0; i < 3; i++) {
+            session.println("a".repeat(6_000) + "b");
+        }
+        attach(session, set(slowRules.toArray(HighlightRule[]::new)));
+
+        boolean settled = false;
+        for (int pass = 0; pass < 30 && !settled; pass++) {
+            settled = !highlighter.runPassNow().backlog();
+        }
+
+        assertWithMessage("every line completed, so no pass is left over").that(settled).isTrue();
+        assertWithMessage("three overrunning lines switch every rule off")
+            .that(highlighter.disabledRuleCount()).isEqualTo(6);
+    }
+
+    @Test
     void aBurstIsCoalescedIntoOneScheduledPass() {
         HeadlessTerminalSession session = new HeadlessTerminalSession(80, 5);
         attach(session, errors());

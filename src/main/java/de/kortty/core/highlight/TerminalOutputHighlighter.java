@@ -766,8 +766,12 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
             long deadline = passDeadline;
             if (completed == 0) {
                 // Every pass finishes at least one line, or a line too long for one pass's budget
-                // would be retried forever.
-                long floor = System.nanoTime() + (long) set.size() * HighlightMatcher.RULE_BUDGET_NANOS;
+                // would be retried forever. The floor is twice the rules' budgets together: a rule
+                // that runs out of time stops a little after its own budget (the deadline is sampled,
+                // not read on every character), so with exactly one budget per rule the last rule of
+                // a line on which every rule runs out of time would hit this deadline instead of its
+                // own. The line would then never complete, and its overruns never switch a rule off.
+                long floor = System.nanoTime() + 2L * set.size() * HighlightMatcher.RULE_BUDGET_NANOS;
                 if (floor - deadline > 0L) {
                     deadline = floor;
                 }
