@@ -3,6 +3,9 @@ package de.kortty.paste;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import org.testng.annotations.Test;
@@ -13,20 +16,34 @@ class PasteSanitizerTest {
 
     private static final String CSI = "\u009b";
 
+    /** What Windows-1252 writes as the CSI byte 9B. */
+    private static final String SINGLE_RIGHT_ANGLE_QUOTE = "\u203a";
+
+    private static final Charset WINDOWS_1252 = Charset.forName("Windows-1252");
+
     private static final List<String> MARKERS =
         List.of(ESC + "[200~", ESC + "[201~", CSI + "200~", CSI + "201~");
 
     /** The specification: remove markers again and again until none is left. */
-    private static String stripNaively(String text) {
+    private static String stripNaively(String text, List<String> markers) {
         String previous;
         String current = text;
         do {
             previous = current;
-            for (String marker : MARKERS) {
+            for (String marker : markers) {
                 current = current.replace(marker, "");
             }
         } while (!current.equals(previous));
         return current;
+    }
+
+    private static String randomText(Random random, char[] alphabet) {
+        StringBuilder text = new StringBuilder();
+        int length = random.nextInt(40);
+        for (int i = 0; i < length; i++) {
+            text.append(alphabet[random.nextInt(alphabet.length)]);
+        }
+        return text.toString();
     }
 
     @Test
@@ -80,15 +97,50 @@ class PasteSanitizerTest {
         char[] alphabet = {'\u001b', '\u009b', '[', '2', '0', '1', '~', 'a'};
         Random random = new Random(20_04L);
         for (int round = 0; round < 20_000; round++) {
-            StringBuilder text = new StringBuilder();
-            int length = random.nextInt(40);
-            for (int i = 0; i < length; i++) {
-                text.append(alphabet[random.nextInt(alphabet.length)]);
-            }
-            String input = text.toString();
+            String input = randomText(random, alphabet);
             assertWithMessage("input %s", input.replace("\u001b", "ESC").replace("\u009b", "CSI"))
                 .that(PasteSanitizer.stripBracketMarkers(input))
-                .isEqualTo(stripNaively(input));
+                .isEqualTo(stripNaively(input, MARKERS));
+        }
+    }
+
+    @Test
+    void theEightBitIntroducerIsTheCharacterThePanesEncodingWritesAsByte9B() {
+        assertThat(PasteSanitizer.eightBitIntroducer(StandardCharsets.ISO_8859_1)).isEqualTo('\u009b');
+        assertThat(PasteSanitizer.eightBitIntroducer(Charset.forName("ISO-8859-15"))).isEqualTo('\u009b');
+        assertThat(PasteSanitizer.eightBitIntroducer(WINDOWS_1252)).isEqualTo('\u203a');
+        // UTF-8 has no single character for the byte 9B; U+009B itself is still stripped.
+        assertThat(PasteSanitizer.eightBitIntroducer(StandardCharsets.UTF_8)).isEqualTo('\u009b');
+        assertThat(PasteSanitizer.eightBitIntroducer(null)).isEqualTo('\u009b');
+    }
+
+    @Test
+    void aWindows1252PaneAlsoLosesTheMarkersItsRightAngleQuoteWouldForm() {
+        String quoted = "a" + SINGLE_RIGHT_ANGLE_QUOTE + "201~b";
+        assertThat(PasteSanitizer.stripBracketMarkers(quoted, WINDOWS_1252)).isEqualTo("ab");
+        assertThat(PasteSanitizer.stripBracketMarkers(SINGLE_RIGHT_ANGLE_QUOTE + "20" + ESC + "[201~0~", WINDOWS_1252))
+            .isEmpty();
+        assertThat(PasteSanitizer.stripBracketMarkers("a" + CSI + "200~b", WINDOWS_1252)).isEqualTo("ab");
+        // Elsewhere the quote is an ordinary character.
+        assertThat(PasteSanitizer.stripBracketMarkers(quoted, StandardCharsets.UTF_8)).isSameInstanceAs(quoted);
+        assertThat(PasteSanitizer.stripBracketMarkers(quoted, StandardCharsets.ISO_8859_1)).isSameInstanceAs(quoted);
+        assertThat(PasteSanitizer.stripBracketMarkers(quoted)).isSameInstanceAs(quoted);
+        assertThat(PasteSanitizer.stripBracketMarkers(null, WINDOWS_1252)).isEmpty();
+    }
+
+    @Test
+    void matchesRepeatedRemovalOnRandomInputInAWindows1252Pane() {
+        List<String> markers = new ArrayList<>(MARKERS);
+        markers.add(SINGLE_RIGHT_ANGLE_QUOTE + "200~");
+        markers.add(SINGLE_RIGHT_ANGLE_QUOTE + "201~");
+        char[] alphabet = {'\u001b', '\u009b', '\u203a', '[', '2', '0', '1', '~', 'a'};
+        Random random = new Random(1252L);
+        for (int round = 0; round < 20_000; round++) {
+            String input = randomText(random, alphabet);
+            assertWithMessage("input %s", input.replace("\u001b", "ESC").replace("\u009b", "CSI")
+                    .replace(SINGLE_RIGHT_ANGLE_QUOTE, "RAQUO"))
+                .that(PasteSanitizer.stripBracketMarkers(input, WINDOWS_1252))
+                .isEqualTo(stripNaively(input, markers));
         }
     }
 

@@ -4,6 +4,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static org.testng.Assert.expectThrows;
 
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -108,6 +109,28 @@ class ControlPaneWriterTest {
 
         assertThat(surface.written(PANE)).isEqualTo(new byte[] {
             0x1b, '[', '2', '0', '0', '~', 'a', '\r', 'b', 0x1b, '[', '2', '0', '1', '~'});
+    }
+
+    @Test
+    void aWindows1252PaneAlsoDropsTheEndMarkerItsRightAngleQuoteWouldForm() throws Exception {
+        // Windows-1252 writes "›" (U+203A) as the byte 9B, and U+009B itself as "?".
+        surface.setCharset(PANE, Charset.forName("Windows-1252"));
+
+        writer.sendText(PANE, "a\u203a201~\nb", false, "always", false);
+
+        assertThat(surface.written(PANE)).isEqualTo(new byte[] {
+            0x1b, '[', '2', '0', '0', '~', 'a', '\r', 'b', 0x1b, '[', '2', '0', '1', '~'});
+    }
+
+    @Test
+    void autoStillWrapsALineBreakThatOnlyAMarkerFollows() throws Exception {
+        // Sent unbracketed, the line break would submit "ls" whatever the marker after it does.
+        surface.setBracketedPaste(PANE, true);
+
+        WriteResult result = writer.sendText(PANE, "ls\n" + ESC + "[201~", false, "auto", false);
+
+        assertThat(result.bracketed()).isTrue();
+        assertThat(written()).isEqualTo(ESC + "[200~ls\r" + ESC + "[201~");
     }
 
     @Test
