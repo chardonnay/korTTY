@@ -2114,6 +2114,56 @@ public class TerminalView extends BorderPane {
         return splitPane != null && splitPane.focusNext(forward);
     }
 
+    /**
+     * Splits the focused pane on that pane's own server (Cmd/Ctrl+Shift+O, <i>View → Panes → Split
+     * Pane / Split Right / Split Down</i>), the same way as <i>Split Right (same server)</i> in its
+     * context menu: through the split connector factory, with its connect dialog and the tab's
+     * access-reason memory, to the server {@link PaneOrigins} recorded for the pane, else the tab's.
+     * The new pane gets the keyboard focus. FX thread; the connect dialog runs a nested event loop.
+     *
+     * @param side where the new pane goes, or null to choose from the focused pane's columns and rows
+     *     ({@link SplitOrientationChooser})
+     * @return the new pane, or empty when nothing was split (the connect failed or was cancelled)
+     */
+    Optional<SithTermFxWidget> splitFocusedPane(@Nullable SplitOrientationChooser.SplitSide side) {
+        SithTermFxWidget focused = getFocusedWidget();
+        if (splitPane == null || focused == null) {
+            return Optional.empty();
+        }
+        SplitOrientationChooser.SplitSide chosen = side != null ? side : automaticSplitSide(focused);
+        SithTermFxWidget created = splitPane.splitWidget(focused, SplitRequest.SplitMode.SAME_SERVER_NEW_SHELL,
+            chosen.orientation(), null);
+        if (created != null) {
+            splitPane.focusWidget(created);
+        }
+        return Optional.ofNullable(created);
+    }
+
+    /** The side the automatic split puts a new pane on, from the pane's size in cells. */
+    private static SplitOrientationChooser.SplitSide automaticSplitSide(SithTermFxWidget pane) {
+        com.sithtermfx.core.model.TerminalTextBuffer buffer = pane.getTerminalTextBuffer();
+        return buffer != null
+            ? SplitOrientationChooser.choose(buffer.getWidth(), buffer.getHeight())
+            : SplitOrientationChooser.SplitSide.DOWN;
+    }
+
+    /**
+     * Closes the focused pane (<i>View → Panes → Close Pane</i>) as its × does, and gives the keyboard
+     * focus to the pane that is the focused one afterwards. FX thread.
+     *
+     * @return false when the tab has a single pane, which is never closed this way
+     */
+    boolean closeFocusedPane() {
+        if (!closePane(getFocusedWidget())) {
+            return false;
+        }
+        SithTermFxWidget next = getFocusedWidget();
+        if (next != null) {
+            splitPane.focusWidget(next);
+        }
+        return true;
+    }
+
     /** Whether this tab's broadcast mode is on: keys typed in one pane go to its other panes too. */
     public boolean isBroadcastMode() {
         return splitPane != null && splitPane.isBroadcastMode();

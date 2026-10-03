@@ -201,21 +201,26 @@ class ClosedWindowMenuRouterTest {
     }
 
     @Test
-    void viewPanesOfAClosedWindowMovesTheFocusInTheFrontmostWindowButNeverSwitchesItsBroadcast() {
+    void viewPanesOfAClosedWindowSplitsAndMovesTheFocusInTheFrontmostWindowButNeverClosesAPaneOrSwitchesBroadcast() {
         Desktop desktop = new Desktop();
         Win closed = desktop.open("A");
         Win open = desktop.open("B");
         closed.open = false;
         String panes = I18n.get(PaneMenuSupport.MENU_KEY);
 
+        click(closed.item("View", panes, I18n.get(PaneMenuSupport.SPLIT_AUTO_KEY)));
         click(closed.item("View", panes, I18n.get(PaneMenuSupport.FOCUS_LEFT_KEY)));
         click(closed.item("View", panes, I18n.get(PaneMenuSupport.NEXT_KEY)));
+        click(closed.item("View", panes, I18n.get(PaneMenuSupport.CLOSE_KEY)));
         click(closed.item("View", panes, I18n.get(PaneMenuSupport.BROADCAST_KEY)));
 
-        assertWithMessage("broadcast decides where B's typed keys go, so a closed window's menu bar leaves it alone")
-            .that(desktop.log).containsExactly("front B", "Focus LEFT in B", "front B", "Next Pane in B").inOrder();
+        assertWithMessage("closing a pane ends a session and broadcast decides where B's typed keys go, so a "
+            + "closed window's menu bar leaves both alone")
+            .that(desktop.log).containsExactly("front B", "Split Pane in B", "front B", "Focus LEFT in B",
+                "front B", "Next Pane in B").inOrder();
+        click(open.item("View", panes, I18n.get(PaneMenuSupport.CLOSE_KEY)));
         click(open.item("View", panes, I18n.get(PaneMenuSupport.BROADCAST_KEY)));
-        assertThat(desktop.log).contains("Broadcast in B");
+        assertThat(desktop.log).containsAtLeast("Close Pane in B", "Broadcast in B").inOrder();
     }
 
     @Test
@@ -351,11 +356,13 @@ class ClosedWindowMenuRouterTest {
             .contains("ClosedWindowMenuRouter.noWindowNeeded(preventSleep);");
         assertThat(methodBody(window, "private void rebuildJobSchedulerStatusMenuItems(Menu menu) {"))
             .contains("ClosedWindowMenuRouter.noWindowNeeded(cancel);");
-        // View > Panes: broadcast stays in its window, the focus items are routed like Find.
+        // View > Panes: broadcast and Close Pane stay in their window, the split and focus items are
+        // routed like Find.
         String panes = methodBody(source("PaneMenuSupport.java"), "static @NotNull PaneMenu create(@NotNull Commands commands, @NotNull Supplier");
         assertThat(panes).contains("ClosedWindowMenuRouter.ownWindowOnly(broadcast);");
+        assertThat(panes).contains("ClosedWindowMenuRouter.ownWindowOnly(close);");
         assertThat(panes).doesNotContain("noWindowNeeded(");
-        assertThat(panes.split("ClosedWindowMenuRouter\\.ownWindowOnly\\(", -1)).hasLength(2);
+        assertThat(panes.split("ClosedWindowMenuRouter\\.ownWindowOnly\\(", -1)).hasLength(3);
         assertThat(methodBody(window, "private Menu createViewMenu(MenuBarTarget target) {"))
             .contains("Menu panesMenu = createPanesMenu(target);");
     }
@@ -442,6 +449,16 @@ class ClosedWindowMenuRouterTest {
             view.getItems().add(dashboard);
             // View > Panes as MainWindow builds it, with plain items for separators (no toolkit here).
             PaneMenuSupport.PaneMenu panes = PaneMenuSupport.create(new PaneMenuSupport.Commands() {
+                @Override
+                public void split(SplitOrientationChooser.SplitSide side) {
+                    log.add("Split " + (side != null ? side : "Pane") + " in " + name);
+                }
+
+                @Override
+                public void closePane() {
+                    log.add("Close Pane in " + name);
+                }
+
                 @Override
                 public void focus(PaneNavigator.PaneDirection direction) {
                     log.add("Focus " + direction + " in " + name);

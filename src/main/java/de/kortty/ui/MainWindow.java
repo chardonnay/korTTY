@@ -231,11 +231,16 @@ public class MainWindow {
         new KeyCodeCombination(KeyCode.UP, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
     private static final KeyCombination PANE_FOCUS_DOWN_ACCELERATOR =
         new KeyCodeCombination(KeyCode.DOWN, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
+    // View > Panes > Split Pane: Cmd/Ctrl+Shift+O (as in Terminator) splits the focused pane on its own
+    // server, routed while the keyboard is in a terminal tab; only Cmd/Ctrl+O (Open Project) shares the O.
+    private static final KeyCombination PANE_SPLIT_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
     private static final PaneShortcuts PANE_SHORTCUTS = new PaneShortcuts(Map.of(
         PaneShortcuts.PaneAction.FOCUS_LEFT, PANE_FOCUS_LEFT_ACCELERATOR,
         PaneShortcuts.PaneAction.FOCUS_RIGHT, PANE_FOCUS_RIGHT_ACCELERATOR,
         PaneShortcuts.PaneAction.FOCUS_UP, PANE_FOCUS_UP_ACCELERATOR,
-        PaneShortcuts.PaneAction.FOCUS_DOWN, PANE_FOCUS_DOWN_ACCELERATOR));
+        PaneShortcuts.PaneAction.FOCUS_DOWN, PANE_FOCUS_DOWN_ACCELERATOR,
+        PaneShortcuts.PaneAction.SPLIT, PANE_SPLIT_ACCELERATOR));
     private static final String MENU_BAR_TOGGLE_SHORTCUT_LABEL = "Cmd/Ctrl+Shift+L";
     private static final int JOB_SCHEDULER_QUEUE_LIMIT = 5;
     private static final int MAX_CONCURRENT_TERMINAL_AGENT_RUNS = 5;
@@ -2126,14 +2131,25 @@ public class MainWindow {
     }
 
     /**
-     * View → Panes: the focus items carry the pane focus chords for display (the scene shortcut router
-     * handles the keys themselves while the keyboard is in a terminal tab with two or more panes),
-     * Next Pane and Previous Pane have none, and the broadcast item switches the active tab's broadcast
-     * mode. The items are synced from the active tab while the menu opens and before an accelerator or
-     * the menu bar of a closed macOS window runs one of them.
+     * View → Panes: Split Pane and the focus items carry the pane chords for display (the scene
+     * shortcut router handles the keys themselves while the keyboard is in a terminal tab, with two or
+     * more panes for the focus keys), Split Right, Split Down, Close Pane, Next Pane and Previous Pane
+     * have none, and the broadcast item switches the active tab's broadcast mode. The items are synced
+     * from the active tab while the menu opens and before an accelerator or the menu bar of a closed
+     * macOS window runs one of them.
      */
     private Menu createPanesMenu(MenuBarTarget target) {
         PaneMenuSupport.PaneMenu panes = PaneMenuSupport.create(new PaneMenuSupport.Commands() {
+            @Override
+            public void split(SplitOrientationChooser.SplitSide side) {
+                splitPaneInActiveTerminal(side);
+            }
+
+            @Override
+            public void closePane() {
+                closePaneInActiveTerminal();
+            }
+
             @Override
             public void focus(PaneNavigator.PaneDirection direction) {
                 focusPaneInActiveTerminal(direction);
@@ -2149,6 +2165,7 @@ public class MainWindow {
                 toggleBroadcastInActiveTerminal();
             }
         });
+        panes.split().setAccelerator(PANE_SPLIT_ACCELERATOR);
         panes.focusItem(PaneNavigator.PaneDirection.LEFT).setAccelerator(PANE_FOCUS_LEFT_ACCELERATOR);
         panes.focusItem(PaneNavigator.PaneDirection.RIGHT).setAccelerator(PANE_FOCUS_RIGHT_ACCELERATOR);
         panes.focusItem(PaneNavigator.PaneDirection.UP).setAccelerator(PANE_FOCUS_UP_ACCELERATOR);
@@ -2187,11 +2204,37 @@ public class MainWindow {
         return view != null ? view.getTerminalPaneCount() : 0;
     }
 
-    /** What a pane shortcut does once the scene shortcut router took its chord. */
+    /**
+     * What a pane shortcut does once the scene shortcut router took its chord. The split runs after
+     * the key event, as its connect dialog runs a nested event loop: the router swallows the chord's
+     * KEY_TYPED first, so no O reaches the old or the new pane.
+     */
     private void runPaneShortcut(PaneShortcuts.PaneAction action) {
         switch (action) {
             case FOCUS_LEFT, FOCUS_RIGHT, FOCUS_UP, FOCUS_DOWN -> focusPaneInActiveTerminal(action.direction());
+            case SPLIT -> Platform.runLater(() -> splitPaneInActiveTerminal(null));
         }
+    }
+
+    /**
+     * Splits the focused pane of the active terminal tab on that pane's own server, putting the new
+     * pane on {@code side}, or on the side that suits the pane's shape when {@code side} is null.
+     */
+    private void splitPaneInActiveTerminal(SplitOrientationChooser.SplitSide side) {
+        TerminalTab terminalTab = activeTerminalTab();
+        if (terminalTab != null && terminalTab.getTerminalView() != null) {
+            terminalTab.getTerminalView().splitFocusedPane(side);
+        }
+        syncPaneMenuItems();
+    }
+
+    /** Closes the focused pane of the active terminal tab; the tab's last pane stays. */
+    private void closePaneInActiveTerminal() {
+        TerminalTab terminalTab = activeTerminalTab();
+        if (terminalTab != null && terminalTab.getTerminalView() != null) {
+            terminalTab.getTerminalView().closeFocusedPane();
+        }
+        syncPaneMenuItems();
     }
 
     /** Moves the keyboard focus to the neighbouring pane of the active terminal tab; nothing at the edge. */
@@ -2648,10 +2691,12 @@ public class MainWindow {
         // Cmd+Option / Ctrl+Alt with an arrow key move the focus between the panes of the selected
         // terminal tab, only while the keyboard is in that tab and it has two or more panes; otherwise
         // the key reaches the shell as xterm sends it. Arrow keys type nothing, so no residue.
+        // Cmd/Ctrl+Shift+O splits the focused pane while the keyboard is in the tab; the O, or the
+        // U+000F Ctrl turns it into, is swallowed.
         for (PaneShortcuts.PaneAction paneAction : PaneShortcuts.PaneAction.values()) {
             router.consume(press -> PANE_SHORTCUTS.isChordOf(press, paneAction),
                 () -> isKeyboardInSelectedTerminal() && PaneShortcuts.applies(paneAction, activeTerminalPaneCount()),
-                () -> runPaneShortcut(paneAction), Residue.NONE);
+                () -> runPaneShortcut(paneAction), paneAction.residue());
         }
         return router;
     }

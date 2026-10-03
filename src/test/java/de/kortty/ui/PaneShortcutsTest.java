@@ -24,11 +24,12 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * Cmd+Option with an arrow key on macOS and Ctrl+Alt with an arrow key on Windows and Linux move the
- * focus between the panes of the selected terminal tab, and nothing else does: Ctrl+L, Ctrl+F and the
- * arrow keys with Alt, Ctrl, Ctrl+Shift or Option alone keep reaching the shell. The chords go
- * through the main window's scene shortcut router only while the keyboard is in that tab and it has
- * two or more panes. Toolkit-free: the chords are rebuilt here from the same combinations, which
- * source pins keep in step with MainWindow, and key events are built directly.
+ * focus between the panes of the selected terminal tab, Cmd/Ctrl+Shift+O splits its focused pane, and
+ * nothing else does: Ctrl+L, Ctrl+F, Ctrl+O and the arrow keys with Alt, Ctrl, Ctrl+Shift or Option
+ * alone keep reaching the shell. The chords go through the main window's scene shortcut router only
+ * while the keyboard is in that tab and, for the focus keys, it has two or more panes. Toolkit-free:
+ * the chords are rebuilt here from the same combinations, which source pins keep in step with
+ * MainWindow, and key events are built directly.
  */
 class PaneShortcutsTest {
 
@@ -36,12 +37,20 @@ class PaneShortcutsTest {
     private static final boolean MAC = true;
     private static final boolean PC = false;
 
-    /** MainWindow.PANE_FOCUS_*_ACCELERATOR; {@link #mainWindowDeclaresTheChordsAndShowsThemInViewPanes()} pins them. */
+    /** MainWindow.PANE_SPLIT_ACCELERATOR. */
+    private static final KeyCombination SPLIT_CHORD =
+        new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+
+    /**
+     * MainWindow.PANE_FOCUS_*_ACCELERATOR and PANE_SPLIT_ACCELERATOR;
+     * {@link #mainWindowDeclaresTheChordsAndShowsThemInViewPanes()} pins them.
+     */
     private static final PaneShortcuts SHORTCUTS = new PaneShortcuts(Map.of(
         PaneAction.FOCUS_LEFT, chord(KeyCode.LEFT),
         PaneAction.FOCUS_RIGHT, chord(KeyCode.RIGHT),
         PaneAction.FOCUS_UP, chord(KeyCode.UP),
-        PaneAction.FOCUS_DOWN, chord(KeyCode.DOWN)));
+        PaneAction.FOCUS_DOWN, chord(KeyCode.DOWN),
+        PaneAction.SPLIT, SPLIT_CHORD));
 
     private static KeyCombination chord(KeyCode arrow) {
         return new KeyCodeCombination(arrow, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
@@ -60,10 +69,16 @@ class PaneShortcutsTest {
                 + ").setAccelerator(" + constant + ");");
         }
         assertThat(source).contains("private static final PaneShortcuts PANE_SHORTCUTS = new PaneShortcuts(Map.of(");
+        assertWithMessage("PANE_SPLIT_ACCELERATOR").that(Pattern.compile("static final KeyCombination "
+                + "PANE_SPLIT_ACCELERATOR\\s*=\\s*new KeyCodeCombination\\(\\s*KeyCode\\.O,\\s*"
+                + "KeyCombination\\.SHORTCUT_DOWN,\\s*KeyCombination\\.SHIFT_DOWN\\s*\\)")
+            .matcher(source).find()).isTrue();
+        assertThat(source).contains("PaneShortcuts.PaneAction.SPLIT, PANE_SPLIT_ACCELERATOR));");
+        assertThat(source).contains("panes.split().setAccelerator(PANE_SPLIT_ACCELERATOR);");
     }
 
     @Test
-    void mainWindowRoutesEveryPaneChordOnlyInATerminalTabWithSeveralPanes() throws IOException {
+    void mainWindowRoutesEveryPaneChordOnlyWhileTheKeyboardIsInATerminalTab() throws IOException {
         String source = source();
         int routerStart = source.indexOf("private SceneShortcutRouter createSceneShortcutRouter() {");
         assertThat(routerStart).isAtLeast(0);
@@ -73,7 +88,44 @@ class PaneShortcutsTest {
         assertThat(router).contains("for (PaneShortcuts.PaneAction paneAction : PaneShortcuts.PaneAction.values()) {");
         assertThat(router).contains("router.consume(press -> PANE_SHORTCUTS.isChordOf(press, paneAction),\n"
             + "                () -> isKeyboardInSelectedTerminal() && PaneShortcuts.applies(paneAction, activeTerminalPaneCount()),\n"
-            + "                () -> runPaneShortcut(paneAction), Residue.NONE);");
+            + "                () -> runPaneShortcut(paneAction), paneAction.residue());");
+        assertWithMessage("the split's connect dialog runs a nested event loop: after the key event, not inside it")
+            .that(methodBody(source, "private void runPaneShortcut(PaneShortcuts.PaneAction action) {"))
+            .contains("case SPLIT -> Platform.runLater(() -> splitPaneInActiveTerminal(null));");
+    }
+
+    @Test
+    void cmdShiftOSplitsOnMacOsAndCtrlShiftOOnWindowsAndLinux() {
+        assertThat(SHORTCUTS.match(press(KeyCode.O, true, false, false, true, MAC))).hasValue(PaneAction.SPLIT);
+        assertThat(SHORTCUTS.match(press(KeyCode.O, true, true, false, false, PC))).hasValue(PaneAction.SPLIT);
+        assertThat(SHORTCUTS.chordOf(PaneAction.SPLIT)).isEqualTo(SPLIT_CHORD);
+    }
+
+    @Test
+    void neighbouringOKeysNeverSplit() {
+        // Ctrl+O saves in nano and runs the next history line in bash; Cmd/Ctrl+O opens a project.
+        assertNoPaneChord(press(KeyCode.O, false, true, false, false, PC));
+        assertNoPaneChord(press(KeyCode.O, false, false, false, true, MAC));
+        // Ctrl+Alt+Shift+O can be AltGr+Shift+O, which types a character on some layouts.
+        assertNoPaneChord(press(KeyCode.O, true, true, true, false, PC));
+        assertNoPaneChord(press(KeyCode.O, true, false, true, true, MAC));
+        // The physical Ctrl key is no Cmd, and Shift+O is a capital O.
+        assertNoPaneChord(press(KeyCode.O, true, true, false, false, MAC));
+        assertNoPaneChord(press(KeyCode.O, true, false, false, false, PC));
+        assertNoPaneChord(press(KeyCode.O, true, false, false, false, MAC));
+    }
+
+    @Test
+    void theSplitChordSwallowsTheLetterItCanStillTypeTheArrowsNothing() {
+        Residue split = PaneAction.SPLIT.residue();
+        assertThat(split.matches("o")).isTrue();
+        assertThat(split.matches("O")).isTrue();
+        assertWithMessage("Ctrl turns O into U+000F").that(split.matches("\u000F")).isTrue();
+        assertThat(split.matches("p")).isFalse();
+        for (PaneDirection direction : PaneDirection.values()) {
+            assertThat(PaneAction.focus(direction).residue()).isEqualTo(Residue.NONE);
+        }
+        assertThat(PaneAction.SPLIT.direction()).isNull();
     }
 
     @Test
@@ -126,13 +178,21 @@ class PaneShortcutsTest {
     }
 
     @Test
-    void aPaneShortcutNeedsASecondPane() {
-        for (PaneAction action : PaneAction.values()) {
+    void aFocusShortcutNeedsASecondPane() {
+        for (PaneDirection direction : PaneDirection.values()) {
+            PaneAction action = PaneAction.focus(direction);
             assertThat(PaneShortcuts.applies(action, 0)).isFalse();
             assertThat(PaneShortcuts.applies(action, 1)).isFalse();
             assertThat(PaneShortcuts.applies(action, 2)).isTrue();
             assertThat(PaneShortcuts.applies(action, 5)).isTrue();
         }
+    }
+
+    @Test
+    void theSplitShortcutNeedsOnlyAPaneToSplit() {
+        assertThat(PaneShortcuts.applies(PaneAction.SPLIT, 0)).isFalse();
+        assertThat(PaneShortcuts.applies(PaneAction.SPLIT, 1)).isTrue();
+        assertThat(PaneShortcuts.applies(PaneAction.SPLIT, 4)).isTrue();
     }
 
     @Test
@@ -181,6 +241,34 @@ class PaneShortcutsTest {
     }
 
     @Test
+    void ctrlShiftOSplitsAOnePaneTabAndSwallowsItsControlCharacter() {
+        Routed routed = new Routed(PC, 1, true);
+
+        KeyEvent chord = keyPressed(KeyCode.O, true, true, false, false);
+        routed.router.onKeyPressed(chord);
+        KeyEvent residue = keyTyped("\u000F");
+        routed.router.onKeyTyped(residue);
+        KeyEvent next = keyTyped("o");
+        routed.router.onKeyTyped(next);
+
+        assertThat(routed.ran).containsExactly(PaneAction.SPLIT);
+        assertThat(chord.isConsumed()).isTrue();
+        assertWithMessage("Ctrl+O must not reach the shell as well").that(residue.isConsumed()).isTrue();
+        assertWithMessage("only the first KEY_TYPED is the chord's").that(next.isConsumed()).isFalse();
+    }
+
+    @Test
+    void withTheKeyboardOutsideTheTerminalTabTheSplitChordIsLeftAlone() {
+        Routed routed = new Routed(MAC, 2, false);
+
+        KeyEvent chord = keyPressed(KeyCode.O, true, false, false, true);
+        routed.router.onKeyPressed(chord);
+
+        assertThat(routed.ran).isEmpty();
+        assertWithMessage("an editor tab keeps Cmd+Shift+O").that(chord.isConsumed()).isFalse();
+    }
+
+    @Test
     void ctrlLIsNeverTakenEvenWithSeveralPanes() {
         Routed routed = new Routed(PC, 4, true);
 
@@ -208,7 +296,7 @@ class PaneShortcutsTest {
             for (PaneAction paneAction : PaneAction.values()) {
                 router.consume(press -> SHORTCUTS.isChordOf(press, paneAction),
                     () -> keyboardInTerminal && PaneShortcuts.applies(paneAction, paneCount),
-                    () -> ran.add(paneAction), Residue.NONE);
+                    () -> ran.add(paneAction), paneAction.residue());
             }
         }
     }
@@ -223,6 +311,26 @@ class PaneShortcutsTest {
 
     private static KeyEvent keyTyped(String character) {
         return new KeyEvent(KeyEvent.KEY_TYPED, character, "", KeyCode.UNDEFINED, false, false, false, false);
+    }
+
+    /** The text of the method whose declaration contains {@code signature}, up to its closing brace. */
+    private static String methodBody(String source, String signature) {
+        int start = source.indexOf(signature);
+        assertWithMessage("method not found: " + signature).that(start).isAtLeast(0);
+        int open = source.indexOf('{', start);
+        int depth = 0;
+        for (int i = open; i < source.length(); i++) {
+            char c = source.charAt(i);
+            if (c == '{') {
+                depth++;
+            } else if (c == '}') {
+                depth--;
+                if (depth == 0) {
+                    return source.substring(start, i + 1);
+                }
+            }
+        }
+        throw new AssertionError("unbalanced method: " + signature);
     }
 
     private static String source() throws IOException {
