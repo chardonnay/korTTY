@@ -77,9 +77,11 @@ class TerminalViewTunnelWiringTest {
 
         assertThat(cleanup).contains("closeTunnels();");
         assertThat(closeTunnels).contains("tunnelManager.close();");
+        String tab = source("TerminalTab.java");
         assertWithMessage("a tab that closes on its own must release the same resources as its close button")
-            .that(methodBody(source("TerminalTab.java"), "private void closeTabSilently() {"))
-            .contains("terminalView.cleanup();");
+            .that(methodBody(tab, "private void closeTabSilently() {"))
+            .contains("releaseResources();");
+        assertThat(methodBody(tab, "void releaseResources() {")).contains("terminalView.cleanup();");
     }
 
     @Test

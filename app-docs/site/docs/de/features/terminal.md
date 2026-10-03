@@ -19,7 +19,7 @@ Verwalten Sie mehrere SSH-Sitzungen mit diesen Registerkartenoperationen:
 | Aktion | Verknüpfung |
 |--------|----------|
 | **New Tab** | ++ctrl+t++ (Cmd+T on macOS) — opens Schnellverbindung to start a new session |
-| **Close Tab** | ++ctrl+w++ (Befehl+W unter macOS) – schließt die aktive Registerkarte. Sie werden nur dann zur Bestätigung aufgefordert, wenn etwas verloren geht: Die Registerkarte hat geteilte Bereiche oder ein Befehl wird noch ausgeführt (eine lokale Shell mit einem laufenden untergeordneten Prozess oder eine SSH-Sitzung, die nicht zur Eingabeaufforderung gelangt). Ein inaktives einzelnes Terminal wird sofort geschlossen. Die verbindungsspezifische Einstellung *Ohne Bestätigung schließen* unterdrückt die Eingabeaufforderung vollständig. |
+| **Tab schließen** | ++ctrl+w++ (Cmd+W auf macOS) — schließt den aktiven Tab. Sie werden nur gefragt, wenn etwas verloren gehen könnte: der Tab hat geteilte Panes oder ein Befehl läuft noch (eine lokale Shell mit einem laufenden Kindprozess, oder eine SSH-Sitzung, die nicht am Prompt steht). Ein einzelnes Terminal im Leerlauf schließt sofort. Der Schließen-Button des Tabs und **Schließen** im Dashboard stellen dieselbe Frage. Die Verbindungseinstellung *Tab ohne Nachfrage schließen* unterdrückt die Frage ganz. |
 | **Nächster Tab** | ++ctrl+Tab++ |
 | **Vorheriger Tab** | ++ctrl+shift+Tab++ |
 | **Erneut verbinden** | Klicken Sie mit der rechten Maustaste auf eine Registerkarte, den Terminalbereich oder einen Servereintrag im Dashboard. Ist die Verbindung aktiv, wird sie sofort geschlossen und wieder aufgebaut; Wenn die Verbindung getrennt wird, wird sie wiederhergestellt. Das Terminalfenster bleibt geöffnet. |
