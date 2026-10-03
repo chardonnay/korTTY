@@ -2471,9 +2471,10 @@ public class MainWindow {
             String terminalEffectPluginId,
             Double terminalEffectAnimationSpeed) {
         // Central UI gate for the enterprise server policy — covers saved connections, session
-        // restore, teamwork-shared connections and multi/swarm opens. The terminal connectors do
-        // not repeat this check; SFTPSession and JobSchedulerRemoteSession do, as non-UI
-        // backstops for their own paths.
+        // restore, teamwork-shared connections and multi/swarm opens. Group opens and Duplicate
+        // check it themselves; TerminalView.connect re-checks before every (re)connect attempt,
+        // because the connection editor changes a saved connection in place. SFTPSession and
+        // JobSchedulerRemoteSession do too, as non-UI backstops for their own paths.
         java.util.Optional<String> blockedTarget =
             de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(connection);
         if (blockedTarget.isPresent()) {
@@ -9447,8 +9448,22 @@ public class MainWindow {
             logger.warn("No connections found in group: {}", groupName);
             return;
         }
-        
-        logger.info("Opening {} connections from group: {}", groupConnections.size(), groupName);
+
+        // Enterprise server policy, as for a single connection: a member whose server or jump
+        // server is blocked is skipped before its password is read, its usage counted or a tab
+        // built, and one policy message names every blocked target. The allowed members open.
+        de.kortty.policy.ServerAccessPolicy.Partition policyPartition =
+            de.kortty.policy.ServerAccessPolicy.partition(groupConnections);
+        if (!policyPartition.blockedTargets().isEmpty()) {
+            logger.warn("Group {}: skipping {} connection(s) blocked by the enterprise policy",
+                groupName, groupConnections.size() - policyPartition.allowed().size());
+            de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(policyPartition.blockedTargetList());
+        }
+        if (policyPartition.allowed().isEmpty()) {
+            return;
+        }
+
+        logger.info("Opening {} connections from group: {}", policyPartition.allowed().size(), groupName);
         
         // Create password vault for retrieving stored passwords
         PasswordVault vault = new PasswordVault(
@@ -9456,7 +9471,8 @@ public class MainWindow {
                 app.getMasterPasswordManager().getMasterPassword()
         );
         
-        for (ServerConnection conn : groupConnections) {
+        int opened = 0;
+        for (ServerConnection conn : policyPartition.allowed()) {
             // Retrieve password from vault
             String password = vault != null ? vault.retrievePassword(conn) : "";
             
@@ -9499,6 +9515,7 @@ public class MainWindow {
             setupTabContextMenu(tab);
             tabPane.getTabs().add(tab);
             tab.connect();
+            opened++;
             
             // Select the first tab
             if (tabPane.getTabs().size() == 1) {
@@ -9513,7 +9530,7 @@ public class MainWindow {
             logger.error("Failed to save usage counts", e);
         }
         
-        updateStatus(I18n.get("status.groupOpened", groupName, groupConnections.size()));
+        updateStatus(I18n.get("status.groupOpened", groupName, opened));
         updateDashboard();
     }
     
@@ -10511,6 +10528,16 @@ public class MainWindow {
      */
     private void duplicateTab(TerminalTab sourceTab) {
         ServerConnection connection = sourceTab.getConnection();
+
+        // Enterprise server policy, as in openConnectionAndReturnTab. The source tab passed it when
+        // it opened, but the connection editor changes a saved connection in place, so its host or
+        // jump server may have been edited to a blocked one since; refuse before any password prompt.
+        java.util.Optional<String> duplicateBlocked =
+            de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(connection);
+        if (duplicateBlocked.isPresent()) {
+            de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(duplicateBlocked.get());
+            return;
+        }
 
         // Local shells run a local process with no authentication, and SSH key auth needs no
         // password - duplicate directly without prompting.

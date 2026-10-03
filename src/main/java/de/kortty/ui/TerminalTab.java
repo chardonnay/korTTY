@@ -1256,7 +1256,9 @@ public class TerminalTab extends Tab {
      * Arms or continues automatic reconnection after the disconnected UI was shown. It arms only
      * when the global setting is on and an established connection was lost (never for failed
      * first connects), and disarms when a reconnect failure is permanent (authentication,
-     * host key, configuration). Runs on the JavaFX thread.
+     * host key, configuration, enterprise policy). A permanent failure never arms it either: the
+     * replaced connector of a manual reconnect can still report its earlier connection loss.
+     * Runs on the JavaFX thread.
      */
     private void maybeScheduleAutoReconnect() {
         if (!isAutoReconnectEnabled()) {
@@ -1270,7 +1272,7 @@ public class TerminalTab extends Tab {
             }
             autoReconnectAttempt++;
         } else {
-            if (!terminalView.wasConnectionLost()) {
+            if (!terminalView.wasConnectionLost() || terminalView.isLastConnectFailurePermanent()) {
                 return;
             }
             autoReconnectActive = true;
