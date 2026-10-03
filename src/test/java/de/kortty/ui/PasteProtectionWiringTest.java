@@ -111,6 +111,40 @@ class PasteProtectionWiringTest {
             .contains("case UNLESS_BRACKETED -> \"settings.terminal.paste.mode.unlessBracketed\";");
     }
 
+    @Test
+    void droppedTextIsPastedIntoThePaneUnderThePointerThroughTheGuard() throws IOException {
+        String view = source(TERMINAL_VIEW);
+
+        String setup = body(view, "private void setupDragDrop() {");
+        assertThat(setup).contains("splitPane.addEventFilter(DragEvent.DRAG_OVER, event -> {");
+        assertThat(setup).contains("if (handleTerminalDragDropped(event)) {");
+
+        String action = body(view, "private TerminalTextDropDecision.Action terminalDropAction(DragEvent event) {");
+        assertThat(action).contains("db.getTransferModes().contains(TransferMode.COPY)");
+        assertThat(action).contains("event.getGestureSource() != null");
+        assertThat(action).contains("KorttyClipboard.isInternalMode()");
+
+        String over = body(view, "private boolean handleTextDragOver(DragEvent event) {");
+        assertWithMessage("a text drag is only ever a copy, so the source never deletes what it dragged")
+            .that(over).contains("event.acceptTransferModes(TransferMode.COPY);");
+        assertThat(over).doesNotContain("TransferMode.MOVE");
+        assertThat(over).contains("KorttyTermWidget pane = textDropPane(event);");
+
+        String dropped = body(view, "private boolean handleTextDragDropped(DragEvent event) {");
+        assertThat(dropped).contains("KorttyTermWidget pane = textDropPane(event);");
+        assertThat(dropped).contains("String text = event.getDragboard().getString();");
+        assertWithMessage("the confirmation opens after the platform's drag loop, not inside it")
+            .that(dropped).contains("Platform.runLater(() -> pasteDroppedText(pane, text));");
+
+        String paste = body(view, "private void pasteDroppedText(KorttyTermWidget pane, String text) {");
+        assertThat(paste).contains("splitPane.focusWidget(pane);");
+        assertThat(paste).contains("pasteGuard.paste(pane.pasteTarget(), text, PasteSource.DROP);");
+
+        assertWithMessage("the pane under the pointer, not the focused pane")
+            .that(body(view, "private @Nullable KorttyTermWidget textDropPane(DragEvent event) {"))
+            .contains("isUnderPointer(pane.getPane(), event.getSceneX(), event.getSceneY())");
+    }
+
     private static String source(Path path) throws IOException {
         return Files.readString(path, StandardCharsets.UTF_8).replace("\r\n", "\n");
     }

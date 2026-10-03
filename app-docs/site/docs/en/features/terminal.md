@@ -70,7 +70,7 @@ Below them come the entries of other features, in this order and some only where
 
 ## Pasting text
 
-Every way of pasting into a terminal goes through korTTY: *Edit → Paste*, ++cmd+v++ on macOS, ++ctrl+shift+v++ on Windows and Linux, **Paste** in the right-click menu, and a middle-click, which pastes the X11 primary selection on Linux and the clipboard elsewhere. The text goes to the pane you paste into, and its line breaks arrive as Enter, the way they do when you type them.
+Every way of pasting into a terminal goes through korTTY: *Edit → Paste*, ++cmd+v++ on macOS, ++ctrl+shift+v++ on Windows and Linux, **Paste** in the right-click menu, a middle-click, which pastes the X11 primary selection on Linux and the clipboard elsewhere, and text you [drop onto a pane](#dropping-text). The text goes to the pane you paste into, and its line breaks arrive as Enter, the way they do when you type them.
 
 When the program in the pane has switched on bracketed paste, as bash, zsh, fish and most editors do while they wait for input, korTTY wraps the text in the bracketed-paste markers. The program then receives it as one pasted block instead of typed keys, so a line break in it does not run a command on its own. Bracketed-paste markers inside the text itself are removed first, including the 8-bit form that a single-byte [character encoding](connections.md#character-encoding) sends, so text copied from a web page or a file can neither end the paste early nor have its remaining lines run as typed commands.
 
@@ -100,6 +100,12 @@ Switches, routers, console servers and other devices behind SSH can lose input t
 While the lines are sent, the bottom right corner of the pane shows how far the paste is, such as *Pasting line 3 of 40 · Esc stops*. The pane takes no keyboard input meanwhile, so nothing you type lands between two pasted lines; on macOS, ++cmd++ shortcuts keep working. Press ++esc++ to stop the paste: the remaining lines are not sent. When the program in the pane uses bracketed paste, the paced lines still arrive as one pasted block, and stopping ends that block, so the lines already sent stay in the program's input line without running.
 
 A new paste into the pane is ignored until the paced one is done, and in [broadcast mode](#broadcast-mode) the keys you type in the other panes are not sent into it. Closing the pane, a reconnect and closing the tab stop the paste.
+
+### Dropping text
+
+Drag text from another application, such as a browser or an editor, or from another korTTY window, and drop it onto a terminal pane to paste it there. It goes into the pane under the pointer, which need not be the pane you were typing in, and that pane becomes the focused pane. Dropped text is a paste like any other: bracketed-paste markers in it are removed, [paste protection](#paste-protection) asks first when its rules say so, with a note in the dialog that the text was dropped onto the terminal, and a line delay paces it. The text is always copied, so the application you drag it from keeps it. A pane that is not connected, or is still pacing a paste, does not take the drop.
+
+Dropped files are copied to the server over SFTP instead, in SSH tabs. A drag that carries files together with their path as text, as one from Finder or Explorer does, copies the files and never pastes the path. Both need **Allow drag and drop into the terminal** under *Settings → Terminal* (on by default); with it off, the terminal takes neither files nor text. With the enterprise policy's [internal clipboard mode](../reference/enterprise-policy.md#internal-clipboard-mode), text dragged from another application is refused, as a paste from the operating system clipboard is, while text dragged within korTTY is still pasted.
 
 ## Links in terminal output
 

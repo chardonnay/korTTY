@@ -308,7 +308,7 @@ public class GlobalSettings {
     private String exportFooterText; // Null = the built-in brand line plus the repository link
 
     @XmlElement
-    private boolean terminalDragDropEnabled = true; // Allow drag-and-drop file copy into terminal
+    private boolean terminalDragDropEnabled = true; // Drag and drop into the terminal: files copy over SFTP, text is pasted
 
     @XmlElement
     private boolean terminalCopyOnSelectEnabled = true; // Copy selected text to clipboard automatically

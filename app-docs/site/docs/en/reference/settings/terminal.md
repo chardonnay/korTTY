@@ -17,7 +17,7 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Bold as bright color | toggle | — | On | `boldAsBright` |
 | Show scrollbar in terminal | toggle | — | On | `showTerminalScrollbar` |
 | Show command timestamps | toggle | — | Off | `commandTimestampsEnabled` |
-| Allow drag-and-drop file copy into terminal | toggle | — | On | `terminalDragDropEnabled` |
+| Allow drag and drop into the terminal (files copy over SFTP, text is pasted) | toggle | — | On | `terminalDragDropEnabled` |
 | Copy selection to clipboard automatically | toggle | — | On | `terminalCopyOnSelectEnabled` |
 | Close active terminal windows without confirmation | toggle | — | Off | `closeActiveTerminalWindowsWithoutConfirmation` |
 | Warn about multi-line pastes: | dropdown | Off, Unless the program uses bracketed paste, Always | Unless the program uses bracketed paste | `pasteWarningMode` |
@@ -62,8 +62,10 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 !!! warning "Disable host key verification for all connections"
     This is the global, lowest-precedence host-key setting: it relaxes verification to accept-new for every connection that does not set its own or its group's override. Accept-new still hard-blocks a changed key on a host already pinned, and a jump server's own key is always verified strictly — but disabling first-use verification removes protection against a man-in-the-middle on the very first connection. Off by default. Per-connection and per-group overrides are set in the Connection Manager; see [Security → Relaxing host-key verification](../../features/security.md#relaxing-host-key-verification).
 
-!!! note "Drag-and-Drop File Copy"
+!!! note "Drag and drop into the terminal"
     When enabled, you can drop files or folders from your file manager (Finder on macOS, Explorer on Windows) directly into the terminal window. The files will be copied to the remote SSH server via SFTP.
+
+    Text dropped onto a terminal pane, from a browser, an editor or another korTTY window, is pasted into the pane under the pointer, through [paste protection](../../features/terminal.md#paste-protection) like any other paste; see [Dropping text](../../features/terminal.md#dropping-text). A drag that carries files and their path as text copies the files. With the enterprise policy's [internal clipboard mode](../enterprise-policy.md#internal-clipboard-mode), text dragged from another application is refused. When this setting is off, the terminal takes neither files nor text.
 
 !!! note "Command Timestamps"
     When enabled, a sidebar appears on the left side of the terminal displaying the date and time each command was entered, useful for audit trails and session logging.
