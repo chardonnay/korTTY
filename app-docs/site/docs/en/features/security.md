@@ -56,7 +56,7 @@ Store centralized username/password credentials that can be reused across multip
 
 ### Opening the Manager
 
-**Menu:** Management > Manage Credentials
+**Menu:** Configuration > Security > Credentials… (++ctrl+shift+m++, on macOS ++cmd+shift+m++). The shortcut also works while a terminal has the focus.
 
 ### Adding Credentials
 
@@ -117,7 +117,7 @@ Centralized management of private SSH keys with encrypted passphrases.
 
 ### Opening the Manager
 
-**Menu:** Management > Manage SSH Keys
+**Menu:** Configuration > Security > SSH-Keys… (++ctrl+shift+i++, on macOS ++cmd+shift+i++)
 
 ### Adding Keys
 
@@ -169,7 +169,7 @@ Manage GPG keys for backup encryption and connection/snippet export encryption.
 
 ### Opening the Manager
 
-**Menu:** Management > Manage GPG Keys
+**Menu:** Configuration > Security > GPG-Keys… (++ctrl+shift+g++, on macOS ++cmd+shift+g++)
 
 ### Adding Keys
 

@@ -25,7 +25,7 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | ++ctrl+k++ | Quick Connect |
 | ++ctrl+m++ | Manage Connections |
 | ++ctrl+shift+u++ | SFTP client |
-| ++ctrl+shift+p++ | Manage credentials |
+| ++ctrl+shift+m++ | Manage credentials (also while a terminal has the focus) |
 | ++ctrl+shift+g++ | Manage GPG keys |
 | ++ctrl+shift+i++ | Manage SSH keys |
 | ++ctrl+comma++ | Global Settings |

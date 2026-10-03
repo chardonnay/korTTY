@@ -126,6 +126,7 @@ What changed in the current release. The version this guide was built for is sho
 ### Credentials
 
 - **Passwords from an external command work on Windows and no longer freeze korTTY** — a credential that fetches its password from a command such as `op`, `bw` or `enpass-cli` now runs it in PowerShell on Windows (it always failed there) and on the host in the Flatpak package. The 10-second limit now really holds: a tool that waits for input, an unlock or Touch ID is stopped together with the processes it started and reported, where it could hang korTTY forever before, and the connection editor fetches the password in the background while the field shows *Retrieving password...*. See [Passwords from an external command](../features/security.md#passwords-from-an-external-command).
+- **Credentials moved to Cmd/Ctrl+Shift+M** — *Configuration → Security → Credentials…* now opens with ++cmd+shift+m++ on macOS and ++ctrl+shift+m++ on Windows and Linux; ++cmd+shift+p++ / ++ctrl+shift+p++ no longer opens it. The new key works in every tab, also while a terminal has the focus and with the menu bar hidden, and leaves no character behind in the terminal. ++cmd+m++ / ++ctrl+m++ still opens the Connection Manager. See [Keyboard shortcuts](../reference/keyboard-shortcuts.md#general).
 
 ### Backup and restore
 

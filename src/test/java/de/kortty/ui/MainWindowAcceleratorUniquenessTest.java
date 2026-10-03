@@ -107,6 +107,40 @@ class MainWindowAcceleratorUniquenessTest {
         assertThat(source).contains("TabKeyboardShortcuts.slotOf(press) == jumpSlot");
     }
 
+    /**
+     * Credentials moved from Shortcut+Shift+P to Shortcut+Shift+M, so Shortcut+Shift+P is free for a
+     * command palette. Shortcut+M stays Manage Connections. Whichever item claims Shortcut+Shift+P
+     * later updates this pin; {@link #noTwoMenuItemsShareAnAccelerator()} keeps Credentials off it.
+     */
+    @Test
+    void credentialsUsesShortcutShiftMAndLeavesShortcutShiftPFree() throws IOException {
+        String source = Files.readString(SOURCE, StandardCharsets.UTF_8).replace("\r\n", "\n");
+
+        Map<String, String> constants = new LinkedHashMap<>();
+        Matcher constantMatcher = CONSTANT.matcher(source);
+        while (constantMatcher.find()) {
+            constants.put(constantMatcher.group(1), normalize(constantMatcher.group(2)));
+        }
+        assertThat(constants).containsEntry("CREDENTIALS_ACCELERATOR", "M+SHIFT_DOWN+SHORTCUT_DOWN");
+        assertThat(source).contains("manageCredentials.setAccelerator(CREDENTIALS_ACCELERATOR);");
+
+        List<String> shortcutShiftP = new ArrayList<>();
+        List<String> shortcutM = new ArrayList<>();
+        Matcher combinationMatcher = Pattern.compile("new KeyCodeCombination\\(([^)]*)\\)").matcher(source);
+        while (combinationMatcher.find()) {
+            String combination = normalize(combinationMatcher.group(1));
+            if (combination.equals("P+SHIFT_DOWN+SHORTCUT_DOWN")) {
+                shortcutShiftP.add("line " + lineOf(source, combinationMatcher.start()));
+            } else if (combination.equals("M+SHORTCUT_DOWN")) {
+                shortcutM.add(lineOf(source, combinationMatcher.start()));
+            }
+        }
+        assertThat(shortcutShiftP).isEmpty();
+        assertThat(shortcutM).hasSize(1);
+        assertThat(source).contains(
+            "manageConnections.setAccelerator(new KeyCodeCombination(KeyCode.M, KeyCombination.SHORTCUT_DOWN));");
+    }
+
     /** Turns a KeyCodeCombination argument list into a canonical, order-independent key. */
     private static String normalize(String arguments) {
         return Arrays.stream(arguments.split(","))

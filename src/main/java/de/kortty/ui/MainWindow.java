@@ -193,6 +193,10 @@ public class MainWindow {
         new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
     private static final KeyCombination SESSION_JOURNAL_SCREENSHOT_ACCELERATOR =
         new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
+    // Configuration > Security > Credentials. It was Shortcut+Shift+P, which is kept free for a
+    // command palette; Shortcut+M (Manage Connections) is a different chord.
+    private static final KeyCombination CREDENTIALS_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.M, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
     // F11 is intercepted system-wide by macOS ("Show Desktop") and F12 is used for regular OS
     // fullscreen, so terminal-only fullscreen uses a modifier combo instead of a bare function key.
     private static final KeyCombination TERMINAL_ONLY_FULLSCREEN_ACCELERATOR =
@@ -1470,7 +1474,8 @@ public class MainWindow {
         syncUnlockVaultMenuItems();
 
         MenuItem manageCredentials = new MenuItem(I18n.get("menu.security.credentials"));
-        manageCredentials.setAccelerator(new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        // Shown here; the scene shortcut router handles the key, also while a terminal has the focus.
+        manageCredentials.setAccelerator(CREDENTIALS_ACCELERATOR);
         manageCredentials.setOnAction(e -> showCredentialManagement());
 
         MenuItem manageGPGKeys = new MenuItem(I18n.get("menu.security.gpgKeys"));
@@ -2234,6 +2239,10 @@ public class MainWindow {
                 () -> toggleMenuBarVisibility(menuBar == null || !menuBar.isVisible()), Residue.ofLetter('L'))
             .consume(press -> press.matches(TERMINAL_ONLY_FULLSCREEN_ACCELERATOR), SceneShortcutRouter.ALWAYS,
                 this::toggleTerminalOnlyFullscreen, Residue.ofLetter('F'))
+            // Routed so a focused terminal cannot take Ctrl+Shift+M (a carriage return) on Windows
+            // and Linux. Opened after the key event, since the dialog may run a nested event loop.
+            .consume(press -> press.matches(CREDENTIALS_ACCELERATOR), SceneShortcutRouter.ALWAYS,
+                () -> Platform.runLater(this::showCredentialManagement), Residue.ofLetter('M'))
             // Not consumed: the terminal pastes on its own, and the timestamp keeps the Paste menu
             // accelerator from pasting a second time (wasTriggeredByTerminalPasteShortcut).
             .observe(press -> press.matches(PASTE_ACCELERATOR), terminalSelected,

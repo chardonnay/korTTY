@@ -43,13 +43,13 @@ Connection entries (Quick Connect, Manage/Import/Export Connections) live in the
 
 ## Security
 
-| Item | Description |
-| --- | --- |
-| Unlock Vault… | Enter the master password to unlock stored secrets when the startup prompt is off (disabled while unlocked) |
-| Credentials… | Manage stored credentials (encrypted) |
-| GPG-Keys… | Manage GPG keys used for backup encryption |
-| SSH-Keys… | Manage SSH keys and passphrases |
-| Known Hosts… | Review, search and remove trusted SSH host keys |
+| Item | Shortcut | Description |
+| --- | --- | --- |
+| Unlock Vault… | | Enter the master password to unlock stored secrets when the startup prompt is off (disabled while unlocked) |
+| Credentials… | ++ctrl+shift+m++ | Manage stored credentials (encrypted). The shortcut also works while a terminal has the focus |
+| GPG-Keys… | ++ctrl+shift+g++ | Manage GPG keys used for backup encryption |
+| SSH-Keys… | ++ctrl+shift+i++ | Manage SSH keys and passphrases |
+| Known Hosts… | | Review, search and remove trusted SSH host keys |
 
 ## Configuration
 
