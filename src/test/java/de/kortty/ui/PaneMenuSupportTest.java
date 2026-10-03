@@ -20,11 +20,11 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * View → Panes: Split Pane, Split Right, Split Down and Close Pane, four focus items, Next and Previous
- * Pane, and the tab's broadcast mode as a check item. Splitting needs a terminal tab; closing a pane
- * and the focus items need two or more panes; the broadcast item shows the tab's real mode and its
- * action decides from that mode, never from the item JavaFX has already flipped. Menu items are not
- * nodes, so no JavaFX toolkit is started; separators are plain marker items here, since a
- * SeparatorMenuItem holds a control whose static initializer needs the toolkit.
+ * Pane, and the tab's zoom and broadcast mode as check items. Splitting needs a terminal tab; closing
+ * a pane, the focus items and zooming need two or more panes; the zoom and broadcast items show the
+ * tab's real state and their actions decide from that state, never from the item JavaFX has already
+ * flipped. Menu items are not nodes, so no JavaFX toolkit is started; separators are plain marker
+ * items here, since a SeparatorMenuItem holds a control whose static initializer needs the toolkit.
  */
 class PaneMenuSupportTest {
 
@@ -42,6 +42,7 @@ class PaneMenuSupportTest {
         final List<String> log = new ArrayList<>();
         int paneCount = 2;
         boolean broadcast;
+        boolean zoomed;
 
         @Override
         public void split(SplitOrientationChooser.SplitSide side) {
@@ -64,18 +65,24 @@ class PaneMenuSupportTest {
         }
 
         @Override
+        public void toggleZoom() {
+            zoomed = !zoomed;
+            log.add("zoom " + (zoomed ? "on" : "off"));
+        }
+
+        @Override
         public void toggleBroadcast() {
             broadcast = !broadcast;
             log.add("broadcast " + (broadcast ? "on" : "off"));
         }
 
         PaneMenuSupport.State state() {
-            return new PaneMenuSupport.State(true, paneCount, broadcast);
+            return new PaneMenuSupport.State(true, paneCount, broadcast, zoomed);
         }
     }
 
     @Test
-    void theMenuListsTheSplitItemsAndCloseThenTheFocusItemsThenNextAndPreviousThenBroadcast() {
+    void theMenuListsTheSplitItemsAndCloseThenTheFocusItemsThenNextAndPreviousThenZoomAndBroadcast() {
         PaneMenuSupport.PaneMenu menu = PaneMenuSupport.create(new FakeTab(), SEPARATORS);
 
         List<String> labels = new ArrayList<>();
@@ -86,7 +93,7 @@ class PaneMenuSupportTest {
             PaneMenuSupport.SPLIT_DOWN_KEY, PaneMenuSupport.CLOSE_KEY, "---",
             PaneMenuSupport.FOCUS_LEFT_KEY, PaneMenuSupport.FOCUS_RIGHT_KEY,
             PaneMenuSupport.FOCUS_UP_KEY, PaneMenuSupport.FOCUS_DOWN_KEY, "---", PaneMenuSupport.NEXT_KEY,
-            PaneMenuSupport.PREVIOUS_KEY, "---", PaneMenuSupport.BROADCAST_KEY).inOrder();
+            PaneMenuSupport.PREVIOUS_KEY, "---", PaneMenuSupport.ZOOM_KEY, PaneMenuSupport.BROADCAST_KEY).inOrder();
         assertThat(menu.menu().getText()).isEqualTo(I18n.get(PaneMenuSupport.MENU_KEY));
         for (PaneDirection direction : PaneDirection.values()) {
             assertThat(menu.focusItem(direction).getText()).isEqualTo(I18n.get(PaneMenuSupport.focusKey(direction)));
@@ -95,6 +102,7 @@ class PaneMenuSupportTest {
         assertThat(menu.splitRight().getText()).isEqualTo(I18n.get(PaneMenuSupport.SPLIT_RIGHT_KEY));
         assertThat(menu.splitDown().getText()).isEqualTo(I18n.get(PaneMenuSupport.SPLIT_DOWN_KEY));
         assertThat(menu.close().getText()).isEqualTo(I18n.get(PaneMenuSupport.CLOSE_KEY));
+        assertThat(menu.zoom().getText()).isEqualTo(I18n.get(PaneMenuSupport.ZOOM_KEY));
     }
 
     @Test
@@ -112,10 +120,11 @@ class PaneMenuSupportTest {
         }
         assertThat(MenuItemActivation.activate(menu.next())).isTrue();
         assertThat(MenuItemActivation.activate(menu.previous())).isTrue();
+        assertThat(MenuItemActivation.activate(menu.zoom())).isTrue();
 
         assertWithMessage("Split Pane leaves the side to the pane's shape")
             .that(tab.log).containsExactly("split auto", "split RIGHT", "split DOWN", "close", "focus LEFT",
-                "focus RIGHT", "focus UP", "focus DOWN", "next", "previous").inOrder();
+                "focus RIGHT", "focus UP", "focus DOWN", "next", "previous", "zoom on").inOrder();
     }
 
     @Test
@@ -163,6 +172,7 @@ class PaneMenuSupportTest {
         assertThat(menu.close().isDisable()).isFalse();
         assertThat(menu.next().isDisable()).isFalse();
         assertThat(menu.previous().isDisable()).isFalse();
+        assertThat(menu.zoom().isDisable()).isFalse();
         assertThat(menu.broadcast().isDisable()).isFalse();
     }
 
@@ -199,6 +209,48 @@ class PaneMenuSupportTest {
     }
 
     @Test
+    void theZoomItemFollowsTheTabNotItsOwnClick() {
+        FakeTab tab = new FakeTab();
+        PaneMenuSupport.PaneMenu menu = PaneMenuSupport.create(tab, SEPARATORS);
+        PaneMenuSupport.sync(menu, tab.state());
+        assertThat(menu.zoom().isSelected()).isFalse();
+
+        // A click flips the item, then fires it: the pane zooms, and the re-sync shows it.
+        MenuItemActivation.activate(menu.zoom());
+        PaneMenuSupport.sync(menu, tab.state());
+        assertThat(tab.log).containsExactly("zoom on");
+        assertThat(menu.zoom().isSelected()).isTrue();
+
+        // Moving the focus to another pane, or splitting, showed the panes again meanwhile: the
+        // stale check mark is corrected while the menu opens, and the next click zooms again.
+        tab.zoomed = false;
+        PaneMenuSupport.sync(menu, tab.state());
+        assertThat(menu.zoom().isSelected()).isFalse();
+        MenuItemActivation.activate(menu.zoom());
+        assertThat(tab.log).containsExactly("zoom on", "zoom on").inOrder();
+    }
+
+    @Test
+    void zoomNeedsASecondPaneAndAZoomedPaneCanAlwaysBeShownWithTheOthersAgain() {
+        PaneMenuSupport.PaneMenu menu = PaneMenuSupport.create(new FakeTab(), SEPARATORS);
+
+        PaneMenuSupport.sync(menu, new PaneMenuSupport.State(true, 1, false));
+        assertWithMessage("one pane has nothing to hide").that(menu.zoom().isDisable()).isTrue();
+
+        PaneMenuSupport.sync(menu, new PaneMenuSupport.State(true, 2, false));
+        assertThat(menu.zoom().isDisable()).isFalse();
+        assertThat(menu.zoom().isSelected()).isFalse();
+
+        PaneMenuSupport.sync(menu, new PaneMenuSupport.State(true, 1, false, true));
+        assertThat(menu.zoom().isDisable()).isFalse();
+        assertThat(menu.zoom().isSelected()).isTrue();
+
+        PaneMenuSupport.sync(menu, PaneMenuSupport.State.NO_TERMINAL);
+        assertThat(menu.zoom().isDisable()).isTrue();
+        assertThat(menu.zoom().isSelected()).isFalse();
+    }
+
+    @Test
     void aDisabledItemIsRefusedWhenItsMenuValidatesFirst() {
         FakeTab tab = new FakeTab();
         tab.paneCount = 1;
@@ -228,11 +280,12 @@ class PaneMenuSupportTest {
         assertThat(ActionIds.idOf(menu.close())).isEqualTo(PaneMenuSupport.CLOSE_KEY);
         assertThat(ActionIds.idOf(menu.next())).isEqualTo(PaneMenuSupport.NEXT_KEY);
         assertThat(ActionIds.idOf(menu.previous())).isEqualTo(PaneMenuSupport.PREVIOUS_KEY);
+        assertThat(ActionIds.idOf(menu.zoom())).isEqualTo(PaneMenuSupport.ZOOM_KEY);
         assertThat(ActionIds.idOf(menu.broadcast())).isEqualTo(PaneMenuSupport.BROADCAST_KEY);
     }
 
     @Test
-    void broadcastAndCloseActOnTheirOwnWindowOnlyAndTheSplitAndFocusItemsAreRouted() {
+    void broadcastAndCloseActOnTheirOwnWindowOnlyAndTheSplitFocusAndZoomItemsAreRouted() {
         PaneMenuSupport.PaneMenu menu = PaneMenuSupport.create(new FakeTab(), SEPARATORS);
 
         assertWithMessage("the menu bar of a closed window must not switch where another window's keys go")
@@ -247,6 +300,8 @@ class PaneMenuSupportTest {
         }
         assertThat(ClosedWindowMenuRouter.needOf(menu.next())).isEqualTo(WindowNeed.ANY_WINDOW);
         assertThat(ClosedWindowMenuRouter.needOf(menu.previous())).isEqualTo(WindowNeed.ANY_WINDOW);
+        assertWithMessage("zooming only changes what the frontmost window shows")
+            .that(ClosedWindowMenuRouter.needOf(menu.zoom())).isEqualTo(WindowNeed.ANY_WINDOW);
     }
 
     @Test
@@ -278,6 +333,15 @@ class PaneMenuSupportTest {
         String toggle = methodBody(source, "private void toggleBroadcastInActiveTerminal() {");
         assertThat(toggle).contains("boolean on = view.isBroadcastMode();");
         assertThat(toggle).doesNotContain("isSelected()");
+
+        String zoom = methodBody(source, "private void toggleZoomInActiveTerminal() {");
+        assertThat(zoom).contains("terminalTab.getTerminalView().toggleZoomPane();");
+        assertThat(zoom).contains("syncPaneMenuItems();");
+        assertThat(zoom).doesNotContain("isSelected()");
+        assertWithMessage("the zoom check mark comes from the tab")
+            .that(methodBody(source, "private PaneMenuSupport.State activePaneMenuState() {"))
+            .contains("view.isPaneZoomed()");
+        assertThat(panes).contains("toggleZoomInActiveTerminal();");
     }
 
     private static boolean allDisabled(PaneMenuSupport.PaneMenu menu) {
@@ -287,7 +351,7 @@ class PaneMenuSupportTest {
             }
         }
         return menu.next().isDisable() && menu.previous().isDisable() && menu.broadcast().isDisable()
-            && menu.close().isDisable();
+            && menu.close().isDisable() && menu.zoom().isDisable();
     }
 
     private static boolean splitDisabled(PaneMenuSupport.PaneMenu menu) {

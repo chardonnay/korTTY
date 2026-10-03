@@ -2115,6 +2115,22 @@ public class TerminalView extends BorderPane {
     }
 
     /**
+     * Zooms the focused pane so it fills the tab alone, or shows every pane again while one is zoomed
+     * (Cmd/Ctrl+Shift+Enter, <i>View → Panes → Zoom Pane</i>). Needs two or more panes. Splitting,
+     * closing or moving a pane and moving the focus to another pane show every pane again. FX thread.
+     *
+     * @return whether a pane is zoomed afterwards
+     */
+    public boolean toggleZoomPane() {
+        return splitPane != null && splitPane.toggleZoom();
+    }
+
+    /** Whether a pane of this tab is zoomed, filling the tab while the others are hidden. */
+    public boolean isPaneZoomed() {
+        return splitPane != null && splitPane.isZoomed();
+    }
+
+    /**
      * Splits the focused pane on that pane's own server (Cmd/Ctrl+Shift+O, <i>View → Panes → Split
      * Pane / Split Right / Split Down</i>), the same way as <i>Split Right (same server)</i> in its
      * context menu: through the split connector factory, with its connect dialog and the tab's
@@ -8106,7 +8122,8 @@ public class TerminalView extends BorderPane {
             
             if (splitPaneObj != null && leftCell != null && rightCell != null) {
                 Orientation ori = splitPaneObj.getOrientation();
-                double[] positions = splitPaneObj.getDividerPositions();
+                // Through the split pane: while a pane is zoomed, the control may show a reset divider.
+                double[] positions = splitPane.dividerPositionsOf(splitPaneObj);
                 double dividerPos = positions.length > 0 ? positions[0] : 0.5;
                 
                 de.kortty.model.SplitPaneState leftState = buildSplitState(leftCell, allWidgets);

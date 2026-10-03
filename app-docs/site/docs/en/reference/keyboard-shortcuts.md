@@ -99,17 +99,18 @@ Every other combination of ++shift++, ++ctrl++ and ++alt++ with the arrow keys, 
 
 ## Panes
 
-These keys split the active terminal tab and move the keyboard focus between its panes; see [Split operations](../features/terminal.md#split-operations).
+These keys split the active terminal tab, move the keyboard focus between its panes and zoom one of them; see [Split operations](../features/terminal.md#split-operations).
 
 | Shortcut | Action |
 | --- | --- |
 | ++ctrl+shift+o++ | Split the focused pane on that pane's own server: to the right when the pane is wide, below it when it is tall; the new pane gets the focus (++cmd+shift+o++ on macOS) |
 | ++ctrl+alt+left++ / ++ctrl+alt+right++ | Move the focus to the pane on the left / right (++cmd+option+left++ / ++cmd+option+right++ on macOS) |
 | ++ctrl+alt+up++ / ++ctrl+alt+down++ | Move the focus to the pane above / below (++cmd+option+up++ / ++cmd+option+down++ on macOS) |
+| ++ctrl+shift+enter++ | Zoom the focused pane so it fills the tab, or show all panes again (++cmd+shift+enter++ on macOS) |
 
 The split key works in every terminal tab while the keyboard is in it. On Windows and Linux it no longer reaches the shell, which received it as ++ctrl+o++; ++ctrl+o++ itself still does, so `nano` still saves with it.
 
-The focus keys act only while a terminal tab with two or more panes is active and the keyboard is in that tab; with a single pane they reach the program in the terminal as before. At the edge of the tab the focus stays where it is. When several panes lie on that side, the focus goes to the one that lies beside the focused pane rather than only touching its corner, and among those to the nearest one. *View → Panes* has the same commands, **Split Right** and **Split Down** to choose the side of a split, **Close Pane**, and **Next Pane** and **Previous Pane**, which go through all panes of the tab and start over after the last one.
+The focus keys and the zoom key act only while a terminal tab with two or more panes is active and the keyboard is in that tab; with a single pane they reach the program in the terminal as before, ++ctrl+shift+enter++ as ++enter++. At the edge of the tab the focus stays where it is. When several panes lie on that side, the focus goes to the one that lies beside the focused pane rather than only touching its corner, and among those to the nearest one. Moving the focus while a pane is zoomed shows all panes again. *View → Panes* has the same commands, **Split Right** and **Split Down** to choose the side of a split, **Close Pane**, **Zoom Pane**, and **Next Pane** and **Previous Pane**, which go through all panes of the tab and start over after the last one.
 
 !!! note "A desktop shortcut can take these keys first"
     Some Linux desktops, such as GNOME, Xfce and Cinnamon, switch workspaces with ++ctrl+alt++ and an arrow key, and some Windows graphics drivers (Intel) rotate the screen with it, before korTTY sees the key. Use *View → Panes* there, or switch off the desktop's shortcut.

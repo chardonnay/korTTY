@@ -20,6 +20,7 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollBar;
@@ -38,6 +39,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.SVGPath;
 import de.kortty.core.KorttyClipboard;
 import de.kortty.ui.I18n;
 import de.kortty.ui.KorttyTermWidget;
@@ -98,7 +100,7 @@ public class TerminalSplitPane extends StackPane {
     public enum PaneOverlayLayer {
         /** The underline under a hovered terminal link, and quick select's boxes and labels. */
         LINKS,
-        /** The ring around the pane the keyboard is in (with two or more panes), and later pane badges. */
+        /** The ring around the pane the keyboard is in (with two or more panes), and a zoomed pane's badge. */
         DECORATION,
         /** The drop zones shown while a pane is dragged onto this one to move it. */
         DROP_ZONES;
@@ -124,6 +126,48 @@ public class TerminalSplitPane extends StackPane {
     /** A pane's accessible name with two or more panes: "Pane {0} of {1}". */
     static final String PANE_ACCESSIBLE_NAME_KEY = "terminal.pane.accessibleName";
 
+    /** The zoom badge while no hidden pane gets the keys typed: "Zoomed · hidden panes: {0}". */
+    static final String ZOOMED_BADGE_KEY = "terminal.pane.zoomedBadge";
+
+    /**
+     * The zoom badge while broadcast mode sends the keys typed in the zoomed pane on to hidden panes:
+     * "Zoomed · hidden panes: {0}, receiving your input: {1}".
+     */
+    static final String ZOOMED_MIRROR_BADGE_KEY = "terminal.pane.zoomedMirrorBadge";
+
+    /** Style class of the badge in a zoomed pane's {@link PaneOverlayLayer#DECORATION} layer. */
+    static final String ZOOM_BADGE_STYLE_CLASS = "kortty-pane-zoom-badge";
+
+    /** Style class of the badge's icon, four corners pointing out. */
+    static final String ZOOM_BADGE_ICON_STYLE_CLASS = "kortty-pane-zoom-badge-icon";
+
+    /** Style class of the empty region that keeps a zoomed pane's place in its split control. */
+    static final String ZOOM_PLACEHOLDER_STYLE_CLASS = "kortty-pane-zoom-placeholder";
+
+    /** Set on the zoom badge while hidden panes receive the keys typed in the zoomed pane. */
+    static final PseudoClass MIRRORING = PseudoClass.getPseudoClass("mirroring");
+
+    /** Four corners pointing out, 10 by 10: the badge's icon, so the badge is not text and colour alone. */
+    private static final String ZOOM_BADGE_ICON_PATH =
+        "M0 0H4V1.5H1.5V4H0Z M6 0H10V4H8.5V1.5H6Z M0 6H1.5V8.5H4V10H0Z M8.5 6H10V10H6V8.5H8.5Z";
+
+    /** The badge's distance from the right edge: it stays left of the pane's 18 px × and its 4 px margin. */
+    private static final double ZOOM_BADGE_RIGHT_INSET = 28;
+    private static final double ZOOM_BADGE_TOP_INSET = 4;
+
+    /** Reads and writes a JavaFX split control's dividers for {@link PaneZoom}. */
+    private static final PaneZoom.Dividers<SplitPane> SPLIT_PANE_DIVIDERS = new PaneZoom.Dividers<>() {
+        @Override
+        public double @NotNull [] positions(@NotNull SplitPane split) {
+            return split.getDividerPositions();
+        }
+
+        @Override
+        public void setPositions(@NotNull SplitPane split, double @NotNull [] positions) {
+            split.setDividerPositions(positions);
+        }
+    };
+
     private static final class ExtractResult {
         final SplitCell extracted;
         final SplitCell replacement;
@@ -145,6 +189,11 @@ public class TerminalSplitPane extends StackPane {
     private SplitCell rootCell;
     private SithTermFxWidget focusedWidget;
     private boolean broadcastMode = false;
+    // The zoomed pane and how to show the others again; both null while no pane is zoomed.
+    private @Nullable PaneZoom<Node, SplitPane> zoom;
+    private @Nullable SithTermFxWidget zoomedWidget;
+    // The badge in the zoomed pane's DECORATION layer, reused from one zoom to the next.
+    private @Nullable Label zoomBadge;
     // JavaFX creates a new themed SplitPane for every split level. Remember see-through mode so both
     // existing and future nested controls stay transparent instead of restoring the opaque theme.
     private boolean backgroundTransparent = false;
@@ -234,12 +283,15 @@ public class TerminalSplitPane extends StackPane {
         getChildren().add(rootCell.getNode());
         refreshSplitCloseButtons();
         VBox.setVgrow(this, Priority.ALWAYS);
-        // Only allow pane-move drag with Shift+Alt/Option.
+        // Only allow pane-move drag with Shift+Alt/Option. A pane move needs the other panes to drop
+        // onto, so it shows a zoomed tab's panes again first.
         addEventFilter(MouseEvent.DRAG_DETECTED, event -> {
             if (rootCell == null || rootCell.countWidgets() <= 1) return;
             if (!(event.isShiftDown() && event.isAltDown())) {
                 event.consume();
+                return;
             }
+            unzoom();
         });
         refreshDragAndDrop();
     }
@@ -744,12 +796,18 @@ public class TerminalSplitPane extends StackPane {
 
     /**
      * Brings every pane's focus ring and accessible name up to date with the number of panes: both
-     * only with two or more panes, where they tell the panes apart. Runs after every change to the
-     * tree, so a pane that joined gets them and the numbers follow a moved pane.
+     * only with two or more panes, where they tell the panes apart. A zoomed pane fills the tab alone,
+     * so no pane shows a ring, the zoomed one shows the zoom badge instead, and its name says it is
+     * zoomed. Runs after every change to the tree, to the zoom and to broadcast mode, so a pane that
+     * joined gets them, the numbers follow a moved pane and the badge counts the right panes.
      */
     private void refreshPaneDecorations() {
         List<SithTermFxWidget> panes = getAllWidgets();
         boolean several = panes.size() > 1;
+        int hiddenReceivers = zoomedWidget != null && broadcastMode
+            ? mirrorTargets(panes, zoomedWidget, this::receivesMirroredInput).size()
+            : 0;
+        String badgeText = zoomedWidget != null ? zoomBadgeText(panes.size() - 1, hiddenReceivers) : null;
         for (int i = 0; i < panes.size(); i++) {
             SithTermFxWidget pane = panes.get(i);
             Pane decoration = several
@@ -758,14 +816,81 @@ public class TerminalSplitPane extends StackPane {
             Region ring = decoration == null ? null
                 : several ? focusRingOf(decoration) : findFocusRing(decoration);
             if (ring != null) {
-                ring.setVisible(several);
+                ring.setVisible(several && zoomedWidget == null);
             }
             TerminalPanel panel = pane.getTerminalPanel();
             if (panel != null && panel.getCanvas() != null) {
-                panel.getCanvas().setAccessibleText(paneAccessibleName(i, panes.size()));
+                String name = paneAccessibleName(i, panes.size());
+                panel.getCanvas().setAccessibleText(pane == zoomedWidget && name != null
+                    ? name + ", " + badgeText : name);
             }
         }
         refreshLastFocusedMarks();
+        refreshZoomBadge(badgeText, hiddenReceivers > 0);
+    }
+
+    /**
+     * The zoom badge's text: "Zoomed · hidden panes: 2", or while hidden panes receive the keys
+     * typed in the zoomed pane "Zoomed · hidden panes: 2, receiving your input: 2", so typing that
+     * reaches panes you cannot see never goes unnoticed.
+     */
+    static @NotNull String zoomBadgeText(int hiddenPanes, int hiddenReceivers) {
+        return hiddenReceivers > 0
+            ? I18n.get(ZOOMED_MIRROR_BADGE_KEY, hiddenPanes, hiddenReceivers)
+            : I18n.get(ZOOMED_BADGE_KEY, hiddenPanes);
+    }
+
+    /** Whether a pane receives broadcast input now: connected, and accepted by the mirror guard. */
+    private boolean receivesMirroredInput(@NotNull SithTermFxWidget widget) {
+        TtyConnector connector = widget.getTtyConnector();
+        return connector != null && connector.isConnected() && acceptsMirroredInput(widget);
+    }
+
+    /**
+     * Shows the zoom badge with {@code text} at the top right of the zoomed pane, left of its ×, or
+     * removes it while no pane is zoomed. Like the ring it is mouse-transparent and never resizes
+     * the terminal: the DECORATION layer is unmanaged.
+     *
+     * @param mirroring whether hidden panes receive the keys typed in the zoomed pane, which the
+     *     stylesheets mark with the {@link #MIRRORING} pseudo-class
+     */
+    private void refreshZoomBadge(@Nullable String text, boolean mirroring) {
+        Label badge = zoomBadge;
+        Pane decoration = zoomedWidget != null && text != null
+            ? paneOverlay(zoomedWidget, PaneOverlayLayer.DECORATION)
+            : null;
+        if (badge != null && badge.getParent() instanceof Pane parent && parent != decoration) {
+            badge.layoutXProperty().unbind();
+            parent.getChildren().remove(badge);
+        }
+        if (decoration == null) {
+            return;
+        }
+        if (badge == null) {
+            badge = createZoomBadge();
+            zoomBadge = badge;
+        }
+        badge.setText(text);
+        badge.pseudoClassStateChanged(MIRRORING, mirroring);
+        if (badge.getParent() != decoration) {
+            badge.layoutXProperty().bind(decoration.widthProperty().subtract(badge.widthProperty())
+                .subtract(ZOOM_BADGE_RIGHT_INSET));
+            decoration.getChildren().add(badge);
+        }
+    }
+
+    /** The zoom badge: an icon and a text, mouse-transparent and not focusable, styled by the stylesheets. */
+    private static @NotNull Label createZoomBadge() {
+        SVGPath icon = new SVGPath();
+        icon.setContent(ZOOM_BADGE_ICON_PATH);
+        icon.getStyleClass().add(ZOOM_BADGE_ICON_STYLE_CLASS);
+        Label badge = new Label();
+        badge.setGraphic(icon);
+        badge.getStyleClass().add(ZOOM_BADGE_STYLE_CLASS);
+        badge.setMouseTransparent(true);
+        badge.setFocusTraversable(false);
+        badge.setLayoutY(ZOOM_BADGE_TOP_INSET);
+        return badge;
     }
 
     /** Marks the wrapper of {@link #focusedWidget}, and only that one, {@link #LAST_FOCUSED}. */
@@ -1064,6 +1189,9 @@ public class TerminalSplitPane extends StackPane {
             releaseUnattachedWidget(newWidget);
             return null;
         }
+        // The new pane goes beside its source, so a zoomed tab shows all its panes again first. A
+        // split that failed or was cancelled above leaves the zoom alone.
+        unzoom();
         setupWidget(newWidget);
         applyLeftPanel(newWidget);
         applyBottomPanel(newWidget);
@@ -1126,6 +1254,8 @@ public class TerminalSplitPane extends StackPane {
     }
 
     private void closeSplit(@NotNull SithTermFxWidget widget) {
+        // The tree is rebuilt around the gap, with every pane in its place: no pane stays zoomed.
+        unzoom();
         notifyWidgetClosed(widget);
         try {
             widget.close();
@@ -1197,6 +1327,11 @@ public class TerminalSplitPane extends StackPane {
             logger.debug("focusWidget ignored a widget that does not belong to this split pane");
             return;
         }
+        // A hidden pane is out of the scene and cannot take the keyboard: show the panes again first
+        // (the Control API's pane.focus and the Coding Agents panel come through here as well).
+        if (zoomedWidget != null && widget != zoomedWidget) {
+            unzoom();
+        }
         setFocusedWidgetInternal(widget);
         requestWidgetFocus(widget);
     }
@@ -1205,7 +1340,8 @@ public class TerminalSplitPane extends StackPane {
      * Moves the keyboard focus to the pane on {@code direction}'s side of the focused pane, as
      * Cmd+Option / Ctrl+Alt with an arrow key and <i>View → Panes</i> do. The panes are measured in
      * scene coordinates, the wrapper with its timestamp gutter and agent panel being the pane; see
-     * {@link PaneNavigator} for how a neighbour is chosen.
+     * {@link PaneNavigator} for how a neighbour is chosen. A zoomed tab shows all its panes again
+     * first, laid out at once so they can be measured.
      *
      * @return true when the focus moved; false at the edge, with a single pane, or before layout
      */
@@ -1213,6 +1349,10 @@ public class TerminalSplitPane extends StackPane {
         List<SithTermFxWidget> panes = getAllWidgets();
         if (panes.size() < 2) {
             return false;
+        }
+        if (unzoom()) {
+            applyCss();
+            layout();
         }
         SithTermFxWidget origin = panes.contains(focusedWidget) ? focusedWidget : panes.get(0);
         Optional<SithTermFxWidget> target = PaneNavigator.neighbor(origin, panes, this::sceneBoundsOf, direction);
@@ -1228,9 +1368,141 @@ public class TerminalSplitPane extends StackPane {
      * @return true when the focus moved; false with a single pane
      */
     public boolean focusNext(boolean forward) {
+        if (getWidgetCount() > 1) {
+            unzoom();
+        }
         Optional<SithTermFxWidget> target = PaneNavigator.next(getAllWidgets(), focusedWidget, forward);
         target.ifPresent(this::focusWidget);
         return target.isPresent();
+    }
+
+    /** Whether a pane is zoomed: it fills the tab alone and the others are hidden. */
+    public boolean isZoomed() {
+        return zoomedWidget != null;
+    }
+
+    /** The zoomed pane, or {@code null} while every pane shows. */
+    public @Nullable SithTermFxWidget getZoomedWidget() {
+        return zoomedWidget;
+    }
+
+    /**
+     * Zooms the focused pane, or shows every pane again while one is zoomed, as Cmd/Ctrl+Shift+Enter
+     * and <i>View → Panes → Zoom Pane</i> do.
+     *
+     * @return whether a pane is zoomed afterwards
+     */
+    public boolean toggleZoom() {
+        if (zoomedWidget != null) {
+            unzoom();
+            return false;
+        }
+        return focusedWidget != null && zoomWidget(focusedWidget);
+    }
+
+    /**
+     * Zooms {@code widget}: it fills the tab alone until {@link #unzoom()}, which every change to the
+     * panes, every move of the focus to another pane and a pane drag run first. The other panes leave
+     * the scene with the split controls that hold them and keep their size, so their programs get no
+     * resize; they keep running, and in broadcast mode they still receive the keys typed in the
+     * zoomed pane, which its badge counts. No split control is rebuilt, and the divider positions
+     * come back as they were. Quick select and the hover underline of a link end, as they do when a
+     * pane changes size. The zoomed pane gets the keyboard focus.
+     *
+     * @param widget a pane of this split pane
+     * @return true when {@code widget} is zoomed now; false with a single pane or a widget that is
+     *     not a pane here
+     */
+    public boolean zoomWidget(@NotNull SithTermFxWidget widget) {
+        if (widget == zoomedWidget) {
+            return true;
+        }
+        if (getWidgetCount() < 2 || !getAllWidgets().contains(widget)) {
+            return false;
+        }
+        unzoom();
+        SplitCell parent = rootCell.parentOf(widget);
+        StackPane wrapper = wrapperOf(widget);
+        if (parent == null || parent.splitPane == null || wrapper == null) {
+            return false;
+        }
+        List<SplitPane> splits = new ArrayList<>();
+        rootCell.collectSplitPanes(splits);
+        PaneZoom<Node, SplitPane> zoomed = PaneZoom.zoom(wrapper, parent.splitPane.getItems(), getChildren(),
+            createZoomPlaceholder(), splits, SPLIT_PANE_DIVIDERS);
+        if (zoomed == null) {
+            return false;
+        }
+        zoom = zoomed;
+        zoomedWidget = widget;
+        setFocusedWidgetInternal(widget);
+        refreshPaneDecorations();
+        requestWidgetFocus(widget);
+        return true;
+    }
+
+    /**
+     * Shows every pane again if one is zoomed: the zoomed pane goes back to its place and every split
+     * control gets back its divider positions, once now and once more after the layout passes that
+     * follow its return to the scene. The keyboard stays in the zoomed pane if it was there.
+     *
+     * @return whether a pane was zoomed
+     */
+    public boolean unzoom() {
+        PaneZoom<Node, SplitPane> zoomed = zoom;
+        if (zoomed == null) {
+            return false;
+        }
+        SithTermFxWidget widget = zoomedWidget;
+        boolean keyboardInPane = isFocusWithin(zoomed.pane());
+        zoom = null;
+        zoomedWidget = null;
+        zoomed.restore();
+        SplitCell tree = rootCell;
+        // Two pulses later: after the split controls' first layout back in the scene and after the
+        // divider reset any SplitCell built meanwhile schedules; skipped once the tree changed.
+        Platform.runLater(() -> Platform.runLater(() -> {
+            if (rootCell == tree && zoom == null) {
+                zoomed.reapplyDividers();
+            }
+        }));
+        refreshPaneDecorations();
+        if (keyboardInPane && widget != null && getAllWidgets().contains(widget)) {
+            requestWidgetFocus(widget);
+        }
+        return true;
+    }
+
+    /**
+     * The divider positions of one of this split pane's split controls as they are with every pane
+     * shown: while a pane is zoomed, the positions from before the zoom, which the control itself may
+     * have reset when the zoomed pane left it. Saving a project while a pane is zoomed thus stores the
+     * layout the tab returns to.
+     */
+    public double @NotNull [] dividerPositionsOf(@NotNull SplitPane control) {
+        double[] saved = zoom != null ? zoom.savedPositions(control) : null;
+        return saved != null ? saved : control.getDividerPositions();
+    }
+
+    /** An empty region that keeps a zoomed pane's place in its split control. */
+    static @NotNull Region createZoomPlaceholder() {
+        Region placeholder = new Region();
+        placeholder.getStyleClass().add(ZOOM_PLACEHOLDER_STYLE_CLASS);
+        placeholder.setMinSize(0, 0);
+        placeholder.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        placeholder.setFocusTraversable(false);
+        return placeholder;
+    }
+
+    /** Whether the scene's keyboard focus is in {@code node} or one of its descendants. */
+    private boolean isFocusWithin(@NotNull Node node) {
+        Node owner = getScene() != null ? getScene().getFocusOwner() : null;
+        for (Node current = owner; current != null; current = current.getParent()) {
+            if (current == node) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** A pane's bounds in scene coordinates, or {@code null} while it is not laid out in a scene. */
@@ -1273,6 +1545,10 @@ public class TerminalSplitPane extends StackPane {
         boolean changed = this.broadcastMode != enabled;
         this.broadcastMode = enabled;
         logger.info("Broadcast mode {}", enabled ? "enabled" : "disabled");
+        if (changed && zoomedWidget != null) {
+            // The zoom badge says whether the hidden panes get the keys typed in the zoomed one.
+            refreshPaneDecorations();
+        }
         if (changed && onBroadcastModeChanged != null) {
             try {
                 onBroadcastModeChanged.accept(enabled);
@@ -1291,6 +1567,7 @@ public class TerminalSplitPane extends StackPane {
         if (rootCell == null || getWidgetCount() <= 1 || source == target) {
             return;
         }
+        unzoom();
         ExtractResult er = rootCell.extractWidget(source);
         if (er == null || er.replacement == null) {
             return;
@@ -1433,6 +1710,8 @@ public class TerminalSplitPane extends StackPane {
         if (this.bottomPanelsDetached == detached) {
             return;
         }
+        // A side dock shows the agent panels of the panes, which a zoom would hide.
+        unzoom();
         this.bottomPanelsDetached = detached;
         for (SithTermFxWidget widget : getAllWidgets()) {
             if (detached) {
@@ -1466,6 +1745,7 @@ public class TerminalSplitPane extends StackPane {
     }
 
     public void closeAll() {
+        unzoom();
         for (SithTermFxWidget widget : getAllWidgets()) {
             notifyWidgetClosed(widget);
         }
@@ -1660,6 +1940,28 @@ public class TerminalSplitPane extends StackPane {
                 }
             }
             return this;
+        }
+
+        /** The branch cell whose split control holds {@code target}'s leaf, or {@code null}. */
+        @Nullable
+        SplitCell parentOf(@NotNull SithTermFxWidget target) {
+            if (leftCell == null || rightCell == null) {
+                return null;
+            }
+            if (leftCell.widget == target || rightCell.widget == target) {
+                return this;
+            }
+            SplitCell found = leftCell.parentOf(target);
+            return found != null ? found : rightCell.parentOf(target);
+        }
+
+        /** Adds the split control of this cell and of every cell below it to {@code splits}. */
+        void collectSplitPanes(@NotNull List<SplitPane> splits) {
+            if (splitPane != null) {
+                splits.add(splitPane);
+            }
+            if (leftCell != null) leftCell.collectSplitPanes(splits);
+            if (rightCell != null) rightCell.collectSplitPanes(splits);
         }
 
         int countWidgets() {

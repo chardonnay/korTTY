@@ -1020,6 +1020,9 @@
 .kortty-pane-cell {
     -kortty-pane-focus-color: #38bdf8;
     -kortty-pane-last-focus-color: rgba(56, 189, 248, 0.4);
+    -kortty-pane-badge-background: rgba(0, 0, 0, 0.72);
+    -kortty-pane-badge-text: #ffffff;
+    -kortty-pane-badge-mirror-color: #f59e0b;
 }
 
 .kortty-pane-focus-ring {
@@ -1033,6 +1036,36 @@
 
 .kortty-pane-cell:focus-within .kortty-pane-focus-ring {
     -fx-border-color: -kortty-pane-focus-color;
+}
+
+/*
+ * A zoomed pane fills the tab alone and shows a badge at its top right, left of its close button:
+ * an icon and how many panes are hidden. While broadcast mode sends what you type on to hidden
+ * panes, the badge says how many and turns amber (:mirroring). It sits in the same DECORATION layer
+ * as the ring, so it never resizes the terminal and never takes a click.
+ */
+.kortty-pane-zoom-badge {
+    -fx-background-color: -kortty-pane-badge-background;
+    -fx-background-radius: 4;
+    -fx-border-color: transparent;
+    -fx-border-radius: 4;
+    -fx-border-width: 1;
+    -fx-text-fill: -kortty-pane-badge-text;
+    -fx-padding: 2 8 2 6;
+    -fx-graphic-text-gap: 6;
+    -fx-font-size: 0.8462em;
+}
+
+.kortty-pane-zoom-badge .kortty-pane-zoom-badge-icon {
+    -fx-fill: -kortty-pane-focus-color;
+}
+
+.kortty-pane-zoom-badge:mirroring {
+    -fx-border-color: -kortty-pane-badge-mirror-color;
+}
+
+.kortty-pane-zoom-badge:mirroring .kortty-pane-zoom-badge-icon {
+    -fx-fill: -kortty-pane-badge-mirror-color;
 }
 
 /* Dialog Pane */

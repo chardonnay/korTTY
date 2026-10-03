@@ -3676,7 +3676,7 @@ tasks.register<JavaExec>("terminalSplitCloseButtonSmoke") {
 
 tasks.register<JavaExec>("paneKeyboardSmoke") {
     group = "verification"
-    description = "Splits a terminal into a 2x2 grid with the base stylesheet and checks the focus ring and accessible name of every pane, that the ring is drawn only on the focused pane, that the pane focus moves to each neighbour, stops at the edges and wraps for next/previous without resizing a terminal, and that one pane shows no ring; pass a PNG path via --args to save a snapshot (needs a display)."
+    description = "Splits a terminal into a 2x2 grid with the base stylesheet and checks the focus ring and accessible name of every pane, that the ring is drawn only on the focused pane, that the pane focus moves to each neighbour, stops at the edges and wraps for next/previous without resizing a terminal, that a zoomed pane fills the split pane with its badge while the hidden panes keep their size and the dividers come back however the zoom ends, and that one pane shows no ring; pass a PNG path via --args to save a snapshot (and a -zoomed one) (needs a display)."
     dependsOn("testClasses", "processResources")
     mainClass.set("com.sithtermfx.ui.split.PaneKeyboardSmoke")
     classpath = sourceSets.test.get().runtimeClasspath

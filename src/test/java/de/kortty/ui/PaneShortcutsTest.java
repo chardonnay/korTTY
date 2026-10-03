@@ -24,12 +24,13 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * Cmd+Option with an arrow key on macOS and Ctrl+Alt with an arrow key on Windows and Linux move the
- * focus between the panes of the selected terminal tab, Cmd/Ctrl+Shift+O splits its focused pane, and
- * nothing else does: Ctrl+L, Ctrl+F, Ctrl+O and the arrow keys with Alt, Ctrl, Ctrl+Shift or Option
- * alone keep reaching the shell. The chords go through the main window's scene shortcut router only
- * while the keyboard is in that tab and, for the focus keys, it has two or more panes. Toolkit-free:
- * the chords are rebuilt here from the same combinations, which source pins keep in step with
- * MainWindow, and key events are built directly.
+ * focus between the panes of the selected terminal tab, Cmd/Ctrl+Shift+O splits its focused pane,
+ * Cmd/Ctrl+Shift+Enter zooms it, and nothing else does: Ctrl+L, Ctrl+F, Ctrl+O, Enter with Shift, Ctrl
+ * or Alt alone and the arrow keys with Alt, Ctrl, Ctrl+Shift or Option alone keep reaching the shell.
+ * The chords go through the main window's scene shortcut router only while the keyboard is in that
+ * tab and, for the focus and zoom keys, it has two or more panes. Toolkit-free: the chords are rebuilt
+ * here from the same combinations, which source pins keep in step with MainWindow, and key events are
+ * built directly.
  */
 class PaneShortcutsTest {
 
@@ -41,8 +42,12 @@ class PaneShortcutsTest {
     private static final KeyCombination SPLIT_CHORD =
         new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
 
+    /** MainWindow.PANE_ZOOM_ACCELERATOR. */
+    private static final KeyCombination ZOOM_CHORD =
+        new KeyCodeCombination(KeyCode.ENTER, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+
     /**
-     * MainWindow.PANE_FOCUS_*_ACCELERATOR and PANE_SPLIT_ACCELERATOR;
+     * MainWindow.PANE_FOCUS_*_ACCELERATOR, PANE_SPLIT_ACCELERATOR and PANE_ZOOM_ACCELERATOR;
      * {@link #mainWindowDeclaresTheChordsAndShowsThemInViewPanes()} pins them.
      */
     private static final PaneShortcuts SHORTCUTS = new PaneShortcuts(Map.of(
@@ -50,7 +55,8 @@ class PaneShortcutsTest {
         PaneAction.FOCUS_RIGHT, chord(KeyCode.RIGHT),
         PaneAction.FOCUS_UP, chord(KeyCode.UP),
         PaneAction.FOCUS_DOWN, chord(KeyCode.DOWN),
-        PaneAction.SPLIT, SPLIT_CHORD));
+        PaneAction.SPLIT, SPLIT_CHORD,
+        PaneAction.ZOOM, ZOOM_CHORD));
 
     private static KeyCombination chord(KeyCode arrow) {
         return new KeyCodeCombination(arrow, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
@@ -73,8 +79,14 @@ class PaneShortcutsTest {
                 + "PANE_SPLIT_ACCELERATOR\\s*=\\s*new KeyCodeCombination\\(\\s*KeyCode\\.O,\\s*"
                 + "KeyCombination\\.SHORTCUT_DOWN,\\s*KeyCombination\\.SHIFT_DOWN\\s*\\)")
             .matcher(source).find()).isTrue();
-        assertThat(source).contains("PaneShortcuts.PaneAction.SPLIT, PANE_SPLIT_ACCELERATOR));");
+        assertThat(source).contains("PaneShortcuts.PaneAction.SPLIT, PANE_SPLIT_ACCELERATOR,");
         assertThat(source).contains("panes.split().setAccelerator(PANE_SPLIT_ACCELERATOR);");
+        assertWithMessage("PANE_ZOOM_ACCELERATOR").that(Pattern.compile("static final KeyCombination "
+                + "PANE_ZOOM_ACCELERATOR\\s*=\\s*new KeyCodeCombination\\(\\s*KeyCode\\.ENTER,\\s*"
+                + "KeyCombination\\.SHORTCUT_DOWN,\\s*KeyCombination\\.SHIFT_DOWN\\s*\\)")
+            .matcher(source).find()).isTrue();
+        assertThat(source).contains("PaneShortcuts.PaneAction.ZOOM, PANE_ZOOM_ACCELERATOR));");
+        assertThat(source).contains("panes.zoom().setAccelerator(PANE_ZOOM_ACCELERATOR);");
     }
 
     @Test
@@ -92,6 +104,79 @@ class PaneShortcutsTest {
         assertWithMessage("the split's connect dialog runs a nested event loop: after the key event, not inside it")
             .that(methodBody(source, "private void runPaneShortcut(PaneShortcuts.PaneAction action) {"))
             .contains("case SPLIT -> Platform.runLater(() -> splitPaneInActiveTerminal(null));");
+        assertThat(methodBody(source, "private void runPaneShortcut(PaneShortcuts.PaneAction action) {"))
+            .contains("case ZOOM -> toggleZoomInActiveTerminal();");
+    }
+
+    @Test
+    void cmdShiftEnterZoomsOnMacOsAndCtrlShiftEnterOnWindowsAndLinux() {
+        assertThat(SHORTCUTS.match(press(KeyCode.ENTER, true, false, false, true, MAC))).hasValue(PaneAction.ZOOM);
+        assertThat(SHORTCUTS.match(press(KeyCode.ENTER, true, true, false, false, PC))).hasValue(PaneAction.ZOOM);
+        assertThat(SHORTCUTS.chordOf(PaneAction.ZOOM)).isEqualTo(ZOOM_CHORD);
+        assertThat(PaneAction.ZOOM.direction()).isNull();
+    }
+
+    @Test
+    void neighbouringEnterKeysNeverZoom() {
+        for (boolean macOs : List.of(MAC, PC)) {
+            // Enter runs the command line; Shift+Enter, Ctrl+Enter and Alt+Enter are keys programs use.
+            assertNoPaneChord(press(KeyCode.ENTER, false, false, false, false, macOs));
+            assertNoPaneChord(press(KeyCode.ENTER, true, false, false, false, macOs));
+            assertNoPaneChord(press(KeyCode.ENTER, false, true, false, false, macOs));
+            assertNoPaneChord(press(KeyCode.ENTER, false, false, true, false, macOs));
+            // Ctrl+Alt+Shift+Enter can be AltGr+Shift+Enter on Windows.
+            assertNoPaneChord(press(KeyCode.ENTER, true, true, true, false, macOs));
+        }
+        // Cmd+Enter alone, and the physical Ctrl key, which is no Cmd, on macOS.
+        assertNoPaneChord(press(KeyCode.ENTER, false, false, false, true, MAC));
+        assertNoPaneChord(press(KeyCode.ENTER, true, true, false, false, MAC));
+        assertNoPaneChord(press(KeyCode.ENTER, true, false, true, true, MAC));
+    }
+
+    @Test
+    void theZoomChordSwallowsTheCarriageReturnOrLineFeedItCanStillType() {
+        Residue zoom = PaneAction.ZOOM.residue();
+        assertWithMessage("Enter types a carriage return").that(zoom.matches("\r")).isTrue();
+        assertWithMessage("Ctrl turns Enter into a line feed on Windows").that(zoom.matches("\n")).isTrue();
+        assertThat(zoom.matches("x")).isFalse();
+        assertThat(zoom.matches(" ")).isFalse();
+    }
+
+    @Test
+    void theZoomShortcutNeedsASecondPane() {
+        assertThat(PaneShortcuts.applies(PaneAction.ZOOM, 0)).isFalse();
+        assertWithMessage("with one pane the shell gets the key as Enter")
+            .that(PaneShortcuts.applies(PaneAction.ZOOM, 1)).isFalse();
+        assertThat(PaneShortcuts.applies(PaneAction.ZOOM, 2)).isTrue();
+        assertThat(PaneShortcuts.applies(PaneAction.ZOOM, 4)).isTrue();
+    }
+
+    @Test
+    void ctrlShiftEnterZoomsASplitTabAndNoEnterReachesTheShell() {
+        Routed routed = new Routed(PC, 3, true);
+
+        KeyEvent chord = keyPressed(KeyCode.ENTER, true, true, false, false);
+        routed.router.onKeyPressed(chord);
+        KeyEvent residue = keyTyped("\n");
+        routed.router.onKeyTyped(residue);
+        KeyEvent next = keyTyped("l");
+        routed.router.onKeyTyped(next);
+
+        assertThat(routed.ran).containsExactly(PaneAction.ZOOM);
+        assertThat(chord.isConsumed()).isTrue();
+        assertWithMessage("a line feed would run the command line").that(residue.isConsumed()).isTrue();
+        assertThat(next.isConsumed()).isFalse();
+    }
+
+    @Test
+    void withOnePaneCmdShiftEnterReachesTheShell() {
+        Routed routed = new Routed(MAC, 1, true);
+
+        KeyEvent chord = keyPressed(KeyCode.ENTER, true, false, false, true);
+        routed.router.onKeyPressed(chord);
+
+        assertThat(routed.ran).isEmpty();
+        assertThat(chord.isConsumed()).isFalse();
     }
 
     @Test

@@ -11,9 +11,9 @@ import java.util.Properties;
 import org.testng.annotations.Test;
 
 /**
- * Every split-pane string exists, translated, in all eight bundles: the View → Panes menu and the
- * accessible name a screen reader reads for each pane of a split tab. The {0} and {1} of the
- * accessible name must survive translation, and an apostrophe is written once, because
+ * Every split-pane string exists, translated, in all eight bundles: the View → Panes menu, the
+ * accessible name a screen reader reads for each pane of a split tab and the badge of a zoomed pane.
+ * The placeholders must survive translation, and an apostrophe is written once, because
  * LanguageManager fills the placeholders with String.replace rather than MessageFormat (a doubled
  * apostrophe would show up doubled).
  */
@@ -32,9 +32,17 @@ class PanesI18nCoverageTest {
     /** "Pane {0} of {1}"; TerminalSplitPane.PANE_ACCESSIBLE_NAME_KEY. */
     private static final String ACCESSIBLE_NAME_KEY = "terminal.pane.accessibleName";
 
+    /** "Zoomed · hidden panes: {0}"; TerminalSplitPane.ZOOMED_BADGE_KEY. */
+    private static final String ZOOMED_BADGE_KEY = "terminal.pane.zoomedBadge";
+
+    /** "Zoomed · hidden panes: {0}, receiving your input: {1}"; TerminalSplitPane.ZOOMED_MIRROR_BADGE_KEY. */
+    private static final String ZOOMED_MIRROR_BADGE_KEY = "terminal.pane.zoomedMirrorBadge";
+
     private static List<String> keys() {
         List<String> keys = new ArrayList<>(PaneMenuSupport.KEYS);
         keys.add(ACCESSIBLE_NAME_KEY);
+        keys.add(ZOOMED_BADGE_KEY);
+        keys.add(ZOOMED_MIRROR_BADGE_KEY);
         return keys;
     }
 
@@ -61,6 +69,17 @@ class PanesI18nCoverageTest {
     }
 
     @Test
+    void theZoomBadgesKeepTheirPlaceholders() throws Exception {
+        for (String bundle : BUNDLES) {
+            Properties localized = loadBundle(bundle);
+            assertWithMessage(bundle + " lost the placeholder of " + ZOOMED_BADGE_KEY)
+                .that(localized.getProperty(ZOOMED_BADGE_KEY)).contains("{0}");
+            assertWithMessage(bundle + " lost a placeholder of " + ZOOMED_MIRROR_BADGE_KEY)
+                .that(localized.getProperty(ZOOMED_MIRROR_BADGE_KEY)).containsMatch("\\{0\\}.*\\{1\\}");
+        }
+    }
+
+    @Test
     void translationsAreNotLeftInEnglish() throws Exception {
         Properties english = loadBundle("messages.properties");
         for (String bundle : BUNDLES.subList(1, BUNDLES.size())) {
@@ -78,6 +97,10 @@ class PanesI18nCoverageTest {
             java.nio.file.Path.of("src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java"), StandardCharsets.UTF_8);
         assertWithMessage("TerminalSplitPane.PANE_ACCESSIBLE_NAME_KEY")
             .that(source).contains("PANE_ACCESSIBLE_NAME_KEY = \"" + ACCESSIBLE_NAME_KEY + "\"");
+        assertWithMessage("TerminalSplitPane.ZOOMED_BADGE_KEY")
+            .that(source).contains("ZOOMED_BADGE_KEY = \"" + ZOOMED_BADGE_KEY + "\"");
+        assertWithMessage("TerminalSplitPane.ZOOMED_MIRROR_BADGE_KEY")
+            .that(source).contains("ZOOMED_MIRROR_BADGE_KEY = \"" + ZOOMED_MIRROR_BADGE_KEY + "\"");
     }
 
     private Properties loadBundle(String fileName) throws Exception {

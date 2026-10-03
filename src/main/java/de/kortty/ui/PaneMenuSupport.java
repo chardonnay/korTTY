@@ -21,17 +21,18 @@ import java.util.function.Supplier;
  * pane of the active terminal tab on that pane's own server (<b>Split Pane</b> picks the side from
  * the pane's shape, see {@link SplitOrientationChooser}), <b>Close Pane</b> closes it, <b>Focus Pane
  * Left/Right/Up/Down</b>, <b>Next Pane</b> and <b>Previous Pane</b> move the keyboard focus between
- * the panes, and <b>Broadcast to All Panes of This Tab</b> switches that tab's broadcast mode, the
- * same mode as <i>Extras → Broadcast Mode</i> in the terminal context menu.
+ * the panes, <b>Zoom Pane</b> lets the focused pane fill the tab alone until it is chosen again, and
+ * <b>Broadcast to All Panes of This Tab</b> switches that tab's broadcast mode, the same mode as
+ * <i>Extras → Broadcast Mode</i> in the terminal context menu.
  *
  * <p>The items are synced from the active tab with {@link #sync}: splitting needs a terminal tab,
- * closing a pane and the focus items need two or more panes, and the broadcast item shows the tab's
- * real mode. JavaFX flips a {@link CheckMenuItem} before its action runs (an accelerator and
- * {@code MenuItemActivation} do too), so the broadcast action never reads {@code isSelected()}: the
- * command decides from the tab's mode and the item is re-synced afterwards. The broadcast item and
- * <b>Close Pane</b> act on their own window only ({@link ClosedWindowMenuRouter#ownWindowOnly}): one
- * decides where typed keys go, the other ends a session, so the menu bar of a closed macOS window
- * must not do either in another window. The split and focus items are routed like <i>Edit →
+ * closing a pane, the focus items and zooming need two or more panes, and the zoom and broadcast
+ * items show the tab's real state. JavaFX flips a {@link CheckMenuItem} before its action runs (an
+ * accelerator and {@code MenuItemActivation} do too), so neither action reads {@code isSelected()}:
+ * the command decides from the tab's state and the items are re-synced afterwards. The broadcast
+ * item and <b>Close Pane</b> act on their own window only ({@link ClosedWindowMenuRouter#ownWindowOnly}):
+ * one decides where typed keys go, the other ends a session, so the menu bar of a closed macOS window
+ * must not do either in another window. The split, focus and zoom items are routed like <i>Edit →
  * Find</i>.
  *
  * <p>Menu items are not nodes, so this runs in a unit test without the JavaFX toolkit, except
@@ -51,11 +52,13 @@ final class PaneMenuSupport {
     static final String FOCUS_DOWN_KEY = "menu.view.panes.focusDown";
     static final String NEXT_KEY = "menu.view.panes.next";
     static final String PREVIOUS_KEY = "menu.view.panes.previous";
+    static final String ZOOM_KEY = "menu.view.panes.zoom";
     static final String BROADCAST_KEY = "menu.view.panes.broadcast";
 
     /** Every label key of the submenu, in menu order. */
     static final List<String> KEYS = List.of(MENU_KEY, SPLIT_AUTO_KEY, SPLIT_RIGHT_KEY, SPLIT_DOWN_KEY, CLOSE_KEY,
-        FOCUS_LEFT_KEY, FOCUS_RIGHT_KEY, FOCUS_UP_KEY, FOCUS_DOWN_KEY, NEXT_KEY, PREVIOUS_KEY, BROADCAST_KEY);
+        FOCUS_LEFT_KEY, FOCUS_RIGHT_KEY, FOCUS_UP_KEY, FOCUS_DOWN_KEY, NEXT_KEY, PREVIOUS_KEY, ZOOM_KEY,
+        BROADCAST_KEY);
 
     private static final Supplier<MenuItem> SEPARATORS = SeparatorMenuItem::new;
 
@@ -80,6 +83,12 @@ final class PaneMenuSupport {
         /** Moves the focus to the next ({@code true}) or the previous pane, wrapping around. */
         void cycle(boolean forward);
 
+        /**
+         * Zooms the focused pane, or shows every pane again while one is zoomed, deciding from the
+         * tab's zoom, never from the item.
+         */
+        void toggleZoom();
+
         /** Switches the tab's broadcast mode, deciding from the tab's mode, never from the item. */
         void toggleBroadcast();
     }
@@ -90,11 +99,17 @@ final class PaneMenuSupport {
      * @param terminal  whether a terminal tab is active
      * @param paneCount its number of panes
      * @param broadcast whether its broadcast mode is on
+     * @param zoomed    whether one of its panes is zoomed
      */
-    record State(boolean terminal, int paneCount, boolean broadcast) {
+    record State(boolean terminal, int paneCount, boolean broadcast, boolean zoomed) {
 
         /** No terminal tab is active: every item is disabled. */
-        static final State NO_TERMINAL = new State(false, 0, false);
+        static final State NO_TERMINAL = new State(false, 0, false, false);
+
+        /** A tab without a zoomed pane. */
+        State(boolean terminal, int paneCount, boolean broadcast) {
+            this(terminal, paneCount, broadcast, false);
+        }
 
         /** Splitting needs a pane to split. */
         boolean canSplit() {
@@ -115,13 +130,19 @@ final class PaneMenuSupport {
         boolean canToggleBroadcast() {
             return terminal && (paneCount >= 2 || broadcast);
         }
+
+        /** Zooming needs a second pane to hide; a zoomed pane can always be shown with the others again. */
+        boolean canToggleZoom() {
+            return terminal && (paneCount >= 2 || zoomed);
+        }
     }
 
     /** One menu bar's <i>View → Panes</i> submenu and the items {@link #sync} updates. */
     record PaneMenu(@NotNull Menu menu, @NotNull MenuItem split, @NotNull MenuItem splitRight,
                     @NotNull MenuItem splitDown, @NotNull MenuItem close,
                     @NotNull Map<PaneDirection, MenuItem> focusItems,
-                    @NotNull MenuItem next, @NotNull MenuItem previous, @NotNull CheckMenuItem broadcast) {
+                    @NotNull MenuItem next, @NotNull MenuItem previous, @NotNull CheckMenuItem zoom,
+                    @NotNull CheckMenuItem broadcast) {
 
         PaneMenu {
             focusItems = Map.copyOf(focusItems);
@@ -169,13 +190,16 @@ final class PaneMenuSupport {
         next.setOnAction(event -> commands.cycle(true));
         MenuItem previous = ActionIds.tag(new MenuItem(I18n.get(PREVIOUS_KEY)), PREVIOUS_KEY);
         previous.setOnAction(event -> commands.cycle(false));
+        CheckMenuItem zoom = ActionIds.tag(new CheckMenuItem(I18n.get(ZOOM_KEY)), ZOOM_KEY);
+        // Never read zoom.isSelected() here: JavaFX already flipped it, the tab's zoom decides.
+        zoom.setOnAction(event -> commands.toggleZoom());
         CheckMenuItem broadcast = ActionIds.tag(new CheckMenuItem(I18n.get(BROADCAST_KEY)), BROADCAST_KEY);
         // Never read broadcast.isSelected() here: JavaFX already flipped it, the tab's mode decides.
         broadcast.setOnAction(event -> commands.toggleBroadcast());
         ClosedWindowMenuRouter.ownWindowOnly(broadcast);
-        menu.getItems().addAll(separators.get(), next, previous, separators.get(), broadcast);
+        menu.getItems().addAll(separators.get(), next, previous, separators.get(), zoom, broadcast);
         PaneMenu paneMenu = new PaneMenu(menu, split, splitRight, splitDown, close, focusItems, next, previous,
-            broadcast);
+            zoom, broadcast);
         sync(paneMenu, State.NO_TERMINAL);
         return paneMenu;
     }
@@ -190,7 +214,7 @@ final class PaneMenuSupport {
         };
     }
 
-    /** Shows the active tab's state on the items: what can act now, and the tab's broadcast mode. */
+    /** Shows the active tab's state on the items: what can act now, and the tab's zoom and broadcast mode. */
     static void sync(@Nullable PaneMenu paneMenu, @NotNull State state) {
         if (paneMenu == null) {
             return;
@@ -206,6 +230,8 @@ final class PaneMenuSupport {
         }
         paneMenu.next().setDisable(focusDisabled);
         paneMenu.previous().setDisable(focusDisabled);
+        paneMenu.zoom().setDisable(!state.canToggleZoom());
+        paneMenu.zoom().setSelected(state.terminal() && state.zoomed());
         paneMenu.broadcast().setDisable(!state.canToggleBroadcast());
         paneMenu.broadcast().setSelected(state.terminal() && state.broadcast());
     }

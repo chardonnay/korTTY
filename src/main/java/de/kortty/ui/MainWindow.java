@@ -235,12 +235,18 @@ public class MainWindow {
     // server, routed while the keyboard is in a terminal tab; only Cmd/Ctrl+O (Open Project) shares the O.
     private static final KeyCombination PANE_SPLIT_ACCELERATOR =
         new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    // View > Panes > Zoom Pane: Cmd/Ctrl+Shift+Enter (iTerm2's Maximize Active Pane) lets the focused
+    // pane fill the tab, routed while the keyboard is in a terminal tab with two or more panes; with
+    // one pane the shell still gets it as Enter.
+    private static final KeyCombination PANE_ZOOM_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.ENTER, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
     private static final PaneShortcuts PANE_SHORTCUTS = new PaneShortcuts(Map.of(
         PaneShortcuts.PaneAction.FOCUS_LEFT, PANE_FOCUS_LEFT_ACCELERATOR,
         PaneShortcuts.PaneAction.FOCUS_RIGHT, PANE_FOCUS_RIGHT_ACCELERATOR,
         PaneShortcuts.PaneAction.FOCUS_UP, PANE_FOCUS_UP_ACCELERATOR,
         PaneShortcuts.PaneAction.FOCUS_DOWN, PANE_FOCUS_DOWN_ACCELERATOR,
-        PaneShortcuts.PaneAction.SPLIT, PANE_SPLIT_ACCELERATOR));
+        PaneShortcuts.PaneAction.SPLIT, PANE_SPLIT_ACCELERATOR,
+        PaneShortcuts.PaneAction.ZOOM, PANE_ZOOM_ACCELERATOR));
     private static final String MENU_BAR_TOGGLE_SHORTCUT_LABEL = "Cmd/Ctrl+Shift+L";
     private static final int JOB_SCHEDULER_QUEUE_LIMIT = 5;
     private static final int MAX_CONCURRENT_TERMINAL_AGENT_RUNS = 5;
@@ -2131,12 +2137,12 @@ public class MainWindow {
     }
 
     /**
-     * View → Panes: Split Pane and the focus items carry the pane chords for display (the scene
-     * shortcut router handles the keys themselves while the keyboard is in a terminal tab, with two or
-     * more panes for the focus keys), Split Right, Split Down, Close Pane, Next Pane and Previous Pane
-     * have none, and the broadcast item switches the active tab's broadcast mode. The items are synced
-     * from the active tab while the menu opens and before an accelerator or the menu bar of a closed
-     * macOS window runs one of them.
+     * View → Panes: Split Pane, the focus items and Zoom Pane carry the pane chords for display (the
+     * scene shortcut router handles the keys themselves while the keyboard is in a terminal tab, with
+     * two or more panes for the focus and zoom keys), Split Right, Split Down, Close Pane, Next Pane and
+     * Previous Pane have none, and the broadcast item switches the active tab's broadcast mode. The
+     * items are synced from the active tab while the menu opens and before an accelerator or the menu
+     * bar of a closed macOS window runs one of them.
      */
     private Menu createPanesMenu(MenuBarTarget target) {
         PaneMenuSupport.PaneMenu panes = PaneMenuSupport.create(new PaneMenuSupport.Commands() {
@@ -2161,11 +2167,17 @@ public class MainWindow {
             }
 
             @Override
+            public void toggleZoom() {
+                toggleZoomInActiveTerminal();
+            }
+
+            @Override
             public void toggleBroadcast() {
                 toggleBroadcastInActiveTerminal();
             }
         });
         panes.split().setAccelerator(PANE_SPLIT_ACCELERATOR);
+        panes.zoom().setAccelerator(PANE_ZOOM_ACCELERATOR);
         panes.focusItem(PaneNavigator.PaneDirection.LEFT).setAccelerator(PANE_FOCUS_LEFT_ACCELERATOR);
         panes.focusItem(PaneNavigator.PaneDirection.RIGHT).setAccelerator(PANE_FOCUS_RIGHT_ACCELERATOR);
         panes.focusItem(PaneNavigator.PaneDirection.UP).setAccelerator(PANE_FOCUS_UP_ACCELERATOR);
@@ -2180,17 +2192,18 @@ public class MainWindow {
         return panes.menu();
     }
 
-    /** The View → Panes state of the active tab: the number of its panes and its broadcast mode. */
+    /** The View → Panes state of the active tab: the number of its panes, its broadcast mode and zoom. */
     private PaneMenuSupport.State activePaneMenuState() {
         TerminalTab terminalTab = activeTerminalTab();
         TerminalView view = terminalTab != null ? terminalTab.getTerminalView() : null;
         if (view == null) {
             return PaneMenuSupport.State.NO_TERMINAL;
         }
-        return new PaneMenuSupport.State(true, view.getTerminalPaneCount(), view.isBroadcastMode());
+        return new PaneMenuSupport.State(true, view.getTerminalPaneCount(), view.isBroadcastMode(),
+            view.isPaneZoomed());
     }
 
-    /** Shows the active tab's panes and broadcast mode on View → Panes of both menu bars. */
+    /** Shows the active tab's panes, broadcast mode and zoom on View → Panes of both menu bars. */
     private void syncPaneMenuItems() {
         PaneMenuSupport.State state = activePaneMenuState();
         PaneMenuSupport.sync(paneMenu, state);
@@ -2207,12 +2220,14 @@ public class MainWindow {
     /**
      * What a pane shortcut does once the scene shortcut router took its chord. The split runs after
      * the key event, as its connect dialog runs a nested event loop: the router swallows the chord's
-     * KEY_TYPED first, so no O reaches the old or the new pane.
+     * KEY_TYPED first, so no O reaches the old or the new pane. The zoom runs at once; the router
+     * swallows the carriage return its KEY_TYPED can carry.
      */
     private void runPaneShortcut(PaneShortcuts.PaneAction action) {
         switch (action) {
             case FOCUS_LEFT, FOCUS_RIGHT, FOCUS_UP, FOCUS_DOWN -> focusPaneInActiveTerminal(action.direction());
             case SPLIT -> Platform.runLater(() -> splitPaneInActiveTerminal(null));
+            case ZOOM -> toggleZoomInActiveTerminal();
         }
     }
 
@@ -2243,6 +2258,8 @@ public class MainWindow {
         if (terminalTab != null && terminalTab.getTerminalView() != null) {
             terminalTab.getTerminalView().focusPane(direction);
         }
+        // Moving the focus shows a zoomed tab's panes again.
+        syncPaneMenuItems();
     }
 
     /** Moves the keyboard focus to the next or previous pane of the active terminal tab, wrapping around. */
@@ -2251,6 +2268,20 @@ public class MainWindow {
         if (terminalTab != null && terminalTab.getTerminalView() != null) {
             terminalTab.getTerminalView().focusNextPane(forward);
         }
+        syncPaneMenuItems();
+    }
+
+    /**
+     * View → Panes → Zoom Pane: lets the focused pane of the active terminal tab fill the tab alone,
+     * or shows every pane again while one is zoomed. The tab's zoom decides, never the check item,
+     * which JavaFX has already flipped when this runs; the items are re-synced afterwards.
+     */
+    private void toggleZoomInActiveTerminal() {
+        TerminalTab terminalTab = activeTerminalTab();
+        if (terminalTab != null && terminalTab.getTerminalView() != null) {
+            terminalTab.getTerminalView().toggleZoomPane();
+        }
+        syncPaneMenuItems();
     }
 
     /**
@@ -2692,7 +2723,8 @@ public class MainWindow {
         // terminal tab, only while the keyboard is in that tab and it has two or more panes; otherwise
         // the key reaches the shell as xterm sends it. Arrow keys type nothing, so no residue.
         // Cmd/Ctrl+Shift+O splits the focused pane while the keyboard is in the tab; the O, or the
-        // U+000F Ctrl turns it into, is swallowed.
+        // U+000F Ctrl turns it into, is swallowed. Cmd/Ctrl+Shift+Enter zooms the focused pane with two
+        // or more panes; the carriage return or line feed it can still type is swallowed.
         for (PaneShortcuts.PaneAction paneAction : PaneShortcuts.PaneAction.values()) {
             router.consume(press -> PANE_SHORTCUTS.isChordOf(press, paneAction),
                 () -> isKeyboardInSelectedTerminal() && PaneShortcuts.applies(paneAction, activeTerminalPaneCount()),

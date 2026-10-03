@@ -14,6 +14,8 @@ import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.Label;
+import javafx.scene.control.SplitPane;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.Border;
 import javafx.scene.layout.BorderStroke;
@@ -40,8 +42,10 @@ import java.util.concurrent.atomic.AtomicReference;
  * Headed JavaFX check of the pane keyboard focus: a 2x2 split with the base stylesheet, where every
  * pane gets a focus ring in its DECORATION layer and an accessible name, the focused pane's ring is
  * drawn and the others' are not, the focus moves to the neighbour on each side and stops at the edge,
- * Next/Previous Pane wrap around, moving the focus never resizes a terminal, and closing back to one
- * pane hides the ring and drops the names. Pass a file path to also save a snapshot of the split as
+ * Next/Previous Pane wrap around, moving the focus never resizes a terminal, a zoomed pane fills the
+ * split pane with its badge while the hidden panes keep their size and never take the focus, the
+ * dividers come back however the zoom ends, and closing back to one pane hides the ring and drops
+ * the names. Pass a file path to also save a snapshot of the split as
  * PNG. Run via the {@code paneKeyboardSmoke} Gradle task. Exit 0 = OK.
  */
 public final class PaneKeyboardSmoke {
@@ -101,7 +105,7 @@ public final class PaneKeyboardSmoke {
             System.exit(1);
         }
         System.out.println("SMOKE OK: the focus ring follows the focused pane, the pane keys move to each"
-            + " neighbour and wrap, and no terminal resizes");
+            + " neighbour and wrap, no terminal resizes, and zoom hides and restores the panes and dividers");
         System.exit(0);
     }
 
@@ -170,6 +174,8 @@ public final class PaneKeyboardSmoke {
                 });
             }
 
+            verifyZoom(splitPane, panes, a, b, c, d, snapshotPath);
+
             for (SithTermFxWidget pane : List.of(b, c, d)) {
                 check(onFxThread(() -> splitPane.closeSplitPane(pane)), "closing a pane was refused");
             }
@@ -187,6 +193,162 @@ public final class PaneKeyboardSmoke {
         } finally {
             done.countDown();
         }
+    }
+
+    /**
+     * Zoom: the zoomed pane fills the split pane alone with its badge and no ring, the hidden panes
+     * leave the scene without resizing, the badge counts the hidden panes broadcast mode reaches, and
+     * showing the panes again puts back every divider position, however the zoom ends.
+     */
+    private static void verifyZoom(TerminalSplitPane splitPane, List<SithTermFxWidget> panes, SithTermFxWidget a,
+                                   SithTermFxWidget b, SithTermFxWidget c, SithTermFxWidget d, String snapshotPath)
+            throws Exception {
+        // Off the middle, where a split control's own reset would put them.
+        onFxThread(() -> {
+            double next = 0.3;
+            for (SplitPane control : splitControls(splitPane)) {
+                control.setDividerPositions(next);
+                next += 0.15;
+            }
+            return null;
+        });
+        settle();
+        List<double[]> dividers = onFxThread(() -> dividerPositions(splitPane));
+        List<double[]> sizes = onFxThread(() -> canvasSizes(panes));
+
+        check(onFxThread(() -> splitPane.zoomWidget(b)), "B was not zoomed");
+        settle();
+        List<double[]> zoomedSizes = onFxThread(() -> canvasSizes(panes));
+        onFxThread(() -> {
+            check(splitPane.isZoomed() && splitPane.getZoomedWidget() == b, "the split pane does not report B zoomed");
+            check(splitPane.getChildren().size() == 1
+                && splitPane.getChildren().get(0) == splitPane.getWidgetOverlayHost(b), "B does not fill the split pane");
+            check(splitPane.getFocusedWidget() == b, "the zoomed pane is not the focused one");
+            for (SithTermFxWidget pane : panes) {
+                boolean inScene = pane.getTerminalPanel().getCanvas().getScene() != null;
+                check(inScene == (pane == b), "pane " + panes.indexOf(pane) + (inScene ? " still shows" : " is hidden"));
+                Region ring = ringOf(splitPane, pane);
+                check(ring == null || !ring.isVisible(), "pane " + panes.indexOf(pane) + " shows a ring while zoomed");
+            }
+            Label badge = zoomBadgeOf(splitPane, b);
+            check(badge != null && badge.isVisible(), "the zoomed pane shows no badge");
+            check(badge.getText().equals(TerminalSplitPane.zoomBadgeText(3, 0)), "badge reads " + badge.getText());
+            check(b.getTerminalPanel().getCanvas().getAccessibleText().endsWith(badge.getText()),
+                "the zoomed pane's name does not say it is zoomed");
+            check(badge.getWidth() > 0 && badge.getLayoutX() + badge.getWidth()
+                    <= splitPane.getWidgetOverlayHost(b).getWidth() - 20,
+                "the badge is not laid out left of the close button");
+            splitPane.setBroadcastMode(true);
+            check(badge.getText().equals(TerminalSplitPane.zoomBadgeText(3, 3)),
+                "with broadcast mode the badge reads " + badge.getText());
+            check(badge.getPseudoClassStates().contains(TerminalSplitPane.MIRRORING), "the badge is not marked");
+            return null;
+        });
+        if (snapshotPath != null) {
+            onFxThread(() -> {
+                WritableImage image = splitPane.getScene().snapshot(null);
+                ImageIO.write(SwingFXUtils.fromFXImage(image, null), "png",
+                    new File(snapshotPath.replaceFirst("(\\.png)?$", "-zoomed.png")));
+                return null;
+            });
+        }
+        onFxThread(() -> {
+            splitPane.setBroadcastMode(false);
+            return null;
+        });
+        for (int i = 0; i < panes.size(); i++) {
+            if (panes.get(i) != b) {
+                check(sizes.get(i)[0] == zoomedSizes.get(i)[0] && sizes.get(i)[1] == zoomedSizes.get(i)[1],
+                    "hidden pane " + i + " resized while zoomed");
+            }
+        }
+        check(zoomedSizes.get(panes.indexOf(b))[0] > sizes.get(panes.indexOf(b))[0], "B did not grow");
+
+        check(!onFxThread(splitPane::toggleZoom), "toggling did not show the panes again");
+        settle();
+        settle();
+        expectDividers(splitPane, dividers, "after toggling the zoom off");
+        List<double[]> restored = onFxThread(() -> canvasSizes(panes));
+        onFxThread(() -> {
+            check(zoomBadgeOf(splitPane, b) == null, "the badge stayed after the zoom");
+            for (SithTermFxWidget pane : panes) {
+                check(pane.getTerminalPanel().getCanvas().getScene() != null, "a pane stayed hidden");
+                check(ringOf(splitPane, pane).isVisible(), "a ring stayed hidden");
+            }
+            return null;
+        });
+        for (int i = 0; i < panes.size(); i++) {
+            check(Math.abs(sizes.get(i)[0] - restored.get(i)[0]) < 1.5 && Math.abs(sizes.get(i)[1] - restored.get(i)[1]) < 1.5,
+                "pane " + i + " came back at " + restored.get(i)[0] + "x" + restored.get(i)[1] + ", was "
+                    + sizes.get(i)[0] + "x" + sizes.get(i)[1]);
+        }
+
+        // Moving the focus to a hidden pane shows the panes again, from code and from the keys.
+        check(onFxThread(() -> splitPane.zoomWidget(c)), "C was not zoomed");
+        focus(splitPane, a);
+        check(!onFxThread(splitPane::isZoomed), "focusing a hidden pane kept the zoom");
+        expectFocused(splitPane, a, "after focusing a hidden pane");
+        check(onFxThread(() -> splitPane.zoomWidget(d)), "D was not zoomed");
+        move(splitPane, PaneDirection.UP, b);
+        check(!onFxThread(splitPane::isZoomed), "moving the focus kept the zoom");
+        check(onFxThread(() -> splitPane.zoomWidget(a)), "A was not zoomed");
+        focus(splitPane, a);
+        check(onFxThread(splitPane::isZoomed), "focusing the zoomed pane itself ended the zoom");
+        check(onFxThread(() -> splitPane.focusNext(true)), "next pane did not move while zoomed");
+        check(!onFxThread(splitPane::isZoomed), "next pane kept the zoom");
+        settle();
+        settle();
+        expectDividers(splitPane, dividers, "after the zoom ended by moving the focus");
+    }
+
+    private static List<SplitPane> splitControls(TerminalSplitPane splitPane) {
+        List<SplitPane> controls = new ArrayList<>();
+        for (Node node : splitPane.lookupAll(".split-pane")) {
+            if (node instanceof SplitPane control) {
+                controls.add(control);
+            }
+        }
+        return controls;
+    }
+
+    private static List<double[]> dividerPositions(TerminalSplitPane splitPane) {
+        List<double[]> positions = new ArrayList<>();
+        for (SplitPane control : splitControls(splitPane)) {
+            positions.add(control.getDividerPositions());
+        }
+        return positions;
+    }
+
+    private static void expectDividers(TerminalSplitPane splitPane, List<double[]> expected, String step)
+            throws Exception {
+        List<double[]> actual = onFxThread(() -> dividerPositions(splitPane));
+        check(actual.size() == expected.size(), step + ": " + actual.size() + " split controls, expected "
+            + expected.size());
+        for (int i = 0; i < expected.size(); i++) {
+            check(java.util.Arrays.equals(round(expected.get(i)), round(actual.get(i))), step + ": divider " + i
+                + " is " + java.util.Arrays.toString(actual.get(i)) + ", was " + java.util.Arrays.toString(expected.get(i)));
+        }
+    }
+
+    private static double[] round(double[] positions) {
+        double[] rounded = new double[positions.length];
+        for (int i = 0; i < positions.length; i++) {
+            rounded[i] = Math.round(positions[i] * 1000) / 1000.0;
+        }
+        return rounded;
+    }
+
+    private static Label zoomBadgeOf(TerminalSplitPane splitPane, SithTermFxWidget pane) {
+        StackPane wrapper = splitPane.getWidgetOverlayHost(pane);
+        if (wrapper == null || !(wrapper.getProperties().get(PaneOverlayLayer.DECORATION) instanceof Pane layer)) {
+            return null;
+        }
+        for (Node child : layer.getChildren()) {
+            if (child instanceof Label label && label.getStyleClass().contains(TerminalSplitPane.ZOOM_BADGE_STYLE_CLASS)) {
+                return label;
+            }
+        }
+        return null;
     }
 
     private static SithTermFxWidget split(TerminalSplitPane splitPane, SithTermFxWidget pane, Orientation orientation)
