@@ -1685,7 +1685,7 @@ public class TerminalView extends BorderPane {
     /**
      * Reads the live selection, which {@code selectedTextProperty()} only reflects once the selection
      * gesture has ended. {@code getSelectedText()} is private to SithTermFX's {@code TerminalPanel};
-     * korTTY's panel is an anonymous subclass, so the lookup names the declaring class.
+     * korTTY's panel is a subclass, so the lookup names the declaring class.
      */
     private @Nullable String readSelectedTextDirectly(@NotNull com.sithtermfx.ui.TerminalPanel terminalPanel) {
         try {
@@ -2640,7 +2640,16 @@ public class TerminalView extends BorderPane {
         try {
             logger.info("Creating new SSH connection for split to {}@{}:{}",
                     connection.getUsername(), connection.getHost(), connection.getPort());
-            
+
+            // Enterprise server policy. The tab passed it when it opened, but the connection
+            // editor changes a saved connection in place, so the host or jump server this tab now
+            // points at may have been edited to a blocked one since.
+            java.util.Optional<String> blocked = SplitConnectionPolicy.blockedTarget(connection);
+            if (blocked.isPresent()) {
+                de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(blocked.get());
+                return null;
+            }
+
             // Check if using temporary SSH key and if it's still valid
             if (temporarySSHKey != null) {
                 if (!temporarySSHKey.isValid()) {
@@ -3099,9 +3108,9 @@ public class TerminalView extends BorderPane {
     }
 
     /**
-     * Observes the pane's canvas focus (the real focus owner — TerminalSplitPane's own listener sits
-     * on the pane node and never fires for keyboard focus) and forwards every gained focus to the
-     * focused-widget listeners. Removed in {@link #releasePaneState}.
+     * Observes the pane's canvas focus (the real focus owner, which TerminalSplitPane follows as
+     * well) and forwards every gained focus to the focused-widget listeners. Removed in
+     * {@link #releasePaneState}.
      */
     private void installPaneFocusObserver(SithTermFxWidget widget) {
         if (widget == null || paneFocusListeners.containsKey(widget)) {
@@ -3158,9 +3167,8 @@ public class TerminalView extends BorderPane {
      * pane's focused widget before requesting focus, so {@link #getFocusedWidget()} — and with it
      * Copy/Paste, file drops, the AI run context, recording scope and the tab-selection
      * {@code focusTerminal()} — follow the pane the user was sent to instead of the one last
-     * clicked. Focusing the canvas alone would not: the split pane watches the pane's primary mouse
-     * clicks and its preferred focusable node, whose {@code focused} property stays false while the
-     * child canvas holds the focus.
+     * clicked. Focusing the canvas alone would not while the window is unfocused: the split pane
+     * follows the canvas's {@code focused} property, which stays false until the window has focus.
      */
     public void focusWidget(SithTermFxWidget widget) {
         if (widget == null) {
@@ -4340,7 +4348,11 @@ public class TerminalView extends BorderPane {
         if (data == null || data.isEmpty()) {
             return;
         }
-        processTerminalAgentOscSignal(sourceConnector, data);
+        processTerminalAgentOscSignal(
+            terminalAgentOscBuffers,
+            sourceConnector,
+            data,
+            payload -> dispatchTerminalAgentOscPayload(sourceConnector, payload));
         if (data.contains("\u001B]133;A") || data.contains("\u001B]133;B")) {
             agentShortcutPromptReady = true;
         }
@@ -4369,8 +4381,26 @@ public class TerminalView extends BorderPane {
         }
     }
 
-    private void processTerminalAgentOscSignal(SshTtyConnector sourceConnector, String data) {
-        StringBuilder terminalAgentOscBuffer = terminalAgentOscBuffers.computeIfAbsent(
+    /**
+     * Receives the {@code ESC ] 777 ; korTTY-agent ; kind ; cwd ; prompt} sequences that the shell
+     * startup hook ({@link #buildTerminalAgentShellStartupCommand}) prints for the agent aliases, and
+     * hands each complete payload to {@code dispatcher}, which starts an AI agent run.
+     *
+     * <p>These sequences arrive in the same stream as everything else the server sends. On a
+     * connector without that hook they can only be remote output (a file shown with {@code cat}, a
+     * login banner, a hostile server) and would start an agent run with a prompt and inline options
+     * such as {@code root=true} chosen by the remote side. They are therefore honoured only while the
+     * hook is configured, and otherwise not even buffered.
+     */
+    static void processTerminalAgentOscSignal(
+            Map<SshTtyConnector, StringBuilder> buffers,
+            SshTtyConnector sourceConnector,
+            String data,
+            Consumer<String> dispatcher) {
+        if (sourceConnector == null || !sourceConnector.hasShellStartupCommandConfigured()) {
+            return;
+        }
+        StringBuilder terminalAgentOscBuffer = buffers.computeIfAbsent(
             sourceConnector,
             ignored -> new StringBuilder());
         synchronized (terminalAgentOscBuffer) {
@@ -4402,12 +4432,12 @@ public class TerminalView extends BorderPane {
                 }
                 String payload = terminalAgentOscBuffer.substring(start + prefix.length(), end);
                 terminalAgentOscBuffer.delete(0, end + terminatorLength);
-                dispatchTerminalAgentOscPayload(sourceConnector, payload);
+                dispatcher.accept(payload);
             }
         }
     }
 
-    private void trimTerminalAgentOscBuffer(StringBuilder terminalAgentOscBuffer) {
+    private static void trimTerminalAgentOscBuffer(StringBuilder terminalAgentOscBuffer) {
         int maxLength = 4096;
         if (terminalAgentOscBuffer.length() > maxLength) {
             terminalAgentOscBuffer.delete(0, terminalAgentOscBuffer.length() - maxLength);

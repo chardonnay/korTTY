@@ -146,6 +146,22 @@ class SessionJournalMarkerRulesTest {
         assertThat(elapsedMillis).isLessThan(3_000L);
     }
 
+    @Test(timeOut = 30_000)
+    void aRuleThatRunsOutOfBudgetIsSkippedAndTheNextRuleStillGetsItsTurn() {
+        // Given unlimited time the first rule would match the trailing "apache", but only after a
+        // backtracking search that takes seconds over 19 000 a's. A fired budget is therefore the
+        // only way the second rule can win, and the budget signal must not escape firstMatch.
+        List<SessionJournalMarkerRules.Compiled> rules = SessionJournalMarkerRules.compile(List.of(
+            rule("outage", "(a+)+b|apache", true),
+            rule("deploy", "apache", false)));
+        String haystack = "a".repeat(19_000) + "\napache";
+
+        SessionJournalMarkerRule match = SessionJournalMarkerRules.firstMatch(rules, haystack, 50L);
+
+        assertThat(match).isNotNull();
+        assertThat(match.getMarkerId()).isEqualTo("deploy");
+    }
+
     @Test
     void cutsTheHaystackAtTheInputCap() {
         SessionJournalEntry entry = entry("head", "x".repeat(SessionJournalMarkerRules.MAX_MATCH_INPUT_CHARS)

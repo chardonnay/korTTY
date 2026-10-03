@@ -19,7 +19,7 @@ Manage multiple SSH sessions with these tab operations:
 | Action | Shortcut |
 |--------|----------|
 | **New Tab** | ++ctrl+t++ (Cmd+T on macOS) — opens Quick Connect to start a new session |
-| **Close Tab** | ++ctrl+w++ (Cmd+W on macOS) — closes the active tab. You are only asked to confirm when there is something to lose: the tab has split panes, or a command is still running (a local shell with a running child process, or an SSH session that is not at its prompt). An idle single terminal closes immediately. The per-connection *Close without confirmation* setting suppresses the prompt entirely. |
+| **Close Tab** | ++ctrl+w++ (Cmd+W on macOS) — closes the active tab. You are only asked to confirm when there is something to lose: the tab has split panes, or a command is still running (a local shell with a running child process, or an SSH session that is not at its prompt). An idle single terminal closes immediately. The tab's close button and **Close** in the Dashboard ask the same question. The per-connection *Close tab without confirmation* setting suppresses the prompt entirely. |
 | **Next Tab** | ++ctrl+Tab++ |
 | **Previous Tab** | ++ctrl+shift+Tab++ |
 | **Reconnect** | Right-click a tab, the terminal area, or a server entry in the Dashboard. If the connection is active, it is closed and re-established immediately; if disconnected, it is re-established. The terminal window stays open. |
@@ -30,6 +30,8 @@ Manage multiple SSH sessions with these tab operations:
 Interactive SSH terminals share host-key trust with SFTP and the SSH bootstrap used by Mosh. The first connection to a normalized host and port shows the key algorithm and OpenSSH SHA-256 fingerprint with **No** selected by default. After you verify and accept it, exact matches connect silently; a changed key is hard-blocked with no automatic retry, and the alert offers **Review and Replace…** for a key you have verified with the server administrator. See [SSH host-key verification](connections.md#ssh-host-key-verification).
 
 Opening a same-server or newly selected connection in a split shows a progress dialog while the SSH handshake runs on a worker. The interface remains responsive for both the host-key confirmation and keyboard-interactive authentication prompts.
+
+**Split Right (new connection)** and **Split Down (new connection)** follow your organization's [server access policy](../reference/enterprise-policy.md#server-access-control) like Quick Connect: if the server you pick or its jump server is blocked, korTTY shows the policy message right away, before it asks for a password or saves the connection, and opens no pane. **Split Right (same server)** and **Split Down (same server)** check the policy again: a tab opened from a saved connection can pick up later edits of it, so if its server or jump server was edited to a blocked one after the tab opened, the split shows the same message and opens no pane.
 
 Some failures are refused outright rather than retried, because repeating the attempt cannot change the outcome — a changed host key, an SSH key file that is missing or cannot be read, a jump server whose stored password cannot be used (for example while the vault is locked) or whose setup is incomplete, a Mosh connection configured with a jump server, or a missing Mosh runtime. The terminal clears and shows the reason immediately instead of working through the retry count. See [Jump server](jump-server.md#when-the-jump-server-cannot-be-used) for the jump-server cases and the Mosh restriction.
 
@@ -65,6 +67,12 @@ Right-click inside a terminal to open its context menu; in a split tab it acts o
 | **Find** | Opens the find bar at the top right of the pane, the same as **Edit → Find...** (++ctrl+f++, ++cmd+f++ on macOS). Type to highlight matches, press ++enter++ or ++down++ for the next match and ++up++ for the previous one, and ++esc++ to close the bar. |
 
 Below them come the entries of other features, in this order and some only where they apply: **Show Menu Bar** (while the menu bar is hidden), **Open in Snippet Editor**, the **AI** submenu, the session-journal screenshot and note entries, **Theme**, **Terminal Effect**, **Reconnect** and **Show Command Timestamps**. The **Extras** submenu at the end holds **Split Terminal**, **Font Size** (see [Font size and zoom](#font-size-and-zoom)) and **Broadcast Mode**.
+
+## Links in terminal output
+
+Programs can print clickable links into the terminal with the OSC 8 escape sequence; GCC, for example, can link a warning to its documentation. Clicking such a link opens it in your default browser, or a `mailto` link in your mail program. Only `http`, `https`, `ftp`, `ftps` and `mailto` links are clickable, and a `mailto` link may only fill in recipients (`to`, `cc`, `bcc`), `subject`, `body` and `in-reply-to`.
+
+Every other link stays plain text and does nothing when clicked: `file:` links such as the ones `ls --hyperlink` and `eza --hyperlink` put on file names, `news:`, `javascript:` and `data:` links, `mailto` links with any other field (some mail programs attach the local file an `attach` field names), and links that contain spaces, control characters or invisible direction-changing (bidi) characters or are longer than 8 KB. Whatever prints a link chooses where it points — a server, a log file you `cat`, a program's output — so KorTTY never passes a link to the operating system's file opener, which would start programs and scripts.
 
 ## Font size and zoom
 
@@ -116,6 +124,7 @@ Split the terminal view to display multiple connections side by side, and option
 - **Split Pane**: Create horizontal or vertical splits within a tab via the context menu or keyboard shortcuts.
 - **Independent Sessions**: Each pane can show a different SSH connection.
 - **Resizable Panes**: Drag dividers to adjust pane sizes.
+- **Focused pane**: *Edit → Copy*, *Edit → Paste*, *Edit → Find...*, the AI actions and a recording of the active split act on the pane that has, or last had, the keyboard focus, the one your typing goes to, however the focus got there (a click, a middle-click or a jump from the Coding Agents panel). Closing another pane leaves them on that pane; when the focused pane itself closes, they move to the first remaining pane. The terminal's right-click menu acts on the pane you right-clicked.
 - **Access reason asked once per tab**: when a server asks for a reason for the connection, as a CyberArk-style jump host does, a split does not ask again. korTTY sends the reason that was given when the tab was opened, because a server that asks for one closes a session that answers with nothing. A split to a different server, or a server asking something else, is asked once as well, and a new tab always starts by asking. If the server refuses the reason, for example because a ticket number has expired in the meantime, korTTY drops it and asks again on the next attempt.
 - **Move Panes**: Hold ++shift+alt++ (Windows/Linux) or ++shift+option++ (macOS) and drag a pane onto another to reorder. Without the modifiers, mouse drag is used for text selection in the terminal.
 

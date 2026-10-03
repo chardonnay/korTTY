@@ -9,7 +9,6 @@ import de.kortty.core.SnippetDiffSelectionSupport;
 import de.kortty.core.SnippetExecutableSupport;
 import de.kortty.core.SnippetFolderLayout;
 import de.kortty.core.SnippetManager;
-import de.kortty.core.SnippetOneLiner;
 import de.kortty.core.SnippetPlaceholderResolver;
 import de.kortty.core.SnippetTextFileImport;
 import de.kortty.core.SnippetVariableManager;
@@ -180,6 +179,8 @@ final class SnippetLibraryPane extends BorderPane {
 
     private final SnippetManager snippetManager;
     private final Host host;
+    /** Copy/insert resolution and Send to Terminal; a counted use refreshes the table. */
+    private final SnippetTerminalSend terminalSend;
     private final TableView<Snippet> snippetTable;
     private final SnippetFolderTreePane folderTree;
     private final TextField searchField;
@@ -217,6 +218,7 @@ final class SnippetLibraryPane extends BorderPane {
     SnippetLibraryPane(SnippetManager snippetManager, Host host, SnippetAnalysisStore analysisStore) {
         this.snippetManager = snippetManager;
         this.host = host;
+        this.terminalSend = new SnippetTerminalSend(snippetManager, this::ownerWindow, () -> refreshTable(false));
         this.analysisStore = analysisStore != null ? analysisStore : SnippetAnalysisStore.shared();
         this.editorSettings = EditorSettingsHelper.loadSnippetSettings();
         getStyleClass().add("snippet-library-pane");
@@ -1216,209 +1218,11 @@ final class SnippetLibraryPane extends BorderPane {
     
     // ---- Insert / Copy ----
 
-    private record TerminalParameterInput(String resolvedText, List<String> arguments) {
-    }
-
-    /** What a variable dialog returned: the values entered for this use and the names to remember. */
-    private record VariablePromptResult(Map<String, String> values, Set<String> remember) {
-    }
-
-    private record TerminalParameterDialogResult(VariablePromptResult variables, List<String> arguments) {
-    }
-
-    /** One row of a variable dialog: the name, the text its field starts with, and whether Remember starts ticked. */
-    private record VariableRow(String name, String initialValue, boolean rememberInitially) {
-    }
-
-    private static SnippetVariableManager variableManager() {
-        KorTTYApplication app = KorTTYApplication.getInstance();
-        return app != null ? app.getSnippetVariableManager() : null;
-    }
-
-    /**
-     * Resolves a snippet for Copy, Insert into editor and Send to Terminal: built-ins and declared
-     * variables are replaced, a declared variable without a stored value is asked for, and every
-     * other {@code ${...}} stays as written. Returns {@code null} when the user cancels the dialog.
-     */
-    private SnippetPlaceholderResolver.ResolvedSnippet resolveAndPrompt(Snippet snippet) {
-        SnippetVariableManager varManager = variableManager();
-        String content = snippet.getContent();
-        List<VariableRow> missing = new ArrayList<>();
-        for (String name : snippetManager.declaredVariables(content, varManager)) {
-            if (varManager.getValue(name) == null) {
-                missing.add(new VariableRow(name, "", false));
-            }
-        }
-        Map<String, String> entered = Map.of();
-        if (!missing.isEmpty()) {
-            VariablePromptResult prompted = promptForVariables(missing);
-            if (prompted == null) {
-                return null;
-            }
-            entered = prompted.values();
-            rememberValues(varManager, prompted);
-        }
-        SnippetPlaceholderResolver.ResolvedSnippet resolved = snippetManager.resolve(content, varManager, entered);
-
-        snippetManager.incrementUsage(snippet);
-        saveQuietly();
-        refreshTable(false);
-        return resolved;
-    }
-
-    /**
-     * Resolves a snippet for Send to Terminal with Parameters: every declared variable the snippet
-     * uses is listed, pre-filled with its stored value and editable for this send.
-     */
-    private TerminalParameterInput resolveAndPromptForTerminalParameters(Snippet snippet) {
-        SnippetVariableManager varManager = variableManager();
-        String content = snippet.getContent();
-        List<VariableRow> rows = new ArrayList<>();
-        for (String name : snippetManager.declaredVariables(content, varManager)) {
-            String stored = varManager.getValue(name);
-            rows.add(new VariableRow(name, stored != null ? stored : "", stored != null));
-        }
-
-        TerminalParameterDialogResult dialogResult = promptForTerminalParameters(rows);
-        if (dialogResult == null) {
-            return null;
-        }
-        rememberValues(varManager, dialogResult.variables());
-        String text = snippetManager.resolve(content, varManager, dialogResult.variables().values()).text();
-        return new TerminalParameterInput(text, dialogResult.arguments());
-    }
-
-    /** Stores only the values whose Remember box was ticked; the others were used once. */
-    private void rememberValues(SnippetVariableManager varManager, VariablePromptResult result) {
-        if (varManager == null || result == null) {
-            return;
-        }
-        if (varManager.remember(result.values(), result.remember())) {
-            try {
-                varManager.save();
-            } catch (Exception e) {
-                logger.warn("Failed to save variables", e);
-            }
-        }
-    }
-
-    /**
-     * Adds one row per variable to {@code grid}: its label, a value field and a Remember check box,
-     * and collects the fields and boxes by variable name.
-     */
-    private void addVariableRows(
-            GridPane grid,
-            List<VariableRow> rows,
-            Map<String, TextField> fields,
-            Map<String, CheckBox> rememberBoxes) {
-        int row = 0;
-        for (VariableRow variable : rows) {
-            Label label = new Label("${" + variable.name() + "}:");
-            TextField field = new TextField(variable.initialValue());
-            field.setPromptText(variable.name());
-            field.setPrefWidth(300);
-            CheckBox remember = new CheckBox(I18n.get("snippets.variables.remember"));
-            remember.setSelected(variable.rememberInitially());
-            remember.setTooltip(new Tooltip(I18n.get("snippets.variables.remember.tooltip")));
-            grid.add(label, 0, row);
-            grid.add(field, 1, row);
-            grid.add(remember, 2, row);
-            fields.put(variable.name(), field);
-            rememberBoxes.put(variable.name(), remember);
-            row++;
-        }
-    }
-
-    private static VariablePromptResult collectVariables(
-            Map<String, TextField> fields, Map<String, CheckBox> rememberBoxes) {
-        Map<String, String> values = new LinkedHashMap<>();
-        Set<String> remember = new LinkedHashSet<>();
-        fields.forEach((name, field) -> {
-            values.put(name, field.getText());
-            CheckBox box = rememberBoxes.get(name);
-            if (box != null && box.isSelected()) {
-                remember.add(name);
-            }
-        });
-        return new VariablePromptResult(values, remember);
-    }
-
-    private VariablePromptResult promptForVariables(List<VariableRow> rows) {
-        Dialog<VariablePromptResult> dialog = new Dialog<>();
-        dialog.setTitle(I18n.get("snippets.promptVariable"));
-        dialog.initOwner(ownerWindow());
-
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(8);
-        grid.setPadding(new Insets(10));
-
-        Map<String, TextField> fields = new LinkedHashMap<>();
-        Map<String, CheckBox> rememberBoxes = new LinkedHashMap<>();
-        addVariableRows(grid, rows, fields, rememberBoxes);
-
-        dialog.getDialogPane().setContent(grid);
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-
-        dialog.setResultConverter(bt -> bt == ButtonType.OK ? collectVariables(fields, rememberBoxes) : null);
-
-        return dialog.showAndWait().orElse(null);
-    }
-
-    private TerminalParameterDialogResult promptForTerminalParameters(List<VariableRow> rows) {
-        Dialog<TerminalParameterDialogResult> dialog = new Dialog<>();
-        dialog.setTitle(I18n.get("snippets.insertTerminal.parameters.title"));
-        dialog.initOwner(ownerWindow());
-
-        VBox layout = new VBox(10);
-        layout.setPadding(new Insets(10));
-
-        Map<String, TextField> fields = new LinkedHashMap<>();
-        Map<String, CheckBox> rememberBoxes = new LinkedHashMap<>();
-        if (rows != null && !rows.isEmpty()) {
-            GridPane grid = new GridPane();
-            grid.setHgap(10);
-            grid.setVgap(8);
-            addVariableRows(grid, rows, fields, rememberBoxes);
-            layout.getChildren().add(grid);
-        }
-
-        Label argumentsLabel = new Label(I18n.get("snippets.insertTerminal.parameters.arguments"));
-        TextArea argumentsArea = new TextArea();
-        argumentsArea.setPromptText(I18n.get("snippets.insertTerminal.parameters.argumentsPrompt"));
-        argumentsArea.setPrefRowCount(5);
-        argumentsArea.setPrefColumnCount(42);
-        layout.getChildren().addAll(argumentsLabel, argumentsArea);
-
-        dialog.getDialogPane().setContent(layout);
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-
-        dialog.setResultConverter(bt -> bt == ButtonType.OK
-            ? new TerminalParameterDialogResult(
-                collectVariables(fields, rememberBoxes), parseArgumentLines(argumentsArea.getText()))
-            : null);
-
-        return dialog.showAndWait().orElse(null);
-    }
-
-    private List<String> parseArgumentLines(String text) {
-        if (text == null || text.isEmpty()) {
-            return List.of();
-        }
-        List<String> arguments = new ArrayList<>();
-        for (String line : text.split("\\R", -1)) {
-            if (!line.isBlank()) {
-                arguments.add(line);
-            }
-        }
-        return List.copyOf(arguments);
-    }
-    
     private void copyToClipboard() {
         Snippet selected = snippetTable.getSelectionModel().getSelectedItem();
         if (selected == null) return;
         
-        SnippetPlaceholderResolver.ResolvedSnippet resolved = resolveAndPrompt(selected);
+        SnippetPlaceholderResolver.ResolvedSnippet resolved = terminalSend.resolveAndPrompt(selected);
         if (resolved == null) return;
 
         de.kortty.core.KorttyClipboard.setText(resolved.text());
@@ -1430,7 +1234,7 @@ final class SnippetLibraryPane extends BorderPane {
         Snippet selected = snippetTable.getSelectionModel().getSelectedItem();
         if (selected == null) return;
         
-        SnippetPlaceholderResolver.ResolvedSnippet resolved = resolveAndPrompt(selected);
+        SnippetPlaceholderResolver.ResolvedSnippet resolved = terminalSend.resolveAndPrompt(selected);
         if (resolved == null) return;
 
         // The file editor tab of the workspace's main window (the last selected one in tab mode,
@@ -1456,128 +1260,15 @@ final class SnippetLibraryPane extends BorderPane {
     private void insertIntoTerminal() {
         Snippet selected = snippetTable.getSelectionModel().getSelectedItem();
         if (selected == null) return;
-        
-        SnippetPlaceholderResolver.ResolvedSnippet resolvedSnippet = resolveAndPrompt(selected);
-        if (resolvedSnippet == null || resolvedSnippet.text().isBlank()) {
-            return;
-        }
-        String resolved = resolvedSnippet.text();
 
-        String rawName = selected.getName();
-        String displayName = (rawName != null && !rawName.isBlank()) ? rawName.trim() : I18n.get("snippets.insertTerminal.unnamed");
-        String bannerText = I18n.get("snippets.insertTerminal.banner", displayName);
-        String toSend = buildOneLinerPayloadForTerminal(resolved, selected.getLanguage(), bannerText);
-        if (toSend == null) {
-            showInfo(I18n.get("snippets.insertTerminal.onelinerFailed"));
-            return;
-        }
-        
-        // The terminal tab of the workspace's main window (the last selected one in tab mode).
-        try {
-            MainWindow mainWindow = getMainWindow();
-            if (mainWindow == null) return;
-            
-            TerminalTab terminalTab = mainWindow.snippetInsertTarget(TerminalTab.class);
-            if (terminalTab != null) {
-                sendSnippetPayloadToTerminal(terminalTab, toSend, SnippetOneLiner.isEmbeddedSupported(selected.getLanguage()));
-                mainWindow.revealSnippetInsertTarget(terminalTab);
-                logger.info("Snippet '{}' sent to terminal (one-liner where supported)", selected.getName());
-            } else {
-                showInfo(I18n.get("snippets.noTerminalOpen"));
-            }
-        } catch (Exception e) {
-            logger.error("Failed to insert snippet into terminal", e);
-        }
+        terminalSend.sendToTerminal(selected, this::getMainWindow);
     }
 
     private void insertIntoTerminalWithParameters() {
         Snippet selected = snippetTable.getSelectionModel().getSelectedItem();
         if (selected == null) return;
 
-        TerminalParameterInput input = resolveAndPromptForTerminalParameters(selected);
-        if (input == null || input.resolvedText().isBlank()) {
-            return;
-        }
-
-        String rawName = selected.getName();
-        String displayName = (rawName != null && !rawName.isBlank()) ? rawName.trim() : I18n.get("snippets.insertTerminal.unnamed");
-        String bannerText = I18n.get("snippets.insertTerminal.banner", displayName);
-        String toSend = buildOneLinerPayloadForTerminal(
-                input.resolvedText(),
-                selected.getLanguage(),
-                bannerText,
-                input.arguments());
-        if (toSend == null) {
-            if (!input.arguments().isEmpty() && !SnippetOneLiner.isEmbeddedSupported(selected.getLanguage())) {
-                showInfo(I18n.get("snippets.insertTerminal.parameters.unsupported"));
-            } else {
-                showInfo(I18n.get("snippets.insertTerminal.onelinerFailed"));
-            }
-            return;
-        }
-
-        try {
-            MainWindow mainWindow = getMainWindow();
-            if (mainWindow == null) return;
-
-            TerminalTab terminalTab = mainWindow.snippetInsertTarget(TerminalTab.class);
-            if (terminalTab != null) {
-                sendSnippetPayloadToTerminal(terminalTab, toSend, SnippetOneLiner.isEmbeddedSupported(selected.getLanguage()));
-                snippetManager.incrementUsage(selected);
-                saveQuietly();
-                refreshTable(false);
-                mainWindow.revealSnippetInsertTarget(terminalTab);
-                logger.info("Snippet '{}' sent to terminal with {} argument(s)", selected.getName(), input.arguments().size());
-            } else {
-                showInfo(I18n.get("snippets.noTerminalOpen"));
-            }
-        } catch (Exception e) {
-            logger.error("Failed to insert snippet into terminal with parameters", e);
-        }
-    }
-
-    private void sendSnippetPayloadToTerminal(TerminalTab terminalTab, String payload, boolean generatedOneLiner) {
-        if (generatedOneLiner) {
-            terminalTab.getTerminalView().sendGeneratedInputLineHidden(payload);
-        } else {
-            terminalTab.getTerminalView().sendInputLine(payload);
-        }
-    }
-
-    /**
-     * For bash/shell/python/perl/ruby, sends a one-liner (stderr banner, then embedded base64 pipe or compact fallback).
-     * Other languages: full resolved text (no shell banner — content may not be shell).
-     */
-    private String buildOneLinerPayloadForTerminal(String resolved, String language, String bannerText) {
-        return buildOneLinerPayloadForTerminal(resolved, language, bannerText, List.of());
-    }
-
-    private String buildOneLinerPayloadForTerminal(
-            String resolved,
-            String language,
-            String bannerText,
-            List<String> arguments) {
-        List<String> safeArguments = arguments != null ? arguments : List.of();
-        if (!SnippetOneLiner.isEmbeddedSupported(language)) {
-            return safeArguments.isEmpty() ? resolved : null;
-        }
-        String prefix = SnippetOneLiner.terminalStderrBannerShellPrefix(bannerText);
-        SnippetOneLiner.OneLinerResult embedded = SnippetOneLiner.toEmbedded(resolved, language, safeArguments);
-        if (embedded.isOk()) {
-            String line = embedded.line();
-            if (line.indexOf('\n') >= 0) {
-                return prefix + " && " + line;
-            }
-            return prefix + " && " + line;
-        }
-        if (!safeArguments.isEmpty()) {
-            return null;
-        }
-        SnippetOneLiner.OneLinerResult compact = SnippetOneLiner.toCompact(resolved, language);
-        if (compact.isOk()) {
-            return prefix + " && " + compact.line();
-        }
-        return null;
+        terminalSend.sendToTerminalWithParameters(selected, this::getMainWindow);
     }
     
     // ---- Import / Export ----
@@ -2106,15 +1797,6 @@ final class SnippetLibraryPane extends BorderPane {
             logger.error("Failed to save snippets", e);
             showError(I18n.get("snippets.workspace.saveFailed", e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
             return false;
-        }
-    }
-
-    /** Usage bookkeeping (copy/insert counters): a failure is logged, not worth an alert. */
-    private void saveQuietly() {
-        try {
-            snippetManager.save();
-        } catch (Exception e) {
-            logger.error("Failed to save snippets", e);
         }
     }
 

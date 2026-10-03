@@ -1,5 +1,6 @@
 package de.kortty.control;
 
+import de.kortty.core.DeadlineCharSequence;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;

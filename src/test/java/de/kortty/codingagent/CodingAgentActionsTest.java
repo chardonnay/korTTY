@@ -176,6 +176,19 @@ class CodingAgentActionsTest {
     }
 
     @Test
+    void embeddedPasteMarkersAreRemovedBeforeThePromptIsChecked() throws Exception {
+        CodingAgentActionException e = expectThrows(CodingAgentActionException.class,
+            () -> actions.prompt(PANE, "\u001b[201~\n"));
+        assertThat(e.code()).isEqualTo(CodingAgentActionException.Code.EMPTY_INPUT);
+        assertThat(connector.written()).isEmpty();
+
+        panes.setBracketedPaste(PANE, true);
+        actions.prompt(PANE, "first\u001b[201~\nsecond");
+        assertThat(text(connector)).isEqualTo("\u001b[200~first\rsecond\u001b[201~\r");
+        assertThat(auditLines).containsExactly("prompt terminal-a bytes=25 lines=2 bracketed=true");
+    }
+
+    @Test
     void hostShortcutConflictIsRefusedUnlessBracketed() throws Exception {
         panes.setIntercept(line -> line.startsWith("agent "));
         panes.setHostShortcutCommandName("agent");
