@@ -775,14 +775,39 @@
 <td>Open Quick Connect in a new terminal tab</td>
 </tr>
 <tr>
+<td>Rename Tab…</td>
+<td></td>
+<td>Give the active terminal tab a name of its own instead of the connection's name or the <a href="../features/terminal.html#title-from-the-shell">title its shell set</a>; an empty name shows that again. Available while a terminal tab is active. See <a href="../features/terminal.html#working-with-tabs">Working with tabs</a></td>
+</tr>
+<tr>
 <td>Close Tab</td>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-w">W</kbd></span></td>
 <td>Close the active terminal tab</td>
 </tr>
 <tr>
+<td>Close Other Tabs</td>
+<td></td>
+<td>Close every other tab of the current window; the active tab stays open. Asks once when some of the closing terminals have split panes or a running command. The same entry is in a terminal tab's right-click menu. See <a href="../features/terminal.html#working-with-tabs">Working with tabs</a></td>
+</tr>
+<tr>
+<td>Close Tabs to the Right</td>
+<td></td>
+<td>Close the tabs after the active tab, which stays open. Asks like Close Other Tabs. The same entry is in a terminal tab's right-click menu</td>
+</tr>
+<tr>
 <td>Close All Tabs</td>
 <td></td>
-<td>Close every tab in the current window</td>
+<td>Close every tab in the current window; Reopen Closed Tab brings the terminal tabs back</td>
+</tr>
+<tr>
+<td>Reopen Closed Tab</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-t">T</kbd></span></td>
+<td>Reopen the terminal tab you closed last (or the tabs one command closed together) with a new session; greyed out while there is nothing to reopen. The same entry is in a terminal tab's right-click menu. See <a href="../features/terminal.html#working-with-tabs">Working with tabs</a></td>
+</tr>
+<tr>
+<td>Recently Closed ▸</td>
+<td></td>
+<td>What you closed in this session, newest first: a tab, the tabs one command closed together, or <em>Window: …</em> for the tabs of a closed window. Choose an entry to reopen it; <strong>Clear List</strong> empties the list</td>
 </tr>
 <tr>
 <td>New Window</td>
@@ -890,28 +915,34 @@
 <thead>
 <tr>
 <th>Item</th>
+<th>Shortcut</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Unlock Vault…</td>
+<td></td>
 <td>Enter the master password to unlock stored secrets when the startup prompt is off (disabled while unlocked)</td>
 </tr>
 <tr>
 <td>Credentials…</td>
-<td>Manage stored credentials (encrypted)</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-m">M</kbd></span></td>
+<td>Manage stored credentials (encrypted). The shortcut also works while a terminal has the focus</td>
 </tr>
 <tr>
 <td>GPG-Keys…</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-g">G</kbd></span></td>
 <td>Manage GPG keys used for backup encryption</td>
 </tr>
 <tr>
 <td>SSH-Keys…</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-i">I</kbd></span></td>
 <td>Manage SSH keys and passphrases</td>
 </tr>
 <tr>
 <td>Known Hosts…</td>
+<td></td>
 <td>Review, search and remove trusted SSH host keys</td>
 </tr>
 </tbody>

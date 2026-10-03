@@ -781,7 +781,7 @@
 <p>If you lose the master password, encrypted data cannot be recovered. Delete <code>master.key</code> and <code>credentials.xml</code>, restart, set a new master password, and re-enter your passwords.</p>
 </div>
 <h3 id="unlocking-the-vault-later">Unlocking the vault later<a class="headerlink" href="#unlocking-the-vault-later" title="Permanent link">&para;</a></h3>
-<p>With the vault locked, choose <strong>Configuration &gt; Security &gt; Unlock Vault…</strong> and enter the master password; the menu item is greyed out while the vault is open. Saving an AI or translation API key, a Hugging Face token, a jump server password or a Job Scheduler password, starting an AI Swarm run on servers without an open terminal, asking the guide a question and generating a single- or multi-server workflow script with an encrypted AI key show their "vault locked" message with an <strong>Unlock Vault…</strong> button instead of a dead end. Some places still only report the locked vault, for example an AI chat request or a key passphrase in the connection editor; unlock the vault from the menu first. After a successful unlock the action continues; <strong>Cancel</strong> leaves the vault locked without a second error. A wrong password keeps the dialog open, and cancelling it never quits korTTY.</p>
+<p>With the vault locked, choose <strong>Configuration &gt; Security &gt; Unlock Vault…</strong> and enter the master password; the menu item is greyed out while the vault is open. Saving an AI or translation API key, a Hugging Face token, a jump server password or a Job Scheduler password, starting an AI Swarm run on servers without an open terminal, asking the guide a question and generating a single- or multi-server workflow script with an encrypted AI key show their "vault locked" message with an <strong>Unlock Vault…</strong> button instead of a dead end. Connecting a saved connection whose password is stored in the vault, with <strong>Connect</strong> in the Connection Manager, a tab's <strong>Duplicate</strong> or <strong>Reopen Closed Tab</strong>, offers <strong>Unlock Vault…</strong> as well; if you do not unlock the vault there, korTTY asks you to type the password instead (see <a href="connections.html#signing-in">Signing in</a>). Some places still only report the locked vault, for example an AI chat request or a key passphrase in the connection editor; unlock the vault from the menu first. After a successful unlock the action continues; <strong>Cancel</strong> leaves the vault locked without a second error. A wrong password keeps the dialog open, and cancelling it never quits korTTY.</p>
 <p>Unlocking also restores the temporary SSH keys that could not be decrypted at the locked start; until then they stay stored encrypted, so saving connections in the meantime does not lose them. Windows that were already open while the vault was locked, such as the Connection Manager or the credential and key managers, do not pick up the unlock — reopen them to use stored secrets there.</p>
 <h2 id="encryption-model">Encryption Model<a class="headerlink" href="#encryption-model" title="Permanent link">&para;</a></h2>
 <p>All sensitive data at rest is encrypted using <strong>AES-256-GCM</strong>:</p>
@@ -796,7 +796,7 @@
 <h2 id="credential-management">Credential Management<a class="headerlink" href="#credential-management" title="Permanent link">&para;</a></h2>
 <p>Store centralized username/password credentials that can be reused across multiple connections.</p>
 <h3 id="opening-the-manager">Opening the Manager<a class="headerlink" href="#opening-the-manager" title="Permanent link">&para;</a></h3>
-<p><strong>Menu:</strong> Management &gt; Manage Credentials</p>
+<p><strong>Menu:</strong> Configuration &gt; Security &gt; Credentials… (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-m">M</kbd></span>, on macOS <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-m">M</kbd></span>). The shortcut also works while a terminal has the focus.</p>
 <h3 id="adding-credentials">Adding Credentials<a class="headerlink" href="#adding-credentials" title="Permanent link">&para;</a></h3>
 <ol>
 <li>Click <strong>Add</strong>.</li>
@@ -805,7 +805,7 @@
 <li><strong>Username</strong> — Login username</li>
 <li><strong>Password Type</strong> — <strong>Stored Password</strong>, or <strong>External Command</strong> to fetch the password from a password manager (see <a href="#passwords-from-an-external-command">Passwords from an external command</a>)</li>
 <li><strong>Password</strong> — Stored encrypted with AES-256-GCM</li>
-<li><strong>Environment</strong> — Production, Development, Test, or Staging</li>
+<li><strong>Environment</strong> — Production (the default), Development, Test, Staging, or one of your own (see <a href="#environments-and-tab-colors">Environments and tab colors</a>)</li>
 <li><strong>Server Pattern</strong> (optional) — Glob pattern (e.g., <code>*.example.com</code>, <code>10.0.0.*</code>) for automatic credential matching to connections</li>
 <li><strong>Description</strong> (optional) — Free-text notes</li>
 <li>Click <strong>OK</strong>.</li>
@@ -835,6 +835,17 @@
 </ol>
 <p>The following diagram shows how credentials and SSH keys flow from encrypted storage to active connections:</p>
 <p><img alt="Credential &amp; encryption flow" src="../assets/diagrams/credential-flow.svg" /></p>
+<h3 id="environments-and-tab-colors">Environments and tab colors<a class="headerlink" href="#environments-and-tab-colors" title="Permanent link">&para;</a></h3>
+<p>Every credential belongs to an environment: one of the built-in Production, Development, Test and Staging, or one you add. <strong>Environments...</strong> in the Credentials manager lists them; there you can add your own environments and rename or delete them. The built-in ones always stay, and an environment that a credential still uses cannot be deleted.</p>
+<p>Any environment, built-in or your own, can have a <strong>tab color</strong>: select it, tick <strong>Mark this environment's tabs with a color</strong> and pick the color. A terminal tab that signed in with a stored credential of that environment then shows the color as a dot in front of its title and as a frame around its terminal, just like a <a href="connections.html#tab-color">connection's own tab color</a>. Marking the Production environment red, for example, marks every tab that signs in with a production credential at once.</p>
+<ul>
+<li><strong>Opt-in</strong> — no environment has a color until you pick one. New credentials start out in Production, so a default color would mark most tabs as production tabs.</li>
+<li><strong>The connection's own color comes first</strong> — a connection with a tab color of its own shows that color, whatever environment its credential belongs to.</li>
+<li><strong>Only credential-backed connections</strong> — the color reaches tabs that signed in with a stored credential, including a <a href="teamwork.html">teamwork</a> connection that uses the team's default credential. Connections that log in with an SSH key, a temporary key or a password of their own have no environment; give them a tab color of their own instead.</li>
+<li><strong>Applied on OK</strong> — color changes take effect when you click <strong>OK</strong> in the Environments dialog, and <strong>Cancel</strong> discards them. Open tabs in every window pick up the new colors at once, as they do when you move a credential to another environment.</li>
+<li><strong>Not by color alone</strong> — pointing at a tab colored this way names the color and the environment, for example <em>Tab color: purple (#7B1FA2), from the credential environment Lab</em> for an environment of your own named Lab. Screen readers read the same text for the dot.</li>
+<li><strong>Stored in <code>environments.xml</code></strong> — together with your own environments; see <a href="../reference/config-files.html#environmentsxml">Configuration files</a>.</li>
+</ul>
 <h3 id="features">Features<a class="headerlink" href="#features" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Environment-specific</strong> — Organize credentials by deployment environment</li>
@@ -846,7 +857,7 @@
 <h2 id="ssh-key-management">SSH Key Management<a class="headerlink" href="#ssh-key-management" title="Permanent link">&para;</a></h2>
 <p>Centralized management of private SSH keys with encrypted passphrases.</p>
 <h3 id="opening-the-manager_1">Opening the Manager<a class="headerlink" href="#opening-the-manager_1" title="Permanent link">&para;</a></h3>
-<p><strong>Menu:</strong> Management &gt; Manage SSH Keys</p>
+<p><strong>Menu:</strong> Configuration &gt; Security &gt; SSH-Keys… (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-i">I</kbd></span>, on macOS <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-i">I</kbd></span>)</p>
 <h3 id="adding-keys">Adding Keys<a class="headerlink" href="#adding-keys" title="Permanent link">&para;</a></h3>
 <ol>
 <li>Click <strong>Add</strong>.</li>
@@ -886,7 +897,7 @@
 <h2 id="gpg-key-management">GPG Key Management<a class="headerlink" href="#gpg-key-management" title="Permanent link">&para;</a></h2>
 <p>Manage GPG keys for backup encryption and connection/snippet export encryption.</p>
 <h3 id="opening-the-manager_2">Opening the Manager<a class="headerlink" href="#opening-the-manager_2" title="Permanent link">&para;</a></h3>
-<p><strong>Menu:</strong> Management &gt; Manage GPG Keys</p>
+<p><strong>Menu:</strong> Configuration &gt; Security &gt; GPG-Keys… (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-g">G</kbd></span>, on macOS <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-g">G</kbd></span>)</p>
 <h3 id="adding-keys_1">Adding Keys<a class="headerlink" href="#adding-keys_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Manual Entry</strong> — Click <strong>Add</strong> to enter key ID and email manually.</li>

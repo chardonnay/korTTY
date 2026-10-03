@@ -795,7 +795,7 @@
 </tr>
 <tr>
 <td><strong>Tabs</strong></td>
-<td>All terminal tabs in each window, including split-pane configurations, plus SFTP Manager tabs with the local and remote folders they show, and file editor and image viewer tabs</td>
+<td>All terminal tabs in each window, including split-pane configurations and the name of a <a href="terminal.html#working-with-tabs">renamed tab</a>, plus SFTP Manager tabs with the local and remote folders they show, and file editor and image viewer tabs</td>
 </tr>
 <tr>
 <td><strong>Connections</strong></td>
@@ -824,6 +824,7 @@
 <ul>
 <li>Restores all windows with their saved geometry (position and size)</li>
 <li>Reconnects each SSH tab using the original connection settings</li>
+<li>Gives each renamed terminal tab its name back; a tab you never renamed shows the connection's current name</li>
 <li>Shows each terminal tab's saved screen dimmed above the new session, framed by a <em>Restored output from</em> row with the date the project was saved and an <em>End of restored output</em> row. The text is written into the local terminal only and is never sent to the server: it does not reach the remote shell or its command history, and a session journal that starts with the connection does not record it (a journal you switch on later imports the scrollback, which then includes the restored rows). Control characters and escape sequences are removed from it before it is shown.</li>
 <li>Reopens each SFTP Manager tab at the local and remote folders it showed when the project was saved</li>
 <li>Restores the active tab and dashboard state</li>

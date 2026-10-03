@@ -775,14 +775,39 @@
 <td>Öffnen Sie die Schnellverbindung in einem neuen Terminal-Tab</td>
 </tr>
 <tr>
+<td>Tab umbenennen…</td>
+<td></td>
+<td>Dem aktiven Terminal-Tab statt des Verbindungsnamens oder des <a href="../features/terminal.html#titel-aus-der-shell">Titels, den seine Shell gesetzt hat</a>, einen eigenen Namen geben; ein leerer Name zeigt diesen wieder an. Verfügbar, solange ein Terminal-Tab aktiv ist. Siehe <a href="../features/terminal.html#arbeiten-mit-tabs">Arbeiten mit Tabs</a></td>
+</tr>
+<tr>
 <td>Tab schließen</td>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-w">W</kbd></span></td>
 <td>Schließen Sie die aktive Terminal-Registerkarte</td>
 </tr>
 <tr>
+<td>Andere Tabs schließen</td>
+<td></td>
+<td>Alle anderen Tabs des aktuellen Fensters schließen; der aktive Tab bleibt geöffnet. Fragt einmal nach, wenn einige der zu schließenden Terminals geteilte Bereiche oder einen laufenden Befehl haben. Derselbe Eintrag steht im Rechtsklickmenü eines Terminal-Tabs. Siehe <a href="../features/terminal.html#arbeiten-mit-tabs">Arbeiten mit Tabs</a></td>
+</tr>
+<tr>
+<td>Tabs rechts davon schließen</td>
+<td></td>
+<td>Die Tabs hinter dem aktiven Tab schließen, der geöffnet bleibt. Fragt wie „Andere Tabs schließen“ nach. Derselbe Eintrag steht im Rechtsklickmenü eines Terminal-Tabs</td>
+</tr>
+<tr>
 <td>Alle Tabs schließen</td>
 <td></td>
-<td>Alle Tabs im aktuellen Fenster schließen</td>
+<td>Alle Tabs im aktuellen Fenster schließen; „Geschlossenen Tab wieder öffnen“ holt die Terminal-Tabs zurück</td>
+</tr>
+<tr>
+<td>Geschlossenen Tab wieder öffnen</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-t">T</kbd></span></td>
+<td>Den zuletzt geschlossenen Terminal-Tab (oder die Tabs, die ein Befehl gemeinsam geschlossen hat) mit einer neuen Sitzung wieder öffnen; ausgegraut, solange es nichts wieder zu öffnen gibt. Derselbe Eintrag steht im Rechtsklickmenü eines Terminal-Tabs. Siehe <a href="../features/terminal.html#arbeiten-mit-tabs">Arbeiten mit Tabs</a></td>
+</tr>
+<tr>
+<td>Zuletzt geschlossen ▸</td>
+<td></td>
+<td>Was Sie in dieser Sitzung geschlossen haben, das Neueste zuerst: ein Tab, die Tabs, die ein Befehl gemeinsam geschlossen hat, oder <em>Fenster: …</em> für die Tabs eines geschlossenen Fensters. Wählen Sie einen Eintrag, um ihn wieder zu öffnen; <strong>Liste leeren</strong> leert die Liste</td>
 </tr>
 <tr>
 <td>Neues Fenster</td>
@@ -889,30 +914,36 @@
 <table>
 <thead>
 <tr>
-<th>Artikel</th>
+<th>Element</th>
+<th>Verknüpfung</th>
 <th>Beschreibung</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Tresor entsperren…</td>
-<td>Geben Sie das Master-Passwort ein, um gespeicherte Geheimnisse zu entsperren, wenn die Startaufforderung ausgeschaltet ist (ausgegraut, solange der Tresor entsperrt ist)</td>
+<td></td>
+<td>Das Master-Passwort eingeben, um gespeicherte Geheimnisse zu entsperren, wenn die Abfrage beim Start ausgeschaltet ist (ausgegraut, solange der Tresor entsperrt ist)</td>
 </tr>
 <tr>
-<td>Anmeldeinformationen…</td>
-<td>Gespeicherte Anmeldeinformationen verwalten (verschlüsselt)</td>
+<td>Zugangsdaten…</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-m">M</kbd></span></td>
+<td>Gespeicherte Zugangsdaten verwalten (verschlüsselt). Die Tastenkombination funktioniert auch, wenn ein Terminal den Fokus hat</td>
 </tr>
 <tr>
 <td>GPG-Schlüssel…</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-g">G</kbd></span></td>
 <td>GPG-Schlüssel verwalten, die für die Backup-Verschlüsselung verwendet werden</td>
 </tr>
 <tr>
 <td>SSH-Schlüssel…</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-i">I</kbd></span></td>
 <td>SSH-Schlüssel und Passphrasen verwalten</td>
 </tr>
 <tr>
 <td>Bekannte Hosts…</td>
-<td>Überprüfen, suchen und entfernen vertrauenswürdiger SSH-Hostschlüssel</td>
+<td></td>
+<td>Vertrauenswürdige SSH-Hostschlüssel prüfen, durchsuchen und entfernen</td>
 </tr>
 </tbody>
 </table>

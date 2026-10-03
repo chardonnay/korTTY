@@ -758,7 +758,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="window">Window<a class="headerlink" href="#window" title="Permanent link">&para;</a></h1>
-<p>This tab configures window geometry behavior, dashboard state retention, and menu bar visibility. Open via <strong>Configuration → Global Settings → Window</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
+<p>This tab configures window geometry behavior, dashboard state retention, menu bar visibility, the frame around the terminal of a colored connection, and whether terminal tabs take the title the shell sets. Open via <strong>Configuration → Global Settings → Window</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
 <p><img alt="Window settings tab" src="../../assets/screenshots/settings/window.png" /></p>
 <table>
 <thead>
@@ -791,6 +791,20 @@
 <td>—</td>
 <td>Off</td>
 <td><code>openToolWindowsAsTabs</code></td>
+</tr>
+<tr>
+<td>Frame the terminal in its connection's tab color</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>connectionColorBorderEnabled</code></td>
+</tr>
+<tr>
+<td>Name terminal tabs after the title the shell sets</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>tabTitleFromShellEnabled</code></td>
 </tr>
 <tr>
 <td>Use fixed window geometry</td>
@@ -842,7 +856,14 @@
 <p class="admonition-title">Note</p>
 <p>With <strong>Open tool windows as tabs</strong> enabled, management tools (Snippets, JobScheduler, AI Manager, Saved Chats, Session Journals, Credential/GPG/SSH key management, Video Manager, Teamwork settings, Terminal Effects) open as tabs in the main window instead of separate windows. The tab opens in the window whose menu you used, so with several main windows open each window collects its own tool tabs. Reopening a tool focuses its existing tab. The Snippet Manager is one tab per main window and opens the snippets you edit as tabs inside itself; a snippet editor opened from elsewhere (for example the SFTP Manager, the file browser or the terminal) and the session journal viewer open a new main-window tab each time, but a snippet that is already open in an editor is brought to the front instead of opening twice. The Full code analysis is a side panel inside the snippet editor, not a tab of its own. The setting takes effect the next time a tool is opened.</p>
 <p>A tool hosted as a tab has no separate window geometry. Its available size follows the main window and its saved main-window geometry.</p>
-</div></p>
+</div>
+<h2 id="tabs">Tabs<a class="headerlink" href="#tabs" title="Permanent link">&para;</a></h2>
+<p><strong>Frame the terminal in its connection's tab color</strong> draws a 3-pixel frame around the terminal of every tab whose connection has a <a href="../../features/connections.html#tab-color">tab color</a>, in addition to the colored dot on the tab, so a production server stands out right where you type. The frame surrounds the whole tab content — all split panes and the status bars below them — and connections without a tab color never get one. Switch it off to keep only the dot. The change applies to the open tabs of every window as soon as you save.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The frame takes 3 pixels on each side of the terminal. Turning it on or off therefore resizes the open terminals of every colored connection, and giving a connection a tab color or removing it resizes that connection's terminals: the remote side receives the new size, and full-screen programs such as <code>vim</code>, <code>htop</code> or <code>less</code> redraw.</p>
+</div>
+<p><strong>Name terminal tabs after the title the shell sets</strong> lets a terminal tab show the title that the shell or another program in it sets with the OSC 0 or OSC 2 escape sequence, such as <code>user@host: directory</code>, in place of the connection's name; a tab with split panes shows the title of its focused pane. A name you gave a tab with <a href="../../features/terminal.html#working-with-tabs">Rename Tab</a> still comes first. The server decides this title, so it is cleaned of control and bidi characters, capped at 80 characters and never changes the tab color; pointing at such a tab shows the connection it belongs to. Switch it off to keep the connection's names on every tab. The change applies to the open tabs of every window as soon as you save. See <a href="../../features/terminal.html#title-from-the-shell">Title from the shell</a>.</p></p>
     </article>
 </section>
             <!-- endblock -->
