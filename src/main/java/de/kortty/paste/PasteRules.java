@@ -5,7 +5,8 @@ import java.util.Set;
 /**
  * Decides which {@link PasteReason}s a paste raises. An empty set lets the paste through at once.
  *
- * <p>Implementations are pure and called on the JavaFX thread for every paste.
+ * <p>Implementations are pure and called on the JavaFX thread for every paste. {@link PasteDecision}
+ * implements korTTY's paste protection.
  */
 @FunctionalInterface
 public interface PasteRules {
