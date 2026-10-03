@@ -40,6 +40,7 @@ Many shells and programs set a terminal title with the OSC 0 or OSC 2 escape seq
 - The server decides this title, so korTTY removes control characters and the invisible bidi controls, caps it at 80 characters and never lets it change the tab color, the colored dot or the frame. Treat the title as a hint; the tooltip and the tab color tell you which connection it is.
 - The title is not saved with a [project](projects.md) and not kept by **Reopen Closed Tab**. A reconnect drops it until the new session sets one, and a program that restores the title it found on exit, as `vim` does, brings back the connection's name when there was none before.
 - The [Coding Agents](coding-agents.md) panel and the Control API's [`tab.list`](../reference/control-api.md#what-the-methods-do) report the title the tab shows.
+- On Windows, the console behind a local shell can set a title of its own, such as the path of `cmd.exe`, as it does in Windows Terminal; switch the setting below off to keep the connection's name.
 
 To keep the connection's names on every tab, switch off **Name terminal tabs after the title the shell sets** in the [Window settings](../reference/settings/window.md#tabs); the open tabs of every window follow as soon as you save.
 
