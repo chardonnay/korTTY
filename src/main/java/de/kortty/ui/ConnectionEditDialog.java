@@ -267,6 +267,10 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         savedCredentialsCombo = new ComboBox<>();
         savedCredentialsCombo.setPromptText(I18n.get("connEdit.selectCredential"));
         savedCredentialsCombo.setPrefWidth(300);
+        savedCredentialsCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override public String toString(StoredCredential c) { return c != null ? credentialLabel(c) : ""; }
+            @Override public StoredCredential fromString(String s) { return null; }
+        });
         updateCredentialCombo(connection.getHost());
         
         // Restore previously selected credential
@@ -1864,6 +1868,20 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         if (savedCredentialsCombo.getValue() != currentSelection) {
             onSavedCredentialSelected(savedCredentialsCombo.getValue());
         }
+    }
+
+    /** "name (user@environment)" with the environment's localized label. */
+    private static String credentialLabel(StoredCredential credential) {
+        de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+        String environment;
+        if (app != null && app.getEnvironmentManager() != null) {
+            environment = app.getEnvironmentManager().getDisplayName(credential.getEnvironmentId());
+        } else if (credential.getEnvironment() != null) {
+            environment = de.kortty.core.EnvironmentManager.builtInDisplayName(credential.getEnvironment());
+        } else {
+            environment = credential.getEnvironmentId();
+        }
+        return credential.getName() + " (" + credential.getUsername() + "@" + environment + ")";
     }
 
     private String protocolDisplayName(ConnectionProtocol protocol) {
