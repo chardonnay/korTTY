@@ -166,10 +166,18 @@ public class TerminalView extends BorderPane {
     public static class ConnectionResult {
         public final ServerConnection connection;
         public final String password;
-        
+        /** The temporary SSH key the connection signs in with, or null. */
+        public final de.kortty.model.TemporarySSHKey temporarySSHKey;
+
         public ConnectionResult(ServerConnection connection, String password) {
+            this(connection, password, null);
+        }
+
+        public ConnectionResult(ServerConnection connection, String password,
+                                de.kortty.model.TemporarySSHKey temporarySSHKey) {
             this.connection = connection;
             this.password = password;
+            this.temporarySSHKey = temporarySSHKey;
         }
     }
 
@@ -315,7 +323,10 @@ public class TerminalView extends BorderPane {
     private final ConnectionSettings settings;
     private final String password;
     private de.kortty.model.TemporarySSHKey temporarySSHKey;  // For split connections with temporary key
-    
+    // The connection each split pane runs when it is not the tab's (a "new connection" split and
+    // the same-server splits made from it), so a same-server split opens on the pane's own server.
+    private final PaneOrigins<SithTermFxWidget, TtyConnector> paneOrigins = new PaneOrigins<>();
+
     private TerminalSplitPane splitPane;
     // Quick select (Edit > Quick Select): its key filters are the split pane's first.
     private TerminalQuickSelectController quickSelect;
@@ -1228,6 +1239,7 @@ public class TerminalView extends BorderPane {
             return;
         }
         gutterMap.remove(widget);
+        paneOrigins.forget(widget);
         lastTimestampLineByWidget.remove(widget);
         timestampHistoryByWidget.remove(widget);
         awaitingCommandCompletionByWidget.remove(widget);
@@ -2327,6 +2339,9 @@ public class TerminalView extends BorderPane {
             return null;
         }
         TtyConnector baseConnector = unwrapTerminalEffectConnector(connector);
+        // A connector built for a split on another server than the tab's brings that origin along;
+        // keyed by the base connector, so a later re-decoration of the same session keeps it.
+        paneOrigins.bind(widget, baseConnector);
         applyTerminalEmulation(widget, baseConnector);
         installAgentShortcutInputInterceptor(widget, baseConnector);
         installTerminalRecordingInputListener(baseConnector);
@@ -2695,8 +2710,10 @@ public class TerminalView extends BorderPane {
     }
     
     /**
-     * Creates a new SSH TtyConnector for a split terminal.
-     * Each split gets its own independent SSH session to the same server.
+     * Creates a new TtyConnector for a split terminal.
+     * Each split gets its own independent session: NEW_CONNECTION to a connection the user picks,
+     * SAME_SERVER_NEW_SHELL to the server of the pane being split, which for a pane opened with
+     * "new connection" is that pane's server rather than the tab's.
      * For the initial terminal (request == null), returns null - connection is made later via connect().
      */
     private @Nullable TtyConnector createSplitConnector(@Nullable SplitRequest request) {
@@ -2704,18 +2721,35 @@ public class TerminalView extends BorderPane {
         if (request == null) {
             return null;
         }
-        
+
         // NEW_CONNECTION asks the user for a new connection; SAME_SERVER_NEW_SHELL
-        // opens a new session to the same server.
-        TtyConnector connector = request.getSplitMode() == SplitRequest.SplitMode.NEW_CONNECTION
-            ? createNewConnectionForSplit()
-            : createSameServerConnection();
+        // opens a new session to the server of the pane being split.
+        TtyConnector connector;
+        if (request.getSplitMode() == SplitRequest.SplitMode.NEW_CONNECTION) {
+            connector = createNewConnectionForSplit();
+        } else {
+            // The new pane inherits the parent's origin: null (the tab's) records nothing, so it
+            // follows the tab like its parent.
+            PaneOrigin inherited = paneOrigins.recorded(request.getParentWidget());
+            connector = createSameServerConnection(PaneOrigin.resolve(inherited, tabOrigin()));
+            if (connector != null) {
+                paneOrigins.expect(connector, inherited);
+            }
+        }
         if (connector != null) {
             de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.TERMINAL_SPLIT_CREATED, Map.of(
                 "mode", request.getSplitMode().name().toLowerCase(Locale.ROOT),
                 "split_count", (splitPane != null ? splitPane.getWidgetCount() : 0) + 1));
         }
         return connector;
+    }
+
+    /**
+     * The origin of every pane without one of its own: the tab's connection, password and temporary
+     * key as they are now.
+     */
+    private PaneOrigin tabOrigin() {
+        return new PaneOrigin(connection, password, temporarySSHKey);
     }
 
     private TtyConnector createConnectorForConnection(ServerConnection targetConnection, String targetPassword) {
@@ -2897,20 +2931,21 @@ public class TerminalView extends BorderPane {
     }
     
     /**
-     * Creates a new SSH connection to the same server (for same-server splits).
+     * Creates a new connection to the server of the pane being split (for same-server splits):
+     * {@code origin} is that pane's, which is the tab's unless the pane was split to another server.
      * Runs connect() in a background thread so the JavaFX thread stays responsive for
      * keyboard-interactive auth dialogs (e.g. CyberArk "reason for operation").
      * Ensures Stage/Label/ProgressIndicator and showAndWait() run on the FX Application Thread.
      */
-    private @Nullable TtyConnector createSameServerConnection() {
+    private @Nullable TtyConnector createSameServerConnection(PaneOrigin origin) {
         if (Platform.isFxApplicationThread()) {
-            return doCreateSameServerConnection();
+            return doCreateSameServerConnection(origin);
         }
         final TtyConnector[] result = new TtyConnector[1];
         try {
             java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
             Platform.runLater(() -> {
-                result[0] = doCreateSameServerConnection();
+                result[0] = doCreateSameServerConnection(origin);
                 latch.countDown();
             });
             latch.await();
@@ -2925,23 +2960,25 @@ public class TerminalView extends BorderPane {
      * Must be called on the JavaFX Application Thread. Creates UI (Stage, progress dialog),
      * starts connect() in a background thread, shows the dialog and waits for completion.
      */
-    private @Nullable TtyConnector doCreateSameServerConnection() {
+    private @Nullable TtyConnector doCreateSameServerConnection(PaneOrigin origin) {
+        ServerConnection target = origin.connection();
+        de.kortty.model.TemporarySSHKey targetKey = origin.temporaryKey();
         try {
             logger.info("Creating new SSH connection for split to {}@{}:{}",
-                    connection.getUsername(), connection.getHost(), connection.getPort());
+                    target.getUsername(), target.getHost(), target.getPort());
 
-            // Enterprise server policy. The tab passed it when it opened, but the connection
-            // editor changes a saved connection in place, so the host or jump server this tab now
+            // Enterprise server policy. The pane passed it when it opened, but the connection
+            // editor changes a saved connection in place, so the host or jump server this pane now
             // points at may have been edited to a blocked one since.
-            java.util.Optional<String> blocked = SplitConnectionPolicy.blockedTarget(connection);
+            java.util.Optional<String> blocked = SplitConnectionPolicy.blockedTarget(target);
             if (blocked.isPresent()) {
                 de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(blocked.get());
                 return null;
             }
 
             // Check if using temporary SSH key and if it's still valid
-            if (temporarySSHKey != null) {
-                if (!temporarySSHKey.isValid()) {
+            if (targetKey != null) {
+                if (!targetKey.isValid()) {
                     logger.error("Temporary SSH key has expired - cannot create split connection");
                     javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
                         javafx.scene.control.Alert.AlertType.ERROR);
@@ -2951,11 +2988,11 @@ public class TerminalView extends BorderPane {
                     alert.showAndWait();
                     return null;
                 }
-                logger.debug("Using temporary SSH key for split (valid for {} more seconds)", 
-                    temporarySSHKey.getRemainingSeconds());
+                logger.debug("Using temporary SSH key for split (valid for {} more seconds)",
+                    targetKey.getRemainingSeconds());
             }
-            
-            TtyConnector newConnector = createConnectorForConnection(connection, password);
+
+            TtyConnector newConnector = createConnectorForConnection(target, origin.password());
             
             // Run connect() in background thread so JavaFX can show keyboard-interactive dialogs
             AtomicReference<Boolean> connectSuccess = new AtomicReference<>(false);
@@ -3139,6 +3176,9 @@ public class TerminalView extends BorderPane {
                 }
                 return null;
             }
+            // The new pane runs this connection, not the tab's: a same-server split of it opens here.
+            paneOrigins.expect(newConnector,
+                    new PaneOrigin(connResult.connection, connResult.password, connResult.temporarySSHKey));
             return newConnector;
         } catch (Exception e) {
             logger.error("Failed to create new connection for split: {}", e.getMessage(), e);

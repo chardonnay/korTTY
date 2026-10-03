@@ -17,9 +17,10 @@ import java.util.Optional;
  *   <li>"Split with new connection": {@code MainWindow.requestNewConnectionForSplit} right after the
  *       connection dialog, returning {@code null} when it is blocked, which {@code TerminalView}
  *       treats like a cancelled dialog.</li>
- *   <li>"Split with same server": {@code TerminalView.doCreateSameServerConnection}, because the
- *       connection editor changes a saved connection in place, so an open tab's host or jump server
- *       can have been edited to a blocked one after the tab passed the gate.</li>
+ *   <li>"Split with same server": {@code TerminalView.doCreateSameServerConnection}, for the
+ *       connection of the pane being split ({@link PaneOrigin}), because the connection editor
+ *       changes a saved connection in place, so an open pane's host or jump server can have been
+ *       edited to a blocked one after the pane passed the gate.</li>
  * </ul>
  *
  * <p>Free of UI so the decision is unit-testable; later restore paths for panes on other servers

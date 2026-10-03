@@ -3047,7 +3047,7 @@ public class MainWindow {
                 }
             }
             
-            return new TerminalView.ConnectionResult(result.connection(), finalPassword);
+            return new TerminalView.ConnectionResult(result.connection(), finalPassword, result.temporarySSHKey());
         } catch (Exception e) {
             logger.error("Failed to request new connection for split", e);
             return null;
