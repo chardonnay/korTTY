@@ -766,7 +766,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h1>
-<p>Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einschließlich Abmessungen, Scrollback, Zeichenkodierung, Hervorhebung von Schlüsselwörtern, Links und SSH-Verbindungsverwaltung. Öffnen über <strong>Konfiguration → Globale Einstellungen → Terminal</strong>; in <code>~/.kortty/global-settings.xml</code> gespeichert.</p>
+<p>Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einschließlich Abmessungen, Scrollback, Zeichenkodierung, Hervorhebung von Schlüsselwörtern, Links, Einfügeschutz und SSH-Verbindungsverwaltung. Öffnen über <strong>Konfiguration → Globale Einstellungen → Terminal</strong>; in <code>~/.kortty/global-settings.xml</code> gespeichert.</p>
 <p><img alt="Terminal settings tab" src="../../assets/screenshots/settings/terminal.png" /></p>
 <table>
 <thead>
@@ -829,7 +829,7 @@
 <td><code>commandTimestampsEnabled</code></td>
 </tr>
 <tr>
-<td>Dateikopie per Drag-and-Drop in das Terminal zulassen</td>
+<td>Drag-and-Drop ins Terminal erlauben (Dateien werden per SFTP kopiert, Text wird eingefügt)</td>
 <td>umschalten</td>
 <td>–</td>
 <td>Ein</td>
@@ -883,6 +883,27 @@
 <td>–</td>
 <td>Ein</td>
 <td><code>terminalLinkDetectionEnabled</code></td>
+</tr>
+<tr>
+<td>Bei mehrzeiligem Einfügen warnen:</td>
+<td>Dropdown</td>
+<td>Aus, Außer das Programm verwendet Bracketed Paste, Immer</td>
+<td>Außer das Programm verwendet Bracketed Paste</td>
+<td><code>pasteWarningMode</code></td>
+</tr>
+<tr>
+<td>Warnen, wenn eingefügter Text größer ist als:</td>
+<td>Nummer</td>
+<td>0–10.240 KiB (0 = aus)</td>
+<td>5</td>
+<td><code>pasteLargeWarningKiB</code></td>
+</tr>
+<tr>
+<td>Pause nach jeder eingefügten Zeile:</td>
+<td>Nummer</td>
+<td>0–1.000 ms (0 = aus)</td>
+<td>0</td>
+<td><code>pasteLineDelayMs</code></td>
 </tr>
 <tr>
 <td>SSH Keep-Alive aktivieren</td>
@@ -980,6 +1001,12 @@
 <p>Wenn <strong>Web-Adressen, E-Mail-Adressen und Dateipfade im Terminaltext erkennen</strong> eingeschaltet ist, öffnet <span class="keys"><kbd class="key-command">Cmd</kbd></span> + Klick (macOS) bzw. <span class="keys"><kbd class="key-control">Ctrl</kbd></span> + Klick (Windows, Linux) eine Webadresse, eine E-Mail-Adresse oder einen Dateipfad, die ein Programm als Klartext ausgegeben hat: eine Webadresse in Ihrem Standardbrowser, eine E-Mail-Adresse als neue Mail in Ihrem Mailprogramm und in SSH- und lokalen Shell-Tabs einen Dateipfad als Text im Snippet-Editor. Ein einfacher Klick wählt weiterhin nur Text aus. Eine Änderung gilt sofort für die offenen Terminals. Links, die ein Programm selbst mit OSC 8 auszeichnet, öffnen sich in jedem Fall mit demselben Klick. Siehe <a href="../../features/terminal.html#links-in-der-terminalausgabe">Links in der Terminalausgabe</a>.</p>
 </div>
 <div class="admonition note">
+<p class="admonition-title">Einfügeschutz</p>
+<p>Legt fest, welcher ins Terminal eingefügte Text nachfragt, bevor er den Bereich erreicht; der Dialog selbst ist unter <a href="../../features/terminal.html#einfugeschutz">Einfügeschutz</a> beschrieben. <strong>Bei mehrzeiligem Einfügen warnen</strong> legt fest, wann eingefügter Text mit Zeilenumbruch nachfragt: <strong>Außer das Programm verwendet Bracketed Paste</strong> (der Standard) fragt nur nach, wenn das Programm im Bereich jeden Zeilenumbruch als Enter empfangen würde, <strong>Immer</strong> fragt bei jedem eingefügten Text mit Zeilenumbruch nach, und <strong>Aus</strong> fragt nie nach. Solange die Einstellung nicht <strong>Aus</strong> ist, fragt auch eingefügter Text mit Steuerzeichen (etwa Escape oder Strg+C) oder mit unsichtbaren Zeichen, die die Schreibrichtung ändern, nach, ob mit Bracketed Paste oder ohne. <strong>Warnen, wenn eingefügter Text größer ist als</strong> fragt bei jedem eingefügten Text über dieser Größe in KiB nach, unabhängig von der Auswahl im Dropdown; 0 schaltet die Größenprüfung ab. Beide Einstellungen gelten ab dem nächsten Einfügen. Sie werden als <code>pasteWarningMode</code> (<code>off</code>, <code>unless-bracketed</code> oder <code>always</code>; ein unbekannter Wert gilt als <code>unless-bracketed</code>) und <code>pasteLargeWarningKiB</code> gespeichert.</p>
+<p><strong>Pause nach jeder eingefügten Zeile</strong> ist für Geräte wie Switches, Router und Konsolenserver gedacht, die zu schnell eintreffende Eingaben verlieren: Mehrzeiliger eingefügter Text wird Zeile für Zeile gesendet, mit so vielen Millisekunden Pause nach jeder Zeile. Währenddessen nimmt der Bereich keine Tastatureingaben an, und <span class="keys"><kbd class="key-escape">Esc</kbd></span> bricht das Einfügen ab (siehe <a href="../../features/terminal.html#einfugen-in-langsame-gerate">Einfügen in langsame Geräte</a>). 0 sendet jeden eingefügten Text auf einmal. Die Einstellung wird als <code>pasteLineDelayMs</code> gespeichert.</p>
+<p>Ob ein Programm Bracketed Paste verwendet, meldet der Server, und jede Ausgabe kann es einschalten, auch in einer Shell wie <code>sh</code>, die es nicht beherrscht. Eingefügte Zeilenumbrüche werden dann ohne Warnung ausgeführt; wählen Sie daher <strong>Immer</strong>, wenn Sie auf Produktionsservern arbeiten.</p>
+</div>
+<div class="admonition note">
 <p class="admonition-title">SSH-Keep-Alive</p>
 <p>Wenn korTTY aktiviert ist, sendet es regelmäßig Keep-Alive-Pakete, um zu verhindern, dass SSH-Sitzungen während Leerlaufzeiten ablaufen. Die Intervalleinstellung steuert, wie oft (in Sekunden) diese Pakete gesendet werden. Der Spinnerbereich beträgt 5–600 Sekunden; Das Intervall ist deaktiviert, wenn SSH Keep-Alive ausgeschaltet ist.</p>
 </div>
@@ -988,8 +1015,9 @@
 <p>Dies ist die globale Einstellung mit der niedrigsten Priorität für den Host-Schlüssel: Sie entspannt die Prüfung und akzeptiert für jede Verbindung, die keine eigene oder die eigene Gruppeneinstellung überschreibt. Accept-new blockiert weiterhin geänderte Schlüssel bei einem Host, der bereits festgelegt wurde, und der Schlüssel eines Jump-Server ist stets streng überprüft — jedoch entfernt die Deaktivierung der ersten-Nutzung-Prüfung die Sicherheit vor einem Man-in-the-Middle bei der ersten Verbindung. Standardmäßig deaktiviert. Per-Verbindung- und per-Gruppen-Überwachungen werden im Connection-Manager konfiguriert; siehe <a href="../../features/security.html#lockere-uberprufung-des-hostschlussels">Sicherheit → Lockerung der Host-Schlüssel-Prüfung</a>.</p>
 </div>
 <div class="admonition note">
-<p class="admonition-title">Drag-and-Drop-Datei kopieren</p>
+<p class="admonition-title">Drag-and-Drop ins Terminal</p>
 <p>Wenn diese Option aktiviert ist, können Sie Dateien oder Ordner aus Ihrem Dateimanager (Finder unter macOS, Explorer unter Windows) direkt im Terminalfenster ablegen. Die Dateien werden über SFTP auf den Remote-SSH-Server kopiert.</p>
+<p>Text, der aus einem Browser, einem Editor oder einem anderen korTTY-Fenster auf einen Terminalbereich gezogen wird, wird in den Bereich unter dem Mauszeiger eingefügt und durchläuft wie jedes andere Einfügen den <a href="../../features/terminal.html#einfugeschutz">Einfügeschutz</a>; siehe <a href="../../features/terminal.html#text-ablegen">Text ablegen</a>. Ein Ziehvorgang, der Dateien und ihren Pfad als Text mitbringt, kopiert die Dateien. Mit dem <a href="../enterprise-policy.html#interner-zwischenablagemodus">internen Zwischenablagemodus</a> der Unternehmensrichtlinie wird Text, der aus einer anderen Anwendung gezogen wird, abgelehnt. Ist diese Einstellung aus, nimmt das Terminal weder Dateien noch Text an.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Befehlszeitstempel</p>
