@@ -158,6 +158,93 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void saveAndLoadPreservesHighlightRuleSetsAndSettings() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            de.kortty.model.HighlightRule match = new de.kortty.model.HighlightRule(" disk full ", false);
+            match.setIgnoreCase(false);
+            match.setWholeWord(true);
+            match.setForeground("ansi:1");
+            match.setBold(true);
+            de.kortty.model.HighlightRule line = new de.kortty.model.HighlightRule("^FATAL\\b.*", true);
+            line.setEnabled(false);
+            line.setScope(de.kortty.model.HighlightRule.Scope.LINE);
+            line.setBackground("#3a0000");
+            line.setItalic(true);
+            line.setUnderline(true);
+            manager.getSettings().getHighlightRuleSets().add(
+                new de.kortty.model.HighlightRuleSet("ops", "Ops <&> \"alerts\"", List.of(match, line)));
+            manager.getSettings().setTerminalHighlightingEnabled(false);
+            manager.getSettings().setDefaultHighlightRuleSetId("builtin.network");
+            manager.getSettings().setTerminalHighlightAlternateScreen(true);
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            GlobalSettings settings = reloaded.getSettings();
+            assertThat(settings.getHighlightRuleSets()).hasSize(1);
+            de.kortty.model.HighlightRuleSet set = settings.getHighlightRuleSets().get(0);
+            assertThat(set.getId()).isEqualTo("ops");
+            assertThat(set.getName()).isEqualTo("Ops <&> \"alerts\"");
+            assertThat(set.getRules()).hasSize(2);
+            de.kortty.model.HighlightRule first = set.getRules().get(0);
+            assertThat(first.getId()).isEqualTo(match.getId());
+            assertThat(first.getPattern()).isEqualTo(" disk full ");
+            assertThat(first.isRegex()).isFalse();
+            assertThat(first.isIgnoreCase()).isFalse();
+            assertThat(first.isWholeWord()).isTrue();
+            assertThat(first.isEnabled()).isTrue();
+            assertThat(first.getScope()).isEqualTo(de.kortty.model.HighlightRule.Scope.MATCH);
+            assertThat(first.getForeground()).isEqualTo("ansi:1");
+            assertThat(first.getBackground()).isNull();
+            assertThat(first.isBold()).isTrue();
+            assertThat(first.isItalic()).isFalse();
+            assertThat(first.isUnderline()).isFalse();
+            de.kortty.model.HighlightRule second = set.getRules().get(1);
+            assertThat(second.getPattern()).isEqualTo("^FATAL\\b.*");
+            assertThat(second.isRegex()).isTrue();
+            assertThat(second.isEnabled()).isFalse();
+            assertThat(second.getScope()).isEqualTo(de.kortty.model.HighlightRule.Scope.LINE);
+            assertThat(second.getBackground()).isEqualTo("#3a0000");
+            assertThat(second.isItalic()).isTrue();
+            assertThat(second.isUnderline()).isTrue();
+            assertThat(settings.isTerminalHighlightingEnabled()).isFalse();
+            assertThat(settings.getDefaultHighlightRuleSetId()).isEqualTo("builtin.network");
+            assertThat(settings.isTerminalHighlightAlternateScreen()).isTrue();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void highlightSettingsDefaultToNoSetOnLegacyXml() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings");
+        try {
+            // A settings file written before highlighting existed has none of its elements.
+            Files.writeString(dir.resolve("global-settings.xml"),
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<globalSettings><language>en</language></globalSettings>\n");
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            manager.load();
+            GlobalSettings settings = manager.getSettings();
+            assertThat(settings.getHighlightRuleSets()).isEmpty();
+            assertThat(settings.isTerminalHighlightingEnabled()).isTrue();
+            assertThat(settings.getDefaultHighlightRuleSetId()).isNull();
+            assertThat(settings.isTerminalHighlightAlternateScreen()).isFalse();
+
+            // Fresh installs start without a set as well: highlighting is opt-in.
+            GlobalSettings fresh = GlobalSettings.forFreshInstall();
+            assertThat(fresh.getDefaultHighlightRuleSetId()).isNull();
+            assertThat(fresh.isTerminalHighlightingEnabled()).isTrue();
+            assertThat(fresh.isTerminalHighlightAlternateScreen()).isFalse();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void saveAndLoadPreservesCustomSnippetCodeLanguages() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings");
         try {
