@@ -1,13 +1,16 @@
 package de.kortty.core;
 
+import de.kortty.model.EnvironmentColor;
 import de.kortty.model.EnvironmentDefinition;
 import de.kortty.model.StoredCredential;
+import de.kortty.ui.I18n;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;
+import jakarta.xml.bind.annotation.XmlElementWrapper;
 import jakarta.xml.bind.annotation.XmlRootElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,14 +20,18 @@ import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
  * Manages user-defined environments for credentials.
  * Built-in environments (PRODUCTION, DEVELOPMENT, TEST, STAGING) are always present;
- * custom environments are persisted in environments.xml.
+ * custom environments are persisted in environments.xml, together with the optional tab color of
+ * any environment, built-in or custom. No environment has a color until the user picks one: every
+ * credential starts out in PRODUCTION, so a default color would mark most tabs at once.
  */
 public class EnvironmentManager {
 
@@ -35,7 +42,8 @@ public class EnvironmentManager {
     private static final JAXBContext JAXB_CONTEXT;
     static {
         try {
-            JAXB_CONTEXT = JAXBContext.newInstance(EnvironmentsWrapper.class, EnvironmentDefinition.class);
+            JAXB_CONTEXT = JAXBContext.newInstance(EnvironmentsWrapper.class, EnvironmentDefinition.class,
+                    EnvironmentColor.class);
         } catch (JAXBException e) {
             throw new ExceptionInInitializerError(e);
         }
@@ -43,6 +51,8 @@ public class EnvironmentManager {
 
     private final Path configDir;
     private final List<EnvironmentDefinition> customEnvironments = new ArrayList<>();
+    /** Tab color ({@code #RRGGBB}) by environment id, for built-in and custom environments alike. */
+    private final Map<String, String> colors = new LinkedHashMap<>();
     private final StoreFileGuard guard;
 
     public EnvironmentManager(Path configDir) {
@@ -56,10 +66,15 @@ public class EnvironmentManager {
     public List<EnvironmentDefinition> getEnvironments() {
         List<EnvironmentDefinition> result = new ArrayList<>();
         for (StoredCredential.Environment e : StoredCredential.Environment.values()) {
-            result.add(new EnvironmentDefinition(e.name(), e.getDisplayName()));
+            result.add(new EnvironmentDefinition(e.name(), builtInDisplayName(e)));
         }
         result.addAll(customEnvironments);
         return result;
+    }
+
+    /** Localized label of a built-in environment; credentials keep storing its enum name. */
+    public static String builtInDisplayName(StoredCredential.Environment environment) {
+        return I18n.get(environment.i18nKey());
     }
 
     /**
@@ -67,11 +82,10 @@ public class EnvironmentManager {
      */
     public String getDisplayName(String environmentId) {
         if (environmentId == null || environmentId.isEmpty()) {
-            return StoredCredential.Environment.PRODUCTION.getDisplayName();
+            return builtInDisplayName(StoredCredential.Environment.PRODUCTION);
         }
         try {
-            StoredCredential.Environment e = StoredCredential.Environment.valueOf(environmentId);
-            return e.getDisplayName();
+            return builtInDisplayName(StoredCredential.Environment.valueOf(environmentId));
         } catch (IllegalArgumentException ignored) {
         }
         return customEnvironments.stream()
@@ -104,6 +118,7 @@ public class EnvironmentManager {
         guard.beginLoad();
         if (guard.isMissing()) {
             customEnvironments.clear();
+            colors.clear();
             logger.debug("No environments file found, using built-in only");
             return;
         }
@@ -119,7 +134,16 @@ public class EnvironmentManager {
             if (loaded.get().getEnvironments() != null) {
                 customEnvironments.addAll(loaded.get().getEnvironments());
             }
-            logger.info("Loaded {} custom environments from {}", customEnvironments.size(), file);
+            colors.clear();
+            if (loaded.get().getColors() != null) {
+                for (EnvironmentColor color : loaded.get().getColors()) {
+                    if (color != null) {
+                        setColor(color.getId(), color.getColor());
+                    }
+                }
+            }
+            logger.info("Loaded {} custom environments and {} environment colors from {}",
+                customEnvironments.size(), colors.size(), file);
         } catch (Exception e) {
             logger.warn("Failed to load environments, keeping the {} in memory: {}",
                 customEnvironments.size(), e.toString());
@@ -139,6 +163,7 @@ public class EnvironmentManager {
             marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
             EnvironmentsWrapper wrapper = new EnvironmentsWrapper();
             wrapper.setEnvironments(new ArrayList<>(customEnvironments));
+            wrapper.setColors(colorList());
             StringWriter xml = new StringWriter();
             marshaller.marshal(wrapper, xml);
             Files.createDirectories(configDir);
@@ -181,10 +206,81 @@ public class EnvironmentManager {
         return false;
     }
 
-    /** Removes a custom environment by id. Returns false if built-in or not found. */
+    /** Removes a custom environment by id, together with its color. Returns false if built-in or not found. */
     public boolean removeCustomEnvironment(String id) {
         if (isBuiltIn(id)) return false;
-        return customEnvironments.removeIf(e -> id.equals(e.getId()));
+        boolean removed = customEnvironments.removeIf(e -> id.equals(e.getId()));
+        if (removed) {
+            colors.remove(id);
+        }
+        return removed;
+    }
+
+    /**
+     * The tab color of an environment as {@code #RRGGBB}, or {@code null} when it has none: the
+     * terminal tabs of connections whose stored credential belongs to the environment show it,
+     * unless the connection has a tab color of its own.
+     */
+    public String getColor(String environmentId) {
+        return environmentId != null ? colors.get(environmentId) : null;
+    }
+
+    /**
+     * Sets or, with {@code null} or a value that is not a hex color, removes the tab color of an
+     * existing environment. An id that names no environment is ignored.
+     *
+     * @return whether the environment now has a color
+     */
+    public boolean setColor(String environmentId, String color) {
+        if (!exists(environmentId)) {
+            return false;
+        }
+        String normalized = ConnectionColorSupport.normalizeHex(color);
+        if (normalized == null) {
+            colors.remove(environmentId);
+            return false;
+        }
+        colors.put(environmentId, normalized);
+        return true;
+    }
+
+    /** The tab colors by environment id, as a copy; environments without a color are absent. */
+    public Map<String, String> getColors() {
+        return new LinkedHashMap<>(colors);
+    }
+
+    /**
+     * Gives every environment the color {@code newColors} names for it and removes the color of
+     * the others, as the Environments dialog does on OK. Ids that name no environment and values
+     * that are not hex colors are ignored.
+     *
+     * @return the colors before the change, so a failed save can put them back
+     */
+    public Map<String, String> replaceColors(Map<String, String> newColors) {
+        Map<String, String> previous = getColors();
+        colors.clear();
+        if (newColors != null) {
+            newColors.forEach(this::setColor);
+        }
+        return previous;
+    }
+
+    private boolean exists(String environmentId) {
+        if (environmentId == null || environmentId.isBlank()) {
+            return false;
+        }
+        return isBuiltIn(environmentId)
+            || customEnvironments.stream().anyMatch(e -> environmentId.equals(e.getId()));
+    }
+
+    /** The colors as they are written, or {@code null} so a file without colors keeps its old form. */
+    private List<EnvironmentColor> colorList() {
+        if (colors.isEmpty()) {
+            return null;
+        }
+        List<EnvironmentColor> list = new ArrayList<>();
+        colors.forEach((id, color) -> list.add(new EnvironmentColor(id, color)));
+        return list;
     }
 
     @XmlRootElement(name = "environments")
@@ -193,12 +289,25 @@ public class EnvironmentManager {
         @XmlElement(name = "environment")
         private List<EnvironmentDefinition> environments;
 
+        /** Tab colors of built-in and custom environments; absent in files written before colors existed. */
+        @XmlElementWrapper(name = "colors")
+        @XmlElement(name = "color")
+        private List<EnvironmentColor> colors;
+
         public List<EnvironmentDefinition> getEnvironments() {
             return environments;
         }
 
         public void setEnvironments(List<EnvironmentDefinition> environments) {
             this.environments = environments;
+        }
+
+        public List<EnvironmentColor> getColors() {
+            return colors;
+        }
+
+        public void setColors(List<EnvironmentColor> colors) {
+            this.colors = colors;
         }
     }
 }

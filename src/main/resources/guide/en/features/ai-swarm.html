@@ -409,6 +409,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="highlighting.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Keyword highlighting
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="tunnels.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -856,6 +864,7 @@
 <p>Switching the checkbox on first shows the cost warning with an estimate of the tokens and cost per run. While the swarm runs, the dashboard shows <em>Session journal: recording…</em>; afterwards it reports how many journals were kept, discarded or identical to an earlier run, their journal AI tokens and cost once the summaries are written, and <strong>Open</strong> opens them in the journal viewer. <strong>Schedule…</strong> carries the journal settings into the new job.</p>
 <h2 id="run-control">Run control<a class="headerlink" href="#run-control" title="Permanent link">&para;</a></h2>
 <p>The toolbar offers the same four controls for the <strong>whole swarm</strong>: <strong>Pause</strong>, <strong>Resume</strong>, <strong>Restart</strong>, and <strong>Stop</strong>. Pausing is cooperative — each agent pauses at its next safe checkpoint (the badge shows <em>Pausing…</em> until it takes effect), and elapsed timers stop while paused.</p>
+<p>Closing the swarm tab stops a running swarm or script run like <strong>Stop</strong>, whether you close it with its close button, <strong>Close Tab</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-w">W</kbd></span>, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-w">W</kbd></span> on macOS), <strong>Close Other Tabs</strong>, <strong>Close Tabs to the Right</strong>, <strong>Close All Tabs</strong>, by opening a project or by closing the window, so no agent goes on running commands on its server after the tab is gone.</p>
 <h2 id="read-only-mode-and-approvals">Read-only mode and approvals<a class="headerlink" href="#read-only-mode-and-approvals" title="Permanent link">&para;</a></h2>
 <p>The <strong>Read-only</strong> checkbox keeps every agent restricted to non-mutating commands. With read-only off, the <strong>Approval</strong> policy decides how system-changing commands are confirmed:</p>
 <table>

@@ -59,7 +59,7 @@ users = ["eve"]
 
 Die `[rule.servers]`-Tabelle schränkt ein, zu welchen Servern ein Benutzer eine Verbindung herstellen darf – als Zulassungsliste (`mode = "allow"`: nur aufgelistete Server sind erreichbar) oder als Sperrliste (`mode = "deny"`: aufgelistete Server sind blockiert). Die Einschränkung wird zentral für jeden Verbindungspfad durchgesetzt: gespeicherte Verbindungen, QuickConnect, geteilte Panes (mit neuer Verbindung oder zum selben Server), Sitzungswiederherstellung, SFTP, von Teamwork freigegebene Verbindungen, KI-Schwarmziele und geplante Jobs, einschließlich des Jump-Hosts einer Verbindung. Blockierte Verbindungen bleiben im Connection-Manager sichtbar, werden jedoch mit einer Sperrmarkierung ausgegraut und bei jedem Verbindungsversuch wird eine eindeutige Richtlinienmeldung angezeigt.
 
-**Gruppe öffnen** in der Schnellverbindung überspringt jede Verbindung der Gruppe, deren Server oder Jump-Server gesperrt ist, und nennt sie alle in einer Richtlinienmeldung; die übrigen Verbindungen der Gruppe öffnen sich weiterhin. **Duplizieren** an einem Tab prüft die Richtlinie, bevor es nach einem Passwort fragt, und ein offener Tab prüft sie bei jedem Verbindungs- und Neuverbindungsversuch erneut, weil das Bearbeiten einer gespeicherten Verbindung auch die bereits daraus geöffneten Tabs ändert. Zeigt ein Tab nach einer solchen Änderung auf einen gesperrten Server oder Jump-Server, zeigt sein Terminal die Richtlinienmeldung, und korTTY versucht es nicht weiter, auch nicht per automatischer Neuverbindung.
+**Gruppe öffnen** in der Schnellverbindung überspringt jede Verbindung der Gruppe, deren Server oder Jump-Server gesperrt ist, und nennt sie alle in einer Richtlinienmeldung; die übrigen Verbindungen der Gruppe öffnen sich weiterhin. **Verbinden** im Connection-Manager, **Duplizieren** an einem Tab und **Geschlossenen Tab wieder öffnen** prüfen die Richtlinie, bevor sie nach einem Passwort, einem temporären SSH-Schlüssel oder dem Master-Passwort fragen, und ein offener Tab prüft sie bei jedem Verbindungs- und Neuverbindungsversuch erneut, weil das Bearbeiten einer gespeicherten Verbindung auch die bereits daraus geöffneten Tabs ändert. Zeigt ein Tab nach einer solchen Änderung auf einen gesperrten Server oder Jump-Server, zeigt sein Terminal die Richtlinienmeldung, und korTTY versucht es nicht weiter, auch nicht per automatischer Neuverbindung.
 
 Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindung konfiguriert ist – korTTY löst DNS nie für Richtlinienprüfungen auf, daher sind Hostnamen und IP-Adressen separate Namespaces: Wenn ein Server in beide Richtungen erreichbar ist, listen Sie beide auf.
 
@@ -210,7 +210,7 @@ groups = ["compliance"]
 
 | Schlüssel | Typ | Werte | Wirkung |
 | --- | --- | --- | --- |
-| `load-into-snippet-editor` | Zeichenfolge | `allow`, `read-only`, `deny` | `read-only` Lädt weiterhin entfernte Dateien in den Snippet-Editor, verbietet jedoch das Zurückschreiben in das Zielsystem; `deny` entfernt die Funktion vollständig |
+| `load-into-snippet-editor` | Zeichenfolge | `allow`, `read-only`, `deny` | `read-only` lädt weiterhin entfernte Dateien in den Snippet-Editor, verbietet jedoch das Zurückschreiben in das Zielsystem; `deny` entfernt die Funktion vollständig, einschließlich des Öffnens von Dateipfaden und `file:`-Links aus der Terminalausgabe ([Links in der Terminalausgabe](../features/terminal.md#links-in-der-terminalausgabe)) |
 
 ### `[rule.logging]`
 

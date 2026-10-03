@@ -67,6 +67,15 @@ public class ServerConnection {
     @XmlElement
     private Double terminalEffectAnimationSpeed;
 
+    /**
+     * Keyword highlighting rule set this connection's terminal panes show: the id of a built-in or user
+     * set, {@code "none"} for explicitly no highlighting, or {@code null} to follow the global default.
+     * A pane's own runtime choice still wins; an id that names no set (a set deleted since, or one from
+     * a shared teamwork file) is skipped. See {@link de.kortty.core.highlight.TerminalHighlightService}.
+     */
+    @XmlElement
+    private String highlightRuleSetId;
+
     /** SithTermFX terminal emulation type stored as enum name. */
     @XmlElement
     private String terminalEmulationType = "XTERM";
@@ -85,6 +94,14 @@ public class ServerConnection {
     /** Optional free-text label, independent of the group hierarchy. Null = untagged. */
     @XmlElement
     private String tag;
+
+    /**
+     * Color that marks this connection's terminal tabs, as {@code #RRGGBB}; {@code null} = no color
+     * of its own. Read through {@link de.kortty.core.ConnectionColorSupport#normalizeHex}, which
+     * ignores anything that is not a hex color (the value can come from a shared teamwork file).
+     */
+    @XmlElement
+    private String tabColor;
 
     /**
      * Per-connection host-key verification override. {@code null} inherits from the group/global
@@ -193,10 +210,12 @@ public class ServerConnection {
         c.windowGeometry = source.windowGeometry;
         c.terminalEffectPluginId = source.terminalEffectPluginId;
         c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
+        c.highlightRuleSetId = source.highlightRuleSetId;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
         c.group = source.group;
         c.tag = source.tag;
+        c.tabColor = source.tabColor;
         c.disableHostKeyCheck = source.disableHostKeyCheck;
         c.usageCount = source.usageCount;
         c.lastUsed = source.lastUsed;
@@ -240,10 +259,12 @@ public class ServerConnection {
         c.privateKeyPath = source.privateKeyPath;
         c.terminalEffectPluginId = source.terminalEffectPluginId;
         c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
+        c.highlightRuleSetId = source.highlightRuleSetId;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
         c.group = source.group;
         c.tag = source.tag;
+        c.tabColor = source.tabColor;
         c.disableHostKeyCheck = source.disableHostKeyCheck;
         c.aiProfileId = source.aiProfileId;
         c.setAiSkillIds(source.getAiSkillIds());
@@ -268,6 +289,7 @@ public class ServerConnection {
         c.port = source.port;
         c.group = source.group;
         c.tag = source.tag;
+        c.tabColor = source.tabColor;
         c.protocol = source.protocol;
         c.localShellCommand = source.localShellCommand;
         c.localShellWorkingDirectory = source.localShellWorkingDirectory;
@@ -277,6 +299,7 @@ public class ServerConnection {
         c.disableHostKeyCheck = source.disableHostKeyCheck;
         c.terminalEffectPluginId = source.terminalEffectPluginId;
         c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
+        c.highlightRuleSetId = source.highlightRuleSetId;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
         c.username = includeUsername ? source.username : "";
@@ -450,6 +473,20 @@ public class ServerConnection {
         this.terminalEffectAnimationSpeed = terminalEffectAnimationSpeed;
     }
 
+    /**
+     * The connection's keyword highlighting rule set as stored: a set id, {@code "none"} for no
+     * highlighting, or {@code null} to follow the global default rule set.
+     */
+    public String getHighlightRuleSetId() {
+        return highlightRuleSetId;
+    }
+
+    /** Sets the connection's rule set; {@code null} or blank follows the global default. */
+    public void setHighlightRuleSetId(String highlightRuleSetId) {
+        this.highlightRuleSetId = highlightRuleSetId != null && !highlightRuleSetId.isBlank()
+                ? highlightRuleSetId.trim() : null;
+    }
+
     public String getTerminalEmulationType() {
         return terminalEmulationType != null && !terminalEmulationType.isBlank()
                 ? terminalEmulationType
@@ -484,6 +521,15 @@ public class ServerConnection {
 
     public void setTag(String tag) {
         this.tag = tag;
+    }
+
+    /** The color that marks this connection's terminal tabs as stored; {@code null} when it has none. */
+    public String getTabColor() {
+        return tabColor;
+    }
+
+    public void setTabColor(String tabColor) {
+        this.tabColor = tabColor;
     }
 
     /** {@code null} = inherit, {@code true} = don't verify (accept-new), {@code false} = force strict. */

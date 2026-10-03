@@ -409,6 +409,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/highlighting.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Hervorhebung von Schlüsselwörtern
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/tunnels.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -763,43 +771,44 @@
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>~/.kortty/
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── connections.xml                    # Saved SSH connections
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── credentials.xml                    # Stored credentials (encrypted)
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── ssh-keys.xml                       # SSH key management
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── gpg-keys.xml                       # GPG keys for backup encryption
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── global-settings.xml                # Global application settings
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── llm/
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│   ├── models.xml                     # Local GGUF registrations/settings
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│   ├── models/                        # Managed GGUF weights
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│   ├── runtime/                       # Versioned llama.cpp packages, activation and revocation state
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>│   ├── catalog/                       # Verified model/prompt catalog cache
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│   └── run/                           # Temporary sidecar state
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>├── rag/
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>│   ├── stores.json                    # Knowledge stores and source configuration
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│   └── stores/                        # Local HNSW snapshots
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>├── ai-chats.xml                       # Saved AI conversations
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>├── snippets.xml                       # Code snippets and scripts
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>├── snippet-variables.xml              # Snippet variable storage
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>├── snippet-analyses/                  # Stored Full code analyses, one &lt;snippet-id&gt;.json per snippet
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>├── snippet-drafts/                    # Unsaved snippet-editor forms (owner-only; not backed up)
-</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>├── job-scheduler.xml                  # JobScheduler jobs, host-key pins, sudo secrets, journal
-</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>├── ssh-host-keys.properties           # Interactive Terminal/SFTP/Mosh host-key pins
-</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>├── ssh-host-keys.properties.lock      # Transient cross-process writer lock (not backed up)
-</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>├── ssh-tunnel-approvals.properties    # SSH tunnel sets you allowed to open, per connection (not backed up)
-</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>├── master.key                         # Hashed master password (PBKDF2)
-</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>├── master.autounlock                  # Optional auto-login password (obfuscated; owner-only)
-</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
-</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>├── coding-agents/                     # User overrides for coding-agent detection rules
-</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>├── control/                           # Control API endpoint (owner-only 0700; only while enabled)
-</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>│   ├── control.sock                   # Unix socket (Linux/macOS); absent on Windows
-</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>│   └── endpoint.json                  # Transport, port and access token (0600); deleted on exit
-</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>├── kortty.log                         # Application log file
-</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>├── history/                           # Terminal session history (compressed)
-</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>├── journals/                          # Session journals (one directory per journal)
-</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>├── terminal-logs/                     # Default folder for per-connection terminal logs
-</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>├── plugins/                           # Imported terminal-effect plugin JARs
-</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
-</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>├── projects/                          # Project files (.kortty)
-</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>├── i18n/                              # Generated language files (messages_*.properties)
-</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>└── ssh-keys/                          # Optional copied SSH keys (included in backups)
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── environments.xml                   # Your own credential environments and environment tab colors
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── ssh-keys.xml                       # SSH key management
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── gpg-keys.xml                       # GPG keys for backup encryption
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── global-settings.xml                # Global application settings
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>├── llm/
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│   ├── models.xml                     # Local GGUF registrations/settings
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│   ├── models/                        # Managed GGUF weights
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>│   ├── runtime/                       # Versioned llama.cpp packages, activation and revocation state
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│   ├── catalog/                       # Verified model/prompt catalog cache
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>│   └── run/                           # Temporary sidecar state
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>├── rag/
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│   ├── stores.json                    # Knowledge stores and source configuration
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│   └── stores/                        # Local HNSW snapshots
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>├── ai-chats.xml                       # Saved AI conversations
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>├── snippets.xml                       # Code snippets and scripts
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>├── snippet-variables.xml              # Snippet variable storage
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>├── snippet-analyses/                  # Stored Full code analyses, one &lt;snippet-id&gt;.json per snippet
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>├── snippet-drafts/                    # Unsaved snippet-editor forms (owner-only; not backed up)
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>├── job-scheduler.xml                  # JobScheduler jobs, host-key pins, sudo secrets, journal
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>├── ssh-host-keys.properties           # Interactive Terminal/SFTP/Mosh host-key pins
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>├── ssh-host-keys.properties.lock      # Transient cross-process writer lock (not backed up)
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>├── ssh-tunnel-approvals.properties    # SSH tunnel sets you allowed to open, per connection (not backed up)
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>├── master.key                         # Hashed master password (PBKDF2)
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>├── master.autounlock                  # Optional auto-login password (obfuscated; owner-only)
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>├── coding-agents/                     # User overrides for coding-agent detection rules
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>├── control/                           # Control API endpoint (owner-only 0700; only while enabled)
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>│   ├── control.sock                   # Unix socket (Linux/macOS); absent on Windows
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>│   └── endpoint.json                  # Transport, port and access token (0600); deleted on exit
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>├── kortty.log                         # Application log file
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>├── history/                           # Terminal session history (compressed)
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>├── journals/                          # Session journals (one directory per journal)
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>├── terminal-logs/                     # Default folder for per-connection terminal logs
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>├── plugins/                           # Imported terminal-effect plugin JARs
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>├── projects/                          # Project files (.kortty)
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>├── i18n/                              # Generated language files (messages_*.properties)
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>└── ssh-keys/                          # Optional copied SSH keys (included in backups)
 </span></code></pre></div>
 <h2 id="core-konfigurationsdateien">Core-Konfigurationsdateien<a class="headerlink" href="#core-konfigurationsdateien" title="Permanent link">&para;</a></h2>
 <h3 id="connectionsxml">connections.xml<a class="headerlink" href="#connectionsxml" title="Permanent link">&para;</a></h3>
@@ -816,7 +825,9 @@
 - Einstellungen für das Sitzungsjournal pro Verbindung (aktivieren, typisierte Eingaben erfassen, KI-Zusammenfassungen, Zusammenfassungsintervall)
 - Einstellungen für Fenstergeometrie
 - Gruppen-/Ordnerorganisation
-- Optionaler Freitext-Tag (wird für Suche, Massen-Tagging und Tag-basierten Export verwendet)</p>
+- Optionaler Freitext-Tag (wird für Suche, Massen-Tagging und Tag-basierten Export verwendet)
+- Optionaler Regelsatz für die Hervorhebung von Schlüsselwörtern (<code>highlightRuleSetId</code>): die ID eines mitgelieferten oder eigenen Regelsatzes, <code>none</code> für keine Hervorhebung oder nicht vorhanden, um dem Standard-Regelsatz zu folgen (siehe <a href="../features/highlighting.html#regelsatz-pro-verbindung">Regelsatz pro Verbindung</a>). Verbindungen aus einer <a href="../features/teamwork.html">Teamarbeit</a>-Datei können ihn ebenfalls enthalten; die ID eines Regelsatzes, der auf Ihrem Computer nicht existiert, wird ignoriert.
+- Optionale Tab-Farbe (<code>tabColor</code>, <code>#RRGGBB</code>), die die Terminal-Tabs der Verbindung mit einem farbigen Punkt markiert; alles, was keine Hex-Farbe ist, wird ignoriert (siehe <a href="../features/connections.html#tab-farbe">Tab-Farbe</a>). Verbindungen aus einer <a href="../features/teamwork.html">Teamarbeit</a>-Datei können sie ebenfalls enthalten, sodass derjenige, der die Datei pflegt, entscheidet, wie diese Tabs markiert werden.</p>
 <p><strong>Sicherheit:</strong> Verbindungspasswörter werden mit AES-256-GCM unter Verwendung des Master-Passworts verschlüsselt.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -826,10 +837,16 @@
 <p>Zentralisierte Speicherung von Anmeldeinformationen für Benutzername/Passwort-Paare.</p>
 <p><strong>Beinhaltet:</strong>
 - Anmeldename, Benutzername, Passwort
-- Environment (Produktion, Entwicklung, Test, Staging)
+- Umgebung (Produktion, Entwicklung, Test, Staging oder eine eigene aus <code>environments.xml</code>)
 - Server-Muster (Glob-Muster wie <code>*.example.com</code> oder <code>10.0.0.*</code>)
 - Automatische Zuweisung zu Verbindungen, die dem Muster entsprechen</p>
 <p><strong>Sicherheit:</strong> Alle Passwörter werden mit AES-256-GCM verschlüsselt.</p>
+<h3 id="environmentsxml">environments.xml<a class="headerlink" href="#environmentsxml" title="Permanent link">&para;</a></h3>
+<p>Ihre eigenen Anmeldeumgebungen und die Tab-Farben aller Umgebungen (siehe <a href="../features/security.html#umgebungen-und-tab-farben">Umgebungen und Tab-Farben</a>).</p>
+<p><strong>Beinhaltet:</strong>
+- Eigene Umgebungen mit ihrer ID und ihrem Anzeigenamen (<code>&lt;environment id="custom-…" displayName="Lab"/&gt;</code>); die integrierten Umgebungen Produktion, Entwicklung, Test und Staging werden nicht gespeichert
+- Optionale Tab-Farben integrierter und eigener Umgebungen (<code>&lt;colors&gt;&lt;color id="PRODUCTION" color="#D32F2F"/&gt;&lt;/colors&gt;</code>); ein Wert, der keine Hex-Farbe ist, oder die Farbe einer Umgebung, die es nicht mehr gibt, wird ignoriert</p>
+<p>Eine Datei ohne Farben, wie frühere Versionen sie geschrieben haben, wird unverändert geladen. Ohne die Datei kennt korTTY nur die integrierten Umgebungen, und keine Umgebung hat eine Farbe.</p>
 <h3 id="ssh-keysxml">ssh-keys.xml<a class="headerlink" href="#ssh-keysxml" title="Permanent link">&para;</a></h3>
 <p>Verwaltet die zentrale SSH-Schlüsselspeicherung.</p>
 <p><strong>Beinhaltet:</strong>
@@ -870,6 +887,8 @@
 <li>Präferenz für die Sichtbarkeit der Menüleiste</li>
 <li>Dashboard-Sichtbarkeitsstatus</li>
 <li>Flag „Toolfenster als Registerkarten öffnen“.</li>
+<li><code>connectionColorBorderEnabled</code>: ob das Terminal einer Verbindung mit einer <a href="../features/connections.html#tab-farbe">Tab-Farbe</a> einen Rahmen in dieser Farbe erhält (standardmäßig aktiviert)</li>
+<li><code>tabTitleFromShellEnabled</code>: ob ein Terminal-Tab statt des Verbindungsnamens den <a href="../features/terminal.html#titel-aus-der-shell">Titel anzeigt, den seine Shell setzt</a> (standardmäßig aktiviert)</li>
 <li>Angedocktes Live-Sitzungsjournal-Panel: Platzierung (versteckt/links/rechts) und Breite</li>
 <li>JobScheduler-Statusanzeigeeinstellung</li>
 <li>Letzte Vorschau-Zoomstufe des ASCII-Art-Dialogfelds</li>
@@ -883,6 +902,12 @@
 <li>Standardeinstellungen für das Terminaleffekt-Plugin</li>
 <li>SSH Keep-Alive-Einstellungen</li>
 <li>Verbindungszeitlimit und Standardwerte für Wiederholungsversuche</li>
+</ul>
+<h4 id="hervorhebung-von-schlusselwortern">Hervorhebung von Schlüsselwörtern<a class="headerlink" href="#hervorhebung-von-schlusselwortern" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Der Hauptschalter (<code>terminalHighlightingEnabled</code>), die Hervorhebung in Vollbildprogrammen (<code>terminalHighlightAlternateScreen</code>) und der Standard-Regelsatz (<code>defaultHighlightRuleSetId</code>, die ID eines mitgelieferten oder eigenen Regelsatzes; leer bedeutet keiner)</li>
+<li>Ihre eigenen Regelsätze (<code>highlightRuleSets</code>), wie sie im <a href="../features/highlighting.html#ihre-eigenen-regelsatze">Regelsatz-Editor</a> bearbeitet werden: Jeder Regelsatz hat eine stabile ID, einen Namen und seine Regeln in Prioritätsreihenfolge, und jede Regel hat ihre ID, ob sie eingeschaltet ist, das Muster, ob es ein regulärer Ausdruck ist, Groß-/Kleinschreibung ignorieren, ganzes Wort, ob sie den Treffer oder die ganze Zeile färbt, die Text- und Hintergrundfarbe (<code>#RRGGBB</code>, eine Themenfarbe von <code>ansi:0</code> bis <code>ansi:15</code> oder leer, um die Farbe des Programms beizubehalten) sowie fett, kursiv und unterstrichen</li>
+<li>Die mitgelieferten Regelsätze werden nicht gespeichert: Sie werden mit korTTY ausgeliefert, sodass eine neue Version sie verbessern kann, und ihre IDs beginnen mit <code>builtin.</code>, was Ihre eigenen Regelsätze nicht verwenden können</li>
 </ul>
 <h4 id="ai-modelle-und-wissensspeicher">AI, Modelle und Wissensspeicher<a class="headerlink" href="#ai-modelle-und-wissensspeicher" title="Permanent link">&para;</a></h4>
 <ul>
@@ -1155,7 +1180,7 @@
 <h2 id="sicherung-und-wiederherstellung">Sicherung und Wiederherstellung<a class="headerlink" href="#sicherung-und-wiederherstellung" title="Permanent link">&para;</a></h2>
 <p>Wenn Sie über <em>Bearbeiten &gt; Backup erstellen</em> ein Backup erstellen, ist die folgende Konfiguration enthalten:</p>
 <ul>
-<li>Alle <code>.xml</code>-Konfigurationsdateien (Verbindungen, Anmeldeinformationen, SSH-Schlüsselreferenzen und Passphrasen, GPG-Schlüssel, globale Einstellungen, JobScheduler, Snippets, Snippet-Variablen, KI-Chats)</li>
+<li>Alle <code>.xml</code> Konfigurationsdateien (Verbindungen, Anmeldeinformationen, Anmeldeumgebungen, SSH-Schlüsselreferenzen und Passphrasen, GPG-Schlüssel, globale Einstellungen, JobScheduler, Snippets, Snippet-Variablen, KI-Chats)</li>
 <li><code>master.key</code></li>
 <li><code>projects/</code> Verzeichnis</li>
 <li><code>ssh-keys/</code>-Verzeichnis – kopierte SSH-Schlüsseldateien (wiederhergestellt mit Nur-Eigentümer-Berechtigungen; Importe führen lokale Schlüssel zusammen und löschen sie niemals)</li>

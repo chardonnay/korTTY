@@ -34,7 +34,7 @@ Ein Projekt erfasst den vollständigen Zustand Ihres Arbeitsbereichs:
 | Komponente | Einzelheiten |
 |-----------|---------|
 | **Windows** | Alle geöffneten KorTTY-Fenster und ihre Positionen/Größen |
-| **Tabs** | Alle Terminal-Tabs in jedem Fenster, einschließlich Split-Pane-Konfigurationen, sowie SFTP-Manager-Tabs mit den lokalen und entfernten Ordnern, die sie anzeigen, sowie Tabs des Dateieditors und Bildbetrachters |
+| **Tabs** | Alle Terminal-Tabs in jedem Fenster, einschließlich der Konfiguration geteilter Bereiche und des Namens eines [umbenannten Tabs](terminal.md#arbeiten-mit-tabs), dazu SFTP-Manager-Tabs mit den lokalen und entfernten Ordnern, die sie anzeigen, sowie Tabs des Dateieditors und des Bildbetrachters |
 | **Verbindungen** | Ein Verweis auf die gespeicherte Verbindung jedes Tabs, anhand der internen ID der Verbindung, sodass das Umbenennen einer Verbindung das Projekt nicht bricht |
 | **Dashboard** | Sichtbarkeit des Armaturenbretts und Position der Trennwand |
 | **Aktiver Tab** | Welche Registerkarte war in jedem Fenster aktiv |
@@ -49,6 +49,7 @@ Wenn **Auto-Reconnect** aktiviert ist, führt KorTTY automatisch Folgendes durch
 
 - Stellt alle Fenster mit ihrer gespeicherten Geometrie (Position und Größe) wieder her.
 - Verbindet jede SSH-Registerkarte erneut mit den ursprünglichen Verbindungseinstellungen
+- Gibt jeder umbenannten Terminal-Registerkarte ihren Namen zurück; eine Registerkarte, die Sie nie umbenannt haben, zeigt den aktuellen Namen der Verbindung
 - Zeigt jeden Tab des Terminals mit dem gespeicherten Bildschirm, der über die neue Sitzung abgedunkelt ist, eingerahmt von einer *Wiederhergestellten Ausgabe aus* Zeile mit dem Datum, an dem das Projekt gespeichert wurde, und einer *Ende der wiederhergestellten Ausgabe* Zeile. Der Text wird nur in das lokale Terminal geschrieben und niemals an den Server gesendet: Er erreicht die Remote-Shell oder deren Befehlsverlauf nicht, und ein Sitzungsjournal, das mit der Verbindung beginnt, zeichnet ihn nicht auf (ein Journal, das Sie später aktivieren, importiert den Scrollback, der dann die wiederhergestellten Zeilen enthält). Steuerzeichen und Escape-Sequenzen werden daraus entfernt, bevor er angezeigt wird.
 - Öffnet jeden SFTP-Manager-Tab erneut in den lokalen und entfernten Ordnern, die er beim Speichern des Projekts zeigte
 - Stellt den aktiven Tab- und Dashboard-Status wieder her

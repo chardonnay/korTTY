@@ -72,7 +72,10 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
     private static final KeyCombination SAVE_SHORTCUT = new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN);
     private static final KeyCombination CLOSE_TAB_SHORTCUT = new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN);
     private static final KeyCombination TOGGLE_LIBRARY_SHORTCUT = new KeyCodeCombination(KeyCode.B, KeyCombination.SHORTCUT_DOWN);
-    /** Quick open; free in the main window (only Shortcut+Shift+P and Shortcut+Alt+P are taken there). */
+    /**
+     * Quick open; free in the main window, where of the P chords only Shortcut+Alt+P (AI Planning) is
+     * taken. Shortcut+Shift+P is kept free there for a command palette (Credentials is Shortcut+Shift+M).
+     */
     static final KeyCombination QUICK_OPEN_SHORTCUT = new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN);
     /** At most this many editor tabs are reopened from the last session (each is a Monaco editor). */
     static final int MAX_RESTORED_TABS = 12;

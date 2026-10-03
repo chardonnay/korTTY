@@ -409,6 +409,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/highlighting.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Keyword highlighting
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/tunnels.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -873,6 +881,7 @@
 </tr>
 </tbody>
 </table>
+<p>The title <code>tab.list</code> reports for a terminal tab is its name without the coding-agent glyph, the group prefix or the <code>(DISCONNECT)</code> suffix: the name you gave it with <a href="../features/terminal.html#working-with-tabs">Rename Tab</a>, otherwise the <a href="../features/terminal.html#title-from-the-shell">title its shell set</a>, otherwise the connection's name. The shell's title is chosen by the server, so a client that needs to know which host a tab is connected to should not rely on the title alone. Renaming stays with you in the user interface.</p>
 <p><code>tab.create</code>, <code>tab.close</code> and <code>tab.rename</code> are <strong>reserved</strong>: they answer a definite "not implemented in this version" rather than an unknown-method error, and they are listed as reserved in <code>api.schema</code>, so a client can tell "korTTY will never do this for you" apart from "you spelled it wrong".</p>
 <h3 id="addressing-a-pane">Addressing a pane<a class="headerlink" href="#addressing-a-pane" title="Permanent link">&para;</a></h3>
 <table>

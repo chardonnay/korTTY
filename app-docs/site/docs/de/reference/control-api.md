@@ -71,6 +71,8 @@ Statt die Methodenliste hier zu wiederholen, fragen Sie korTTY: `api.schema` lie
 | `agent` | `agent.list`, `agent.get`, `agent.explain`, `agent.prompt`, `agent.send_keys`, `agent.wait`, `agent.rename`, `agent.start` | Mit den von korTTY erkannten Coding-Agents arbeiten – siehe [Coding-Agents](../features/coding-agents.md). |
 | `notification` | `notification.show` | Eine Desktop-Benachrichtigung auslösen. |
 
+Der Titel, den `tab.list` für einen Terminal-Tab meldet, ist sein Name ohne das Coding-Agent-Symbol, das Gruppenpräfix und das Suffix `(DISCONNECT)`: der Name, den Sie ihm mit [Tab umbenennen](../features/terminal.md#arbeiten-mit-tabs) gegeben haben, andernfalls der [Titel, den seine Shell gesetzt hat](../features/terminal.md#titel-aus-der-shell), andernfalls der Name der Verbindung. Den Titel der Shell wählt der Server, daher sollte sich ein Client, der wissen muss, mit welchem Host ein Tab verbunden ist, nicht allein auf den Titel verlassen. Umbenennen können nur Sie selbst in der Benutzeroberfläche.
+
 `tab.create`, `tab.close` und `tab.rename` sind **reserviert**: sie antworten mit einem eindeutigen „in dieser Version nicht implementiert“ statt mit einem Unbekannte-Methode-Fehler und stehen in `api.schema` als reserviert, damit ein Client „korTTY wird das nie für dich tun“ von „du hast dich vertippt“ unterscheiden kann.
 
 ### Einen Bereich adressieren

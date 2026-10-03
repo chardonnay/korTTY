@@ -409,6 +409,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/highlighting.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Hervorhebung von Schlüsselwörtern
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/tunnels.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -777,6 +785,10 @@
 <td>Tab schließen</td>
 </tr>
 <tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-t">T</kbd></span></td>
+<td>Zuletzt geschlossenen Terminal-Tab wieder öffnen (auch wenn ein Terminal den Fokus hat)</td>
+</tr>
+<tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-n">N</kbd></span></td>
 <td>Neues Fenster</td>
 </tr>
@@ -791,6 +803,14 @@
 <tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span></td>
 <td>Vorheriger Tab (<span class="keys"><kbd class="key-control">Ctrl</kbd></span> auch auf macOS)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-1">1</kbd></span> … <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-8">8</kbd></span></td>
+<td>Zum ersten bis achten Tab des Fensters springen (obere Reihe oder Nummernblock)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-9">9</kbd></span></td>
+<td>Zum letzten Tab des Fensters springen</td>
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-o">O</kbd></span></td>
@@ -825,6 +845,10 @@
 <td>Suchen im aktiven Tab (in einem fokussierten Terminal auf Windows und Linux geht die Taste zur Shell, siehe <a href="#terminal">Terminal</a>)</td>
 </tr>
 <tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-space">Space</kbd></span></td>
+<td>Schnellauswahl: die Webadressen, Pfade, E-Mail-Adressen, IP-Adressen, Hashes und Zahlen, die der fokussierte Terminalbereich anzeigt, mit Kürzeln versehen, um eines davon mit einer Taste zu kopieren oder zu öffnen (nur Terminal-Tabs), siehe <a href="../features/terminal.html#schnellauswahl">Schnellauswahl</a></td>
+</tr>
+<tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span></td>
 <td>Schnellverbindung</td>
 </tr>
@@ -837,8 +861,8 @@
 <td>SFTP-Client</td>
 </tr>
 <tr>
-<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span></td>
-<td>Anmeldeinformationen verwalten</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-m">M</kbd></span></td>
+<td>Zugangsdaten verwalten (auch wenn ein Terminal den Fokus hat)</td>
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-g">G</kbd></span></td>
@@ -964,9 +988,15 @@
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span></td>
 <td>Schalten Sie den Nur-Terminal-Vollbildmodus um</td>
 </tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span></td>
+<td>Schalten Sie die <a href="../features/highlighting.html">Hervorhebung von Schlüsselwörtern</a> für den fokussierten Terminalbereich ein oder aus</td>
+</tr>
 </tbody>
 </table>
 <p>Die Zoom-Tasten (<span class="keys"><kbd class="key-control">Ctrl</kbd></span> oder <span class="keys"><kbd class="key-alt">Alt</kbd></span> mit <span class="keys"><kbd class="key-plus">+</kbd></span> / <span class="keys"><kbd class="key-minus">-</kbd></span> / <span class="keys"><kbd class="key-0">0</kbd></span>; <span class="keys"><kbd class="key-command">Cmd</kbd></span> auf macOS) vergrößern das Terminal nur, wenn ein Terminal-Tab ausgewählt ist. In einem Snippet-Editor oder Dateieditor-Tab erreichen sie den Editor, und <span class="keys"><kbd class="key-alt-graph">AltGr</kbd><span>+</span><kbd class="key-plus">+</kbd></span> tippt dort sein Zeichen.</p>
+<p>Die Tab-Sprungtasten funktionieren in jedem Tab, auch wenn ein Terminal oder ein Editor den Fokus hat, und eine Zahl, an deren Position kein Tab steht, bewirkt nichts. Auf macOS sind es <span class="keys"><kbd class="key-command">Cmd</kbd></span> mit einer Ziffer, und <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd></span> mit einer Ziffer funktioniert ebenfalls, sodass ein französischer Mac (AZERTY) seine Ziffern erreichen kann (macOS reserviert <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-3">3</kbd></span> bis <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-5">5</kbd></span> für Bildschirmfotos). Unter Windows und Linux sind es genau <span class="keys"><kbd class="key-control">Ctrl</kbd></span> mit einer Ziffer: <span class="keys"><kbd class="key-alt-graph">AltGr</kbd></span>-Kombinationen (die als <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd></span> ankommen) und <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-6">6</kbd></span> (die Cisco-Break-Sequenz) erreichen weiterhin das Terminal. Eine Zifferntaste, die in Ihrer Tastaturbelegung <span class="keys"><kbd class="key-plus">+</kbd></span> oder <span class="keys"><kbd class="key-minus">-</kbd></span> eingibt, etwa die Taste 6 bei AZERTY, bleibt stattdessen eine Zoomtaste. Unter Linux mit einer Tastaturbelegung, deren Zahlenreihe andere Zeichen eingibt, springen die Ziffern der oberen Reihe möglicherweise nicht; die Ziffern des Nummernblocks (bei eingeschaltetem <span class="keys"><kbd class="key-num-lock">Num Lock</kbd></span>) schon.</p>
+<p>Für „Geschlossenen Tab wieder öffnen“ wird <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-t">T</kbd></span> verwendet, weil <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-t">T</kbd></span> die Befehlszeitstempel umschaltet und <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-t">T</kbd></span> das Sitzungsjournal. Unter Windows kommt <span class="keys"><kbd class="key-alt-graph">AltGr</kbd></span> als <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd></span> an; bei einer Tastaturbelegung, in der <span class="keys"><kbd class="key-alt-graph">AltGr</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-t">T</kbd></span> ein Zeichen eingibt (etwa <code>Þ</code> bei US-International), öffnet diese Kombination daher stattdessen einen geschlossenen Tab wieder, und das Zeichen wird nicht eingegeben.</p>
 <h2 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h2>
 <p>Diese Tasten funktionieren, solange ein Terminalbereich den Fokus hat. Wie sie sich bei mehreren Bereichen verhalten, siehe <a href="../features/terminal.html#broadcast-modus">Broadcast-Modus</a>.</p>
 <table>
@@ -1021,9 +1051,26 @@
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span></td>
 <td>Nächster / vorheriger Tab, auch wenn das Terminal den Fokus hat (auch unter macOS mit <span class="keys"><kbd class="key-control">Ctrl</kbd></span>)</td>
 </tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-1">1</kbd></span> … <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-9">9</kbd></span></td>
+<td>Zu einem Tab springen, auch wenn das Terminal den Fokus hat (<span class="keys"><kbd class="key-command">Cmd</kbd></span> auf macOS, siehe <a href="#allgemein">Allgemein</a>)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-t">T</kbd></span></td>
+<td>Zuletzt geschlossenen Terminal-Tab wieder öffnen, auch wenn das Terminal den Fokus hat (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-option">Option</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-t">T</kbd></span> auf macOS)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd></span> + Klick auf einen Link</td>
+<td>Den Link im Browser oder Mailprogramm öffnen (<span class="keys"><kbd class="key-command">Cmd</kbd></span> + Klick unter macOS), auch eine als Klartext ausgegebene Web- oder E-Mail-Adresse; ein Dateipfad oder <code>file:</code>-Link öffnet sich in SSH- und lokalen Shell-Tabs als Text im Snippet-Editor; ein einfacher Klick auf einen Link bewirkt nichts, und Rechtsklick → <strong>Link öffnen</strong> oder <strong>Datei im Snippet-Editor öffnen</strong> funktioniert ohne die Taste, siehe <a href="../features/terminal.html#links-in-der-terminalausgabe">Links in der Terminalausgabe</a></td>
+</tr>
+<tr>
+<td>die Buchstaben eines Kürzels / <span class="keys"><kbd class="key-shift">Shift</kbd></span> + der letzte Buchstabe (während die Schnellauswahl läuft)</td>
+<td>Den gekennzeichneten Text kopieren / eine Web- oder E-Mail-Adresse oder einen Dateipfad im Snippet-Editor öffnen; <span class="keys"><kbd class="key-backspace">Backspace</kbd></span> nimmt den ersten Buchstaben eines zweibuchstabigen Kürzels zurück, <span class="keys"><kbd class="key-escape">Esc</kbd></span> oder jede andere Taste beendet die Schnellauswahl, siehe <a href="../features/terminal.html#schnellauswahl">Schnellauswahl</a></td>
+</tr>
 </tbody>
 </table>
-<p>Auf Windows und Linux haben <strong>Puffer löschen</strong> und <strong>Suchen</strong> keine eigenen Tasten, daher bleiben <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-l">L</kbd></span> und <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> bei den Programmen, die im Terminal laufen. Verwenden Sie Rechtsklick → <strong>Puffer löschen</strong> oder <strong>Suchen</strong> im Terminal, oder <strong>Bearbeiten → Suchen…</strong> mit der Maus. <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span> bleibt <strong>Nur korTTY Applikationsfenster</strong>, und <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-k">K</kbd></span> dockt den Dateibrowser weiterhin links an.</p>
+<p>Unter Windows und Linux erreichen <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-1">1</kbd></span> bis <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-9">9</kbd></span> das Programm im Terminal nicht mehr: Das Terminal von korTTY hat sie nie als eigene Tasten gesendet, daher verliert kein Programm eine Belegung, die es empfangen könnte.</p>
+<p>Auf Windows und Linux haben <strong>Puffer löschen</strong> und <strong>Suchen</strong> keine eigenen Tasten, daher bleiben <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-l">L</kbd></span> und <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> bei den Programmen, die im Terminal laufen. Verwenden Sie Rechtsklick → <strong>Puffer löschen</strong> oder <strong>Suchen</strong> im Terminal, oder <strong>Bearbeiten → Suchen…</strong> mit der Maus. <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span> bleibt <strong>Nur korTTY Applikationsfenster</strong>, und <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-k">K</kbd></span> dockt den Dateibrowser weiterhin links an. <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span> schaltet die Hervorhebung von Schlüsselwörtern um und erreicht das Terminal nicht, während ein einfaches <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-h">H</kbd></span> die Shell weiterhin als Rücktaste erreicht.</p>
 <p>Jede andere Kombination von <span class="keys"><kbd class="key-shift">Shift</kbd></span>, <span class="keys"><kbd class="key-control">Ctrl</kbd></span> und <span class="keys"><kbd class="key-alt">Alt</kbd></span> mit den Pfeiltasten, <span class="keys"><kbd class="key-home">Home</kbd></span> / <span class="keys"><kbd class="key-end">End</kbd></span>, <span class="keys"><kbd class="key-page-up">Page Up</kbd></span> / <span class="keys"><kbd class="key-page-down">Page Down</kbd></span>, <span class="keys"><kbd class="key-insert">Ins</kbd></span> / <span class="keys"><kbd class="key-delete">Del</kbd></span> und <span class="keys"><kbd class="key-f1">F1</kbd></span> bis <span class="keys"><kbd class="key-f11">F11</kbd></span> wird so gesendet, wie xterm es sendet (<span class="keys"><kbd class="key-f12">F12</kbd></span> schaltet immer den Vollbildmodus um), zum Beispiel <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-page-up">Page Up</kbd></span> als <code>ESC [ 5 ; 5 ~</code> und <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f1">F1</kbd></span> als <code>ESC [ 1 ; 2 P</code>. Die Pfeiltasten folgen dem Cursor-Key-Modus des Programms: <code>mc</code> und <code>vim</code> schalten ihn ein und dann empfangen sie <code>ESC O A</code>, während eine Shell <code>ESC [ A</code> erhält. Verbindungen mit einer Nicht-xterm-Terminalemulation (Wyse, TeleVideo, HP, SCO ANSI, IBM 3270/5250, PETSCII) senden weiterhin feste Sequenzen ohne Modifikatoren.</p>
 <h2 id="sftp-manager">SFTP-Manager<a class="headerlink" href="#sftp-manager" title="Permanent link">&para;</a></h2>
 <p>Diese Tasten funktionieren in der lokalen und der entfernten Liste eines SFTP-Manager-Tabs; siehe <a href="../features/sftp.html#tasten">Tasten</a>.</p>

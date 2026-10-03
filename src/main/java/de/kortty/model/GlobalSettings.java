@@ -128,6 +128,16 @@ public class GlobalSettings {
     @XmlElement
     private boolean openToolWindowsAsTabs = false; // Open management tool windows as tabs in the main window
 
+    // A 3 px frame in the connection's tab color around its terminal. Only connections with a tab
+    // color get one; the dot on the tab shows either way. A settings file without it keeps it on.
+    @XmlElement
+    private boolean connectionColorBorderEnabled = true;
+
+    // A terminal tab shows the title the program in its focused pane sets (OSC 0/2) in place of the
+    // connection's name, unless the user renamed the tab. A settings file without it keeps it on.
+    @XmlElement
+    private boolean tabTitleFromShellEnabled = true;
+
     @XmlElement
     private boolean jobSchedulerMenuStatusEnabled = true; // Show JobScheduler status in the menu bar
 
@@ -290,6 +300,29 @@ public class GlobalSettings {
     @XmlElement
     private String sessionJournalPageTheme; // auto (follow the OS) | light | dark
 
+    // ---- Terminal keyword highlighting ----
+
+    /**
+     * User-defined highlight rule sets. The built-in sets come from
+     * {@code de.kortty.core.highlight.HighlightBuiltinSets} and are not stored, so they can improve
+     * between releases without a migration.
+     */
+    @XmlElementWrapper(name = "highlightRuleSets")
+    @XmlElement(name = "ruleSet")
+    private java.util.List<HighlightRuleSet> highlightRuleSets = new java.util.ArrayList<>();
+
+    /** Master switch: off forces every pane to show its output unhighlighted, whatever is selected. */
+    @XmlElement
+    private boolean terminalHighlightingEnabled = true;
+
+    /** Set used by panes whose connection has no choice of its own; null = none (opt-in). */
+    @XmlElement
+    private String defaultHighlightRuleSetId;
+
+    /** Also highlight inside full-screen programs (vim, less, htop); off because they redraw constantly. */
+    @XmlElement
+    private boolean terminalHighlightAlternateScreen = false;
+
     // ---- PDF export branding (shared by session journal and AI chat exports) ----
 
     @XmlElement
@@ -312,6 +345,9 @@ public class GlobalSettings {
 
     @XmlElement
     private boolean terminalCopyOnSelectEnabled = true; // Copy selected text to clipboard automatically
+
+    @XmlElement
+    private boolean terminalLinkDetectionEnabled = true; // Cmd/Ctrl+click opens web/e-mail addresses and file paths in plain text
 
     @XmlElement
     private boolean closeActiveTerminalWindowsWithoutConfirmation = false; // Ask before closing active terminal windows by default
@@ -1421,6 +1457,24 @@ public class GlobalSettings {
         this.openToolWindowsAsTabs = openToolWindowsAsTabs;
     }
 
+    /** Whether the terminal of a connection with a tab color is framed in that color (Window settings). */
+    public boolean isConnectionColorBorderEnabled() {
+        return connectionColorBorderEnabled;
+    }
+
+    public void setConnectionColorBorderEnabled(boolean connectionColorBorderEnabled) {
+        this.connectionColorBorderEnabled = connectionColorBorderEnabled;
+    }
+
+    /** Whether a terminal tab shows the title the program in it sets (OSC 0/2) in place of the connection's name (Window settings). */
+    public boolean isTabTitleFromShellEnabled() {
+        return tabTitleFromShellEnabled;
+    }
+
+    public void setTabTitleFromShellEnabled(boolean tabTitleFromShellEnabled) {
+        this.tabTitleFromShellEnabled = tabTitleFromShellEnabled;
+    }
+
     public boolean isJobSchedulerMenuStatusEnabled() {
         return jobSchedulerMenuStatusEnabled;
     }
@@ -1894,6 +1948,46 @@ public class GlobalSettings {
         this.sessionJournalPageMonoFont = trimmed.isEmpty() ? null : trimmed;
     }
 
+    /** User-defined highlight rule sets only; the built-ins are added by {@code HighlightBuiltinSets}. */
+    public java.util.List<HighlightRuleSet> getHighlightRuleSets() {
+        if (highlightRuleSets == null) {
+            highlightRuleSets = new java.util.ArrayList<>();
+        }
+        return highlightRuleSets;
+    }
+
+    public void setHighlightRuleSets(java.util.List<HighlightRuleSet> sets) {
+        this.highlightRuleSets = sets != null
+            ? new java.util.ArrayList<>(sets) : new java.util.ArrayList<>();
+    }
+
+    public boolean isTerminalHighlightingEnabled() {
+        return terminalHighlightingEnabled;
+    }
+
+    public void setTerminalHighlightingEnabled(boolean terminalHighlightingEnabled) {
+        this.terminalHighlightingEnabled = terminalHighlightingEnabled;
+    }
+
+    /** Id of the default highlight rule set, or {@code null} when panes start without one. */
+    public String getDefaultHighlightRuleSetId() {
+        return defaultHighlightRuleSetId != null && !defaultHighlightRuleSetId.isBlank()
+            ? defaultHighlightRuleSetId.trim() : null;
+    }
+
+    public void setDefaultHighlightRuleSetId(String defaultHighlightRuleSetId) {
+        String trimmed = defaultHighlightRuleSetId != null ? defaultHighlightRuleSetId.trim() : "";
+        this.defaultHighlightRuleSetId = trimmed.isEmpty() ? null : trimmed;
+    }
+
+    public boolean isTerminalHighlightAlternateScreen() {
+        return terminalHighlightAlternateScreen;
+    }
+
+    public void setTerminalHighlightAlternateScreen(boolean terminalHighlightAlternateScreen) {
+        this.terminalHighlightAlternateScreen = terminalHighlightAlternateScreen;
+    }
+
     public boolean isPdfWatermarkEnabled() {
         return pdfWatermarkEnabled;
     }
@@ -1954,6 +2048,19 @@ public class GlobalSettings {
 
     public void setTerminalCopyOnSelectEnabled(boolean terminalCopyOnSelectEnabled) {
         this.terminalCopyOnSelectEnabled = terminalCopyOnSelectEnabled;
+    }
+
+    /**
+     * Whether a Cmd/Ctrl+click in a terminal also opens web and e-mail addresses that a program
+     * printed as plain text, and in SSH and local-shell panes file paths, not only OSC 8 links. Read
+     * on every click, so a change applies to open terminals at once.
+     */
+    public boolean isTerminalLinkDetectionEnabled() {
+        return terminalLinkDetectionEnabled;
+    }
+
+    public void setTerminalLinkDetectionEnabled(boolean terminalLinkDetectionEnabled) {
+        this.terminalLinkDetectionEnabled = terminalLinkDetectionEnabled;
     }
 
     public boolean isCloseActiveTerminalWindowsWithoutConfirmation() {

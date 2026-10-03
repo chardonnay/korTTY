@@ -132,6 +132,17 @@ public final class TerminalLinkDetector {
     private static final Pattern NUMBER = Pattern.compile(
         "(?<![" + WORD + ".])[0-9]{4,}+(?![" + WORD + "]|\\.[0-9])");
 
+    /**
+     * A character no token of any kind can contain. Every pattern above takes its characters from
+     * {@link #URL_CHARS}, except the backslash of a Windows path, so a token never runs across one.
+     */
+    private static final String BOUNDARY_CLASS = "[^" + URL_CHARS + "\\\\]";
+
+    private static final Pattern FIRST_BOUNDARY = Pattern.compile(BOUNDARY_CLASS);
+
+    /** Greedy, so {@code end()} is the end of the last boundary; it backtracks once per character. */
+    private static final Pattern LAST_BOUNDARY = Pattern.compile("(?s).*" + BOUNDARY_CLASS);
+
     private static final int MAX_IPV6_LENGTH = 45;
 
     private static final int MAX_ZONE_LENGTH = 64;
@@ -149,10 +160,28 @@ public final class TerminalLinkDetector {
      * @param kinds the kinds to look for
      */
     public static List<Match> find(CharSequence line, Set<Kind> kinds) {
+        return find(line, kinds, false, false);
+    }
+
+    /**
+     * Like {@link #find(CharSequence, Set)}, for a slice cut out of a longer logical line, such as the
+     * rows around one cell of a line that wraps over thousands of rows. A token that may run on past
+     * a cut is dropped instead of being reported cut short: on a side that continues, everything up
+     * to the nearest character that no token can contain (whitespace, a quote, an angle bracket,
+     * {@code |} and other symbols a URL cannot contain) is ignored. A URL inside minified JSON is
+     * therefore still found, because the quotes around it end it.
+     *
+     * @param line one slice of a logical terminal line, as cells
+     * @param kinds the kinds to look for
+     * @param continuesBefore the logical line goes on before the first cell of {@code line}
+     * @param continuesAfter the logical line goes on after the last cell of {@code line}
+     */
+    public static List<Match> find(CharSequence line, Set<Kind> kinds, boolean continuesBefore,
+            boolean continuesAfter) {
         if (line == null || line.isEmpty() || kinds == null || kinds.isEmpty()) {
             return List.of();
         }
-        Scan scan = Scan.of(line);
+        Scan scan = Scan.of(line, continuesBefore, continuesAfter);
         Set<Kind> requested = EnumSet.copyOf(kinds);
         List<Candidate> candidates = new ArrayList<>();
         for (Kind kind : requested) {
@@ -514,11 +543,12 @@ public final class TerminalLinkDetector {
      * The scanned text: the input up to the cap without {@link CharUtils#DWC} cells and with every
      * delimiter turned into a space, plus the cell offset of each remaining character. When the cap
      * cuts a token, the text ends at the delimiter before it, so the cut token is never seen, not even
-     * with its cut end trimmed off.
+     * with its cut end trimmed off. On a side where the logical line continues past the input, the
+     * run up to the first character that no token can contain is blanked the same way.
      */
     private record Scan(CharSequence line, String text, int[] cells, int limit) {
 
-        static Scan of(CharSequence line) {
+        static Scan of(CharSequence line, boolean continuesBefore, boolean continuesAfter) {
             int limit = Math.min(line.length(), MAX_INPUT_CHARS);
             StringBuilder text = new StringBuilder(limit);
             int[] cells = new int[limit];
@@ -530,10 +560,25 @@ public final class TerminalLinkDetector {
                 cells[text.length()] = i;
                 text.append(isDelimiter(c) ? ' ' : c);
             }
-            if (line.length() > limit && !isDelimiter(line.charAt(limit))) {
-                text.setLength(Math.max(text.lastIndexOf(" "), 0));
+            if (line.length() > limit) {
+                if (!isDelimiter(line.charAt(limit))) {
+                    text.setLength(Math.max(text.lastIndexOf(" "), 0));
+                }
+            } else if (continuesAfter) {
+                Matcher last = LAST_BOUNDARY.matcher(text);
+                blank(text, last.lookingAt() ? last.end() : 0, text.length());
+            }
+            if (continuesBefore) {
+                Matcher first = FIRST_BOUNDARY.matcher(text);
+                blank(text, 0, first.find() ? first.start() : text.length());
             }
             return new Scan(line, text.toString(), cells, limit);
+        }
+
+        private static void blank(StringBuilder text, int from, int to) {
+            for (int i = from; i < to; i++) {
+                text.setCharAt(i, ' ');
+            }
         }
 
         Match toMatch(Candidate candidate) {

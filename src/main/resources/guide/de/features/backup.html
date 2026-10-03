@@ -409,6 +409,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="highlighting.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Hervorhebung von Schlüsselwörtern
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="tunnels.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -797,7 +805,7 @@
 </tr>
 <tr>
 <td>Anmeldeumgebungen</td>
-<td>Ihre benutzerdefinierten Anmeldeumgebungen (<code>environments.xml</code>); die integrierten benötigen keine Sicherung</td>
+<td>Ihre benutzerdefinierten Anmeldeumgebungen und die Tab-Farben aller Umgebungen (<code>environments.xml</code>); die integrierten Umgebungen selbst benötigen keine Sicherung</td>
 </tr>
 <tr>
 <td>SSH-Schlüssel</td>
@@ -891,7 +899,7 @@
 <li><strong>Starten Sie die Anwendung neu</strong>, damit alle Änderungen wirksam werden</li>
 </ol>
 <p>KorTTY erkennt das Backup-Format anhand des Dateiinhalts, nicht nach Namen; daher werden GPG-Backups, die ältere Versionen als <code>kortty-backup.zip</code> gespeichert haben, ebenfalls als GPG-Backups importiert. Eine Datei, die weder ein ZIP-Archiv noch GPG-verschlüsselt ist, wird vor jeglicher Wiederherstellung abgelehnt.</p>
-<p>Nach dem Import lädt korTTY die wiederhergestellten Verbindungen, Anmeldedaten, Umgebungen, SSH- und GPG-Schlüssel, Einstellungen, Themen, Snippets, Snippet-Variablen sowie gespeicherte KI- und Swarm-Chats neu. Ein späteres Speichern überschreibt sie daher nicht mit dem zuvor geladenen Inhalt.</p>
+<p>Nach dem Import lädt korTTY die wiederhergestellten Verbindungen, Anmeldeinformationen, Umgebungen, SSH- und GPG-Schlüssel, Einstellungen, Themen, Snippets, Snippet-Variablen sowie gespeicherte KI- und Swarm-Chats neu, sodass ein späteres Speichern sie nicht mit dem zuvor geladenen Inhalt überschreibt. Die offenen Terminal-Tabs zeigen danach die <a href="connections.html#tab-farbe">Tab-Farben</a> der wiederhergestellten Verbindungen und Anmeldeumgebungen.</p>
 <p>Jede wiederhergestellte Datei ersetzt die lokale atomar, sodass ein unterbrochener Import niemals eine halbfertige Datei zurücklässt. Auf macOS und Linux werden <code>connections.xml</code>, <code>credentials.xml</code>, <code>ssh-keys.xml</code>, <code>job-scheduler.xml</code> und <code>master.key</code> nur für den Eigentümer lesbar (<code>rw-------</code>) wiederhergestellt; die anderen Dateien behalten die Berechtigungen der Datei, die sie ersetzen, und eine Datei, die lokal nicht existierte, wird Eigentümer-berechtigt erstellt. Wenn wiederhergestellte Verbindungen, Anmeldeinformationen, SSH-Schlüssel, GPG-Schlüssel oder Umgebungsdateien nicht geparst werden können, wird der Reload sie als <code>&lt;name&gt;.corrupt-&lt;timestamp&gt;</code> seitlich verschieben und korTTY behält das, was es zuvor geladen hatte; die nächste Speicherung schreibt dies in eine neue Datei. Eine Themendatei, die nicht geparst werden kann, wird auf dieselbe Weise seitlich verschoben und durch die eingebauten Themen ersetzt.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
@@ -906,7 +914,7 @@
 <ul>
 <li><code>connections.xml</code> – Alle SSH-Verbindungen und -Gruppen</li>
 <li><code>credentials.xml</code> – Gespeicherte Anmeldeinformationen (immer noch mit Ihrem Master-Passwort verschlüsselt)</li>
-<li><code>environments.xml</code> — Benutzerdefinierte Anmeldeumgebungen</li>
+<li><code>environments.xml</code> — Benutzerdefinierte Anmeldeumgebungen und die Tab-Farben der Umgebungen</li>
 <li><code>ssh-keys.xml</code> – SSH-Schlüsselreferenzen und verschlüsselte Passphrasen</li>
 <li><code>ssh-keys/</code> – Kopierte SSH-Schlüsseldateien (nur Schlüssel, die Sie über <strong>In Benutzerverzeichnis kopieren</strong> dort platziert haben; Schlüssel, auf die an ihren ursprünglichen Speicherorten verwiesen wird, werden nicht erfasst). Wiederhergestellte Schlüsseldateien erhalten nur Besitzerberechtigungen und ein Import wird zusammengeführt – bereits vorhandene Schlüssel werden nie gelöscht oder, ohne <strong>Überschreiben</strong>, ersetzt</li>
 <li><code>ssh-host-keys.properties</code> – Vertrauenswürdige öffentliche Hostschlüssel für interaktive Terminal-, SFTP- und Mosh-Bootstrap-Verbindungen (<code>ssh-host-keys.properties.lock</code> ist absichtlich ausgeschlossen)</li>

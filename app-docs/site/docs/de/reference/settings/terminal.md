@@ -4,7 +4,7 @@ title: Terminal
 
 # Terminal
 
-Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einschließlich Abmessungen, Scrollback, Zeichenkodierung und SSH-Verbindungsverwaltung. Öffnen über **Konfiguration → Globale Einstellungen → Terminal**; in `~/.kortty/global-settings.xml` gespeichert.
+Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einschließlich Abmessungen, Scrollback, Zeichenkodierung, Hervorhebung von Schlüsselwörtern, Links, Einfügeschutz und SSH-Verbindungsverwaltung. Öffnen über **Konfiguration → Globale Einstellungen → Terminal**; in `~/.kortty/global-settings.xml` gespeichert.
 
 ![Terminal settings tab](../../assets/screenshots/settings/terminal.png)
 
@@ -20,6 +20,11 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 | Drag-and-Drop ins Terminal erlauben (Dateien werden per SFTP kopiert, Text wird eingefügt) | umschalten | – | Ein | `terminalDragDropEnabled` |
 | Auswahl automatisch in die Zwischenablage kopieren | umschalten | – | Ein | `terminalCopyOnSelectEnabled` |
 | Aktive Terminalfenster ohne Bestätigung schließen | umschalten | – | Aus | `closeActiveTerminalWindowsWithoutConfirmation` |
+| Schlüsselwörter in der Terminalausgabe hervorheben | umschalten | – | Ein | `terminalHighlightingEnabled` |
+| Auch in Vollbildprogrammen hervorheben (vim, less, htop) | umschalten | – | Aus | `terminalHighlightAlternateScreen` |
+| Standard-Regelsatz: | Dropdown | Keiner, Fehler und Warnungen, Netzwerkadressen, Netzwerkgeräte oder ein eigener Regelsatz | Keiner | `defaultHighlightRuleSetId` |
+| Regeln bearbeiten… | Schaltfläche | öffnet den Regelsatz-Editor | – | `highlightRuleSets` |
+| Web-Adressen, E-Mail-Adressen und Dateipfade im Terminaltext erkennen | umschalten | – | Ein | `terminalLinkDetectionEnabled` |
 | Bei mehrzeiligem Einfügen warnen: | Dropdown | Aus, Außer das Programm verwendet Bracketed Paste, Immer | Außer das Programm verwendet Bracketed Paste | `pasteWarningMode` |
 | Warnen, wenn eingefügter Text größer ist als: | Nummer | 0–10.240 KiB (0 = aus) | 5 | `pasteLargeWarningKiB` |
 | Pause nach jeder eingefügten Zeile: | Nummer | 0–1.000 ms (0 = aus) | 0 | `pasteLineDelayMs` |
@@ -48,6 +53,20 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 
 !!! note "Markierung automatisch in Zwischenablage kopieren"
     Wenn aktiviert, wird der von Ihnen im Terminal ausgewählte Text sofort in die Zwischenablage kopiert. Unter Linux wird er zudem zur X11-Hauptauswahl, sodass ein Mittelklick ihn in anderen Anwendungen wie xterm oder gedit einfügt. Mit dem internen Zwischenablage-Modus der Unternehmensrichtlinie [interner Zwischenablage-Modus](../enterprise-policy.md#interner-zwischenablagemodus) bleibt die Auswahl innerhalb von korTTY auf jeder Plattform.
+
+!!! note "Hervorhebung von Schlüsselwörtern"
+    **Schlüsselwörter in der Terminalausgabe hervorheben** ist der Hauptschalter der [Hervorhebung von Schlüsselwörtern](../../features/highlighting.md). Solange er ausgeschaltet ist, wird kein Bereich hervorgehoben, gleich was in einem Menü, mit ++ctrl+shift+h++ (++cmd+shift+h++ auf macOS), für eine Verbindung oder als Standard-Regelsatz gewählt wurde, und die Hervorhebungsmenüs sind ausgegraut. Er ist standardmäßig eingeschaltet, aber es wird nichts hervorgehoben, bis ein Regelsatz gewählt ist.
+
+    **Standard-Regelsatz** ist der Regelsatz, den jeder Terminalbereich zeigt, sofern weder seine Verbindung einen eigenen Regelsatz hat (siehe [Regelsatz pro Verbindung](../../features/highlighting.md#regelsatz-pro-verbindung)) noch Sie für diesen Bereich einen anderen wählen. Standardmäßig ist er **Keiner**, sodass die Hervorhebung ausgeschaltet bleibt, bis Sie sie bewusst einschalten: hier, für eine Verbindung im Verbindungseditor, unter *Ansicht → Hervorhebung*, im Kontextmenü eines Bereichs oder mit dem Tastenkürzel. Ein an einer dieser Stellen für einen Bereich gewählter Regelsatz hat Vorrang vor dem Standard, bis der Bereich geschlossen wird, und wenn Sie dort **Keine** wählen, bleibt dieser Bereich ohne Hervorhebung, gleich welcher Standard gilt. Nennt der gespeicherte Standard einen Regelsatz, der nicht mehr existiert, zeigt das Dropdown ihn als fehlend an, und die Bereiche zeigen keine Hervorhebung.
+
+    **Auch in Vollbildprogrammen hervorheben** erweitert die Hervorhebung auf Programme, die den alternativen Bildschirm des Terminals verwenden, etwa `vim`, `less` und `htop`. Die Option ist standardmäßig ausgeschaltet, weil diese Programme ihren Bildschirm ständig neu zeichnen und eigene Farben mitbringen, sodass Hervorhebungen dort flackern und mit den Farben des Programms kollidieren können. Wenn Sie sie ausschalten, bleiben Hervorhebungen, die ein laufendes Programm bereits zeigt, bestehen, bis es sie neu zeichnet.
+
+    Alle drei gelten für geöffnete Terminals, sobald Sie speichern.
+
+    **Regeln bearbeiten…** öffnet den [Regelsatz-Editor](../../features/highlighting.md#ihre-eigenen-regelsatze), in dem Sie eigene Regelsätze anlegen und die mitgelieferten ansehen. Die Schaltfläche bleibt verfügbar, solange der Hauptschalter ausgeschaltet ist, sodass Sie Regelsätze vorbereiten können, bevor Sie die Hervorhebung einschalten. Der Editor speichert seine Änderungen, sobald Sie ihn bestätigen, gleich ob Sie danach den Einstellungsdialog speichern, und anschließend listet das Dropdown **Standard-Regelsatz** Ihre Regelsätze in ihrem aktuellen Stand. Löschen Sie den Regelsatz, den das Dropdown zeigt, fällt es auf **Keiner** zurück.
+
+!!! note "Links"
+    Wenn **Web-Adressen, E-Mail-Adressen und Dateipfade im Terminaltext erkennen** eingeschaltet ist, öffnet ++cmd++ + Klick (macOS) bzw. ++ctrl++ + Klick (Windows, Linux) eine Webadresse, eine E-Mail-Adresse oder einen Dateipfad, die ein Programm als Klartext ausgegeben hat: eine Webadresse in Ihrem Standardbrowser, eine E-Mail-Adresse als neue Mail in Ihrem Mailprogramm und in SSH- und lokalen Shell-Tabs einen Dateipfad als Text im Snippet-Editor. Ein einfacher Klick wählt weiterhin nur Text aus. Eine Änderung gilt sofort für die offenen Terminals. Links, die ein Programm selbst mit OSC 8 auszeichnet, öffnen sich in jedem Fall mit demselben Klick. Siehe [Links in der Terminalausgabe](../../features/terminal.md#links-in-der-terminalausgabe).
 
 !!! note "Einfügeschutz"
     Legt fest, welcher ins Terminal eingefügte Text nachfragt, bevor er den Bereich erreicht; der Dialog selbst ist unter [Einfügeschutz](../../features/terminal.md#einfugeschutz) beschrieben. **Bei mehrzeiligem Einfügen warnen** legt fest, wann eingefügter Text mit Zeilenumbruch nachfragt: **Außer das Programm verwendet Bracketed Paste** (der Standard) fragt nur nach, wenn das Programm im Bereich jeden Zeilenumbruch als Enter empfangen würde, **Immer** fragt bei jedem eingefügten Text mit Zeilenumbruch nach, und **Aus** fragt nie nach. Solange die Einstellung nicht **Aus** ist, fragt auch eingefügter Text mit Steuerzeichen (etwa Escape oder Strg+C) oder mit unsichtbaren Zeichen, die die Schreibrichtung ändern, nach, ob mit Bracketed Paste oder ohne. **Warnen, wenn eingefügter Text größer ist als** fragt bei jedem eingefügten Text über dieser Größe in KiB nach, unabhängig von der Auswahl im Dropdown; 0 schaltet die Größenprüfung ab. Beide Einstellungen gelten ab dem nächsten Einfügen. Sie werden als `pasteWarningMode` (`off`, `unless-bracketed` oder `always`; ein unbekannter Wert gilt als `unless-bracketed`) und `pasteLargeWarningKiB` gespeichert.

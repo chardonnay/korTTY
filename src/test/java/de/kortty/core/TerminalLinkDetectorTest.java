@@ -284,6 +284,66 @@ public class TerminalLinkDetectorTest {
         assertThat(texts(exact + " https://late.example", Kind.URL)).containsExactly("https://fits.example");
     }
 
+    private static List<String> slice(String line, boolean continuesBefore, boolean continuesAfter) {
+        return TerminalLinkDetector.find(line, EnumSet.of(Kind.URL, Kind.EMAIL), continuesBefore, continuesAfter)
+            .stream().map(Match::text).toList();
+    }
+
+    @Test
+    public void aTokenThatMayRunOnPastACutIsDropped() {
+        String line = "xample.com/a https://mid.example/x ops@example.com https://end.example/a.";
+        assertThat(slice(line, false, false))
+            .containsExactly("https://mid.example/x", "ops@example.com", "https://end.example/a").inOrder();
+        // The slice starts inside a token and ends right after a '.' that trimming would remove.
+        assertThat(slice(line, true, true)).containsExactly("https://mid.example/x", "ops@example.com").inOrder();
+        assertThat(slice(line, false, true)).containsExactly("https://mid.example/x", "ops@example.com").inOrder();
+
+        String cutStart = "https://start.example/p?q=1 rest";
+        assertThat(slice(cutStart, false, false)).containsExactly("https://start.example/p?q=1");
+        assertThat(slice(cutStart, true, false)).isEmpty();
+        // A slice that is one token from edge to edge, cut on either side, is nothing.
+        assertThat(slice("https://whole.example/" + "a".repeat(100), true, false)).isEmpty();
+        assertThat(slice("https://whole.example/" + "a".repeat(100), false, true)).isEmpty();
+    }
+
+    @Test
+    public void aCharacterNoTokenContainsEndsTheCutRun() {
+        // Quotes end a URL, so a URL inside minified JSON is found even in a slice cut on both sides.
+        String json = "aaaa\",\"url\":\"https://example.com/api?id=7\",\"k\":\"bbbb";
+        assertThat(slice(json, true, true)).containsExactly("https://example.com/api?id=7");
+        assertThat(slice("<https://a.example/x>tail", false, true)).containsExactly("https://a.example/x");
+        assertThat(slice("head|https://a.example/x", true, false)).containsExactly("https://a.example/x");
+        // NUL padding of an empty cell, a control or a bidi override ends it as well.
+        assertThat(slice("head\0https://a.example/x", true, false)).containsExactly("https://a.example/x");
+        assertThat(slice("https://a.example/x‮tail", false, true)).containsExactly("https://a.example/x");
+        // Brackets, apostrophes and other URL characters do not.
+        assertThat(slice("head(https://a.example/x", true, false)).isEmpty();
+        assertThat(slice("https://a.example/x'tail", false, true)).isEmpty();
+    }
+
+    @Test
+    public void cutOffsetsStayCellOffsets() {
+        String line = "見" + DWC + "x https://a.example/用" + DWC + " tail";
+        Match url = TerminalLinkDetector.find(line, EnumSet.of(Kind.URL), true, true).getFirst();
+        assertThat(url.start()).isEqualTo(4);
+        assertThat(url.end()).isEqualTo(line.indexOf(" tail"));
+        assertThat(url.text()).isEqualTo("https://a.example/用");
+    }
+
+    @Test
+    public void aCutSliceStaysLinearOnHostileInput() {
+        // The only boundary at the far end from the cut, so the search for it crosses the whole slice.
+        String boundaryLast = "a".repeat(TerminalLinkDetector.MAX_INPUT_CHARS - 1) + "\"";
+        String boundaryFirst = "\"" + "a".repeat(TerminalLinkDetector.MAX_INPUT_CHARS - 1);
+        TerminalLinkDetector.find(boundaryLast, ALL, true, true); // warm up
+        long started = System.nanoTime();
+        for (int i = 0; i < 20; i++) {
+            assertThat(TerminalLinkDetector.find(boundaryLast, ALL, true, false)).isEmpty();
+            assertThat(TerminalLinkDetector.find(boundaryFirst, ALL, false, true)).isEmpty();
+        }
+        assertThat(Duration.ofNanos(System.nanoTime() - started).toMillis()).isLessThan(3_000L);
+    }
+
     @Test
     public void emptyInputsFindNothing() {
         assertThat(TerminalLinkDetector.find(null, ALL)).isEmpty();

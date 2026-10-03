@@ -79,9 +79,12 @@ class TerminalTabCloseConfirmationTest {
     @Test
     void theFunnelAsksFirstAndClosesNothingUnlessEveryTabAgreed() throws IOException {
         String window = source("MainWindow.java");
-        String funnel = methodBody(window, "private boolean closeTabsByUser(List<Tab> tabs, CloseCause cause) {");
+        assertWithMessage("the short form keeps no tab selected and closes through the full funnel")
+            .that(methodBody(window, "private boolean closeTabsByUser(List<Tab> tabs, CloseCause cause) {"))
+            .contains("return closeTabsByUser(tabs, null, cause);");
+        String funnel = methodBody(window, "private boolean closeTabsByUser(List<Tab> tabs, Tab keepSelected, CloseCause cause) {");
 
-        int confirm = funnel.indexOf("if (!confirmUserClose(tab)) {");
+        int confirm = funnel.indexOf("if (!confirmUserCloseAll(targets)) {");
         int stillOpen = funnel.indexOf("targets.removeIf(tab -> !tabPane.getTabs().contains(tab));");
         int record = funnel.indexOf("recordUserClosedTabs(targets, cause);");
         int dispose = funnel.indexOf("disposeTabContent(tab);");
@@ -95,6 +98,9 @@ class TerminalTabCloseConfirmationTest {
         assertWithMessage("a Cancel must leave every tab open and intact")
             .that(funnel.substring(confirm, record)).contains("return false;");
 
+        assertWithMessage("one tab asks what its close button asks; several share one question (TabCloseTargetsTest)")
+            .that(methodBody(window, "private boolean confirmUserCloseAll(List<Tab> targets) {"))
+            .contains("return confirmUserClose(targets.get(0));");
         String perTab = methodBody(window, "private static boolean confirmUserClose(Tab tab) {");
         assertThat(perTab).contains("terminalTab.confirmUserClose()");
         assertWithMessage("a hosted snippet editor still asks about unsaved changes on Cmd/Ctrl+W")

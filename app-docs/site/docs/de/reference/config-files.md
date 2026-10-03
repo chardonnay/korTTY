@@ -12,6 +12,7 @@ KorTTY speichert alle Anwendungsdaten und Konfigurationen im Verzeichnis `~/.kor
 ~/.kortty/
 ├── connections.xml                    # Saved SSH connections
 ├── credentials.xml                    # Stored credentials (encrypted)
+├── environments.xml                   # Your own credential environments and environment tab colors
 ├── ssh-keys.xml                       # SSH key management
 ├── gpg-keys.xml                       # GPG keys for backup encryption
 ├── global-settings.xml                # Global application settings
@@ -69,6 +70,8 @@ Enthält alle gespeicherten SSH-Verbindungen mit ihren Einstellungen.
 - Einstellungen für Fenstergeometrie
 - Gruppen-/Ordnerorganisation
 - Optionaler Freitext-Tag (wird für Suche, Massen-Tagging und Tag-basierten Export verwendet)
+- Optionaler Regelsatz für die Hervorhebung von Schlüsselwörtern (`highlightRuleSetId`): die ID eines mitgelieferten oder eigenen Regelsatzes, `none` für keine Hervorhebung oder nicht vorhanden, um dem Standard-Regelsatz zu folgen (siehe [Regelsatz pro Verbindung](../features/highlighting.md#regelsatz-pro-verbindung)). Verbindungen aus einer [Teamarbeit](../features/teamwork.md)-Datei können ihn ebenfalls enthalten; die ID eines Regelsatzes, der auf Ihrem Computer nicht existiert, wird ignoriert.
+- Optionale Tab-Farbe (`tabColor`, `#RRGGBB`), die die Terminal-Tabs der Verbindung mit einem farbigen Punkt markiert; alles, was keine Hex-Farbe ist, wird ignoriert (siehe [Tab-Farbe](../features/connections.md#tab-farbe)). Verbindungen aus einer [Teamarbeit](../features/teamwork.md)-Datei können sie ebenfalls enthalten, sodass derjenige, der die Datei pflegt, entscheidet, wie diese Tabs markiert werden.
 
 **Sicherheit:** Verbindungspasswörter werden mit AES-256-GCM unter Verwendung des Master-Passworts verschlüsselt.
 
@@ -80,11 +83,20 @@ Zentralisierte Speicherung von Anmeldeinformationen für Benutzername/Passwort-P
 
 **Beinhaltet:**
 - Anmeldename, Benutzername, Passwort
-- Environment (Produktion, Entwicklung, Test, Staging)
+- Umgebung (Produktion, Entwicklung, Test, Staging oder eine eigene aus `environments.xml`)
 - Server-Muster (Glob-Muster wie `*.example.com` oder `10.0.0.*`)
 - Automatische Zuweisung zu Verbindungen, die dem Muster entsprechen
 
 **Sicherheit:** Alle Passwörter werden mit AES-256-GCM verschlüsselt.
+
+### environments.xml
+Ihre eigenen Anmeldeumgebungen und die Tab-Farben aller Umgebungen (siehe [Umgebungen und Tab-Farben](../features/security.md#umgebungen-und-tab-farben)).
+
+**Beinhaltet:**
+- Eigene Umgebungen mit ihrer ID und ihrem Anzeigenamen (`<environment id="custom-…" displayName="Lab"/>`); die integrierten Umgebungen Produktion, Entwicklung, Test und Staging werden nicht gespeichert
+- Optionale Tab-Farben integrierter und eigener Umgebungen (`<colors><color id="PRODUCTION" color="#D32F2F"/></colors>`); ein Wert, der keine Hex-Farbe ist, oder die Farbe einer Umgebung, die es nicht mehr gibt, wird ignoriert
+
+Eine Datei ohne Farben, wie frühere Versionen sie geschrieben haben, wird unverändert geladen. Ohne die Datei kennt korTTY nur die integrierten Umgebungen, und keine Umgebung hat eine Farbe.
 
 ### ssh-keys.xml
 Verwaltet die zentrale SSH-Schlüsselspeicherung.
@@ -137,6 +149,8 @@ Globale Anwendungseinstellungen und Standardeinstellungen.
 - Präferenz für die Sichtbarkeit der Menüleiste
 - Dashboard-Sichtbarkeitsstatus
 -  Flag „Toolfenster als Registerkarten öffnen“.
+- `connectionColorBorderEnabled`: ob das Terminal einer Verbindung mit einer [Tab-Farbe](../features/connections.md#tab-farbe) einen Rahmen in dieser Farbe erhält (standardmäßig aktiviert)
+- `tabTitleFromShellEnabled`: ob ein Terminal-Tab statt des Verbindungsnamens den [Titel anzeigt, den seine Shell setzt](../features/terminal.md#titel-aus-der-shell) (standardmäßig aktiviert)
 - Angedocktes Live-Sitzungsjournal-Panel: Platzierung (versteckt/links/rechts) und Breite
 - JobScheduler-Statusanzeigeeinstellung
 - Letzte Vorschau-Zoomstufe des ASCII-Art-Dialogfelds
@@ -150,6 +164,12 @@ Globale Anwendungseinstellungen und Standardeinstellungen.
 - Standardeinstellungen für das Terminaleffekt-Plugin
 - SSH Keep-Alive-Einstellungen
 - Verbindungszeitlimit und Standardwerte für Wiederholungsversuche
+
+#### Hervorhebung von Schlüsselwörtern
+
+- Der Hauptschalter (`terminalHighlightingEnabled`), die Hervorhebung in Vollbildprogrammen (`terminalHighlightAlternateScreen`) und der Standard-Regelsatz (`defaultHighlightRuleSetId`, die ID eines mitgelieferten oder eigenen Regelsatzes; leer bedeutet keiner)
+- Ihre eigenen Regelsätze (`highlightRuleSets`), wie sie im [Regelsatz-Editor](../features/highlighting.md#ihre-eigenen-regelsatze) bearbeitet werden: Jeder Regelsatz hat eine stabile ID, einen Namen und seine Regeln in Prioritätsreihenfolge, und jede Regel hat ihre ID, ob sie eingeschaltet ist, das Muster, ob es ein regulärer Ausdruck ist, Groß-/Kleinschreibung ignorieren, ganzes Wort, ob sie den Treffer oder die ganze Zeile färbt, die Text- und Hintergrundfarbe (`#RRGGBB`, eine Themenfarbe von `ansi:0` bis `ansi:15` oder leer, um die Farbe des Programms beizubehalten) sowie fett, kursiv und unterstrichen
+- Die mitgelieferten Regelsätze werden nicht gespeichert: Sie werden mit korTTY ausgeliefert, sodass eine neue Version sie verbessern kann, und ihre IDs beginnen mit `builtin.`, was Ihre eigenen Regelsätze nicht verwenden können
 
 #### AI, Modelle und Wissensspeicher
 
@@ -446,7 +466,7 @@ Alle Dateien werden plattformübergreifend im selben `~/.kortty/`-Verzeichnis ge
 
 Wenn Sie über *Bearbeiten > Backup erstellen* ein Backup erstellen, ist die folgende Konfiguration enthalten:
 
-- Alle `.xml`-Konfigurationsdateien (Verbindungen, Anmeldeinformationen, SSH-Schlüsselreferenzen und Passphrasen, GPG-Schlüssel, globale Einstellungen, JobScheduler, Snippets, Snippet-Variablen, KI-Chats)
+- Alle `.xml` Konfigurationsdateien (Verbindungen, Anmeldeinformationen, Anmeldeumgebungen, SSH-Schlüsselreferenzen und Passphrasen, GPG-Schlüssel, globale Einstellungen, JobScheduler, Snippets, Snippet-Variablen, KI-Chats)
 - `master.key`
 - `projects/` Verzeichnis
 - `ssh-keys/`-Verzeichnis – kopierte SSH-Schlüsseldateien (wiederhergestellt mit Nur-Eigentümer-Berechtigungen; Importe führen lokale Schlüssel zusammen und löschen sie niemals)

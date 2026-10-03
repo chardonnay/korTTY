@@ -172,6 +172,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox commandTimestampsCheck;
     private final CheckBox terminalDragDropCheck;
     private final CheckBox terminalCopyOnSelectCheck;
+    private final CheckBox terminalLinkDetectionCheck;
     private final CheckBox closeActiveTerminalWindowsWithoutConfirmationCheck;
     private final ComboBox<PasteWarningMode> pasteWarningModeCombo;
     private final Spinner<Integer> pasteLargeWarningSpinner;
@@ -183,6 +184,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox codingAgentAppBadgeCheck;
     private final CheckBox controlApiEnabledCheck;
     private final Label controlApiStatusLabel;
+    // Keyword highlighting: master switch, full-screen programs, default rule set
+    private final CheckBox terminalHighlightingEnabledCheck;
+    private final CheckBox terminalHighlightAlternateScreenCheck;
+    private final ComboBox<HighlightSettingsSupport.DefaultSetChoice> defaultHighlightSetCombo;
 
     // Appearance settings
     private final ComboBox<AppDesign> appDesignCombo;
@@ -236,6 +241,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox rememberWindowGeometryCheck;
     private final CheckBox rememberDashboardStateCheck;
     private final CheckBox openToolWindowsAsTabsCheck;
+    private final CheckBox connectionColorBorderCheck;
+    private final CheckBox tabTitleFromShellCheck;
     private final CheckBox useFixedGeometryCheck;
     private final Spinner<Integer> fixedWidthSpinner;
     private final Spinner<Integer> fixedHeightSpinner;
@@ -790,6 +797,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalCopyOnSelectCheck.setSelected(globalSettings != null ? globalSettings.isTerminalCopyOnSelectEnabled() : true);
         terminalCopyOnSelectCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.copyOnSelect.tooltip")));
 
+        terminalLinkDetectionCheck = new CheckBox(I18n.get("settings.terminal.linkDetection"));
+        terminalLinkDetectionCheck.setSelected(globalSettings == null || globalSettings.isTerminalLinkDetectionEnabled());
+        terminalLinkDetectionCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.linkDetection.tooltip")));
+
         closeActiveTerminalWindowsWithoutConfirmationCheck = new CheckBox(I18n.get("settings.terminal.closeActiveWithoutConfirmation"));
         closeActiveTerminalWindowsWithoutConfirmationCheck.setSelected(globalSettings != null
             && globalSettings.isCloseActiveTerminalWindowsWithoutConfirmation());
@@ -879,6 +890,30 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         controlApiStatusLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         controlApiStatusLabel.setWrapText(true);
         
+        // Keyword highlighting. The defaults (on, not in full-screen programs, no default set) mean
+        // nothing is highlighted until a set is chosen here, in a menu or with the shortcut.
+        terminalHighlightingEnabledCheck = new CheckBox(I18n.get(HighlightSettingsSupport.ENABLED_KEY));
+        terminalHighlightingEnabledCheck.setSelected(globalSettings == null || globalSettings.isTerminalHighlightingEnabled());
+        terminalHighlightingEnabledCheck.setTooltip(new Tooltip(I18n.get(HighlightSettingsSupport.ENABLED_TOOLTIP_KEY)));
+        terminalHighlightAlternateScreenCheck = new CheckBox(I18n.get(HighlightSettingsSupport.ALTERNATE_SCREEN_KEY));
+        terminalHighlightAlternateScreenCheck.setSelected(
+            globalSettings != null && globalSettings.isTerminalHighlightAlternateScreen());
+        terminalHighlightAlternateScreenCheck.setTooltip(
+            new Tooltip(I18n.get(HighlightSettingsSupport.ALTERNATE_SCREEN_TOOLTIP_KEY)));
+        de.kortty.core.highlight.TerminalHighlightService highlightService =
+            app != null ? app.getTerminalHighlightService() : null;
+        String storedDefaultHighlightSet = globalSettings != null ? globalSettings.getDefaultHighlightRuleSetId() : null;
+        java.util.List<HighlightSettingsSupport.DefaultSetChoice> defaultHighlightSetChoices =
+            HighlightSettingsSupport.defaultSetChoices(HighlightSettingsSupport.selectableSetIds(highlightService),
+                highlightService != null ? highlightService::userSetName : null, storedDefaultHighlightSet);
+        defaultHighlightSetCombo = new ComboBox<>(javafx.collections.FXCollections.observableArrayList(defaultHighlightSetChoices));
+        defaultHighlightSetCombo.setValue(
+            HighlightSettingsSupport.selected(defaultHighlightSetChoices, storedDefaultHighlightSet));
+        defaultHighlightSetCombo.setTooltip(new Tooltip(I18n.get(HighlightSettingsSupport.DEFAULT_SET_TOOLTIP_KEY)));
+        // With the master switch off, neither of the other two has any effect.
+        terminalHighlightAlternateScreenCheck.disableProperty().bind(terminalHighlightingEnabledCheck.selectedProperty().not());
+        defaultHighlightSetCombo.disableProperty().bind(terminalHighlightingEnabledCheck.selectedProperty().not());
+
         // Rows are numbered by a counter, as on the Window tab, so a section can be inserted
         // anywhere without renumbering every row below it.
         int terminalRow = 0;
@@ -901,6 +936,34 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalGrid.add(terminalDragDropCheck, 0, terminalRow++, 2, 1);
         terminalGrid.add(terminalCopyOnSelectCheck, 0, terminalRow++, 2, 1);
         terminalGrid.add(closeActiveTerminalWindowsWithoutConfirmationCheck, 0, terminalRow++, 2, 1);
+
+        // Keyword highlighting section
+        terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
+        Label highlightingHeader = new Label(I18n.get(HighlightSettingsSupport.HEADER_KEY));
+        highlightingHeader.setStyle("-fx-font-weight: bold;");
+        terminalGrid.add(highlightingHeader, 0, terminalRow++, 2, 1);
+        terminalGrid.add(terminalHighlightingEnabledCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(terminalHighlightAlternateScreenCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(new Label(I18n.get(HighlightSettingsSupport.DEFAULT_SET_KEY)), 0, terminalRow);
+        // The editor stays reachable with the master switch off: rule sets can be prepared at any time.
+        Button editHighlightRulesButton = new Button(I18n.get(HighlightSettingsSupport.EDIT_RULES_KEY));
+        editHighlightRulesButton.setTooltip(new Tooltip(I18n.get(HighlightSettingsSupport.EDIT_RULES_TOOLTIP_KEY)));
+        editHighlightRulesButton.setOnAction(event -> editHighlightRules());
+        editHighlightRulesButton.setMinWidth(Region.USE_PREF_SIZE);
+        HBox defaultHighlightSetRow = new HBox(8, defaultHighlightSetCombo, editHighlightRulesButton);
+        defaultHighlightSetRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        terminalGrid.add(defaultHighlightSetRow, 1, terminalRow++);
+        Label highlightingInfo = new Label(I18n.get(HighlightSettingsSupport.INFO_KEY));
+        highlightingInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        highlightingInfo.setWrapText(true);
+        terminalGrid.add(highlightingInfo, 0, terminalRow++, 2, 1);
+
+        // Links section
+        terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
+        Label linksHeader = new Label(I18n.get("settings.terminal.links.header"));
+        linksHeader.setStyle("-fx-font-weight: bold;");
+        terminalGrid.add(linksHeader, 0, terminalRow++, 2, 1);
+        terminalGrid.add(terminalLinkDetectionCheck, 0, terminalRow++, 2, 1);
 
         // Paste protection section
         terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
@@ -1498,6 +1561,31 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Label toolWindowTabsInfoLabel = new Label(I18n.get("settings.window.toolWindowTabs.info"));
         toolWindowTabsInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         windowGrid.add(toolWindowTabsInfoLabel, 0, windowRow++, 2, 1);
+
+        // Tabs section
+        windowGrid.add(new Separator(), 0, windowRow++, 2, 1);
+
+        Label tabsHeader = new Label(I18n.get("settings.window.tabs.header"));
+        tabsHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 0.9231em;");
+        windowGrid.add(tabsHeader, 0, windowRow++, 2, 1);
+
+        connectionColorBorderCheck = new CheckBox(I18n.get("settings.window.connectionColorBorder"));
+        connectionColorBorderCheck.setSelected(globalSettings == null || globalSettings.isConnectionColorBorderEnabled());
+        connectionColorBorderCheck.setTooltip(new Tooltip(I18n.get("settings.window.connectionColorBorder.tooltip")));
+        windowGrid.add(connectionColorBorderCheck, 0, windowRow++, 2, 1);
+
+        Label connectionColorBorderInfoLabel = new Label(I18n.get("settings.window.connectionColorBorder.info"));
+        connectionColorBorderInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        windowGrid.add(connectionColorBorderInfoLabel, 0, windowRow++, 2, 1);
+
+        tabTitleFromShellCheck = new CheckBox(I18n.get("settings.window.tabTitleFromShell"));
+        tabTitleFromShellCheck.setSelected(globalSettings == null || globalSettings.isTabTitleFromShellEnabled());
+        tabTitleFromShellCheck.setTooltip(new Tooltip(I18n.get("settings.window.tabTitleFromShell.tooltip")));
+        windowGrid.add(tabTitleFromShellCheck, 0, windowRow++, 2, 1);
+
+        Label tabTitleFromShellInfoLabel = new Label(I18n.get("settings.window.tabTitleFromShell.info"));
+        tabTitleFromShellInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        windowGrid.add(tabTitleFromShellInfoLabel, 0, windowRow++, 2, 1);
 
         // Fixed geometry section
         windowGrid.add(new Separator(), 0, windowRow++, 2, 1);
@@ -3141,6 +3229,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                         // Re-read the toggle for every open local shell pane right away.
                         app.getCodingAgentService().evaluateAll();
                     }
+                    reloadTerminalHighlighting();
                     if (app.getAppBadgeService() != null) {
                         // Re-reads the badge toggle: applies the current count or clears the badge.
                         // The notification toggle is read live by the coordinator on every decision.
@@ -3309,6 +3398,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setShowTerminalScrollbar(showTerminalScrollbarCheck.isSelected());
             globalSettings.setTerminalDragDropEnabled(terminalDragDropCheck.isSelected());
             globalSettings.setTerminalCopyOnSelectEnabled(terminalCopyOnSelectCheck.isSelected());
+            globalSettings.setTerminalLinkDetectionEnabled(terminalLinkDetectionCheck.isSelected());
             globalSettings.setPasteWarningMode(pasteWarningModeCombo.getValue());
             globalSettings.setPasteLargeWarningKiB(pasteLargeWarningSpinner.getValue() != null
                 ? pasteLargeWarningSpinner.getValue() : PasteProtectionSettings.DEFAULT_LARGE_WARNING_KIB);
@@ -3323,6 +3413,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setCodingAgentNotificationsEnabled(codingAgentNotificationsCheck.isSelected());
             globalSettings.setCodingAgentAppBadgeEnabled(codingAgentAppBadgeCheck.isSelected());
             globalSettings.setControlApiEnabled(controlApiEnabledCheck.isSelected());
+            globalSettings.setTerminalHighlightingEnabled(terminalHighlightingEnabledCheck.isSelected());
+            globalSettings.setTerminalHighlightAlternateScreen(terminalHighlightAlternateScreenCheck.isSelected());
+            globalSettings.setDefaultHighlightRuleSetId(
+                HighlightSettingsSupport.storedValue(defaultHighlightSetCombo.getValue()));
             globalSettings.setRequireMasterPasswordOnStartup(requireMasterPasswordOnStartupCheck.isSelected());
             boolean skipPrompt = skipMasterPasswordPromptCheck.isSelected();
             // Only touch the remembered-password file when the option actually changes — or when it
@@ -3453,6 +3547,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setRememberWindowGeometry(rememberWindowGeometryCheck.isSelected());
             globalSettings.setRememberDashboardState(rememberDashboardStateCheck.isSelected());
             globalSettings.setOpenToolWindowsAsTabs(openToolWindowsAsTabsCheck.isSelected());
+            globalSettings.setConnectionColorBorderEnabled(connectionColorBorderCheck.isSelected());
+            globalSettings.setTabTitleFromShellEnabled(tabTitleFromShellCheck.isSelected());
             
             // Save fixed geometry settings
             globalSettings.setUseFixedWindowGeometry(useFixedGeometryCheck.isSelected());
@@ -3555,6 +3651,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("terminal", "scrollbar_visible", gs::isShowTerminalScrollbar, true));
             tracked.add(new TrackedSetting("terminal", "drag_drop_enabled", gs::isTerminalDragDropEnabled, true));
             tracked.add(new TrackedSetting("terminal", "copy_on_select", gs::isTerminalCopyOnSelectEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "link_detection", gs::isTerminalLinkDetectionEnabled, true));
             tracked.add(new TrackedSetting("terminal", "close_without_confirmation",
                 gs::isCloseActiveTerminalWindowsWithoutConfirmation, true));
             tracked.add(new TrackedSetting("terminal", "paste_warning_mode", () -> gs.getPasteWarningMode().id(), true));
@@ -3565,6 +3662,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 gs::isCodingAgentNotificationsEnabled, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_app_badge", gs::isCodingAgentAppBadgeEnabled, true));
             tracked.add(new TrackedSetting("terminal", "control_api_enabled", gs::isControlApiEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "highlighting_enabled", gs::isTerminalHighlightingEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "highlighting_full_screen",
+                gs::isTerminalHighlightAlternateScreen, true));
+            // The set's class only (a built-in id, "custom" or "none"), never the name of a user's set.
+            tracked.add(new TrackedSetting("terminal", "highlighting_default_set",
+                () -> HighlightSettingsSupport.telemetryValue(gs.getDefaultHighlightRuleSetId()), true));
             tracked.add(new TrackedSetting("video", "recording_enabled", gs::isTerminalRecordingEnabled, true));
             tracked.add(new TrackedSetting("video", "capture_colors", gs::isTerminalRecordingCaptureColorsEnabled, true));
             tracked.add(new TrackedSetting("backup", "max_count", gs::getMaxBackupCount, true));
@@ -6659,6 +6762,49 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             new Alert(Alert.AlertType.ERROR, I18n.get("settings.translation.error.generationFailed") + ": " + (t != null ? t.getMessage() : "")).showAndWait();
         });
         new Thread(task).start();
+    }
+
+    /**
+     * Edit Rules…: the rule-set editor. It saves on its own OK — the sets are not part of this dialog's
+     * OK or Cancel — and writes into the same settings object this dialog applies its fields to, so
+     * neither side loses the other's changes. Afterwards the default-set dropdown lists the sets as they
+     * are now and keeps its selection unless the editor deleted that set.
+     */
+    private void editHighlightRules() {
+        de.kortty.core.highlight.TerminalHighlightService service =
+            app != null ? app.getTerminalHighlightService() : null;
+        de.kortty.core.GlobalSettingsManager manager = app != null ? app.getGlobalSettingsManager() : null;
+        String selection = HighlightSettingsSupport.storedValue(defaultHighlightSetCombo.getValue());
+        java.util.List<String> idsBefore = HighlightSettingsSupport.selectableSetIds(service);
+        javafx.stage.Window owner = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
+        if (!HighlightRulesDialog.showAndSave(owner, globalSettings, manager, service, selection)) {
+            return;
+        }
+        java.util.List<String> idsAfter = HighlightSettingsSupport.selectableSetIds(service);
+        String kept = HighlightSettingsSupport.selectionAfterRuleEdit(selection, idsBefore, idsAfter);
+        java.util.List<HighlightSettingsSupport.DefaultSetChoice> choices = HighlightSettingsSupport.defaultSetChoices(
+            idsAfter, service != null ? service::userSetName : null, kept);
+        defaultHighlightSetCombo.getItems().setAll(choices);
+        defaultHighlightSetCombo.setValue(HighlightSettingsSupport.selected(choices, kept));
+    }
+
+    /**
+     * Moves every open pane to the highlight rule set it resolves to under the saved master switch,
+     * full-screen option and default set. A pane's own choice from a menu or the shortcut stays on top.
+     * Never breaks saving.
+     */
+    private void reloadTerminalHighlighting() {
+        de.kortty.core.highlight.TerminalHighlightService service =
+            app != null ? app.getTerminalHighlightService() : null;
+        if (service == null || globalSettings == null) {
+            return;
+        }
+        try {
+            service.reload(globalSettings);
+        } catch (RuntimeException e) {
+            org.slf4j.LoggerFactory.getLogger(getClass()).warn("Could not apply the keyword highlighting settings: {}",
+                e.toString());
+        }
     }
 
     /**

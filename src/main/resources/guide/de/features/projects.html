@@ -409,6 +409,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="highlighting.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Hervorhebung von Schlüsselwörtern
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="tunnels.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -795,7 +803,7 @@
 </tr>
 <tr>
 <td><strong>Tabs</strong></td>
-<td>Alle Terminal-Tabs in jedem Fenster, einschließlich Split-Pane-Konfigurationen, sowie SFTP-Manager-Tabs mit den lokalen und entfernten Ordnern, die sie anzeigen, sowie Tabs des Dateieditors und Bildbetrachters</td>
+<td>Alle Terminal-Tabs in jedem Fenster, einschließlich der Konfiguration geteilter Bereiche und des Namens eines <a href="terminal.html#arbeiten-mit-tabs">umbenannten Tabs</a>, dazu SFTP-Manager-Tabs mit den lokalen und entfernten Ordnern, die sie anzeigen, sowie Tabs des Dateieditors und des Bildbetrachters</td>
 </tr>
 <tr>
 <td><strong>Verbindungen</strong></td>
@@ -824,6 +832,7 @@
 <ul>
 <li>Stellt alle Fenster mit ihrer gespeicherten Geometrie (Position und Größe) wieder her.</li>
 <li>Verbindet jede SSH-Registerkarte erneut mit den ursprünglichen Verbindungseinstellungen</li>
+<li>Gibt jeder umbenannten Terminal-Registerkarte ihren Namen zurück; eine Registerkarte, die Sie nie umbenannt haben, zeigt den aktuellen Namen der Verbindung</li>
 <li>Zeigt jeden Tab des Terminals mit dem gespeicherten Bildschirm, der über die neue Sitzung abgedunkelt ist, eingerahmt von einer <em>Wiederhergestellten Ausgabe aus</em> Zeile mit dem Datum, an dem das Projekt gespeichert wurde, und einer <em>Ende der wiederhergestellten Ausgabe</em> Zeile. Der Text wird nur in das lokale Terminal geschrieben und niemals an den Server gesendet: Er erreicht die Remote-Shell oder deren Befehlsverlauf nicht, und ein Sitzungsjournal, das mit der Verbindung beginnt, zeichnet ihn nicht auf (ein Journal, das Sie später aktivieren, importiert den Scrollback, der dann die wiederhergestellten Zeilen enthält). Steuerzeichen und Escape-Sequenzen werden daraus entfernt, bevor er angezeigt wird.</li>
 <li>Öffnet jeden SFTP-Manager-Tab erneut in den lokalen und entfernten Ordnern, die er beim Speichern des Projekts zeigte</li>
 <li>Stellt den aktiven Tab- und Dashboard-Status wieder her</li>

@@ -12,6 +12,7 @@ KorTTY stores all application data and configuration under the `~/.kortty/` dire
 ~/.kortty/
 ├── connections.xml                    # Saved SSH connections
 ├── credentials.xml                    # Stored credentials (encrypted)
+├── environments.xml                   # Your own credential environments and environment tab colors
 ├── ssh-keys.xml                       # SSH key management
 ├── gpg-keys.xml                       # GPG keys for backup encryption
 ├── global-settings.xml                # Global application settings
@@ -69,6 +70,8 @@ Contains all saved SSH connections with their settings.
 - Window geometry preferences
 - Group/folder organization
 - Optional free-text tag (used for search, bulk tagging and tag-based export)
+- Optional keyword highlighting rule set (`highlightRuleSetId`): the id of a built-in or your own rule set, `none` for no highlighting, or missing to follow the default rule set (see [Rule set per connection](../features/highlighting.md#rule-set-per-connection)). Connections from a [teamwork](../features/teamwork.md) file can carry it as well; the id of a rule set that does not exist on your computer is ignored.
+- Optional tab color (`tabColor`, `#RRGGBB`) that marks the connection's terminal tabs with a colored dot; anything that is not a hex color is ignored (see [Tab color](../features/connections.md#tab-color)). Connections from a [teamwork](../features/teamwork.md) file can carry it as well, so the file's maintainer decides how those tabs are marked.
 
 **Security:** Connection passwords are encrypted with AES-256-GCM using the master password.
 
@@ -80,11 +83,20 @@ Centralized credential storage for username/password pairs.
 
 **Includes:**
 - Credential name, username, password
-- Environment (Production, Development, Test, Staging)
+- Environment (Production, Development, Test, Staging, or one of your own from `environments.xml`)
 - Server pattern (glob patterns like `*.example.com` or `10.0.0.*`)
 - Auto-assignment to connections matching the pattern
 
 **Security:** All passwords are encrypted with AES-256-GCM.
+
+### environments.xml
+Your own credential environments and the tab colors of all environments (see [Environments and tab colors](../features/security.md#environments-and-tab-colors)).
+
+**Includes:**
+- Custom environments with their id and display name (`<environment id="custom-…" displayName="Lab"/>`); the built-in Production, Development, Test and Staging are not stored
+- Optional tab colors of built-in and custom environments (`<colors><color id="PRODUCTION" color="#D32F2F"/></colors>`); a value that is not a hex color, or the color of an environment that no longer exists, is ignored
+
+A file without colors, as earlier versions wrote it, loads unchanged. Without the file korTTY has only the built-in environments, and no environment has a color.
 
 ### ssh-keys.xml
 Manages centralized SSH key storage.
@@ -137,6 +149,8 @@ Global application preferences and defaults.
 - Menu bar visibility preference
 - Dashboard visibility state
 - "Open tool windows as tabs" flag
+- `connectionColorBorderEnabled`: whether the terminal of a connection with a [tab color](../features/connections.md#tab-color) gets a frame in that color (on by default)
+- `tabTitleFromShellEnabled`: whether a terminal tab shows the [title its shell sets](../features/terminal.md#title-from-the-shell) in place of the connection's name (on by default)
 - Docked live session-journal panel: placement (hidden/left/right) and width
 - JobScheduler status display preference
 - Last ASCII Art dialog preview zoom level
@@ -150,6 +164,12 @@ Global application preferences and defaults.
 - Terminal effect plugin defaults
 - SSH keep-alive settings
 - Connection timeout and retry defaults
+
+#### Keyword highlighting
+
+- The master switch (`terminalHighlightingEnabled`), highlighting in full-screen programs (`terminalHighlightAlternateScreen`) and the default rule set (`defaultHighlightRuleSetId`, the id of a built-in or your own set; empty means none)
+- Your own rule sets (`highlightRuleSets`), as edited in the [rule-set editor](../features/highlighting.md#your-own-rule-sets): each set has a stable id, a name and its rules in priority order, and each rule its id, whether it is on, the pattern, whether it is a regular expression, ignore case, whole word, whether it colors the match or the whole line, the text and background colors (`#RRGGBB`, a theme color `ansi:0` to `ansi:15`, or empty to keep the program's color) and bold, italic and underline
+- The built-in rule sets are not stored: they come with korTTY, so a new version can improve them, and their ids start with `builtin.`, which your own sets cannot use
 
 #### AI, models and knowledge stores
 
@@ -446,7 +466,7 @@ All files are stored in the same `~/.kortty/` directory across platforms:
 
 When you create a backup via *Edit > Create Backup*, the following configuration is included:
 
-- All `.xml` configuration files (connections, credentials, SSH key references and passphrases, GPG keys, global settings, JobScheduler, snippets, snippet variables, AI chats)
+- All `.xml` configuration files (connections, credentials, credential environments, SSH key references and passphrases, GPG keys, global settings, JobScheduler, snippets, snippet variables, AI chats)
 - `master.key`
 - `projects/` directory
 - `ssh-keys/` directory — copied SSH key files (restored with owner-only permissions; imports merge and never delete local keys)

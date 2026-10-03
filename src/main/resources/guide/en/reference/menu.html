@@ -409,6 +409,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/highlighting.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Keyword highlighting
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/tunnels.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -775,14 +783,39 @@
 <td>Open Quick Connect in a new terminal tab</td>
 </tr>
 <tr>
+<td>Rename Tab…</td>
+<td></td>
+<td>Give the active terminal tab a name of its own instead of the connection's name or the <a href="../features/terminal.html#title-from-the-shell">title its shell set</a>; an empty name shows that again. Available while a terminal tab is active. See <a href="../features/terminal.html#working-with-tabs">Working with tabs</a></td>
+</tr>
+<tr>
 <td>Close Tab</td>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-w">W</kbd></span></td>
 <td>Close the active terminal tab</td>
 </tr>
 <tr>
+<td>Close Other Tabs</td>
+<td></td>
+<td>Close every other tab of the current window; the active tab stays open. Asks once when some of the closing terminals have split panes or a running command. The same entry is in a terminal tab's right-click menu. See <a href="../features/terminal.html#working-with-tabs">Working with tabs</a></td>
+</tr>
+<tr>
+<td>Close Tabs to the Right</td>
+<td></td>
+<td>Close the tabs after the active tab, which stays open. Asks like Close Other Tabs. The same entry is in a terminal tab's right-click menu</td>
+</tr>
+<tr>
 <td>Close All Tabs</td>
 <td></td>
-<td>Close every tab in the current window</td>
+<td>Close every tab in the current window; Reopen Closed Tab brings the terminal tabs back</td>
+</tr>
+<tr>
+<td>Reopen Closed Tab</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-t">T</kbd></span></td>
+<td>Reopen the terminal tab you closed last (or the tabs one command closed together) with a new session; greyed out while there is nothing to reopen. The same entry is in a terminal tab's right-click menu. See <a href="../features/terminal.html#working-with-tabs">Working with tabs</a></td>
+</tr>
+<tr>
+<td>Recently Closed ▸</td>
+<td></td>
+<td>What you closed in this session, newest first: a tab, the tabs one command closed together, or <em>Window: …</em> for the tabs of a closed window. Choose an entry to reopen it; <strong>Clear List</strong> empties the list</td>
 </tr>
 <tr>
 <td>New Window</td>
@@ -852,6 +885,11 @@
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span></td>
 <td>Search the active tab (terminal scrollback or open editor). On Windows and Linux a focused terminal sends <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> to the shell, so open Find from this menu or the terminal's right-click menu there</td>
 </tr>
+<tr>
+<td>Quick Select</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-space">Space</kbd></span></td>
+<td>Label every web address, path, e-mail address, UUID, IP address, git hash and number of four or more digits in the focused terminal pane; type a label to copy its text, or <span class="keys"><kbd class="key-shift">Shift</kbd></span> and the label to open a web or e-mail address, or in SSH and local-shell tabs a file path in the Snippet Editor. Disabled outside terminal tabs, see <a href="../features/terminal.html#quick-select">Quick select</a></td>
+</tr>
 </tbody>
 </table>
 <h2 id="connections">Connections<a class="headerlink" href="#connections" title="Permanent link">&para;</a></h2>
@@ -890,28 +928,34 @@
 <thead>
 <tr>
 <th>Item</th>
+<th>Shortcut</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Unlock Vault…</td>
+<td></td>
 <td>Enter the master password to unlock stored secrets when the startup prompt is off (disabled while unlocked)</td>
 </tr>
 <tr>
 <td>Credentials…</td>
-<td>Manage stored credentials (encrypted)</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-m">M</kbd></span></td>
+<td>Manage stored credentials (encrypted). The shortcut also works while a terminal has the focus</td>
 </tr>
 <tr>
 <td>GPG-Keys…</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-g">G</kbd></span></td>
 <td>Manage GPG keys used for backup encryption</td>
 </tr>
 <tr>
 <td>SSH-Keys…</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-i">I</kbd></span></td>
 <td>Manage SSH keys and passphrases</td>
 </tr>
 <tr>
 <td>Known Hosts…</td>
+<td></td>
 <td>Review, search and remove trusted SSH host keys</td>
 </tr>
 </tbody>
@@ -1086,6 +1130,21 @@
 <td>Slider (0–100 %) that makes the terminal background see-through to the desktop while the text stays sharp; every split pane inherits the value. The value is saved across restarts; fullscreen temporarily renders terminal backgrounds opaque and restores the value when you leave. Switching it on or off needs a restart, so the status bar shows a hint when you cross that threshold. Shown in the in-window menu bar only.</td>
 </tr>
 <tr>
+<td>Highlighting ▸ Highlighting On</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span></td>
+<td>Switch <a href="../features/highlighting.html">keyword highlighting</a> on or off for the focused pane of the active tab; switching it back on restores the set the pane showed last. Applies to the running session only</td>
+</tr>
+<tr>
+<td>Highlighting ▸ None / rule set</td>
+<td></td>
+<td>Choose the rule set the focused pane shows: <strong>None</strong>, a built-in set (<strong>Errors and warnings</strong>, <strong>Network addresses</strong>, <strong>Network devices</strong>) or one of your own. Applies to the running session only</td>
+</tr>
+<tr>
+<td>Highlighting ▸ Manage Rule Sets…</td>
+<td></td>
+<td>Open the <a href="../features/highlighting.html#your-own-rule-sets">rule-set editor</a> to create, change, duplicate or delete your own rule sets and look at the built-in ones; it opens on the set the focused pane shows</td>
+</tr>
+<tr>
 <td>Fullscreen</td>
 <td><span class="keys"><kbd class="key-f12">F12</kbd></span></td>
 <td>Toggle window fullscreen</td>
@@ -1177,7 +1236,8 @@
 <li><strong>Dock icon menu</strong> — right-click korTTY's Dock icon for quick actions: <strong>New Window</strong>, <strong>New Tab</strong>, <strong>Manage Connections…</strong>, <strong>Open Project…</strong>, <strong>Manual</strong>, <strong>About korTTY</strong>, and <strong>Quit</strong>.</li>
 <li><strong>Menu-bar (status) icon</strong> — a system-tray icon with <strong>New Window</strong> and <strong>Quit</strong>; clicking the icon opens a new window.</li>
 </ul>
-<p>Both provide a reliable <strong>Quit</strong> even when every window is closed.</p></p>
+<p>Both provide a reliable <strong>Quit</strong> even when every window is closed.</p>
+<p>The menu bar at the top of the screen stays as well when you close the last window, and while no korTTY window has the focus it can still be the menu bar of a window you closed. Its entries then act in the korTTY window you used last, which comes to the front, or open a new window first when none is open: <strong>New Tab</strong> opens Quick Connect there, <strong>Manage Connections...</strong> the Connection Manager. <strong>New Window</strong>, <strong>Quit</strong>, <strong>Prevent System Sleep</strong> and cancelling a running job need no window. <strong>Close Tab</strong>, <strong>Close All Tabs</strong>, <strong>Close Window</strong>, <strong>Cut</strong>, <strong>Copy</strong> and <strong>Paste</strong> do nothing from the menu bar of a closed window, so they never close a tab or paste into a window you are not looking at.</p></p>
     </article>
 </section>
             <!-- endblock -->

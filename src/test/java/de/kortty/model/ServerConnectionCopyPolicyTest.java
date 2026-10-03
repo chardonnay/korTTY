@@ -26,10 +26,12 @@ public class ServerConnectionCopyPolicyTest {
     private static final Set<String> DEEP_COPIED_FIELDS = Set.of("settings");
 
     private static final Set<String> DUPLICATE_CARRIED = Set.of(
+            "highlightRuleSetId",                                          // keyword highlighting rule set
             "host", "port", "username", "protocol", "localShellCommand",
             "localShellWorkingDirectory", "authMethod", "privateKeyPath",
             "terminalEffectPluginId", "terminalEffectAnimationSpeed", "terminalEmulationType",
-            "encoding", "group", "tag", "disableHostKeyCheck", "aiProfileId", "aiSkillIds", "settings");
+            "encoding", "group", "tag", "tabColor", "disableHostKeyCheck", "aiProfileId", "aiSkillIds",
+            "settings");
 
     /** Duplicate deliberately leaves these behind; moving one to carried is a product decision. */
     private static final Set<String> DUPLICATE_EXCLUDED = Set.of(
@@ -43,10 +45,10 @@ public class ServerConnectionCopyPolicyTest {
             "connectionSource", "teamworkSourceId", "teamworkVersionToken", "teamworkRole");
 
     private static final Set<String> EXPORT_CARRIED = Set.of(
-            "name", "host", "port", "group", "tag", "protocol", "localShellCommand",
+            "name", "host", "port", "group", "tag", "tabColor", "protocol", "localShellCommand",
             "localShellWorkingDirectory", "authMethod", "privateKeyPath", "sshKeyId",
             "disableHostKeyCheck", "terminalEffectPluginId", "terminalEffectAnimationSpeed",
-            "terminalEmulationType", "encoding", "settings");
+            "terminalEmulationType", "encoding", "highlightRuleSetId", "settings");
 
     /** Exported only when the matching export-dialog checkbox is set. */
     private static final Set<String> EXPORT_CONDITIONAL = Set.of(

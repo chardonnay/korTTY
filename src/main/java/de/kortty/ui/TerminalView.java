@@ -5,6 +5,7 @@ import com.sithtermfx.core.Terminal;
 import com.sithtermfx.core.TerminalColor;
 import com.sithtermfx.core.TextStyle;
 import com.sithtermfx.core.model.SithTerminal;
+import com.sithtermfx.core.model.TerminalApplicationTitleListener;
 import com.sithtermfx.core.model.TerminalModelListener;
 import com.sithtermfx.core.TtyConnector;
 import com.sithtermfx.ui.SithTermFxWidget;
@@ -43,6 +44,10 @@ import de.kortty.core.TerminalRecordingSession;
 import de.kortty.core.TerminalRecordingStyleRun;
 import de.kortty.core.TerminalColorControlSequenceFilter;
 import de.kortty.core.TerminalPaletteSupport;
+import de.kortty.core.highlight.HighlightTelemetry;
+import de.kortty.core.highlight.HighlightToggle;
+import de.kortty.core.highlight.TerminalHighlightService;
+import de.kortty.core.highlight.TerminalOutputHighlighter;
 import de.kortty.model.AiProfile;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ConnectionSettings;
@@ -107,6 +112,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.UUID;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -185,6 +191,16 @@ public class TerminalView extends BorderPane {
     @FunctionalInterface
     public interface TerminalTextFileLoadHandler {
         void handle(@Nullable TerminalAgentRunContext runContext, String selectedText);
+    }
+
+    /**
+     * Opens the file a link in a pane points to, a path printed as plain text or an OSC 8
+     * {@code file:} target, read as text into the Snippet Editor. {@code runContext} is the pane's,
+     * or {@code null} when its session is not connected.
+     */
+    @FunctionalInterface
+    public interface TerminalPathOpenHandler {
+        void handle(@Nullable TerminalAgentRunContext runContext, TerminalFileLink link);
     }
 
     @FunctionalInterface
@@ -301,6 +317,8 @@ public class TerminalView extends BorderPane {
     private de.kortty.model.TemporarySSHKey temporarySSHKey;  // For split connections with temporary key
     
     private TerminalSplitPane splitPane;
+    // Quick select (Edit > Quick Select): its key filters are the split pane's first.
+    private TerminalQuickSelectController quickSelect;
     private StackPane terminalContainer;
     private String terminalAgentBusyStylesheetUrl;
     private SithTermFxWidget terminalWidget;  // Primary widget (first terminal in split)
@@ -355,6 +373,8 @@ public class TerminalView extends BorderPane {
     private java.util.function.BooleanSupplier menuBarHiddenSupplier;
     private Runnable menuBarRestoreHandler;
     private TerminalTextFileLoadHandler terminalTextFileLoadHandler;
+    // Read on the emulator thread too, when an OSC 8 file: link arrives.
+    private volatile TerminalPathOpenHandler terminalPathOpenHandler;
     private TerminalAgentContextHandler aiAgentHandler;
     private TerminalAgentAskHandler aiAgentAskHandler;
     private TerminalAgentContextHandler aiPlanningHandler;
@@ -384,6 +404,21 @@ public class TerminalView extends BorderPane {
     private final String terminalViewId = UUID.randomUUID().toString();
     private final Map<SithTermFxWidget, CodingAgentMonitor> codingAgentMonitors = new ConcurrentHashMap<>();
     private final Map<SithTermFxWidget, TerminalModelListener> codingAgentModelListeners = new ConcurrentHashMap<>();
+    /** Keyword highlighting engine per pane; attached for every pane, dormant while no rule set is active. */
+    private final Map<SithTermFxWidget, TerminalOutputHighlighter> terminalHighlighters = new ConcurrentHashMap<>();
+    /**
+     * The pane's runtime highlight rule-set choice (a set id or {@code "none"}); absent = inherit the
+     * connection's and then the global default. Never persisted; a new split inherits its parent's.
+     */
+    private final Map<SithTermFxWidget, String> paneHighlightOverride = new ConcurrentHashMap<>();
+    /** The rule set each pane showed last in this session, which the highlighting toggle switches back on. */
+    private final Map<SithTermFxWidget, String> paneLastHighlightSet = new ConcurrentHashMap<>();
+    /**
+     * Panes attached but not yet set up: the set a pane starts with is reported once its setup is done —
+     * a split only knows its own connection and its parent's choice after the split hook, and a split
+     * that fails to connect is released without ever counting as an activation.
+     */
+    private final java.util.Set<SithTermFxWidget> pendingHighlightReports = ConcurrentHashMap.newKeySet();
     /** Canvas focus observers per pane (Stage 2): feed the focused-widget listeners and done-until-seen. */
     private final Map<SithTermFxWidget, javafx.beans.value.ChangeListener<Boolean>> paneFocusListeners =
         new ConcurrentHashMap<>();
@@ -410,6 +445,14 @@ public class TerminalView extends BorderPane {
     private final List<Consumer<SithTermFxWidget>> focusedWidgetListeners = new CopyOnWriteArrayList<>();
     /** The pane whose canvas most recently gained keyboard focus (null before the first focus). */
     private volatile SithTermFxWidget lastFocusedWidget;
+    /**
+     * The titles the programs in the panes set (OSC 0/2), cleaned and reduced to the focused pane's;
+     * handed to the tab on the FX thread. Never touches a color: the title is text only.
+     */
+    private final ShellTitleTracker<SithTermFxWidget> shellTitles =
+        new ShellTitleTracker<>(Platform::runLater, this::getFocusedWidget, TerminalView::isTabTitleFromShellEnabled);
+    /** Each pane's title listener on its terminal, so a closing pane can take it off again. */
+    private final Map<SithTermFxWidget, TerminalApplicationTitleListener> shellTitleListeners = new ConcurrentHashMap<>();
 
     /** A bracketed-paste tracker together with the connector it listens on, so a rebind can detach it. */
     private record PasteTracking(BracketedPasteTracker tracker, ObservableTtyConnector connector) {}
@@ -549,12 +592,19 @@ public class TerminalView extends BorderPane {
         splitPane = new TerminalSplitPane(providerFactory, connectorFactory, widget -> {
             registerPaneProvider(widget);
             setupWidgetEventHandlers(widget);
+            configurePlainTextLinks(widget);
             applyCursorShape(widget);
             setupTimestampGutter(widget);
             applyTerminalScrollbarVisibility(widget);
         }, widget -> gutterMap.get(widget), this::createTerminalAgentActivityPanel, this::decorateTerminalConnector); // Left panel factory: returns the gutter created in setupTimestampGutter
         splitPane.setOnWidgetClosed(this::onPaneClosed); // Stop the pane's effect + release its provider/agent runs when its split closes
-        splitPane.setOnWidgetSplitCreated(this::inheritEffectOnSplit); // New split panes inherit the source pane's effect
+        splitPane.setOnWidgetSplitCreated((widget, request) -> { // New split panes inherit the source pane's highlight choice and effect
+            inheritHighlightOnSplit(widget, request);
+            inheritEffectOnSplit(widget, request);
+        });
+        // The first pane is set up now (it was configured inside the constructor above): report the
+        // rule set it starts with, if any.
+        reportPendingHighlightActivations();
         splitPane.setOnLastWidgetSessionEnded(() -> { // Only the LAST pane's exit closes the tab (splits close just their pane)
             if (wasConnectionLost()) {
                 // The session ended because the transport died, not through a remote exit:
@@ -670,6 +720,12 @@ public class TerminalView extends BorderPane {
                 items.add(themeMenu);
                 items.add(new javafx.scene.control.SeparatorMenuItem());
             }
+            // Keyword highlighting does not depend on the effect plugins, so it sits outside their block.
+            javafx.scene.control.Menu highlightMenu = buildPaneHighlightMenu(widget);
+            if (highlightMenu != null) {
+                items.add(highlightMenu);
+                items.add(new javafx.scene.control.SeparatorMenuItem());
+            }
             if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
                 items.add(buildPaneEffectMenu(widget));
                 items.add(new javafx.scene.control.SeparatorMenuItem());
@@ -693,7 +749,11 @@ public class TerminalView extends BorderPane {
         
         terminalWidget = splitPane.getFocusedWidget();
         if (terminalWidget != null) applyCursorShape(terminalWidget);
-        
+
+        // Quick select's key filters go first: while it runs, every key, its typed character and any
+        // input-method text stay out of the panes (agent lock, broadcast mirror and shell included).
+        quickSelect = TerminalQuickSelectController.install(splitPane, MainWindow.quickSelectAccelerator());
+
         // Key handling at split-pane level runs before every pane: the agent input lock, the agent
         // shortcut and Ctrl+D come first. Navigation keys are encoded below, in each pane's own
         // filter (TerminalSplitPane.routeKeyPressed), which needs the real connector type.
@@ -794,6 +854,15 @@ public class TerminalView extends BorderPane {
 
     public void setTerminalTextFileLoadHandler(@Nullable TerminalTextFileLoadHandler terminalTextFileLoadHandler) {
         this.terminalTextFileLoadHandler = terminalTextFileLoadHandler;
+    }
+
+    /**
+     * Sets what opens the files that links in this tab's panes point to; while none is set (the
+     * policy denies loading files into the Snippet Editor), no pane finds paths in plain text and
+     * OSC 8 {@code file:} links stay plain text.
+     */
+    public void setTerminalPathOpenHandler(@Nullable TerminalPathOpenHandler terminalPathOpenHandler) {
+        this.terminalPathOpenHandler = terminalPathOpenHandler;
     }
 
     public void setAiAgentHandler(TerminalAgentContextHandler aiAgentHandler) {
@@ -1175,7 +1244,9 @@ public class TerminalView extends BorderPane {
             widget.getTerminalTextBuffer().removeModelListener(recordingListener);
         }
         releaseCodingAgentMonitor(widget);
+        releaseTerminalHighlighter(widget);
         releasePaneFocusObserver(widget);
+        releaseShellTitleListener(widget);
         releaseBracketedPasteTracker(widget);
         if (terminalRecordingTargetWidgets.contains(widget)) {
             terminalRecordingTargetWidgets = terminalRecordingTargetWidgets.stream()
@@ -1227,6 +1298,28 @@ public class TerminalView extends BorderPane {
         }
         setTerminalEffectAnimationSpeed(newWidget, getTerminalEffectAnimationSpeed(source));
         setTerminalEffectPluginId(newWidget, effectId);
+    }
+
+    /**
+     * New split panes inherit the source pane's runtime highlight choice. Without one, the pane follows
+     * its own connection, which is only known now: a split to another server was attached before its
+     * connector existed and so first resolved against the tab's connection. Only then is the set the
+     * pane starts with reported, and only when it comes from the connection or the default — a choice
+     * taken over from the parent pane was reported when it was made.
+     */
+    private void inheritHighlightOnSplit(SithTermFxWidget newWidget, SplitRequest request) {
+        if (newWidget == null) {
+            return;
+        }
+        String choice = request != null && request.getParentWidget() != null
+            ? paneHighlightOverride.get(request.getParentWidget())
+            : null;
+        if (choice != null) {
+            setPaneHighlightOverride(newWidget, choice);
+        } else {
+            refreshInheritedHighlightSet(newWidget);
+        }
+        reportPendingHighlightActivation(newWidget);
     }
 
     // ---- Tab-level (no-arg) API: forwards to the primary/focused pane so MainWindow and the
@@ -2583,6 +2676,10 @@ public class TerminalView extends BorderPane {
      */
     private void reinitPaneFont(SithTermFxWidget widget) {
         if (widget == null || widget.getTerminalPanel() == null) return;
+        if (quickSelect != null) {
+            // The cells move under quick select's labels.
+            quickSelect.cancel();
+        }
         try {
             widget.getTerminalPanel().requestFontResize();
         } catch (Exception e) {
@@ -3297,7 +3394,70 @@ public class TerminalView extends BorderPane {
         }
         installTerminalRecordingModelListener(widget);
         attachCodingAgentMonitor(widget);
+        attachTerminalHighlighter(widget);
         installPaneFocusObserver(widget);
+        installShellTitleListener(widget);
+    }
+
+    /**
+     * Follows the title the program in {@code widget} sets (OSC 0/2). The terminal reports it on the
+     * pane's emulator thread; {@link ShellTitleTracker} cleans it there and hands it to the tab on the
+     * FX thread. The terminal outlives a reconnect, so this is registered once per pane and removed in
+     * {@link #releasePaneState}.
+     */
+    private void installShellTitleListener(SithTermFxWidget widget) {
+        Terminal terminal = widget.getTerminal();
+        if (terminal == null) {
+            return;
+        }
+        TerminalApplicationTitleListener listener = title -> shellTitles.titleChanged(widget, title);
+        shellTitleListeners.put(widget, listener);
+        terminal.addApplicationTitleListener(listener);
+    }
+
+    private void releaseShellTitleListener(SithTermFxWidget widget) {
+        TerminalApplicationTitleListener listener = shellTitleListeners.remove(widget);
+        if (listener != null && widget.getTerminal() != null) {
+            widget.getTerminal().removeApplicationTitleListener(listener);
+        }
+        shellTitles.paneClosed(widget);
+    }
+
+    /** The tab closes: every pane stops reporting titles, and late ones are ignored. */
+    private void releaseAllShellTitleListeners() {
+        shellTitles.dispose();
+        for (SithTermFxWidget widget : new ArrayList<>(shellTitleListeners.keySet())) {
+            TerminalApplicationTitleListener listener = shellTitleListeners.remove(widget);
+            if (listener != null && widget.getTerminal() != null) {
+                widget.getTerminal().removeApplicationTitleListener(listener);
+            }
+        }
+    }
+
+    /**
+     * Sets who is told, on the FX thread, when the title the tab should take from its programs
+     * changes: the focused pane's title, cleaned, or {@code null} for none (no title set, or the
+     * Window setting is off).
+     */
+    public void setShellTitleListener(Consumer<String> listener) {
+        shellTitles.setListener(listener);
+    }
+
+    /** Hands the current title to the listener again, after the Window setting changed. FX thread. */
+    public void refreshShellTitle() {
+        shellTitles.publish();
+    }
+
+    /** Whether tabs show the title the program in them sets (Window settings); on when unknown. */
+    static boolean isTabTitleFromShellEnabled() {
+        try {
+            var app = KorTTYApplication.getInstance();
+            var gsm = app != null ? app.getGlobalSettingsManager() : null;
+            var gs = gsm != null ? gsm.getSettings() : null;
+            return gs == null || gs.isTabTitleFromShellEnabled();
+        } catch (Exception e) {
+            return true;
+        }
     }
 
     /** Sends the pane's pastes through {@link #pasteGuard} instead of SithTermFX's own paste code. */
@@ -3374,6 +3534,8 @@ public class TerminalView extends BorderPane {
 
     private void onPaneFocused(SithTermFxWidget widget) {
         lastFocusedWidget = widget;
+        // The tab shows the title of the pane the user works in.
+        shellTitles.publish();
         for (Consumer<SithTermFxWidget> listener : focusedWidgetListeners) {
             try {
                 listener.accept(widget);
@@ -3859,6 +4021,340 @@ public class TerminalView extends BorderPane {
             releaseCodingAgentMonitor(widget);
         }
         codingAgentModelListeners.clear();
+    }
+
+    // ---- Keyword highlighting (per pane) ----
+
+    private static TerminalHighlightService terminalHighlightService() {
+        KorTTYApplication app = KorTTYApplication.getInstance();
+        return app == null ? null : app.getTerminalHighlightService();
+    }
+
+    /**
+     * Attaches the pane's highlighter. Runs inside the widget configurator — for the first widget
+     * before {@code splitPane} is assigned, so it must not touch it — and must never break widget
+     * creation, hence the blanket catch. With no rule set active the highlighter's model listener
+     * returns at once, so a pane without highlighting pays nothing.
+     */
+    private void attachTerminalHighlighter(SithTermFxWidget widget) {
+        if (widget == null) {
+            return;
+        }
+        try {
+            TerminalHighlightService service = terminalHighlightService();
+            if (service == null || service.isClosed() || widget.getTerminalTextBuffer() == null) {
+                return;
+            }
+            boolean[] attached = {false};
+            terminalHighlighters.computeIfAbsent(widget, pane -> {
+                com.sithtermfx.ui.TerminalPanel panel = pane.getTerminalPanel();
+                TerminalOutputHighlighter highlighter = service.attach(pane.getTerminalTextBuffer(),
+                    highlightSelection(pane),
+                    panel != null ? panel::repaint : () -> { },
+                    () -> recordRestyledTerminalRecordingSnapshot(pane),
+                    () -> panel != null && panel.getFindResult() != null);
+                attached[0] = highlighter != null;
+                return highlighter;
+            });
+            if (attached[0]) {
+                // Reported once the pane is set up: the tab's first pane right after the split pane is
+                // built, a split from the split hook (see reportPendingHighlightActivation).
+                pendingHighlightReports.add(widget);
+            }
+        } catch (RuntimeException e) {
+            logger.warn("Keyword highlighting could not be attached to a terminal pane: {}", e.toString());
+        }
+    }
+
+    /** Reports every pane still waiting for its first report (the tab's first pane). */
+    private void reportPendingHighlightActivations() {
+        for (SithTermFxWidget pane : new ArrayList<>(pendingHighlightReports)) {
+            reportPendingHighlightActivation(pane);
+        }
+    }
+
+    /**
+     * Reports the set a newly set-up pane starts with, once: only while it has no choice of its own (a
+     * split that took over its parent's choice is not a new activation) and only when it shows a set.
+     */
+    private void reportPendingHighlightActivation(SithTermFxWidget pane) {
+        if (pane == null || !pendingHighlightReports.remove(pane)) {
+            return;
+        }
+        TerminalHighlightService service = terminalHighlightService();
+        if (service == null || service.isClosed() || !terminalHighlighters.containsKey(pane)
+            || paneHighlightOverride.containsKey(pane)) {
+            return;
+        }
+        try {
+            reportInheritedHighlightSet(service, pane);
+        } catch (RuntimeException e) {
+            logger.debug("Keyword highlighting activation could not be reported: {}", e.toString());
+        }
+    }
+
+    /**
+     * A new pane that starts out showing a set got it from its connection or the global default (it has
+     * no choice of its own yet), which counts as one activation for the anonymous statistics: class and
+     * source only.
+     */
+    private void reportInheritedHighlightSet(TerminalHighlightService service, SithTermFxWidget pane) {
+        TerminalHighlightService.PaneSelection selection = highlightSelection(pane);
+        String shown = service.resolveSetId(selection);
+        if (shown != null) {
+            de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.TERMINAL_HIGHLIGHT_APPLIED,
+                HighlightTelemetry.props(shown, HighlightTelemetry.inheritedSource(service.decidingLevel(selection))));
+        }
+    }
+
+    /**
+     * Moves a pane without a choice of its own to the set it inherits now (a split to a server whose
+     * connection has a set of its own). The caller reports the pane's set afterwards.
+     */
+    private void refreshInheritedHighlightSet(SithTermFxWidget pane) {
+        TerminalHighlightService service = terminalHighlightService();
+        TerminalOutputHighlighter highlighter = terminalHighlighters.get(pane);
+        if (service == null || service.isClosed() || highlighter == null) {
+            return;
+        }
+        try {
+            service.refresh(highlighter);
+        } catch (RuntimeException e) {
+            logger.warn("Keyword highlighting could not follow a new pane's connection: {}", e.toString());
+        }
+    }
+
+    /**
+     * Where a pane's choice of rule set comes from: its runtime choice, then its connection. Read on the
+     * FX thread whenever the pane's set is resolved.
+     */
+    private TerminalHighlightService.PaneSelection highlightSelection(SithTermFxWidget pane) {
+        return new TerminalHighlightService.PaneSelection() {
+            @Override
+            public String paneOverride() {
+                return paneHighlightOverride.get(pane);
+            }
+
+            @Override
+            public String connectionSetId() {
+                return connectionHighlightSetId(pane);
+            }
+        };
+    }
+
+    /** The pane's connection level alone, as if the pane had no runtime choice. */
+    private TerminalHighlightService.PaneSelection inheritedHighlightSelection(SithTermFxWidget pane) {
+        return new TerminalHighlightService.PaneSelection() {
+            @Override
+            public String paneOverride() {
+                return null;
+            }
+
+            @Override
+            public String connectionSetId() {
+                return connectionHighlightSetId(pane);
+            }
+        };
+    }
+
+    /**
+     * The rule set of the pane's connection, preferring the saved connection with the same id so a change
+     * saved in the Connection Manager applies to open panes (see
+     * {@link TerminalHighlightService#connectionSetId}).
+     */
+    private @Nullable String connectionHighlightSetId(SithTermFxWidget pane) {
+        ServerConnection paneConnection = highlightConnectionOf(pane);
+        try {
+            KorTTYApplication app = KorTTYApplication.getInstance();
+            de.kortty.core.ConfigurationManager configManager = app != null ? app.getConfigManager() : null;
+            return TerminalHighlightService.connectionSetId(paneConnection,
+                configManager != null ? configManager::getConnectionById : null);
+        } catch (RuntimeException e) {
+            return paneConnection != null ? paneConnection.getHighlightRuleSetId() : null;
+        }
+    }
+
+    /**
+     * The connection a pane's session was opened for: a split to another server has its own, every
+     * other pane (and one whose connector is not there yet) belongs to the tab's connection.
+     */
+    private ServerConnection highlightConnectionOf(@Nullable SithTermFxWidget pane) {
+        TtyConnector connector = pane != null ? unwrapTerminalEffectConnector(pane.getTtyConnector()) : null;
+        ServerConnection paneConnection = null;
+        if (connector instanceof SshTtyConnector ssh) {
+            paneConnection = ssh.getConnection();
+        } else if (connector instanceof Mosh4jTtyConnector mosh) {
+            paneConnection = mosh.getConnection();
+        } else if (connector instanceof NativeMoshTtyConnector nativeMosh) {
+            paneConnection = nativeMosh.getConnection();
+        } else if (connector instanceof LocalShellTtyConnector local) {
+            paneConnection = local.getConnection();
+        }
+        return paneConnection != null ? paneConnection : connection;
+    }
+
+    /**
+     * Highlighting restyles cells without a model event, so a recording would only see the change
+     * with the next output; take the frame now when a recording targets the pane.
+     */
+    private void recordRestyledTerminalRecordingSnapshot(SithTermFxWidget widget) {
+        if (widget != null && terminalRecordingModelListeners.containsKey(widget)) {
+            recordTerminalRecordingSnapshot(widget);
+        }
+    }
+
+    private void releaseTerminalHighlighter(SithTermFxWidget widget) {
+        if (widget == null) {
+            return;
+        }
+        paneHighlightOverride.remove(widget);
+        paneLastHighlightSet.remove(widget);
+        pendingHighlightReports.remove(widget);
+        TerminalOutputHighlighter highlighter = terminalHighlighters.remove(widget);
+        if (highlighter == null) {
+            return;
+        }
+        try {
+            TerminalHighlightService service = terminalHighlightService();
+            if (service != null) {
+                service.detach(highlighter);
+            } else {
+                highlighter.close();
+            }
+        } catch (RuntimeException e) {
+            logger.warn("Keyword highlighting could not be released from a terminal pane: {}", e.toString());
+        }
+    }
+
+    private void releaseAllTerminalHighlighters() {
+        for (SithTermFxWidget widget : new ArrayList<>(terminalHighlighters.keySet())) {
+            releaseTerminalHighlighter(widget);
+        }
+        paneHighlightOverride.clear();
+        paneLastHighlightSet.clear();
+        pendingHighlightReports.clear();
+    }
+
+    /** The pane's runtime highlight choice: a set id, {@code "none"}, or {@code null} when it inherits. */
+    public @Nullable String getPaneHighlightOverride(@Nullable SithTermFxWidget pane) {
+        return pane != null ? paneHighlightOverride.get(pane) : null;
+    }
+
+    /**
+     * Sets the pane's runtime highlight choice ({@code null} or blank = inherit) and moves the pane to
+     * the set it now resolves to. Not persisted.
+     */
+    public void setPaneHighlightOverride(@Nullable SithTermFxWidget pane, @Nullable String setId) {
+        if (pane == null) {
+            return;
+        }
+        rememberShownHighlightSet(pane);
+        if (setId == null || setId.isBlank()) {
+            paneHighlightOverride.remove(pane);
+        } else {
+            paneHighlightOverride.put(pane, setId.trim());
+        }
+        TerminalHighlightService service = terminalHighlightService();
+        TerminalOutputHighlighter highlighter = terminalHighlighters.get(pane);
+        if (service != null && highlighter != null) {
+            service.refresh(highlighter);
+        }
+        rememberShownHighlightSet(pane);
+    }
+
+    /** The id of the rule set the pane shows now, or {@code null} when it shows none. */
+    public @Nullable String getEffectiveHighlightSetId(@Nullable SithTermFxWidget pane) {
+        TerminalHighlightService service = terminalHighlightService();
+        if (pane == null || service == null) {
+            return null;
+        }
+        return service.resolveSetId(highlightSelection(pane));
+    }
+
+    /**
+     * The id of the rule set the pane would show without a runtime choice of its own — its connection's,
+     * else the global default — or {@code null}.
+     */
+    private @Nullable String getInheritedHighlightSetId(@Nullable SithTermFxWidget pane) {
+        TerminalHighlightService service = terminalHighlightService();
+        if (pane == null || service == null) {
+            return null;
+        }
+        return service.resolveSetId(inheritedHighlightSelection(pane));
+    }
+
+    /** Keeps the set the pane shows now as the one the toggle switches back on. */
+    private void rememberShownHighlightSet(SithTermFxWidget pane) {
+        String shown = getEffectiveHighlightSetId(pane);
+        if (shown != null) {
+            paneLastHighlightSet.put(pane, shown);
+        }
+    }
+
+    /** What the highlighting menus show for the pane: the master switch, the sets and the pane's set. */
+    HighlightMenuSupport.State getHighlightMenuState(@Nullable SithTermFxWidget pane) {
+        TerminalHighlightService service = terminalHighlightService();
+        boolean paneAvailable = pane != null && terminalHighlighters.containsKey(pane);
+        return HighlightMenuSupport.state(service, paneAvailable, paneAvailable ? getEffectiveHighlightSetId(pane) : null);
+    }
+
+    /**
+     * Shows {@code setId} on the pane ({@value TerminalHighlightService#NONE_ID} for none), as picked in a
+     * highlighting menu. Runtime only: neither the connection nor the settings change.
+     */
+    public void chooseHighlightSet(@Nullable SithTermFxWidget pane, @Nullable String setId, String source) {
+        if (pane == null || setId == null || setId.isBlank() || !terminalHighlighters.containsKey(pane)) {
+            return;
+        }
+        applyHighlightChoice(pane, setId, source);
+    }
+
+    /**
+     * Switches the pane's highlighting off, or back on (see {@link HighlightToggle}), from the pane's
+     * real state; empty when nothing changed (no pane, or the master switch is off).
+     */
+    public Optional<HighlightToggle.Choice> toggleHighlighting(@Nullable SithTermFxWidget pane, String source) {
+        TerminalHighlightService service = terminalHighlightService();
+        if (pane == null || service == null || service.isClosed() || !terminalHighlighters.containsKey(pane)) {
+            return Optional.empty();
+        }
+        Optional<HighlightToggle.Choice> choice = HighlightToggle.toggle(service.isEnabled(),
+            getEffectiveHighlightSetId(pane), paneLastHighlightSet.get(pane), getInheritedHighlightSetId(pane),
+            service::isKnownSet);
+        choice.ifPresent(decided -> applyHighlightChoice(pane, decided.paneOverride(), source));
+        return choice;
+    }
+
+    /** Applies a runtime choice and reports the pane's new set once when it changed (class and source only). */
+    private void applyHighlightChoice(SithTermFxWidget pane, @Nullable String paneOverride, String source) {
+        String before = getEffectiveHighlightSetId(pane);
+        setPaneHighlightOverride(pane, paneOverride);
+        String after = getEffectiveHighlightSetId(pane);
+        if (!Objects.equals(before, after)) {
+            de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.TERMINAL_HIGHLIGHT_APPLIED,
+                HighlightTelemetry.props(after, source));
+        }
+    }
+
+    /** The pane's Highlighting submenu, or {@code null} while the highlighting service is not running. */
+    private javafx.scene.control.Menu buildPaneHighlightMenu(SithTermFxWidget widget) {
+        TerminalHighlightService service = terminalHighlightService();
+        if (widget == null || service == null || service.isClosed()) {
+            return null;
+        }
+        return HighlightMenuSupport.createPaneMenu(getHighlightMenuState(widget),
+            () -> toggleHighlighting(widget, HighlightTelemetry.SOURCE_MENU),
+            setId -> chooseHighlightSet(widget, setId, HighlightTelemetry.SOURCE_MENU),
+            () -> Platform.runLater(() -> openHighlightRulesEditor(widget)));
+    }
+
+    /**
+     * The pane menu's Manage Rule Sets…: the rule-set editor, opened on the set this pane shows. Saving
+     * writes the settings and reloads the highlighting, so every pane follows at once.
+     */
+    private void openHighlightRulesEditor(SithTermFxWidget widget) {
+        javafx.stage.Window owner = getScene() != null ? getScene().getWindow() : null;
+        HighlightRulesDialog.showAndSave(owner, KorTTYApplication.getInstance(), getEffectiveHighlightSetId(widget));
     }
 
     private void installAgentShortcutEventDispatcher(SithTermFxWidget widget) {
@@ -5271,6 +5767,93 @@ public class TerminalView extends BorderPane {
             return true;
         }
     }
+
+    /**
+     * Lets a Cmd/Ctrl+click in the pane open web and e-mail addresses printed as plain text while
+     * {@link #isTerminalLinkDetectionEnabled()}, and file paths too in a pane that
+     * {@linkplain #opensFileLinks opens files}; the setting is read on every click, so no pane has
+     * to be reopened after a change. The pane's file links, plain-text paths and OSC 8
+     * {@code file:} targets, go to the {@link TerminalPathOpenHandler}.
+     */
+    private void configurePlainTextLinks(SithTermFxWidget widget) {
+        if (widget instanceof KorttyTermWidget korttyWidget) {
+            korttyWidget.setPlainTextLinkKinds(() -> !isTerminalLinkDetectionEnabled() ? Set.of()
+                : opensFileLinks(widget) ? TerminalLinkResolver.WEB_AND_PATH_LINK_KINDS
+                : TerminalLinkResolver.WEB_LINK_KINDS);
+            korttyWidget.setFileLinkHandler(new TerminalFileLinkHandler() {
+                @Override
+                public boolean enabled() {
+                    return opensFileLinks(widget);
+                }
+
+                @Override
+                public boolean accepts(TerminalFileLink link) {
+                    // The session's host names are looked up only for an OSC 8 link that names a host.
+                    return opensFileLinks(widget) && (link.host() == null || link.hostAccepted(fileLinkHosts(widget)));
+                }
+
+                @Override
+                public void open(TerminalFileLink link) {
+                    TerminalPathOpenHandler handler = terminalPathOpenHandler;
+                    if (handler != null && accepts(link)) {
+                        handler.handle(createTerminalAgentRunContext(widget), link);
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * Whether links in {@code widget} open files: a {@link TerminalPathOpenHandler} is set and the
+     * pane runs an SSH session (read over SFTP) or a local shell (read from disk). Mosh panes have no
+     * way to read a file. Cheap and safe on any thread.
+     */
+    private boolean opensFileLinks(SithTermFxWidget widget) {
+        if (terminalPathOpenHandler == null) {
+            return false;
+        }
+        TtyConnector connector = unwrapTerminalEffectConnector(widget.getTtyConnector());
+        return connector instanceof SshTtyConnector || connector instanceof LocalShellTtyConnector;
+    }
+
+    /**
+     * The names of the host {@code widget}'s session runs on, which an OSC 8 {@code file:} link may
+     * name: the host the session connected to and the host its prompt shows (a server reached by IP
+     * address names itself in both the prompt and its {@code file:} links); for a local shell the
+     * local host name. Reads the screen, so call it on the JavaFX thread.
+     */
+    private List<String> fileLinkHosts(SithTermFxWidget widget) {
+        TtyConnector connector = unwrapTerminalEffectConnector(widget.getTtyConnector());
+        List<String> hosts = new ArrayList<>();
+        if (connector instanceof ObservableTtyConnector observable) {
+            hosts.add(observable.getExpectedSessionHost());
+        }
+        if (connector instanceof LocalShellTtyConnector) {
+            hosts.add(System.getenv("HOSTNAME"));
+            hosts.add(System.getenv("COMPUTERNAME"));
+        }
+        try {
+            String screenLines = widget.getTerminalTextBuffer() != null ? widget.getTerminalTextBuffer().getScreenLines() : "";
+            String lastLine = lastNonBlankVisibleLine(screenLines);
+            if (lastLine != null) {
+                hosts.add(extractPromptHostFromPromptLine(extractPromptPrefixFromVisibleLine(lastLine)));
+            }
+        } catch (RuntimeException e) {
+            logger.debug("Could not read the prompt host for a file link: {}", e.getMessage());
+        }
+        return hosts;
+    }
+
+    /** {@code GlobalSettings.terminalLinkDetectionEnabled}; on when the settings cannot be read, as by default. */
+    private boolean isTerminalLinkDetectionEnabled() {
+        try {
+            var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            var gs = gsm != null ? gsm.getSettings() : null;
+            return gs == null || gs.isTerminalLinkDetectionEnabled();
+        } catch (Exception e) {
+            return true;
+        }
+    }
     
     /**
      * Sets up a timestamp gutter for the given widget.
@@ -5905,6 +6488,8 @@ public class TerminalView extends BorderPane {
                                 // restored block lands between "Connecting…" and the first live
                                 // output — no race with the MOTD, and nothing reaches the server.
                                 replayPendingRestoredHistory(terminalWidget);
+                                // A new session: the title the old one's shell set no longer applies.
+                                shellTitles.paneReset(terminalWidget);
                                 terminalWidget.setTtyConnector(decorateTerminalConnector(terminalWidget, ttyConnector));
                                 terminalWidget.start();
                                 applyCursorShape(terminalWidget);
@@ -6648,10 +7233,12 @@ public class TerminalView extends BorderPane {
      */
     public void cleanup() {
         pastePacer.cancelAll();
+        releaseAllShellTitleListeners();
         cancelAllTerminalAgentRuns();
         stopAllTerminalAgentShellKeepAlives();
         detachTerminalRecordingSession();
         releaseAllCodingAgentMonitors();
+        releaseAllTerminalHighlighters();
         releaseAllCodingAgentPaneState();
         stopLogger();
         stopSessionJournal();
@@ -7174,6 +7761,18 @@ public class TerminalView extends BorderPane {
         SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
         if (focused instanceof TerminalPaneActions actions) {
             actions.showFind();
+        }
+    }
+
+    /**
+     * Starts quick select in the focused pane: every URL, path, address, hash and long number on
+     * screen gets a label to copy it with, or to open it with Shift. See
+     * {@link TerminalQuickSelectController}.
+     */
+    public void startQuickSelect() {
+        SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+        if (quickSelect != null && focused instanceof KorttyTermWidget widget) {
+            quickSelect.start(widget);
         }
     }
     
@@ -8024,6 +8623,24 @@ public class TerminalView extends BorderPane {
         @Override
         public boolean audibleBell() {
             return false; // Disable bell sound!
+        }
+
+        /**
+         * OSC 8 link text keeps the colours the program gave it. Every OSC 8 cell carries a
+         * {@code HyperlinkStyle} whose custom style is the text's own colours; the vendor default
+         * ({@code HOVER_WITH_BOTH_COLORS}) drew a link that is not hovered with the bare link style,
+         * which has no colours, so coloured link text showed in the default colour until hovered.
+         * In this mode the custom style is always drawn and only underlined on hover.
+         *
+         * <p>korTTY registers no vendor link filter on any widget, and must not: in this mode the
+         * vendor's filter path overwrites every matched cell, OSC 8 links included, with a new link
+         * style in the vendor's link colour (blue on white), so the text loses its own colours
+         * (NoHyperlinkFilterGuardTest). Links in plain text are to be found on demand with
+         * {@code TerminalLinkDetector}, never through a filter.
+         */
+        @Override
+        public com.sithtermfx.core.HyperlinkStyle.HighlightMode getHyperlinkHighlightingMode() {
+            return com.sithtermfx.core.HyperlinkStyle.HighlightMode.HOVER_WITH_CUSTOM_COLOR;
         }
 
         // On Windows/Linux Ctrl+L and Ctrl+F belong to the shell; see clearBufferActionPresentation.

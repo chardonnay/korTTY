@@ -33,7 +33,7 @@ Das Backup umfasst:
 |------|---------|
 | Verbindungen | Alle gespeicherten SSH-Verbindungen und Gruppen |
 | Anmeldeinformationen | Gespeicherte Benutzernamen und Passwörter (verschlüsselt) |
-| Anmeldeumgebungen | Ihre benutzerdefinierten Anmeldeumgebungen (`environments.xml`); die integrierten benötigen keine Sicherung |
+| Anmeldeumgebungen | Ihre benutzerdefinierten Anmeldeumgebungen und die Tab-Farben aller Umgebungen (`environments.xml`); die integrierten Umgebungen selbst benötigen keine Sicherung |
 | SSH-Schlüssel | Schlüsselreferenzen mit verschlüsselten Passphrasen sowie die kopierten Schlüsseldateien in `~/.kortty/ssh-keys/` |
 | Vertrauenswürdige interaktive Hosts | `ssh-host-keys.properties`, gemeinsam genutzt von Terminal, SFTP und dem Mosh SSH-Bootstrap; der Vergängliche `.lock` Begleiter ist nicht im Lieferumfang enthalten |
 | GPG-Schlüssel | Öffentliche GPG-Schlüssel für die Backup-Verschlüsselung |
@@ -86,7 +86,7 @@ GPG-Backups werden für den öffentlichen Schlüssel Ihres ausgewählten GPG-Sch
 
 KorTTY erkennt das Backup-Format anhand des Dateiinhalts, nicht nach Namen; daher werden GPG-Backups, die ältere Versionen als `kortty-backup.zip` gespeichert haben, ebenfalls als GPG-Backups importiert. Eine Datei, die weder ein ZIP-Archiv noch GPG-verschlüsselt ist, wird vor jeglicher Wiederherstellung abgelehnt.
 
-Nach dem Import lädt korTTY die wiederhergestellten Verbindungen, Anmeldedaten, Umgebungen, SSH- und GPG-Schlüssel, Einstellungen, Themen, Snippets, Snippet-Variablen sowie gespeicherte KI- und Swarm-Chats neu. Ein späteres Speichern überschreibt sie daher nicht mit dem zuvor geladenen Inhalt.
+Nach dem Import lädt korTTY die wiederhergestellten Verbindungen, Anmeldeinformationen, Umgebungen, SSH- und GPG-Schlüssel, Einstellungen, Themen, Snippets, Snippet-Variablen sowie gespeicherte KI- und Swarm-Chats neu, sodass ein späteres Speichern sie nicht mit dem zuvor geladenen Inhalt überschreibt. Die offenen Terminal-Tabs zeigen danach die [Tab-Farben](connections.md#tab-farbe) der wiederhergestellten Verbindungen und Anmeldeumgebungen.
 
 Jede wiederhergestellte Datei ersetzt die lokale atomar, sodass ein unterbrochener Import niemals eine halbfertige Datei zurücklässt. Auf macOS und Linux werden `connections.xml`, `credentials.xml`, `ssh-keys.xml`, `job-scheduler.xml` und `master.key` nur für den Eigentümer lesbar (`rw-------`) wiederhergestellt; die anderen Dateien behalten die Berechtigungen der Datei, die sie ersetzen, und eine Datei, die lokal nicht existierte, wird Eigentümer-berechtigt erstellt. Wenn wiederhergestellte Verbindungen, Anmeldeinformationen, SSH-Schlüssel, GPG-Schlüssel oder Umgebungsdateien nicht geparst werden können, wird der Reload sie als `<name>.corrupt-<timestamp>` seitlich verschieben und korTTY behält das, was es zuvor geladen hatte; die nächste Speicherung schreibt dies in eine neue Datei. Eine Themendatei, die nicht geparst werden kann, wird auf dieselbe Weise seitlich verschoben und durch die eingebauten Themen ersetzt.
 
@@ -102,7 +102,7 @@ Sowohl `.zip`- als auch `.zip.gpg`-Backups enthalten dieselben Dateien:
 
 * `connections.xml` – Alle SSH-Verbindungen und -Gruppen
 * `credentials.xml` – Gespeicherte Anmeldeinformationen (immer noch mit Ihrem Master-Passwort verschlüsselt)
-* `environments.xml` — Benutzerdefinierte Anmeldeumgebungen
+* `environments.xml` — Benutzerdefinierte Anmeldeumgebungen und die Tab-Farben der Umgebungen
 * `ssh-keys.xml` – SSH-Schlüsselreferenzen und verschlüsselte Passphrasen
 * `ssh-keys/` – Kopierte SSH-Schlüsseldateien (nur Schlüssel, die Sie über **In Benutzerverzeichnis kopieren** dort platziert haben; Schlüssel, auf die an ihren ursprünglichen Speicherorten verwiesen wird, werden nicht erfasst). Wiederhergestellte Schlüsseldateien erhalten nur Besitzerberechtigungen und ein Import wird zusammengeführt – bereits vorhandene Schlüssel werden nie gelöscht oder, ohne **Überschreiben**, ersetzt
 * `ssh-host-keys.properties` – Vertrauenswürdige öffentliche Hostschlüssel für interaktive Terminal-, SFTP- und Mosh-Bootstrap-Verbindungen (`ssh-host-keys.properties.lock` ist absichtlich ausgeschlossen)

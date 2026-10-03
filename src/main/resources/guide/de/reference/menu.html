@@ -409,6 +409,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/highlighting.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Hervorhebung von Schlüsselwörtern
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/tunnels.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -775,14 +783,39 @@
 <td>Öffnen Sie die Schnellverbindung in einem neuen Terminal-Tab</td>
 </tr>
 <tr>
+<td>Tab umbenennen…</td>
+<td></td>
+<td>Dem aktiven Terminal-Tab statt des Verbindungsnamens oder des <a href="../features/terminal.html#titel-aus-der-shell">Titels, den seine Shell gesetzt hat</a>, einen eigenen Namen geben; ein leerer Name zeigt diesen wieder an. Verfügbar, solange ein Terminal-Tab aktiv ist. Siehe <a href="../features/terminal.html#arbeiten-mit-tabs">Arbeiten mit Tabs</a></td>
+</tr>
+<tr>
 <td>Tab schließen</td>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-w">W</kbd></span></td>
 <td>Schließen Sie die aktive Terminal-Registerkarte</td>
 </tr>
 <tr>
+<td>Andere Tabs schließen</td>
+<td></td>
+<td>Alle anderen Tabs des aktuellen Fensters schließen; der aktive Tab bleibt geöffnet. Fragt einmal nach, wenn einige der zu schließenden Terminals geteilte Bereiche oder einen laufenden Befehl haben. Derselbe Eintrag steht im Rechtsklickmenü eines Terminal-Tabs. Siehe <a href="../features/terminal.html#arbeiten-mit-tabs">Arbeiten mit Tabs</a></td>
+</tr>
+<tr>
+<td>Tabs rechts davon schließen</td>
+<td></td>
+<td>Die Tabs hinter dem aktiven Tab schließen, der geöffnet bleibt. Fragt wie „Andere Tabs schließen“ nach. Derselbe Eintrag steht im Rechtsklickmenü eines Terminal-Tabs</td>
+</tr>
+<tr>
 <td>Alle Tabs schließen</td>
 <td></td>
-<td>Alle Tabs im aktuellen Fenster schließen</td>
+<td>Alle Tabs im aktuellen Fenster schließen; „Geschlossenen Tab wieder öffnen“ holt die Terminal-Tabs zurück</td>
+</tr>
+<tr>
+<td>Geschlossenen Tab wieder öffnen</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-t">T</kbd></span></td>
+<td>Den zuletzt geschlossenen Terminal-Tab (oder die Tabs, die ein Befehl gemeinsam geschlossen hat) mit einer neuen Sitzung wieder öffnen; ausgegraut, solange es nichts wieder zu öffnen gibt. Derselbe Eintrag steht im Rechtsklickmenü eines Terminal-Tabs. Siehe <a href="../features/terminal.html#arbeiten-mit-tabs">Arbeiten mit Tabs</a></td>
+</tr>
+<tr>
+<td>Zuletzt geschlossen ▸</td>
+<td></td>
+<td>Was Sie in dieser Sitzung geschlossen haben, das Neueste zuerst: ein Tab, die Tabs, die ein Befehl gemeinsam geschlossen hat, oder <em>Fenster: …</em> für die Tabs eines geschlossenen Fensters. Wählen Sie einen Eintrag, um ihn wieder zu öffnen; <strong>Liste leeren</strong> leert die Liste</td>
 </tr>
 <tr>
 <td>Neues Fenster</td>
@@ -852,6 +885,11 @@
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span></td>
 <td>Suche im aktiven Tab (Terminal-Scrollback oder geöffneter Editor). Auf Windows und Linux sendet ein fokussiertes Terminal <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> an die Shell, also öffnen Sie Suchen aus diesem Menü oder dem Rechtsklick-Menü des Terminals dort</td>
 </tr>
+<tr>
+<td>Schnellauswahl</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-space">Space</kbd></span></td>
+<td>Jede Webadresse, jeden Pfad, jede E-Mail-Adresse, UUID, IP-Adresse, jeden Git-Hash und jede Zahl mit vier oder mehr Ziffern im fokussierten Terminalbereich mit einem Kürzel versehen; tippen Sie ein Kürzel, um dessen Text zu kopieren, oder <span class="keys"><kbd class="key-shift">Shift</kbd></span> und das Kürzel, um eine Web- oder E-Mail-Adresse oder in SSH- und lokalen Shell-Tabs einen Dateipfad im Snippet-Editor zu öffnen. Außerhalb von Terminal-Tabs deaktiviert, siehe <a href="../features/terminal.html#schnellauswahl">Schnellauswahl</a></td>
+</tr>
 </tbody>
 </table>
 <h2 id="verbindungen">Verbindungen<a class="headerlink" href="#verbindungen" title="Permanent link">&para;</a></h2>
@@ -889,30 +927,36 @@
 <table>
 <thead>
 <tr>
-<th>Artikel</th>
+<th>Element</th>
+<th>Verknüpfung</th>
 <th>Beschreibung</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Tresor entsperren…</td>
-<td>Geben Sie das Master-Passwort ein, um gespeicherte Geheimnisse zu entsperren, wenn die Startaufforderung ausgeschaltet ist (ausgegraut, solange der Tresor entsperrt ist)</td>
+<td></td>
+<td>Das Master-Passwort eingeben, um gespeicherte Geheimnisse zu entsperren, wenn die Abfrage beim Start ausgeschaltet ist (ausgegraut, solange der Tresor entsperrt ist)</td>
 </tr>
 <tr>
-<td>Anmeldeinformationen…</td>
-<td>Gespeicherte Anmeldeinformationen verwalten (verschlüsselt)</td>
+<td>Zugangsdaten…</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-m">M</kbd></span></td>
+<td>Gespeicherte Zugangsdaten verwalten (verschlüsselt). Die Tastenkombination funktioniert auch, wenn ein Terminal den Fokus hat</td>
 </tr>
 <tr>
 <td>GPG-Schlüssel…</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-g">G</kbd></span></td>
 <td>GPG-Schlüssel verwalten, die für die Backup-Verschlüsselung verwendet werden</td>
 </tr>
 <tr>
 <td>SSH-Schlüssel…</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-i">I</kbd></span></td>
 <td>SSH-Schlüssel und Passphrasen verwalten</td>
 </tr>
 <tr>
 <td>Bekannte Hosts…</td>
-<td>Überprüfen, suchen und entfernen vertrauenswürdiger SSH-Hostschlüssel</td>
+<td></td>
+<td>Vertrauenswürdige SSH-Hostschlüssel prüfen, durchsuchen und entfernen</td>
 </tr>
 </tbody>
 </table>
@@ -1086,6 +1130,21 @@
 <td>Schieberegler (0–100 %), der den Terminalhintergrund auf dem Desktop durchscheinen lässt, während der Text scharf bleibt; Jeder geteilte Bereich erbt den Wert. Der Wert bleibt über Neustarts hinweg gespeichert; Der Vollbildmodus macht den Hintergrund des Terminals vorübergehend undurchsichtig und stellt den Wert wieder her, wenn Sie ihn verlassen. Das Ein- und Ausschalten erfordert einen Neustart. Die Statusleiste zeigt daher einen Hinweis an, wenn Sie diesen Schwellenwert überschreiten. Wird nur in der Menüleiste im Fenster angezeigt.</td>
 </tr>
 <tr>
+<td>Hervorhebung ▸ Hervorhebung ein</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span></td>
+<td>Schalten Sie die <a href="../features/highlighting.html">Hervorhebung von Schlüsselwörtern</a> für den fokussierten Bereich des aktiven Tabs ein oder aus; beim Wiedereinschalten kehrt der Regelsatz zurück, den der Bereich zuletzt gezeigt hat. Gilt nur für die laufende Sitzung</td>
+</tr>
+<tr>
+<td>Hervorhebung ▸ Keine / Regelsatz</td>
+<td></td>
+<td>Wählen Sie den Regelsatz, den der fokussierte Bereich zeigt: <strong>Keine</strong>, einen mitgelieferten Regelsatz (<strong>Fehler und Warnungen</strong>, <strong>Netzwerkadressen</strong>, <strong>Netzwerkgeräte</strong>) oder einen eigenen. Gilt nur für die laufende Sitzung</td>
+</tr>
+<tr>
+<td>Hervorhebung ▸ Regelsätze verwalten…</td>
+<td></td>
+<td>Öffnen Sie den <a href="../features/highlighting.html#ihre-eigenen-regelsatze">Regelsatz-Editor</a>, um eigene Regelsätze anzulegen, zu ändern, zu duplizieren oder zu löschen und die mitgelieferten anzusehen; er öffnet sich mit dem Regelsatz, den der fokussierte Bereich zeigt</td>
+</tr>
+<tr>
 <td>Vollbild</td>
 <td><span class="keys"><kbd class="key-f12">F12</kbd></span></td>
 <td>Fenster-Vollbild umschalten</td>
@@ -1177,7 +1236,8 @@
 <li><strong>Dock-Symbolmenü</strong> – Klicken Sie mit der rechten Maustaste auf das Dock-Symbol von korTTY, um schnelle Aktionen durchzuführen: <strong>Neues Fenster</strong>, <strong>Neuer Tab</strong>, <strong>Verbindungen verwalten…</strong>, <strong>Projekt öffnen…</strong>, <strong>Anleitung</strong>, <strong>Über korTTY</strong> und <strong>Beenden</strong>.</li>
 <li><strong>Menüleisten-(Status-)Symbol</strong> – ein Taskleistensymbol mit <strong>Neues Fenster</strong> und <strong>Beenden</strong>; Durch Klicken auf das Symbol wird ein neues Fenster geöffnet.</li>
 </ul>
-<p>Beide bieten ein zuverlässiges <strong>Beenden</strong>, selbst wenn jedes Fenster geschlossen ist.</p></p>
+<p>Beide bieten ein zuverlässiges <strong>Beenden</strong>, selbst wenn jedes Fenster geschlossen ist.</p>
+<p>Die Menüleiste oben auf dem Bildschirm bleibt ebenfalls bestehen, wenn Sie das letzte Fenster schließen, und solange kein korTTY-Fenster den Fokus hat, kann sie noch die Menüleiste eines Fensters sein, das Sie geschlossen haben. Ihre Einträge wirken dann im zuletzt verwendeten korTTY-Fenster, das in den Vordergrund kommt, oder öffnen zuerst ein neues Fenster, wenn keines geöffnet ist: <strong>Neuer Tab</strong> öffnet dort die Schnellverbindung, <strong>Verbindungen verwalten...</strong> den Connection-Manager. <strong>Neues Fenster</strong>, <strong>Beenden</strong>, <strong>Ruhezustand verhindern</strong> und das Abbrechen eines laufenden Jobs brauchen kein Fenster. <strong>Tab schließen</strong>, <strong>Alle Tabs schließen</strong>, <strong>Fenster schließen</strong>, <strong>Ausschneiden</strong>, <strong>Kopieren</strong> und <strong>Einfügen</strong> bewirken aus der Menüleiste eines geschlossenen Fensters nichts, sodass sie nie einen Tab schließen oder in ein Fenster einfügen, das Sie gerade nicht sehen.</p></p>
     </article>
 </section>
             <!-- endblock -->

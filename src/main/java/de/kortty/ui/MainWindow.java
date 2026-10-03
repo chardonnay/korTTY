@@ -6,6 +6,7 @@ import de.kortty.telemetry.TelemetryEvents;
 import de.kortty.telemetry.TelemetryProps;
 import de.kortty.ui.I18n;
 import de.kortty.ui.KeyTypedResidueGuard.Residue;
+import de.kortty.ui.actions.ActionIds;
 import de.kortty.core.AgentDashboardStatus;
 import com.sithtermfx.ui.SithTermFxWidget;
 import de.kortty.codingagent.CodingAgentActionException;
@@ -20,12 +21,16 @@ import de.kortty.codingagent.PaneRef;
 import de.kortty.codingagent.TabRollup;
 import de.kortty.codingagent.desktop.AppBadgeService;
 import de.kortty.core.AtomicFileWriter;
+import de.kortty.core.ConnectionColorSupport;
 import de.kortty.core.AiAction;
 import de.kortty.core.AiCliArgumentTemplate;
 import de.kortty.core.AiExecutionResult;
 import de.kortty.core.AiInternetAccessConfiguration;
 import de.kortty.core.AiProfileSelectionSupport;
 import de.kortty.core.AiPromptService;
+import de.kortty.core.highlight.HighlightTelemetry;
+import de.kortty.core.highlight.HighlightToggle;
+import de.kortty.core.highlight.TerminalHighlightService;
 import de.kortty.core.swarm.SwarmCallback;
 import de.kortty.core.swarm.SwarmModels;
 import de.kortty.core.swarm.SwarmOrchestrator;
@@ -193,10 +198,28 @@ public class MainWindow {
         new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
     private static final KeyCombination SESSION_JOURNAL_SCREENSHOT_ACCELERATOR =
         new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
+    // Configuration > Security > Credentials. It was Shortcut+Shift+P, which is kept free for a
+    // command palette; Shortcut+M (Manage Connections) is a different chord.
+    private static final KeyCombination CREDENTIALS_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.M, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    // File > Reopen Closed Tab. Shortcut+Shift+T toggles the command timestamps and Shortcut+Alt+T
+    // the session journal, so the browsers' Shortcut+Shift+T takes Alt as well.
+    private static final KeyCombination REOPEN_CLOSED_TAB_ACCELERATOR = new KeyCodeCombination(
+        KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN, KeyCombination.SHIFT_DOWN);
     // F11 is intercepted system-wide by macOS ("Show Desktop") and F12 is used for regular OS
     // fullscreen, so terminal-only fullscreen uses a modifier combo instead of a bare function key.
     private static final KeyCombination TERMINAL_ONLY_FULLSCREEN_ACCELERATOR =
         new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    // Keyword highlighting on/off for the focused pane. Never a plain Ctrl+letter: on Windows and
+    // Linux plain Ctrl+H is the shell's backspace and must keep reaching it.
+    private static final KeyCombination HIGHLIGHTING_TOGGLE_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.H, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    // Edit > Quick Select. Not a plain Ctrl+letter, so on Windows/Linux Ctrl+L/F/D/P/R stay with the
+    // shell; SithTermFX encodes Ctrl+Space (NUL) only without Shift.
+    private static final KeyCombination QUICK_SELECT_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.SPACE, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    /** What Cmd/Ctrl+Shift+Space can still type once korTTY took it: a space, or NUL for Ctrl+Space. */
+    private static final Residue QUICK_SELECT_RESIDUE = Residue.of(" ", "\u0000");
     private static final String MENU_BAR_TOGGLE_SHORTCUT_LABEL = "Cmd/Ctrl+Shift+L";
     private static final int JOB_SCHEDULER_QUEUE_LIMIT = 5;
     private static final int MAX_CONCURRENT_TERMINAL_AGENT_RUNS = 5;
@@ -275,10 +298,14 @@ public class MainWindow {
     private CheckMenuItem systemShowDashboardMenuItem;
     private MenuItem cutMenuItem;
     private MenuItem systemCutMenuItem;
+    private MenuItem quickSelectMenuItem;
+    private MenuItem systemQuickSelectMenuItem;
     private CheckMenuItem showMenuBarMenuItem;
     private CheckMenuItem systemShowMenuBarMenuItem;
     private CheckMenuItem terminalOnlyFullscreenMenuItem;
     private CheckMenuItem systemTerminalOnlyFullscreenMenuItem;
+    private CheckMenuItem highlightingToggleMenuItem;
+    private CheckMenuItem systemHighlightingToggleMenuItem;
     private CheckMenuItem hideFullscreenScrollbarsMenuItem;
     private CheckMenuItem systemHideFullscreenScrollbarsMenuItem;
     private CheckMenuItem showTimestampsMenuItem;
@@ -299,6 +326,14 @@ public class MainWindow {
     private final List<ConnectionImporter> importers;
     
     private static final List<MainWindow> openWindows = new ArrayList<>();
+    /** The window that had the focus last; stands in for the frontmost one (see {@link #getFrontmostOpenWindow}). */
+    private static MainWindow lastFocusedWindow;
+
+    /** The terminal tabs the user closed in this session, across every window; see {@link ClosedTabHistory}. */
+    private static final ClosedTabHistory closedTabHistory = new ClosedTabHistory();
+    private static final RecentlyClosedRecorder recentlyClosedRecorder = new RecentlyClosedRecorder(closedTabHistory);
+    /** How many tab names a Recently Closed entry of several tabs shows before "+N" counts the rest. */
+    private static final int RECENTLY_CLOSED_NAMES = 3;
 
     /**
      * Mints {@link #windowId}. A counter rather than the list position: a window id that renumbered
@@ -314,6 +349,10 @@ public class MainWindow {
     private final List<CheckMenuItem> preventSleepMenuItems = new ArrayList<>();
     /** "Unlock Vault…" in every menu bar of this window (window menu bar and system menu bar). */
     private final List<MenuItem> unlockVaultMenuItems = new ArrayList<>();
+    /** File › Reopen Closed Tab in every menu bar of this window. */
+    private final List<MenuItem> reopenClosedTabMenuItems = new ArrayList<>();
+    /** File › Recently Closed in every menu bar of this window, rebuilt whenever the history changes. */
+    private final List<Menu> recentlyClosedMenus = new ArrayList<>();
     private Runnable powerManagementStateListener;
     private static volatile boolean applicationQuitRequested = false;
     private static volatile boolean schedulerDrainApproved = false;
@@ -812,6 +851,9 @@ public class MainWindow {
                 // Every prompt passed (confirmClose or the quit approval): only now close the
                 // snippet workspace window and this window's standalone editors without asking.
                 closeSnippetEditorsWithoutPrompt();
+                // Before the tabs are released: the window's terminal tabs become one Recently Closed
+                // entry, unless korTTY ends with this window (Quit, or the last window on Windows and Linux).
+                recordClosedWindow(willCloseApplication());
                 closeAllTabs();
                 // Deregister file browser manager listener to prevent memory leaks and stale callbacks
                 if (fileBrowserManager != null && fileBrowserPositionListener != null) {
@@ -854,6 +896,9 @@ public class MainWindow {
                     powerManagementStateListener = null;
                 }
                 openWindows.remove(this);
+                if (lastFocusedWindow == this) {
+                    lastFocusedWindow = null;
+                }
 
                 // On macOS the application stays alive after the last window closes so the
                 // dock icon can reopen a new window without restarting the process.
@@ -926,10 +971,18 @@ public class MainWindow {
         } else {
             root.setTop(menuRow);
         }
+        // macOS keeps showing this window's menu bar after it closed; its items then act in an open
+        // window, or in a new one (ClosedWindowMenuRouter).
+        ClosedWindowMenuRouter.install(this, window -> window.menuBar.getMenus(), MENU_BAR_WINDOWS);
+        if (systemMenuBar != null) {
+            ClosedWindowMenuRouter.install(this, MainWindow::systemMenus, MENU_BAR_WINDOWS);
+        }
         // The menu bar always starts visible; hiding it is session-only and never persisted.
         applyMenuBarVisibility(true);
         syncDashboardMenuItems(shouldRestoreDashboardOnStartup());
         syncTimestampMenuItems(false);
+        // The history belongs to the application: a new window offers what other windows closed.
+        syncRecentlyClosedMenus();
         applyMainWindowThemeFromGlobalSettings();
         syncAiFeaturesMenuItemsEnabled();
         startJobSchedulerStatusUpdates();
@@ -953,6 +1006,53 @@ public class MainWindow {
                 item.setAccelerator(null);
             }
         }
+    }
+
+    /** The open windows as the menu bar of a closed window sees them (see {@link ClosedWindowMenuRouter}). */
+    private static final ClosedWindowMenuRouter.Windows<MainWindow> MENU_BAR_WINDOWS =
+        new ClosedWindowMenuRouter.Windows<>() {
+            @Override
+            public boolean isOpen(MainWindow window) {
+                return openWindows.contains(window);
+            }
+
+            @Override
+            public MainWindow frontmostOpen() {
+                return getFrontmostOpenWindow();
+            }
+
+            @Override
+            public MainWindow openNew() {
+                reopenOrCreateWindow();
+                return getFrontmostOpenWindow();
+            }
+
+            @Override
+            public void bringToFront(MainWindow window) {
+                window.bringToFront();
+            }
+        };
+
+    private static List<Menu> systemMenus(MainWindow window) {
+        return window.systemMenuBar != null ? window.systemMenuBar.getMenus() : List.of();
+    }
+
+    /**
+     * The focused window, else the one that had the focus last, else the one opened last; {@code null}
+     * when no window is open.
+     */
+    private static MainWindow getFrontmostOpenWindow() {
+        return ClosedWindowMenuRouter.frontmost(openWindows, window -> window.stage.isFocused(), lastFocusedWindow);
+    }
+
+    /** Shows this window in front of the others, restoring it from the Dock first when it is minimized. */
+    private void bringToFront() {
+        if (stage.isIconified()) {
+            stage.setIconified(false);
+        }
+        stage.show();
+        stage.toFront();
+        stage.requestFocus();
     }
 
     private void syncAiFeaturesMenuItemsEnabled() {
@@ -1038,7 +1138,12 @@ public class MainWindow {
 
     private void installForegroundActivityLifecycle() {
         stage.showingProperty().addListener((observable, oldValue, newValue) -> updateForegroundActivity());
-        stage.focusedProperty().addListener((observable, oldValue, newValue) -> updateForegroundActivity());
+        stage.focusedProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue) {
+                lastFocusedWindow = this;
+            }
+            updateForegroundActivity();
+        });
         stage.iconifiedProperty().addListener((observable, oldValue, newValue) -> updateForegroundActivity());
     }
 
@@ -1197,6 +1302,7 @@ public class MainWindow {
                 MenuItem cancel = new MenuItem(I18n.get("jobscheduler.menu.cancel", jobName));
                 cancel.setDisable(active.cancellationRequested());
                 cancel.setOnAction(event -> schedulerService.cancelJob(active.jobId()));
+                ClosedWindowMenuRouter.noWindowNeeded(cancel);
                 menu.getItems().add(cancel);
             }
         }
@@ -1337,20 +1443,51 @@ public class MainWindow {
         newTab.setAccelerator(new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN));
         newTab.setOnAction(e -> showQuickConnect());
 
+        // No shortcut: F2 and the other free keys belong to the program in the terminal.
+        MenuItem renameTab = new MenuItem(I18n.get("menu.file.renameTab"));
+        renameTab.setOnAction(e -> {
+            if (tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab terminalTab) {
+                promptRenameTab(terminalTab);
+            }
+        });
+
         MenuItem closeTab = new MenuItem(I18n.get("menu.file.closeTab"));
         closeTab.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN));
         closeTab.setOnAction(e -> closeCurrentTab());
+        ClosedWindowMenuRouter.ownWindowOnly(closeTab);
+
+        // Both act around the selected tab of any kind; no shortcut either.
+        MenuItem closeOthers = new MenuItem(I18n.get("menu.file.closeOtherTabs"));
+        closeOthers.setOnAction(e -> closeOtherTabs(tabPane.getSelectionModel().getSelectedItem()));
+        ClosedWindowMenuRouter.ownWindowOnly(closeOthers);
+
+        MenuItem closeToRight = new MenuItem(I18n.get("menu.file.closeTabsToRight"));
+        closeToRight.setOnAction(e -> closeTabsToTheRight(tabPane.getSelectionModel().getSelectedItem()));
+        ClosedWindowMenuRouter.ownWindowOnly(closeToRight);
 
         MenuItem closeAllTabs = new MenuItem(I18n.get("menu.file.closeAllTabs"));
         closeAllTabs.setOnAction(e -> confirmAndCloseAllTabs());
+        ClosedWindowMenuRouter.ownWindowOnly(closeAllTabs);
+
+        MenuItem reopenClosedTab = new MenuItem(I18n.get("menu.file.reopenClosedTab"));
+        // Shown here; the scene shortcut router handles the key, also while a terminal has the focus.
+        reopenClosedTab.setAccelerator(REOPEN_CLOSED_TAB_ACCELERATOR);
+        reopenClosedTab.setOnAction(e -> reopenClosedTab());
+        reopenClosedTabMenuItems.add(reopenClosedTab);
+
+        // Rebuilt from the application-wide history whenever it changes (syncRecentlyClosedMenus).
+        Menu recentlyClosed = new Menu(I18n.get("menu.file.recentlyClosed"));
+        recentlyClosedMenus.add(recentlyClosed);
 
         MenuItem newWindow = new MenuItem(I18n.get("menu.file.newWindow"));
         newWindow.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         newWindow.setOnAction(e -> openNewWindow());
+        ClosedWindowMenuRouter.noWindowNeeded(newWindow);
 
         MenuItem closeWindow = new MenuItem(I18n.get("menu.file.closeWindow"));
         closeWindow.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         closeWindow.setOnAction(e -> fireCloseRequest());
+        ClosedWindowMenuRouter.ownWindowOnly(closeWindow);
 
         MenuItem openProject = new MenuItem(I18n.get("menu.file.openProject"));
         openProject.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
@@ -1370,9 +1507,19 @@ public class MainWindow {
         MenuItem quit = new MenuItem(I18n.get("menu.file.quit"));
         quit.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCombination.SHORTCUT_DOWN));
         quit.setOnAction(e -> requestApplicationQuit());
+        ClosedWindowMenuRouter.noWindowNeeded(quit);
+
+        // Both macOS menu bars come from this factory, so each one sets its own state when it opens.
+        fileMenu.setOnShowing(e -> {
+            Tab selected = tabPane.getSelectionModel().getSelectedItem();
+            renameTab.setDisable(!(selected instanceof TerminalTab));
+            syncTabCloseItems(selected, closeOthers, closeToRight);
+            syncRecentlyClosedMenus();
+        });
 
         fileMenu.getItems().addAll(
-            newTab, closeTab, closeAllTabs, new SeparatorMenuItem(),
+            newTab, renameTab, closeTab, closeOthers, closeToRight, closeAllTabs,
+            reopenClosedTab, recentlyClosed, new SeparatorMenuItem(),
             newWindow, closeWindow, new SeparatorMenuItem(),
             openProject, saveProject, new SeparatorMenuItem(),
             createBackup, importBackup, new SeparatorMenuItem(), quit);
@@ -1385,6 +1532,7 @@ public class MainWindow {
         MenuItem cut = new MenuItem(I18n.get("menu.edit.cut"));
         cut.setAccelerator(new KeyCodeCombination(KeyCode.X, KeyCombination.SHORTCUT_DOWN));
         cut.setOnAction(e -> cutFromCurrentContext());
+        ClosedWindowMenuRouter.ownWindowOnly(cut);
         if (target == MenuBarTarget.WINDOW) {
             cutMenuItem = cut;
         } else {
@@ -1395,16 +1543,28 @@ public class MainWindow {
         MenuItem copy = new MenuItem(I18n.get("menu.edit.copy"));
         copy.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
         copy.setOnAction(e -> copyFromTerminal());
+        ClosedWindowMenuRouter.ownWindowOnly(copy);
 
         MenuItem paste = new MenuItem(I18n.get("menu.edit.paste"));
         paste.setAccelerator(PASTE_ACCELERATOR);
         paste.setOnAction(e -> pasteToTerminal());
+        ClosedWindowMenuRouter.ownWindowOnly(paste);
 
         MenuItem find = new MenuItem(I18n.get("menu.edit.find"));
         find.setAccelerator(new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN));
         find.setOnAction(e -> findInCurrentTab());
 
-        editMenu.getItems().addAll(cut, copy, paste, new SeparatorMenuItem(), find);
+        MenuItem quickSelect = new MenuItem(I18n.get("menu.edit.quickSelect"));
+        quickSelect.setAccelerator(QUICK_SELECT_ACCELERATOR);
+        quickSelect.setOnAction(e -> quickSelectInCurrentTab());
+        if (target == MenuBarTarget.WINDOW) {
+            quickSelectMenuItem = quickSelect;
+        } else {
+            systemQuickSelectMenuItem = quickSelect;
+        }
+        updateEditMenuItemsForSelection();
+
+        editMenu.getItems().addAll(cut, copy, paste, new SeparatorMenuItem(), find, quickSelect);
         return editMenu;
     }
 
@@ -1448,7 +1608,8 @@ public class MainWindow {
         syncUnlockVaultMenuItems();
 
         MenuItem manageCredentials = new MenuItem(I18n.get("menu.security.credentials"));
-        manageCredentials.setAccelerator(new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+        // Shown here; the scene shortcut router handles the key, also while a terminal has the focus.
+        manageCredentials.setAccelerator(CREDENTIALS_ACCELERATOR);
         manageCredentials.setOnAction(e -> showCredentialManagement());
 
         MenuItem manageGPGKeys = new MenuItem(I18n.get("menu.security.gpgKeys"));
@@ -1471,6 +1632,7 @@ public class MainWindow {
 
         CheckMenuItem preventSleep = new CheckMenuItem();
         preventSleep.setOnAction(e -> setManualSleepPrevention(preventSleep.isSelected()));
+        ClosedWindowMenuRouter.noWindowNeeded(preventSleep);
         preventSleepMenuItems.add(preventSleep);
         installPowerManagementStateListener();
         syncPreventSleepMenuItems();
@@ -1895,6 +2057,7 @@ public class MainWindow {
         Menu terminalEffectMenu = createTerminalEffectMenu(null, includeEffectSpeedControl);
         terminalEffectMenu.setOnShowing(event ->
                 rebuildTerminalEffectMenu(terminalEffectMenu, getActiveTerminalTab(), includeEffectSpeedControl));
+        Menu highlightingMenu = createHighlightingMenu(target);
 
         MenuItem fullscreen = new MenuItem(I18n.get("menu.view.fullscreen"));
         // F12 lives on the in-window bar; the macOS companion system bar has all accelerators
@@ -1935,7 +2098,7 @@ public class MainWindow {
         if (target != MenuBarTarget.SYSTEM) {
             viewMenu.getItems().addAll(new SeparatorMenuItem(), buildBackgroundTransparencyMenuItem());
         }
-        viewMenu.getItems().addAll(new SeparatorMenuItem(), terminalEffectMenu, new SeparatorMenuItem(),
+        viewMenu.getItems().addAll(new SeparatorMenuItem(), highlightingMenu, terminalEffectMenu, new SeparatorMenuItem(),
             fullscreen, terminalOnlyFullscreen, hideFullscreenScrollbars);
         return viewMenu;
     }
@@ -2000,6 +2163,104 @@ public class MainWindow {
         } catch (Exception e) {
             logger.warn("Could not persist background transparency setting", e);
         }
+    }
+
+    /**
+     * View → Highlighting: the Highlighting On item, which carries {@link #HIGHLIGHTING_TOGGLE_ACCELERATOR}
+     * for display (the scene shortcut router handles the key itself while a terminal tab is selected),
+     * the rule-set list, rebuilt each time the menu opens, and Manage Rule Sets… below it. The first two
+     * act on the focused pane of the active terminal tab, for this session only.
+     */
+    private Menu createHighlightingMenu(MenuBarTarget target) {
+        CheckMenuItem toggle = HighlightMenuSupport.createToggleItem(
+            () -> toggleHighlightingInActiveTerminal(HighlightTelemetry.SOURCE_MENU));
+        toggle.setAccelerator(HIGHLIGHTING_TOGGLE_ACCELERATOR);
+        ActionIds.tag(toggle, HighlightMenuSupport.TOGGLE_KEY);
+        if (target == MenuBarTarget.WINDOW) {
+            highlightingToggleMenuItem = toggle;
+        } else {
+            systemHighlightingToggleMenuItem = toggle;
+        }
+        MenuItem manage = HighlightMenuSupport.createManageItem(this::openHighlightRulesEditor);
+        ActionIds.tag(manage, HighlightMenuSupport.MANAGE_KEY);
+        Menu menu = HighlightMenuSupport.createViewMenu(toggle, manage, activeHighlightMenuState(),
+            this::chooseHighlightSetInActiveTerminal);
+        menu.setOnShowing(event -> HighlightMenuSupport.refresh(menu, toggle, activeHighlightMenuState(),
+            this::chooseHighlightSetInActiveTerminal));
+        return menu;
+    }
+
+    /** The highlighting menus' state for the focused pane of the active terminal tab. */
+    private HighlightMenuSupport.State activeHighlightMenuState() {
+        TerminalTab terminalTab = getActiveTerminalTab();
+        if (terminalTab == null) {
+            return HighlightMenuSupport.state(app.getTerminalHighlightService(), false, null);
+        }
+        TerminalView view = terminalTab.getTerminalView();
+        return view.getHighlightMenuState(view.getFocusedWidget());
+    }
+
+    /**
+     * Cmd/Ctrl+Shift+H and View → Highlighting → Highlighting On: switches the focused pane's
+     * highlighting off or back on. The decision comes from the pane's state, never from the check
+     * item, which JavaFX has already flipped when this runs; the items are re-synced afterwards.
+     */
+    private void toggleHighlightingInActiveTerminal(String source) {
+        TerminalTab terminalTab = getActiveTerminalTab();
+        TerminalHighlightService service = app.getTerminalHighlightService();
+        if (terminalTab != null && service != null && !service.isClosed()) {
+            if (!service.isEnabled()) {
+                updateStatus(I18n.get(HighlightMenuSupport.DISABLED_KEY));
+            } else {
+                TerminalView view = terminalTab.getTerminalView();
+                Optional<HighlightToggle.Choice> choice = view.toggleHighlighting(view.getFocusedWidget(), source);
+                choice.ifPresent(decided ->
+                    updateStatus(HighlightMenuSupport.statusMessage(decided, service::userSetName)));
+            }
+        }
+        syncHighlightingToggleItems();
+    }
+
+    /** A set picked in View → Highlighting, for the focused pane of the active terminal tab. */
+    private void chooseHighlightSetInActiveTerminal(String setId) {
+        TerminalTab terminalTab = getActiveTerminalTab();
+        if (terminalTab != null) {
+            TerminalView view = terminalTab.getTerminalView();
+            view.chooseHighlightSet(view.getFocusedWidget(), setId, HighlightTelemetry.SOURCE_MENU);
+        }
+        syncHighlightingToggleItems();
+    }
+
+    /**
+     * View → Highlighting → Manage Rule Sets…: the rule-set editor, opened on the set the focused pane
+     * shows. Saving writes the settings and reloads the highlighting, so every pane follows at once.
+     */
+    private void openHighlightRulesEditor() {
+        HighlightRulesDialog.showAndSave(stage, app, activeHighlightMenuState().shownSetId());
+        syncHighlightingToggleItems();
+    }
+
+    private void syncHighlightingToggleItems() {
+        HighlightMenuSupport.State state = activeHighlightMenuState();
+        HighlightMenuSupport.syncToggle(highlightingToggleMenuItem, state);
+        HighlightMenuSupport.syncToggle(systemHighlightingToggleMenuItem, state);
+    }
+
+    /**
+     * After the Connection Manager saved: a connection's rule set may have changed, so every pane in every
+     * window that inherits from its connection moves to the set it resolves to now (the service is shared
+     * by all windows). A failure here must never break saving connections.
+     */
+    private void refreshHighlightingAfterConnectionsSaved() {
+        TerminalHighlightService service = app.getTerminalHighlightService();
+        if (service != null && !service.isClosed()) {
+            try {
+                service.refreshAll();
+            } catch (RuntimeException e) {
+                logger.warn("Keyword highlighting could not follow the saved connections: {}", e.toString());
+            }
+        }
+        syncHighlightingToggleItems();
     }
 
     private Menu createTerminalEffectMenu(TerminalTab terminalTab) {
@@ -2207,11 +2468,29 @@ public class MainWindow {
     private SceneShortcutRouter createSceneShortcutRouter() {
         BooleanSupplier terminalSelected =
             () -> tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab;
-        return new SceneShortcutRouter(isMacOs())
+        SceneShortcutRouter router = new SceneShortcutRouter(isMacOs())
             .consume(press -> press.matches(MENU_BAR_TOGGLE_ACCELERATOR), SceneShortcutRouter.ALWAYS,
                 () -> toggleMenuBarVisibility(menuBar == null || !menuBar.isVisible()), Residue.ofLetter('L'))
             .consume(press -> press.matches(TERMINAL_ONLY_FULLSCREEN_ACCELERATOR), SceneShortcutRouter.ALWAYS,
                 this::toggleTerminalOnlyFullscreen, Residue.ofLetter('F'))
+            // Highlighting acts on the focused pane, so only while a terminal tab is selected. The
+            // residue includes U+0008, which Ctrl turns H into: it would reach the shell as a backspace.
+            .consume(press -> press.matches(HIGHLIGHTING_TOGGLE_ACCELERATOR), terminalSelected,
+                () -> toggleHighlightingInActiveTerminal(HighlightTelemetry.SOURCE_SHORTCUT), Residue.ofLetter('H'))
+            // Routed so a focused terminal cannot take Ctrl+Shift+M (a carriage return) on Windows
+            // and Linux. Opened after the key event, since the dialog may run a nested event loop.
+            .consume(press -> press.matches(CREDENTIALS_ACCELERATOR), SceneShortcutRouter.ALWAYS,
+                () -> Platform.runLater(this::showCredentialManagement), Residue.ofLetter('M'))
+            // Also with the menu bar hidden, the history empty (a status line says so) and a terminal
+            // focused. Ctrl+Alt+Shift+T is AltGr+Shift+T on Windows, which types a character on some
+            // layouts: whatever it types is swallowed. Reopened after the key event, as it may ask
+            // for a password.
+            .consume(press -> press.matches(REOPEN_CLOSED_TAB_ACCELERATOR), SceneShortcutRouter.ALWAYS,
+                () -> Platform.runLater(this::reopenClosedTab), Residue.anyCharacter())
+            // Quick select only while the keyboard is in the selected terminal tab: a side panel
+            // that uses the chord keeps it, and the Edit menu item still starts quick select there.
+            .consume(press -> press.matches(QUICK_SELECT_ACCELERATOR), this::isKeyboardInSelectedTerminal,
+                this::quickSelectInCurrentTab, QUICK_SELECT_RESIDUE)
             // Not consumed: the terminal pastes on its own, and the timestamp keeps the Paste menu
             // accelerator from pasting a second time (wasTriggeredByTerminalPasteShortcut).
             .observe(press -> press.matches(PASTE_ACCELERATOR), terminalSelected,
@@ -2233,6 +2512,32 @@ public class MainWindow {
                 this::selectNextTab, SceneShortcutKeys.TAB_RESIDUE)
             .consume(SceneShortcutKeys::isPreviousTab, SceneShortcutRouter.ALWAYS,
                 this::selectPreviousTab, SceneShortcutKeys.TAB_RESIDUE);
+        // Cmd/Ctrl+1..9 jump to a tab in every tab, the terminal included (exactly Ctrl on Windows
+        // and Linux, so AltGr and Ctrl+Shift+6 still reach it). Registered after the zoom keys, which
+        // win where a layout puts Plus or Minus on a digit key. No menu item carries a digit
+        // accelerator (MainWindowAcceleratorUniquenessTest), so these chords have no constant.
+        for (int slot = 1; slot <= TabKeyboardShortcuts.SLOT_COUNT; slot++) {
+            int jumpSlot = slot;
+            router.consume(press -> TabKeyboardShortcuts.slotOf(press) == jumpSlot, SceneShortcutRouter.ALWAYS,
+                () -> selectTabBySlot(jumpSlot), TabKeyboardShortcuts.JUMP_RESIDUE);
+        }
+        return router;
+    }
+
+    /** The chord that starts quick select, for the terminal view that ignores it while quick select runs. */
+    static KeyCombination quickSelectAccelerator() {
+        return QUICK_SELECT_ACCELERATOR;
+    }
+
+    /** A terminal tab is selected and the keyboard focus is inside it, or nowhere. */
+    private boolean isKeyboardInSelectedTerminal() {
+        if (!(tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab terminalTab)) {
+            return false;
+        }
+        Scene scene = stage.getScene();
+        Node focusOwner = scene != null ? scene.getFocusOwner() : null;
+        Node terminalRoot = terminalTab.getContent();
+        return focusOwner == null || terminalRoot == null || isNodeUnderRoot(focusOwner, terminalRoot);
     }
 
     /** F12: toggles fullscreen and gives the selected terminal the focus back once the layout settled. */
@@ -2501,6 +2806,9 @@ public class MainWindow {
                 });
             });
             
+            // Its close button remembers it for Recently Closed (moves between windows keep this).
+            terminalTab.setOnUserCloseApproved(MainWindow::recordClosedByButton);
+            applyConnectionColor(terminalTab);
             terminalTab.setOnClosed(e -> {
                 updateDashboard();
                 organizeTabsByGroup();
@@ -2761,7 +3069,16 @@ public class MainWindow {
         if (stored != null && !stored.isBlank()) {
             return stored;
         }
+        return promptForConnectionPassword(connection);
+    }
 
+    /**
+     * Asks for the password of {@code connection}, in a dialog owned by this window whose OK stays
+     * disabled while the field is empty.
+     *
+     * @return the password, or {@code null} when the user cancelled
+     */
+    private String promptForConnectionPassword(ServerConnection connection) {
         Dialog<String> pwDialog = new Dialog<>();
         DialogThemeHelper.applyTheme(pwDialog);
         pwDialog.initOwner(stage);
@@ -2786,77 +3103,93 @@ public class MainWindow {
         logger.info("showConnectionManager() called - Opening Connection Manager");
         ConnectionManagerDialog dialog = new ConnectionManagerDialog(stage, app);
         dialog.setOnConnectionsSavedCallback(this::refreshAllTerminalTabsConnectionSettings);
-        dialog.showAndWait().ifPresent(connection -> {
-            // For teamwork connections without auth, apply default credential/SSH key from GlobalSettings
-            final ServerConnection conn = resolveTeamworkConnectionAuth(connection);
-            GlobalSettings gs = app.getGlobalSettingsManager().getSettings();
-            // Teamwork default "temporary SSH key": ask for temp key and connect (no stored credential/key)
-            if (conn.isTeamworkConnection() && conn.getCredentialId() == null && conn.getSshKeyId() == null
-                    && gs.getTeamworkUseTemporaryKey()) {
-                de.kortty.model.TemporarySSHKey tempKey = requestNewTemporarySSHKey(conn);
-                if (tempKey != null) {
-                    openConnection(conn, null, null, tempKey);
-                }
-                return;
-            }
-            // Check if connection uses a temporary SSH key
-            de.kortty.model.TemporarySSHKey tempKey = null;
-            if (conn.getTemporaryKeyContent() != null && !conn.getTemporaryKeyContent().trim().isEmpty()) {
-                de.kortty.core.TemporarySSHKeyManager keyManager = de.kortty.core.TemporarySSHKeyManager.getInstance();
-                tempKey = keyManager.getTemporaryKey(conn.getTemporaryKeyContent());
-                if (tempKey != null && tempKey.isValid()) {
-                    // Valid temp key found - connect directly without password dialog
-                    logger.info("Using existing temporary SSH key for saved connection (valid for {} more seconds)",
-                            tempKey.getRemainingSeconds());
-                    openConnection(conn, null, null, tempKey);
-                    return;
-                }
-                // Key expired or not found - ask user for a new temporary key
-                tempKey = requestNewTemporarySSHKey(conn);
-                if (tempKey != null) {
-                    openConnection(conn, null, null, tempKey);
-                    return;
-                }
-                // User cancelled - do not connect
-                return;
-            }
-            
-            // Local shells run a local process with no authentication - connect directly.
-            if (conn.isLocalShell()) {
-                openConnection(conn, null);
-                return;
+        dialog.showAndWait().ifPresent(connection -> connectSavedConnection(connection, false, tab -> { }));
+    }
+
+    /**
+     * Opens a tab for a saved (or teamwork-shared) connection through the one sign-in flow of
+     * {@link ConnectionAuthResolver}: the server policy is checked before anything is asked, then
+     * the teamwork default authentication, a temporary SSH key (reused while valid, asked for when
+     * expired), a local shell or SSH key, the stored password — offering to unlock a locked vault —
+     * or a password prompt. The tab opens through {@code openConnectionAndReturnTab}, which keeps the
+     * central policy gate, the connection's terminal effect and the telemetry.
+     *
+     * @param recordUsage whether to count this as a use of the saved connection ("last used")
+     * @param onOpened    runs with the new tab once it is in the window
+     * @return {@link ConnectionAuthResolver.Status#READY} when a tab opened;
+     *         {@link ConnectionAuthResolver.Status#BLOCKED} when the policy refused the target or the
+     *         tab could not be created (the user has seen why); otherwise the step the user cancelled,
+     *         or {@link ConnectionAuthResolver.Status#MISSING} for no connection
+     */
+    private ConnectionAuthResolver.Status connectSavedConnection(
+            ServerConnection connection, boolean recordUsage, java.util.function.Consumer<TerminalTab> onOpened) {
+        ConnectionAuthResolver.Resolution auth = resolveConnectionAuthInteractively(connection);
+        if (!auth.isReady()) {
+            return auth.status();
+        }
+        ServerConnection resolved = auth.connection();
+        TerminalTab tab = openConnectionAndReturnTab(
+                resolved,
+                auth.password(),
+                null,
+                null,
+                auth.temporaryKey(),
+                resolved.getTerminalEffectPluginId(),
+                resolved.getTerminalEffectAnimationSpeed());
+        if (tab == null) {
+            return ConnectionAuthResolver.Status.BLOCKED;
+        }
+        if (recordUsage) {
+            recordConnectionUsage(resolved);
+        }
+        onOpened.accept(tab);
+        return ConnectionAuthResolver.Status.READY;
+    }
+
+    /**
+     * {@link ConnectionAuthResolver#resolve resolves} sign-in for {@code connection}, asking for what
+     * is missing, and shows the policy message when the server policy blocks the target. The policy
+     * is checked before any prompt.
+     */
+    private ConnectionAuthResolver.Resolution resolveConnectionAuthInteractively(ServerConnection connection) {
+        ConnectionAuthResolver.Resolution auth = connectionAuthResolver().resolve(connection, true);
+        if (auth.status() == ConnectionAuthResolver.Status.BLOCKED) {
+            de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(auth.blockedTarget());
+        }
+        return auth;
+    }
+
+    /** The sign-in resolver over the running application, asking its questions in this window. */
+    private ConnectionAuthResolver connectionAuthResolver() {
+        return new ConnectionAuthResolver(ConnectionAuthResolver.forApplication(app), new ConnectionAuthResolver.Prompts() {
+            @Override
+            public String password(ServerConnection connection) {
+                return promptForConnectionPassword(connection);
             }
 
-            // SSH key auth does not require a password - connect directly
-            if (conn.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
-                openConnection(conn, null);
-                return;
+            @Override
+            public de.kortty.model.TemporarySSHKey temporaryKey(ServerConnection connection) {
+                return requestNewTemporarySSHKey(connection);
             }
 
-            // Non-key connection: ask for password if needed
-            String password = getConnectionPassword(conn);
-            if (password == null) {
-                Dialog<String> pwDialog = new Dialog<>();
-                DialogThemeHelper.applyTheme(pwDialog);
-                pwDialog.setTitle(I18n.get("dialog.passwordRequired"));
-                pwDialog.setHeaderText(I18n.get("dialog.passwordFor", conn.getDisplayName()));
-                pwDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-                PasswordField pwField = new PasswordField();
-                pwField.setPromptText(I18n.get("dialog.enterPassword"));
-                VBox content = new VBox(10);
-                content.getChildren().addAll(new Label(I18n.get("dialog.pleaseEnterPassword")), pwField);
-                content.setPadding(new javafx.geometry.Insets(20));
-                pwDialog.getDialogPane().setContent(content);
-                pwDialog.setResultConverter(bt -> bt == ButtonType.OK ? pwField.getText() : null);
-                pwDialog.showAndWait().ifPresent(pw -> {
-                    if (pw != null && !pw.isEmpty()) {
-                        openConnection(conn, pw);
-                    }
-                });
-            } else {
-                openConnection(conn, password);
+            @Override
+            public boolean unlockVault(ServerConnection connection) {
+                return VaultUnlockSupport.offerUnlock(stage, app.getMasterPasswordManager(),
+                        I18n.get("dialog.passwordVaultLocked", connection.getDisplayName()));
             }
         });
+    }
+
+    /** Counts a use of the saved connection behind {@code connection}; teamwork and unsaved connections are skipped. */
+    private void recordConnectionUsage(ServerConnection connection) {
+        ServerConnection stored = connection.getId() != null
+                ? app.getConfigManager().getConnectionById(connection.getId())
+                : null;
+        if (stored == null) {
+            return;
+        }
+        stored.incrementUsageCount();
+        app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
     }
     
     /**
@@ -2864,6 +3197,7 @@ public class MainWindow {
      * Called when connections are saved in Connection Manager so changes take effect immediately.
      */
     private void refreshAllTerminalTabsConnectionSettings() {
+        refreshHighlightingAfterConnectionsSaved();
         boolean groupChanged = false;
         for (Tab tab : tabPane.getTabs()) {
             if (tab instanceof TerminalTab terminalTab) {
@@ -2905,6 +3239,66 @@ public class MainWindow {
             updateDashboard();
         }
         applyTunnelSettingsToOpenTabs();
+        refreshConnectionColorsInAllWindows();
+    }
+
+    /**
+     * Shows the tab color of {@code tab}'s connection on the tab: the saved connection's, so edits
+     * in the Connection Manager apply, else the tab's own, else the color of the environment of the
+     * stored credential the tab signed in with (see {@link ConnectionColorSupport#effectiveTabColor}),
+     * with the frame around the terminal unless the Window settings switch it off.
+     */
+    private void applyConnectionColor(TerminalTab tab) {
+        ConnectionColorSupport.TabColor color = ConnectionColorSupport.effectiveTabColor(
+                tab.getConnection(), app.getConfigManager()::getConnectionById,
+                this::credentialEnvironmentId, this::environmentColor);
+        String environmentName = color != null && color.source() == ConnectionColorSupport.Source.ENVIRONMENT
+                ? TabColorPresentation.environmentLabel(
+                        app.getEnvironmentManager().getDisplayName(color.environmentId()), color.environmentId())
+                : null;
+        tab.applyConnectionColor(color != null ? color.hex() : null, environmentName,
+            TabColorPresentation.frameEnabled(app.getGlobalSettingsManager().getSettings()));
+    }
+
+    /** The environment id of the stored credential {@code credentialId}, or null when there is no such credential. */
+    private String credentialEnvironmentId(String credentialId) {
+        if (app.getCredentialManager() == null) {
+            return null;
+        }
+        return app.getCredentialManager().findCredentialById(credentialId)
+                .map(StoredCredential::getEnvironmentId)
+                .orElse(null);
+    }
+
+    /** The tab color of the credential environment {@code environmentId}, or null when it has none. */
+    private String environmentColor(String environmentId) {
+        return app.getEnvironmentManager() != null ? app.getEnvironmentManager().getColor(environmentId) : null;
+    }
+
+    /**
+     * Re-applies the connection colors of every open terminal tab, in every window, after connections,
+     * credentials, environments or the global settings were saved: a color set, changed or removed in
+     * the Connection Manager or the Environments dialog, a credential moved to another environment, and
+     * the frame switched on or off in the Window settings, show at once. FX thread only.
+     */
+    static void refreshConnectionColorsInAllWindows() {
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            for (TerminalTab terminalTab : window.terminalTabs()) {
+                window.applyConnectionColor(terminalTab);
+            }
+        }
+    }
+
+    /**
+     * Lets every open terminal tab, in every window, show or drop the title its shell set, after the
+     * Window setting for it was saved. FX thread only.
+     */
+    private static void refreshShellTitlesInAllWindows() {
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            for (TerminalTab terminalTab : window.terminalTabs()) {
+                terminalTab.refreshShellTitle();
+            }
+        }
     }
 
     /**
@@ -2937,9 +3331,13 @@ public class MainWindow {
                 UiFontScaleSupport.invalidateAutoCache();
                 refreshAppDesignForOpenWindows();
                 syncHideFullscreenScrollbarsMenuItems();
+                // The master switch or the default set may have changed what the focused pane shows.
+                syncHighlightingToggleItems();
                 applyTerminalScrollbarVisibilityForOpenTabs();
                 syncAiFeaturesMenuItemsEnabled();
                 refreshTerminalTabsUsingGlobalDefaults();
+                refreshConnectionColorsInAllWindows();
+                refreshShellTitlesInAllWindows();
                 refreshTerminalRecordingControlsVisibility();
                 refreshOpenChatColorProfiles();
                 if (menuBar != null && !menuBar.isVisible()) {
@@ -3410,20 +3808,37 @@ public class MainWindow {
         /** File → Close Tab, Cmd/Ctrl+W. */
         CLOSE_TAB_COMMAND,
         /** Close in a Dashboard connection's context menu. */
-        DASHBOARD
+        DASHBOARD,
+        /** Close Other Tabs, in the tab context menu or the File menu. */
+        CLOSE_OTHERS,
+        /** Close Tabs to the Right, in the tab context menu or the File menu. */
+        CLOSE_TO_RIGHT,
+        /** File → Close All Tabs. */
+        CLOSE_ALL,
+        /** A terminal tab's own close button; see {@link TerminalTab#setOnUserCloseApproved}. */
+        CLOSE_BUTTON
+    }
+
+    /** {@link #closeTabsByUser(List, Tab, CloseCause)} for a command that keeps no tab selected. */
+    private boolean closeTabsByUser(List<Tab> tabs, CloseCause cause) {
+        return closeTabsByUser(tabs, null, cause);
     }
 
     /**
      * Closes tabs on the user's request from a command other than the tab's own close button.
      * Removing a tab from the list fires none of its close events, so this asks what the close
-     * button would ask first (a busy terminal, a hosted snippet editor with unsaved changes); a
-     * single Cancel keeps every tab open. Then it records, disposes and removes them in one go.
-     * Tabs that close on their own (a session that ended), moves between windows, regrouping and
-     * window teardown do not come here.
+     * button would ask first (a busy terminal, a hosted snippet editor with unsaved changes; for
+     * several tabs one question covers the terminals, see {@link #confirmUserCloseAll}); a single
+     * Cancel keeps every tab open. Then it records, disposes and removes them in one go. Tabs that
+     * close on their own (a session that ended), moves between windows, regrouping and window
+     * teardown do not come here.
      *
+     * @param keepSelected the tab the command acts around (Close Other Tabs, Close Tabs to the
+     *     Right), or {@code null}: it is selected before the others go, so the selection does not
+     *     wander through the closing tabs
      * @return {@code true} when the tabs were closed
      */
-    private boolean closeTabsByUser(List<Tab> tabs, CloseCause cause) {
+    private boolean closeTabsByUser(List<Tab> tabs, Tab keepSelected, CloseCause cause) {
         List<Tab> targets = new ArrayList<>();
         for (Tab tab : tabs) {
             // A stale Dashboard row may still name a tab that moved to another window.
@@ -3434,19 +3849,89 @@ public class MainWindow {
         if (targets.isEmpty()) {
             return false;
         }
-        for (Tab tab : targets) {
-            if (!confirmUserClose(tab)) {
-                return false;
-            }
+        if (!confirmUserCloseAll(targets)) {
+            return false;
         }
         // A session that ended while its question was open closed its tab itself and released it.
         targets.removeIf(tab -> !tabPane.getTabs().contains(tab));
+        if (keepSelected != null && !targets.contains(keepSelected) && tabPane.getTabs().contains(keepSelected)) {
+            tabPane.getSelectionModel().select(keepSelected);
+        }
         recordUserClosedTabs(targets, cause);
         for (Tab tab : targets) {
             disposeTabContent(tab);
         }
         tabPane.getTabs().removeAll(targets);
         return true;
+    }
+
+    /**
+     * What closing {@code targets} asks first; {@code true} when they may all close. A single tab
+     * asks what its close button would ask. Several tabs ask one question for all the terminals
+     * among them that would ask on their own, then each hosted editor with unsaved work, selected so
+     * the user sees which one asks; the editors go last because their Save choice already saves.
+     */
+    private boolean confirmUserCloseAll(List<Tab> targets) {
+        if (targets.size() == 1) {
+            return confirmUserClose(targets.get(0));
+        }
+        return confirmBusyTerminalsClose(targets)
+            && HostedCloseGuards.confirmTabs(targets, tab -> tabPane.getSelectionModel().select(tab));
+    }
+
+    /**
+     * One question instead of one per terminal: how many tabs close, and in how many of them the
+     * close button would have asked ({@link TerminalTab#needsCloseConfirmation()}: split panes or a
+     * command still running). Idle terminals and other tabs alone ask nothing, and neither does
+     * anything when the setting to close active terminals without confirmation is on.
+     */
+    private boolean confirmBusyTerminalsClose(List<Tab> targets) {
+        int busyTerminals = 0;
+        for (Tab tab : targets) {
+            if (tab instanceof TerminalTab terminalTab && terminalTab.needsCloseConfirmation()) {
+                busyTerminals++;
+            }
+        }
+        GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
+        boolean closeActiveWithoutConfirmation = globalSettings != null
+            && globalSettings.isCloseActiveTerminalWindowsWithoutConfirmation();
+        if (!TabCloseTargets.needsSummaryConfirmation(busyTerminals, closeActiveWithoutConfirmation)) {
+            return true;
+        }
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.applyTheme(alert);
+        alert.initOwner(stage);
+        alert.setTitle(I18n.get("dialog.closeTabs.title"));
+        alert.setHeaderText(I18n.get("dialog.closeTabs.header", targets.size()));
+        alert.setContentText(I18n.get("dialog.closeTabs.content", busyTerminals));
+        return alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
+    }
+
+    /** Close Other Tabs: every closable tab of this window except {@code anchor}, which stays selected. */
+    private void closeOtherTabs(Tab anchor) {
+        closeTabsAround(anchor, TabCloseTargets.others(tabPane.getTabs(), anchor), CloseCause.CLOSE_OTHERS);
+    }
+
+    /** Close Tabs to the Right: the closable tabs after {@code anchor}, which stays selected. */
+    private void closeTabsToTheRight(Tab anchor) {
+        closeTabsAround(anchor, TabCloseTargets.toTheRight(tabPane.getTabs(), anchor), CloseCause.CLOSE_TO_RIGHT);
+    }
+
+    private void closeTabsAround(Tab anchor, List<Tab> targets, CloseCause cause) {
+        if (closeTabsByUser(targets, anchor, cause)) {
+            updateDashboard();
+            // The group lists of the remaining tabs' menus no longer offer groups that just closed.
+            updateAllTabContextMenus();
+        }
+    }
+
+    /**
+     * Disables Close Other Tabs and Close Tabs to the Right while they would close nothing around
+     * {@code anchor}. Called when their menu opens: tabs open, close and move in the meantime.
+     */
+    private void syncTabCloseItems(Tab anchor, MenuItem closeOthers, MenuItem closeToRight) {
+        closeOthers.setDisable(TabCloseTargets.others(tabPane.getTabs(), anchor).isEmpty());
+        closeToRight.setDisable(TabCloseTargets.toTheRight(tabPane.getTabs(), anchor).isEmpty());
     }
 
     /** The question the tab's close button would ask; {@code true} when it may close. */
@@ -3462,15 +3947,259 @@ public class MainWindow {
         return HostedCloseGuards.confirmTab(tab);
     }
 
-    /** Hook for remembering tabs the user closed, called after they agreed; records nothing yet. */
+    /**
+     * Remembers the terminal tabs among {@code tabs} for Recently Closed, as one entry: called once
+     * the user agreed to close them and before they release anything, so their group, name and effect
+     * are still there. Other kinds of tab are not remembered.
+     */
     private void recordUserClosedTabs(List<Tab> tabs, CloseCause cause) {
+        recordClosedTabs(tabs, cause);
+    }
+
+    /** A terminal tab's close button, after the user agreed to any question; the tab may be in any window. */
+    private static void recordClosedByButton(TerminalTab tab) {
+        recordClosedTabs(List.of(tab), CloseCause.CLOSE_BUTTON);
+    }
+
+    private static void recordClosedTabs(List<? extends Tab> tabs, CloseCause cause) {
+        try {
+            List<ClosedTabHistory.ClosedTab> closed = captureClosedTabs(tabs);
+            if (closed.isEmpty()) {
+                return;
+            }
+            recentlyClosedRecorder.tabsClosed(closed);
+            logger.debug("Remembered {} closed terminal tab(s) ({})", closed.size(), cause);
+        } catch (RuntimeException e) {
+            // Remembering is a convenience; it must never stop a close the user asked for.
+            logger.warn("Could not remember the closed tabs", e);
+        }
+        syncRecentlyClosedMenusInAllWindows();
+    }
+
+    /**
+     * What reopening each terminal tab among {@code tabs} needs, read while the tab still holds it: the
+     * connection (sanitised in {@link ClosedTabHistory.ClosedTab#capture}), the tab group, the name the
+     * user gave it and the terminal effect of its first pane.
+     */
+    private static List<ClosedTabHistory.ClosedTab> captureClosedTabs(List<? extends Tab> tabs) {
+        List<ClosedTabHistory.ClosedTab> closed = new ArrayList<>();
+        for (Tab tab : tabs) {
+            if (!(tab instanceof TerminalTab terminalTab) || !tab.isClosable() || terminalTab.getConnection() == null) {
+                continue;
+            }
+            TerminalView view = terminalTab.getTerminalView();
+            String effectId = view != null ? view.getTerminalEffectPluginId() : null;
+            closed.add(ClosedTabHistory.ClosedTab.capture(
+                terminalTab.getConnection(),
+                terminalTab.getTemporarySSHKey() != null,
+                terminalTab.getGroup(),
+                terminalTab.getCustomTitle(),
+                effectId,
+                effectId != null ? view.getTerminalEffectAnimationSpeed() : null));
+        }
+        return closed;
+    }
+
+    /**
+     * The user closed this window: its terminal tabs become one Recently Closed entry, unless
+     * {@code endsApplication}, which takes the history with it. Called before the tabs are released.
+     */
+    private void recordClosedWindow(boolean endsApplication) {
+        try {
+            recentlyClosedRecorder.windowClosed(captureClosedTabs(tabPane.getTabs()), endsApplication);
+        } catch (RuntimeException e) {
+            logger.warn("Could not remember the closed window's tabs", e);
+        }
+        syncRecentlyClosedMenusInAllWindows();
+    }
+
+    /**
+     * File → Reopen Closed Tab, the tab menu's Reopen Closed Tab and Cmd+Opt+Shift+T / Ctrl+Alt+Shift+T:
+     * brings back what the newest Recently Closed entry holds. With nothing to reopen the status line
+     * says so (the key works with the menu bar hidden, where a greyed-out item cannot show it).
+     */
+    private void reopenClosedTab() {
+        Optional<ClosedTabHistory.Entry> latest = closedTabHistory.latest();
+        if (latest.isEmpty()) {
+            updateStatus(I18n.get("status.noClosedTab"));
+            syncRecentlyClosedMenus();
+            return;
+        }
+        reopenClosedEntry(latest.get());
+    }
+
+    /**
+     * Reopens the tabs of {@code entry}, each with a new session. The tabs of a closed window open in
+     * a new window, or in this one while it has no tabs of its own (on macOS, the window you open after
+     * closing the last one). Each tab signs in through {@link #connectSavedConnection}, which checks
+     * the server policy first. A tab whose password, temporary key or vault question the user cancels
+     * stays in the history; the others leave it.
+     */
+    private void reopenClosedEntry(ClosedTabHistory.Entry entry) {
+        MainWindow asked = reopenWindow();
+        if (asked != this) {
+            // This window is closed: on macOS its menu bar outlives it once the last window closed.
+            if (asked != null) {
+                asked.reopenClosedEntry(entry);
+            }
+            return;
+        }
+        int position = closedTabHistory.take(entry);
+        if (position < 0) {
+            // A menu built before another window reopened it.
+            syncRecentlyClosedMenusInAllWindows();
+            return;
+        }
+        MainWindow target = this;
+        boolean newWindow = entry.window() && hasClosableTabs();
+        if (newWindow) {
+            target = new MainWindow(new Stage());
+            target.show();
+        }
+        List<ClosedTabHistory.ClosedTab> remaining = new ArrayList<>();
+        for (ClosedTabHistory.ClosedTab closed : entry.tabs()) {
+            if (target.reopenClosedTabHere(closed)) {
+                remaining.add(closed);
+            }
+        }
+        if (!remaining.isEmpty()) {
+            closedTabHistory.putBack(position, entry.withTabs(remaining));
+        }
+        syncRecentlyClosedMenusInAllWindows();
+        if (newWindow && !target.hasClosableTabs()) {
+            // Every tab was cancelled or refused: do not leave an empty window behind.
+            target.fireCloseRequest();
+        }
+    }
+
+    /**
+     * Opens one remembered tab in this window: the saved connection (or the remembered one, when it was
+     * never saved), with the tab group, the name and the terminal effect it had. A Quick Connect session
+     * that used a temporary SSH key asks for a new key; the remembered connection never holds one.
+     *
+     * @return whether the tab stays in the history (the user cancelled a sign-in question)
+     */
+    private boolean reopenClosedTabHere(ClosedTabHistory.ClosedTab closed) {
+        ClosedTabHistory.Target target =
+            ClosedTabHistory.resolveConnection(closed, id -> app.getConfigManager().getConnectionById(id));
+        ServerConnection connection = target.connection();
+        if (target.needsNewTemporaryKey()) {
+            // The policy comes before any question, as everywhere else.
+            Optional<String> blocked = de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(connection);
+            if (blocked.isPresent()) {
+                de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(blocked.get());
+                return false;
+            }
+            // Sets the new key on the copy, where the sign-in below finds it registered and valid.
+            if (requestNewTemporarySSHKey(connection) == null) {
+                return true;
+            }
+        }
+        ConnectionAuthResolver.Status status =
+            connectSavedConnection(connection, false, tab -> restoreClosedTabState(tab, closed));
+        return ClosedTabHistory.keepsEntry(status);
+    }
+
+    /** Gives a reopened tab the group, name and terminal effect it had when it was closed. */
+    private void restoreClosedTabState(TerminalTab tab, ClosedTabHistory.ClosedTab closed) {
+        // The tab opened in its connection's group; the group it had may differ, or be none.
+        String openedGroup = tab.getGroup();
+        tab.setGroup(closed.tabGroup());
+        tab.setCustomTitle(closed.customTitle());
+        if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
+            TerminalView view = tab.getTerminalView();
+            if (closed.terminalEffectSpeed() != null) {
+                view.setTerminalEffectAnimationSpeed(closed.terminalEffectSpeed());
+            }
+            view.setTerminalEffectPluginId(closed.terminalEffectPluginId());
+        }
+        if (!java.util.Objects.equals(openedGroup, tab.getGroup())) {
+            // Also rebuilds every tab's context menu.
+            organizeTabsByGroup();
+            updateDashboard();
+        }
+    }
+
+    private boolean hasClosableTabs() {
+        return tabPane.getTabs().stream().anyMatch(Tab::isClosable);
+    }
+
+    /**
+     * The window this window's Reopen Closed Tab and Recently Closed act in: this one while it is
+     * open, else the focused or last open window, else a new one (see
+     * {@link RecentlyClosedRecorder#reopenWindow}).
+     */
+    private MainWindow reopenWindow() {
+        return RecentlyClosedRecorder.reopenWindow(this, openWindows::contains,
+            MainWindow::getFocusedOrLastOpenWindow, () -> {
+                reopenOrCreateWindow();
+                return getFocusedOrLastOpenWindow();
+            });
+    }
+
+    /** File → Recently Closed → Clear List: forgets every closed tab. */
+    private void clearRecentlyClosed() {
+        closedTabHistory.clear();
+        syncRecentlyClosedMenusInAllWindows();
+    }
+
+    /** {@link #syncRecentlyClosedMenus()} for every window: the history is shared, the menus are not. */
+    private static void syncRecentlyClosedMenusInAllWindows() {
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            window.syncRecentlyClosedMenus();
+        }
+    }
+
+    /**
+     * Greys out Reopen Closed Tab while there is nothing to reopen and rebuilds Recently Closed from the
+     * history, newest first, in every menu bar of this window.
+     */
+    private void syncRecentlyClosedMenus() {
+        boolean empty = closedTabHistory.isEmpty();
+        for (MenuItem item : reopenClosedTabMenuItems) {
+            item.setDisable(empty);
+        }
+        for (Menu menu : recentlyClosedMenus) {
+            menu.getItems().setAll(recentlyClosedMenuItems());
+        }
+    }
+
+    private List<MenuItem> recentlyClosedMenuItems() {
+        List<MenuItem> items = new ArrayList<>();
+        List<ClosedTabHistory.Entry> entries = closedTabHistory.entries();
+        if (entries.isEmpty()) {
+            MenuItem none = new MenuItem(I18n.get("menu.file.recentlyClosed.empty"));
+            none.setDisable(true);
+            items.add(none);
+            return items;
+        }
+        for (ClosedTabHistory.Entry entry : entries) {
+            MenuItem item = new MenuItem(recentlyClosedLabel(entry));
+            // Tab and connection names are shown as they are: an underscore is no mnemonic.
+            item.setMnemonicParsing(false);
+            item.setOnAction(e -> reopenClosedEntry(entry));
+            items.add(item);
+        }
+        items.add(new SeparatorMenuItem());
+        MenuItem clear = new MenuItem(I18n.get("menu.file.recentlyClosed.clear"));
+        clear.setOnAction(e -> clearRecentlyClosed());
+        items.add(clear);
+        return items;
+    }
+
+    /** A tab's name; the names of the tabs one command closed together; or "Window:" and its tabs' names. */
+    private static String recentlyClosedLabel(ClosedTabHistory.Entry entry) {
+        String names = entry.names(RECENTLY_CLOSED_NAMES);
+        return entry.window() ? I18n.get("menu.file.recentlyClosed.window", names) : names;
     }
 
     /**
      * Releases a tab's native and timer resources on the programmatic close paths (Cmd+W,
-     * close-all, dashboard), where JavaFX fires no onClosed event — without it, Monaco/WebView
-     * engines and terminal buffers survive the tab. All dispose methods are idempotent, so a
-     * user-initiated close that already ran the tab's own onClosed handler is unaffected.
+     * close-all, dashboard, opening a project, closing the window), where JavaFX fires neither
+     * onCloseRequest nor onClosed — without it, Monaco/WebView engines and terminal buffers
+     * survive the tab, and an AI chat request or a swarm run goes on working for a tab that is
+     * gone. All of these methods are idempotent, so a user-initiated close that already ran the
+     * tab's own close handlers is unaffected.
      */
     private void disposeTabContent(Tab tab) {
         if (tab instanceof TerminalTab terminalTab) {
@@ -3479,9 +4208,13 @@ public class MainWindow {
         } else if (tab instanceof FileEditorTab editorTab) {
             editorTab.dispose();
         } else if (tab instanceof AiResultTab aiResultTab) {
+            // What its close button stops first: a running request or open-terminal broadcast.
+            aiResultTab.cancelForClose();
             unregisterSavedChatTab(aiResultTab.getSavedChatId());
             aiResultTab.disposeRenderedContent();
         } else if (tab instanceof SwarmAgentTab swarmTab) {
+            // Likewise a running swarm, whose agents would go on running commands on the servers.
+            swarmTab.cancelForClose();
             swarmTab.handleTabClosed();
         } else if (tab instanceof DialogHostTab hostTab) {
             // Runs the hosted dialog's DIALOG_HIDDEN cleanup (Monaco/WebView disposal, listener
@@ -3528,6 +4261,8 @@ public class MainWindow {
         if (!confirmHostedTabsClose()) {
             return false;
         }
+        // The user's Close All Tabs, unlike the other callers of closeAllTabs: one Recently Closed entry.
+        recordUserClosedTabs(new ArrayList<>(tabPane.getTabs()), CloseCause.CLOSE_ALL);
         closeAllTabs();
         return true;
     }
@@ -3856,7 +4591,15 @@ public class MainWindow {
         if (prev < 0) prev = tabPane.getTabs().size() - 1;
         tabPane.getSelectionModel().select(prev);
     }
-    
+
+    /** Cmd/Ctrl+1..8 select the tab at that position, Cmd/Ctrl+9 the last tab; a slot with no tab does nothing. */
+    private void selectTabBySlot(int slot) {
+        int index = TabKeyboardShortcuts.indexForSlot(slot, tabPane.getTabs().size());
+        if (index != TabKeyboardShortcuts.NO_TAB) {
+            tabPane.getSelectionModel().select(index);
+        }
+    }
+
     private void copyFromTerminal() {
         Tab currentTab = tabPane.getSelectionModel().getSelectedItem();
         if (currentTab instanceof TerminalTab terminalTab) {
@@ -3908,6 +4651,14 @@ public class MainWindow {
         }
         if (systemCutMenuItem != null) {
             systemCutMenuItem.setDisable(disableCut);
+        }
+        // Quick select reads a terminal screen; disabled elsewhere, so an editor tab keeps the chord.
+        boolean disableQuickSelect = !(currentTab instanceof TerminalTab);
+        if (quickSelectMenuItem != null) {
+            quickSelectMenuItem.setDisable(disableQuickSelect);
+        }
+        if (systemQuickSelectMenuItem != null) {
+            systemQuickSelectMenuItem.setDisable(disableQuickSelect);
         }
     }
 
@@ -3973,6 +4724,13 @@ public class MainWindow {
             terminalTab.showFind();
         } else if (currentTab instanceof FileEditorTab editorTab) {
             editorTab.showFind();
+        }
+    }
+
+    /** Edit &gt; Quick Select: labels what the focused terminal pane shows; nothing in other tabs. */
+    private void quickSelectInCurrentTab() {
+        if (tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab terminalTab) {
+            terminalTab.startQuickSelect();
         }
     }
     
@@ -5353,6 +6111,8 @@ public class MainWindow {
                     sessionState.setTerminalEffectAnimationSpeed(terminalEffectAnimationSpeed);
                 }
                 sessionState.setGroup(terminalTab.getGroup()); // Save tab group (not connection group)
+                // The name the user gave the tab; null keeps following the connection's name.
+                sessionState.setTabTitle(terminalTab.getCustomTitle());
                 // Save current font size (zoom level) - may differ from settings when user zoomed
                 int currentFontSize = terminalTab.getTerminalView().getCurrentFontSize();
                 if (currentFontSize != connection.getSettings().getFontSize()) {
@@ -5445,6 +6205,10 @@ public class MainWindow {
                                     if (sessionState.getGroup() != null && !sessionState.getGroup().trim().isEmpty()) {
                                         restoredTab.setGroup(sessionState.getGroup());
                                         organizeTabsByGroup();
+                                    }
+                                    // A renamed tab keeps its name; the setter cleans what the file holds.
+                                    if (sessionState.getTabTitle() != null) {
+                                        restoredTab.setCustomTitle(sessionState.getTabTitle());
                                     }
                                     // Restore font size (zoom level) if saved
                                     Integer fontSizeOverride = sessionState.getFontSizeOverride();
@@ -6863,7 +7627,7 @@ public class MainWindow {
             return null;
         }
         Callable<TerminalRemoteTextFile> reader = createTerminalSelectionFileReader(
-            terminalTab, runContext, fileName, false, maxBytes, maxBytes);
+            terminalTab, runContext, new SelectedTerminalFile(fileName), false, maxBytes, maxBytes);
         return reader != null ? new AiAttachmentCandidate(fileName, reader) : null;
     }
 
@@ -7124,6 +7888,9 @@ public class MainWindow {
         if (policy.loadIntoSnippetEditor() != de.kortty.policy.LoadIntoEditorMode.DENY) {
             terminalTab.getTerminalView().setTerminalTextFileLoadHandler((runContext, selectedText) ->
                 loadTerminalSelectionAsTextFile(terminalTab, runContext, selectedText));
+            // Without it no pane finds file paths in its output and OSC 8 file: links stay plain text.
+            terminalTab.getTerminalView().setTerminalPathOpenHandler((runContext, link) ->
+                openTerminalPathInSnippetEditor(terminalTab, runContext, link));
         }
         if (policy.aiAgentAllowed()) {
             terminalTab.getTerminalView().setAiAgentHandler(runContext ->
@@ -7197,28 +7964,153 @@ public class MainWindow {
         // context-menu item is already disabled then, this guards every other invocation path.
         boolean foreignSession =
             terminalTab.getTerminalView().isForeignSessionActive(resolvedContext);
+        TerminalFileRequest request = new SelectedTerminalFile(selectedFileName);
         Callable<TerminalRemoteTextFile> reader = createTerminalSelectionFileReader(
-            terminalTab, resolvedContext, selectedFileName, foreignSession,
+            terminalTab, resolvedContext, request, foreignSession,
             Long.MAX_VALUE, MAX_LOCAL_TEXT_FILE_LOAD_BYTES);
         if (reader == null) {
             showError(I18n.get("error.title"), I18n.get("terminal.loadTextFile.notConnected"));
             return;
         }
         if (contextConnector instanceof SshTtyConnector connector) {
-            runTerminalTextFileLoadTask(selectedFileName, reader,
-                remoteFile -> openTerminalRemoteTextFileInSnippetEditor(terminalTab, connector, remoteFile));
+            runTerminalTextFileLoadTask(request, reader,
+                remoteFile -> openTerminalRemoteTextFileInSnippetEditor(terminalTab, connector, remoteFile, false));
         } else {
-            runTerminalTextFileLoadTask(selectedFileName, reader,
-                localFile -> openTerminalLocalTextFileInSnippetEditor(terminalTab, localFile));
+            runTerminalTextFileLoadTask(request, reader,
+                localFile -> openTerminalLocalTextFileInSnippetEditor(terminalTab, localFile, false));
         }
     }
 
     /**
-     * Builds the background reader that resolves {@code selectedFileName} against the pane's current
-     * directory and returns its validated UTF-8 text content — over SFTP for SSH sessions, from the
-     * local filesystem for local-shell tabs. Shared by "Open in Snippet Editor" and the AI chat
-     * attachment. Returns {@code null} when the pane has no usable connection. {@code foreignSession}
-     * must have been evaluated on the JavaFX thread beforehand; the reader itself must run off it.
+     * Opens the file a link in terminal output points to (a path printed as plain text or an OSC 8
+     * {@code file:} target) in the Snippet Editor: read over SFTP in an SSH tab and from disk in a
+     * local-shell tab, with the same guards as "Open in Snippet Editor" (the policy, the
+     * foreign-session check, regular UTF-8 text files only) and a {@value #MAX_LOCAL_TEXT_FILE_LOAD_BYTES}
+     * byte cap on both sides. A relative path resolves against the shell's directory now. A file an
+     * OSC 8 link names opens read-only: the program that printed the link chose the path behind its
+     * text. Runs on the JavaFX thread; {@code runContext} is the clicked pane's.
+     */
+    private void openTerminalPathInSnippetEditor(
+        TerminalTab terminalTab,
+        @Nullable TerminalView.TerminalAgentRunContext runContext,
+        TerminalFileLink link
+    ) {
+        if (de.kortty.policy.PolicyManager.effective().loadIntoSnippetEditor()
+            == de.kortty.policy.LoadIntoEditorMode.DENY) {
+            return;
+        }
+        if (runContext == null) {
+            showError(I18n.get("error.title"), I18n.get("terminal.loadTextFile.notConnected"));
+            return;
+        }
+        Telemetry.track(TelemetryEvents.FILE_LOADED_AS_TEXT, Map.of("source", "terminal_selection"));
+        // Evaluated on the JavaFX thread (reads the screen buffer): after su/ssh inside the session
+        // the path would be read as the wrong identity, or on the wrong host.
+        boolean foreignSession = terminalTab.getTerminalView().isForeignSessionActive(runContext);
+        TerminalFileRequest request = new LinkedTerminalFile(link.path());
+        Callable<TerminalRemoteTextFile> reader = createTerminalSelectionFileReader(
+            terminalTab, runContext, request, foreignSession,
+            MAX_LOCAL_TEXT_FILE_LOAD_BYTES, MAX_LOCAL_TEXT_FILE_LOAD_BYTES);
+        if (reader == null) {
+            showError(I18n.get("error.title"), I18n.get("terminal.loadTextFile.notConnected"));
+            return;
+        }
+        boolean readOnly = link.fromOsc8();
+        if (runContext.connector() instanceof SshTtyConnector connector) {
+            runTerminalTextFileLoadTask(request, reader,
+                remoteFile -> openTerminalRemoteTextFileInSnippetEditor(terminalTab, connector, remoteFile, readOnly));
+        } else {
+            runTerminalTextFileLoadTask(request, reader,
+                localFile -> openTerminalLocalTextFileInSnippetEditor(terminalTab, localFile, readOnly));
+        }
+    }
+
+    /**
+     * Which file a terminal file read opens, and how to find it: a file name the user selected in
+     * the shell's directory, or a path a link in the output names.
+     */
+    private sealed interface TerminalFileRequest permits SelectedTerminalFile, LinkedTerminalFile {
+        /** The file name the editor shows. */
+        String fileName();
+
+        /** The file as messages name it. */
+        String label();
+
+        /** Whether resolving it needs the shell's working directory. */
+        boolean needsWorkingDirectory();
+
+        /** @throws IllegalArgumentException when the name cannot be resolved */
+        String remotePath(@Nullable String workingDirectory, String sftpStartDirectory);
+
+        /** @throws IllegalArgumentException when the name cannot be resolved */
+        Path localPath(@Nullable String workingDirectory, String startDirectory, String homeDirectory)
+            throws RemoteTextFileSelectionSupport.UnmappableWorkingDirectoryException;
+    }
+
+    /** A selected file name in the shell's working directory ("Open in Snippet Editor", AI attachments). */
+    private record SelectedTerminalFile(String fileName) implements TerminalFileRequest {
+        @Override
+        public String label() {
+            return fileName;
+        }
+
+        @Override
+        public boolean needsWorkingDirectory() {
+            return true;
+        }
+
+        @Override
+        public String remotePath(@Nullable String workingDirectory, String sftpStartDirectory) {
+            return RemoteTextFileSelectionSupport.resolveRemoteFilePath(workingDirectory, fileName, sftpStartDirectory);
+        }
+
+        @Override
+        public Path localPath(@Nullable String workingDirectory, String startDirectory, String homeDirectory)
+            throws RemoteTextFileSelectionSupport.UnmappableWorkingDirectoryException {
+            return RemoteTextFileSelectionSupport.resolveLocalFilePath(
+                workingDirectory, fileName, startDirectory, homeDirectory);
+        }
+    }
+
+    /** A path a link in terminal output names, absolute, home-relative or relative to the shell's directory. */
+    private record LinkedTerminalFile(String path) implements TerminalFileRequest {
+        @Override
+        public String fileName() {
+            String trimmed = path.replaceAll("[/\\\\]+$", "");
+            int separator = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'));
+            String name = trimmed.substring(separator + 1);
+            return name.isEmpty() ? path : name;
+        }
+
+        @Override
+        public String label() {
+            return path;
+        }
+
+        @Override
+        public boolean needsWorkingDirectory() {
+            return RemoteTextFileSelectionSupport.isWorkingDirectoryRelative(path);
+        }
+
+        @Override
+        public String remotePath(@Nullable String workingDirectory, String sftpStartDirectory) {
+            return RemoteTextFileSelectionSupport.resolveRemotePath(workingDirectory, path, sftpStartDirectory);
+        }
+
+        @Override
+        public Path localPath(@Nullable String workingDirectory, String startDirectory, String homeDirectory)
+            throws RemoteTextFileSelectionSupport.UnmappableWorkingDirectoryException {
+            return RemoteTextFileSelectionSupport.resolveLocalPath(workingDirectory, path, startDirectory, homeDirectory);
+        }
+    }
+
+    /**
+     * Builds the background reader that resolves {@code request} against the pane's directories and
+     * returns its validated UTF-8 text content — over SFTP for SSH sessions, from the local
+     * filesystem for local-shell tabs. Shared by "Open in Snippet Editor", links to files and the AI
+     * chat attachment. Returns {@code null} when the pane has no usable connection.
+     * {@code foreignSession} must have been evaluated on the JavaFX thread beforehand; the reader
+     * itself must run off it.
      *
      * @param maxRemoteBytes size limit for SFTP reads ({@code Long.MAX_VALUE} for none)
      * @param maxLocalBytes  size limit for local reads
@@ -7226,7 +8118,7 @@ public class MainWindow {
     private @Nullable Callable<TerminalRemoteTextFile> createTerminalSelectionFileReader(
         TerminalTab terminalTab,
         @Nullable TerminalView.TerminalAgentRunContext resolvedContext,
-        String selectedFileName,
+        TerminalFileRequest request,
         boolean foreignSession,
         long maxRemoteBytes,
         long maxLocalBytes
@@ -7241,9 +8133,9 @@ public class MainWindow {
             return () -> {
                 if (foreignSession) {
                     throw new TerminalTextFileLoadException(
-                        TerminalTextFileLoadFailure.FOREIGN_SESSION, selectedFileName);
+                        TerminalTextFileLoadFailure.FOREIGN_SESSION, request.label());
                 }
-                return readTerminalRemoteTextFile(connector, workingDirectory, selectedFileName, maxRemoteBytes);
+                return readTerminalRemoteTextFile(connector, workingDirectory, request, maxRemoteBytes);
             };
         }
         if (contextConnector instanceof LocalShellTtyConnector localConnector && localConnector.isConnected()) {
@@ -7256,16 +8148,21 @@ public class MainWindow {
             return () -> {
                 if (foreignSession) {
                     throw new TerminalTextFileLoadException(
-                        TerminalTextFileLoadFailure.FOREIGN_SESSION, selectedFileName);
+                        TerminalTextFileLoadFailure.FOREIGN_SESSION, request.label());
                 }
                 // Ground truth first: the shell's live OS cwd, which reflects every cd and beats the
                 // prompt-derived directory (null whenever the prompt shows only the folder basename,
                 // the macOS zsh default). Native Windows shells use their absolute prompt path. A
                 // previously observed directory-change command makes the start directory unsafe as a
-                // fallback until either source confirms the new cwd.
-                String liveWorkingDirectory = localConnector.refreshCurrentWorkingDirectory();
+                // fallback until either source confirms the new cwd. An absolute or home path needs
+                // none of that.
+                String liveWorkingDirectory = request.needsWorkingDirectory()
+                    ? localConnector.refreshCurrentWorkingDirectory()
+                    : null;
                 String workingDirectory;
-                if (liveWorkingDirectory != null && !liveWorkingDirectory.isBlank()) {
+                if (!request.needsWorkingDirectory()) {
+                    workingDirectory = null;
+                } else if (liveWorkingDirectory != null && !liveWorkingDirectory.isBlank()) {
                     workingDirectory = liveWorkingDirectory;
                 } else {
                     if (promptWorkingDirectory != null && !promptWorkingDirectory.isBlank()) {
@@ -7282,35 +8179,32 @@ public class MainWindow {
                     if (localConnector.hasUnresolvedWorkingDirectoryChange()) {
                         throw new TerminalTextFileLoadException(
                             TerminalTextFileLoadFailure.WORKING_DIRECTORY_UNKNOWN,
-                            selectedFileName);
+                            request.label());
                     }
                     workingDirectory = localConnector.getCurrentWorkingDirectory();
                 }
                 Path filePath;
                 try {
-                    filePath = RemoteTextFileSelectionSupport.resolveLocalFilePath(
-                        workingDirectory,
-                        selectedFileName,
-                        startDirectory,
-                        homeDirectory);
+                    filePath = request.localPath(workingDirectory, startDirectory, homeDirectory);
                 } catch (RemoteTextFileSelectionSupport.UnmappableWorkingDirectoryException e) {
                     throw new TerminalTextFileLoadException(
                         TerminalTextFileLoadFailure.UNMAPPABLE_WORKING_DIRECTORY, e.workingDirectory(), e);
                 } catch (IllegalArgumentException e) {
                     throw new TerminalTextFileLoadException(
-                        TerminalTextFileLoadFailure.INVALID_SELECTION, selectedFileName, e);
+                        TerminalTextFileLoadFailure.INVALID_SELECTION, request.label(), e);
                 }
-                return readTerminalLocalTextFile(filePath, selectedFileName, maxLocalBytes);
+                return readTerminalLocalTextFile(filePath, request.fileName(), maxLocalBytes);
             };
         }
         return null;
     }
 
     private void runTerminalTextFileLoadTask(
-        String selectedFileName,
+        TerminalFileRequest request,
         Callable<TerminalRemoteTextFile> reader,
         Consumer<TerminalRemoteTextFile> editorOpener
     ) {
+        String selectedFileName = request.label();
         updateStatus(I18n.get("terminal.loadTextFile.loading", selectedFileName));
         Task<TerminalRemoteTextFile> task = new Task<>() {
             @Override
@@ -7321,12 +8215,32 @@ public class MainWindow {
         task.setOnSucceeded(event -> editorOpener.accept(task.getValue()));
         task.setOnFailed(event -> {
             Throwable failure = task.getException();
-            logger.error("Failed to load selected terminal text as text file '{}'", selectedFileName, failure);
-            showTerminalTextFileLoadFailure(selectedFileName, failure);
+            if (request instanceof LinkedTerminalFile) {
+                logLinkedTerminalFileFailure(selectedFileName, failure);
+            } else {
+                logger.error("Failed to load selected terminal text as text file '{}'", selectedFileName, failure);
+            }
+            showTerminalTextFileLoadFailure(request, failure);
         });
         Thread thread = new Thread(task, "terminal-text-file-loader");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    /**
+     * Logs a failed open of a file a terminal link names. Any path printed in the output can be
+     * Cmd/Ctrl+clicked, so a missing, binary or oversized file is an everyday outcome that the
+     * dialog already explains: it is logged at INFO by its reason only, never as an ERROR (which
+     * would also count in the error telemetry), and the path, which can say more than the user
+     * wants in a log, only at DEBUG. Anything unexpected stays an ERROR, still without the path.
+     */
+    private static void logLinkedTerminalFileFailure(String path, @Nullable Throwable failure) {
+        if (failure instanceof TerminalTextFileLoadException loadFailure) {
+            logger.info("Could not open the file a terminal link names: {}", loadFailure.reason());
+        } else {
+            logger.error("Failed to open the file a terminal link names", failure);
+        }
+        logger.debug("Linked terminal file that failed to open: '{}'", path, failure);
     }
 
     // SFTP reads are naturally bounded by transfer time; a local read has no such deterrent
@@ -7347,7 +8261,11 @@ public class MainWindow {
         if (!Files.isReadable(filePath)) {
             throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.NOT_READABLE, filePath.toString());
         }
-        byte[] bytes = Files.readAllBytes(filePath);
+        byte[] bytes;
+        try (InputStream input = Files.newInputStream(filePath)) {
+            // The size can grow after the check (a log being written) or be reported as 0 (/proc).
+            bytes = readAtMost(input, maxBytes, filePath.toString());
+        }
         String content;
         try {
             content = RemoteTextFileSelectionSupport.decodeUtf8TextFile(bytes);
@@ -7360,15 +8278,17 @@ public class MainWindow {
     private TerminalRemoteTextFile readTerminalRemoteTextFile(
         SshTtyConnector connector,
         String workingDirectory,
-        String selectedFileName,
+        TerminalFileRequest request,
         long maxBytes
     ) throws Exception {
         try (SftpClient sftp = SftpClientFactory.instance().createSftpClient(connector.getSession())) {
             String sftpStartDirectory = resolveSftpStartDirectory(sftp);
-            String remotePath = RemoteTextFileSelectionSupport.resolveRemoteFilePath(
-                workingDirectory,
-                selectedFileName,
-                sftpStartDirectory);
+            String remotePath;
+            try {
+                remotePath = request.remotePath(workingDirectory, sftpStartDirectory);
+            } catch (IllegalArgumentException e) {
+                throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.INVALID_SELECTION, request.label(), e);
+            }
             SftpClient.Attributes attributes = statTerminalRemotePath(sftp, remotePath);
             if (!attributes.isRegularFile()) {
                 throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.NOT_REGULAR_FILE, remotePath);
@@ -7377,14 +8297,14 @@ public class MainWindow {
                 // Checked before the transfer so an oversized file never travels over the wire.
                 throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.TOO_LARGE, remotePath);
             }
-            byte[] bytes = readTerminalRemoteFileBytes(sftp, remotePath);
+            byte[] bytes = readTerminalRemoteFileBytes(sftp, remotePath, maxBytes);
             String content;
             try {
                 content = RemoteTextFileSelectionSupport.decodeUtf8TextFile(bytes);
             } catch (RemoteTextFileSelectionSupport.BinaryOrNonTextFileException e) {
                 throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.BINARY_OR_NON_TEXT, remotePath, e);
             }
-            return new TerminalRemoteTextFile(selectedFileName, remotePath, content);
+            return new TerminalRemoteTextFile(request.fileName(), remotePath, content);
         }
     }
 
@@ -7402,17 +8322,37 @@ public class MainWindow {
         }
     }
 
-    private byte[] readTerminalRemoteFileBytes(SftpClient sftp, String remotePath) throws Exception {
-        try (InputStream input = sftp.read(remotePath);
-             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            input.transferTo(output);
-            return output.toByteArray();
+    private byte[] readTerminalRemoteFileBytes(SftpClient sftp, String remotePath, long maxBytes) throws Exception {
+        try (InputStream input = sftp.read(remotePath)) {
+            // The stat before the transfer can be outdated by a file that grows meanwhile.
+            return readAtMost(input, maxBytes, remotePath);
         } catch (SftpException e) {
             if (e.getStatus() == SftpConstants.SSH_FX_PERMISSION_DENIED) {
                 throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.NOT_READABLE, remotePath, e);
             }
             throw e;
         }
+    }
+
+    /**
+     * Reads {@code input} to its end, but fails with {@code TOO_LARGE} as soon as it holds more than
+     * {@code maxBytes}, so a file that grows during the read or reports a wrong size still stays
+     * within the cap.
+     */
+    private static byte[] readAtMost(InputStream input, long maxBytes, String path) throws IOException,
+        TerminalTextFileLoadException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        byte[] buffer = new byte[64 * 1024];
+        long total = 0;
+        int read;
+        while ((read = input.read(buffer)) >= 0) {
+            total += read;
+            if (total > maxBytes) {
+                throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.TOO_LARGE, path);
+            }
+            output.write(buffer, 0, read);
+        }
+        return output.toByteArray();
     }
 
     private String resolveSftpStartDirectory(SftpClient sftp) {
@@ -7427,14 +8367,20 @@ public class MainWindow {
         return ".";
     }
 
+    /**
+     * @param fromOsc8Link the file was opened from an OSC 8 link: read-only, the file actions are
+     *     locked in the dialog
+     */
     private void openTerminalRemoteTextFileInSnippetEditor(
         TerminalTab terminalTab,
         SshTtyConnector connector,
-        TerminalRemoteTextFile remoteFile
+        TerminalRemoteTextFile remoteFile,
+        boolean fromOsc8Link
     ) {
         // Policy read-only mode: the file may be loaded and saved as a snippet, but never written
         // back to the target system — the remote actions are locked in the dialog.
-        boolean remoteWriteAllowed = de.kortty.policy.PolicyManager.effective().loadIntoSnippetEditor()
+        boolean remoteWriteAllowed = !fromOsc8Link
+            && de.kortty.policy.PolicyManager.effective().loadIntoSnippetEditor()
             == de.kortty.policy.LoadIntoEditorMode.ALLOW;
         openTerminalTextFileInSnippetEditor(terminalTab, remoteFile,
             I18n.get("sftp.snippetEditor.overwriteRemote"),
@@ -7443,23 +8389,38 @@ public class MainWindow {
                 : null,
             remoteWriteAllowed
                 ? draft -> saveTerminalRemoteTextFileAs(connector, remoteFile.remotePath(), remoteFile.fileName(), draft)
-                : null);
+                : null,
+            fromOsc8Link ? I18n.get("terminal.links.fileReadOnly") : null);
     }
 
-    private void openTerminalLocalTextFileInSnippetEditor(TerminalTab terminalTab, TerminalRemoteTextFile localFile) {
+    /**
+     * @param fromOsc8Link the file was opened from an OSC 8 link: read-only, the file actions are
+     *     locked in the dialog
+     */
+    private void openTerminalLocalTextFileInSnippetEditor(
+        TerminalTab terminalTab,
+        TerminalRemoteTextFile localFile,
+        boolean fromOsc8Link
+    ) {
         Path filePath = Path.of(localFile.remotePath());
         openTerminalTextFileInSnippetEditor(terminalTab, localFile,
             I18n.get("sftp.snippetEditor.overwriteLocal"),
-            draft -> overwriteTerminalLocalTextFile(filePath, draft),
-            draft -> saveTerminalLocalTextFileAs(filePath, draft));
+            fromOsc8Link ? null : draft -> overwriteTerminalLocalTextFile(filePath, draft),
+            fromOsc8Link ? null : draft -> saveTerminalLocalTextFileAs(filePath, draft),
+            fromOsc8Link ? I18n.get("terminal.links.fileReadOnly") : null);
     }
 
+    /**
+     * @param lockedReason why a {@code null} overwrite or save-as action is locked, or {@code null}
+     *     for the enterprise policy's read-only mode
+     */
     private void openTerminalTextFileInSnippetEditor(
         TerminalTab terminalTab,
         TerminalRemoteTextFile file,
         String overwriteLabel,
         SnippetEditDialog.ExternalFileAction overwriteAction,
-        SnippetEditDialog.ExternalFileAction saveAsAction
+        SnippetEditDialog.ExternalFileAction saveAsAction,
+        @Nullable String lockedReason
     ) {
         SnippetManager snippetManager = app.getSnippetManager();
         if (snippetManager == null) {
@@ -7477,7 +8438,8 @@ public class MainWindow {
             I18n.get("sftp.snippetEditor.savedSnippet"),
             overwriteAction,
             saveAsAction,
-            this::saveTerminalDraftAsSnippet
+            this::saveTerminalDraftAsSnippet,
+            lockedReason
         );
         List<String> categoryNames = snippetManager.getAllCategories().stream()
             .map(SnippetCategory::getName)
@@ -7662,18 +8624,26 @@ public class MainWindow {
         }
     }
 
-    private void showTerminalTextFileLoadFailure(String selectedFileName, Throwable failure) {
-        String message = terminalTextFileLoadFailureText(selectedFileName, failure);
+    private void showTerminalTextFileLoadFailure(TerminalFileRequest request, Throwable failure) {
+        String message = terminalTextFileLoadFailureText(request, failure);
         showError(I18n.get("error.title"), message);
         updateStatus(message);
     }
 
     /** The user-facing explanation for a failed terminal-selection file read. */
     private String terminalTextFileLoadFailureText(String selectedFileName, Throwable failure) {
+        return terminalTextFileLoadFailureText(new SelectedTerminalFile(selectedFileName), failure);
+    }
+
+    /** The user-facing explanation for a failed terminal file read, for a selection or a link. */
+    private String terminalTextFileLoadFailureText(TerminalFileRequest request, Throwable failure) {
+        String selectedFileName = request.label();
+        boolean linked = request instanceof LinkedTerminalFile;
         if (failure instanceof TerminalTextFileLoadException loadFailure) {
             String remotePath = loadFailure.remotePath();
             return switch (loadFailure.reason()) {
-                case NOT_FOUND -> I18n.get("terminal.loadTextFile.notFound", remotePath);
+                case NOT_FOUND -> I18n.get(linked ? "terminal.loadTextFile.pathNotFound" : "terminal.loadTextFile.notFound",
+                    remotePath);
                 case NOT_REGULAR_FILE -> I18n.get("terminal.loadTextFile.notRegularFile", remotePath);
                 case NOT_READABLE -> I18n.get("terminal.loadTextFile.notReadable", remotePath);
                 case BINARY_OR_NON_TEXT -> I18n.get("terminal.loadTextFile.binary", remotePath);
@@ -7682,7 +8652,9 @@ public class MainWindow {
                     I18n.get("terminal.loadTextFile.unmappableWorkingDirectory", remotePath);
                 case WORKING_DIRECTORY_UNKNOWN -> I18n.get("localShell.workingDirectoryUnavailable");
                 case FOREIGN_SESSION -> I18n.get("terminal.loadTextFile.foreignSession");
-                case INVALID_SELECTION -> I18n.get("terminal.loadTextFile.invalidSelection");
+                case INVALID_SELECTION -> linked
+                    ? I18n.get("terminal.loadTextFile.invalidPath", remotePath)
+                    : I18n.get("terminal.loadTextFile.invalidSelection");
             };
         }
         String detail = failure != null && failure.getMessage() != null
@@ -9526,6 +10498,8 @@ public class MainWindow {
                     syncTimestampMenuItems(active.isTimestampGuttersVisible());
                 }
             }));
+            tab.setOnUserCloseApproved(MainWindow::recordClosedByButton);
+            applyConnectionColor(tab);
             tab.setOnClosed(e -> {
                 updateDashboard();
                 organizeTabsByGroup();
@@ -10467,152 +11441,36 @@ public class MainWindow {
 
     
     /**
-     * For teamwork connections that have no credential or SSH key set, applies the default
-     * from GlobalSettings (teamwork default credential or SSH key). Returns a copy with auth
-     * filled in so the original connection in the list is never modified.
-     */
-    private ServerConnection resolveTeamworkConnectionAuth(ServerConnection connection) {
-        if (!connection.isTeamworkConnection()) {
-            return connection;
-        }
-        if (connection.getCredentialId() != null || connection.getSshKeyId() != null) {
-            return connection;
-        }
-        GlobalSettings gs = app.getGlobalSettingsManager().getSettings();
-        String credId = gs.getTeamworkDefaultCredentialId();
-        String keyId = gs.getTeamworkDefaultSshKeyId();
-        if (credId != null && app.getCredentialManager() != null) {
-            Optional<StoredCredential> cred = app.getCredentialManager().findCredentialById(credId);
-            if (cred.isPresent()) {
-                ServerConnection copy = ServerConnection.copyForAuth(connection);
-                copy.setCredentialId(cred.get().getId());
-                String credUsername = cred.get().getUsername();
-                if (credUsername != null && !credUsername.isBlank()) {
-                    copy.setUsername(credUsername.trim());
-                }
-                copy.setAuthMethod(AuthMethod.PASSWORD);
-                copy.setSshKeyId(null);
-                copy.setPrivateKeyPath(null);
-                return copy;
-            }
-        }
-        if (keyId != null && app.getSSHKeyManager() != null) {
-            Optional<SSHKey> key = app.getSSHKeyManager().findKeyById(keyId);
-            if (key.isPresent()) {
-                ServerConnection copy = ServerConnection.copyForAuth(connection);
-                copy.setSshKeyId(key.get().getId());
-                copy.setAuthMethod(AuthMethod.PUBLIC_KEY);
-                copy.setPrivateKeyPath(app.getSSHKeyManager().getEffectiveKeyPath(key.get()));
-                copy.setCredentialId(null);
-                // Optional username: if set use for all, else keep username from teamwork file
-                String username = gs.getTeamworkDefaultUsername();
-                if (username != null && !username.isBlank()) {
-                    copy.setUsername(username.trim());
-                }
-                return copy;
-            }
-        }
-        // Temporary SSH key: always return a defensive copy so the shared instance is never mutated
-        if (gs.getTeamworkUseTemporaryKey()) {
-            ServerConnection copy = ServerConnection.copyForAuth(connection);
-            String username = gs.getTeamworkDefaultUsername();
-            if (username != null && !username.isBlank()) {
-                copy.setUsername(username.trim());
-            }
-            return copy;
-        }
-        return connection;
-    }
-
-    /**
-     * Retrieves password for a connection, either from credential store or from encrypted password.
-     * This ensures password changes in credential management are immediately reflected.
+     * The stored password of {@code connection}, from the credential store first (so a password
+     * changed there applies at once), then from the connection's own encrypted password;
+     * {@code null} when none is stored. The lookup is {@link ConnectionAuthResolver#storedPassword}'s.
      */
     private String getConnectionPassword(ServerConnection connection) {
-        // Try credential store first (if credentialId is set)
-        if (connection.getCredentialId() != null) {
-            try {
-                java.util.Optional<de.kortty.model.StoredCredential> credential = 
-                    app.getCredentialManager().findCredentialById(connection.getCredentialId());
-                
-                if (credential.isPresent()) {
-                    String password = app.getCredentialManager().getPassword(
-                        credential.get(), 
-                        app.getMasterPasswordManager().getMasterPassword()
-                    );
-                    if (password != null) {
-                        logger.debug("Using password from credential store for: {}", connection.getDisplayName());
-                        return password;
-                    }
-                }
-            } catch (Exception e) {
-                logger.warn("Failed to retrieve password from credential store: {}", e.getMessage());
-                // Fall back to stored password
-            }
-        }
-        
-        // Fall back to stored encrypted password in connection
-        PasswordVault vault = new PasswordVault(
-            app.getMasterPasswordManager().getEncryptionService(),
-            app.getMasterPasswordManager().getMasterPassword()
-        );
-        return vault.retrievePassword(connection);
+        return connectionAuthResolver().storedPassword(connection);
     }
-    
+
     /**
      * Duplicates a tab with the same connection details.
      * The new tab is inserted directly to the right of the source tab.
      */
     private void duplicateTab(TerminalTab sourceTab) {
-        ServerConnection connection = sourceTab.getConnection();
-
-        // Enterprise server policy, as in openConnectionAndReturnTab. The source tab passed it when
-        // it opened, but the connection editor changes a saved connection in place, so its host or
-        // jump server may have been edited to a blocked one since; refuse before any password prompt.
-        java.util.Optional<String> duplicateBlocked =
-            de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(connection);
-        if (duplicateBlocked.isPresent()) {
-            de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(duplicateBlocked.get());
+        // The Connection Manager's sign-in: the enterprise server policy first, before any prompt —
+        // the source tab passed it when it opened, but the connection editor changes a saved
+        // connection in place, so its host or jump server may have been edited to a blocked one
+        // since — then the temporary SSH key (reused while valid, asked for when expired), a local
+        // shell or SSH key, the stored password or a password prompt.
+        ConnectionAuthResolver.Resolution auth = resolveConnectionAuthInteractively(sourceTab.getConnection());
+        if (!auth.isReady()) {
             return;
         }
-
-        // Local shells run a local process with no authentication, and SSH key auth needs no
-        // password - duplicate directly without prompting.
-        if (connection.isLocalShell() || connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
-            createDuplicateTab(sourceTab, connection, null);
-            return;
-        }
-        
-        String password = getConnectionPassword(connection);
-        
-        if (password == null) {
-            // Password not available, show dialog with masked input
-            Dialog<String> pwDialog = new Dialog<>();
-            DialogThemeHelper.applyTheme(pwDialog);
-            pwDialog.setTitle(I18n.get("dialog.passwordRequired"));
-            pwDialog.setHeaderText(I18n.get("dialog.passwordFor", connection.getDisplayName()));
-            pwDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-            PasswordField pwField = new PasswordField();
-            pwField.setPromptText(I18n.get("dialog.enterPassword"));
-            VBox content = new VBox(10);
-            content.getChildren().addAll(new Label(I18n.get("dialog.pleaseEnterPassword")), pwField);
-            content.setPadding(new javafx.geometry.Insets(20));
-            pwDialog.getDialogPane().setContent(content);
-            pwDialog.setResultConverter(bt -> bt == ButtonType.OK ? pwField.getText() : null);
-            pwDialog.showAndWait().ifPresent(pw -> {
-                if (pw != null && !pw.trim().isEmpty()) {
-                    createDuplicateTab(sourceTab, connection, pw.trim());
-                }
-            });
-        } else {
-            createDuplicateTab(sourceTab, connection, password);
-        }
+        createDuplicateTab(sourceTab, auth.connection(), auth.password(), auth.temporaryKey());
     }
     
     /**
      * Creates a duplicated tab directly to the right of the source tab.
      */
-    private void createDuplicateTab(TerminalTab sourceTab, ServerConnection connection, String password) {
+    private void createDuplicateTab(TerminalTab sourceTab, ServerConnection connection, String password,
+            de.kortty.model.TemporarySSHKey temporaryKey) {
         try {
             // Find the position of the source tab
             int sourceIndex = tabPane.getTabs().indexOf(sourceTab);
@@ -10622,7 +11480,7 @@ public class MainWindow {
             }
             
             // Create new tab with the same connection
-            TerminalTab newTab = new TerminalTab(connection, password);
+            TerminalTab newTab = new TerminalTab(connection, password, temporaryKey);
             registerTerminalTabForAiAgentDock(newTab);
             installAiSelectionHandler(newTab);
             newTab.setTimestampToggleListener(() -> Platform.runLater(() -> {
@@ -10631,6 +11489,8 @@ public class MainWindow {
                     syncTimestampMenuItems(active.isTimestampGuttersVisible());
                 }
             }));
+            newTab.setOnUserCloseApproved(MainWindow::recordClosedByButton);
+            applyConnectionColor(newTab);
             newTab.setOnClosed(e -> {
                 updateDashboard();
                 organizeTabsByGroup();
@@ -10907,6 +11767,8 @@ public class MainWindow {
             success.showAndWait();
             
             reloadStoresAfterBackupImport();
+            // Restored connections, credentials and environments can bring other tab colors.
+            refreshConnectionColorsInAllWindows();
             
             updateStatus(I18n.get("backup.import.successHeader") + ": " + filesImported + " " + I18n.get("backup.import.files"));
         });
@@ -10956,6 +11818,14 @@ public class MainWindow {
         });
         reloadAfterBackupImport("GPG keys", () -> app.getGpgKeyManager().load());
         reloadAfterBackupImport("global settings", () -> app.getGlobalSettingsManager().load());
+        // The highlighting service compiled the rule sets of the settings object just replaced: without
+        // this, the menus and open panes would keep the old sets and default until the next save.
+        reloadAfterBackupImport("keyword highlighting", () -> {
+            TerminalHighlightService highlightService = app.getTerminalHighlightService();
+            if (highlightService != null && !highlightService.isClosed()) {
+                highlightService.reload(app.getGlobalSettingsManager().getSettings());
+            }
+        });
         reloadAfterBackupImport("themes", () -> {
             if (app.getThemeManager() != null) {
                 app.getThemeManager().load();
@@ -11011,6 +11881,10 @@ public class MainWindow {
             updateStatus(I18n.get("status.reconnecting", terminalTab.getConnection().getDisplayName()));
         });
         
+        MenuItem renameItem = new MenuItem(I18n.get("tab.contextMenu.rename"));
+        renameItem.setOnAction(e -> promptRenameTab(terminalTab));
+        contextMenu.getItems().add(renameItem);
+
         MenuItem duplicateItem = new MenuItem(I18n.get("tab.contextMenu.duplicate"));
         duplicateItem.setOnAction(e -> duplicateTab(terminalTab));
         contextMenu.getItems().add(duplicateItem);
@@ -11039,6 +11913,21 @@ public class MainWindow {
             journalMenu.getItems().addAll(journalToggleItem, journalShotItem, journalNoteItem);
             contextMenu.getItems().add(journalMenu);
         }
+
+        contextMenu.getItems().add(new SeparatorMenuItem());
+        MenuItem closeOthersItem = new MenuItem(I18n.get("tab.contextMenu.closeOthers"));
+        closeOthersItem.setOnAction(e -> closeOtherTabs(terminalTab));
+        MenuItem closeToRightItem = new MenuItem(I18n.get("tab.contextMenu.closeToRight"));
+        closeToRightItem.setOnAction(e -> closeTabsToTheRight(terminalTab));
+        MenuItem reopenClosedItem = new MenuItem(I18n.get("tab.contextMenu.reopenClosed"));
+        reopenClosedItem.setOnAction(e -> reopenClosedTab());
+        contextMenu.getItems().addAll(closeOthersItem, closeToRightItem, reopenClosedItem);
+        // The menu is built once per tab, so whether there is anything to close (or to reopen) is
+        // decided as it opens.
+        contextMenu.setOnShowing(e -> {
+            syncTabCloseItems(terminalTab, closeOthersItem, closeToRightItem);
+            reopenClosedItem.setDisable(closedTabHistory.isEmpty());
+        });
 
         if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
             contextMenu.getItems().add(new SeparatorMenuItem());
@@ -11138,6 +12027,28 @@ public class MainWindow {
         terminalTab.setContextMenu(contextMenu);
     }
     
+    /**
+     * Asks for a new name for {@code terminalTab}, prefilled with the name it shows now. The name
+     * replaces the connection's name (or the title the shell set) in the tab title only: the agent
+     * badge, the group prefix and the connection-status suffix stay. An empty name, or the name the
+     * tab shows on its own, makes the tab follow the shell's title and the connection's name again.
+     */
+    private void promptRenameTab(TerminalTab terminalTab) {
+        String automaticTitle = terminalTab.getAutomaticTitle();
+        String customTitle = terminalTab.getCustomTitle();
+        TextInputDialog dialog = new TextInputDialog(customTitle != null ? customTitle : automaticTitle);
+        DialogThemeHelper.applyTheme(dialog);
+        dialog.initOwner(stage);
+        dialog.setTitle(I18n.get("dialog.renameTab.title"));
+        dialog.setHeaderText(terminalTab.getShellTitle() != null
+            ? I18n.get("dialog.renameTab.headerShellTitle", automaticTitle, terminalTab.getConnectionTitle())
+            : I18n.get("dialog.renameTab.header", automaticTitle));
+        dialog.setContentText(I18n.get("dialog.renameTab.prompt") + ":");
+        dialog.getEditor().setPromptText(automaticTitle);
+        dialog.showAndWait().ifPresent(input ->
+            terminalTab.setCustomTitle(TerminalTab.customTitleFromInput(input, automaticTitle)));
+    }
+
     /**
      * Gets all unique group names from open tabs (not from connections).
      */
