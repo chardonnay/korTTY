@@ -47,7 +47,7 @@ KorTTY is organized into distinct functional modules. The diagram below groups t
 KorTTY uses **SithTermFX 1.2.2** as its primary terminal emulator, built from source during the build process. SithTermFX provides:
 
 - **Terminal emulation**: VT100/xterm-compatible terminal rendering powered by a custom JavaFX control
-- **OSC 8 hyperlinks**: Starting with SithTermFX 1.2.0, support for clickable explicit hyperlinks (restricted to safe URI schemes: `http`, `https`, `mailto`, `ftp`, `ftps`, `news`; `file://` limited to local host)
+- **OSC 8 hyperlinks**: Clickable explicit hyperlinks printed by programs. korTTY replaces SithTermFX's default link handler in every pane with its own allowlist (`http`, `https`, `ftp`, `ftps`, `mailto`, strictly parsed, at most 8 KB, no control or bidi characters) and opens links through JavaFX `HostServices`. `file:`, `news:` and other targets stay plain text, so terminal output never reaches `java.awt.Desktop.open` and cannot launch a local file
 - **Session integration**: Direct JAXB marshaling of terminal state for session recording and replay
 - **Color support**: Configurable ANSI and TrueColor handling with per-connection overrides
 - **Reviewed boundary fix**: A pinned korTTY patch rejects the non-existent row at `line == height` during hyperlink hit-testing, preventing bottom-row `TerminalTextBuffer` range errors

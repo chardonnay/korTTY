@@ -66,6 +66,12 @@ Right-click inside a terminal to open its context menu; in a split tab it acts o
 
 Below them come the entries of other features, in this order and some only where they apply: **Show Menu Bar** (while the menu bar is hidden), **Open in Snippet Editor**, the **AI** submenu, the session-journal screenshot and note entries, **Theme**, **Terminal Effect**, **Reconnect** and **Show Command Timestamps**. The **Extras** submenu at the end holds **Split Terminal**, **Font Size** (see [Font size and zoom](#font-size-and-zoom)) and **Broadcast Mode**.
 
+## Links in terminal output
+
+Programs can print clickable links into the terminal with the OSC 8 escape sequence; GCC, for example, can link a warning to its documentation. Clicking such a link opens it in your default browser or mail program. Only `http`, `https`, `ftp`, `ftps` and `mailto` links are clickable.
+
+Every other link stays plain text and does nothing when clicked: `file:` links such as the ones `ls --hyperlink` and `eza --hyperlink` put on file names, `news:`, `javascript:` and `data:` links, and links that contain spaces, control characters or invisible direction-changing (bidi) characters or are longer than 8 KB. Whatever prints a link chooses where it points — a server, a log file you `cat`, a program's output — so KorTTY never passes a link to the operating system's file opener, which would start programs and scripts.
+
 ## Font size and zoom
 
 Adjust the font size of the active terminal on the fly without reconnecting:
