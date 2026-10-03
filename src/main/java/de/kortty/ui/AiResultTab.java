@@ -12,6 +12,8 @@ import de.kortty.core.AiChatExportService;
 import de.kortty.core.AiChatShareService;
 import de.kortty.core.AiExecutionResult;
 import de.kortty.core.AiFileAttachment;
+import de.kortty.core.AiOutboundRedaction;
+import de.kortty.core.SessionJournalRedactor;
 import de.kortty.core.AiWebToolCall;
 import de.kortty.core.AiMarkdownTableSupport;
 import de.kortty.core.AiPdfExportOptions;
@@ -132,6 +134,12 @@ public class AiResultTab extends Tab {
     private final String connectionDisplayName;
     /** Text file sent along with every request of this chat (see {@link #setFileAttachment}). */
     private AiFileAttachment fileAttachment;
+    /**
+     * Known secrets of the terminal tab this chat was opened from, for masking a follow-up sent to
+     * a profile that masks (see {@link #setOutboundSecrets}); {@code null} for a reopened saved
+     * chat. Volatile: the title suggestion reads it on a background thread.
+     */
+    private volatile SessionJournalRedactor outboundSecrets;
     private String languageCode;
     private final List<SavedAiChatMessage> messageEntries = new ArrayList<>();
     private final StringBuilder plainTranscript = new StringBuilder();
@@ -468,6 +476,22 @@ public class AiResultTab extends Tab {
         return fileAttachment;
     }
 
+    /**
+     * The known secrets (connection password, policy rules) of the terminal tab this chat was
+     * opened from. The tab's profile can be switched, so every follow-up masks the selection, the
+     * attachment and the conversation again for the profile it goes to (see
+     * {@link AiOutboundRedaction#chatContextFor}); without this, only the policy rules and the
+     * token formats are masked.
+     */
+    void setOutboundSecrets(SessionJournalRedactor secrets) {
+        this.outboundSecrets = secrets;
+    }
+
+    /** The chat's selection, attachment and conversation as they may go to {@code profile}. */
+    private AiOutboundRedaction.ChatContext outboundContextFor(AiProfile profile, String conversation) {
+        return AiOutboundRedaction.chatContextFor(profile, selectedText, fileAttachment, conversation, outboundSecrets);
+    }
+
     private void renderFileAttachmentNotice() {
         if (fileAttachment == null) {
             return;
@@ -503,11 +527,13 @@ public class AiResultTab extends Tab {
      * model's answer is unusable, so the button always yields a picture for a parseable script.
      */
     private void generateAttachmentFlowchart() {
-        AiFileAttachment attachment = fileAttachment;
         AiProfile selectedProfile = profileComboBox.getSelectionModel().getSelectedItem();
-        if (attachment == null || busy || readOnlyMode || selectedProfile == null) {
+        if (fileAttachment == null || busy || readOnlyMode || selectedProfile == null) {
             return;
         }
+        // Masked for the profile the tab is on now, like a follow-up.
+        AiFileAttachment attachment = AiOutboundRedaction.redactAttachmentFor(
+            selectedProfile, fileAttachment, outboundSecrets).attachment();
         AiService aiService = ownerWindow.createAiServiceForProfile(selectedProfile);
         if (aiService == null) {
             showErrorAlert(I18n.get("ai.error.title"), I18n.get("ai.error.notConfigured"));
@@ -936,7 +962,9 @@ public class AiResultTab extends Tab {
             return;
         }
 
-        String priorConversation = plainTranscript.toString();
+        // The profile may have been switched since the chat was opened (say from an integrated
+        // model to a cloud one), so mask what goes out for the profile it goes to now.
+        AiOutboundRedaction.ChatContext outbound = outboundContextFor(selectedProfile, plainTranscript.toString());
         appendUserMessage(prompt);
         promptInputArea.clear();
 
@@ -948,12 +976,12 @@ public class AiResultTab extends Tab {
 
         AiRequest request = new AiRequest(
             AiAction.ASK,
-            selectedText,
+            outbound.selectedText(),
             connectionDisplayName,
             languageCode,
             prompt,
-            priorConversation)
-            .withFileAttachment(fileAttachment);
+            outbound.conversation())
+            .withFileAttachment(outbound.attachment());
 
         Task<AiExecutionResult> task = new Task<>() {
             @Override
@@ -2515,8 +2543,11 @@ public class AiResultTab extends Tab {
             return buildFallbackTitle();
         }
 
-        String conversation = plainTranscript.toString();
-        String titleSource = !selectedText.isBlank() ? selectedText : conversation;
+        // Runs on the title-suggestion thread; the attachment is not part of this request.
+        AiOutboundRedaction.ChatContext outbound = AiOutboundRedaction.chatContextFor(
+            profile, selectedText, null, plainTranscript.toString(), outboundSecrets);
+        String conversation = outbound.conversation();
+        String titleSource = !selectedText.isBlank() ? outbound.selectedText() : conversation;
         AiRequest request = new AiRequest(
             AiAction.GENERATE_CHAT_TITLE,
             titleSource,

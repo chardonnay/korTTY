@@ -114,6 +114,61 @@ class TerminalAgentShortcutInputFilterTest {
         assertThat(dispatched).containsExactly("agent inspect pasted.txt");
     }
 
+    @Test
+    void singleByteCharsetForwardsHighBytesImmediately() {
+        List<String> dispatched = new ArrayList<>();
+        TerminalAgentShortcutInputFilter filter = newFilter(false, dispatched, StandardCharsets.ISO_8859_1);
+
+        // 0xE4 is "ä" in Latin-1, but a UTF-8 lead byte: it must not wait for a continuation.
+        assertThat(filter.filter(new byte[] {(byte) 0xE4})).isEqualTo(new byte[] {(byte) 0xE4});
+        assertThat(filter.filter(new byte[] {(byte) 0xDF, (byte) 0xE9})).isEqualTo(new byte[] {(byte) 0xDF, (byte) 0xE9});
+        assertThat(dispatched).isEmpty();
+    }
+
+    @Test
+    void dispatchesLatin1AgentCommand() {
+        List<String> dispatched = new ArrayList<>();
+        TerminalAgentShortcutInputFilter filter = newFilter(false, dispatched, StandardCharsets.ISO_8859_1);
+        byte[] command = "agent prüfe".getBytes(StandardCharsets.ISO_8859_1);
+        ByteArrayOutputStream forwarded = new ByteArrayOutputStream();
+
+        for (byte value : command) {
+            forwarded.writeBytes(filter.filter(new byte[] {value}));
+        }
+
+        assertThat(forwarded.toByteArray()).isEqualTo(command);
+        assertThat(filter.filter(bytes("\r")))
+            .isEqualTo(new byte[] {TerminalAgentShortcutInputFilter.CLEAR_INPUT_LINE});
+        assertThat(dispatched).containsExactly("agent prüfe");
+    }
+
+    @Test
+    void windows1252BytesBecomeTheirCharactersInTheCommand() {
+        List<String> dispatched = new ArrayList<>();
+        java.nio.charset.Charset windows1252 = java.nio.charset.Charset.forName("Windows-1252");
+        TerminalAgentShortcutInputFilter filter = newFilter(false, dispatched, windows1252);
+
+        // 0x80 is the euro sign in Windows-1252 and a stray continuation byte in UTF-8.
+        filter.filter("agent price 5€".getBytes(windows1252));
+        filter.filter(bytes("\r"));
+
+        assertThat(dispatched).containsExactly("agent price 5€");
+    }
+
+    private static TerminalAgentShortcutInputFilter newFilter(
+        boolean shellHandlesAgentShortcut,
+        List<String> dispatched,
+        java.nio.charset.Charset charset) {
+
+        return new TerminalAgentShortcutInputFilter(
+            value -> value != null ? value.trim() : "",
+            raw -> shellHandlesAgentShortcut && isAgentShortcut(raw),
+            TerminalAgentShortcutInputFilterTest::isAgentShortcut,
+            dispatched::add,
+            null,
+            charset);
+    }
+
     private static TerminalAgentShortcutInputFilter newFilter(
         boolean shellHandlesAgentShortcut,
         List<String> dispatched) {

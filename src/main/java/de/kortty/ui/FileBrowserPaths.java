@@ -4,6 +4,9 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 /**
  * Pure path helpers shared by the local file browser sidebar and the SFTP manager:
@@ -115,6 +118,141 @@ final class FileBrowserPaths {
         }
         return fileName.toLowerCase(java.util.Locale.ROOT)
             .contains(filter.trim().toLowerCase(java.util.Locale.ROOT));
+    }
+
+    /**
+     * The name filter of a search field. A blank filter matches every name. A filter with
+     * {@code *}, {@code ?}, {@code [...]} or <code>{a,b}</code> is a glob over the whole name,
+     * ignoring case: {@code *} is any run of characters, {@code ?} one character, {@code [abc]}
+     * and {@code [a-z]} one of the listed characters ({@code [!abc]} or {@code [^abc]} one that is
+     * not listed) and <code>{py,sh}</code> one of the alternatives. Any other filter, and a glob
+     * that does not parse (such as an unclosed {@code [}), matches like {@link #matchesFilter}:
+     * a case-insensitive substring.
+     *
+     * <p>The glob is compiled here once, not per name, and never goes through
+     * {@code FileSystem.getPathMatcher}: remote names may contain {@code :} or {@code \}, which
+     * a Windows path cannot hold.
+     */
+    static Predicate<String> compileNameFilter(String filter) {
+        if (filter == null || filter.isBlank()) {
+            return name -> true;
+        }
+        String trimmed = filter.trim();
+        if (hasGlobSyntax(trimmed)) {
+            Pattern glob = globPattern(trimmed);
+            if (glob != null) {
+                return name -> name != null && glob.matcher(name).matches();
+            }
+        }
+        return name -> matchesFilter(name, trimmed);
+    }
+
+    private static boolean hasGlobSyntax(String filter) {
+        for (int i = 0; i < filter.length(); i++) {
+            char c = filter.charAt(i);
+            if (c == '*' || c == '?' || c == '[' || c == '{') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The glob as a case-insensitive full-match pattern, or {@code null} when it does not parse. */
+    private static Pattern globPattern(String glob) {
+        StringBuilder regex = new StringBuilder(glob.length() * 2);
+        StringBuilder literal = new StringBuilder();
+        boolean inBraces = false;
+        int i = 0;
+        while (i < glob.length()) {
+            char c = glob.charAt(i);
+            if (c == '*' || c == '?' || c == '[' || c == '{' || (inBraces && (c == ',' || c == '}'))) {
+                flushLiteral(regex, literal);
+            }
+            switch (c) {
+                case '*' -> regex.append(".*");
+                case '?' -> regex.append('.');
+                case '[' -> {
+                    int end = appendCharacterClass(glob, i, regex);
+                    if (end < 0) {
+                        return null;
+                    }
+                    i = end;
+                }
+                case '{' -> {
+                    if (inBraces) {
+                        // Nested alternatives are not supported.
+                        return null;
+                    }
+                    inBraces = true;
+                    regex.append("(?:");
+                }
+                case ',' -> {
+                    if (inBraces) {
+                        regex.append('|');
+                    } else {
+                        literal.append(c);
+                    }
+                }
+                case '}' -> {
+                    if (inBraces) {
+                        inBraces = false;
+                        regex.append(')');
+                    } else {
+                        literal.append(c);
+                    }
+                }
+                default -> literal.append(c);
+            }
+            i++;
+        }
+        if (inBraces) {
+            return null;
+        }
+        flushLiteral(regex, literal);
+        try {
+            return Pattern.compile(regex.toString(),
+                Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.DOTALL);
+        } catch (PatternSyntaxException e) {
+            // For example a reversed range such as [z-a].
+            return null;
+        }
+    }
+
+    private static void flushLiteral(StringBuilder regex, StringBuilder literal) {
+        if (!literal.isEmpty()) {
+            regex.append(Pattern.quote(literal.toString()));
+            literal.setLength(0);
+        }
+    }
+
+    /**
+     * Appends the character class that opens at {@code start} (the {@code [}) and returns the
+     * index of its closing {@code ]}, or {@code -1} when it is not closed. A {@code ]} right after
+     * the opening {@code [} or {@code [!} is a literal, as in a shell.
+     */
+    private static int appendCharacterClass(String glob, int start, StringBuilder regex) {
+        int i = start + 1;
+        boolean negated = i < glob.length() && (glob.charAt(i) == '!' || glob.charAt(i) == '^');
+        if (negated) {
+            i++;
+        }
+        int contentStart = i;
+        StringBuilder content = new StringBuilder();
+        while (i < glob.length()) {
+            char c = glob.charAt(i);
+            if (c == ']' && i > contentStart) {
+                regex.append(negated ? "[^" : "[").append(content).append(']');
+                return i;
+            }
+            boolean edge = i == contentStart || (i + 1 < glob.length() && glob.charAt(i + 1) == ']');
+            if (c == '\\' || c == '[' || c == ']' || c == '^' || c == '&' || (c == '-' && edge)) {
+                // Literal inside the class; a '-' between two characters stays a range.
+                content.append('\\');
+            }
+            content.append(c);
+            i++;
+        }
+        return -1;
     }
 
     /** Quotes a value for a POSIX shell using single quotes. */

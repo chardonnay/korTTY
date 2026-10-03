@@ -41,6 +41,7 @@ import de.kortty.core.TerminalRecordingScreenSnapshot;
 import de.kortty.core.TerminalRecordingSession;
 import de.kortty.core.TerminalRecordingStyleRun;
 import de.kortty.core.TerminalColorControlSequenceFilter;
+import de.kortty.core.TerminalPaletteSupport;
 import de.kortty.model.AiProfile;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ConnectionSettings;
@@ -335,6 +336,9 @@ public class TerminalView extends BorderPane {
     private final Map<SithTermFxWidget, PauseTransition> commandCompletionTimerByWidget = new ConcurrentHashMap<>();
     // Absolute line where the current command started (Enter pressed).
     private final Map<SithTermFxWidget, Integer> commandStartLineByWidget = new ConcurrentHashMap<>();
+    // Counts the lines a full scrollback drops from its top, so the absolute-line keys above can
+    // follow their command lines instead of drifting (and colliding on the bottom row).
+    private final Map<SithTermFxWidget, ScrollbackTrimTracker> scrollbackTrimTrackerByWidget = new ConcurrentHashMap<>();
 
     // Optional listener called when timestamp gutter visibility is toggled (e.g. from context menu)
     private Runnable timestampToggleListener;
@@ -658,8 +662,10 @@ public class TerminalView extends BorderPane {
         terminalWidget = splitPane.getFocusedWidget();
         if (terminalWidget != null) applyCursorShape(terminalWidget);
         
-        // Handle arrow and navigation keys at split-pane level so we run before the terminal widget
-        // (which may consume them for scrolling). Ensures mc and similar apps receive arrow keys.
+        // Key handling at split-pane level runs before every pane: the agent input lock, the agent
+        // shortcut and Ctrl+D come first. Navigation keys are encoded below, in each pane's own
+        // filter (TerminalSplitPane.routeKeyPressed), which needs the real connector type.
+        splitPane.setConnectorUnwrapper(this::unwrapTerminalEffectConnector);
         splitPane.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             if (event.isConsumed()) {
                 return;
@@ -694,21 +700,8 @@ public class TerminalView extends BorderPane {
                     return;
                 }
             }
-            String sequence = keyCodeToControlSequence(event.getCode());
-            if (sequence != null) {
-                SithTermFxWidget focused = eventWidget != null ? eventWidget : splitPane.getFocusedWidget();
-                if (focused != null) {
-                    TtyConnector connector = focused.getTtyConnector();
-                    if (connector != null && connector.isConnected()) {
-                        try {
-                            connector.write(sequence);
-                            event.consume();
-                        } catch (java.io.IOException e) {
-                            logger.debug("Failed to send key sequence: {}", e.getMessage());
-                        }
-                    }
-                }
-            }
+            // Navigation keys (Tab, arrows, Home/End, F-keys, ...) continue to the split pane's
+            // per-pane filter, which encodes them for that pane's mode (TerminalNavigationKeys).
         });
         
         // Require Shift+Alt/Option for pane-move drag; otherwise consume so terminal gets text selection
@@ -1137,6 +1130,7 @@ public class TerminalView extends BorderPane {
             completionTimer.stop();
         }
         commandStartLineByWidget.remove(widget);
+        scrollbackTrimTrackerByWidget.remove(widget);
         agentShortcutBuffers.remove(widget);
         TerminalModelListener recordingListener = terminalRecordingModelListeners.remove(widget);
         if (recordingListener != null && widget.getTerminalTextBuffer() != null) {
@@ -2053,8 +2047,11 @@ public class TerminalView extends BorderPane {
     private static List<TerminalRecordingStyleRun> captureTerminalStyleRuns(
         com.sithtermfx.core.model.TerminalTextBuffer textBuffer,
         ConnectionSettings settings) {
+        // The palette the live terminal draws (built-in until customised), so recordings match the screen.
         return de.kortty.core.TerminalScreenRenderer.styleRuns(textBuffer, settings != null
-            ? new de.kortty.core.TerminalScreenRenderer.Palette(settings::getAnsiColor, settings.isBoldAsBright())
+            ? new de.kortty.core.TerminalScreenRenderer.Palette(
+                (index, bright) -> TerminalPaletteSupport.effectiveHex(settings, index, bright),
+                settings.isBoldAsBright())
             : de.kortty.core.TerminalScreenRenderer.Palette.DEFAULT);
     }
 
@@ -2145,7 +2142,8 @@ public class TerminalView extends BorderPane {
                 isTerminalAgentCommandNameCaseInsensitive()),
             rawCommand -> shouldInterceptFilteredAgentShortcut(widget, rawCommand),
             rawCommand -> dispatchFilteredTerminalAgentShortcut(widget, rawCommand),
-            this::forwardJournalInputLine);
+            this::forwardJournalInputLine,
+            observableConnector.getCharset());
         terminalAgentShortcutInputFilters.put(
             observableConnector,
             new TerminalAgentShortcutInputFilterRegistration(widget, inputFilter));
@@ -2459,20 +2457,41 @@ public class TerminalView extends BorderPane {
         } else if (targetConnection.getProtocol() == ConnectionProtocol.LOCAL_SHELL) {
             connector = new LocalShellTtyConnector(targetConnection);
         } else {
-            SshTtyConnector sshConnector = new SshTtyConnector(targetConnection, targetPassword);
-            if (targetConnection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
-                de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
-                if (app != null && app.getSSHKeyManager() != null) {
-                    sshConnector.setSSHKeyManager(
-                            app.getSSHKeyManager(),
-                            app.getMasterPasswordManager().getMasterPassword()
-                    );
-                }
-            }
+            de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+            SshTtyConnector sshConnector = sshConnectorWithVault(targetConnection, targetPassword,
+                    app != null ? app.getSSHKeyManager() : null, masterPasswordOf(app));
             sshConnector.setAccessReasonMemory(accessReasonMemory);
+            // The user opened this tab and sees its dialogs, so a changed host key may be reviewed
+            // and replaced here; background connections keep the plain warning.
+            sshConnector.setHostKeyReplacePolicy(de.kortty.core.SshHostKeyTrustManager.ReplacePolicy.INTERACTIVE);
             connector = sshConnector;
         }
         return connector;
+    }
+
+    /**
+     * Builds the SSH terminal connector for {@code target} and hands it the vault, whatever the
+     * target's own authentication: a jump server's stored password is decrypted with the master
+     * password, so a password or keyboard-interactive target needs it as much as a key-based one.
+     * Only a {@code PUBLIC_KEY} target keeps the key manager. A new connector is built for every
+     * attempt, so a reconnect after unlocking the vault picks the master password up.
+     */
+    static SshTtyConnector sshConnectorWithVault(
+            ServerConnection target,
+            String password,
+            de.kortty.core.SSHKeyManager keyManager,
+            char[] masterPassword) {
+        SshTtyConnector connector = new SshTtyConnector(target, password);
+        connector.configureVault(keyManager, masterPassword);
+        return connector;
+    }
+
+    /** The open vault's master password, or {@code null} while it is locked or not set up. */
+    private static char[] masterPasswordOf(de.kortty.KorTTYApplication app) {
+        if (app == null || app.getMasterPasswordManager() == null) {
+            return null;
+        }
+        return app.getMasterPasswordManager().getMasterPassword();
     }
 
     private boolean connectConnector(TtyConnector connector) throws Exception {
@@ -3050,8 +3069,8 @@ public class TerminalView extends BorderPane {
         // events are no longer swallowed here (only stray run-control characters are dropped in the
         // canvas dispatcher), so the full command reaches the shell and the shortcut buffer.
 
-        // Navigation keys (arrow, Tab, etc.) are handled at split-pane level so we run before the
-        // terminal widget consumes them; see splitPane.addEventFilter(KeyEvent.KEY_PRESSED, ...) above.
+        // Navigation keys (arrows, Tab, etc.) are encoded per pane by TerminalSplitPane.routeKeyPressed,
+        // a filter on the pane that runs before the canvas; see TerminalNavigationKeys.
 
         // Copy-on-select: when user finishes selecting text, copy to clipboard if enabled
         var panel = widget.getTerminalPanel();
@@ -3059,6 +3078,11 @@ public class TerminalView extends BorderPane {
             panel.selectedTextProperty().addListener((obs, oldVal, newVal) -> {
                 if (isTerminalCopyOnSelectEnabled() && newVal != null && !newVal.isEmpty()) {
                     panel.handleCopy(false, false);
+                    if (shouldMirrorToPrimarySelection(com.sithtermfx.core.util.Platform.current())) {
+                        // X11: middle-click pastes PRIMARY, so the selection must land there too.
+                        // PolicyAwareCopyPasteHandler keeps the internal-clipboard mode sealed.
+                        panel.handleCopy(false, true);
+                    }
                 }
             });
         }
@@ -3206,6 +3230,18 @@ public class TerminalView extends BorderPane {
         }
         PasteTracking tracking = codingAgentPasteTrackers.get(widget);
         return tracking != null && tracking.tracker().isEnabled();
+    }
+
+    /**
+     * The character encoding the pane's connector types text in (see
+     * {@link de.kortty.core.TerminalEncodingSupport}); UTF-8 without a pane or for a connector that
+     * does not resolve one.
+     */
+    public java.nio.charset.Charset connectorCharset(SithTermFxWidget widget) {
+        TtyConnector connector = widget != null ? unwrapTerminalEffectConnector(widget.getTtyConnector()) : null;
+        return connector instanceof ObservableTtyConnector observable && observable.getCharset() != null
+            ? observable.getCharset()
+            : StandardCharsets.UTF_8;
     }
 
     /**
@@ -4874,41 +4910,6 @@ public class TerminalView extends BorderPane {
         };
     }
 
-    /**
-     * Returns the terminal escape sequence for navigation/special keys (arrow, Tab, Home, End, F-keys, etc.).
-     * Used so that e.g. Midnight Commander receives these keys (pane switch with Tab, selection with arrows).
-     * Returns null for keys that should be handled by the default path (Enter, Backspace, printable).
-     */
-    private static String keyCodeToControlSequence(KeyCode code) {
-        return switch (code) {
-            case TAB -> "\t";
-            // Use application keypad mode (SS3) for arrow keys so ncurses apps like mc receive them.
-            case UP -> "\u001BOA";
-            case DOWN -> "\u001BOB";
-            case RIGHT -> "\u001BOC";
-            case LEFT -> "\u001BOD";
-            case HOME -> "\u001B[H";
-            case END -> "\u001B[F";
-            case PAGE_UP -> "\u001B[5~";
-            case PAGE_DOWN -> "\u001B[6~";
-            case INSERT -> "\u001B[2~";
-            case DELETE -> "\u001B[3~";
-            case F1 -> "\u001BOP";
-            case F2 -> "\u001BOQ";
-            case F3 -> "\u001BOR";
-            case F4 -> "\u001BOS";
-            case F5 -> "\u001B[15~";
-            case F6 -> "\u001B[17~";
-            case F7 -> "\u001B[18~";
-            case F8 -> "\u001B[19~";
-            case F9 -> "\u001B[20~";
-            case F10 -> "\u001B[21~";
-            case F11 -> "\u001B[23~";
-            case F12 -> "\u001B[24~";
-            default -> null;
-        };
-    }
-
     private boolean isTerminalCopyOnSelectEnabled() {
         try {
             var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
@@ -4946,11 +4947,15 @@ public class TerminalView extends BorderPane {
         // runs during the TerminalSplitPane constructor when splitPane is not yet assigned.
         syncGutterFromHistory(widget, gutter);
         
+        var terminalPanel = widget.getTerminalPanel();
+        var textBuffer = terminalPanel.getTerminalTextBuffer();
+        scrollbackTrimTrackerByWidget.put(widget, ScrollbackTrimTracker.forBuffer(textBuffer));
+
         // Always listen for Enter key to record timestamps (even when gutter is hidden).
         // Register on the primary focusable target only; attaching to parent + child duplicates the event.
         javafx.event.EventHandler<KeyEvent> enterHandler = event -> {
             if (event.getCode() == KeyCode.ENTER) {
-                int startAbsoluteLine = getCurrentAbsoluteCursorLine(widget);
+                int startAbsoluteLine = resolveCursorLineAfterScrollbackTrim(widget);
                 if (startAbsoluteLine >= 0) {
                     recordTimestampForLine(widget, startAbsoluteLine, LocalDateTime.now());
                     commandStartLineByWidget.put(widget, startAbsoluteLine);
@@ -4961,9 +4966,7 @@ public class TerminalView extends BorderPane {
         getPrimaryKeyEventTarget(widget).addEventFilter(KeyEvent.KEY_PRESSED, enterHandler);
         
         // Synchronize gutter with terminal scrollbar
-        var terminalPanel = widget.getTerminalPanel();
         ScrollBar scrollBar = terminalPanel.getScrollBar();
-        var textBuffer = terminalPanel.getTerminalTextBuffer();
         
         // Update gutter on scroll changes
         scrollBar.valueProperty().addListener((obs, oldV, newV) -> {
@@ -4981,7 +4984,15 @@ public class TerminalView extends BorderPane {
         
         // Update gutter when terminal content changes (new output, resize)
         textBuffer.addModelListener(() -> {
+            // Runs where the change happened - usually the emulator thread, holding the buffer
+            // lock - so every scroll step is counted, even a burst longer than the whole
+            // scrollback that the FX thread only gets to see after the fact.
+            ScrollbackTrimTracker trimTracker = scrollbackTrimTrackerByWidget.get(widget);
+            if (trimTracker != null) {
+                trimTracker.observe();
+            }
             Platform.runLater(() -> {
+                drainScrollbackTrim(widget);
                 updateGutterScrollState(gutter, scrollBar, textBuffer, terminalPanel);
                 // Add timestamp when prompt appears (cursor at start of new line from server output).
                 // For command end tracking, use a short quiet-time debounce after Enter:
@@ -5054,7 +5065,7 @@ public class TerminalView extends BorderPane {
             return;
         }
         try {
-            int absoluteLine = getCurrentAbsoluteCursorLine(widget);
+            int absoluteLine = resolveCursorLineAfterScrollbackTrim(widget);
             if (absoluteLine < 0) {
                 return;
             }
@@ -5067,6 +5078,108 @@ public class TerminalView extends BorderPane {
             awaitingCommandCompletionByWidget.put(widget, false);
         } catch (Exception e) {
             logger.debug("Failed to record command completion timestamp: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Applies any pending scrollback trim to the recorded marks, then returns the absolute cursor
+     * line. Both are read under the buffer lock so no trim can slip in between: the new mark's key
+     * and the shift already applied to the older marks describe the same buffer state, and any
+     * later trim moves all of them together.
+     */
+    private int resolveCursorLineAfterScrollbackTrim(SithTermFxWidget widget) {
+        ScrollbackTrimTracker tracker = scrollbackTrimTrackerByWidget.get(widget);
+        var textBuffer = widget.getTerminalTextBuffer();
+        if (tracker == null || textBuffer == null) {
+            return getCurrentAbsoluteCursorLine(widget);
+        }
+        ScrollbackTrimTracker.Trim trim;
+        int absoluteLine;
+        textBuffer.lock();
+        try {
+            trim = tracker.poll();
+            absoluteLine = getCurrentAbsoluteCursorLine(widget);
+        } finally {
+            textBuffer.unlock();
+        }
+        applyScrollbackTrim(widget, trim);
+        return absoluteLine;
+    }
+
+    /**
+     * Applies what the widget's scrollback dropped since the last look to its marks (FX thread).
+     * Runs in the model listener's deferred half, after its synchronous half already observed the
+     * change, so it drains without taking the buffer lock once per output event.
+     */
+    private void drainScrollbackTrim(SithTermFxWidget widget) {
+        ScrollbackTrimTracker tracker = scrollbackTrimTrackerByWidget.get(widget);
+        if (tracker == null) {
+            return;
+        }
+        try {
+            applyScrollbackTrim(widget, tracker.drain());
+        } catch (RuntimeException e) {
+            logger.debug("Could not track scrollback trim: {}", e.getMessage());
+        }
+    }
+
+    private void applyScrollbackTrim(SithTermFxWidget widget, ScrollbackTrimTracker.Trim trim) {
+        if (!scrollbackTrimMovesMarks(trim)) {
+            return;
+        }
+        if (trim.kind() == ScrollbackTrimTracker.Trim.Kind.CLEARED) {
+            clearTimestampMarks(widget);
+        } else {
+            shiftTimestampMarks(widget, trim.lines());
+        }
+    }
+
+    /**
+     * Whether a scrollback trim changes the recorded marks: a clear drops them and a real shift
+     * moves them, while an unknown trim (width reflow) or the alternate screen leaves them alone.
+     * A restored project's screen is replayed locally before the session starts and clears
+     * nothing, so restored marks need no extra protection.
+     */
+    static boolean scrollbackTrimMovesMarks(ScrollbackTrimTracker.Trim trim) {
+        if (trim == null) {
+            return false;
+        }
+        return switch (trim.kind()) {
+            case CLEARED -> true;
+            case SHIFT -> trim.lines() > 0;
+            case UNKNOWN, SUSPENDED -> false;
+        };
+    }
+
+    /** Moves every mark of the widget up by {@code lines}; marks that left the scrollback go. */
+    private void shiftTimestampMarks(SithTermFxWidget widget, int lines) {
+        TreeMap<Integer, LocalDateTime> history = timestampHistoryByWidget.get(widget);
+        if (history != null && !history.isEmpty()) {
+            TreeMap<Integer, LocalDateTime> shifted = TimestampHistory.shift(history, lines);
+            // replace(), not put(): a pane released meanwhile must not get its entry back.
+            if (timestampHistoryByWidget.replace(widget, history, shifted)) {
+                TimestampGutter gutter = gutterMap.get(widget);
+                if (gutter != null) {
+                    gutter.setAllTimestamps(shifted);
+                }
+            }
+        }
+        commandStartLineByWidget.computeIfPresent(widget, (w, line) -> {
+            int shiftedLine = TimestampHistory.shiftLine(line, lines);
+            return shiftedLine >= 0 ? shiftedLine : null;
+        });
+        lastTimestampLineByWidget.computeIfPresent(widget,
+            (w, line) -> TimestampHistory.shiftLine(line, lines));
+    }
+
+    /** Drops every mark of the widget: its scrollback was cleared (Clear Buffer, ESC[3J, reset). */
+    private void clearTimestampMarks(SithTermFxWidget widget) {
+        timestampHistoryByWidget.computeIfPresent(widget, (w, history) -> new TreeMap<>());
+        commandStartLineByWidget.remove(widget);
+        lastTimestampLineByWidget.computeIfPresent(widget, (w, line) -> -1);
+        TimestampGutter gutter = gutterMap.get(widget);
+        if (gutter != null) {
+            gutter.clearTimestamps();
         }
     }
 
@@ -5135,6 +5248,11 @@ public class TerminalView extends BorderPane {
         }
         int lastLine = restored.isEmpty() ? -1 : restored.lastKey();
         lastTimestampLineByWidget.put(primary, lastLine);
+        // Trims counted before the restore refer to the replaced marks, not to these.
+        ScrollbackTrimTracker tracker = scrollbackTrimTrackerByWidget.get(primary);
+        if (tracker != null) {
+            tracker.reset();
+        }
     }
     
     /**
@@ -5493,6 +5611,18 @@ public class TerminalView extends BorderPane {
 
                     clearTerminal();
                     showMessage(e.getMessage());
+                } catch (SshTtyConnector.ConnectionConfigurationException e) {
+                    // The connection's own setup cannot work (e.g. the jump server password needs
+                    // the locked vault): retrying cannot change the outcome. Must precede the
+                    // AuthenticationException catch, which it extends.
+                    configurationRefused = true;
+                    lastError = e.getMessage();
+                    // Host/port only, for the CodeQL reason given at the IllegalStateException branch.
+                    logger.error("Connection setup unusable for {}:{} - NOT retrying: {}",
+                            connection.getHost(), connection.getPort(), e.getMessage());
+
+                    clearTerminal();
+                    showMessage(e.getMessage());
                 } catch (SshTtyConnector.AuthenticationException e) {
                     // Authentication failed - do NOT retry
                     authenticationFailed = true;
@@ -5600,6 +5730,14 @@ public class TerminalView extends BorderPane {
         }
         redactor.setReplacements(de.kortty.core.SessionJournalService.policyReplacements());
         return redactor;
+    }
+
+    /**
+     * A fresh redactor with this tab's known secrets — the same one captured output gets — for
+     * masking terminal text before it leaves for an AI profile. The password itself stays private.
+     */
+    public de.kortty.core.SessionJournalRedactor createSecretRedactor() {
+        return buildCaptureRedactor();
     }
 
     private void startLogger() {
@@ -6180,6 +6318,7 @@ public class TerminalView extends BorderPane {
         timestampHistoryByWidget.clear();
         awaitingCommandCompletionByWidget.clear();
         commandStartLineByWidget.clear();
+        scrollbackTrimTrackerByWidget.clear();
         agentShortcutBuffers.clear();
         terminalWidget = null;
     }
@@ -6622,6 +6761,10 @@ public class TerminalView extends BorderPane {
         settings.setCursorColor(effective.getCursorColor());
         settings.setCursorStyle(effective.getCursorStyle());
         settings.setTerminalColorsEnabled(effective.isTerminalColorsEnabled());
+        // ANSI palette, selection colour and bold-as-bright (recordings): every pane provider reads this
+        // settings object, but caches the resolved palette, so refresh them before the repaint below.
+        settings.copyTerminalPaletteFrom(effective);
+        refreshPanePalettes();
         sharedFontSource.setFontSize(size);
 
         if (splitPane != null) {
@@ -6653,6 +6796,15 @@ public class TerminalView extends BorderPane {
         logger.debug("Applied connection settings: {} {}pt", family, size);
         // Effect panes keep their per-pane override (resolved in applyStyleStateColors / getTerminalFont),
         // so applying connection settings tab-wide never overwrites a pane that is running an effect.
+    }
+
+    /** Lets every pane re-read the ANSI palette and selection colour from {@link #settings}. */
+    private void refreshPanePalettes() {
+        paneProviders.values().forEach(KorTTYSettingsProvider::refreshPalette);
+        // The single-terminal fallback has no split pane that would have registered its provider.
+        if (terminalWidget != null && terminalWidget.getSettingsProvider() instanceof KorTTYSettingsProvider provider) {
+            provider.refreshPalette();
+        }
     }
 
     private boolean isThemeFontApplyEnabled() {
@@ -7183,8 +7335,50 @@ public class TerminalView extends BorderPane {
         }
     }
 
+    /**
+     * Key binding of the terminal's own "Clear Buffer" action. On macOS it stays the vendor's
+     * Cmd+K. On Windows/Linux the vendor binds it to Ctrl+L and consumes the key before the shell
+     * sees it, so bash/psql/REPLs never get their ^L (redraw/clear screen) and the local scrollback
+     * is wiped instead. There it has no key binding at all, so Ctrl+L reaches the shell; the action
+     * stays reachable via the terminal's context menu. No Ctrl+Shift+K fallback: MainWindow already
+     * owns SHORTCUT+SHIFT+K (file browser left dock), and a canvas action would shadow it.
+     */
+    static com.sithtermfx.ui.TerminalActionPresentation clearBufferActionPresentation(boolean macOs) {
+        String name = I18n.get("terminal.contextMenu.clearBuffer");
+        if (macOs) {
+            return new com.sithtermfx.ui.TerminalActionPresentation(name,
+                    new javafx.scene.input.KeyCodeCombination(KeyCode.K, javafx.scene.input.KeyCombination.META_DOWN));
+        }
+        return new com.sithtermfx.ui.TerminalActionPresentation(name, Collections.emptyList());
+    }
+
+    /**
+     * Key binding of the terminal's own "Find" action. On macOS it stays the vendor's Cmd+F. On
+     * Windows/Linux the vendor binds Ctrl+F, which steals readline's forward-char and less/vim's
+     * page-forward from the shell, so there it has no key binding and ^F goes to the shell; Find
+     * stays reachable via the terminal's context menu and Edit &gt; Find. No Ctrl+Shift+F fallback:
+     * that is MainWindow's terminal-only fullscreen accelerator.
+     */
+    static com.sithtermfx.ui.TerminalActionPresentation findActionPresentation(boolean macOs) {
+        String name = I18n.get("terminal.contextMenu.find");
+        if (macOs) {
+            return new com.sithtermfx.ui.TerminalActionPresentation(name,
+                    new javafx.scene.input.KeyCodeCombination(KeyCode.F, javafx.scene.input.KeyCombination.META_DOWN));
+        }
+        return new com.sithtermfx.ui.TerminalActionPresentation(name, Collections.emptyList());
+    }
+
+    /**
+     * Whether copy-on-select also writes the X11 PRIMARY selection, so that a middle-click pastes
+     * the terminal selection in other applications (the X11 convention). Only Linux has one; on
+     * other platforms the vendor copy handler would fall back to the regular clipboard.
+     */
+    static boolean shouldMirrorToPrimarySelection(com.sithtermfx.core.util.Platform platform) {
+        return platform == com.sithtermfx.core.util.Platform.Linux;
+    }
+
     private static class KorTTYSettingsProvider extends DynamicFontSizeSettingsProvider {
-        
+
         private final ConnectionSettings settings;
         // Single tab-wide font size. May be null during super() construction (guarded below).
         private final DynamicFontSizeSettingsProvider sharedFontSource;
@@ -7192,6 +7386,17 @@ public class TerminalView extends BorderPane {
         private final java.util.function.IntSupplier backgroundTransparencySupplier;
         // Per-pane appearance override contributed by an active effect; null = inherit the baseline settings.
         private volatile PaneAppearanceOverride override;
+        // ANSI palette + selection resolved from the settings. Cached because the vendor asks for the
+        // palette once per drawn cell (TerminalPanel.getPalette); null until the constructor body ran.
+        private volatile PaletteColors paletteColors;
+
+        /**
+         * What {@link #refreshPalette()} resolved: {@code customized == false} keeps the built-in palette
+         * and inverse-video selection; a null {@code selection} falls back to the vendor default colour.
+         */
+        private record PaletteColors(boolean customized, com.sithtermfx.core.emulator.ColorPalette palette,
+                                     TextStyle selection) {
+        }
 
         public KorTTYSettingsProvider(ConnectionSettings settings, DynamicFontSizeSettingsProvider sharedFontSource,
                                       java.util.function.IntSupplier backgroundTransparencySupplier) {
@@ -7199,6 +7404,19 @@ public class TerminalView extends BorderPane {
             this.settings = settings;
             this.sharedFontSource = sharedFontSource;
             this.backgroundTransparencySupplier = backgroundTransparencySupplier;
+            refreshPalette();
+        }
+
+        /** Re-reads the ANSI palette and the selection colour; call after they changed in the settings. */
+        void refreshPalette() {
+            ConnectionSettings s = settings;
+            if (s == null || !s.isAnsiPaletteCustomized()) {
+                paletteColors = new PaletteColors(false, null, null);
+                return;
+            }
+            paletteColors = new PaletteColors(true,
+                    TerminalPaletteSupport.toColorPalette(s),
+                    TerminalPaletteSupport.selectionStyle(s.getSelectionColor()));
         }
 
         void setOverride(PaneAppearanceOverride override) {
@@ -7338,6 +7556,17 @@ public class TerminalView extends BorderPane {
             return false; // Disable bell sound!
         }
 
+        // On Windows/Linux Ctrl+L and Ctrl+F belong to the shell; see clearBufferActionPresentation.
+        @Override
+        public @NotNull com.sithtermfx.ui.TerminalActionPresentation getClearBufferActionPresentation() {
+            return clearBufferActionPresentation(com.sithtermfx.core.util.Platform.isMacOS());
+        }
+
+        @Override
+        public @NotNull com.sithtermfx.ui.TerminalActionPresentation getFindActionPresentation() {
+            return findActionPresentation(com.sithtermfx.core.util.Platform.isMacOS());
+        }
+
         @Override
         public int caretBlinkingMs() {
             PaneAppearanceOverride o = override;
@@ -7367,11 +7596,26 @@ public class TerminalView extends BorderPane {
             return false;
         }
         
+        // ---- Colors tab: untouched settings keep the built-in palette and inverse-video selection, so
+        // nothing changes for anyone who never customised them (ConnectionSettings.ansiPaletteCustomized). ----
+        @Override
+        public com.sithtermfx.core.emulator.ColorPalette getTerminalColorPalette() {
+            PaletteColors colors = paletteColors;
+            return colors != null && colors.palette() != null ? colors.palette() : super.getTerminalColorPalette();
+        }
+
+        @Override
+        public @NotNull TextStyle getSelectionColor() {
+            PaletteColors colors = paletteColors;
+            return colors != null && colors.selection() != null ? colors.selection() : super.getSelectionColor();
+        }
+
         @Override
         public boolean useInverseSelectionColor() {
-            return true;
+            PaletteColors colors = paletteColors;
+            return colors == null || !colors.customized();
         }
-        
+
         @Override
         public int getBufferMaxLinesCount() {
             // Honors the connection's scrollback setting (Settings > Terminal); the widget reads

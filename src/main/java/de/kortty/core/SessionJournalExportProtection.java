@@ -206,18 +206,31 @@ public final class SessionJournalExportProtection {
             Files.deleteIfExists(output);
             throw new IOException("gpg failed (exit " + process.exitValue() + ")" + (log.isEmpty() ? "" : ": " + log));
         }
-        logger.info("Session journal export encrypted with GPG for key {}: {}", keyId, output.getFileName());
+        logger.info("Encrypted {} with GPG for key {}", output.getFileName(), keyId);
     }
 
-    private static Path privateTempDir() throws IOException {
+    /** A new owner-only ({@code rwx------}) temporary folder for an export's plaintext. */
+    static Path privateTempDir() throws IOException {
+        return privateTempDir("kortty-journal-export");
+    }
+
+    /**
+     * A new owner-only ({@code rwx------}) temporary folder; also used by {@link BackupManager}
+     * for the plaintext ZIP of a GPG backup and for restoring one.
+     */
+    static Path privateTempDir(String prefix) throws IOException {
         if (FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
-            return Files.createTempDirectory("kortty-journal-export",
+            return Files.createTempDirectory(prefix,
                 PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
         }
-        return Files.createTempDirectory("kortty-journal-export");
+        return Files.createTempDirectory(prefix);
     }
 
-    private static void deleteRecursively(Path dir) {
+    /** Deletes a folder and everything in it, best effort. */
+    static void deleteRecursively(Path dir) {
+        if (dir == null || !Files.exists(dir)) {
+            return;
+        }
         try (var paths = Files.walk(dir)) {
             paths.sorted(Comparator.reverseOrder()).forEach(path -> {
                 try {

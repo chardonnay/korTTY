@@ -52,6 +52,15 @@ class SnippetOneLinerTest {
     }
 
     @Test
+    void shellHashStartsACommentOnlyAtTheBeginningOfAWord() {
+        assertThat(SnippetOneLiner.stripCommentsShellLine("echo ${#arr[@]} ${p##*/} ${v%%.*} $# a#b # comment"))
+            .isEqualTo("echo ${#arr[@]} ${p##*/} ${v%%.*} $# a#b");
+        assertThat(SnippetOneLiner.stripCommentsShellLine("true;# after semicolon")).isEqualTo("true;");
+        assertThat(SnippetOneLiner.stripCommentsShellLine("# whole line")).isEmpty();
+        assertThat(SnippetOneLiner.stripCommentsShellLine("\t# indented")).isEmpty();
+    }
+
+    @Test
     void stripCommentsHashLangLinePreservesLiteralBackslashesInsideSingleQuotes() {
         String line = "puts 'path\\temp#still literal' # trailing";
 

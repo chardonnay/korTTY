@@ -771,7 +771,7 @@
 </ol>
 <h3 id="at-rest-encryption">At-Rest Encryption<a class="headerlink" href="#at-rest-encryption" title="Permanent link">&para;</a></h3>
 <p>The master password itself is hashed with PBKDF2 (310,000 iterations) and never stored in plain text. The salt and hash are stored in <code>~/.kortty/master.key</code>.</p>
-<p>On subsequent launches, KorTTY prompts you to enter the master password to unlock encrypted data. Turning off <strong>Require master password on startup</strong> in <strong>Settings &gt; Security</strong> hides this prompt, but stored passwords will not be accessible until you enter the master password manually.</p>
+<p>On subsequent launches, KorTTY prompts you to enter the master password to unlock encrypted data. Turning off <strong>Require master password on startup</strong> in <strong>Settings &gt; Security</strong> hides this prompt and starts with the vault locked: stored passwords and keys stay unavailable until you unlock it (see <a href="#unlocking-the-vault-later">Unlocking the vault later</a>).</p>
 <div class="admonition danger">
 <p class="admonition-title">Optional auto-login weakens at-rest protection</p>
 <p>The second Security option, <strong>Disable master password prompt on startup (auto-login)</strong>, also removes the prompt but keeps the vault fully usable: korTTY writes your master password to <code>~/.kortty/master.autounlock</code> — <strong>obfuscated only, not encrypted</strong>, with owner-only file permissions — and unlocks automatically on every start. The obfuscation key is embedded in the application, so file permissions are the only real boundary; anyone who can read <code>~/.kortty</code> or a backup can decrypt all saved secrets. On a brand-new profile the option bootstraps a default master password with no dialog at all. korTTY asks for confirmation before enabling it, it is meant for throwaway/test environments, and a <a href="../reference/enterprise-policy.html">policy configuration</a> that requires a master password disables it. Details: <a href="../reference/settings/security.html">Security settings</a>.</p>
@@ -780,6 +780,9 @@
 <p class="admonition-title">Note</p>
 <p>If you lose the master password, encrypted data cannot be recovered. Delete <code>master.key</code> and <code>credentials.xml</code>, restart, set a new master password, and re-enter your passwords.</p>
 </div>
+<h3 id="unlocking-the-vault-later">Unlocking the vault later<a class="headerlink" href="#unlocking-the-vault-later" title="Permanent link">&para;</a></h3>
+<p>With the vault locked, choose <strong>Configuration &gt; Security &gt; Unlock Vault…</strong> and enter the master password; the menu item is greyed out while the vault is open. Saving an AI or translation API key, a Hugging Face token, a jump server password or a Job Scheduler password, starting an AI Swarm run on servers without an open terminal, asking the guide a question and generating a single- or multi-server workflow script with an encrypted AI key show their "vault locked" message with an <strong>Unlock Vault…</strong> button instead of a dead end. Some places still only report the locked vault, for example an AI chat request or a key passphrase in the connection editor; unlock the vault from the menu first. After a successful unlock the action continues; <strong>Cancel</strong> leaves the vault locked without a second error. A wrong password keeps the dialog open, and cancelling it never quits korTTY.</p>
+<p>Unlocking also restores the temporary SSH keys that could not be decrypted at the locked start; until then they stay stored encrypted, so saving connections in the meantime does not lose them. Windows that were already open while the vault was locked, such as the Connection Manager or the credential and key managers, do not pick up the unlock — reopen them to use stored secrets there.</p>
 <h2 id="encryption-model">Encryption Model<a class="headerlink" href="#encryption-model" title="Permanent link">&para;</a></h2>
 <p>All sensitive data at rest is encrypted using <strong>AES-256-GCM</strong>:</p>
 <ul>
@@ -800,18 +803,35 @@
 <li>Fill in:</li>
 <li><strong>Name</strong> — Descriptive identifier</li>
 <li><strong>Username</strong> — Login username</li>
+<li><strong>Password Type</strong> — <strong>Stored Password</strong>, or <strong>External Command</strong> to fetch the password from a password manager (see <a href="#passwords-from-an-external-command">Passwords from an external command</a>)</li>
 <li><strong>Password</strong> — Stored encrypted with AES-256-GCM</li>
 <li><strong>Environment</strong> — Production, Development, Test, or Staging</li>
 <li><strong>Server Pattern</strong> (optional) — Glob pattern (e.g., <code>*.example.com</code>, <code>10.0.0.*</code>) for automatic credential matching to connections</li>
 <li><strong>Description</strong> (optional) — Free-text notes</li>
 <li>Click <strong>OK</strong>.</li>
 </ol>
+<h3 id="passwords-from-an-external-command">Passwords from an external command<a class="headerlink" href="#passwords-from-an-external-command" title="Permanent link">&para;</a></h3>
+<p>Instead of storing the password, a credential can fetch it from your password manager every time it is needed. Choose <strong>External Command</strong> as the <strong>Password Type</strong> and enter a command that prints the password, for example:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>op<span class="w"> </span>item<span class="w"> </span>get<span class="w"> </span><span class="s2">"db-prod"</span><span class="w"> </span>--fields<span class="w"> </span>password
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>bw<span class="w"> </span>get<span class="w"> </span>password<span class="w"> </span><span class="s2">"db-prod"</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>enpass-cli<span class="w"> </span>show<span class="w"> </span><span class="s2">"db-prod"</span><span class="w"> </span>-field<span class="w"> </span>password
+</span></code></pre></div>
+<ul>
+<li><strong>Stored encrypted</strong> — the command itself is encrypted with your master password, like a stored password.</li>
+<li><strong>Shell</strong> — the command runs in <code>/bin/sh</code> on macOS and Linux and in PowerShell on Windows, so on Windows write PowerShell syntax (<code>$env:NAME</code>, not <code>%NAME%</code>). In the Flatpak package the command runs on the host, where your password manager's command-line tool is installed.</li>
+<li><strong>Output</strong> — the first line the command prints is the password. If the command exits with an error, korTTY shows its exit code and error output; empty output counts as an error too.</li>
+<li><strong>No prompts</strong> — the command gets no input, so a tool that asks for a master password or PIN cannot be answered and fails at once. Unlock the password manager first, for example with <code>op signin</code>, or with <code>bw unlock</code> and <code>BW_SESSION</code> set in the environment korTTY was started from. The Flatpak package runs the command on the host without korTTY's environment, so there <code>BW_SESSION</code> must be set in your desktop session, or passed in the command itself (for example <code>bw get password my-server --session &lt;key&gt;</code>).</li>
+<li><strong>10-second limit</strong> — a command that has not finished after 10 seconds is stopped together with every process it started, and korTTY reports the timeout. A Touch ID or system dialog the tool opens by itself must be confirmed within that time.</li>
+<li><strong>Runs every time</strong> — the command runs whenever the password is needed: when you pick the credential in the connection editor and whenever a connection that uses it connects. Panes split from a connected tab reuse that tab's password.</li>
+<li><strong>Test</strong> — the <strong>Test</strong> button next to the command runs it once and shows how many characters came back, never the password itself.</li>
+</ul>
+<p>In the connection editor the password field shows <em>Retrieving password...</em> while the command runs, and korTTY stays responsive. Opening, duplicating or restoring a connection waits for the command before it connects, for at most the 10-second limit, and the window does not react during that time; if the command fails there, korTTY uses the connection's own saved password or asks for one.</p>
 <h3 id="using-credentials-in-connections">Using Credentials in Connections<a class="headerlink" href="#using-credentials-in-connections" title="Permanent link">&para;</a></h3>
 <p>When creating or editing a connection:</p>
 <ol>
 <li>Go to the <strong>Connection</strong> tab.</li>
 <li>Select a stored credential from the <strong>Credentials</strong> dropdown.</li>
-<li>Username and password are filled in automatically.</li>
+<li>Username and password are filled in automatically; for an external command once it has returned the password.</li>
 </ol>
 <p>The following diagram shows how credentials and SSH keys flow from encrypted storage to active connections:</p>
 <p><img alt="Credential &amp; encryption flow" src="../assets/diagrams/credential-flow.svg" /></p>
@@ -820,6 +840,7 @@
 <li><strong>Environment-specific</strong> — Organize credentials by deployment environment</li>
 <li><strong>Server Pattern Matching</strong> — Automatically assign credentials to matching servers</li>
 <li><strong>Encrypted Storage</strong> — Passwords are encrypted with AES-256-GCM</li>
+<li><strong>Password managers</strong> — Fetch the password from a command such as <code>op</code>, <code>bw</code> or <code>enpass-cli</code> instead of storing it</li>
 <li><strong>Automatic Usage</strong> — Select credentials directly in connection settings</li>
 </ul>
 <h2 id="ssh-key-management">SSH Key Management<a class="headerlink" href="#ssh-key-management" title="Permanent link">&para;</a></h2>
@@ -837,7 +858,7 @@
 <ul>
 <li><strong>Centralized Management</strong> — Manage all SSH keys in one place</li>
 <li><strong>Encrypted Passphrases</strong> — Key passphrases are stored encrypted with AES-256-GCM</li>
-<li><strong>Key Copying</strong> — Use <strong>Copy to User Directory</strong> to copy keys to <code>~/.kortty/ssh-keys/</code>; copied keys are included in encrypted backups and restored with owner-only permissions</li>
+<li><strong>Key Copying</strong> — Use <strong>Copy to User Directory</strong> to copy keys to <code>~/.kortty/ssh-keys/</code>; on macOS and Linux the copied private key is made owner-only (<code>rw-------</code>) and the folder <code>rwx------</code>, and copied keys are included in encrypted backups and restored with owner-only permissions</li>
 <li><strong>Wildcard Search</strong> — Quick search for keys using <code>*</code> patterns</li>
 <li><strong>Automatic Usage</strong> — Select keys directly in connection settings</li>
 </ul>
@@ -850,7 +871,9 @@
 <li>The key path and passphrase are filled in automatically.</li>
 </ol>
 <h2 id="interactive-ssh-host-key-trust">Interactive SSH host-key trust<a class="headerlink" href="#interactive-ssh-host-key-trust" title="Permanent link">&para;</a></h2>
-<p>Terminal and SFTP connections, including the SSH bootstrap used by Mosh, share a trust-on-first-use (TOFU) verifier keyed by normalized host name and port. On first use, korTTY displays the server key algorithm and OpenSSH SHA-256 fingerprint; verify it out of band before accepting. The confirmation defaults to <strong>No</strong>. A previously trusted matching key is accepted silently, while a changed key is hard-blocked with the expected and offered fingerprints and is never retried automatically.</p>
+<p>Terminal and SFTP connections, including the SSH bootstrap used by Mosh, share a trust-on-first-use (TOFU) verifier keyed by normalized host name and port. On first use, korTTY displays the server key algorithm and OpenSSH SHA-256 fingerprint; verify it out of band before accepting. The confirmation defaults to <strong>No</strong>. A previously trusted matching key is accepted silently, while a changed key is hard-blocked with the expected and offered fingerprints and is never retried or replaced automatically.</p>
+<p>A changed key can be replaced only by an explicit decision, and only in a connection you opened yourself in a terminal tab or the SFTP manager (including its jump server). <strong>Review and Replace…</strong> in the changed-key alert shows the trusted and the new fingerprint side by side; the replace button stays disabled until you confirm that you verified the new fingerprint with the server administrator, and <strong>Close</strong> and <strong>Cancel</strong> remain the default buttons. The replacement is a compare-and-swap: it is stored only while the trusted key is still exactly the one you reviewed, so a key changed in another window in the meantime is never overwritten. Every replacement is logged with the old and the new fingerprint. Background and restored connections, and the SSH bootstrap of Mosh, keep the plain block.</p>
+<p><strong>Configuration → Security → Known Hosts…</strong> lists, searches and removes trusted keys. Removal works the same way: it deletes a key only while it still has the fingerprint shown in the confirmation, and the next connection asks again as on first use. With the enterprise policy key <code>enforce-host-key-check</code>, both replacing and removing are disabled, so only an administrator can change a trusted key.</p>
 <p>Interactive pins are written atomically to <code>~/.kortty/ssh-host-keys.properties</code>; a companion lock coordinates simultaneous korTTY processes. This store is distinct from the JobScheduler's connection-ID-based host-key pins in <code>job-scheduler.xml</code>, which protect unattended SSH, SFTP, and Rsync execution.</p>
 <h3 id="relaxing-host-key-verification">Relaxing host-key verification<a class="headerlink" href="#relaxing-host-key-verification" title="Permanent link">&para;</a></h3>
 <p>For lab or throwaway hosts you can turn the first-use prompt off and have korTTY accept an unknown key silently. This is an <strong>accept-new</strong> relaxation, not blind trust: a key that differs from one already pinned for that host is still hard-blocked, so a man-in-the-middle on a host you have connected to before is still caught. It is off by default and can be set at three scopes, in precedence order:</p>
@@ -880,7 +903,7 @@
 <li>Select <strong>GPG Encryption</strong> as the encryption type.</li>
 <li>Choose the GPG key to use for encryption.</li>
 </ol>
-<p>GPG-encrypted backups and exports are stored as <code>.gpg</code> files and require your system's <code>gpg</code> command and a usable public key for decryption.</p>
+<p>GPG-encrypted backups and exports are stored as <code>.gpg</code> files — a GPG backup as <code>kortty-backup.zip.gpg</code> — and need your system's <code>gpg</code> command. Creating one needs the recipient's public key; restoring or opening one needs the matching <strong>private</strong> key, and <code>gpg</code> may ask for its passphrase.</p>
 <h2 id="stored-security-data">Stored security data<a class="headerlink" href="#stored-security-data" title="Permanent link">&para;</a></h2>
 <p>The following sensitive and security-related data is stored in <code>~/.kortty/</code>; secret values are encrypted, while public verification material is not:</p>
 <table>
@@ -934,10 +957,12 @@
 </tr>
 </tbody>
 </table>
+<p>korTTY does not rewrite these files in place: a save goes to a temporary file in <code>~/.kortty</code> that is then renamed over the old file, for the connections, credentials, SSH keys, scheduled jobs and <code>master.key</code> after flushing it to the disk, so a crash, a full disk or a killed process leaves the previous version intact. On macOS and Linux, korTTY keeps <code>~/.kortty</code> at <code>rwx------</code> and writes <code>connections.xml</code>, <code>credentials.xml</code>, <code>ssh-keys.xml</code>, <code>job-scheduler.xml</code> and <code>master.key</code> owner-only (<code>rw-------</code>), also when an older version left them readable by other users; on Windows they are protected by the permissions of your user profile.</p>
+<p>A data file with connections, credentials, SSH or GPG keys, environments, themes or scheduled jobs that korTTY cannot parse at startup is moved aside as <code>&lt;name&gt;.corrupt-&lt;timestamp&gt;</code> without changing it, korTTY continues without its content, and a notice lists the moved files; the next save writes a fresh file. A file that cannot be read at all, for example while a virus scanner or another program holds it or while a network home directory is unreachable, stays where it is and korTTY does not save over it for the rest of the session; the notice lists it separately. <code>master.key</code> is never moved aside, because without it korTTY would treat the profile as new and mint a new salt: if it is damaged, unlocking fails with an error that names the file, and you restore it from a backup.</p>
 <h2 id="security-best-practices">Security Best Practices<a class="headerlink" href="#security-best-practices" title="Permanent link">&para;</a></h2>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>Selected terminal text sent to AI services can contain sensitive information such as credentials, hostnames, file paths, stack traces, or operational details. For sensitive data, prefer an integrated local GGUF model, or verify that you trust the remote endpoint before sending anything.</p>
+<p>Selected terminal text sent to AI services can contain sensitive information such as credentials, hostnames, file paths, stack traces, or operational details. Before a selection goes to a profile other than an integrated model or a trusted local endpoint, korTTY masks the connection's password, your organization's replacement rules and well-known secret formats such as private keys, access tokens and passwords in URLs with <code>***</code> (see <a href="ai-assistant.html#masking-secrets-before-sending">Masking secrets before sending</a>). That masking is pattern-based and misses secrets in other formats, so for sensitive data still prefer an integrated local GGUF model, or verify that you trust the remote endpoint before sending anything.</p>
 </div>
 <h3 id="master-password_1">Master Password<a class="headerlink" href="#master-password_1" title="Permanent link">&para;</a></h3>
 <ul>
@@ -949,8 +974,8 @@
 <ul>
 <li>Keep private key files protected with a passphrase.</li>
 <li>Copy keys to <code>~/.kortty/ssh-keys/</code> for inclusion in encrypted backups; keys left in their original locations are only referenced and must be migrated separately.</li>
-<li>Limit key file permissions (e.g., <code>chmod 600</code>).</li>
-<li>Verify a first-use host-key fingerprint through a trusted channel before accepting it. Treat a changed-key warning as a possible server rebuild, DNS error, or man-in-the-middle attack and investigate instead of reconnecting repeatedly.</li>
+<li>Limit key file permissions (e.g., <code>chmod 600</code>). Copies in <code>~/.kortty/ssh-keys/</code> are made owner-only automatically.</li>
+<li>Verify a first-use host-key fingerprint through a trusted channel before accepting it. Treat a changed-key warning as a possible server rebuild, DNS error, or man-in-the-middle attack and investigate instead of reconnecting repeatedly. Use <strong>Review and Replace…</strong> only after the server administrator has confirmed the new fingerprint.</li>
 </ul>
 <h3 id="jobscheduler">JobScheduler<a class="headerlink" href="#jobscheduler" title="Permanent link">&para;</a></h3>
 <ul>
@@ -973,7 +998,7 @@
 <li>Signed runtime withdrawals are durable and fail closed. A verified index adds withdrawn runtime and installation IDs to <code>llm/runtime/revoked-v1</code>, marks each installed package, clears a matching active pointer, stops its sidecars, removes it from healthy rollback history, and quarantines affected model bindings. The installer and process launcher both reject those packages, including after an interrupted update. Notification-only checks enforce a withdrawal without silently installing the offered replacement; <strong>Off</strong> makes no index request and therefore learns no new withdrawal until an explicit or enabled check.</li>
 <li>A newly activated runtime is not promoted to healthy history merely because its bounded <code>--version</code> check passed. It remains pending until the first real GGUF-backed authenticated API start succeeds; that start failing removes the candidate and restores/rebinds the newest healthy non-revoked package when one exists.</li>
 <li>Model recommendations and automatic prompt-family detection can refresh from a separate Ed25519-signed HTTPS catalog. The last valid cache is re-verified before use, and a monotonic sequence rejects signed older replays or equal-sequence version collisions before an atomic high-water update. Without the independent catalog public key, korTTY trusts neither network nor cache data and falls back to the built-in bootstrap. Production catalog and runtime signing are restricted to their main-branch, reviewer-protected GitHub environments; application builds receive only the public trust roots.</li>
-<li>AI profile configuration is stored locally; only your reviewed terminal selection or prompt is sent to the chosen service. Embedded inference stays on this computer.</li>
+<li>AI profile configuration is stored locally; only your reviewed terminal selection or prompt is sent to the chosen service, with recognized secrets in the selection masked. Embedded inference stays on this computer.</li>
 <li>Knowledge-store scanning follows a fixed text allowlist, validates content, refuses symbolic links, and presents a preview. Only bounded retrieved excerpts, not the complete knowledge store, enter the model prompt. Those excerpts stay local for integrated/loopback profiles but leave the computer when an explicitly assigned cloud profile handles the request; knowledge-store roles and persisted profile assignments are the user's disclosure authorization.</li>
 <li>Remote Qdrant knowledge stores require HTTPS; plain HTTP is accepted only for loopback, and the optional API key remains vault-protected.</li>
 <li>Internet access is disabled by default for AI profiles; enable only when needed.</li>
@@ -1003,7 +1028,7 @@
 </tr>
 <tr>
 <td>Interactive SSH/SFTP/Mosh host keys</td>
-<td>Shared normalized host:port TOFU, first-use fingerprint confirmation (optionally relaxed to accept-new), silent exact match, hard block on change</td>
+<td>Shared normalized host:port TOFU, first-use fingerprint confirmation (optionally relaxed to accept-new), silent exact match, hard block on change; replacement only after explicit fingerprint confirmation, as a compare-and-swap</td>
 </tr>
 <tr>
 <td>AI API Keys</td>
@@ -1049,6 +1074,10 @@
 <td>Credentials</td>
 <td>Never stored in plain text</td>
 </tr>
+<tr>
+<td>Local data files</td>
+<td>Atomic replace flushed to disk, owner-only <code>~/.kortty</code> and secret stores, unreadable files moved aside or left untouched instead of overwritten</td>
+</tr>
 </tbody>
 </table>
 <h2 id="changing-the-master-password">Changing the Master Password<a class="headerlink" href="#changing-the-master-password" title="Permanent link">&para;</a></h2>
@@ -1062,24 +1091,24 @@
 </ol>
 <h2 id="configuration-files-reference">Configuration Files Reference<a class="headerlink" href="#configuration-files-reference" title="Permanent link">&para;</a></h2>
 <p>All KorTTY data is stored under <code>~/.kortty/</code>. Key security-related files:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>~/.kortty/
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── master.key               # Master password hash and salt (PBKDF2)
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── master.autounlock        # Optional auto-login password (obfuscated, owner-only permissions)
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── credentials.xml           # Encrypted credentials (AES-256-GCM)
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── ssh-keys.xml             # SSH key paths and encrypted passphrases
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── gpg-keys.xml             # GPG keys for backup/export encryption
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── connections.xml          # Connection passwords and key passphrases
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>├── ssh-host-keys.properties # Interactive Terminal/SFTP/Mosh host-key pins
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>├── global-settings.xml      # AI API keys and other encrypted settings
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>├── llm/models.xml           # Model paths and typed launch settings (no model contents)
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>├── llm/runtime/             # Regenerable native packages; excluded from backup
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>├── llm/catalog/             # Regenerable signed-catalog cache; excluded from backup
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>├── llm/run/                 # Temporary per-process API keys/logs; excluded from backup
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>├── rag/stores.json          # Knowledge-store/source configuration
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>├── rag/stores/              # Regenerable HNSW snapshots; excluded from backup
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>├── job-scheduler.xml        # JobScheduler sudo/archive passwords (encrypted)
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>├── kortty.log               # Application log
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>└── history/                 # Compressed terminal session history
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>~/.kortty/
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>├── master.key               # Master password hash and salt (PBKDF2)
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>├── master.autounlock        # Optional auto-login password (obfuscated, owner-only permissions)
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>├── credentials.xml           # Encrypted credentials (AES-256-GCM)
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>├── ssh-keys.xml             # SSH key paths and encrypted passphrases
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>├── gpg-keys.xml             # GPG keys for backup/export encryption
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>├── connections.xml          # Connection passwords and key passphrases
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>├── ssh-host-keys.properties # Interactive Terminal/SFTP/Mosh host-key pins
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>├── global-settings.xml      # AI API keys and other encrypted settings
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>├── llm/models.xml           # Model paths and typed launch settings (no model contents)
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>├── llm/runtime/             # Regenerable native packages; excluded from backup
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>├── llm/catalog/             # Regenerable signed-catalog cache; excluded from backup
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>├── llm/run/                 # Temporary per-process API keys/logs; excluded from backup
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>├── rag/stores.json          # Knowledge-store/source configuration
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>├── rag/stores/              # Regenerable HNSW snapshots; excluded from backup
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>├── job-scheduler.xml        # JobScheduler sudo/archive passwords (encrypted)
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>├── kortty.log               # Application log
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>└── history/                 # Compressed terminal session history
 </span></code></pre></div></p>
     </article>
 </section>

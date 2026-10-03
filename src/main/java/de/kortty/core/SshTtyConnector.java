@@ -60,9 +60,11 @@ public class SshTtyConnector implements ObservableTtyConnector {
     private final ServerConnection connection;
     private final String password;
     private final SshHostKeyTrustManager hostKeyTrustManager;
+    private volatile SshHostKeyTrustManager.ReplacePolicy hostKeyReplacePolicy =
+        SshHostKeyTrustManager.ReplacePolicy.NEVER;
     private SSHKeyManager sshKeyManager;
     private char[] masterPassword;
-    
+
     private SshClient client;
     private ClientSession session;
     private ChannelShell channel;
@@ -73,7 +75,8 @@ public class SshTtyConnector implements ObservableTtyConnector {
     private InputStreamReader reader;
     
     private final AtomicBoolean connected = new AtomicBoolean(false);
-    private final Charset charset = StandardCharsets.UTF_8;
+    /** Resolved once per connector: an encoding change applies on the next connect or reconnect. */
+    private final Charset charset;
     private final Object outputWriteLock = new Object();
     private final StringBuilder pendingReadBuffer = new StringBuilder();
     private final StringBuilder shellStartupOutputBuffer = new StringBuilder();
@@ -109,6 +112,12 @@ public class SshTtyConnector implements ObservableTtyConnector {
         this.connection = connection;
         this.password = password;
         this.hostKeyTrustManager = java.util.Objects.requireNonNull(hostKeyTrustManager, "hostKeyTrustManager");
+        this.charset = TerminalEncodingSupport.resolveFromSettings(connection);
+    }
+
+    @Override
+    public Charset getCharset() {
+        return charset;
     }
     
     /**
@@ -120,12 +129,40 @@ public class SshTtyConnector implements ObservableTtyConnector {
     }
 
     /**
+     * Hands this connector the vault it needs, whatever the target's authentication method.
+     *
+     * <p>The master password is always set: besides a key passphrase it also decrypts the stored
+     * jump server password, which a password or keyboard-interactive target needs just as much as
+     * a key-based one. The key manager is only used for a {@code PUBLIC_KEY} target, as before.
+     *
+     * @param keyManager the managed SSH keys; may be {@code null}
+     * @param masterPassword the vault's master password, or {@code null} while the vault is locked
+     */
+    public void configureVault(SSHKeyManager keyManager, char[] masterPassword) {
+        this.masterPassword = masterPassword;
+        this.sshKeyManager = connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY
+            ? keyManager
+            : null;
+    }
+
+    /**
      * Shares the owning tab's answered access reasons, so a split does not ask the user again for
      * something they already answered when the tab was opened. Left unset the dialog is shown for
      * every authentication, which is the behaviour outside a terminal tab.
      */
     public void setAccessReasonMemory(AccessReasonMemory accessReasonMemory) {
         this.accessReasonMemory = accessReasonMemory;
+    }
+
+    /**
+     * Whether a changed host key (of the target or of its jump server) may be reviewed and replaced
+     * during {@link #connect()}. Only a terminal tab the user opened sets
+     * {@link SshHostKeyTrustManager.ReplacePolicy#INTERACTIVE}; the default
+     * {@link SshHostKeyTrustManager.ReplacePolicy#NEVER} keeps bootstraps and background work on
+     * the plain mismatch warning.
+     */
+    public void setHostKeyReplacePolicy(SshHostKeyTrustManager.ReplacePolicy replacePolicy) {
+        this.hostKeyReplacePolicy = replacePolicy != null ? replacePolicy : SshHostKeyTrustManager.ReplacePolicy.NEVER;
     }
     
     /**
@@ -309,8 +346,9 @@ public class SshTtyConnector implements ObservableTtyConnector {
             // Note: EdDSA signature support is automatically enabled when the eddsa dependency
             // is on the classpath. The client will detect and use EdDSA signatures automatically.
             
+            SshHostKeyTrustManager.ReplacePolicy replacePolicy = hostKeyReplacePolicy;
             hostKeyVerifier = hostKeyTrustManager.verifierFor(
-                connection, HostKeyCheckPolicy.resolveFromSettings(connection));
+                connection, HostKeyCheckPolicy.resolveFromSettings(connection), replacePolicy);
             client.setServerKeyVerifier(hostKeyVerifier);
             client.start();
             
@@ -337,7 +375,8 @@ public class SshTtyConnector implements ObservableTtyConnector {
             int connectPort = connection.getPort();
             if (JumpHostSupport.isActive(connection)) {
                 jumpTunnel = JumpHostSupport.open(
-                    connection, hostKeyTrustManager, masterPassword, Duration.ofSeconds(timeoutSeconds));
+                    connection, hostKeyTrustManager, masterPassword, Duration.ofSeconds(timeoutSeconds),
+                    replacePolicy);
                 connectHost = jumpTunnel.localHost();
                 connectPort = jumpTunnel.localPort();
                 // Log raw host:port rather than connection.getDisplayName(): the latter can fall back
@@ -361,7 +400,15 @@ public class SshTtyConnector implements ObservableTtyConnector {
             
             // Authenticate
             if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
-                authenticateWithKey();
+                try {
+                    authenticateWithKey();
+                } catch (AuthenticationException e) {
+                    throw e;
+                } catch (Exception e) {
+                    // A key file that is missing or cannot be parsed is still missing on the next
+                    // attempt, so this is not a connection failure to retry.
+                    throw new AuthenticationException(e.getMessage(), e);
+                }
                 // Log available authentication methods after adding key
                 logger.debug("Authentication methods available after adding key identity");
             } else {
@@ -395,6 +442,9 @@ public class SshTtyConnector implements ObservableTtyConnector {
             inputStream = channel.getInvertedOut();
             outputStream = channel.getInvertedIn();
             reader = new InputStreamReader(inputStream, charset);
+            if (!StandardCharsets.UTF_8.equals(charset)) {
+                logger.info("Terminal encoding {} for {}:{}", charset.name(), connection.getHost(), connection.getPort());
+            }
 
             writeShellStartupCommandIfConfigured();
             
@@ -432,7 +482,37 @@ public class SshTtyConnector implements ObservableTtyConnector {
             lastFailureMessage = describeFailure(e);
             close();
             return false;
+        } catch (JumpHostSupport.PermanentJumpFailure e) {
+            // The jump server cannot work as configured (locked vault, no stored password, missing
+            // key, rejected bastion key): a retry would fail the same way, so stop here.
+            // Host/port only in the log, for the CodeQL reason given at the jump hop above.
+            logger.error("Jump server {}:{} for {}:{} cannot be used ({}) - not retrying: {}",
+                connection.getJumpServer().getHost(), connection.getJumpServer().getPort(),
+                connection.getHost(), connection.getPort(), e.kind(), e.getMessage());
+            lastFailureMessage = e.getMessage();
+            close();
+            if (e.kind() == JumpHostSupport.PermanentJumpFailure.Kind.HOST_KEY_REJECTED) {
+                throw new HostKeyVerificationException(hostKeyRejectionMessage(), e);
+            }
+            throw new ConnectionConfigurationException(e.getMessage(), e);
+        } catch (AuthenticationException e) {
+            // A rejected target host key still takes precedence, as in the other two branches: the
+            // key exchange runs while the key file is loaded, and a refused key is the security signal.
+            if (hostKeyVerifier != null && hostKeyVerifier.wasRejected()) {
+                logger.error("SSH host-key verification rejected connection to {}:{}",
+                    connection.getHost(), connection.getPort());
+                close();
+                throw new HostKeyVerificationException(hostKeyRejectionMessage(), e);
+            }
+            // Thrown before the server is asked (e.g. a key file that cannot be loaded); it is as
+            // permanent as a refused login, so it must reach the caller instead of a retry.
+            logger.error("Authentication for {}:{} cannot proceed: {}",
+                connection.getHost(), connection.getPort(), e.getMessage());
+            close();
+            throw e;
         } catch (Exception e) {
+            // A refused jump-server key arrives as PermanentJumpFailure above; a refused target key
+            // is final too, since retrying would only show the same changed-key alert again.
             if (hostKeyVerifier != null && hostKeyVerifier.wasRejected()) {
                 logger.error("SSH host-key verification rejected connection to {}:{}",
                     connection.getHost(), connection.getPort());
@@ -468,6 +548,17 @@ public class SshTtyConnector implements ObservableTtyConnector {
     /** Non-retriable security failure which is distinct from user-authentication failure. */
     public static class HostKeyVerificationException extends AuthenticationException {
         public HostKeyVerificationException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
+    /**
+     * Non-retriable failure of the connection's own setup, distinct from a refused login: for
+     * example a jump server whose stored password cannot be decrypted while the vault is locked.
+     * The message says what to fix and is meant to be shown as is.
+     */
+    public static class ConnectionConfigurationException extends AuthenticationException {
+        public ConnectionConfigurationException(String message, Throwable cause) {
             super(message, cause);
         }
     }

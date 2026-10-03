@@ -19,7 +19,8 @@ public final class FlatpakSupport {
         return isFlatpakEnvironment(System.getenv());
     }
 
-    static boolean isFlatpakEnvironment(Map<String, String> environment) {
+    /** True when {@code environment} is a Flatpak sandbox's environment. */
+    public static boolean isFlatpakEnvironment(Map<String, String> environment) {
         String id = environment != null ? environment.get("FLATPAK_ID") : null;
         return id != null && !id.isBlank();
     }

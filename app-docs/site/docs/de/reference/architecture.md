@@ -28,7 +28,7 @@ KorTTY ist in verschiedene Funktionsmodule unterteilt. Das folgende Diagramm gru
 | **Kern** | SSH-Konnektivität, gemeinsames interaktives Host-Key-Vertrauen, Sitzungsverwaltung, KI-Integration, Terminalautomatisierung | `SshTtyConnector`, `SshHostKeyTrustManager`, `AiChatManager`, `TerminalAgentService`, `Mosh4jTtyConnector` |
 | **ai** | Signierter Modell-/Eingabeaufforderungskatalog, Hugging Face-Metadaten/Downloads, eingebettete llama.cpp- und MLX-Laufzeiten und signierte Laufzeitpakete | `AiCatalogService`, `HuggingFaceClient`, `LlamaRuntimeManager`, `LlamaRuntimePackageInstaller`, `EmbeddedMlxAiService`, `MlxRuntimeLocator` |
 | **rag** | Sicherer Quellscanning, Extraktion, Chunking, Embeddings, Vektor-Speicher, Synchronisation und begrenztes Abrufen | `RagSourceScanner`, `RagSourceSynchronizer`, `LocalHnswStore`, `RagRuntimeService` |
-| **ui** | JavaFX-Benutzeroberfläche, Dialoge, Terminalansichten, SFTP-Manager | `TerminalView`, `TerminalTab`, `ConnectionEditDialog`, `SFTPManagerDialog`, `SnippetEditDialog` |
+| **ui** | JavaFX-Benutzeroberfläche, Dialoge, Terminalansichten, SFTP-Manager | `TerminalView`, `TerminalTab`, `ConnectionEditDialog`, `SFTPManagerTab`, `SnippetEditDialog` |
 | **Modell** | Domänenobjekte für Verbindungen, Anmeldeinformationen, Snippets, Jobs | `ServerConnection`, `StoredCredential`, `Snippet`, `JobSchedule` |
 | **Jobscheduler** | Hintergrundjobplanung und -ausführung | `JobSchedulerService`, `JobSchedulerJobRunner`, `JobJournalEntry` |
 | **Sicherheit** | Master-Passwort, Verschlüsselung/Entschlüsselung, Passwort-Tresor | `MasterPasswordManager`, `EncryptionService`, `PasswordVault` |
@@ -168,7 +168,7 @@ Die UI-Ebene basiert auf JavaFX und ist in logische Komponenten unterteilt:
 | `MainWindow` | Anwendungsfenster der obersten Ebene mit Menüleiste, Registerkartenleiste, Terminalbereichen, Dashboard, SFTP-Browser |
 | `TerminalPane` | Einzelne Terminal-Registerkarte mit Split-Panee-Unterstützung und Inline-KI-Aktivitätspanel |
 | `ConnectionDialog` | Multi-Tab-Editor für Verbindungsdetails (SSH, Tunnel, Jump-Server, Protokollierung usw.) |
-| `SFTPManagerDialog` | Dual-Panel-Dateimanager für lokale und Remote-Dateioperationen |
+| `SFTPManagerTab` | Zweispaltiger Dateimanager-Tab für lokale und entfernte Dateioperationen |
 | `SnippetEditor` | Monaco-basierter Code-Editor mit Syntaxhervorhebung, KI-Unterstützung und Mermaid-Flussdiagrammen |
 | `LocalModelManagerPane` | Sucht/lädt/importiert GGUF-Dateien und steuert gleichzeitige llama.cpp-Sidecars |
 | `RagKnowledgeStorePane` | Erstellt Wissensspeicher, zeigt Quellenvorschau an, zeigt den persistierten Indexzustand an, synchronisiert sie und führt Abfragen zur Wiederfindung durch |
@@ -186,7 +186,7 @@ Die UI-Ebene basiert auf JavaFX und ist in logische Komponenten unterteilt:
 
 ### Host-Schlüsselüberprüfung
 
-- **Interaktives Terminal/SFTP/Mosh-Bootstrap**: Ein gemeinsam genutzter TOFU-Verifizierer wird durch den normalisierten Hostnamen und Port verschlüsselt. Bei der ersten Verwendung wird der OpenSSH SHA-256-Fingerabdruck mit **Nein** als Standard angezeigt; Eine genaue Übereinstimmung erfolgt stumm, während ein geänderter Schlüssel ohne erneuten Versuch hart blockiert wird.
+- **Interaktives Terminal/SFTP/Mosh Bootstrap**: Ein gemeinsamer TOFU-Verifizierer wird durch den normalisierten Hostnamen und Port gekennzeichnet. Die erste Verwendung zeigt den OpenSSH-SHA-256-Fingerabdruck mit **Nein** als Vorgabe; eine exakte Übereinstimmung bleibt still, während ein geänderter Schlüssel ohne erneuten Versuch hart blockiert wird. Nur eine Verbindung, die der Benutzer in einem Terminal-Tab oder im SFTP-Manager geöffnet hat, kann einen geänderten Schlüssel ersetzen, nachdem eine explizite Fingerabdruckbestätigung erfolgt ist und als Compare-and-Swap gegen den überprüften Schlüssel dient; Hintergrundaufrufe bauen ihren Verifizierer mit der Nie-Ersetzen-Politik auf.
 - **Interaktiver Speicher**: `ssh-host-keys.properties` speichert Public-Key-Material durch einen atomaren Ersatz, der sowohl durch prozessinterne als auch prozessübergreifende Sperren geschützt ist. Sein vorübergehender Begleiter `.lock` wird nicht gesichert.
 - **JobScheduler**: Unbeaufsichtigtes SSH, SFTP und Rsync verwenden separate verbindungs-ID-basierte Pins in `job-scheduler.xml`, einschließlich OpenSSH-Public-Key-Material, das von Rsync benötigt wird. Durch eine Außerkraftsetzung pro Auftrag kann diese Überprüfung nur dann deaktiviert werden, wenn das Risiko ausdrücklich akzeptiert wird.
 

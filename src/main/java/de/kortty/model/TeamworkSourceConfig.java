@@ -30,7 +30,10 @@ public class TeamworkSourceConfig {
     @XmlElement
     private int checkIntervalMinutes = 15;
 
-    /** If true, user cannot push changes (Git) or write to file. */
+    /**
+     * Informational only: korTTY never writes back to a teamwork source, so no adapter reads this
+     * flag. Kept so existing teamwork settings still load; policy-injected sources set it.
+     */
     @XmlElement
     private boolean readOnly = false;
 

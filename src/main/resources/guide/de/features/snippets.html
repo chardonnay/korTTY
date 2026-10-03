@@ -1177,7 +1177,7 @@
 </li>
 </ul>
 <h2 id="platzhaltervariablen">Platzhaltervariablen<a class="headerlink" href="#platzhaltervariablen" title="Permanent link">&para;</a></h2>
-<p>Snippets können Platzhaltervariablen enthalten, die ersetzt werden, wenn Sie das Snippet einfügen.</p>
+<p>Snippets können Platzhalter enthalten, die als <code>${name}</code> geschrieben sind. Wenn Sie ein Snippet kopieren, einfügen oder senden, ersetzt korTTY genau zwei Arten von ihnen: die eingebauten Variablen unten und die in <a href="#variablen-manager">Variablenmanager</a> deklarierten Variablen. Jeder andere <code>${...}</code> gelangt genau so in den Editor, die Zwischenablage oder die Shell, wie er geschrieben ist, sodass Shell-Erweiterungen wie <code>${HOME}</code>, <code>${1:-default}</code>, <code>${#array[@]}</code> und <code>${file%%.*}</code> weiterhin funktionieren. Die gleichen Regeln gelten überall dort, wo ein Snippet verwendet wird: Kopieren, Einfügen in einen Editor, beide Terminalsendungen, geplante Jobs, KI-Swarm-Skriptläufe und Skript-Header.</p>
 <h3 id="eingebaute-variablen">Eingebaute Variablen<a class="headerlink" href="#eingebaute-variablen" title="Permanent link">&para;</a></h3>
 <p>Diese Variablen werden automatisch ersetzt:</p>
 <table>
@@ -1214,18 +1214,29 @@
 </tr>
 <tr>
 <td><code>${cursor}</code></td>
-<td>Cursorposition (aus dem Text entfernt; Position zurückgegeben)</td>
+<td>Wo der Cursor hinführt: <strong>Einfügen in Editor</strong> setzt den Cursor dort; Kopieren und Senden entfernen die Markierung</td>
 </tr>
 </tbody>
 </table>
+<p>Eingebaute Namen werden kleingeschrieben und müssen exakt übereinstimmen; sie haben Vorrang vor einer deklarierten Variable mit demselben Namen.</p>
 <h3 id="benutzerdefinierte-variablen">Benutzerdefinierte Variablen<a class="headerlink" href="#benutzerdefinierte-variablen" title="Permanent link">&para;</a></h3>
-<p>Jeder <code>${variableName}</code>, der nicht in der integrierten Liste enthalten ist, wird als benutzerdefinierte Variable behandelt. Wenn Sie das Snippet einfügen:</p>
+<p>Eine benutzerdefinierte Variable ist ein Name, der im Variablenmanager deklariert wurde. Wenn ein Snippet sie verwendet:</p>
 <ul>
-<li>KorTTY überprüft den Variablenmanager auf gespeicherte Werte</li>
-<li>Variablen ohne gespeicherte Werte erfordern eine Eingabe</li>
+<li>Wenn die Variable einen gespeicherten Wert hat, wird der Wert ohne Nachfrage eingefügt.</li>
+<li>Wenn ihr Wert leer ist, fragt korTTY jedes Mal danach. Deklarieren Sie eine Variable mit einem leeren Wert für alles, was von einer Verwendung zur nächsten wechselt, wie z. B. eine Ticketnummer. Nur ein Skriptkopf, der ohne Dialog hinzugefügt wird, setzt so eine Variable als leeren Text.</li>
+<li>Das Dialogfeld, das fragt, hat neben jedem Feld ein <strong>Merken</strong>-Kontrollkästchen. Es ist standardmäßig deaktiviert, sodass der eingegebene Wert einmalig verwendet und nicht gespeichert wird; aktivieren Sie es, um den Wert im Variablenmanager für die nächste Verwendung zu speichern.</li>
 </ul>
+<p>Ein nicht deklarierter Name wird nie abgefragt und bleibt wie geschrieben; daher sollten Sie eine Variable im Variablenmanager deklarieren, bevor Sie sie in einem Snippet verwenden. Deklarierte Namen werden ohne Groß-/Kleinschreibung abgeglichen: ein deklarierter <code>path</code> ersetzt auch <code>${PATH}</code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Gespeicherte Werte sind Klartext</p>
+<p>Der Variablenmanager speichert jeden Wert, einschließlich derjenigen, die Sie im Dialog merken, unverschlüsselt in <code>~/.kortty/snippet-variables.xml</code>. Speichern oder merken Sie dort keine Passwörter, Token oder andere Geheimnisse.</p>
+</div>
+<h3 id="einen-platzhalter-maskieren">Einen Platzhalter maskieren<a class="headerlink" href="#einen-platzhalter-maskieren" title="Permanent link">&para;</a></h3>
+<p>Schreiben Sie <code>$${name}</code>, um den wörtlichen Text <code>${name}</code> zu erhalten, zum Beispiel für eine Shell-Variable, die denselben Namen wie ein eingebautes (<code>$${date}</code>) oder eine deklarierte Variable hat. Das Maskieren funktioniert für jeden Platzhalter, einschließlich <code>$${cursor}</code>. Text, der einen wörtlichen <code>$${name}</code> behalten muss, wie ein Makefile oder eine Compose-Datei, wird <code>$$${name}</code> geschrieben.</p>
+<h3 id="geplante-und-swarm-ausfuhrungen">Geplante und Swarm-Ausführungen<a class="headerlink" href="#geplante-und-swarm-ausfuhrungen" title="Permanent link">&para;</a></h3>
+<p>JobScheduler Snippet-Jobs und <strong>Skript ausführen…</strong> im KI-Swarm können keinen Wert abfragen, daher sorgen zwei weitere Regeln dafür, dass eine Variable, die niemand beantwortet hat, stillschweigend zu leerem Text wird: Eine deklarierte Variable ohne gespeicherten Wert blockiert die Ausführung, ebenso ein nicht deklarierter einfacher Name wie <code>${target}</code>. Shell-Formen wie <code>${1:-default}</code>, <code>${#array[@]}</code> und <code>${file%%.*}</code>, Positions- und Spezialparameter wie <code>${1}</code> und <code>${@}</code> sowie die Umgebungsvariablen <code>${HOME}</code>, <code>${USER}</code>, <code>${PATH}</code> und <code>${PWD}</code> werden durchgelassen. Schreiben Sie jede andere Shell-Variable mit dem Escape, z. B. <code>$${HOSTNAME}</code>.</p>
 <h3 id="variablen-manager">Variablen-Manager<a class="headerlink" href="#variablen-manager" title="Permanent link">&para;</a></h3>
-<p><strong>Variablen...</strong> im Snippet-Manager öffnet den Variable Manager, wo gespeicherte Werte hinzugefügt, bearbeitet und gelöscht werden. Das Dialogfeld zum Hinzufügen/Bearbeiten erklärt beide Felder: das <strong>Name</strong> ist, was ein Snippet als <code>${name}</code> referenziert, das <strong>Wert</strong> ist der gespeicherte Standardwert, der dafür eingefügt wird. Mehrere Variablen können gleichzeitig zum Löschen oder Exportieren ausgewählt werden.</p>
+<p><strong>Variablen…</strong> im Snippet-Manager öffnet den Variablen-Manager, in dem gespeicherte Werte hinzugefügt, bearbeitet und gelöscht werden können. Das Dialogfeld zum Hinzufügen/Bearbeiten erklärt beide Felder: Der <strong>Name</strong> ist das, worauf ein Snippet als <code>${name}</code> verweist, der <strong>Wert</strong> ist der gespeicherte Standardwert, der dafür eingesetzt wird — lassen Sie den Wert leer, um jedes Mal gefragt zu werden. Mehrere Variablen können gleichzeitig zum Löschen oder Exportieren ausgewählt werden.</p>
 <ul>
 <li><strong>Export...</strong> — Speichert die ausgewählten Variablen, oder alle Variablen, wenn keine ausgewählt ist, als JSON, XML oder YAML.</li>
 <li><strong>Import...</strong> — Liest Variablen aus einer JSON, XML oder YAML-Datei (der gespeicherte <code>snippet-variables.xml</code> kann direkt importiert werden). Wenn bereits vorhandene Variablen importiert werden, wählen Sie, ob deren Werte überschrieben oder die bestehenden beibehalten werden sollen.</li>
@@ -1234,15 +1245,16 @@
 <p>Der Snippet-Manager kann ein ausgewähltes Snippet direkt an ein Terminal seines Hauptfensters senden: den ausgewählten Terminal-Tab oder – wenn der Snippet-Manager selbst der ausgewählte Tab ist – den zuletzt verwendeten (oder einzigen) offenen Terminal-Tab. korTTY wechselt dann zu diesem Tab und zeigt <strong>Sent to …</strong> in der Statusleiste. <strong>In den Editor einfügen</strong> wählt den Dateieditor-Tab auf die gleiche Weise.</p>
 <h3 id="an-terminal-senden">An Terminal senden<a class="headerlink" href="#an-terminal-senden" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Behält das vorhandene Verhalten bei</li>
+<li>Ersetzt die <a href="#platzhaltervariablen">Platzhalter</a> wie bei jeder anderen Verwendung; eine deklarierte Variable ohne gespeicherten Wert wird vor dem Senden abgefragt, und das Abbrechen des Dialogs sendet nichts</li>
 <li>Unterstützte Skriptsprachen werden nach Möglichkeit als Terminal-Einzeiler eingebettet</li>
 <li>Andere Snippets verwenden den vorhandenen Fallback-Pfad</li>
 </ul>
 <h3 id="mit-parametern-an-terminal-senden">Mit Parametern an Terminal senden<a class="headerlink" href="#mit-parametern-an-terminal-senden" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Öffnet einen Dialog für fehlende <code>${...}</code>-Platzhaltervariablen und Skriptargumente</li>
+<li>Öffnet ein Dialogfeld mit jeder deklarierten Variable, die das Snippet verwendet, vorausgefüllt mit ihrem gespeicherten Wert und für diesen Versand bearbeitbar, sowie ein Feld für Skriptargumente</li>
+<li>Eine Variable, die bereits einen gespeicherten Wert hat, startet mit <strong>Merken</strong> aktiviert, sodass ein geänderter Wert den gespeicherten ersetzt; deaktivieren Sie es, um nur für diesen Versand einen neuen Wert zu verwenden</li>
 <li>Script-Argumente werden einzeln pro Zeile eingegeben; Leerzeilen werden ignoriert</li>
-<li>Wenn Sie ohne Skriptargumente bestätigen, ist das Ergebnis dasselbe wie bei <strong>An Terminal senden</strong>, fehlende Platzhaltervariablen können jedoch weiterhin ausgefüllt werden</li>
+<li>Wenn Sie ohne Skriptargumente bestätigen, ist das Ergebnis gleich <strong>An Terminal senden</strong>, mit den in dem Dialog festgelegten Variablenwerten</li>
 </ul>
 <h3 id="script-argumente">Script-Argumente<a class="headerlink" href="#script-argumente" title="Permanent link">&para;</a></h3>
 <p>Unterstützt für Bash/Shell-, Python-, Perl- und Ruby-Snippets:</p>

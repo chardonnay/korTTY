@@ -13,6 +13,8 @@ import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.testng.Assert.expectThrows;
@@ -109,5 +111,48 @@ class SnippetVariableManagerTest {
             Files.setPosixFilePermissions(tempDir, PosixFilePermissions.fromString("rwx------"));
         }
         assertThat(Files.readString(file)).isEqualTo(garbage);
+    }
+
+    @Test
+    void isDeclaredIgnoresCaseAndAcceptsEmptyValue() {
+        SnippetVariableManager manager = new SnippetVariableManager(tempDir);
+        manager.addOrUpdate("Ticket", "");
+        manager.addOrUpdate("host", "db01");
+
+        assertThat(manager.isDeclared("ticket")).isTrue();
+        assertThat(manager.isDeclared("TICKET")).isTrue();
+        assertThat(manager.isDeclared("HOST")).isTrue();
+        assertThat(manager.getValue("ticket")).isNull();
+        assertThat(manager.isDeclared("HOME")).isFalse();
+        assertThat(manager.isDeclared(null)).isFalse();
+    }
+
+    @Test
+    void rememberStoresOnlyTickedNonBlankValues() throws Exception {
+        SnippetVariableManager manager = new SnippetVariableManager(tempDir);
+        manager.addOrUpdate("ticket", "");
+        manager.addOrUpdate("token", "");
+        manager.addOrUpdate("host", "db01");
+
+        boolean changed = manager.remember(
+            Map.of("ticket", "T-42", "token", "s3cret", "host", "db02", "blank", " "),
+            Set.of("ticket", "blank"));
+
+        assertThat(changed).isTrue();
+        assertThat(manager.getValue("ticket")).isEqualTo("T-42");
+        assertThat(manager.getValue("token")).isNull();
+        assertThat(manager.getValue("host")).isEqualTo("db01");
+        assertThat(manager.isDeclared("blank")).isFalse();
+    }
+
+    @Test
+    void rememberReportsNoChangeForAnUnchangedOrUntickedValue() {
+        SnippetVariableManager manager = new SnippetVariableManager(tempDir);
+        manager.addOrUpdate("host", "db01");
+
+        assertThat(manager.remember(Map.of("host", "db01"), Set.of("host"))).isFalse();
+        assertThat(manager.remember(Map.of("host", "db02"), Set.of())).isFalse();
+        assertThat(manager.getValue("host")).isEqualTo("db01");
+        assertThat(manager.remember(null, Set.of("host"))).isFalse();
     }
 }

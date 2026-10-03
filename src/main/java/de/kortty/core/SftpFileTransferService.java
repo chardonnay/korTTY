@@ -9,7 +9,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
@@ -17,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Encapsulates local and remote file-transfer operations for the SFTP UI.
@@ -91,7 +94,8 @@ public class SftpFileTransferService {
     public synchronized void uploadDirectory(Path localDirectory, String remoteBasePath) throws IOException {
         SFTPSession activeSession = requireConnectedSession();
         String remoteDirectory = appendRemoteName(remoteBasePath, localDirectory.getFileName().toString());
-        activeSession.createDirectory(remoteDirectory);
+        // Uploading the same folder again merges into the existing remote folder.
+        activeSession.createDirectoryIfMissing(remoteDirectory);
         try (var stream = Files.list(localDirectory)) {
             for (Path child : stream.toList()) {
                 if (Files.isDirectory(child)) {
@@ -125,8 +129,49 @@ public class SftpFileTransferService {
     }
 
     public Path renameLocal(Path path, String newName) throws IOException {
-        Path target = path.resolveSibling(newName);
-        return Files.move(path, target);
+        return renameLocalEntry(path, newName);
+    }
+
+    /**
+     * Renames a local file or folder within its folder and returns the new path. An existing entry
+     * of the new name is never replaced; a change of case only works on a case-insensitive file
+     * system too (macOS, Windows), where the new name already "exists" as the entry itself.
+     *
+     * <p>Only a name that differs in case alone can be the entry itself. {@link Files#isSameFile}
+     * follows links and sees hard links as one file, so a symbolic link {@code link} to
+     * {@code a.txt}, renamed to {@code a.txt}, is refused like any other existing name instead of
+     * being moved aside. Should the second step of a change of case still fail (two hard links
+     * {@code a} and {@code A} on a case-sensitive file system), the entry gets its old name back.
+     *
+     * @throws IllegalArgumentException when {@code newName} is no valid entry name, see {@link #validateEntryName}
+     * @throws java.nio.file.FileAlreadyExistsException when another entry has the new name
+     */
+    public static Path renameLocalEntry(Path path, String newName) throws IOException {
+        String name = validateEntryName(newName);
+        Path target = path.resolveSibling(name);
+        if (!Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+            return Files.move(path, target);
+        }
+        String currentName = path.getFileName() == null ? null : path.getFileName().toString();
+        if (name.equals(currentName)) {
+            return path;
+        }
+        if (currentName == null || !currentName.equalsIgnoreCase(name) || !Files.isSameFile(path, target)) {
+            throw new FileAlreadyExistsException(target.toString());
+        }
+        // Same entry under another case: Files.move would do nothing, so go through a temporary name.
+        Path temporary = path.resolveSibling(".kortty-rename-" + UUID.randomUUID());
+        Files.move(path, temporary);
+        try {
+            return Files.move(temporary, target);
+        } catch (IOException | RuntimeException e) {
+            try {
+                Files.move(temporary, path);
+            } catch (IOException | RuntimeException restore) {
+                e.addSuppressed(restore);
+            }
+            throw e;
+        }
     }
 
     public synchronized void deleteRemote(String remotePath) throws IOException {
@@ -168,7 +213,7 @@ public class SftpFileTransferService {
 
     public static String resolveSiblingRemoteFilePath(String originalRemotePath, String newFileName) {
         String normalizedOriginalPath = normalizeRemotePath(originalRemotePath);
-        String normalizedFileName = validateRemoteSiblingFileName(newFileName);
+        String normalizedFileName = validateEntryName(newFileName);
 
         int parentIndex = normalizedOriginalPath.lastIndexOf('/');
         String parentPath;
@@ -314,7 +359,14 @@ public class SftpFileTransferService {
         return normalizedPath;
     }
 
-    private static String validateRemoteSiblingFileName(String newFileName) {
+    /**
+     * Checks a name typed for a new or renamed entry, local or remote, and returns it trimmed. It
+     * must name one entry in the folder shown: not blank, not {@code .} or {@code ..}, and without
+     * {@code /}, {@code \} or a NUL character, so it can never point into another folder.
+     *
+     * @throws IllegalArgumentException with the reason when the name is not usable
+     */
+    public static String validateEntryName(String newFileName) {
         if (newFileName == null) {
             throw new IllegalArgumentException("File name must not be null");
         }
@@ -328,6 +380,9 @@ public class SftpFileTransferService {
         }
         if (normalizedFileName.contains("/") || normalizedFileName.contains("\\")) {
             throw new IllegalArgumentException("File name must not contain path separators");
+        }
+        if (normalizedFileName.indexOf('\0') >= 0) {
+            throw new IllegalArgumentException("File name must not contain a NUL character");
         }
 
         return normalizedFileName;
