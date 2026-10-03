@@ -33,7 +33,7 @@ The header shows the panel title with two buttons: a collapse/expand toggle (col
 
 Each connection row shows a type icon, a status dot, the server name, and a protocol badge (`ssh`, `mosh` or `local`). The status dot distinguishes three states: filled green for a healthy connection, filled red for a connection that dropped unexpectedly (including a Mosh network interruption), and a hollow outline for a session that ended normally. Terminals with AI-agent runs carry the same ✋/⚡/⏸/✓ badge as elsewhere. Hovering a row shows `user@host` and the connection state; double-click (or ++enter++) focuses the session's tab.
 
-Right-click a connection for **Focus**, **Duplicate**, **Reconnect**, **SFTP-Client...** (connected sessions only) and **Close**. A footer keeps a running "connected of total" count, and an empty panel shows a placeholder until the first session opens.
+Right-click a connection for **Focus**, **Duplicate**, **Reconnect**, **SFTP-Client...** (connected sessions only) and **Close**. **Close** asks first, like the tab's close button, when the session has split panes or a command is still running. A footer keeps a running "connected of total" count, and an empty panel shows a placeholder until the first session opens.
 
 ## macOS Dock menu
 

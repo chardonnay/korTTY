@@ -95,7 +95,7 @@ final class PaneIoVerbs {
                     new ParamSpec("submit", "bool", false, "false", "Append a carriage return."),
                     new ParamSpec("bracketed", "string", false, "auto",
                         "auto, never or always; auto wraps a multi-line payload when the pane has"
-                            + " enabled DECSET 2004."),
+                            + " enabled DECSET 2004. A wrapped payload loses any paste markers of its own."),
                     new ParamSpec("allow_shortcut_conflict", "bool", false, "false",
                         "Write even though korTTY's own AI shortcut would swallow the first line."),
                     new ParamSpec(BaseVerbs.PARAM_INSTANCE, "string", false, null,
