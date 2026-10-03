@@ -32,7 +32,7 @@ Der Basisbefehlsname kann unter **Einstellungen > AI** konfiguriert werden. Wenn
 - Deaktivieren Sie den Einrichtungsdialog pro Lauf (verwendet das konfigurierte Standardprofil, wenn es deaktiviert ist)
 
 !!! note
-    KorTTY erkennt diese Verknüpfungen im Connector-Eingabepfad vor der normalen Shell-Ausführung. Tastatureingaben und Einfügen in die Zwischenablage werden aus demselben Bytestrom zusammengestellt, sodass eingefügte Dateinamen und Unicode-Text in der Anfrage enthalten sind, die vollständige Eingabeaufforderung im Agentenverlauf gespeichert wird und eine Eingabe genau eine Agentenausführung erzeugt.
+    korTTY erkennt diese Kürzel im Eingabepfad des Connectors vor der normalen Shellausführung. Tastatureingaben und Clipboard-Einfügungen werden aus demselben Byte-Stream zusammengesetzt, sodass eingefügte Dateinamen und Unicode-Text in die Anfrage einbezogen werden, der komplette Prompt im Agentenverlauf gespeichert wird und ein Druck auf Enter genau einen Agentenlauf erzeugt. Nur das, was Sie tippen oder einfügen, wird erkannt: Text, den der Server ausgibt, z. B. eine Datei, die mit `cat` angezeigt wird und eine präparierte Escape-Sequenz enthält, kann keinen Agentenlauf starten.
 
 ### Befehlszwecke
 

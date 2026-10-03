@@ -844,77 +844,81 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         controlApiStatusLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         controlApiStatusLabel.setWrapText(true);
         
-        terminalGrid.add(new Label(I18n.get("settings.terminal.columns")), 0, 0);
-        terminalGrid.add(columnsSpinner, 1, 0);
-        terminalGrid.add(new Label(I18n.get("settings.terminal.rows")), 0, 1);
-        terminalGrid.add(rowsSpinner, 1, 1);
-        terminalGrid.add(new Label(I18n.get("settings.terminal.scrollback")), 0, 2);
-        terminalGrid.add(scrollbackSpinner, 1, 2);
+        // Rows are numbered by a counter, as on the Window tab, so a section can be inserted
+        // anywhere without renumbering every row below it.
+        int terminalRow = 0;
+
+        terminalGrid.add(new Label(I18n.get("settings.terminal.columns")), 0, terminalRow);
+        terminalGrid.add(columnsSpinner, 1, terminalRow++);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.rows")), 0, terminalRow);
+        terminalGrid.add(rowsSpinner, 1, terminalRow++);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.scrollback")), 0, terminalRow);
+        terminalGrid.add(scrollbackSpinner, 1, terminalRow++);
         Label encodingLabel = new Label(I18n.get("settings.terminal.encoding"));
         // Line the label up with the dropdown, not with the middle of dropdown and hint.
         GridPane.setValignment(encodingLabel, VPos.BASELINE);
         GridPane.setValignment(encodingBox, VPos.BASELINE);
-        terminalGrid.add(encodingLabel, 0, 3);
-        terminalGrid.add(encodingBox, 1, 3);
-        terminalGrid.add(boldAsBrightCheck, 0, 4, 2, 1);
-        terminalGrid.add(showTerminalScrollbarCheck, 0, 5, 2, 1);
-        terminalGrid.add(commandTimestampsCheck, 0, 6, 2, 1);
-        terminalGrid.add(terminalDragDropCheck, 0, 7, 2, 1);
-        terminalGrid.add(terminalCopyOnSelectCheck, 0, 8, 2, 1);
-        terminalGrid.add(closeActiveTerminalWindowsWithoutConfirmationCheck, 0, 9, 2, 1);
-        
+        terminalGrid.add(encodingLabel, 0, terminalRow);
+        terminalGrid.add(encodingBox, 1, terminalRow++);
+        terminalGrid.add(boldAsBrightCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(showTerminalScrollbarCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(commandTimestampsCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(terminalDragDropCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(terminalCopyOnSelectCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(closeActiveTerminalWindowsWithoutConfirmationCheck, 0, terminalRow++, 2, 1);
+
         // SSH Keep-Alive section
-        terminalGrid.add(new Separator(), 0, 10, 2, 1);
-        terminalGrid.add(new Label(I18n.get("settings.terminal.sshKeepAlive")), 0, 11, 2, 1);
-        terminalGrid.add(sshKeepAliveCheck, 0, 12, 2, 1);
-        terminalGrid.add(new Label(I18n.get("settings.terminal.sshKeepAliveInterval")), 0, 13);
+        terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.sshKeepAlive")), 0, terminalRow++, 2, 1);
+        terminalGrid.add(sshKeepAliveCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.sshKeepAliveInterval")), 0, terminalRow);
         HBox keepAliveBox = new HBox(10);
         keepAliveBox.getChildren().addAll(sshKeepAliveIntervalSpinner, new Label(I18n.get("common.seconds")));
-        terminalGrid.add(keepAliveBox, 1, 13);
+        terminalGrid.add(keepAliveBox, 1, terminalRow++);
 
         // SSH host-key verification (global, insecure opt-out)
-        terminalGrid.add(new Separator(), 0, 14, 2, 1);
-        terminalGrid.add(new Label(I18n.get("settings.terminal.hostKeyCheck")), 0, 15, 2, 1);
+        terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.hostKeyCheck")), 0, terminalRow++, 2, 1);
         disableHostKeyCheckAllCheck.setSelected(globalSettings != null && globalSettings.isHostKeyCheckDisabledForAllConnections());
         disableHostKeyCheckAllCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.hostKeyCheck.disableAll.tooltip")));
-        terminalGrid.add(disableHostKeyCheckAllCheck, 0, 16, 2, 1);
+        terminalGrid.add(disableHostKeyCheckAllCheck, 0, terminalRow++, 2, 1);
         Label hostKeyWarn = new Label(I18n.get("settings.terminal.hostKeyCheck.warning"));
         hostKeyWarn.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: #d9534f;");
         hostKeyWarn.setWrapText(true);
-        terminalGrid.add(hostKeyWarn, 0, 17, 2, 1);
+        terminalGrid.add(hostKeyWarn, 0, terminalRow++, 2, 1);
 
         // Connection section
-        terminalGrid.add(new Separator(), 0, 18, 2, 1);
+        terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
         Label connectionHeader = new Label(I18n.get("settings.connection.header"));
         connectionHeader.setStyle("-fx-font-weight: bold;");
-        terminalGrid.add(connectionHeader, 0, 19, 2, 1);
-        terminalGrid.add(connectionRetriesEnabledCheck, 0, 20, 2, 1);
-        terminalGrid.add(autoReconnectEnabledCheck, 0, 21, 2, 1);
+        terminalGrid.add(connectionHeader, 0, terminalRow++, 2, 1);
+        terminalGrid.add(connectionRetriesEnabledCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(autoReconnectEnabledCheck, 0, terminalRow++, 2, 1);
 
         // Coding agents section
-        terminalGrid.add(new Separator(), 0, 22, 2, 1);
+        terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
         Label codingAgentHeader = new Label(I18n.get("settings.codingAgent.header"));
         codingAgentHeader.setStyle("-fx-font-weight: bold;");
-        terminalGrid.add(codingAgentHeader, 0, 23, 2, 1);
-        terminalGrid.add(codingAgentDetectionCheck, 0, 24, 2, 1);
+        terminalGrid.add(codingAgentHeader, 0, terminalRow++, 2, 1);
+        terminalGrid.add(codingAgentDetectionCheck, 0, terminalRow++, 2, 1);
         Label codingAgentInfo = new Label(I18n.get("settings.codingAgent.detectionEnabled.info"));
         codingAgentInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         codingAgentInfo.setWrapText(true);
-        terminalGrid.add(codingAgentInfo, 0, 25, 2, 1);
-        terminalGrid.add(codingAgentNotificationsCheck, 0, 26, 2, 1);
-        terminalGrid.add(codingAgentAppBadgeCheck, 0, 27, 2, 1);
+        terminalGrid.add(codingAgentInfo, 0, terminalRow++, 2, 1);
+        terminalGrid.add(codingAgentNotificationsCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(codingAgentAppBadgeCheck, 0, terminalRow++, 2, 1);
 
         // Control API section
-        terminalGrid.add(new Separator(), 0, 28, 2, 1);
+        terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
         Label controlApiHeader = new Label(I18n.get("settings.controlApi.header"));
         controlApiHeader.setStyle("-fx-font-weight: bold;");
-        terminalGrid.add(controlApiHeader, 0, 29, 2, 1);
-        terminalGrid.add(controlApiEnabledCheck, 0, 30, 2, 1);
+        terminalGrid.add(controlApiHeader, 0, terminalRow++, 2, 1);
+        terminalGrid.add(controlApiEnabledCheck, 0, terminalRow++, 2, 1);
         Label controlApiInfo = new Label(I18n.get("settings.controlApi.enabled.info"));
         controlApiInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         controlApiInfo.setWrapText(true);
-        terminalGrid.add(controlApiInfo, 0, 31, 2, 1);
-        terminalGrid.add(controlApiStatusLabel, 0, 32, 2, 1);
+        terminalGrid.add(controlApiInfo, 0, terminalRow++, 2, 1);
+        terminalGrid.add(controlApiStatusLabel, 0, terminalRow++, 2, 1);
 
         LazyTabContent.defer(terminalTab, () -> terminalGrid);
 

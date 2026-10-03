@@ -97,6 +97,8 @@ Jeder Parameter namens `pane` akzeptiert auch eine reine Tab-Kennung – gemeint
 
 `pane.send_text`, `pane.run` und die einzelbuchstabigen Tasten von `pane.send_keys` werden in der [Zeichenkodierung](../features/connections.md#zeichenkodierung) des Bereichs kodiert, sodass sie als die gleichen Bytes ankommen, wie die Tastendrücke erzeugen würden: ein SSH-Paneel, das auf ISO-8859-1 eingestellt ist, erhält `é` als einzelnes Byte `E9`, nicht als UTF-8. Ein Zeichen, das diese Kodierung nicht darstellen kann, wird als `?` gesendet. Die `agent.*`-Methoden senden immer UTF-8, was die Coding Agents lesen.
 
+Wenn `pane.send_text` seinen Text in Bracketed Paste einbettet – `bracketed` ist `always`, oder `auto` hat mehrere Zeilen und ein Pane mit eingeschaltetem Bracketed Paste erkannt –, entfernt korTTY zuerst alle Bracketed-Paste-Marker aus dem Text selbst (`ESC[200~`, `ESC[201~` und ihre 8-Bit-Formen, die mit dem einzelnen `CSI`-Byte `9B` beginnen – in einem Windows-1252-Pane ist das das Zeichen `›`), sodass der Text den Paste nicht vorzeitig beenden und seine restlichen Zeilen als getippte Befehle ausführen kann. Ein Schreiben ohne Bracketed Paste, also auch jedes `pane.run`, behält solche Marker. `agent.prompt` und der Prompt von `agent.start` entfernen sie immer, ob geklammert oder nicht.
+
 ### Teilen
 
 `pane.split` funktioniert **nur** bei einem Bereich, dessen Tab eine lokale Shell ist. Alles andere wird mit `unsupported` abgelehnt. Die neue Shell startet ohne jeden Dialog, damit ein Skript nie auf ein Fenster wartet, das es nicht sehen kann; ein Split, der eine neue Verbindung bräuchte, braucht einen Menschen und wird nicht angeboten.

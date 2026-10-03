@@ -1,5 +1,6 @@
 package de.kortty.codingagent;
 
+import de.kortty.paste.PasteSanitizer;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,6 +11,8 @@ import java.util.Objects;
  * normalised to LF line breaks with trailing line breaks removed; a single line is sent as
  * {@code text + CR}, a multi-line prompt is wrapped in bracketed-paste markers (with LF → CR like a
  * real paste) when the pane has enabled DECSET 2004, otherwise the lines are joined with CR.
+ * Bracketed-paste markers inside the prompt are removed first ({@link PasteSanitizer}), so a prompt
+ * cannot end the paste early and have its remaining lines submitted one by one.
  */
 public final class KeyChordEncoder {
 
@@ -76,12 +79,16 @@ public final class KeyChordEncoder {
         return normalise(text).indexOf('\n') >= 0;
     }
 
-    /** CRLF and lone CR become LF; trailing line breaks are dropped. */
+    /**
+     * Bracketed-paste markers are removed, CRLF and lone CR become LF, and trailing line breaks are
+     * dropped. Removing the markers first keeps the blank check, the multi-line decision and the
+     * payload in agreement: a line break that only a marker kept from being trailing is trailing.
+     */
     static String normalise(String text) {
         if (text == null) {
             return "";
         }
-        String result = text.replace("\r\n", "\n").replace('\r', '\n');
+        String result = PasteSanitizer.stripBracketMarkers(text).replace("\r\n", "\n").replace('\r', '\n');
         int end = result.length();
         while (end > 0 && result.charAt(end - 1) == '\n') {
             end--;

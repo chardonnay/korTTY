@@ -34,8 +34,12 @@ import java.util.regex.Pattern;
 /**
  * Tab for editing text files with syntax highlighting.
  * Supports various file formats with appropriate syntax highlighting.
+ *
+ * <p>Every way of closing the tab asks about unsaved changes (Save / Discard / Cancel): its close
+ * button and its own Close button / Cmd+W here, the main window's Close Tab, Close All, opening a
+ * project, closing the window and quitting through {@link HostedCloseGuards}.
  */
-public class FileEditorTab extends Tab {
+public class FileEditorTab extends Tab implements HostedCloseGuard {
     
     private static final Logger logger = LoggerFactory.getLogger(FileEditorTab.class);
     
@@ -185,6 +189,7 @@ public class FileEditorTab extends Tab {
         setText(filename + " (Remote)");
         setClosable(true);
         setOnClosed(event -> dispose());
+        UnsavedChangesClose.guardCloseRequest(this, this);
 
         // Create code area (MonacoEditorPane for reliable syntax highlighting)
         codeArea = new MonacoEditorPane();
@@ -251,6 +256,7 @@ public class FileEditorTab extends Tab {
         setText(localPath.getFileName().toString());
         setClosable(true);
         setOnClosed(event -> dispose());
+        UnsavedChangesClose.guardCloseRequest(this, this);
 
         // Create code area (MonacoEditorPane for reliable syntax highlighting)
         codeArea = new MonacoEditorPane();
@@ -651,33 +657,57 @@ public class FileEditorTab extends Tab {
     }
     
     private void closeTab() {
-        if (isModified) {
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle(I18n.get("editor.close.title"));
-            alert.setHeaderText(I18n.get("editor.close.header"));
-            alert.setContentText(I18n.get("editor.close.unsaved"));
-            
-            ButtonType saveBtn = new ButtonType(I18n.get("editor.close.save"));
-            ButtonType discardBtn = new ButtonType(I18n.get("editor.close.discard"));
-            ButtonType cancelBtn = new ButtonType(I18n.get("editor.close.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
-            
-            alert.getButtonTypes().setAll(saveBtn, discardBtn, cancelBtn);
-            
-            Optional<ButtonType> result = alert.showAndWait();
-            if (result.isPresent()) {
-                if (result.get() == saveBtn) {
-                    save();
-                    removeTabSafely();
-                } else if (result.get() == discardBtn) {
-                    removeTabSafely();
-                }
-                // Cancel: do nothing
-            }
-        } else {
+        if (confirmHostedClose()) {
             removeTabSafely();
         }
     }
-    
+
+    /**
+     * Asks about unsaved changes (Save / Discard / Cancel) and saves on Save, but never closes the
+     * tab: {@code true} means the caller may close it now. A clean editor closes without a question,
+     * and a failed save keeps it open.
+     */
+    @Override
+    public boolean confirmHostedClose() {
+        return UnsavedChangesClose.mayClose(isModified, this::askAboutUnsavedChanges, this::save);
+    }
+
+    @Override
+    public boolean needsCloseConfirmation() {
+        return isModified;
+    }
+
+    private UnsavedChangesClose.Choice askAboutUnsavedChanges() {
+        // The tab's close button also works on a tab in the background: show what the question is about.
+        TabPane tabPane = getTabPane();
+        if (tabPane != null) {
+            tabPane.getSelectionModel().select(this);
+        }
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.applyTheme(alert);
+        if (tabPane != null && tabPane.getScene() != null && tabPane.getScene().getWindow() != null) {
+            alert.initOwner(tabPane.getScene().getWindow());
+        }
+        alert.setTitle(I18n.get("editor.close.title"));
+        alert.setHeaderText(I18n.get("editor.close.header"));
+        alert.setContentText(I18n.get("editor.close.unsaved"));
+
+        ButtonType saveBtn = new ButtonType(I18n.get("editor.close.save"));
+        ButtonType discardBtn = new ButtonType(I18n.get("editor.close.discard"));
+        ButtonType cancelBtn = new ButtonType(I18n.get("editor.close.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        alert.getButtonTypes().setAll(saveBtn, discardBtn, cancelBtn);
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isEmpty()) {
+            return UnsavedChangesClose.Choice.CANCEL;
+        }
+        if (result.get() == saveBtn) {
+            return UnsavedChangesClose.Choice.SAVE;
+        }
+        return result.get() == discardBtn ? UnsavedChangesClose.Choice.DISCARD : UnsavedChangesClose.Choice.CANCEL;
+    }
+
     private void removeTabSafely() {
         TabPane tabPane = getTabPane();
         int currentIndex = tabPane.getTabs().indexOf(this);
@@ -858,7 +888,8 @@ public class FileEditorTab extends Tab {
         performSearch(false);
     }
     
-    private void save() {
+    /** Saves the file; {@code true} when it was written (on failure the error is shown). */
+    private boolean save() {
         try {
             // If whitespace visualization is active, use the stored original text
             String content = showWhitespace && originalText != null ? originalText : codeArea.getText();
@@ -885,9 +916,11 @@ public class FileEditorTab extends Tab {
                 statusLabel.setText(I18n.get("editor.status.saved", localPath.toString()));
                 logger.info("Saved local file: {}", localPath);
             }
+            return true;
         } catch (Exception e) {
             logger.error("Failed to save file", e);
             showError(I18n.get("error.title"), I18n.get("editor.error.save", e.getMessage()));
+            return false;
         }
     }
     

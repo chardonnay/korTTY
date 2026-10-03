@@ -1,12 +1,15 @@
 package com.sithtermfx.ui.split;
 
 import com.sithtermfx.core.TtyConnector;
+import com.sithtermfx.core.compatibility.Point;
+import com.sithtermfx.core.model.TerminalSelection;
 import com.sithtermfx.core.util.TermSize;
 import com.sithtermfx.ui.SithTermFxWidget;
 import com.sithtermfx.ui.settings.DynamicFontSizeSettingsProvider;
 import de.kortty.core.LanguageManager;
 import de.kortty.model.GlobalSettings;
 import de.kortty.ui.I18n;
+import de.kortty.ui.KorttyTermWidget;
 import javafx.application.Platform;
 import javafx.event.Event;
 import javafx.geometry.Point2D;
@@ -57,6 +60,8 @@ public final class TerminalContextMenuActionsSmoke {
     private static final String PASTED = "pasted-by-context-menu-smoke";
     private static final String TYPED_AFTER_CLEAR = "typed-after-clear";
     private static final String NEXT_PROMPT = "next-prompt$ ";
+    /** Distance in pixels of the select-all drag from the canvas corners. */
+    private static final double DRAG_INSET = 5;
 
     private TerminalContextMenuActionsSmoke() {
     }
@@ -161,6 +166,17 @@ public final class TerminalContextMenuActionsSmoke {
                 return null;
             });
             check(onFxThread(() -> widget.getTerminalPanel().getSelection() != null), "mouse drag selected nothing");
+            // korTTY's cell mapping for its own mouse hooks agrees with the cells SithTermFX selected.
+            onFxThread(() -> {
+                KorttyTermWidget.KorttyTerminalPanel panel = (KorttyTermWidget.KorttyTerminalPanel) widget.getTerminalPanel();
+                TerminalSelection selection = panel.getSelection();
+                Point start = panel.cellAt(DRAG_INSET, DRAG_INSET);
+                Point end = panel.cellAt(canvas.getLayoutBounds().getWidth() - DRAG_INSET,
+                    canvas.getLayoutBounds().getHeight() - DRAG_INSET);
+                check(selection.getStart().equals(start), "cellAt " + start + " != selection start " + selection.getStart());
+                check(selection.getEnd().equals(end), "cellAt " + end + " != selection end " + selection.getEnd());
+                return null;
+            });
             // Set after selecting, so a copy-on-select cannot pass for the menu's Copy.
             clipboard.setContents(new StringSelection("before-copy"), null);
             check(fireMenuItem(canvas, "terminal.contextMenu.copy"), "Copy must be enabled with a selection");
@@ -276,9 +292,9 @@ public final class TerminalContextMenuActionsSmoke {
 
     /** Selects the visible screen the way a user does: press top-left, drag to bottom-right, release. */
     private static void dragSelectWholeScreen(Node canvas) {
-        double right = canvas.getLayoutBounds().getWidth() - 5;
-        double bottom = canvas.getLayoutBounds().getHeight() - 5;
-        Event.fireEvent(canvas, primaryMouse(MouseEvent.MOUSE_PRESSED, canvas, 5, 5, true));
+        double right = canvas.getLayoutBounds().getWidth() - DRAG_INSET;
+        double bottom = canvas.getLayoutBounds().getHeight() - DRAG_INSET;
+        Event.fireEvent(canvas, primaryMouse(MouseEvent.MOUSE_PRESSED, canvas, DRAG_INSET, DRAG_INSET, true));
         Event.fireEvent(canvas, primaryMouse(MouseEvent.MOUSE_DRAGGED, canvas, right, bottom, true));
         Event.fireEvent(canvas, primaryMouse(MouseEvent.MOUSE_RELEASED, canvas, right, bottom, false));
     }
