@@ -136,6 +136,7 @@ When **Broadcast Mode** is enabled, keyboard input is sent simultaneously to all
 - **Encoded for each pane**: every pane receives a key the way its own program expects it. When one pane runs `mc` or `vim`, which switch the terminal to application cursor keys, its arrows arrive as `ESC O A` while a shell in the next pane gets `ESC [ A`, so history and completion work in both.
 - **Kept local**: the scrollback keys (++shift+page-up++ / ++shift+page-down++, and ++ctrl+up++ / ++ctrl+down++ on Windows and Linux or ++cmd+up++ / ++cmd+down++ on macOS) scroll only the focused pane. A full-screen program such as `vim` or `less` has no scrollback, so while one runs in the focused pane, ++shift+page-up++ / ++shift+page-down++ (and ++ctrl+up++ / ++ctrl+down++ on Windows and Linux) go to that program and, like the other keys, to every other pane.
 - **Not mirrored**: paste and snippets go only to the focused pane, and what you type into the find bar stays in the find bar.
+- **A stalled pane does not freeze korTTY**: the keys for the other panes are sent in the background, to each pane in the order you typed them, so a server that stops responding holds up only its own pane while the window and the other panes keep reacting.
 
 ## Terminal effects
 
