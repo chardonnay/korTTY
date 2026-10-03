@@ -758,7 +758,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h1>
-<p>Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, and SSH connection management. Open via <strong>Configuration → Global Settings → Terminal</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
+<p>Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, links, and SSH connection management. Open via <strong>Configuration → Global Settings → Terminal</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
 <p><img alt="Terminal settings tab" src="../../assets/screenshots/settings/terminal.png" /></p>
 <table>
 <thead>
@@ -842,6 +842,13 @@
 <td><code>closeActiveTerminalWindowsWithoutConfirmation</code></td>
 </tr>
 <tr>
+<td>Detect web addresses, e-mail addresses and file paths in terminal text</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>terminalLinkDetectionEnabled</code></td>
+</tr>
+<tr>
 <td>Enable SSH Keep-Alive</td>
 <td>toggle</td>
 <td>—</td>
@@ -923,6 +930,10 @@
 <div class="admonition note">
 <p class="admonition-title">Copy selection to clipboard automatically</p>
 <p>When enabled, text you select in a terminal is copied to the clipboard as soon as you select it. On Linux it also becomes the X11 primary selection, so a middle-click pastes it in other applications such as xterm or gedit. With the enterprise policy's <a href="../enterprise-policy.html#internal-clipboard-mode">internal clipboard mode</a> the selection stays inside korTTY on every platform.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Links</p>
+<p>With <strong>Detect web addresses, e-mail addresses and file paths in terminal text</strong> on, <span class="keys"><kbd class="key-command">Cmd</kbd></span> + click (macOS) or <span class="keys"><kbd class="key-control">Ctrl</kbd></span> + click (Windows, Linux) opens a web address, an e-mail address or a file path that a program printed as plain text: a web address in your default browser, an e-mail address as a new mail in your mail program, and in SSH and local-shell tabs a file path as text in the Snippet Editor. A plain click still only selects text. A change applies to the open terminals at once. Links that a program marks up itself with OSC 8 open with the same click either way. See <a href="../../features/terminal.html#links-in-terminal-output">Links in terminal output</a>.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">SSH Keep-Alive</p>
