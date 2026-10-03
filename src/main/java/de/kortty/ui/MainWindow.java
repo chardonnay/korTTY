@@ -360,8 +360,11 @@ public class MainWindow {
     private final List<MenuItem> unlockVaultMenuItems = new ArrayList<>();
     /** File › Reopen Closed Tab in every menu bar of this window. */
     private final List<MenuItem> reopenClosedTabMenuItems = new ArrayList<>();
-    /** Edit › Previous Prompt and Next Prompt in every menu bar of this window; terminal tabs only. */
-    private final List<MenuItem> promptNavigationMenuItems = new ArrayList<>();
+    /**
+     * Edit › Previous Prompt, Next Prompt, Select Last Output and Copy Last Output in every menu bar
+     * of this window; terminal tabs only.
+     */
+    private final List<MenuItem> shellIntegrationMenuItems = new ArrayList<>();
     /** File › Recently Closed in every menu bar of this window, rebuilt whenever the history changes. */
     private final List<Menu> recentlyClosedMenus = new ArrayList<>();
     private Runnable powerManagementStateListener;
@@ -1598,12 +1601,18 @@ public class MainWindow {
         MenuItem nextPrompt = ActionIds.tag(new MenuItem(I18n.get("menu.edit.nextPrompt")), "menu.edit.nextPrompt");
         nextPrompt.setAccelerator(NEXT_PROMPT_ACCELERATOR);
         nextPrompt.setOnAction(e -> jumpToPromptInCurrentTab(PromptNavigator.Direction.NEXT));
-        promptNavigationMenuItems.add(previousPrompt);
-        promptNavigationMenuItems.add(nextPrompt);
+        // The output of the newest command the shell marked as finished; no key of their own.
+        MenuItem selectLastOutput = ActionIds.tag(new MenuItem(I18n.get("menu.edit.selectLastOutput")),
+            "menu.edit.selectLastOutput");
+        selectLastOutput.setOnAction(e -> lastOutputInCurrentTab(ShellIntegrationController.LastOutputAction.SELECT));
+        MenuItem copyLastOutput = ActionIds.tag(new MenuItem(I18n.get("menu.edit.copyLastOutput")),
+            "menu.edit.copyLastOutput");
+        copyLastOutput.setOnAction(e -> lastOutputInCurrentTab(ShellIntegrationController.LastOutputAction.COPY));
+        shellIntegrationMenuItems.addAll(List.of(previousPrompt, nextPrompt, selectLastOutput, copyLastOutput));
         updateEditMenuItemsForSelection();
 
         editMenu.getItems().addAll(cut, copy, paste, new SeparatorMenuItem(), find, quickSelect,
-            new SeparatorMenuItem(), previousPrompt, nextPrompt);
+            new SeparatorMenuItem(), previousPrompt, nextPrompt, selectLastOutput, copyLastOutput);
         return editMenu;
     }
 
@@ -4709,8 +4718,8 @@ public class MainWindow {
         if (systemQuickSelectMenuItem != null) {
             systemQuickSelectMenuItem.setDisable(disableQuickSelect);
         }
-        // Prompt navigation moves in a terminal's scrollback; elsewhere the keys stay with the tab.
-        for (MenuItem item : promptNavigationMenuItems) {
+        // Prompts and command output live in a terminal's scrollback; elsewhere the keys stay with the tab.
+        for (MenuItem item : shellIntegrationMenuItems) {
             item.setDisable(!(currentTab instanceof TerminalTab));
         }
     }
@@ -4798,6 +4807,22 @@ public class MainWindow {
         if (status != null) {
             updateStatus(status);
         }
+    }
+
+    /**
+     * Edit &gt; Select Last Output / Copy Last Output: selects or copies what the newest finished
+     * command in the focused terminal pane printed. The status line says what happened, including
+     * why nothing could be selected.
+     */
+    private void lastOutputInCurrentTab(ShellIntegrationController.LastOutputAction action) {
+        if (tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab terminalTab) {
+            updateStatus(I18n.get(terminalTab.lastOutput(action).statusKey()));
+        }
+    }
+
+    /** Shows {@code message} in this window's status bar, for a terminal tab's own menu entries. */
+    void showStatusMessage(String message) {
+        updateStatus(message);
     }
 
     /** Edit &gt; Quick Select: labels what the focused terminal pane shows; nothing in other tabs. */

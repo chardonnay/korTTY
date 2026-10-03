@@ -30,21 +30,32 @@ class ShellIntegrationI18nCoverageTest {
 
     private static final List<String> PREFIXES = List.of(
         "settings.terminal.shellIntegration.", "terminal.contextMenu.shellIntegration.", "terminal.shellIntegration.",
-        "menu.edit.previousPrompt", "menu.edit.nextPrompt");
+        "menu.edit.previousPrompt", "menu.edit.nextPrompt", "menu.edit.selectLastOutput", "menu.edit.copyLastOutput");
 
     private static final List<String> REQUIRED_KEYS = List.of(
         "menu.edit.previousPrompt",
         "menu.edit.nextPrompt",
+        "menu.edit.selectLastOutput",
+        "menu.edit.copyLastOutput",
         "settings.terminal.shellIntegration.header",
         "settings.terminal.shellIntegration.enabled",
         "settings.terminal.shellIntegration.enabled.tooltip",
         "settings.terminal.shellIntegration.info",
         "terminal.contextMenu.shellIntegration.previousPrompt",
         "terminal.contextMenu.shellIntegration.nextPrompt",
+        "terminal.contextMenu.shellIntegration.selectLastOutput",
+        "terminal.contextMenu.shellIntegration.copyLastOutput",
         "terminal.contextMenu.shellIntegration.setup",
         "terminal.shellIntegration.status.noPrompts",
         "terminal.shellIntegration.status.fullScreen",
-        "terminal.shellIntegration.status.disabled");
+        "terminal.shellIntegration.status.disabled",
+        "terminal.shellIntegration.status.lastOutputSelected",
+        "terminal.shellIntegration.status.lastOutputSelectedTruncated",
+        "terminal.shellIntegration.status.lastOutputCopied",
+        "terminal.shellIntegration.status.lastOutputCopiedTruncated",
+        "terminal.shellIntegration.status.noOutput",
+        "terminal.shellIntegration.status.noFinishedCommand",
+        "terminal.shellIntegration.status.lastOutputFullScreen");
 
     @Test
     void everyKeyExistsInEveryBundle() throws Exception {

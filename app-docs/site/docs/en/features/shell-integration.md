@@ -4,7 +4,7 @@ title: Shell integration
 
 # Shell integration
 
-With shell integration, the shell tells korTTY where each prompt starts, where the command you type starts, where its output starts and how the command ended. It does so with invisible OSC 133 marks, the same ones iTerm2, WezTerm, kitty and VS Code read, which a few lines in the shell's startup file add. korTTY uses them to jump between the prompts of a long session with one key.
+With shell integration, the shell tells korTTY where each prompt starts, where the command you type starts, where its output starts and how the command ended. It does so with invisible OSC 133 marks, the same ones iTerm2, WezTerm, kitty and VS Code read, which a few lines in the shell's startup file add. korTTY uses them to jump between the prompts of a long session with one key, and to select or copy what the last command printed.
 
 Without the marks nothing changes: the keys reach the shell as before, and the terminal looks and behaves as it always did.
 
@@ -27,7 +27,24 @@ The keys are korTTY's only while the pane has prompt marks and shows its normal 
 
 ### The right-click menu
 
-A pane with prompt marks has **Previous Prompt** and **Next Prompt** in its right-click menu, greyed out while a full-screen program runs. A pane whose shell sends no marks shows **Set Up Shell Integration…** instead, which opens this page at [Setting it up](#setting-it-up). Neither shows while shell integration is switched off, or for a connection whose terminal emulation cannot carry the marks (Wyse, TeleVideo, HP, IBM 3270 and 5250, PETSCII).
+A pane with prompt marks has **Previous Prompt**, **Next Prompt**, **Select Last Output** and **Copy Last Output** in its right-click menu, all greyed out while a full-screen program runs, and the last two also until a command finished. A pane whose shell sends no marks shows **Set Up Shell Integration…** instead, which opens this page at [Setting it up](#setting-it-up). Neither shows while shell integration is switched off, or for a connection whose terminal emulation cannot carry the marks (Wyse, TeleVideo, HP, IBM 3270 and 5250, PETSCII).
+
+## Selecting and copying a command's output
+
+| Command | Where |
+| --- | --- |
+| **Select Last Output** | *Edit* menu and the terminal's right-click menu |
+| **Copy Last Output** | *Edit* menu and the terminal's right-click menu |
+
+**Select Last Output** selects everything the last command printed, as if you had dragged over it with the mouse: *Edit → Copy* then copies it, and with **Copy selection to clipboard automatically** in *Settings → Terminal* it is copied at once. **Copy Last Output** puts the output on the clipboard straight away and leaves the selection you have as it is. Neither has a key of its own.
+
+- The output runs from the line below the command line to where the next prompt starts; the prompt and the command line are not part of it. The copy has no line break at its end, and empty lines at its end are left out. Output without a line break at its end, such as that of `printf done`, ends where the next prompt starts on the same line.
+- The last command is the newest one that finished. While a command such as `tail -f` still runs, both take the output of the command before it, and a prompt where you pressed ++enter++ without a command does not count.
+- *Edit → Select Last Output* and *Edit → Copy Last Output* act in the focused pane of the selected tab, the right-click menu in the pane you right-clicked. The status bar says what was selected or copied, or why nothing was: no command has finished in the pane yet, the command printed nothing, a full-screen program runs in the pane, or the shell sends no marks.
+- When the output is longer than the scrollback holds, its first lines are already gone: both then take what is left, from the oldest line in the scrollback, and the status bar says that the start is missing. Raise **Scrollback** in *Settings → Terminal* to keep longer outputs whole.
+- Copies go through korTTY's clipboard, so the enterprise policy's [internal clipboard mode](../reference/enterprise-policy.md#internal-clipboard-mode) keeps them inside korTTY.
+
+Both need the marks for the start of the output and the end of the command (OSC 133 C and D), which korTTY's snippets send. A shell set up some other way that marks only its prompts gets prompt jumps, but the status bar then says that no command has finished.
 
 ## Setting it up
 
@@ -194,9 +211,9 @@ end
 - **tmux and screen** do not pass the marks on, so a shell inside them has none. Run the shell outside tmux, or set up tmux's own prompt navigation.
 - **Mosh** connections never carry them: mosh-server draws the screen itself and drops the marks.
 - **Local Windows shells**: the snippets cover bash, zsh and fish, not `cmd.exe` or PowerShell, and whether Windows passes the marks of a shell such as Git Bash or WSL on depends on the Windows version.
-- **Resizing**: when a width change rewraps long lines, a jump can land a few lines off for prompts above the rewrapped text.
+- **Resizing**: when a width change rewraps long lines, a jump can land a few lines off for prompts above the rewrapped text, and the output that **Select Last Output** and **Copy Last Output** take can be off by as many lines.
 - **Nested ssh**: OSC 7 names a host, but korTTY ignores it, so when you ssh on from the first server to a second one that also has the snippet, the second server's directory is taken for the first one's.
-- **Fake marks**: any program can print OSC 133 marks. The worst a fake mark does is send a jump to the wrong line.
+- **Fake marks**: any program can print OSC 133 marks. The worst a fake mark does is send a jump to the wrong line, or make **Select Last Output** and **Copy Last Output** take other lines of the pane than the last command's output.
 
 The marks exist only in korTTY's memory for as long as the pane is open: they are not saved with a [project](projects.md), a restored project's output has none, and they never leave your computer.
 

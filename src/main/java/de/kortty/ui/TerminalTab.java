@@ -1589,6 +1589,14 @@ public class TerminalTab extends Tab {
     ShellIntegrationController.JumpResult jumpToPrompt(de.kortty.shellintegration.PromptNavigator.Direction direction) {
         return terminalView.jumpToPrompt(direction);
     }
+
+    /**
+     * Selects or copies what the focused pane's last command printed (Edit &gt; Select Last Output /
+     * Copy Last Output); the pane needs shell integration in its shell.
+     */
+    ShellIntegrationController.LastOutputResult lastOutput(ShellIntegrationController.LastOutputAction action) {
+        return terminalView.lastOutput(action);
+    }
     
     /**
      * Toggles the timestamp gutter visibility.

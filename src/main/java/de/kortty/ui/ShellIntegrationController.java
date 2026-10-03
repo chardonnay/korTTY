@@ -7,6 +7,7 @@ import com.sithtermfx.ui.SithTermFxWidget;
 import com.sithtermfx.ui.TerminalAction;
 import com.sithtermfx.ui.TerminalActionPresentation;
 import com.sithtermfx.ui.TerminalPanel;
+import de.kortty.core.KorttyClipboard;
 import de.kortty.shellintegration.CommandBlockStore;
 import de.kortty.shellintegration.PromptNavigator;
 import de.kortty.shellintegration.PromptNavigator.Direction;
@@ -42,6 +43,8 @@ import java.util.function.Consumer;
  *       the program in the pane as before (and broadcast mode mirrors it, like any other key).</li>
  *   <li>{@link #jump} scrolls a pane to its previous or next prompt, for the keys, the Edit menu and
  *       the pane's context menu alike.</li>
+ *   <li>{@link #lastOutput} selects or copies what the pane's newest finished command printed, for
+ *       the Edit menu and the context menu; neither has a key.</li>
  * </ul>
  *
  * <p>The setting is read on every event and key press, so switching shell integration off stops
@@ -63,6 +66,47 @@ final class ShellIntegrationController {
         FULL_SCREEN,
         /** Shell integration is switched off in the settings. */
         DISABLED
+    }
+
+    /** Select Last Output or Copy Last Output. */
+    enum LastOutputAction {
+        /** Selects the output in the pane, as if dragged with the mouse. */
+        SELECT,
+        /** Copies the output; the pane's own selection stays as it is. */
+        COPY
+    }
+
+    /** What Select or Copy Last Output did, with the status-line text that says so. */
+    enum LastOutputResult {
+        /** The output is selected. */
+        SELECTED("terminal.shellIntegration.status.lastOutputSelected"),
+        /** What is left of the output is selected; its start had left the scrollback. */
+        SELECTED_TRUNCATED("terminal.shellIntegration.status.lastOutputSelectedTruncated"),
+        /** The output is on the clipboard. */
+        COPIED("terminal.shellIntegration.status.lastOutputCopied"),
+        /** What is left of the output is on the clipboard; its start had left the scrollback. */
+        COPIED_TRUNCATED("terminal.shellIntegration.status.lastOutputCopiedTruncated"),
+        /** The newest finished command printed no text. */
+        NO_OUTPUT("terminal.shellIntegration.status.noOutput"),
+        /** No command finished yet, or its output left the scrollback. */
+        NO_COMMAND("terminal.shellIntegration.status.noFinishedCommand"),
+        /** The pane has no marks: its shell is not set up for shell integration. */
+        NO_PROMPTS("terminal.shellIntegration.status.noPrompts"),
+        /** A full-screen program uses the alternate screen. */
+        FULL_SCREEN("terminal.shellIntegration.status.lastOutputFullScreen"),
+        /** Shell integration is switched off in the settings. */
+        DISABLED("terminal.shellIntegration.status.disabled");
+
+        private final String statusKey;
+
+        LastOutputResult(String statusKey) {
+            this.statusKey = statusKey;
+        }
+
+        /** The i18n key of the status-line text. */
+        String statusKey() {
+            return statusKey;
+        }
     }
 
     /** What the pane's context menu offers for shell integration; see {@link #contextMenuEntries}. */
@@ -261,6 +305,59 @@ final class ShellIntegrationController {
                 marks.navigator().jumped(toPrompt.line(), scrollBar.getValue(), cursorLine);
                 logger.trace("Prompt jump {} to origin {}", direction, targetOrigin);
                 yield JumpResult.JUMPED;
+            }
+        };
+    }
+
+    /**
+     * Whether {@code widget} has a finished command whose output Select and Copy Last Output can
+     * reach. A quick look for the context menu; {@link #lastOutput} checks again.
+     */
+    boolean hasFinishedCommand(@Nullable SithTermFxWidget widget) {
+        PaneCommandMarks marks = widget != null ? panes.get(widget) : null;
+        return marks != null && marks.store().lastFinished().isPresent();
+    }
+
+    /**
+     * Select Last Output / Copy Last Output: the text the newest finished command of {@code widget}
+     * printed, from its {@code OSC 133;C} mark to its {@code D} mark (see
+     * {@link de.kortty.shellintegration.LastOutputRange}).
+     *
+     * <ul>
+     *   <li>{@link LastOutputAction#SELECT} sets the pane's selection to it, so Copy and copy on
+     *       select work on it as on a selection made with the mouse.</li>
+     *   <li>{@link LastOutputAction#COPY} reads the text the way SithTermFX's Copy reads a selection
+     *       and puts it on the clipboard through {@link KorttyClipboard}, which keeps it inside korTTY
+     *       when the policy says so. The pane's own selection is left alone.</li>
+     * </ul>
+     *
+     * When the start of the output has left the scrollback, the rest is used and the result says
+     * so. FX thread.
+     */
+    LastOutputResult lastOutput(@NotNull SithTermFxWidget widget, @NotNull LastOutputAction action) {
+        if (!isEnabled()) {
+            return LastOutputResult.DISABLED;
+        }
+        PaneCommandMarks marks = panes.get(widget);
+        TerminalPanel panel = widget.getTerminalPanel();
+        if (marks == null || panel == null) {
+            return LastOutputResult.NO_PROMPTS;
+        }
+        PaneCommandMarks.LastOutput output = marks.lastOutput(action == LastOutputAction.COPY);
+        return switch (output.status()) {
+            case NO_MARKS -> LastOutputResult.NO_PROMPTS;
+            case NO_COMMAND -> LastOutputResult.NO_COMMAND;
+            case NO_OUTPUT -> LastOutputResult.NO_OUTPUT;
+            case FULL_SCREEN -> LastOutputResult.FULL_SCREEN;
+            case FOUND -> {
+                boolean truncated = output.range() != null && output.range().truncated();
+                if (action == LastOutputAction.COPY) {
+                    KorttyClipboard.setText(output.text());
+                    yield truncated ? LastOutputResult.COPIED_TRUNCATED : LastOutputResult.COPIED;
+                }
+                panel.selectionProperty().set(output.selection());
+                panel.repaint();
+                yield truncated ? LastOutputResult.SELECTED_TRUNCATED : LastOutputResult.SELECTED;
             }
         };
     }

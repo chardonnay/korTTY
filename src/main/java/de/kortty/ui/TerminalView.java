@@ -7886,10 +7886,23 @@ public class TerminalView extends BorderPane {
     }
 
     /**
-     * The shell-integration entries of {@code widget}'s context menu: Previous Prompt and Next Prompt
-     * while the pane has prompt marks (greyed out while a full-screen program runs), otherwise Set Up
-     * Shell Integration…, which opens the guide page with the shell snippets. None while shell
-     * integration is off or the pane's emulation cannot carry the marks.
+     * Selects or copies what the focused pane's newest finished command printed (Edit &gt; Select
+     * Last Output / Copy Last Output), see {@link ShellIntegrationController#lastOutput}.
+     */
+    ShellIntegrationController.LastOutputResult lastOutput(ShellIntegrationController.LastOutputAction action) {
+        SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+        if (focused == null) {
+            return ShellIntegrationController.LastOutputResult.NO_PROMPTS;
+        }
+        return shellIntegration.lastOutput(focused, action);
+    }
+
+    /**
+     * The shell-integration entries of {@code widget}'s context menu: Previous Prompt, Next Prompt,
+     * Select Last Output and Copy Last Output while the pane has prompt marks (the jumps greyed out
+     * while a full-screen program runs, the output entries also until a command finished),
+     * otherwise Set Up Shell Integration…, which opens the guide page with the shell snippets. None
+     * while shell integration is off or the pane's emulation cannot carry the marks.
      */
     private List<javafx.scene.control.MenuItem> buildShellIntegrationMenuItems(SithTermFxWidget widget) {
         return switch (shellIntegration.contextMenuEntries(widget)) {
@@ -7904,7 +7917,18 @@ public class TerminalView extends BorderPane {
                     I18n.get("terminal.contextMenu.shellIntegration.nextPrompt"));
                 next.setOnAction(e -> shellIntegration.jump(widget, PromptNavigator.Direction.NEXT));
                 next.setDisable(!available);
-                yield List.of(previous, next);
+                boolean outputAvailable = available && shellIntegration.hasFinishedCommand(widget);
+                javafx.scene.control.MenuItem selectOutput = new javafx.scene.control.MenuItem(
+                    I18n.get("terminal.contextMenu.shellIntegration.selectLastOutput"));
+                selectOutput.setOnAction(e -> showShellIntegrationStatus(
+                    shellIntegration.lastOutput(widget, ShellIntegrationController.LastOutputAction.SELECT)));
+                selectOutput.setDisable(!outputAvailable);
+                javafx.scene.control.MenuItem copyOutput = new javafx.scene.control.MenuItem(
+                    I18n.get("terminal.contextMenu.shellIntegration.copyLastOutput"));
+                copyOutput.setOnAction(e -> showShellIntegrationStatus(
+                    shellIntegration.lastOutput(widget, ShellIntegrationController.LastOutputAction.COPY)));
+                copyOutput.setDisable(!outputAvailable);
+                yield List.of(previous, next, selectOutput, copyOutput);
             }
             case SETUP -> {
                 javafx.scene.control.MenuItem setup = new javafx.scene.control.MenuItem(
@@ -7913,6 +7937,15 @@ public class TerminalView extends BorderPane {
                 yield List.of(setup);
             }
         };
+    }
+
+    /** Shows what Select or Copy Last Output did in the status bar of this view's window. */
+    private void showShellIntegrationStatus(ShellIntegrationController.LastOutputResult result) {
+        javafx.stage.Window window = getScene() != null ? getScene().getWindow() : null;
+        MainWindow mainWindow = MainWindow.findByStage(window);
+        if (mainWindow != null) {
+            mainWindow.showStatusMessage(I18n.get(result.statusKey()));
+        }
     }
 
     /** The guide section with the shell snippets, which Set Up Shell Integration… opens. */

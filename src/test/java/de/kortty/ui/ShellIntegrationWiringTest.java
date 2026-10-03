@@ -4,9 +4,12 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Properties;
 import org.testng.annotations.Test;
 
 /**
@@ -60,14 +63,71 @@ class ShellIntegrationWiringTest {
         assertThat(edit).contains("ActionIds.tag(new MenuItem(I18n.get(\"menu.edit.nextPrompt\")), \"menu.edit.nextPrompt\");");
         assertThat(edit).contains("previousPrompt.setOnAction(e -> jumpToPromptInCurrentTab(PromptNavigator.Direction.PREVIOUS));");
         assertThat(edit).contains("nextPrompt.setOnAction(e -> jumpToPromptInCurrentTab(PromptNavigator.Direction.NEXT));");
-        assertThat(edit).contains("new SeparatorMenuItem(), previousPrompt, nextPrompt);");
+        assertThat(edit).contains("new SeparatorMenuItem(), previousPrompt, nextPrompt, selectLastOutput, copyLastOutput);");
+        assertThat(edit).contains(
+            "shellIntegrationMenuItems.addAll(List.of(previousPrompt, nextPrompt, selectLastOutput, copyLastOutput));");
         assertWithMessage("greyed out outside terminal tabs, like Quick Select")
             .that(body(window, "private void updateEditMenuItemsForSelection() {"))
-            .contains("for (MenuItem item : promptNavigationMenuItems) {\n            item.setDisable(!(currentTab instanceof TerminalTab));");
+            .contains("for (MenuItem item : shellIntegrationMenuItems) {\n            item.setDisable(!(currentTab instanceof TerminalTab));");
         String jump = body(window, "private void jumpToPromptInCurrentTab(PromptNavigator.Direction direction) {");
         assertThat(jump).contains("case NO_PROMPTS -> I18n.get(\"terminal.shellIntegration.status.noPrompts\");");
         assertThat(jump).contains("case FULL_SCREEN -> I18n.get(\"terminal.shellIntegration.status.fullScreen\");");
         assertThat(jump).contains("case DISABLED -> I18n.get(\"terminal.shellIntegration.status.disabled\");");
+    }
+
+    @Test
+    void theEditMenuSelectsAndCopiesTheLastOutputWithoutAKey() throws IOException {
+        String window = source("MainWindow.java");
+        String edit = body(window, "private Menu createEditMenu(MenuBarTarget target) {");
+        assertThat(edit).contains("ActionIds.tag(new MenuItem(I18n.get(\"menu.edit.selectLastOutput\")),\n"
+            + "            \"menu.edit.selectLastOutput\");");
+        assertThat(edit).contains("ActionIds.tag(new MenuItem(I18n.get(\"menu.edit.copyLastOutput\")),\n"
+            + "            \"menu.edit.copyLastOutput\");");
+        assertThat(edit).contains(
+            "selectLastOutput.setOnAction(e -> lastOutputInCurrentTab(ShellIntegrationController.LastOutputAction.SELECT));");
+        assertThat(edit).contains(
+            "copyLastOutput.setOnAction(e -> lastOutputInCurrentTab(ShellIntegrationController.LastOutputAction.COPY));");
+        assertWithMessage("no default key (design decision)").that(edit).doesNotContain("selectLastOutput.setAccelerator");
+        assertWithMessage("no default key (design decision)").that(edit).doesNotContain("copyLastOutput.setAccelerator");
+        assertWithMessage("the status line says what happened, or why nothing did")
+            .that(body(window, "private void lastOutputInCurrentTab(ShellIntegrationController.LastOutputAction action) {"))
+            .contains("updateStatus(I18n.get(terminalTab.lastOutput(action).statusKey()));");
+    }
+
+    @Test
+    void copyLeavesTheSelectionAloneAndSelectSetsIt() throws IOException {
+        String controller = source("ShellIntegrationController.java");
+        String lastOutput = body(controller,
+            "LastOutputResult lastOutput(@NotNull SithTermFxWidget widget, @NotNull LastOutputAction action) {");
+        assertWithMessage("the text, which can be long, is read only to copy it")
+            .that(lastOutput).contains("marks.lastOutput(action == LastOutputAction.COPY);");
+        assertWithMessage("copy goes through the policy-aware clipboard and returns before the selection is touched")
+            .that(lastOutput).contains("if (action == LastOutputAction.COPY) {\n"
+                + "                    KorttyClipboard.setText(output.text());\n"
+                + "                    yield truncated ? LastOutputResult.COPIED_TRUNCATED : LastOutputResult.COPIED;\n"
+                + "                }\n"
+                + "                panel.selectionProperty().set(output.selection());\n"
+                + "                panel.repaint();");
+        assertWithMessage("the setting is honoured first")
+            .that(lastOutput).contains("if (!isEnabled()) {\n            return LastOutputResult.DISABLED;");
+
+        String marks = source("PaneCommandMarks.java");
+        assertWithMessage("the range and its text are read under the buffer lock, after applying the trims")
+            .that(body(marks, "LastOutput lastOutput(boolean withText) {"))
+            .contains("buffer.lock();\n        try {\n            if (buffer.isUsingAlternateBuffer()) {\n"
+                + "                return LastOutput.of(LastOutputStatus.FULL_SCREEN);\n            }\n            syncTrims();");
+    }
+
+    @Test
+    void everyLastOutputResultHasItsStatusText() throws IOException {
+        Properties messages = new Properties();
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream("i18n/messages.properties")) {
+            assertThat(in).isNotNull();
+            messages.load(new InputStreamReader(in, StandardCharsets.UTF_8));
+        }
+        for (ShellIntegrationController.LastOutputResult result : ShellIntegrationController.LastOutputResult.values()) {
+            assertWithMessage(result.name()).that(messages.getProperty(result.statusKey())).isNotNull();
+        }
     }
 
     @Test
@@ -77,6 +137,13 @@ class ShellIntegrationWiringTest {
         assertThat(entries).contains("previous.setOnAction(e -> shellIntegration.jump(widget, PromptNavigator.Direction.PREVIOUS));");
         assertThat(entries).contains("next.setOnAction(e -> shellIntegration.jump(widget, PromptNavigator.Direction.NEXT));");
         assertThat(entries).contains("setup.setOnAction(e -> openShellIntegrationGuide());");
+        assertThat(entries).contains("selectOutput.setOnAction(e -> showShellIntegrationStatus(\n"
+            + "                    shellIntegration.lastOutput(widget, ShellIntegrationController.LastOutputAction.SELECT)));");
+        assertThat(entries).contains("copyOutput.setOnAction(e -> showShellIntegrationStatus(\n"
+            + "                    shellIntegration.lastOutput(widget, ShellIntegrationController.LastOutputAction.COPY)));");
+        assertWithMessage("the output entries wait for a finished command and the normal screen")
+            .that(entries).contains("boolean outputAvailable = available && shellIntegration.hasFinishedCommand(widget);");
+        assertThat(entries).contains("yield List.of(previous, next, selectOutput, copyOutput);");
         assertThat(view).contains("List<javafx.scene.control.MenuItem> shellIntegrationItems = buildShellIntegrationMenuItems(widget);");
     }
 

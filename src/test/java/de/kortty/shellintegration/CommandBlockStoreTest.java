@@ -216,6 +216,46 @@ class CommandBlockStoreTest {
     }
 
     @Test
+    void theLastFinishedCommandSkipsTheOneRunningAndPromptsWithoutACommand() {
+        CommandBlockStore store = new CommandBlockStore();
+        assertThat(store.lastFinished()).isEmpty();
+        store.promptStart(0, 0);
+        store.outputStart(1, 0, 1L);
+        assertWithMessage("a running command has not finished").that(store.lastFinished()).isEmpty();
+        store.commandFinished(3, 0, 0, 2L);
+        assertThat(store.lastFinished().orElseThrow().end()).isEqualTo(new Mark(3, 0));
+
+        // Enter on an empty line (D without C), then a command that runs now.
+        store.promptStart(3, 0);
+        store.commandFinished(4, 0, 0, 3L);
+        store.promptStart(4, 0);
+        store.outputStart(5, 0, 4L);
+        assertThat(store.lastFinished().orElseThrow().output()).isEqualTo(new Mark(1, 0));
+
+        // A command that the next prompt closed without D did not finish either.
+        store.promptStart(9, 0);
+        assertThat(store.lastFinished().orElseThrow().output()).isEqualTo(new Mark(1, 0));
+        store.outputStart(10, 0, 5L);
+        store.commandFinished(12, 4, 1, 6L);
+        CommandBlock newest = store.lastFinished().orElseThrow();
+        assertThat(newest.output()).isEqualTo(new Mark(10, 0));
+        assertThat(newest.exitStatus()).isEqualTo(1);
+    }
+
+    @Test
+    void theLastFinishedCommandIsGoneWithTheScrollback() {
+        CommandBlockStore store = new CommandBlockStore();
+        store.promptStart(0, 0);
+        store.outputStart(1, 0, 1L);
+        store.commandFinished(3, 0, 0, 2L);
+        store.promptStart(3, 0);
+        store.shift(3);
+        assertWithMessage("the end of the output is still there").that(store.lastFinished()).isPresent();
+        store.shift(1);
+        assertThat(store.lastFinished()).isEmpty();
+    }
+
+    @Test
     void theOldestBlocksGoBeyondTheCap() {
         CommandBlockStore store = new CommandBlockStore();
         for (int line = 0; line < CommandBlockStore.MAX_BLOCKS + 5; line++) {

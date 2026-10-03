@@ -5,6 +5,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.TreeMap;
 
@@ -223,6 +224,19 @@ public final class CommandBlockStore implements PromptNavigator.Prompts {
             return OptionalLong.empty();
         }
         return OptionalLong.of(last.getKey());
+    }
+
+    /**
+     * The newest command that finished: its block saw C and then D. A command that runs now, and a
+     * prompt left without a command, do not count; the one before them does.
+     */
+    public synchronized Optional<CommandBlock> lastFinished() {
+        for (CommandBlock block : blocks.descendingMap().values()) {
+            if (block.finished()) {
+                return Optional.of(block);
+            }
+        }
+        return Optional.empty();
     }
 
     /** Every block still kept, oldest first. */
