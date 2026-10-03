@@ -2764,6 +2764,11 @@ public class MainWindow {
         syncPreventSleepMenuItems();
         updateEditMenuItemsForSelection();
         syncHighlightingToggleItems();
+        // Show Command Timestamps is a setting of each terminal tab, but its check mark is synced only
+        // when a tab toggles it, so after switching tabs it showed the other tab's state.
+        if (tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab active) {
+            syncTimestampMenuItems(active.isTimestampGuttersVisible());
+        }
         if (menuBar != null) {
             MenuStateRefresh.refresh(menuBar.getMenus());
         }

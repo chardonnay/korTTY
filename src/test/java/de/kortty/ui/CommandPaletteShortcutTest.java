@@ -78,6 +78,8 @@ class CommandPaletteShortcutTest {
                 "syncHighlightingToggleItems();", "MenuStateRefresh.refresh(menuBar.getMenus());")) {
             assertThat(refresh).contains(sync);
         }
+        assertWithMessage("the timestamps check mark follows the selected terminal tab")
+            .that(refresh).contains("syncTimestampMenuItems(active.isTimestampGuttersVisible());");
 
         String registry = methodBody(source, "private ActionRegistry actionRegistry() {");
         assertWithMessage("the palette harvests the in-window menu bar")
