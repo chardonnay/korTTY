@@ -7765,6 +7765,54 @@ public class TerminalView extends BorderPane {
     }
 
     /**
+     * Clears the scrollback and the screen of the focused pane but keeps the prompt line, as
+     * <b>Clear Buffer</b> in the terminal's right-click menu does; while a full-screen program runs it
+     * does nothing (see {@link TerminalPaneActions#clearBuffer()}). The command palette runs it.
+     */
+    public void clearFocusedBuffer() {
+        if (getFocusedWidget() instanceof TerminalPaneActions actions) {
+            actions.clearBuffer();
+        }
+    }
+
+    /**
+     * Splits the focused pane with a new session to the same server, the new pane to its right
+     * ({@link Orientation#HORIZONTAL}) or below it ({@link Orientation#VERTICAL}), as <b>Split Right
+     * (same server)</b> and <b>Split Down (same server)</b> in the right-click menu do: through the
+     * split connector factory, so the progress dialog, the server policy check and the remembered
+     * access reason apply alike. The command palette runs it; JavaFX thread.
+     *
+     * @return whether a pane was added
+     */
+    public boolean splitFocused(Orientation orientation) {
+        SithTermFxWidget focused = getFocusedWidget();
+        if (splitPane == null || focused == null || orientation == null) {
+            return false;
+        }
+        return splitPane.splitWidget(focused, SplitRequest.SplitMode.SAME_SERVER_NEW_SHELL, orientation, null) != null;
+    }
+
+    /** Whether broadcast mode has panes to send to: the tab has more than one. */
+    public boolean canBroadcast() {
+        return getTerminalPaneCount() > 1;
+    }
+
+    /** Whether broadcast mode is on, so what is typed in one pane goes to every pane of the tab. */
+    public boolean isBroadcastMode() {
+        return splitPane != null && splitPane.isBroadcastMode();
+    }
+
+    /**
+     * Switches broadcast mode, as <b>Extras → Broadcast Mode</b> in the right-click menu does:
+     * switching it on needs a second pane ({@link #canBroadcast()}), switching it off always works.
+     */
+    public void toggleBroadcast() {
+        if (splitPane != null && (splitPane.isBroadcastMode() || canBroadcast())) {
+            splitPane.toggleBroadcastMode();
+        }
+    }
+
+    /**
      * Starts quick select in the focused pane: every URL, path, address, hash and long number on
      * screen gets a label to copy it with, or to open it with Shift. See
      * {@link TerminalQuickSelectController}.

@@ -4,7 +4,7 @@ title: Command palette
 
 # Command palette
 
-The command palette finds and runs any command of the main window's menus when you type a few letters of its name, so you need neither the mouse nor the place of the command in the menus. It also switches to any open tab, the ones you used last first, including the terminal tabs of your other korTTY windows, and opens a tab for any saved or shared teamwork connection. It reaches every menu command while the menu bar is hidden and in terminal-only fullscreen.
+The command palette finds and runs any command of the main window's menus when you type a few letters of its name, so you need neither the mouse nor the place of the command in the menus. It also runs the right-click commands of the terminal you are in, such as **Clear Buffer** or a split, switches to any open tab, the ones you used last first, including the terminal tabs of your other korTTY windows, and opens a tab for any saved or shared teamwork connection. It reaches every menu command while the menu bar is hidden and in terminal-only fullscreen.
 
 ## Opening the palette
 
@@ -25,11 +25,25 @@ Type part of a command's name. The letters have to appear in that order but not 
 
 The menu path is searched as well, which keeps the commands with the same name apart: `journal left` finds **View › Live Journal › Dock Left**, and `file left` finds **View › File Browser › Show on Left**. A match in the name ranks above a match in the path, and among equally good matches the commands you chose recently come first.
 
-With nothing typed, the palette lists the commands and connections you chose recently, up to eight and newest first, then the [open tabs](#switching-tabs), and then every command, menu by menu. Other connections only appear once you type. Next to the menu commands it offers **Next Tab** and **Previous Tab**, which switch tabs like ++ctrl+tab++ and ++ctrl+shift+tab++.
+With nothing typed, the palette lists the commands and connections you chose recently, up to eight and newest first, then the [open tabs](#switching-tabs), and then every command, menu by menu. Other connections only appear once you type. Next to the menu commands it offers **Next Tab** and **Previous Tab**, which switch tabs like ++ctrl+tab++ and ++ctrl+shift+tab++, and the [terminal and tab commands](#terminal-and-tab-commands).
 
 Typed first, a scope character limits the list to one kind of row: `>` lists only commands, `#` only tabs and `@` only connections, so `>close` finds the close commands but no tab whose name contains "close". The line below the list names these characters.
 
 The list of recent choices lasts until korTTY quits; all windows share it and it is never saved. What you type into the palette is neither logged nor sent anywhere.
+
+## Terminal and tab commands
+
+The palette also offers the commands of the terminal's and the tab's right-click menus that the menu bar does not have. They act on the terminal tab you are in, and the terminal commands on its focused pane, the one your typing goes to and that **Edit → Find…** searches:
+
+| Command | Grey detail | What it does |
+| --- | --- | --- |
+| **Clear Buffer** | Terminal | Clears the scrollback and the screen of the focused pane but keeps the prompt line, like **Clear Buffer** in the terminal's right-click menu. While a full-screen program such as `vim` or `less` runs, it does nothing. On macOS the row shows the terminal's own key, ++cmd+k++. |
+| **Split Right (same server)** / **Split Down (same server)** | Terminal | Opens a new session to the same server in a new pane to the right of the focused pane or below it, exactly like these entries under **Extras → Split Terminal** in the right-click menu, with the same progress dialog and the same [server policy](terminal.md#connecting-safely) check. |
+| **Broadcast Mode** | Terminal | Switches [broadcast mode](terminal.md#broadcast-mode) of the tab on or off and shows a check mark while it is on. Switching it on needs a second pane; switching it off always works, also when only one pane is left. |
+| **Duplicate** | Tabs | Opens a copy of the tab next to it and signs in like **Duplicate** in the tab's right-click menu. |
+| **Reconnect** | Tabs | Connects the tab again, like **Reconnect** in its right-click menu. |
+
+In any other kind of tab, such as a snippet editor, these rows are greyed out. **Find** is not listed a second time: type `find` for **Edit → Find…**, which opens the search of the focused pane.
 
 ## Switching tabs
 
@@ -68,6 +82,6 @@ Commands that cannot run right now are greyed out, such as **Unlock Vault…** w
 !!! note "Keys stay in the palette"
     While the palette is open, every key you press goes to the palette. ++ctrl+d++, ++ctrl+l++, ++page-up++ or a function key never reach the terminal behind it, nor the other panes in [broadcast mode](terminal.md#broadcast-mode), and closing the palette with its shortcut leaves no character in the terminal either.
 
-## Find on Windows and Linux
+## Clear Buffer and Find on Windows and Linux
 
-On Windows and Linux ++ctrl+f++ goes to the program in the terminal, so the terminal's search has no key of its own there. Open the palette and type `find` to reach **Edit → Find…** from the keyboard.
+On Windows and Linux ++ctrl+l++ and ++ctrl+f++ go to the program in the terminal, so the terminal's **Clear Buffer** and its search have no key of their own there. Open the palette and type `clear` for **Clear Buffer** or `find` for **Edit → Find…** to reach them from the keyboard.

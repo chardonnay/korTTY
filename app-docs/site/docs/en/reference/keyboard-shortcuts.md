@@ -6,7 +6,7 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 
 | Shortcut | Action |
 | --- | --- |
-| ++ctrl+shift+p++ | Open or close the [command palette](../features/command-palette.md) to find and run any menu command by name, [switch to an open tab](../features/command-palette.md#switching-tabs) or [connect to a saved connection](../features/command-palette.md#connecting) (also while a terminal has the focus) |
+| ++ctrl+shift+p++ | Open or close the [command palette](../features/command-palette.md) to find and run any menu command by name, run a [terminal or tab command](../features/command-palette.md#terminal-and-tab-commands) such as **Clear Buffer**, [switch to an open tab](../features/command-palette.md#switching-tabs) or [connect to a saved connection](../features/command-palette.md#connecting) (also while a terminal has the focus) |
 | ++ctrl+t++ | New Tab (Quick Connect) |
 | ++ctrl+w++ | Close Tab |
 | ++ctrl+alt+shift+t++ | Reopen the last closed terminal tab (also while a terminal has the focus) |
@@ -92,7 +92,7 @@ These keys work while a terminal pane has the focus. For how they behave with se
 
 On Windows and Linux, ++ctrl+1++ to ++ctrl+9++ no longer reach the program in the terminal: korTTY's terminal never sent them as keys of their own, so no program loses a binding it could receive.
 
-On Windows and Linux, **Clear Buffer** and **Find** have no key of their own, so ++ctrl+l++ and ++ctrl+f++ stay with the programs running in the terminal. Use right-click → **Clear Buffer** or **Find** in the terminal, **Edit → Find…** with the mouse, or reach **Find** from the keyboard through the [command palette](../features/command-palette.md#find-on-windows-and-linux): ++ctrl+shift+p++, type `find`, ++enter++. ++ctrl+shift+f++ stays Terminal-only Fullscreen and ++ctrl+shift+k++ still docks the file browser on the left. ++ctrl+shift+h++ switches keyword highlighting and does not reach the terminal, while plain ++ctrl+h++ still reaches the shell as backspace.
+On Windows and Linux, **Clear Buffer** and **Find** have no key of their own, so ++ctrl+l++ and ++ctrl+f++ stay with the programs running in the terminal. Use right-click → **Clear Buffer** or **Find** in the terminal, **Edit → Find…** with the mouse, or reach both from the keyboard through the [command palette](../features/command-palette.md#clear-buffer-and-find-on-windows-and-linux): ++ctrl+shift+p++, type `clear` or `find`, ++enter++. ++ctrl+shift+f++ stays Terminal-only Fullscreen and ++ctrl+shift+k++ still docks the file browser on the left. ++ctrl+shift+h++ switches keyword highlighting and does not reach the terminal, while plain ++ctrl+h++ still reaches the shell as backspace.
 
 The paste keys go through [paste protection](../features/terminal.md#paste-protection): a paste with line breaks, with control characters or of a large size can open a confirmation first. In that dialog **Cancel** is the default button, so ++enter++, ++space++ and ++esc++ drop the paste; click **Paste**, or press ++tab++ to reach it and ++space++ to press it. While a paste is sent line by line ([Pause after each pasted line](../features/terminal.md#pasting-into-slow-devices)), the pane takes no other keys and ++esc++ stops the paste.
 

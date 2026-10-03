@@ -242,7 +242,7 @@ pages:
     last_synced_ref: "f0767bfb"
   - path: app-docs/site/docs/en/features/command-palette.md
     owns_i18n: [palette.]
-    owns_code: [src/main/java/de/kortty/ui/actions, src/main/java/de/kortty/ui/CommandPalettePopup.java, src/main/java/de/kortty/ui/PaletteKeys.java, src/main/java/de/kortty/ui/QuickPickPopup.java, src/main/java/de/kortty/ui/QuickPickKeyFirewall.java, src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/ui/TabPaletteRows.java, src/main/java/de/kortty/ui/WindowRaiser.java, src/main/java/de/kortty/ui/ConnectionPaletteRows.java]
+    owns_code: [src/main/java/de/kortty/ui/actions, src/main/java/de/kortty/ui/CommandPalettePopup.java, src/main/java/de/kortty/ui/PaletteKeys.java, src/main/java/de/kortty/ui/QuickPickPopup.java, src/main/java/de/kortty/ui/QuickPickKeyFirewall.java, src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/ui/TabPaletteRows.java, src/main/java/de/kortty/ui/WindowRaiser.java, src/main/java/de/kortty/ui/ConnectionPaletteRows.java, src/main/java/de/kortty/ui/TerminalPaletteTarget.java]
     last_synced_ref: "f5cf36c3"
   - path: app-docs/site/docs/en/features/tunnels.md
     owns_i18n: [tunnel., connEdit.tab.tunnels, connEdit.enableTunnels, statusBar.tunnel]

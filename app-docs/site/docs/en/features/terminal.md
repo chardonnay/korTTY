@@ -62,7 +62,7 @@ When an **established** SSH connection is lost — network drop, VPN cut, server
 
 KorTTY notices a silent transport death within about ten seconds: every few seconds it sends an SSH liveness probe (a global request the server must answer, the same technique as OpenSSH's `ServerAliveInterval`) and treats two consecutive unanswered probes as a lost connection. The probe only arms itself after the server has answered once, so servers that never reply to such requests keep their sessions untouched. This is independent of the [SSH keep-alive](#ssh-keep-alive) heartbeat, which keeps idle connections open but does not detect a dead one.
 
-To pick the session back up in the same tab, double-click the red status bar or the red tab, or use **Reconnect** in the tab, terminal, or Dashboard context menu. In a split tab, panes whose connection died close individually; the last remaining pane keeps the tab open and carries the reconnect offer.
+To pick the session back up in the same tab, double-click the red status bar or the red tab, or use **Reconnect** in the tab, terminal, or Dashboard context menu or in the [command palette](command-palette.md#terminal-and-tab-commands). In a split tab, panes whose connection died close individually; the last remaining pane keeps the tab open and carries the reconnect offer.
 
 With **Automatically reconnect lost connections** enabled (**Settings → Terminal**, on by default), the tab reconnects on its own: attempts start after 3 seconds and back off through 5, 10, 20 and 30 seconds up to one attempt per minute, and the red status bar counts down to the next attempt. A successful reconnect, a manual reconnect, or closing the tab ends the automatic attempts. Permanent failures — authentication, host-key verification, configuration refusals — stop them too, so a wrong password is never hammered against the server. While a [session journal](session-journal.md) is running, its red decision bar takes precedence and no automatic attempt starts — the journal asks whether to reconnect and continue or to end with its closing summary. See [Settings → Terminal](../reference/settings/terminal.md) for the setting.
 
@@ -82,7 +82,7 @@ Right-click inside a terminal to open its context menu; in a split tab it acts o
 |-------|--------------|
 | **Copy** | Copies the selected text to the clipboard and keeps the selection. Greyed out while nothing is selected. |
 | **Paste** | Sends the clipboard text to the session, the same way the paste shortcut does (see [Pasting text](#pasting-text)). |
-| **Clear Buffer** | Clears the scrollback and the screen but keeps the prompt line. While a full-screen program such as `vim` or `less` is running, it does nothing. |
+| **Clear Buffer** | Clears the scrollback and the screen but keeps the prompt line. While a full-screen program such as `vim` or `less` is running, it does nothing. On Windows and Linux, where it has no key, the [command palette](command-palette.md#terminal-and-tab-commands) runs it from the keyboard for the focused pane. |
 | **Find** | Opens the find bar at the top right of the pane, the same as **Edit → Find...** (++ctrl+f++, ++cmd+f++ on macOS). Type to highlight matches, press ++enter++ or ++down++ for the next match and ++up++ for the previous one, and ++esc++ to close the bar. |
 
 Below them come the entries of other features, in this order and some only where they apply: **Show Menu Bar** (while the menu bar is hidden), **Open in Snippet Editor**, the **AI** submenu, the session-journal screenshot and note entries, **Theme**, **Highlighting** (see [Keyword highlighting](highlighting.md)), **Terminal Effect**, **Reconnect** and **Show Command Timestamps**. The **Extras** submenu at the end holds **Split Terminal**, **Font Size** (see [Font size and zoom](#font-size-and-zoom)) and **Broadcast Mode**.
@@ -205,7 +205,7 @@ Split the terminal view to display multiple connections side by side, and option
 
 ### Split operations
 
-- **Split Pane**: Create horizontal or vertical splits within a tab via the context menu or keyboard shortcuts.
+- **Split Pane**: Create horizontal or vertical splits within a tab via the context menu or keyboard shortcuts. **Split Right (same server)** and **Split Down (same server)** are also in the [command palette](command-palette.md#terminal-and-tab-commands), where they split the focused pane.
 - **Independent Sessions**: Each pane can show a different SSH connection.
 - **Resizable Panes**: Drag dividers to adjust pane sizes.
 - **Close Pane**: the × in a pane's top-right corner, *Extras → Split Terminal → Close Split* in its context menu, or `exit` in its shell closes that pane. The × shows only while the tab has more than one pane, and **Close Split** is disabled in the last one; typing `exit` in the last pane closes the tab.
@@ -215,7 +215,7 @@ Split the terminal view to display multiple connections side by side, and option
 
 ### Broadcast mode
 
-When **Broadcast Mode** is enabled, keyboard input is sent simultaneously to all visible panes. This is useful for running the same commands on multiple servers.
+When **Broadcast Mode** is enabled, keyboard input is sent simultaneously to all visible panes. This is useful for running the same commands on multiple servers. Switch it with **Extras → Broadcast Mode** in the terminal's right-click menu or with **Broadcast Mode** in the [command palette](command-palette.md#terminal-and-tab-commands); either needs a second pane to switch it on.
 
 - **Mirrored**: typed text, ++enter++, ++backspace++, ++esc++, ++tab++ and ++shift+tab++, the arrow keys, ++home++ / ++end++, ++page-up++ / ++page-down++, ++insert++ / ++delete++ and ++f1++ to ++f11++, including their ++shift++, ++ctrl++ and ++alt++ combinations (++f12++ toggles fullscreen).
 - **Encoded for each pane**: every pane receives a key the way its own program expects it. When one pane runs `mc` or `vim`, which switch the terminal to application cursor keys, its arrows arrive as `ESC O A` while a shell in the next pane gets `ESC [ A`, so history and completion work in both.

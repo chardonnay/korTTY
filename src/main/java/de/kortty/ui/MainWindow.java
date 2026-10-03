@@ -14,6 +14,7 @@ import de.kortty.ui.actions.MenuActionHarvester;
 import de.kortty.ui.actions.MenuStateRefresh;
 import de.kortty.ui.actions.TabMruTracker;
 import de.kortty.ui.actions.TabPaletteSource;
+import de.kortty.ui.actions.TerminalPaletteActions;
 import de.kortty.core.AgentDashboardStatus;
 import com.sithtermfx.ui.SithTermFxWidget;
 import de.kortty.codingagent.CodingAgentActionException;
@@ -2697,8 +2698,10 @@ public class MainWindow {
 
     /**
      * The actions of this window: every item of the in-window menu bar, harvested afresh each time
-     * the palette opens (the menus that are rebuilt while they open are excluded), and then the tab
-     * actions that have no menu item.
+     * the palette opens (the menus that are rebuilt while they open are excluded), then the tab
+     * actions that have no menu item, and then the right-click commands of the selected terminal tab
+     * (Clear Buffer, the same-server splits and Broadcast Mode of its focused pane, Duplicate and
+     * Reconnect), enabled only while a terminal tab is selected.
      */
     private ActionRegistry actionRegistry() {
         if (actionRegistry == null) {
@@ -2711,6 +2714,13 @@ public class MainWindow {
                     new KeyCodeCombination(KeyCode.TAB, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN),
                     this::selectPreviousTab));
             registry.addContributor(() -> tabActions);
+            List<KeyCombination> clearBufferChords =
+                TerminalView.clearBufferActionPresentation(isMacOs()).getKeyCombinations();
+            List<AppAction> terminalActions = TerminalPaletteActions.actions(
+                () -> tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab terminalTab
+                    ? new TerminalPaletteTarget(terminalTab, this::duplicateTab) : null,
+                I18n::get, clearBufferChords.isEmpty() ? null : clearBufferChords.get(0));
+            registry.addContributor(() -> terminalActions);
             actionRegistry = registry;
         }
         return actionRegistry;

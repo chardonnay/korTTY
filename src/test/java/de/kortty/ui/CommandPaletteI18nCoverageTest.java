@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.ui.actions.PaletteEntry;
+import de.kortty.ui.actions.TerminalPaletteActions;
 import org.testng.annotations.Test;
 
 import java.io.InputStream;
@@ -17,8 +18,9 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * Every command palette string exists, translated, in all eight bundles: the View menu item, the
- * palette's own texts, the kind badges, the tab actions, the notes on the tab rows and the texts of
- * the connection rows. Placeholders survive translation, and
+ * palette's own texts, the kind badges, the tab actions, the notes on the tab rows, the texts of
+ * the connection rows and the labels and categories of the terminal and tab commands. Placeholders
+ * survive translation, and
  * an apostrophe is written once, because LanguageManager fills {0} with String.replace rather than
  * MessageFormat. The helpers that build a row's texts are tried on the English bundle.
  */
@@ -37,12 +39,19 @@ class CommandPaletteI18nCoverageTest {
     private static final List<String> TAB_ACTION_KEYS = List.of(
         "palette.category.tab", "palette.action.nextTab", "palette.action.previousTab");
 
-    /** Words a language shares with English: "Tab" in German and Croatian, "Snippet" in German, Italian and Portuguese. */
+    /**
+     * Words a language shares with English: "Tab" in German and Croatian, "Snippet" in German, Italian
+     * and Portuguese, "Terminal" in every language but Italian.
+     */
     private static final Map<String, Set<String>> MAY_EQUAL_ENGLISH = Map.of(
-        "messages_de.properties", Set.of("palette.kind.tab", "palette.kind.snippet", "palette.category.tab"),
+        "messages_de.properties", Set.of("palette.kind.tab", "palette.kind.snippet", "palette.category.tab",
+            "palette.category.terminal"),
         "messages_it.properties", Set.of("palette.kind.snippet"),
-        "messages_pt.properties", Set.of("palette.kind.snippet"),
-        "messages_hr.properties", Set.of("palette.kind.tab"));
+        "messages_es.properties", Set.of("palette.category.terminal"),
+        "messages_pt.properties", Set.of("palette.kind.snippet", "palette.category.terminal"),
+        "messages_fr.properties", Set.of("palette.category.terminal"),
+        "messages_hr.properties", Set.of("palette.kind.tab", "palette.category.terminal"),
+        "messages_nl.properties", Set.of("palette.category.terminal"));
 
     private static List<String> keys() {
         List<String> keys = new ArrayList<>(List.of("menu.view.commandPalette"));
@@ -50,6 +59,7 @@ class CommandPaletteI18nCoverageTest {
         keys.addAll(TAB_ACTION_KEYS);
         keys.addAll(TabPaletteRows.KEYS);
         keys.addAll(ConnectionPaletteRows.KEYS);
+        keys.addAll(TerminalPaletteActions.KEYS);
         return keys;
     }
 
