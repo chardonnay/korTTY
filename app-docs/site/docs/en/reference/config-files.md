@@ -69,6 +69,7 @@ Contains all saved SSH connections with their settings.
 - Window geometry preferences
 - Group/folder organization
 - Optional free-text tag (used for search, bulk tagging and tag-based export)
+- Optional keyword highlighting rule set (`highlightRuleSetId`): the id of a built-in or your own rule set, `none` for no highlighting, or missing to follow the default rule set (see [Rule set per connection](../features/highlighting.md#rule-set-per-connection)). Connections from a [teamwork](../features/teamwork.md) file can carry it as well; the id of a rule set that does not exist on your computer is ignored.
 
 **Security:** Connection passwords are encrypted with AES-256-GCM using the master password.
 

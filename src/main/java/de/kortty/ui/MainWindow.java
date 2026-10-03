@@ -2094,6 +2094,23 @@ public class MainWindow {
         HighlightMenuSupport.syncToggle(systemHighlightingToggleMenuItem, state);
     }
 
+    /**
+     * After the Connection Manager saved: a connection's rule set may have changed, so every pane in every
+     * window that inherits from its connection moves to the set it resolves to now (the service is shared
+     * by all windows). A failure here must never break saving connections.
+     */
+    private void refreshHighlightingAfterConnectionsSaved() {
+        TerminalHighlightService service = app.getTerminalHighlightService();
+        if (service != null && !service.isClosed()) {
+            try {
+                service.refreshAll();
+            } catch (RuntimeException e) {
+                logger.warn("Keyword highlighting could not follow the saved connections: {}", e.toString());
+            }
+        }
+        syncHighlightingToggleItems();
+    }
+
     private Menu createTerminalEffectMenu(TerminalTab terminalTab) {
         return createTerminalEffectMenu(terminalTab, true);
     }
@@ -2960,6 +2977,7 @@ public class MainWindow {
      * Called when connections are saved in Connection Manager so changes take effect immediately.
      */
     private void refreshAllTerminalTabsConnectionSettings() {
+        refreshHighlightingAfterConnectionsSaved();
         boolean groupChanged = false;
         for (Tab tab : tabPane.getTabs()) {
             if (tab instanceof TerminalTab terminalTab) {

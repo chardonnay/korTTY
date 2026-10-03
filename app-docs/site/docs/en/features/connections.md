@@ -19,7 +19,7 @@ The connection editor has these tabs:
 | Tab | Contents |
 | --- | --- |
 | Connection | Host, port, username, protocol (SSH / Mosh / Local Shell), terminal emulation, **Character encoding** (use default / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), authentication (password / key / keyboard-interactive), **Host key verification** (use default / verify / don't verify), group/folder assignment and an optional free-text [tag](#tags). For **Local Shell** connections host, port, username and authentication are not required and are disabled. See [Character encoding](#character-encoding). |
-| Terminal Settings | Per-connection colors, font, ANSI/TrueColor handling, terminal effect |
+| Terminal Settings | Per-connection colors, font, ANSI/TrueColor handling, the **Terminal behavior** section with the [keyword highlighting](#keyword-highlighting) rule set, terminal effect |
 | SSH Tunnels | Local / remote / dynamic port forwarding |
 | Jump Server | Bastion-host chaining |
 | Terminal Logging | Writes this connection's terminal output to a file — folder, format, daily rotation, compression and retention. See [Terminal logging](terminal.md#terminal-logging). |
@@ -30,6 +30,10 @@ The connection editor has these tabs:
 ### Character encoding
 
 **Character encoding** sets how korTTY decodes what this connection's session prints and encodes what you type and paste, for servers whose programs still write ISO-8859-1, ISO-8859-15 or Windows-1252 instead of UTF-8. **Use default** follows [Settings → Terminal → Encoding](../reference/settings/terminal.md#notes) for SSH connections and means UTF-8 for local shells. Mosh only works with UTF-8, so the dropdown is locked for Mosh connections and a note beside it says so. The choice is stored with the connection, survives duplicating, exporting and importing, and applies the next time the tab connects or reconnects.
+
+### Keyword highlighting
+
+The **Terminal behavior** section of the *Terminal Settings* tab picks the [keyword highlighting](highlighting.md#rule-set-per-connection) rule set this connection's terminals show: **Use the default** follows the default rule set of *Settings → Terminal*, **None** keeps them plain, or pick a built-in set or one of your own, for example **Network devices** for switches. The section applies whether or not the connection uses its own terminal settings, and also while terminal effects are switched off. The choice is stored with the connection, survives duplicating, exporting and importing, and saving in the Connection Manager applies it to the connection's open terminals at once. A set chosen for a single pane in a menu or with ++ctrl+shift+h++ (++cmd+shift+h++ on macOS) still wins for that pane.
 
 ## Tags
 

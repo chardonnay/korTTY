@@ -14,8 +14,8 @@ import org.testng.annotations.Test;
 
 /**
  * Every keyword-highlighting string exists, translated, in all eight bundles: the built-in set names,
- * the validator's messages, the menu and status texts, the Settings → Terminal section and the rule-set
- * editor with its color names. Placeholders must survive translation, and
+ * the validator's messages, the menu and status texts, the Settings → Terminal section, the rule-set
+ * editor with its color names and the connection editor's rule-set dropdown. Placeholders must survive translation, and
  * an apostrophe is written once, because LanguageManager fills {0} with String.replace rather than
  * MessageFormat (a doubled apostrophe would show up doubled).
  */
@@ -64,6 +64,7 @@ class TerminalHighlightingI18nCoverageTest {
     private static List<String> translatedKeys() {
         List<String> keys = new ArrayList<>(MENU_KEYS);
         keys.addAll(HighlightSettingsSupport.KEYS);
+        keys.addAll(HighlightConnectionSupport.KEYS);
         keys.addAll(editorKeys());
         keys.removeAll(MAY_EQUAL_ENGLISH);
         return keys;
@@ -72,6 +73,7 @@ class TerminalHighlightingI18nCoverageTest {
     private static List<String> requiredKeys() {
         List<String> keys = new ArrayList<>(MENU_KEYS);
         keys.addAll(HighlightSettingsSupport.KEYS);
+        keys.addAll(HighlightConnectionSupport.KEYS);
         keys.addAll(editorKeys());
         for (String id : HighlightBuiltinSets.IDS) {
             keys.add(HighlightBuiltinSets.nameKey(id));
@@ -97,7 +99,8 @@ class TerminalHighlightingI18nCoverageTest {
     void placeholdersSurviveTranslation() throws Exception {
         List<String> withArgument = new ArrayList<>(List.of(HighlightMenuSupport.STATUS_ON_KEY,
             HighlightSettingsSupport.DEFAULT_SET_UNKNOWN_KEY, HighlightRulesDialog.PREVIEW_TRUNCATED_KEY,
-            HighlightRulesEditorModel.COPY_NAME_KEY, HighlightColorChoices.BRIGHT_KEY));
+            HighlightRulesEditorModel.COPY_NAME_KEY, HighlightColorChoices.BRIGHT_KEY,
+            HighlightConnectionSupport.DEFAULT_KEY, HighlightConnectionSupport.UNKNOWN_KEY));
         for (String key : HighlightRuleValidator.MESSAGE_KEYS) {
             if (HighlightRuleValidator.messageArguments(key).length > 0) {
                 withArgument.add(key);

@@ -223,7 +223,7 @@ pages:
     last_synced_ref: "a4a2351c"
   # ---- Features --------------------------------------------------------------
   - path: app-docs/site/docs/en/features/connections.md
-    owns_i18n: [menu.connections., connEdit.tag, connEdit.encoding, connManager.assignTag, connManager.removeTag, connExport.selection, quickConnect.tag]
+    owns_i18n: [menu.connections., connEdit.tag, connEdit.encoding, connEdit.terminalBehavior, connManager.assignTag, connManager.removeTag, connExport.selection, quickConnect.tag]
     owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/ConnectionManagerTreeView.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/ui/QuickConnectDialog.java, src/main/java/de/kortty/core/LocalShellTtyConnector.java, src/main/java/de/kortty/core/SshTtyConnector.java, src/main/java/de/kortty/core/SFTPSession.java, src/main/java/de/kortty/core/SshHostKeyTrustManager.java, src/main/java/de/kortty/core/TerminalEncodingSupport.java, src/main/java/de/kortty/ui/KnownHostsDialog.java, src/main/java/de/kortty/platform/FlatpakSupport.java]
     diagrams: [connection-flow.svg, jump-server-flow.svg]
     last_synced_ref: "ab5f2d9d"
@@ -233,8 +233,8 @@ pages:
     diagrams: [session-lifecycle.svg]
     last_synced_ref: "53a0d88a"
   - path: app-docs/site/docs/en/features/highlighting.md
-    owns_i18n: [highlight., menu.view.highlighting]
-    owns_code: [src/main/java/de/kortty/core/highlight, src/main/java/de/kortty/model/HighlightRule.java, src/main/java/de/kortty/model/HighlightRuleSet.java, src/main/java/de/kortty/ui/HighlightMenuSupport.java, src/main/java/de/kortty/ui/HighlightSettingsSupport.java, src/main/java/de/kortty/ui/HighlightRulesDialog.java, src/main/java/de/kortty/ui/HighlightRulesEditorModel.java, src/main/java/de/kortty/ui/HighlightColorChoices.java]
+    owns_i18n: [highlight., menu.view.highlighting, connEdit.highlighting]
+    owns_code: [src/main/java/de/kortty/core/highlight, src/main/java/de/kortty/model/HighlightRule.java, src/main/java/de/kortty/model/HighlightRuleSet.java, src/main/java/de/kortty/ui/HighlightMenuSupport.java, src/main/java/de/kortty/ui/HighlightSettingsSupport.java, src/main/java/de/kortty/ui/HighlightRulesDialog.java, src/main/java/de/kortty/ui/HighlightRulesEditorModel.java, src/main/java/de/kortty/ui/HighlightColorChoices.java, src/main/java/de/kortty/ui/HighlightConnectionSupport.java]
     screenshots:
       - highlighting/rules-dialog.png
     last_synced_ref: "f0767bfb"

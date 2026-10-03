@@ -4,6 +4,7 @@ import com.sithtermfx.core.model.TerminalTextBuffer;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.HighlightRule;
 import de.kortty.model.HighlightRuleSet;
+import de.kortty.model.ServerConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
@@ -69,6 +71,18 @@ public final class TerminalHighlightService implements AutoCloseable {
         default String connectionSetId() {
             return null;
         }
+    }
+
+    /** The level that decided which set a pane shows ({@link #decidingLevel}). */
+    public enum Level {
+        /** The pane's own runtime choice. */
+        PANE,
+        /** The connection's rule set ({@code ServerConnection.highlightRuleSetId}). */
+        CONNECTION,
+        /** The global default rule set. */
+        DEFAULT,
+        /** No level applies, or the master switch is off: the pane shows nothing. */
+        NONE
     }
 
     /** Everything resolution needs, swapped as one value on {@link #reload}. */
@@ -279,6 +293,25 @@ public final class TerminalHighlightService implements AutoCloseable {
             selection.paneOverride(), selection.connectionSetId(), current.defaultSetId());
     }
 
+    /**
+     * Which level decides what {@code selection} shows: the first one that names a known set or
+     * {@value #NONE_ID}, as {@link #resolveSetId(PaneSelection)} picks it; {@link Level#NONE} when no
+     * level applies or the master switch is off.
+     */
+    public Level decidingLevel(PaneSelection selection) {
+        Catalog current = catalog.get();
+        int index = selection == null
+            ? decidingIndex(current.enabled(), current.sets()::containsKey, null, null, current.defaultSetId())
+            : decidingIndex(current.enabled(), current.sets()::containsKey,
+                selection.paneOverride(), selection.connectionSetId(), current.defaultSetId());
+        return switch (index) {
+            case 0 -> Level.PANE;
+            case 1 -> Level.CONNECTION;
+            case 2 -> Level.DEFAULT;
+            default -> Level.NONE;
+        };
+    }
+
     /** The compiled set {@code selection} resolves to, {@link CompiledHighlightSet#NONE} for none. */
     public CompiledHighlightSet resolve(PaneSelection selection) {
         String id = resolveSetId(selection);
@@ -319,22 +352,54 @@ public final class TerminalHighlightService implements AutoCloseable {
      * @return the chosen id, or {@code null} for none
      */
     public static String resolveSetId(boolean enabled, Predicate<String> known, String... candidates) {
-        if (!enabled || candidates == null) {
+        int index = decidingIndex(enabled, known, candidates);
+        if (index < 0) {
             return null;
         }
-        for (String candidate : candidates) {
+        String id = candidates[index].trim();
+        return NONE_ID.equals(id) ? null : id;
+    }
+
+    /**
+     * The index of the candidate that decides: the first non-blank one that is {@value #NONE_ID} or a
+     * known id; {@code -1} when none does or {@code enabled} is false. Pure.
+     */
+    static int decidingIndex(boolean enabled, Predicate<String> known, String... candidates) {
+        if (!enabled || candidates == null) {
+            return -1;
+        }
+        for (int i = 0; i < candidates.length; i++) {
+            String candidate = candidates[i];
             if (candidate == null || candidate.isBlank()) {
                 continue;
             }
             String id = candidate.trim();
-            if (NONE_ID.equals(id)) {
-                return null;
-            }
-            if (known.test(id)) {
-                return id;
+            if (NONE_ID.equals(id) || known.test(id)) {
+                return i;
             }
         }
-        return null;
+        return -1;
+    }
+
+    /**
+     * The connection level of a pane: the rule set stored on the saved connection with the pane's
+     * connection id, so a choice changed in the Connection Manager reaches panes opened from a copy of it
+     * (Quick Connect, a teamwork default login); a connection that is not saved here (a teamwork
+     * connection, an unsaved Quick Connect session) uses its own. Pure.
+     *
+     * @param paneConnection the connection the pane's session was opened for, or {@code null}
+     * @param savedById looks a saved connection up by id; may be {@code null} or return {@code null}
+     * @return a set id, {@value #NONE_ID}, or {@code null} to inherit the global default
+     */
+    public static String connectionSetId(ServerConnection paneConnection,
+                                         Function<String, ServerConnection> savedById) {
+        if (paneConnection == null) {
+            return null;
+        }
+        ServerConnection saved = paneConnection.getId() != null && savedById != null
+            ? savedById.apply(paneConnection.getId())
+            : null;
+        return (saved != null ? saved : paneConnection).getHighlightRuleSetId();
     }
 
     public boolean isClosed() {
@@ -356,6 +421,15 @@ public final class TerminalHighlightService implements AutoCloseable {
     @Override
     public void close() {
         stop();
+    }
+
+    /**
+     * Moves every pane to the set it resolves to now, after something outside the settings changed what
+     * a pane inherits — a connection's rule set saved in the Connection Manager. Panes whose set did not
+     * change keep their highlights. FX thread.
+     */
+    public void refreshAll() {
+        refreshAll(false);
     }
 
     /** Number of attached panes (a test probe). */

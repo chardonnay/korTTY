@@ -39,4 +39,15 @@ class HighlightTelemetryTest {
         assertThat(HighlightTelemetry.props(HighlightBuiltinSets.NETWORK, HighlightTelemetry.SOURCE_MENU))
             .containsExactly("set", "builtin.network", "source", "menu");
     }
+
+    @Test
+    void anInheritedSetReportsWhetherTheConnectionOrTheDefaultDecided() {
+        assertThat(HighlightTelemetry.inheritedSource(TerminalHighlightService.Level.CONNECTION))
+            .isEqualTo(HighlightTelemetry.SOURCE_CONNECTION);
+        assertThat(HighlightTelemetry.inheritedSource(TerminalHighlightService.Level.DEFAULT))
+            .isEqualTo(HighlightTelemetry.SOURCE_DEFAULT);
+        assertThat(HighlightTelemetry.inheritedSource(TerminalHighlightService.Level.NONE))
+            .isEqualTo(HighlightTelemetry.SOURCE_DEFAULT);
+        assertThat(HighlightTelemetry.SOURCE_CONNECTION).isEqualTo("connection");
+    }
 }

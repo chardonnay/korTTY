@@ -46,6 +46,14 @@ public final class HighlightTelemetry {
         return HighlightBuiltinSets.isBuiltin(id) ? id : SET_CUSTOM;
     }
 
+    /**
+     * The source of a set a pane shows without a choice of its own: {@value #SOURCE_CONNECTION} when the
+     * connection's rule set decided, otherwise {@value #SOURCE_DEFAULT}.
+     */
+    public static String inheritedSource(TerminalHighlightService.Level level) {
+        return level == TerminalHighlightService.Level.CONNECTION ? SOURCE_CONNECTION : SOURCE_DEFAULT;
+    }
+
     /** The props for a pane that now shows {@code shownSetId} ({@code null} = none) because of {@code source}. */
     public static Map<String, Object> props(String shownSetId, String source) {
         return Map.of(PROP_SET, setClass(shownSetId), PROP_SOURCE, source);

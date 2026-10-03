@@ -1220,7 +1220,11 @@ public class TerminalView extends BorderPane {
         setTerminalEffectPluginId(newWidget, effectId);
     }
 
-    /** New split panes inherit the source pane's runtime highlight choice (an inherited default needs nothing). */
+    /**
+     * New split panes inherit the source pane's runtime highlight choice. Without one, the pane follows
+     * its own connection, which is only known now: a split to another server was attached before its
+     * connector existed and so first resolved against the tab's connection.
+     */
     private void inheritHighlightOnSplit(SithTermFxWidget newWidget, SplitRequest request) {
         if (newWidget == null || request == null || request.getParentWidget() == null) {
             return;
@@ -1228,6 +1232,8 @@ public class TerminalView extends BorderPane {
         String choice = paneHighlightOverride.get(request.getParentWidget());
         if (choice != null) {
             setPaneHighlightOverride(newWidget, choice);
+        } else {
+            refreshInheritedHighlightSet(newWidget);
         }
     }
 
@@ -3682,7 +3688,7 @@ public class TerminalView extends BorderPane {
             terminalHighlighters.computeIfAbsent(widget, pane -> {
                 com.sithtermfx.ui.TerminalPanel panel = pane.getTerminalPanel();
                 TerminalOutputHighlighter highlighter = service.attach(pane.getTerminalTextBuffer(),
-                    () -> paneHighlightOverride.get(pane),
+                    highlightSelection(pane),
                     panel != null ? panel::repaint : () -> { },
                     () -> recordRestyledTerminalRecordingSnapshot(pane),
                     () -> panel != null && panel.getFindResult() != null);
@@ -3698,15 +3704,107 @@ public class TerminalView extends BorderPane {
     }
 
     /**
-     * A new pane that starts out showing a set got it from the global default (it has no choice of its
-     * own yet), which counts as one activation for the anonymous statistics: class and source only.
+     * A new pane that starts out showing a set got it from its connection or the global default (it has
+     * no choice of its own yet), which counts as one activation for the anonymous statistics: class and
+     * source only.
      */
     private void reportInheritedHighlightSet(TerminalHighlightService service, SithTermFxWidget pane) {
-        String shown = service.resolveSetId(() -> paneHighlightOverride.get(pane));
+        TerminalHighlightService.PaneSelection selection = highlightSelection(pane);
+        String shown = service.resolveSetId(selection);
         if (shown != null) {
             de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.TERMINAL_HIGHLIGHT_APPLIED,
-                HighlightTelemetry.props(shown, HighlightTelemetry.SOURCE_DEFAULT));
+                HighlightTelemetry.props(shown, HighlightTelemetry.inheritedSource(service.decidingLevel(selection))));
         }
+    }
+
+    /**
+     * Moves a pane without a choice of its own to the set it inherits now, and reports it once when that
+     * changed what the pane shows (a split to a server whose connection has a set of its own).
+     */
+    private void refreshInheritedHighlightSet(SithTermFxWidget pane) {
+        TerminalHighlightService service = terminalHighlightService();
+        TerminalOutputHighlighter highlighter = terminalHighlighters.get(pane);
+        if (service == null || service.isClosed() || highlighter == null) {
+            return;
+        }
+        try {
+            String before = highlighter.ruleSet().setId();
+            service.refresh(highlighter);
+            if (!Objects.equals(before, highlighter.ruleSet().setId())) {
+                reportInheritedHighlightSet(service, pane);
+            }
+        } catch (RuntimeException e) {
+            logger.warn("Keyword highlighting could not follow a new pane's connection: {}", e.toString());
+        }
+    }
+
+    /**
+     * Where a pane's choice of rule set comes from: its runtime choice, then its connection. Read on the
+     * FX thread whenever the pane's set is resolved.
+     */
+    private TerminalHighlightService.PaneSelection highlightSelection(SithTermFxWidget pane) {
+        return new TerminalHighlightService.PaneSelection() {
+            @Override
+            public String paneOverride() {
+                return paneHighlightOverride.get(pane);
+            }
+
+            @Override
+            public String connectionSetId() {
+                return connectionHighlightSetId(pane);
+            }
+        };
+    }
+
+    /** The pane's connection level alone, as if the pane had no runtime choice. */
+    private TerminalHighlightService.PaneSelection inheritedHighlightSelection(SithTermFxWidget pane) {
+        return new TerminalHighlightService.PaneSelection() {
+            @Override
+            public String paneOverride() {
+                return null;
+            }
+
+            @Override
+            public String connectionSetId() {
+                return connectionHighlightSetId(pane);
+            }
+        };
+    }
+
+    /**
+     * The rule set of the pane's connection, preferring the saved connection with the same id so a change
+     * saved in the Connection Manager applies to open panes (see
+     * {@link TerminalHighlightService#connectionSetId}).
+     */
+    private @Nullable String connectionHighlightSetId(SithTermFxWidget pane) {
+        ServerConnection paneConnection = highlightConnectionOf(pane);
+        try {
+            KorTTYApplication app = KorTTYApplication.getInstance();
+            de.kortty.core.ConfigurationManager configManager = app != null ? app.getConfigManager() : null;
+            return TerminalHighlightService.connectionSetId(paneConnection,
+                configManager != null ? configManager::getConnectionById : null);
+        } catch (RuntimeException e) {
+            return paneConnection != null ? paneConnection.getHighlightRuleSetId() : null;
+        }
+    }
+
+    /**
+     * The connection a pane's session was opened for: a split to another server has its own, every
+     * other pane (and one whose connector is not there yet) belongs to the tab's connection.
+     */
+    private ServerConnection highlightConnectionOf(@Nullable SithTermFxWidget pane) {
+        TtyConnector connector = pane != null ? unwrapTerminalEffectConnector(pane.getTtyConnector()) : null;
+        ServerConnection paneConnection = null;
+        if (connector instanceof SshTtyConnector ssh) {
+            paneConnection = ssh.getConnection();
+        } else if (connector instanceof Mosh4jTtyConnector mosh) {
+            paneConnection = mosh.getConnection();
+        } else if (connector instanceof NativeMoshTtyConnector nativeMosh) {
+            paneConnection = nativeMosh.getConnection();
+        } else if (connector instanceof LocalShellTtyConnector local) {
+            paneConnection = local.getConnection();
+        }
+        return paneConnection != null ? paneConnection : connection;
     }
 
     /**
@@ -3782,16 +3880,19 @@ public class TerminalView extends BorderPane {
         if (pane == null || service == null) {
             return null;
         }
-        return service.resolveSetId(() -> paneHighlightOverride.get(pane));
+        return service.resolveSetId(highlightSelection(pane));
     }
 
-    /** The id of the rule set the pane would show without a runtime choice of its own, or {@code null}. */
+    /**
+     * The id of the rule set the pane would show without a runtime choice of its own — its connection's,
+     * else the global default — or {@code null}.
+     */
     private @Nullable String getInheritedHighlightSetId(@Nullable SithTermFxWidget pane) {
         TerminalHighlightService service = terminalHighlightService();
         if (pane == null || service == null) {
             return null;
         }
-        return service.resolveSetId(() -> null);
+        return service.resolveSetId(inheritedHighlightSelection(pane));
     }
 
     /** Keeps the set the pane shows now as the one the toggle switches back on. */

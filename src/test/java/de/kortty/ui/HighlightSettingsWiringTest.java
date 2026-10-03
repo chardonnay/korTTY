@@ -79,13 +79,14 @@ class HighlightSettingsWiringTest {
     }
 
     @Test
-    void aNewPaneOnTheDefaultSetReportsTheDefaultSource() throws IOException {
+    void aNewPaneOnAnInheritedSetReportsTheDefaultOrConnectionSource() throws IOException {
         String view = source("TerminalView.java");
         String attach = region(view, "private void attachTerminalHighlighter(SithTermFxWidget widget) {", "\n    }\n");
         String report = region(view, "private void reportInheritedHighlightSet(", "\n    }\n");
 
         assertThat(attach).contains("reportInheritedHighlightSet(service, widget);");
-        assertThat(report).contains("HighlightTelemetry.props(shown, HighlightTelemetry.SOURCE_DEFAULT)");
+        assertThat(report).contains(
+            "HighlightTelemetry.props(shown, HighlightTelemetry.inheritedSource(service.decidingLevel(selection)))");
         assertWithMessage("a pane that starts without highlighting is no activation").that(report)
             .contains("if (shown != null) {");
     }

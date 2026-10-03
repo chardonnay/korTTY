@@ -113,6 +113,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private CheckBox terminalColorsEnabledCheck;
     private CheckBox closeWithoutConfirmCheck;
     private CheckBox commandTimestampsCheck;
+    /** "Terminal behavior" section: the keyword highlighting rule set of this connection's panes. */
+    private ComboBox<HighlightConnectionSupport.Choice> highlightRuleSetCombo;
     private ComboBox<TerminalEffectUiSupport.Option> terminalEffectCombo;
     private TerminalEffectUiSupport.AnimationSpeedControls terminalEffectSpeedControls;
     
@@ -695,6 +697,9 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                     connection.setSettings(null); // Use global settings
                 }
                 saveTerminalEffectSettings();
+                if (highlightRuleSetCombo != null) {
+                    connection.setHighlightRuleSetId(HighlightConnectionSupport.storedValue(highlightRuleSetCombo.getValue()));
+                }
                 
                 // Store the edited tunnels; an open tab of this connection applies them when the
                 // connection manager has saved (MainWindow#refreshAllTerminalTabsConnectionSettings).
@@ -1310,11 +1315,17 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
         Label terminalEffectLabel = new Label(I18n.get("connection.terminalEffect"));
         terminalEffectLabel.setStyle("-fx-font-weight: bold;");
+
+        Label terminalBehaviorLabel = new Label(I18n.get(HighlightConnectionSupport.SECTION_KEY));
+        terminalBehaviorLabel.setStyle("-fx-font-weight: bold;");
         
         vbox.getChildren().addAll(
                 useCustomSettingsCheck,
                 new Label(I18n.get("connEdit.customSettingsInfo")),
-                settingsGrid
+                settingsGrid,
+                new Separator(),
+                terminalBehaviorLabel,
+                createTerminalBehaviorGrid()
         );
         if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
             vbox.getChildren().addAll(
@@ -1326,6 +1337,59 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         
         tab.setContent(vbox);
         return tab;
+    }
+
+    /**
+     * The "Terminal behavior" section: settings of the connection's terminals that apply whether or not
+     * the connection uses its own terminal settings, and also while terminal effects are switched off.
+     * Holds the keyword highlighting rule set of the connection's panes.
+     */
+    private GridPane createTerminalBehaviorGrid() {
+        de.kortty.core.highlight.TerminalHighlightService service = terminalHighlightService();
+        String storedDefault = null;
+        try {
+            GlobalSettings globalSettings = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+            storedDefault = globalSettings != null ? globalSettings.getDefaultHighlightRuleSetId() : null;
+        } catch (RuntimeException e) {
+            // No settings (a test or capture stage): the default entry then names no set.
+        }
+        java.util.List<HighlightConnectionSupport.Choice> choices = HighlightConnectionSupport.choices(
+                HighlightSettingsSupport.selectableSetIds(service),
+                service != null && !service.isClosed() ? service::userSetName : null,
+                HighlightConnectionSupport.defaultSetId(storedDefault, HighlightConnectionSupport.knownSets(service)),
+                connection.getHighlightRuleSetId());
+        highlightRuleSetCombo = new ComboBox<>();
+        highlightRuleSetCombo.getItems().setAll(choices);
+        highlightRuleSetCombo.setValue(HighlightConnectionSupport.selected(choices, connection.getHighlightRuleSetId()));
+        highlightRuleSetCombo.setPrefWidth(280);
+        highlightRuleSetCombo.setTooltip(new Tooltip(I18n.get(HighlightConnectionSupport.TOOLTIP_KEY)));
+
+        Label highlightLabel = new Label(I18n.get(HighlightConnectionSupport.LABEL_KEY));
+        highlightLabel.setTooltip(new Tooltip(I18n.get(HighlightConnectionSupport.TOOLTIP_KEY)));
+        highlightLabel.setLabelFor(highlightRuleSetCombo);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(10));
+        grid.add(highlightLabel, 0, 0);
+        grid.add(highlightRuleSetCombo, 1, 0);
+        if (service != null && !service.isClosed() && !service.isEnabled()) {
+            Label disabledHint = new Label(I18n.get(HighlightConnectionSupport.DISABLED_KEY));
+            disabledHint.setWrapText(true);
+            disabledHint.setMaxWidth(520);
+            grid.add(disabledHint, 0, 1, 2, 1);
+        }
+        return grid;
+    }
+
+    private static de.kortty.core.highlight.TerminalHighlightService terminalHighlightService() {
+        try {
+            de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+            return app != null ? app.getTerminalHighlightService() : null;
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     private void updateTerminalEffectSpeedState() {
