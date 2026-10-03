@@ -66,6 +66,8 @@ public class TerminalTab extends Tab {
     private Instant connectionStartTime;
     private Timeline statusBarTimer;
     private Label statusBarLabel;
+    /** Tooltip text last put on the status bar for the tab's SSH tunnels; FX thread only. */
+    private String statusBarTunnelTooltip;
     private Label disconnectedStatusBar;
     private HBox recordingBar;
     private Button recordingToggleButton;
@@ -1104,11 +1106,26 @@ public class TerminalTab extends Tab {
             }
             status.append(I18n.get("statusBar.networkInterruptedSinceElapsed", since, elapsed));
         }
+
+        List<de.kortty.core.SshTunnelManager.TunnelStatus> tunnelStatuses = terminalView.getTunnelStatuses();
+        String tunnelSummary = TunnelStatusSupport.statusBarSummary(tunnelStatuses);
+        if (tunnelSummary != null) {
+            if (status.length() > 0) {
+                status.append(" | ");
+            }
+            status.append(tunnelSummary);
+        }
+        final String tunnelTooltip = TunnelStatusSupport.tooltip(tunnelStatuses);
         
         final boolean wasInterrupted = interrupted;
         final long interruptedMs = interruptedSinceMs;
         Platform.runLater(() -> {
             statusBarLabel.setText(status.toString());
+            if (!java.util.Objects.equals(tunnelTooltip, statusBarTunnelTooltip)) {
+                // Replaced only when the text changes: the bar refreshes every second.
+                statusBarTunnelTooltip = tunnelTooltip;
+                statusBarLabel.setTooltip(tunnelTooltip != null ? new Tooltip(tunnelTooltip) : null);
+            }
             if (wasInterrupted) {
                 statusBarLabel.setStyle("-fx-background-color: #8B0000; -fx-text-fill: white; -fx-padding: 3 8 3 8; -fx-font-size: 0.8462em;");
                 if (!isConnectionFailed) {

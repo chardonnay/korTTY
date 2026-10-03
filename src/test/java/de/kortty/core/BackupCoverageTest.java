@@ -74,7 +74,9 @@ class BackupCoverageTest {
         Map.entry("GitTeamworkAdapter.CONNECTIONS_FILENAME_LEGACY", "inside the teamwork repository"),
         Map.entry("TeamworkCacheRepository.CACHE_FILE", "re-synced from the teamwork repository"),
         Map.entry("TeamworkRecycleBinService.RECYCLE_FILE", "teamwork state, re-synced"),
-        Map.entry("TelemetryService.SPOOL_FILE", "unsent telemetry spool"));
+        Map.entry("TelemetryService.SPOOL_FILE", "unsent telemetry spool"),
+        Map.entry("SshTunnelApprovals.STORE_FILE_NAME",
+            "per-device consent: after a restore, tunnels ask once more before they listen"));
 
     /** Files in ~/.kortty that must never end up in a backup archive. */
     private static final List<String> NEVER_BACKED_UP = List.of(

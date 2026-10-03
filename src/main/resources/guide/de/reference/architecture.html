@@ -949,6 +949,14 @@
 <td>Live-Liste der offenen SSH- und Mosh-Terminalverbindungen (eine pro Panel), gelesen vom JMX-MBean</td>
 </tr>
 <tr>
+<td><code>SshTunnelManager</code></td>
+<td>Die SSH-Tunnel (<code>-L</code>, <code>-R</code>, <code>-D</code>) eines Terminal-Tabs: werden nach dem Login in der ersten SSH-Sitzung des Tabs geöffnet, vor einer Wiederverbindung gestoppt und danach wieder geöffnet, in ein anderes Paneel desselben Servers verschoben, wenn dieses Paneel geschlossen wird; geteilte Paneele öffnen nie ihre eigenen</td>
+</tr>
+<tr>
+<td><code>SshTunnelApprovals</code></td>
+<td>Einmalige Bestätigung pro Verbindung und Tunnel-Set vor dem Öffnen der Tunnel, gespeichert als Fingerabdruck in <code>ssh-tunnel-approvals.properties</code></td>
+</tr>
+<tr>
 <td><code>SshHostKeyTrustManager</code></td>
 <td>Gibt normalisierte Host:Port-TOFU-Pins über interaktive Terminal-, SFTP- und Mosh-Bootstrap-Verbindungen mit atomarer, prozessübergreifender Persistenz frei</td>
 </tr>

@@ -32,6 +32,7 @@ KorTTY stores all application data and configuration under the `~/.kortty/` dire
 ├── job-scheduler.xml                  # JobScheduler jobs, host-key pins, sudo secrets, journal
 ├── ssh-host-keys.properties           # Interactive Terminal/SFTP/Mosh host-key pins
 ├── ssh-host-keys.properties.lock      # Transient cross-process writer lock (not backed up)
+├── ssh-tunnel-approvals.properties    # SSH tunnel sets you allowed to open, per connection (not backed up)
 ├── master.key                         # Hashed master password (PBKDF2)
 ├── master.autounlock                  # Optional auto-login password (obfuscated; owner-only)
 ├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
@@ -104,6 +105,10 @@ Manages centralized SSH key storage.
 The versioned trust-on-first-use store for interactive Terminal and SFTP connections and the SSH bootstrap used by Mosh. Entries are keyed by normalized host name and port and contain the public-key algorithm, OpenSSH SHA-256 fingerprint, OpenSSH public-key line, and trust timestamp. A matching key is accepted silently after first-use confirmation; a changed key is hard-blocked and is not replaced automatically. Entries are replaced through **Review and Replace…** in the changed-key alert and removed under **Configuration → Security → Known Hosts…**; removing the last entry deletes the file, which counts as an empty store. When host-key verification is relaxed to accept-new for a connection, an unknown key is pinned without the confirmation prompt — a changed key is still refused in both modes.
 
 Writes use a temporary file plus atomic replacement, while `ssh-host-keys.properties.lock` coordinates separate korTTY processes so their pins are merged safely. The properties file is included in encrypted backups; the transient lock file is not. This endpoint-based store is separate from the JobScheduler host-key pins in `job-scheduler.xml`, which are keyed by connection ID for unattended operations.
+
+### ssh-tunnel-approvals.properties
+
+Remembers which [SSH tunnels](../features/tunnels.md) you allowed korTTY to open: one entry per connection ID with a SHA-256 fingerprint of the server, of whether the connection is your own or shared (Teamwork), and of the enabled tunnels. When a connection's tunnels or its server change, the fingerprint no longer matches and korTTY asks again before it opens them. The file is not part of a backup, so a restored or migrated configuration asks once more; deleting it has the same effect.
 
 ### gpg-keys.xml
 Stores GPG key information for backup encryption.

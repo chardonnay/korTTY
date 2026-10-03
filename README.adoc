@@ -67,7 +67,7 @@ image::app-docs/diagrams/architecture.svg[KorTTY architecture,align=center]
 * *AI Swarm Extras*: Copy or export the swarm conversation (Plain/Markdown/PDF), save swarm chats to their own AI-Manager section, run SnippetManager scripts with parameters on all targets without AI (Base64 transfer, single confirmation, per-server exit/output table), generate hardened multi-server workflow scripts (syntax highlighting, live runtime display, instruction history, save-as-snippet), and schedule swarm runs as *AI_SWARM* JobScheduler jobs with parallelism and read-only controls whose results land in the journal and a saved swarm chat
 * *AI Internet Modes*: Per AI profile, choose `Disabled`, direct `KorTTY Tavily Tool`, `LM Studio Tavily MCP`, `Bright Data Web MCP`, `Brave Search MCP`, `SearXNG MCP`, or `LM Studio Toolpack`. Direct web tools use hard timeouts and return structured errors instead of silently inventing web facts
 * *Quick Connect*: Fast connection dialog with frequently used connections and group support
-* *SSH Tunnels*: Local and remote port forwarding (SSH tunnels)
+* *SSH Tunnels*: Local, remote and dynamic (SOCKS) port forwarding, opened once per terminal tab
 * *Jump Server*: Support for bastion hosts (SSH hopping)
 * *Terminal Logging*: Automatic logging of terminal sessions
 * *Terminal Recording*: Enable terminal recording for the current app session in *Tools → Video Manager* or permanently in *Settings → Video*, then start and stop lightweight per-tab terminal replay recordings from the terminal bar, *Tools → Start/Stop Terminal Recording*, or *Ctrl/Cmd+Shift+E*. Multiple recording segments in one tab are appended to one JDK/GZIP streaming-compressed `.korttyrec.jsonl.gz` session file until the tab closes; legacy `.korttyrec.jsonl` replays remain readable. Replays can optionally store terminal color runs, preserve recorded terminal geometry for export, and be viewed with timeline/time-jump seeking, 1x-20x playback speed, renamed, or deleted in the Video Manager. Optional timestamp-based WebM/VP9 or MKV/FFV1 export is available with range/color options, CPU-parallel frame rendering, progress, and remaining-time feedback when `ffmpeg` is configured or found on `PATH`; no live/network streaming is implemented.
@@ -698,15 +698,17 @@ KorTTY supports SSH port forwarding for secure tunneling:
 
 * *Local Port Forwarding*: Forward local ports to remote hosts (`-L`)
 * *Remote Port Forwarding*: Forward remote ports to local hosts (`-R`)
+* *Dynamic Port Forwarding*: A SOCKS proxy on a local port (`-D`)
 * *Multiple Tunnels*: Configure multiple tunnels per connection
 * *Enable/Disable*: Toggle tunnels on/off without deleting configuration
+* *Status Bar*: The tab's status bar shows how many tunnels are active and why one failed
 
 === Usage
 
 1. *Configure Tunnel*:
-** When creating/editing a connection, go to "Tunnels" tab
-** Click "Add Tunnel"
-** Select tunnel type (Local or Remote)
+** When creating/editing a connection, go to the "SSH Tunnels" tab
+** Click "Add"
+** Select the tunnel type (Local, Remote or Dynamic)
 ** Enter local host/port and remote host/port
 ** Add optional description
 ** Enable/disable the tunnel as needed
@@ -717,9 +719,16 @@ KorTTY supports SSH port forwarding for secure tunneling:
 ** Access `localhost:8080` to reach `remote-server:80` through the SSH tunnel
 
 3. *Remote Port Forwarding*:
-** Forwards a remote port to a local host:port
-** Example: `remote-server:8080 → localhost:80`
-** Access `remote-server:8080` to reach `localhost:80` through the SSH tunnel
+** The SSH server listens on remote host:port and forwards each connection to a local host:port
+** Example: `localhost:8080` on the server `→ localhost:80` on your computer
+** Programs on the SSH server reach your `localhost:80` at `localhost:8080`; the server listens on its loopback address unless you enter another remote host
+
+4. *When tunnels open*:
+** Once per terminal tab, right after login; split panes do not open them again
+** korTTY asks once per connection before it opens its tunnels, and again when they change
+** Reconnects close and reopen them; closing the tab closes them
+** Shared (Teamwork) connections never open remote tunnels and only listen on `localhost`
+** The policy key `allow-port-forwarding = false` forbids tunnels altogether
 
 == Jump Server (Bastion Host)
 

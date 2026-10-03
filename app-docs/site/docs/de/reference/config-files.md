@@ -32,6 +32,7 @@ KorTTY speichert alle Anwendungsdaten und Konfigurationen im Verzeichnis `~/.kor
 ├── job-scheduler.xml                  # JobScheduler jobs, host-key pins, sudo secrets, journal
 ├── ssh-host-keys.properties           # Interactive Terminal/SFTP/Mosh host-key pins
 ├── ssh-host-keys.properties.lock      # Transient cross-process writer lock (not backed up)
+├── ssh-tunnel-approvals.properties    # SSH tunnel sets you allowed to open, per connection (not backed up)
 ├── master.key                         # Hashed master password (PBKDF2)
 ├── master.autounlock                  # Optional auto-login password (obfuscated; owner-only)
 ├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
@@ -104,6 +105,10 @@ Verwaltet die zentrale SSH-Schlüsselspeicherung.
 Der versionierte Trust-on-First-Use-Speicher für interaktive Terminal- und SFTP-Verbindungen sowie das SSH-Bootstrap, das von Mosh verwendet wird. Die Einträge sind nach normalisiertem Hostnamen und Port indexiert und enthalten den Public-Key-Algorithmus, den OpenSSH-SHA-256-Fingerabdruck, die OpenSSH-Public-Key-Zeile und den Trust-Zeitstempel. Ein passender Schlüssel wird nach der Bestätigung bei der ersten Verwendung stillschweigend akzeptiert; ein geänderter Schlüssel wird hart blockiert und nicht automatisch ersetzt. Einträge werden über **Prüfen und ersetzen…** in der Warnung zum geänderten Schlüssel ersetzt und unter **Konfiguration → Sicherheit → Bekannte Hosts…** entfernt; das Entfernen des letzten Eintrags löscht die Datei, was als leerer Wissensspeicher gilt. Wenn die Host-Key-Verifikation auf "accept-new" für eine Verbindung gelockert wird, wird ein unbekannter Schlüssel ohne Bestätigungsprompt festgehalten – ein geänderter Schlüssel wird in beiden Modi weiterhin abgelehnt.
 
 Schreibvorgänge verwenden eine temporäre Datei plus atomare Ersetzung, während `ssh-host-keys.properties.lock` separate korTTY-Prozesse koordiniert, sodass ihre Pins sicher zusammengeführt werden. Die Eigenschaftendatei ist in verschlüsselten Backups enthalten; die vorübergehende Sperrdatei ist es nicht. Dieser endpunktbasierte Speicher ist von den JobScheduler-Hostschlüssel-Pins in `job-scheduler.xml` getrennt, die für unbeaufsichtigte Vorgänge nach Verbindungs-ID kodiert sind.
+
+### ssh-tunnel-approvals.properties
+
+Erinnert sich daran, welche [SSH-Tunnel](../features/tunnels.md) korTTY öffnen darf: ein Eintrag pro Verbindungs-ID mit einem SHA-256-Fingerabdruck des Servers, ob die Verbindung Ihre eigene oder geteilt (Teamwork) ist und welche Tunnel aktiviert sind. Wenn sich bei einer Verbindung die Tunnel oder der Server ändern, stimmt der Fingerabdruck nicht mehr überein und korTTY fragt erneut, bevor sie geöffnet werden. Die Datei ist kein Teil eines Backups, daher wird eine wiederhergestellte oder migrierte Konfiguration erneut gefragt; das Löschen hat denselben Effekt.
 
 ### gpg-keys.xml
 Speichert GPG-Schlüsselinformationen für die Backup-Verschlüsselung.

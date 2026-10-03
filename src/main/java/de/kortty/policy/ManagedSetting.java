@@ -13,6 +13,7 @@ public enum ManagedSetting {
     UPDATES,
     TELEMETRY,
     TERMINAL_RECORDING,
+    PORT_FORWARDING,
     MASTER_PASSWORD,
     HOST_KEY_CHECK,
     SCRIPT_HEADERS,

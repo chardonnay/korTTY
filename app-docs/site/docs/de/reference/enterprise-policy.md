@@ -134,6 +134,7 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
 | `enforce-host-key-check` | boolean | `true` | SSH-Host-Key-Prüfung kann nirgendwo deaktiviert werden — global, pro Gruppe oder pro Verbindung — und vertrauenswürdige Host-Keys können in korTTY nicht entfernt oder ersetzt werden. |
 | `allow-telemetry` | boolean | `false` | Verbietet anonyme Nutzungsstatistiken |
 | `allow-terminal-recording` | boolean | `false` | Verbietet die Aufzeichnung von Terminalsitzungen, einschließlich der Umschaltung auf Sitzungsebene |
+| `allow-port-forwarding` | boolean | `false` | Öffnet niemals die [SSH-Tunnel](../features/tunnels.md), die auf Verbindungen (lokales, entferntes und dynamisches Port-Forwarding) konfiguriert sind; die Statusleiste des Tabs sagt, sie seien von Ihrer Organisation deaktiviert. Ein Jump-Server-Hop ist nicht betroffen |
 | `clipboard-mode` | Zeichenfolge | `system`, `internal` | `internal` beschränkt korTTY auf seine eigene Zwischenablage im Speicher – siehe unten |
 
 ### `[rule.teamwork]`, `[rule.snippets]`, `[rule.ai-profiles]`
