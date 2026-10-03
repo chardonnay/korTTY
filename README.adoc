@@ -337,11 +337,14 @@ For a local Intel release, run the build on an Intel Mac with an x86_64 JDK 25 a
 The SSH client registers a JMX MBean under `de.kortty:type=SSHClient`.
 
 Available attributes:
-* `ActiveConnectionCount`: Number of active connections
-* `UsedMemoryBytes`: Used memory
-* `BufferedTextSize`: Size of buffered terminal text
-* `ActiveConnectionNames`: List of active connection names
+
+* `ActiveConnectionCount`: Number of live SSH and Mosh terminal connections; every split pane on its own connection counts, local shells do not
+* `ActiveConnectionNames`: Display names of the live connections, one per connection
+* `ConnectionStatistics`: One line per live connection with its name, protocol (`SSH`, `MOSH` or `MOSH_CLIENT`) and connect time
+* `UsedMemoryBytes` / `MaxMemoryBytes`: Used and maximum JVM memory
 * `UptimeSeconds`: Application uptime
+* `Version`: Application version
+* `BufferedTextSize`: Not tracked, always 0 (deprecated; kept for existing JMX clients)
 
 To use JMX monitoring, start the application with JMX enabled. You can do this in either of the following ways:
 

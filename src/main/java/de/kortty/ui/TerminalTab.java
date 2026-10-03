@@ -1393,13 +1393,21 @@ public class TerminalTab extends Tab {
     
     /**
      * Closes the tab without confirmation dialog.
+     *
+     * <p>Releases the same resources as a user-initiated close: removing the tab programmatically
+     * fires no {@code onCloseRequest}/{@code onClosed}, so without {@link TerminalView#cleanup()}
+     * a split left as the last pane stayed counted as connected by power management and the JMX
+     * connection registry (splits have no disconnect listener; only a pane close reports them),
+     * a local shell closed with Ctrl+D kept running, and the status-bar timeline pinned the tab.
      */
     private void closeTabSilently() {
         TabPane tabPane = getTabPane();
         if (tabPane != null) {
             closeRecordingResources();
-            terminalView.stopSessionJournal();
             cancelAutoReconnectTimer();
+            // Idempotent; also stops the session journal and closes every pane's connector.
+            terminalView.cleanup();
+            stopStatusBarTimer();
             // Suppress QuickConnect if + tab might be selected after removal
             MainWindow.suppressNextQuickConnect();
             // Remove close request handler temporarily to avoid confirmation

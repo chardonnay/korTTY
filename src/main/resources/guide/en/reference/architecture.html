@@ -779,7 +779,7 @@
 <tr>
 <td><strong>core</strong></td>
 <td>SSH connectivity, shared interactive host-key trust, session management, AI integration, terminal automation</td>
-<td><code>SSHSession</code>, <code>SshHostKeyTrustManager</code>, <code>AiChatManager</code>, <code>TerminalAgentService</code>, <code>Mosh4jTtyConnector</code></td>
+<td><code>SshTtyConnector</code>, <code>SshHostKeyTrustManager</code>, <code>AiChatManager</code>, <code>TerminalAgentService</code>, <code>Mosh4jTtyConnector</code></td>
 </tr>
 <tr>
 <td><strong>ai</strong></td>
@@ -941,8 +941,12 @@
 </thead>
 <tbody>
 <tr>
-<td><code>SSHSession</code></td>
-<td>Wraps Apache SSHD client and manages connection lifecycle</td>
+<td><code>SshTtyConnector</code></td>
+<td>Apache SSHD terminal connection of one pane: jump host, authentication, shell channel and disconnect detection</td>
+</tr>
+<tr>
+<td><code>ActiveConnectionRegistry</code></td>
+<td>Live list of the open SSH and Mosh terminal connections (one per pane), read by the JMX MBean</td>
 </tr>
 <tr>
 <td><code>SshHostKeyTrustManager</code></td>
@@ -1354,7 +1358,7 @@
 </span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    ↓
 </span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>Shared host:port TOFU verification (Terminal/SFTP/Mosh bootstrap)
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    ↓
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>SSHSession (Apache SSHD or Mosh4j connector)
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>SshTtyConnector (Apache SSHD) or Mosh connector
 </span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    ↓
 </span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>Terminal Pane (SithTermFX rendering)
 </span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    ↓
@@ -1389,7 +1393,7 @@
 <h2 id="logging-and-diagnostics">Logging and Diagnostics<a class="headerlink" href="#logging-and-diagnostics" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Log file</strong>: <code>~/.kortty/kortty.log</code> (SLF4J with Logback backend)</li>
-<li><strong>JMX monitoring</strong>: MBean <code>de.kortty:type=SSHClient</code> exposes active connections, memory, buffered text size</li>
+<li><strong>JMX monitoring</strong>: MBean <code>de.kortty:type=SSHClient</code> exposes the live SSH and Mosh terminal connections (each split pane counts, local shells do not), memory and uptime; <code>BufferedTextSize</code> is not tracked and stays 0</li>
 <li><strong>JobScheduler journal</strong>: Detailed execution logs with configurable retention (14 days default, unlimited if set to 0)</li>
 <li><strong>Project screen snapshots</strong>: The last visible screen of each terminal tab of a saved project, gzip-compressed in <code>~/.kortty/history/</code> and shown locally (never sent to the server) when the project is reopened with Auto-Reconnect</li>
 <li><strong>Terminal recording</strong>: Optional replay files in <code>~/.kortty/recordings/</code></li>
@@ -1421,12 +1425,10 @@
 <h3 id="for-integrators">For Integrators<a class="headerlink" href="#for-integrators" title="Permanent link">&para;</a></h3>
 <ol>
 <li><strong>JAXB Repositories</strong>: Extend <code>XMLConnectionRepository</code> or <code>CredentialRepository</code> to add custom data sources</li>
-<li><strong>SSH Session Hooks</strong>: Subclass <code>SSHSession</code> to inject custom connection logic</li>
 <li><strong>JobScheduler Actions</strong>: Add new action types to <code>JobExecutor</code> (e.g., custom SFTP operations)</li>
 </ol>
 <h2 id="performance-considerations">Performance Considerations<a class="headerlink" href="#performance-considerations" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Session caching</strong>: Active SSH connections are cached to avoid reconnection overhead</li>
 <li><strong>Lazy loading</strong>: Connection details loaded on demand, not all at once</li>
 <li><strong>Compression</strong>: Project screen snapshots and terminal logs use gzip; rotated session-journal parts use zstd (legacy <code>.gz</code> parts stay readable)</li>
 <li><strong>Throttling</strong>: Terminal rendering updates are batched to reduce UI thread load</li>

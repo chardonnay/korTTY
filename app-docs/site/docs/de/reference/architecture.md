@@ -25,7 +25,7 @@ KorTTY ist in verschiedene Funktionsmodule unterteilt. Das folgende Diagramm gru
 
 | **Modul** | **Zweck** | **Schlüsselklassen** |
 |---|---|---|
-| **Kern** | SSH-Konnektivität, gemeinsames interaktives Host-Key-Vertrauen, Sitzungsverwaltung, KI-Integration, Terminalautomatisierung | `SSHSession`, `SshHostKeyTrustManager`, `AiChatManager`, `TerminalAgentService`, `Mosh4jTtyConnector` |
+| **Kern** | SSH-Konnektivität, gemeinsames interaktives Host-Key-Vertrauen, Sitzungsverwaltung, KI-Integration, Terminalautomatisierung | `SshTtyConnector`, `SshHostKeyTrustManager`, `AiChatManager`, `TerminalAgentService`, `Mosh4jTtyConnector` |
 | **ai** | Signierter Modell-/Eingabeaufforderungskatalog, Hugging Face-Metadaten/Downloads, eingebettete llama.cpp- und MLX-Laufzeiten und signierte Laufzeitpakete | `AiCatalogService`, `HuggingFaceClient`, `LlamaRuntimeManager`, `LlamaRuntimePackageInstaller`, `EmbeddedMlxAiService`, `MlxRuntimeLocator` |
 | **rag** | Sicherer Quellscanning, Extraktion, Chunking, Embeddings, Vektor-Speicher, Synchronisation und begrenztes Abrufen | `RagSourceScanner`, `RagSourceSynchronizer`, `LocalHnswStore`, `RagRuntimeService` |
 | **ui** | JavaFX-Benutzeroberfläche, Dialoge, Terminalansichten, SFTP-Manager | `TerminalView`, `TerminalTab`, `ConnectionEditDialog`, `SFTPManagerTab`, `SnippetEditDialog` |
@@ -128,7 +128,8 @@ KorTTY speichert seine Hauptkonfiguration, Anmeldeinformationen und Sitzungsstat
 
 | **Komponente** | **Verantwortung** |
 |---|---|
-| `SSHSession` | Umschließt den Apache SSHD-Client und verwaltet den Verbindungslebenszyklus |
+| `SshTtyConnector` | Apache SSHD Terminalverbindung eines Panels: Sprunghost, Authentifizierung, Shell-Kanal und Trennungserkennung |
+| `ActiveConnectionRegistry` | Live-Liste der offenen SSH- und Mosh-Terminalverbindungen (eine pro Panel), gelesen vom JMX-MBean |
 | `SshHostKeyTrustManager` | Gibt normalisierte Host:Port-TOFU-Pins über interaktive Terminal-, SFTP- und Mosh-Bootstrap-Verbindungen mit atomarer, prozessübergreifender Persistenz frei |
 | `SSHKeyManager` | Zentralisierte SSH-Schlüsselspeicherung mit verschlüsselter Passphrase-Unterstützung |
 | `Mosh4jTtyConnector` | Mosh-Protokoll-Connector unter Verwendung der mosh4j-Bibliothek (dynamisch geladen) |
@@ -302,7 +303,7 @@ Worker-thread SSH handshake + progress UI
     ↓
 Shared host:port TOFU verification (Terminal/SFTP/Mosh bootstrap)
     ↓
-SSHSession (Apache SSHD or Mosh4j connector)
+SshTtyConnector (Apache SSHD) or Mosh connector
     ↓
 Terminal Pane (SithTermFX rendering)
     ↓
@@ -344,7 +345,7 @@ Menu-bar status displays next runs / live countdown
 ## Protokollierung und Diagnose
 
 - **Protokolldatei**: `~/.kortty/kortty.log` (SLF4J mit Logback-Backend)
-- **JMX-Überwachung**: MBean `de.kortty:type=SSHClient` macht aktive Verbindungen, Speicher und gepufferte Textgröße verfügbar
+- **JMX-Überwachung**: MBean `de.kortty:type=SSHClient` gibt die Live SSH- und Mosh-Terminalverbindungen (jedes geteilte Panel zählt, lokale Shells nicht), Speicher und Betriebszeit aus; `BufferedTextSize` wird nicht verfolgt und bleibt 0
 - **JobScheduler-Journal**: Detaillierte Ausführungsprotokolle mit konfigurierbarer Aufbewahrung (standardmäßig 14 Tage, unbegrenzt, wenn auf 0 gesetzt)
 - **Projekt-Bildschirm-Snapshots**: Der zuletzt sichtbare Bildschirm jedes Terminal-Tabs eines gespeicherten Projekts, gzip-komprimiert in `~/.kortty/history/` und lokal angezeigt (nie an den Server gesendet), wenn das Projekt mit Auto-Reconnect wieder geöffnet wird
 - **Terminalaufzeichnung**: Optionale Wiedergabedateien in `~/.kortty/recordings/`
@@ -377,12 +378,10 @@ Menu-bar status displays next runs / live countdown
 ### Für Integratoren
 
 1. **JAXB-Repositorys**: Erweitern Sie `XMLConnectionRepository` oder `CredentialRepository`, um benutzerdefinierte Datenquellen hinzuzufügen
-2. **SSH-Sitzungs-Hooks**: Unterklasse `SSHSession` zum Einfügen benutzerdefinierter Verbindungslogik
-3. **JobScheduler-Aktionen**: Neue Aktionstypen zu `JobExecutor` hinzufügen (z. B. benutzerdefinierte SFTP-Vorgänge)
+2. **JobScheduler-Aktionen**: Neue Aktionstypen zu `JobExecutor` hinzufügen (z. B. benutzerdefinierte SFTP-Vorgänge)
 
 ## Leistungsüberlegungen
 
-- **Sitzungscaching**: Aktive SSH-Verbindungen werden zwischengespeichert, um den Aufwand für die erneute Verbindung zu vermeiden
 - **Lazy Loading**: Verbindungsdetails werden bei Bedarf geladen, nicht alle auf einmal
 - **Kompression**: Projekt-Bildschirm-Snapshots und Terminal-Logs verwenden gzip; rotierte Session-Journal-Teile nutzen zstd (veraltete `.gz`-Teile bleiben lesbar)
 - **Drosselung**: Terminal-Rendering-Updates werden stapelweise durchgeführt, um die Belastung des UI-Threads zu reduzieren

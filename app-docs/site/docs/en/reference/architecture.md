@@ -25,7 +25,7 @@ KorTTY is organized into distinct functional modules. The diagram below groups t
 
 | **Module** | **Purpose** | **Key Classes** |
 |---|---|---|
-| **core** | SSH connectivity, shared interactive host-key trust, session management, AI integration, terminal automation | `SSHSession`, `SshHostKeyTrustManager`, `AiChatManager`, `TerminalAgentService`, `Mosh4jTtyConnector` |
+| **core** | SSH connectivity, shared interactive host-key trust, session management, AI integration, terminal automation | `SshTtyConnector`, `SshHostKeyTrustManager`, `AiChatManager`, `TerminalAgentService`, `Mosh4jTtyConnector` |
 | **ai** | Signed model/prompt catalog, Hugging Face metadata/downloads, embedded llama.cpp and MLX runtimes, and signed runtime packages | `AiCatalogService`, `HuggingFaceClient`, `LlamaRuntimeManager`, `LlamaRuntimePackageInstaller`, `EmbeddedMlxAiService`, `MlxRuntimeLocator` |
 | **rag** | Safe source scanning, extraction, chunking, embeddings, vector stores, synchronization, and bounded retrieval | `RagSourceScanner`, `RagSourceSynchronizer`, `LocalHnswStore`, `RagRuntimeService` |
 | **ui** | JavaFX user interface, dialogs, terminal views, SFTP manager | `TerminalView`, `TerminalTab`, `ConnectionEditDialog`, `SFTPManagerTab`, `SnippetEditDialog` |
@@ -128,7 +128,8 @@ KorTTY stores its main configuration, credentials, and session state under `~/.k
 
 | **Component** | **Responsibility** |
 |---|---|
-| `SSHSession` | Wraps Apache SSHD client and manages connection lifecycle |
+| `SshTtyConnector` | Apache SSHD terminal connection of one pane: jump host, authentication, shell channel and disconnect detection |
+| `ActiveConnectionRegistry` | Live list of the open SSH and Mosh terminal connections (one per pane), read by the JMX MBean |
 | `SshHostKeyTrustManager` | Shares normalized host:port TOFU pins across interactive Terminal, SFTP, and Mosh bootstrap connections with atomic, cross-process persistence |
 | `SSHKeyManager` | Centralized SSH key storage with encrypted passphrase support |
 | `Mosh4jTtyConnector` | Mosh protocol connector using the mosh4j library (dynamically loaded) |
@@ -302,7 +303,7 @@ Worker-thread SSH handshake + progress UI
     ↓
 Shared host:port TOFU verification (Terminal/SFTP/Mosh bootstrap)
     ↓
-SSHSession (Apache SSHD or Mosh4j connector)
+SshTtyConnector (Apache SSHD) or Mosh connector
     ↓
 Terminal Pane (SithTermFX rendering)
     ↓
@@ -344,7 +345,7 @@ Menu-bar status displays next runs / live countdown
 ## Logging and Diagnostics
 
 - **Log file**: `~/.kortty/kortty.log` (SLF4J with Logback backend)
-- **JMX monitoring**: MBean `de.kortty:type=SSHClient` exposes active connections, memory, buffered text size
+- **JMX monitoring**: MBean `de.kortty:type=SSHClient` exposes the live SSH and Mosh terminal connections (each split pane counts, local shells do not), memory and uptime; `BufferedTextSize` is not tracked and stays 0
 - **JobScheduler journal**: Detailed execution logs with configurable retention (14 days default, unlimited if set to 0)
 - **Project screen snapshots**: The last visible screen of each terminal tab of a saved project, gzip-compressed in `~/.kortty/history/` and shown locally (never sent to the server) when the project is reopened with Auto-Reconnect
 - **Terminal recording**: Optional replay files in `~/.kortty/recordings/`
@@ -377,12 +378,10 @@ Menu-bar status displays next runs / live countdown
 ### For Integrators
 
 1. **JAXB Repositories**: Extend `XMLConnectionRepository` or `CredentialRepository` to add custom data sources
-2. **SSH Session Hooks**: Subclass `SSHSession` to inject custom connection logic
-3. **JobScheduler Actions**: Add new action types to `JobExecutor` (e.g., custom SFTP operations)
+2. **JobScheduler Actions**: Add new action types to `JobExecutor` (e.g., custom SFTP operations)
 
 ## Performance Considerations
 
-- **Session caching**: Active SSH connections are cached to avoid reconnection overhead
 - **Lazy loading**: Connection details loaded on demand, not all at once
 - **Compression**: Project screen snapshots and terminal logs use gzip; rotated session-journal parts use zstd (legacy `.gz` parts stay readable)
 - **Throttling**: Terminal rendering updates are batched to reduce UI thread load
