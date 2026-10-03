@@ -3475,6 +3475,8 @@ public class MainWindow {
                 return false;
             }
         }
+        // A session that ended while its question was open closed its tab itself and released it.
+        targets.removeIf(tab -> !tabPane.getTabs().contains(tab));
         recordUserClosedTabs(targets, cause);
         for (Tab tab : targets) {
             disposeTabContent(tab);
@@ -3507,8 +3509,8 @@ public class MainWindow {
      */
     private void disposeTabContent(Tab tab) {
         if (tab instanceof TerminalTab terminalTab) {
-            terminalTab.closeRecordingResources();
-            terminalTab.getTerminalView().cleanup();
+            // What its close button releases, the auto-reconnect and status-bar timers included.
+            terminalTab.releaseResources();
         } else if (tab instanceof FileEditorTab editorTab) {
             editorTab.dispose();
         } else if (tab instanceof AiResultTab aiResultTab) {

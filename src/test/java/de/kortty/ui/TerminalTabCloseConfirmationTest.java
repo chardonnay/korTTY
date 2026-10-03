@@ -53,7 +53,7 @@ class TerminalTabCloseConfirmationTest {
         request = request.substring(0, request.indexOf("});"));
 
         assertThat(request).contains("if (!confirmUserClose()) {");
-        assertThat(request.indexOf("confirmUserClose()")).isLessThan(request.indexOf("terminalView.cleanup();"));
+        assertThat(request.indexOf("confirmUserClose()")).isLessThan(request.indexOf("releaseResources();"));
         assertWithMessage("the close button must not keep a second copy of the question")
             .that(request).doesNotContain("new Alert(");
 
@@ -82,11 +82,14 @@ class TerminalTabCloseConfirmationTest {
         String funnel = methodBody(window, "private boolean closeTabsByUser(List<Tab> tabs, CloseCause cause) {");
 
         int confirm = funnel.indexOf("if (!confirmUserClose(tab)) {");
+        int stillOpen = funnel.indexOf("targets.removeIf(tab -> !tabPane.getTabs().contains(tab));");
         int record = funnel.indexOf("recordUserClosedTabs(targets, cause);");
         int dispose = funnel.indexOf("disposeTabContent(tab);");
         int remove = funnel.indexOf("tabPane.getTabs().removeAll(targets);");
         assertThat(confirm).isAtLeast(0);
-        assertThat(confirm).isLessThan(record);
+        assertWithMessage("a tab that closed on its own while the question was open is neither recorded nor released twice")
+            .that(stillOpen).isGreaterThan(confirm);
+        assertThat(stillOpen).isLessThan(record);
         assertThat(record).isLessThan(dispose);
         assertThat(dispose).isLessThan(remove);
         assertWithMessage("a Cancel must leave every tab open and intact")
@@ -96,6 +99,25 @@ class TerminalTabCloseConfirmationTest {
         assertThat(perTab).contains("terminalTab.confirmUserClose()");
         assertWithMessage("a hosted snippet editor still asks about unsaved changes on Cmd/Ctrl+W")
             .that(perTab).contains("hostTab.confirmClose()");
+    }
+
+    @Test
+    void everyClosePathReleasesTheTerminalLikeItsCloseButton() throws IOException {
+        String tab = source("TerminalTab.java");
+        String release = methodBody(tab, "void releaseResources() {");
+        assertThat(release).contains("closeRecordingResources();");
+        assertThat(release).contains("terminalView.cleanup();");
+        assertWithMessage("a pending automatic reconnect must not outlive the tab")
+            .that(release).contains("cancelAutoReconnectTimer();");
+        assertWithMessage("the status-bar timeline ticks forever and keeps a closed tab in memory")
+            .that(release).contains("stopStatusBarTimer();");
+
+        assertThat(methodBody(tab, "private void closeTabSilently() {")).contains("releaseResources();");
+        String dispose = methodBody(source("MainWindow.java"), "private void disposeTabContent(Tab tab) {");
+        String terminalBranch = dispose.substring(dispose.indexOf("if (tab instanceof TerminalTab terminalTab) {"),
+            dispose.indexOf("} else if (tab instanceof FileEditorTab"));
+        assertWithMessage("Cmd/Ctrl+W, the Dashboard's Close and Close All release what the close button releases")
+            .that(terminalBranch).contains("terminalTab.releaseResources();");
     }
 
     private static String source(String fileName) throws IOException {

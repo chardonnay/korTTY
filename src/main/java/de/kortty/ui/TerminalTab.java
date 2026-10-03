@@ -184,11 +184,23 @@ public class TerminalTab extends Tab {
                 event.consume(); // Cancel the close
                 return;
             }
-            closeRecordingResources();
-            cancelAutoReconnectTimer();
-            terminalView.cleanup();
-            stopStatusBarTimer();
+            releaseResources();
         });
+    }
+
+    /**
+     * Releases what a closing tab holds: its recording, a pending automatic reconnect, every pane's
+     * session and the status-bar timeline, which would otherwise keep the closed tab alive. Shared by
+     * the close button, a tab that closes on its own and the main window's close paths (Cmd/Ctrl+W,
+     * the Dashboard's Close, Close All), which remove the tab without firing its close events.
+     * Idempotent.
+     */
+    void releaseResources() {
+        closeRecordingResources();
+        cancelAutoReconnectTimer();
+        // Idempotent; also stops the session journal and closes every pane's connector.
+        terminalView.cleanup();
+        stopStatusBarTimer();
     }
 
     /**
@@ -1443,11 +1455,7 @@ public class TerminalTab extends Tab {
     private void closeTabSilently() {
         TabPane tabPane = getTabPane();
         if (tabPane != null) {
-            closeRecordingResources();
-            cancelAutoReconnectTimer();
-            // Idempotent; also stops the session journal and closes every pane's connector.
-            terminalView.cleanup();
-            stopStatusBarTimer();
+            releaseResources();
             // Suppress QuickConnect if + tab might be selected after removal
             MainWindow.suppressNextQuickConnect();
             // Remove close request handler temporarily to avoid confirmation
