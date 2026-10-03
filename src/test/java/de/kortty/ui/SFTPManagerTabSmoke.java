@@ -40,7 +40,8 @@ import java.util.function.BooleanSupplier;
 /**
  * Drives a real {@link SFTPManagerTab} against a loopback SFTP server: the background listing,
  * a failed navigation that keeps the folder, Size sorted by bytes, uploading a folder twice, the
- * Disconnected state with Reconnect after the server stops, and a quiet tab close. Runs in an
+ * Disconnected state with Reconnect after the server stops, a quiet tab close, and tabs restored
+ * from a project at their saved folders (or the home folders when those are gone). Runs in an
  * isolated {@code user.home}, so the host-key pin it accepts never reaches the real trust store.
  *
  * <p>Run with {@code ./gradlew sftpManagerTabSmoke}.
@@ -179,6 +180,48 @@ public final class SFTPManagerTabSmoke {
         TimeUnit.MILLISECONDS.sleep(1500);
         check(!status().equals(I18n.get("sftp.status.disconnected", "127.0.0.1")),
             "a closed tab must not report a lost connection");
+
+        runRestore(port);
+    }
+
+    /**
+     * A tab restored from a project starts in its saved folders; a saved remote folder that is gone
+     * shows the login directory with a status message instead of an error.
+     */
+    private static void runRestore(int port) throws Exception {
+        server = startServer(port);
+        Path savedLocal = home.resolve("project");
+        openRestoredTab(port, savedLocal.toString(), "/sized");
+        waitFor("restored remote folder", () -> "/sized".equals(remotePath()) && names().contains("big"));
+        check(fx(() -> ((TextField) field("localPathField")).getText()).equals(savedLocal.toString()),
+            "the restored tab must show the saved local folder");
+        check(status().equals(I18n.get("sftp.connectedTo", "127.0.0.1")), "a restored folder needs no message");
+        call("cleanup");
+
+        openRestoredTab(port, home.resolve("gone").toString(), "/gone");
+        waitFor("fallback to the login directory", () -> "/".equals(remotePath()) && names().contains("sized"));
+        check(status().equals(I18n.get("sftp.restore.remotePathMissing", "/gone")),
+            "a missing restored folder must be reported in the status bar, got: " + status());
+        check(noDialogOpen(), "a missing restored folder must not open an error dialog");
+        check(fx(() -> ((TextField) field("localPathField")).getText()).equals(home.toString()),
+            "a missing local folder must fall back to the home folder");
+        snapshot("restore-fallback");
+        call("cleanup");
+        server.stop(true);
+        server = null;
+    }
+
+    private static void openRestoredTab(int port, String localPath, String remotePath) throws Exception {
+        fx(() -> {
+            TabPane tabPane = tab.getTabPane();
+            ServerConnection connection = new ServerConnection("smoke", "127.0.0.1", port, "tester");
+            connection.setAuthMethod(AuthMethod.PASSWORD);
+            SFTPManagerTab previous = tab;
+            tab = new SFTPManagerTab(null, connection, "secret", null, 0, null, localPath, remotePath);
+            tabPane.getTabs().remove(previous);
+            tabPane.getTabs().add(tab);
+            return null;
+        });
     }
 
     /** Saves the window as a PNG when {@code KORTTY_SFTP_SMOKE_SNAPSHOT_DIR} is set (for a visual check). */

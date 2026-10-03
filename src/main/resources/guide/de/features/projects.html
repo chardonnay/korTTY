@@ -794,12 +794,12 @@
 <td>Alle geöffneten KorTTY-Fenster und ihre Positionen/Größen</td>
 </tr>
 <tr>
-<td><strong>Registerkarten</strong></td>
-<td>Alle Terminal-Registerkarten in jedem Fenster, einschließlich Split-Pane-Konfigurationen</td>
+<td><strong>Tabs</strong></td>
+<td>Alle Terminal-Tabs in jedem Fenster, einschließlich Split-Pane-Konfigurationen, sowie SFTP-Manager-Tabs mit den lokalen und entfernten Ordnern, die sie anzeigen, und Bildbetrachter-Tabs</td>
 </tr>
 <tr>
 <td><strong>Verbindungen</strong></td>
-<td>Ein Verweis auf die gespeicherte Verbindung jedes Tabs, anhand seiner Verbindungs-ID</td>
+<td>Ein Verweis auf die gespeicherte Verbindung jedes Tabs, anhand der internen ID der Verbindung, sodass das Umbenennen einer Verbindung das Projekt nicht bricht</td>
 </tr>
 <tr>
 <td><strong>Dashboard</strong></td>
@@ -817,7 +817,7 @@
 </table>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>KI-Ergebnisregisterkarten werden nicht mit Projekten gespeichert. Sie bleiben nur in der aktuellen Sitzung bestehen und gehen verloren, wenn Sie die Registerkarte schließen oder ein Projekt öffnen.</p>
+<p>KI-Ergebnis-Tabs und Werkzeug-Tabs (Manager als Tabs geöffnet) werden nicht mit Projekten gespeichert. Sie bleiben nur in der aktuellen Sitzung und gehen verloren, wenn Sie den Tab schließen oder ein Projekt öffnen. SFTP-Manager-Tabs sind in diesem Sinne keine Werkzeug-Tabs: sie werden gespeichert, siehe <a href="#sftp-manager-tabs">SFTP-Manager-Tabs</a>.</p>
 </div>
 <h2 id="automatische-wiederverbindung">Automatische Wiederverbindung<a class="headerlink" href="#automatische-wiederverbindung" title="Permanent link">&para;</a></h2>
 <p>Wenn <strong>Auto-Reconnect</strong> aktiviert ist, führt KorTTY automatisch Folgendes durch:</p>
@@ -825,15 +825,24 @@
 <li>Stellt alle Fenster mit ihrer gespeicherten Geometrie (Position und Größe) wieder her.</li>
 <li>Verbindet jede SSH-Registerkarte erneut mit den ursprünglichen Verbindungseinstellungen</li>
 <li>Zeigt jeden Tab des Terminals mit dem gespeicherten Bildschirm, der über die neue Sitzung abgedunkelt ist, eingerahmt von einer <em>Wiederhergestellten Ausgabe aus</em> Zeile mit dem Datum, an dem das Projekt gespeichert wurde, und einer <em>Ende der wiederhergestellten Ausgabe</em> Zeile. Der Text wird nur in das lokale Terminal geschrieben und niemals an den Server gesendet: Er erreicht die Remote-Shell oder deren Befehlsverlauf nicht, und ein Sitzungsjournal, das mit der Verbindung beginnt, zeichnet ihn nicht auf (ein Journal, das Sie später aktivieren, importiert den Scrollback, der dann die wiederhergestellten Zeilen enthält). Steuerzeichen und Escape-Sequenzen werden daraus entfernt, bevor er angezeigt wird.</li>
+<li>Öffnet jeden SFTP-Manager-Tab erneut in den lokalen und entfernten Ordnern, die er beim Speichern des Projekts zeigte</li>
 <li>Stellt den aktiven Tab- und Dashboard-Status wieder her</li>
 </ul>
 <p>Wenn <strong>Automatisches Wiederverbinden</strong> deaktiviert ist, werden Terminal-Tabs nicht wiederhergestellt: Das Öffnen des Projekts wendet die gespeicherte Fenstergeometrie an und öffnet erneut lokale Datei-Editor- und Bildbetrachter-Tabs, während Terminal-, SFTP- und Remote-Datei-Tabs übersprungen werden. Öffnen Sie diese Verbindungen erneut im Connection-Manager.</p>
+<h3 id="sftp-manager-tabs">SFTP-Manager-Tabs<a class="headerlink" href="#sftp-manager-tabs" title="Permanent link">&para;</a></h3>
+<p>Mit <strong>Automatisches Wiederverbinden</strong> verbindet sich jeder gespeicherte SFTP-Manager-Tab erneut mit seiner Verbindung und öffnet die lokalen und entfernten Ordner, die er beim Speichern des Projekts angezeigt hat. Ohne <strong>Automatisches Wiederverbinden</strong> werden SFTP-Manager-Tabs nicht wieder geöffnet.</p>
+<ul>
+<li>Ein lokaler Ordner, der nicht mehr existiert, öffnet stattdessen Ihren Home-Ordner.</li>
+<li>Ein Remote-Ordner, der nicht mehr existiert, öffnet Ihr Login-Verzeichnis auf dem Server und die Statusleiste zeigt <strong>Remote-Ordner</strong> <em>Pfad</em> <strong>existiert nicht mehr; zeigt das Home-Verzeichnis</strong>. Ein Remote-Ordner, der existiert, aber nicht gelesen werden kann, zum Beispiel wegen fehlender Rechte, zeigt den üblichen Fehler und öffnet ebenfalls das Login-Verzeichnis.</li>
+<li>Projekte, die von früheren Versionen gespeichert wurden, bezogen sich auf SFTP-Manager-Tabs anhand des Namens der Verbindung. Solch ein Tab wird wiederhergestellt, wenn genau eine Verbindung diesen Namen hat; wenn mehrere Verbindungen denselben Namen teilen, wird der Tab übersprungen und das Log erklärt warum. Speichern Sie das Projekt erneut, um die Referenz nach ID zu speichern.</li>
+<li>Ein Remote-Bildbetrachter-Tab wird mit der Verbindung gespeichert, von der er geöffnet wurde, auch wenn mehrere SFTP-Manager-Tabs offen sind oder sein SFTP-Manager-Tab bereits geschlossen ist. Beim Wiederherstellen öffnet er seine eigene SFTP-Verbindung, mit demselben SSH-Schlüssel und derselben Sprungserver-Verbindung wie der SFTP-Manager, und diese Verbindung schließt sich, wenn Sie den Tab schließen.</li>
+</ul>
 <h2 id="projektdateispeicherung">Projektdateispeicherung<a class="headerlink" href="#projektdateispeicherung" title="Permanent link">&para;</a></h2>
 <p>Ein Projekt ist eine einfache XML-Datei mit der <code>.kortty</code>-Erweiterung. Jedes Projekt enthält:</p>
 <ul>
 <li>Metadaten (Name, Beschreibung, Erstellungs-/Änderungszeitstempel)</li>
 <li>Vollständiger Fenster- und Tab-Status</li>
-<li>Verweise auf Verbindungen (nach Verbindungs-ID, daher muss die Verbindung im Connection-Manager existieren)</li>
+<li>Verbindungsreferenzen (nach Verbindungs-ID, daher muss die Verbindung im Connection-Manager existieren)</li>
 <li>Sichtbarkeit und Layout des Dashboards</li>
 </ul>
 <p>Der gespeicherte Bildschirminhalt ist nicht Teil der <code>.kortty</code>-Datei. Er wird separat als eine gzip-Datei pro Terminal-Tab, <code>~/.kortty/history/&lt;session-id&gt;.history.gz</code>, gespeichert, die das Projekt per Dateiname referenziert – ein Projektdokument, das Sie teilen, trägt daher das Layout, jedoch nicht den Bildschirminhalt. korTTY liest, schreibt oder löscht ausschließlich reine Dateinamen innerhalb von <code>~/.kortty/history/</code>; ein Projekt, dessen Referenz auf einen anderen Ort zeigt, öffnet sich ohne diesen Bildschirminhalt.</p>

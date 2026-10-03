@@ -263,7 +263,7 @@ pages:
     last_synced_ref: "38bcd2b4"
   - path: app-docs/site/docs/en/features/projects.md
     owns_i18n: [project.]
-    owns_code: [src/main/java/de/kortty/model/Project.java, src/main/java/de/kortty/model/WindowState.java, src/main/java/de/kortty/model/SessionState.java, src/main/java/de/kortty/model/SplitPaneState.java, src/main/java/de/kortty/core/ProjectManager.java, src/main/java/de/kortty/persistence/HistoryStorage.java, src/main/java/de/kortty/ui/RestoredHistoryReplay.java, src/main/java/de/kortty/ui/ProjectSettingsDialog.java, src/main/java/de/kortty/ui/ProjectPreviewDialog.java, src/main/java/de/kortty/ui/MainWindow.java]
+    owns_code: [src/main/java/de/kortty/model/Project.java, src/main/java/de/kortty/model/WindowState.java, src/main/java/de/kortty/model/SessionState.java, src/main/java/de/kortty/model/SplitPaneState.java, src/main/java/de/kortty/core/ProjectManager.java, src/main/java/de/kortty/persistence/HistoryStorage.java, src/main/java/de/kortty/ui/RestoredHistoryReplay.java, src/main/java/de/kortty/ui/ProjectSettingsDialog.java, src/main/java/de/kortty/ui/ProjectPreviewDialog.java, src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/ui/SftpSessionRestoreSupport.java]
     last_synced_ref: "659b3bd9"
   - path: app-docs/site/docs/en/features/teamwork.md
     owns_i18n: []

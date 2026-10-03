@@ -91,6 +91,11 @@ public class SFTPManagerTab extends Tab {
     private long remoteListGeneration;
     /** Whether {@link #currentRemotePath} is an absolute path a listing returned; SFTP does not expand '~'. */
     private boolean remotePathResolved;
+    /**
+     * The remote folder a restored tab starts in, until its first listing was applied (FX thread);
+     * if that listing fails, the tab falls back to the login directory once.
+     */
+    private String restoredRemotePath;
     private Node remoteLoadingOverlay;
     private Button reconnectButton;
     private Runnable localSelectionActions = () -> { };
@@ -145,6 +150,26 @@ public class SFTPManagerTab extends Tab {
             TemporarySSHKey temporarySSHKey,
             int autoCloseTimeoutMinutes,
             MainWindow ownerWindow) {
+        this(app, connection, password, temporarySSHKey, autoCloseTimeoutMinutes, ownerWindow, null, null);
+    }
+
+    /**
+     * A tab that starts in the folders a saved project recorded. The local folder is used while it
+     * still exists, otherwise the home folder. The remote folder is listed once connected; if it
+     * no longer exists, the tab shows the login directory instead and says so in the status bar.
+     *
+     * @param initialLocalPath the saved local folder, or {@code null} for the home folder
+     * @param initialRemotePath the saved remote folder, or {@code null} for the login directory
+     */
+    public SFTPManagerTab(
+            KorTTYApplication app,
+            ServerConnection connection,
+            String password,
+            TemporarySSHKey temporarySSHKey,
+            int autoCloseTimeoutMinutes,
+            MainWindow ownerWindow,
+            String initialLocalPath,
+            String initialRemotePath) {
         this.app = app;
         this.ownerWindow = ownerWindow;
         this.connection = connection;
@@ -160,10 +185,14 @@ public class SFTPManagerTab extends Tab {
         setText("SFTP: " + connection.getDisplayName());
         setClosable(true);
         
-        // Initialize paths
-        currentLocalPath = Paths.get(System.getProperty("user.home"));
-        currentRemotePath = "~";
-        
+        // Initialize paths: the saved folders of a restored tab, otherwise the home folders.
+        currentLocalPath = SftpSessionRestoreSupport.initialLocalPath(
+            initialLocalPath, Paths.get(System.getProperty("user.home")));
+        currentRemotePath = SftpSessionRestoreSupport.initialRemotePath(initialRemotePath);
+        restoredRemotePath = SftpSessionRestoreSupport.REMOTE_HOME.equals(currentRemotePath)
+            ? null
+            : currentRemotePath;
+
         // Create UI
         VBox content = createContent();
         setContent(content);
@@ -998,7 +1027,16 @@ public class SFTPManagerTab extends Tab {
         return message != null && !message.isBlank() ? message : cause.getClass().getSimpleName();
     }
 
-    private void cleanup() {
+    /**
+     * Ends the tab: stops the auto-close timer and the listing thread and closes the session. Runs
+     * from the close button and, through {@code MainWindow.disposeTabContent}, on the programmatic
+     * close paths (Cmd+W, close all, window close, opening a project), where JavaFX asks no close
+     * request. Does nothing the second time. FX thread.
+     */
+    void cleanup() {
+        if (closing) {
+            return;
+        }
         // First, so neither the disconnect listener nor a pending listing touches the closing tab.
         closing = true;
         if (autoCloseTimer != null) {
@@ -1110,7 +1148,7 @@ public class SFTPManagerTab extends Tab {
             CompletableFuture
                 .supplyAsync(() -> listRemote(session, requestedPath, basePath), remoteListExecutor)
                 .whenComplete((listing, error) -> Platform.runLater(
-                    () -> applyRemoteListing(generation, listing, error)));
+                    () -> applyRemoteListing(generation, requestedPath, listing, error)));
         } catch (RejectedExecutionException e) {
             // The tab is closing and its executor no longer takes work.
             FileBrowserLoadingOverlay.show(remoteLoadingOverlay, false);
@@ -1167,7 +1205,7 @@ public class SFTPManagerTab extends Tab {
         }
     }
 
-    private void applyRemoteListing(long generation, RemoteListing listing, Throwable error) {
+    private void applyRemoteListing(long generation, String requestedPath, RemoteListing listing, Throwable error) {
         if (closing || generation != remoteListGeneration) {
             // Superseded by a newer request, or by a disconnect.
             return;
@@ -1181,10 +1219,16 @@ public class SFTPManagerTab extends Tab {
                 showDisconnectedState();
                 return;
             }
+            if (restoredRemotePath != null && restoredRemotePath.equals(requestedPath)) {
+                fallBackFromRestoredRemotePath(error);
+                return;
+            }
             logger.error("Failed to list remote files", error);
             showError(I18n.get("error.title"), I18n.get("sftp.error.listRemoteFiles", failureMessage(error)));
             return;
         }
+        // The first folder shown ends the restore, whichever folder it is.
+        restoredRemotePath = null;
         currentRemotePath = listing.path();
         remotePathResolved = true;
         remoteItems.setAll(listing.items());
@@ -1192,6 +1236,27 @@ public class SFTPManagerTab extends Tab {
         // Re-apply sort after refresh
         remoteTable.sort();
         refreshActionStates();
+    }
+
+    /**
+     * The saved folder of a restored tab could not be listed: the tab shows the login directory
+     * instead, once. A folder that no longer exists is reported in the status bar; any other
+     * failure, such as missing rights, gets the usual error dialog.
+     */
+    private void fallBackFromRestoredRemotePath(Throwable error) {
+        String savedPath = restoredRemotePath;
+        restoredRemotePath = null;
+        if (SftpSessionRestoreSupport.isMissingFolder(error)) {
+            logger.info("Restored remote folder {} no longer exists; showing the login directory", savedPath);
+            statusLabel.setText(I18n.get("sftp.restore.remotePathMissing", savedPath));
+        } else {
+            logger.error("Failed to list the restored remote folder {}", savedPath, error);
+            showError(I18n.get("error.title"), I18n.get("sftp.error.listRemoteFiles", failureMessage(error)));
+        }
+        currentRemotePath = SftpSessionRestoreSupport.REMOTE_HOME;
+        remotePathResolved = false;
+        remotePathField.setText(currentRemotePath);
+        loadRemote(currentRemotePath);
     }
 
     /**
@@ -3896,7 +3961,8 @@ public class SFTPManagerTab extends Tab {
     public SessionState createSessionState() {
         SessionState state = new SessionState();
         state.setTabType(SessionState.TabType.SFTP_MANAGER);
-        state.setConnectionId(connection.getName());
+        // The id, as for terminal tabs: the restore looks connections up by id.
+        state.setConnectionId(connection.getId());
         state.setTabTitle(getText());
         state.setSftpLocalPath(currentLocalPath != null ? currentLocalPath.toString() : null);
         state.setSftpRemotePath(currentRemotePath);

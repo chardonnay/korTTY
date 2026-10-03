@@ -842,6 +842,8 @@
 <h2 id="lost-connection">Lost connection<a class="headerlink" href="#lost-connection" title="Permanent link">&para;</a></h2>
 <p>When the server or the network ends the session, the status bar shows <strong>Disconnected from</strong> <em>host</em> with a <strong>Reconnect</strong> button, and the remote actions are disabled. If the connection drops without the server saying so, the first remote action you try (Refresh, Upload, Download and so on) brings up the same state instead of doing nothing.</p>
 <p><strong>Reconnect</strong> opens a new session with the same credentials and lists the folder you were in. The server's host key is checked as on the first connect: an unchanged key connects without a prompt, a changed key is still blocked.</p>
+<h2 id="reopening-with-a-project">Reopening with a project<a class="headerlink" href="#reopening-with-a-project" title="Permanent link">&para;</a></h2>
+<p>SFTP Manager tabs are saved with a <a href="projects.html#sftp-manager-tabs">project</a>. Opening the project with <strong>Auto-Reconnect</strong> reconnects each tab at the local and remote folders it was in when you saved. A folder that no longer exists opens the home folder instead; on the remote side the status bar says so.</p>
 <h2 id="file-operations">File operations<a class="headerlink" href="#file-operations" title="Permanent link">&para;</a></h2>
 <p>The SFTP Manager supports a full range of file operations:</p>
 <table>
