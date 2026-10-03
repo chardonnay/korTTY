@@ -71,6 +71,9 @@ public class TerminalLinkDetectorTest {
     public void mailtoIsAUrlAndHidesTheEmailInside() {
         assertThat(all("write to mailto:ops@example.com today")).containsExactly("URL:mailto:ops@example.com");
         assertThat(texts("MailTo:ops@example.com", Kind.URL)).containsExactly("MailTo:ops@example.com");
+        // an earlier colon in the first six characters must not hide the scheme from the prefilter
+        assertThat(texts("To: mailto:ops@example.com", Kind.URL)).containsExactly("mailto:ops@example.com");
+        assertThat(texts("a:b mailto:ops@example.com", Kind.URL)).containsExactly("mailto:ops@example.com");
     }
 
     @Test
@@ -88,6 +91,7 @@ public class TerminalLinkDetectorTest {
             .containsExactly("10.0.0.1", "192.168.1.254:8080").inOrder();
         assertThat(texts("256.1.1.1 1.2.3 1.2.3.4.5 v1.2.3.4 1.2.3.4a", Kind.IPV4)).isEmpty();
         assertThat(texts("10.0.0.1:99999", Kind.IPV4)).containsExactly("10.0.0.1");
+        assertThat(texts("10.0.0.1:123456", Kind.IPV4)).containsExactly("10.0.0.1");
         assertThat(texts("route 10.0.0.0/24 via 10.0.0.1", Kind.IPV4)).containsExactly("10.0.0.0", "10.0.0.1").inOrder();
         assertThat(texts("010.001.000.255", Kind.IPV4)).containsExactly("010.001.000.255");
     }
@@ -103,6 +107,8 @@ public class TerminalLinkDetectorTest {
         assertThat(texts("std::string Abc::Def :: 1::2::3 1:2:3:4:5:6:7:8:9 ::ffff:999.1.1.1", Kind.IPV6)).isEmpty();
         assertThat(texts("fe80::1g", Kind.IPV6)).isEmpty();
         assertThat(texts("fe80::1% fe80::2%.", Kind.IPV6)).containsExactly("fe80::1", "fe80::2").inOrder(); // a bare % is no zone
+        assertThat(texts("from 2001:db8::1: reset, bound fe80::", Kind.IPV6))
+            .containsExactly("2001:db8::1", "fe80::").inOrder(); // a trailing colon is punctuation, '::' is not
     }
 
     @Test
@@ -153,6 +159,14 @@ public class TerminalLinkDetectorTest {
     }
 
     @Test
+    public void aLineSuffixIsNeverCutInsideANumber() {
+        assertThat(texts("a/b.c:1234567890 x", Kind.PATH)).containsExactly("a/b.c");
+        assertThat(texts("a/b.c:12:1234567890 x", Kind.PATH)).containsExactly("a/b.c:12");
+        assertThat(texts("a/b.c:123456789:5", Kind.PATH)).containsExactly("a/b.c:123456789:5");
+        assertThat(texts("lib/Makefile:1234567890", Kind.PATH)).isEmpty();
+    }
+
+    @Test
     public void proseWithSlashesIsNotAPath() {
         assertThat(texts("and/or TCP/IP 24/7 10/03 src/main km/h 1/2.5 v1.2/v1.3 I/O w/o", Kind.PATH)).isEmpty();
         assertThat(texts("Foo.java bare.txt", Kind.PATH)).isEmpty();
@@ -171,6 +185,13 @@ public class TerminalLinkDetectorTest {
     public void nothingIsFoundInsideAUrl() {
         assertThat(all("open https://10.0.0.1:8080/repo/abc1234/file.html now"))
             .containsExactly("URL:https://10.0.0.1:8080/repo/abc1234/file.html");
+    }
+
+    @Test
+    public void theTailOfAUrlIsNeverALocalPathEvenWhenUrlsAreNotRequested() {
+        assertThat(texts("http://host:8080/a/b.txt", Kind.PATH)).isEmpty();
+        assertThat(texts("https://x.example/?file=/etc/passwd&f=a/b.txt", Kind.PATH)).isEmpty();
+        assertThat(texts("https://x.example/a /etc/hosts", Kind.PATH)).containsExactly("/etc/hosts");
     }
 
     @Test
@@ -250,9 +271,17 @@ public class TerminalLinkDetectorTest {
         String straddling = " ".repeat(TerminalLinkDetector.MAX_INPUT_CHARS - 10) + "https://straddle.example/x";
         assertThat(texts(straddling, Kind.URL)).isEmpty();
 
+        // the cap falls right after a '.' that trimming would remove: the cut URL must still be dropped
+        String trimmedAtCap = " ".repeat(TerminalLinkDetector.MAX_INPUT_CHARS - 20) + "https://x.example/a.bc/d";
+        assertThat(trimmedAtCap.substring(TerminalLinkDetector.MAX_INPUT_CHARS - 1, TerminalLinkDetector.MAX_INPUT_CHARS))
+            .isEqualTo(".");
+        assertThat(texts(trimmedAtCap, Kind.URL)).isEmpty();
+        assertThat(texts(" ".repeat(TerminalLinkDetector.MAX_INPUT_CHARS - 10) + "10.0.0.1:8080", Kind.IPV4)).isEmpty();
+
         String exact = " ".repeat(TerminalLinkDetector.MAX_INPUT_CHARS - 20) + "https://fits.example";
         assertThat(exact.length()).isEqualTo(TerminalLinkDetector.MAX_INPUT_CHARS);
         assertThat(texts(exact, Kind.URL)).containsExactly("https://fits.example");
+        assertThat(texts(exact + " https://late.example", Kind.URL)).containsExactly("https://fits.example");
     }
 
     @Test
@@ -285,15 +314,21 @@ public class TerminalLinkDetectorTest {
             "~/".repeat(size / 2 + 1),
             "C:\\".repeat(size / 3 + 1),
             "a.b ".repeat(size / 4) + "/",
-            "a/b ".repeat(size / 4 + 1));
+            "a/b ".repeat(size / 4 + 1),
+            "http://a:1/a/b.c ".repeat(size / 17 + 1),
+            "x: mailto:a@b.cc ".repeat(size / 17 + 1));
+        // PATH alone also scans URLs, to keep paths out of them
+        List<Set<Kind>> kindSets = List.of(ALL, EnumSet.of(Kind.PATH));
         for (String input : inputs) {
-            TerminalLinkDetector.find(input, ALL); // warm up the JIT once per shape
+            kindSets.forEach(kinds -> TerminalLinkDetector.find(input, kinds)); // warm up the JIT once per shape
         }
         long started = System.nanoTime();
         for (String input : inputs) {
-            long one = System.nanoTime();
-            TerminalLinkDetector.find(input, ALL);
-            assertThat(Duration.ofNanos(System.nanoTime() - one).toMillis()).isLessThan(1_000L);
+            for (Set<Kind> kinds : kindSets) {
+                long one = System.nanoTime();
+                TerminalLinkDetector.find(input, kinds);
+                assertThat(Duration.ofNanos(System.nanoTime() - one).toMillis()).isLessThan(1_000L);
+            }
         }
         assertThat(Duration.ofNanos(System.nanoTime() - started).toMillis()).isLessThan(3_000L);
     }

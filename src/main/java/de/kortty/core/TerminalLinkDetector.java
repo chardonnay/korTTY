@@ -68,7 +68,7 @@ public final class TerminalLinkDetector {
     public record Match(int start, int end, Kind kind, String text) {
     }
 
-    /** Characters scanned at most; a match that would reach past this cap is dropped. */
+    /** Characters scanned at most; a token that this cap cuts is dropped. */
     public static final int MAX_INPUT_CHARS = 16 * 1024;
 
     /** Removed from the end of URLs and paths: sentence punctuation and closing quotes. */
@@ -105,7 +105,7 @@ public final class TerminalLinkDetector {
         "(?<![" + PATH_SEGMENT + "/\\\\])"
             + "(?:(?<drive>[A-Za-z]:[\\\\/](?![\\\\/]))|(?<home>~/)|(?<dot>\\.\\.?/)|(?<root>/(?!/))|(?=[" + PATH_SEGMENT + "]))"
             + "[" + PATH_SEGMENT + "/\\\\]*+"
-            + "(?<suffix>:[0-9]{1,9}+(?::[0-9]{1,9}+)?+|\\([0-9]{1,9}+,[0-9]{1,9}+\\))?+");
+            + "(?<suffix>:[0-9]{1,9}+(?![0-9])(?::[0-9]{1,9}+(?![0-9]))?+|\\([0-9]{1,9}+,[0-9]{1,9}+\\))?+");
 
     /** The named root groups of {@link #PATH}; none of them matching means a relative path. */
     private static final List<String> PATH_ROOTS = List.of("drive", "home", "dot", "root");
@@ -123,7 +123,7 @@ public final class TerminalLinkDetector {
         "(?<![" + WORD + ":.%])[0-9A-Fa-f:.]{2,}+(?:%[0-9A-Za-z_.\\-]++)?+(?![" + WORD + "])");
 
     private static final Pattern IPV4 = Pattern.compile(
-        "(?<![" + WORD + ".])([0-9]{1,3}+)\\.([0-9]{1,3}+)\\.([0-9]{1,3}+)\\.([0-9]{1,3}+)(?::([0-9]{1,5}+))?+"
+        "(?<![" + WORD + ".])([0-9]{1,3}+)\\.([0-9]{1,3}+)\\.([0-9]{1,3}+)\\.([0-9]{1,3}+)(?::([0-9]{1,5}+)(?![0-9]))?+"
             + "(?![" + WORD + "]|\\.[0-9])");
 
     private static final Pattern GIT_HASH = Pattern.compile(
@@ -141,7 +141,9 @@ public final class TerminalLinkDetector {
 
     /**
      * Every token of the requested kinds in {@code line}, ordered by start and never overlapping.
-     * Overlaps are resolved among the requested kinds only.
+     * Overlaps are resolved among the requested kinds only, with one exception: a path is never
+     * reported inside a URL, even when URLs are not requested, because the tail of a URL is no local
+     * file.
      *
      * @param line one logical terminal line, as cells (may contain NUL padding and {@link CharUtils#DWC})
      * @param kinds the kinds to look for
@@ -151,35 +153,46 @@ public final class TerminalLinkDetector {
             return List.of();
         }
         Scan scan = Scan.of(line);
+        Set<Kind> requested = EnumSet.copyOf(kinds);
         List<Candidate> candidates = new ArrayList<>();
-        for (Kind kind : EnumSet.copyOf(kinds)) {
+        for (Kind kind : requested) {
             if (mayContain(kind, scan.text)) {
                 collect(kind, scan.text, candidates);
             }
+        }
+        if (requested.contains(Kind.PATH) && !requested.contains(Kind.URL) && mayContain(Kind.URL, scan.text)) {
+            List<Candidate> urls = new ArrayList<>();
+            collect(Kind.URL, scan.text, urls);
+            TreeMap<Integer, Candidate> urlSpans = new TreeMap<>();
+            for (Candidate url : urls) {
+                urlSpans.put(url.start, url);
+            }
+            candidates.removeIf(c -> c.kind == Kind.PATH && overlapsAny(urlSpans, c));
         }
         candidates.sort(Comparator.comparingInt((Candidate c) -> c.kind.ordinal())
             .thenComparingInt(c -> c.start - c.end)
             .thenComparingInt(c -> c.start));
         TreeMap<Integer, Candidate> accepted = new TreeMap<>();
         for (Candidate candidate : candidates) {
-            if (scan.truncated && candidate.end == scan.text.length()) {
-                continue; // it may continue past the cap
+            if (!overlapsAny(accepted, candidate)) {
+                accepted.put(candidate.start, candidate);
             }
-            Map.Entry<Integer, Candidate> before = accepted.floorEntry(candidate.start);
-            if (before != null && before.getValue().end > candidate.start) {
-                continue;
-            }
-            Map.Entry<Integer, Candidate> after = accepted.ceilingEntry(candidate.start);
-            if (after != null && after.getKey() < candidate.end) {
-                continue;
-            }
-            accepted.put(candidate.start, candidate);
         }
         List<Match> matches = new ArrayList<>(accepted.size());
         for (Candidate candidate : accepted.values()) {
             matches.add(scan.toMatch(candidate));
         }
         return List.copyOf(matches);
+    }
+
+    /** Whether {@code candidate} overlaps one of the non-overlapping spans, keyed by their start. */
+    private static boolean overlapsAny(TreeMap<Integer, Candidate> spans, Candidate candidate) {
+        Map.Entry<Integer, Candidate> before = spans.floorEntry(candidate.start);
+        if (before != null && before.getValue().end > candidate.start) {
+            return true;
+        }
+        Map.Entry<Integer, Candidate> after = spans.ceilingEntry(candidate.start);
+        return after != null && after.getKey() < candidate.end;
     }
 
     private static boolean mayContain(Kind kind, String text) {
@@ -308,6 +321,9 @@ public final class TerminalLinkDetector {
         while (end > start && text.charAt(end - 1) == '.') {
             end--; // sentence punctuation after the address or zone
         }
+        if (end - start > 2 && text.charAt(end - 1) == ':' && text.charAt(end - 2) != ':') {
+            end--; // "from 2001:db8::1: reset"; a trailing '::' belongs to the address
+        }
         if (end > start && text.charAt(end - 1) == '%') {
             end--; // a bare % is no zone
         }
@@ -433,7 +449,7 @@ public final class TerminalLinkDetector {
     }
 
     private static boolean containsMailto(String text) {
-        for (int i = text.indexOf(':'); i >= 6; i = text.indexOf(':', i + 1)) {
+        for (int i = text.indexOf(':', 6); i >= 0; i = text.indexOf(':', i + 1)) {
             if (text.regionMatches(true, i - 6, "mailto", 0, 6)) {
                 return true;
             }
@@ -496,9 +512,11 @@ public final class TerminalLinkDetector {
 
     /**
      * The scanned text: the input up to the cap without {@link CharUtils#DWC} cells and with every
-     * delimiter turned into a space, plus the cell offset of each remaining character.
+     * delimiter turned into a space, plus the cell offset of each remaining character. When the cap
+     * cuts a token, the text ends at the delimiter before it, so the cut token is never seen, not even
+     * with its cut end trimmed off.
      */
-    private record Scan(CharSequence line, String text, int[] cells, int limit, boolean truncated) {
+    private record Scan(CharSequence line, String text, int[] cells, int limit) {
 
         static Scan of(CharSequence line) {
             int limit = Math.min(line.length(), MAX_INPUT_CHARS);
@@ -512,7 +530,10 @@ public final class TerminalLinkDetector {
                 cells[text.length()] = i;
                 text.append(isDelimiter(c) ? ' ' : c);
             }
-            return new Scan(line, text.toString(), cells, limit, line.length() > limit);
+            if (line.length() > limit && !isDelimiter(line.charAt(limit))) {
+                text.setLength(Math.max(text.lastIndexOf(" "), 0));
+            }
+            return new Scan(line, text.toString(), cells, limit);
         }
 
         Match toMatch(Candidate candidate) {
