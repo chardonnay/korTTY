@@ -84,11 +84,31 @@ class HighlightSettingsWiringTest {
         String attach = region(view, "private void attachTerminalHighlighter(SithTermFxWidget widget) {", "\n    }\n");
         String report = region(view, "private void reportInheritedHighlightSet(", "\n    }\n");
 
-        assertThat(attach).contains("reportInheritedHighlightSet(service, widget);");
+        assertWithMessage("a pane is reported once it is set up, not while it is being created")
+            .that(attach).contains("pendingHighlightReports.add(widget);");
+        assertThat(attach).doesNotContain("reportInheritedHighlightSet(");
         assertThat(report).contains(
             "HighlightTelemetry.props(shown, HighlightTelemetry.inheritedSource(service.decidingLevel(selection)))");
         assertWithMessage("a pane that starts without highlighting is no activation").that(report)
             .contains("if (shown != null) {");
+    }
+
+    @Test
+    void theFirstPaneIsReportedOnceTheSplitPaneIsBuiltAndAClosedPaneNever() throws IOException {
+        String view = source("TerminalView.java");
+        String init = region(view, "private void initializeTerminal() {", "splitPane.setOnLastWidgetSessionEnded(");
+
+        assertWithMessage("the first pane is configured inside the split pane's constructor")
+            .that(init.indexOf("reportPendingHighlightActivations();"))
+            .isGreaterThan(init.indexOf("splitPane = new TerminalSplitPane("));
+        String pending = region(view, "private void reportPendingHighlightActivation(SithTermFxWidget pane) {",
+            "\n    }\n");
+        assertWithMessage("reported at most once").that(pending).contains("!pendingHighlightReports.remove(pane)");
+        assertWithMessage("a pane with a choice of its own (taken over from its parent) is no inherited activation")
+            .that(pending).contains("paneHighlightOverride.containsKey(pane)");
+        assertWithMessage("a split that never connected is released without a report")
+            .that(region(view, "private void releaseTerminalHighlighter(SithTermFxWidget widget) {", "\n    }\n"))
+            .contains("pendingHighlightReports.remove(widget);");
     }
 
     private static String source(String file) throws IOException {

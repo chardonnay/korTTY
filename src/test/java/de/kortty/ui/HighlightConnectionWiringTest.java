@@ -93,9 +93,12 @@ class HighlightConnectionWiringTest {
 
         assertThat(inherit).contains("setPaneHighlightOverride(newWidget, choice);");
         assertThat(inherit).contains("refreshInheritedHighlightSet(newWidget);");
+        assertWithMessage("the split's set is reported once, after it follows its own connection")
+            .that(inherit.indexOf("reportPendingHighlightActivation(newWidget);"))
+            .isGreaterThan(inherit.indexOf("refreshInheritedHighlightSet(newWidget);"));
         String refresh = region(view, "private void refreshInheritedHighlightSet(", "\n    }\n");
         assertThat(refresh).contains("service.refresh(highlighter);");
-        assertThat(refresh).contains("reportInheritedHighlightSet(service, pane);");
+        assertThat(refresh).doesNotContain("reportInheritedHighlightSet(");
         assertThat(refresh).contains("catch (RuntimeException e)");
     }
 

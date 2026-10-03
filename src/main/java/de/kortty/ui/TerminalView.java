@@ -389,6 +389,12 @@ public class TerminalView extends BorderPane {
     private final Map<SithTermFxWidget, String> paneHighlightOverride = new ConcurrentHashMap<>();
     /** The rule set each pane showed last in this session, which the highlighting toggle switches back on. */
     private final Map<SithTermFxWidget, String> paneLastHighlightSet = new ConcurrentHashMap<>();
+    /**
+     * Panes attached but not yet set up: the set a pane starts with is reported once its setup is done —
+     * a split only knows its own connection and its parent's choice after the split hook, and a split
+     * that fails to connect is released without ever counting as an activation.
+     */
+    private final java.util.Set<SithTermFxWidget> pendingHighlightReports = ConcurrentHashMap.newKeySet();
     /** Canvas focus observers per pane (Stage 2): feed the focused-widget listeners and done-until-seen. */
     private final Map<SithTermFxWidget, javafx.beans.value.ChangeListener<Boolean>> paneFocusListeners =
         new ConcurrentHashMap<>();
@@ -545,6 +551,9 @@ public class TerminalView extends BorderPane {
             inheritHighlightOnSplit(widget, request);
             inheritEffectOnSplit(widget, request);
         });
+        // The first pane is set up now (it was configured inside the constructor above): report the
+        // rule set it starts with, if any.
+        reportPendingHighlightActivations();
         splitPane.setOnLastWidgetSessionEnded(() -> { // Only the LAST pane's exit closes the tab (splits close just their pane)
             if (wasConnectionLost()) {
                 // The session ended because the transport died, not through a remote exit:
@@ -1223,18 +1232,23 @@ public class TerminalView extends BorderPane {
     /**
      * New split panes inherit the source pane's runtime highlight choice. Without one, the pane follows
      * its own connection, which is only known now: a split to another server was attached before its
-     * connector existed and so first resolved against the tab's connection.
+     * connector existed and so first resolved against the tab's connection. Only then is the set the
+     * pane starts with reported, and only when it comes from the connection or the default — a choice
+     * taken over from the parent pane was reported when it was made.
      */
     private void inheritHighlightOnSplit(SithTermFxWidget newWidget, SplitRequest request) {
-        if (newWidget == null || request == null || request.getParentWidget() == null) {
+        if (newWidget == null) {
             return;
         }
-        String choice = paneHighlightOverride.get(request.getParentWidget());
+        String choice = request != null && request.getParentWidget() != null
+            ? paneHighlightOverride.get(request.getParentWidget())
+            : null;
         if (choice != null) {
             setPaneHighlightOverride(newWidget, choice);
         } else {
             refreshInheritedHighlightSet(newWidget);
         }
+        reportPendingHighlightActivation(newWidget);
     }
 
     // ---- Tab-level (no-arg) API: forwards to the primary/focused pane so MainWindow and the
@@ -3696,10 +3710,39 @@ public class TerminalView extends BorderPane {
                 return highlighter;
             });
             if (attached[0]) {
-                reportInheritedHighlightSet(service, widget);
+                // Reported once the pane is set up: the tab's first pane right after the split pane is
+                // built, a split from the split hook (see reportPendingHighlightActivation).
+                pendingHighlightReports.add(widget);
             }
         } catch (RuntimeException e) {
             logger.warn("Keyword highlighting could not be attached to a terminal pane: {}", e.toString());
+        }
+    }
+
+    /** Reports every pane still waiting for its first report (the tab's first pane). */
+    private void reportPendingHighlightActivations() {
+        for (SithTermFxWidget pane : new ArrayList<>(pendingHighlightReports)) {
+            reportPendingHighlightActivation(pane);
+        }
+    }
+
+    /**
+     * Reports the set a newly set-up pane starts with, once: only while it has no choice of its own (a
+     * split that took over its parent's choice is not a new activation) and only when it shows a set.
+     */
+    private void reportPendingHighlightActivation(SithTermFxWidget pane) {
+        if (pane == null || !pendingHighlightReports.remove(pane)) {
+            return;
+        }
+        TerminalHighlightService service = terminalHighlightService();
+        if (service == null || service.isClosed() || !terminalHighlighters.containsKey(pane)
+            || paneHighlightOverride.containsKey(pane)) {
+            return;
+        }
+        try {
+            reportInheritedHighlightSet(service, pane);
+        } catch (RuntimeException e) {
+            logger.debug("Keyword highlighting activation could not be reported: {}", e.toString());
         }
     }
 
@@ -3718,8 +3761,8 @@ public class TerminalView extends BorderPane {
     }
 
     /**
-     * Moves a pane without a choice of its own to the set it inherits now, and reports it once when that
-     * changed what the pane shows (a split to a server whose connection has a set of its own).
+     * Moves a pane without a choice of its own to the set it inherits now (a split to a server whose
+     * connection has a set of its own). The caller reports the pane's set afterwards.
      */
     private void refreshInheritedHighlightSet(SithTermFxWidget pane) {
         TerminalHighlightService service = terminalHighlightService();
@@ -3728,11 +3771,7 @@ public class TerminalView extends BorderPane {
             return;
         }
         try {
-            String before = highlighter.ruleSet().setId();
             service.refresh(highlighter);
-            if (!Objects.equals(before, highlighter.ruleSet().setId())) {
-                reportInheritedHighlightSet(service, pane);
-            }
         } catch (RuntimeException e) {
             logger.warn("Keyword highlighting could not follow a new pane's connection: {}", e.toString());
         }
@@ -3823,6 +3862,7 @@ public class TerminalView extends BorderPane {
         }
         paneHighlightOverride.remove(widget);
         paneLastHighlightSet.remove(widget);
+        pendingHighlightReports.remove(widget);
         TerminalOutputHighlighter highlighter = terminalHighlighters.remove(widget);
         if (highlighter == null) {
             return;
@@ -3845,6 +3885,7 @@ public class TerminalView extends BorderPane {
         }
         paneHighlightOverride.clear();
         paneLastHighlightSet.clear();
+        pendingHighlightReports.clear();
     }
 
     /** The pane's runtime highlight choice: a set id, {@code "none"}, or {@code null} when it inherits. */
