@@ -179,6 +179,7 @@ public class TerminalSplitPane extends StackPane {
         this.connectorDecorator = connectorDecorator;
         this.rootCell = createInitialCell();
         getChildren().add(rootCell.getNode());
+        refreshSplitCloseButtons();
         VBox.setVgrow(this, Priority.ALWAYS);
         // Only allow pane-move drag with Shift+Alt/Option.
         addEventFilter(MouseEvent.DRAG_DETECTED, event -> {
@@ -773,7 +774,9 @@ public class TerminalSplitPane extends StackPane {
      * is null or not connected leaves the tree untouched and answers null, so a programmatic caller
      * can surface the failure rather than watch nothing happen.
      *
-     * @param widget the pane to split; it stays open beside the new one
+     * @param widget the pane to split; it stays open beside the new one. A widget that is not a pane
+     *     of this split pane answers null before any pane is built, so the caller still owns
+     *     {@code preparedConnector}
      * @param mode always pass a mode explicitly — {@code splitHorizontally(null)} and
      *     {@code splitVertically(null)} fall back to {@link SplitRequest.SplitMode#NEW_CONNECTION},
      *     which asks the user for a new connection
@@ -785,18 +788,14 @@ public class TerminalSplitPane extends StackPane {
                                                   @NotNull SplitRequest.SplitMode mode,
                                                   @NotNull Orientation orientation,
                                                   @Nullable TtyConnector preparedConnector) {
+        if (!getAllWidgets().contains(widget)) {
+            return null;
+        }
         SplitRequest request = new SplitRequest(mode, widget);
         SithTermFxWidget newWidget = createWidget(request, preparedConnector);
         TtyConnector connector = newWidget.getTtyConnector();
         if (connector == null || !connector.isConnected()) {
-            // The widget configurator (and, with a connector, the decorator) already ran for this
-            // widget, so per-widget registrations exist although it never joins the tree: fire the
-            // close hook exactly as closeSplit does, or those registrations leak for the tab's life.
-            notifyWidgetClosed(newWidget);
-            try {
-                newWidget.close();
-            } catch (Exception ignored) {
-            }
+            releaseUnattachedWidget(newWidget);
             return null;
         }
         setupWidget(newWidget);
@@ -805,6 +804,7 @@ public class TerminalSplitPane extends StackPane {
         SplitCell newCell = new SplitCell(newWidget);
         SplitCell replacement = rootCell.replaceWidget(widget, newCell, orientation);
         if (replacement == null) {
+            releaseUnattachedWidget(newWidget);
             return null;
         }
         getChildren().clear();
@@ -815,6 +815,29 @@ public class TerminalSplitPane extends StackPane {
         refreshSplitCloseButtons();
         notifyWidgetSplitCreated(newWidget, request);
         return newWidget;
+    }
+
+    /**
+     * Releases a pane built for a split that never joined the tree. The widget configurator (and,
+     * with a connector, the decorator) already ran for it, so per-widget registrations exist: fire the
+     * close hook exactly as closeSplit does, or those registrations leak for the tab's life.
+     */
+    private void releaseUnattachedWidget(@NotNull SithTermFxWidget widget) {
+        notifyWidgetClosed(widget);
+        try {
+            widget.close();
+        } catch (Exception ignored) {
+        }
+        forgetWidget(widget);
+    }
+
+    /** Drops every per-widget entry of a pane that has left, or never joined, the tree. */
+    private void forgetWidget(@NotNull SithTermFxWidget widget) {
+        widgetLeftPanels.remove(widget);
+        widgetBottomPanels.remove(widget);
+        widgetBottomHosts.remove(widget);
+        widgetCloseButtons.remove(widget);
+        widgetOverlayHosts.remove(widget);
     }
 
     /**
@@ -843,11 +866,7 @@ public class TerminalSplitPane extends StackPane {
         } catch (Exception e) {
             logger.debug("Error closing widget: {}", e.getMessage());
         }
-        widgetLeftPanels.remove(widget);
-        widgetBottomPanels.remove(widget);
-        widgetBottomHosts.remove(widget);
-        widgetCloseButtons.remove(widget);
-        widgetOverlayHosts.remove(widget);
+        forgetWidget(widget);
         SplitCell replacement = rootCell.removeWidget(widget);
         if (replacement != rootCell) {
             getChildren().clear();
@@ -1215,7 +1234,9 @@ public class TerminalSplitPane extends StackPane {
             wrapper.getChildren().add(closeButton);
             widgetCloseButtons.put(widget, closeButton);
             this.node = wrapper;
-            refreshSplitCloseButtons();
+            // No refreshSplitCloseButtons() here: it prunes both maps against the tree, which this
+            // cell has not joined yet, so it would drop the entries just added. Whoever puts the cell
+            // into rootCell refreshes once it is there.
         }
 
         SplitCell(@NotNull SplitCell left, @NotNull SplitCell right, @NotNull Orientation orientation) {
