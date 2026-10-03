@@ -294,6 +294,8 @@ public class TerminalView extends BorderPane {
     private de.kortty.model.TemporarySSHKey temporarySSHKey;  // For split connections with temporary key
     
     private TerminalSplitPane splitPane;
+    // Quick select (Edit > Quick Select): its key filters are the split pane's first.
+    private TerminalQuickSelectController quickSelect;
     private StackPane terminalContainer;
     private String terminalAgentBusyStylesheetUrl;
     private SithTermFxWidget terminalWidget;  // Primary widget (first terminal in split)
@@ -669,7 +671,11 @@ public class TerminalView extends BorderPane {
         
         terminalWidget = splitPane.getFocusedWidget();
         if (terminalWidget != null) applyCursorShape(terminalWidget);
-        
+
+        // Quick select's key filters go first: while it runs, every key, its typed character and any
+        // input-method text stay out of the panes (agent lock, broadcast mirror and shell included).
+        quickSelect = TerminalQuickSelectController.install(splitPane, MainWindow.quickSelectAccelerator());
+
         // Key handling at split-pane level runs before every pane: the agent input lock, the agent
         // shortcut and Ctrl+D come first. Navigation keys are encoded below, in each pane's own
         // filter (TerminalSplitPane.routeKeyPressed), which needs the real connector type.
@@ -2393,6 +2399,10 @@ public class TerminalView extends BorderPane {
      */
     private void reinitPaneFont(SithTermFxWidget widget) {
         if (widget == null || widget.getTerminalPanel() == null) return;
+        if (quickSelect != null) {
+            // The cells move under quick select's labels.
+            quickSelect.cancel();
+        }
         try {
             widget.getTerminalPanel().requestFontResize();
         } catch (Exception e) {
@@ -6884,6 +6894,18 @@ public class TerminalView extends BorderPane {
         SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
         if (focused instanceof TerminalPaneActions actions) {
             actions.showFind();
+        }
+    }
+
+    /**
+     * Starts quick select in the focused pane: every URL, path, address, hash and long number on
+     * screen gets a label to copy it with, or to open it with Shift. See
+     * {@link TerminalQuickSelectController}.
+     */
+    public void startQuickSelect() {
+        SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+        if (quickSelect != null && focused instanceof KorttyTermWidget widget) {
+            quickSelect.start(widget);
         }
     }
     

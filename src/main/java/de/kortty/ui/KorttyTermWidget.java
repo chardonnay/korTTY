@@ -15,6 +15,7 @@ import de.kortty.ui.TerminalLinkClickPolicy.HitKind;
 import javafx.application.Platform;
 import javafx.geometry.Dimension2D;
 import javafx.scene.layout.Pane;
+import javafx.scene.text.Font;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -195,6 +196,11 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
         /** The hover handling of this panel, for {@code terminalLinksSmoke}. */
         @NotNull TerminalLinkHoverController linkHover() {
             return linkHover;
+        }
+
+        /** The font the panel draws its regular text in, at the current size; for quick select's labels. */
+        @NotNull Font terminalFont() {
+            return createFont();
         }
 
         /**

@@ -17,8 +17,8 @@ import java.util.List;
  * of korTTY's pinned SithTermFX patch {@code terminal-panel-bottom-row-hyperlink-boundary}: a cell
  * exists only for {@code 0 <= column < bufferWidth} and {@code -historyLines <= line < bufferHeight}.
  *
- * <p>{@link #underline} goes the other way, from cells to pixels, for the underline korTTY draws
- * under a hovered link.
+ * <p>{@link #underline} and {@link #boxes} go the other way, from cells to pixels, for the underline
+ * korTTY draws under a hovered link and the boxes quick select draws around its matches.
  *
  * <p>Toolkit-free, because a SithTermFX {@code TerminalPanel} needs a running JavaFX toolkit.
  *
@@ -57,6 +57,17 @@ public record TerminalCellGeometry(
      * @param y      the height of the line
      */
     public record Segment(double startX, double endX, double y) {
+    }
+
+    /**
+     * One row's part of a run of cells, in canvas coordinates.
+     *
+     * @param x      the left edge of the first cell
+     * @param y      the top edge of the row
+     * @param width  the width of the cells
+     * @param height the height of the row
+     */
+    public record Box(double x, double y, double width, double height) {
     }
 
     /**
@@ -112,5 +123,32 @@ public record TerminalCellGeometry(
             segments.add(new Segment(insetX + from * cellWidth, insetX + (to + 1) * cellWidth, y));
         }
         return segments;
+    }
+
+    /**
+     * The cells {@code start} to {@code end} (inclusive, in reading order) as one box per row they
+     * cover on screen: the rest of the first row, whole rows between, the start of the last. Rows
+     * that are not on screen at the current scroll origin get no box, and columns are cut to the grid.
+     *
+     * @return one box per visible row, top to bottom; empty for an unmeasured grid
+     */
+    public @NotNull List<Box> boxes(@NotNull Point start, @NotNull Point end) {
+        int lastColumn = Math.min(columns, bufferWidth) - 1;
+        if (lastColumn < 0 || rows <= 0 || !(cellWidth > 0) || !(cellHeight > 0)) {
+            return List.of();
+        }
+        List<Box> boxes = new ArrayList<>();
+        int firstLine = Math.max(start.y, scrollOrigin);
+        int lastLine = Math.min(end.y, scrollOrigin + rows - 1);
+        for (int line = firstLine; line <= lastLine; line++) {
+            int from = Math.max(0, line == start.y ? start.x : 0);
+            int to = Math.min(lastColumn, line == end.y ? end.x : lastColumn);
+            if (to < from) {
+                continue;
+            }
+            boxes.add(new Box(insetX + from * cellWidth, (line - scrollOrigin) * cellHeight,
+                (to - from + 1) * cellWidth, cellHeight));
+        }
+        return boxes;
     }
 }

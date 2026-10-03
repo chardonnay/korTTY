@@ -197,6 +197,12 @@ public class MainWindow {
     // fullscreen, so terminal-only fullscreen uses a modifier combo instead of a bare function key.
     private static final KeyCombination TERMINAL_ONLY_FULLSCREEN_ACCELERATOR =
         new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    // Edit > Quick Select. Not a plain Ctrl+letter, so on Windows/Linux Ctrl+L/F/D/P/R stay with the
+    // shell; SithTermFX encodes Ctrl+Space (NUL) only without Shift.
+    private static final KeyCombination QUICK_SELECT_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.SPACE, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    /** What Cmd/Ctrl+Shift+Space can still type once korTTY took it: a space, or NUL for Ctrl+Space. */
+    private static final Residue QUICK_SELECT_RESIDUE = Residue.of(" ", "\u0000");
     private static final String MENU_BAR_TOGGLE_SHORTCUT_LABEL = "Cmd/Ctrl+Shift+L";
     private static final int JOB_SCHEDULER_QUEUE_LIMIT = 5;
     private static final int MAX_CONCURRENT_TERMINAL_AGENT_RUNS = 5;
@@ -275,6 +281,8 @@ public class MainWindow {
     private CheckMenuItem systemShowDashboardMenuItem;
     private MenuItem cutMenuItem;
     private MenuItem systemCutMenuItem;
+    private MenuItem quickSelectMenuItem;
+    private MenuItem systemQuickSelectMenuItem;
     private CheckMenuItem showMenuBarMenuItem;
     private CheckMenuItem systemShowMenuBarMenuItem;
     private CheckMenuItem terminalOnlyFullscreenMenuItem;
@@ -1404,7 +1412,17 @@ public class MainWindow {
         find.setAccelerator(new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN));
         find.setOnAction(e -> findInCurrentTab());
 
-        editMenu.getItems().addAll(cut, copy, paste, new SeparatorMenuItem(), find);
+        MenuItem quickSelect = new MenuItem(I18n.get("menu.edit.quickSelect"));
+        quickSelect.setAccelerator(QUICK_SELECT_ACCELERATOR);
+        quickSelect.setOnAction(e -> quickSelectInCurrentTab());
+        if (target == MenuBarTarget.WINDOW) {
+            quickSelectMenuItem = quickSelect;
+        } else {
+            systemQuickSelectMenuItem = quickSelect;
+        }
+        updateEditMenuItemsForSelection();
+
+        editMenu.getItems().addAll(cut, copy, paste, new SeparatorMenuItem(), find, quickSelect);
         return editMenu;
     }
 
@@ -2212,6 +2230,10 @@ public class MainWindow {
                 () -> toggleMenuBarVisibility(menuBar == null || !menuBar.isVisible()), Residue.ofLetter('L'))
             .consume(press -> press.matches(TERMINAL_ONLY_FULLSCREEN_ACCELERATOR), SceneShortcutRouter.ALWAYS,
                 this::toggleTerminalOnlyFullscreen, Residue.ofLetter('F'))
+            // Quick select only while the keyboard is in the selected terminal tab: a side panel
+            // that uses the chord keeps it, and the Edit menu item still starts quick select there.
+            .consume(press -> press.matches(QUICK_SELECT_ACCELERATOR), this::isKeyboardInSelectedTerminal,
+                this::quickSelectInCurrentTab, QUICK_SELECT_RESIDUE)
             // Not consumed: the terminal pastes on its own, and the timestamp keeps the Paste menu
             // accelerator from pasting a second time (wasTriggeredByTerminalPasteShortcut).
             .observe(press -> press.matches(PASTE_ACCELERATOR), terminalSelected,
@@ -2233,6 +2255,22 @@ public class MainWindow {
                 this::selectNextTab, SceneShortcutKeys.TAB_RESIDUE)
             .consume(SceneShortcutKeys::isPreviousTab, SceneShortcutRouter.ALWAYS,
                 this::selectPreviousTab, SceneShortcutKeys.TAB_RESIDUE);
+    }
+
+    /** The chord that starts quick select, for the terminal view that ignores it while quick select runs. */
+    static KeyCombination quickSelectAccelerator() {
+        return QUICK_SELECT_ACCELERATOR;
+    }
+
+    /** A terminal tab is selected and the keyboard focus is inside it, or nowhere. */
+    private boolean isKeyboardInSelectedTerminal() {
+        if (!(tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab terminalTab)) {
+            return false;
+        }
+        Scene scene = stage.getScene();
+        Node focusOwner = scene != null ? scene.getFocusOwner() : null;
+        Node terminalRoot = terminalTab.getContent();
+        return focusOwner == null || terminalRoot == null || isNodeUnderRoot(focusOwner, terminalRoot);
     }
 
     /** F12: toggles fullscreen and gives the selected terminal the focus back once the layout settled. */
@@ -3909,6 +3947,14 @@ public class MainWindow {
         if (systemCutMenuItem != null) {
             systemCutMenuItem.setDisable(disableCut);
         }
+        // Quick select reads a terminal screen; disabled elsewhere, so an editor tab keeps the chord.
+        boolean disableQuickSelect = !(currentTab instanceof TerminalTab);
+        if (quickSelectMenuItem != null) {
+            quickSelectMenuItem.setDisable(disableQuickSelect);
+        }
+        if (systemQuickSelectMenuItem != null) {
+            systemQuickSelectMenuItem.setDisable(disableQuickSelect);
+        }
     }
 
     private boolean invokeCutMethodIfPresent(Node focusOwner) {
@@ -3973,6 +4019,13 @@ public class MainWindow {
             terminalTab.showFind();
         } else if (currentTab instanceof FileEditorTab editorTab) {
             editorTab.showFind();
+        }
+    }
+
+    /** Edit &gt; Quick Select: labels what the focused terminal pane shows; nothing in other tabs. */
+    private void quickSelectInCurrentTab() {
+        if (tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab terminalTab) {
+            terminalTab.startQuickSelect();
         }
     }
     

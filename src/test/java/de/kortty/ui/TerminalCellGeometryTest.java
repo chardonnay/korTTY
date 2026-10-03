@@ -165,6 +165,41 @@ public class TerminalCellGeometryTest {
             .underline(cell(0, 0), cell(3, 0), BASELINE)).isEmpty();
     }
 
+    @Test
+    public void aBoxCoversTheCellsOfOneRowFromTheirTopEdge() {
+        assertThat(SCREEN.boxes(cell(2, 3), cell(5, 3))).containsExactly(new TerminalCellGeometry.Box(
+            INSET + 2 * CELL_WIDTH, 3 * CELL_HEIGHT, 4 * CELL_WIDTH, CELL_HEIGHT));
+    }
+
+    @Test
+    public void aWrappedRunGetsOneBoxPerRowAndOnlyRowsOnScreen() {
+        assertThat(SCREEN.boxes(cell(76, 3), cell(3, 5))).containsExactly(
+            new TerminalCellGeometry.Box(INSET + 76 * CELL_WIDTH, 3 * CELL_HEIGHT, 4 * CELL_WIDTH, CELL_HEIGHT),
+            new TerminalCellGeometry.Box(INSET, 4 * CELL_HEIGHT, COLUMNS * CELL_WIDTH, CELL_HEIGHT),
+            new TerminalCellGeometry.Box(INSET, 5 * CELL_HEIGHT, 4 * CELL_WIDTH, CELL_HEIGHT))
+            .inOrder();
+
+        TerminalCellGeometry scrolledBack = scrolledTo(-10);
+        assertThat(scrolledBack.boxes(cell(70, -11), cell(4, -10))).containsExactly(
+            new TerminalCellGeometry.Box(INSET, 0, 5 * CELL_WIDTH, CELL_HEIGHT));
+        assertThat(scrolledBack.boxes(cell(0, 14), cell(9, 14))).isEmpty();
+    }
+
+    @Test
+    public void boxesAndUnderlineAgreeOnEveryRow() {
+        List<TerminalCellGeometry.Box> boxes = SCREEN.boxes(cell(76, 3), cell(3, 5));
+        List<TerminalCellGeometry.Segment> underline = SCREEN.underline(cell(76, 3), cell(3, 5), BASELINE);
+
+        assertThat(boxes).hasSize(underline.size());
+        for (int i = 0; i < boxes.size(); i++) {
+            assertThat(boxes.get(i).x()).isEqualTo(underline.get(i).startX());
+            assertThat(boxes.get(i).x() + boxes.get(i).width()).isEqualTo(underline.get(i).endX());
+            assertThat(boxes.get(i).y() + BASELINE + 3).isEqualTo(underline.get(i).y());
+        }
+        assertThat(new TerminalCellGeometry(INSET, 0, CELL_HEIGHT, COLUMNS, ROWS, 0, COLUMNS, ROWS, HISTORY)
+            .boxes(cell(0, 0), cell(3, 0))).isEmpty();
+    }
+
     private static TerminalCellGeometry scrolledTo(int scrollOrigin) {
         return new TerminalCellGeometry(
             INSET, CELL_WIDTH, CELL_HEIGHT, COLUMNS, ROWS, scrollOrigin, COLUMNS, ROWS, HISTORY);

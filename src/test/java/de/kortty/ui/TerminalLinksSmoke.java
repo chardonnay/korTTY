@@ -49,7 +49,9 @@ import java.util.concurrent.atomic.AtomicReference;
  * the target tooltip; resting on an OSC 8 link shows its real target; leaving, other text and new
  * output take everything away; and an OSC 8 link whose text names another host opens only after the
  * confirmation. A right-click on a link starts the real context menu with Open Link and Copy Link
- * Address, and Open Link opens it. Run via the {@code terminalLinksSmoke} Gradle task. Exit 0 = OK.
+ * Address, and Open Link opens it. Quick select labels what the pane shows, copies with a label and
+ * opens with Shift and a label, and lets none of its keys or input-method text reach the program.
+ * Run via the {@code terminalLinksSmoke} Gradle task. Exit 0 = OK.
  */
 public final class TerminalLinksSmoke {
 
@@ -61,6 +63,10 @@ public final class TerminalLinksSmoke {
     private static final String DECEPTIVE_LINE =
         "\u001b]8;;" + DECEPTIVE_TARGET + "\u001b\\https://example.com/login\u001b]8;;\u001b\\";
     private static final double GUTTER_WIDTH = 40;
+    private static final String QUICK_SELECT_URL = "https://example.com/qs";
+    private static final javafx.scene.input.KeyCombination QUICK_SELECT_TRIGGER =
+        new javafx.scene.input.KeyCodeCombination(javafx.scene.input.KeyCode.SPACE,
+            javafx.scene.input.KeyCombination.SHORTCUT_DOWN, javafx.scene.input.KeyCombination.SHIFT_DOWN);
     private static final boolean MAC = System.getProperty("os.name", "").toLowerCase().contains("mac");
 
     private TerminalLinksSmoke() {
@@ -122,7 +128,7 @@ public final class TerminalLinksSmoke {
             System.exit(1);
         }
         System.out.println("SMOKE OK: terminal links open only on a single, still Cmd/Ctrl+click, and a hover shows"
-            + " where they go" + note.get());
+            + " where they go, and quick select keeps its keys from the program" + note.get());
         System.exit(0);
     }
 
@@ -207,6 +213,7 @@ public final class TerminalLinksSmoke {
             verifyHover(splitPane, widget, panel, canvas, connector, onLink, onPlainText, onPlainUrl);
             verifyContextMenu((KorttyTermWidget) widget, canvas, onLink, onPlainText, onPlainUrl, opened);
             verifyHostMismatch(panel, canvas, connector, opened, reachedHandlers);
+            verifyQuickSelect(splitPane, widget, panel, canvas, connector, opened);
 
             // A swallowed click on a link in another pane still moves the focused pane there.
             SithTermFxWidget second = onFxThread(() -> splitPane.splitWidget(widget, SplitRequest.SplitMode.NEW_CONNECTION,
@@ -456,6 +463,143 @@ public final class TerminalLinksSmoke {
         check(DECEPTIVE_TARGET.equals(opened.get(before)), "a confirmed mismatch opened " + opened);
     }
 
+    /**
+     * Quick select: it labels what the pane shows bottom row first, with each label over the first
+     * cell of its match; a label copies, Shift with a label opens a web address, Escape and a mouse
+     * press end it, and text printed over a match stops offering it. None of its keys, their typed
+     * characters or input-method text reaches the program.
+     */
+    private static void verifyQuickSelect(TerminalSplitPane splitPane, SithTermFxWidget widget,
+                                          KorttyTermWidget.KorttyTerminalPanel panel, Node canvas,
+                                          FeedingTtyConnector connector, List<String> opened) throws Exception {
+        KorttyTermWidget kortty = (KorttyTermWidget) widget;
+        TerminalQuickSelectController quickSelect = onFxThread(() ->
+            TerminalQuickSelectController.install(splitPane, QUICK_SELECT_TRIGGER));
+        List<String> copied = new CopyOnWriteArrayList<>();
+        onFxThread(() -> {
+            quickSelect.setCopier(copied::add);
+            return null;
+        });
+        connector.feed("\u001b[H\u001b[2Jip 10.20.30.40 and " + QUICK_SELECT_URL + "\r\nhash c0ffee1\r\n");
+        await("the quick-select lines never reached the terminal buffer", () -> onFxThread(() ->
+            panel.getTerminalTextBuffer().getScreenLines().startsWith("ip 10.20.30.40 and " + QUICK_SELECT_URL)
+                && panel.getTerminalTextBuffer().getScreenLines().contains("hash c0ffee1")));
+
+        // Without quick select a typed key reaches the program, so the checks below are not vacuous.
+        connector.clearWritten();
+        type(canvas, javafx.scene.input.KeyCode.X, "x", false);
+        await("a typed key never reached the program", () -> connector.written().contains("x"));
+        connector.clearWritten();
+
+        check(onFxThread(() -> quickSelect.start(kortty)), "quick select did not start");
+        List<String> texts = onFxThread(quickSelect::shownTexts);
+        check(List.of("c0ffee1", "10.20.30.40", QUICK_SELECT_URL).equals(texts), "quick select offered " + texts);
+        check(List.of("a", "s", "d").equals(onFxThread(quickSelect::shownLabels)),
+            "quick select labelled " + onFxThread(quickSelect::shownLabels));
+        check(List.of("a", "s", "d").equals(onFxThread(() -> overlayLabels(splitPane, widget))),
+            "the LINKS layer shows " + onFxThread(() -> overlayLabels(splitPane, widget)));
+        // Label "a" sits over the first cell of c0ffee1 (column 5 of row 1), right of the gutter.
+        double[] corner = onFxThread(() -> {
+            javafx.scene.control.Label chip = overlayLabel(splitPane, widget, "a");
+            TerminalCellGeometry geometry = panel.cellGeometry();
+            Point2D expected = canvas.localToScene(geometry.insetX() + 5 * geometry.cellWidth(), geometry.cellHeight());
+            Point2D drawn = chip.localToScene(0, 0);
+            return new double[] {drawn.getX(), drawn.getY(), expected.getX(), expected.getY()};
+        });
+        check(Math.abs(corner[0] - corner[2]) < 0.5 && Math.abs(corner[1] - corner[3]) < 0.5,
+            "label a sits at " + corner[0] + "," + corner[1] + " instead of " + corner[2] + "," + corner[3]);
+
+        // A label copies its text and ends quick select.
+        type(canvas, javafx.scene.input.KeyCode.S, "s", false);
+        check(List.of("10.20.30.40").equals(copied), "label s copied " + copied);
+        check(!onFxThread(quickSelect::isActive), "quick select stayed after a label");
+        check(onFxThread(() -> overlayLabels(splitPane, widget)).contains(I18n.get("terminal.quickSelect.copied")),
+            "no Copied note after the copy: " + onFxThread(() -> overlayLabels(splitPane, widget)));
+
+        // Shift with a label opens a web address the way a Cmd/Ctrl+click does.
+        int before = opened.size();
+        check(onFxThread(() -> quickSelect.start(kortty)), "quick select did not start again");
+        type(canvas, javafx.scene.input.KeyCode.D, "D", true);
+        await("Shift with a label did not open the URL", () -> opened.size() == before + 1);
+        check(QUICK_SELECT_URL.equals(opened.get(before)), "Shift with a label opened " + opened);
+
+        // Input-method text while it runs goes nowhere; Escape ends it without copying.
+        check(onFxThread(() -> quickSelect.start(kortty)), "quick select did not start for Escape");
+        onFxThread(() -> {
+            Event.fireEvent(canvas, new javafx.scene.input.InputMethodEvent(
+                javafx.scene.input.InputMethodEvent.INPUT_METHOD_TEXT_CHANGED, List.of(), "あ", 0));
+            return null;
+        });
+        type(canvas, javafx.scene.input.KeyCode.ESCAPE, "\u001b", false);
+        check(!onFxThread(quickSelect::isActive), "Escape did not end quick select");
+        check(copied.size() == 1, "Escape copied " + copied);
+
+        // A mouse press in the pane ends it.
+        check(onFxThread(() -> quickSelect.start(kortty)), "quick select did not start for the mouse press");
+        press(canvas, cellCenter(panel, 0, 3), MouseButton.PRIMARY);
+        check(!onFxThread(quickSelect::isActive), "a mouse press did not end quick select");
+
+        // Text printed over a match stops offering it; the others keep their labels.
+        check(onFxThread(() -> quickSelect.start(kortty)), "quick select did not start for new output");
+        connector.feed("\u001b[2;1Hhash -------\u001b[4;1H");
+        await("a match printed over stayed offered", () ->
+            onFxThread(quickSelect::shownTexts).equals(List.of("10.20.30.40", QUICK_SELECT_URL)));
+        check(List.of("s", "d").equals(onFxThread(quickSelect::shownLabels)),
+            "the remaining matches changed their labels: " + onFxThread(quickSelect::shownLabels));
+        type(canvas, javafx.scene.input.KeyCode.ESCAPE, "\u001b", false);
+
+        Thread.sleep(300);
+        check(connector.written().isEmpty(), "quick select let input reach the program: " + connector.written());
+
+        // The lines the checks after this one click on, from the top.
+        connector.feed("\u001b[H\u001b[2J" + OSC8_LINE + "\r\nplain text here\r\nvisit " + PLAIN_URL + " now\r\n");
+        await("the lines never came back after quick select", () -> onFxThread(() ->
+            panel.getTerminalTextBuffer().getScreenLines().startsWith("see docs-link now")));
+    }
+
+    /** Fires a KEY_PRESSED and its KEY_TYPED at {@code target}, as a key typed there. */
+    private static void type(Node target, javafx.scene.input.KeyCode code, String character, boolean shift) throws Exception {
+        onFxThread(() -> {
+            Event.fireEvent(target, new javafx.scene.input.KeyEvent(javafx.scene.input.KeyEvent.KEY_PRESSED,
+                javafx.scene.input.KeyEvent.CHAR_UNDEFINED, character, code, shift, false, false, false));
+            Event.fireEvent(target, new javafx.scene.input.KeyEvent(javafx.scene.input.KeyEvent.KEY_TYPED,
+                character, "", javafx.scene.input.KeyCode.UNDEFINED, shift, false, false, false));
+            return null;
+        });
+    }
+
+    /** The texts of the visible labels in the pane's LINKS layer, quick select's and its notes. */
+    private static List<String> overlayLabels(TerminalSplitPane splitPane, SithTermFxWidget widget) {
+        List<String> texts = new java.util.ArrayList<>();
+        collectLabels(splitPane.paneOverlay(widget, TerminalSplitPane.PaneOverlayLayer.LINKS), texts, null);
+        return texts;
+    }
+
+    private static javafx.scene.control.Label overlayLabel(TerminalSplitPane splitPane, SithTermFxWidget widget,
+                                                           String text) {
+        List<javafx.scene.control.Label> found = new java.util.ArrayList<>();
+        collectLabels(splitPane.paneOverlay(widget, TerminalSplitPane.PaneOverlayLayer.LINKS), null, found);
+        return found.stream().filter(label -> text.equals(label.getText())).findFirst()
+            .orElseThrow(() -> new AssertionError("no label " + text + " in the LINKS layer"));
+    }
+
+    private static void collectLabels(javafx.scene.Parent parent, List<String> texts,
+                                      List<javafx.scene.control.Label> labels) {
+        if (parent == null) {
+            return;
+        }
+        for (Node child : parent.getChildrenUnmodifiable()) {
+            if (child instanceof javafx.scene.control.Label label) {
+                if (label.isVisible()) {
+                    if (texts != null) texts.add(label.getText());
+                    if (labels != null) labels.add(label);
+                }
+            } else if (child instanceof javafx.scene.Parent nested) {
+                collectLabels(nested, texts, labels);
+            }
+        }
+    }
+
     /** Fires a MOUSE_MOVED at {@code point}, as the mouse resting there. */
     private static void move(Node canvas, Point2D point) throws Exception {
         onFxThread(() -> {
@@ -546,6 +690,7 @@ public final class TerminalLinksSmoke {
         private static final String CLOSED = new String("closed");
 
         private final LinkedBlockingQueue<String> output = new LinkedBlockingQueue<>();
+        private final List<String> written = new CopyOnWriteArrayList<>();
         private final CountDownLatch closed = new CountDownLatch(1);
         private volatile String pending = "";
         private volatile boolean connected = true;
@@ -576,10 +721,21 @@ public final class TerminalLinksSmoke {
 
         @Override
         public void write(byte[] bytes) {
+            written.add(new String(bytes, java.nio.charset.StandardCharsets.UTF_8));
         }
 
         @Override
         public void write(String string) {
+            written.add(string);
+        }
+
+        /** Everything the terminal sent to the program since the last {@link #clearWritten()}. */
+        String written() {
+            return String.join("", written);
+        }
+
+        void clearWritten() {
+            written.clear();
         }
 
         @Override
