@@ -51,7 +51,7 @@ class TabServerPolicyGateTest {
         int loop = group.indexOf("for (ServerConnection conn : policyPartition.allowed())");
         assertThat(loop).isGreaterThan(allBlocked);
         assertThat(group).doesNotContain("for (ServerConnection conn : groupConnections)");
-        assertThat(group.indexOf("vault.retrievePassword(")).isGreaterThan(loop);
+        assertThat(group.indexOf("GroupOpenSupport.decide(conn, this::getConnectionPassword)")).isGreaterThan(loop);
         assertThat(group.indexOf("incrementUsageCount()")).isGreaterThan(loop);
         assertThat(group.indexOf("new TerminalTab(")).isGreaterThan(loop);
 

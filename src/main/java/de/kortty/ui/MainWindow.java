@@ -9534,22 +9534,18 @@ public class MainWindow {
 
         logger.info("Opening {} connections from group: {}", policyPartition.allowed().size(), groupName);
         
-        // Create password vault for retrieving stored passwords
-        PasswordVault vault = new PasswordVault(
-                app.getMasterPasswordManager().getEncryptionService(),
-                app.getMasterPasswordManager().getMasterPassword()
-        );
-        
         int opened = 0;
+        List<String> skippedWithoutPassword = new ArrayList<>();
         for (ServerConnection conn : policyPartition.allowed()) {
-            // Retrieve password from vault
-            String password = vault != null ? vault.retrievePassword(conn) : "";
-            
-            if (password == null || password.isEmpty()) {
+            // As in Duplicate: local shells and SSH key auth open without a password; a password
+            // login needs a stored one (credential store or vault) and is skipped without it.
+            GroupOpenSupport.Decision decision = GroupOpenSupport.decide(conn, this::getConnectionPassword);
+            if (!decision.open()) {
                 logger.warn("No password found for connection: {}", conn.getDisplayName());
-                // Skip this connection or show password dialog
+                skippedWithoutPassword.add(conn.getDisplayName());
                 continue;
             }
+            String password = decision.password();
             
             // Increment usage count
             conn.incrementUsageCount();
@@ -9601,6 +9597,24 @@ public class MainWindow {
         
         updateStatus(I18n.get("status.groupOpened", groupName, opened));
         updateDashboard();
+        if (!skippedWithoutPassword.isEmpty()) {
+            showGroupMembersSkippedWithoutPassword(groupName, skippedWithoutPassword);
+        }
+    }
+
+    /**
+     * Names the members of {@code groupName} that Open Group skipped because they log in with a
+     * password and none is stored, so they do not just silently stay closed.
+     */
+    private void showGroupMembersSkippedWithoutPassword(String groupName, List<String> skipped) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        DialogThemeHelper.applyTheme(alert);
+        alert.initOwner(stage);
+        alert.setTitle(I18n.get("quickConnect.openGroup"));
+        alert.setHeaderText(I18n.get("quickConnect.groupSkipped.header", skipped.size(), groupName));
+        alert.setContentText(I18n.get("quickConnect.groupSkipped.content",
+            "• " + String.join("\n• ", skipped)));
+        alert.show();
     }
     
     
