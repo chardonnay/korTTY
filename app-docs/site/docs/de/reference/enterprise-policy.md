@@ -210,7 +210,7 @@ groups = ["compliance"]
 
 | Schlüssel | Typ | Werte | Wirkung |
 | --- | --- | --- | --- |
-| `load-into-snippet-editor` | Zeichenfolge | `allow`, `read-only`, `deny` | `read-only` Lädt weiterhin entfernte Dateien in den Snippet-Editor, verbietet jedoch das Zurückschreiben in das Zielsystem; `deny` entfernt die Funktion vollständig |
+| `load-into-snippet-editor` | Zeichenfolge | `allow`, `read-only`, `deny` | `read-only` lädt weiterhin entfernte Dateien in den Snippet-Editor, verbietet jedoch das Zurückschreiben in das Zielsystem; `deny` entfernt die Funktion vollständig, einschließlich des Öffnens von Dateipfaden und `file:`-Links aus der Terminalausgabe ([Links in der Terminalausgabe](../features/terminal.md#links-in-der-terminalausgabe)) |
 
 ### `[rule.logging]`
 

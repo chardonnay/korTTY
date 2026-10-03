@@ -4,6 +4,7 @@ import com.sithtermfx.core.TtyConnector;
 import com.sithtermfx.ui.SithTermFxWidget;
 import de.kortty.ui.KorttyTermWidget;
 import javafx.geometry.Orientation;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import org.testng.annotations.Test;
 
@@ -18,9 +19,9 @@ import static com.google.common.truth.Truth.assertWithMessage;
  * the same name, and it wins only because korTTY's own classes come first on the classpath: nothing
  * excludes the vendor class from {@code sithtermfx-ui}. If that order ever flipped, korTTY would
  * still compile against its own source, but the vendor class would load at runtime, and every
- * korTTY-only call ({@code getWidgetOverlayHost}, {@code closeSplitPane}, the prepared-connector
- * split, the focused-pane tracking) would fail with {@code NoSuchMethodError} or silently lose
- * korTTY's fixes. This test fails first.
+ * korTTY-only call ({@code getWidgetOverlayHost}, {@code paneOverlay}, {@code closeSplitPane}, the
+ * prepared-connector split, the focused-pane tracking) would fail with {@code NoSuchMethodError} or
+ * silently lose korTTY's fixes. This test fails first.
  *
  * <p>Toolkit-free: reflection loads the classes without initializing any JavaFX control.
  */
@@ -39,6 +40,10 @@ public class TerminalSplitPaneShadowGuardTest {
         assertThat(preparedSplit.getReturnType()).isEqualTo(SithTermFxWidget.class);
 
         TerminalSplitPane.class.getDeclaredMethod("setFocusedWidgetInternal", SithTermFxWidget.class);
+
+        Method paneOverlay = TerminalSplitPane.class.getDeclaredMethod("paneOverlay",
+            SithTermFxWidget.class, TerminalSplitPane.PaneOverlayLayer.class);
+        assertThat(paneOverlay.getReturnType()).isEqualTo(Pane.class);
     }
 
     @Test

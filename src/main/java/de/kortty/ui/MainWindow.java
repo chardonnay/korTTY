@@ -197,6 +197,12 @@ public class MainWindow {
     // fullscreen, so terminal-only fullscreen uses a modifier combo instead of a bare function key.
     private static final KeyCombination TERMINAL_ONLY_FULLSCREEN_ACCELERATOR =
         new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    // Edit > Quick Select. Not a plain Ctrl+letter, so on Windows/Linux Ctrl+L/F/D/P/R stay with the
+    // shell; SithTermFX encodes Ctrl+Space (NUL) only without Shift.
+    private static final KeyCombination QUICK_SELECT_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.SPACE, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    /** What Cmd/Ctrl+Shift+Space can still type once korTTY took it: a space, or NUL for Ctrl+Space. */
+    private static final Residue QUICK_SELECT_RESIDUE = Residue.of(" ", "\u0000");
     private static final String MENU_BAR_TOGGLE_SHORTCUT_LABEL = "Cmd/Ctrl+Shift+L";
     private static final int JOB_SCHEDULER_QUEUE_LIMIT = 5;
     private static final int MAX_CONCURRENT_TERMINAL_AGENT_RUNS = 5;
@@ -275,6 +281,8 @@ public class MainWindow {
     private CheckMenuItem systemShowDashboardMenuItem;
     private MenuItem cutMenuItem;
     private MenuItem systemCutMenuItem;
+    private MenuItem quickSelectMenuItem;
+    private MenuItem systemQuickSelectMenuItem;
     private CheckMenuItem showMenuBarMenuItem;
     private CheckMenuItem systemShowMenuBarMenuItem;
     private CheckMenuItem terminalOnlyFullscreenMenuItem;
@@ -1476,7 +1484,17 @@ public class MainWindow {
         find.setAccelerator(new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN));
         find.setOnAction(e -> findInCurrentTab());
 
-        editMenu.getItems().addAll(cut, copy, paste, new SeparatorMenuItem(), find);
+        MenuItem quickSelect = new MenuItem(I18n.get("menu.edit.quickSelect"));
+        quickSelect.setAccelerator(QUICK_SELECT_ACCELERATOR);
+        quickSelect.setOnAction(e -> quickSelectInCurrentTab());
+        if (target == MenuBarTarget.WINDOW) {
+            quickSelectMenuItem = quickSelect;
+        } else {
+            systemQuickSelectMenuItem = quickSelect;
+        }
+        updateEditMenuItemsForSelection();
+
+        editMenu.getItems().addAll(cut, copy, paste, new SeparatorMenuItem(), find, quickSelect);
         return editMenu;
     }
 
@@ -2285,6 +2303,10 @@ public class MainWindow {
                 () -> toggleMenuBarVisibility(menuBar == null || !menuBar.isVisible()), Residue.ofLetter('L'))
             .consume(press -> press.matches(TERMINAL_ONLY_FULLSCREEN_ACCELERATOR), SceneShortcutRouter.ALWAYS,
                 this::toggleTerminalOnlyFullscreen, Residue.ofLetter('F'))
+            // Quick select only while the keyboard is in the selected terminal tab: a side panel
+            // that uses the chord keeps it, and the Edit menu item still starts quick select there.
+            .consume(press -> press.matches(QUICK_SELECT_ACCELERATOR), this::isKeyboardInSelectedTerminal,
+                this::quickSelectInCurrentTab, QUICK_SELECT_RESIDUE)
             // Not consumed: the terminal pastes on its own, and the timestamp keeps the Paste menu
             // accelerator from pasting a second time (wasTriggeredByTerminalPasteShortcut).
             .observe(press -> press.matches(PASTE_ACCELERATOR), terminalSelected,
@@ -2306,6 +2328,22 @@ public class MainWindow {
                 this::selectNextTab, SceneShortcutKeys.TAB_RESIDUE)
             .consume(SceneShortcutKeys::isPreviousTab, SceneShortcutRouter.ALWAYS,
                 this::selectPreviousTab, SceneShortcutKeys.TAB_RESIDUE);
+    }
+
+    /** The chord that starts quick select, for the terminal view that ignores it while quick select runs. */
+    static KeyCombination quickSelectAccelerator() {
+        return QUICK_SELECT_ACCELERATOR;
+    }
+
+    /** A terminal tab is selected and the keyboard focus is inside it, or nowhere. */
+    private boolean isKeyboardInSelectedTerminal() {
+        if (!(tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab terminalTab)) {
+            return false;
+        }
+        Scene scene = stage.getScene();
+        Node focusOwner = scene != null ? scene.getFocusOwner() : null;
+        Node terminalRoot = terminalTab.getContent();
+        return focusOwner == null || terminalRoot == null || isNodeUnderRoot(focusOwner, terminalRoot);
     }
 
     /** F12: toggles fullscreen and gives the selected terminal the focus back once the layout settled. */
@@ -3982,6 +4020,14 @@ public class MainWindow {
         if (systemCutMenuItem != null) {
             systemCutMenuItem.setDisable(disableCut);
         }
+        // Quick select reads a terminal screen; disabled elsewhere, so an editor tab keeps the chord.
+        boolean disableQuickSelect = !(currentTab instanceof TerminalTab);
+        if (quickSelectMenuItem != null) {
+            quickSelectMenuItem.setDisable(disableQuickSelect);
+        }
+        if (systemQuickSelectMenuItem != null) {
+            systemQuickSelectMenuItem.setDisable(disableQuickSelect);
+        }
     }
 
     private boolean invokeCutMethodIfPresent(Node focusOwner) {
@@ -4046,6 +4092,13 @@ public class MainWindow {
             terminalTab.showFind();
         } else if (currentTab instanceof FileEditorTab editorTab) {
             editorTab.showFind();
+        }
+    }
+
+    /** Edit &gt; Quick Select: labels what the focused terminal pane shows; nothing in other tabs. */
+    private void quickSelectInCurrentTab() {
+        if (tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab terminalTab) {
+            terminalTab.startQuickSelect();
         }
     }
     
@@ -6936,7 +6989,7 @@ public class MainWindow {
             return null;
         }
         Callable<TerminalRemoteTextFile> reader = createTerminalSelectionFileReader(
-            terminalTab, runContext, fileName, false, maxBytes, maxBytes);
+            terminalTab, runContext, new SelectedTerminalFile(fileName), false, maxBytes, maxBytes);
         return reader != null ? new AiAttachmentCandidate(fileName, reader) : null;
     }
 
@@ -7197,6 +7250,9 @@ public class MainWindow {
         if (policy.loadIntoSnippetEditor() != de.kortty.policy.LoadIntoEditorMode.DENY) {
             terminalTab.getTerminalView().setTerminalTextFileLoadHandler((runContext, selectedText) ->
                 loadTerminalSelectionAsTextFile(terminalTab, runContext, selectedText));
+            // Without it no pane finds file paths in its output and OSC 8 file: links stay plain text.
+            terminalTab.getTerminalView().setTerminalPathOpenHandler((runContext, link) ->
+                openTerminalPathInSnippetEditor(terminalTab, runContext, link));
         }
         if (policy.aiAgentAllowed()) {
             terminalTab.getTerminalView().setAiAgentHandler(runContext ->
@@ -7270,28 +7326,153 @@ public class MainWindow {
         // context-menu item is already disabled then, this guards every other invocation path.
         boolean foreignSession =
             terminalTab.getTerminalView().isForeignSessionActive(resolvedContext);
+        TerminalFileRequest request = new SelectedTerminalFile(selectedFileName);
         Callable<TerminalRemoteTextFile> reader = createTerminalSelectionFileReader(
-            terminalTab, resolvedContext, selectedFileName, foreignSession,
+            terminalTab, resolvedContext, request, foreignSession,
             Long.MAX_VALUE, MAX_LOCAL_TEXT_FILE_LOAD_BYTES);
         if (reader == null) {
             showError(I18n.get("error.title"), I18n.get("terminal.loadTextFile.notConnected"));
             return;
         }
         if (contextConnector instanceof SshTtyConnector connector) {
-            runTerminalTextFileLoadTask(selectedFileName, reader,
-                remoteFile -> openTerminalRemoteTextFileInSnippetEditor(terminalTab, connector, remoteFile));
+            runTerminalTextFileLoadTask(request, reader,
+                remoteFile -> openTerminalRemoteTextFileInSnippetEditor(terminalTab, connector, remoteFile, false));
         } else {
-            runTerminalTextFileLoadTask(selectedFileName, reader,
-                localFile -> openTerminalLocalTextFileInSnippetEditor(terminalTab, localFile));
+            runTerminalTextFileLoadTask(request, reader,
+                localFile -> openTerminalLocalTextFileInSnippetEditor(terminalTab, localFile, false));
         }
     }
 
     /**
-     * Builds the background reader that resolves {@code selectedFileName} against the pane's current
-     * directory and returns its validated UTF-8 text content — over SFTP for SSH sessions, from the
-     * local filesystem for local-shell tabs. Shared by "Open in Snippet Editor" and the AI chat
-     * attachment. Returns {@code null} when the pane has no usable connection. {@code foreignSession}
-     * must have been evaluated on the JavaFX thread beforehand; the reader itself must run off it.
+     * Opens the file a link in terminal output points to (a path printed as plain text or an OSC 8
+     * {@code file:} target) in the Snippet Editor: read over SFTP in an SSH tab and from disk in a
+     * local-shell tab, with the same guards as "Open in Snippet Editor" (the policy, the
+     * foreign-session check, regular UTF-8 text files only) and a {@value #MAX_LOCAL_TEXT_FILE_LOAD_BYTES}
+     * byte cap on both sides. A relative path resolves against the shell's directory now. A file an
+     * OSC 8 link names opens read-only: the program that printed the link chose the path behind its
+     * text. Runs on the JavaFX thread; {@code runContext} is the clicked pane's.
+     */
+    private void openTerminalPathInSnippetEditor(
+        TerminalTab terminalTab,
+        @Nullable TerminalView.TerminalAgentRunContext runContext,
+        TerminalFileLink link
+    ) {
+        if (de.kortty.policy.PolicyManager.effective().loadIntoSnippetEditor()
+            == de.kortty.policy.LoadIntoEditorMode.DENY) {
+            return;
+        }
+        if (runContext == null) {
+            showError(I18n.get("error.title"), I18n.get("terminal.loadTextFile.notConnected"));
+            return;
+        }
+        Telemetry.track(TelemetryEvents.FILE_LOADED_AS_TEXT, Map.of("source", "terminal_selection"));
+        // Evaluated on the JavaFX thread (reads the screen buffer): after su/ssh inside the session
+        // the path would be read as the wrong identity, or on the wrong host.
+        boolean foreignSession = terminalTab.getTerminalView().isForeignSessionActive(runContext);
+        TerminalFileRequest request = new LinkedTerminalFile(link.path());
+        Callable<TerminalRemoteTextFile> reader = createTerminalSelectionFileReader(
+            terminalTab, runContext, request, foreignSession,
+            MAX_LOCAL_TEXT_FILE_LOAD_BYTES, MAX_LOCAL_TEXT_FILE_LOAD_BYTES);
+        if (reader == null) {
+            showError(I18n.get("error.title"), I18n.get("terminal.loadTextFile.notConnected"));
+            return;
+        }
+        boolean readOnly = link.fromOsc8();
+        if (runContext.connector() instanceof SshTtyConnector connector) {
+            runTerminalTextFileLoadTask(request, reader,
+                remoteFile -> openTerminalRemoteTextFileInSnippetEditor(terminalTab, connector, remoteFile, readOnly));
+        } else {
+            runTerminalTextFileLoadTask(request, reader,
+                localFile -> openTerminalLocalTextFileInSnippetEditor(terminalTab, localFile, readOnly));
+        }
+    }
+
+    /**
+     * Which file a terminal file read opens, and how to find it: a file name the user selected in
+     * the shell's directory, or a path a link in the output names.
+     */
+    private sealed interface TerminalFileRequest permits SelectedTerminalFile, LinkedTerminalFile {
+        /** The file name the editor shows. */
+        String fileName();
+
+        /** The file as messages name it. */
+        String label();
+
+        /** Whether resolving it needs the shell's working directory. */
+        boolean needsWorkingDirectory();
+
+        /** @throws IllegalArgumentException when the name cannot be resolved */
+        String remotePath(@Nullable String workingDirectory, String sftpStartDirectory);
+
+        /** @throws IllegalArgumentException when the name cannot be resolved */
+        Path localPath(@Nullable String workingDirectory, String startDirectory, String homeDirectory)
+            throws RemoteTextFileSelectionSupport.UnmappableWorkingDirectoryException;
+    }
+
+    /** A selected file name in the shell's working directory ("Open in Snippet Editor", AI attachments). */
+    private record SelectedTerminalFile(String fileName) implements TerminalFileRequest {
+        @Override
+        public String label() {
+            return fileName;
+        }
+
+        @Override
+        public boolean needsWorkingDirectory() {
+            return true;
+        }
+
+        @Override
+        public String remotePath(@Nullable String workingDirectory, String sftpStartDirectory) {
+            return RemoteTextFileSelectionSupport.resolveRemoteFilePath(workingDirectory, fileName, sftpStartDirectory);
+        }
+
+        @Override
+        public Path localPath(@Nullable String workingDirectory, String startDirectory, String homeDirectory)
+            throws RemoteTextFileSelectionSupport.UnmappableWorkingDirectoryException {
+            return RemoteTextFileSelectionSupport.resolveLocalFilePath(
+                workingDirectory, fileName, startDirectory, homeDirectory);
+        }
+    }
+
+    /** A path a link in terminal output names, absolute, home-relative or relative to the shell's directory. */
+    private record LinkedTerminalFile(String path) implements TerminalFileRequest {
+        @Override
+        public String fileName() {
+            String trimmed = path.replaceAll("[/\\\\]+$", "");
+            int separator = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'));
+            String name = trimmed.substring(separator + 1);
+            return name.isEmpty() ? path : name;
+        }
+
+        @Override
+        public String label() {
+            return path;
+        }
+
+        @Override
+        public boolean needsWorkingDirectory() {
+            return RemoteTextFileSelectionSupport.isWorkingDirectoryRelative(path);
+        }
+
+        @Override
+        public String remotePath(@Nullable String workingDirectory, String sftpStartDirectory) {
+            return RemoteTextFileSelectionSupport.resolveRemotePath(workingDirectory, path, sftpStartDirectory);
+        }
+
+        @Override
+        public Path localPath(@Nullable String workingDirectory, String startDirectory, String homeDirectory)
+            throws RemoteTextFileSelectionSupport.UnmappableWorkingDirectoryException {
+            return RemoteTextFileSelectionSupport.resolveLocalPath(workingDirectory, path, startDirectory, homeDirectory);
+        }
+    }
+
+    /**
+     * Builds the background reader that resolves {@code request} against the pane's directories and
+     * returns its validated UTF-8 text content — over SFTP for SSH sessions, from the local
+     * filesystem for local-shell tabs. Shared by "Open in Snippet Editor", links to files and the AI
+     * chat attachment. Returns {@code null} when the pane has no usable connection.
+     * {@code foreignSession} must have been evaluated on the JavaFX thread beforehand; the reader
+     * itself must run off it.
      *
      * @param maxRemoteBytes size limit for SFTP reads ({@code Long.MAX_VALUE} for none)
      * @param maxLocalBytes  size limit for local reads
@@ -7299,7 +7480,7 @@ public class MainWindow {
     private @Nullable Callable<TerminalRemoteTextFile> createTerminalSelectionFileReader(
         TerminalTab terminalTab,
         @Nullable TerminalView.TerminalAgentRunContext resolvedContext,
-        String selectedFileName,
+        TerminalFileRequest request,
         boolean foreignSession,
         long maxRemoteBytes,
         long maxLocalBytes
@@ -7314,9 +7495,9 @@ public class MainWindow {
             return () -> {
                 if (foreignSession) {
                     throw new TerminalTextFileLoadException(
-                        TerminalTextFileLoadFailure.FOREIGN_SESSION, selectedFileName);
+                        TerminalTextFileLoadFailure.FOREIGN_SESSION, request.label());
                 }
-                return readTerminalRemoteTextFile(connector, workingDirectory, selectedFileName, maxRemoteBytes);
+                return readTerminalRemoteTextFile(connector, workingDirectory, request, maxRemoteBytes);
             };
         }
         if (contextConnector instanceof LocalShellTtyConnector localConnector && localConnector.isConnected()) {
@@ -7329,16 +7510,21 @@ public class MainWindow {
             return () -> {
                 if (foreignSession) {
                     throw new TerminalTextFileLoadException(
-                        TerminalTextFileLoadFailure.FOREIGN_SESSION, selectedFileName);
+                        TerminalTextFileLoadFailure.FOREIGN_SESSION, request.label());
                 }
                 // Ground truth first: the shell's live OS cwd, which reflects every cd and beats the
                 // prompt-derived directory (null whenever the prompt shows only the folder basename,
                 // the macOS zsh default). Native Windows shells use their absolute prompt path. A
                 // previously observed directory-change command makes the start directory unsafe as a
-                // fallback until either source confirms the new cwd.
-                String liveWorkingDirectory = localConnector.refreshCurrentWorkingDirectory();
+                // fallback until either source confirms the new cwd. An absolute or home path needs
+                // none of that.
+                String liveWorkingDirectory = request.needsWorkingDirectory()
+                    ? localConnector.refreshCurrentWorkingDirectory()
+                    : null;
                 String workingDirectory;
-                if (liveWorkingDirectory != null && !liveWorkingDirectory.isBlank()) {
+                if (!request.needsWorkingDirectory()) {
+                    workingDirectory = null;
+                } else if (liveWorkingDirectory != null && !liveWorkingDirectory.isBlank()) {
                     workingDirectory = liveWorkingDirectory;
                 } else {
                     if (promptWorkingDirectory != null && !promptWorkingDirectory.isBlank()) {
@@ -7355,35 +7541,32 @@ public class MainWindow {
                     if (localConnector.hasUnresolvedWorkingDirectoryChange()) {
                         throw new TerminalTextFileLoadException(
                             TerminalTextFileLoadFailure.WORKING_DIRECTORY_UNKNOWN,
-                            selectedFileName);
+                            request.label());
                     }
                     workingDirectory = localConnector.getCurrentWorkingDirectory();
                 }
                 Path filePath;
                 try {
-                    filePath = RemoteTextFileSelectionSupport.resolveLocalFilePath(
-                        workingDirectory,
-                        selectedFileName,
-                        startDirectory,
-                        homeDirectory);
+                    filePath = request.localPath(workingDirectory, startDirectory, homeDirectory);
                 } catch (RemoteTextFileSelectionSupport.UnmappableWorkingDirectoryException e) {
                     throw new TerminalTextFileLoadException(
                         TerminalTextFileLoadFailure.UNMAPPABLE_WORKING_DIRECTORY, e.workingDirectory(), e);
                 } catch (IllegalArgumentException e) {
                     throw new TerminalTextFileLoadException(
-                        TerminalTextFileLoadFailure.INVALID_SELECTION, selectedFileName, e);
+                        TerminalTextFileLoadFailure.INVALID_SELECTION, request.label(), e);
                 }
-                return readTerminalLocalTextFile(filePath, selectedFileName, maxLocalBytes);
+                return readTerminalLocalTextFile(filePath, request.fileName(), maxLocalBytes);
             };
         }
         return null;
     }
 
     private void runTerminalTextFileLoadTask(
-        String selectedFileName,
+        TerminalFileRequest request,
         Callable<TerminalRemoteTextFile> reader,
         Consumer<TerminalRemoteTextFile> editorOpener
     ) {
+        String selectedFileName = request.label();
         updateStatus(I18n.get("terminal.loadTextFile.loading", selectedFileName));
         Task<TerminalRemoteTextFile> task = new Task<>() {
             @Override
@@ -7394,12 +7577,32 @@ public class MainWindow {
         task.setOnSucceeded(event -> editorOpener.accept(task.getValue()));
         task.setOnFailed(event -> {
             Throwable failure = task.getException();
-            logger.error("Failed to load selected terminal text as text file '{}'", selectedFileName, failure);
-            showTerminalTextFileLoadFailure(selectedFileName, failure);
+            if (request instanceof LinkedTerminalFile) {
+                logLinkedTerminalFileFailure(selectedFileName, failure);
+            } else {
+                logger.error("Failed to load selected terminal text as text file '{}'", selectedFileName, failure);
+            }
+            showTerminalTextFileLoadFailure(request, failure);
         });
         Thread thread = new Thread(task, "terminal-text-file-loader");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    /**
+     * Logs a failed open of a file a terminal link names. Any path printed in the output can be
+     * Cmd/Ctrl+clicked, so a missing, binary or oversized file is an everyday outcome that the
+     * dialog already explains: it is logged at INFO by its reason only, never as an ERROR (which
+     * would also count in the error telemetry), and the path, which can say more than the user
+     * wants in a log, only at DEBUG. Anything unexpected stays an ERROR, still without the path.
+     */
+    private static void logLinkedTerminalFileFailure(String path, @Nullable Throwable failure) {
+        if (failure instanceof TerminalTextFileLoadException loadFailure) {
+            logger.info("Could not open the file a terminal link names: {}", loadFailure.reason());
+        } else {
+            logger.error("Failed to open the file a terminal link names", failure);
+        }
+        logger.debug("Linked terminal file that failed to open: '{}'", path, failure);
     }
 
     // SFTP reads are naturally bounded by transfer time; a local read has no such deterrent
@@ -7420,7 +7623,11 @@ public class MainWindow {
         if (!Files.isReadable(filePath)) {
             throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.NOT_READABLE, filePath.toString());
         }
-        byte[] bytes = Files.readAllBytes(filePath);
+        byte[] bytes;
+        try (InputStream input = Files.newInputStream(filePath)) {
+            // The size can grow after the check (a log being written) or be reported as 0 (/proc).
+            bytes = readAtMost(input, maxBytes, filePath.toString());
+        }
         String content;
         try {
             content = RemoteTextFileSelectionSupport.decodeUtf8TextFile(bytes);
@@ -7433,15 +7640,17 @@ public class MainWindow {
     private TerminalRemoteTextFile readTerminalRemoteTextFile(
         SshTtyConnector connector,
         String workingDirectory,
-        String selectedFileName,
+        TerminalFileRequest request,
         long maxBytes
     ) throws Exception {
         try (SftpClient sftp = SftpClientFactory.instance().createSftpClient(connector.getSession())) {
             String sftpStartDirectory = resolveSftpStartDirectory(sftp);
-            String remotePath = RemoteTextFileSelectionSupport.resolveRemoteFilePath(
-                workingDirectory,
-                selectedFileName,
-                sftpStartDirectory);
+            String remotePath;
+            try {
+                remotePath = request.remotePath(workingDirectory, sftpStartDirectory);
+            } catch (IllegalArgumentException e) {
+                throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.INVALID_SELECTION, request.label(), e);
+            }
             SftpClient.Attributes attributes = statTerminalRemotePath(sftp, remotePath);
             if (!attributes.isRegularFile()) {
                 throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.NOT_REGULAR_FILE, remotePath);
@@ -7450,14 +7659,14 @@ public class MainWindow {
                 // Checked before the transfer so an oversized file never travels over the wire.
                 throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.TOO_LARGE, remotePath);
             }
-            byte[] bytes = readTerminalRemoteFileBytes(sftp, remotePath);
+            byte[] bytes = readTerminalRemoteFileBytes(sftp, remotePath, maxBytes);
             String content;
             try {
                 content = RemoteTextFileSelectionSupport.decodeUtf8TextFile(bytes);
             } catch (RemoteTextFileSelectionSupport.BinaryOrNonTextFileException e) {
                 throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.BINARY_OR_NON_TEXT, remotePath, e);
             }
-            return new TerminalRemoteTextFile(selectedFileName, remotePath, content);
+            return new TerminalRemoteTextFile(request.fileName(), remotePath, content);
         }
     }
 
@@ -7475,17 +7684,37 @@ public class MainWindow {
         }
     }
 
-    private byte[] readTerminalRemoteFileBytes(SftpClient sftp, String remotePath) throws Exception {
-        try (InputStream input = sftp.read(remotePath);
-             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            input.transferTo(output);
-            return output.toByteArray();
+    private byte[] readTerminalRemoteFileBytes(SftpClient sftp, String remotePath, long maxBytes) throws Exception {
+        try (InputStream input = sftp.read(remotePath)) {
+            // The stat before the transfer can be outdated by a file that grows meanwhile.
+            return readAtMost(input, maxBytes, remotePath);
         } catch (SftpException e) {
             if (e.getStatus() == SftpConstants.SSH_FX_PERMISSION_DENIED) {
                 throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.NOT_READABLE, remotePath, e);
             }
             throw e;
         }
+    }
+
+    /**
+     * Reads {@code input} to its end, but fails with {@code TOO_LARGE} as soon as it holds more than
+     * {@code maxBytes}, so a file that grows during the read or reports a wrong size still stays
+     * within the cap.
+     */
+    private static byte[] readAtMost(InputStream input, long maxBytes, String path) throws IOException,
+        TerminalTextFileLoadException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        byte[] buffer = new byte[64 * 1024];
+        long total = 0;
+        int read;
+        while ((read = input.read(buffer)) >= 0) {
+            total += read;
+            if (total > maxBytes) {
+                throw new TerminalTextFileLoadException(TerminalTextFileLoadFailure.TOO_LARGE, path);
+            }
+            output.write(buffer, 0, read);
+        }
+        return output.toByteArray();
     }
 
     private String resolveSftpStartDirectory(SftpClient sftp) {
@@ -7500,14 +7729,20 @@ public class MainWindow {
         return ".";
     }
 
+    /**
+     * @param fromOsc8Link the file was opened from an OSC 8 link: read-only, the file actions are
+     *     locked in the dialog
+     */
     private void openTerminalRemoteTextFileInSnippetEditor(
         TerminalTab terminalTab,
         SshTtyConnector connector,
-        TerminalRemoteTextFile remoteFile
+        TerminalRemoteTextFile remoteFile,
+        boolean fromOsc8Link
     ) {
         // Policy read-only mode: the file may be loaded and saved as a snippet, but never written
         // back to the target system — the remote actions are locked in the dialog.
-        boolean remoteWriteAllowed = de.kortty.policy.PolicyManager.effective().loadIntoSnippetEditor()
+        boolean remoteWriteAllowed = !fromOsc8Link
+            && de.kortty.policy.PolicyManager.effective().loadIntoSnippetEditor()
             == de.kortty.policy.LoadIntoEditorMode.ALLOW;
         openTerminalTextFileInSnippetEditor(terminalTab, remoteFile,
             I18n.get("sftp.snippetEditor.overwriteRemote"),
@@ -7516,23 +7751,38 @@ public class MainWindow {
                 : null,
             remoteWriteAllowed
                 ? draft -> saveTerminalRemoteTextFileAs(connector, remoteFile.remotePath(), remoteFile.fileName(), draft)
-                : null);
+                : null,
+            fromOsc8Link ? I18n.get("terminal.links.fileReadOnly") : null);
     }
 
-    private void openTerminalLocalTextFileInSnippetEditor(TerminalTab terminalTab, TerminalRemoteTextFile localFile) {
+    /**
+     * @param fromOsc8Link the file was opened from an OSC 8 link: read-only, the file actions are
+     *     locked in the dialog
+     */
+    private void openTerminalLocalTextFileInSnippetEditor(
+        TerminalTab terminalTab,
+        TerminalRemoteTextFile localFile,
+        boolean fromOsc8Link
+    ) {
         Path filePath = Path.of(localFile.remotePath());
         openTerminalTextFileInSnippetEditor(terminalTab, localFile,
             I18n.get("sftp.snippetEditor.overwriteLocal"),
-            draft -> overwriteTerminalLocalTextFile(filePath, draft),
-            draft -> saveTerminalLocalTextFileAs(filePath, draft));
+            fromOsc8Link ? null : draft -> overwriteTerminalLocalTextFile(filePath, draft),
+            fromOsc8Link ? null : draft -> saveTerminalLocalTextFileAs(filePath, draft),
+            fromOsc8Link ? I18n.get("terminal.links.fileReadOnly") : null);
     }
 
+    /**
+     * @param lockedReason why a {@code null} overwrite or save-as action is locked, or {@code null}
+     *     for the enterprise policy's read-only mode
+     */
     private void openTerminalTextFileInSnippetEditor(
         TerminalTab terminalTab,
         TerminalRemoteTextFile file,
         String overwriteLabel,
         SnippetEditDialog.ExternalFileAction overwriteAction,
-        SnippetEditDialog.ExternalFileAction saveAsAction
+        SnippetEditDialog.ExternalFileAction saveAsAction,
+        @Nullable String lockedReason
     ) {
         SnippetManager snippetManager = app.getSnippetManager();
         if (snippetManager == null) {
@@ -7550,7 +7800,8 @@ public class MainWindow {
             I18n.get("sftp.snippetEditor.savedSnippet"),
             overwriteAction,
             saveAsAction,
-            this::saveTerminalDraftAsSnippet
+            this::saveTerminalDraftAsSnippet,
+            lockedReason
         );
         List<String> categoryNames = snippetManager.getAllCategories().stream()
             .map(SnippetCategory::getName)
@@ -7735,18 +7986,26 @@ public class MainWindow {
         }
     }
 
-    private void showTerminalTextFileLoadFailure(String selectedFileName, Throwable failure) {
-        String message = terminalTextFileLoadFailureText(selectedFileName, failure);
+    private void showTerminalTextFileLoadFailure(TerminalFileRequest request, Throwable failure) {
+        String message = terminalTextFileLoadFailureText(request, failure);
         showError(I18n.get("error.title"), message);
         updateStatus(message);
     }
 
     /** The user-facing explanation for a failed terminal-selection file read. */
     private String terminalTextFileLoadFailureText(String selectedFileName, Throwable failure) {
+        return terminalTextFileLoadFailureText(new SelectedTerminalFile(selectedFileName), failure);
+    }
+
+    /** The user-facing explanation for a failed terminal file read, for a selection or a link. */
+    private String terminalTextFileLoadFailureText(TerminalFileRequest request, Throwable failure) {
+        String selectedFileName = request.label();
+        boolean linked = request instanceof LinkedTerminalFile;
         if (failure instanceof TerminalTextFileLoadException loadFailure) {
             String remotePath = loadFailure.remotePath();
             return switch (loadFailure.reason()) {
-                case NOT_FOUND -> I18n.get("terminal.loadTextFile.notFound", remotePath);
+                case NOT_FOUND -> I18n.get(linked ? "terminal.loadTextFile.pathNotFound" : "terminal.loadTextFile.notFound",
+                    remotePath);
                 case NOT_REGULAR_FILE -> I18n.get("terminal.loadTextFile.notRegularFile", remotePath);
                 case NOT_READABLE -> I18n.get("terminal.loadTextFile.notReadable", remotePath);
                 case BINARY_OR_NON_TEXT -> I18n.get("terminal.loadTextFile.binary", remotePath);
@@ -7755,7 +8014,9 @@ public class MainWindow {
                     I18n.get("terminal.loadTextFile.unmappableWorkingDirectory", remotePath);
                 case WORKING_DIRECTORY_UNKNOWN -> I18n.get("localShell.workingDirectoryUnavailable");
                 case FOREIGN_SESSION -> I18n.get("terminal.loadTextFile.foreignSession");
-                case INVALID_SELECTION -> I18n.get("terminal.loadTextFile.invalidSelection");
+                case INVALID_SELECTION -> linked
+                    ? I18n.get("terminal.loadTextFile.invalidPath", remotePath)
+                    : I18n.get("terminal.loadTextFile.invalidSelection");
             };
         }
         String detail = failure != null && failure.getMessage() != null

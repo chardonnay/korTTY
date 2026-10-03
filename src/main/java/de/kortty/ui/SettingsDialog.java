@@ -169,6 +169,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox commandTimestampsCheck;
     private final CheckBox terminalDragDropCheck;
     private final CheckBox terminalCopyOnSelectCheck;
+    private final CheckBox terminalLinkDetectionCheck;
     private final CheckBox closeActiveTerminalWindowsWithoutConfirmationCheck;
     private final CheckBox terminalRecordingAlwaysEnabledCheck;
     private final CheckBox terminalRecordingCaptureColorsCheck;
@@ -784,6 +785,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalCopyOnSelectCheck.setSelected(globalSettings != null ? globalSettings.isTerminalCopyOnSelectEnabled() : true);
         terminalCopyOnSelectCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.copyOnSelect.tooltip")));
 
+        terminalLinkDetectionCheck = new CheckBox(I18n.get("settings.terminal.linkDetection"));
+        terminalLinkDetectionCheck.setSelected(globalSettings == null || globalSettings.isTerminalLinkDetectionEnabled());
+        terminalLinkDetectionCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.linkDetection.tooltip")));
+
         closeActiveTerminalWindowsWithoutConfirmationCheck = new CheckBox(I18n.get("settings.terminal.closeActiveWithoutConfirmation"));
         closeActiveTerminalWindowsWithoutConfirmationCheck.setSelected(globalSettings != null
             && globalSettings.isCloseActiveTerminalWindowsWithoutConfirmation());
@@ -866,6 +871,13 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalGrid.add(terminalDragDropCheck, 0, terminalRow++, 2, 1);
         terminalGrid.add(terminalCopyOnSelectCheck, 0, terminalRow++, 2, 1);
         terminalGrid.add(closeActiveTerminalWindowsWithoutConfirmationCheck, 0, terminalRow++, 2, 1);
+
+        // Links section
+        terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
+        Label linksHeader = new Label(I18n.get("settings.terminal.links.header"));
+        linksHeader.setStyle("-fx-font-weight: bold;");
+        terminalGrid.add(linksHeader, 0, terminalRow++, 2, 1);
+        terminalGrid.add(terminalLinkDetectionCheck, 0, terminalRow++, 2, 1);
 
         // SSH Keep-Alive section
         terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
@@ -3252,6 +3264,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setShowTerminalScrollbar(showTerminalScrollbarCheck.isSelected());
             globalSettings.setTerminalDragDropEnabled(terminalDragDropCheck.isSelected());
             globalSettings.setTerminalCopyOnSelectEnabled(terminalCopyOnSelectCheck.isSelected());
+            globalSettings.setTerminalLinkDetectionEnabled(terminalLinkDetectionCheck.isSelected());
             globalSettings.setCloseActiveTerminalWindowsWithoutConfirmation(
                 closeActiveTerminalWindowsWithoutConfirmationCheck.isSelected()
             );
@@ -3493,6 +3506,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("terminal", "scrollbar_visible", gs::isShowTerminalScrollbar, true));
             tracked.add(new TrackedSetting("terminal", "drag_drop_enabled", gs::isTerminalDragDropEnabled, true));
             tracked.add(new TrackedSetting("terminal", "copy_on_select", gs::isTerminalCopyOnSelectEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "link_detection", gs::isTerminalLinkDetectionEnabled, true));
             tracked.add(new TrackedSetting("terminal", "close_without_confirmation",
                 gs::isCloseActiveTerminalWindowsWithoutConfirmation, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_detection", gs::isCodingAgentDetectionEnabled, true));

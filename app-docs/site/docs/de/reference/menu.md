@@ -27,6 +27,7 @@ Verbindungs-Einträge (Schnellverbindung, Verwalten/Importieren/Exportieren von 
 | Kopie | ++ctrl+c++ | Kopieren Sie die Terminalauswahl |
 | Paste | ++ctrl+v++ | In das Terminal einfügen |
 | Suchen… | ++ctrl+f++ | Suche im aktiven Tab (Terminal-Scrollback oder geöffneter Editor). Auf Windows und Linux sendet ein fokussiertes Terminal ++ctrl+f++ an die Shell, also öffnen Sie Suchen aus diesem Menü oder dem Rechtsklick-Menü des Terminals dort |
+| Schnellauswahl | ++ctrl+shift+space++ | Jede Webadresse, jeden Pfad, jede E-Mail-Adresse, UUID, IP-Adresse, jeden Git-Hash und jede Zahl mit vier oder mehr Ziffern im fokussierten Terminalbereich mit einem Kürzel versehen; tippen Sie ein Kürzel, um dessen Text zu kopieren, oder ++shift++ und das Kürzel, um eine Web- oder E-Mail-Adresse oder in SSH- und lokalen Shell-Tabs einen Dateipfad im Snippet-Editor zu öffnen. Außerhalb von Terminal-Tabs deaktiviert, siehe [Schnellauswahl](../features/terminal.md#schnellauswahl) |
 
 ## Verbindungen
 

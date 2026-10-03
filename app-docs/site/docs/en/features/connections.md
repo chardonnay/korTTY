@@ -43,7 +43,7 @@ Every saved connection can carry one optional free-text **tag** — a label such
 ## Protocols
 
 === "SSH"
-    Standard SSH via Apache MINA SSHD. Supports password, public-key and keyboard-interactive authentication, keep-alive, and clickable OSC 8 hyperlinks for web and mail addresses (see [Links in terminal output](terminal.md#links-in-terminal-output)).
+    Standard SSH via Apache MINA SSHD. Supports password, public-key and keyboard-interactive authentication, keep-alive, and OSC 8 hyperlinks for web and mail addresses that open with ++cmd++ / ++ctrl++ + click (see [Links in terminal output](terminal.md#links-in-terminal-output)).
 
 === "Mosh"
     Roaming, latency-friendly Mosh transport (mosh4j). The Mosh backend is bundled in native builds; existing connections need no migration.

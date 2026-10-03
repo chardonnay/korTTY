@@ -1,7 +1,11 @@
 package de.kortty.ui;
 
 import com.sithtermfx.core.compatibility.Point;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A snapshot of one terminal panel's cell grid and the maths that maps a mouse point onto a cell.
@@ -12,6 +16,9 @@ import org.jetbrains.annotations.Nullable;
  * mouse hook and SithTermFX agree on the cell under the mouse. On top of that it applies the bounds
  * of korTTY's pinned SithTermFX patch {@code terminal-panel-bottom-row-hyperlink-boundary}: a cell
  * exists only for {@code 0 <= column < bufferWidth} and {@code -historyLines <= line < bufferHeight}.
+ *
+ * <p>{@link #underline} and {@link #boxes} go the other way, from cells to pixels, for the underline
+ * korTTY draws under a hovered link and the boxes quick select draws around its matches.
  *
  * <p>Toolkit-free, because a SithTermFX {@code TerminalPanel} needs a running JavaFX toolkit.
  *
@@ -37,6 +44,33 @@ public record TerminalCellGeometry(
         int historyLines) {
 
     /**
+     * Pixels below the text baseline at which SithTermFX draws an underline, and so korTTY's hover
+     * underline too.
+     */
+    public static final double UNDERLINE_BELOW_BASELINE = 3;
+
+    /**
+     * One row's part of an underline, in canvas coordinates.
+     *
+     * @param startX the left end, the left edge of the first cell
+     * @param endX   the right end, the right edge of the last cell
+     * @param y      the height of the line
+     */
+    public record Segment(double startX, double endX, double y) {
+    }
+
+    /**
+     * One row's part of a run of cells, in canvas coordinates.
+     *
+     * @param x      the left edge of the first cell
+     * @param y      the top edge of the row
+     * @param width  the width of the cells
+     * @param height the height of the row
+     */
+    public record Box(double x, double y, double width, double height) {
+    }
+
+    /**
      * Maps a point in canvas coordinates onto a cell. The left inset belongs to the first column,
      * and points right of the last column or below the last row land on that column or row, as in
      * SithTermFX.
@@ -59,5 +93,62 @@ public record TerminalCellGeometry(
             return null;
         }
         return new Point((int) column, (int) line);
+    }
+
+    /**
+     * Where to draw an underline under the cells {@code start} to {@code end} (inclusive, in reading
+     * order, so a link wrapped over several rows covers the rest of its first row and the start of
+     * its last), the way SithTermFX underlines text: from the left edge of the first cell to the
+     * right edge of the last, {@value #UNDERLINE_BELOW_BASELINE} pixels below the baseline. Rows that
+     * are not on screen at the current scroll origin get no segment, and columns are cut to the grid.
+     *
+     * @param baselineOffset the text baseline within a row, {@code TerminalPanel.getCellBaselineOffsetPixels()}
+     * @return one segment per visible row, top to bottom; empty for an unmeasured grid
+     */
+    public @NotNull List<Segment> underline(@NotNull Point start, @NotNull Point end, double baselineOffset) {
+        int lastColumn = Math.min(columns, bufferWidth) - 1;
+        if (lastColumn < 0 || rows <= 0 || !(cellWidth > 0) || !(cellHeight > 0)) {
+            return List.of();
+        }
+        List<Segment> segments = new ArrayList<>();
+        int firstLine = Math.max(start.y, scrollOrigin);
+        int lastLine = Math.min(end.y, scrollOrigin + rows - 1);
+        for (int line = firstLine; line <= lastLine; line++) {
+            int from = Math.max(0, line == start.y ? start.x : 0);
+            int to = Math.min(lastColumn, line == end.y ? end.x : lastColumn);
+            if (to < from) {
+                continue;
+            }
+            double y = (line - scrollOrigin) * cellHeight + baselineOffset + UNDERLINE_BELOW_BASELINE;
+            segments.add(new Segment(insetX + from * cellWidth, insetX + (to + 1) * cellWidth, y));
+        }
+        return segments;
+    }
+
+    /**
+     * The cells {@code start} to {@code end} (inclusive, in reading order) as one box per row they
+     * cover on screen: the rest of the first row, whole rows between, the start of the last. Rows
+     * that are not on screen at the current scroll origin get no box, and columns are cut to the grid.
+     *
+     * @return one box per visible row, top to bottom; empty for an unmeasured grid
+     */
+    public @NotNull List<Box> boxes(@NotNull Point start, @NotNull Point end) {
+        int lastColumn = Math.min(columns, bufferWidth) - 1;
+        if (lastColumn < 0 || rows <= 0 || !(cellWidth > 0) || !(cellHeight > 0)) {
+            return List.of();
+        }
+        List<Box> boxes = new ArrayList<>();
+        int firstLine = Math.max(start.y, scrollOrigin);
+        int lastLine = Math.min(end.y, scrollOrigin + rows - 1);
+        for (int line = firstLine; line <= lastLine; line++) {
+            int from = Math.max(0, line == start.y ? start.x : 0);
+            int to = Math.min(lastColumn, line == end.y ? end.x : lastColumn);
+            if (to < from) {
+                continue;
+            }
+            boxes.add(new Box(insetX + from * cellWidth, (line - scrollOrigin) * cellHeight,
+                (to - from + 1) * cellWidth, cellHeight));
+        }
+        return boxes;
     }
 }

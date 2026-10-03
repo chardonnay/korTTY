@@ -1514,6 +1514,13 @@ public class TerminalTab extends Tab {
     public void showFind() {
         terminalView.showFind();
     }
+
+    /**
+     * Starts quick select in the focused pane (Edit &gt; Quick Select).
+     */
+    public void startQuickSelect() {
+        terminalView.startQuickSelect();
+    }
     
     /**
      * Toggles the timestamp gutter visibility.
