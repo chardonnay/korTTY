@@ -50,7 +50,9 @@ import de.kortty.model.SSHTunnel;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.TerminalRecordingScope;
 import de.kortty.model.Theme;
+import de.kortty.paste.PasteDecision;
 import de.kortty.paste.PasteGuard;
+import de.kortty.paste.PasteProtectionSettings;
 import de.kortty.paste.PasteRules;
 import de.kortty.plugin.terminaleffects.TerminalEffectAnimationSpeed;
 import de.kortty.plugin.terminaleffects.TerminalEffectAppearance;
@@ -113,6 +115,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import javafx.scene.control.ProgressIndicator;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -385,10 +388,12 @@ public class TerminalView extends BorderPane {
     private final Map<SithTermFxWidget, PasteTracking> codingAgentPasteTrackers = new ConcurrentHashMap<>();
     /**
      * Every paste into a pane of this tab: the paste shortcut, Edit → Paste, the context menu and a
-     * middle-click. It removes bracketed-paste markers from the text and brackets the paste itself
-     * when the program in the pane has bracketed paste enabled. No paste needs confirmation yet.
+     * middle-click. It asks first when Settings → Terminal → Paste protection says so (line breaks,
+     * control characters, a large paste), removes bracketed-paste markers from the text and brackets
+     * the paste itself when the program in the pane has bracketed paste enabled.
      */
-    private final PasteGuard pasteGuard = new PasteGuard(() -> PasteRules.NONE, (request, answer) -> answer.accept(false));
+    private final PasteGuard pasteGuard = new PasteGuard(() -> pasteRules(TerminalView::readGlobalSettings),
+        new PasteConfirmationDialog(this::pasteConfirmationOwner));
     private final List<Consumer<SithTermFxWidget>> focusedWidgetListeners = new CopyOnWriteArrayList<>();
     /** The pane whose canvas most recently gained keyboard focus (null before the first focus). */
     private volatile SithTermFxWidget lastFocusedWidget;
@@ -4987,6 +4992,33 @@ public class TerminalView extends BorderPane {
             case "plan" -> TerminalAgentCommandSupport.getPlanCommandName(normalizedCommand) + " " + prompt;
             default -> null;
         };
+    }
+
+    /**
+     * The paste protection rules for the next paste, from the global settings as they are now, so a
+     * change in Settings applies at once. Without readable settings the defaults apply, never "off".
+     *
+     * @param settings reads the global settings; may return null or throw
+     */
+    static PasteRules pasteRules(Supplier<GlobalSettings> settings) {
+        PasteProtectionSettings protection;
+        try {
+            protection = PasteProtectionSettings.from(settings.get());
+        } catch (RuntimeException e) {
+            protection = PasteProtectionSettings.DEFAULTS;
+        }
+        return new PasteDecision(protection);
+    }
+
+    /** The application's global settings; null (or an exception) while there is no application. */
+    private static GlobalSettings readGlobalSettings() {
+        var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
+        return gsm != null ? gsm.getSettings() : null;
+    }
+
+    /** The window a paste confirmation belongs to: this tab's window, once it has one. */
+    private Window pasteConfirmationOwner() {
+        return getScene() != null ? getScene().getWindow() : null;
     }
 
     private boolean isTerminalCopyOnSelectEnabled() {

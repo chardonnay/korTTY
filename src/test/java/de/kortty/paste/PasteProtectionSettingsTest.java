@@ -51,8 +51,21 @@ class PasteProtectionSettingsTest {
     }
 
     @Test
-    void theGlobalSettingsYieldTheDefaultsUntilTheyOfferPasteProtection() {
+    void freshOrMissingGlobalSettingsYieldTheDefaults() {
         assertThat(PasteProtectionSettings.from(new GlobalSettings())).isEqualTo(PasteProtectionSettings.DEFAULTS);
         assertThat(PasteProtectionSettings.from(null)).isEqualTo(PasteProtectionSettings.DEFAULTS);
+    }
+
+    @Test
+    void theGlobalSettingsChooseTheModeAndTheThreshold() {
+        GlobalSettings settings = new GlobalSettings();
+        settings.setPasteWarningMode(PasteWarningMode.ALWAYS);
+        settings.setPasteLargeWarningKiB(64);
+        assertThat(PasteProtectionSettings.from(settings))
+            .isEqualTo(new PasteProtectionSettings(PasteWarningMode.ALWAYS, 64));
+
+        settings.setPasteWarningMode(PasteWarningMode.OFF);
+        settings.setPasteLargeWarningKiB(0);
+        assertThat(PasteProtectionSettings.from(settings)).isEqualTo(PasteProtectionSettings.DISABLED);
     }
 }

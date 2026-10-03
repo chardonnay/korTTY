@@ -20,6 +20,8 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Allow drag-and-drop file copy into terminal | toggle | — | On | `terminalDragDropEnabled` |
 | Copy selection to clipboard automatically | toggle | — | On | `terminalCopyOnSelectEnabled` |
 | Close active terminal windows without confirmation | toggle | — | Off | `closeActiveTerminalWindowsWithoutConfirmation` |
+| Warn about multi-line pastes: | dropdown | Off, Unless the program uses bracketed paste, Always | Unless the program uses bracketed paste | `pasteWarningMode` |
+| Warn about pastes larger than: | number | 0–10,240 KiB (0 = off) | 5 | `pasteLargeWarningKiB` |
 | Enable SSH Keep-Alive | toggle | — | On | `sshKeepAliveEnabled` |
 | Interval (seconds): | number | 5–600 | 60 | `sshKeepAliveInterval` |
 | Enable connection retries | toggle | — | On | `connectionRetriesEnabled` |
@@ -45,6 +47,11 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 
 !!! note "Copy selection to clipboard automatically"
     When enabled, text you select in a terminal is copied to the clipboard as soon as you select it. On Linux it also becomes the X11 primary selection, so a middle-click pastes it in other applications such as xterm or gedit. With the enterprise policy's [internal clipboard mode](../enterprise-policy.md#internal-clipboard-mode) the selection stays inside korTTY on every platform.
+
+!!! note "Paste protection"
+    Decides which terminal pastes ask before they reach the pane; the dialog itself is described under [Paste protection](../../features/terminal.md#paste-protection). **Warn about multi-line pastes** decides when a paste with a line break asks: **Unless the program uses bracketed paste** (the default) asks only when the program in the pane would receive each line break as Enter, **Always** asks for every paste with a line break, and **Off** never asks. Whenever it is not **Off**, a paste with control characters (such as Escape or Ctrl+C) or with invisible characters that change the text direction asks too, bracketed or not. **Warn about pastes larger than** asks for every paste above that size in KiB, whatever the dropdown says; 0 turns the size check off. Both apply to the next paste. They are stored as `pasteWarningMode` (`off`, `unless-bracketed` or `always`; an unknown value counts as `unless-bracketed`) and `pasteLargeWarningKiB`.
+
+    Whether a program uses bracketed paste is what the server reports, and any output can switch it on, also in a shell such as `sh` that does not handle it. Pasted line breaks then run without a warning, so choose **Always** if you work on production servers.
 
 !!! note "SSH Keep-Alive"
     When enabled, korTTY sends periodic keep-alive packets to prevent SSH sessions from timing out during idle periods. The interval setting controls how often (in seconds) these packets are sent. The spinner range is 5–600 seconds; the interval is disabled if SSH Keep-Alive is toggled off.

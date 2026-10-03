@@ -36,11 +36,15 @@ public record PasteProtectionSettings(PasteWarningMode mode, int largeWarningKiB
     }
 
     /**
-     * The paste protection the global settings ask for. Until the Terminal settings offer paste
-     * protection, every settings object, and null, yields {@link #DEFAULTS}.
+     * The paste protection chosen in Settings → Terminal → Paste protection.
+     *
+     * @param settings the global settings; null yields {@link #DEFAULTS}
      */
     public static PasteProtectionSettings from(GlobalSettings settings) {
-        return DEFAULTS;
+        if (settings == null) {
+            return DEFAULTS;
+        }
+        return new PasteProtectionSettings(settings.getPasteWarningMode(), settings.getPasteLargeWarningKiB());
     }
 
     /** Whether the size check is on. */

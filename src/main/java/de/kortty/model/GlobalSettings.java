@@ -1,6 +1,8 @@
 package de.kortty.model;
 
 import de.kortty.ai.llama.LlamaBackend;
+import de.kortty.paste.PasteProtectionSettings;
+import de.kortty.paste.PasteWarningMode;
 import jakarta.xml.bind.annotation.*;
 
 /**
@@ -312,6 +314,21 @@ public class GlobalSettings {
 
     @XmlElement
     private boolean closeActiveTerminalWindowsWithoutConfirmation = false; // Ask before closing active terminal windows by default
+
+    /**
+     * When a terminal paste with line breaks asks for confirmation: the {@link PasteWarningMode#id()}
+     * {@code off}, {@code unless-bracketed} or {@code always}. Missing, blank or unknown values mean
+     * {@code unless-bracketed}, so a damaged file never switches paste protection off.
+     */
+    @XmlElement
+    private String pasteWarningMode = PasteWarningMode.DEFAULT.id();
+
+    /**
+     * Terminal pastes larger than this many KiB of UTF-8 ask for confirmation; 0 = off. Boxed so a
+     * settings file written before this setting existed falls back to the default.
+     */
+    @XmlElement
+    private Integer pasteLargeWarningKiB = PasteProtectionSettings.DEFAULT_LARGE_WARNING_KIB;
 
     @XmlElement
     private boolean applyThemeFonts = false; // Apply font family/size when applying themes
@@ -1936,6 +1953,28 @@ public class GlobalSettings {
 
     public void setCloseActiveTerminalWindowsWithoutConfirmation(boolean closeActiveTerminalWindowsWithoutConfirmation) {
         this.closeActiveTerminalWindowsWithoutConfirmation = closeActiveTerminalWindowsWithoutConfirmation;
+    }
+
+    /** When a terminal paste with line breaks asks for confirmation; never null. */
+    public PasteWarningMode getPasteWarningMode() {
+        return PasteWarningMode.fromId(pasteWarningMode);
+    }
+
+    /** @param pasteWarningMode the mode to store; null stores the default */
+    public void setPasteWarningMode(PasteWarningMode pasteWarningMode) {
+        this.pasteWarningMode = (pasteWarningMode != null ? pasteWarningMode : PasteWarningMode.DEFAULT).id();
+    }
+
+    /** The size in KiB above which a terminal paste asks for confirmation, {@code 0..10240}; 0 = off. */
+    public int getPasteLargeWarningKiB() {
+        return pasteLargeWarningKiB != null
+            ? PasteProtectionSettings.clampLargeWarningKiB(pasteLargeWarningKiB)
+            : PasteProtectionSettings.DEFAULT_LARGE_WARNING_KIB;
+    }
+
+    /** @param pasteLargeWarningKiB the threshold in KiB, clamped to {@code 0..10240}; 0 turns the check off */
+    public void setPasteLargeWarningKiB(int pasteLargeWarningKiB) {
+        this.pasteLargeWarningKiB = PasteProtectionSettings.clampLargeWarningKiB(pasteLargeWarningKiB);
     }
 
     public boolean isApplyThemeFonts() {

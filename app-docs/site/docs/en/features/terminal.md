@@ -76,6 +76,23 @@ When the program in the pane has switched on bracketed paste, as bash, zsh, fish
 
 After a reconnect, and after a terminal reset (the `reset` command, or `ESC c` in the output), a pane does not use bracketed paste until its program switches it on again, so pasted line breaks act as Enter until then. A Mosh connection that recovers from a network interruption continues the same session and keeps the state.
 
+### Paste protection
+
+Some pastes ask before they reach the pane. korTTY then shows what you are about to paste, and nothing is sent until you choose **Paste**. Which pastes ask is set under *Settings → Terminal → Paste protection* (see [Terminal settings](../reference/settings/terminal.md)):
+
+- **Line breaks**: by default a paste with a line break asks unless the program in the pane uses bracketed paste, because each line break would then act as Enter and run a command. A single line that ends in a line break asks as well, since it would run at once. With **Always**, every paste with a line break asks, bracketed or not; with **Off**, none does.
+- **Control characters**: a paste that contains control characters, such as Escape, Ctrl+C or Ctrl+Z, or invisible characters that change the text direction asks whenever the warning is not **Off**, even when the program uses bracketed paste. The terminal on the server acts on Ctrl+C, Ctrl+Z and Ctrl+S before the program sees the paste, and direction-changing characters make text look different from what is sent. Ordinary text never contains them.
+- **Size**: a paste larger than 5 KiB asks, whatever the warning setting, because a large paste can flood a slow program or device and is hard to check. Set the size to 0 to turn this check off.
+
+![Paste confirmation](../assets/screenshots/main/paste-confirmation.png)
+
+The dialog names the pane, the number of lines and the size, lists why it asks, and says whether the program in the pane uses bracketed paste. Its preview shows the start of the text, with control characters as symbols (such as ␛ for Escape) and invisible characters as `<U+XXXX>`. It also says when the text comes from the middle-click selection, when bracketed-paste markers in it are removed, and when broadcast mode is on: a paste always goes only to the pane you paste into. **Copy** in the preview's right-click menu follows the enterprise policy's [internal clipboard mode](../reference/enterprise-policy.md#internal-clipboard-mode).
+
+**Cancel** is the default button and has the focus, so ++enter++, ++space++ and ++esc++ all drop the paste and typing ahead can never confirm it. Click **Paste** to paste, or press ++tab++ to reach it and ++space++ to press it. A second paste into the same pane while the dialog is open is ignored, and a paste you confirm after the pane has reconnected is dropped instead of reaching the new session.
+
+!!! warning "Bracketed paste is what the server says"
+    Whether the program uses bracketed paste is what the program on the server tells the terminal, and any output can claim it: a crafted file you `cat`, or a login message, can switch it on in a shell that does not handle it, such as `sh` or the console of many network devices. Pasted line breaks then run as commands without a warning. If you work on production servers, choose **Always**.
+
 ## Links in terminal output
 
 Programs can print clickable links into the terminal with the OSC 8 escape sequence; GCC, for example, can link a warning to its documentation. Clicking such a link opens it in your default browser, or a `mailto` link in your mail program. Only `http`, `https`, `ftp`, `ftps` and `mailto` links are clickable, and a `mailto` link may only fill in recipients (`to`, `cc`, `bcc`), `subject`, `body` and `in-reply-to`.

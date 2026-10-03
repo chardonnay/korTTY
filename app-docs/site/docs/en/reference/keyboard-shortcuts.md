@@ -78,6 +78,8 @@ These keys work while a terminal pane has the focus. For how they behave with se
 
 On Windows and Linux, **Clear Buffer** and **Find** have no key of their own, so ++ctrl+l++ and ++ctrl+f++ stay with the programs running in the terminal. Use right-click → **Clear Buffer** or **Find** in the terminal, or **Edit → Find…** with the mouse. ++ctrl+shift+f++ stays Terminal-only Fullscreen and ++ctrl+shift+k++ still docks the file browser on the left.
 
+The paste keys go through [paste protection](../features/terminal.md#paste-protection): a paste with line breaks, with control characters or of a large size can open a confirmation first. In that dialog **Cancel** is the default button, so ++enter++, ++space++ and ++esc++ drop the paste; click **Paste**, or press ++tab++ to reach it and ++space++ to press it.
+
 Every other combination of ++shift++, ++ctrl++ and ++alt++ with the arrow keys, ++home++ / ++end++, ++page-up++ / ++page-down++, ++insert++ / ++delete++ and ++f1++ to ++f11++ is sent the way xterm sends it (++f12++ always toggles fullscreen), for example ++ctrl+page-up++ as `ESC [ 5 ; 5 ~` and ++shift+f1++ as `ESC [ 1 ; 2 P`. The arrow keys follow the program's cursor-key mode: `mc` and `vim` switch it on and then receive `ESC O A`, while a shell receives `ESC [ A`. Connections with a non-xterm terminal emulation (Wyse, TeleVideo, HP, SCO ANSI, IBM 3270/5250, PETSCII) keep sending fixed sequences without modifiers.
 
 ## SFTP Manager
