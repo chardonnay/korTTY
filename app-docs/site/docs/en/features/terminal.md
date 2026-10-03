@@ -31,6 +31,8 @@ Interactive SSH terminals share host-key trust with SFTP and the SSH bootstrap u
 
 Opening a same-server or newly selected connection in a split shows a progress dialog while the SSH handshake runs on a worker. The interface remains responsive for both the host-key confirmation and keyboard-interactive authentication prompts.
 
+**Split Right (new connection)** and **Split Down (new connection)** follow your organization's [server access policy](../reference/enterprise-policy.md#server-access-control) like Quick Connect: if the server you pick or its jump server is blocked, korTTY shows the policy message right away, before it asks for a password or saves the connection, and opens no pane. **Split Right (same server)** and **Split Down (same server)** check the policy again: a tab opened from a saved connection can pick up later edits of it, so if its server or jump server was edited to a blocked one after the tab opened, the split shows the same message and opens no pane.
+
 Some failures are refused outright rather than retried, because repeating the attempt cannot change the outcome — a changed host key, an SSH key file that is missing or cannot be read, a jump server whose stored password cannot be used (for example while the vault is locked) or whose setup is incomplete, a Mosh connection configured with a jump server, or a missing Mosh runtime. The terminal clears and shows the reason immediately instead of working through the retry count. See [Jump server](jump-server.md#when-the-jump-server-cannot-be-used) for the jump-server cases and the Mosh restriction.
 
 KorTTY's pinned SithTermFX build also includes a reviewed bottom-row boundary fix: moving over a hyperlink or the final visible terminal row no longer asks `TerminalTextBuffer` for the non-existent row at `line == height`.
@@ -65,6 +67,12 @@ Right-click inside a terminal to open its context menu; in a split tab it acts o
 | **Find** | Opens the find bar at the top right of the pane, the same as **Edit → Find...** (++ctrl+f++, ++cmd+f++ on macOS). Type to highlight matches, press ++enter++ or ++down++ for the next match and ++up++ for the previous one, and ++esc++ to close the bar. |
 
 Below them come the entries of other features, in this order and some only where they apply: **Show Menu Bar** (while the menu bar is hidden), **Open in Snippet Editor**, the **AI** submenu, the session-journal screenshot and note entries, **Theme**, **Terminal Effect**, **Reconnect** and **Show Command Timestamps**. The **Extras** submenu at the end holds **Split Terminal**, **Font Size** (see [Font size and zoom](#font-size-and-zoom)) and **Broadcast Mode**.
+
+## Links in terminal output
+
+Programs can print clickable links into the terminal with the OSC 8 escape sequence; GCC, for example, can link a warning to its documentation. Clicking such a link opens it in your default browser, or a `mailto` link in your mail program. Only `http`, `https`, `ftp`, `ftps` and `mailto` links are clickable, and a `mailto` link may only fill in recipients (`to`, `cc`, `bcc`), `subject`, `body` and `in-reply-to`.
+
+Every other link stays plain text and does nothing when clicked: `file:` links such as the ones `ls --hyperlink` and `eza --hyperlink` put on file names, `news:`, `javascript:` and `data:` links, `mailto` links with any other field (some mail programs attach the local file an `attach` field names), and links that contain spaces, control characters or invisible direction-changing (bidi) characters or are longer than 8 KB. Whatever prints a link chooses where it points — a server, a log file you `cat`, a program's output — so KorTTY never passes a link to the operating system's file opener, which would start programs and scripts.
 
 ## Font size and zoom
 

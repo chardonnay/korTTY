@@ -34,7 +34,7 @@ A project captures the complete state of your workspace:
 | Component | Details |
 |-----------|---------|
 | **Windows** | All open KorTTY windows and their positions/sizes |
-| **Tabs** | All terminal tabs in each window, including split-pane configurations, plus SFTP Manager tabs with the local and remote folders they show, and image viewer tabs |
+| **Tabs** | All terminal tabs in each window, including split-pane configurations, plus SFTP Manager tabs with the local and remote folders they show, and file editor and image viewer tabs |
 | **Connections** | A reference to the saved connection of each tab, by the connection's internal id, so renaming a connection does not break the project |
 | **Dashboard** | Dashboard visibility and divider position |
 | **Active Tab** | Which tab was active in each window |
@@ -63,6 +63,12 @@ With **Auto-Reconnect**, each saved SFTP Manager tab connects to its connection 
 - A remote folder that no longer exists opens your login directory on the server, and the status bar says **Remote folder** *path* **no longer exists; showing the home folder**. A remote folder that exists but cannot be read, for example for lack of rights, shows the usual error and opens the login directory as well.
 - Projects saved by earlier versions referred to SFTP Manager tabs by the connection's name. Such a tab is still restored when exactly one connection has that name; when several connections share the name, the tab is skipped and the log says why. Save the project again to store the reference by id.
 - A remote image viewer tab is saved with the connection it was opened from, even when several SFTP Manager tabs are open or its SFTP Manager tab is already closed. When restored, it opens its own SFTP connection, with the same SSH key and jump server as the SFTP Manager, and that connection closes when you close the tab.
+
+### File editor tabs
+
+A saved file editor tab opens its file again: a local file when it still exists, and — with **Auto-Reconnect** — a remote file over an SFTP connection of its own, which closes when you close the tab. The project stores which file was open, not its unsaved changes.
+
+A file editor tab with unsaved changes shows `*` after its name, and every way of closing it asks **Save**, **Discard** or **Cancel** first: the tab's close button, the editor's **Close** button or ++ctrl+w++ (++cmd+w++ on macOS) in the editor, *File > Close Tab*, *File > Close All Tabs*, opening a project, closing the window and quitting korTTY. **Cancel** keeps the tab open; when the question came from *Close All Tabs*, opening a project or closing the window, nothing is closed. If saving fails, for example because the SFTP connection is gone, korTTY shows the error and keeps the tab open with your changes. When several tabs have unsaved changes, korTTY selects each one before it asks about it.
 
 ## Project File Storage
 

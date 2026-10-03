@@ -795,7 +795,7 @@
 </tr>
 <tr>
 <td><strong>Tabs</strong></td>
-<td>Alle Terminal-Tabs in jedem Fenster, einschließlich Split-Pane-Konfigurationen, sowie SFTP-Manager-Tabs mit den lokalen und entfernten Ordnern, die sie anzeigen, und Bildbetrachter-Tabs</td>
+<td>Alle Terminal-Tabs in jedem Fenster, einschließlich Split-Pane-Konfigurationen, sowie SFTP-Manager-Tabs mit den lokalen und entfernten Ordnern, die sie anzeigen, sowie Tabs des Dateieditors und Bildbetrachters</td>
 </tr>
 <tr>
 <td><strong>Verbindungen</strong></td>
@@ -837,6 +837,9 @@
 <li>Projekte, die von früheren Versionen gespeichert wurden, bezogen sich auf SFTP-Manager-Tabs anhand des Namens der Verbindung. Solch ein Tab wird wiederhergestellt, wenn genau eine Verbindung diesen Namen hat; wenn mehrere Verbindungen denselben Namen teilen, wird der Tab übersprungen und das Log erklärt warum. Speichern Sie das Projekt erneut, um die Referenz nach ID zu speichern.</li>
 <li>Ein Remote-Bildbetrachter-Tab wird mit der Verbindung gespeichert, von der er geöffnet wurde, auch wenn mehrere SFTP-Manager-Tabs offen sind oder sein SFTP-Manager-Tab bereits geschlossen ist. Beim Wiederherstellen öffnet er seine eigene SFTP-Verbindung, mit demselben SSH-Schlüssel und derselben Sprungserver-Verbindung wie der SFTP-Manager, und diese Verbindung schließt sich, wenn Sie den Tab schließen.</li>
 </ul>
+<h3 id="datei-editor-tabs">Datei-Editor-Tabs<a class="headerlink" href="#datei-editor-tabs" title="Permanent link">&para;</a></h3>
+<p>Ein gespeicherter Tab des Datei-Editors öffnet seine Datei erneut: eine lokale Datei, wenn sie noch existiert, und – mit <strong>Automatisches Wiederverbinden</strong> – eine entfernte Datei über eine eigene SFTP-Verbindung, die geschlossen wird, wenn Sie den Tab schließen. Das Projekt speichert, welche Datei geöffnet war, nicht ihre ungespeicherten Änderungen.</p>
+<p>Ein Datei-Editor-Tab mit ungespeicherten Änderungen zeigt <code>*</code> nach seinem Namen, und jede Art des Schließens fragt zuerst <strong>Speichern</strong>, <strong>Verwerfen</strong> oder <strong>Abbrechen</strong>: die Schaltfläche zum Schließen des Tabs, die Schaltfläche <strong>Schließen</strong> im Editor oder <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-w">W</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-w">W</kbd></span> auf macOS) im Editor, <em>Datei &gt; Tab schließen</em>, <em>Datei &gt; Alle Tabs schließen</em>, das Öffnen eines Projekts, das Schließen des Fensters und das Beenden von korTTY. <strong>Abbrechen</strong> lässt den Tab offen; wenn die Frage aus <em>Alle Tabs schließen</em>, dem Öffnen eines Projekts oder dem Schließen des Fensters kam, wird nichts geschlossen. Wenn das Speichern fehlschlägt, zum Beispiel weil die SFTP-Verbindung fehlt, zeigt korTTY den Fehler an und lässt den Tab mit Ihren Änderungen offen. Wenn mehrere Tabs ungespeicherte Änderungen haben, wählt korTTY jeden Tab aus, bevor es danach fragt.</p>
 <h2 id="projektdateispeicherung">Projektdateispeicherung<a class="headerlink" href="#projektdateispeicherung" title="Permanent link">&para;</a></h2>
 <p>Ein Projekt ist eine einfache XML-Datei mit der <code>.kortty</code>-Erweiterung. Jedes Projekt enthält:</p>
 <ul>

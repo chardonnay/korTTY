@@ -2471,9 +2471,10 @@ public class MainWindow {
             String terminalEffectPluginId,
             Double terminalEffectAnimationSpeed) {
         // Central UI gate for the enterprise server policy — covers saved connections, session
-        // restore, teamwork-shared connections and multi/swarm opens. The terminal connectors do
-        // not repeat this check; SFTPSession and JobSchedulerRemoteSession do, as non-UI
-        // backstops for their own paths.
+        // restore, teamwork-shared connections and multi/swarm opens. Group opens and Duplicate
+        // check it themselves; TerminalView.connect re-checks before every (re)connect attempt,
+        // because the connection editor changes a saved connection in place. SFTPSession and
+        // JobSchedulerRemoteSession do too, as non-UI backstops for their own paths.
         java.util.Optional<String> blockedTarget =
             de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(connection);
         if (blockedTarget.isPresent()) {
@@ -2737,7 +2738,16 @@ public class MainWindow {
             if (result.connection() == null) {
                 return null;
             }
-            
+
+            // Enterprise server policy, as for Quick Connect: refuse a blocked target or jump host
+            // before prompting for a password or persisting the connection. null reads as
+            // "cancelled" in TerminalView, so no connector is built for it.
+            java.util.Optional<String> splitBlocked = SplitConnectionPolicy.blockedTarget(result.connection());
+            if (splitBlocked.isPresent()) {
+                de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(splitBlocked.get());
+                return null;
+            }
+
             String password = result.password();
             String finalPassword = ensurePasswordForConnection(result.connection(), password);
             if (!result.connection().isLocalShell()
@@ -3494,7 +3504,8 @@ public class MainWindow {
             // A hosted snippet editor/workspace asks about unsaved changes (Save / Discard / Cancel).
             return hostTab.confirmClose();
         }
-        return true;
+        // A file editor with unsaved changes asks the same (Save / Discard / Cancel).
+        return HostedCloseGuards.confirmTab(tab);
     }
 
     /** Hook for remembering tabs the user closed, called after they agreed; records nothing yet. */
@@ -3554,8 +3565,8 @@ public class MainWindow {
     }
 
     /**
-     * Closes all closable tabs once every hosted snippet editor/workspace agreed (unsaved changes:
-     * Save / Discard / Cancel). A single Cancel keeps every tab open.
+     * Closes all closable tabs once every hosted snippet editor/workspace and file editor agreed
+     * (unsaved changes: Save / Discard / Cancel). A single Cancel keeps every tab open.
      *
      * @return {@code true} when the tabs were closed
      */
@@ -3567,7 +3578,10 @@ public class MainWindow {
         return true;
     }
 
-    /** Asks every hosted snippet editor/workspace tab of this window; see {@link HostedCloseGuards}. */
+    /**
+     * Asks every hosted snippet editor/workspace tab and every file editor tab with unsaved changes
+     * of this window; see {@link HostedCloseGuards}.
+     */
     private boolean confirmHostedTabsClose() {
         return HostedCloseGuards.confirmTabs(tabPane.getTabs(), tab -> tabPane.getSelectionModel().select(tab));
     }
@@ -5307,7 +5321,8 @@ public class MainWindow {
         if (file != null) {
             try {
                 Project project = projectManager.loadProject(file.toPath());
-                // Loading replaces every tab: hosted snippet editors ask about unsaved work first.
+                // Loading replaces every tab: hosted snippet editors and file editors ask about
+                // unsaved work first.
                 if (!confirmHostedTabsClose()) {
                     return;
                 }
@@ -9502,8 +9517,22 @@ public class MainWindow {
             logger.warn("No connections found in group: {}", groupName);
             return;
         }
-        
-        logger.info("Opening {} connections from group: {}", groupConnections.size(), groupName);
+
+        // Enterprise server policy, as for a single connection: a member whose server or jump
+        // server is blocked is skipped before its password is read, its usage counted or a tab
+        // built, and one policy message names every blocked target. The allowed members open.
+        de.kortty.policy.ServerAccessPolicy.Partition policyPartition =
+            de.kortty.policy.ServerAccessPolicy.partition(groupConnections);
+        if (!policyPartition.blockedTargets().isEmpty()) {
+            logger.warn("Group {}: skipping {} connection(s) blocked by the enterprise policy",
+                groupName, groupConnections.size() - policyPartition.allowed().size());
+            de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(policyPartition.blockedTargetList());
+        }
+        if (policyPartition.allowed().isEmpty()) {
+            return;
+        }
+
+        logger.info("Opening {} connections from group: {}", policyPartition.allowed().size(), groupName);
         
         // Create password vault for retrieving stored passwords
         PasswordVault vault = new PasswordVault(
@@ -9511,7 +9540,8 @@ public class MainWindow {
                 app.getMasterPasswordManager().getMasterPassword()
         );
         
-        for (ServerConnection conn : groupConnections) {
+        int opened = 0;
+        for (ServerConnection conn : policyPartition.allowed()) {
             // Retrieve password from vault
             String password = vault != null ? vault.retrievePassword(conn) : "";
             
@@ -9554,6 +9584,7 @@ public class MainWindow {
             setupTabContextMenu(tab);
             tabPane.getTabs().add(tab);
             tab.connect();
+            opened++;
             
             // Select the first tab
             if (tabPane.getTabs().size() == 1) {
@@ -9568,7 +9599,7 @@ public class MainWindow {
             logger.error("Failed to save usage counts", e);
         }
         
-        updateStatus(I18n.get("status.groupOpened", groupName, groupConnections.size()));
+        updateStatus(I18n.get("status.groupOpened", groupName, opened));
         updateDashboard();
     }
     
@@ -10566,6 +10597,16 @@ public class MainWindow {
      */
     private void duplicateTab(TerminalTab sourceTab) {
         ServerConnection connection = sourceTab.getConnection();
+
+        // Enterprise server policy, as in openConnectionAndReturnTab. The source tab passed it when
+        // it opened, but the connection editor changes a saved connection in place, so its host or
+        // jump server may have been edited to a blocked one since; refuse before any password prompt.
+        java.util.Optional<String> duplicateBlocked =
+            de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(connection);
+        if (duplicateBlocked.isPresent()) {
+            de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(duplicateBlocked.get());
+            return;
+        }
 
         // Local shells run a local process with no authentication, and SSH key auth needs no
         // password - duplicate directly without prompting.
