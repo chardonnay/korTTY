@@ -9,6 +9,8 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.List;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -110,5 +112,56 @@ class ServerAccessPolicyTest {
     void withoutAServerPolicyEverythingIsAllowed() {
         PolicyManager.resetForTests();
         assertThat(ServerAccessPolicy.isAllowed(connection("vault.acme.com", 22))).isTrue();
+    }
+
+    @Test
+    void partitionKeepsTheAllowedMembersAndNamesEachBlockedTargetOnce() throws IOException {
+        activateDenyList("vault.acme.com", "bastion.blocked.com");
+
+        ServerConnection web = connection("web.acme.com", 22);
+        ServerConnection vault = connection("vault.acme.com", 22);
+        ServerConnection viaBlockedJump = connection("app.acme.com", 22);
+        JumpServer jump = new JumpServer("bastion.blocked.com", 22, "ops");
+        jump.setEnabled(true);
+        viaBlockedJump.setJumpServer(jump);
+        ServerConnection vaultAgain = connection("vault.acme.com", 22);
+        ServerConnection localShell = new ServerConnection();
+        localShell.setProtocol(ConnectionProtocol.LOCAL_SHELL);
+        localShell.setHost("vault.acme.com");
+
+        ServerAccessPolicy.Partition partition = ServerAccessPolicy.partition(
+            List.of(web, vault, viaBlockedJump, vaultAgain, localShell));
+
+        // The allowed members keep their order; a blocked jump host blocks its member even though
+        // the target itself is allowed, and a target blocked twice is named once.
+        assertThat(partition.allowed()).containsExactly(web, localShell).inOrder();
+        assertThat(partition.blockedTargets())
+            .containsExactly("vault.acme.com:22", "bastion.blocked.com:22").inOrder();
+        assertThat(partition.blockedTargetList()).isEqualTo("vault.acme.com:22, bastion.blocked.com:22");
+    }
+
+    @Test
+    void partitionAgainstAnExplicitPolicy() {
+        ServerConnection web = connection("web.acme.com", 22);
+        ServerConnection db = connection("db.acme.com", 5022);
+
+        ServerAccessPolicy.Partition locked =
+            ServerAccessPolicy.partition(Arrays.asList(web, null, db), EffectivePolicy.lockdown());
+        assertThat(locked.allowed()).isEmpty();
+        assertThat(locked.blockedTargetList()).isEqualTo("web.acme.com:22, db.acme.com:5022");
+
+        ServerAccessPolicy.Partition open =
+            ServerAccessPolicy.partition(List.of(web, db), EffectivePolicy.unrestricted());
+        assertThat(open.allowed()).containsExactly(web, db).inOrder();
+        assertThat(open.blockedTargets()).isEmpty();
+        assertThat(open.blockedTargetList()).isEmpty();
+    }
+
+    @Test
+    void firstBlockedTargetAgainstAnExplicitPolicyIgnoresTheActiveOne() throws IOException {
+        activateDenyList("*");
+        ServerConnection web = connection("web.acme.com", 22);
+        assertThat(ServerAccessPolicy.firstBlockedTarget(web)).hasValue("web.acme.com:22");
+        assertThat(ServerAccessPolicy.firstBlockedTarget(web, EffectivePolicy.unrestricted())).isEmpty();
     }
 }
