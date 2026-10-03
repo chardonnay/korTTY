@@ -431,6 +431,41 @@ class SessionJournalI18nCoverageTest {
         }
     }
 
+    @Test
+    void markerRulePriorityHintSpeaksOfMatchingRulesNotSportsMatches() throws Exception {
+        // "The first match wins" was machine-translated as a game being won.
+        java.util.Map<String, String> sportsMatch = java.util.Map.of(
+            "messages_it.properties", "partita",
+            "messages_es.properties", "partido",
+            "messages_pt.properties", "partida",
+            "messages_fr.properties", "match",
+            "messages_hr.properties", "meč",
+            "messages_nl.properties", "wedstrijd");
+        for (java.util.Map.Entry<String, String> entry : sportsMatch.entrySet()) {
+            String hint = loadBundle(entry.getKey()).getProperty("journal.marker.rules.priorityHint");
+            assertWithMessage(entry.getKey() + " journal.marker.rules.priorityHint")
+                .that(hint.toLowerCase(java.util.Locale.ROOT)).doesNotContain(entry.getValue());
+        }
+        assertWithMessage("English journal.marker.rules.priorityHint")
+            .that(loadBundle("messages.properties").getProperty("journal.marker.rules.priorityHint"))
+            .contains("the first rule that matches applies");
+    }
+
+    @Test
+    void applyNowAppliesTheRulesInsteadOfApplyingForAJob() throws Exception {
+        java.util.Map<String, String> jobApplication = java.util.Map.of(
+            "messages_it.properties", "candidat",
+            "messages_pt.properties", "inscreva",
+            "messages_fr.properties", "postul",
+            "messages_hr.properties", "prijav",
+            "messages_nl.properties", "solliciteer");
+        for (java.util.Map.Entry<String, String> entry : jobApplication.entrySet()) {
+            String label = loadBundle(entry.getKey()).getProperty("journal.marker.rules.applyNow");
+            assertWithMessage(entry.getKey() + " journal.marker.rules.applyNow")
+                .that(label.toLowerCase(java.util.Locale.ROOT)).doesNotContain(entry.getValue());
+        }
+    }
+
     private Properties loadBundle(String fileName) throws Exception {
         try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("i18n/" + fileName)) {
             assertWithMessage("Missing i18n bundle " + fileName).that(inputStream).isNotNull();
