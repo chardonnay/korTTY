@@ -3660,7 +3660,7 @@ tasks.register<JavaExec>("terminalContextMenuActionsSmoke") {
 
 tasks.register<JavaExec>("terminalLinksSmoke") {
     group = "verification"
-    description = "Clicks an OSC 8 link in a real terminal pane and checks it opens only on a single, still Cmd/Ctrl+click, while plain double and triple clicks select (needs a display)."
+    description = "Clicks an OSC 8 link and a plain-text URL in a real terminal pane and checks they open only on a single, still Cmd/Ctrl+click, while plain double and triple clicks select (needs a display)."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.TerminalLinksSmoke")
     classpath = sourceSets.test.get().runtimeClasspath

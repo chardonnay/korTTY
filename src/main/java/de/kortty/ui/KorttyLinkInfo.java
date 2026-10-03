@@ -13,7 +13,8 @@ import java.util.Objects;
  * <p>{@link #navigate()} does nothing. SithTermFX calls it on every plain primary click over a link,
  * once per click of a double-click and after a drag-selection that ends on the link, and also while a
  * program has mouse reporting on. korTTY opens links only through {@link TerminalLinkClickPolicy}, on a
- * single Cmd/Ctrl+click, which reads {@link #target()} and hands it to the {@link TerminalLinkOpener}.
+ * single Cmd/Ctrl+click: {@link TerminalLinkResolver} reads {@link #target()} from the clicked cell, and
+ * the policy hands it to the {@link TerminalLinkOpener}.
  */
 public final class KorttyLinkInfo extends LinkInfo {
 

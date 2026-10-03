@@ -1,7 +1,5 @@
 package de.kortty.ui;
 
-import com.sithtermfx.core.HyperlinkStyle;
-import com.sithtermfx.core.TextStyle;
 import com.sithtermfx.core.compatibility.Point;
 import com.sithtermfx.core.model.SelectionUtil;
 import com.sithtermfx.core.model.TerminalSelection;
@@ -87,7 +85,10 @@ public final class TerminalLinkClickPolicy {
         }
     }
 
-    /** Finds the link under a cell of a text buffer. Called on the JavaFX thread for every primary click. */
+    /**
+     * Finds the link under a cell of a text buffer, as {@link TerminalLinkResolver} does. Called on
+     * the JavaFX thread for every primary click.
+     */
     @FunctionalInterface
     public interface HitResolver {
         @NotNull Hit hitAt(@NotNull TerminalTextBuffer buffer, @NotNull Point cell);
@@ -133,7 +134,7 @@ public final class TerminalLinkClickPolicy {
     /**
      * Adds the click filter to {@code panel}'s canvas.
      *
-     * @param resolver finds the link under the clicked cell
+     * @param resolver finds the link under the clicked cell, normally a {@link TerminalLinkResolver}
      * @param opener   opens the target of an {@link Action#OPEN} click, normally through
      *                 {@link TerminalLinkOpener#open}
      */
@@ -177,28 +178,6 @@ public final class TerminalLinkClickPolicy {
         panel.repaint();
     }
 
-    /**
-     * The OSC 8 link at {@code cell}, read under the buffer lock: {@link HitKind#OSC8} for a cell
-     * that SithTermFX styles as a link, with the target of a {@link KorttyLinkInfo}. A link of any
-     * other origin carries no target, so it is never opened.
-     */
-    static @NotNull Hit osc8HitAt(@NotNull TerminalTextBuffer buffer, @NotNull Point cell) {
-        TextStyle style;
-        buffer.lock();
-        try {
-            if (!isInside(buffer, cell)) {
-                return Hit.NONE;
-            }
-            style = buffer.getStyleAt(cell.x, cell.y);
-        } finally {
-            buffer.unlock();
-        }
-        if (!(style instanceof HyperlinkStyle link)) {
-            return Hit.NONE;
-        }
-        return new Hit(HitKind.OSC8, link.getLinkInfo() instanceof KorttyLinkInfo info ? info.target() : null);
-    }
-
     /** The word around {@code cell}, delimited the way SithTermFX's own double-click delimits it. */
     static @NotNull TerminalSelection wordSelection(@NotNull TerminalTextBuffer buffer, @NotNull Point cell) {
         buffer.lock();
@@ -231,10 +210,5 @@ public final class TerminalLinkClickPolicy {
         } finally {
             buffer.unlock();
         }
-    }
-
-    private static boolean isInside(@NotNull TerminalTextBuffer buffer, @NotNull Point cell) {
-        return cell.x >= 0 && cell.x < buffer.getWidth()
-            && cell.y >= -buffer.getHistoryLinesCount() && cell.y < buffer.getHeight();
     }
 }

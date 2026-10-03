@@ -100,6 +100,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.UUID;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -523,6 +524,7 @@ public class TerminalView extends BorderPane {
         splitPane = new TerminalSplitPane(providerFactory, connectorFactory, widget -> {
             registerPaneProvider(widget);
             setupWidgetEventHandlers(widget);
+            configurePlainTextLinks(widget);
             applyCursorShape(widget);
             setupTimestampGutter(widget);
             applyTerminalScrollbarVisibility(widget);
@@ -4952,6 +4954,30 @@ public class TerminalView extends BorderPane {
             var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
             var gs = gsm != null ? gsm.getSettings() : null;
             return gs != null && gs.isTerminalCopyOnSelectEnabled();
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    /**
+     * Lets a Cmd/Ctrl+click in the pane open web and e-mail addresses printed as plain text while
+     * {@link #isTerminalLinkDetectionEnabled()}; the setting is read on every click, so no pane has
+     * to be reopened after a change.
+     */
+    private void configurePlainTextLinks(SithTermFxWidget widget) {
+        if (widget instanceof KorttyTermWidget korttyWidget) {
+            korttyWidget.setPlainTextLinkKinds(() -> isTerminalLinkDetectionEnabled()
+                ? TerminalLinkResolver.WEB_LINK_KINDS
+                : Set.of());
+        }
+    }
+
+    /** {@code GlobalSettings.terminalLinkDetectionEnabled}; on when the settings cannot be read, as by default. */
+    private boolean isTerminalLinkDetectionEnabled() {
+        try {
+            var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            var gs = gsm != null ? gsm.getSettings() : null;
+            return gs == null || gs.isTerminalLinkDetectionEnabled();
         } catch (Exception e) {
             return true;
         }

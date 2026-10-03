@@ -9,11 +9,14 @@ import com.sithtermfx.ui.TerminalCopyPasteHandler;
 import com.sithtermfx.ui.TerminalPanel;
 import com.sithtermfx.ui.settings.SettingsProvider;
 import de.kortty.core.PolicyAwareCopyPasteHandler;
+import de.kortty.core.TerminalLinkDetector;
 import javafx.geometry.Dimension2D;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
+import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  * korTTY's terminal widget: a {@link SithTermFxWidget} whose panel routes every copy/paste path
@@ -25,7 +28,9 @@ import java.util.Objects;
  * lookup on its runtime class misses every SithTermFX method that it does not override itself.
  *
  * <p>OSC 8 links go through {@link KorttyOsc8LinkInfoProvider}, which keeps only web and mail links,
- * and open only on a Cmd/Ctrl+click through {@link TerminalLinkClickPolicy}.
+ * and open only on a Cmd/Ctrl+click through {@link TerminalLinkClickPolicy}. The same click opens a
+ * web or e-mail address printed as plain text, which {@link TerminalLinkResolver} finds on demand
+ * for the kinds set with {@link #setPlainTextLinkKinds}; none until then.
  */
 public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneActions {
 
@@ -78,6 +83,16 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
     }
 
     /**
+     * Sets which kinds of links a Cmd/Ctrl+click finds in plain text, such as
+     * {@link TerminalLinkResolver#WEB_LINK_KINDS}. The supplier is asked on every click, so a change
+     * of the setting behind it applies at once; an empty set leaves only OSC 8 links. Call it on the
+     * JavaFX thread.
+     */
+    public void setPlainTextLinkKinds(@NotNull Supplier<Set<TerminalLinkDetector.Kind>> kinds) {
+        ((KorttyTerminalPanel) getTerminalPanel()).setPlainTextLinkKinds(kinds);
+    }
+
+    /**
      * The widget's terminal panel, korTTY's subclass of SithTermFX's {@link TerminalPanel}. korTTY's
      * overrides of the panel's methods belong here. It is an inner class because
      * {@code clearBuffer(boolean)} needs the widget's terminal.
@@ -87,12 +102,20 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
         /** Where a Cmd/Ctrl+click sends a link. */
         private TerminalLinkOpener linkOpener = TerminalLinkOpener.system();
 
+        /** The kinds of links found in plain text; none until the terminal view sets them. */
+        private Supplier<Set<TerminalLinkDetector.Kind>> plainTextLinkKinds = Set::of;
+
         KorttyTerminalPanel(@NotNull SettingsProvider settingsProvider, @NotNull TerminalTextBuffer terminalTextBuffer,
                 @NotNull StyleState styleState) {
             super(settingsProvider, terminalTextBuffer, styleState);
             // Links open only on a single, still Cmd/Ctrl+click; SithTermFX's plain-click navigation
             // is a no-op in KorttyLinkInfo. A canvas filter, so it runs before SithTermFX's handler.
-            TerminalLinkClickPolicy.install(this, TerminalLinkClickPolicy::osc8HitAt, target -> linkOpener.open(target));
+            TerminalLinkClickPolicy.install(this, new TerminalLinkResolver(() -> plainTextLinkKinds.get()),
+                target -> linkOpener.open(target));
+        }
+
+        void setPlainTextLinkKinds(@NotNull Supplier<Set<TerminalLinkDetector.Kind>> kinds) {
+            plainTextLinkKinds = Objects.requireNonNull(kinds, "kinds");
         }
 
         /**

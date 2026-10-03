@@ -4,7 +4,7 @@ title: Terminal
 
 # Terminal
 
-Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, and SSH connection management. Open via **Configuration → Global Settings → Terminal**; stored in `~/.kortty/global-settings.xml`.
+Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, links, and SSH connection management. Open via **Configuration → Global Settings → Terminal**; stored in `~/.kortty/global-settings.xml`.
 
 ![Terminal settings tab](../../assets/screenshots/settings/terminal.png)
 
@@ -20,6 +20,7 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Allow drag-and-drop file copy into terminal | toggle | — | On | `terminalDragDropEnabled` |
 | Copy selection to clipboard automatically | toggle | — | On | `terminalCopyOnSelectEnabled` |
 | Close active terminal windows without confirmation | toggle | — | Off | `closeActiveTerminalWindowsWithoutConfirmation` |
+| Detect web and e-mail addresses in terminal text | toggle | — | On | `terminalLinkDetectionEnabled` |
 | Enable SSH Keep-Alive | toggle | — | On | `sshKeepAliveEnabled` |
 | Interval (seconds): | number | 5–600 | 60 | `sshKeepAliveInterval` |
 | Enable connection retries | toggle | — | On | `connectionRetriesEnabled` |
@@ -45,6 +46,9 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 
 !!! note "Copy selection to clipboard automatically"
     When enabled, text you select in a terminal is copied to the clipboard as soon as you select it. On Linux it also becomes the X11 primary selection, so a middle-click pastes it in other applications such as xterm or gedit. With the enterprise policy's [internal clipboard mode](../enterprise-policy.md#internal-clipboard-mode) the selection stays inside korTTY on every platform.
+
+!!! note "Links"
+    With **Detect web and e-mail addresses in terminal text** on, ++cmd++ + click (macOS) or ++ctrl++ + click (Windows, Linux) opens a web address or an e-mail address that a program printed as plain text: a web address in your default browser, an e-mail address as a new mail in your mail program. A plain click still only selects text. A change applies to the open terminals at once. Links that a program marks up itself with OSC 8 open with the same click either way. See [Links in terminal output](../../features/terminal.md#links-in-terminal-output).
 
 !!! note "SSH Keep-Alive"
     When enabled, korTTY sends periodic keep-alive packets to prevent SSH sessions from timing out during idle periods. The interval setting controls how often (in seconds) these packets are sent. The spinner range is 5–600 seconds; the interval is disabled if SSH Keep-Alive is toggled off.

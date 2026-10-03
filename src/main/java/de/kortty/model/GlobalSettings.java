@@ -311,6 +311,9 @@ public class GlobalSettings {
     private boolean terminalCopyOnSelectEnabled = true; // Copy selected text to clipboard automatically
 
     @XmlElement
+    private boolean terminalLinkDetectionEnabled = true; // Cmd/Ctrl+click opens web and e-mail addresses in plain text
+
+    @XmlElement
     private boolean closeActiveTerminalWindowsWithoutConfirmation = false; // Ask before closing active terminal windows by default
 
     @XmlElement
@@ -1928,6 +1931,19 @@ public class GlobalSettings {
 
     public void setTerminalCopyOnSelectEnabled(boolean terminalCopyOnSelectEnabled) {
         this.terminalCopyOnSelectEnabled = terminalCopyOnSelectEnabled;
+    }
+
+    /**
+     * Whether a Cmd/Ctrl+click in a terminal also opens web and e-mail addresses that a program
+     * printed as plain text, not only OSC 8 links. Read on every click, so a change applies to open
+     * terminals at once.
+     */
+    public boolean isTerminalLinkDetectionEnabled() {
+        return terminalLinkDetectionEnabled;
+    }
+
+    public void setTerminalLinkDetectionEnabled(boolean terminalLinkDetectionEnabled) {
+        this.terminalLinkDetectionEnabled = terminalLinkDetectionEnabled;
     }
 
     public boolean isCloseActiveTerminalWindowsWithoutConfirmation() {

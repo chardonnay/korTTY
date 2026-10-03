@@ -1,27 +1,14 @@
 package de.kortty.ui;
 
-import com.sithtermfx.core.HyperlinkStyle;
-import com.sithtermfx.core.TerminalDisplay;
-import com.sithtermfx.core.TextStyle;
 import com.sithtermfx.core.compatibility.Point;
 import com.sithtermfx.core.model.SelectionUtil;
-import com.sithtermfx.core.model.SithTerminal;
-import com.sithtermfx.core.model.StyleState;
 import com.sithtermfx.core.model.TerminalSelection;
-import com.sithtermfx.core.model.TerminalTextBuffer;
-import com.sithtermfx.core.model.hyperlinks.LinkInfo;
-import com.sithtermfx.core.model.hyperlinks.LinkInfoProvider;
-import com.sithtermfx.core.model.hyperlinks.TextProcessing;
 import de.kortty.ui.TerminalLinkClickPolicy.Action;
-import de.kortty.ui.TerminalLinkClickPolicy.Hit;
 import de.kortty.ui.TerminalLinkClickPolicy.HitKind;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
-import java.lang.reflect.Array;
-import java.lang.reflect.Proxy;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -154,74 +141,8 @@ public class TerminalLinkClickPolicyTest {
     }
 
     @Test
-    public void anOsc8CellIsALinkWithItsTarget() {
-        Fixture fixture = new Fixture(new KorttyOsc8LinkInfoProvider());
-        fixture.write("see ");
-        fixture.link("https://example.com/docs", "docs-link");
-        fixture.write(" now");
-
-        Hit onLink = TerminalLinkClickPolicy.osc8HitAt(fixture.buffer, new Point(6, 0));
-        assertThat(onLink.kind()).isEqualTo(OSC8);
-        assertThat(onLink.target()).isEqualTo(URI.create("https://example.com/docs"));
-        assertThat(TerminalLinkClickPolicy.osc8HitAt(fixture.buffer, new Point(4, 0)).kind()).isEqualTo(OSC8);
-        assertThat(TerminalLinkClickPolicy.osc8HitAt(fixture.buffer, new Point(12, 0)).kind()).isEqualTo(OSC8);
-
-        assertThat(TerminalLinkClickPolicy.osc8HitAt(fixture.buffer, new Point(3, 0))).isEqualTo(Hit.NONE);
-        assertThat(TerminalLinkClickPolicy.osc8HitAt(fixture.buffer, new Point(13, 0))).isEqualTo(Hit.NONE);
-        assertThat(TerminalLinkClickPolicy.osc8HitAt(fixture.buffer, new Point(30, 2))).isEqualTo(Hit.NONE);
-    }
-
-    @Test
-    public void aRefusedLinkIsPlainText() {
-        Fixture fixture = new Fixture(new KorttyOsc8LinkInfoProvider());
-        fixture.link("file:////host/share/setup.exe", "setup.exe");
-
-        assertThat(TerminalLinkClickPolicy.osc8HitAt(fixture.buffer, new Point(2, 0))).isEqualTo(Hit.NONE);
-    }
-
-    @Test
-    public void aLinkOfAnotherOriginIsSwallowedButNeverOpened() {
-        LinkInfoProvider foreign = uri -> new LinkInfo(() -> {
-            throw new AssertionError("must not navigate");
-        });
-        Fixture fixture = new Fixture(foreign);
-        fixture.link("https://example.com/", "foreign");
-
-        Hit hit = TerminalLinkClickPolicy.osc8HitAt(fixture.buffer, new Point(1, 0));
-        assertThat(hit.kind()).isEqualTo(OSC8);
-        assertThat(hit.target()).isNull();
-    }
-
-    @Test
-    public void cellsOutsideTheBufferAreNoLink() {
-        Fixture fixture = new Fixture(new KorttyOsc8LinkInfoProvider());
-        fixture.link("https://example.com/", "x".repeat(WIDTH));
-
-        assertThat(TerminalLinkClickPolicy.osc8HitAt(fixture.buffer, new Point(WIDTH - 1, 0)).kind()).isEqualTo(OSC8);
-        assertThat(TerminalLinkClickPolicy.osc8HitAt(fixture.buffer, new Point(WIDTH, 0))).isEqualTo(Hit.NONE);
-        assertThat(TerminalLinkClickPolicy.osc8HitAt(fixture.buffer, new Point(-1, 0))).isEqualTo(Hit.NONE);
-        assertThat(TerminalLinkClickPolicy.osc8HitAt(fixture.buffer, new Point(0, HEIGHT))).isEqualTo(Hit.NONE);
-        assertThat(TerminalLinkClickPolicy.osc8HitAt(fixture.buffer, new Point(0, -1))).isEqualTo(Hit.NONE);
-    }
-
-    @Test
-    public void historyLinksAreLinks() {
-        Fixture fixture = new Fixture(new KorttyOsc8LinkInfoProvider());
-        fixture.link("https://example.com/old", "old-link");
-        for (int i = 0; i < HEIGHT; i++) {
-            fixture.write("\r\nline " + i);
-        }
-        assertThat(fixture.buffer.getHistoryLinesCount()).isAtLeast(1);
-        int line = -fixture.buffer.getHistoryLinesCount();
-
-        Hit hit = TerminalLinkClickPolicy.osc8HitAt(fixture.buffer, new Point(0, line));
-        assertThat(hit.kind()).isEqualTo(OSC8);
-        assertThat(hit.target()).isEqualTo(URI.create("https://example.com/old"));
-    }
-
-    @Test
     public void doubleClickSelectsTheLinkWordLikeSithTermFx() {
-        Fixture fixture = new Fixture(new KorttyOsc8LinkInfoProvider());
+        EmulatorTextBufferFixture fixture = fixture();
         fixture.write("see ");
         fixture.link("https://example.com/docs", "docs-link");
         fixture.write(" now");
@@ -237,7 +158,7 @@ public class TerminalLinkClickPolicyTest {
 
     @Test
     public void tripleClickSelectsTheWholeWrappedLine() {
-        Fixture fixture = new Fixture(new KorttyOsc8LinkInfoProvider());
+        EmulatorTextBufferFixture fixture = fixture();
         fixture.write("first\r\n");
         // The emulator hands the buffer at most one row per write and wraps before the next one.
         fixture.terminal.setLinkUriStarted("https://example.com/long");
@@ -256,7 +177,7 @@ public class TerminalLinkClickPolicyTest {
 
     @Test
     public void tripleClickOnTheLastRowStaysOnTheScreen() {
-        Fixture fixture = new Fixture(new KorttyOsc8LinkInfoProvider());
+        EmulatorTextBufferFixture fixture = fixture();
         fixture.write("\r\n\r\n\r\n");
         fixture.link("https://example.com/", "bottom");
         // A last row marked as wrapping into the row below, which does not exist.
@@ -270,12 +191,12 @@ public class TerminalLinkClickPolicyTest {
 
     @Test
     public void everyPanelInstallsTheClickFilter() throws IOException {
-        String widget = source("src/main/java/de/kortty/ui/KorttyTermWidget.java");
+        String widget = source("src/main/java/de/kortty/ui/KorttyTermWidget.java").replaceAll("\\s+", " ");
 
         int panelConstructor = widget.indexOf("super(settingsProvider, terminalTextBuffer, styleState);");
-        int install = widget.indexOf(
-            "TerminalLinkClickPolicy.install(this, TerminalLinkClickPolicy::osc8HitAt, target -> linkOpener.open(target));");
-        int nextMember = widget.indexOf("void setLinkOpener(", panelConstructor);
+        int install = widget.indexOf("TerminalLinkClickPolicy.install(this, "
+            + "new TerminalLinkResolver(() -> plainTextLinkKinds.get()), target -> linkOpener.open(target));");
+        int nextMember = widget.indexOf("void setPlainTextLinkKinds(", panelConstructor);
         assertThat(panelConstructor).isAtLeast(0);
         assertThat(install).isGreaterThan(panelConstructor);
         assertThat(install).isLessThan(nextMember);
@@ -292,64 +213,12 @@ public class TerminalLinkClickPolicyTest {
         assertThat(policy).contains("panel.getCanvas().requestFocus();");
     }
 
+    /** A 40x4 text buffer driven by a real SithTermFX emulator, with korTTY's OSC 8 provider. */
+    private static EmulatorTextBufferFixture fixture() {
+        return new EmulatorTextBufferFixture(WIDTH, HEIGHT, 100, new KorttyOsc8LinkInfoProvider());
+    }
+
     private static String source(String path) throws IOException {
         return Files.readString(Path.of(path), StandardCharsets.UTF_8).replace("\r\n", "\n");
-    }
-
-    /** A 40x4 text buffer driven by a real SithTermFX emulator, with OSC 8 links resolved by a provider. */
-    private static final class Fixture {
-        final TerminalTextBuffer buffer;
-        final SithTerminal terminal;
-
-        Fixture(LinkInfoProvider provider) {
-            StyleState styleState = new StyleState();
-            TextProcessing processing = new TextProcessing(new TextStyle(),
-                HyperlinkStyle.HighlightMode.HOVER_WITH_CUSTOM_COLOR);
-            processing.setLinkInfoProvider(provider);
-            buffer = new TerminalTextBuffer(WIDTH, HEIGHT, styleState, 100, processing);
-            processing.setTerminalTextBuffer(buffer);
-            terminal = new SithTerminal(noDisplay(), buffer, styleState);
-        }
-
-        /** Writes text the way the emulator does, CR and LF included. */
-        void write(String text) {
-            int start = 0;
-            for (int i = 0; i < text.length(); i++) {
-                char c = text.charAt(i);
-                if (c == '\r' || c == '\n') {
-                    if (i > start) {
-                        terminal.writeString(text.substring(start, i));
-                    }
-                    if (c == '\r') {
-                        terminal.carriageReturn();
-                    } else {
-                        terminal.newLine();
-                    }
-                    start = i + 1;
-                }
-            }
-            if (start < text.length()) {
-                terminal.writeString(text.substring(start));
-            }
-        }
-
-        /** {@code ESC ] 8 ; ; target ST text ESC ] 8 ; ; ST}. */
-        void link(String target, String text) {
-            terminal.setLinkUriStarted(target);
-            write(text);
-            terminal.setLinkUriFinished();
-        }
-    }
-
-    /** A display that ignores everything; SithTermFX's own test doubles are not published. */
-    private static TerminalDisplay noDisplay() {
-        return (TerminalDisplay) Proxy.newProxyInstance(TerminalDisplay.class.getClassLoader(),
-            new Class<?>[] {TerminalDisplay.class}, (proxy, method, args) -> {
-                Class<?> type = method.getReturnType();
-                if (type.isPrimitive() && type != void.class) {
-                    return Array.get(Array.newInstance(type, 1), 0);
-                }
-                return type == String.class ? "" : null;
-            });
     }
 }

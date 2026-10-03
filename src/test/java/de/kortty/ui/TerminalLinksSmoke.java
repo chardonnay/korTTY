@@ -34,14 +34,17 @@ import java.util.concurrent.atomic.AtomicReference;
  * program prints an OSC 8 link, and synthetic clicks on it check that only a single, still
  * Cmd/Ctrl+click opens it (a plain click, a double-click, a drag release and AltGr do not), that a
  * plain double or triple click selects the word or the line, that clicks on plain text still reach
- * SithTermFX, and that a click swallowed on a link in another split pane moves the focused pane
- * there. Run via the {@code terminalLinksSmoke} Gradle task. Exit 0 = OK.
+ * SithTermFX, that a Cmd/Ctrl+click opens a URL printed as plain text only while plain-text link
+ * detection is on (and every other click on it still reaches SithTermFX), and that a click
+ * swallowed on a link in another split pane moves the focused pane there. Run via the
+ * {@code terminalLinksSmoke} Gradle task. Exit 0 = OK.
  */
 public final class TerminalLinksSmoke {
 
     private static final long STEP_TIMEOUT_MILLIS = 10_000;
     private static final String TARGET = "https://example.com/docs";
     private static final String OSC8_LINE = "see \u001b]8;;" + TARGET + "\u001b\\docs-link\u001b]8;;\u001b\\ now";
+    private static final String PLAIN_URL = "https://example.com/plain";
     private static final boolean MAC = System.getProperty("os.name", "").toLowerCase().contains("mac");
 
     private TerminalLinksSmoke() {
@@ -117,10 +120,11 @@ public final class TerminalLinksSmoke {
                 return null;
             });
 
-            connector.feed(OSC8_LINE + "\r\nplain text here\r\n");
+            connector.feed(OSC8_LINE + "\r\nplain text here\r\nvisit " + PLAIN_URL + " now\r\n");
             await("the OSC 8 line never reached the terminal buffer", () -> onFxThread(() ->
                 widget.getTerminalTextBuffer().getScreenLines().contains("see docs-link now")
                     && widget.getTerminalTextBuffer().getScreenLines().contains("plain text here")
+                    && widget.getTerminalTextBuffer().getScreenLines().contains("visit " + PLAIN_URL + " now")
                     && panel.cellGeometry() != null));
 
             Point2D onLink = cellCenter(panel, 6, 0);
@@ -156,6 +160,23 @@ public final class TerminalLinksSmoke {
             check(!click(canvas, onPlainText, 1, true, false, true, reachedHandlers), "Cmd/Ctrl+click on text was swallowed");
             check(!click(canvas, onPlainText, 2, false, false, true, reachedHandlers), "a double-click on text was swallowed");
             check(opened.size() == 1, "a click on plain text opened " + opened);
+
+            // A URL printed as plain text: a Cmd/Ctrl+click opens it only while detection is on.
+            Point2D onPlainUrl = cellCenter(panel, 10, 2);
+            check(!click(canvas, onPlainUrl, 1, true, false, true, reachedHandlers),
+                "Cmd/Ctrl+click on a plain URL was swallowed before detection was switched on");
+            check(opened.size() == 1, "a plain URL opened before detection was switched on: " + opened);
+            onFxThread(() -> {
+                ((KorttyTermWidget) widget).setPlainTextLinkKinds(() -> TerminalLinkResolver.WEB_LINK_KINDS);
+                return null;
+            });
+            check(!click(canvas, onPlainUrl, 1, false, false, true, reachedHandlers), "a plain click on a plain URL was swallowed");
+            check(!click(canvas, onPlainUrl, 2, false, false, true, reachedHandlers), "a double-click on a plain URL was swallowed");
+            check(click(canvas, onPlainUrl, 2, true, false, true, reachedHandlers),
+                "Cmd/Ctrl+double-click on a plain URL was not swallowed");
+            check(opened.size() == 1, "a plain URL opened without a single Cmd/Ctrl+click: " + opened);
+            check(click(canvas, onPlainUrl, 1, true, false, true, reachedHandlers), "Cmd/Ctrl+click on a plain URL was not swallowed");
+            check(List.of(TARGET, PLAIN_URL).equals(opened), "Cmd/Ctrl+click on a plain URL opened " + opened);
 
             // A swallowed click on a link in another pane still moves the focused pane there.
             SithTermFxWidget second = onFxThread(() -> splitPane.splitWidget(widget, SplitRequest.SplitMode.NEW_CONNECTION,
