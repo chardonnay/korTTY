@@ -2738,7 +2738,16 @@ public class MainWindow {
             if (result.connection() == null) {
                 return null;
             }
-            
+
+            // Enterprise server policy, as for Quick Connect: refuse a blocked target or jump host
+            // before prompting for a password or persisting the connection. null reads as
+            // "cancelled" in TerminalView, so no connector is built for it.
+            java.util.Optional<String> splitBlocked = SplitConnectionPolicy.blockedTarget(result.connection());
+            if (splitBlocked.isPresent()) {
+                de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(splitBlocked.get());
+                return null;
+            }
+
             String password = result.password();
             String finalPassword = ensurePasswordForConnection(result.connection(), password);
             if (!result.connection().isLocalShell()

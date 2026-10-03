@@ -2640,7 +2640,16 @@ public class TerminalView extends BorderPane {
         try {
             logger.info("Creating new SSH connection for split to {}@{}:{}",
                     connection.getUsername(), connection.getHost(), connection.getPort());
-            
+
+            // Enterprise server policy. The tab passed it when it opened, but the connection
+            // editor changes a saved connection in place, so the host or jump server this tab now
+            // points at may have been edited to a blocked one since.
+            java.util.Optional<String> blocked = SplitConnectionPolicy.blockedTarget(connection);
+            if (blocked.isPresent()) {
+                de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(blocked.get());
+                return null;
+            }
+
             // Check if using temporary SSH key and if it's still valid
             if (temporarySSHKey != null) {
                 if (!temporarySSHKey.isValid()) {
