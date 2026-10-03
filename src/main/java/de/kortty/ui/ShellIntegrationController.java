@@ -45,6 +45,11 @@ import java.util.function.Consumer;
  *       the pane's context menu alike.</li>
  *   <li>{@link #lastOutput} selects or copies what the pane's newest finished command printed, for
  *       the Edit menu and the context menu; neither has a key.</li>
+ *   <li>{@link #gutterUpdate} gives the pane's command-timestamp gutter the exit statuses and
+ *       runtimes of its commands and the times they finished. A mark that changes them tells the
+ *       {@link #setStatusesChangedListener listener} once, which schedules the update on the FX
+ *       thread; {@link #awaitsCompletionMark} tells the gutter's own guess at a command's end to
+ *       wait for the shell's mark.</li>
  * </ul>
  *
  * <p>The setting is read on every event and key press, so switching shell integration off stops
@@ -124,6 +129,7 @@ final class ShellIntegrationController {
     private final BooleanSupplier enabled;
     private final KeyCombination previousPromptKey;
     private final KeyCombination nextPromptKey;
+    private volatile @Nullable Consumer<SithTermFxWidget> statusesChanged;
 
     /**
      * @param enabled           whether shell integration is on; asked on the emulator thread and the
@@ -193,6 +199,57 @@ final class ShellIntegrationController {
             return;
         }
         marks.record(event, terminal, System.nanoTime());
+        // A starts the next block and can close a running one, C starts a command, D ends it.
+        if (!(event instanceof ShellIntegrationEvent.CommandStart)) {
+            notifyStatusesChanged(widget, marks);
+        }
+    }
+
+    /**
+     * Sets who learns that the command statuses of a pane changed: called on the pane's emulator
+     * thread, at most once until {@link #gutterUpdate} took the change, so it only has to schedule
+     * that call on the FX thread. A listener that throws, for example because the FX toolkit is
+     * gone, is asked again on the next change.
+     */
+    void setStatusesChangedListener(@Nullable Consumer<SithTermFxWidget> listener) {
+        this.statusesChanged = listener;
+    }
+
+    private void notifyStatusesChanged(SithTermFxWidget widget, PaneCommandMarks marks) {
+        Consumer<SithTermFxWidget> listener = statusesChanged;
+        if (listener == null || !marks.requestGutterUpdate()) {
+            return;
+        }
+        try {
+            listener.accept(widget);
+        } catch (RuntimeException e) {
+            marks.cancelGutterUpdateRequest();
+            logger.debug("Could not schedule the command statuses of a pane: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * The exit statuses and runtimes of the commands of {@code widget} by absolute line, and the
+     * commands that finished since the last call, for its timestamp gutter (see
+     * {@link PaneCommandMarks#gutterUpdate}); {@code null} for a pane without marks. Call it with the
+     * buffer lock held when the gutter's own trim tracker is polled in the same breath, so both name
+     * the same lines.
+     */
+    @Nullable PaneCommandMarks.GutterUpdate gutterUpdate(@Nullable SithTermFxWidget widget) {
+        PaneCommandMarks marks = widget != null ? panes.get(widget) : null;
+        return marks != null ? marks.gutterUpdate() : null;
+    }
+
+    /**
+     * Whether the command entered in {@code widget} at {@code enterNanos} ({@link System#nanoTime()}
+     * of the Enter key) is one the shell marked as running: its {@code D} mark will tell when it
+     * finished, so the gutter must not guess the end from a pause in the output. False while shell
+     * integration is off, and for a command the shell did not mark, such as one typed into a
+     * program or into a second ssh session started from the first.
+     */
+    boolean awaitsCompletionMark(@Nullable SithTermFxWidget widget, long enterNanos) {
+        PaneCommandMarks marks = widget != null ? panes.get(widget) : null;
+        return marks != null && isEnabled() && marks.store().commandRunningSince(enterNanos);
     }
 
     /** Whether shell integration is on; a failing settings lookup counts as on, its default. */

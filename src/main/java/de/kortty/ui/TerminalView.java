@@ -365,6 +365,8 @@ public class TerminalView extends BorderPane {
     private final Map<SithTermFxWidget, PauseTransition> commandCompletionTimerByWidget = new ConcurrentHashMap<>();
     // Absolute line where the current command started (Enter pressed).
     private final Map<SithTermFxWidget, Integer> commandStartLineByWidget = new ConcurrentHashMap<>();
+    // System.nanoTime() of that Enter, to tell whether the shell marked the command (OSC 133;C).
+    private final Map<SithTermFxWidget, Long> commandEnterNanosByWidget = new ConcurrentHashMap<>();
     // Counts the lines a full scrollback drops from its top, so the absolute-line keys above can
     // follow their command lines instead of drifting (and colliding on the bottom row).
     private final Map<SithTermFxWidget, ScrollbackTrimTracker> scrollbackTrimTrackerByWidget = new ConcurrentHashMap<>();
@@ -550,6 +552,8 @@ public class TerminalView extends BorderPane {
         this.settings = effective;
         this.defaultFontSize = settings.getFontSize();
         this.timestampGuttersVisibleState = isCommandTimestampsEnabled();
+        // A pane's OSC 133 marks changed a command's status: show it in the pane's gutter.
+        shellIntegration.setStatusesChangedListener(widget -> Platform.runLater(() -> updateCommandStatuses(widget)));
         // The session carrying the tunnels closed while it still owned them: if its pane is gone
         // (the user closed it or typed exit there), move them to another pane of the same server.
         tunnelManager.setOwnerClosedListener(session -> Platform.runLater(this::rehomeTunnelsIfOwnerGone));
@@ -1251,6 +1255,7 @@ public class TerminalView extends BorderPane {
             completionTimer.stop();
         }
         commandStartLineByWidget.remove(widget);
+        commandEnterNanosByWidget.remove(widget);
         scrollbackTrimTrackerByWidget.remove(widget);
         agentShortcutBuffers.remove(widget);
         TerminalModelListener recordingListener = terminalRecordingModelListeners.remove(widget);
@@ -5964,6 +5969,8 @@ public class TerminalView extends BorderPane {
         gutter.setGutterBackgroundColor(Color.web(settings.getBackgroundColor()));
         gutter.setGutterTextColor(Color.web(settings.getForegroundColor()));
         gutter.setTimestampFont(settings.getFontFamily(), settings.getFontSize());
+        // Exit statuses of shell-integration commands hide while shell integration is switched off.
+        gutter.setCommandStatusesShown(shellIntegration::isEnabled);
         
         // Set initial visibility based on current runtime state (important for new split widgets
         // created after user toggled timestamps in the active tab).
@@ -5989,6 +5996,7 @@ public class TerminalView extends BorderPane {
                     recordTimestampForLine(widget, startAbsoluteLine, LocalDateTime.now());
                     commandStartLineByWidget.put(widget, startAbsoluteLine);
                 }
+                commandEnterNanosByWidget.put(widget, System.nanoTime());
                 awaitingCommandCompletionByWidget.put(widget, true);
             }
         };
@@ -6093,6 +6101,12 @@ public class TerminalView extends BorderPane {
         if (!Boolean.TRUE.equals(awaitingCommandCompletionByWidget.get(widget))) {
             return;
         }
+        Long enterNanos = commandEnterNanosByWidget.get(widget);
+        if (enterNanos != null && shellIntegration.awaitsCompletionMark(widget, enterNanos)) {
+            // The shell marked this command as running (OSC 133;C): a pause in its output is not its
+            // end. Its D mark records the completion, see updateCommandStatuses.
+            return;
+        }
         try {
             int absoluteLine = resolveCursorLineAfterScrollbackTrim(widget);
             if (absoluteLine < 0) {
@@ -6156,11 +6170,72 @@ public class TerminalView extends BorderPane {
         if (!scrollbackTrimMovesMarks(trim)) {
             return;
         }
+        TimestampGutter gutter = gutterMap.get(widget);
         if (trim.kind() == ScrollbackTrimTracker.Trim.Kind.CLEARED) {
             clearTimestampMarks(widget);
+            if (gutter != null) {
+                gutter.clearCommandStatuses();
+            }
         } else {
             shiftTimestampMarks(widget, trim.lines());
+            if (gutter != null) {
+                gutter.shiftCommandStatuses(trim.lines());
+            }
         }
+    }
+
+    /**
+     * Shows the OSC 133 command statuses of {@code widget} in its gutter and records the completion
+     * timestamps of the commands that finished since the last call, at the line of their D mark and
+     * the time it arrived (FX thread). Scheduled by {@link ShellIntegrationController}, at most once
+     * at a time per pane, whenever a mark changed a status.
+     *
+     * <p>The gutter's trim tracker is polled under the same buffer lock as the marks are read, so the
+     * statuses, the completions and the gutter's shifted timestamps all name the same lines. A D mark
+     * that came after the latest Enter ends the wait for that command's completion, so the 500 ms
+     * guess in {@link #recordCommandCompletionTimestamp} no longer fires for it.
+     */
+    private void updateCommandStatuses(SithTermFxWidget widget) {
+        ScrollbackTrimTracker tracker = scrollbackTrimTrackerByWidget.get(widget);
+        var buffer = widget.getTerminalTextBuffer();
+        ScrollbackTrimTracker.Trim trim = null;
+        PaneCommandMarks.GutterUpdate update;
+        if (buffer != null) {
+            buffer.lock();
+        }
+        try {
+            if (tracker != null && buffer != null) {
+                trim = tracker.poll();
+            }
+            update = shellIntegration.gutterUpdate(widget);
+        } finally {
+            if (buffer != null) {
+                buffer.unlock();
+            }
+        }
+        if (trim != null) {
+            applyScrollbackTrim(widget, trim);
+        }
+        TimestampGutter gutter = gutterMap.get(widget);
+        if (update == null || gutter == null) {
+            return;
+        }
+        if (!update.completions().isEmpty()) {
+            LocalDateTime now = LocalDateTime.now();
+            long nowNanos = System.nanoTime();
+            Long enterNanos = commandEnterNanosByWidget.get(widget);
+            for (PaneCommandMarks.Completion completion : update.completions()) {
+                recordTimestampForLine(widget, completion.absoluteLine(), completion.time(now, nowNanos));
+                if (enterNanos == null || completion.nanos() - enterNanos >= 0) {
+                    awaitingCommandCompletionByWidget.put(widget, false);
+                    PauseTransition timer = commandCompletionTimerByWidget.get(widget);
+                    if (timer != null) {
+                        timer.stop();
+                    }
+                }
+            }
+        }
+        gutter.setCommandStatuses(update.statuses());
     }
 
     /**
@@ -7378,6 +7453,7 @@ public class TerminalView extends BorderPane {
         timestampHistoryByWidget.clear();
         awaitingCommandCompletionByWidget.clear();
         commandStartLineByWidget.clear();
+        commandEnterNanosByWidget.clear();
         scrollbackTrimTrackerByWidget.clear();
         agentShortcutBuffers.clear();
         terminalWidget = null;

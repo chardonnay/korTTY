@@ -99,6 +99,8 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 
     Each mark stays on its command line when the scrollback is full and the oldest lines are dropped, and a mark whose line has left the scrollback disappears with it. **Clear Buffer** in the terminal's right-click menu, and a `clear` that also empties the scrollback, remove all marks; the next command gets a fresh one. Opening and quitting a full-screen program such as `vim` or `less` does not move the marks. The day and month above each mark and the full date in the hover popup follow the korTTY UI language (for example `02.10.` in German, `10/02` in English), as does the elapsed time in the popup.
 
+    In a shell set up for [shell integration](../../features/shell-integration.md#exit-status-and-runtime), the sidebar also shows how each command ended: ✓ for exit status 0, ✗ for any other and … while it runs, with the command's real runtime next to the date and the exit status in the hover popup. The time such a command finished comes from the shell instead of from the first half second without output. The exit statuses are not saved with a project; the timestamps are.
+
 !!! note "Connection Retries"
     When enabled, failed SSH connections are automatically retried. Disabling this prevents automatic reconnection attempts for failed connections.
 

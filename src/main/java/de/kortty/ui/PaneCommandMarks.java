@@ -7,13 +7,20 @@ import com.sithtermfx.core.model.TerminalSelection;
 import com.sithtermfx.core.model.TerminalTextBuffer;
 import de.kortty.shellintegration.CommandBlockStore;
 import de.kortty.shellintegration.CommandBlockStore.CommandBlock;
+import de.kortty.shellintegration.CommandStatus;
 import de.kortty.shellintegration.LastOutputRange;
 import de.kortty.shellintegration.PromptNavigator;
 import de.kortty.shellintegration.ShellIntegrationEvent;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.LocalDateTime;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * The shell-integration marks of one terminal pane, kept in step with its scrollback.
@@ -33,14 +40,25 @@ import java.util.Optional;
  * <p>{@link #lastOutput} finds the output of the newest finished command in the buffer, for Select
  * and Copy Last Output.
  *
- * <p>Lock order, on every thread: the buffer lock, then the tracker, then the store.
+ * <p>{@link #gutterUpdate} hands the command-timestamp gutter what it shows: the statuses of the
+ * commands by line, and the {@code D} marks recorded since the last update, whose times become
+ * completion timestamps. {@link #requestGutterUpdate} keeps it to one scheduled update at a time.
+ *
+ * <p>Lock order, on every thread: the buffer lock, then the tracker or the pending completions, then
+ * the store.
  */
 final class PaneCommandMarks {
+
+    /** At most this many finished commands wait for the gutter; a flood of marks drops the oldest. */
+    static final int MAX_PENDING_COMPLETIONS = 256;
 
     private final TerminalTextBuffer buffer;
     private final ScrollbackTrimTracker tracker;
     private final CommandBlockStore store = new CommandBlockStore();
     private final PromptNavigator navigator = new PromptNavigator();
+    // D marks the gutter has not been given yet, oldest first; guarded by itself.
+    private final ArrayDeque<PendingCompletion> pendingCompletions = new ArrayDeque<>();
+    private final AtomicBoolean gutterUpdateRequested = new AtomicBoolean();
 
     PaneCommandMarks(TerminalTextBuffer buffer) {
         this.buffer = Objects.requireNonNull(buffer, "buffer");
@@ -88,8 +106,11 @@ final class PaneCommandMarks {
                 case ShellIntegrationEvent.PromptStart prompt -> store.promptStart(line, column);
                 case ShellIntegrationEvent.CommandStart command -> store.commandStart(line, column);
                 case ShellIntegrationEvent.OutputStart output -> store.outputStart(line, column, nanos);
-                case ShellIntegrationEvent.CommandFinished finished ->
-                    store.commandFinished(line, column, finished.exitStatus(), nanos);
+                case ShellIntegrationEvent.CommandFinished finished -> {
+                    if (store.commandFinished(line, column, finished.exitStatus(), nanos)) {
+                        queueCompletion(store.lineId(line), nanos);
+                    }
+                }
                 case ShellIntegrationEvent.RemoteNotification notification -> {
                     // Not a mark; isMark filtered it out.
                 }
@@ -211,10 +232,88 @@ final class PaneCommandMarks {
         ScrollbackTrimTracker.Trim trim = tracker.poll();
         switch (trim.kind()) {
             case SHIFT -> store.shift(trim.lines());
-            case CLEARED -> store.clear();
+            case CLEARED -> {
+                store.clear();
+                synchronized (pendingCompletions) {
+                    pendingCompletions.clear();
+                }
+            }
             case UNKNOWN, SUSPENDED -> {
                 // A width reflow or the alternate screen: the marks stay where they are.
             }
         }
+    }
+
+    /**
+     * A command that finished since the previous {@link #gutterUpdate}: the absolute line of its
+     * {@code D} mark and the {@link System#nanoTime()} it arrived at.
+     */
+    record Completion(int absoluteLine, long nanos) {
+
+        /** The wall-clock time of the mark, given the wall clock and {@code nanoTime} of now. */
+        LocalDateTime time(LocalDateTime now, long nowNanos) {
+            return now.minusNanos(Math.max(0L, nowNanos - nanos));
+        }
+    }
+
+    /**
+     * What the command-timestamp gutter needs: the statuses of the commands by absolute line (see
+     * {@link CommandBlockStore#commandStatuses()}) and the commands that finished since the last
+     * update, oldest first.
+     */
+    record GutterUpdate(NavigableMap<Integer, CommandStatus> statuses, List<Completion> completions) {
+    }
+
+    /**
+     * Asks for a {@link #gutterUpdate}: true when the caller is to schedule one, false while one is
+     * scheduled and not taken yet, which will see this change too. Any thread.
+     */
+    boolean requestGutterUpdate() {
+        return gutterUpdateRequested.compareAndSet(false, true);
+    }
+
+    /** Withdraws a {@link #requestGutterUpdate} that could not be scheduled, so the next change asks again. */
+    void cancelGutterUpdateRequest() {
+        gutterUpdateRequested.set(false);
+    }
+
+    /**
+     * The statuses and new completions as the pane stands now, under the buffer lock after applying
+     * the scrollback's trims, so their lines name the lines the gutter shows. A completion whose line
+     * left the scrollback meanwhile is dropped. Clears the request first, so a mark recorded while
+     * this runs asks for the next update. Any thread; the gutter takes it on the FX thread.
+     */
+    GutterUpdate gutterUpdate() {
+        gutterUpdateRequested.set(false);
+        buffer.lock();
+        try {
+            syncTrims();
+            List<Completion> completions = new ArrayList<>();
+            synchronized (pendingCompletions) {
+                for (PendingCompletion pending : pendingCompletions) {
+                    long line = store.absoluteLine(pending.lineId());
+                    if (line >= 0 && line <= Integer.MAX_VALUE) {
+                        completions.add(new Completion((int) line, pending.nanos()));
+                    }
+                }
+                pendingCompletions.clear();
+            }
+            return new GutterUpdate(store.commandStatuses(), List.copyOf(completions));
+        } finally {
+            buffer.unlock();
+        }
+    }
+
+    private void queueCompletion(long lineId, long nanos) {
+        synchronized (pendingCompletions) {
+            while (pendingCompletions.size() >= MAX_PENDING_COMPLETIONS) {
+                pendingCompletions.pollFirst();
+            }
+            pendingCompletions.addLast(new PendingCompletion(lineId, nanos));
+        }
+    }
+
+    /** A {@code D} mark the gutter was not given yet, by its line id (see {@link CommandBlockStore}). */
+    private record PendingCompletion(long lineId, long nanos) {
     }
 }

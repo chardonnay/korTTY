@@ -5,7 +5,9 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 import de.kortty.shellintegration.CommandBlockStore.CommandBlock;
 import de.kortty.shellintegration.CommandBlockStore.Mark;
+import java.time.Duration;
 import java.util.List;
+import java.util.NavigableMap;
 import java.util.OptionalLong;
 import org.testng.annotations.Test;
 
@@ -253,6 +255,122 @@ class CommandBlockStoreTest {
         assertWithMessage("the end of the output is still there").that(store.lastFinished()).isPresent();
         store.shift(1);
         assertThat(store.lastFinished()).isEmpty();
+    }
+
+    @Test
+    void aFinishIsTakenOnlyWhenItEndsACommand() {
+        CommandBlockStore store = new CommandBlockStore();
+        assertWithMessage("no prompt yet").that(store.commandFinished(0, 0, 0, 1L)).isFalse();
+        store.promptStart(0, 0);
+        assertWithMessage("an empty command line").that(store.commandFinished(1, 0, 0, 2L)).isFalse();
+        store.outputStart(1, 0, 3L);
+        assertThat(store.commandFinished(2, 0, 0, 4L)).isTrue();
+        assertWithMessage("the block is closed").that(store.commandFinished(3, 0, 0, 5L)).isFalse();
+    }
+
+    @Test
+    void theGutterShowsAFinishedCommandOnTheLineOfItsFinishMark() {
+        CommandBlockStore store = new CommandBlockStore();
+        store.promptStart(0, 0);
+        store.commandStart(0, 2);
+        store.outputStart(1, 0, 1_000_000_000L);
+        store.commandFinished(4, 0, 0, 13_500_000_000L);
+        store.promptStart(4, 0);
+        store.commandStart(4, 2);
+        store.outputStart(5, 0, 20_000_000_000L);
+        store.commandFinished(6, 0, 127, 20_200_000_000L);
+        store.promptStart(6, 0);
+
+        NavigableMap<Integer, CommandStatus> statuses = store.commandStatuses();
+        assertWithMessage("one status per finished command, and none for the prompt being typed at")
+            .that(statuses.keySet()).containsExactly(4, 6).inOrder();
+        assertThat(statuses.get(4).kind()).isEqualTo(CommandStatus.Kind.SUCCEEDED);
+        assertThat(statuses.get(4).runtime()).isEqualTo(Duration.ofMillis(12_500));
+        assertThat(statuses.get(6).kind()).isEqualTo(CommandStatus.Kind.FAILED);
+        assertThat(statuses.get(6).exitStatus()).isEqualTo(127);
+        assertThat(statuses.get(6).runtime()).isEqualTo(Duration.ofMillis(200));
+    }
+
+    @Test
+    void theGutterShowsARunningCommandOnItsFirstOutputLine() {
+        CommandBlockStore store = new CommandBlockStore();
+        store.promptStart(0, 0);
+        store.outputStart(1, 0, 5L);
+        assertThat(store.commandStatuses()).containsExactly(1, new CommandStatus(CommandStatus.Kind.RUNNING, null, 5L, 0L));
+
+        // A shell that marks C before it moves to the next line: the output starts on the line below.
+        CommandBlockStore early = new CommandBlockStore();
+        early.promptStart(3, 0);
+        early.commandStart(3, 2);
+        early.outputStart(3, 9, 5L);
+        assertThat(early.commandStatuses().keySet()).containsExactly(4);
+    }
+
+    @Test
+    void promptsWithoutACommandAndCommandsWithoutAFinishShowNothing() {
+        CommandBlockStore store = new CommandBlockStore();
+        store.promptStart(0, 0);
+        store.commandStart(0, 2);
+        // Ctrl+C at the prompt, then a command whose shell sends no D before the next prompt.
+        store.promptStart(1, 0);
+        store.outputStart(2, 0, 1L);
+        store.promptStart(4, 0);
+        assertThat(store.commandStatuses()).isEmpty();
+    }
+
+    @Test
+    void theStatusesFollowTheScrollbackAndLeaveWithIt() {
+        CommandBlockStore store = new CommandBlockStore();
+        store.promptStart(0, 0);
+        store.outputStart(1, 0, 1L);
+        store.commandFinished(3, 0, 0, 2L);
+        store.promptStart(3, 0);
+        store.outputStart(4, 0, 3L);
+        store.commandFinished(9, 0, 1, 4L);
+        store.promptStart(9, 0);
+
+        store.shift(2);
+        assertWithMessage("both moved up by the two dropped lines")
+            .that(store.commandStatuses().keySet()).containsExactly(1, 7).inOrder();
+        store.shift(3);
+        assertWithMessage("the first finish line left the scrollback")
+            .that(store.commandStatuses().keySet()).containsExactly(4);
+    }
+
+    @Test
+    void theNewerCommandWinsALineTwoCommandsShare() {
+        CommandBlockStore store = new CommandBlockStore();
+        // A program moved the cursor up, so the next prompt starts above the line where the first
+        // command finished, and both commands finish on line 5.
+        store.promptStart(3, 0);
+        store.outputStart(4, 0, 1L);
+        store.commandFinished(5, 0, 1, 2L);
+        store.promptStart(4, 0);
+        assertWithMessage("the first block is still there").that(store.blocks()).hasSize(2);
+        store.outputStart(4, 5, 3L);
+        store.commandFinished(5, 0, 0, 4L);
+        assertThat(store.commandStatuses().keySet()).containsExactly(5);
+        assertThat(store.commandStatuses().get(5).kind()).isEqualTo(CommandStatus.Kind.SUCCEEDED);
+    }
+
+    @Test
+    void aCommandRunsSinceTheEnterThatSubmittedIt() {
+        CommandBlockStore store = new CommandBlockStore();
+        store.promptStart(0, 0);
+        assertWithMessage("nothing runs at a prompt").that(store.commandRunningSince(100L)).isFalse();
+        store.outputStart(1, 0, 150L);
+        assertThat(store.commandRunningSince(100L)).isTrue();
+        assertThat(store.commandRunningSince(150L)).isTrue();
+        assertWithMessage("an Enter typed into the running command, e.g. in a second ssh session")
+            .that(store.commandRunningSince(200L)).isFalse();
+        store.commandFinished(3, 0, 0, 300L);
+        assertWithMessage("finished").that(store.commandRunningSince(100L)).isFalse();
+
+        CommandBlockStore wrapped = new CommandBlockStore();
+        wrapped.promptStart(0, 0);
+        wrapped.outputStart(1, 0, Long.MIN_VALUE + 5);
+        assertWithMessage("nanoTime is compared by difference, so it may run through its overflow")
+            .that(wrapped.commandRunningSince(Long.MAX_VALUE - 10)).isTrue();
     }
 
     @Test

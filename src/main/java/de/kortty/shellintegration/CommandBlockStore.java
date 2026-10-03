@@ -2,8 +2,10 @@ package de.kortty.shellintegration;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -162,15 +164,18 @@ public final class CommandBlockStore implements PromptNavigator.Prompts {
     /**
      * {@code OSC 133;D}: the open block's command finished here with {@code exitStatus} (null when
      * the shell sent none). Ignored unless the block saw C.
+     *
+     * @return whether a command finished, so the mark was taken
      */
-    public synchronized void commandFinished(int absoluteLine, int column, @Nullable Integer exitStatus, long nanos) {
+    public synchronized boolean commandFinished(int absoluteLine, int column, @Nullable Integer exitStatus, long nanos) {
         Map.Entry<Long, CommandBlock> entry = openBlock();
         if (entry == null || entry.getValue().output() == null) {
-            return;
+            return false;
         }
         CommandBlock open = entry.getValue();
         blocks.put(entry.getKey(), new CommandBlock(open.prompt(), open.command(), open.output(),
             new Mark(trimmed + absoluteLine, column), exitStatus, open.outputStartNanos(), nanos, true));
+        return true;
     }
 
     /**
@@ -237,6 +242,49 @@ public final class CommandBlockStore implements PromptNavigator.Prompts {
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * Whether the newest block is a command that runs now and was submitted ({@code C}) at or after
+     * {@code nanos} ({@link System#nanoTime()}): its {@code D} mark will say when it finished.
+     */
+    public synchronized boolean commandRunningSince(long nanos) {
+        Map.Entry<Long, CommandBlock> last = blocks.lastEntry();
+        return last != null && last.getValue().running() && last.getValue().outputStartNanos() - nanos >= 0;
+    }
+
+    /**
+     * What the command-timestamp gutter shows, by absolute line as things stand now (see
+     * {@link CommandStatus#of}):
+     * <ul>
+     *   <li>a finished command on the line of its {@code D} mark, where the shell prints the next
+     *       prompt and the gutter records the time it finished;</li>
+     *   <li>a running command on the first line of its output, the line of its {@code C} mark, or
+     *       the line below it when {@code C} stands after the command's text;</li>
+     *   <li>nothing for prompts without a command, or lines that left the scrollback.</li>
+     * </ul>
+     * Where two commands name the same line, the newer one wins.
+     */
+    public synchronized NavigableMap<Integer, CommandStatus> commandStatuses() {
+        TreeMap<Integer, CommandStatus> statuses = new TreeMap<>();
+        for (CommandBlock block : blocks.values()) {
+            CommandStatus status = CommandStatus.of(block);
+            if (status == null) {
+                continue;
+            }
+            Mark at = status.running() ? block.output() : block.end();
+            if (at == null) {
+                continue;
+            }
+            long line = at.line() - trimmed;
+            if (status.running() && at.column() > 0) {
+                line++;
+            }
+            if (line >= 0 && line <= Integer.MAX_VALUE) {
+                statuses.put((int) line, status);
+            }
+        }
+        return Collections.unmodifiableNavigableMap(statuses);
     }
 
     /** Every block still kept, oldest first. */

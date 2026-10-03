@@ -148,6 +148,53 @@ class ShellIntegrationWiringTest {
     }
 
     @Test
+    void theMarksTellTheTimestampGutterHowEachCommandEnded() throws IOException {
+        String controller = source("ShellIntegrationController.java");
+        assertWithMessage("A, C and D can change a status; each change asks for one gutter update")
+            .that(body(controller, "void onEvent(@NotNull SithTermFxWidget widget, @NotNull ShellIntegrationEvent event) {"))
+            .contains("if (!(event instanceof ShellIntegrationEvent.CommandStart)) {\n"
+                + "            notifyStatusesChanged(widget, marks);");
+        String notify = body(controller, "private void notifyStatusesChanged(SithTermFxWidget widget, PaneCommandMarks marks) {");
+        assertWithMessage("coalesced: at most one scheduled update per pane")
+            .that(notify).contains("if (listener == null || !marks.requestGutterUpdate()) {");
+        assertWithMessage("a refused schedule is asked again on the next change")
+            .that(notify).contains("marks.cancelGutterUpdateRequest();");
+        assertWithMessage("the 500 ms guess waits only for commands the shell marked, and only while it is on")
+            .that(body(controller, "boolean awaitsCompletionMark(@Nullable SithTermFxWidget widget, long enterNanos) {"))
+            .contains("return marks != null && isEnabled() && marks.store().commandRunningSince(enterNanos);");
+
+        String view = source("TerminalView.java");
+        assertWithMessage("the update runs on the FX thread")
+            .that(view).contains(
+                "shellIntegration.setStatusesChangedListener(widget -> Platform.runLater(() -> updateCommandStatuses(widget)));");
+        String update = body(view, "private void updateCommandStatuses(SithTermFxWidget widget) {");
+        assertWithMessage("the gutter's trims and the marks are read under one lock, so they name the same lines")
+            .that(update).contains("trim = tracker.poll();\n            }\n            update = shellIntegration.gutterUpdate(widget);");
+        assertThat(update).contains(
+            "recordTimestampForLine(widget, completion.absoluteLine(), completion.time(now, nowNanos));");
+        assertWithMessage("a D mark after the latest Enter ends the 500 ms wait for that command")
+            .that(update).contains("if (enterNanos == null || completion.nanos() - enterNanos >= 0) {\n"
+                + "                    awaitingCommandCompletionByWidget.put(widget, false);");
+        assertThat(update).contains("gutter.setCommandStatuses(update.statuses());");
+        assertWithMessage("a command the shell marked as running is not ended by a pause in its output")
+            .that(body(view, "private void recordCommandCompletionTimestamp(SithTermFxWidget widget) {"))
+            .contains("if (enterNanos != null && shellIntegration.awaitsCompletionMark(widget, enterNanos)) {\n"
+                + "            // The shell marked this command as running");
+        String trims = body(view, "private void applyScrollbackTrim(SithTermFxWidget widget, ScrollbackTrimTracker.Trim trim) {");
+        assertWithMessage("the statuses follow the scrollback with the timestamps")
+            .that(trims).contains("gutter.clearCommandStatuses();");
+        assertThat(trims).contains("gutter.shiftCommandStatuses(trim.lines());");
+        assertWithMessage("the statuses hide while shell integration is off")
+            .that(body(view, "private void setupTimestampGutter(SithTermFxWidget widget) {"))
+            .contains("gutter.setCommandStatusesShown(shellIntegration::isEnabled);");
+        assertThat(body(view, "private void releasePaneState(SithTermFxWidget widget) {"))
+            .contains("commandEnterNanosByWidget.remove(widget);");
+        assertWithMessage("statuses are runtime-only: the project keeps the timestamps alone")
+            .that(body(view, "public java.util.List<de.kortty.model.TerminalTimestampEntry> getPrimaryTimestampEntries() {"))
+            .doesNotContain("Status");
+    }
+
+    @Test
     void theSettingIsShownSavedAndReported() throws IOException {
         String dialog = source("SettingsDialog.java");
         assertThat(dialog).contains("shellIntegrationCheck.setSelected(globalSettings == null || globalSettings.isShellIntegrationEnabled());");
