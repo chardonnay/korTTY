@@ -12,6 +12,18 @@ Open with ++ctrl+k++ (or **Connections → Quick Connect…**). Enter host, port
 
 **Connections → Manage Connections…** opens a searchable tree of saved connections (optionally grouped); the search field matches name, host, IP address or [tag](#tags), with `*` as a wildcard. From here you create, edit, duplicate, delete, tag, import and export connections.
 
+### Signing in
+
+**Connect** in the Connection Manager signs in to the selected connection in this order:
+
+1. korTTY checks your organization's [server access policy](../reference/enterprise-policy.md#server-access-control) first. A blocked server or jump server shows the policy message before korTTY asks you for anything.
+2. A shared [teamwork](teamwork.md) connection that names neither a credential nor an SSH key uses the team's default authentication.
+3. A connection with a temporary SSH key reuses that key while it is still valid and asks for a new one once it has expired.
+4. A local shell and SSH key authentication connect without a password.
+5. Otherwise korTTY uses the saved password, from the connection's stored credential first and then from the connection itself, and asks for the password when none is saved; **OK** stays greyed out until you type one. When the saved password is in the locked vault, korTTY first offers **Unlock Vault…** (see [Unlocking the vault later](security.md#unlocking-the-vault-later)); if you do not unlock it, korTTY asks you to type the password instead.
+
+Cancelling any of these questions opens no tab. **Duplicate** in a terminal tab's context menu signs in the same way, so it also asks for a new temporary SSH key when the tab's key has expired.
+
 ## Creating / editing a connection
 
 The connection editor has these tabs:

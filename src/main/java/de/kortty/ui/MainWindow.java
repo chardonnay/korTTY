@@ -2783,7 +2783,16 @@ public class MainWindow {
         if (stored != null && !stored.isBlank()) {
             return stored;
         }
+        return promptForConnectionPassword(connection);
+    }
 
+    /**
+     * Asks for the password of {@code connection}, in a dialog owned by this window whose OK stays
+     * disabled while the field is empty.
+     *
+     * @return the password, or {@code null} when the user cancelled
+     */
+    private String promptForConnectionPassword(ServerConnection connection) {
         Dialog<String> pwDialog = new Dialog<>();
         DialogThemeHelper.applyTheme(pwDialog);
         pwDialog.initOwner(stage);
@@ -2808,77 +2817,93 @@ public class MainWindow {
         logger.info("showConnectionManager() called - Opening Connection Manager");
         ConnectionManagerDialog dialog = new ConnectionManagerDialog(stage, app);
         dialog.setOnConnectionsSavedCallback(this::refreshAllTerminalTabsConnectionSettings);
-        dialog.showAndWait().ifPresent(connection -> {
-            // For teamwork connections without auth, apply default credential/SSH key from GlobalSettings
-            final ServerConnection conn = resolveTeamworkConnectionAuth(connection);
-            GlobalSettings gs = app.getGlobalSettingsManager().getSettings();
-            // Teamwork default "temporary SSH key": ask for temp key and connect (no stored credential/key)
-            if (conn.isTeamworkConnection() && conn.getCredentialId() == null && conn.getSshKeyId() == null
-                    && gs.getTeamworkUseTemporaryKey()) {
-                de.kortty.model.TemporarySSHKey tempKey = requestNewTemporarySSHKey(conn);
-                if (tempKey != null) {
-                    openConnection(conn, null, null, tempKey);
-                }
-                return;
-            }
-            // Check if connection uses a temporary SSH key
-            de.kortty.model.TemporarySSHKey tempKey = null;
-            if (conn.getTemporaryKeyContent() != null && !conn.getTemporaryKeyContent().trim().isEmpty()) {
-                de.kortty.core.TemporarySSHKeyManager keyManager = de.kortty.core.TemporarySSHKeyManager.getInstance();
-                tempKey = keyManager.getTemporaryKey(conn.getTemporaryKeyContent());
-                if (tempKey != null && tempKey.isValid()) {
-                    // Valid temp key found - connect directly without password dialog
-                    logger.info("Using existing temporary SSH key for saved connection (valid for {} more seconds)",
-                            tempKey.getRemainingSeconds());
-                    openConnection(conn, null, null, tempKey);
-                    return;
-                }
-                // Key expired or not found - ask user for a new temporary key
-                tempKey = requestNewTemporarySSHKey(conn);
-                if (tempKey != null) {
-                    openConnection(conn, null, null, tempKey);
-                    return;
-                }
-                // User cancelled - do not connect
-                return;
-            }
-            
-            // Local shells run a local process with no authentication - connect directly.
-            if (conn.isLocalShell()) {
-                openConnection(conn, null);
-                return;
+        dialog.showAndWait().ifPresent(connection -> connectSavedConnection(connection, false, tab -> { }));
+    }
+
+    /**
+     * Opens a tab for a saved (or teamwork-shared) connection through the one sign-in flow of
+     * {@link ConnectionAuthResolver}: the server policy is checked before anything is asked, then
+     * the teamwork default authentication, a temporary SSH key (reused while valid, asked for when
+     * expired), a local shell or SSH key, the stored password — offering to unlock a locked vault —
+     * or a password prompt. The tab opens through {@code openConnectionAndReturnTab}, which keeps the
+     * central policy gate, the connection's terminal effect and the telemetry.
+     *
+     * @param recordUsage whether to count this as a use of the saved connection ("last used")
+     * @param onOpened    runs with the new tab once it is in the window
+     * @return {@link ConnectionAuthResolver.Status#READY} when a tab opened;
+     *         {@link ConnectionAuthResolver.Status#BLOCKED} when the policy refused the target or the
+     *         tab could not be created (the user has seen why); otherwise the step the user cancelled,
+     *         or {@link ConnectionAuthResolver.Status#MISSING} for no connection
+     */
+    private ConnectionAuthResolver.Status connectSavedConnection(
+            ServerConnection connection, boolean recordUsage, java.util.function.Consumer<TerminalTab> onOpened) {
+        ConnectionAuthResolver.Resolution auth = resolveConnectionAuthInteractively(connection);
+        if (!auth.isReady()) {
+            return auth.status();
+        }
+        ServerConnection resolved = auth.connection();
+        TerminalTab tab = openConnectionAndReturnTab(
+                resolved,
+                auth.password(),
+                null,
+                null,
+                auth.temporaryKey(),
+                resolved.getTerminalEffectPluginId(),
+                resolved.getTerminalEffectAnimationSpeed());
+        if (tab == null) {
+            return ConnectionAuthResolver.Status.BLOCKED;
+        }
+        if (recordUsage) {
+            recordConnectionUsage(resolved);
+        }
+        onOpened.accept(tab);
+        return ConnectionAuthResolver.Status.READY;
+    }
+
+    /**
+     * {@link ConnectionAuthResolver#resolve resolves} sign-in for {@code connection}, asking for what
+     * is missing, and shows the policy message when the server policy blocks the target. The policy
+     * is checked before any prompt.
+     */
+    private ConnectionAuthResolver.Resolution resolveConnectionAuthInteractively(ServerConnection connection) {
+        ConnectionAuthResolver.Resolution auth = connectionAuthResolver().resolve(connection, true);
+        if (auth.status() == ConnectionAuthResolver.Status.BLOCKED) {
+            de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(auth.blockedTarget());
+        }
+        return auth;
+    }
+
+    /** The sign-in resolver over the running application, asking its questions in this window. */
+    private ConnectionAuthResolver connectionAuthResolver() {
+        return new ConnectionAuthResolver(ConnectionAuthResolver.forApplication(app), new ConnectionAuthResolver.Prompts() {
+            @Override
+            public String password(ServerConnection connection) {
+                return promptForConnectionPassword(connection);
             }
 
-            // SSH key auth does not require a password - connect directly
-            if (conn.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
-                openConnection(conn, null);
-                return;
+            @Override
+            public de.kortty.model.TemporarySSHKey temporaryKey(ServerConnection connection) {
+                return requestNewTemporarySSHKey(connection);
             }
 
-            // Non-key connection: ask for password if needed
-            String password = getConnectionPassword(conn);
-            if (password == null) {
-                Dialog<String> pwDialog = new Dialog<>();
-                DialogThemeHelper.applyTheme(pwDialog);
-                pwDialog.setTitle(I18n.get("dialog.passwordRequired"));
-                pwDialog.setHeaderText(I18n.get("dialog.passwordFor", conn.getDisplayName()));
-                pwDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-                PasswordField pwField = new PasswordField();
-                pwField.setPromptText(I18n.get("dialog.enterPassword"));
-                VBox content = new VBox(10);
-                content.getChildren().addAll(new Label(I18n.get("dialog.pleaseEnterPassword")), pwField);
-                content.setPadding(new javafx.geometry.Insets(20));
-                pwDialog.getDialogPane().setContent(content);
-                pwDialog.setResultConverter(bt -> bt == ButtonType.OK ? pwField.getText() : null);
-                pwDialog.showAndWait().ifPresent(pw -> {
-                    if (pw != null && !pw.isEmpty()) {
-                        openConnection(conn, pw);
-                    }
-                });
-            } else {
-                openConnection(conn, password);
+            @Override
+            public boolean unlockVault(ServerConnection connection) {
+                return VaultUnlockSupport.offerUnlock(stage, app.getMasterPasswordManager(),
+                        I18n.get("dialog.passwordVaultLocked", connection.getDisplayName()));
             }
         });
+    }
+
+    /** Counts a use of the saved connection behind {@code connection}; teamwork and unsaved connections are skipped. */
+    private void recordConnectionUsage(ServerConnection connection) {
+        ServerConnection stored = connection.getId() != null
+                ? app.getConfigManager().getConnectionById(connection.getId())
+                : null;
+        if (stored == null) {
+            return;
+        }
+        stored.incrementUsageCount();
+        app.getConfigManager().save(app.getMasterPasswordManager().getDerivedKey());
     }
     
     /**
@@ -10584,152 +10609,36 @@ public class MainWindow {
 
     
     /**
-     * For teamwork connections that have no credential or SSH key set, applies the default
-     * from GlobalSettings (teamwork default credential or SSH key). Returns a copy with auth
-     * filled in so the original connection in the list is never modified.
-     */
-    private ServerConnection resolveTeamworkConnectionAuth(ServerConnection connection) {
-        if (!connection.isTeamworkConnection()) {
-            return connection;
-        }
-        if (connection.getCredentialId() != null || connection.getSshKeyId() != null) {
-            return connection;
-        }
-        GlobalSettings gs = app.getGlobalSettingsManager().getSettings();
-        String credId = gs.getTeamworkDefaultCredentialId();
-        String keyId = gs.getTeamworkDefaultSshKeyId();
-        if (credId != null && app.getCredentialManager() != null) {
-            Optional<StoredCredential> cred = app.getCredentialManager().findCredentialById(credId);
-            if (cred.isPresent()) {
-                ServerConnection copy = ServerConnection.copyForAuth(connection);
-                copy.setCredentialId(cred.get().getId());
-                String credUsername = cred.get().getUsername();
-                if (credUsername != null && !credUsername.isBlank()) {
-                    copy.setUsername(credUsername.trim());
-                }
-                copy.setAuthMethod(AuthMethod.PASSWORD);
-                copy.setSshKeyId(null);
-                copy.setPrivateKeyPath(null);
-                return copy;
-            }
-        }
-        if (keyId != null && app.getSSHKeyManager() != null) {
-            Optional<SSHKey> key = app.getSSHKeyManager().findKeyById(keyId);
-            if (key.isPresent()) {
-                ServerConnection copy = ServerConnection.copyForAuth(connection);
-                copy.setSshKeyId(key.get().getId());
-                copy.setAuthMethod(AuthMethod.PUBLIC_KEY);
-                copy.setPrivateKeyPath(app.getSSHKeyManager().getEffectiveKeyPath(key.get()));
-                copy.setCredentialId(null);
-                // Optional username: if set use for all, else keep username from teamwork file
-                String username = gs.getTeamworkDefaultUsername();
-                if (username != null && !username.isBlank()) {
-                    copy.setUsername(username.trim());
-                }
-                return copy;
-            }
-        }
-        // Temporary SSH key: always return a defensive copy so the shared instance is never mutated
-        if (gs.getTeamworkUseTemporaryKey()) {
-            ServerConnection copy = ServerConnection.copyForAuth(connection);
-            String username = gs.getTeamworkDefaultUsername();
-            if (username != null && !username.isBlank()) {
-                copy.setUsername(username.trim());
-            }
-            return copy;
-        }
-        return connection;
-    }
-
-    /**
-     * Retrieves password for a connection, either from credential store or from encrypted password.
-     * This ensures password changes in credential management are immediately reflected.
+     * The stored password of {@code connection}, from the credential store first (so a password
+     * changed there applies at once), then from the connection's own encrypted password;
+     * {@code null} when none is stored. The lookup is {@link ConnectionAuthResolver#storedPassword}'s.
      */
     private String getConnectionPassword(ServerConnection connection) {
-        // Try credential store first (if credentialId is set)
-        if (connection.getCredentialId() != null) {
-            try {
-                java.util.Optional<de.kortty.model.StoredCredential> credential = 
-                    app.getCredentialManager().findCredentialById(connection.getCredentialId());
-                
-                if (credential.isPresent()) {
-                    String password = app.getCredentialManager().getPassword(
-                        credential.get(), 
-                        app.getMasterPasswordManager().getMasterPassword()
-                    );
-                    if (password != null) {
-                        logger.debug("Using password from credential store for: {}", connection.getDisplayName());
-                        return password;
-                    }
-                }
-            } catch (Exception e) {
-                logger.warn("Failed to retrieve password from credential store: {}", e.getMessage());
-                // Fall back to stored password
-            }
-        }
-        
-        // Fall back to stored encrypted password in connection
-        PasswordVault vault = new PasswordVault(
-            app.getMasterPasswordManager().getEncryptionService(),
-            app.getMasterPasswordManager().getMasterPassword()
-        );
-        return vault.retrievePassword(connection);
+        return connectionAuthResolver().storedPassword(connection);
     }
-    
+
     /**
      * Duplicates a tab with the same connection details.
      * The new tab is inserted directly to the right of the source tab.
      */
     private void duplicateTab(TerminalTab sourceTab) {
-        ServerConnection connection = sourceTab.getConnection();
-
-        // Enterprise server policy, as in openConnectionAndReturnTab. The source tab passed it when
-        // it opened, but the connection editor changes a saved connection in place, so its host or
-        // jump server may have been edited to a blocked one since; refuse before any password prompt.
-        java.util.Optional<String> duplicateBlocked =
-            de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(connection);
-        if (duplicateBlocked.isPresent()) {
-            de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(duplicateBlocked.get());
+        // The Connection Manager's sign-in: the enterprise server policy first, before any prompt —
+        // the source tab passed it when it opened, but the connection editor changes a saved
+        // connection in place, so its host or jump server may have been edited to a blocked one
+        // since — then the temporary SSH key (reused while valid, asked for when expired), a local
+        // shell or SSH key, the stored password or a password prompt.
+        ConnectionAuthResolver.Resolution auth = resolveConnectionAuthInteractively(sourceTab.getConnection());
+        if (!auth.isReady()) {
             return;
         }
-
-        // Local shells run a local process with no authentication, and SSH key auth needs no
-        // password - duplicate directly without prompting.
-        if (connection.isLocalShell() || connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
-            createDuplicateTab(sourceTab, connection, null);
-            return;
-        }
-        
-        String password = getConnectionPassword(connection);
-        
-        if (password == null) {
-            // Password not available, show dialog with masked input
-            Dialog<String> pwDialog = new Dialog<>();
-            DialogThemeHelper.applyTheme(pwDialog);
-            pwDialog.setTitle(I18n.get("dialog.passwordRequired"));
-            pwDialog.setHeaderText(I18n.get("dialog.passwordFor", connection.getDisplayName()));
-            pwDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-            PasswordField pwField = new PasswordField();
-            pwField.setPromptText(I18n.get("dialog.enterPassword"));
-            VBox content = new VBox(10);
-            content.getChildren().addAll(new Label(I18n.get("dialog.pleaseEnterPassword")), pwField);
-            content.setPadding(new javafx.geometry.Insets(20));
-            pwDialog.getDialogPane().setContent(content);
-            pwDialog.setResultConverter(bt -> bt == ButtonType.OK ? pwField.getText() : null);
-            pwDialog.showAndWait().ifPresent(pw -> {
-                if (pw != null && !pw.trim().isEmpty()) {
-                    createDuplicateTab(sourceTab, connection, pw.trim());
-                }
-            });
-        } else {
-            createDuplicateTab(sourceTab, connection, password);
-        }
+        createDuplicateTab(sourceTab, auth.connection(), auth.password(), auth.temporaryKey());
     }
     
     /**
      * Creates a duplicated tab directly to the right of the source tab.
      */
-    private void createDuplicateTab(TerminalTab sourceTab, ServerConnection connection, String password) {
+    private void createDuplicateTab(TerminalTab sourceTab, ServerConnection connection, String password,
+            de.kortty.model.TemporarySSHKey temporaryKey) {
         try {
             // Find the position of the source tab
             int sourceIndex = tabPane.getTabs().indexOf(sourceTab);
@@ -10739,7 +10648,7 @@ public class MainWindow {
             }
             
             // Create new tab with the same connection
-            TerminalTab newTab = new TerminalTab(connection, password);
+            TerminalTab newTab = new TerminalTab(connection, password, temporaryKey);
             registerTerminalTabForAiAgentDock(newTab);
             installAiSelectionHandler(newTab);
             newTab.setTimestampToggleListener(() -> Platform.runLater(() -> {

@@ -64,20 +64,69 @@ class TabServerPolicyGateTest {
         String main = source("MainWindow.java");
         String duplicate = methodBody(main, "private void duplicateTab(");
 
-        int gate = duplicate.indexOf("ServerAccessPolicy.firstBlockedTarget(connection)");
-        assertWithMessage("duplicateTab asks the server policy").that(gate).isAtLeast(0);
-        int dialog = duplicate.indexOf("PolicyUiSupport.showBlockedServerDialog(", gate);
-        int refuse = duplicate.indexOf("return;", dialog);
-        assertThat(dialog).isGreaterThan(gate);
-        assertThat(refuse).isGreaterThan(dialog);
-        assertThat(duplicate.indexOf("getConnectionPassword(")).isGreaterThan(refuse);
-        assertThat(duplicate.indexOf("new Dialog<")).isGreaterThan(refuse);
+        // Duplicate signs in like the Connection Manager: the shared resolver checks the server
+        // policy before it asks anything (ConnectionAuthResolverTest), and only a READY result
+        // reaches createDuplicateTab.
+        int resolve = duplicate.indexOf("resolveConnectionAuthInteractively(sourceTab.getConnection())");
+        assertWithMessage("duplicateTab signs in through the shared resolver").that(resolve).isAtLeast(0);
+        int notReady = duplicate.indexOf("if (!auth.isReady())", resolve);
+        int refuse = duplicate.indexOf("return;", notReady);
+        assertThat(notReady).isGreaterThan(resolve);
+        assertThat(refuse).isGreaterThan(notReady);
         assertThat(duplicate.indexOf("createDuplicateTab(")).isGreaterThan(refuse);
+        assertWithMessage("no password dialog of its own").that(duplicate).doesNotContain("new Dialog<");
+        assertThat(duplicate).doesNotContain("getConnectionPassword(");
+        assertThat(duplicate).contains("auth.temporaryKey()");
 
         // createDuplicateTab is reached through that gate only.
         int callsInDuplicate = count(duplicate, "createDuplicateTab(");
         int declarations = count(main, "private void createDuplicateTab(");
         assertThat(count(main, "createDuplicateTab(")).isEqualTo(callsInDuplicate + declarations);
+    }
+
+    @Test
+    void theSharedSignInShowsThePolicyMessageForABlockedTarget() throws IOException {
+        String main = source("MainWindow.java");
+        String interactive = methodBody(main,
+            "private ConnectionAuthResolver.Resolution resolveConnectionAuthInteractively(");
+        int resolve = interactive.indexOf("connectionAuthResolver().resolve(connection, true)");
+        assertThat(resolve).isAtLeast(0);
+        int blocked = interactive.indexOf("if (auth.status() == ConnectionAuthResolver.Status.BLOCKED)", resolve);
+        assertThat(blocked).isGreaterThan(resolve);
+        assertThat(interactive.indexOf("PolicyUiSupport.showBlockedServerDialog(auth.blockedTarget())"))
+            .isGreaterThan(blocked);
+
+        // The application's policy seam is the central server policy.
+        String seams = methodBody(source("ConnectionAuthResolver.java"), "static Seams forApplication(KorTTYApplication app) {");
+        assertThat(seams).contains("ServerAccessPolicy::firstBlockedTarget");
+    }
+
+    @Test
+    void theConnectionManagerSignsInBeforeItOpensATab() throws IOException {
+        String main = source("MainWindow.java");
+        String manager = methodBody(main, "private void showConnectionManager() {");
+        assertThat(manager).contains("connectSavedConnection(connection, false, tab -> { })");
+        assertWithMessage("the Connection Manager has no sign-in steps of its own")
+            .that(manager).doesNotContain("openConnection(");
+        assertThat(manager).doesNotContain("new Dialog<");
+        assertThat(manager).doesNotContain("getConnectionPassword(");
+
+        String connect = methodBody(main, "private ConnectionAuthResolver.Status connectSavedConnection(");
+        int resolve = connect.indexOf("resolveConnectionAuthInteractively(connection)");
+        int notReady = connect.indexOf("if (!auth.isReady())", resolve);
+        int open = connect.indexOf("openConnectionAndReturnTab(", notReady);
+        assertThat(resolve).isAtLeast(0);
+        assertThat(notReady).isGreaterThan(resolve);
+        assertThat(open).isGreaterThan(notReady);
+        // The resolved key, password and effect reach the tab; usage and onOpened follow a real tab.
+        String openCall = connect.substring(open, connect.indexOf(");", open));
+        assertThat(openCall).contains("auth.password()");
+        assertThat(openCall).contains("auth.temporaryKey()");
+        assertThat(openCall).contains("resolved.getTerminalEffectPluginId()");
+        int noTab = connect.indexOf("if (tab == null)", open);
+        assertThat(noTab).isGreaterThan(open);
+        assertThat(connect.indexOf("recordConnectionUsage(resolved)")).isGreaterThan(noTab);
+        assertThat(connect.indexOf("onOpened.accept(tab)")).isGreaterThan(noTab);
     }
 
     @Test
