@@ -24,6 +24,8 @@ import de.kortty.control.WindowInfo;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ServerConnection;
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -290,6 +292,14 @@ public final class ControlApiUiBridge implements ControlSurface, UiDispatcher {
         return locate(paneId)
             .map(located -> located.view().isBracketedPasteEnabled(located.widget()))
             .orElse(false);
+    }
+
+    @Override
+    public Charset charsetOf(String paneId) {
+        requireUiThread("charsetOf");
+        return locate(paneId)
+            .map(located -> located.view().connectorCharset(located.widget()))
+            .orElse(StandardCharsets.UTF_8);
     }
 
     @Override

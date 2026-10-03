@@ -11,6 +11,8 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Popup;
 
+import de.kortty.core.LanguageManager;
+
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -27,10 +29,13 @@ import java.util.TreeMap;
  */
 public class TimestampGutter extends Pane {
 
-    private static final DateTimeFormatter DATE_SHORT_FORMAT = DateTimeFormatter.ofPattern("dd.MM.");
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
-    private static final DateTimeFormatter POPUP_DATE_FORMAT = DateTimeFormatter.ofPattern("EEEE, dd. MMMM yyyy", Locale.getDefault());
     private static final DateTimeFormatter POPUP_TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
+    /**
+     * Date formats and texts for the UI language they were built for; shared by every gutter and
+     * rebuilt on the first render after the language changes.
+     */
+    private static volatile TimestampGutterFormats cachedFormats;
     public static final double GUTTER_WIDTH = 88;
     private static final double TEXT_LEFT_PADDING = 6;
     private static final Color SEPARATOR_COLOR = Color.web("#444444");
@@ -200,6 +205,7 @@ public class TimestampGutter extends Pane {
         gc.strokeLine(width - 0.5, 0, width - 0.5, height);
 
         // Draw timestamps for visible rows (two-line layout: date+duration above, time below)
+        TimestampGutterFormats formats = currentFormats();
         for (int row = 0; row < visibleRows; row++) {
             int absoluteLine = historyLinesCount + scrollOrigin + row;
             LocalDateTime ts = timestamps.get(absoluteLine);
@@ -210,12 +216,12 @@ public class TimestampGutter extends Pane {
                     ? Duration.between(timestamps.get(prevLine), ts)
                     : null;
 
-                // Top line: short date + duration (e.g. "09.02. +12s")
+                // Top line: short date + duration (e.g. "02.10. +12s", "10/02 +12s")
                 gc.setFont(dateFont);
                 gc.setFill(textColor.deriveColor(0, 1.0, 1.0, DATE_TEXT_ALPHA));
-                String dateText = ts.format(DATE_SHORT_FORMAT);
+                String dateText = ts.format(formats.shortDate());
                 if (duration != null && !duration.isNegative()) {
-                    dateText += " " + formatDuration(duration);
+                    dateText += " " + TimestampGutterFormats.compactDuration(duration);
                 }
                 double topY = rowTop + Math.max(7.0, baselineOffset - charHeight * 0.42);
                 gc.fillText(dateText, TEXT_LEFT_PADDING, topY);
@@ -230,24 +236,30 @@ public class TimestampGutter extends Pane {
         }
     }
 
-    private static String formatDuration(Duration d) {
-        long s = d.getSeconds();
-        if (s < 60) return "+" + s + "s";
-        if (s < 3600) return "+" + (s / 60) + ":" + String.format("%02d", s % 60);
-        return "+" + (s / 3600) + ":" + String.format("%02d", (s % 3600) / 60) + ":" + String.format("%02d", s % 60);
+    /**
+     * Formats for the current UI language (not the JVM default locale), rebuilt when the
+     * language changes.
+     */
+    static TimestampGutterFormats currentFormats() {
+        Locale locale = currentUiLocale();
+        TimestampGutterFormats formats = cachedFormats;
+        if (formats == null || !formats.locale().equals(locale)) {
+            formats = TimestampGutterFormats.forLocale(locale, I18n::get);
+            cachedFormats = formats;
+        }
+        return formats;
     }
 
-    /**
-     * Formats a duration in a verbose, human-readable form for the popup.
-     */
-    private static String formatDurationVerbose(Duration d) {
-        long s = d.getSeconds();
-        if (s < 60) return s + " sec";
-        if (s < 3600) return (s / 60) + " min " + (s % 60) + " sec";
-        long h = s / 3600;
-        long m = (s % 3600) / 60;
-        long sec = s % 60;
-        return h + " h " + m + " min " + sec + " sec";
+    private static Locale currentUiLocale() {
+        try {
+            Locale locale = LanguageManager.getInstance().getCurrentLocale();
+            if (locale != null) {
+                return locale;
+            }
+        } catch (RuntimeException e) {
+            // Fall back to the JVM locale below.
+        }
+        return Locale.getDefault();
     }
 
     // ---- Hover popup ----
@@ -307,14 +319,15 @@ public class TimestampGutter extends Pane {
             currentPopupRow = row;
 
             // Populate popup content
-            popupDateLabel.setText(ts.format(POPUP_DATE_FORMAT));
+            TimestampGutterFormats formats = currentFormats();
+            popupDateLabel.setText(ts.format(formats.popupDate()));
             popupTimeLabel.setText(ts.format(POPUP_TIME_FORMAT));
 
             Integer prevLine = timestamps.lowerKey(absoluteLine);
             if (prevLine != null) {
                 Duration duration = Duration.between(timestamps.get(prevLine), ts);
                 if (!duration.isNegative()) {
-                    popupDurationLabel.setText("Elapsed: " + formatDurationVerbose(duration));
+                    popupDurationLabel.setText(formats.elapsed(duration));
                     popupDurationLabel.setVisible(true);
                     popupDurationLabel.setManaged(true);
                 } else {

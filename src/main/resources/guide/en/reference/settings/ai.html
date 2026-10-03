@@ -945,6 +945,13 @@
 <td>(profile <code>apiUrl</code> field)</td>
 </tr>
 <tr>
+<td>Trusted local endpoint: send terminal selections without masking secrets</td>
+<td>check box</td>
+<td>Available only for an HTTP API profile whose API URL is on <code>localhost</code> or <code>127.0.0.1</code>. On: terminal selections and attached files reach this endpoint without masking — turn it on only when the endpoint runs the model itself, not for a proxy or an SSH port forward to a cloud API. See <a href="../../features/ai-assistant.html#masking-secrets-before-sending">Masking secrets before sending</a></td>
+<td>Off</td>
+<td>(profile <code>trustedLocalEndpoint</code> field)</td>
+</tr>
+<tr>
 <td>CLI provider</td>
 <td>dropdown</td>
 <td>(registered providers)</td>

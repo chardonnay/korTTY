@@ -11,7 +11,7 @@ Wenn **Konfiguration > System-Ruhezustand verhindern** unter macOS oder Windows 
 ![AI request/integration flow](../assets/diagrams/ai-api-integration.svg)
 
 !!! warning "Datensicherheit"
-    Ausgewählter Terminaltext wird zur Analyse an den konfigurierten KI-Dienst übermittelt. Dieser Text kann vertrauliche Informationen wie Anmeldeinformationen, Hostnamen, Dateipfade, Stack-Traces oder andere Betriebsdetails enthalten. Verwenden Sie für sensible Daten ein [integriertes lokales GGUF-Modell ](local-models.md) oder einen anderen Endpunkt, dem Sie vertrauen. Die eingebettete Inferenz verwendet einen authentifizierten Nur-Loopback-Server. Remote-Anbieter erhalten die überprüfte Anfrage über das Netzwerk. Wenn Sie einen **API-Schlüssel** angeben, speichert korTTY diesen verschlüsselt mit Ihrem Master-Passwort.
+    Ausgewählter Terminaltext wird an den konfigurierten KI-Dienst zur Analyse übermittelt. Dieser Text kann sensible Informationen wie Anmeldedaten, Hostnamen, Dateipfade, Stack-Traces oder andere betriebliche Details enthalten. korTTY maskiert das Passwort der Verbindung und bekannte geheime Formate zunächst mit `***` (siehe [Verbergen von Geheimnissen vor dem Senden](#geheimnisse-vor-dem-senden-maskieren)), aber diese Maskierung kann nicht jedes Geheimnis erfassen. Für sensible Daten verwenden Sie ein [integriertes lokales GGUF-Modell](local-models.md) oder einen anderen Endpoint, dem Sie vertrauen. Eingebettete Inferenz nutzt einen authentifizierten Loopback-Only-Server; entfernte Anbieter erhalten die überprüfte Anfrage über das Netzwerk. Wenn Sie einen **API-Schlüssel** angeben, speichert korTTY ihn verschlüsselt mit Ihrem Master-Passwort.
 
 ## Setup
 
@@ -152,10 +152,27 @@ Wenn eine KI-Agent-Ausführung einen oder mehrere Skills verwendet, protokollier
    * **Zusammenfassen** – Erstellt eine prägnante Zusammenfassung der ausgewählten Ausgabe.
    * **Problem lösen** – Analysiert die ausgewählte Fehlerausgabe und schlägt mögliche Korrekturen vor.
    * **Ask** – Sendet die Auswahl zusammen mit Ihrer eigenen Folgefrage oder Anweisung.
-4. Bestätigen Sie die Anfrage im Vorschaudialog. Sie können den ausgewählten Text vor dem Senden bearbeiten. Fügen Sie für **Fragen** Ihre eigene Eingabeaufforderung hinzu. Das Dialogfeld zeigt auch die geschätzten Anforderungstoken und das prognostizierte verbleibende Kontingent an.
+4. Bestätigen Sie die Anfrage im Vorschau-Dialog. Die Vorschau zeigt den Text so, wie er gesendet wird: erkannte Geheimnisse von korTTY sind bereits durch `***` ersetzt, und eine Zeile über dem Text gibt an, wie viele (siehe [Verbergen von Geheimnissen vor dem Senden](#geheimnisse-vor-dem-senden-maskieren)). Sie können den ausgewählten Text vor dem Senden bearbeiten. Für **Fragen** geben Sie Ihren eigenen Prompt ein. Der Dialog zeigt außerdem die geschätzten Anfragetoken und den prognostizierten verbleibenden Kontingent.
 5. Die Antwort wird in einer temporären KI-Registerkarte geöffnet. Sie können den gleichen Kontext mit Folgeaufforderungen aus dem unteren Verfasserfeld fortsetzen.
 6. Verwenden Sie **Speichern** auf der Registerkarte „AI“, um die Konversation unter einem benutzerdefinierten Titel zu speichern.
 7. Öffnen Sie gespeicherte Konversationen später erneut über **Tools > KI-Manager** oder ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ unter macOS).
+
+### Geheimnisse vor dem Senden maskieren
+
+Bevor eine Terminalauswahl zu einem KI-Profil geht, ersetzt korTTY die erkannten Geheimnisse durch `***`:
+
+* das Passwort der Tab-Verbindung,
+* die Ersetzungsregeln Ihrer Organisationsrichtlinie (die gleichen `[[rule.session-journal.replace]]` Regeln, die das Sitzungsjournal anwendet, Siehe [Unternehmensrichtlinie](../reference/enterprise-policy.md))
+* bekannte Tokenformate: private-key Blöcke (PEM, OpenSSH, PGP — auch wenn die Auswahl innerhalb des Schlüssels endet), AWS-Zugriffsschlüssel und geheime Zugriffsschlüssel, GitHub, GitLab und Slack Tokens, `sk-`-Stil API-Schlüssel (OpenAI, Anthropic), `Authorization`-Header und Bearer Tokens, JSON Web Tokens, Passwörter in URLs wie `postgres://admin:***@db`, und Zuweisungen deren Name mit einem geheimen Wort endet, z. B. `DB_PASSWORD=…`, `api_key: …` oder `--password=…`.
+
+Ein kurzer, harmloser Präfix bleibt sichtbar — die BEGIN- und END-Zeilen des Schlüssels, `ghp_***`, `AKIA***`, der Variablenname, der Benutzer in der URL — sodass Sie noch erkennen können, was dort war. Das Vorschau-Dialogfeld zeigt den maskierten Text und die Anzahl der maskierten Geheimnisse an. Ohne Vorschau — wenn das Bestätigungsdialogfeld für **Zusammenfassen** und **Problem lösen**, sowie für **Agent fragen…** deaktiviert ist — zeigt die Statusleiste stattdessen die Zahl an. Eine angehängte Datei (siehe unten) wird auf dieselbe Weise maskiert; sie ist nicht Teil der Vorschau, daher werden ihre maskierten Geheimnisse in der Statusleiste gezählt.
+
+Integrierte Modelle (llama.cpp, MLX) laufen auf diesem Computer und erhalten den Text unverändert. Text für einen HTTP-Endpunkt auf `localhost` wird ebenfalls maskiert, da dieser ein Proxy oder ein SSH-Port-Forward sein könnte, das den Text an eine Cloud-API weiterleitet. Falls ein solcher Endpunkt tatsächlich das Modell auf diesem Computer ausführt, z. B. LM Studio, aktivieren Sie **Vertrauenswürdiger lokaler Endpunkt** im Profil (siehe [AI settings](../reference/settings/ai.md)); die Option wirkt sich nur bei einer API-URL auf `localhost` oder `127.0.0.1` aus. Lokale CLI-Anbieter senden den Prompt an ihren Anbieter und werden immer maskiert.
+
+Das Profil des KI-Tabs kann für Folgeprompts geändert werden. Vor jedem Folgeprompt maskiert korTTY die Auswahl, die angehängte Datei und das frühere Gespräch erneut für das Profil, das der Tab jetzt verwendet, sodass ein Chat, der mit einem integrierten Modell begonnen hat, den unmaskierten Text oder eine Antwort, die ihn zitiert, nicht an ein Cloud-Profil weitergibt.
+
+!!! warning "Maskierung ist nicht vollständig"
+    Maskierung erkennt nur die oben aufgeführten Formate. Ein Geheimnis in einem anderen Format – ein internes Token, ein von einem anderen Programm angezeigtes Passwort, ein über mehrere Zeilen aufgeteilter Wert – wird unverändert gesendet, daher überprüfen Sie die Vorschau vor dem Senden und bevorzugen Sie ein integriertes lokales Modell für sensible Ausgaben. Maskierung deckt Terminalauswahlen, deren angehängte Dateien und das wiederholte Senden dieser durch den KI-Tab ab. Text, den Sie selbst eingeben, die Probe und der Befehlsausgabe eines KI-Agentenlaufes werden an das Modell gesendet, KI-Swarm-Läufe und geplante KI-Jobs werden nicht maskiert.
 
 ### Eine ausgewählte Datei an den Chat anhängen
 
@@ -164,6 +181,7 @@ Wenn die Auswahl wie ein einzelnes Dateiname aussieht — beispielsweise einen N
 * Das Bestätigungsdialogfeld zeigt eine Checkbox mit dem Dateinamen unter dem Titel **Datei anhängen**. Diese ist standardmäßig ausgewählt, und Sie können sie löschen, um lediglich den ausgewählten Text zu übermitteln. Während die Datei überprüft wird, wartet **OK**; die Checkbox löschen, um ohne Wartezeit zu übermitteln.
 * Vor der Anbindung eines Elements wird von korTTY überprüft, ob die Datei im aktuellen Verzeichnis existiert, ein reguläres Datei ist, mit Ihren Berechtigungen lesbar ist, als UTF-8-Text decodiert werden kann und innerhalb des **Maximale Zeichen**-Limits des Profils (siehe [KI-Einstellungen](../reference/settings/ai.md)) sowie des ausgewählten Textes liegt. Binäre Dateien, zu große Dateien und Dateien, die eine der Prüfungen bestehen, werden nicht angehängt; der Dialog gibt den Grund an und das Kontrollkästchen ist deaktiviert.
 * Wenn der Bestätigungsdialog für **Zusammenfassen** und **Problem lösen** deaktiviert ist und stets für **Agent fragen…** (der kein Vorschau-Dialog hat) ist, wird die Datei automatisch angehängt, wenn die Prüfungen bestanden werden; sonst wird die Anfrage ohne die Datei gesendet und die Statusleiste erklärt, warum.
+* Bevor es gesendet wird, wird der Inhalt der Datei wie die Auswahl maskiert (siehe [Maskierung von Geheimnissen vor dem Senden](#geheimnisse-vor-dem-senden-maskieren)); der Chat behält den maskierten Inhalt bei.
 * Nach einem Identitätswechsel innerhalb der Sitzung (`su`, ein innerer `ssh`) wird keine Anbindung angeboten, da die Datei gegen die falsche Anmeldung gelöst werden würde – dieselbe Regel, die das **Im Snippet-Editor öffnen**-Kontrollkästchen ausblendet.
 * Die angehängte Datei wird oberhalb der Chat-Nachrichten angezeigt, bleibt im Kontext für jede nachfolgende Anfrage und wird mit einem gespeicherten Chat gespeichert, sodass eine erneute Konversation sie beibehält.
 * Die Schaltfläche **Ablaufdiagramm** neben dem Anhang fordert das aktive KI-Profil dazu auf, einen Mermaid-Ablaufplan des angehängten Skripts (den gleichen logischen Strukturplan, den der Snippet-Editor erzeugt) anzuzeigen und diesen als gerenderten Diagramm im Chat anzuzeigen. Falls die Antwort des Modells nicht nutzbar ist, erstellt korTTY ein lokales strukturelles Ablaufdiagramm als Ersatz.

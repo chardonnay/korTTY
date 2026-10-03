@@ -762,8 +762,8 @@
 <h2 id="opening-sftp-manager">Opening SFTP Manager<a class="headerlink" href="#opening-sftp-manager" title="Permanent link">&para;</a></h2>
 <p>You can open the SFTP Manager in two ways:</p>
 <ul>
-<li><strong>Menu:</strong> Tools &gt; Open SFTP Manager</li>
-<li><strong>Dashboard:</strong> Right-click a connection &gt; "Open SFTP Manager"</li>
+<li><strong>Menu:</strong> <em>Connections → SFTP-Client...</em> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-u">U</kbd></span>, on macOS <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-u">U</kbd></span>). With a connected terminal tab in front, it opens for that tab's server; otherwise you pick a connection first.</li>
+<li><strong>Dashboard:</strong> right-click a connected session &gt; <strong>SFTP-Client...</strong></li>
 </ul>
 <p>If the connection uses a temporary SSH key that has expired, you will be prompted to enter a new key before the connection can proceed.</p>
 <h2 id="interface">Interface<a class="headerlink" href="#interface" title="Permanent link">&para;</a></h2>
@@ -806,7 +806,7 @@
 </tr>
 <tr>
 <td><strong>Size</strong></td>
-<td>File size in human-readable format (directories show —)</td>
+<td>File size in human-readable format (directories show —); sorting uses the exact byte count, with folders first</td>
 </tr>
 <tr>
 <td><strong>Date</strong></td>
@@ -835,9 +835,17 @@
 <li><strong>Files starting with "."</strong> (e.g., <code>.bashrc</code>) — alphabetically</li>
 <li><strong>All other files</strong> — alphabetically</li>
 </ol>
-<p>Click any column header to sort by that column. Clicking the Type column again toggles between ascending and descending order.</p>
+<p>Click any column header to sort by that column. Clicking the Type column again toggles between ascending and descending order. The parent directory (<code>..</code>) stays at the top whichever column and direction you sort by.</p>
+<h2 id="browsing-the-server">Browsing the server<a class="headerlink" href="#browsing-the-server" title="Permanent link">&para;</a></h2>
+<p>Remote folders are read in the background, so the window stays responsive even for a folder with tens of thousands of entries. While a folder loads, a <strong>Loading…</strong> indicator covers the remote list. The path field and the list switch to the new folder only once it has been read; if it cannot be read (it does not exist, or you lack the rights), an error is shown and the folder you were in stays.</p>
+<p>Type a path into the remote <strong>Path</strong> field and press <span class="keys"><kbd class="key-enter">Enter</kbd></span> to go there. <code>~</code> and <code>~/…</code> stand for your login directory on the server, and a path without a leading <code>/</code> is taken relative to the folder shown; <code>..</code> and <code>.</code> are resolved, so <code>../logs</code> opens the sibling folder <code>logs</code>.</p>
+<h2 id="lost-connection">Lost connection<a class="headerlink" href="#lost-connection" title="Permanent link">&para;</a></h2>
+<p>When the server or the network ends the session, the status bar shows <strong>Disconnected from</strong> <em>host</em> with a <strong>Reconnect</strong> button, and the remote actions are disabled. If the connection drops without the server saying so, the first remote action you try (Refresh, Upload, Download and so on) brings up the same state instead of doing nothing.</p>
+<p><strong>Reconnect</strong> opens a new session with the same credentials and lists the folder you were in. The server's host key is checked as on the first connect: an unchanged key connects without a prompt, a changed key is still blocked.</p>
+<h2 id="reopening-with-a-project">Reopening with a project<a class="headerlink" href="#reopening-with-a-project" title="Permanent link">&para;</a></h2>
+<p>SFTP Manager tabs are saved with a <a href="projects.html#sftp-manager-tabs">project</a>. Opening the project with <strong>Auto-Reconnect</strong> reconnects each tab at the local and remote folders it was in when you saved. A folder that no longer exists opens the home folder instead; on the remote side the status bar says so.</p>
 <h2 id="file-operations">File operations<a class="headerlink" href="#file-operations" title="Permanent link">&para;</a></h2>
-<p>The SFTP Manager supports a full range of file operations:</p>
+<p>Each panel has its own group of toolbar buttons below the lists (local on the left, remote on the right) and a right-click context menu:</p>
 <table>
 <thead>
 <tr>
@@ -848,42 +856,117 @@
 <tbody>
 <tr>
 <td><strong>Upload</strong></td>
-<td>Select local file(s), click Upload (or drag and drop)</td>
+<td>Select local files or folders and click <strong>Upload</strong>, or drag them onto the remote panel; see <a href="#drag-and-drop">Drag and drop</a></td>
 </tr>
 <tr>
 <td><strong>Download</strong></td>
-<td>Select remote file(s), click Download</td>
-</tr>
-<tr>
-<td><strong>Delete</strong></td>
-<td>Select file(s), click Delete</td>
+<td>Select remote files or folders and click <strong>Download</strong>, or drag them onto the local panel</td>
 </tr>
 <tr>
 <td><strong>Rename</strong></td>
-<td>Select a file, click Rename</td>
+<td>Select one entry and press <span class="keys"><kbd class="key-f2">F2</kbd></span>, or choose <strong>Rename</strong> in the context menu. An existing entry of the new name is never replaced; you get an error instead</td>
+</tr>
+<tr>
+<td><strong>New Folder</strong></td>
+<td>Click the folder button next to <strong>Refresh</strong>, or choose <strong>New Folder</strong> in the context menu, in either panel. The folder is created in the folder shown; a name that already exists is an error</td>
+</tr>
+<tr>
+<td><strong>Delete</strong></td>
+<td>Select entries and click <strong>Delete</strong>, choose <strong>Delete</strong> in the context menu, or press <span class="keys"><kbd class="key-delete">Del</kbd></span> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-backspace">Backspace</kbd></span>, on macOS <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-backspace">Backspace</kbd></span>). You confirm before anything is deleted</td>
 </tr>
 <tr>
 <td><strong>Copy</strong></td>
-<td>Copy files within the same panel</td>
+<td><strong>Copy to...</strong> in the context menu copies within the same side: locally into a folder you pick (in the background), remotely into a folder path you type. A remote folder copied where a folder of that name exists merges into it; copying an item onto itself or into one of its own subfolders is refused with an error</td>
 </tr>
 <tr>
 <td><strong>Edit in Snippet Editor</strong></td>
 <td>Select exactly one local or remote file, then use the <em>Edit</em> toolbar menu or the right-click context menu</td>
 </tr>
 <tr>
-<td><strong>Create Directory</strong></td>
-<td>Click "New Folder" in either panel</td>
-</tr>
-<tr>
-<td><strong>Create ZIP</strong></td>
-<td>Select multiple files/directories, click "Create ZIP"</td>
+<td><strong>Archive</strong></td>
+<td><strong>Archive</strong> in the remote toolbar, or <strong>Archive...</strong> in either context menu, packs the selection as ZIP, TAR.BZ2 or 7z, depending on the tools available on that side</td>
 </tr>
 <tr>
 <td><strong>Set Owner/Permissions</strong></td>
-<td>Select file(s), use context menu or button. Separate fields for User, Group, and octal permissions (e.g., 755)</td>
+<td>Select entries, then click <strong>Rights</strong> or choose <strong>Set Owner/Permissions...</strong> in the context menu. Separate fields for User, Group, and octal permissions (e.g., 755)</td>
 </tr>
 </tbody>
 </table>
+<p>A name for <strong>Rename</strong> or <strong>New Folder</strong> must be a single entry in the folder shown: it may not be empty, <code>.</code> or <code>..</code>, or contain <code>/</code> or <code>\</code>. The dialog stays open with an error until the name is usable.</p>
+<h3 id="drag-and-drop">Drag and drop<a class="headerlink" href="#drag-and-drop" title="Permanent link">&para;</a></h3>
+<p>You can drag entries between the two panels, from your desktop into the SFTP Manager, and in small amounts from the server to your desktop. While you drag, the panel or the folder row that would take the drop is highlighted; dropping on a folder row puts the entries into that folder, dropping anywhere else into the folder shown.</p>
+<table>
+<thead>
+<tr>
+<th>Drag</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Local rows onto the remote panel</td>
+<td>Uploaded, as with <strong>Upload</strong>: a file of the same name on the server is replaced, a folder merges</td>
+</tr>
+<tr>
+<td>Files from Finder, Explorer or the file browser sidebar onto the remote panel</td>
+<td>Uploaded the same way</td>
+</tr>
+<tr>
+<td>Remote rows onto the local panel</td>
+<td>Downloaded in the background, as with <strong>Download</strong>: folders included, and a local file of the same name is replaced</td>
+</tr>
+<tr>
+<td>Files from Finder, Explorer or the file browser sidebar onto the local panel</td>
+<td>Copied in the background; a name that is already there gets a number, as in <code>report (2).txt</code>, and a file dropped onto the folder it is in is left alone</td>
+</tr>
+<tr>
+<td>Local rows onto the desktop or another program</td>
+<td>Offered as the files themselves</td>
+</tr>
+<tr>
+<td>Remote rows onto the desktop or another program</td>
+<td>Only for at most 20 files with at most 16 MB together, and no folders</td>
+</tr>
+</tbody>
+</table>
+<p>A drag into the same panel does nothing; use <strong>Copy to...</strong> or <strong>Rename</strong> there.</p>
+<div class="admonition note">
+<p class="admonition-title">Dragging from the server to the desktop</p>
+<p>The desktop can only take files that already exist when the drag starts. korTTY therefore downloads the dragged remote files into a private temporary folder first, which can hold the window for up to 5 seconds. Folders, more than 20 files, more than 16 MB or a download that takes longer can only be dropped inside the window; the status bar says so, and you drop them on the local panel instead. A link on the server counts as the file it points to, so a link to a large file is not offered to the desktop either. The temporary copies are deleted when you start the next drag or close the tab.</p>
+</div>
+<h3 id="keys">Keys<a class="headerlink" href="#keys" title="Permanent link">&para;</a></h3>
+<p>These keys work in both panels:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="keys"><kbd class="key-f2">F2</kbd></span> (in the list)</td>
+<td>Rename the selected entry</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-delete">Del</kbd></span> or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-backspace">Backspace</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-backspace">Backspace</kbd></span> on macOS, in the list)</td>
+<td>Delete the selection, after confirmation</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-enter">Enter</kbd></span> (in the <strong>Path</strong> field)</td>
+<td>Go to the typed folder</td>
+</tr>
+</tbody>
+</table>
+<h3 id="uploading-files-and-folders">Uploading files and folders<a class="headerlink" href="#uploading-files-and-folders" title="Permanent link">&para;</a></h3>
+<p>Upload copies the selected local files and folders into the remote folder that was shown when you clicked <strong>Upload</strong>; browsing elsewhere while it runs does not change the target. Upload stays disabled until the first remote folder has been listed, because the server does not expand <code>~</code> itself.</p>
+<ul>
+<li><strong>Uploading a folder again merges</strong> into the existing remote folder: files with the same name are replaced, other remote files are kept.</li>
+<li><strong>Files are streamed</strong>, so their size is not limited by memory; files larger than 2 GB upload like any other.</li>
+<li>If the connection drops during an upload or download, the rest of the batch stops with one <strong>Disconnected</strong> state rather than an error per file.</li>
+</ul>
+<h3 id="permissions">Permissions<a class="headerlink" href="#permissions" title="Permanent link">&para;</a></h3>
+<p>The permissions field of <strong>Set Owner/Permissions</strong> and of the remote archive dialog accepts exactly three octal digits, such as <code>755</code> or <code>644</code>; leave it empty (or unchanged) to keep the current mode. Anything else keeps the dialog open with an error, so no other text ever reaches <code>chmod</code>.</p>
 <h3 id="editing-files-with-snippet-editor">Editing files with Snippet Editor<a class="headerlink" href="#editing-files-with-snippet-editor" title="Permanent link">&para;</a></h3>
 <p>The <strong>Edit in Snippet Editor</strong> action is enabled only for a single selected file. It is disabled for:</p>
 <ul>
@@ -907,13 +990,39 @@
 </ul>
 <p><img alt="SFTP dual-panel file manager" src="../assets/screenshots/sftp/sftp-manager.png" /></p>
 <h2 id="search">Search<a class="headerlink" href="#search" title="Permanent link">&para;</a></h2>
-<p>Both panels support <strong>glob pattern search</strong> using the <code>*</code> wildcard. For example:</p>
-<ul>
-<li><code>*.log</code> finds all log files in the current directory</li>
-<li><code>*.{py,sh}</code> finds Python and shell files (if your shell supports brace expansion)</li>
-<li><code>backup*</code> finds all files starting with "backup"</li>
-</ul>
-<p>Enter the pattern in the search field to quickly filter displayed files without leaving the current directory.</p>
+<p>The search field above each list filters the folder shown as you type, without leaving it; the parent entry <code>..</code> stays visible. korTTY evaluates the wildcards itself, the same way for local and remote names. A pattern with a wildcard has to match the whole name, ignoring case:</p>
+<table>
+<thead>
+<tr>
+<th>Wildcard</th>
+<th>Matches</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>*</code></td>
+<td>Any number of characters</td>
+<td><code>*.log</code> finds all log files, <code>backup*</code> all names starting with "backup"</td>
+</tr>
+<tr>
+<td><code>?</code></td>
+<td>Exactly one character</td>
+<td><code>data?.csv</code> finds <code>data1.csv</code>, not <code>data10.csv</code></td>
+</tr>
+<tr>
+<td><code>[abc]</code>, <code>[a-z]</code></td>
+<td>One of the listed characters; <code>[!abc]</code> or <code>[^abc]</code> one that is not listed</td>
+<td><code>[ab]*</code> finds names starting with a or b</td>
+</tr>
+<tr>
+<td><code>{py,sh}</code></td>
+<td>One of the alternatives</td>
+<td><code>*.{py,sh}</code> finds Python and shell files</td>
+</tr>
+</tbody>
+</table>
+<p>Text without a wildcard matches anywhere in the name, ignoring case: <code>rep</code> finds <code>Report.txt</code>. A pattern that cannot be read, such as an unclosed <code>[</code>, is searched for as plain text.</p>
 <hr /></p>
     </article>
 </section>

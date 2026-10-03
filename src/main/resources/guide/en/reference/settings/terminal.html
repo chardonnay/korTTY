@@ -908,8 +908,21 @@
 </table>
 <h2 id="notes">Notes<a class="headerlink" href="#notes" title="Permanent link">&para;</a></h2>
 <div class="admonition note">
+<p class="admonition-title">Encoding</p>
+<p>The character encoding korTTY decodes the output of an SSH session with and encodes what you type and paste in. It applies to every SSH connection that does not choose its own <strong>Character encoding</strong> on the <em>Connection</em> tab of the connection editor (see <a href="../../features/connections.html#character-encoding">Character encoding</a>). Local shells use UTF-8 unless their connection sets an encoding, and Mosh always uses UTF-8 because mosh-server and mosh-client require it. Pick the encoding the programs on the server actually write, usually what <code>locale</code> reports there. A change applies the next time a tab connects or reconnects; open tabs keep their encoding. Characters the chosen encoding cannot represent are sent as <code>?</code>.</p>
+<p>Earlier versions ignored this setting, so a value chosen back then is not applied on its own: SSH sessions stay UTF-8, and a note under the dropdown says so, until you save the settings after opening the Terminal page. Choose <strong>UTF-8</strong> before saving if you do not want the old value.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Bold as bright color</p>
+<p>This setting currently applies to terminal recordings only: with <a href="video.html">Capture terminal colors in recordings</a> on, bold text in one of the 8 normal ANSI colors is stored in its bright variant. The live terminal draws bold text in its normal color either way.</p>
+</div>
+<div class="admonition note">
 <p class="admonition-title">Scrollback</p>
 <p>Controls how many lines of output each terminal pane keeps in its scrollback buffer. The value is read when a terminal is created, so a change applies to newly opened tabs and split panes — already-open terminals keep their current buffer size. Larger values use more memory per pane.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Copy selection to clipboard automatically</p>
+<p>When enabled, text you select in a terminal is copied to the clipboard as soon as you select it. On Linux it also becomes the X11 primary selection, so a middle-click pastes it in other applications such as xterm or gedit. With the enterprise policy's <a href="../enterprise-policy.html#internal-clipboard-mode">internal clipboard mode</a> the selection stays inside korTTY on every platform.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">SSH Keep-Alive</p>
@@ -926,11 +939,12 @@
 <div class="admonition note">
 <p class="admonition-title">Command Timestamps</p>
 <p>When enabled, a sidebar appears on the left side of the terminal displaying the date and time each command was entered, useful for audit trails and session logging.</p>
+<p>Each mark stays on its command line when the scrollback is full and the oldest lines are dropped, and a mark whose line has left the scrollback disappears with it. <strong>Clear Buffer</strong> in the terminal's right-click menu, and a <code>clear</code> that also empties the scrollback, remove all marks; the next command gets a fresh one. Opening and quitting a full-screen program such as <code>vim</code> or <code>less</code> does not move the marks. The day and month above each mark and the full date in the hover popup follow the korTTY UI language (for example <code>02.10.</code> in German, <code>10/02</code> in English), as does the elapsed time in the popup.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Connection Retries</p>
 <p>When enabled, failed SSH connections are automatically retried. Disabling this prevents automatic reconnection attempts for failed connections.</p>
-<p>Retries only cover failures that a further attempt could resolve. A changed host key, a Mosh connection configured with a jump server, or a missing Mosh runtime is refused immediately regardless of this setting.</p>
+<p>Retries only cover failures that a further attempt could resolve. A changed host key, a refused login, an SSH key file that is missing or cannot be read, a jump server whose stored password cannot be used or whose setup is incomplete, a Mosh connection configured with a jump server, or a missing Mosh runtime is refused immediately regardless of this setting.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Automatically reconnect lost connections</p>

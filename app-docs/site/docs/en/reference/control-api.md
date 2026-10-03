@@ -93,6 +93,10 @@ Every parameter called `pane` also accepts a bare tab id, meaning that tab's foc
 
 `pane.wait_output` blocks until a regular expression or a literal string appears, polling the pane. Output that appears and scrolls away inside a single poll window can be missed in `visible` mode; the default `recent` mode also searches the scrollback and does not have that gap.
 
+### Typing into a pane
+
+`pane.send_text`, `pane.run` and the single-character keys of `pane.send_keys` are encoded in the pane's [character encoding](../features/connections.md#character-encoding), so they arrive as the bytes the same keystrokes would produce: an SSH pane set to ISO-8859-1 receives `é` as the single byte `E9`, not as UTF-8. A character that encoding cannot represent is sent as `?`. The `agent.*` methods always send UTF-8, which is what the coding agents read.
+
 ### Splitting
 
 `pane.split` works **only** on a pane whose tab is a local shell. Anything else is refused with `unsupported`. The new shell is started without any dialog, so a script never ends up waiting on a window it cannot see; a split that would need a new connection needs a human, and is not offered.

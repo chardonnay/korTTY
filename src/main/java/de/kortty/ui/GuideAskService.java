@@ -94,18 +94,11 @@ public final class GuideAskService {
             ? GuideSearchIndex.load("en")
             : GuideSearchIndex.load("de");
 
-        GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
-            ? app.getGlobalSettingsManager().getSettings()
-            : null;
+        GlobalSettings settings = settings();
         if (settings == null) {
             throw new AskException(FailureKind.NO_PROFILE, "Settings unavailable");
         }
-        AiProfile profile = AiProfileSelectionSupport.workloadProfile(
-            settings.getAiProfiles(),
-            AiWorkload.TEXT,
-            settings.getTextAiProfileId(),
-            settings.getCodingAiProfileId(),
-            settings.getDefaultAiProfileId());
+        AiProfile profile = resolveProfile(settings);
         if (profile == null) {
             throw new AskException(FailureKind.NO_PROFILE, "No AI profile available");
         }
@@ -197,6 +190,37 @@ public final class GuideAskService {
         } catch (RuntimeException e) {
             return "English";
         }
+    }
+
+    /**
+     * Whether {@link #ask} would stop with {@link FailureKind#VAULT_LOCKED}: the profile it uses has
+     * an encrypted API key that no policy key replaces, and the vault is locked. Checked on the FX
+     * thread before the background request starts, so the panel can offer to unlock first.
+     */
+    boolean requiresVaultUnlock() {
+        GlobalSettings settings = settings();
+        AiProfile profile = settings != null ? resolveProfile(settings) : null;
+        if (profile == null || de.kortty.policy.PolicyAiProfileSupport.apiKeyOverride(profile) != null) {
+            return false;
+        }
+        String encrypted = profile.getEncryptedApiKey();
+        return encrypted != null && !encrypted.isBlank()
+            && (app.getMasterPasswordManager() == null || app.getMasterPasswordManager().getMasterPassword() == null);
+    }
+
+    private GlobalSettings settings() {
+        return app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings()
+            : null;
+    }
+
+    private static AiProfile resolveProfile(GlobalSettings settings) {
+        return AiProfileSelectionSupport.workloadProfile(
+            settings.getAiProfiles(),
+            AiWorkload.TEXT,
+            settings.getTextAiProfileId(),
+            settings.getCodingAiProfileId(),
+            settings.getDefaultAiProfileId());
     }
 
     private String resolveApiKey(AiProfile profile) {

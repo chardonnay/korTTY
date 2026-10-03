@@ -4,6 +4,8 @@ import com.sithtermfx.core.TtyConnector;
 import de.kortty.model.ServerConnection;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 /**
  * A {@link TtyConnector} that exposes observation/interception hooks shared by korTTY features
@@ -70,6 +72,15 @@ public interface ObservableTtyConnector extends TtyConnector {
 
     /** The connection this connector serves (used by AI-agent run context, status, etc.). */
     ServerConnection getConnection();
+
+    /**
+     * The charset this connector decodes the session output with and encodes {@code write(String)}
+     * in. Byte-level input filters use it to tell where a typed character ends. Connectors that do
+     * not resolve an encoding are UTF-8.
+     */
+    default Charset getCharset() {
+        return StandardCharsets.UTF_8;
+    }
 
     /**
      * Legacy SSH-oriented name for the tracked working directory, or {@code null} when not tracked.
