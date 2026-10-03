@@ -2,6 +2,7 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.ConnectionSettingsSupport;
+import de.kortty.core.DisplayTextSanitizer;
 import de.kortty.core.TerminalRecordingService;
 import de.kortty.core.TerminalRecordingSession;
 import de.kortty.core.TerminalRecordingState;
@@ -114,8 +115,13 @@ public class TerminalTab extends Tab {
     private Runnable externalConnectedCallback;
     private Runnable journalStateListener;
     
+    /** Longest name the user can give a tab, in characters. */
+    static final int MAX_CUSTOM_TITLE_LENGTH = 120;
+
     // Tab group (independent from connection group)
     private String tabGroup = null;
+    /** The name the user gave this tab instead of the connection's, sanitised; null when none. */
+    private volatile String customTitle;
     // AI-agent status badge prefix (✋/⚡/⏸/✓ or "") and the last connection-status suffix, so the
     // title can be re-rendered with the badge without losing the suffix.
     private volatile String agentStatusBadge = "";
@@ -1604,33 +1610,117 @@ public class TerminalTab extends Tab {
     }
     
     /**
-     * Updates the tab title to include group prefix if group is set.
+     * Re-renders the tab title and clears the connection-status suffix.
      */
     public void updateTabTitle() {
         updateTabTitle("");
     }
     
     /**
-     * Updates the tab title to include group prefix if group is set.
+     * Re-renders the tab title from its slots (see {@link #composeTitle}) and remembers the suffix,
+     * so a later badge or name change keeps it.
      * @param suffix Additional suffix to append (e.g., " (DISCONNECT)")
      */
     private void updateTabTitle(String suffix) {
         String effectiveSuffix = suffix != null ? suffix : "";
         lastTitleSuffix = effectiveSuffix;
-        Platform.runLater(() -> {
-            String displayName = connection.getDisplayName();
-            if (displayName == null || displayName.trim().isEmpty()) {
-                displayName = connection.getUsername() + "@" + connection.getHost();
-            }
+        Platform.runLater(() -> setText(composeTitle(
+            List.of(agentStatusBadge), tabGroup, getEffectiveTitle(), effectiveSuffix)));
+    }
 
-            String prefix = agentStatusBadge.isEmpty() ? "" : agentStatusBadge + " ";
-            String group = tabGroup; // Use tab group, not connection group
-            if (group != null && !group.trim().isEmpty()) {
-                setText(prefix + "[" + group + "] " + displayName + effectiveSuffix);
-            } else {
-                setText(prefix + displayName + effectiveSuffix);
+    /**
+     * The tab title from its slots, in this order: the badges, the {@code [group]} prefix of the tab
+     * group (not the connection group), the tab's name and the connection-status suffix such as
+     * {@code " (DISCONNECT)"}. {@code badges} is in slot order; the AI-agent status is the only one
+     * so far, and badges added later (for example an activity marker) go after it. Empty badges and
+     * a blank group are left out.
+     */
+    static String composeTitle(List<String> badges, String group, String name, String suffix) {
+        StringBuilder title = new StringBuilder();
+        if (badges != null) {
+            for (String badge : badges) {
+                if (badge != null && !badge.isBlank()) {
+                    title.append(badge.strip()).append(' ');
+                }
             }
-        });
+        }
+        if (group != null && !group.isBlank()) {
+            title.append('[').append(group.strip()).append("] ");
+        }
+        return title.append(name != null ? name : "").append(suffix != null ? suffix : "").toString();
+    }
+
+    /**
+     * The name a tab goes by, without badges, group or suffix: the custom title the user gave it,
+     * else the connection's display name, else {@code user@host} (or whichever of the two is set).
+     * Empty only when there is nothing at all to show.
+     */
+    static String effectiveTitle(String customTitle, String displayName, String username, String host) {
+        if (customTitle != null && !customTitle.isBlank()) {
+            return customTitle;
+        }
+        if (displayName != null && !displayName.isBlank()) {
+            return displayName;
+        }
+        boolean hasUser = username != null && !username.isBlank();
+        boolean hasHost = host != null && !host.isBlank();
+        if (hasUser && hasHost) {
+            return username + "@" + host;
+        }
+        if (hasHost) {
+            return host;
+        }
+        return hasUser ? username : "";
+    }
+
+    /**
+     * {@link #effectiveTitle} for this tab: what the tab bar shows between the group prefix and the
+     * suffix, and the title the coding-agent panel and the Control API's {@code tab.list} report.
+     * Safe to call from any thread.
+     */
+    public String getEffectiveTitle() {
+        return effectiveTitle(customTitle, connection.getDisplayName(), connection.getUsername(), connection.getHost());
+    }
+
+    /** The name the tab shows without a custom title: the connection's display name or user@host. */
+    public String getConnectionTitle() {
+        return effectiveTitle(null, connection.getDisplayName(), connection.getUsername(), connection.getHost());
+    }
+
+    /** The name the user gave this tab, or {@code null} when it shows the connection's name. */
+    public String getCustomTitle() {
+        return customTitle;
+    }
+
+    /**
+     * Gives the tab a name of its own in place of the connection's name; the badges, the group prefix
+     * and the connection-status suffix stay. The name is cleaned with {@link #normalizeCustomTitle},
+     * and a blank one (or {@code null}) goes back to the connection's name. Safe to call from any
+     * thread.
+     */
+    public void setCustomTitle(String title) {
+        customTitle = normalizeCustomTitle(title);
+        updateTabTitle(lastTitleSuffix);
+    }
+
+    /**
+     * A custom title as it is stored: control and bidi characters removed, trimmed and capped at
+     * {@link #MAX_CUSTOM_TITLE_LENGTH} characters; {@code null} when nothing visible is left.
+     */
+    static String normalizeCustomTitle(String title) {
+        String clean = DisplayTextSanitizer.sanitize(title, MAX_CUSTOM_TITLE_LENGTH);
+        return clean.isEmpty() ? null : clean;
+    }
+
+    /**
+     * The custom title the rename dialog's input stands for. A name equal to the connection's own
+     * name is no custom title, so confirming the prefilled name unchanged keeps the tab following
+     * the connection, and a later rename of the connection still shows. Blank input clears the
+     * custom title.
+     */
+    static String customTitleFromInput(String input, String connectionName) {
+        String title = normalizeCustomTitle(input);
+        return title != null && title.equals(connectionName) ? null : title;
     }
 
     /** Sets the AI-agent status badge (✋/⚡/⏸/✓ or "") shown as a prefix on the tab title. */

@@ -1337,6 +1337,14 @@ public class MainWindow {
         newTab.setAccelerator(new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN));
         newTab.setOnAction(e -> showQuickConnect());
 
+        // No shortcut: F2 and the other free keys belong to the program in the terminal.
+        MenuItem renameTab = new MenuItem(I18n.get("menu.file.renameTab"));
+        renameTab.setOnAction(e -> {
+            if (tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab terminalTab) {
+                promptRenameTab(terminalTab);
+            }
+        });
+
         MenuItem closeTab = new MenuItem(I18n.get("menu.file.closeTab"));
         closeTab.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN));
         closeTab.setOnAction(e -> closeCurrentTab());
@@ -1371,8 +1379,12 @@ public class MainWindow {
         quit.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCombination.SHORTCUT_DOWN));
         quit.setOnAction(e -> requestApplicationQuit());
 
+        // Both macOS menu bars come from this factory, so each one sets its own state when it opens.
+        fileMenu.setOnShowing(e -> renameTab.setDisable(
+            !(tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab)));
+
         fileMenu.getItems().addAll(
-            newTab, closeTab, closeAllTabs, new SeparatorMenuItem(),
+            newTab, renameTab, closeTab, closeAllTabs, new SeparatorMenuItem(),
             newWindow, closeWindow, new SeparatorMenuItem(),
             openProject, saveProject, new SeparatorMenuItem(),
             createBackup, importBackup, new SeparatorMenuItem(), quit);
@@ -5359,6 +5371,8 @@ public class MainWindow {
                     sessionState.setTerminalEffectAnimationSpeed(terminalEffectAnimationSpeed);
                 }
                 sessionState.setGroup(terminalTab.getGroup()); // Save tab group (not connection group)
+                // The name the user gave the tab; null keeps following the connection's name.
+                sessionState.setTabTitle(terminalTab.getCustomTitle());
                 // Save current font size (zoom level) - may differ from settings when user zoomed
                 int currentFontSize = terminalTab.getTerminalView().getCurrentFontSize();
                 if (currentFontSize != connection.getSettings().getFontSize()) {
@@ -5451,6 +5465,10 @@ public class MainWindow {
                                     if (sessionState.getGroup() != null && !sessionState.getGroup().trim().isEmpty()) {
                                         restoredTab.setGroup(sessionState.getGroup());
                                         organizeTabsByGroup();
+                                    }
+                                    // A renamed tab keeps its name; the setter cleans what the file holds.
+                                    if (sessionState.getTabTitle() != null) {
+                                        restoredTab.setCustomTitle(sessionState.getTabTitle());
                                     }
                                     // Restore font size (zoom level) if saved
                                     Integer fontSizeOverride = sessionState.getFontSizeOverride();
@@ -11017,6 +11035,10 @@ public class MainWindow {
             updateStatus(I18n.get("status.reconnecting", terminalTab.getConnection().getDisplayName()));
         });
         
+        MenuItem renameItem = new MenuItem(I18n.get("tab.contextMenu.rename"));
+        renameItem.setOnAction(e -> promptRenameTab(terminalTab));
+        contextMenu.getItems().add(renameItem);
+
         MenuItem duplicateItem = new MenuItem(I18n.get("tab.contextMenu.duplicate"));
         duplicateItem.setOnAction(e -> duplicateTab(terminalTab));
         contextMenu.getItems().add(duplicateItem);
@@ -11144,6 +11166,26 @@ public class MainWindow {
         terminalTab.setContextMenu(contextMenu);
     }
     
+    /**
+     * Asks for a new name for {@code terminalTab}, prefilled with the name it shows now. The name
+     * replaces the connection's name in the tab title only: the agent badge, the group prefix and the
+     * connection-status suffix stay. An empty name, or the connection's own name, makes the tab show
+     * the connection's name again.
+     */
+    private void promptRenameTab(TerminalTab terminalTab) {
+        String connectionTitle = terminalTab.getConnectionTitle();
+        String customTitle = terminalTab.getCustomTitle();
+        TextInputDialog dialog = new TextInputDialog(customTitle != null ? customTitle : connectionTitle);
+        DialogThemeHelper.applyTheme(dialog);
+        dialog.initOwner(stage);
+        dialog.setTitle(I18n.get("dialog.renameTab.title"));
+        dialog.setHeaderText(I18n.get("dialog.renameTab.header", connectionTitle));
+        dialog.setContentText(I18n.get("dialog.renameTab.prompt") + ":");
+        dialog.getEditor().setPromptText(connectionTitle);
+        dialog.showAndWait().ifPresent(input ->
+            terminalTab.setCustomTitle(TerminalTab.customTitleFromInput(input, connectionTitle)));
+    }
+
     /**
      * Gets all unique group names from open tabs (not from connections).
      */

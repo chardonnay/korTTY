@@ -283,20 +283,19 @@ public final class CodingAgentUiBridge implements FocusOracle, PaneLocator, Pane
         return Optional.empty();
     }
 
-    /** The tab title without the agent glyph prefix: the connection's display name or user@host. */
+    /**
+     * The tab title without the agent glyph, the group prefix or the status suffix: the name the
+     * user gave the tab, else the connection's display name or user@host.
+     */
     static String tabTitleOf(TerminalTab tab) {
         if (tab == null) {
             return "";
         }
         try {
-            var connection = tab.getConnection();
-            if (connection != null) {
-                String displayName = connection.getDisplayName();
-                if (displayName != null && !displayName.isBlank()) {
-                    return displayName;
-                }
-                if (connection.getHost() != null) {
-                    return connection.getUsername() + "@" + connection.getHost();
+            if (tab.getConnection() != null) {
+                String title = tab.getEffectiveTitle();
+                if (title != null && !title.isBlank()) {
+                    return title;
                 }
             }
         } catch (RuntimeException e) {

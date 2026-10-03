@@ -7,6 +7,7 @@ Every item in korTTY's menu bar, with its shortcut (where defined) and what it d
 | Item | Shortcut | Description |
 | --- | --- | --- |
 | New Tab | ++ctrl+t++ | Open Quick Connect in a new terminal tab |
+| Rename Tab… | | Give the active terminal tab a name of its own instead of the connection's name; an empty name shows the connection's name again. Available while a terminal tab is active. See [Working with tabs](../features/terminal.md#working-with-tabs) |
 | Close Tab | ++ctrl+w++ | Close the active terminal tab |
 | Close All Tabs | | Close every tab in the current window |
 | New Window | ++ctrl+shift+n++ | Open an additional, independent main window |
