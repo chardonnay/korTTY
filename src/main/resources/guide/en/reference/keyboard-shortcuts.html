@@ -822,7 +822,7 @@
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span></td>
-<td>Find in the active tab</td>
+<td>Find in the active tab (in a focused terminal on Windows and Linux the key goes to the shell, see <a href="#terminal">Terminal</a>)</td>
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span></td>
@@ -967,6 +967,59 @@
 </tbody>
 </table>
 <p>The zoom keys (<span class="keys"><kbd class="key-control">Ctrl</kbd></span> or <span class="keys"><kbd class="key-alt">Alt</kbd></span> with <span class="keys"><kbd class="key-plus">+</kbd></span> / <span class="keys"><kbd class="key-minus">-</kbd></span> / <span class="keys"><kbd class="key-0">0</kbd></span>; <span class="keys"><kbd class="key-command">Cmd</kbd></span> on macOS) zoom the terminal only while a terminal tab is selected. In a snippet editor or file editor tab they reach the editor, and <span class="keys"><kbd class="key-alt-graph">AltGr</kbd><span>+</span><kbd class="key-plus">+</kbd></span> types its character there.</p>
+<h2 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h2>
+<p>These keys apply while a terminal pane has the keyboard focus.</p>
+<table>
+<thead>
+<tr>
+<th>Shortcut</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-c">C</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-v">V</kbd></span></td>
+<td>Copy the terminal selection / paste into the terminal (Windows and Linux; <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-c">C</kbd></span> / <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-v">V</kbd></span> on macOS)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-l">L</kbd></span> (Windows and Linux)</td>
+<td>Sent to the shell: redraws or clears the screen in bash, psql or a REPL, and the scrollback is kept</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> (Windows and Linux)</td>
+<td>Sent to the shell: moves the cursor one character forward at a bash prompt and pages forward in <code>less</code> or <code>vim</code></td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-k">K</kbd></span> (macOS)</td>
+<td>Clear Buffer: empty the terminal screen and its scrollback</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-f">F</kbd></span> (macOS)</td>
+<td>Find in the terminal scrollback</td>
+</tr>
+</tbody>
+</table>
+<p>On Windows and Linux, <strong>Clear Buffer</strong> and <strong>Find</strong> have no key of their own, so <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-l">L</kbd></span> and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> stay with the programs running in the terminal. Use right-click → <strong>Clear Buffer</strong> or <strong>Find</strong> in the terminal, or <strong>Edit → Find…</strong> with the mouse. <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span> stays Terminal-only Fullscreen and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-k">K</kbd></span> still docks the file browser on the left.</p>
+<h2 id="sftp-manager">SFTP Manager<a class="headerlink" href="#sftp-manager" title="Permanent link">&para;</a></h2>
+<p>These keys work in the local and the remote list of an SFTP Manager tab; see <a href="../features/sftp.html#keys">Keys</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Shortcut</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="keys"><kbd class="key-f2">F2</kbd></span></td>
+<td>Rename the selected entry</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-delete">Del</kbd></span> or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-backspace">Backspace</kbd></span></td>
+<td>Delete the selection, after confirmation</td>
+</tr>
+</tbody>
+</table>
 <h2 id="snippet-manager">Snippet Manager<a class="headerlink" href="#snippet-manager" title="Permanent link">&para;</a></h2>
 <p>These keys work in the Snippet Manager (library and editor tabs); see <a href="../features/snippets.html#opening-the-snippet-manager">Opening the Snippet Manager</a>.</p>
 <table>

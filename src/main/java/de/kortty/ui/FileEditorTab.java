@@ -699,8 +699,13 @@ public class FileEditorTab extends Tab {
         
         // Now remove this tab
         tabPane.getTabs().remove(this);
+        // Closed like with the tab's close button, which a plain removal is not: onClosed disposes
+        // the editor, and a tab restored from a project closes the SFTP session it opened for itself.
+        if (getOnClosed() != null) {
+            javafx.event.Event.fireEvent(this, new javafx.event.Event(Tab.CLOSED_EVENT));
+        }
     }
-    
+
     /**
      * Shows the find/replace panel.
      */

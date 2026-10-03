@@ -32,8 +32,19 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 
 ## Hinweise
 
+!!! note "Kodierung"
+    Die Zeichenkodierung, mit der korTTY die Ausgabe einer SSH-Sitzung dekodiert und das kodiert, was Sie eingeben oder einfügen. Sie gilt für jede SSH-Verbindung, die auf dem Tab *Verbindung* des Verbindungseditors keine eigene **Zeichenkodierung** auswählt (siehe [Zeichenkodierung](../../features/connections.md#zeichenkodierung)). Lokale Shells verwenden UTF-8, sofern ihre Verbindung keine Kodierung festlegt, und Mosh nutzt stets UTF-8, weil mosh-server und mosh-client dies erfordern. Wählen Sie die Kodierung aus, die die Programme auf dem Server tatsächlich schreiben, in der Regel das, was `locale` dort meldet. Eine Änderung tritt beim nächsten Verbindungsaufbau oder bei einer erneuten Verbindung eines Tabs in Kraft; offene Tabs behalten ihre Kodierung. Zeichen, die die gewählte Kodierung nicht darstellen kann, werden als `?` übermittelt.
+
+    Frühere Versionen ignorierten diese Einstellung, sodass ein damals gewählter Wert nicht automatisch angewendet wird: SSH-Sitzungen bleiben UTF-8, und ein Hinweis unter dem Dropdown sagt dies, bis Sie die Einstellungen nach dem Öffnen der Terminal-Seite speichern. Wählen Sie **UTF-8** vor dem Speichern, wenn Sie den alten Wert nicht übernehmen möchten.
+
+!!! note "Fett als helle Farbe anzeigen"
+    Diese Einstellung gilt derzeit nur für Terminalaufnahmen: mit [Terminalfarben in Aufnahmen erfassen](video.md) aktiviert, wird fetter Text einer der 8 normalen ANSI-Farben in seiner hellen Variante gespeichert. Das Live-Terminal zeichnet fetten Text in jeder Hinsicht immer noch in seiner normalen Farbe aus.
+
 !!! note "Zurückscrollen"
     Steuert, wie viele Ausgabezeilen jeder Terminalbereich in seinem Scrollback-Puffer behält. Der Wert wird beim Erstellen eines Terminals gelesen, daher gilt eine Änderung für neu geöffnete Registerkarten und geteilte Bereiche – bereits geöffnete Terminals behalten ihre aktuelle Puffergröße. Größere Werte verbrauchen mehr Speicher pro Bereich.
+
+!!! note "Markierung automatisch in Zwischenablage kopieren"
+    Wenn aktiviert, wird der von Ihnen im Terminal ausgewählte Text sofort in die Zwischenablage kopiert. Unter Linux wird er zudem zur X11-Hauptauswahl, sodass ein Mittelklick ihn in anderen Anwendungen wie xterm oder gedit einfügt. Mit dem internen Zwischenablage-Modus der Unternehmensrichtlinie [interner Zwischenablage-Modus](../enterprise-policy.md#interner-zwischenablagemodus) bleibt die Auswahl innerhalb von korTTY auf jeder Plattform.
 
 !!! note "SSH-Keep-Alive"
     Wenn korTTY aktiviert ist, sendet es regelmäßig Keep-Alive-Pakete, um zu verhindern, dass SSH-Sitzungen während Leerlaufzeiten ablaufen. Die Intervalleinstellung steuert, wie oft (in Sekunden) diese Pakete gesendet werden. Der Spinnerbereich beträgt 5–600 Sekunden; Das Intervall ist deaktiviert, wenn SSH Keep-Alive ausgeschaltet ist.
@@ -52,7 +63,7 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 !!! note "Verbindungswiederholungsversuche"
     Wenn diese Option aktiviert ist, werden fehlgeschlagene SSH-Verbindungen automatisch wiederholt. Wenn Sie dies deaktivieren, werden automatische Wiederverbindungsversuche bei fehlgeschlagenen Verbindungen verhindert.
 
-    Wiederholungsversuche decken nur Fehler ab, die durch einen weiteren Versuch behoben werden könnten. Ein geänderter Hostschlüssel, eine mit einem Jump-Server konfigurierte Mosh-Verbindung oder eine fehlende Mosh-Laufzeit wird unabhängig von dieser Einstellung sofort abgelehnt.
+    Wiederholungen decken nur Fehler ab, die durch einen weiteren Versuch behoben werden könnten. Ein geänderter Host-Key, eine verweigerte Anmeldung, eine SSH-Schlüsseldatei, die fehlt oder nicht gelesen werden kann, ein Sprungserver, dessen gespeichertes Passwort nicht verwendet werden kann oder dessen Einrichtung unvollständig ist, eine Mosh-Verbindung, die mit einem Sprungserver konfiguriert ist, oder ein fehlender Mosh-Laufzeitumgebung werden sofort abgelehnt, unabhängig von dieser Einstellung.
 
 !!! note "Verlorene Verbindungen automatisch wiederherstellen"
     Wenn aktiviert und eine **bestehende** SSH-Verbindung verloren geht (Netzwerkabbruch, Server ist weg), reconnectt der Tab automatisch mit zunehmenden Verzögerungen — 3, 5, 10, 20, 30, dann alle 60 Sekunden — und die rote Statusleiste zählt ab zur nächsten Versuch. Ein Doppelklick auf die Leiste führt zu einem sofortigen Wiederherstellen, und ein erfolgreicher Wiederherstellung oder das Schließen des Tabs beendet die automatischen Versuche. Fehlerhafte Anmeldungen und andere dauerhafte Fehlschläge (Authentifizierung, Host-Schlüssel, Konfiguration) werden nie automatisch erneut versucht, und eine Verbindung, die nie erfolgreich hergestellt wurde, wird ebenfalls nicht erneut versucht — das ist der Inhalt von *Verbindungswiederholungen aktivieren*. Siehe [Terminal-Sitzungen → Verbindungsverlust](../../features/terminal.md#verbindungsverlust-und-automatische-wiederherstellung-der-verbindung).

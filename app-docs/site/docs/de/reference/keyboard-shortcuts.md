@@ -19,7 +19,7 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++ctrl+x++ | Ausschneiden (deaktiviert für Anschlusslaschen) |
 | ++ctrl+c++ | Kopie |
 | ++ctrl+v++ | Einfügen |
-| ++ctrl+f++ | Suchen Sie im aktiven Tab |
+| ++ctrl+f++ | Suchen im aktiven Tab (in einem fokussierten Terminal auf Windows und Linux geht die Taste zur Shell, siehe [Terminal](#terminal)) |
 | ++ctrl+k++ | Schnellverbindung |
 | ++ctrl+m++ | Verbindungen verwalten |
 | ++ctrl+shift+u++ | SFTP-Client |
@@ -57,6 +57,29 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++ctrl+shift+f++ | Schalten Sie den Nur-Terminal-Vollbildmodus um |
 
 Die Zoom-Tasten (++ctrl++ oder ++alt++ mit ++plus++ / ++minus++ / ++0++; ++cmd++ auf macOS) vergrößern das Terminal nur, wenn ein Terminal-Tab ausgewählt ist. In einem Snippet-Editor oder Dateieditor-Tab erreichen sie den Editor, und ++alt-graph+plus++ tippt dort sein Zeichen.
+
+## Terminal
+
+Diese Tasten gelten, solange ein Terminalbereich den Tastaturfokus hat.
+
+| Verknüpfung | Aktion |
+| --- | --- |
+| ++ctrl+shift+c++ / ++ctrl+shift+v++ | Terminalauswahl kopieren / in das Terminal einfügen (Windows und Linux; ++cmd+c++ / ++cmd+v++ auf macOS) |
+| ++ctrl+l++ (Windows und Linux) | An die Shell gesendet: zeichnet den Bildschirm neu oder löscht den Bildschirm in bash, psql oder einer REPL, und der Scrollback bleibt erhalten |
+| ++ctrl+f++ (Windows und Linux) | An die Shell gesendet: bewegt den Cursor um ein Zeichen vorwärts bei einem Bash-Prompt und scrollt vorwärts in `less` oder `vim` |
+| ++cmd+k++ (macOS) | Puffer löschen: den Terminalbildschirm und seinen Scrollback leeren |
+| ++cmd+f++ (macOS) | Suchen im Terminal-Scrollback |
+
+Auf Windows und Linux haben **Puffer löschen** und **Suchen** keine eigenen Tasten, daher bleiben ++ctrl+l++ und ++ctrl+f++ bei den Programmen, die im Terminal laufen. Verwenden Sie Rechtsklick → **Puffer löschen** oder **Suchen** im Terminal, oder **Bearbeiten → Suchen…** mit der Maus. ++ctrl+shift+f++ bleibt **Nur korTTY Applikationsfenster**, und ++ctrl+shift+k++ dockt den Dateibrowser weiterhin links an.
+
+## SFTP-Manager
+
+Diese Tasten funktionieren in der lokalen und der entfernten Liste eines SFTP-Manager-Tabs; siehe [Tasten](../features/sftp.md#tasten).
+
+| Verknüpfung | Aktion |
+| --- | --- |
+| ++f2++ | Ausgewählten Eintrag umbenennen |
+| ++delete++ oder ++ctrl+backspace++ | Auswahl nach Bestätigung löschen |
 
 ## Snippet-Manager
 

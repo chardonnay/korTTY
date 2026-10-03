@@ -9,7 +9,13 @@ import jakarta.xml.bind.annotation.*;
 @XmlRootElement(name = "settings")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class ConnectionSettings {
-    
+
+    /** The selection colour a fresh settings object carries; anything else counts as customised. */
+    public static final String DEFAULT_SELECTION_COLOR = "#3399FF";
+
+    /** ANSI colours per variant: black, red, green, yellow, blue, magenta, cyan, white. */
+    public static final int ANSI_COLOR_COUNT = 8;
+
     @XmlElement
     private boolean useGlobalSettings = true;
     
@@ -29,7 +35,7 @@ public class ConnectionSettings {
     private String cursorColor = "#FFFFFF";
     
     @XmlElement
-    private String selectionColor = "#3399FF";
+    private String selectionColor = DEFAULT_SELECTION_COLOR;
 
     @XmlElement
     private String cursorStyle = "BLINK_BLOCK";
@@ -103,7 +109,18 @@ public class ConnectionSettings {
     private String ansiBrightCyan = "#00FFFF";
     @XmlElement
     private String ansiBrightWhite = "#FFFFFF";
-    
+
+    /**
+     * Whether the terminal draws the 16 ANSI colours above and the {@link #selectionColor} instead
+     * of its built-in look (the terminal widget's own palette and inverse-video selection). The
+     * Colors tab sets it whenever one of the 16 colours differs from the built-in palette or the
+     * selection colour differs from {@link #DEFAULT_SELECTION_COLOR}. Settings
+     * files from before this flag load as {@code false}: the pickers never saved until then, so the
+     * colour fields hold values nobody has ever seen in a terminal.
+     */
+    @XmlElement
+    private boolean ansiPaletteCustomized = false;
+
     public ConnectionSettings() {
     }
     
@@ -147,8 +164,23 @@ public class ConnectionSettings {
         this.ansiBrightMagenta = other.ansiBrightMagenta;
         this.ansiBrightCyan = other.ansiBrightCyan;
         this.ansiBrightWhite = other.ansiBrightWhite;
+        this.ansiPaletteCustomized = other.ansiPaletteCustomized;
     }
-    
+
+    /**
+     * Takes over what the terminal needs to draw colours like {@code other}: the 16 ANSI colours,
+     * {@link #isAnsiPaletteCustomized()}, the selection colour and bold-as-bright. Everything else
+     * (font, size, foreground, background, ...) stays as it is.
+     */
+    public void copyTerminalPaletteFrom(ConnectionSettings other) {
+        if (other == null) {
+            return;
+        }
+        copyAnsiColors(other);
+        this.selectionColor = other.selectionColor;
+        this.boldAsBright = other.boldAsBright;
+    }
+
     // Getters and Setters
     
     public boolean isUseGlobalSettings() {
@@ -330,7 +362,50 @@ public class ConnectionSettings {
             };
         }
     }
-    
+
+    /**
+     * Stores ANSI colour {@code index} (0–7: black, red, green, yellow, blue, magenta, cyan,
+     * white) in its normal or bright variant; the counterpart of {@link #getAnsiColor}.
+     *
+     * @throws IllegalArgumentException when {@code index} is outside 0–7
+     */
+    public void setAnsiColor(int index, boolean bright, String hex) {
+        if (bright) {
+            switch (index) {
+                case 0 -> ansiBrightBlack = hex;
+                case 1 -> ansiBrightRed = hex;
+                case 2 -> ansiBrightGreen = hex;
+                case 3 -> ansiBrightYellow = hex;
+                case 4 -> ansiBrightBlue = hex;
+                case 5 -> ansiBrightMagenta = hex;
+                case 6 -> ansiBrightCyan = hex;
+                case 7 -> ansiBrightWhite = hex;
+                default -> throw new IllegalArgumentException("ANSI color index out of range [0,7]: " + index);
+            }
+        } else {
+            switch (index) {
+                case 0 -> ansiBlack = hex;
+                case 1 -> ansiRed = hex;
+                case 2 -> ansiGreen = hex;
+                case 3 -> ansiYellow = hex;
+                case 4 -> ansiBlue = hex;
+                case 5 -> ansiMagenta = hex;
+                case 6 -> ansiCyan = hex;
+                case 7 -> ansiWhite = hex;
+                default -> throw new IllegalArgumentException("ANSI color index out of range [0,7]: " + index);
+            }
+        }
+    }
+
+    /** See the field: whether the stored ANSI colours and selection colour replace the built-in look. */
+    public boolean isAnsiPaletteCustomized() {
+        return ansiPaletteCustomized;
+    }
+
+    public void setAnsiPaletteCustomized(boolean ansiPaletteCustomized) {
+        this.ansiPaletteCustomized = ansiPaletteCustomized;
+    }
+
     // ANSI color getters and setters
     public String getAnsiBlack() { return ansiBlack; }
     public void setAnsiBlack(String ansiBlack) { this.ansiBlack = ansiBlack; }

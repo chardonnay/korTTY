@@ -27,11 +27,11 @@ Manage multiple SSH sessions with these tab operations:
 
 ## Connecting safely
 
-Interactive SSH terminals share host-key trust with SFTP and the SSH bootstrap used by Mosh. The first connection to a normalized host and port shows the key algorithm and OpenSSH SHA-256 fingerprint with **No** selected by default. After you verify and accept it, exact matches connect silently; a changed key is hard-blocked with no automatic retry. See [SSH host-key verification](connections.md#ssh-host-key-verification).
+Interactive SSH terminals share host-key trust with SFTP and the SSH bootstrap used by Mosh. The first connection to a normalized host and port shows the key algorithm and OpenSSH SHA-256 fingerprint with **No** selected by default. After you verify and accept it, exact matches connect silently; a changed key is hard-blocked with no automatic retry, and the alert offers **Review and Replace…** for a key you have verified with the server administrator. See [SSH host-key verification](connections.md#ssh-host-key-verification).
 
 Opening a same-server or newly selected connection in a split shows a progress dialog while the SSH handshake runs on a worker. The interface remains responsive for both the host-key confirmation and keyboard-interactive authentication prompts.
 
-Some failures are refused outright rather than retried, because repeating the attempt cannot change the outcome — a changed host key, a Mosh connection configured with a jump server, or a missing Mosh runtime. The terminal clears and shows the reason immediately instead of working through the retry count. See [Jump server](jump-server.md) for the Mosh restriction.
+Some failures are refused outright rather than retried, because repeating the attempt cannot change the outcome — a changed host key, an SSH key file that is missing or cannot be read, a jump server whose stored password cannot be used (for example while the vault is locked) or whose setup is incomplete, a Mosh connection configured with a jump server, or a missing Mosh runtime. The terminal clears and shows the reason immediately instead of working through the retry count. See [Jump server](jump-server.md#when-the-jump-server-cannot-be-used) for the jump-server cases and the Mosh restriction.
 
 KorTTY's pinned SithTermFX build also includes a reviewed bottom-row boundary fix: moving over a hyperlink or the final visible terminal row no longer asks `TerminalTextBuffer` for the non-existent row at `line == height`.
 
@@ -101,7 +101,7 @@ Besides SSH and Mosh, a terminal tab can host a **Local Shell** — the local ma
 - **Close confirmation** uses local-shell wording rather than "End SSH connection?", and the window-close prompt is transport-neutral ("Active sessions"), since one window can mix SSH, Mosh and local-shell tabs.
 - **The current directory follows the interactive shell.** On macOS and Linux, korTTY refreshes it from the local shell process; native PowerShell and cmd prompts supply absolute Windows paths. After `cd`, `pushd`, `popd`, or `Set-Location`, **Open in Snippet Editor** resolves a selected file name against that current directory instead of the tab's start directory. If the directory cannot be determined or mapped safely, korTTY stops with an error rather than opening a same-named file from the wrong directory.
 - **After an identity switch, Open in Snippet Editor is greyed out.** When the session no longer runs as the identity the tab was opened with — after `su`, an inner `ssh`, or a shell-opening `sudo` — the context-menu entry is disabled, in SSH tabs as well as local-shell tabs: the tab's tracked directories and file access still belong to the original login and would resolve the wrong path. The entry re-enables on its own once the prompt shows the original user again (typically after `exit`). A local-shell tab whose configured shell command is itself a remote client such as `ssh` or `mosh` keeps the entry disabled for the whole tab. If the load is triggered anyway, korTTY stops with an error instead of resolving the wrong path. The AI context-menu actions follow the same rule: they no longer offer to attach the selected file name's content (see [Attaching a selected file to the chat](ai-assistant.md#attaching-a-selected-file-to-the-chat)).
-- **Clipboard text is preserved in agent shortcuts.** Typed and pasted text travel through the same terminal-input filter, including bracketed paste and split UTF-8 input, so a pasted file name remains part of the `agent ...` request and Enter dispatches it exactly once.
+- **Clipboard text is preserved in agent shortcuts.** Typed and pasted text travel through the same terminal-input filter, including bracketed paste and split UTF-8 input, so a pasted file name remains part of the `agent ...` request and Enter dispatches it exactly once. In a connection with a single-byte [character encoding](connections.md#character-encoding) such as ISO-8859-1, every typed character is sent at once.
 
 ## Session journal
 
@@ -205,7 +205,7 @@ Terminal recording is designed as a low-resource replay feature. KorTTY records 
 1. To enable recording automatically after every app restart, open **Settings > Video** and enable **Enable terminal recording after app restart**.
 2. To enable recording only for this session, open **Tools > Video Manager...** and select **Enable terminal recording for this app session**.
 3. Set the **Storage path**. If left at the default, KorTTY uses `~/.kortty/recordings`.
-4. Choose the default format and default split scope. KorTTY replay is always available; video export requires `ffmpeg`.
+4. Choose the **Default scope** (active split or whole tab). Recordings are always KorTTY replay files; video export is a separate step and requires `ffmpeg`.
 5. Enable or disable **Auto-pause when the terminal is idle** and set the idle threshold (default: 20 seconds).
 6. Optional: enable **Capture terminal colors in new recordings** if exported videos should reproduce terminal colors.
 7. Optional: set the `ffmpeg` path and click **Check**. If `ffmpeg` is missing, video export stays disabled but replay files remain usable.

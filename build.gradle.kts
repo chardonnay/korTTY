@@ -3480,6 +3480,14 @@ tasks.register<JavaExec>("dialogHostTabSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("sftpManagerTabSmoke") {
+    group = "verification"
+    description = "Drives the SFTP manager tab against a loopback SFTP server: background listing, size sort, folder re-upload, wildcard search, rename and new folder, the drag-and-drop transfers, Disconnected and Reconnect, restore at saved folders."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SFTPManagerTabSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("uiFontScaleSmoke") {
     group = "verification"
     description = "Measures the computed font of a menu title, a label and a context-menu item " +
@@ -3892,6 +3900,22 @@ tasks.register<JavaExec>("firstRunSetupDialogSmoke") {
     description = "Builds the real first-run master-password dialog and asserts the anonymous-statistics box is pre-selected; snapshots build/smoke/first-run-setup-dialog.png."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.FirstRunSetupDialogSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("knownHostsDialogSmoke") {
+    group = "verification"
+    description = "Seeds a temporary host-key store, filters and removes an entry in the real Known Hosts dialog, checks the policy lock, and drives the changed-key review/replace confirmation; snapshots build/smoke/known-hosts-dialog.png and the host-key alerts."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.KnownHostsDialogSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("vaultUnlockDialogSmoke") {
+    group = "verification"
+    description = "Opens the mid-session vault-unlock dialog against a locked temp profile, enters a wrong and the right password and asserts the vault unlocks; snapshots build/smoke/vault-unlock-dialog.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.VaultUnlockDialogSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 

@@ -31,6 +31,29 @@ public final class RemotePathSupport {
         return base.endsWith("/") ? base + relative : base + "/" + relative;
     }
 
+    /**
+     * {@code remotePath} with {@code .}, {@code ..}, doubled and trailing slashes resolved by text,
+     * the way a shell's {@code cd} reads them; {@code ..} never climbs above {@code /}. A relative or
+     * {@code null} path comes back unchanged, since its base is not known here.
+     */
+    public static String normalizeAbsolutePath(String remotePath) {
+        if (remotePath == null || !remotePath.startsWith("/")) {
+            return remotePath;
+        }
+        java.util.ArrayDeque<String> parts = new java.util.ArrayDeque<>();
+        for (String part : remotePath.split("/")) {
+            if (part.isEmpty() || ".".equals(part)) {
+                continue;
+            }
+            if ("..".equals(part)) {
+                parts.pollLast();
+            } else {
+                parts.addLast(part);
+            }
+        }
+        return parts.isEmpty() ? "/" : "/" + String.join("/", parts);
+    }
+
     public static String parentRemotePath(String remotePath) {
         if (remotePath == null || remotePath.isBlank()) {
             return ".";

@@ -1,10 +1,14 @@
 package de.kortty.core;
 
 import de.kortty.model.Theme;
+import org.testng.SkipException;
 import org.testng.annotations.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFilePermissions;
 import static com.google.common.truth.Truth.assertThat;
 
 
@@ -77,6 +81,114 @@ class ThemeManagerTest {
             assertThat(manager.getTheme("default").orElseThrow().isBuiltIn()).isTrue();
         } finally {
             Files.deleteIfExists(dir.resolve("themes.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void corruptThemesFileIsQuarantinedBeforeDefaultsAreWritten() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-themes");
+        byte[] truncated = "<themeList><theme><id>custom</id><name>Ops".getBytes(StandardCharsets.UTF_8);
+        Path themesFile = Files.write(dir.resolve(ThemeManager.THEMES_FILE), truncated);
+        Path backup = null;
+        try {
+            ThemeManager manager = new ThemeManager(dir);
+            manager.load();
+
+            backup = manager.getLoadFailureBackup().orElseThrow();
+            assertThat(backup.getFileName().toString()).matches("themes\\.xml\\.corrupt-\\d{8}-\\d{6}");
+            // The user's bytes survive; the defaults went to a fresh file instead of over them.
+            assertThat(Files.readAllBytes(backup)).isEqualTo(truncated);
+            assertThat(manager.getTheme("default")).isPresent();
+            ThemeManager fresh = new ThemeManager(dir);
+            fresh.load();
+            assertThat(fresh.getTheme("default")).isPresent();
+            assertThat(fresh.getTheme("dark")).isPresent();
+            assertThat(fresh.getLoadFailureBackup()).isEmpty();
+
+            // korTTY loads the themes twice at startup; the second load must not hide the backup.
+            manager.load();
+            assertThat(manager.getLoadFailureBackup()).hasValue(backup);
+            assertThat(Files.readAllBytes(backup)).isEqualTo(truncated);
+            assertThat(Files.exists(themesFile)).isTrue();
+        } finally {
+            if (backup != null) {
+                Files.deleteIfExists(backup);
+            }
+            Files.deleteIfExists(dir.resolve("themes.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void themesFileThatCannotBeMovedAsideIsNotReplacedByTheDefaults() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-themes");
+        if (Files.getFileAttributeView(dir, PosixFileAttributeView.class) == null
+            || "root".equals(System.getProperty("user.name"))) {
+            Files.deleteIfExists(dir);
+            throw new SkipException("needs POSIX directory permissions to make the rename fail");
+        }
+        byte[] truncated = "<themeList><theme>".getBytes(StandardCharsets.UTF_8);
+        Path themesFile = Files.write(dir.resolve(ThemeManager.THEMES_FILE), truncated);
+        try {
+            Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("r-x------"));
+            ThemeManager manager = new ThemeManager(dir);
+            manager.load();
+
+            // The built-ins are usable in memory, but nothing was written over the file.
+            assertThat(manager.getTheme("default")).isPresent();
+            assertThat(manager.isSaveBlocked()).isTrue();
+            assertThat(manager.getLoadFailureBackup()).isEmpty();
+            Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rwx------"));
+            // The directory is writable again, so only the block keeps an edit from replacing it.
+            Theme custom = new Theme();
+            custom.setName("Ops Custom");
+            manager.addTheme(custom);
+            assertThat(Files.readAllBytes(themesFile)).isEqualTo(truncated);
+            try (var siblings = Files.list(dir)) {
+                assertThat(siblings.map(p -> p.getFileName().toString()).toList()).containsExactly("themes.xml");
+            }
+        } finally {
+            Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rwx------"));
+            Files.deleteIfExists(themesFile);
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void themesFileWhoseExistenceCannotBeCheckedIsNotReplacedByTheDefaults() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-themes");
+        if (Files.getFileAttributeView(dir, PosixFileAttributeView.class) == null
+            || "root".equals(System.getProperty("user.name"))) {
+            Files.deleteIfExists(dir);
+            throw new SkipException("needs POSIX directory permissions to hide the file");
+        }
+        Path themesFile = dir.resolve(ThemeManager.THEMES_FILE);
+        try {
+            ThemeManager writer = new ThemeManager(dir);
+            writer.load();
+            Theme custom = new Theme();
+            custom.setName("Ops Custom");
+            writer.addTheme(custom);
+            byte[] withCustomTheme = Files.readAllBytes(themesFile);
+
+            // The directory cannot be searched during the load (a network home directory that is
+            // briefly unreachable): the file is not missing, so no defaults are written over it.
+            ThemeManager manager = new ThemeManager(dir);
+            Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rw-------"));
+            try {
+                manager.load();
+            } finally {
+                Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rwx------"));
+            }
+
+            assertThat(manager.getTheme("default")).isPresent();
+            assertThat(manager.isSaveBlocked()).isTrue();
+            manager.addTheme(new Theme());
+            assertThat(Files.readAllBytes(themesFile)).isEqualTo(withCustomTheme);
+        } finally {
+            Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rwx------"));
+            Files.deleteIfExists(themesFile);
             Files.deleteIfExists(dir);
         }
     }

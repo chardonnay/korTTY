@@ -2,8 +2,8 @@ package de.kortty.core;
 
 import de.kortty.model.GPGKey;
 import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
-import jakarta.xml.bind.Unmarshaller;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;
@@ -11,6 +11,8 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -23,29 +25,48 @@ import java.util.Optional;
 public class GPGKeyManager {
     
     private static final Logger logger = LoggerFactory.getLogger(GPGKeyManager.class);
-    private static final String GPG_KEYS_FILE = "gpg-keys.xml";
+    public static final String GPG_KEYS_FILE = "gpg-keys.xml";
+    
+    /** Shared, thread-safe JAXBContext; building one per load and save is the expensive part. */
+    private static final JAXBContext JAXB_CONTEXT;
+    static {
+        try {
+            JAXB_CONTEXT = JAXBContext.newInstance(GPGKeysWrapper.class, GPGKey.class);
+        } catch (JAXBException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
     
     private final Path configDir;
     private final List<GPGKey> keys = new ArrayList<>();
+    private final StoreFileGuard guard;
     
     public GPGKeyManager(Path configDir) {
         this.configDir = configDir;
+        this.guard = new StoreFileGuard(configDir.resolve(GPG_KEYS_FILE));
     }
     
     /**
-     * Loads GPG keys from configuration file
+     * Loads GPG keys from configuration file. A corrupt file is moved aside (see
+     * {@link #getLoadFailureBackup()}) and the keys in memory are kept. When the file cannot be
+     * read or moved aside this throws, and {@link #save()} refuses to write over it.
      */
     public void load() throws Exception {
-        Path file = configDir.resolve(GPG_KEYS_FILE);
-        if (!Files.exists(file)) {
+        Path file = guard.file();
+        guard.beginLoad();
+        if (guard.isMissing()) {
             logger.info("No GPG keys file found, starting with empty list");
             return;
         }
         
         try {
-            JAXBContext context = JAXBContext.newInstance(GPGKeysWrapper.class, GPGKey.class);
-            Unmarshaller unmarshaller = context.createUnmarshaller();
-            GPGKeysWrapper wrapper = (GPGKeysWrapper) unmarshaller.unmarshal(file.toFile());
+            Optional<GPGKeysWrapper> loaded = guard.read(content ->
+                (GPGKeysWrapper) JAXB_CONTEXT.createUnmarshaller().unmarshal(new ByteArrayInputStream(content)));
+            if (loaded.isEmpty()) {
+                logger.warn("Kept {} GPG keys in memory; the unreadable GPG keys file was moved aside", keys.size());
+                return;
+            }
+            GPGKeysWrapper wrapper = loaded.get();
             
             keys.clear();
             if (wrapper.getKeys() != null) {
@@ -60,27 +81,42 @@ public class GPGKeyManager {
     }
     
     /**
-     * Saves GPG keys to configuration file
+     * Saves GPG keys to configuration file atomically. The file only holds public-key metadata,
+     * so it keeps its permissions.
+     *
+     * @throws IllegalStateException when the last load could not read the file and left it in place
      */
     public void save() throws Exception {
-        Path file = configDir.resolve(GPG_KEYS_FILE);
+        Path file = guard.file();
         
         try {
+            guard.ensureWritable();
             GPGKeysWrapper wrapper = new GPGKeysWrapper();
             wrapper.setKeys(new ArrayList<>(keys));
             
-            JAXBContext context = JAXBContext.newInstance(GPGKeysWrapper.class, GPGKey.class);
-            Marshaller marshaller = context.createMarshaller();
+            Marshaller marshaller = JAXB_CONTEXT.createMarshaller();
             marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
+            StringWriter xml = new StringWriter();
+            marshaller.marshal(wrapper, xml);
             
             Files.createDirectories(configDir);
-            marshaller.marshal(wrapper, file.toFile());
+            AtomicFileWriter.writeStoreAtomically(file, xml.toString(), AtomicFileWriter.FileMode.PRESERVE);
             
             logger.info("Saved {} GPG keys to {}", keys.size(), file);
         } catch (Exception e) {
             logger.error("Failed to save GPG keys to " + file, e);
             throw e;
         }
+    }
+
+    /** Where the last load moved an unreadable {@code gpg-keys.xml}, if it did. */
+    public Optional<Path> getLoadFailureBackup() {
+        return guard.getLoadFailureBackup();
+    }
+
+    /** Whether saving is refused because {@code gpg-keys.xml} could not be read. */
+    public boolean isSaveBlocked() {
+        return guard.isSaveBlocked();
     }
     
     /**

@@ -14,6 +14,7 @@ Terminal recording saves session data into compressed JSONL replay files, one pe
 - **Legacy format**: `.korttyrec.jsonl` files remain readable (uncompressed)
 - **Default storage**: `~/.kortty/recordings`
 - **Content**: Screen-state changes, timing events, and optional color runs
+- **Video**: Never recorded directly; WebM/VP9 and MKV/FFV1 files come only from [exporting a replay](#exporting-videos)
 
 !!! note
     Recordings do not continuously capture pixels and do not stream over the network. File size depends on activity level and whether color capture is enabled.
@@ -41,8 +42,7 @@ In **Tools > Video Manager**, set these options:
 | Option | Description |
 |--------|-------------|
 | **Storage path** | Directory where replay files are saved (default: `~/.kortty/recordings`) |
-| **Default format** | KorTTY replay format for new recordings |
-| **Default split scope** | Record active split only or entire tab |
+| **Default scope** | Record active split only or entire tab |
 | **Auto-pause on idle** | Pause recording when terminal is inactive |
 | **Idle threshold** | Seconds of inactivity before pause (default: 20) |
 | **Capture colors** | Include per-cell terminal style runs in new recordings |

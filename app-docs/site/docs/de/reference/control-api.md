@@ -93,6 +93,10 @@ Jeder Parameter namens `pane` akzeptiert auch eine reine Tab-Kennung – gemeint
 
 `pane.wait_output` blockiert, bis ein regulärer Ausdruck oder eine Zeichenkette erscheint, und fragt den Bereich dafür regelmäßig ab. Ausgabe, die innerhalb eines Abfrageintervalls erscheint und wieder weggescrollt wird, kann im Modus `visible` übersehen werden; der Standardmodus `recent` durchsucht auch den Scrollback und hat diese Lücke nicht.
 
+### In einen Bereich tippen
+
+`pane.send_text`, `pane.run` und die einzelbuchstabigen Tasten von `pane.send_keys` werden in der [Zeichenkodierung](../features/connections.md#zeichenkodierung) des Bereichs kodiert, sodass sie als die gleichen Bytes ankommen, wie die Tastendrücke erzeugen würden: ein SSH-Paneel, das auf ISO-8859-1 eingestellt ist, erhält `é` als einzelnes Byte `E9`, nicht als UTF-8. Ein Zeichen, das diese Kodierung nicht darstellen kann, wird als `?` gesendet. Die `agent.*`-Methoden senden immer UTF-8, was die Coding Agents lesen.
+
 ### Teilen
 
 `pane.split` funktioniert **nur** bei einem Bereich, dessen Tab eine lokale Shell ist. Alles andere wird mit `unsupported` abgelehnt. Die neue Shell startet ohne jeden Dialog, damit ein Skript nie auf ein Fenster wartet, das es nicht sehen kann; ein Split, der eine neue Verbindung bräuchte, braucht einen Menschen und wird nicht angeboten.

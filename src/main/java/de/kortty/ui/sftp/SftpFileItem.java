@@ -74,6 +74,38 @@ public class SftpFileItem {
         );
     }
 
+    /**
+     * Like {@link #fromDetails(String, String, boolean, String, String, String, String, String)}, but
+     * with the real byte count, so sorting never depends on re-parsing the locale-formatted size
+     * label (a German "9,5 KB" would otherwise be read as 95 KB).
+     *
+     * @param sizeBytes the size in bytes; {@code -1} for a directory
+     */
+    public static SftpFileItem fromDetails(
+            String name,
+            String path,
+            boolean file,
+            String size,
+            String date,
+            String permissions,
+            String owner,
+            String group,
+            long sizeBytes
+    ) {
+        return new SftpFileItem(
+                name,
+                path,
+                file,
+                size,
+                date,
+                permissions,
+                owner,
+                group,
+                sizeBytes,
+                "..".equals(name)
+        );
+    }
+
     public static SftpFileItem parent(String path) {
         return new SftpFileItem("..", path, false, "", "", "", "", "", Long.MIN_VALUE, true);
     }

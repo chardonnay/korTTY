@@ -38,6 +38,7 @@ import de.kortty.core.TerminalRecordingScreenSnapshot;
 import de.kortty.core.TerminalRecordingSession;
 import de.kortty.core.TerminalRecordingStyleRun;
 import de.kortty.core.TerminalColorControlSequenceFilter;
+import de.kortty.core.TerminalPaletteSupport;
 import de.kortty.model.AiProfile;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ConnectionSettings;
@@ -2031,8 +2032,11 @@ public class TerminalView extends BorderPane {
     private static List<TerminalRecordingStyleRun> captureTerminalStyleRuns(
         com.sithtermfx.core.model.TerminalTextBuffer textBuffer,
         ConnectionSettings settings) {
+        // The palette the live terminal draws (built-in until customised), so recordings match the screen.
         return de.kortty.core.TerminalScreenRenderer.styleRuns(textBuffer, settings != null
-            ? new de.kortty.core.TerminalScreenRenderer.Palette(settings::getAnsiColor, settings.isBoldAsBright())
+            ? new de.kortty.core.TerminalScreenRenderer.Palette(
+                (index, bright) -> TerminalPaletteSupport.effectiveHex(settings, index, bright),
+                settings.isBoldAsBright())
             : de.kortty.core.TerminalScreenRenderer.Palette.DEFAULT);
     }
 
@@ -2123,7 +2127,8 @@ public class TerminalView extends BorderPane {
                 isTerminalAgentCommandNameCaseInsensitive()),
             rawCommand -> shouldInterceptFilteredAgentShortcut(widget, rawCommand),
             rawCommand -> dispatchFilteredTerminalAgentShortcut(widget, rawCommand),
-            this::forwardJournalInputLine);
+            this::forwardJournalInputLine,
+            observableConnector.getCharset());
         terminalAgentShortcutInputFilters.put(
             observableConnector,
             new TerminalAgentShortcutInputFilterRegistration(widget, inputFilter));
@@ -2437,20 +2442,41 @@ public class TerminalView extends BorderPane {
         } else if (targetConnection.getProtocol() == ConnectionProtocol.LOCAL_SHELL) {
             connector = new LocalShellTtyConnector(targetConnection);
         } else {
-            SshTtyConnector sshConnector = new SshTtyConnector(targetConnection, targetPassword);
-            if (targetConnection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
-                de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
-                if (app != null && app.getSSHKeyManager() != null) {
-                    sshConnector.setSSHKeyManager(
-                            app.getSSHKeyManager(),
-                            app.getMasterPasswordManager().getMasterPassword()
-                    );
-                }
-            }
+            de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+            SshTtyConnector sshConnector = sshConnectorWithVault(targetConnection, targetPassword,
+                    app != null ? app.getSSHKeyManager() : null, masterPasswordOf(app));
             sshConnector.setAccessReasonMemory(accessReasonMemory);
+            // The user opened this tab and sees its dialogs, so a changed host key may be reviewed
+            // and replaced here; background connections keep the plain warning.
+            sshConnector.setHostKeyReplacePolicy(de.kortty.core.SshHostKeyTrustManager.ReplacePolicy.INTERACTIVE);
             connector = sshConnector;
         }
         return connector;
+    }
+
+    /**
+     * Builds the SSH terminal connector for {@code target} and hands it the vault, whatever the
+     * target's own authentication: a jump server's stored password is decrypted with the master
+     * password, so a password or keyboard-interactive target needs it as much as a key-based one.
+     * Only a {@code PUBLIC_KEY} target keeps the key manager. A new connector is built for every
+     * attempt, so a reconnect after unlocking the vault picks the master password up.
+     */
+    static SshTtyConnector sshConnectorWithVault(
+            ServerConnection target,
+            String password,
+            de.kortty.core.SSHKeyManager keyManager,
+            char[] masterPassword) {
+        SshTtyConnector connector = new SshTtyConnector(target, password);
+        connector.configureVault(keyManager, masterPassword);
+        return connector;
+    }
+
+    /** The open vault's master password, or {@code null} while it is locked or not set up. */
+    private static char[] masterPasswordOf(de.kortty.KorTTYApplication app) {
+        if (app == null || app.getMasterPasswordManager() == null) {
+            return null;
+        }
+        return app.getMasterPasswordManager().getMasterPassword();
     }
 
     private boolean connectConnector(TtyConnector connector) throws Exception {
@@ -3030,6 +3056,11 @@ public class TerminalView extends BorderPane {
             panel.selectedTextProperty().addListener((obs, oldVal, newVal) -> {
                 if (isTerminalCopyOnSelectEnabled() && newVal != null && !newVal.isEmpty()) {
                     panel.handleCopy(false, false);
+                    if (shouldMirrorToPrimarySelection(com.sithtermfx.core.util.Platform.current())) {
+                        // X11: middle-click pastes PRIMARY, so the selection must land there too.
+                        // PolicyAwareCopyPasteHandler keeps the internal-clipboard mode sealed.
+                        panel.handleCopy(false, true);
+                    }
                 }
             });
         }
@@ -3177,6 +3208,18 @@ public class TerminalView extends BorderPane {
         }
         PasteTracking tracking = codingAgentPasteTrackers.get(widget);
         return tracking != null && tracking.tracker().isEnabled();
+    }
+
+    /**
+     * The character encoding the pane's connector types text in (see
+     * {@link de.kortty.core.TerminalEncodingSupport}); UTF-8 without a pane or for a connector that
+     * does not resolve one.
+     */
+    public java.nio.charset.Charset connectorCharset(SithTermFxWidget widget) {
+        TtyConnector connector = widget != null ? unwrapTerminalEffectConnector(widget.getTtyConnector()) : null;
+        return connector instanceof ObservableTtyConnector observable && observable.getCharset() != null
+            ? observable.getCharset()
+            : StandardCharsets.UTF_8;
     }
 
     /**
@@ -5568,6 +5611,18 @@ public class TerminalView extends BorderPane {
 
                     clearTerminal();
                     showMessage(e.getMessage());
+                } catch (SshTtyConnector.ConnectionConfigurationException e) {
+                    // The connection's own setup cannot work (e.g. the jump server password needs
+                    // the locked vault): retrying cannot change the outcome. Must precede the
+                    // AuthenticationException catch, which it extends.
+                    configurationRefused = true;
+                    lastError = e.getMessage();
+                    // Host/port only, for the CodeQL reason given at the IllegalStateException branch.
+                    logger.error("Connection setup unusable for {}:{} - NOT retrying: {}",
+                            connection.getHost(), connection.getPort(), e.getMessage());
+
+                    clearTerminal();
+                    showMessage(e.getMessage());
                 } catch (SshTtyConnector.AuthenticationException e) {
                     // Authentication failed - do NOT retry
                     authenticationFailed = true;
@@ -5675,6 +5730,14 @@ public class TerminalView extends BorderPane {
         }
         redactor.setReplacements(de.kortty.core.SessionJournalService.policyReplacements());
         return redactor;
+    }
+
+    /**
+     * A fresh redactor with this tab's known secrets — the same one captured output gets — for
+     * masking terminal text before it leaves for an AI profile. The password itself stays private.
+     */
+    public de.kortty.core.SessionJournalRedactor createSecretRedactor() {
+        return buildCaptureRedactor();
     }
 
     private void startLogger() {
@@ -6534,6 +6597,10 @@ public class TerminalView extends BorderPane {
         settings.setCursorColor(effective.getCursorColor());
         settings.setCursorStyle(effective.getCursorStyle());
         settings.setTerminalColorsEnabled(effective.isTerminalColorsEnabled());
+        // ANSI palette, selection colour and bold-as-bright (recordings): every pane provider reads this
+        // settings object, but caches the resolved palette, so refresh them before the repaint below.
+        settings.copyTerminalPaletteFrom(effective);
+        refreshPanePalettes();
         sharedFontSource.setFontSize(size);
 
         if (splitPane != null) {
@@ -6565,6 +6632,15 @@ public class TerminalView extends BorderPane {
         logger.debug("Applied connection settings: {} {}pt", family, size);
         // Effect panes keep their per-pane override (resolved in applyStyleStateColors / getTerminalFont),
         // so applying connection settings tab-wide never overwrites a pane that is running an effect.
+    }
+
+    /** Lets every pane re-read the ANSI palette and selection colour from {@link #settings}. */
+    private void refreshPanePalettes() {
+        paneProviders.values().forEach(KorTTYSettingsProvider::refreshPalette);
+        // The single-terminal fallback has no split pane that would have registered its provider.
+        if (terminalWidget != null && terminalWidget.getSettingsProvider() instanceof KorTTYSettingsProvider provider) {
+            provider.refreshPalette();
+        }
     }
 
     private boolean isThemeFontApplyEnabled() {
@@ -7095,8 +7171,50 @@ public class TerminalView extends BorderPane {
         }
     }
 
+    /**
+     * Key binding of the terminal's own "Clear Buffer" action. On macOS it stays the vendor's
+     * Cmd+K. On Windows/Linux the vendor binds it to Ctrl+L and consumes the key before the shell
+     * sees it, so bash/psql/REPLs never get their ^L (redraw/clear screen) and the local scrollback
+     * is wiped instead. There it has no key binding at all, so Ctrl+L reaches the shell; the action
+     * stays reachable via the terminal's context menu. No Ctrl+Shift+K fallback: MainWindow already
+     * owns SHORTCUT+SHIFT+K (file browser left dock), and a canvas action would shadow it.
+     */
+    static com.sithtermfx.ui.TerminalActionPresentation clearBufferActionPresentation(boolean macOs) {
+        String name = I18n.get("terminal.contextMenu.clearBuffer");
+        if (macOs) {
+            return new com.sithtermfx.ui.TerminalActionPresentation(name,
+                    new javafx.scene.input.KeyCodeCombination(KeyCode.K, javafx.scene.input.KeyCombination.META_DOWN));
+        }
+        return new com.sithtermfx.ui.TerminalActionPresentation(name, Collections.emptyList());
+    }
+
+    /**
+     * Key binding of the terminal's own "Find" action. On macOS it stays the vendor's Cmd+F. On
+     * Windows/Linux the vendor binds Ctrl+F, which steals readline's forward-char and less/vim's
+     * page-forward from the shell, so there it has no key binding and ^F goes to the shell; Find
+     * stays reachable via the terminal's context menu and Edit &gt; Find. No Ctrl+Shift+F fallback:
+     * that is MainWindow's terminal-only fullscreen accelerator.
+     */
+    static com.sithtermfx.ui.TerminalActionPresentation findActionPresentation(boolean macOs) {
+        String name = I18n.get("terminal.contextMenu.find");
+        if (macOs) {
+            return new com.sithtermfx.ui.TerminalActionPresentation(name,
+                    new javafx.scene.input.KeyCodeCombination(KeyCode.F, javafx.scene.input.KeyCombination.META_DOWN));
+        }
+        return new com.sithtermfx.ui.TerminalActionPresentation(name, Collections.emptyList());
+    }
+
+    /**
+     * Whether copy-on-select also writes the X11 PRIMARY selection, so that a middle-click pastes
+     * the terminal selection in other applications (the X11 convention). Only Linux has one; on
+     * other platforms the vendor copy handler would fall back to the regular clipboard.
+     */
+    static boolean shouldMirrorToPrimarySelection(com.sithtermfx.core.util.Platform platform) {
+        return platform == com.sithtermfx.core.util.Platform.Linux;
+    }
+
     private static class KorTTYSettingsProvider extends DynamicFontSizeSettingsProvider {
-        
+
         private final ConnectionSettings settings;
         // Single tab-wide font size. May be null during super() construction (guarded below).
         private final DynamicFontSizeSettingsProvider sharedFontSource;
@@ -7104,6 +7222,17 @@ public class TerminalView extends BorderPane {
         private final java.util.function.IntSupplier backgroundTransparencySupplier;
         // Per-pane appearance override contributed by an active effect; null = inherit the baseline settings.
         private volatile PaneAppearanceOverride override;
+        // ANSI palette + selection resolved from the settings. Cached because the vendor asks for the
+        // palette once per drawn cell (TerminalPanel.getPalette); null until the constructor body ran.
+        private volatile PaletteColors paletteColors;
+
+        /**
+         * What {@link #refreshPalette()} resolved: {@code customized == false} keeps the built-in palette
+         * and inverse-video selection; a null {@code selection} falls back to the vendor default colour.
+         */
+        private record PaletteColors(boolean customized, com.sithtermfx.core.emulator.ColorPalette palette,
+                                     TextStyle selection) {
+        }
 
         public KorTTYSettingsProvider(ConnectionSettings settings, DynamicFontSizeSettingsProvider sharedFontSource,
                                       java.util.function.IntSupplier backgroundTransparencySupplier) {
@@ -7111,6 +7240,19 @@ public class TerminalView extends BorderPane {
             this.settings = settings;
             this.sharedFontSource = sharedFontSource;
             this.backgroundTransparencySupplier = backgroundTransparencySupplier;
+            refreshPalette();
+        }
+
+        /** Re-reads the ANSI palette and the selection colour; call after they changed in the settings. */
+        void refreshPalette() {
+            ConnectionSettings s = settings;
+            if (s == null || !s.isAnsiPaletteCustomized()) {
+                paletteColors = new PaletteColors(false, null, null);
+                return;
+            }
+            paletteColors = new PaletteColors(true,
+                    TerminalPaletteSupport.toColorPalette(s),
+                    TerminalPaletteSupport.selectionStyle(s.getSelectionColor()));
         }
 
         void setOverride(PaneAppearanceOverride override) {
@@ -7250,6 +7392,17 @@ public class TerminalView extends BorderPane {
             return false; // Disable bell sound!
         }
 
+        // On Windows/Linux Ctrl+L and Ctrl+F belong to the shell; see clearBufferActionPresentation.
+        @Override
+        public @NotNull com.sithtermfx.ui.TerminalActionPresentation getClearBufferActionPresentation() {
+            return clearBufferActionPresentation(com.sithtermfx.core.util.Platform.isMacOS());
+        }
+
+        @Override
+        public @NotNull com.sithtermfx.ui.TerminalActionPresentation getFindActionPresentation() {
+            return findActionPresentation(com.sithtermfx.core.util.Platform.isMacOS());
+        }
+
         @Override
         public int caretBlinkingMs() {
             PaneAppearanceOverride o = override;
@@ -7279,11 +7432,26 @@ public class TerminalView extends BorderPane {
             return false;
         }
         
+        // ---- Colors tab: untouched settings keep the built-in palette and inverse-video selection, so
+        // nothing changes for anyone who never customised them (ConnectionSettings.ansiPaletteCustomized). ----
+        @Override
+        public com.sithtermfx.core.emulator.ColorPalette getTerminalColorPalette() {
+            PaletteColors colors = paletteColors;
+            return colors != null && colors.palette() != null ? colors.palette() : super.getTerminalColorPalette();
+        }
+
+        @Override
+        public @NotNull TextStyle getSelectionColor() {
+            PaletteColors colors = paletteColors;
+            return colors != null && colors.selection() != null ? colors.selection() : super.getSelectionColor();
+        }
+
         @Override
         public boolean useInverseSelectionColor() {
-            return true;
+            PaletteColors colors = paletteColors;
+            return colors == null || !colors.customized();
         }
-        
+
         @Override
         public int getBufferMaxLinesCount() {
             // Honors the connection's scrollback setting (Settings > Terminal); the widget reads
