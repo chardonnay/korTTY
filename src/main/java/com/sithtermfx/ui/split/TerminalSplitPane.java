@@ -36,6 +36,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import de.kortty.ui.I18n;
+import de.kortty.ui.MirroredInputWriter;
 import de.kortty.ui.TerminalNavigationKeys;
 import de.kortty.ui.TerminalPaneActions;
 import org.jetbrains.annotations.NotNull;
@@ -190,7 +191,8 @@ public class TerminalSplitPane extends StackPane {
     }
     
     /**
-     * Broadcasts input to all OTHER widgets (not the source widget).
+     * Broadcasts input to all OTHER widgets (not the source widget). The writes are queued on
+     * {@link MirroredInputWriter}, so a pane whose connection stalls never blocks the FX thread.
      */
     private void broadcastToOthers(@NotNull SithTermFxWidget sourceWidget, @NotNull String data) {
         if (!broadcastMode) return;
@@ -200,11 +202,7 @@ public class TerminalSplitPane extends StackPane {
             if (widget != sourceWidget) {
                 TtyConnector connector = widget.getTtyConnector();
                 if (connector != null && connector.isConnected()) {
-                    try {
-                        connector.write(data);
-                    } catch (IOException e) {
-                        logger.debug("Failed to broadcast to widget: {}", e.getMessage());
-                    }
+                    MirroredInputWriter.shared().write(connector, data);
                 }
             }
         }
@@ -213,9 +211,11 @@ public class TerminalSplitPane extends StackPane {
     /**
      * Broadcasts input that each pane encodes for itself, e.g. an arrow key that one pane's
      * application wants as {@code ESC O A} and another's as {@code ESC [ A}. A pane for which
-     * {@code bytesFor} returns {@code null} gets nothing. Written synchronously, like the typed
-     * characters of {@link #broadcastToOthers(SithTermFxWidget, String)}, so every pane receives
-     * keys and characters in the order they were pressed.
+     * {@code bytesFor} returns {@code null} gets nothing. The bytes are encoded here on the FX
+     * thread, from each pane's state at the moment of the key press, and then queued on
+     * {@link MirroredInputWriter} in the same per-pane queue as the typed characters of
+     * {@link #broadcastToOthers(SithTermFxWidget, String)}, so every pane receives keys and
+     * characters in the order they were pressed.
      */
     private void broadcastToOthers(@NotNull SithTermFxWidget sourceWidget,
                                    @NotNull Function<SithTermFxWidget, byte[]> bytesFor) {
@@ -233,11 +233,7 @@ public class TerminalSplitPane extends StackPane {
             if (bytes == null) {
                 continue;
             }
-            try {
-                connector.write(bytes);
-            } catch (IOException e) {
-                logger.debug("Failed to broadcast to widget: {}", e.getMessage());
-            }
+            MirroredInputWriter.shared().write(connector, bytes);
         }
     }
 
