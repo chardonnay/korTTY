@@ -74,6 +74,8 @@ Programs can print clickable links into the terminal with the OSC 8 escape seque
 
 Every other link stays plain text and does nothing when clicked: `file:` links such as the ones `ls --hyperlink` and `eza --hyperlink` put on file names, `news:`, `javascript:` and `data:` links, `mailto` links with any other field (some mail programs attach the local file an `attach` field names), and links that contain spaces, control characters or invisible direction-changing (bidi) characters or are longer than 8 KB. Whatever prints a link chooses where it points — a server, a log file you `cat`, a program's output — so KorTTY never passes a link to the operating system's file opener, which would start programs and scripts.
 
+Linked text is drawn in the colors the program chose for it, not in the terminal's default text color, and is underlined while the mouse is over it. Two limits remain on screen: a color change in the middle of a link is ignored, and bold, italic and inverse video are not shown on linked text. [Terminal recordings](recording.md) keep the bold and inverse video of linked text.
+
 ## Font size and zoom
 
 Adjust the font size of the active terminal on the fly without reconnecting:

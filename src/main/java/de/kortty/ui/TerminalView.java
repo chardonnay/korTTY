@@ -7710,6 +7710,24 @@ public class TerminalView extends BorderPane {
             return false; // Disable bell sound!
         }
 
+        /**
+         * OSC 8 link text keeps the colours the program gave it. Every OSC 8 cell carries a
+         * {@code HyperlinkStyle} whose custom style is the text's own colours; the vendor default
+         * ({@code HOVER_WITH_BOTH_COLORS}) drew a link that is not hovered with the bare link style,
+         * which has no colours, so coloured link text showed in the default colour until hovered.
+         * In this mode the custom style is always drawn and only underlined on hover.
+         *
+         * <p>korTTY registers no vendor link filter on any widget, and must not: in this mode the
+         * vendor's filter path overwrites every matched cell, OSC 8 links included, with a new link
+         * style in the vendor's link colour (blue on white), so the text loses its own colours
+         * (NoHyperlinkFilterGuardTest). Links in plain text are to be found on demand with
+         * {@code TerminalLinkDetector}, never through a filter.
+         */
+        @Override
+        public com.sithtermfx.core.HyperlinkStyle.HighlightMode getHyperlinkHighlightingMode() {
+            return com.sithtermfx.core.HyperlinkStyle.HighlightMode.HOVER_WITH_CUSTOM_COLOR;
+        }
+
         // On Windows/Linux Ctrl+L and Ctrl+F belong to the shell; see clearBufferActionPresentation.
         @Override
         public @NotNull com.sithtermfx.ui.TerminalActionPresentation getClearBufferActionPresentation() {

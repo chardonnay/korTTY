@@ -324,6 +324,7 @@ pages:
       - src/main/java/de/kortty/core/TerminalRecordingStyleRun.java
       - src/main/java/de/kortty/core/TerminalRecordingTimeJumpParser.java
       - src/main/java/de/kortty/core/TerminalRecordingTimeRange.java
+      - src/main/java/de/kortty/core/TerminalScreenRenderer.java
       - src/main/java/de/kortty/model/TerminalRecordingFormat.java
       - src/main/java/de/kortty/model/TerminalRecordingScope.java
       - src/main/java/de/kortty/ui/TerminalRecordingManagerDialog.java
