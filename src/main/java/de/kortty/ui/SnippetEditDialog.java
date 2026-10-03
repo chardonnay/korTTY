@@ -392,6 +392,11 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         boolean run(Snippet draft) throws Exception;
     }
 
+    /**
+     * The file actions of a dialog that edits an external file. A {@code null} overwrite or save-as
+     * action keeps that button visible but locked; {@code lockedReason} says why in its tooltip
+     * ({@code null}: the enterprise policy's read-only mode).
+     */
     public record ExternalFileActionConfig(
         String sourceLabel,
         String overwriteLabel,
@@ -402,7 +407,24 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         String saveAsSnippetSuccessMessage,
         ExternalFileAction overwriteAction,
         ExternalFileAction saveAsAction,
-        ExternalFileAction saveAsSnippetAction) {
+        ExternalFileAction saveAsSnippetAction,
+        String lockedReason) {
+
+        public ExternalFileActionConfig(
+            String sourceLabel,
+            String overwriteLabel,
+            String saveAsLabel,
+            String saveAsSnippetLabel,
+            String overwriteSuccessMessage,
+            String saveAsSuccessMessage,
+            String saveAsSnippetSuccessMessage,
+            ExternalFileAction overwriteAction,
+            ExternalFileAction saveAsAction,
+            ExternalFileAction saveAsSnippetAction) {
+            this(sourceLabel, overwriteLabel, saveAsLabel, saveAsSnippetLabel, overwriteSuccessMessage,
+                saveAsSuccessMessage, saveAsSnippetSuccessMessage, overwriteAction, saveAsAction,
+                saveAsSnippetAction, null);
+        }
     }
 
     @FunctionalInterface
@@ -2256,10 +2278,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             return;
         }
         if (action == null) {
-            // No action supplied — currently only the enterprise policy's read-only mode for
-            // remote write-back. Keep the button visible but locked, so the restriction is evident.
+            // No action supplied: the enterprise policy's read-only mode for remote write-back, or
+            // a file opened from an OSC 8 link in terminal output. Keep the button visible but
+            // locked, so the restriction is evident.
             button.setDisable(true);
-            button.setTooltip(new Tooltip(I18n.get("policy.terminal.loadReadOnly")));
+            String lockedReason = externalFileActionConfig.lockedReason();
+            button.setTooltip(new Tooltip(lockedReason != null ? lockedReason : I18n.get("policy.terminal.loadReadOnly")));
             return;
         }
         button.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
@@ -2330,11 +2354,12 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             return;
         }
         boolean disable = externalFileActionRunning || !isSnippetFormValid();
+        // A button without an action stays locked (configureExternalFileActionButton).
         if (overwriteFileButton != null) {
-            overwriteFileButton.setDisable(disable);
+            overwriteFileButton.setDisable(disable || externalFileActionConfig.overwriteAction() == null);
         }
         if (saveFileAsButton != null) {
-            saveFileAsButton.setDisable(disable);
+            saveFileAsButton.setDisable(disable || externalFileActionConfig.saveAsAction() == null);
         }
         if (saveAsSnippetButton != null) {
             saveAsSnippetButton.setDisable(disable);

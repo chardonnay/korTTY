@@ -32,6 +32,7 @@ Connection entries (Quick Connect, Manage/Import/Export Connections) live in the
 | Copy | ++ctrl+c++ | Copy the terminal selection |
 | Paste | ++ctrl+v++ | Paste into the terminal |
 | Find… | ++ctrl+f++ | Search the active tab (terminal scrollback or open editor). On Windows and Linux a focused terminal sends ++ctrl+f++ to the shell, so open Find from this menu or the terminal's right-click menu there |
+| Quick Select | ++ctrl+shift+space++ | Label every web address, path, e-mail address, UUID, IP address, git hash and number of four or more digits in the focused terminal pane; type a label to copy its text, or ++shift++ and the label to open a web or e-mail address, or in SSH and local-shell tabs a file path in the Snippet Editor. Disabled outside terminal tabs, see [Quick select](../features/terminal.md#quick-select) |
 
 ## Connections
 

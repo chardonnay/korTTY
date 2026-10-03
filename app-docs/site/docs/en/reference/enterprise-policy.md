@@ -210,7 +210,7 @@ groups = ["compliance"]
 
 | Key | Type | Values | Effect |
 | --- | --- | --- | --- |
-| `load-into-snippet-editor` | string | `allow`, `read-only`, `deny` | `read-only` keeps loading remote files into the snippet editor but forbids writing back to the target system; `deny` removes the feature entirely |
+| `load-into-snippet-editor` | string | `allow`, `read-only`, `deny` | `read-only` keeps loading remote files into the snippet editor but forbids writing back to the target system; `deny` removes the feature entirely, including opening file paths and `file:` links from terminal output ([Links in terminal output](../features/terminal.md#links-in-terminal-output)) |
 
 ### `[rule.logging]`
 

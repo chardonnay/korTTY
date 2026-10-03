@@ -23,6 +23,7 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | ++ctrl+c++ | Copy |
 | ++ctrl+v++ | Paste |
 | ++ctrl+f++ | Find in the active tab (in a focused terminal on Windows and Linux the key goes to the shell, see [Terminal](#terminal)) |
+| ++ctrl+shift+space++ | Quick Select: label the web addresses, paths, e-mail addresses, IP addresses, hashes and numbers the focused terminal pane shows, to copy one or open it with a key (terminal tabs only), see [Quick select](../features/terminal.md#quick-select) |
 | ++ctrl+k++ | Quick Connect |
 | ++ctrl+m++ | Manage Connections |
 | ++ctrl+shift+u++ | SFTP client |
@@ -84,6 +85,8 @@ These keys work while a terminal pane has the focus. For how they behave with se
 | ++ctrl+tab++ / ++ctrl+shift+tab++ | Next / previous tab, also while the terminal has the focus (the ++ctrl++ key on macOS too) |
 | ++ctrl+1++ … ++ctrl+9++ | Jump to a tab, also while the terminal has the focus (++cmd++ on macOS, see [General](#general)) |
 | ++ctrl+alt+shift+t++ | Reopen the last closed terminal tab, also while the terminal has the focus (++cmd+option+shift+t++ on macOS) |
+| ++ctrl++ + click on a link | Open the link in the browser or mail program (++cmd++ + click on macOS), also a web or e-mail address printed as plain text; a file path or `file:` link opens as text in the Snippet Editor in SSH and local-shell tabs; a plain click on a link does nothing, and right-click → **Open Link** or **Open File in Snippet Editor** works without the key, see [Links in terminal output](../features/terminal.md#links-in-terminal-output) |
+| a label's letters / ++shift++ + the last letter (while quick select runs) | Copy the labelled text / open a web or e-mail address, or a file path in the Snippet Editor; ++backspace++ takes back the first letter of a two-letter label, ++esc++ or any other key ends quick select, see [Quick select](../features/terminal.md#quick-select) |
 
 On Windows and Linux, ++ctrl+1++ to ++ctrl+9++ no longer reach the program in the terminal: korTTY's terminal never sent them as keys of their own, so no program loses a binding it could receive.
 

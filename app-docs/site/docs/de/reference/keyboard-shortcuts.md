@@ -23,6 +23,7 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++ctrl+c++ | Kopie |
 | ++ctrl+v++ | Einfügen |
 | ++ctrl+f++ | Suchen im aktiven Tab (in einem fokussierten Terminal auf Windows und Linux geht die Taste zur Shell, siehe [Terminal](#terminal)) |
+| ++ctrl+shift+space++ | Schnellauswahl: die Webadressen, Pfade, E-Mail-Adressen, IP-Adressen, Hashes und Zahlen, die der fokussierte Terminalbereich anzeigt, mit Kürzeln versehen, um eines davon mit einer Taste zu kopieren oder zu öffnen (nur Terminal-Tabs), siehe [Schnellauswahl](../features/terminal.md#schnellauswahl) |
 | ++ctrl+k++ | Schnellverbindung |
 | ++ctrl+m++ | Verbindungen verwalten |
 | ++ctrl+shift+u++ | SFTP-Client |
@@ -84,6 +85,8 @@ Diese Tasten funktionieren, solange ein Terminalbereich den Fokus hat. Wie sie s
 | ++ctrl+tab++ / ++ctrl+shift+tab++ | Nächster / vorheriger Tab, auch wenn das Terminal den Fokus hat (auch unter macOS mit ++ctrl++) |
 | ++ctrl+1++ … ++ctrl+9++ | Zu einem Tab springen, auch wenn das Terminal den Fokus hat (++cmd++ auf macOS, siehe [Allgemein](#allgemein)) |
 | ++ctrl+alt+shift+t++ | Zuletzt geschlossenen Terminal-Tab wieder öffnen, auch wenn das Terminal den Fokus hat (++cmd+option+shift+t++ auf macOS) |
+| ++ctrl++ + Klick auf einen Link | Den Link im Browser oder Mailprogramm öffnen (++cmd++ + Klick unter macOS), auch eine als Klartext ausgegebene Web- oder E-Mail-Adresse; ein Dateipfad oder `file:`-Link öffnet sich in SSH- und lokalen Shell-Tabs als Text im Snippet-Editor; ein einfacher Klick auf einen Link bewirkt nichts, und Rechtsklick → **Link öffnen** oder **Datei im Snippet-Editor öffnen** funktioniert ohne die Taste, siehe [Links in der Terminalausgabe](../features/terminal.md#links-in-der-terminalausgabe) |
+| die Buchstaben eines Kürzels / ++shift++ + der letzte Buchstabe (während die Schnellauswahl läuft) | Den gekennzeichneten Text kopieren / eine Web- oder E-Mail-Adresse oder einen Dateipfad im Snippet-Editor öffnen; ++backspace++ nimmt den ersten Buchstaben eines zweibuchstabigen Kürzels zurück, ++esc++ oder jede andere Taste beendet die Schnellauswahl, siehe [Schnellauswahl](../features/terminal.md#schnellauswahl) |
 
 Unter Windows und Linux erreichen ++ctrl+1++ bis ++ctrl+9++ das Programm im Terminal nicht mehr: Das Terminal von korTTY hat sie nie als eigene Tasten gesendet, daher verliert kein Programm eine Belegung, die es empfangen könnte.
 

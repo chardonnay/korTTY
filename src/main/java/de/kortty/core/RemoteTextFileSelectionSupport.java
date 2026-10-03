@@ -114,6 +114,202 @@ public final class RemoteTextFileSelectionSupport {
             .normalize();
     }
 
+    /**
+     * Whether {@code path}, a file path printed in terminal output, names a different file depending
+     * on the shell's working directory: false for an absolute path ({@code /x}, {@code C:\x},
+     * {@code C:/x}) and a home path ({@code ~}, {@code ~/x}), true for everything else
+     * ({@code ./x}, {@code ../x}, {@code a/b.txt}, and on Windows {@code \x}, whose drive is the
+     * working directory's). Only such a path needs the working directory looked up before
+     * {@link #resolveRemotePath} or {@link #resolveLocalPath}.
+     */
+    public static boolean isWorkingDirectoryRelative(String path) {
+        if (path == null || path.isEmpty()) {
+            return false;
+        }
+        return !(path.startsWith("/") || path.startsWith("~") || isDrivePath(path));
+    }
+
+    /**
+     * Resolves a file path printed in terminal output on the remote host of an SSH session, as the
+     * path to read over SFTP. Unlike {@link #resolveRemoteFilePath}, which takes one file name in
+     * the working directory, it takes any path that {@code TerminalLinkDetector} finds or that an
+     * OSC 8 {@code file:} link names, without the {@code :line} suffix:
+     * <ul>
+     *   <li>an absolute path stays as it is;</li>
+     *   <li>{@code ~} and {@code ~/x} resolve against {@code sftpStartDirectory}, the SFTP server's
+     *       start directory, which is the login user's home;</li>
+     *   <li>a Windows drive path ({@code C:\x} or {@code C:/x}, printed by a Windows SSH server)
+     *       becomes the SFTP form {@code /C:/x};</li>
+     *   <li>every other path resolves against the shell's working directory, exactly as the
+     *       directory of {@link #resolveRemoteFilePath} does.</li>
+     * </ul>
+     * {@code .} and {@code ..} segments are resolved, and {@code ..} never climbs above the root.
+     *
+     * @throws IllegalArgumentException for an empty path, control or invisible format characters,
+     *     a network path ({@code //host/share}, {@code \\host\share}), another user's home
+     *     ({@code ~user/x}), or a backslash outside a drive path
+     */
+    public static String resolveRemotePath(String workingDirectory, String path, String sftpStartDirectory) {
+        String token = requireLinkPath(path);
+        if (isDrivePath(token)) {
+            return normalizeRemotePath("/" + token.replace('\\', '/'));
+        }
+        if (token.indexOf('\\') >= 0) {
+            throw new IllegalArgumentException("A remote path must use / as its separator");
+        }
+        if (token.startsWith("/")) {
+            return normalizeRemotePath(token);
+        }
+        if ("~".equals(token)) {
+            return normalizeRemotePath(normalizedDirectoryOrCurrent(sftpStartDirectory));
+        }
+        if (token.startsWith("~/")) {
+            return normalizeRemotePath(appendRemotePath(normalizedDirectoryOrCurrent(sftpStartDirectory),
+                token.substring(2)));
+        }
+        if (token.startsWith("~")) {
+            throw new IllegalArgumentException("Another user's home directory is not resolved");
+        }
+        return normalizeRemotePath(appendRemotePath(resolveRemoteDirectory(workingDirectory, sftpStartDirectory), token));
+    }
+
+    /**
+     * Resolves a file path printed in terminal output on the local file system, for local-shell
+     * sessions; the counterpart of {@link #resolveRemotePath}. An absolute path stays as it is
+     * (on Windows an OSC 8 {@code file:///C:/x} path, {@code /C:/x}, is read as {@code C:/x}),
+     * {@code ~} and {@code ~/x} resolve against {@code homeDirectory} (else the user's home), and
+     * every other path against the shell's directory as {@link #resolveLocalFilePath} finds it.
+     * The result is normalized.
+     *
+     * <p>Network and device paths are refused, before and after resolving: {@code \\host\share},
+     * {@code //host/share}, {@code \\?\C:\x} and {@code \\.\COM1}. On Windows, merely reading such
+     * a path makes the system authenticate to the named host and so can hand out the user's NTLM
+     * credentials. A working directory on a network share is refused for the same reason.
+     *
+     * @throws IllegalArgumentException for an empty path, control or invisible format characters,
+     *     a network or device path, another user's home ({@code ~user/x}), a drive-relative path
+     *     ({@code C:x}), a drive path or backslash on a system without drive letters, or characters
+     *     the local file system rejects
+     * @throws UnmappableWorkingDirectoryException only for a {@linkplain #isWorkingDirectoryRelative
+     *     relative} path, when the tracked working directory cannot be mapped to a local path (see
+     *     {@link #resolveLocalFilePath})
+     */
+    public static Path resolveLocalPath(
+        String workingDirectory,
+        String path,
+        String startDirectory,
+        String homeDirectory
+    ) throws UnmappableWorkingDirectoryException {
+        String token = requireLinkPath(path);
+        boolean driveLetters = java.io.File.separatorChar == '\\';
+        if (driveLetters && token.length() > 3 && token.charAt(0) == '/' && isDrivePath(token.substring(1))) {
+            token = token.substring(1);
+        }
+        if (!driveLetters && (isDrivePath(token) || token.indexOf('\\') >= 0)) {
+            throw new IllegalArgumentException("Not a path on this file system");
+        }
+        Path resolved;
+        if ("~".equals(token) || token.startsWith("~/") || (driveLetters && token.startsWith("~\\"))) {
+            Path home = homeDirectory != null && !homeDirectory.isBlank() ? toLocalPathOrNull(homeDirectory.trim()) : null;
+            if (home == null) {
+                home = toLocalPathOrCurrent(System.getProperty("user.home"));
+            }
+            resolved = token.length() <= 2 ? home : home.resolve(parseLocalPath(token.substring(2)));
+        } else if (token.startsWith("~")) {
+            throw new IllegalArgumentException("Another user's home directory is not resolved");
+        } else {
+            Path parsed = parseLocalPath(token);
+            if (parsed.isAbsolute()) {
+                resolved = parsed;
+            } else if (parsed.getRoot() != null && parsed.getRoot().toString().endsWith(":")) {
+                // C:x is relative to the drive's own working directory, which no shell reports.
+                throw new IllegalArgumentException("A drive-relative path is not resolved");
+            } else {
+                resolved = resolveLocalDirectory(workingDirectory, startDirectory, homeDirectory).resolve(parsed);
+            }
+        }
+        Path normalized = resolved.normalize();
+        if (isNetworkPath(normalized)) {
+            throw new IllegalArgumentException("A network path is not read");
+        }
+        return normalized;
+    }
+
+    /** The checks every path from terminal output passes before it is resolved. */
+    private static String requireLinkPath(String path) {
+        if (path == null || path.isEmpty()) {
+            throw new IllegalArgumentException("The path is empty");
+        }
+        for (int i = 0; i < path.length(); ) {
+            int codePoint = path.codePointAt(i);
+            int type = Character.getType(codePoint);
+            if (Character.isISOControl(codePoint) || type == Character.FORMAT || type == Character.SURROGATE
+                || type == Character.LINE_SEPARATOR || type == Character.PARAGRAPH_SEPARATOR) {
+                throw new IllegalArgumentException("The path contains a control character");
+            }
+            i += Character.charCount(codePoint);
+        }
+        if (path.length() >= 2 && isSeparator(path.charAt(0)) && isSeparator(path.charAt(1))) {
+            throw new IllegalArgumentException("A network or device path is not read");
+        }
+        return path;
+    }
+
+    private static boolean isSeparator(char c) {
+        return c == '/' || c == '\\';
+    }
+
+    /** {@code C:\...} or {@code C:/...}: a Windows drive letter, a colon and a separator. */
+    private static boolean isDrivePath(String path) {
+        return path.length() >= 3
+            && ((path.charAt(0) >= 'A' && path.charAt(0) <= 'Z') || (path.charAt(0) >= 'a' && path.charAt(0) <= 'z'))
+            && path.charAt(1) == ':'
+            && isSeparator(path.charAt(2));
+    }
+
+    private static Path parseLocalPath(String path) {
+        try {
+            return Path.of(path);
+        } catch (InvalidPathException e) {
+            throw new IllegalArgumentException("Not a valid local path", e);
+        }
+    }
+
+    /** A UNC or device path: its root starts with two separators ({@code \\host\share\}, {@code \\?\C:\}). */
+    private static boolean isNetworkPath(Path path) {
+        Path root = path.getRoot();
+        String text = root != null ? root.toString() : "";
+        return text.length() >= 2 && isSeparator(text.charAt(0)) && isSeparator(text.charAt(1));
+    }
+
+    /**
+     * Resolves {@code .} and {@code ..} in a remote ({@code /}-separated) path. In an absolute path
+     * {@code ..} stops at the root; a relative path keeps the {@code ..} it cannot resolve.
+     */
+    private static String normalizeRemotePath(String path) {
+        boolean absolute = path.startsWith("/");
+        java.util.ArrayDeque<String> segments = new java.util.ArrayDeque<>();
+        for (String segment : path.split("/")) {
+            if (segment.isEmpty() || ".".equals(segment)) {
+                continue;
+            }
+            if ("..".equals(segment)) {
+                if (!segments.isEmpty() && !"..".equals(segments.peekLast())) {
+                    segments.removeLast();
+                } else if (!absolute) {
+                    segments.addLast(segment);
+                }
+                continue;
+            }
+            segments.addLast(segment);
+        }
+        String joined = String.join("/", segments);
+        if (absolute) {
+            return "/" + joined;
+        }
+        return joined.isEmpty() ? "." : joined;
+    }
+
     private static Path resolveLocalDirectory(String workingDirectory, String startDirectory, String homeDirectory)
         throws UnmappableWorkingDirectoryException {
         Path fallback = toLocalPathOrCurrent(startDirectory);
