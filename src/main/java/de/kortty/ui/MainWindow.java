@@ -1441,9 +1441,11 @@ public class MainWindow {
         // Both act around the selected tab of any kind; no shortcut either.
         MenuItem closeOthers = new MenuItem(I18n.get("menu.file.closeOtherTabs"));
         closeOthers.setOnAction(e -> closeOtherTabs(tabPane.getSelectionModel().getSelectedItem()));
+        ClosedWindowMenuRouter.ownWindowOnly(closeOthers);
 
         MenuItem closeToRight = new MenuItem(I18n.get("menu.file.closeTabsToRight"));
         closeToRight.setOnAction(e -> closeTabsToTheRight(tabPane.getSelectionModel().getSelectedItem()));
+        ClosedWindowMenuRouter.ownWindowOnly(closeToRight);
 
         MenuItem closeAllTabs = new MenuItem(I18n.get("menu.file.closeAllTabs"));
         closeAllTabs.setOnAction(e -> confirmAndCloseAllTabs());
