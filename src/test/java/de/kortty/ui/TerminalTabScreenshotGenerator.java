@@ -24,6 +24,7 @@ import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -57,6 +58,9 @@ public final class TerminalTabScreenshotGenerator {
     }
 
     public static void main(String[] args) throws Exception {
+        // JavaFX labels ButtonType.CANCEL from its own resources in the JVM locale of the moment
+        // the class loads, which can be before the app language is set; the manual is English.
+        Locale.setDefault(Locale.ENGLISH);
         CountDownLatch done = new CountDownLatch(1);
         AtomicReference<String> failure = new AtomicReference<>();
 
