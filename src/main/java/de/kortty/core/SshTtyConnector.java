@@ -1190,6 +1190,11 @@ public class SshTtyConnector implements ObservableTtyConnector {
     }
 
     private void updateCurrentDirectoryFromAgentOsc(String data) {
+        // Only the shell startup hook prints korTTY-agent sequences. Without it they can only be
+        // remote output, which must not move the directory that uploads and agent runs start in.
+        if (!hasShellStartupCommand()) {
+            return;
+        }
         synchronized (agentOscBuffer) {
             agentOscBuffer.append(data);
             while (true) {
