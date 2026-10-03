@@ -3468,9 +3468,11 @@ public class MainWindow {
 
     /**
      * Releases a tab's native and timer resources on the programmatic close paths (Cmd+W,
-     * close-all, dashboard), where JavaFX fires no onClosed event — without it, Monaco/WebView
-     * engines and terminal buffers survive the tab. All dispose methods are idempotent, so a
-     * user-initiated close that already ran the tab's own onClosed handler is unaffected.
+     * close-all, dashboard, opening a project, closing the window), where JavaFX fires neither
+     * onCloseRequest nor onClosed — without it, Monaco/WebView engines and terminal buffers
+     * survive the tab, and an AI chat request or a swarm run goes on working for a tab that is
+     * gone. All of these methods are idempotent, so a user-initiated close that already ran the
+     * tab's own close handlers is unaffected.
      */
     private void disposeTabContent(Tab tab) {
         if (tab instanceof TerminalTab terminalTab) {
@@ -3479,9 +3481,13 @@ public class MainWindow {
         } else if (tab instanceof FileEditorTab editorTab) {
             editorTab.dispose();
         } else if (tab instanceof AiResultTab aiResultTab) {
+            // What its close button stops first: a running request or open-terminal broadcast.
+            aiResultTab.cancelForClose();
             unregisterSavedChatTab(aiResultTab.getSavedChatId());
             aiResultTab.disposeRenderedContent();
         } else if (tab instanceof SwarmAgentTab swarmTab) {
+            // Likewise a running swarm, whose agents would go on running commands on the servers.
+            swarmTab.cancelForClose();
             swarmTab.handleTabClosed();
         } else if (tab instanceof DialogHostTab hostTab) {
             // Runs the hosted dialog's DIALOG_HIDDEN cleanup (Monaco/WebView disposal, listener
