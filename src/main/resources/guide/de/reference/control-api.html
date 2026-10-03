@@ -873,6 +873,7 @@
 </tr>
 </tbody>
 </table>
+<p>Der Titel, den <code>tab.list</code> für einen Terminal-Tab meldet, ist sein Name ohne das Coding-Agent-Symbol, das Gruppenpräfix und das Suffix <code>(DISCONNECT)</code>: der Name, den Sie ihm mit <a href="../features/terminal.html#arbeiten-mit-tabs">Tab umbenennen</a> gegeben haben, andernfalls der <a href="../features/terminal.html#titel-aus-der-shell">Titel, den seine Shell gesetzt hat</a>, andernfalls der Name der Verbindung. Den Titel der Shell wählt der Server, daher sollte sich ein Client, der wissen muss, mit welchem Host ein Tab verbunden ist, nicht allein auf den Titel verlassen. Umbenennen können nur Sie selbst in der Benutzeroberfläche.</p>
 <p><code>tab.create</code>, <code>tab.close</code> und <code>tab.rename</code> sind <strong>reserviert</strong>: sie antworten mit einem eindeutigen „in dieser Version nicht implementiert“ statt mit einem Unbekannte-Methode-Fehler und stehen in <code>api.schema</code> als reserviert, damit ein Client „korTTY wird das nie für dich tun“ von „du hast dich vertippt“ unterscheiden kann.</p>
 <h3 id="einen-bereich-adressieren">Einen Bereich adressieren<a class="headerlink" href="#einen-bereich-adressieren" title="Permanent link">&para;</a></h3>
 <table>

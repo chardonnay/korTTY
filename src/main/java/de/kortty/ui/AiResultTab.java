@@ -48,7 +48,6 @@ import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
-import javafx.concurrent.Worker;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -104,6 +103,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -211,7 +211,7 @@ public class AiResultTab extends Tab {
         this.readOnlyMode = readOnlyMode;
 
         setClosable(true);
-        setOnCloseRequest(event -> cancelActiveRequest());
+        setOnCloseRequest(event -> cancelForClose());
         setOnClosed(event -> {
             ownerWindow.unregisterSavedChatTab(savedChatId);
             disposeRenderedContent();
@@ -634,6 +634,17 @@ public class AiResultTab extends Tab {
         if (getTabPane() != null) {
             getTabPane().getTabs().remove(this);
         }
+    }
+
+    /**
+     * Stops the request this chat is waiting for, because its tab closes. The close button fires
+     * this tab's close request, but Close Tab, Close All Tabs, opening a project and closing the
+     * window only remove the tab from its pane, which fires no close event, so
+     * {@code MainWindow.disposeTabContent} calls this too. Idempotent: with nothing running, or
+     * a request that is already stopped, it does nothing. Must run on the FX thread.
+     */
+    void cancelForClose() {
+        cancelActiveRequest();
     }
 
     /**
@@ -1177,24 +1188,29 @@ public class AiResultTab extends Tab {
     }
 
     private void cancelActiveRequest() {
-        if (broadcastCancelled != null) {
-            broadcastCancelled.set(true);
+        if (cancelRequest(activeTask, activeThread, broadcastCancelled)) {
             showCancelled();
         }
-        Task<?> task = activeTask;
-        Thread thread = activeThread;
-        if (task != null) {
-            task.cancel(true);
-        }
-        if (thread != null) {
-            thread.interrupt();
-        }
-        if (task != null) {
-            Worker.State state = task.getState();
-            if (state == Worker.State.RUNNING || state == Worker.State.CANCELLED) {
-                showCancelled();
+    }
+
+    /**
+     * Stops a running request: the model call's task, interrupting the thread it runs on so the
+     * HTTP request ends where the provider allows it, and the open-terminal broadcast whose swarm
+     * polls {@code broadcastCancelled}. Work that already finished or was stopped before is left
+     * alone, so the Cancel button and every way of closing the tab can call this again.
+     *
+     * @return whether this call stopped something, i.e. the chat should say it was cancelled
+     */
+    static boolean cancelRequest(Future<?> task, Thread thread, AtomicBoolean broadcastCancelled) {
+        boolean stopped = broadcastCancelled != null && broadcastCancelled.compareAndSet(false, true);
+        // A Task's cancel succeeds only once and only while it has not finished yet.
+        if (task != null && task.cancel(true)) {
+            stopped = true;
+            if (thread != null) {
+                thread.interrupt();
             }
         }
+        return stopped;
     }
 
     private void retryLastUserMessage() {

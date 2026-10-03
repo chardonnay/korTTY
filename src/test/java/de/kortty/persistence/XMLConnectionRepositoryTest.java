@@ -239,6 +239,58 @@ class XMLConnectionRepositoryTest {
     }
 
     @Test
+    void saveAndLoadPreservesTabColor() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-xml-repo-tab-color");
+        try {
+            XMLConnectionRepository repository = new XMLConnectionRepository(dir);
+            ServerConnection connection = new ServerConnection();
+            connection.setName("Production database");
+            connection.setHost("db.example.com");
+            connection.setUsername("root");
+            connection.setTabColor("#D32F2F");
+
+            repository.saveConnections(List.of(connection), null);
+
+            String persistedXml = Files.readString(dir.resolve("connections.xml"));
+            assertThat(persistedXml).contains("<tabColor>#D32F2F</tabColor>");
+
+            List<ServerConnection> reloaded = repository.loadConnections(null);
+            assertThat(reloaded).hasSize(1);
+            assertThat(reloaded.get(0).getTabColor()).isEqualTo("#D32F2F");
+        } finally {
+            Files.deleteIfExists(dir.resolve("connections.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void loadOldConnectionWithoutTabColorHasNone() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-xml-repo-tab-color-default");
+        try {
+            Files.writeString(dir.resolve("connections.xml"), """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <connections>
+                    <connection>
+                        <name>Old connection</name>
+                        <host>example.com</host>
+                        <port>22</port>
+                        <username>root</username>
+                    </connection>
+                </connections>
+                """);
+            XMLConnectionRepository repository = new XMLConnectionRepository(dir);
+
+            List<ServerConnection> reloaded = repository.loadConnections(null);
+
+            assertThat(reloaded).hasSize(1);
+            assertThat(reloaded.get(0).getTabColor()).isNull();
+        } finally {
+            Files.deleteIfExists(dir.resolve("connections.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void loadOldConnectionWithoutTerminalEmulationDefaultsToXterm() throws Exception {
         Path dir = Files.createTempDirectory("kortty-xml-repo-terminal-emulation-default");
         try {

@@ -319,7 +319,7 @@ class ClosedWindowMenuRouterTest {
         String window = source("MainWindow.java");
 
         String file = methodBody(window, "private Menu createFileMenu() {");
-        for (String item : List.of("closeTab", "closeAllTabs", "closeWindow")) {
+        for (String item : List.of("closeTab", "closeOthers", "closeToRight", "closeAllTabs", "closeWindow")) {
             assertThat(file).contains("ClosedWindowMenuRouter.ownWindowOnly(" + item + ");");
         }
         for (String item : List.of("newWindow", "quit")) {

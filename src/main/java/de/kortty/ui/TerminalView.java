@@ -5,6 +5,7 @@ import com.sithtermfx.core.Terminal;
 import com.sithtermfx.core.TerminalColor;
 import com.sithtermfx.core.TextStyle;
 import com.sithtermfx.core.model.SithTerminal;
+import com.sithtermfx.core.model.TerminalApplicationTitleListener;
 import com.sithtermfx.core.model.TerminalModelListener;
 import com.sithtermfx.core.TtyConnector;
 import com.sithtermfx.ui.SithTermFxWidget;
@@ -399,6 +400,14 @@ public class TerminalView extends BorderPane {
     private final List<Consumer<SithTermFxWidget>> focusedWidgetListeners = new CopyOnWriteArrayList<>();
     /** The pane whose canvas most recently gained keyboard focus (null before the first focus). */
     private volatile SithTermFxWidget lastFocusedWidget;
+    /**
+     * The titles the programs in the panes set (OSC 0/2), cleaned and reduced to the focused pane's;
+     * handed to the tab on the FX thread. Never touches a color: the title is text only.
+     */
+    private final ShellTitleTracker<SithTermFxWidget> shellTitles =
+        new ShellTitleTracker<>(Platform::runLater, this::getFocusedWidget, TerminalView::isTabTitleFromShellEnabled);
+    /** Each pane's title listener on its terminal, so a closing pane can take it off again. */
+    private final Map<SithTermFxWidget, TerminalApplicationTitleListener> shellTitleListeners = new ConcurrentHashMap<>();
 
     /** A bracketed-paste tracker together with the connector it listens on, so a rebind can detach it. */
     private record PasteTracking(BracketedPasteTracker tracker, ObservableTtyConnector connector) {}
@@ -1173,6 +1182,7 @@ public class TerminalView extends BorderPane {
         }
         releaseCodingAgentMonitor(widget);
         releasePaneFocusObserver(widget);
+        releaseShellTitleListener(widget);
         releaseBracketedPasteTracker(widget);
         if (terminalRecordingTargetWidgets.contains(widget)) {
             terminalRecordingTargetWidgets = terminalRecordingTargetWidgets.stream()
@@ -3138,6 +3148,68 @@ public class TerminalView extends BorderPane {
         installTerminalRecordingModelListener(widget);
         attachCodingAgentMonitor(widget);
         installPaneFocusObserver(widget);
+        installShellTitleListener(widget);
+    }
+
+    /**
+     * Follows the title the program in {@code widget} sets (OSC 0/2). The terminal reports it on the
+     * pane's emulator thread; {@link ShellTitleTracker} cleans it there and hands it to the tab on the
+     * FX thread. The terminal outlives a reconnect, so this is registered once per pane and removed in
+     * {@link #releasePaneState}.
+     */
+    private void installShellTitleListener(SithTermFxWidget widget) {
+        Terminal terminal = widget.getTerminal();
+        if (terminal == null) {
+            return;
+        }
+        TerminalApplicationTitleListener listener = title -> shellTitles.titleChanged(widget, title);
+        shellTitleListeners.put(widget, listener);
+        terminal.addApplicationTitleListener(listener);
+    }
+
+    private void releaseShellTitleListener(SithTermFxWidget widget) {
+        TerminalApplicationTitleListener listener = shellTitleListeners.remove(widget);
+        if (listener != null && widget.getTerminal() != null) {
+            widget.getTerminal().removeApplicationTitleListener(listener);
+        }
+        shellTitles.paneClosed(widget);
+    }
+
+    /** The tab closes: every pane stops reporting titles, and late ones are ignored. */
+    private void releaseAllShellTitleListeners() {
+        shellTitles.dispose();
+        for (SithTermFxWidget widget : new ArrayList<>(shellTitleListeners.keySet())) {
+            TerminalApplicationTitleListener listener = shellTitleListeners.remove(widget);
+            if (listener != null && widget.getTerminal() != null) {
+                widget.getTerminal().removeApplicationTitleListener(listener);
+            }
+        }
+    }
+
+    /**
+     * Sets who is told, on the FX thread, when the title the tab should take from its programs
+     * changes: the focused pane's title, cleaned, or {@code null} for none (no title set, or the
+     * Window setting is off).
+     */
+    public void setShellTitleListener(Consumer<String> listener) {
+        shellTitles.setListener(listener);
+    }
+
+    /** Hands the current title to the listener again, after the Window setting changed. FX thread. */
+    public void refreshShellTitle() {
+        shellTitles.publish();
+    }
+
+    /** Whether tabs show the title the program in them sets (Window settings); on when unknown. */
+    static boolean isTabTitleFromShellEnabled() {
+        try {
+            var app = KorTTYApplication.getInstance();
+            var gsm = app != null ? app.getGlobalSettingsManager() : null;
+            var gs = gsm != null ? gsm.getSettings() : null;
+            return gs == null || gs.isTabTitleFromShellEnabled();
+        } catch (Exception e) {
+            return true;
+        }
     }
 
     /**
@@ -3167,6 +3239,8 @@ public class TerminalView extends BorderPane {
 
     private void onPaneFocused(SithTermFxWidget widget) {
         lastFocusedWidget = widget;
+        // The tab shows the title of the pane the user works in.
+        shellTitles.publish();
         for (Consumer<SithTermFxWidget> listener : focusedWidgetListeners) {
             try {
                 listener.accept(widget);
@@ -5710,6 +5784,8 @@ public class TerminalView extends BorderPane {
                                 // restored block lands between "Connecting…" and the first live
                                 // output — no race with the MOTD, and nothing reaches the server.
                                 replayPendingRestoredHistory(terminalWidget);
+                                // A new session: the title the old one's shell set no longer applies.
+                                shellTitles.paneReset(terminalWidget);
                                 terminalWidget.setTtyConnector(decorateTerminalConnector(terminalWidget, ttyConnector));
                                 terminalWidget.start();
                                 applyCursorShape(terminalWidget);
@@ -6452,6 +6528,7 @@ public class TerminalView extends BorderPane {
      * Cleans up resources (closes connection and destroys UI). Use when closing the tab.
      */
     public void cleanup() {
+        releaseAllShellTitleListeners();
         cancelAllTerminalAgentRuns();
         stopAllTerminalAgentShellKeepAlives();
         detachTerminalRecordingSession();

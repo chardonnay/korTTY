@@ -9,6 +9,7 @@ import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.StoredCredential;
 import de.kortty.model.SSHKey;
+import de.kortty.core.ConnectionColorSupport;
 import de.kortty.core.CredentialManager;
 import de.kortty.core.SSHKeyManager;
 import de.kortty.core.ThemeManager;
@@ -115,6 +116,9 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private CheckBox commandTimestampsCheck;
     private ComboBox<TerminalEffectUiSupport.Option> terminalEffectCombo;
     private TerminalEffectUiSupport.AnimationSpeedControls terminalEffectSpeedControls;
+    /** "Terminal behavior" section: whether this connection's tabs get a color dot, and its color. */
+    private CheckBox tabColorCheck;
+    private ColorPicker tabColorPicker;
     
     // Terminal Logging
     private CheckBox enableLoggingCheck;
@@ -599,6 +603,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 connection.setEncoding(encodingCombo.getValue() != null ? encodingCombo.getValue().value() : null);
                 connection.setGroup(getGroupText.isEmpty() ? null : getGroupText);
                 connection.setTag(getTagText.isEmpty() ? null : getTagText);
+                connection.setTabColor(tabColorCheck != null && tabColorCheck.isSelected() && tabColorPicker.getValue() != null
+                    ? TabColorPresentation.hexOf(tabColorPicker.getValue()) : null);
                 connection.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
                 connection.setRetryCount(retrySpinner.getValue());
                 connection.setDisableHostKeyCheck(
@@ -1314,11 +1320,17 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
         Label terminalEffectLabel = new Label(I18n.get("connection.terminalEffect"));
         terminalEffectLabel.setStyle("-fx-font-weight: bold;");
+
+        Label terminalBehaviorLabel = new Label(I18n.get("connEdit.terminalBehavior"));
+        terminalBehaviorLabel.setStyle("-fx-font-weight: bold;");
         
         vbox.getChildren().addAll(
                 useCustomSettingsCheck,
                 new Label(I18n.get("connEdit.customSettingsInfo")),
-                settingsGrid
+                settingsGrid,
+                new Separator(),
+                terminalBehaviorLabel,
+                createTerminalBehaviorGrid()
         );
         if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {
             vbox.getChildren().addAll(
@@ -1330,6 +1342,35 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         
         tab.setContent(vbox);
         return tab;
+    }
+
+    /**
+     * The "Terminal behavior" section: settings of the connection's tabs that apply whether or not the
+     * connection uses its own terminal settings, and also while terminal effects are switched off.
+     */
+    private GridPane createTerminalBehaviorGrid() {
+        String storedColor = ConnectionColorSupport.normalizeHex(connection.getTabColor());
+        tabColorCheck = new CheckBox(I18n.get("connEdit.tabColor.enable"));
+        tabColorCheck.setSelected(storedColor != null);
+        tabColorCheck.setTooltip(new Tooltip(I18n.get("connEdit.tabColor.tooltip")));
+        tabColorPicker = new ColorPicker(Color.web(
+                storedColor != null ? storedColor : ConnectionColorSupport.PRESETS.get(0)));
+        for (String preset : ConnectionColorSupport.PRESETS) {
+            tabColorPicker.getCustomColors().add(Color.web(preset));
+        }
+        tabColorPicker.disableProperty().bind(tabColorCheck.selectedProperty().not());
+        HBox tabColorBox = new HBox(10, tabColorCheck, tabColorPicker);
+        tabColorBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(10));
+        Label tabColorLabel = new Label(I18n.get("connEdit.tabColor"));
+        tabColorLabel.setTooltip(new Tooltip(I18n.get("connEdit.tabColor.tooltip")));
+        grid.add(tabColorLabel, 0, 0);
+        grid.add(tabColorBox, 1, 0);
+        return grid;
     }
 
     private void updateTerminalEffectSpeedState() {

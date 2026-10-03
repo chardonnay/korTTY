@@ -1,7 +1,9 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.ConnectionColorSupport;
 import de.kortty.core.ConnectionSettingsSupport;
+import de.kortty.core.DisplayTextSanitizer;
 import de.kortty.core.TerminalRecordingService;
 import de.kortty.core.TerminalRecordingSession;
 import de.kortty.core.TerminalRecordingState;
@@ -113,13 +115,40 @@ public class TerminalTab extends Tab {
     private boolean moshInterruptedBarVisible = false;
     private Runnable externalConnectedCallback;
     private Runnable journalStateListener;
+    /** Told when the user closes the tab with its close button; see {@link #setOnUserCloseApproved}. */
+    private java.util.function.Consumer<TerminalTab> onUserCloseApproved;
     
+    /** Longest name the user can give a tab, in characters. */
+    static final int MAX_CUSTOM_TITLE_LENGTH = 120;
+
     // Tab group (independent from connection group)
     private String tabGroup = null;
+    /** The name the user gave this tab instead of the connection's, sanitised; null when none. */
+    private volatile String customTitle;
+    /**
+     * The title the program in the focused pane set (OSC 0/2), already cleaned by
+     * {@link ShellTitleTracker}; null when there is none or the Window setting is off. Ranks below
+     * {@link #customTitle} and above the connection's name, and is text only: it never changes a color.
+     */
+    private volatile String shellTitle;
     // AI-agent status badge prefix (✋/⚡/⏸/✓ or "") and the last connection-status suffix, so the
     // title can be re-rendered with the badge without losing the suffix.
     private volatile String agentStatusBadge = "";
     private volatile String lastTitleSuffix = "";
+    /**
+     * The tab header's graphic: one container for the tab's decorations, so markers added later sit
+     * beside the connection color dot. Set as the graphic only while it holds something.
+     */
+    private final HBox tabDecorations = new HBox(4);
+    /** The color dot in {@link #tabDecorations}, or null; FX thread only. */
+    private Node connectionColorSwatch;
+    /** The tooltip line about the tab color, or null without a color; FX thread only. */
+    private String connectionColorLine;
+    /**
+     * The tab's content: the terminal view with its split panes, and the status bars below it. Its
+     * border is the frame in the connection's tab color and nothing else (see {@link #showConnectionColor}).
+     */
+    private final javafx.scene.layout.VBox content = new javafx.scene.layout.VBox();
     
     public TerminalTab(ServerConnection connection, String password) {
         this(connection, password, null);
@@ -139,6 +168,7 @@ public class TerminalTab extends Tab {
         this.terminalView.setJournalScreenshotHandler(widget ->
             Platform.runLater(() -> takeJournalScreenshot(widget)));
         this.terminalView.setJournalNoteHandler(() -> Platform.runLater(this::addJournalNote));
+        this.terminalView.setShellTitleListener(this::onShellTitleChanged);
 
         // Create status bar (connection duration / key validity)
         createStatusBar();
@@ -151,31 +181,31 @@ public class TerminalTab extends Tab {
         createJournalBar();
         
         updateTabTitle();
+        tabDecorations.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         
-        // Create container with terminal view and status bars
-        javafx.scene.layout.VBox container = new javafx.scene.layout.VBox();
-        container.getChildren().add(terminalView);
+        // Fill the content with the terminal view and the status bars
+        content.getChildren().add(terminalView);
         if (recordingBar != null) {
-            container.getChildren().add(recordingBar);
+            content.getChildren().add(recordingBar);
         }
         if (journalBar != null) {
-            container.getChildren().add(journalBar);
+            content.getChildren().add(journalBar);
         }
         if (journalAiBar != null) {
-            container.getChildren().add(journalAiBar);
+            content.getChildren().add(journalAiBar);
         }
         if (statusBarLabel != null) {
-            container.getChildren().add(statusBarLabel);
+            content.getChildren().add(statusBarLabel);
         }
         if (disconnectedStatusBar != null) {
-            container.getChildren().add(disconnectedStatusBar);
+            content.getChildren().add(disconnectedStatusBar);
         }
         if (journalDecisionBar != null) {
-            container.getChildren().add(journalDecisionBar);
+            content.getChildren().add(journalDecisionBar);
         }
         javafx.scene.layout.VBox.setVgrow(terminalView, Priority.ALWAYS);
         
-        setContent(container);
+        setContent(content);
         setClosable(true);
         
         // Handle tab close
@@ -184,8 +214,27 @@ public class TerminalTab extends Tab {
                 event.consume(); // Cancel the close
                 return;
             }
+            // While the tab still holds its group, name and effect: Recently Closed remembers them.
+            notifyUserCloseApproved();
             releaseResources();
         });
+    }
+
+    /**
+     * Runs {@code callback} when the user closes this tab with its close button and agreed to any
+     * question, before the tab releases anything. The main window records the tab for Recently Closed
+     * there. A tab that closes on its own (its session ended) and the main window's own close commands
+     * do not run it.
+     */
+    void setOnUserCloseApproved(java.util.function.Consumer<TerminalTab> callback) {
+        this.onUserCloseApproved = callback;
+    }
+
+    private void notifyUserCloseApproved() {
+        java.util.function.Consumer<TerminalTab> callback = onUserCloseApproved;
+        if (callback != null) {
+            callback.accept(this);
+        }
     }
 
     /**
@@ -1611,33 +1660,253 @@ public class TerminalTab extends Tab {
     }
     
     /**
-     * Updates the tab title to include group prefix if group is set.
+     * Re-renders the tab title and clears the connection-status suffix.
      */
     public void updateTabTitle() {
         updateTabTitle("");
     }
     
     /**
-     * Updates the tab title to include group prefix if group is set.
+     * Re-renders the tab title from its slots (see {@link #composeTitle}) and remembers the suffix,
+     * so a later badge or name change keeps it.
      * @param suffix Additional suffix to append (e.g., " (DISCONNECT)")
      */
     private void updateTabTitle(String suffix) {
         String effectiveSuffix = suffix != null ? suffix : "";
         lastTitleSuffix = effectiveSuffix;
-        Platform.runLater(() -> {
-            String displayName = connection.getDisplayName();
-            if (displayName == null || displayName.trim().isEmpty()) {
-                displayName = connection.getUsername() + "@" + connection.getHost();
-            }
+        Platform.runLater(() -> setText(composeTitle(
+            List.of(agentStatusBadge), tabGroup, getEffectiveTitle(), effectiveSuffix)));
+    }
 
-            String prefix = agentStatusBadge.isEmpty() ? "" : agentStatusBadge + " ";
-            String group = tabGroup; // Use tab group, not connection group
-            if (group != null && !group.trim().isEmpty()) {
-                setText(prefix + "[" + group + "] " + displayName + effectiveSuffix);
-            } else {
-                setText(prefix + displayName + effectiveSuffix);
+    /**
+     * The tab title from its slots, in this order: the badges, the {@code [group]} prefix of the tab
+     * group (not the connection group), the tab's name and the connection-status suffix such as
+     * {@code " (DISCONNECT)"}. {@code badges} is in slot order; the AI-agent status is the only one
+     * so far, and badges added later (for example an activity marker) go after it. Empty badges and
+     * a blank group are left out.
+     */
+    static String composeTitle(List<String> badges, String group, String name, String suffix) {
+        StringBuilder title = new StringBuilder();
+        if (badges != null) {
+            for (String badge : badges) {
+                if (badge != null && !badge.isBlank()) {
+                    title.append(badge.strip()).append(' ');
+                }
             }
-        });
+        }
+        if (group != null && !group.isBlank()) {
+            title.append('[').append(group.strip()).append("] ");
+        }
+        return title.append(name != null ? name : "").append(suffix != null ? suffix : "").toString();
+    }
+
+    /**
+     * The name a tab goes by, without badges, group or suffix: the custom title the user gave it,
+     * else the title the program in the terminal set ({@code shellTitle}, already cleaned), else the
+     * connection's display name, else {@code user@host} (or whichever of the two is set). Empty only
+     * when there is nothing at all to show.
+     */
+    static String effectiveTitle(String customTitle, String shellTitle, String displayName, String username,
+                                 String host) {
+        if (customTitle != null && !customTitle.isBlank()) {
+            return customTitle;
+        }
+        if (shellTitle != null && !shellTitle.isBlank()) {
+            return shellTitle;
+        }
+        if (displayName != null && !displayName.isBlank()) {
+            return displayName;
+        }
+        boolean hasUser = username != null && !username.isBlank();
+        boolean hasHost = host != null && !host.isBlank();
+        if (hasUser && hasHost) {
+            return username + "@" + host;
+        }
+        if (hasHost) {
+            return host;
+        }
+        return hasUser ? username : "";
+    }
+
+    /**
+     * {@link #effectiveTitle} for this tab: what the tab bar shows between the group prefix and the
+     * suffix, and the title the coding-agent panel and the Control API's {@code tab.list} report.
+     * Safe to call from any thread.
+     */
+    public String getEffectiveTitle() {
+        return effectiveTitle(customTitle, shellTitle, connection.getDisplayName(), connection.getUsername(),
+            connection.getHost());
+    }
+
+    /** The connection's display name or user@host: what the tab shows without a custom or shell title. */
+    public String getConnectionTitle() {
+        return effectiveTitle(null, null, connection.getDisplayName(), connection.getUsername(), connection.getHost());
+    }
+
+    /**
+     * What the tab shows without a custom title: the title the shell set, else the connection's name.
+     * The rename dialog offers it and goes back to it when the name is cleared.
+     */
+    public String getAutomaticTitle() {
+        return effectiveTitle(null, shellTitle, connection.getDisplayName(), connection.getUsername(),
+            connection.getHost());
+    }
+
+    /** The title the program in the focused pane set, cleaned; {@code null} when none is shown. */
+    public String getShellTitle() {
+        return shellTitle;
+    }
+
+    /**
+     * The program in the focused pane set a new title, or the focus moved to a pane with another one
+     * ({@code null}: none). Only the name slot changes; the badges, the group, the status suffix and
+     * every color stay as they are. FX thread.
+     */
+    private void onShellTitleChanged(String title) {
+        shellTitle = title;
+        updateTabTitle(lastTitleSuffix);
+        refreshTooltip();
+    }
+
+    /** Re-reads the title the program set, after the Window setting changed. FX thread. */
+    public void refreshShellTitle() {
+        terminalView.refreshShellTitle();
+    }
+
+    /** The name the user gave this tab, or {@code null} when it shows the shell's title or the connection's name. */
+    public String getCustomTitle() {
+        return customTitle;
+    }
+
+    /**
+     * Gives the tab a name of its own in place of the connection's name; the badges, the group prefix
+     * and the connection-status suffix stay. The name is cleaned with {@link #normalizeCustomTitle},
+     * and a blank one (or {@code null}) goes back to the connection's name. Safe to call from any
+     * thread.
+     */
+    public void setCustomTitle(String title) {
+        customTitle = normalizeCustomTitle(title);
+        updateTabTitle(lastTitleSuffix);
+        refreshTooltip();
+    }
+
+    /**
+     * A custom title as it is stored: control and bidi characters removed, trimmed and capped at
+     * {@link #MAX_CUSTOM_TITLE_LENGTH} characters; {@code null} when nothing visible is left.
+     */
+    static String normalizeCustomTitle(String title) {
+        String clean = DisplayTextSanitizer.sanitize(title, MAX_CUSTOM_TITLE_LENGTH);
+        return clean.isEmpty() ? null : clean;
+    }
+
+    /**
+     * The custom title the rename dialog's input stands for. A name equal to the one the tab shows
+     * on its own ({@code automaticName}: the shell's title, else the connection's name) is no custom
+     * title, so confirming the prefilled name unchanged keeps the tab following the shell and the
+     * connection, and a later rename of the connection still shows. Blank input clears the custom
+     * title.
+     */
+    static String customTitleFromInput(String input, String automaticName) {
+        String title = normalizeCustomTitle(input);
+        return title != null && title.equals(automaticName) ? null : title;
+    }
+
+    /**
+     * Marks the tab with its connection's color: a dot in the tab header, a tooltip that names the
+     * connection and the color, which is also what screen readers read for the dot, and, when
+     * {@code showFrame} is set (Window settings), a frame of that color around the terminal.
+     * {@code environmentName} is the credential environment the color comes from, which the tooltip
+     * names; {@code null} when the color is set on the connection itself. {@code null} or a value
+     * that is not a hex color removes all three. The tab's style is left alone: it shows the
+     * connection status (yellow while connecting, dark red when the connection failed). Safe to
+     * call from any thread.
+     */
+    public void applyConnectionColor(String hex, String environmentName, boolean showFrame) {
+        String color = ConnectionColorSupport.normalizeHex(hex);
+        if (Platform.isFxApplicationThread()) {
+            showConnectionColor(color, environmentName, showFrame);
+        } else {
+            Platform.runLater(() -> showConnectionColor(color, environmentName, showFrame));
+        }
+    }
+
+    private void showConnectionColor(String color, String environmentName, boolean showFrame) {
+        // The frame is the content's border, outside the panes: never the terminal view's style,
+        // which the see-through window mode owns. Turning it on or off resizes the terminal by 3 px,
+        // so an unchanged frame is left in place rather than replaced by an equal one.
+        javafx.scene.layout.Border frame = TabColorPresentation.frameFor(color, showFrame);
+        if (!java.util.Objects.equals(content.getBorder(), frame)) {
+            content.setBorder(frame);
+        }
+        if (connectionColorSwatch != null) {
+            tabDecorations.getChildren().remove(connectionColorSwatch);
+            connectionColorSwatch = null;
+        }
+        if (color == null) {
+            connectionColorLine = null;
+        } else {
+            String family = I18n.get(TabColorPresentation.familyKey(ConnectionColorSupport.family(color)));
+            String colorLine = environmentName == null
+                ? I18n.get("tab.tooltip.connectionColor", family, color)
+                : I18n.get("tab.tooltip.environmentColor", family, color, environmentName);
+            String connectionLine = I18n.get("tab.tooltip.connection", connectionEndpoint());
+            connectionColorSwatch = TabColorPresentation.swatch(color,
+                TabColorPresentation.describe(colorLine, connectionLine, ", "));
+            tabDecorations.getChildren().add(0, connectionColorSwatch);
+            connectionColorLine = colorLine;
+        }
+        refreshTooltip();
+        setGraphic(tabDecorations.getChildren().isEmpty() ? null : tabDecorations);
+    }
+
+    /**
+     * Sets the tab's tooltip from what it shows: when the name comes from the shell, which connection
+     * the tab really is, and the tab color with its source. No tooltip without either. Any thread.
+     */
+    private void refreshTooltip() {
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(this::refreshTooltip);
+            return;
+        }
+        String shellLine = customTitle == null && shellTitle != null
+            ? I18n.get("tab.tooltip.shellTitle", getConnectionTitle())
+            : null;
+        String text = tooltipText(I18n.get("tab.tooltip.connection", connectionEndpoint()), shellLine,
+            connectionColorLine);
+        if (text == null) {
+            setTooltip(null);
+        } else if (getTooltip() != null) {
+            getTooltip().setText(text);
+        } else {
+            setTooltip(new Tooltip(text));
+        }
+    }
+
+    /**
+     * The tab tooltip: the connection line ({@code user@host}), then the note that the name comes from
+     * the shell, then the tab color line, each on its own line. {@code null} when there is neither a
+     * shell note nor a color, since the connection line alone would only repeat the tab's name.
+     */
+    static String tooltipText(String connectionLine, String shellTitleLine, String colorLine) {
+        if ((shellTitleLine == null || shellTitleLine.isBlank()) && (colorLine == null || colorLine.isBlank())) {
+            return null;
+        }
+        java.util.StringJoiner text = new java.util.StringJoiner("\n");
+        for (String line : java.util.Arrays.asList(connectionLine, shellTitleLine, colorLine)) {
+            if (line != null && !line.isBlank()) {
+                text.add(line);
+            }
+        }
+        return text.toString();
+    }
+
+    /** {@code user@host} of the tab's connection; the connection's name for a local shell or without either. */
+    private String connectionEndpoint() {
+        if (connection.getProtocol() == ConnectionProtocol.LOCAL_SHELL) {
+            return getConnectionTitle();
+        }
+        String endpoint = effectiveTitle(null, null, null, connection.getUsername(), connection.getHost());
+        return endpoint.isEmpty() ? getConnectionTitle() : endpoint;
     }
 
     /** Sets the AI-agent status badge (✋/⚡/⏸/✓ or "") shown as a prefix on the tab title. */

@@ -33,7 +33,7 @@ The backup includes:
 |------|---------|
 | Connections | All saved SSH connections and groups |
 | Credentials | Stored usernames and passwords (encrypted) |
-| Credential environments | Your custom credential environments (`environments.xml`); the built-in ones need no backup |
+| Credential environments | Your custom credential environments and the tab colors of all environments (`environments.xml`); the built-in environments themselves need no backup |
 | SSH keys | Key references with encrypted passphrases, plus the copied key files in `~/.kortty/ssh-keys/` |
 | Trusted interactive hosts | `ssh-host-keys.properties`, shared by Terminal, SFTP, and the Mosh SSH bootstrap; the transient `.lock` companion is not included |
 | GPG keys | GPG public keys for backup encryption |
@@ -86,7 +86,7 @@ GPG backups are encrypted for the public key of your selected GPG key. KorTTY bu
 
 KorTTY recognises the backup format from the file content, not from its name, so GPG backups that older versions saved as `kortty-backup.zip` import as GPG backups too. A file that is neither a ZIP archive nor GPG-encrypted is rejected before anything is restored.
 
-After the import, korTTY reloads the restored connections, credentials, environments, SSH and GPG keys, settings, themes, snippets, snippet variables and saved AI and swarm chats, so a later save does not overwrite them with what was loaded before.
+After the import, korTTY reloads the restored connections, credentials, environments, SSH and GPG keys, settings, themes, snippets, snippet variables and saved AI and swarm chats, so a later save does not overwrite them with what was loaded before. The open terminal tabs then show the [tab colors](connections.md#tab-color) of the restored connections and credential environments.
 
 Each restored file replaces the local one atomically, so an interrupted import never leaves a half-written file behind. On macOS and Linux, `connections.xml`, `credentials.xml`, `ssh-keys.xml`, `job-scheduler.xml` and `master.key` are restored owner-only (`rw-------`); the other files keep the permissions of the file they replace, and a file that did not exist locally is created owner-only. If a restored connections, credentials, SSH key, GPG key or environments file cannot be parsed, the reload moves it aside as `<name>.corrupt-<timestamp>` and korTTY keeps what it had loaded before, which its next save writes to a fresh file; a themes file that cannot be parsed is moved aside the same way and replaced by the built-in themes.
 
@@ -102,7 +102,7 @@ Both `.zip` and `.zip.gpg` backups contain the same files:
 
 * `connections.xml` — All SSH connections and groups
 * `credentials.xml` — Stored credentials (still encrypted with your master password)
-* `environments.xml` — Custom credential environments
+* `environments.xml` — Custom credential environments and environment tab colors
 * `ssh-keys.xml` — SSH key references and encrypted passphrases
 * `ssh-keys/` — Copied SSH key files (only keys you placed there via **Copy to User Directory**; keys referenced in their original locations are not collected). Restored key files get owner-only permissions, and an import merges — it never deletes or, without **Overwrite**, replaces keys already present
 * `ssh-host-keys.properties` — Trusted public host keys for interactive Terminal, SFTP, and Mosh bootstrap connections (`ssh-host-keys.properties.lock` is intentionally excluded)

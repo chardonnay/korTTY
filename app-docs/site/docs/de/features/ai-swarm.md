@@ -71,6 +71,8 @@ Das Umschalten des Kontrollkästchens beim ersten Mal zeigt die Kostenwarnung mi
 
 Die Symbolleiste bietet die gleichen vier Steuerelemente für den **gesamten Schwarm**: **Pause**, **Fortsetzen**, **Neustart** und **Stop**. Das Pausieren ist kooperativ – jeder Agent pausiert an seinem nächsten sicheren Kontrollpunkt (auf dem Abzeichen wird *Pause…* angezeigt, bis es wirksam wird), und verstrichene Timer bleiben während der Pause stehen.
 
+Das Schließen des Schwarm-Tabs stoppt einen laufenden Schwarm oder Skriptlauf wie **Stopp**, ganz gleich, ob Sie ihn mit seiner Schließen-Schaltfläche, **Tab schließen** (++ctrl+w++, ++cmd+w++ auf macOS), **Andere Tabs schließen**, **Tabs rechts davon schließen** oder **Alle Tabs schließen** schließen, ein Projekt öffnen oder das Fenster schließen, sodass kein Agent mehr Befehle auf seinem Server ausführt, nachdem der Tab geschlossen ist.
+
 ## Schreibgeschützter Modus und Genehmigungen
 
 Durch das Kontrollkästchen **Schreibgeschützt** bleibt jeder Agent auf nicht mutierende Befehle beschränkt. Wenn der schreibgeschützte Zugriff deaktiviert ist, entscheidet die **Genehmigungsrichtlinie**, wie systemverändernde Befehle bestätigt werden:

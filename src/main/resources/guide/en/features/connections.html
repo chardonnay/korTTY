@@ -764,6 +764,16 @@
 <p>Open with <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span> (or <strong>Connections → Quick Connect…</strong>). Enter host, port, username and authentication, and connect without saving. Frequently used connections appear as quick buttons; a live search filters them. Saved connections can be picked from a dropdown with its own search field that matches name, host or <a href="#tags">tag</a> (<code>*</code> works as a wildcard); a saved connection's tag is shown next to its name (🏷) in the dropdown and in the quick buttons' tooltips.</p>
 <h2 id="connection-manager">Connection Manager<a class="headerlink" href="#connection-manager" title="Permanent link">&para;</a></h2>
 <p><strong>Connections → Manage Connections…</strong> opens a searchable tree of saved connections (optionally grouped); the search field matches name, host, IP address or <a href="#tags">tag</a>, with <code>*</code> as a wildcard. From here you create, edit, duplicate, delete, tag, import and export connections.</p>
+<h3 id="signing-in">Signing in<a class="headerlink" href="#signing-in" title="Permanent link">&para;</a></h3>
+<p><strong>Connect</strong> in the Connection Manager signs in to the selected connection in this order:</p>
+<ol>
+<li>korTTY checks your organization's <a href="../reference/enterprise-policy.html#server-access-control">server access policy</a> first. A blocked server or jump server shows the policy message before korTTY asks you for anything.</li>
+<li>A shared <a href="teamwork.html">teamwork</a> connection that names neither a credential nor an SSH key uses the team's default authentication.</li>
+<li>A connection with a temporary SSH key reuses that key while it is still valid and asks for a new one once it has expired.</li>
+<li>A local shell and SSH key authentication connect without a password.</li>
+<li>Otherwise korTTY uses the saved password, from the connection's stored credential first and then from the connection itself, and asks for the password when none is saved; <strong>OK</strong> stays greyed out until you type one. When the saved password is in the locked vault, korTTY first offers <strong>Unlock Vault…</strong> (see <a href="security.html#unlocking-the-vault-later">Unlocking the vault later</a>); if you do not unlock it, korTTY asks you to type the password instead.</li>
+</ol>
+<p>Cancelling any of these questions opens no tab. <strong>Duplicate</strong> in a terminal tab's context menu signs in the same way, so it also asks for a new temporary SSH key when the tab's key has expired. <strong>Reopen Closed Tab</strong> and <em>File → Recently Closed</em> sign in the same way too, with the saved connection as it is now (see <a href="terminal.html#working-with-tabs">Working with tabs</a>).</p>
 <h2 id="creating-editing-a-connection">Creating / editing a connection<a class="headerlink" href="#creating-editing-a-connection" title="Permanent link">&para;</a></h2>
 <p>The connection editor has these tabs:</p>
 <table>
@@ -780,7 +790,7 @@
 </tr>
 <tr>
 <td>Terminal Settings</td>
-<td>Per-connection colors, font, ANSI/TrueColor handling, terminal effect</td>
+<td>Per-connection colors, font, ANSI/TrueColor handling, the <strong>Terminal behavior</strong> section with the <a href="#tab-color">tab color</a>, terminal effect</td>
 </tr>
 <tr>
 <td>SSH Tunnels</td>
@@ -818,6 +828,20 @@
 <li><strong>Bulk assign / remove</strong> — select one or more servers and choose <strong>Assign Tag</strong> from the context menu to tag them in one step. The prompt is pre-filled when all selected connections already share the same tag, and clearing that pre-filled value removes the tag. <strong>Remove Tag</strong> clears the tag and is enabled only while the selection contains at least one tagged connection. The same two entries on a folder's context menu apply to every connection in that folder, subfolders included.</li>
 <li><strong>Export by tag</strong> — once at least one tag exists, the Connection Manager's export dialog offers a <strong>Connections to export</strong> choice: keep the pre-selected connections, or export <strong>all connections with these tags</strong> — pick one or more tags from the list, the header's connection count follows the selection live, and the export button stays disabled while nothing matches.</li>
 </ul>
+<h2 id="tab-color">Tab color<a class="headerlink" href="#tab-color" title="Permanent link">&para;</a></h2>
+<p>A <strong>tab color</strong> marks every terminal tab of a connection with a small colored dot in front of its title and a 3-pixel frame of the same color around its terminal, so a production server stands out from test machines at a glance. Set it on the connection editor's <em>Terminal Settings</em> tab, in the <strong>Terminal behavior</strong> section: tick <strong>Mark this connection's tabs with a color</strong> and pick the color. The picker offers red, orange, yellow, green, blue, purple and gray as custom colors, and any other color works too. The section applies whether or not the connection uses its own terminal settings, and it stays when terminal effects are switched off. Untick the box to remove the color.</p>
+<ul>
+<li><strong>Not by color alone</strong> — pointing at a colored tab shows a tooltip with the connection (<code>user@host</code>, or the connection's name for a local shell) and the color by name and code, for example <em>Tab color: red (#D32F2F), set on this connection</em>. Screen readers read the same text for the dot.</li>
+<li><strong>Frame around the terminal</strong> — the frame surrounds the whole tab content, all split panes and the status bars included. It takes 3 pixels on each side, so setting or removing a color resizes the connection's open terminals and full-screen programs redraw. To keep only the dot, switch off <strong>Frame the terminal in its connection's tab color</strong> in the <a href="../reference/settings/window.html#tabs">Window settings</a>.</li>
+<li><strong>Applies at once</strong> — saving in the Connection Manager recolors the open tabs of that connection in every window, and removing the color removes the dot and the frame. Tabs opened from a saved connection through Quick Connect, <strong>Duplicate</strong>, <strong>Reopen Closed Tab</strong> or a <a href="projects.html">project</a> show its color too.</li>
+<li><strong>Status colors stay</strong> — the yellow tab while a connection is being made and the dark red tab of a failed or lost connection work as before; the dot and the frame are shown in addition and never replace them. A pane that <strong>Split Right (new connection)</strong> or <strong>Split Down (new connection)</strong> opened to another server is part of the same tab and sits inside the tab's frame, so it shows the tab's color, not its own.</li>
+<li><strong>Stored with the connection</strong> — the color is saved in <code>connections.xml</code> as <code>#RRGGBB</code> and survives duplicating, exporting and importing. A value that is not a hex color is ignored.</li>
+<li><strong>Color from the credential's environment</strong> — a connection without a tab color of its own can take the color of its stored credential's environment, for example red for every connection that signs in with a production credential. Give the environment a color in the Credentials manager under <strong>Environments...</strong>, see <a href="security.html#environments-and-tab-colors">Environments and tab colors</a>. The tooltip then names the environment instead of saying the color is set on the connection, and a color set on the connection always comes first.</li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">Shared connections bring their own color</p>
+<p>A <a href="teamwork.html">teamwork</a> connection shows the color written in the shared file, so whoever maintains that file decides how its tabs are marked. That color also comes before the color of your own credential environment. Treat the color as a hint, not as proof of which server you are on: the tooltip still names the connection, and so does the tab title unless you renamed the tab or its <a href="terminal.html#title-from-the-shell">shell set a title</a>.</p>
+</div>
 <h2 id="protocols">Protocols<a class="headerlink" href="#protocols" title="Permanent link">&para;</a></h2>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">SSH</label><label for="__tabbed_1_2">Mosh</label><label for="__tabbed_1_3">Local Shell</label></div>
 <div class="tabbed-content">

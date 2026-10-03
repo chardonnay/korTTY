@@ -12,6 +12,18 @@ korTTY verwaltet SSH-, Mosh- und **Local-Shell**-Verbindungen über drei Einstie
 
 **Verbindungen → Verbindungen verwalten…** öffnet einen durchsuchbaren Baum gespeicherter Verbindungen (optional gruppiert); Das Suchfeld durchsucht Name, Host, IP-Adresse oder [Tag](#tags), mit `*` als Platzhalter. Von hier aus können Sie Verbindungen erstellen, bearbeiten, duplizieren, löschen, markieren, importieren und exportieren.
 
+### Anmelden
+
+**Verbinden** im Connection-Manager meldet sich bei der ausgewählten Verbindung in dieser Reihenfolge an:
+
+1. korTTY prüft zuerst die [Serverzugriffsrichtlinie](../reference/enterprise-policy.md#server-zugriffskontrolle) Ihrer Organisation. Bei einem gesperrten Server oder Jump-Server erscheint die Richtlinienmeldung, bevor korTTY Sie nach irgendetwas fragt.
+2. Eine gemeinsam genutzte [Teamarbeit](teamwork.md)-Verbindung, die weder Anmeldeinformationen noch einen SSH-Schlüssel angibt, verwendet die Standardauthentifizierung des Teams.
+3. Eine Verbindung mit einem temporären SSH-Schlüssel verwendet diesen Schlüssel wieder, solange er noch gültig ist, und fragt nach einem neuen, sobald er abgelaufen ist.
+4. Lokale Shells und Verbindungen mit SSH-Schlüssel-Authentifizierung verbinden sich ohne Passwort.
+5. Andernfalls verwendet korTTY das gespeicherte Passwort, zuerst aus den hinterlegten Anmeldeinformationen der Verbindung und dann aus der Verbindung selbst, und fragt nach dem Passwort, wenn keines gespeichert ist; **OK** bleibt ausgegraut, bis Sie eines eingeben. Liegt das gespeicherte Passwort im gesperrten Tresor, bietet korTTY zuerst **Tresor entsperren…** an (siehe [Später den Tresor entsperren](security.md#spater-den-tresor-entsperren)); wenn Sie ihn nicht entsperren, bittet korTTY Sie stattdessen, das Passwort einzugeben.
+
+Wenn Sie eine dieser Fragen abbrechen, wird kein Tab geöffnet. **Duplizieren** im Kontextmenü eines Terminal-Tabs meldet sich auf dieselbe Weise an und fragt daher ebenfalls nach einem neuen temporären SSH-Schlüssel, wenn der Schlüssel des Tabs abgelaufen ist. **Geschlossenen Tab wieder öffnen** und *Datei → Zuletzt geschlossen* melden sich ebenfalls so an, mit der gespeicherten Verbindung in ihrem aktuellen Stand (siehe [Arbeiten mit Tabs](terminal.md#arbeiten-mit-tabs)).
+
 ## Verbindung erstellen/bearbeiten
 
 Der Verbindungseditor verfügt über folgende Registerkarten:
@@ -19,7 +31,7 @@ Der Verbindungseditor verfügt über folgende Registerkarten:
 | Registerkarte | Inhalt |
 | --- | --- |
 | Verbindung | Host, Port, Benutzername, Protokoll (SSH / Mosh / Lokale Shell), Terminalemulation, **Zeichenkodierung** (Standard verwenden / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), Authentifizierung (Passwort / Schlüssel / keyboard-interactive), **Host-Key-Prüfung** (Standard verwenden / prüfen / nicht prüfen), Gruppen-/Ordnerzuweisung und ein optionaler Freitext [Tag](#tags). Für **Lokale Shell** Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert. Siehe [Zeichenkodierung](#zeichenkodierung). |
-| Terminaleinstellungen | Farben pro Verbindung, Schriftart, ANSI/TrueColor-Behandlung, Terminaleffekt |
+| Terminal-Einstellungen | Farben pro Verbindung, Schriftart, ANSI/TrueColor-Behandlung, der Abschnitt **Terminal-Verhalten** mit der [Tab-Farbe](#tab-farbe), Terminal-Effekt |
 | SSH-Tunnel | Lokale / Remote- / dynamische Portweiterleitung |
 | Jump Server | Bastion-Host-Verkettung |
 | Terminal-Logging | Schreibt den Terminal-Ausgang dieser Verbindung in eine Datei – Ordner, Format, tägige Rotation, Kompression und Aufbewahrung. Siehe [Terminal-Logging](terminal.md#terminalprotokollierung). |
@@ -39,6 +51,20 @@ Jede gespeicherte Verbindung kann ein optionales Freitext-**Tag** tragen – ein
 - **Durchsuchbar** – Die Connection-Manager-Suche (Registerkarten „Lokal“ und „Teamwork“) und die Suche nach gespeicherten Verbindungen der Schnellverbindung berücksichtigen Tags ebenso wie Namen und Hosts.
 - **Massenzuweisung/-entfernung** – Wählen Sie einen oder mehrere Server aus und wählen Sie **Tag zuordnen** aus dem Kontextmenü, um sie in einem Schritt zu taggen. Die Eingabeaufforderung ist vorab ausgefüllt, wenn alle ausgewählten Verbindungen bereits dasselbe Tag haben. Durch das Löschen dieses vorab ausgefüllten Werts wird das Tag entfernt. **Tag entfernen** löscht das Tag und ist nur aktiviert, solange die Auswahl mindestens eine markierte Verbindung enthält. Die gleichen zwei Einträge im Kontextmenü eines Ordners gelten für jede Verbindung in diesem Ordner, einschließlich Unterordnern.
 - **Nach Tag exportieren** – Sobald mindestens ein Tag vorhanden ist, bietet das Exportdialogfeld des Connection-Managers die Option **Zu exportierende Verbindungen**: Behalten Sie die vorab ausgewählten Verbindungen bei oder exportieren Sie **alle Verbindungen mit diesen Tags** – wählen Sie ein oder mehrere Tags aus der Liste aus, die Verbindungsanzahl des Headers folgt der Auswahl live und die Schaltfläche „Exportieren“ bleibt deaktiviert, solange nichts übereinstimmt.
+
+## Tab-Farbe
+
+Eine **Tab-Farbe** markiert jeden Terminal-Tab einer Verbindung mit einem kleinen farbigen Punkt vor seinem Titel und einem 3 Pixel breiten Rahmen derselben Farbe um sein Terminal, sodass sich ein Produktionsserver auf einen Blick von Testrechnern abhebt. Sie legen sie im Verbindungseditor auf dem Tab *Terminal-Einstellungen* im Abschnitt **Terminal-Verhalten** fest: aktivieren Sie **Tabs dieser Verbindung farbig markieren** und wählen Sie die Farbe. Die Farbauswahl bietet Rot, Orange, Gelb, Grün, Blau, Lila und Grau als benutzerdefinierte Farben an, und jede andere Farbe funktioniert ebenfalls. Der Abschnitt gilt unabhängig davon, ob die Verbindung eigene Terminal-Einstellungen verwendet, und bleibt erhalten, wenn Terminal-Effekte ausgeschaltet sind. Deaktivieren Sie das Kontrollkästchen, um die Farbe zu entfernen.
+
+- **Nicht nur über die Farbe** — wenn Sie auf einen farbigen Tab zeigen, erscheint ein Tooltip mit der Verbindung (`user@host` oder bei einer lokalen Shell der Name der Verbindung) und der Farbe mit Name und Code, zum Beispiel *Tab-Farbe: rot (#D32F2F), an dieser Verbindung festgelegt*. Screenreader lesen für den Punkt denselben Text vor.
+- **Rahmen um das Terminal** — der Rahmen umschließt den gesamten Tab-Inhalt, einschließlich aller geteilten Bereiche und der Statusleisten. Er belegt auf jeder Seite 3 Pixel, daher ändert das Setzen oder Entfernen einer Farbe die Größe der offenen Terminals der Verbindung, und Vollbildprogramme zeichnen sich neu. Um nur den Punkt zu behalten, schalten Sie **Terminal in der Tab-Farbe seiner Verbindung umrahmen** in den [Fenster-Einstellungen](../reference/settings/window.md#tabs) aus.
+- **Wirkt sofort** — Speichern im Connection-Manager färbt die offenen Tabs dieser Verbindung in allen Fenstern neu, und das Entfernen der Farbe entfernt Punkt und Rahmen. Tabs, die aus einer gespeicherten Verbindung über die Schnellverbindung, **Duplizieren**, **Geschlossenen Tab wieder öffnen** oder ein [Projekt](projects.md) geöffnet werden, zeigen ebenfalls ihre Farbe.
+- **Statusfarben bleiben** — der gelbe Tab während des Verbindungsaufbaus und der dunkelrote Tab einer fehlgeschlagenen oder verlorenen Verbindung funktionieren wie bisher; Punkt und Rahmen werden zusätzlich angezeigt und ersetzen sie nie. Ein Bereich, den **Rechts teilen (neue Verbindung)** oder **Unten teilen (neue Verbindung)** zu einem anderen Server geöffnet hat, gehört zum selben Tab und liegt innerhalb des Rahmens des Tabs, zeigt also die Farbe des Tabs und nicht seine eigene.
+- **Mit der Verbindung gespeichert** — die Farbe wird in `connections.xml` als `#RRGGBB` gespeichert und bleibt beim Duplizieren, Exportieren und Importieren erhalten. Ein Wert, der keine Hex-Farbe ist, wird ignoriert.
+- **Farbe aus der Umgebung der Anmeldeinformationen** — eine Verbindung ohne eigene Tab-Farbe kann die Farbe der Umgebung ihrer hinterlegten Anmeldeinformationen übernehmen, zum Beispiel Rot für jede Verbindung, die sich mit Anmeldeinformationen aus der Produktion anmeldet. Geben Sie der Umgebung in der Anmeldeinformationsverwaltung unter **Umgebungen...** eine Farbe, siehe [Umgebungen und Tab-Farben](security.md#umgebungen-und-tab-farben). Der Tooltip nennt dann die Umgebung, statt zu sagen, dass die Farbe an der Verbindung festgelegt ist, und eine an der Verbindung festgelegte Farbe hat immer Vorrang.
+
+!!! warning "Gemeinsam genutzte Verbindungen bringen ihre eigene Farbe mit"
+    Eine [Teamarbeit](teamwork.md)-Verbindung zeigt die Farbe, die in der gemeinsamen Datei steht, sodass derjenige, der diese Datei pflegt, entscheidet, wie ihre Tabs markiert werden. Diese Farbe hat auch Vorrang vor der Farbe Ihrer eigenen Zugangsdaten-Umgebung. Betrachten Sie die Farbe als Hinweis, nicht als Beweis dafür, auf welchem Server Sie sich befinden: Der Tooltip nennt weiterhin die Verbindung, ebenso der Tab-Titel, es sei denn, Sie haben den Tab umbenannt oder seine [Shell hat einen Titel gesetzt](terminal.md#titel-aus-der-shell).
 
 ## Protokolle
 
