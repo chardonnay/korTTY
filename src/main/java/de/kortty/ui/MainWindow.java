@@ -307,6 +307,8 @@ public class MainWindow {
     private final List<ConnectionImporter> importers;
     
     private static final List<MainWindow> openWindows = new ArrayList<>();
+    /** The window that had the focus last; stands in for the frontmost one (see {@link #getFrontmostOpenWindow}). */
+    private static MainWindow lastFocusedWindow;
 
     /**
      * Mints {@link #windowId}. A counter rather than the list position: a window id that renumbered
@@ -862,6 +864,9 @@ public class MainWindow {
                     powerManagementStateListener = null;
                 }
                 openWindows.remove(this);
+                if (lastFocusedWindow == this) {
+                    lastFocusedWindow = null;
+                }
 
                 // On macOS the application stays alive after the last window closes so the
                 // dock icon can reopen a new window without restarting the process.
@@ -934,6 +939,12 @@ public class MainWindow {
         } else {
             root.setTop(menuRow);
         }
+        // macOS keeps showing this window's menu bar after it closed; its items then act in an open
+        // window, or in a new one (ClosedWindowMenuRouter).
+        ClosedWindowMenuRouter.install(this, window -> window.menuBar.getMenus(), MENU_BAR_WINDOWS);
+        if (systemMenuBar != null) {
+            ClosedWindowMenuRouter.install(this, MainWindow::systemMenus, MENU_BAR_WINDOWS);
+        }
         // The menu bar always starts visible; hiding it is session-only and never persisted.
         applyMenuBarVisibility(true);
         syncDashboardMenuItems(shouldRestoreDashboardOnStartup());
@@ -961,6 +972,53 @@ public class MainWindow {
                 item.setAccelerator(null);
             }
         }
+    }
+
+    /** The open windows as the menu bar of a closed window sees them (see {@link ClosedWindowMenuRouter}). */
+    private static final ClosedWindowMenuRouter.Windows<MainWindow> MENU_BAR_WINDOWS =
+        new ClosedWindowMenuRouter.Windows<>() {
+            @Override
+            public boolean isOpen(MainWindow window) {
+                return openWindows.contains(window);
+            }
+
+            @Override
+            public MainWindow frontmostOpen() {
+                return getFrontmostOpenWindow();
+            }
+
+            @Override
+            public MainWindow openNew() {
+                reopenOrCreateWindow();
+                return getFrontmostOpenWindow();
+            }
+
+            @Override
+            public void bringToFront(MainWindow window) {
+                window.bringToFront();
+            }
+        };
+
+    private static List<Menu> systemMenus(MainWindow window) {
+        return window.systemMenuBar != null ? window.systemMenuBar.getMenus() : List.of();
+    }
+
+    /**
+     * The focused window, else the one that had the focus last, else the one opened last; {@code null}
+     * when no window is open.
+     */
+    private static MainWindow getFrontmostOpenWindow() {
+        return ClosedWindowMenuRouter.frontmost(openWindows, window -> window.stage.isFocused(), lastFocusedWindow);
+    }
+
+    /** Shows this window in front of the others, restoring it from the Dock first when it is minimized. */
+    private void bringToFront() {
+        if (stage.isIconified()) {
+            stage.setIconified(false);
+        }
+        stage.show();
+        stage.toFront();
+        stage.requestFocus();
     }
 
     private void syncAiFeaturesMenuItemsEnabled() {
@@ -1046,7 +1104,12 @@ public class MainWindow {
 
     private void installForegroundActivityLifecycle() {
         stage.showingProperty().addListener((observable, oldValue, newValue) -> updateForegroundActivity());
-        stage.focusedProperty().addListener((observable, oldValue, newValue) -> updateForegroundActivity());
+        stage.focusedProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue) {
+                lastFocusedWindow = this;
+            }
+            updateForegroundActivity();
+        });
         stage.iconifiedProperty().addListener((observable, oldValue, newValue) -> updateForegroundActivity());
     }
 
@@ -1205,6 +1268,7 @@ public class MainWindow {
                 MenuItem cancel = new MenuItem(I18n.get("jobscheduler.menu.cancel", jobName));
                 cancel.setDisable(active.cancellationRequested());
                 cancel.setOnAction(event -> schedulerService.cancelJob(active.jobId()));
+                ClosedWindowMenuRouter.noWindowNeeded(cancel);
                 menu.getItems().add(cancel);
             }
         }
@@ -1348,17 +1412,21 @@ public class MainWindow {
         MenuItem closeTab = new MenuItem(I18n.get("menu.file.closeTab"));
         closeTab.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN));
         closeTab.setOnAction(e -> closeCurrentTab());
+        ClosedWindowMenuRouter.ownWindowOnly(closeTab);
 
         MenuItem closeAllTabs = new MenuItem(I18n.get("menu.file.closeAllTabs"));
         closeAllTabs.setOnAction(e -> confirmAndCloseAllTabs());
+        ClosedWindowMenuRouter.ownWindowOnly(closeAllTabs);
 
         MenuItem newWindow = new MenuItem(I18n.get("menu.file.newWindow"));
         newWindow.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         newWindow.setOnAction(e -> openNewWindow());
+        ClosedWindowMenuRouter.noWindowNeeded(newWindow);
 
         MenuItem closeWindow = new MenuItem(I18n.get("menu.file.closeWindow"));
         closeWindow.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         closeWindow.setOnAction(e -> fireCloseRequest());
+        ClosedWindowMenuRouter.ownWindowOnly(closeWindow);
 
         MenuItem openProject = new MenuItem(I18n.get("menu.file.openProject"));
         openProject.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
@@ -1378,6 +1446,7 @@ public class MainWindow {
         MenuItem quit = new MenuItem(I18n.get("menu.file.quit"));
         quit.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCombination.SHORTCUT_DOWN));
         quit.setOnAction(e -> requestApplicationQuit());
+        ClosedWindowMenuRouter.noWindowNeeded(quit);
 
         fileMenu.getItems().addAll(
             newTab, closeTab, closeAllTabs, new SeparatorMenuItem(),
@@ -1393,6 +1462,7 @@ public class MainWindow {
         MenuItem cut = new MenuItem(I18n.get("menu.edit.cut"));
         cut.setAccelerator(new KeyCodeCombination(KeyCode.X, KeyCombination.SHORTCUT_DOWN));
         cut.setOnAction(e -> cutFromCurrentContext());
+        ClosedWindowMenuRouter.ownWindowOnly(cut);
         if (target == MenuBarTarget.WINDOW) {
             cutMenuItem = cut;
         } else {
@@ -1403,10 +1473,12 @@ public class MainWindow {
         MenuItem copy = new MenuItem(I18n.get("menu.edit.copy"));
         copy.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
         copy.setOnAction(e -> copyFromTerminal());
+        ClosedWindowMenuRouter.ownWindowOnly(copy);
 
         MenuItem paste = new MenuItem(I18n.get("menu.edit.paste"));
         paste.setAccelerator(PASTE_ACCELERATOR);
         paste.setOnAction(e -> pasteToTerminal());
+        ClosedWindowMenuRouter.ownWindowOnly(paste);
 
         MenuItem find = new MenuItem(I18n.get("menu.edit.find"));
         find.setAccelerator(new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN));
@@ -1489,6 +1561,7 @@ public class MainWindow {
 
         CheckMenuItem preventSleep = new CheckMenuItem();
         preventSleep.setOnAction(e -> setManualSleepPrevention(preventSleep.isSelected()));
+        ClosedWindowMenuRouter.noWindowNeeded(preventSleep);
         preventSleepMenuItems.add(preventSleep);
         installPowerManagementStateListener();
         syncPreventSleepMenuItems();
