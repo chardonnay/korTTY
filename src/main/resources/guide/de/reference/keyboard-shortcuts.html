@@ -822,7 +822,7 @@
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span></td>
-<td>Suchen Sie im aktiven Tab</td>
+<td>Suchen im aktiven Tab (in einem fokussierten Terminal auf Windows und Linux geht die Taste zur Shell, siehe <a href="#terminal">Terminal</a>)</td>
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span></td>
@@ -978,6 +978,26 @@
 </thead>
 <tbody>
 <tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-c">C</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-v">V</kbd></span></td>
+<td>Terminalauswahl kopieren / in das Terminal einfügen (Windows und Linux; <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-c">C</kbd></span> / <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-v">V</kbd></span> auf macOS)</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-l">L</kbd></span> (Windows und Linux)</td>
+<td>An die Shell gesendet: zeichnet den Bildschirm neu oder löscht den Bildschirm in bash, psql oder einer REPL, und der Scrollback bleibt erhalten</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> (Windows und Linux)</td>
+<td>An die Shell gesendet: bewegt den Cursor um ein Zeichen vorwärts bei einem Bash-Prompt und scrollt vorwärts in <code>less</code> oder <code>vim</code></td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-k">K</kbd></span> (macOS)</td>
+<td>Puffer löschen: den Terminalbildschirm und seinen Scrollback leeren</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-f">F</kbd></span> (macOS)</td>
+<td>Suchen im Terminal-Scrollback</td>
+</tr>
+<tr>
 <td><span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span></td>
 <td>Back-tab (<code>ESC [ Z</code>), zum Beispiel um in einem Vollbildprogramm ein Feld oder einen Tab zurückzugehen</td>
 </tr>
@@ -1003,7 +1023,28 @@
 </tr>
 </tbody>
 </table>
+<p>Auf Windows und Linux haben <strong>Puffer löschen</strong> und <strong>Suchen</strong> keine eigenen Tasten, daher bleiben <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-l">L</kbd></span> und <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> bei den Programmen, die im Terminal laufen. Verwenden Sie Rechtsklick → <strong>Puffer löschen</strong> oder <strong>Suchen</strong> im Terminal, oder <strong>Bearbeiten → Suchen…</strong> mit der Maus. <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span> bleibt <strong>Nur korTTY Applikationsfenster</strong>, und <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-k">K</kbd></span> dockt den Dateibrowser weiterhin links an.</p>
 <p>Jede andere Kombination von <span class="keys"><kbd class="key-shift">Shift</kbd></span>, <span class="keys"><kbd class="key-control">Ctrl</kbd></span> und <span class="keys"><kbd class="key-alt">Alt</kbd></span> mit den Pfeiltasten, <span class="keys"><kbd class="key-home">Home</kbd></span> / <span class="keys"><kbd class="key-end">End</kbd></span>, <span class="keys"><kbd class="key-page-up">Page Up</kbd></span> / <span class="keys"><kbd class="key-page-down">Page Down</kbd></span>, <span class="keys"><kbd class="key-insert">Ins</kbd></span> / <span class="keys"><kbd class="key-delete">Del</kbd></span> und <span class="keys"><kbd class="key-f1">F1</kbd></span> bis <span class="keys"><kbd class="key-f11">F11</kbd></span> wird so gesendet, wie xterm es sendet (<span class="keys"><kbd class="key-f12">F12</kbd></span> schaltet immer den Vollbildmodus um), zum Beispiel <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-page-up">Page Up</kbd></span> als <code>ESC [ 5 ; 5 ~</code> und <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f1">F1</kbd></span> als <code>ESC [ 1 ; 2 P</code>. Die Pfeiltasten folgen dem Cursor-Key-Modus des Programms: <code>mc</code> und <code>vim</code> schalten ihn ein und dann empfangen sie <code>ESC O A</code>, während eine Shell <code>ESC [ A</code> erhält. Verbindungen mit einer Nicht-xterm-Terminalemulation (Wyse, TeleVideo, HP, SCO ANSI, IBM 3270/5250, PETSCII) senden weiterhin feste Sequenzen ohne Modifikatoren.</p>
+<h2 id="sftp-manager">SFTP-Manager<a class="headerlink" href="#sftp-manager" title="Permanent link">&para;</a></h2>
+<p>Diese Tasten funktionieren in der lokalen und der entfernten Liste eines SFTP-Manager-Tabs; siehe <a href="../features/sftp.html#tasten">Tasten</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Verknüpfung</th>
+<th>Aktion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="keys"><kbd class="key-f2">F2</kbd></span></td>
+<td>Ausgewählten Eintrag umbenennen</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-delete">Del</kbd></span> oder <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-backspace">Backspace</kbd></span></td>
+<td>Auswahl nach Bestätigung löschen</td>
+</tr>
+</tbody>
+</table>
 <h2 id="snippet-manager">Snippet-Manager<a class="headerlink" href="#snippet-manager" title="Permanent link">&para;</a></h2>
 <p>Diese Tastenkombinationen funktionieren im Snippet-Manager (Bibliotheks- und Bearbeitungs-Tab); siehe <a href="../features/snippets.html#offnen-des-snippet-managers">Das Öffnen des Snippet-Managers</a>.</p>
 <table>
