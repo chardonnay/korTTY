@@ -22,9 +22,10 @@ import java.util.function.Predicate;
  * <p>A scene event filter runs before the focused node, so a chord routed here works while a
  * terminal has the focus (the terminal would otherwise encode it), and also with the menu bar
  * hidden or in terminal-only fullscreen, where menu accelerators cannot fire. Entries are tried in
- * registration order and the first whose chord and scope both hold wins: it runs its action,
- * consumes the KEY_PRESSED and arms a {@link KeyTypedResidueGuard} with the chord's residue. The
- * router's single KEY_TYPED filter then swallows that residue before the terminal, or broadcast
+ * registration order. An observer whose chord and scope hold runs its action and the search goes
+ * on; the first consuming entry whose chord and scope hold wins: it runs its action, consumes the
+ * KEY_PRESSED and arms a {@link KeyTypedResidueGuard} with the chord's residue. The router's single
+ * KEY_TYPED filter then swallows that residue before the terminal, or broadcast
  * mode's KEY_TYPED mirror in TerminalSplitPane, can type it. The guard is cleared at the top of
  * every KEY_PRESSED, before any entry is tried.
  *

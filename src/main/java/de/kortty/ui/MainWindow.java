@@ -2199,9 +2199,10 @@ public class MainWindow {
     }
     
     /**
-     * The window's scene shortcuts, in the order they are tried; the first entry whose chord and
-     * scope hold wins. Every new window-wide chord registers here, with its KeyCodeCombination
-     * constant declared at the top of this class and also set on its menu item.
+     * The window's scene shortcuts, in the order they are tried; the first consuming entry whose
+     * chord and scope hold wins (observers run and let the search go on). Every new window-wide
+     * chord registers here, with its KeyCodeCombination constant declared at the top of this class
+     * and also set on its menu item.
      */
     private SceneShortcutRouter createSceneShortcutRouter() {
         BooleanSupplier terminalSelected =

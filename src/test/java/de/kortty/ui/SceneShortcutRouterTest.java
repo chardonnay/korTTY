@@ -145,16 +145,17 @@ class SceneShortcutRouterTest {
     }
 
     @Test
-    void aZoomWithoutKeyTypedLeavesNothingArmedAcrossTheMenuBarChord() {
+    void aPendingZoomResidueDoesNotSurviveTheMenuBarChord() {
         // The old zoom flag was reset only after the menu-bar and fullscreen chords had returned, so
-        // it survived them and swallowed the next character.
+        // it survived them and swallowed whatever KEY_TYPED came next.
         SceneShortcutRouter router = new SceneShortcutRouter(false)
             .consume(p -> p.matches(SHORTCUT_SHIFT_L), SceneShortcutRouter.ALWAYS, () -> { }, Residue.ofLetter('L'))
             .consume(SceneShortcutKeys::isZoomIn, SceneShortcutRouter.ALWAYS, () -> { }, SceneShortcutKeys.ZOOM_RESIDUE);
 
         // Ctrl+= zooms but its platform delivers no KEY_TYPED.
         router.onKeyPressed(keyPressed(KeyCode.EQUALS, "=", false, true, false, false));
-        // Ctrl+Shift+L, whose KEY_TYPED is not a letter residue.
+        // Ctrl+Shift+L arms its own letter residue in place of the zoom's any-character one, so a
+        // KEY_TYPED that is not L, l or U+000C passes.
         router.onKeyPressed(keyPressed(KeyCode.L, "\f", true, true, false, false));
         KeyEvent typed = keyTyped("x");
         router.onKeyTyped(typed);
