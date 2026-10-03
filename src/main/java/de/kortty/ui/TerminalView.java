@@ -3305,9 +3305,46 @@ public class TerminalView extends BorderPane {
         if (!(widget instanceof KorttyTermWidget korttyWidget)) {
             return;
         }
-        korttyWidget.describePasteTarget(connection::getDisplayName, () -> connectorCharset(korttyWidget),
+        korttyWidget.describePasteTarget(() -> pasteTargetLabel(korttyWidget), () -> connectorCharset(korttyWidget),
             () -> splitPane != null && splitPane.isBroadcastMode());
         korttyWidget.setPasteHandler(pasteGuard::paste);
+    }
+
+    /**
+     * How a paste confirmation names the pane: the connection the pane runs. A pane opened with
+     * Split (new connection) runs a connection of its own, maybe to another server, so the tab's
+     * connection would name the wrong host.
+     */
+    private String pasteTargetLabel(SithTermFxWidget widget) {
+        TtyConnector bound = widget != null ? unwrapTerminalEffectConnector(widget.getTtyConnector()) : null;
+        return paneConnectionLabel(connectionOf(bound), connection);
+    }
+
+    /**
+     * The name of the pane's own connection, or of the tab's while the pane has none (before it is
+     * connected, or for a connector that does not say); "" when neither is known.
+     */
+    static String paneConnectionLabel(@Nullable ServerConnection pane, @Nullable ServerConnection tab) {
+        ServerConnection shown = pane != null ? pane : tab;
+        String label = shown != null ? shown.getDisplayName() : null;
+        return label != null ? label : "";
+    }
+
+    /** The connection a base connector (without korTTY's wrappers) runs, or null when it does not say. */
+    static @Nullable ServerConnection connectionOf(@Nullable TtyConnector connector) {
+        if (connector instanceof SshTtyConnector ssh) {
+            return ssh.getConnection();
+        }
+        if (connector instanceof Mosh4jTtyConnector mosh) {
+            return mosh.getConnection();
+        }
+        if (connector instanceof NativeMoshTtyConnector nativeMosh) {
+            return nativeMosh.getConnection();
+        }
+        if (connector instanceof LocalShellTtyConnector localShell) {
+            return localShell.getConnection();
+        }
+        return null;
     }
 
     /**
