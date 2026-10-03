@@ -38,6 +38,9 @@ class MainWindowAcceleratorUniquenessTest {
     private static final Pattern USAGE = Pattern.compile(
         "\\.setAccelerator\\(\\s*(?:new KeyCodeCombination\\(([^)]*)\\)|(\\w+))\\s*\\)");
 
+    /** {@code KeyCode.DIGIT1} to {@code DIGIT9} and {@code KeyCode.NUMPAD1} to {@code NUMPAD9}. */
+    private static final Pattern JUMP_DIGIT = Pattern.compile("\\b(?:DIGIT|NUMPAD)[1-9]\\b");
+
     @Test
     void noTwoMenuItemsShareAnAccelerator() throws IOException {
         String source = Files.readString(SOURCE, StandardCharsets.UTF_8);
@@ -73,6 +76,35 @@ class MainWindowAcceleratorUniquenessTest {
             .map(entry -> entry.getKey() + " used at lines " + String.join(", ", entry.getValue()))
             .collect(Collectors.joining("\n"));
         assertThat(duplicates).isEmpty();
+    }
+
+    /**
+     * Cmd/Ctrl+1..9 jump to a tab through the scene shortcut router (TabKeyboardShortcuts), which
+     * runs before any menu accelerator, so a menu item on Shortcut+digit would never fire, or would
+     * fire as well. The jump chords have no KeyCodeCombination of their own: their modifier rules
+     * differ per platform (Shift tolerated on macOS, exactly Ctrl elsewhere).
+     */
+    @Test
+    void noMenuAcceleratorUsesShortcutDigits() throws IOException {
+        String source = Files.readString(SOURCE, StandardCharsets.UTF_8).replace("\r\n", "\n");
+
+        List<String> digitCombinations = new ArrayList<>();
+        Matcher combinationMatcher = Pattern.compile("new KeyCodeCombination\\(([^)]*)\\)").matcher(source);
+        int combinations = 0;
+        while (combinationMatcher.find()) {
+            combinations++;
+            if (JUMP_DIGIT.matcher(combinationMatcher.group(1)).find()) {
+                digitCombinations.add(normalize(combinationMatcher.group(1))
+                    + " at line " + lineOf(source, combinationMatcher.start()));
+            }
+        }
+        assertThat(combinations).isGreaterThan(0);
+        assertThat(digitCombinations).isEmpty();
+        // The same chords spelled by character or by name.
+        assertThat(Pattern.compile("new KeyCharacterCombination\\(\\s*\"[1-9]\"").matcher(source).find()).isFalse();
+        assertThat(Pattern.compile("keyCombination\\(\\s*\"[^\"]*\\+(?:Numpad\\s*)?[1-9]\"", Pattern.CASE_INSENSITIVE)
+            .matcher(source).find()).isFalse();
+        assertThat(source).contains("TabKeyboardShortcuts.slotOf(press) == jumpSlot");
     }
 
     /** Turns a KeyCodeCombination argument list into a canonical, order-independent key. */

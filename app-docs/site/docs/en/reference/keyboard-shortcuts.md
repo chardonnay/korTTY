@@ -12,6 +12,8 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | ++ctrl+shift+w++ | Close Window |
 | ++ctrl+tab++ | Next Tab (++ctrl++ on macOS too) |
 | ++ctrl+shift+tab++ | Previous Tab (++ctrl++ on macOS too) |
+| ++ctrl+1++ … ++ctrl+8++ | Jump to the first to eighth tab of the window (top row or numpad) |
+| ++ctrl+9++ | Jump to the last tab of the window |
 | ++ctrl+o++ | Open Project |
 | ++ctrl+s++ | Save Project |
 | ++ctrl+shift+b++ | Create Backup |
@@ -58,6 +60,8 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 
 The zoom keys (++ctrl++ or ++alt++ with ++plus++ / ++minus++ / ++0++; ++cmd++ on macOS) zoom the terminal only while a terminal tab is selected. In a snippet editor or file editor tab they reach the editor, and ++alt-graph+plus++ types its character there.
 
+The tab jump keys work in every tab, also while a terminal or an editor has the focus, and a number with no tab at its position does nothing. On macOS they are ++cmd++ with a digit, and ++cmd+shift++ with a digit works too, so a French (AZERTY) Mac can reach its digits (macOS keeps ++cmd+shift+3++ to ++cmd+shift+5++ for screenshots). On Windows and Linux they are exactly ++ctrl++ with a digit: ++alt-graph++ combinations (which arrive as ++ctrl+alt++) and ++ctrl+shift+6++ (the Cisco break sequence) still reach the terminal. A digit key that types ++plus++ or ++minus++ in your layout, such as the AZERTY 6 key, stays a zoom key instead. On Linux with a layout whose number row types other characters, the top-row digits may not jump; the numpad digits (with ++num-lock++ on) do.
+
 ## Terminal
 
 These keys work while a terminal pane has the focus. For how they behave with several panes, see [Broadcast mode](../features/terminal.md#broadcast-mode).
@@ -75,6 +79,9 @@ These keys work while a terminal pane has the focus. For how they behave with se
 | ++shift+page-up++ / ++shift+page-down++ | Scroll korTTY's scrollback by a page; inside a full-screen program such as `vim`, `less` or `mc` the key goes to the program |
 | ++ctrl+up++ / ++ctrl+down++ | Scroll korTTY's scrollback by a line (++cmd+up++ / ++cmd+down++ on macOS); on Windows and Linux the keys go to a full-screen program instead while one runs |
 | ++ctrl+tab++ / ++ctrl+shift+tab++ | Next / previous tab, also while the terminal has the focus (the ++ctrl++ key on macOS too) |
+| ++ctrl+1++ … ++ctrl+9++ | Jump to a tab, also while the terminal has the focus (++cmd++ on macOS, see [General](#general)) |
+
+On Windows and Linux, ++ctrl+1++ to ++ctrl+9++ no longer reach the program in the terminal: korTTY's terminal never sent them as keys of their own, so no program loses a binding it could receive.
 
 On Windows and Linux, **Clear Buffer** and **Find** have no key of their own, so ++ctrl+l++ and ++ctrl+f++ stay with the programs running in the terminal. Use right-click → **Clear Buffer** or **Find** in the terminal, or **Edit → Find…** with the mouse. ++ctrl+shift+f++ stays Terminal-only Fullscreen and ++ctrl+shift+k++ still docks the file browser on the left.
 

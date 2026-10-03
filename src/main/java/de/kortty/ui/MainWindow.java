@@ -2229,7 +2229,7 @@ public class MainWindow {
     private SceneShortcutRouter createSceneShortcutRouter() {
         BooleanSupplier terminalSelected =
             () -> tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab;
-        return new SceneShortcutRouter(isMacOs())
+        SceneShortcutRouter router = new SceneShortcutRouter(isMacOs())
             .consume(press -> press.matches(MENU_BAR_TOGGLE_ACCELERATOR), SceneShortcutRouter.ALWAYS,
                 () -> toggleMenuBarVisibility(menuBar == null || !menuBar.isVisible()), Residue.ofLetter('L'))
             .consume(press -> press.matches(TERMINAL_ONLY_FULLSCREEN_ACCELERATOR), SceneShortcutRouter.ALWAYS,
@@ -2255,6 +2255,16 @@ public class MainWindow {
                 this::selectNextTab, SceneShortcutKeys.TAB_RESIDUE)
             .consume(SceneShortcutKeys::isPreviousTab, SceneShortcutRouter.ALWAYS,
                 this::selectPreviousTab, SceneShortcutKeys.TAB_RESIDUE);
+        // Cmd/Ctrl+1..9 jump to a tab in every tab, the terminal included (exactly Ctrl on Windows
+        // and Linux, so AltGr and Ctrl+Shift+6 still reach it). Registered after the zoom keys, which
+        // win where a layout puts Plus or Minus on a digit key. No menu item carries a digit
+        // accelerator (MainWindowAcceleratorUniquenessTest), so these chords have no constant.
+        for (int slot = 1; slot <= TabKeyboardShortcuts.SLOT_COUNT; slot++) {
+            int jumpSlot = slot;
+            router.consume(press -> TabKeyboardShortcuts.slotOf(press) == jumpSlot, SceneShortcutRouter.ALWAYS,
+                () -> selectTabBySlot(jumpSlot), TabKeyboardShortcuts.JUMP_RESIDUE);
+        }
+        return router;
     }
 
     /** F12: toggles fullscreen and gives the selected terminal the focus back once the layout settled. */
@@ -3992,7 +4002,15 @@ public class MainWindow {
         if (prev < 0) prev = tabPane.getTabs().size() - 1;
         tabPane.getSelectionModel().select(prev);
     }
-    
+
+    /** Cmd/Ctrl+1..8 select the tab at that position, Cmd/Ctrl+9 the last tab; a slot with no tab does nothing. */
+    private void selectTabBySlot(int slot) {
+        int index = TabKeyboardShortcuts.indexForSlot(slot, tabPane.getTabs().size());
+        if (index != TabKeyboardShortcuts.NO_TAB) {
+            tabPane.getSelectionModel().select(index);
+        }
+    }
+
     private void copyFromTerminal() {
         Tab currentTab = tabPane.getSelectionModel().getSelectedItem();
         if (currentTab instanceof TerminalTab terminalTab) {
