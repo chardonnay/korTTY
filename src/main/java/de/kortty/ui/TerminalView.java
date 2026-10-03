@@ -4339,7 +4339,11 @@ public class TerminalView extends BorderPane {
         if (data == null || data.isEmpty()) {
             return;
         }
-        processTerminalAgentOscSignal(sourceConnector, data);
+        processTerminalAgentOscSignal(
+            terminalAgentOscBuffers,
+            sourceConnector,
+            data,
+            payload -> dispatchTerminalAgentOscPayload(sourceConnector, payload));
         if (data.contains("\u001B]133;A") || data.contains("\u001B]133;B")) {
             agentShortcutPromptReady = true;
         }
@@ -4368,8 +4372,26 @@ public class TerminalView extends BorderPane {
         }
     }
 
-    private void processTerminalAgentOscSignal(SshTtyConnector sourceConnector, String data) {
-        StringBuilder terminalAgentOscBuffer = terminalAgentOscBuffers.computeIfAbsent(
+    /**
+     * Receives the {@code ESC ] 777 ; korTTY-agent ; kind ; cwd ; prompt} sequences that the shell
+     * startup hook ({@link #buildTerminalAgentShellStartupCommand}) prints for the agent aliases, and
+     * hands each complete payload to {@code dispatcher}, which starts an AI agent run.
+     *
+     * <p>These sequences arrive in the same stream as everything else the server sends. On a
+     * connector without that hook they can only be remote output (a file shown with {@code cat}, a
+     * login banner, a hostile server) and would start an agent run with a prompt and inline options
+     * such as {@code root=true} chosen by the remote side. They are therefore honoured only while the
+     * hook is configured, and otherwise not even buffered.
+     */
+    static void processTerminalAgentOscSignal(
+            Map<SshTtyConnector, StringBuilder> buffers,
+            SshTtyConnector sourceConnector,
+            String data,
+            Consumer<String> dispatcher) {
+        if (sourceConnector == null || !sourceConnector.hasShellStartupCommandConfigured()) {
+            return;
+        }
+        StringBuilder terminalAgentOscBuffer = buffers.computeIfAbsent(
             sourceConnector,
             ignored -> new StringBuilder());
         synchronized (terminalAgentOscBuffer) {
@@ -4401,12 +4423,12 @@ public class TerminalView extends BorderPane {
                 }
                 String payload = terminalAgentOscBuffer.substring(start + prefix.length(), end);
                 terminalAgentOscBuffer.delete(0, end + terminatorLength);
-                dispatchTerminalAgentOscPayload(sourceConnector, payload);
+                dispatcher.accept(payload);
             }
         }
     }
 
-    private void trimTerminalAgentOscBuffer(StringBuilder terminalAgentOscBuffer) {
+    private static void trimTerminalAgentOscBuffer(StringBuilder terminalAgentOscBuffer) {
         int maxLength = 4096;
         if (terminalAgentOscBuffer.length() > maxLength) {
             terminalAgentOscBuffer.delete(0, terminalAgentOscBuffer.length() - maxLength);
