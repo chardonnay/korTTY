@@ -3099,9 +3099,9 @@ public class TerminalView extends BorderPane {
     }
 
     /**
-     * Observes the pane's canvas focus (the real focus owner — TerminalSplitPane's own listener sits
-     * on the pane node and never fires for keyboard focus) and forwards every gained focus to the
-     * focused-widget listeners. Removed in {@link #releasePaneState}.
+     * Observes the pane's canvas focus (the real focus owner, which TerminalSplitPane follows as
+     * well) and forwards every gained focus to the focused-widget listeners. Removed in
+     * {@link #releasePaneState}.
      */
     private void installPaneFocusObserver(SithTermFxWidget widget) {
         if (widget == null || paneFocusListeners.containsKey(widget)) {
@@ -3158,9 +3158,8 @@ public class TerminalView extends BorderPane {
      * pane's focused widget before requesting focus, so {@link #getFocusedWidget()} — and with it
      * Copy/Paste, file drops, the AI run context, recording scope and the tab-selection
      * {@code focusTerminal()} — follow the pane the user was sent to instead of the one last
-     * clicked. Focusing the canvas alone would not: the split pane watches the pane's primary mouse
-     * clicks and its preferred focusable node, whose {@code focused} property stays false while the
-     * child canvas holds the focus.
+     * clicked. Focusing the canvas alone would not while the window is unfocused: the split pane
+     * follows the canvas's {@code focused} property, which stays false until the window has focus.
      */
     public void focusWidget(SithTermFxWidget widget) {
         if (widget == null) {

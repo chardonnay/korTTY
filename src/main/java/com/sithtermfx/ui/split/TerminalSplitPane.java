@@ -446,18 +446,30 @@ public class TerminalSplitPane extends StackPane {
     }
 
     private void setupWidget(@NotNull SithTermFxWidget widget) {
-        focusedWidget = widget;
+        setFocusedWidgetInternal(widget);
         widget.getPane().setOnMouseClicked(e -> {
             if (e.getButton() == MouseButton.PRIMARY) {
-                focusedWidget = widget;
+                setFocusedWidgetInternal(widget);
                 requestWidgetFocus(widget);
             }
         });
         widget.getPreferredFocusableNode().focusedProperty().addListener((obs, oldV, newV) -> {
             if (Boolean.TRUE.equals(newV)) {
-                focusedWidget = widget;
+                setFocusedWidgetInternal(widget);
             }
         });
+        // The keystrokes go to the canvas inside that node, and the node's own focused property
+        // stays false while the canvas holds the focus. Follow the canvas as well, or focus that
+        // reaches a pane without a primary click on it (a middle click, the window regaining focus
+        // after a dialog, a focus request from code) leaves getFocusedWidget() on the old pane.
+        TerminalPanel panel = widget.getTerminalPanel();
+        if (panel != null && panel.getCanvas() != null) {
+            panel.getCanvas().focusedProperty().addListener((obs, oldV, newV) -> {
+                if (Boolean.TRUE.equals(newV)) {
+                    setFocusedWidgetInternal(widget);
+                }
+            });
+        }
         // Auto-close split when session ends (e.g. Ctrl+D / exit)
         widget.addListener(new TerminalWidgetListener() {
             @Override
@@ -608,7 +620,7 @@ public class TerminalSplitPane extends StackPane {
         
         canvas.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_CLICKED, event -> {
             if (event.getButton() == MouseButton.SECONDARY) {
-                focusedWidget = widget;
+                setFocusedWidgetInternal(widget);
                 ContextMenu menu = createFullContextMenu(widget);
                 activeContextMenu = menu;
                 menu.setOnHidden(e -> {
@@ -848,7 +860,7 @@ public class TerminalSplitPane extends StackPane {
                 getChildren().add(rootCell.getNode());
                 VBox.setVgrow(rootCell.getNode(), Priority.ALWAYS);
             }
-            focusedWidget = rootCell != null ? findFirstWidget(rootCell) : null;
+            setFocusedWidgetInternal(rootCell != null ? findFirstWidget(rootCell) : null);
             refreshDragAndDrop();
             refreshSplitCloseButtons();
         }
@@ -859,15 +871,23 @@ public class TerminalSplitPane extends StackPane {
     }
 
     /**
+     * The only writer of {@link #focusedWidget}: a new pane, primary and secondary clicks, the
+     * canvas and preferred-node focus listeners, {@link #focusWidget} and closing a pane all change
+     * the focused pane through here, so Edit &gt; Find, Copy/Paste and the AI actions, which read
+     * {@link #getFocusedWidget()}, see one notion of it. TerminalSplitPaneFocusTrackingTest pins that.
+     */
+    private void setFocusedWidgetInternal(@Nullable SithTermFxWidget widget) {
+        focusedWidget = widget;
+    }
+
+    /**
      * Focuses {@code widget} programmatically exactly as a primary click on its pane would: the
      * split pane's own notion of the focused widget is updated first, then keyboard focus is
      * requested on the node that receives the keystrokes.
      *
-     * <p>Without this, focusing the pane's canvas alone leaves {@link #getFocusedWidget()} on the
-     * previously clicked pane: the field is only written from the pane's primary MOUSE_CLICKED
-     * handler and from {@code getPreferredFocusableNode().focusedProperty()}, and that node's
-     * {@code focused} property stays false while its child canvas is the focus owner (and while the
-     * window is not focused at all).
+     * <p>Requesting focus on the pane's canvas alone is not enough while the window itself is not
+     * focused: the split pane follows the canvas's {@code focused} property, which stays false until
+     * the window gets the focus, so {@link #getFocusedWidget()} would stay on the previous pane.
      *
      * @param widget a widget of this split pane; widgets that do not belong to it are ignored
      */
@@ -876,7 +896,7 @@ public class TerminalSplitPane extends StackPane {
             logger.debug("focusWidget ignored a widget that does not belong to this split pane");
             return;
         }
-        focusedWidget = widget;
+        setFocusedWidgetInternal(widget);
         requestWidgetFocus(widget);
     }
 
