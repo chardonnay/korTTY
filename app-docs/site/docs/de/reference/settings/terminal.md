@@ -4,7 +4,7 @@ title: Terminal
 
 # Terminal
 
-Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einschließlich Abmessungen, Scrollback, Zeichenkodierung und SSH-Verbindungsverwaltung. Öffnen über **Konfiguration → Globale Einstellungen → Terminal**; in `~/.kortty/global-settings.xml` gespeichert.
+Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einschließlich Abmessungen, Scrollback, Zeichenkodierung, Links und SSH-Verbindungsverwaltung. Öffnen über **Konfiguration → Globale Einstellungen → Terminal**; in `~/.kortty/global-settings.xml` gespeichert.
 
 ![Terminal settings tab](../../assets/screenshots/settings/terminal.png)
 
@@ -20,6 +20,7 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 | Dateikopie per Drag-and-Drop in das Terminal zulassen | umschalten | – | Ein | `terminalDragDropEnabled` |
 | Auswahl automatisch in die Zwischenablage kopieren | umschalten | – | Ein | `terminalCopyOnSelectEnabled` |
 | Aktive Terminalfenster ohne Bestätigung schließen | umschalten | – | Aus | `closeActiveTerminalWindowsWithoutConfirmation` |
+| Web-Adressen, E-Mail-Adressen und Dateipfade im Terminaltext erkennen | umschalten | – | Ein | `terminalLinkDetectionEnabled` |
 | SSH Keep-Alive aktivieren | umschalten | – | Ein | `sshKeepAliveEnabled` |
 | Intervall (Sekunden): | Nummer | 5–600 | 60 | `sshKeepAliveInterval` |
 | Verbindungswiederholungen aktivieren | umschalten | – | Ein | `connectionRetriesEnabled` |
@@ -45,6 +46,9 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 
 !!! note "Markierung automatisch in Zwischenablage kopieren"
     Wenn aktiviert, wird der von Ihnen im Terminal ausgewählte Text sofort in die Zwischenablage kopiert. Unter Linux wird er zudem zur X11-Hauptauswahl, sodass ein Mittelklick ihn in anderen Anwendungen wie xterm oder gedit einfügt. Mit dem internen Zwischenablage-Modus der Unternehmensrichtlinie [interner Zwischenablage-Modus](../enterprise-policy.md#interner-zwischenablagemodus) bleibt die Auswahl innerhalb von korTTY auf jeder Plattform.
+
+!!! note "Links"
+    Wenn **Web-Adressen, E-Mail-Adressen und Dateipfade im Terminaltext erkennen** eingeschaltet ist, öffnet ++cmd++ + Klick (macOS) bzw. ++ctrl++ + Klick (Windows, Linux) eine Webadresse, eine E-Mail-Adresse oder einen Dateipfad, die ein Programm als Klartext ausgegeben hat: eine Webadresse in Ihrem Standardbrowser, eine E-Mail-Adresse als neue Mail in Ihrem Mailprogramm und in SSH- und lokalen Shell-Tabs einen Dateipfad als Text im Snippet-Editor. Ein einfacher Klick wählt weiterhin nur Text aus. Eine Änderung gilt sofort für die offenen Terminals. Links, die ein Programm selbst mit OSC 8 auszeichnet, öffnen sich in jedem Fall mit demselben Klick. Siehe [Links in der Terminalausgabe](../../features/terminal.md#links-in-der-terminalausgabe).
 
 !!! note "SSH-Keep-Alive"
     Wenn korTTY aktiviert ist, sendet es regelmäßig Keep-Alive-Pakete, um zu verhindern, dass SSH-Sitzungen während Leerlaufzeiten ablaufen. Die Intervalleinstellung steuert, wie oft (in Sekunden) diese Pakete gesendet werden. Der Spinnerbereich beträgt 5–600 Sekunden; Das Intervall ist deaktiviert, wenn SSH Keep-Alive ausgeschaltet ist.

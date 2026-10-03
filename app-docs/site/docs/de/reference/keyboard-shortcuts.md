@@ -20,6 +20,7 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++ctrl+c++ | Kopie |
 | ++ctrl+v++ | Einfügen |
 | ++ctrl+f++ | Suchen im aktiven Tab (in einem fokussierten Terminal auf Windows und Linux geht die Taste zur Shell, siehe [Terminal](#terminal)) |
+| ++ctrl+shift+space++ | Schnellauswahl: die Webadressen, Pfade, E-Mail-Adressen, IP-Adressen, Hashes und Zahlen, die der fokussierte Terminalbereich anzeigt, mit Kürzeln versehen, um eines davon mit einer Taste zu kopieren oder zu öffnen (nur Terminal-Tabs), siehe [Schnellauswahl](../features/terminal.md#schnellauswahl) |
 | ++ctrl+k++ | Schnellverbindung |
 | ++ctrl+m++ | Verbindungen verwalten |
 | ++ctrl+shift+u++ | SFTP-Client |
@@ -75,6 +76,8 @@ Diese Tasten funktionieren, solange ein Terminalbereich den Fokus hat. Wie sie s
 | ++shift+page-up++ / ++shift+page-down++ | Den Scrollback von korTTY um eine Seite scrollen; in einem Vollbildprogramm wie `vim`, `less` oder `mc` geht die Taste an das Programm |
 | ++ctrl+up++ / ++ctrl+down++ | Den Scrollback von korTTY um eine Zeile scrollen (++cmd+up++ / ++cmd+down++ unter macOS); unter Windows und Linux gehen die Tasten stattdessen an ein laufendes Vollbildprogramm |
 | ++ctrl+tab++ / ++ctrl+shift+tab++ | Nächster / vorheriger Tab, auch wenn das Terminal den Fokus hat (auch unter macOS mit ++ctrl++) |
+| ++ctrl++ + Klick auf einen Link | Den Link im Browser oder Mailprogramm öffnen (++cmd++ + Klick unter macOS), auch eine als Klartext ausgegebene Web- oder E-Mail-Adresse; ein Dateipfad oder `file:`-Link öffnet sich in SSH- und lokalen Shell-Tabs als Text im Snippet-Editor; ein einfacher Klick auf einen Link bewirkt nichts, und Rechtsklick → **Link öffnen** oder **Datei im Snippet-Editor öffnen** funktioniert ohne die Taste, siehe [Links in der Terminalausgabe](../features/terminal.md#links-in-der-terminalausgabe) |
+| die Buchstaben eines Kürzels / ++shift++ + der letzte Buchstabe (während die Schnellauswahl läuft) | Den gekennzeichneten Text kopieren / eine Web- oder E-Mail-Adresse oder einen Dateipfad im Snippet-Editor öffnen; ++backspace++ nimmt den ersten Buchstaben eines zweibuchstabigen Kürzels zurück, ++esc++ oder jede andere Taste beendet die Schnellauswahl, siehe [Schnellauswahl](../features/terminal.md#schnellauswahl) |
 
 Auf Windows und Linux haben **Puffer löschen** und **Suchen** keine eigenen Tasten, daher bleiben ++ctrl+l++ und ++ctrl+f++ bei den Programmen, die im Terminal laufen. Verwenden Sie Rechtsklick → **Puffer löschen** oder **Suchen** im Terminal, oder **Bearbeiten → Suchen…** mit der Maus. ++ctrl+shift+f++ bleibt **Nur korTTY Applikationsfenster**, und ++ctrl+shift+k++ dockt den Dateibrowser weiterhin links an.
 
