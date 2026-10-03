@@ -151,6 +151,191 @@ public class RemoteTextFileSelectionSupportTest {
         }
     }
 
+    // ---- Paths printed in terminal output (links to files) ----
+
+    private static final boolean DRIVE_LETTERS = java.io.File.separatorChar == '\\';
+
+    @Test
+    void remotePathKeepsAnAbsolutePathWhateverTheWorkingDirectory() {
+        assertThat(RemoteTextFileSelectionSupport.resolveRemotePath("/home/daniel/work", "/var/log/syslog", "/home/daniel"))
+            .isEqualTo("/var/log/syslog");
+        assertThat(RemoteTextFileSelectionSupport.resolveRemotePath(null, "/etc/nginx/../hosts", null))
+            .isEqualTo("/etc/hosts");
+        assertThat(RemoteTextFileSelectionSupport.resolveRemotePath(null, "/../../etc/./hosts", null))
+            .isEqualTo("/etc/hosts");
+    }
+
+    @Test
+    void remoteHomePathResolvesAgainstTheSftpStartDirectory() {
+        assertThat(RemoteTextFileSelectionSupport.resolveRemotePath("/srv/app", "~/notes/todo.md", "/home/daniel"))
+            .isEqualTo("/home/daniel/notes/todo.md");
+        assertThat(RemoteTextFileSelectionSupport.resolveRemotePath("/srv/app", "~", "/home/daniel/"))
+            .isEqualTo("/home/daniel");
+    }
+
+    @Test
+    void remoteRelativePathResolvesAgainstTheWorkingDirectory() {
+        assertThat(RemoteTextFileSelectionSupport.resolveRemotePath("/srv/app", "./config/app.yml", "/home/daniel"))
+            .isEqualTo("/srv/app/config/app.yml");
+        assertThat(RemoteTextFileSelectionSupport.resolveRemotePath("/srv/app", "../shared/app.log", "/home/daniel"))
+            .isEqualTo("/srv/shared/app.log");
+        assertThat(RemoteTextFileSelectionSupport.resolveRemotePath("/srv/app/", "src/main/App.java", "/home/daniel"))
+            .isEqualTo("/srv/app/src/main/App.java");
+        // A home-relative working directory, as typed cd and OSC 7 leave it.
+        assertThat(RemoteTextFileSelectionSupport.resolveRemotePath("~/work", "a/b.txt", "/home/daniel"))
+            .isEqualTo("/home/daniel/work/a/b.txt");
+        // No tracked directory: the SFTP start directory, as for a selected file name.
+        assertThat(RemoteTextFileSelectionSupport.resolveRemotePath(null, "a/b.txt", "/home/daniel"))
+            .isEqualTo("/home/daniel/a/b.txt");
+        // Nothing known at all: SFTP resolves a relative path against its own start directory.
+        assertThat(RemoteTextFileSelectionSupport.resolveRemotePath(null, "../a/b.txt", null))
+            .isEqualTo("../a/b.txt");
+    }
+
+    @Test
+    void remoteWindowsDrivePathBecomesTheSftpForm() {
+        assertThat(RemoteTextFileSelectionSupport.resolveRemotePath("/home/daniel", "C:\\Users\\daniel\\app.log", null))
+            .isEqualTo("/C:/Users/daniel/app.log");
+        assertThat(RemoteTextFileSelectionSupport.resolveRemotePath(null, "d:/logs/app.log", null))
+            .isEqualTo("/d:/logs/app.log");
+    }
+
+    @Test
+    void remotePathRefusesNetworkPathsControlCharactersAndOtherUsersHomes() {
+        for (String path : new String[] {
+            "//fileserver/share/x.txt", "\\\\fileserver\\share\\x.txt", "/etc/pass\0wd", "/tmp/a\nb",
+            "/tmp/\u202Eevil.txt", "~root/.ssh/id_rsa", "dir\\file.txt", "", null}) {
+            try {
+                RemoteTextFileSelectionSupport.resolveRemotePath("/home/daniel", path, "/home/daniel");
+                throw new AssertionError("expected IllegalArgumentException for " + path);
+            } catch (IllegalArgumentException expected) {
+                // expected
+            }
+        }
+    }
+
+    @Test
+    void localPathKeepsAnAbsolutePathAndIgnoresTheWorkingDirectory() throws Exception {
+        Path absolute = Path.of("var", "log", "app.log").toAbsolutePath();
+        // Even a working directory that could not be mapped does not matter for an absolute path.
+        assertThat(RemoteTextFileSelectionSupport.resolveLocalPath(
+                DRIVE_LETTERS ? "/mnt/c/Users/daniel" : null, absolute.toString(), null, null))
+            .isEqualTo(absolute);
+        assertThat(RemoteTextFileSelectionSupport.resolveLocalPath(
+                null, absolute.resolve("..").resolve("other.log").toString(), null, null))
+            .isEqualTo(absolute.getParent().resolve("other.log"));
+    }
+
+    @Test
+    void localHomePathResolvesAgainstTheHomeDirectory() throws Exception {
+        Path home = Path.of("home", "daniel").toAbsolutePath();
+        assertThat(RemoteTextFileSelectionSupport.resolveLocalPath(null, "~/notes/todo.md", null, home.toString()))
+            .isEqualTo(home.resolve("notes").resolve("todo.md"));
+        assertThat(RemoteTextFileSelectionSupport.resolveLocalPath(null, "~", null, home.toString()))
+            .isEqualTo(home);
+        // Without a known home directory, the user's.
+        assertThat(RemoteTextFileSelectionSupport.resolveLocalPath(null, "~/x.txt", null, null))
+            .isEqualTo(Path.of(System.getProperty("user.home")).resolve("x.txt").normalize());
+    }
+
+    @Test
+    void localRelativePathResolvesAgainstTheWorkingDirectory() throws Exception {
+        Path tracked = Path.of("tracked", "work").toAbsolutePath();
+        Path start = Path.of("unused", "start").toAbsolutePath();
+        assertThat(RemoteTextFileSelectionSupport.resolveLocalPath(tracked.toString(), "./config/app.yml", start.toString(), null))
+            .isEqualTo(tracked.resolve("config").resolve("app.yml"));
+        assertThat(RemoteTextFileSelectionSupport.resolveLocalPath(tracked.toString(), "../shared/app.log", start.toString(), null))
+            .isEqualTo(tracked.getParent().resolve("shared").resolve("app.log"));
+        assertThat(RemoteTextFileSelectionSupport.resolveLocalPath(tracked.toString(), "src/main/App.java", start.toString(), null))
+            .isEqualTo(tracked.resolve("src").resolve("main").resolve("App.java"));
+        // No tracked directory: the shell's start directory.
+        assertThat(RemoteTextFileSelectionSupport.resolveLocalPath(null, "src/App.java", start.toString(), null))
+            .isEqualTo(start.resolve("src").resolve("App.java"));
+    }
+
+    @Test
+    void localRelativePathRefusesAnUnmappableWorkingDirectory() throws Exception {
+        if (!DRIVE_LETTERS) {
+            return; // on POSIX "/mnt/c/..." is a genuine absolute path
+        }
+        try {
+            RemoteTextFileSelectionSupport.resolveLocalPath(
+                "/mnt/c/Users/daniel", "src/App.java", Path.of("base", "start").toAbsolutePath().toString(), null);
+            throw new AssertionError("expected UnmappableWorkingDirectoryException for a POSIX prompt path");
+        } catch (RemoteTextFileSelectionSupport.UnmappableWorkingDirectoryException expected) {
+            assertThat(expected.workingDirectory()).isEqualTo("/mnt/c/Users/daniel");
+        }
+    }
+
+    @Test
+    void localPathRefusesNetworkAndDevicePathsControlCharactersAndOtherUsersHomes() throws Exception {
+        for (String path : new String[] {
+            "//fileserver/share/x.txt", "\\\\fileserver\\share\\x.txt", "\\\\?\\C:\\x.txt", "\\\\.\\COM1",
+            "/etc/pass\0wd", "/tmp/a\rb", "/tmp/\u202Eevil.txt", "~root/.ssh/id_rsa", "", null}) {
+            try {
+                RemoteTextFileSelectionSupport.resolveLocalPath(null, path, "start", null);
+                throw new AssertionError("expected IllegalArgumentException for " + path);
+            } catch (IllegalArgumentException expected) {
+                // expected
+            }
+        }
+    }
+
+    @Test
+    void localPathOnWindowsReadsAFileUriDrivePathAndRefusesDriveRelativeOnes() throws Exception {
+        if (!DRIVE_LETTERS) {
+            // Without drive letters, a drive path or a backslash names no local file.
+            for (String path : new String[] {"C:\\Users\\x.txt", "C:/Users/x.txt", "dir\\x.txt"}) {
+                try {
+                    RemoteTextFileSelectionSupport.resolveLocalPath(null, path, "start", null);
+                    throw new AssertionError("expected IllegalArgumentException for " + path);
+                } catch (IllegalArgumentException expected) {
+                    // expected
+                }
+            }
+            return;
+        }
+        assertThat(RemoteTextFileSelectionSupport.resolveLocalPath(null, "/C:/Users/daniel/x.txt", null, null))
+            .isEqualTo(Path.of("C:\\Users\\daniel\\x.txt"));
+        try {
+            RemoteTextFileSelectionSupport.resolveLocalPath(null, "C:x.txt", "D:\\work", null);
+            throw new AssertionError("expected IllegalArgumentException for a drive-relative path");
+        } catch (IllegalArgumentException expected) {
+            // expected
+        }
+        // A relative path inside a working directory on a network share is not read either.
+        try {
+            RemoteTextFileSelectionSupport.resolveLocalPath("\\\\fileserver\\share", "x.txt", "D:\\work", null);
+            throw new AssertionError("expected IllegalArgumentException for a network working directory");
+        } catch (IllegalArgumentException expected) {
+            // expected
+        }
+    }
+
+    @Test
+    void onlyRelativePathsNeedTheWorkingDirectory() {
+        assertThat(RemoteTextFileSelectionSupport.isWorkingDirectoryRelative("/etc/hosts")).isFalse();
+        assertThat(RemoteTextFileSelectionSupport.isWorkingDirectoryRelative("~/x.txt")).isFalse();
+        assertThat(RemoteTextFileSelectionSupport.isWorkingDirectoryRelative("~")).isFalse();
+        assertThat(RemoteTextFileSelectionSupport.isWorkingDirectoryRelative("C:\\x.txt")).isFalse();
+        assertThat(RemoteTextFileSelectionSupport.isWorkingDirectoryRelative("C:/x.txt")).isFalse();
+        assertThat(RemoteTextFileSelectionSupport.isWorkingDirectoryRelative("./x.txt")).isTrue();
+        assertThat(RemoteTextFileSelectionSupport.isWorkingDirectoryRelative("../x.txt")).isTrue();
+        assertThat(RemoteTextFileSelectionSupport.isWorkingDirectoryRelative("src/App.java")).isTrue();
+    }
+
+    @Test
+    void theFileNameRulesForASelectionAreUnchanged() {
+        // Paths from links have their own resolvers; a selection is still one name in the directory.
+        assertThat(RemoteTextFileSelectionSupport.isPlausibleFileName("/etc/hosts")).isFalse();
+        try {
+            RemoteTextFileSelectionSupport.normalizeSelectedFileName("src/App.java");
+            throw new AssertionError("expected IllegalArgumentException for a path selection");
+        } catch (IllegalArgumentException expected) {
+            // expected
+        }
+    }
+
     @Test
     void decodesUtf8TextFile() throws Exception {
         assertThat(RemoteTextFileSelectionSupport.decodeUtf8TextFile("hello\nwelt".getBytes(StandardCharsets.UTF_8)))

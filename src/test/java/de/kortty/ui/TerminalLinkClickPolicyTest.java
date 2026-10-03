@@ -194,16 +194,23 @@ public class TerminalLinkClickPolicyTest {
         String widget = source("src/main/java/de/kortty/ui/KorttyTermWidget.java").replaceAll("\\s+", " ");
 
         int panelConstructor = widget.indexOf("super(settingsProvider, terminalTextBuffer, styleState);");
-        int install = widget.indexOf("TerminalLinkClickPolicy.install(this, links, this::openLink);");
+        int install = widget.indexOf("TerminalLinkClickPolicy.install(this, (buffer, cell) -> { "
+            + "TerminalLinkResolver.Link link = linkFinder.linkAt(buffer, cell); "
+            + "return link != null ? link.hit() : Hit.NONE; }, this::openLink);");
         int nextMember = widget.indexOf("void setPlainTextLinkKinds(", panelConstructor);
         assertThat(panelConstructor).isAtLeast(0);
-        assertThat(widget).contains(
-            "TerminalLinkResolver links = new TerminalLinkResolver(() -> plainTextLinkKinds.get());");
+        // The click resolves through the same lookup as the hover and the menu: the pane's live link
+        // kinds, and a file only when the pane's file handler opens it.
+        assertThat(widget).contains("TerminalLinkHoverController.LinkFinder linkFinder = "
+            + "(buffer, cell) -> openable(TerminalLinkResolver.linkAt(buffer, cell, plainTextLinkKinds.get()));");
         assertThat(install).isGreaterThan(panelConstructor);
         assertThat(install).isLessThan(nextMember);
         assertThat(widget).contains("private TerminalLinkOpener linkOpener = TerminalLinkOpener.system();");
-        // Every opened link goes through the opener's allowlist, after the host-mismatch question.
+        // Every opened link goes through the opener's allowlist, after the host-mismatch question,
+        // and every file through the pane's file handler, which accepts it once more.
         assertThat(widget).contains("linkOpener.open(target);");
+        assertThat(widget).contains("if (handler == null || !handler.accepts(file)) { return; }");
+        assertThat(widget).contains("handler.open(file);");
         assertThat(NoHyperlinkFilterGuardTest.codeOnly(source("src/main/java/de/kortty/ui/KorttyTermWidget.java")))
             .doesNotContain("Desktop");
     }

@@ -36,15 +36,18 @@ import java.util.function.Supplier;
  * Shows what a terminal link is before anyone opens it: while the mouse rests on a link, the pane
  * shows the hand cursor, an underline, and after {@link #TOOLTIP_DELAY} a tooltip with the
  * Cmd+click (macOS) or Ctrl+click hint and the real target in {@link TerminalLinkOpener#displayTarget}
- * form. For an OSC 8 link that is the only place the target shows, because the program prints any
- * text it likes around it; a link korTTY does not open says so instead.
+ * form, or for a file the hint that it opens in the Snippet Editor and the file
+ * ({@link TerminalFileLink#displayTarget}). For an OSC 8 link that is the only place the target
+ * shows, because the program prints any text it likes around it; a link korTTY does not open says so
+ * instead.
  *
  * <p>SithTermFX underlines a hovered OSC 8 link and shows the hand cursor over it by itself. A link
  * korTTY finds in plain text is ordinary text to SithTermFX, so this class draws its underline as
  * {@link Line}s in the pane's {@code LINKS} overlay layer (from {@code TerminalSplitPane.paneOverlay},
  * mouse-transparent) and sets the cursor itself. It sets the cursor explicitly whenever the mouse
- * reaches another cell, in a {@code MOUSE_MOVED} handler added after SithTermFX's own, so the cursor
- * never sticks on HAND after leaving a link and agrees with SithTermFX over OSC 8 links.
+ * reaches another cell, in a {@code MOUSE_MOVED} handler added after SithTermFX's own
+ * ({@link #followMouseMoves()}), so the cursor never sticks on HAND after leaving a link, and an
+ * OSC 8 link korTTY does not open (a file on another host) shows no hand cursor.
  *
  * <p>The link under the mouse is looked up only when the mouse reaches another cell, with the same
  * bounded search as a click ({@link TerminalLinkResolver}). Everything goes away when the mouse
@@ -105,8 +108,8 @@ final class TerminalLinkHoverController {
     }
 
     /**
-     * Adds the hover handling to {@code panel}'s canvas. Call it in the panel's constructor, after
-     * SithTermFX has added its own mouse handlers.
+     * Adds the hover handling to {@code panel}'s canvas, except the {@code MOUSE_MOVED} handler,
+     * which {@link #followMouseMoves()} adds once SithTermFX has added its own.
      *
      * @param finder  finds the link under a cell
      * @param overlay the pane's {@code LINKS} overlay layer, asked for when an underline is drawn;
@@ -116,7 +119,6 @@ final class TerminalLinkHoverController {
             @NotNull LinkFinder finder, @NotNull Supplier<Pane> overlay) {
         TerminalLinkHoverController controller = new TerminalLinkHoverController(panel, finder, overlay);
         Canvas canvas = panel.getCanvas();
-        canvas.addEventHandler(MouseEvent.MOUSE_MOVED, controller::onMoved);
         canvas.addEventHandler(MouseEvent.MOUSE_EXITED, event -> controller.clear());
         canvas.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> controller.hideTooltip());
         canvas.addEventFilter(MouseEvent.MOUSE_DRAGGED, event -> controller.clear());
@@ -142,22 +144,39 @@ final class TerminalLinkHoverController {
     }
 
     /**
-     * The tooltip text for {@code link}: the hint and the target, or that korTTY does not open it.
+     * Adds the {@code MOUSE_MOVED} handler that shows the link under the mouse. Call it once, after
+     * SithTermFX has added its own mouse handlers, which {@code TerminalPanel.init()} does after the
+     * panel's constructor: handlers run in the order they were added, and this one must run last so
+     * the cursor it sets wins. SithTermFX sets the hand cursor whenever the mouse reaches another
+     * OSC 8 link, also one korTTY does not open.
+     */
+    void followMouseMoves() {
+        panel.getCanvas().addEventHandler(MouseEvent.MOUSE_MOVED, this::onMoved);
+    }
+
+    /**
+     * The tooltip text for {@code link}: the hint and the target, the hint that a file opens in the
+     * Snippet Editor and the file, or that korTTY does not open it.
      *
      * @param mac whether the shortcut key is Cmd (macOS) rather than Ctrl
      */
     static @NotNull String tooltipText(@NotNull Link link, boolean mac) {
         URI target = link.target();
-        if (target == null) {
-            return I18n.get("terminal.links.notAllowed");
+        if (target != null) {
+            return I18n.get(mac ? "terminal.links.hint.mac" : "terminal.links.hint.other") + "\n"
+                + TerminalLinkOpener.displayTarget(target);
         }
-        return I18n.get(mac ? "terminal.links.hint.mac" : "terminal.links.hint.other") + "\n"
-            + TerminalLinkOpener.displayTarget(target);
+        TerminalFileLink file = link.file();
+        if (file != null) {
+            return I18n.get(mac ? "terminal.links.hint.file.mac" : "terminal.links.hint.file.other") + "\n"
+                + file.displayTarget();
+        }
+        return I18n.get("terminal.links.notAllowed");
     }
 
     /** Whether a click on {@code link} can open it, which the hand cursor shows. */
     static boolean showsHandCursor(@Nullable Link link) {
-        return link != null && link.target() != null;
+        return link != null && link.opens();
     }
 
     /**
@@ -165,7 +184,7 @@ final class TerminalLinkHoverController {
      * SithTermFX underlines a hovered OSC 8 link itself.
      */
     static boolean drawsUnderline(@Nullable Link link) {
-        return link != null && link.kind() == HitKind.AUTO && link.target() != null;
+        return link != null && link.kind() == HitKind.AUTO && link.opens();
     }
 
     /** The link the mouse rests on, as shown now; for {@code terminalLinksSmoke}. */

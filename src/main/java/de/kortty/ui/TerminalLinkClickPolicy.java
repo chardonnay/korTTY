@@ -73,11 +73,13 @@ public final class TerminalLinkClickPolicy {
      * A link under a cell.
      *
      * @param kind   what kind of link it is
-     * @param target the validated target to open, or {@code null} when the link must not be opened
+     * @param target the validated web or mail target to open, or {@code null}
      * @param text   the text the link covers on screen, empty when unknown; for an OSC 8 link it can
-     *               name another host than {@code target}, see {@link TerminalLinkOpener#visibleHostMismatch}
+     *               name another host than its target, see {@link TerminalLinkOpener#visibleHostMismatch}
+     * @param file   the file the link opens in the Snippet Editor, or {@code null}; a link has a
+     *               {@code target} or a {@code file}, or neither when it must not be opened
      */
-    public record Hit(@NotNull HitKind kind, @Nullable URI target, @NotNull String text) {
+    public record Hit(@NotNull HitKind kind, @Nullable URI target, @NotNull String text, @Nullable TerminalFileLink file) {
 
         /** No link under the cell. */
         public static final Hit NONE = new Hit(HitKind.NONE, null);
@@ -85,11 +87,24 @@ public final class TerminalLinkClickPolicy {
         public Hit {
             Objects.requireNonNull(kind, "kind");
             Objects.requireNonNull(text, "text");
+            if (target != null && file != null) {
+                throw new IllegalArgumentException("a link opens a web target or a file, not both");
+            }
+        }
+
+        /** A web or mail link, or one that must not be opened. */
+        public Hit(@NotNull HitKind kind, @Nullable URI target, @NotNull String text) {
+            this(kind, target, text, null);
         }
 
         /** A link whose text is not known. */
         public Hit(@NotNull HitKind kind, @Nullable URI target) {
             this(kind, target, "");
+        }
+
+        /** Whether a click can open the link: it has a web target or a file. */
+        public boolean opens() {
+            return target != null || file != null;
         }
     }
 
@@ -143,8 +158,8 @@ public final class TerminalLinkClickPolicy {
      * Adds the click filter to {@code panel}'s canvas.
      *
      * @param resolver finds the link under the clicked cell, normally a {@link TerminalLinkResolver}
-     * @param opener   opens the link of an {@link Action#OPEN} click, one with a target, normally
-     *                 through {@link TerminalLinkOpener#open}
+     * @param opener   opens the link of an {@link Action#OPEN} click, one that {@link Hit#opens()},
+     *                 normally through {@link TerminalLinkOpener#open} or the pane's file handler
      */
     static void install(@NotNull KorttyTermWidget.KorttyTerminalPanel panel, @NotNull HitResolver resolver,
             @NotNull Consumer<Hit> opener) {
@@ -173,7 +188,7 @@ public final class TerminalLinkClickPolicy {
         panel.getCanvas().requestFocus();
         switch (action) {
             case OPEN -> {
-                if (hit.target() != null) {
+                if (hit.opens()) {
                     opener.accept(hit);
                 }
             }

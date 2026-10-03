@@ -53,8 +53,9 @@ import java.util.function.Consumer;
  * ({@link QuickSelectScreen}) with a box and a label of one or two letters ({@link QuickSelectLabels}).
  * Typing a label copies that text to the clipboard through {@link KorttyClipboard}, so the
  * enterprise policy's internal clipboard mode applies; Shift with the label opens a web or e-mail
- * address the way a Cmd/Ctrl+click does ({@link KorttyTermWidget#openLink}) and copies everything
- * else. The keys are decided by {@link QuickSelectSession}.
+ * address, or a file path in a pane that opens files, the way a Cmd/Ctrl+click does
+ * ({@link KorttyTermWidget#openLink}), and copies everything else. The keys are decided by
+ * {@link QuickSelectSession}.
  *
  * <p>Its key filters sit on the split pane, added before the terminal view's own, so they run before
  * every pane, broadcast mode's mirror and the agent input lock: while quick select runs, every key
@@ -184,9 +185,10 @@ final class TerminalQuickSelectController {
     }
 
     /**
-     * What Shift with a label opens: a web address as it is and an e-mail address as a {@code mailto}
-     * link, if {@link TerminalLinkOpener} allows it; {@code null} for every other kind and for an
-     * address it refuses, which are copied instead.
+     * What Shift with a label opens in the browser or mail program: a web address as it is and an
+     * e-mail address as a {@code mailto} link, if {@link TerminalLinkOpener} allows it; {@code null}
+     * for every other kind and for an address it refuses. Those are copied instead, except a path
+     * the pane opens ({@link #openFile}).
      */
     static @Nullable URI openTarget(@NotNull Kind kind, @NotNull String text) {
         return switch (kind) {
@@ -194,6 +196,14 @@ final class TerminalQuickSelectController {
             case EMAIL -> TerminalLinkOpener.allowedBrowseUri("mailto:" + text).orElse(null);
             default -> null;
         };
+    }
+
+    /**
+     * The file Shift with a label opens in the Snippet Editor: a {@link Kind#PATH}, if the pane opens
+     * files ({@link KorttyTermWidget#opens}); {@code null} for every other kind.
+     */
+    static @Nullable TerminalFileLink openFile(@NotNull Kind kind, @NotNull String text) {
+        return kind == Kind.PATH ? TerminalFileLink.printed(text) : null;
     }
 
     private void onKeyPressed(@NotNull KeyEvent event) {
@@ -239,13 +249,15 @@ final class TerminalQuickSelectController {
     }
 
     private void open(@NotNull Shown from, @NotNull Target target) {
-        URI uri = openTarget(target.kind(), target.text());
-        if (uri == null) {
+        Hit hit = target.hits().get(0);
+        TerminalLinkResolver.Link link = new TerminalLinkResolver.Link(HitKind.AUTO,
+            openTarget(target.kind(), target.text()), target.text(), hit.start(), hit.end(),
+            openFile(target.kind(), target.text()));
+        if (!from.widget.opens(link)) {
             copy(from, target);
             return;
         }
-        Hit hit = target.hits().get(0);
-        from.widget.openLink(new TerminalLinkResolver.Link(HitKind.AUTO, uri, target.text(), hit.start(), hit.end()));
+        from.widget.openLink(link);
     }
 
     /**

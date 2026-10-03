@@ -22,6 +22,8 @@ import static com.google.common.truth.Truth.assertWithMessage;
 import static de.kortty.ui.TerminalLinkClickPolicy.HitKind.AUTO;
 import static de.kortty.ui.TerminalLinkClickPolicy.HitKind.OSC8;
 import static de.kortty.ui.TerminalLinkContextMenu.COPY_LINK_KEY;
+import static de.kortty.ui.TerminalLinkContextMenu.COPY_PATH_KEY;
+import static de.kortty.ui.TerminalLinkContextMenu.OPEN_FILE_KEY;
 import static de.kortty.ui.TerminalLinkContextMenu.OPEN_LINK_KEY;
 import static de.kortty.ui.TerminalLinkResolver.WEB_LINK_KINDS;
 import static org.testng.Assert.assertThrows;
@@ -124,6 +126,44 @@ public class TerminalLinkContextMenuTest {
     }
 
     @Test
+    public void aLinkToAFileGetsOpenFileThenCopyPath() {
+        List<Link> opened = new ArrayList<>();
+        List<String> copied = new ArrayList<>();
+        Link printed = new Link(AUTO, null, "src/App.java:42", new Point(0, 0), new Point(14, 0),
+            TerminalFileLink.printed("src/App.java:42"));
+
+        List<Entry> entries = TerminalLinkContextMenu.entries(printed, opened::add, copied::add);
+
+        assertThat(keys(entries)).containsExactly(OPEN_FILE_KEY, COPY_PATH_KEY).inOrder();
+        assertThat(OPEN_FILE_KEY).isEqualTo("terminal.contextMenu.openFile");
+        assertThat(COPY_PATH_KEY).isEqualTo("terminal.contextMenu.copyPath");
+        entries.get(0).action().run();
+        assertThat(opened).containsExactly(printed);
+        // The path without its line number.
+        entries.get(1).action().run();
+        assertThat(copied).containsExactly("src/App.java");
+    }
+
+    @Test
+    public void anOsc8FileLinkCopiesTheRealPathNotItsText() {
+        List<String> copied = new ArrayList<>();
+        Link osc8 = new Link(OSC8, null, "notes.txt", new Point(0, 0), new Point(8, 0),
+            TerminalFileLink.fromFileUri("file://web01/home/daniel/My%20Notes/notes.txt").orElseThrow());
+
+        TerminalLinkContextMenu.entries(osc8, link -> { }, copied::add).get(1).action().run();
+
+        assertThat(copied).containsExactly("/home/daniel/My Notes/notes.txt");
+    }
+
+    @Test
+    public void aFileThePaneDoesNotOpenGetsNoEntries() {
+        Link refused = new Link(OSC8, null, "notes.txt", new Point(0, 0), new Point(8, 0),
+            TerminalFileLink.fromFileUri("file://db02/home/daniel/notes.txt").orElseThrow()).withoutFile();
+
+        assertThat(TerminalLinkContextMenu.entries(refused, link -> { }, text -> { })).isEmpty();
+    }
+
+    @Test
     public void aLinkWithoutATargetHasNoAddress() {
         assertThrows(IllegalArgumentException.class, () -> TerminalLinkContextMenu.address(link(AUTO, null, "x")));
     }
@@ -215,6 +255,21 @@ public class TerminalLinkContextMenuTest {
     }
 
     @Test
+    public void thePathUnderThePressIsAFileLinkInARealBuffer() {
+        EmulatorTextBufferFixture fixture = new EmulatorTextBufferFixture(60, 4, 10, new KorttyOsc8LinkInfoProvider());
+        fixture.write("grep: /etc/nginx/nginx.conf:12: bad directive");
+        TerminalLinkContextMenu menu = new TerminalLinkContextMenu(
+            (buffer, cell) -> TerminalLinkResolver.linkAt(buffer, cell, TerminalLinkResolver.WEB_AND_PATH_LINK_KINDS));
+        List<String> copied = new ArrayList<>();
+
+        menu.pressed(true, fixture.buffer, new Point(10, 0));
+        List<Entry> entries = TerminalLinkContextMenu.entries(menu.link(), link -> { }, copied::add);
+        assertThat(keys(entries)).containsExactly(OPEN_FILE_KEY, COPY_PATH_KEY).inOrder();
+        entries.get(1).action().run();
+        assertThat(copied).containsExactly("/etc/nginx/nginx.conf");
+    }
+
+    @Test
     public void bothLabelsAreTranslatedInEveryBundle() throws IOException {
         for (String bundle : BUNDLES) {
             Properties properties = new Properties();
@@ -222,7 +277,7 @@ public class TerminalLinkContextMenuTest {
                 assertThat(in).isNotNull();
                 properties.load(new java.io.InputStreamReader(in, StandardCharsets.UTF_8));
             }
-            for (String key : List.of(OPEN_LINK_KEY, COPY_LINK_KEY)) {
+            for (String key : List.of(OPEN_LINK_KEY, COPY_LINK_KEY, OPEN_FILE_KEY, COPY_PATH_KEY)) {
                 String label = properties.getProperty(key);
                 assertWithMessage(bundle + " " + key).that(label).isNotEmpty();
                 // LanguageManager replaces placeholders with String.replace, so quotes stay single.
@@ -252,7 +307,7 @@ public class TerminalLinkContextMenuTest {
         // The press filter shares the hover's lookup, with the pane's live link kinds.
         assertThat(widget).contains("linkMenu = TerminalLinkContextMenu.install(this, linkFinder);");
         assertThat(widget).contains(
-            "(buffer, cell) -> TerminalLinkResolver.linkAt(buffer, cell, plainTextLinkKinds.get());");
+            "(buffer, cell) -> openable(TerminalLinkResolver.linkAt(buffer, cell, plainTextLinkKinds.get()));");
     }
 
     private static String english(String key) throws IOException {

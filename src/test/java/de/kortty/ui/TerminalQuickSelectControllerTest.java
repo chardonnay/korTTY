@@ -34,6 +34,16 @@ public class TerminalQuickSelectControllerTest {
         for (Kind kind : new Kind[] {Kind.PATH, Kind.UUID, Kind.IPV4, Kind.IPV6, Kind.GIT_HASH, Kind.NUMBER}) {
             assertThat(TerminalQuickSelectController.openTarget(kind, "https://example.com")).isNull();
         }
+        for (Kind kind : new Kind[] {Kind.URL, Kind.EMAIL, Kind.UUID, Kind.IPV4, Kind.IPV6, Kind.GIT_HASH, Kind.NUMBER}) {
+            assertThat(TerminalQuickSelectController.openFile(kind, "/etc/hosts")).isNull();
+        }
+    }
+
+    @Test
+    public void shiftOpensAPathInTheSnippetEditorWhereThePaneOpensFiles() {
+        // The pane decides (KorttyTermWidget.opens); where it does not, the path is copied.
+        assertThat(TerminalQuickSelectController.openFile(Kind.PATH, "src/App.java:42"))
+            .isEqualTo(TerminalFileLink.printed("src/App.java:42"));
     }
 
     @Test
@@ -70,7 +80,12 @@ public class TerminalQuickSelectControllerTest {
         String controller = compact("src/main/java/de/kortty/ui/TerminalQuickSelectController.java");
 
         assertThat(controller).contains("privateConsumer<String>copier=KorttyClipboard::setText;");
-        assertThat(controller).contains("from.widget.openLink(newTerminalLinkResolver.Link(HitKind.AUTO,uri,");
+        // Shift+label builds the same link a Cmd/Ctrl+click finds, and opens it only if the pane does;
+        // otherwise the text is copied.
+        assertThat(controller).contains("TerminalLinkResolver.Linklink=newTerminalLinkResolver.Link(HitKind.AUTO,"
+            + "openTarget(target.kind(),target.text()),target.text(),hit.start(),hit.end(),"
+            + "openFile(target.kind(),target.text()));");
+        assertThat(controller).contains("if(!from.widget.opens(link)){copy(from,target);return;}from.widget.openLink(link);");
         assertThat(controller).doesNotContain("Desktop");
         assertThat(controller).doesNotContain("showDocument");
     }

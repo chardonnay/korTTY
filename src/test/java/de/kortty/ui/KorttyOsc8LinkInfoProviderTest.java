@@ -82,6 +82,50 @@ public class KorttyOsc8LinkInfoProviderTest {
     }
 
     @Test
+    public void aFileTargetIsALinkOnlyInAPaneThatOpensFiles() {
+        java.util.concurrent.atomic.AtomicBoolean opensFiles = new java.util.concurrent.atomic.AtomicBoolean();
+        KorttyOsc8LinkInfoProvider provider = new KorttyOsc8LinkInfoProvider(opensFiles::get);
+
+        assertThat(provider.createLinkInfo("file:///home/daniel/notes.txt")).isNull();
+
+        opensFiles.set(true);
+        KorttyLinkInfo file = provider.createLinkInfo("file:///home/daniel/notes.txt");
+        assertThat(file).isNotNull();
+        // A file link has no browser target: it opens as text in the Snippet Editor, never launched.
+        assertThat(file.target()).isNull();
+        assertThat(file.file()).isNotNull();
+        assertThat(file.file().path()).isEqualTo("/home/daniel/notes.txt");
+        assertThat(file.file().uri()).isEqualTo(URI.create("file:///home/daniel/notes.txt"));
+        // A web link is a web link either way.
+        assertThat(provider.createLinkInfo("https://example.com/").target()).isEqualTo(URI.create("https://example.com/"));
+    }
+
+    @Test
+    public void unsafeFileTargetsStayPlainTextEvenWhereFilesOpen() {
+        KorttyOsc8LinkInfoProvider provider = new KorttyOsc8LinkInfoProvider(() -> true);
+
+        for (String target : List.of("file:////host/share/x.exe", "file://user@host/x", "file:///tmp/%E2%80%AEx",
+                "javascript:alert(1)", "news:comp.lang.java")) {
+            assertWithMessage(target).that(provider.createLinkInfo(target)).isNull();
+        }
+    }
+
+    @Test
+    public void theFileQuestionIsAskedOnlyForFileTargets() {
+        java.util.concurrent.atomic.AtomicInteger asked = new java.util.concurrent.atomic.AtomicInteger();
+        KorttyOsc8LinkInfoProvider provider = new KorttyOsc8LinkInfoProvider(() -> {
+            asked.incrementAndGet();
+            return true;
+        });
+
+        provider.createLinkInfo("https://example.com/");
+        provider.createLinkInfo("javascript:alert(1)");
+        assertThat(asked.get()).isEqualTo(0);
+        provider.createLinkInfo("FILE:///etc/hosts");
+        assertThat(asked.get()).isEqualTo(1);
+    }
+
+    @Test
     public void emulatorDrawsARefusedLinkAsPlainTextAndKeepsAnAllowedOne() {
         StyleState styleState = new StyleState();
         TextProcessing processing = new TextProcessing(new TextStyle(), HyperlinkStyle.HighlightMode.HOVER_WITH_BOTH_COLORS);
@@ -110,7 +154,7 @@ public class KorttyOsc8LinkInfoProviderTest {
     @Test
     public void linkClassesNeverReferenceJavaAwt() throws IOException {
         for (Class<?> type : List.of(KorttyOsc8LinkInfoProvider.class, KorttyLinkInfo.class, TerminalLinkOpener.class,
-                TerminalLinkClickPolicy.class)) {
+                TerminalLinkClickPolicy.class, TerminalFileLink.class)) {
             assertWithMessage(type.getSimpleName()).that(classFileText(type)).doesNotContain("java/awt");
         }
     }
@@ -122,7 +166,7 @@ public class KorttyOsc8LinkInfoProviderTest {
 
         // In the constructor, so the provider is in place before any pane is started.
         int constructor = widget.indexOf("super(columns, lines, settingsProvider);");
-        int install = widget.indexOf("\n        setLinkInfoProvider(new KorttyOsc8LinkInfoProvider());\n");
+        int install = widget.indexOf("\n        setLinkInfoProvider(new KorttyOsc8LinkInfoProvider(panel::fileLinksEnabled));\n");
         int panelFactory = widget.indexOf("protected TerminalPanel createTerminalPanel(");
         assertThat(constructor).isAtLeast(0);
         assertThat(install).isGreaterThan(constructor);

@@ -16,6 +16,7 @@ import javafx.application.Platform;
 import javafx.geometry.Dimension2D;
 import javafx.scene.layout.Pane;
 import javafx.scene.text.Font;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -34,13 +35,16 @@ import java.util.function.Supplier;
  * public API directly. The panel is a subclass, {@link KorttyTerminalPanel}, so a declared-method
  * lookup on its runtime class misses every SithTermFX method that it does not override itself.
  *
- * <p>OSC 8 links go through {@link KorttyOsc8LinkInfoProvider}, which keeps only web and mail links,
- * and open only on a Cmd/Ctrl+click through {@link TerminalLinkClickPolicy}. The same click opens a
- * web or e-mail address printed as plain text, which {@link TerminalLinkResolver} finds on demand
- * for the kinds set with {@link #setPlainTextLinkKinds}; none until then. Resting the mouse on a link
- * shows its target ({@link TerminalLinkHoverController}), and an OSC 8 link whose text names another
- * host than it opens asks first ({@link TerminalLinkMismatchDialog}). A right-click on a link adds
- * Open Link and Copy Link Address to the context menu ({@link #contextMenuLink()}).
+ * <p>OSC 8 links go through {@link KorttyOsc8LinkInfoProvider}, which keeps only web and mail links
+ * and, in a pane with a {@linkplain #setFileLinkHandler file handler}, {@code file:} links, and open
+ * only on a Cmd/Ctrl+click through {@link TerminalLinkClickPolicy}. The same click opens a web or
+ * e-mail address or a file path printed as plain text, which {@link TerminalLinkResolver} finds on
+ * demand for the kinds set with {@link #setPlainTextLinkKinds}; none until then. A file opens as text
+ * in the Snippet Editor through the file handler, never with another program. Resting the mouse on a
+ * link shows its target ({@link TerminalLinkHoverController}), and an OSC 8 link whose text names
+ * another host than it opens asks first ({@link TerminalLinkMismatchDialog}). A right-click on a link
+ * adds Open Link and Copy Link Address, or Open File and Copy Path, to the context menu
+ * ({@link #contextMenuLink()}).
  */
 public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneActions {
 
@@ -50,8 +54,10 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
     public KorttyTermWidget(int columns, int lines, SettingsProvider settingsProvider) {
         super(columns, lines, settingsProvider);
         // Replace SithTermFX's default OSC 8 provider before the pane is started: it opens file:
-        // links with java.awt.Desktop.open, so remote output could launch a local program.
-        setLinkInfoProvider(new KorttyOsc8LinkInfoProvider());
+        // links with java.awt.Desktop.open, so remote output could launch a local program. korTTY's
+        // keeps a file: link only while the pane's file handler opens files, as text.
+        KorttyTerminalPanel panel = (KorttyTerminalPanel) getTerminalPanel();
+        setLinkInfoProvider(new KorttyOsc8LinkInfoProvider(panel::fileLinksEnabled));
     }
 
     @Override
@@ -103,6 +109,24 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
     }
 
     /**
+     * Sets what opens the files that links in this pane point to: paths printed as plain text (when
+     * {@link #setPlainTextLinkKinds} includes them) and OSC 8 {@code file:} links. Without a handler,
+     * or while it is not {@link TerminalFileLinkHandler#enabled()}, no file opens and OSC 8
+     * {@code file:} targets stay plain text. Call it on the JavaFX thread, before the pane starts.
+     */
+    public void setFileLinkHandler(@Nullable TerminalFileLinkHandler handler) {
+        ((KorttyTerminalPanel) getTerminalPanel()).fileLinkHandler = handler;
+    }
+
+    /**
+     * Whether {@link #openLink} opens {@code link}: it has a web or mail target, or a file this
+     * pane's file handler accepts. Call it on the JavaFX thread.
+     */
+    public boolean opens(@NotNull TerminalLinkResolver.Link link) {
+        return ((KorttyTerminalPanel) getTerminalPanel()).openable(Objects.requireNonNull(link, "link")).opens();
+    }
+
+    /**
      * Sets where the underline of a hovered link is drawn: the pane's {@code LINKS} overlay layer,
      * which {@code TerminalSplitPane} creates on first use. The supplier may return {@code null}
      * while there is no layer; the hover then shows the cursor and the tooltip only.
@@ -122,9 +146,10 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
     }
 
     /**
-     * Opens {@code link} exactly as a Cmd/Ctrl+click on it does: through {@link TerminalLinkOpener}'s
-     * allowlist, and for an OSC 8 link whose text names another host only after the user confirms.
-     * A link without a target does nothing. Call it on the JavaFX thread.
+     * Opens {@code link} exactly as a Cmd/Ctrl+click on it does: a web or mail target through
+     * {@link TerminalLinkOpener}'s allowlist, a file through the pane's file handler, and an OSC 8
+     * link whose text names another host only after the user confirms. A link that does not
+     * {@linkplain #opens open} does nothing. Call it on the JavaFX thread.
      */
     public void openLink(@NotNull TerminalLinkResolver.Link link) {
         ((KorttyTerminalPanel) getTerminalPanel()).openLink(Objects.requireNonNull(link, "link").hit());
@@ -149,6 +174,9 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
         /** Asks before an OSC 8 link whose text names another host opens. */
         private TerminalLinkMismatchDialog.Confirmation mismatchConfirmation = TerminalLinkMismatchDialog::confirm;
 
+        /** Opens the files links point to; none until the terminal view sets it. Read on the emulator thread too. */
+        private volatile @Nullable TerminalFileLinkHandler fileLinkHandler;
+
         private final TerminalLinkHoverController linkHover;
 
         private final TerminalLinkContextMenu linkMenu;
@@ -156,14 +184,16 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
         KorttyTerminalPanel(@NotNull SettingsProvider settingsProvider, @NotNull TerminalTextBuffer terminalTextBuffer,
                 @NotNull StyleState styleState) {
             super(settingsProvider, terminalTextBuffer, styleState);
-            TerminalLinkResolver links = new TerminalLinkResolver(() -> plainTextLinkKinds.get());
+            // The pane's live link kinds; a file the file handler does not open is no link target.
             TerminalLinkHoverController.LinkFinder linkFinder =
-                (buffer, cell) -> TerminalLinkResolver.linkAt(buffer, cell, plainTextLinkKinds.get());
+                (buffer, cell) -> openable(TerminalLinkResolver.linkAt(buffer, cell, plainTextLinkKinds.get()));
             // Links open only on a single, still Cmd/Ctrl+click; SithTermFX's plain-click navigation
             // is a no-op in KorttyLinkInfo. A canvas filter, so it runs before SithTermFX's handler.
-            TerminalLinkClickPolicy.install(this, links, this::openLink);
-            // Hover: underline, cursor and target tooltip. Added after SithTermFX's own mouse handlers,
-            // so the cursor it sets wins over SithTermFX's.
+            TerminalLinkClickPolicy.install(this, (buffer, cell) -> {
+                TerminalLinkResolver.Link link = linkFinder.linkAt(buffer, cell);
+                return link != null ? link.hit() : Hit.NONE;
+            }, this::openLink);
+            // Hover: underline, cursor and target tooltip. Its MOUSE_MOVED handler follows in init().
             linkHover = TerminalLinkHoverController.install(this, linkFinder, () -> linkOverlay.get());
             // The link under a right-button press, for Open Link and Copy Link Address in the context menu.
             linkMenu = TerminalLinkContextMenu.install(this, linkFinder);
@@ -175,6 +205,26 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
 
         void setLinkOverlay(@NotNull Supplier<Pane> overlay) {
             linkOverlay = Objects.requireNonNull(overlay, "overlay");
+        }
+
+        /** Whether OSC 8 {@code file:} targets become links now; asked on the emulator thread. */
+        boolean fileLinksEnabled() {
+            TerminalFileLinkHandler handler = fileLinkHandler;
+            return handler != null && handler.enabled();
+        }
+
+        /** {@code link}, without its file when this pane does not open that file. */
+        @Contract("null -> null; !null -> !null")
+        @Nullable TerminalLinkResolver.Link openable(@Nullable TerminalLinkResolver.Link link) {
+            if (link == null || link.file() == null || acceptsFile(link.file())) {
+                return link;
+            }
+            return link.withoutFile();
+        }
+
+        private boolean acceptsFile(@NotNull TerminalFileLink file) {
+            TerminalFileLinkHandler handler = fileLinkHandler;
+            return handler != null && handler.accepts(file);
         }
 
         /**
@@ -208,6 +258,11 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
          * opens only after the user confirms; the question is asked once the click is handled.
          */
         private void openLink(@NotNull Hit hit) {
+            TerminalFileLink file = hit.file();
+            if (file != null) {
+                openFile(hit, file);
+                return;
+            }
             URI target = hit.target();
             if (target == null) {
                 return;
@@ -224,6 +279,41 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
                     linkOpener.open(target);
                 }
             });
+        }
+
+        /**
+         * Opens a Cmd/Ctrl+clicked file through the file handler, if it accepts the file now. An OSC 8
+         * link whose text shows a web address asks first, as for a web link: the file it opens is not
+         * the address it shows.
+         */
+        private void openFile(@NotNull Hit hit, @NotNull TerminalFileLink file) {
+            TerminalFileLinkHandler handler = fileLinkHandler;
+            if (handler == null || !handler.accepts(file)) {
+                return;
+            }
+            URI target = file.uri();
+            Optional<String> shownHost = hit.kind() == HitKind.OSC8 && target != null
+                ? TerminalLinkOpener.visibleHostMismatch(hit.text(), target)
+                : Optional.empty();
+            if (shownHost.isEmpty()) {
+                handler.open(file);
+                return;
+            }
+            Platform.runLater(() -> {
+                if (mismatchConfirmation.confirm(getCanvas(), shownHost.get(), target)) {
+                    handler.open(file);
+                }
+            });
+        }
+
+        /**
+         * SithTermFX adds its mouse handlers here, after the constructor. The hover's
+         * {@code MOUSE_MOVED} handler goes after them, so the cursor it sets wins over SithTermFX's.
+         */
+        @Override
+        public void init() {
+            super.init();
+            linkHover.followMouseMoves();
         }
 
         @Override

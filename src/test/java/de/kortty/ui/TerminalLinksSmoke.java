@@ -51,7 +51,9 @@ import java.util.concurrent.atomic.AtomicReference;
  * confirmation. A right-click on a link starts the real context menu with Open Link and Copy Link
  * Address, and Open Link opens it. Quick select labels what the pane shows, copies with a label and
  * opens with Shift and a label, and lets none of its keys or input-method text reach the program.
- * Run via the {@code terminalLinksSmoke} Gradle task. Exit 0 = OK.
+ * With a file handler, a path printed as plain text and an OSC 8 {@code file:} link open through it
+ * on a Cmd/Ctrl+click, the context menu and Shift with a quick-select label, and one of another host
+ * does not. Run via the {@code terminalLinksSmoke} Gradle task. Exit 0 = OK.
  */
 public final class TerminalLinksSmoke {
 
@@ -213,7 +215,8 @@ public final class TerminalLinksSmoke {
             verifyHover(splitPane, widget, panel, canvas, connector, onLink, onPlainText, onPlainUrl);
             verifyContextMenu((KorttyTermWidget) widget, canvas, onLink, onPlainText, onPlainUrl, opened);
             verifyHostMismatch(panel, canvas, connector, opened, reachedHandlers);
-            verifyQuickSelect(splitPane, widget, panel, canvas, connector, opened);
+            TerminalQuickSelectController quickSelect = verifyQuickSelect(splitPane, widget, panel, canvas, connector, opened);
+            verifyFileLinks((KorttyTermWidget) widget, panel, canvas, connector, quickSelect, opened, reachedHandlers);
 
             // A swallowed click on a link in another pane still moves the focused pane there.
             SithTermFxWidget second = onFxThread(() -> splitPane.splitWidget(widget, SplitRequest.SplitMode.NEW_CONNECTION,
@@ -469,7 +472,7 @@ public final class TerminalLinksSmoke {
      * press end it, and text printed over a match stops offering it. None of its keys, their typed
      * characters or input-method text reaches the program.
      */
-    private static void verifyQuickSelect(TerminalSplitPane splitPane, SithTermFxWidget widget,
+    private static TerminalQuickSelectController verifyQuickSelect(TerminalSplitPane splitPane, SithTermFxWidget widget,
                                           KorttyTermWidget.KorttyTerminalPanel panel, Node canvas,
                                           FeedingTtyConnector connector, List<String> opened) throws Exception {
         KorttyTermWidget kortty = (KorttyTermWidget) widget;
@@ -554,6 +557,121 @@ public final class TerminalLinksSmoke {
         // The lines the checks after this one click on, from the top.
         connector.feed("\u001b[H\u001b[2J" + OSC8_LINE + "\r\nplain text here\r\nvisit " + PLAIN_URL + " now\r\n");
         await("the lines never came back after quick select", () -> onFxThread(() ->
+            panel.getTerminalTextBuffer().getScreenLines().startsWith("see docs-link now")));
+        return quickSelect;
+    }
+
+    /**
+     * Links to files, in a pane with a file handler: a Cmd/Ctrl+click on a path printed as plain text
+     * and on an OSC 8 {@code file:} link hands the file to the handler (and never to the browser),
+     * while a plain click on the path still reaches SithTermFX; an OSC 8 link to another host opens
+     * nothing; the hover shows the Snippet Editor hint; the context menu offers Open File and Copy
+     * Path; Shift with a quick-select label opens the path.
+     */
+    private static void verifyFileLinks(KorttyTermWidget widget, KorttyTermWidget.KorttyTerminalPanel panel, Node canvas,
+                                        FeedingTtyConnector connector, TerminalQuickSelectController quickSelect,
+                                        List<String> opened, AtomicBoolean reachedHandlers) throws Exception {
+        List<TerminalFileLink> files = new CopyOnWriteArrayList<>();
+        onFxThread(() -> {
+            widget.setFileLinkHandler(new TerminalFileLinkHandler() {
+                @Override
+                public boolean enabled() {
+                    return true;
+                }
+
+                @Override
+                public boolean accepts(@NotNull TerminalFileLink link) {
+                    return link.hostAccepted(List.of("smokehost.example.com"));
+                }
+
+                @Override
+                public void open(@NotNull TerminalFileLink link) {
+                    files.add(link);
+                }
+            });
+            widget.setPlainTextLinkKinds(() -> TerminalLinkResolver.WEB_AND_PATH_LINK_KINDS);
+            return null;
+        });
+        int openedBefore = opened.size();
+        connector.feed("\u001b[H\u001b[2Jerror in /etc/hosts:12 here\r\nls: "
+            + "\u001b]8;;file://smokehost/tmp/notes.txt\u001b\\notes.txt\u001b]8;;\u001b\\ "
+            + "\u001b]8;;file://elsewhere/tmp/x.txt\u001b\\x.txt\u001b]8;;\u001b\\\r\n");
+        await("the file lines never reached the terminal buffer", () -> onFxThread(() ->
+            panel.getTerminalTextBuffer().getScreenLines().startsWith("error in /etc/hosts:12 here")
+                && panel.getTerminalTextBuffer().getScreenLines().contains("ls: notes.txt x.txt")));
+        Point2D onPath = cellCenter(panel, 12, 0);
+        Point2D onNotes = cellCenter(panel, 6, 1);
+        Point2D onElsewhere = cellCenter(panel, 15, 1);
+
+        // A plain click on a path is an ordinary click; Cmd/Ctrl+click opens it.
+        check(!click(canvas, onPath, 1, false, false, true, reachedHandlers), "a plain click on a path was swallowed");
+        check(files.isEmpty(), "a plain click opened " + files);
+        check(click(canvas, onPath, 1, true, false, true, reachedHandlers), "Cmd/Ctrl+click on a path was not swallowed");
+        check(files.size() == 1 && files.get(0).equals(TerminalFileLink.printed("/etc/hosts:12")),
+            "Cmd/Ctrl+click on a path opened " + files);
+
+        // An OSC 8 file: link on this host opens its real path; one on another host opens nothing.
+        check(click(canvas, onNotes, 1, true, false, true, reachedHandlers), "Cmd/Ctrl+click on a file link was not swallowed");
+        check(files.size() == 2 && "/tmp/notes.txt".equals(files.get(1).path()) && files.get(1).fromOsc8(),
+            "Cmd/Ctrl+click on a file link opened " + files);
+        check(click(canvas, onElsewhere, 1, true, false, true, reachedHandlers),
+            "Cmd/Ctrl+click on a file link of another host was not swallowed");
+        check(files.size() == 2, "a file link of another host opened " + files);
+        check(opened.size() == openedBefore, "a file went to the browser: " + opened);
+
+        // Hover: the hand cursor and the Snippet Editor hint with the path.
+        TerminalLinkHoverController hover = onFxThread(panel::linkHover);
+        move(canvas, onPath);
+        check(onFxThread(() -> canvas.getCursor() == Cursor.HAND), "the path has no hand cursor");
+        check(onFxThread(hover::underline).size() == 1, "the path has no underline");
+        await("the path's tooltip never showed", () -> {
+            String text = onFxThread(hover::shownTooltipText);
+            return text != null && text.equals(I18n.get(MAC ? "terminal.links.hint.file.mac" : "terminal.links.hint.file.other")
+                + "\n/etc/hosts");
+        });
+        move(canvas, onElsewhere);
+        check(onFxThread(() -> canvas.getCursor() == Cursor.DEFAULT), "a file link of another host has the hand cursor");
+        onFxThread(() -> {
+            Event.fireEvent(canvas, mouse(canvas, MouseEvent.MOUSE_EXITED, onPath));
+            return null;
+        });
+
+        // Right-click: Open File and Copy Path first; Open File opens it.
+        press(canvas, onPath, MouseButton.SECONDARY);
+        List<MenuItem> items = openContextMenu(canvas, onPath);
+        check(items.size() > 3 && I18n.get(TerminalLinkContextMenu.OPEN_FILE_KEY).equals(items.get(0).getText())
+                && I18n.get(TerminalLinkContextMenu.COPY_PATH_KEY).equals(items.get(1).getText())
+                && items.get(2) instanceof SeparatorMenuItem,
+            "the menu on a path starts with " + labels(items));
+        onFxThread(() -> {
+            items.get(0).fire();
+            return null;
+        });
+        await("Open File did not open the path", () -> files.size() == 3);
+        closeContextMenus();
+        press(canvas, onPath, MouseButton.PRIMARY);
+
+        // Quick select: Shift with the path's label opens it.
+        check(onFxThread(() -> quickSelect.start(widget)), "quick select did not start on the file lines");
+        List<String> texts = onFxThread(quickSelect::shownTexts);
+        int index = texts.indexOf("/etc/hosts:12");
+        check(index >= 0, "quick select did not offer the path: " + texts);
+        String label = onFxThread(quickSelect::shownLabels).get(index);
+        for (int i = 0; i < label.length(); i++) {
+            String letter = String.valueOf(label.charAt(i)).toUpperCase(java.util.Locale.ROOT);
+            type(canvas, javafx.scene.input.KeyCode.getKeyCode(letter), letter, true);
+        }
+        await("Shift with the path's label did not open it", () -> files.size() == 4);
+        check(files.get(3).equals(TerminalFileLink.printed("/etc/hosts:12")), "Shift with a label opened " + files);
+
+        // Back to a pane without a file handler and with web links only, and the lines the checks after this one use.
+        onFxThread(() -> {
+            widget.setFileLinkHandler(null);
+            widget.setPlainTextLinkKinds(() -> TerminalLinkResolver.WEB_LINK_KINDS);
+            return null;
+        });
+        connector.feed("\u001b[H\u001b[2J" + OSC8_LINE + "\r\nplain text here\r\nvisit " + PLAIN_URL + " now\r\n");
+        await("the lines never came back after the file links", () -> onFxThread(() ->
             panel.getTerminalTextBuffer().getScreenLines().startsWith("see docs-link now")));
     }
 

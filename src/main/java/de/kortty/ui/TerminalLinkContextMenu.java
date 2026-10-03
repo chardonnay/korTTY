@@ -17,7 +17,8 @@ import java.util.function.Consumer;
 
 /**
  * <b>Open Link</b> and <b>Copy Link Address</b> at the top of the terminal's right-click menu, when
- * it is opened on a link. They reach a link without holding Cmd or Ctrl, so a link can be opened
+ * it is opened on a link, or <b>Open File in Snippet Editor</b> and <b>Copy Path</b> on a link to a
+ * file. They reach a link without holding Cmd or Ctrl, so a link can be opened
  * with one hand on the mouse or a pointing device without modifier keys, and they also work while a
  * program such as tmux or vim uses the mouse.
  *
@@ -29,9 +30,11 @@ import java.util.function.Consumer;
  * on. Any other press, or a right-button press beside the text, forgets it.
  *
  * <p>{@link #entries} is the toolkit-free part: no entries for no link or for a link korTTY does not
- * open (one without a target, see {@link Link#target()}); otherwise <b>Open Link</b>, which opens the
- * link exactly as a Cmd/Ctrl+click does, the host-mismatch question for an OSC 8 link included, and
- * <b>Copy Link Address</b>, which copies {@link #address}.
+ * open (one that does not {@link Link#opens()}); otherwise <b>Open Link</b>, which opens the link
+ * exactly as a Cmd/Ctrl+click does, the host-mismatch question for an OSC 8 link included, and
+ * <b>Copy Link Address</b>, which copies {@link #address}. A link to a file
+ * ({@link Link#file()}) gets <b>Open File in Snippet Editor</b>, again the Cmd/Ctrl+click way, and
+ * <b>Copy Path</b>, which copies {@link TerminalFileLink#copyText()}.
  */
 public final class TerminalLinkContextMenu {
 
@@ -40,6 +43,12 @@ public final class TerminalLinkContextMenu {
 
     /** The label of the entry that copies the link's address. */
     public static final String COPY_LINK_KEY = "terminal.contextMenu.copyLink";
+
+    /** The label of the entry that opens a link's file in the Snippet Editor. */
+    public static final String OPEN_FILE_KEY = "terminal.contextMenu.openFile";
+
+    /** The label of the entry that copies a link's file path. */
+    public static final String COPY_PATH_KEY = "terminal.contextMenu.copyPath";
 
     /**
      * One entry of the menu.
@@ -98,14 +107,21 @@ public final class TerminalLinkContextMenu {
      * @param link  the link the menu was opened on, or {@code null}
      * @param open  opens a link as a Cmd/Ctrl+click on it does
      * @param copy  puts text on the clipboard, normally {@code KorttyClipboard.setText}
-     * @return <b>Open Link</b> and <b>Copy Link Address</b> for a link korTTY opens, none otherwise
+     * @return <b>Open Link</b> and <b>Copy Link Address</b> for a web or mail link korTTY opens,
+     *         <b>Open File in Snippet Editor</b> and <b>Copy Path</b> for a file it opens, none otherwise
      */
     public static @NotNull List<Entry> entries(@Nullable Link link, @NotNull Consumer<Link> open,
             @NotNull Consumer<String> copy) {
         Objects.requireNonNull(open, "open");
         Objects.requireNonNull(copy, "copy");
-        if (link == null || link.target() == null) {
+        if (link == null || !link.opens()) {
             return List.of();
+        }
+        TerminalFileLink file = link.file();
+        if (file != null) {
+            String path = file.copyText();
+            return List.of(new Entry(OPEN_FILE_KEY, () -> open.accept(link)),
+                new Entry(COPY_PATH_KEY, () -> copy.accept(path)));
         }
         String address = address(link);
         return List.of(new Entry(OPEN_LINK_KEY, () -> open.accept(link)),

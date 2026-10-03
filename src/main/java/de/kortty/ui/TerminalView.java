@@ -180,6 +180,16 @@ public class TerminalView extends BorderPane {
         void handle(@Nullable TerminalAgentRunContext runContext, String selectedText);
     }
 
+    /**
+     * Opens the file a link in a pane points to, a path printed as plain text or an OSC 8
+     * {@code file:} target, read as text into the Snippet Editor. {@code runContext} is the pane's,
+     * or {@code null} when its session is not connected.
+     */
+    @FunctionalInterface
+    public interface TerminalPathOpenHandler {
+        void handle(@Nullable TerminalAgentRunContext runContext, TerminalFileLink link);
+    }
+
     @FunctionalInterface
     public interface TerminalAgentShortcutHandler {
         void handle(String rawCommand, @Nullable TerminalAgentRunContext runContext);
@@ -350,6 +360,8 @@ public class TerminalView extends BorderPane {
     private java.util.function.BooleanSupplier menuBarHiddenSupplier;
     private Runnable menuBarRestoreHandler;
     private TerminalTextFileLoadHandler terminalTextFileLoadHandler;
+    // Read on the emulator thread too, when an OSC 8 file: link arrives.
+    private volatile TerminalPathOpenHandler terminalPathOpenHandler;
     private TerminalAgentContextHandler aiAgentHandler;
     private TerminalAgentAskHandler aiAgentAskHandler;
     private TerminalAgentContextHandler aiPlanningHandler;
@@ -772,6 +784,15 @@ public class TerminalView extends BorderPane {
 
     public void setTerminalTextFileLoadHandler(@Nullable TerminalTextFileLoadHandler terminalTextFileLoadHandler) {
         this.terminalTextFileLoadHandler = terminalTextFileLoadHandler;
+    }
+
+    /**
+     * Sets what opens the files that links in this tab's panes point to; while none is set (the
+     * policy denies loading files into the Snippet Editor), no pane finds paths in plain text and
+     * OSC 8 {@code file:} links stay plain text.
+     */
+    public void setTerminalPathOpenHandler(@Nullable TerminalPathOpenHandler terminalPathOpenHandler) {
+        this.terminalPathOpenHandler = terminalPathOpenHandler;
     }
 
     public void setAiAgentHandler(TerminalAgentContextHandler aiAgentHandler) {
@@ -4971,15 +4992,78 @@ public class TerminalView extends BorderPane {
 
     /**
      * Lets a Cmd/Ctrl+click in the pane open web and e-mail addresses printed as plain text while
-     * {@link #isTerminalLinkDetectionEnabled()}; the setting is read on every click, so no pane has
-     * to be reopened after a change.
+     * {@link #isTerminalLinkDetectionEnabled()}, and file paths too in a pane that
+     * {@linkplain #opensFileLinks opens files}; the setting is read on every click, so no pane has
+     * to be reopened after a change. The pane's file links, plain-text paths and OSC 8
+     * {@code file:} targets, go to the {@link TerminalPathOpenHandler}.
      */
     private void configurePlainTextLinks(SithTermFxWidget widget) {
         if (widget instanceof KorttyTermWidget korttyWidget) {
-            korttyWidget.setPlainTextLinkKinds(() -> isTerminalLinkDetectionEnabled()
-                ? TerminalLinkResolver.WEB_LINK_KINDS
-                : Set.of());
+            korttyWidget.setPlainTextLinkKinds(() -> !isTerminalLinkDetectionEnabled() ? Set.of()
+                : opensFileLinks(widget) ? TerminalLinkResolver.WEB_AND_PATH_LINK_KINDS
+                : TerminalLinkResolver.WEB_LINK_KINDS);
+            korttyWidget.setFileLinkHandler(new TerminalFileLinkHandler() {
+                @Override
+                public boolean enabled() {
+                    return opensFileLinks(widget);
+                }
+
+                @Override
+                public boolean accepts(TerminalFileLink link) {
+                    // The session's host names are looked up only for an OSC 8 link that names a host.
+                    return opensFileLinks(widget) && (link.host() == null || link.hostAccepted(fileLinkHosts(widget)));
+                }
+
+                @Override
+                public void open(TerminalFileLink link) {
+                    TerminalPathOpenHandler handler = terminalPathOpenHandler;
+                    if (handler != null && accepts(link)) {
+                        handler.handle(createTerminalAgentRunContext(widget), link);
+                    }
+                }
+            });
         }
+    }
+
+    /**
+     * Whether links in {@code widget} open files: a {@link TerminalPathOpenHandler} is set and the
+     * pane runs an SSH session (read over SFTP) or a local shell (read from disk). Mosh panes have no
+     * way to read a file. Cheap and safe on any thread.
+     */
+    private boolean opensFileLinks(SithTermFxWidget widget) {
+        if (terminalPathOpenHandler == null) {
+            return false;
+        }
+        TtyConnector connector = unwrapTerminalEffectConnector(widget.getTtyConnector());
+        return connector instanceof SshTtyConnector || connector instanceof LocalShellTtyConnector;
+    }
+
+    /**
+     * The names of the host {@code widget}'s session runs on, which an OSC 8 {@code file:} link may
+     * name: the host the session connected to and the host its prompt shows (a server reached by IP
+     * address names itself in both the prompt and its {@code file:} links); for a local shell the
+     * local host name. Reads the screen, so call it on the JavaFX thread.
+     */
+    private List<String> fileLinkHosts(SithTermFxWidget widget) {
+        TtyConnector connector = unwrapTerminalEffectConnector(widget.getTtyConnector());
+        List<String> hosts = new ArrayList<>();
+        if (connector instanceof ObservableTtyConnector observable) {
+            hosts.add(observable.getExpectedSessionHost());
+        }
+        if (connector instanceof LocalShellTtyConnector) {
+            hosts.add(System.getenv("HOSTNAME"));
+            hosts.add(System.getenv("COMPUTERNAME"));
+        }
+        try {
+            String screenLines = widget.getTerminalTextBuffer() != null ? widget.getTerminalTextBuffer().getScreenLines() : "";
+            String lastLine = lastNonBlankVisibleLine(screenLines);
+            if (lastLine != null) {
+                hosts.add(extractPromptHostFromPromptLine(extractPromptPrefixFromVisibleLine(lastLine)));
+            }
+        } catch (RuntimeException e) {
+            logger.debug("Could not read the prompt host for a file link: {}", e.getMessage());
+        }
+        return hosts;
     }
 
     /** {@code GlobalSettings.terminalLinkDetectionEnabled}; on when the settings cannot be read, as by default. */

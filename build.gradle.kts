@@ -3660,7 +3660,7 @@ tasks.register<JavaExec>("terminalContextMenuActionsSmoke") {
 
 tasks.register<JavaExec>("terminalLinksSmoke") {
     group = "verification"
-    description = "Clicks an OSC 8 link and a plain-text URL in a real terminal pane and checks they open only on a single, still Cmd/Ctrl+click, while plain double and triple clicks select; hovers them and checks the cursor, the underline in the LINKS layer, the target tooltip and the host-mismatch question; right-clicks them and checks Open Link and Copy Link Address lead the context menu; runs quick select and checks its labels, copy, Shift-open and that none of its keys reach the program (needs a display)."
+    description = "Clicks an OSC 8 link and a plain-text URL in a real terminal pane and checks they open only on a single, still Cmd/Ctrl+click, while plain double and triple clicks select; hovers them and checks the cursor, the underline in the LINKS layer, the target tooltip and the host-mismatch question; right-clicks them and checks Open Link and Copy Link Address lead the context menu; runs quick select and checks its labels, copy, Shift-open and that none of its keys reach the program; with a file handler, checks that a printed path and an OSC 8 file link open through it on a Cmd/Ctrl+click, the context menu and Shift with a label, and that a file link of another host does not (needs a display)."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.TerminalLinksSmoke")
     classpath = sourceSets.test.get().runtimeClasspath

@@ -396,6 +396,66 @@ public class TerminalLinkResolverTest {
     @Test
     public void webLinkKindsAreUrlsAndEmailAddressesOnly() {
         assertThat(WEB_LINK_KINDS).containsExactly(Kind.URL, Kind.EMAIL);
+        assertThat(TerminalLinkResolver.WEB_AND_PATH_LINK_KINDS).containsExactly(Kind.URL, Kind.EMAIL, Kind.PATH);
+    }
+
+    @Test
+    public void aPrintedPathIsAFileLinkOnlyWhenPathsAreAskedFor() {
+        EmulatorTextBufferFixture fixture = fixture();
+        fixture.write("error in src/main/App.java:42:7 here");
+
+        assertThat(web(fixture, 12, 0)).isNull();
+        Link link = TerminalLinkResolver.linkAt(fixture.buffer, new Point(12, 0), TerminalLinkResolver.WEB_AND_PATH_LINK_KINDS);
+        assertThat(link).isNotNull();
+        assertThat(link.kind()).isEqualTo(AUTO);
+        assertThat(link.target()).isNull();
+        assertThat(link.opens()).isTrue();
+        assertThat(link.text()).isEqualTo("src/main/App.java:42:7");
+        assertThat(link.start()).isEqualTo(new Point(9, 0));
+        assertThat(link.end()).isEqualTo(new Point(30, 0));
+        assertThat(link.file()).isEqualTo(TerminalFileLink.printed("src/main/App.java:42:7"));
+        assertThat(link.file().path()).isEqualTo("src/main/App.java");
+        // The click policy sees the file too.
+        assertThat(link.hit().file()).isEqualTo(link.file());
+        assertThat(link.withoutFile().opens()).isFalse();
+    }
+
+    @Test
+    public void aUrlIsNeverAlsoAPath() {
+        EmulatorTextBufferFixture fixture = fixture();
+        fixture.write("see https://example.com/a/b.txt");
+
+        Link link = TerminalLinkResolver.linkAt(fixture.buffer, new Point(26, 0), TerminalLinkResolver.WEB_AND_PATH_LINK_KINDS);
+        assertThat(link.target()).isEqualTo(URI.create("https://example.com/a/b.txt"));
+        assertThat(link.file()).isNull();
+    }
+
+    @Test
+    public void anOsc8FileLinkCarriesItsFileWhereThePaneOpensFiles() {
+        EmulatorTextBufferFixture fixture = new EmulatorTextBufferFixture(WIDTH, HEIGHT, 100,
+            new KorttyOsc8LinkInfoProvider(() -> true));
+        fixture.write("ls: ");
+        fixture.link("file://web01/home/daniel/notes.txt", "notes.txt");
+
+        // Found with no plain-text kinds at all: OSC 8 links do not depend on the detection setting.
+        Link link = TerminalLinkResolver.linkAt(fixture.buffer, new Point(6, 0), Set.of());
+        assertThat(link).isNotNull();
+        assertThat(link.kind()).isEqualTo(OSC8);
+        assertThat(link.target()).isNull();
+        assertThat(link.text()).isEqualTo("notes.txt");
+        assertThat(link.file()).isNotNull();
+        assertThat(link.file().path()).isEqualTo("/home/daniel/notes.txt");
+        assertThat(link.file().host()).isEqualTo("web01");
+        assertThat(link.file().fromOsc8()).isTrue();
+    }
+
+    @Test
+    public void anOsc8FileLinkIsPlainTextWhereThePaneOpensNoFiles() {
+        EmulatorTextBufferFixture fixture = fixture();
+        fixture.write("ls: ");
+        fixture.link("file:///home/daniel/notes.txt", "notes.txt");
+
+        assertThat(TerminalLinkResolver.linkAt(fixture.buffer, new Point(6, 0), Set.of())).isNull();
     }
 
     private static Window window(EmulatorTextBufferFixture fixture, int line) {

@@ -27,8 +27,10 @@ public class TerminalLinkDetectionWiringTest {
         assertThat(wiring).isGreaterThan(configurator);
         assertThat(wiring).isLessThan(view.indexOf("}, widget -> gutterMap.get(widget)", configurator));
         // A supplier, not a value captured when the pane opens: the setting is read on every click.
-        assertThat(view).contains("korttyWidget.setPlainTextLinkKinds(() -> isTerminalLinkDetectionEnabled() "
-            + "? TerminalLinkResolver.WEB_LINK_KINDS : Set.of());");
+        // File paths only in a pane that opens files.
+        assertThat(view).contains("korttyWidget.setPlainTextLinkKinds(() -> !isTerminalLinkDetectionEnabled() ? Set.of() "
+            + ": opensFileLinks(widget) ? TerminalLinkResolver.WEB_AND_PATH_LINK_KINDS "
+            + ": TerminalLinkResolver.WEB_LINK_KINDS);");
         assertThat(view).contains("return gs == null || gs.isTerminalLinkDetectionEnabled();");
     }
 

@@ -55,6 +55,29 @@ public class TerminalLinkHoverControllerTest {
     }
 
     @Test
+    public void aFileShowsTheSnippetEditorHintAndThePathOrTheRealTarget() {
+        Link printed = new Link(AUTO, null, "src/App.java:42", new Point(0, 0), new Point(14, 0),
+            TerminalFileLink.printed("src/App.java:42"));
+        TerminalFileLink target = TerminalFileLink.fromFileUri("file://web01/etc/hosts").orElseThrow();
+        Link osc8 = new Link(OSC8, null, "hosts", new Point(0, 0), new Point(4, 0), target);
+
+        assertThat(TerminalLinkHoverController.tooltipText(printed, true))
+            .isEqualTo(I18n.get("terminal.links.hint.file.mac") + "\n" + "src/App.java");
+        assertThat(TerminalLinkHoverController.tooltipText(osc8, false))
+            .isEqualTo(I18n.get("terminal.links.hint.file.other") + "\n" + "file://web01/etc/hosts");
+        assertThat(I18n.get("terminal.links.hint.file.mac")).contains("Cmd");
+        // A file opens on a click, so it gets the hand cursor and, found in plain text, the underline.
+        assertThat(TerminalLinkHoverController.showsHandCursor(printed)).isTrue();
+        assertThat(TerminalLinkHoverController.drawsUnderline(printed)).isTrue();
+        assertThat(TerminalLinkHoverController.showsHandCursor(osc8)).isTrue();
+        assertThat(TerminalLinkHoverController.drawsUnderline(osc8)).isFalse();
+        // A file the pane does not open (another host, no file handler) is a link korTTY does not open.
+        Link refused = osc8.withoutFile();
+        assertThat(TerminalLinkHoverController.tooltipText(refused, true)).isEqualTo(I18n.get("terminal.links.notAllowed"));
+        assertThat(TerminalLinkHoverController.showsHandCursor(refused)).isFalse();
+    }
+
+    @Test
     public void korttyUnderlinesOnlyPlainTextLinksBecauseSithTermFxUnderlinesOsc8Links() {
         assertThat(TerminalLinkHoverController.drawsUnderline(link(AUTO, TARGET, "https://example.com/docs"))).isTrue();
         assertThat(TerminalLinkHoverController.drawsUnderline(link(OSC8, TARGET, "docs"))).isFalse();
@@ -85,9 +108,10 @@ public class TerminalLinkHoverControllerTest {
         String widget = source("src/main/java/de/kortty/ui/KorttyTermWidget.java");
 
         int superCall = widget.indexOf("super(settingsProvider, terminalTextBuffer, styleState);");
-        // The pane's live link kinds, shared with the context menu's press filter.
+        // The pane's live link kinds, shared with the click and the context menu's press filter; a
+        // file the pane's file handler does not open is no link target.
         assertThat(widget).contains("TerminalLinkHoverController.LinkFinder linkFinder = "
-            + "(buffer, cell) -> TerminalLinkResolver.linkAt(buffer, cell, plainTextLinkKinds.get());");
+            + "(buffer, cell) -> openable(TerminalLinkResolver.linkAt(buffer, cell, plainTextLinkKinds.get()));");
         int hover = widget.indexOf("linkHover = TerminalLinkHoverController.install(this, linkFinder, "
             + "() -> linkOverlay.get());");
         assertThat(superCall).isAtLeast(0);
@@ -103,8 +127,14 @@ public class TerminalLinkHoverControllerTest {
     public void theCursorIsSetInAHandlerSoItRunsAfterSithTermFxsAndEverythingIsTornDown() throws IOException {
         String hover = code("src/main/java/de/kortty/ui/TerminalLinkHoverController.java");
 
-        assertThat(hover).contains("canvas.addEventHandler(MouseEvent.MOUSE_MOVED, controller::onMoved);");
+        assertThat(hover).contains("void followMouseMoves() { "
+            + "panel.getCanvas().addEventHandler(MouseEvent.MOUSE_MOVED, this::onMoved); }");
+        assertThat(hover.split("MouseEvent.MOUSE_MOVED", -1)).hasLength(2);
         assertThat(hover).doesNotContain("addEventFilter(MouseEvent.MOUSE_MOVED");
+        // SithTermFX adds its own MOUSE_MOVED handler in TerminalPanel.init(), after the panel's
+        // constructor; the hover's goes after it there, so the cursor korTTY sets wins.
+        String widget = code("src/main/java/de/kortty/ui/KorttyTermWidget.java");
+        assertThat(widget).contains("public void init() { super.init(); linkHover.followMouseMoves(); }");
         assertThat(hover).contains("panel.getCanvas().setCursor(showsHandCursor(link) ? Cursor.HAND : Cursor.DEFAULT);");
         assertThat(hover).contains("canvas.addEventHandler(MouseEvent.MOUSE_EXITED, event -> controller.clear());");
         assertThat(hover).contains("canvas.addEventFilter(MouseEvent.MOUSE_DRAGGED, event -> controller.clear());");

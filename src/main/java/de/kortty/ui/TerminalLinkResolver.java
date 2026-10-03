@@ -55,18 +55,27 @@ public final class TerminalLinkResolver implements TerminalLinkClickPolicy.HitRe
     public static final Set<Kind> WEB_LINK_KINDS = Collections.unmodifiableSet(EnumSet.of(Kind.URL, Kind.EMAIL));
 
     /**
+     * What plain-text link detection looks for in a pane that opens files: {@link #WEB_LINK_KINDS}
+     * and file paths, which open in the Snippet Editor.
+     */
+    public static final Set<Kind> WEB_AND_PATH_LINK_KINDS =
+        Collections.unmodifiableSet(EnumSet.of(Kind.URL, Kind.EMAIL, Kind.PATH));
+
+    /**
      * A link under a cell.
      *
      * @param kind   {@link HitKind#OSC8} or {@link HitKind#AUTO}, never {@link HitKind#NONE}
-     * @param target what a Cmd/Ctrl+click opens: a target that passed {@link TerminalLinkOpener#allowedBrowseUri},
-     *               or {@code null} when the link must not be opened (a refused target, an OSC 8 link of
-     *               another origin, a kind korTTY does not open in a browser)
+     * @param target what a Cmd/Ctrl+click opens in the browser or mail program: a target that passed
+     *               {@link TerminalLinkOpener#allowedBrowseUri}, or {@code null}
      * @param text   the text the link covers on screen, without {@link CharUtils#DWC} cells
      * @param start  the first cell of the link ({@code y} is the buffer line, negative in the history)
      * @param end    the last cell of the link, inclusive
+     * @param file   the file a Cmd/Ctrl+click opens in the Snippet Editor, or {@code null}. A link has
+     *               a {@code target} or a {@code file}, or neither when it must not be opened (a refused
+     *               target, an OSC 8 link of another origin, a kind korTTY does not open)
      */
     public record Link(@NotNull HitKind kind, @Nullable URI target, @NotNull String text, @NotNull Point start,
-            @NotNull Point end) {
+            @NotNull Point end, @Nullable TerminalFileLink file) {
 
         public Link {
             Objects.requireNonNull(kind, "kind");
@@ -76,11 +85,30 @@ public final class TerminalLinkResolver implements TerminalLinkClickPolicy.HitRe
             if (kind == HitKind.NONE) {
                 throw new IllegalArgumentException("a link is OSC8 or AUTO");
             }
+            if (target != null && file != null) {
+                throw new IllegalArgumentException("a link opens a web target or a file, not both");
+            }
+        }
+
+        /** A web or mail link, or one that must not be opened. */
+        public Link(@NotNull HitKind kind, @Nullable URI target, @NotNull String text, @NotNull Point start,
+                @NotNull Point end) {
+            this(kind, target, text, start, end, null);
+        }
+
+        /** Whether a click can open the link: it has a web target or a file. */
+        public boolean opens() {
+            return target != null || file != null;
+        }
+
+        /** The same link without its file, for a pane that does not open that file. */
+        public @NotNull Link withoutFile() {
+            return file == null ? this : new Link(kind, target, text, start, end, null);
         }
 
         /** The link as the click policy sees it. */
         public @NotNull Hit hit() {
-            return new Hit(kind, target, text);
+            return new Hit(kind, target, text, file);
         }
     }
 
@@ -104,7 +132,8 @@ public final class TerminalLinkResolver implements TerminalLinkClickPolicy.HitRe
      * The link under {@code cell}. An OSC 8 link wins over anything found in its text. Otherwise the
      * plain text of the logical line around the cell is searched for {@code kinds}: a {@link Kind#URL}
      * opens as it is and an {@link Kind#EMAIL} as a {@code mailto} link, if {@link TerminalLinkOpener}
-     * allows it; other kinds are reported without a target.
+     * allows it, and a {@link Kind#PATH} is reported with its {@link Link#file()}; other kinds are
+     * reported without a target. Whether the pane opens a file is the pane's to decide.
      *
      * @return the link, or {@code null} for a cell outside the buffer or on no link
      */
@@ -172,7 +201,7 @@ public final class TerminalLinkResolver implements TerminalLinkClickPolicy.HitRe
             }
             if (offset < match.end()) {
                 return new Link(HitKind.AUTO, target(match), match.text(), window.cellAt(match.start()),
-                    window.cellAt(match.end() - 1));
+                    window.cellAt(match.end() - 1), match.kind() == Kind.PATH ? TerminalFileLink.printed(match.text()) : null);
             }
         }
         return null;
@@ -188,7 +217,8 @@ public final class TerminalLinkResolver implements TerminalLinkClickPolicy.HitRe
 
     /**
      * The OSC 8 link under {@code cell}: the cells around it in the window that carry the same
-     * {@link LinkInfo}, which is one per OSC 8 sequence. Only a {@link KorttyLinkInfo} has a target.
+     * {@link LinkInfo}, which is one per OSC 8 sequence. Only a {@link KorttyLinkInfo} has a target
+     * or a file.
      */
     private static @NotNull Link osc8Link(@NotNull TerminalTextBuffer buffer, @NotNull Point cell,
             @Nullable LinkInfo info) {
@@ -228,8 +258,9 @@ public final class TerminalLinkResolver implements TerminalLinkClickPolicy.HitRe
                 text.append(c);
             }
         }
-        URI target = info instanceof KorttyLinkInfo korttyInfo ? korttyInfo.target() : null;
-        return new Link(HitKind.OSC8, target, text.toString(), window.cellAt(first), window.cellAt(last));
+        KorttyLinkInfo korttyInfo = info instanceof KorttyLinkInfo korttyLink ? korttyLink : null;
+        return new Link(HitKind.OSC8, korttyInfo != null ? korttyInfo.target() : null, text.toString(),
+            window.cellAt(first), window.cellAt(last), korttyInfo != null ? korttyInfo.file() : null);
     }
 
     private static boolean isInside(@NotNull TerminalTextBuffer buffer, @NotNull Point cell) {
