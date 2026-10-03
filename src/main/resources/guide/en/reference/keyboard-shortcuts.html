@@ -409,6 +409,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/highlighting.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Keyword highlighting
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/tunnels.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -980,6 +988,10 @@
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span></td>
 <td>Toggle Terminal-only Fullscreen</td>
 </tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span></td>
+<td>Switch <a href="../features/highlighting.html">keyword highlighting</a> on or off for the focused terminal pane</td>
+</tr>
 </tbody>
 </table>
 <p>The zoom keys (<span class="keys"><kbd class="key-control">Ctrl</kbd></span> or <span class="keys"><kbd class="key-alt">Alt</kbd></span> with <span class="keys"><kbd class="key-plus">+</kbd></span> / <span class="keys"><kbd class="key-minus">-</kbd></span> / <span class="keys"><kbd class="key-0">0</kbd></span>; <span class="keys"><kbd class="key-command">Cmd</kbd></span> on macOS) zoom the terminal only while a terminal tab is selected. In a snippet editor or file editor tab they reach the editor, and <span class="keys"><kbd class="key-alt-graph">AltGr</kbd><span>+</span><kbd class="key-plus">+</kbd></span> types its character there.</p>
@@ -1058,7 +1070,7 @@
 </tbody>
 </table>
 <p>On Windows and Linux, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-1">1</kbd></span> to <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-9">9</kbd></span> no longer reach the program in the terminal: korTTY's terminal never sent them as keys of their own, so no program loses a binding it could receive.</p>
-<p>On Windows and Linux, <strong>Clear Buffer</strong> and <strong>Find</strong> have no key of their own, so <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-l">L</kbd></span> and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> stay with the programs running in the terminal. Use right-click → <strong>Clear Buffer</strong> or <strong>Find</strong> in the terminal, or <strong>Edit → Find…</strong> with the mouse. <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span> stays Terminal-only Fullscreen and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-k">K</kbd></span> still docks the file browser on the left.</p>
+<p>On Windows and Linux, <strong>Clear Buffer</strong> and <strong>Find</strong> have no key of their own, so <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-l">L</kbd></span> and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> stay with the programs running in the terminal. Use right-click → <strong>Clear Buffer</strong> or <strong>Find</strong> in the terminal, or <strong>Edit → Find…</strong> with the mouse. <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f">F</kbd></span> stays Terminal-only Fullscreen and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-k">K</kbd></span> still docks the file browser on the left. <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span> switches keyword highlighting and does not reach the terminal, while plain <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-h">H</kbd></span> still reaches the shell as backspace.</p>
 <p>Every other combination of <span class="keys"><kbd class="key-shift">Shift</kbd></span>, <span class="keys"><kbd class="key-control">Ctrl</kbd></span> and <span class="keys"><kbd class="key-alt">Alt</kbd></span> with the arrow keys, <span class="keys"><kbd class="key-home">Home</kbd></span> / <span class="keys"><kbd class="key-end">End</kbd></span>, <span class="keys"><kbd class="key-page-up">Page Up</kbd></span> / <span class="keys"><kbd class="key-page-down">Page Down</kbd></span>, <span class="keys"><kbd class="key-insert">Ins</kbd></span> / <span class="keys"><kbd class="key-delete">Del</kbd></span> and <span class="keys"><kbd class="key-f1">F1</kbd></span> to <span class="keys"><kbd class="key-f11">F11</kbd></span> is sent the way xterm sends it (<span class="keys"><kbd class="key-f12">F12</kbd></span> always toggles fullscreen), for example <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-page-up">Page Up</kbd></span> as <code>ESC [ 5 ; 5 ~</code> and <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-f1">F1</kbd></span> as <code>ESC [ 1 ; 2 P</code>. The arrow keys follow the program's cursor-key mode: <code>mc</code> and <code>vim</code> switch it on and then receive <code>ESC O A</code>, while a shell receives <code>ESC [ A</code>. Connections with a non-xterm terminal emulation (Wyse, TeleVideo, HP, SCO ANSI, IBM 3270/5250, PETSCII) keep sending fixed sequences without modifiers.</p>
 <h2 id="sftp-manager">SFTP Manager<a class="headerlink" href="#sftp-manager" title="Permanent link">&para;</a></h2>
 <p>These keys work in the local and the remote list of an SFTP Manager tab; see <a href="../features/sftp.html#keys">Keys</a>.</p>

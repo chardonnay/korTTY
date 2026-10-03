@@ -409,6 +409,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="highlighting.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Hervorhebung von Schlüsselwörtern
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="tunnels.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -790,7 +798,7 @@
 </tr>
 <tr>
 <td>Terminal-Einstellungen</td>
-<td>Farben pro Verbindung, Schriftart, ANSI/TrueColor-Behandlung, der Abschnitt <strong>Terminal-Verhalten</strong> mit der <a href="#tab-farbe">Tab-Farbe</a>, Terminal-Effekt</td>
+<td>Farben pro Verbindung, Schriftart, ANSI/TrueColor-Behandlung, der Abschnitt <strong>Terminal-Verhalten</strong> mit der <a href="#tab-farbe">Tab-Farbe</a> und dem Regelsatz für die <a href="#hervorhebung-von-schlusselwortern">Hervorhebung von Schlüsselwörtern</a>, Terminal-Effekt</td>
 </tr>
 <tr>
 <td>SSH-Tunnel</td>
@@ -820,6 +828,8 @@
 </table>
 <h3 id="zeichenkodierung">Zeichenkodierung<a class="headerlink" href="#zeichenkodierung" title="Permanent link">&para;</a></h3>
 <p><strong>Zeichenkodierung</strong> legt fest, wie korTTY dekodiert, was die Sitzung dieser Verbindung ausgibt und wie Sie eingeben und einfügen, für Server deren Programme noch ISO-8859-1, ISO-8859-15 oder Windows-1252 statt UTF-8 schreiben. <strong>Standard verwenden</strong> folgt <a href="../reference/settings/terminal.html#hinweise">Einstellungen → Terminal → Kodierung</a> für SSH-Verbindungen und bedeutet UTF-8 für lokale Shells. Mosh funktioniert nur mit UTF-8, daher ist das Dropdown bei Mosh-Verbindungen gesperrt und daneben steht eine entsprechende Notiz. Die Auswahl wird mit der Verbindung gespeichert, bleibt bei Duplizieren, Exportieren und Importieren erhalten und gilt beim nächsten Verbinden oder Wiederverbinden des Tabs.</p>
+<h3 id="hervorhebung-von-schlusselwortern">Hervorhebung von Schlüsselwörtern<a class="headerlink" href="#hervorhebung-von-schlusselwortern" title="Permanent link">&para;</a></h3>
+<p>Der Abschnitt <strong>Terminal-Verhalten</strong> der Registerkarte <em>Terminal-Einstellungen</em> wählt den Regelsatz für die <a href="highlighting.html#regelsatz-pro-verbindung">Hervorhebung von Schlüsselwörtern</a>, den die Terminals dieser Verbindung zeigen: <strong>Standard verwenden</strong> folgt dem Standard-Regelsatz unter <em>Einstellungen → Terminal</em>, <strong>Keiner</strong> lässt sie ohne Hervorhebung, oder Sie wählen einen mitgelieferten oder einen eigenen Regelsatz, zum Beispiel <strong>Netzwerkgeräte</strong> für Switches. Der Abschnitt gilt unabhängig davon, ob die Verbindung eigene Terminal-Einstellungen verwendet, und auch, wenn Terminal-Effekte ausgeschaltet sind. Die Wahl wird mit der Verbindung gespeichert und bleibt beim Duplizieren, Exportieren und Importieren erhalten, und beim Speichern im Connection-Manager gilt sie sofort für die geöffneten Terminals der Verbindung. Ein Regelsatz, der für einen einzelnen Bereich in einem Menü oder mit <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span> auf macOS) gewählt wurde, hat für diesen Bereich weiterhin Vorrang.</p>
 <h2 id="tags">Tags<a class="headerlink" href="#tags" title="Permanent link">&para;</a></h2>
 <p>Jede gespeicherte Verbindung kann ein optionales Freitext-<strong>Tag</strong> tragen – eine Bezeichnung wie <code>prod</code>, <code>staging</code> oder einen Kundennamen – unabhängig von der Gruppen-/Ordnerhierarchie. Legen Sie es auf der Registerkarte <em>Verbindung</em> des Verbindungseditors (neben der Gruppe) oder gesammelt im Connection-Manager fest. Tags werden mit der Verbindung in <code>connections.xml</code> gespeichert und überstehen das Duplizieren, Exportieren und Importieren.</p>
 <ul>

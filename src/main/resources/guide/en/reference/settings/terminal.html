@@ -409,6 +409,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../../features/highlighting.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Keyword highlighting
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../../features/tunnels.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -758,7 +766,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h1>
-<p>Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, links, and SSH connection management. Open via <strong>Configuration → Global Settings → Terminal</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
+<p>Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, keyword highlighting, links, and SSH connection management. Open via <strong>Configuration → Global Settings → Terminal</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
 <p><img alt="Terminal settings tab" src="../../assets/screenshots/settings/terminal.png" /></p>
 <table>
 <thead>
@@ -840,6 +848,34 @@
 <td>—</td>
 <td>Off</td>
 <td><code>closeActiveTerminalWindowsWithoutConfirmation</code></td>
+</tr>
+<tr>
+<td>Highlight keywords in terminal output</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>terminalHighlightingEnabled</code></td>
+</tr>
+<tr>
+<td>Also highlight in full-screen programs (vim, less, htop)</td>
+<td>toggle</td>
+<td>—</td>
+<td>Off</td>
+<td><code>terminalHighlightAlternateScreen</code></td>
+</tr>
+<tr>
+<td>Default rule set:</td>
+<td>dropdown</td>
+<td>None, Errors and warnings, Network addresses, Network devices, or a set of your own</td>
+<td>None</td>
+<td><code>defaultHighlightRuleSetId</code></td>
+</tr>
+<tr>
+<td>Edit Rules…</td>
+<td>button</td>
+<td>opens the rule-set editor</td>
+<td>—</td>
+<td><code>highlightRuleSets</code></td>
 </tr>
 <tr>
 <td>Detect web addresses, e-mail addresses and file paths in terminal text</td>
@@ -930,6 +966,14 @@
 <div class="admonition note">
 <p class="admonition-title">Copy selection to clipboard automatically</p>
 <p>When enabled, text you select in a terminal is copied to the clipboard as soon as you select it. On Linux it also becomes the X11 primary selection, so a middle-click pastes it in other applications such as xterm or gedit. With the enterprise policy's <a href="../enterprise-policy.html#internal-clipboard-mode">internal clipboard mode</a> the selection stays inside korTTY on every platform.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Keyword highlighting</p>
+<p><strong>Highlight keywords in terminal output</strong> is the master switch of <a href="../../features/highlighting.html">keyword highlighting</a>. While it is off, no pane is highlighted, whatever was chosen in a menu, with <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span> on macOS), for a connection or as the default rule set, and the highlighting menus are greyed out. It is on by default, but nothing is highlighted until a rule set is chosen.</p>
+<p><strong>Default rule set</strong> is the set every terminal pane shows unless its connection has a rule set of its own (see <a href="../../features/highlighting.html#rule-set-per-connection">Rule set per connection</a>) or you choose another one for that pane. It is <strong>None</strong> by default, so highlighting stays off until you opt in here, for a connection in the connection editor, in <em>View → Highlighting</em>, in a pane's context menu or with the shortcut. A set chosen for a pane in one of those places stays on top of the default until the pane is closed, and <strong>None</strong> chosen there keeps that pane plain whatever the default is. If the stored default names a rule set that no longer exists, the dropdown shows it as missing and panes show no highlighting.</p>
+<p><strong>Also highlight in full-screen programs</strong> extends highlighting to programs that use the terminal's alternate screen, such as <code>vim</code>, <code>less</code> and <code>htop</code>. It is off by default because these programs redraw their screen constantly and bring their own colors, so highlights can flicker there and fight the program's colors. Switching it off leaves the highlights a running program already shows until it redraws them.</p>
+<p>All three apply to open terminals as soon as you save.</p>
+<p><strong>Edit Rules…</strong> opens the <a href="../../features/highlighting.html#your-own-rule-sets">rule-set editor</a>, where you create your own rule sets and look at the built-in ones. It stays available while the master switch is off, so you can prepare sets before switching highlighting on. The editor saves its changes when you confirm it, whether or not you then save the settings dialog, and afterwards the <strong>Default rule set</strong> dropdown lists your sets as they are now. If you delete the set the dropdown shows, it falls back to <strong>None</strong>.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Links</p>
