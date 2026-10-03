@@ -8,11 +8,11 @@ import java.util.Objects;
  * <p>This bounds catastrophic backtracking: a pattern such as {@code (a+)+$} over a long line can run
  * for hours inside {@code java.util.regex}, and neither a thread interrupt nor a future's timeout
  * stops it. Matching over this sequence does stop, because the matcher itself has to read a character
- * to keep going. A cap on the input length bounds the input, not the work, so this is the one guard
- * every match of a user-supplied pattern runs behind: the control API's {@code pane.wait_output},
- * where together with the 512-character pattern cap and the 256 KiB text cap it means a wait can
- * never outlive its own timeout or pin the timer thread, and the session journal's auto-marker rules,
- * where a runaway rule must not stall journal capture.
+ * to keep going; a cap on the input length bounds the input, not the work. The control API's
+ * {@code pane.wait_output} and the session journal's auto-marker rules both match through it. For the
+ * wait, together with the 512-character pattern cap and the 256 KiB text cap, it means a wait can never
+ * outlive its own timeout or pin the timer thread; for the journal, a runaway rule gives up after its
+ * budget instead of stalling capture.
  *
  * <p>The clock is sampled every {@value #CHECK_MASK}+1 reads rather than on every read, which keeps
  * the overhead invisible while bounding the overshoot to microseconds.
