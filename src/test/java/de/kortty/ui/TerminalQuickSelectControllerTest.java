@@ -90,6 +90,19 @@ public class TerminalQuickSelectControllerTest {
         assertThat(controller).doesNotContain("showDocument");
     }
 
+    @Test
+    public void startingClearsTheLinkHoverSoNoTooltipCoversTheLabels() throws IOException {
+        String controller = compact("src/main/java/de/kortty/ui/TerminalQuickSelectController.java");
+
+        int focus = controller.indexOf("splitPane.focusWidget(widget);");
+        int clear = controller.indexOf("panel.linkHover().clear();");
+        int capture = controller.indexOf("QuickSelectScreen.capture(");
+        assertThat(focus).isAtLeast(0);
+        // Before the labels are drawn: no key reaches the canvas's own hover teardown while quick select runs.
+        assertThat(clear).isGreaterThan(focus);
+        assertThat(clear).isLessThan(capture);
+    }
+
     private static String compact(String path) throws IOException {
         return Files.readString(Path.of(path), StandardCharsets.UTF_8).replace("\r\n", "\n").replaceAll("\\s+", "");
     }

@@ -130,6 +130,10 @@ final class TerminalQuickSelectController {
             return false;
         }
         splitPane.focusWidget(widget);
+        // A link's hover underline and tooltip would sit over the labels, and no key reaches the
+        // canvas to clear them while quick select runs: the chord was taken before it, and so is
+        // every key after it. The next mouse move shows the hover again.
+        panel.linkHover().clear();
         TerminalCellGeometry geometry = panel.cellGeometry();
         Pane layer = splitPane.paneOverlay(widget, PaneOverlayLayer.LINKS);
         if (geometry == null || layer == null) {
