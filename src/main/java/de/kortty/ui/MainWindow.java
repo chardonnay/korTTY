@@ -2286,7 +2286,9 @@ public class MainWindow {
     }
     
     private void setupKeyBindings() {
-        stage.getScene().setOnKeyPressed(e -> {
+        // A filter, not a handler: it runs before the focused node, so Ctrl+Tab switches the tab even
+        // while a terminal has the focus (the terminal would otherwise take it as a Tab key).
+        stage.getScene().addEventFilter(KeyEvent.KEY_PRESSED, e -> {
             // Tab switching with Ctrl+Tab / Ctrl+Shift+Tab
             if (e.isControlDown() && e.getCode() == KeyCode.TAB) {
                 if (e.isShiftDown()) {

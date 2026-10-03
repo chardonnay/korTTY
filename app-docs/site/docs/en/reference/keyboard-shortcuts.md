@@ -10,8 +10,8 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 | ++ctrl+w++ | Close Tab |
 | ++ctrl+shift+n++ | New Window |
 | ++ctrl+shift+w++ | Close Window |
-| ++ctrl+tab++ | Next Tab |
-| ++ctrl+shift+tab++ | Previous Tab |
+| ++ctrl+tab++ | Next Tab (++ctrl++ on macOS too) |
+| ++ctrl+shift+tab++ | Previous Tab (++ctrl++ on macOS too) |
 | ++ctrl+o++ | Open Project |
 | ++ctrl+s++ | Save Project |
 | ++ctrl+shift+b++ | Create Backup |
@@ -60,7 +60,7 @@ The zoom keys (++ctrl++ or ++alt++ with ++plus++ / ++minus++ / ++0++; ++cmd++ on
 
 ## Terminal
 
-These keys apply while a terminal pane has the keyboard focus.
+These keys work while a terminal pane has the focus. For how they behave with several panes, see [Broadcast mode](../features/terminal.md#broadcast-mode).
 
 | Shortcut | Action |
 | --- | --- |
@@ -69,8 +69,16 @@ These keys apply while a terminal pane has the keyboard focus.
 | ++ctrl+f++ (Windows and Linux) | Sent to the shell: moves the cursor one character forward at a bash prompt and pages forward in `less` or `vim` |
 | ++cmd+k++ (macOS) | Clear Buffer: empty the terminal screen and its scrollback |
 | ++cmd+f++ (macOS) | Find in the terminal scrollback |
+| ++shift+tab++ | Back-tab (`ESC [ Z`), for example to go back one field or panel in a full-screen program |
+| ++ctrl+left++ / ++ctrl+right++ | Move one word left / right in the shell (Windows and Linux) |
+| ++option+left++ / ++option+right++ | Move one word left / right on macOS (sends `ESC b` / `ESC f`, as Terminal.app does) |
+| ++shift+page-up++ / ++shift+page-down++ | Scroll korTTY's scrollback by a page; inside a full-screen program such as `vim`, `less` or `mc` the key goes to the program |
+| ++ctrl+up++ / ++ctrl+down++ | Scroll korTTY's scrollback by a line (++cmd+up++ / ++cmd+down++ on macOS); on Windows and Linux the keys go to a full-screen program instead while one runs |
+| ++ctrl+tab++ / ++ctrl+shift+tab++ | Next / previous tab, also while the terminal has the focus (the ++ctrl++ key on macOS too) |
 
 On Windows and Linux, **Clear Buffer** and **Find** have no key of their own, so ++ctrl+l++ and ++ctrl+f++ stay with the programs running in the terminal. Use right-click → **Clear Buffer** or **Find** in the terminal, or **Edit → Find…** with the mouse. ++ctrl+shift+f++ stays Terminal-only Fullscreen and ++ctrl+shift+k++ still docks the file browser on the left.
+
+Every other combination of ++shift++, ++ctrl++ and ++alt++ with the arrow keys, ++home++ / ++end++, ++page-up++ / ++page-down++, ++insert++ / ++delete++ and ++f1++ to ++f11++ is sent the way xterm sends it (++f12++ always toggles fullscreen), for example ++ctrl+page-up++ as `ESC [ 5 ; 5 ~` and ++shift+f1++ as `ESC [ 1 ; 2 P`. The arrow keys follow the program's cursor-key mode: `mc` and `vim` switch it on and then receive `ESC O A`, while a shell receives `ESC [ A`. Connections with a non-xterm terminal emulation (Wyse, TeleVideo, HP, SCO ANSI, IBM 3270/5250, PETSCII) keep sending fixed sequences without modifiers.
 
 ## SFTP Manager
 

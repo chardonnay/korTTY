@@ -123,6 +123,11 @@ Teilen Sie die Terminalansicht, um mehrere Verbindungen nebeneinander anzuzeigen
 
 Wenn der **Broadcast-Modus** aktiviert ist, werden Tastatureingaben gleichzeitig an alle sichtbaren Bereiche gesendet. Dies ist nützlich, um dieselben Befehle auf mehreren Servern auszuführen.
 
+- **Gespiegelt**: getippter Text, ++enter++, ++backspace++, ++esc++, ++tab++ und ++shift+tab++, die Pfeiltasten, ++home++ / ++end++, ++page-up++ / ++page-down++, ++insert++ / ++delete++ und ++f1++ bis ++f11++, einschließlich ihrer ++shift++, ++ctrl++ und ++alt++ Kombinationen (++f12++ schaltet den Vollbildmodus um).
+- **Für jeden Bereich kodiert**: jeder Bereich erhält eine Taste so, wie sein eigenes Programm sie erwartet. Wenn ein Bereich `mc` oder `vim` ausführt, die das Terminal in Anwendungs-Pfeiltasten umschalten, kommen seine Pfeile als `ESC O A` an, während eine Shell im nächsten Bereich `ESC [ A` erhält, sodass Verlauf und Vervollständigung in beiden funktionieren.
+- **Bleiben lokal**: die Scrollback-Tasten (++shift+page-up++ / ++shift+page-down++, und ++ctrl+up++ / ++ctrl+down++ unter Windows und Linux oder ++cmd+up++ / ++cmd+down++ auf macOS) scrollen nur den fokussierten Bereich. Ein Vollbildprogramm wie `vim` oder `less` hat keinen Scrollback, sodass während eines läuft im fokussierten Paneel ++shift+page-up++ / ++shift+page-down++ (und ++ctrl+up++ / ++ctrl+down++ unter Windows und Linux) an dieses Programm gehen und, wie die anderen Tasten, an jedes andere Paneel.
+- **Nicht gespiegelt**: Einfügen und Snippets gehen nur an den fokussierten Bereich, und was Sie in die Suchleiste eingeben, bleibt dort.
+
 ## Terminale Auswirkungen
 
 Terminaleffekte können den sichtbaren Terminalstil und die Ausgabeanimation ändern. Effekte sind Java-Plugins, die über **Plugins > Terminaleffekte** verwaltet werden.

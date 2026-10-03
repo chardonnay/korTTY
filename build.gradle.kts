@@ -3642,6 +3642,14 @@ tasks.register<JavaExec>("terminalShortcutKeyTypedSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("terminalNavigationKeysSmoke") {
+    group = "verification"
+    description = "Verifies navigation keys are encoded per split pane (cursor-key mode, modifiers, broadcast) while scrollback keys and the find bar stay local."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.TerminalNavigationKeysSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("terminalContextMenuActionsSmoke") {
     group = "verification"
     description = "Fires the terminal context menu's Copy, Paste, Clear Buffer, Find and Font Size entries and checks each reaches the pane (needs a display; uses the OS clipboard and restores it)."

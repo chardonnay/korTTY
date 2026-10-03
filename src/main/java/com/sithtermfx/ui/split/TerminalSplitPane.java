@@ -1,7 +1,13 @@
 package com.sithtermfx.ui.split;
 
+import com.sithtermfx.core.Terminal;
+import com.sithtermfx.core.TerminalOutputStream;
 import com.sithtermfx.core.TtyConnector;
+import com.sithtermfx.core.model.TerminalTextBuffer;
 import com.sithtermfx.ui.SithTermFxWidget;
+import com.sithtermfx.ui.TerminalAction;
+import com.sithtermfx.ui.TerminalActionProvider;
+import com.sithtermfx.ui.TerminalPanel;
 import com.sithtermfx.ui.TerminalWidgetListener;
 import com.sithtermfx.ui.settings.SettingsProvider;
 import javafx.application.Platform;
@@ -13,11 +19,13 @@ import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ScrollBar;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.SplitPane;
 import javafx.scene.input.DataFormat;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.DragEvent;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.MouseButton;
@@ -28,6 +36,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import de.kortty.ui.I18n;
+import de.kortty.ui.TerminalNavigationKeys;
 import de.kortty.ui.TerminalPaneActions;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -43,7 +52,9 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.IntFunction;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 import javafx.scene.layout.HBox;
 
 /**
@@ -121,6 +132,9 @@ public class TerminalSplitPane extends StackPane {
     // Optional hook invoked when broadcast mode actually changes state (host-app telemetry).
     private Consumer<Boolean> onBroadcastModeChanged;
 
+    // Strips the host app's connector decorators so key routing sees the real connector type.
+    private UnaryOperator<TtyConnector> connectorUnwrapper = UnaryOperator.identity();
+
     /** If set, called when user chooses "Reset" font size in context menu (e.g. to reset to connection/global default). */
     private Runnable resetZoomCallback;
 
@@ -196,35 +210,203 @@ public class TerminalSplitPane extends StackPane {
         }
     }
     
+    /**
+     * Broadcasts input that each pane encodes for itself, e.g. an arrow key that one pane's
+     * application wants as {@code ESC O A} and another's as {@code ESC [ A}. A pane for which
+     * {@code bytesFor} returns {@code null} gets nothing. Written synchronously, like the typed
+     * characters of {@link #broadcastToOthers(SithTermFxWidget, String)}, so every pane receives
+     * keys and characters in the order they were pressed.
+     */
+    private void broadcastToOthers(@NotNull SithTermFxWidget sourceWidget,
+                                   @NotNull Function<SithTermFxWidget, byte[]> bytesFor) {
+        if (!broadcastMode) return;
+
+        for (SithTermFxWidget widget : getAllWidgets()) {
+            if (widget == sourceWidget) {
+                continue;
+            }
+            TtyConnector connector = widget.getTtyConnector();
+            if (connector == null || !connector.isConnected()) {
+                continue;
+            }
+            byte[] bytes = bytesFor.apply(widget);
+            if (bytes == null) {
+                continue;
+            }
+            try {
+                connector.write(bytes);
+            } catch (IOException e) {
+                logger.debug("Failed to broadcast to widget: {}", e.getMessage());
+            }
+        }
+    }
+
+    /** Broadcast bytes of the keys that are neither typed characters nor navigation keys. */
     private @Nullable String getControlSequence(KeyEvent event) {
         switch (event.getCode()) {
             case ENTER: return "\r";
             case BACK_SPACE: return "\u007F";
-            case TAB: return "\t";
             case ESCAPE: return "\u001B";
-            case UP: return "\u001B[A";
-            case DOWN: return "\u001B[B";
-            case RIGHT: return "\u001B[C";
-            case LEFT: return "\u001B[D";
-            case HOME: return "\u001B[H";
-            case END: return "\u001B[F";
-            case PAGE_UP: return "\u001B[5~";
-            case PAGE_DOWN: return "\u001B[6~";
-            case INSERT: return "\u001B[2~";
-            case DELETE: return "\u001B[3~";
-            case F1: return "\u001BOP";
-            case F2: return "\u001BOQ";
-            case F3: return "\u001BOR";
-            case F4: return "\u001BOS";
-            case F5: return "\u001B[15~";
-            case F6: return "\u001B[17~";
-            case F7: return "\u001B[18~";
-            case F8: return "\u001B[19~";
-            case F9: return "\u001B[20~";
-            case F10: return "\u001B[21~";
-            case F11: return "\u001B[23~";
-            case F12: return "\u001B[24~";
             default: return null;
+        }
+    }
+
+    /**
+     * Routes a navigation key (see {@link TerminalNavigationKeys#isNavigationKey}) pressed in a pane.
+     *
+     * <p>korTTY sends these keys itself instead of leaving them to the terminal canvas, so they also
+     * reach the shell while the pane or its scroll bar has the focus, and broadcast mode can mirror
+     * them. Each pane gets them encoded for its own state: with their modifiers, and in application
+     * cursor mode ({@code ESC[?1h}, used by mc and vim) as {@code ESC O A} instead of {@code ESC [ A}.
+     *
+     * <ul>
+     *   <li>Keys aimed at the find bar's text field, or any other control inside the pane, are left
+     *       alone and never broadcast.</li>
+     *   <li>SithTermFX's own scroll keys (Shift+Page Up/Down, Ctrl+Up/Down, Cmd+Up/Down on macOS)
+     *       scroll the pane's scrollback while it shows the normal screen and are never broadcast.
+     *       The alternate screen of vim, less or mc has no scrollback, so there they go to the
+     *       application.</li>
+     *   <li>Ctrl+Tab and Meta (Cmd) chords are shortcuts and are not sent.</li>
+     * </ul>
+     */
+    private void routeKeyPressed(@NotNull SithTermFxWidget widget, @NotNull KeyEvent event) {
+        if (event.isConsumed()) {
+            return;
+        }
+        if (!isTerminalKeyTarget(widget, event.getTarget())) {
+            // The find bar handles its own keys; Enter there must not run a command in the other panes.
+            return;
+        }
+        if (!TerminalNavigationKeys.isNavigationKey(event.getCode())) {
+            if (broadcastMode) {
+                String sequence = getControlSequence(event);
+                if (sequence != null) {
+                    broadcastToOthers(widget, sequence);
+                }
+            }
+            return;
+        }
+        if (TerminalNavigationKeys.isKorttyEncoded(widget.getEmulationType())
+            && performsLocalScrollAction(widget, event)) {
+            return;
+        }
+        byte[] bytes = encodeNavigationKey(widget, event);
+        if (bytes == null || !sendToPane(widget, bytes)) {
+            return;
+        }
+        broadcastToOthers(widget, target -> encodeNavigationKey(target, event));
+        event.consume();
+    }
+
+    /**
+     * True when the key event is aimed at the terminal itself: its canvas, the panes around it, or its
+     * scroll bar. The find bar's text field, buttons and check box are not, so editing the search
+     * text never types into the shell.
+     */
+    private static boolean isTerminalKeyTarget(@NotNull SithTermFxWidget widget, @Nullable Object target) {
+        if (target == null) {
+            return false;
+        }
+        if (target == widget.getPane() || target instanceof ScrollBar) {
+            return true;
+        }
+        TerminalPanel panel = widget.getTerminalPanel();
+        return panel != null && (target == panel.getCanvas() || target == panel.getPane());
+    }
+
+    /**
+     * Mirrors SithTermFX's key-action lookup ({@code TerminalAction.processEvent}): the first action
+     * whose key combination matches decides. An enabled one (scrolling the scrollback) runs locally
+     * and the key is not sent. On the canvas SithTermFX's own key filter runs it; for a key aimed at
+     * the pane or the scroll bar that filter never runs, so it is performed here.
+     *
+     * @return true when the key was used for a local action and must not reach the application
+     */
+    private static boolean performsLocalScrollAction(@NotNull SithTermFxWidget widget, @NotNull KeyEvent event) {
+        TerminalPanel panel = widget.getTerminalPanel();
+        if (panel == null) {
+            return false;
+        }
+        TerminalTextBuffer buffer = widget.getTerminalTextBuffer();
+        if (buffer != null && buffer.isUsingAlternateBuffer()) {
+            return false;
+        }
+        TerminalAction action = firstMatchingAction(panel, event);
+        if (action == null || !action.isEnabled(event)) {
+            return false;
+        }
+        if (event.getTarget() == panel.getCanvas()) {
+            return true;
+        }
+        if (action.actionPerformed(event)) {
+            event.consume();
+            return true;
+        }
+        return false;
+    }
+
+    private static @Nullable TerminalAction firstMatchingAction(@NotNull TerminalActionProvider first,
+                                                                @NotNull KeyEvent event) {
+        int depth = 0;
+        for (TerminalActionProvider provider = first; provider != null && depth < 32;
+             provider = provider.getNextProvider(), depth++) {
+            List<TerminalAction> actions = provider.getActions();
+            if (actions == null) {
+                continue;
+            }
+            for (TerminalAction action : actions) {
+                if (action.matches(event)) {
+                    return action;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The bytes a navigation key sends to one pane, from that pane's own emulation, cursor-key mode
+     * and connector, or {@code null} when the key is not sent to it.
+     */
+    private byte @Nullable [] encodeNavigationKey(@NotNull SithTermFxWidget widget, @NotNull KeyEvent event) {
+        KeyCode code = event.getCode();
+        if (!TerminalNavigationKeys.isKorttyEncoded(widget.getEmulationType())) {
+            return TerminalNavigationKeys.legacySequence(code);
+        }
+        Terminal terminal = widget.getTerminal();
+        if (terminal == null) {
+            return null;
+        }
+        IntFunction<byte[]> base = vk -> terminal.getCodeForKey(vk, 0);
+        if (TerminalNavigationKeys.prefersSs3Arrows(connectorUnwrapper.apply(widget.getTtyConnector()))) {
+            base = TerminalNavigationKeys.ss3ArrowBase(base);
+        }
+        return TerminalNavigationKeys.encode(code, event.isShiftDown(), event.isControlDown(), event.isAltDown(),
+            event.isMetaDown(), com.sithtermfx.core.util.Platform.isMacOS(), base);
+    }
+
+    /**
+     * Sends bytes to a pane through its terminal starter (the panel's output stream), the executor
+     * that typed characters use as well, so a key never overtakes the characters typed before it.
+     *
+     * @return false when the pane has no live connection; the key is then left to SithTermFX
+     */
+    private static boolean sendToPane(@NotNull SithTermFxWidget widget, byte @NotNull [] bytes) {
+        TtyConnector connector = widget.getTtyConnector();
+        if (connector == null || !connector.isConnected()) {
+            return false;
+        }
+        TerminalPanel panel = widget.getTerminalPanel();
+        TerminalOutputStream starter = panel != null ? panel.getTerminalOutputStream() : null;
+        if (starter != null) {
+            starter.sendBytes(bytes, true);
+            return true;
+        }
+        try {
+            connector.write(bytes);
+            return true;
+        } catch (IOException e) {
+            logger.debug("Failed to send key sequence: {}", e.getMessage());
+            return false;
         }
     }
 
@@ -301,6 +483,8 @@ public class TerminalSplitPane extends StackPane {
             // Meta/Cmd chords are shortcuts, not text (menu accelerators such as Cmd+Shift+D only
             // consume KEY_PRESSED; macOS still delivers the paired KEY_TYPED character here).
             if (event.isMetaDown()) return;
+            // Search text typed into the find bar is not shell input.
+            if (!isTerminalKeyTarget(widget, event.getTarget())) return;
             String character = event.getCharacter();
             if (character != null && !character.isEmpty()) {
                 char c = character.charAt(0);
@@ -311,13 +495,7 @@ public class TerminalSplitPane extends StackPane {
             }
         });
         
-        widgetPane.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-            if (!broadcastMode) return;
-            String sequence = getControlSequence(event);
-            if (sequence != null) {
-                broadcastToOthers(widget, sequence);
-            }
-        });
+        widgetPane.addEventFilter(KeyEvent.KEY_PRESSED, event -> routeKeyPressed(widget, event));
     }
 
     private void requestWidgetFocus(@NotNull SithTermFxWidget widget) {
@@ -369,6 +547,15 @@ public class TerminalSplitPane extends StackPane {
 
     public void setOnBroadcastModeChanged(@Nullable Consumer<Boolean> onBroadcastModeChanged) {
         this.onBroadcastModeChanged = onBroadcastModeChanged;
+    }
+
+    /**
+     * Sets how to strip the decorators the host app wraps around a pane's connector (the
+     * constructor's {@code connectorDecorator}), so navigation keys are encoded for the real
+     * connector type. Defaults to no unwrapping.
+     */
+    public void setConnectorUnwrapper(@Nullable UnaryOperator<TtyConnector> connectorUnwrapper) {
+        this.connectorUnwrapper = connectorUnwrapper != null ? connectorUnwrapper : UnaryOperator.identity();
     }
 
     /**
