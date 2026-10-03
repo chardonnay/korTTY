@@ -1054,7 +1054,7 @@ public final class WorkflowScriptSupport {
 
     /**
      * Non-secret host facts fed into a multi-host workflow script. Carries no passwords/key contents:
-     * a temporary key path ({@code TEMPORARY:} followed by the private key text itself) is replaced
+     * a temporary key path ({@link TemporarySshKeyMaterial#PREFIX} followed by the private key text itself) is replaced
      * by {@link #TEMPORARY_KEY_PLACEHOLDER}, because these facts go into an AI prompt that may be
      * sent to a cloud provider.
      */
@@ -1064,10 +1064,8 @@ public final class WorkflowScriptSupport {
         /** Shown instead of a temporary key, whose key path holds the private key, not a file. */
         public static final String TEMPORARY_KEY_PLACEHOLDER = "(temporary key, not shown)";
 
-        private static final String TEMPORARY_KEY_PREFIX = "TEMPORARY:";
-
         public SwarmHost {
-            if (keyPath != null && keyPath.startsWith(TEMPORARY_KEY_PREFIX)) {
+            if (TemporarySshKeyMaterial.isTemporaryKeyPath(keyPath)) {
                 keyPath = TEMPORARY_KEY_PLACEHOLDER;
             }
         }
