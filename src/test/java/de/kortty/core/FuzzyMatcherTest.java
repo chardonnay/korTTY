@@ -144,6 +144,22 @@ public class FuzzyMatcherTest {
             .containsExactly(second, first).inOrder();
     }
 
+    /** The sort is stable: two snippets both named deploy.sh (in different folders) keep the library order. */
+    @Test
+    public void equalScoresAndEqualTieBreakKeysKeepTheInputOrder() {
+        Item lower = new Item("deploy.sh", "ops");
+        Item upper = new Item("Deploy.sh", "staging");
+        assertThat(items(FuzzyMatcher.rank("dep", List.of(upper, lower), FuzzyMatcherTest::titleAndDetail, BY_TITLE, 0)))
+            .containsExactly(upper, lower).inOrder();
+        assertThat(items(FuzzyMatcher.rank("dep", List.of(lower, upper), FuzzyMatcherTest::titleAndDetail, BY_TITLE, 0)))
+            .containsExactly(lower, upper).inOrder();
+
+        Snippet first = new Snippet("deploy.sh", "echo 1", "bash");
+        Snippet second = new Snippet("Deploy.sh", "echo 2", "bash");
+        assertThat(SnippetFuzzyMatcher.rank("dep", List.of(second, first), 0).stream()
+            .map(SnippetFuzzyMatcher.Match::snippet).toList()).containsExactly(second, first).inOrder();
+    }
+
     @Test
     public void theLimitKeepsTheBestMatchesAndZeroOrLessMeansNoLimit() {
         Item best = new Item("deploy", "");
