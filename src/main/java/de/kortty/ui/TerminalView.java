@@ -42,6 +42,8 @@ import de.kortty.core.TerminalRecordingSession;
 import de.kortty.core.TerminalRecordingStyleRun;
 import de.kortty.core.TerminalColorControlSequenceFilter;
 import de.kortty.core.TerminalPaletteSupport;
+import de.kortty.core.highlight.TerminalHighlightService;
+import de.kortty.core.highlight.TerminalOutputHighlighter;
 import de.kortty.model.AiProfile;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ConnectionSettings;
@@ -376,6 +378,13 @@ public class TerminalView extends BorderPane {
     private final String terminalViewId = UUID.randomUUID().toString();
     private final Map<SithTermFxWidget, CodingAgentMonitor> codingAgentMonitors = new ConcurrentHashMap<>();
     private final Map<SithTermFxWidget, TerminalModelListener> codingAgentModelListeners = new ConcurrentHashMap<>();
+    /** Keyword highlighting engine per pane; attached for every pane, dormant while no rule set is active. */
+    private final Map<SithTermFxWidget, TerminalOutputHighlighter> terminalHighlighters = new ConcurrentHashMap<>();
+    /**
+     * The pane's runtime highlight rule-set choice (a set id or {@code "none"}); absent = inherit the
+     * connection's and then the global default. Never persisted; a new split inherits its parent's.
+     */
+    private final Map<SithTermFxWidget, String> paneHighlightOverride = new ConcurrentHashMap<>();
     /** Canvas focus observers per pane (Stage 2): feed the focused-widget listeners and done-until-seen. */
     private final Map<SithTermFxWidget, javafx.beans.value.ChangeListener<Boolean>> paneFocusListeners =
         new ConcurrentHashMap<>();
@@ -528,7 +537,10 @@ public class TerminalView extends BorderPane {
             applyTerminalScrollbarVisibility(widget);
         }, widget -> gutterMap.get(widget), this::createTerminalAgentActivityPanel, this::decorateTerminalConnector); // Left panel factory: returns the gutter created in setupTimestampGutter
         splitPane.setOnWidgetClosed(this::onPaneClosed); // Stop the pane's effect + release its provider/agent runs when its split closes
-        splitPane.setOnWidgetSplitCreated(this::inheritEffectOnSplit); // New split panes inherit the source pane's effect
+        splitPane.setOnWidgetSplitCreated((widget, request) -> { // New split panes inherit the source pane's highlight choice and effect
+            inheritHighlightOnSplit(widget, request);
+            inheritEffectOnSplit(widget, request);
+        });
         splitPane.setOnLastWidgetSessionEnded(() -> { // Only the LAST pane's exit closes the tab (splits close just their pane)
             if (wasConnectionLost()) {
                 // The session ended because the transport died, not through a remote exit:
@@ -1143,6 +1155,7 @@ public class TerminalView extends BorderPane {
             widget.getTerminalTextBuffer().removeModelListener(recordingListener);
         }
         releaseCodingAgentMonitor(widget);
+        releaseTerminalHighlighter(widget);
         releasePaneFocusObserver(widget);
         releaseBracketedPasteTracker(widget);
         if (terminalRecordingTargetWidgets.contains(widget)) {
@@ -1195,6 +1208,17 @@ public class TerminalView extends BorderPane {
         }
         setTerminalEffectAnimationSpeed(newWidget, getTerminalEffectAnimationSpeed(source));
         setTerminalEffectPluginId(newWidget, effectId);
+    }
+
+    /** New split panes inherit the source pane's runtime highlight choice (an inherited default needs nothing). */
+    private void inheritHighlightOnSplit(SithTermFxWidget newWidget, SplitRequest request) {
+        if (newWidget == null || request == null || request.getParentWidget() == null) {
+            return;
+        }
+        String choice = paneHighlightOverride.get(request.getParentWidget());
+        if (choice != null) {
+            setPaneHighlightOverride(newWidget, choice);
+        }
     }
 
     // ---- Tab-level (no-arg) API: forwards to the primary/focused pane so MainWindow and the
@@ -3104,6 +3128,7 @@ public class TerminalView extends BorderPane {
         }
         installTerminalRecordingModelListener(widget);
         attachCodingAgentMonitor(widget);
+        attachTerminalHighlighter(widget);
         installPaneFocusObserver(widget);
     }
 
@@ -3619,6 +3644,113 @@ public class TerminalView extends BorderPane {
             releaseCodingAgentMonitor(widget);
         }
         codingAgentModelListeners.clear();
+    }
+
+    // ---- Keyword highlighting (per pane) ----
+
+    private static TerminalHighlightService terminalHighlightService() {
+        KorTTYApplication app = KorTTYApplication.getInstance();
+        return app == null ? null : app.getTerminalHighlightService();
+    }
+
+    /**
+     * Attaches the pane's highlighter. Runs inside the widget configurator — for the first widget
+     * before {@code splitPane} is assigned, so it must not touch it — and must never break widget
+     * creation, hence the blanket catch. With no rule set active the highlighter's model listener
+     * returns at once, so a pane without highlighting pays nothing.
+     */
+    private void attachTerminalHighlighter(SithTermFxWidget widget) {
+        if (widget == null) {
+            return;
+        }
+        try {
+            TerminalHighlightService service = terminalHighlightService();
+            if (service == null || service.isClosed() || widget.getTerminalTextBuffer() == null) {
+                return;
+            }
+            terminalHighlighters.computeIfAbsent(widget, pane -> {
+                com.sithtermfx.ui.TerminalPanel panel = pane.getTerminalPanel();
+                return service.attach(pane.getTerminalTextBuffer(),
+                    () -> paneHighlightOverride.get(pane),
+                    panel != null ? panel::repaint : () -> { },
+                    () -> recordRestyledTerminalRecordingSnapshot(pane),
+                    () -> panel != null && panel.getFindResult() != null);
+            });
+        } catch (RuntimeException e) {
+            logger.warn("Keyword highlighting could not be attached to a terminal pane: {}", e.toString());
+        }
+    }
+
+    /**
+     * Highlighting restyles cells without a model event, so a recording would only see the change
+     * with the next output; take the frame now when a recording targets the pane.
+     */
+    private void recordRestyledTerminalRecordingSnapshot(SithTermFxWidget widget) {
+        if (widget != null && terminalRecordingModelListeners.containsKey(widget)) {
+            recordTerminalRecordingSnapshot(widget);
+        }
+    }
+
+    private void releaseTerminalHighlighter(SithTermFxWidget widget) {
+        if (widget == null) {
+            return;
+        }
+        paneHighlightOverride.remove(widget);
+        TerminalOutputHighlighter highlighter = terminalHighlighters.remove(widget);
+        if (highlighter == null) {
+            return;
+        }
+        try {
+            TerminalHighlightService service = terminalHighlightService();
+            if (service != null) {
+                service.detach(highlighter);
+            } else {
+                highlighter.close();
+            }
+        } catch (RuntimeException e) {
+            logger.warn("Keyword highlighting could not be released from a terminal pane: {}", e.toString());
+        }
+    }
+
+    private void releaseAllTerminalHighlighters() {
+        for (SithTermFxWidget widget : new ArrayList<>(terminalHighlighters.keySet())) {
+            releaseTerminalHighlighter(widget);
+        }
+        paneHighlightOverride.clear();
+    }
+
+    /** The pane's runtime highlight choice: a set id, {@code "none"}, or {@code null} when it inherits. */
+    public @Nullable String getPaneHighlightOverride(@Nullable SithTermFxWidget pane) {
+        return pane != null ? paneHighlightOverride.get(pane) : null;
+    }
+
+    /**
+     * Sets the pane's runtime highlight choice ({@code null} or blank = inherit) and moves the pane to
+     * the set it now resolves to. Not persisted.
+     */
+    public void setPaneHighlightOverride(@Nullable SithTermFxWidget pane, @Nullable String setId) {
+        if (pane == null) {
+            return;
+        }
+        if (setId == null || setId.isBlank()) {
+            paneHighlightOverride.remove(pane);
+        } else {
+            paneHighlightOverride.put(pane, setId.trim());
+        }
+        TerminalHighlightService service = terminalHighlightService();
+        TerminalOutputHighlighter highlighter = terminalHighlighters.get(pane);
+        if (service != null && highlighter != null) {
+            service.refresh(highlighter);
+        }
+    }
+
+    /** The id of the rule set the pane shows now, or {@code null} when it shows none. */
+    public @Nullable String getEffectiveHighlightSetId(@Nullable SithTermFxWidget pane) {
+        TerminalHighlightService service = terminalHighlightService();
+        if (pane == null || service == null) {
+            return null;
+        }
+        return service.resolveSetId(() -> paneHighlightOverride.get(pane));
     }
 
     private void installAgentShortcutEventDispatcher(SithTermFxWidget widget) {
@@ -6336,6 +6468,7 @@ public class TerminalView extends BorderPane {
         stopAllTerminalAgentShellKeepAlives();
         detachTerminalRecordingSession();
         releaseAllCodingAgentMonitors();
+        releaseAllTerminalHighlighters();
         releaseAllCodingAgentPaneState();
         stopLogger();
         stopSessionJournal();
