@@ -384,7 +384,7 @@ public final class CommandPaletteSmoke {
                 onFxThread(() -> palette.list().getItems().stream().map(e -> e.title()).toList());
             check(snippetTitles.equals(List.of("Disk usage", "Restart nginx")), "unexpected snippet rows: " + snippetTitles);
             String snippetDetail = onFxThread(() -> palette.list().getItems().get(0).detail());
-            check(snippetDetail.equals(I18n.get("palette.detail.runInFirstPane", "web-01 (admin@web-01.example.org)")),
+            check(snippetDetail.equals(I18n.get("palette.detail.runInFirstPane", "admin@web-01.example.org (web-01)")),
                 "the snippet row does not name its pane: " + snippetDetail);
             check(onFxThread(() -> palette.footer().getText())
                     .startsWith(I18n.get("palette.hint.snippet", CommandPalettePopup.alternateChordText())),

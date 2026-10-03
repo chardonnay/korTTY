@@ -22,9 +22,9 @@ import java.util.function.Supplier;
  * <p>Every row names its terminal, because a snippet executes there. That terminal is the one Send
  * to Terminal picks (the selected terminal tab, or the terminal tab used last), and within it the
  * tab's first pane, the one Send to Terminal writes to: when the tab is split, the row says "first
- * pane". The terminal is named by its tab title together with the {@code user@host} of the tab's
- * connection ({@link #targetName}), since a program in the terminal can set the title but not the
- * connection. It is read once per palette opening, and the row runs the snippet in exactly the
+ * pane". The terminal is named by the {@code user@host} of the tab's connection, then its tab title
+ * ({@link #targetName}), since a program in the terminal can set the title but not the connection.
+ * It is read once per palette opening, and the row runs the snippet in exactly the
  * terminal it names. Without a terminal tab the rows are listed but cannot run, and say why;
  * Alt+Enter still opens them.
  *
@@ -152,17 +152,20 @@ public final class SnippetPaletteSource implements PaletteSource {
     }
 
     /**
-     * How a row names the terminal: the tab's {@code title}, followed by the connection's
-     * {@code user@host} in brackets (or {@code fallbackName}, such as a local shell's name, without
-     * a host) unless the title already is exactly that.
+     * How a row names the terminal: the connection's {@code user@host} (or {@code fallbackName},
+     * such as a local shell's name, without a host), followed by the tab's {@code title} in brackets
+     * unless the title already is exactly that. The connection comes first because a program in the
+     * terminal can set the title, as long as the row allows: however a long row is cut, by the
+     * palette's length limit or with an ellipsis on screen, the part cut off is the title, never
+     * where the snippet runs.
      */
     public static String targetName(String title, String username, String host, String fallbackName) {
         String identity = TabPaletteSource.connectionDetail(title, username, host, fallbackName, null);
         String name = title != null ? title.strip() : "";
-        if (name.isEmpty()) {
-            return identity;
+        if (identity.isEmpty()) {
+            return name;
         }
-        return identity.isEmpty() ? name : name + " (" + identity + ")";
+        return name.isEmpty() ? identity : identity + " (" + name + ")";
     }
 
     /** What a row is found by besides its name: the folder, the category and the tags. */

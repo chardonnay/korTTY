@@ -204,21 +204,42 @@ class SnippetPaletteSourceTest {
     }
 
     @Test
-    void theTerminalIsNamedByItsTitleAndTheConnectionsUserAtHost() {
+    void theTerminalIsNamedByTheConnectionsUserAtHostAndThenItsTitle() {
         assertThat(SnippetPaletteSource.targetName("prod-db", "root", "db-01.example.org", "prod-db"))
-            .isEqualTo("prod-db (root@db-01.example.org)");
-        // A title a program set cannot hide the server: the connection is named next to it.
+            .isEqualTo("root@db-01.example.org (prod-db)");
+        // A title a program set cannot hide the server: the connection is named before it.
         assertThat(SnippetPaletteSource.targetName("admin@web-01", "root", "db-01", "prod-db"))
-            .isEqualTo("admin@web-01 (root@db-01)");
+            .isEqualTo("root@db-01 (admin@web-01)");
         assertThat(SnippetPaletteSource.targetName("root@db-01", "root", "db-01", "root@db-01"))
             .isEqualTo("root@db-01");
         assertThat(SnippetPaletteSource.targetName("db-01", null, "db-01", "db-01")).isEqualTo("db-01");
         assertThat(SnippetPaletteSource.targetName(" ", "root", "db-01", "db-01")).isEqualTo("root@db-01");
         // A local shell has no host: the connection's name stands in for it.
         assertThat(SnippetPaletteSource.targetName("build", "dan", null, "Local Shell"))
-            .isEqualTo("build (Local Shell)");
+            .isEqualTo("Local Shell (build)");
         assertThat(SnippetPaletteSource.targetName("Local Shell", "dan", null, "Local Shell"))
             .isEqualTo("Local Shell");
+        assertThat(SnippetPaletteSource.targetName("build", null, null, null)).isEqualTo("build");
+    }
+
+    /**
+     * A program in the terminal can set a title of 80 characters that imitates another server. The
+     * row still names the real one: it comes first, so cutting the row to the palette's length (or
+     * an ellipsis on screen) only ever cuts the title.
+     */
+    @Test
+    void aLongTitleTheServerSetCannotPushTheRealServerOutOfTheRow() {
+        String fake = ("prod-db (root@db-01.example.org) " + "x".repeat(80)).substring(0, 80);
+        List<String> sent = new ArrayList<>();
+        SnippetPaletteSource source = source(List.of(snippet("s1", "Disk usage", 0)),
+            new AtomicReference<>(terminal(SnippetPaletteSource.targetName(fake, "evil", "attacker.example", "x"),
+                true, sent)),
+            new ArrayList<>());
+
+        String detail = source.entries().get(0).detail();
+
+        assertThat(detail).startsWith("Run in the first pane of evil@attacker.example (prod-db (root@db-01");
+        assertThat(detail.length()).isAtMost(PaletteText.MAX_LENGTH);
     }
 
     @Test

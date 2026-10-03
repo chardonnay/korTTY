@@ -66,8 +66,8 @@ final class SnippetPaletteRows {
     }
 
     /**
-     * How the rows name {@code tab}: its title and the {@code user@host} of its connection, which is
-     * where its first pane runs.
+     * How the rows name {@code tab}: the {@code user@host} of its connection, which is where its first
+     * pane runs, then its title.
      */
     static String targetName(TerminalTab tab) {
         ServerConnection connection = tab.getConnection();
