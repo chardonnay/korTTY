@@ -622,6 +622,21 @@ public final class SnippetWorkspaceSmoke {
                 check(popup != null && popup.isShowing(), "Shortcut+P must open quick open");
                 check(popup.list().getItems().size() == manager.getAllSnippets().size(),
                     "an empty query lists every snippet");
+                // Keys the search box does not use must stop at the popup: the window hands them to
+                // the popup first and, unconsumed, on to the workspace behind it.
+                List<KeyCode> leaked = new java.util.ArrayList<>();
+                javafx.event.EventHandler<KeyEvent> behind = event -> leaked.add(event.getCode());
+                workspace.getDialogPane().addEventHandler(KeyEvent.KEY_PRESSED, behind);
+                try {
+                    Event.fireEvent(workspace.getDialogPane(), key(KeyCode.F5));
+                    Event.fireEvent(workspace.getDialogPane(), key(KeyCode.PAGE_UP));
+                    Event.fireEvent(workspace.getDialogPane(), control(KeyCode.L));
+                    Event.fireEvent(workspace.getDialogPane(), control(KeyCode.D));
+                } finally {
+                    workspace.getDialogPane().removeEventHandler(KeyEvent.KEY_PRESSED, behind);
+                }
+                check(leaked.isEmpty(), "quick open must keep unused keys from the workspace, leaked " + leaked);
+                check(popup.isShowing(), "unused keys leave quick open open");
                 popup.field().setText("gma");
                 check(!popup.list().getItems().isEmpty() && popup.list().getItems().getFirst() == gamma,
                     "\"gma\" must rank gamma first, got " + popup.list().getItems());
@@ -751,6 +766,10 @@ public final class SnippetWorkspaceSmoke {
 
     private static KeyEvent key(KeyCode code) {
         return new KeyEvent(KeyEvent.KEY_PRESSED, "", "", code, false, false, false, false);
+    }
+
+    private static KeyEvent control(KeyCode code) {
+        return new KeyEvent(KeyEvent.KEY_PRESSED, "", "", code, false, true, false, false);
     }
 
     private static KeyEvent shortcut(KeyCode code) {
