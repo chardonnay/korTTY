@@ -1,7 +1,14 @@
 package de.kortty.ui;
 
 import de.kortty.core.ConnectionColorSupport;
+import de.kortty.model.GlobalSettings;
+import javafx.geometry.Insets;
 import javafx.scene.AccessibleRole;
+import javafx.scene.layout.Border;
+import javafx.scene.layout.BorderStroke;
+import javafx.scene.layout.BorderStrokeStyle;
+import javafx.scene.layout.BorderWidths;
+import javafx.scene.layout.CornerRadii;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import org.testng.annotations.Test;
@@ -22,9 +29,10 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * The connection color on a terminal tab: a small outlined dot that screen readers can read, a
- * family name for every color, and the wiring that keeps it off the tab's status style and fresh in
- * every window. The wiring is pinned against the sources, since neither {@link MainWindow} nor
- * {@link TerminalTab} can be built without a JavaFX stage.
+ * family name for every color, the optional frame around the terminal, and the wiring that keeps
+ * them off the tab's status style and the terminal view's style and fresh in every window. The
+ * wiring is pinned against the sources, since neither {@link MainWindow} nor {@link TerminalTab}
+ * can be built without a JavaFX stage.
  */
 class TabColorPresentationTest {
 
@@ -80,6 +88,47 @@ class TabColorPresentationTest {
     }
 
     @Test
+    void theFrameIsOneSolidThreePixelStrokeOfTheColorOnEverySide() {
+        Border frame = TabColorPresentation.frame("#D32F2F");
+
+        assertThat(frame.getImages()).isEmpty();
+        assertThat(frame.getStrokes()).hasSize(1);
+        BorderStroke stroke = frame.getStrokes().get(0);
+        assertThat(stroke.getTopStroke()).isEqualTo(Color.web("#D32F2F"));
+        assertThat(stroke.getRightStroke()).isEqualTo(Color.web("#D32F2F"));
+        assertThat(stroke.getBottomStroke()).isEqualTo(Color.web("#D32F2F"));
+        assertThat(stroke.getLeftStroke()).isEqualTo(Color.web("#D32F2F"));
+        assertThat(stroke.getTopStyle()).isEqualTo(BorderStrokeStyle.SOLID);
+        assertThat(stroke.getLeftStyle()).isEqualTo(BorderStrokeStyle.SOLID);
+        assertThat(stroke.getWidths()).isEqualTo(new BorderWidths(3));
+        assertThat(stroke.getRadii()).isEqualTo(CornerRadii.EMPTY);
+        assertThat(TabColorPresentation.FRAME_WIDTH).isEqualTo(3.0);
+        assertWithMessage("the frame takes 3 px of layout on every side; the guide says switching it resizes the terminal")
+                .that(frame.getInsets()).isEqualTo(new Insets(3));
+    }
+
+    @Test
+    void theFrameShowsOnlyForAColoredConnectionWhileItIsSwitchedOn() {
+        assertThat(TabColorPresentation.frameFor("#1976D2", true)).isEqualTo(TabColorPresentation.frame("#1976D2"));
+        assertWithMessage("switched off in the Window settings: only the dot remains")
+                .that(TabColorPresentation.frameFor("#1976D2", false)).isNull();
+        assertWithMessage("a connection without a tab color never gets a frame")
+                .that(TabColorPresentation.frameFor(null, true)).isNull();
+        assertThat(TabColorPresentation.frameFor(null, false)).isNull();
+    }
+
+    @Test
+    void theFrameFollowsTheWindowSettingAndIsOnWithoutSettings() {
+        GlobalSettings settings = new GlobalSettings();
+        assertThat(TabColorPresentation.frameEnabled(settings)).isTrue();
+
+        settings.setConnectionColorBorderEnabled(false);
+        assertThat(TabColorPresentation.frameEnabled(settings)).isFalse();
+
+        assertThat(TabColorPresentation.frameEnabled(null)).isTrue();
+    }
+
+    @Test
     void theTooltipNamesTheConnectionFirstAndLeavesOutABlankOne() {
         assertThat(TabColorPresentation.describe("Tab color: red", "Connection: root@db", "\n"))
                 .isEqualTo("Connection: root@db\nTab color: red");
@@ -128,21 +177,64 @@ class TabColorPresentationTest {
         String refresh = methodBody(window, "private static void refreshConnectionColorsInAllWindows() {");
         assertThat(refresh).contains("for (MainWindow window : new ArrayList<>(openWindows)) {");
         assertThat(refresh).contains("window.applyConnectionColor(terminalTab);");
-        assertThat(methodBody(window, "private void applyConnectionColor(TerminalTab tab) {"))
-                .contains("ConnectionColorSupport.tabColorOf(");
+        String apply = methodBody(window, "private void applyConnectionColor(TerminalTab tab) {");
+        assertThat(apply).contains("ConnectionColorSupport.tabColorOf(");
+        assertThat(apply).contains("TabColorPresentation.frameEnabled(app.getGlobalSettingsManager().getSettings())");
+    }
+
+    @Test
+    void savingTheGlobalSettingsShowsOrHidesTheFrameInEveryWindow() throws IOException {
+        String window = source("MainWindow.java");
+
+        assertWithMessage("switching the frame in the Window settings must reach the open tabs at once")
+                .that(methodBody(window, "private void showSettings() {"))
+                .contains("refreshConnectionColorsInAllWindows();");
     }
 
     @Test
     void theConnectionColorNeverTouchesTheTabStatusStyle() throws IOException {
         String tab = source("TerminalTab.java");
 
-        String show = methodBody(tab, "private void showConnectionColor(String color) {");
+        String show = methodBody(tab, "private void showConnectionColor(String color, boolean showFrame) {");
         assertWithMessage("the tab style shows the connection status; the retry looks for #8B0000 in it")
                 .that(show).doesNotContain("setStyle");
         assertThat(show).contains("setGraphic(");
         assertThat(show).contains("setTooltip(");
-        assertThat(methodBody(tab, "public void applyConnectionColor(String hex) {"))
+        assertThat(methodBody(tab, "public void applyConnectionColor(String hex, boolean showFrame) {"))
                 .contains("ConnectionColorSupport.normalizeHex(hex)");
+    }
+
+    @Test
+    void theFrameIsTheBorderOfTheTabContentAroundThePanesAndStatusBars() throws IOException {
+        String tab = source("TerminalTab.java");
+
+        String show = methodBody(tab, "private void showConnectionColor(String color, boolean showFrame) {");
+        assertThat(show).contains("TabColorPresentation.frameFor(color, showFrame)");
+        assertThat(show).contains("content.setBorder(frame);");
+        assertWithMessage("the terminal view's style belongs to the see-through window mode")
+                .that(show).doesNotContain("terminalView");
+        // The content box holds the terminal view (and with it every split pane and its focus
+        // marking) and the status bars, and it is what the tab shows.
+        assertThat(tab).contains("content.getChildren().add(terminalView);");
+        assertThat(tab).contains("setContent(content);");
+        assertThat(occurrences(tab, ".setBorder(")).isEqualTo(1);
+    }
+
+    @Test
+    void theWindowSettingsTabLoadsAndSavesTheFrameSwitch() throws IOException {
+        String dialog = source("SettingsDialog.java");
+
+        assertThat(dialog).contains("new CheckBox(I18n.get(\"settings.window.connectionColorBorder\"))");
+        assertThat(dialog).contains(
+                "connectionColorBorderCheck.setSelected(globalSettings == null || globalSettings.isConnectionColorBorderEnabled());");
+        assertThat(dialog).contains(
+                "globalSettings.setConnectionColorBorderEnabled(connectionColorBorderCheck.isSelected());");
+        int header = dialog.indexOf("I18n.get(\"settings.window.tabs.header\")");
+        int fixedGeometry = dialog.indexOf("I18n.get(\"settings.window.fixedGeometry.header\")");
+        int windowTab = dialog.indexOf("I18n.get(\"settings.tab.window\")");
+        assertWithMessage("the Tabs section belongs to the Window tab, before Fixed Window Geometry")
+                .that(header).isGreaterThan(windowTab);
+        assertThat(header).isLessThan(fixedGeometry);
     }
 
     @Test

@@ -136,6 +136,11 @@ public class TerminalTab extends Tab {
     private final HBox tabDecorations = new HBox(4);
     /** The color dot in {@link #tabDecorations}, or null; FX thread only. */
     private Node connectionColorSwatch;
+    /**
+     * The tab's content: the terminal view with its split panes, and the status bars below it. Its
+     * border is the frame in the connection's tab color and nothing else (see {@link #showConnectionColor}).
+     */
+    private final javafx.scene.layout.VBox content = new javafx.scene.layout.VBox();
     
     public TerminalTab(ServerConnection connection, String password) {
         this(connection, password, null);
@@ -169,30 +174,29 @@ public class TerminalTab extends Tab {
         updateTabTitle();
         tabDecorations.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         
-        // Create container with terminal view and status bars
-        javafx.scene.layout.VBox container = new javafx.scene.layout.VBox();
-        container.getChildren().add(terminalView);
+        // Fill the content with the terminal view and the status bars
+        content.getChildren().add(terminalView);
         if (recordingBar != null) {
-            container.getChildren().add(recordingBar);
+            content.getChildren().add(recordingBar);
         }
         if (journalBar != null) {
-            container.getChildren().add(journalBar);
+            content.getChildren().add(journalBar);
         }
         if (journalAiBar != null) {
-            container.getChildren().add(journalAiBar);
+            content.getChildren().add(journalAiBar);
         }
         if (statusBarLabel != null) {
-            container.getChildren().add(statusBarLabel);
+            content.getChildren().add(statusBarLabel);
         }
         if (disconnectedStatusBar != null) {
-            container.getChildren().add(disconnectedStatusBar);
+            content.getChildren().add(disconnectedStatusBar);
         }
         if (journalDecisionBar != null) {
-            container.getChildren().add(journalDecisionBar);
+            content.getChildren().add(journalDecisionBar);
         }
         javafx.scene.layout.VBox.setVgrow(terminalView, Priority.ALWAYS);
         
-        setContent(container);
+        setContent(content);
         setClosable(true);
         
         // Handle tab close
@@ -1754,22 +1758,30 @@ public class TerminalTab extends Tab {
     }
 
     /**
-     * Marks the tab with its connection's color: a dot in the tab header, and a tooltip that names
-     * the connection and the color, which is also what screen readers read for the dot. {@code null}
-     * or a value that is not a hex color removes both. The tab's style is left alone: it shows the
-     * connection status (yellow while connecting, dark red when the connection failed). Safe to call
-     * from any thread.
+     * Marks the tab with its connection's color: a dot in the tab header, a tooltip that names the
+     * connection and the color, which is also what screen readers read for the dot, and, when
+     * {@code showFrame} is set (Window settings), a frame of that color around the terminal.
+     * {@code null} or a value that is not a hex color removes all three. The tab's style is left
+     * alone: it shows the connection status (yellow while connecting, dark red when the connection
+     * failed). Safe to call from any thread.
      */
-    public void applyConnectionColor(String hex) {
+    public void applyConnectionColor(String hex, boolean showFrame) {
         String color = ConnectionColorSupport.normalizeHex(hex);
         if (Platform.isFxApplicationThread()) {
-            showConnectionColor(color);
+            showConnectionColor(color, showFrame);
         } else {
-            Platform.runLater(() -> showConnectionColor(color));
+            Platform.runLater(() -> showConnectionColor(color, showFrame));
         }
     }
 
-    private void showConnectionColor(String color) {
+    private void showConnectionColor(String color, boolean showFrame) {
+        // The frame is the content's border, outside the panes: never the terminal view's style,
+        // which the see-through window mode owns. Turning it on or off resizes the terminal by 3 px,
+        // so an unchanged frame is left in place rather than replaced by an equal one.
+        javafx.scene.layout.Border frame = TabColorPresentation.frameFor(color, showFrame);
+        if (!java.util.Objects.equals(content.getBorder(), frame)) {
+            content.setBorder(frame);
+        }
         if (connectionColorSwatch != null) {
             tabDecorations.getChildren().remove(connectionColorSwatch);
             connectionColorSwatch = null;

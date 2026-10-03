@@ -12,7 +12,8 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * The keys of the tab basics (rename, close others, reopen closed tabs, the connection's tab color
- * and the tab commands that follow) exist in every bundled language. Grows with each tab feature.
+ * and its frame, and the tab commands that follow) exist in every bundled language. Grows with each
+ * tab feature.
  */
 class TabBasicsI18nCoverageTest {
 
@@ -52,7 +53,11 @@ class TabBasicsI18nCoverageTest {
             "connEdit.tabColor.enable",
             "connEdit.tabColor.tooltip",
             "tab.tooltip.connection",
-            "tab.tooltip.connectionColor");
+            "tab.tooltip.connectionColor",
+            "settings.window.tabs.header",
+            "settings.window.connectionColorBorder",
+            "settings.window.connectionColorBorder.tooltip",
+            "settings.window.connectionColorBorder.info");
 
     @Test
     void everyTabBasicsKeyExistsInEveryBundledLocale() throws Exception {

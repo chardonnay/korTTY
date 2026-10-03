@@ -3017,16 +3017,19 @@ public class MainWindow {
 
     /**
      * Shows the tab color of {@code tab}'s connection on the tab: the saved connection's, so edits
-     * in the Connection Manager apply, else the tab's own (see {@link ConnectionColorSupport#tabColorOf}).
+     * in the Connection Manager apply, else the tab's own (see {@link ConnectionColorSupport#tabColorOf}),
+     * with the frame around the terminal unless the Window settings switch it off.
      */
     private void applyConnectionColor(TerminalTab tab) {
         tab.applyConnectionColor(ConnectionColorSupport.tabColorOf(
-                tab.getConnection(), app.getConfigManager()::getConnectionById));
+                tab.getConnection(), app.getConfigManager()::getConnectionById),
+            TabColorPresentation.frameEnabled(app.getGlobalSettingsManager().getSettings()));
     }
 
     /**
      * Re-applies the connection colors of every open terminal tab, in every window, after connections
-     * were saved: a color set, changed or removed in the Connection Manager shows at once. FX thread only.
+     * or the global settings were saved: a color set, changed or removed in the Connection Manager, and
+     * the frame switched on or off in the Window settings, show at once. FX thread only.
      */
     private static void refreshConnectionColorsInAllWindows() {
         for (MainWindow window : new ArrayList<>(openWindows)) {
@@ -3069,6 +3072,7 @@ public class MainWindow {
                 applyTerminalScrollbarVisibilityForOpenTabs();
                 syncAiFeaturesMenuItemsEnabled();
                 refreshTerminalTabsUsingGlobalDefaults();
+                refreshConnectionColorsInAllWindows();
                 refreshTerminalRecordingControlsVisibility();
                 refreshOpenChatColorProfiles();
                 if (menuBar != null && !menuBar.isVisible()) {

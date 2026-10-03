@@ -4,7 +4,7 @@ title: Window
 
 # Window
 
-This tab configures window geometry behavior, dashboard state retention, and menu bar visibility. Open via **Configuration → Global Settings → Window**; stored in `~/.kortty/global-settings.xml`.
+This tab configures window geometry behavior, dashboard state retention, menu bar visibility, and the frame around the terminal of a colored connection. Open via **Configuration → Global Settings → Window**; stored in `~/.kortty/global-settings.xml`.
 
 ![Window settings tab](../../assets/screenshots/settings/window.png)
 
@@ -13,6 +13,7 @@ This tab configures window geometry behavior, dashboard state retention, and men
 | Remember window geometry | toggle | — | On | `rememberWindowGeometry` |
 | Remember dashboard state | toggle | — | On | `rememberDashboardState` |
 | Open tool windows as tabs | toggle | — | Off | `openToolWindowsAsTabs` |
+| Frame the terminal in its connection's tab color | toggle | — | On | `connectionColorBorderEnabled` |
 | Use fixed window geometry | toggle | — | Off | `useFixedWindowGeometry` |
 | Width: | number | 400–4000 | — | `fixedWindowGeometry.width` |
 | Height: | number | 300–3000 | — | `fixedWindowGeometry.height` |
@@ -31,3 +32,10 @@ With **Remember window geometry** enabled, KorTTY stores the position and size o
     With **Open tool windows as tabs** enabled, management tools (Snippets, JobScheduler, AI Manager, Saved Chats, Session Journals, Credential/GPG/SSH key management, Video Manager, Teamwork settings, Terminal Effects) open as tabs in the main window instead of separate windows. The tab opens in the window whose menu you used, so with several main windows open each window collects its own tool tabs. Reopening a tool focuses its existing tab. The Snippet Manager is one tab per main window and opens the snippets you edit as tabs inside itself; a snippet editor opened from elsewhere (for example the SFTP Manager, the file browser or the terminal) and the session journal viewer open a new main-window tab each time, but a snippet that is already open in an editor is brought to the front instead of opening twice. The Full code analysis is a side panel inside the snippet editor, not a tab of its own. The setting takes effect the next time a tool is opened.
 
     A tool hosted as a tab has no separate window geometry. Its available size follows the main window and its saved main-window geometry.
+
+## Tabs
+
+**Frame the terminal in its connection's tab color** draws a 3-pixel frame around the terminal of every tab whose connection has a [tab color](../../features/connections.md#tab-color), in addition to the colored dot on the tab, so a production server stands out right where you type. The frame surrounds the whole tab content — all split panes and the status bars below them — and connections without a tab color never get one. Switch it off to keep only the dot. The change applies to the open tabs of every window as soon as you save.
+
+!!! note
+    The frame takes 3 pixels on each side of the terminal. Turning it on or off therefore resizes the open terminals of every colored connection, and giving a connection a tab color or removing it resizes that connection's terminals: the remote side receives the new size, and full-screen programs such as `vim`, `htop` or `less` redraw.

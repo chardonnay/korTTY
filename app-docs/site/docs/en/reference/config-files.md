@@ -138,6 +138,7 @@ Global application preferences and defaults.
 - Menu bar visibility preference
 - Dashboard visibility state
 - "Open tool windows as tabs" flag
+- `connectionColorBorderEnabled`: whether the terminal of a connection with a [tab color](../features/connections.md#tab-color) gets a frame in that color (on by default)
 - Docked live session-journal panel: placement (hidden/left/right) and width
 - JobScheduler status display preference
 - Last ASCII Art dialog preview zoom level

@@ -1,7 +1,13 @@
 package de.kortty.ui;
 
 import de.kortty.core.ConnectionColorSupport;
+import de.kortty.model.GlobalSettings;
 import javafx.scene.AccessibleRole;
+import javafx.scene.layout.Border;
+import javafx.scene.layout.BorderStroke;
+import javafx.scene.layout.BorderStrokeStyle;
+import javafx.scene.layout.BorderWidths;
+import javafx.scene.layout.CornerRadii;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 
@@ -10,13 +16,16 @@ import java.util.Locale;
 /**
  * How a connection's tab color looks on a terminal tab: a small dot in the tab header (the tab's
  * graphic), named in the tab's tooltip and in the dot's accessible text so the color is never the
- * only cue. The tab's style stays with the connection-status colors (connecting, failed), which a
- * connection color must never overwrite.
+ * only cue, and optionally a frame of that color around the terminal. The tab's style stays with
+ * the connection-status colors (connecting, failed), which a connection color must never overwrite.
  */
 final class TabColorPresentation {
 
     /** Radius of the color dot in the tab header, so the dot is 10 px wide. */
     static final double SWATCH_RADIUS = 5.0;
+
+    /** Width of the frame around a colored connection's terminal, in pixels on each side. */
+    static final double FRAME_WIDTH = 3.0;
 
     /** Style class of the color dot, for app designs that want to restyle it. */
     static final String SWATCH_STYLE_CLASS = "tab-connection-color";
@@ -39,6 +48,33 @@ final class TabColorPresentation {
         dot.setAccessibleRole(AccessibleRole.IMAGE_VIEW);
         dot.setAccessibleText(accessibleText);
         return dot;
+    }
+
+    /**
+     * The frame around the terminal of a connection colored {@code hex} ({@code #RRGGBB}): one solid
+     * {@link #FRAME_WIDTH} px stroke on every side, square-cornered. It is the border of the tab's
+     * content box, which holds the split panes and the status bars, so it lies outside every pane and
+     * its focus marking, and it leaves the terminal view's style, which owns the see-through
+     * background, alone. A region's border takes layout space: the terminal is 3 px smaller on each
+     * side while the frame shows.
+     */
+    static Border frame(String hex) {
+        return new Border(new BorderStroke(Color.web(hex), BorderStrokeStyle.SOLID, CornerRadii.EMPTY,
+                new BorderWidths(FRAME_WIDTH)));
+    }
+
+    /**
+     * The border of a terminal tab's content: the {@link #frame} of {@code hex} while the frame is
+     * switched on in the Window settings, otherwise none. A tab without a color ({@code null}) never
+     * gets one.
+     */
+    static Border frameFor(String hex, boolean frameEnabled) {
+        return hex != null && frameEnabled ? frame(hex) : null;
+    }
+
+    /** Whether a colored connection's terminal gets the frame: on unless switched off in the Window settings. */
+    static boolean frameEnabled(GlobalSettings settings) {
+        return settings == null || settings.isConnectionColorBorderEnabled();
     }
 
     /** A light outline around dark colors and a dark one around light colors. */

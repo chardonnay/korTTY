@@ -125,6 +125,11 @@ public class GlobalSettings {
     @XmlElement
     private boolean openToolWindowsAsTabs = false; // Open management tool windows as tabs in the main window
 
+    // A 3 px frame in the connection's tab color around its terminal. Only connections with a tab
+    // color get one; the dot on the tab shows either way. A settings file without it keeps it on.
+    @XmlElement
+    private boolean connectionColorBorderEnabled = true;
+
     @XmlElement
     private boolean jobSchedulerMenuStatusEnabled = true; // Show JobScheduler status in the menu bar
 
@@ -1393,6 +1398,15 @@ public class GlobalSettings {
 
     public void setOpenToolWindowsAsTabs(boolean openToolWindowsAsTabs) {
         this.openToolWindowsAsTabs = openToolWindowsAsTabs;
+    }
+
+    /** Whether the terminal of a connection with a tab color is framed in that color (Window settings). */
+    public boolean isConnectionColorBorderEnabled() {
+        return connectionColorBorderEnabled;
+    }
+
+    public void setConnectionColorBorderEnabled(boolean connectionColorBorderEnabled) {
+        this.connectionColorBorderEnabled = connectionColorBorderEnabled;
     }
 
     public boolean isJobSchedulerMenuStatusEnabled() {
