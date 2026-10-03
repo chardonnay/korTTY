@@ -34,7 +34,7 @@ Ein Projekt erfasst den vollständigen Zustand Ihres Arbeitsbereichs:
 | Komponente | Einzelheiten |
 |-----------|---------|
 | **Windows** | Alle geöffneten KorTTY-Fenster und ihre Positionen/Größen |
-| **Tabs** | Alle Terminal-Tabs in jedem Fenster, einschließlich Split-Pane-Konfigurationen, sowie SFTP-Manager-Tabs mit den lokalen und entfernten Ordnern, die sie anzeigen, und Bildbetrachter-Tabs |
+| **Tabs** | Alle Terminal-Tabs in jedem Fenster, einschließlich Split-Pane-Konfigurationen, sowie SFTP-Manager-Tabs mit den lokalen und entfernten Ordnern, die sie anzeigen, sowie Tabs des Dateieditors und Bildbetrachters |
 | **Verbindungen** | Ein Verweis auf die gespeicherte Verbindung jedes Tabs, anhand der internen ID der Verbindung, sodass das Umbenennen einer Verbindung das Projekt nicht bricht |
 | **Dashboard** | Sichtbarkeit des Armaturenbretts und Position der Trennwand |
 | **Aktiver Tab** | Welche Registerkarte war in jedem Fenster aktiv |
@@ -63,6 +63,12 @@ Mit **Automatisches Wiederverbinden** verbindet sich jeder gespeicherte SFTP-Man
 - Ein Remote-Ordner, der nicht mehr existiert, öffnet Ihr Login-Verzeichnis auf dem Server und die Statusleiste zeigt **Remote-Ordner** *Pfad* **existiert nicht mehr; zeigt das Home-Verzeichnis**. Ein Remote-Ordner, der existiert, aber nicht gelesen werden kann, zum Beispiel wegen fehlender Rechte, zeigt den üblichen Fehler und öffnet ebenfalls das Login-Verzeichnis.
 - Projekte, die von früheren Versionen gespeichert wurden, bezogen sich auf SFTP-Manager-Tabs anhand des Namens der Verbindung. Solch ein Tab wird wiederhergestellt, wenn genau eine Verbindung diesen Namen hat; wenn mehrere Verbindungen denselben Namen teilen, wird der Tab übersprungen und das Log erklärt warum. Speichern Sie das Projekt erneut, um die Referenz nach ID zu speichern.
 - Ein Remote-Bildbetrachter-Tab wird mit der Verbindung gespeichert, von der er geöffnet wurde, auch wenn mehrere SFTP-Manager-Tabs offen sind oder sein SFTP-Manager-Tab bereits geschlossen ist. Beim Wiederherstellen öffnet er seine eigene SFTP-Verbindung, mit demselben SSH-Schlüssel und derselben Sprungserver-Verbindung wie der SFTP-Manager, und diese Verbindung schließt sich, wenn Sie den Tab schließen.
+
+### Datei-Editor-Tabs
+
+Ein gespeicherter Tab des Datei-Editors öffnet seine Datei erneut: eine lokale Datei, wenn sie noch existiert, und – mit **Automatisches Wiederverbinden** – eine entfernte Datei über eine eigene SFTP-Verbindung, die geschlossen wird, wenn Sie den Tab schließen. Das Projekt speichert, welche Datei geöffnet war, nicht ihre ungespeicherten Änderungen.
+
+Ein Datei-Editor-Tab mit ungespeicherten Änderungen zeigt `*` nach seinem Namen, und jede Art des Schließens fragt zuerst **Speichern**, **Verwerfen** oder **Abbrechen**: die Schaltfläche zum Schließen des Tabs, die Schaltfläche **Schließen** im Editor oder ++ctrl+w++ (++cmd+w++ auf macOS) im Editor, *Datei > Tab schließen*, *Datei > Alle Tabs schließen*, das Öffnen eines Projekts, das Schließen des Fensters und das Beenden von korTTY. **Abbrechen** lässt den Tab offen; wenn die Frage aus *Alle Tabs schließen*, dem Öffnen eines Projekts oder dem Schließen des Fensters kam, wird nichts geschlossen. Wenn das Speichern fehlschlägt, zum Beispiel weil die SFTP-Verbindung fehlt, zeigt korTTY den Fehler an und lässt den Tab mit Ihren Änderungen offen. Wenn mehrere Tabs ungespeicherte Änderungen haben, wählt korTTY jeden Tab aus, bevor es danach fragt.
 
 ## Projektdateispeicherung
 

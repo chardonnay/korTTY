@@ -18,7 +18,7 @@ import static com.google.common.truth.Truth.assertWithMessage;
 /**
  * Regression guard for the dead terminal context menu. {@code TerminalSplitPane} and
  * {@code TerminalView} looked up SithTermFX methods with {@code getClass().getDeclaredMethod(...)}.
- * The terminal widget is {@link KorttyTermWidget}, whose panel is an anonymous subclass. Neither
+ * The terminal widget is {@link KorttyTermWidget}, whose panel is a subclass of its own. Neither
  * runtime class declares those methods, so every lookup threw {@code NoSuchMethodException} into a
  * log line and Copy, Paste, Clear Buffer, Find and the font-size entries silently did nothing. The
  * font lookup also asked for {@code int} parameters where SithTermFX takes {@code float}.
