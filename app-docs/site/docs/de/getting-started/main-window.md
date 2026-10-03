@@ -33,7 +33,7 @@ Die Kopfzeile zeigt das Paneltitel mit zwei Schaltflächen: ein Auf-/Zuklapp-Sch
 
 Jede Verbindungszeile zeigt ein Typsymbol, einen Statuspunkt, den Servernamen und ein Protokoll-Badge (`ssh`, `mosh` oder `local`). Der Statuspunkt unterscheidet drei Zustände: grün gefüllt für eine fehlerfreie Verbindung, rot gefüllt für eine Verbindung, die unerwartet unterbrochen wurde (einschließlich einer Unterbrechung des Mosh-Netzwerks) und ein leerer Umriss für eine Sitzung, die normal beendet wurde. Terminals mit KI-Agentenläufen tragen das gleiche ✋/⚡/⏸/ ✓-Abzeichen wie anderswo. Wenn Sie den Mauszeiger über eine Zeile bewegen, werden `user@host` und der Verbindungsstatus angezeigt. Ein Doppelklick (oder ++enter++) fokussiert die Registerkarte der Sitzung.
 
-Klicken Sie mit der rechten Maustaste auf eine Verbindung für **Fokus**, **Duplizieren**, **Erneut verbinden**, **SFTP-Client...** (nur verbundene Sitzungen) und **Schließen**. In einer Fußzeile wird die Anzahl der „verbunden von insgesamt“ fortlaufend angezeigt, und in einem leeren Bereich wird ein Platzhalter angezeigt, bis die erste Sitzung geöffnet wird.
+Rechtsklick auf eine Verbindung für **Fokussieren**, **Duplizieren**, **Neu verbinden**, **SFTP-Client...** (nur verbundene Sitzungen) und **Schließen**. **Schließen** fragt zuerst, wie der Schließen-Button des Tabs, wenn die Sitzung geteilte Panes hat oder ein Befehl noch läuft. Ein Fußzeilenbereich zeigt einen laufenden „verbunden von insgesamt“-Zähler, und ein leeres Panel zeigt einen Platzhalter bis die erste Sitzung geöffnet wird.
 
 ## macOS Dock-Menü
 

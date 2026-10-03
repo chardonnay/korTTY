@@ -47,7 +47,7 @@ KorTTY ist in verschiedene Funktionsmodule unterteilt. Das folgende Diagramm gru
 KorTTY verwendet **SithTermFX 1.2.2** als primären Terminalemulator, der während des Erstellungsprozesses aus dem Quellcode erstellt wird. SithTermFX bietet:
 
 - **Terminalemulation**: VT100/xterm-kompatibles Terminal-Rendering, unterstützt durch ein benutzerdefiniertes JavaFX-Steuerelement
-- **OSC 8-Hyperlinks**: Ab SithTermFX 1.2.0 Unterstützung für anklickbare explizite Hyperlinks (beschränkt auf sichere URI-Schemata: `http`, `https`, `mailto`, `ftp`, `ftps`, `news`; `file://` beschränkt auf lokalen Host)
+- **OSC 8 Hyperlinks**: Klicken Sie auf explizite Hyperlinks, die von Programmen ausgegeben werden. korTTY ersetzt den Standard-Link-Handler von SithTermFX in jedem Pane durch seine eigene Allowlist (`http`, `https`, `ftp`, `ftps`, `mailto`), die streng geparst wird, maximal 8 KB umfasst, keine Steuer- oder Bidirectional-Zeichen enthält und (`mailto`) auf Empfänger, Betreff, Textkörper und In-Reply-To beschränkt ist. Links werden über JavaFX `HostServices` geöffnet. `file:`, `news:` und andere Ziele bleiben als Klartext erhalten, sodass Terminalausgaben niemals `java.awt.Desktop.open` erreichen und keine lokale Datei gestartet wird.
 - **Sitzungsintegration**: Direktes JAXB-Marshalling des Terminalstatus für Sitzungsaufzeichnung und -wiedergabe
 - **Farbunterstützung**: Konfigurierbare ANSI- und TrueColor-Verarbeitung mit Überschreibungen pro Verbindung
 - **Überprüfte Grenzkorrektur**: Ein angehefteter korTTY-Patch lehnt die nicht vorhandene Zeile bei ab `line == height` beim Hyperlink-Treffertest, um die unterste Zeile zu verhindern `TerminalTextBuffer` Bereichsfehler

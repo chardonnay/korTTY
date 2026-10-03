@@ -862,7 +862,7 @@
 <p>KorTTY uses <strong>SithTermFX 1.2.2</strong> as its primary terminal emulator, built from source during the build process. SithTermFX provides:</p>
 <ul>
 <li><strong>Terminal emulation</strong>: VT100/xterm-compatible terminal rendering powered by a custom JavaFX control</li>
-<li><strong>OSC 8 hyperlinks</strong>: Starting with SithTermFX 1.2.0, support for clickable explicit hyperlinks (restricted to safe URI schemes: <code>http</code>, <code>https</code>, <code>mailto</code>, <code>ftp</code>, <code>ftps</code>, <code>news</code>; <code>file://</code> limited to local host)</li>
+<li><strong>OSC 8 hyperlinks</strong>: Clickable explicit hyperlinks printed by programs. korTTY replaces SithTermFX's default link handler in every pane with its own allowlist (<code>http</code>, <code>https</code>, <code>ftp</code>, <code>ftps</code>, <code>mailto</code>, strictly parsed, at most 8 KB, no control or bidi characters, <code>mailto</code> limited to recipients, subject, body and in-reply-to) and opens links through JavaFX <code>HostServices</code>. <code>file:</code>, <code>news:</code> and other targets stay plain text, so terminal output never reaches <code>java.awt.Desktop.open</code> and cannot launch a local file</li>
 <li><strong>Session integration</strong>: Direct JAXB marshaling of terminal state for session recording and replay</li>
 <li><strong>Color support</strong>: Configurable ANSI and TrueColor handling with per-connection overrides</li>
 <li><strong>Reviewed boundary fix</strong>: A pinned korTTY patch rejects the non-existent row at <code>line == height</code> during hyperlink hit-testing, preventing bottom-row <code>TerminalTextBuffer</code> range errors</li>
