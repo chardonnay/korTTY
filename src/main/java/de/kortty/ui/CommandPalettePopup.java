@@ -6,6 +6,7 @@ import de.kortty.ui.actions.PaletteEntry;
 import de.kortty.ui.actions.PaletteEntry.Kind;
 import de.kortty.ui.actions.PaletteSource;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
@@ -67,6 +68,12 @@ final class CommandPalettePopup {
     private static final KeyCombination ALTERNATE_CHORD = new KeyCodeCombination(KeyCode.ENTER, KeyCombination.ALT_DOWN);
     /** The room a row leaves for the cell's padding, so the shortcut column ends inside the list. */
     private static final double ROW_INSET = 20;
+    /**
+     * The largest share of a row its title may take. A title can come from someone else: a teamwork
+     * connection's name from a shared file, a tab's from the program in the terminal. However long
+     * it is, the detail next to it, which names where the row really connects, keeps the rest.
+     */
+    static final double TITLE_SHARE = 0.5;
 
     private final CommandPaletteModel model;
     private final QuickPickPopup<PaletteEntry> picker;
@@ -217,6 +224,11 @@ final class CommandPalettePopup {
         return String.join(", ", parts);
     }
 
+    /** The widest a row's title may be in a row {@code rowWidth} wide: {@link #TITLE_SHARE} of it. */
+    static double titleMaxWidth(double rowWidth) {
+        return Math.max(0, rowWidth * TITLE_SHARE);
+    }
+
     private static void render(ListCell<PaletteEntry> cell, PaletteEntry entry) {
         Row row = (Row) cell.getProperties().computeIfAbsent(Row.class, key -> new Row(cell));
         row.show(entry);
@@ -254,6 +266,9 @@ final class CommandPalettePopup {
             cell.setPrefWidth(0);
             root.prefWidthProperty().bind(cell.widthProperty().subtract(ROW_INSET));
             root.setMaxWidth(Region.USE_PREF_SIZE);
+            // A long title is cut at half the row, so it cannot squeeze the detail (user@host) away.
+            title.maxWidthProperty().bind(Bindings.createDoubleBinding(
+                () -> titleMaxWidth(root.getPrefWidth()), root.prefWidthProperty()));
         }
 
         void show(PaletteEntry entry) {

@@ -49,7 +49,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * tab rows list the previous tab first and select it on Enter, the connection rows list the
  * connection used last first, keep a blocked one from connecting and connect the chosen one, and
  * the snippet rows name the first pane they run in, are found by a tag but not by that terminal,
- * open on Alt/Option+Enter and run on Enter.
+ * open on Alt/Option+Enter and run on Enter, and a title as long as a row shows leaves the detail
+ * with the real user@host in sight.
  * Key events are fired at the terminal canvas, so they take the real way through the window, which
  * hands them to the showing palette first. Writes snapshots of the palette to {@code build/smoke/}.
  * Run via the {@code commandPaletteSmoke} Gradle task; manual, not part of CI. Exit 0 = OK.
@@ -439,6 +440,34 @@ public final class CommandPaletteSmoke {
             snapshot(palette, out.resolve("command-palette-reason.png"));
             onFxThread(() -> {
                 palette.hide();
+                return null;
+            });
+
+            // 10. A title as long as a row shows (a teamwork connection's name comes from someone
+            // else's file, a tab's from the program in the terminal) cannot push the row's detail,
+            // which names where the row really connects, out of sight.
+            String longTitle = ("admin@web-01.example.org: ~/" + "releases/current/".repeat(8))
+                .substring(0, de.kortty.ui.actions.PaletteText.MAX_LENGTH);
+            CommandPalettePopup longTitles = onFxThread(() -> new CommandPalettePopup(
+                List.of(new TabPaletteSource(
+                    () -> new TabPaletteSource.WindowTabs(null, List.of(new TabPaletteSource.TabRow("t-long", longTitle,
+                        "root@db-01.example.org · Production", () -> { })), null),
+                    List::of, () -> "Current tab")),
+                PaletteKeys.passThrough(MainWindow.commandPaletteAccelerator(), MAC)));
+            onFxThread(() -> {
+                longTitles.show(canvas);
+                return null;
+            });
+            snapshot(longTitles, out.resolve("command-palette-long-title.png"));
+            double listWidth = onFxThread(() -> longTitles.list().getWidth());
+            double detailWidth = onFxThread(() -> longTitles.list().lookupAll(".palette-detail").stream()
+                .filter(Node::isVisible)
+                .mapToDouble(node -> node.getLayoutBounds().getWidth())
+                .max().orElse(0));
+            check(detailWidth >= listWidth * 0.3,
+                "a long title squeezed the detail to " + detailWidth + " of " + listWidth + " px");
+            onFxThread(() -> {
+                longTitles.hide();
                 return null;
             });
         } catch (Throwable error) {
