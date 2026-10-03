@@ -5,6 +5,7 @@ import de.kortty.telemetry.Telemetry;
 import de.kortty.telemetry.TelemetryEvents;
 import de.kortty.telemetry.TelemetryProps;
 import de.kortty.ui.I18n;
+import de.kortty.ui.KeyTypedResidueGuard.Residue;
 import de.kortty.core.AgentDashboardStatus;
 import com.sithtermfx.ui.SithTermFxWidget;
 import de.kortty.codingagent.CodingAgentActionException;
@@ -83,6 +84,7 @@ import javafx.animation.Timeline;
 import javafx.application.ConditionalFeature;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 import javafx.scene.layout.HBox;
@@ -369,7 +371,6 @@ public class MainWindow {
         setupUI();
         setupMenuBar();
         installTransparentWindowChrome();
-        setupKeyBindings();
         installForegroundActivityLifecycle();
         WindowCloseShortcutSupport.installForMainWindow(stage, openWindows.isEmpty(), this::fireCloseRequest);
         
@@ -716,94 +717,10 @@ public class MainWindow {
         // existing designs, but swaps it for component-only CSS when AtlantaFX owns native controls.
         AppDesignStyleSupport.registerApplicationBaseStyles(scene);
         
-        // Global keyboard shortcuts for zoom and fullscreen (works on all keyboard layouts)
-        // Track if zoom was triggered to also consume KEY_TYPED event
-        final boolean[] zoomTriggered = {false};
-        
-        scene.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
-            if (MENU_BAR_TOGGLE_ACCELERATOR.match(event)) {
-                toggleMenuBarVisibility(menuBar == null || !menuBar.isVisible());
-                event.consume();
-                return;
-            }
-            if (TERMINAL_ONLY_FULLSCREEN_ACCELERATOR.match(event)) {
-                toggleTerminalOnlyFullscreen();
-                event.consume();
-                return;
-            }
-            if (PASTE_ACCELERATOR.match(event)
-                && tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab) {
-                lastTerminalPasteShortcutAtNanos = System.nanoTime();
-            }
+        // Window-wide keyboard shortcuts (menu bar, fullscreen, zoom, tab switching) go through one
+        // ordered scene router; it also swallows the KEY_TYPED residue of every chord it consumes.
+        createSceneShortcutRouter().install(scene);
 
-            boolean ctrl = event.isControlDown();
-            boolean alt = event.isAltDown();
-            KeyCode code = event.getCode();
-            String text = event.getText();
-            String character = event.getCharacter();
-            zoomTriggered[0] = false;
-            
-            // Fullscreen toggle: F12 (F11 is reserved by macOS for "Show Desktop")
-            if (code == KeyCode.F12) {
-                boolean goFullscreen = !stage.isFullScreen();
-                stage.setFullScreen(goFullscreen);
-                // Force terminal resize after fullscreen change
-                Platform.runLater(() -> {
-                    Platform.runLater(() -> {
-                        // Double runLater to ensure layout is complete
-                        Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
-                        if (selectedTab instanceof TerminalTab terminalTab) {
-                            terminalTab.getTerminalView().requestFocus();
-                        }
-                    });
-                });
-                event.consume();
-                return;
-            }
-            
-            // On macOS, use Cmd (Meta) for zoom; on other OS use Ctrl or Alt.
-            // Option (Alt) on macOS must NOT be intercepted — it produces special characters
-            // like |, [, ], {, }, @, ~, \.
-            boolean isMac = System.getProperty("os.name", "").toLowerCase().contains("mac");
-            boolean zoomModifier = isMac ? event.isMetaDown() : (ctrl || alt);
-            // Terminal zoom only while a terminal tab is selected: other tabs (hosted snippet
-            // editors, file editors) get their own zoom keys, and AltGr+'+' (reported as Ctrl+Alt
-            // on Windows) must reach them as the '~' it types.
-            boolean terminalSelected = tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab;
-            
-            if (zoomModifier && terminalSelected) {
-                // Zoom in: modifier + Plus (various key codes for different keyboards)
-                if (code == KeyCode.PLUS || code == KeyCode.ADD || 
-                    code == KeyCode.EQUALS || "+".equals(text) || "+".equals(character)) {
-                    zoomTerminal(1);
-                    zoomTriggered[0] = true;
-                    event.consume();
-                }
-                // Zoom out: modifier + Minus
-                else if (code == KeyCode.MINUS || code == KeyCode.SUBTRACT || 
-                         "-".equals(text) || "-".equals(character)) {
-                    zoomTerminal(-1);
-                    zoomTriggered[0] = true;
-                    event.consume();
-                }
-                // Reset zoom: modifier + 0
-                else if (code == KeyCode.DIGIT0 || code == KeyCode.NUMPAD0) {
-                    resetTerminalZoom();
-                    zoomTriggered[0] = true;
-                    event.consume();
-                }
-            }
-        });
-        
-        // Also consume KEY_TYPED events for zoom to prevent +/- appearing in terminal
-        scene.addEventFilter(javafx.scene.input.KeyEvent.KEY_TYPED, event -> {
-            if (zoomTriggered[0]) {
-                // Consume early to prevent SithTermFX from processing empty character
-                event.consume();
-                zoomTriggered[0] = false; // Reset for next event
-            }
-        });
-        
         stage.setScene(scene);
         AppDesignStyleSupport.installGlobalWindowStyler();
         // Apply theme again now that scene exists (first call in setupUI had scene == null)
@@ -2281,19 +2198,55 @@ public class MainWindow {
         return globalSettings != null && globalSettings.isRememberDashboardState() && globalSettings.isDashboardVisible();
     }
     
-    private void setupKeyBindings() {
-        // A filter, not a handler: it runs before the focused node, so Ctrl+Tab switches the tab even
-        // while a terminal has the focus (the terminal would otherwise take it as a Tab key).
-        stage.getScene().addEventFilter(KeyEvent.KEY_PRESSED, e -> {
-            // Tab switching with Ctrl+Tab / Ctrl+Shift+Tab
-            if (e.isControlDown() && e.getCode() == KeyCode.TAB) {
-                if (e.isShiftDown()) {
-                    selectPreviousTab();
-                } else {
-                    selectNextTab();
+    /**
+     * The window's scene shortcuts, in the order they are tried; the first entry whose chord and
+     * scope hold wins. Every new window-wide chord registers here, with its KeyCodeCombination
+     * constant declared at the top of this class and also set on its menu item.
+     */
+    private SceneShortcutRouter createSceneShortcutRouter() {
+        BooleanSupplier terminalSelected =
+            () -> tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab;
+        return new SceneShortcutRouter(isMacOs())
+            .consume(press -> press.matches(MENU_BAR_TOGGLE_ACCELERATOR), SceneShortcutRouter.ALWAYS,
+                () -> toggleMenuBarVisibility(menuBar == null || !menuBar.isVisible()), Residue.ofLetter('L'))
+            .consume(press -> press.matches(TERMINAL_ONLY_FULLSCREEN_ACCELERATOR), SceneShortcutRouter.ALWAYS,
+                this::toggleTerminalOnlyFullscreen, Residue.ofLetter('F'))
+            // Not consumed: the terminal pastes on its own, and the timestamp keeps the Paste menu
+            // accelerator from pasting a second time (wasTriggeredByTerminalPasteShortcut).
+            .observe(press -> press.matches(PASTE_ACCELERATOR), terminalSelected,
+                () -> lastTerminalPasteShortcutAtNanos = System.nanoTime())
+            .consume(SceneShortcutKeys::isFullscreenToggle, SceneShortcutRouter.ALWAYS,
+                this::toggleFullscreenFromKeyboard, Residue.NONE)
+            // Terminal zoom only while a terminal tab is selected: other tabs (hosted snippet
+            // editors, file editors) get their own zoom keys, and AltGr+'+' (reported as Ctrl+Alt
+            // on Windows) must reach them as the '~' it types.
+            .consume(SceneShortcutKeys::isZoomIn, terminalSelected,
+                () -> zoomTerminal(1), SceneShortcutKeys.ZOOM_RESIDUE)
+            .consume(SceneShortcutKeys::isZoomOut, terminalSelected,
+                () -> zoomTerminal(-1), SceneShortcutKeys.ZOOM_RESIDUE)
+            .consume(SceneShortcutKeys::isZoomReset, terminalSelected,
+                this::resetTerminalZoom, SceneShortcutKeys.ZOOM_RESIDUE)
+            // Ctrl+Tab switches the tab even while a terminal has the focus (the terminal would
+            // otherwise take it as a Tab key).
+            .consume(SceneShortcutKeys::isNextTab, SceneShortcutRouter.ALWAYS,
+                this::selectNextTab, SceneShortcutKeys.TAB_RESIDUE)
+            .consume(SceneShortcutKeys::isPreviousTab, SceneShortcutRouter.ALWAYS,
+                this::selectPreviousTab, SceneShortcutKeys.TAB_RESIDUE);
+    }
+
+    /** F12: toggles fullscreen and gives the selected terminal the focus back once the layout settled. */
+    private void toggleFullscreenFromKeyboard() {
+        boolean goFullscreen = !stage.isFullScreen();
+        stage.setFullScreen(goFullscreen);
+        // Force terminal resize after fullscreen change
+        Platform.runLater(() -> {
+            Platform.runLater(() -> {
+                // Double runLater to ensure layout is complete
+                Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
+                if (selectedTab instanceof TerminalTab terminalTab) {
+                    terminalTab.getTerminalView().requestFocus();
                 }
-                e.consume();
-            }
+            });
         });
     }
     

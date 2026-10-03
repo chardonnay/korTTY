@@ -90,7 +90,7 @@ pages:
     last_synced_ref: "a4a2351c"
   - path: app-docs/site/docs/en/reference/keyboard-shortcuts.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/ui/MainWindow.java, src/monaco/completion.js, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java, src/main/java/de/kortty/ui/TerminalNavigationKeys.java]
+    owns_code: [src/main/java/de/kortty/ui/MainWindow.java, src/monaco/completion.js, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java, src/main/java/de/kortty/ui/TerminalNavigationKeys.java, src/main/java/de/kortty/ui/SceneShortcutRouter.java, src/main/java/de/kortty/ui/SceneShortcutKeys.java, src/main/java/de/kortty/ui/KeyTypedResidueGuard.java]
     last_synced_ref: "a4a2351c"
 
   # ---- Reference: settings (one page per tab; each owns its settings.<tab>.) --

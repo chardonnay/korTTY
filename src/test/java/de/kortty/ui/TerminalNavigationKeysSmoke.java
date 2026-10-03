@@ -77,7 +77,7 @@ public final class TerminalNavigationKeysSmoke {
                 Stage stage = new Stage();
                 stageRef.set(stage);
                 Scene scene = new Scene(terminalSplitPane, 900, 560);
-                // The main window's tab switching, registered the same way (MainWindow.setupKeyBindings).
+                // The main window's tab switching, as a scene filter like MainWindow's SceneShortcutRouter.
                 scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
                     if (event.isControlDown() && event.getCode() == KeyCode.TAB) {
                         tabSwitches.incrementAndGet();
