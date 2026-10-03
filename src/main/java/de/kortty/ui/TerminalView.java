@@ -298,7 +298,7 @@ public class TerminalView extends BorderPane {
     private SithTermFxWidget terminalWidget;  // Primary widget (first terminal in split)
     // Written by the connect thread, read by disconnect/session-end callbacks on other threads.
     private volatile TtyConnector ttyConnector;
-    // True when the last connect attempt failed permanently (auth/host-key/configuration).
+    // True when the last connect attempt failed permanently (auth/host-key/configuration/policy).
     private volatile boolean lastConnectFailurePermanent;
     // Screen text a project saved for this tab, shown locally once the first connect succeeds.
     // Set on the FX thread before connect(), consumed (getAndSet(null)) on the FX thread.
@@ -1834,7 +1834,8 @@ public class TerminalView extends BorderPane {
 
     /**
      * Whether the most recent connect attempt failed for a reason retrying cannot fix
-     * (authentication, host-key verification, configuration refusal). Auto-reconnect stops then.
+     * (authentication, host-key verification, configuration or policy refusal). Auto-reconnect
+     * stops then.
      */
     public boolean isLastConnectFailurePermanent() {
         return lastConnectFailurePermanent;
@@ -5525,6 +5526,16 @@ public class TerminalView extends BorderPane {
                         showMessage(I18n.get("terminal.connectionAttempt", attempt, retryCount));
                     }
                     
+                    // Enterprise server policy, before anything is contacted. The tab passed the
+                    // gate when it opened, but the connection editor changes a saved connection in
+                    // place, so a reconnect may now point at a blocked server or jump server.
+                    java.util.Optional<String> policyBlocked =
+                        de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(connection);
+                    if (policyBlocked.isPresent()) {
+                        throw new de.kortty.policy.PolicyRestrictionException(
+                            I18n.get("policy.server.blocked.message", policyBlocked.get()));
+                    }
+
                     // Create TtyConnector
                     ttyConnector = createConnectorForConnection(connection, password);
                     
@@ -5686,6 +5697,18 @@ public class TerminalView extends BorderPane {
 
                     clearTerminal();
                     showMessage(e.getMessage());
+                } catch (de.kortty.policy.PolicyRestrictionException e) {
+                    // The organization's policy refuses this connection (e.g. its server or jump
+                    // server is blocked): no retry or automatic reconnect can change that.
+                    configurationRefused = true;
+                    lastError = e.getMessage();
+                    // Host/port only, for the CodeQL reason given at the IllegalStateException branch.
+                    logger.error("Connection to {}:{} refused by the enterprise policy - NOT retrying: {}",
+                            connection.getHost(), connection.getPort(), e.getMessage());
+
+                    clearTerminal();
+                    showMessage(e.getMessage());
+                    showMessage(de.kortty.policy.PolicyUiSupport.managedByOrganizationText());
                 } catch (Exception e) {
                     lastError = I18n.get("terminal.connectionFailed") + ": " + e.getMessage();
                     logger.error("Failed to start terminal session (attempt {}/{}): {}", 
