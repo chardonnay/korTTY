@@ -4,6 +4,7 @@ import de.kortty.ai.llama.LlamaBackend;
 import de.kortty.paste.PastePacer;
 import de.kortty.paste.PasteProtectionSettings;
 import de.kortty.paste.PasteWarningMode;
+import de.kortty.shellintegration.TerminalNotificationPolicy;
 import jakarta.xml.bind.annotation.*;
 
 /**
@@ -366,6 +367,22 @@ public class GlobalSettings {
      */
     @XmlElement
     private boolean terminalBellNotificationsEnabled = false;
+
+    /**
+     * Desktop notification when a command the shell marked with shell integration (OSC 133) ran at
+     * least {@link #commandFinishedNotificationSeconds} and finished in a terminal tab the user is not
+     * looking at. On by default (decision D4 a); it never names the command. The tab's mark does not
+     * depend on it.
+     */
+    @XmlElement
+    private boolean commandFinishedNotificationsEnabled = true;
+
+    /**
+     * How long a command has to run, in seconds, before its end marks its tab and notifies; boxed so
+     * a settings file written before this setting existed falls back to the default of 30.
+     */
+    @XmlElement
+    private Integer commandFinishedNotificationSeconds = TerminalNotificationPolicy.DEFAULT_COMMAND_FINISHED_SECONDS;
 
     /**
      * When a terminal paste with line breaks asks for confirmation: the {@link PasteWarningMode#id()}
@@ -2108,6 +2125,31 @@ public class GlobalSettings {
 
     public void setTerminalBellNotificationsEnabled(boolean terminalBellNotificationsEnabled) {
         this.terminalBellNotificationsEnabled = terminalBellNotificationsEnabled;
+    }
+
+    /**
+     * Whether a long command that finishes in a terminal tab the user is not looking at also shows a
+     * desktop notification. Read on every finished command, so a change applies at once.
+     */
+    public boolean isCommandFinishedNotificationsEnabled() {
+        return commandFinishedNotificationsEnabled;
+    }
+
+    public void setCommandFinishedNotificationsEnabled(boolean commandFinishedNotificationsEnabled) {
+        this.commandFinishedNotificationsEnabled = commandFinishedNotificationsEnabled;
+    }
+
+    /** How long a command has to run before its end counts, in seconds, {@code 1..3600}. */
+    public int getCommandFinishedNotificationSeconds() {
+        return commandFinishedNotificationSeconds != null
+            ? TerminalNotificationPolicy.clampCommandFinishedSeconds(commandFinishedNotificationSeconds)
+            : TerminalNotificationPolicy.DEFAULT_COMMAND_FINISHED_SECONDS;
+    }
+
+    /** @param commandFinishedNotificationSeconds the threshold in seconds, clamped to {@code 1..3600} */
+    public void setCommandFinishedNotificationSeconds(int commandFinishedNotificationSeconds) {
+        this.commandFinishedNotificationSeconds =
+            TerminalNotificationPolicy.clampCommandFinishedSeconds(commandFinishedNotificationSeconds);
     }
 
     /** When a terminal paste with line breaks asks for confirmation; never null. */

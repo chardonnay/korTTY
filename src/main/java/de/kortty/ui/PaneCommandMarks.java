@@ -87,15 +87,19 @@ final class PaneCommandMarks {
     /**
      * Records a shell-integration mark at the cursor of {@code terminal}; other events are ignored.
      * Emulator thread.
+     *
+     * @return the status of the command a {@code D} mark finished, with its exit status and runtime;
+     *         {@code null} for every other mark, and for a {@code D} that finished nothing (no
+     *         {@code C} before it, or the alternate screen)
      */
-    void record(ShellIntegrationEvent event, Terminal terminal, long nanos) {
+    @Nullable CommandStatus record(ShellIntegrationEvent event, Terminal terminal, long nanos) {
         if (!isMark(event)) {
-            return;
+            return null;
         }
         buffer.lock();
         try {
             if (buffer.isUsingAlternateBuffer()) {
-                return;
+                return null;
             }
             syncTrims();
             int height = Math.max(1, buffer.getHeight());
@@ -109,6 +113,8 @@ final class PaneCommandMarks {
                 case ShellIntegrationEvent.CommandFinished finished -> {
                     if (store.commandFinished(line, column, finished.exitStatus(), nanos)) {
                         queueCompletion(store.lineId(line), nanos);
+                        // The block D just closed is the newest finished one.
+                        return store.lastFinished().map(CommandStatus::of).orElse(null);
                     }
                 }
                 case ShellIntegrationEvent.RemoteNotification notification -> {
@@ -118,6 +124,7 @@ final class PaneCommandMarks {
                     // Not a mark; isMark filtered it out.
                 }
             }
+            return null;
         } finally {
             buffer.unlock();
         }

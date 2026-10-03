@@ -4,7 +4,7 @@ title: Terminal notifications
 
 # Terminal notifications
 
-A program in a terminal can ask for your attention while you are working somewhere else: a build script rings the bell when it is done, a prompt rings it when it waits for input. KorTTY marks the tab such a request comes from, so you see it in the tab bar, and can also show a desktop notification. It never plays a sound.
+A program in a terminal can ask for your attention while you are working somewhere else: a build script rings the bell when it is done, a prompt rings it when it waits for input, and in a shell set up for [shell integration](shell-integration.md) a long command tells korTTY when it has finished. KorTTY marks the tab such a request comes from, so you see it in the tab bar, and can also show a desktop notification. It never plays a sound.
 
 ## When you are looking at a tab
 
@@ -30,5 +30,19 @@ With **Desktop notification when the bell rings in a tab you are not looking at*
 - A pane in which korTTY detected a [coding agent](coding-agents.md) gets no bell notification while **Desktop notification when a coding agent needs a decision or finishes while you are not looking at its pane** is on: agents ring the bell when they wait for you, and their own notification already says so, with more detail. The tab still gets its mark.
 - Clicking the notification does not bring the tab to the front; the notification services korTTY uses cannot report the click back. Look for the 🔔 in the tab bar instead.
 
+## Long-running commands
+
+In a shell set up for [shell integration](shell-integration.md#setting-it-up), the shell marks when each command starts and when it finishes, with its exit status. When a command that ran at least the minimum runtime, 30 seconds by default, finishes in a tab you are not looking at, korTTY marks that tab with 🔔 and shows a desktop notification, for example `korTTY · web-01` with the text *Command failed (exit 1) after 2 min 14 sec.* Start a build or an upgrade, switch to another tab or application, and you hear from korTTY when it is done.
+
+- The runtime counts from the moment you pressed ++enter++ to the moment the command finished, without the time you spent typing it. A command that ends with exit status 0 says *Command finished*, any other status says *Command failed*, and a shell that reports no status gets *Command finished after …* without one.
+- The notification never contains the command itself, nor anything it printed: command lines can contain passwords and tokens, and a notification can appear on the lock screen. Pointing at the marked tab shows the same text in its tooltip.
+- A command that finishes in the tab you are looking at leads to nothing, and so does a command shorter than the minimum runtime. The tab gets its mark even with the notification switched off.
+- A tab shows at most one such notification every 10 seconds. When [broadcast](terminal.md#split-screen-with-broadcast) typed the same command into several panes of a tab and they finish close together, you get one notification, and the tab stays marked until you look at it.
+- Commands that korTTY's [AI Agent](ai-assistant.md#ai-agent-and-ai-planning) runs in a pane neither mark the tab nor notify: the agent's run reports its own commands in its activity panel.
+- A [coding agent](coding-agents.md) such as Claude Code is itself a command to the shell, so when it exits in a tab you are not looking at, that is reported like any other command.
+- Without shell integration nothing changes: korTTY does not guess from pauses in the output when a command has finished. Shells without the marks, `tmux`, `screen` and mosh connections get no long-command notifications; see the [limits of shell integration](shell-integration.md#limits).
+
+*Settings → Terminal → Notifications* has **Desktop notification when a long-running command finishes in a tab you are not looking at**, on by default, and **Minimum command runtime:**, from 1 to 3,600 seconds. Both are greyed out while shell integration is switched off, and a change applies to the open tabs as soon as you save. See [Terminal settings](../reference/settings/terminal.md#notes).
+
 !!! note "Privacy"
-    A desktop notification shows the tab's name, which can be a server name, and depending on your operating system's settings it can appear on the lock screen. Leave the setting off if that is a concern; the mark on the tab stays inside korTTY.
+    A desktop notification shows the tab's name, which can be a server name, and depending on your operating system's settings it can appear on the lock screen. Turn off the desktop notifications you do not want, or the notifications for korTTY in the operating system; the mark on the tab stays inside korTTY.

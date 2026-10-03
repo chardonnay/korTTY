@@ -75,6 +75,7 @@ import de.kortty.model.WindowGeometry;
 import de.kortty.paste.PastePacer;
 import de.kortty.paste.PasteProtectionSettings;
 import de.kortty.paste.PasteWarningMode;
+import de.kortty.shellintegration.TerminalNotificationPolicy;
 import de.kortty.security.PasswordStrengthChecker;
 import de.kortty.security.MasterPasswordManager;
 import de.kortty.security.MasterPasswordReEncryptor;
@@ -179,6 +180,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final Spinner<Integer> pasteLineDelaySpinner;
     private final CheckBox shellIntegrationCheck;
     private final CheckBox terminalBellNotificationsCheck;
+    private final CheckBox commandFinishedNotificationsCheck;
+    private final Spinner<Integer> commandFinishedSecondsSpinner;
     private final CheckBox terminalRecordingAlwaysEnabledCheck;
     private final CheckBox terminalRecordingCaptureColorsCheck;
     private final CheckBox codingAgentDetectionCheck;
@@ -849,6 +852,28 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalBellNotificationsCheck.setSelected(globalSettings != null
             && globalSettings.isTerminalBellNotificationsEnabled());
         terminalBellNotificationsCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.notify.bell.tooltip")));
+        // ... and a long command the shell marked finishing there; needs shell integration.
+        commandFinishedNotificationsCheck = new CheckBox(I18n.get("settings.terminal.notify.commandFinished"));
+        commandFinishedNotificationsCheck.setSelected(globalSettings == null
+            || globalSettings.isCommandFinishedNotificationsEnabled());
+        commandFinishedNotificationsCheck.setTooltip(
+            new Tooltip(I18n.get("settings.terminal.notify.commandFinished.tooltip")));
+        commandFinishedSecondsSpinner = new Spinner<>(TerminalNotificationPolicy.MIN_COMMAND_FINISHED_SECONDS,
+            TerminalNotificationPolicy.MAX_COMMAND_FINISHED_SECONDS,
+            globalSettings != null ? globalSettings.getCommandFinishedNotificationSeconds()
+                : TerminalNotificationPolicy.DEFAULT_COMMAND_FINISHED_SECONDS);
+        commandFinishedSecondsSpinner.setEditable(true);
+        commandFinishedSecondsSpinner.setPrefWidth(100);
+        commandFinishedSecondsSpinner.setTooltip(
+            new Tooltip(I18n.get("settings.terminal.notify.commandFinishedSeconds.tooltip")));
+        // Without shell integration no command is ever marked finished: show that the two do nothing.
+        Runnable syncCommandFinishedControls = () -> {
+            boolean marksRead = shellIntegrationCheck.isSelected();
+            commandFinishedNotificationsCheck.setDisable(!marksRead);
+            commandFinishedSecondsSpinner.setDisable(!marksRead);
+        };
+        shellIntegrationCheck.selectedProperty().addListener((obs, was, now) -> syncCommandFinishedControls.run());
+        syncCommandFinishedControls.run();
         
         // SSH Keep-Alive settings
         sshKeepAliveCheck = new CheckBox(I18n.get("settings.terminal.sshKeepAlive"));
@@ -1017,6 +1042,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         notificationsHeader.setStyle("-fx-font-weight: bold;");
         terminalGrid.add(notificationsHeader, 0, terminalRow++, 2, 1);
         terminalGrid.add(terminalBellNotificationsCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(commandFinishedNotificationsCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.notify.commandFinishedSeconds")), 0, terminalRow);
+        HBox commandFinishedSecondsBox = new HBox(10, commandFinishedSecondsSpinner,
+            new Label(I18n.get("settings.terminal.notify.commandFinishedSeconds.unit")));
+        commandFinishedSecondsBox.setAlignment(Pos.CENTER_LEFT);
+        terminalGrid.add(commandFinishedSecondsBox, 1, terminalRow++);
         Label notificationsInfo = new Label(I18n.get("settings.terminal.notify.info"));
         notificationsInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         notificationsInfo.setWrapText(true);
@@ -3441,6 +3472,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 ? pasteLineDelaySpinner.getValue() : 0);
             globalSettings.setShellIntegrationEnabled(shellIntegrationCheck.isSelected());
             globalSettings.setTerminalBellNotificationsEnabled(terminalBellNotificationsCheck.isSelected());
+            globalSettings.setCommandFinishedNotificationsEnabled(commandFinishedNotificationsCheck.isSelected());
+            globalSettings.setCommandFinishedNotificationSeconds(commandFinishedSecondsSpinner.getValue() != null
+                ? commandFinishedSecondsSpinner.getValue() : TerminalNotificationPolicy.DEFAULT_COMMAND_FINISHED_SECONDS);
             globalSettings.setCloseActiveTerminalWindowsWithoutConfirmation(
                 closeActiveTerminalWindowsWithoutConfirmationCheck.isSelected()
             );
@@ -3696,6 +3730,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("terminal", "paste_line_delay_ms", gs::getPasteLineDelayMs, true));
             tracked.add(new TrackedSetting("terminal", "shell_integration", gs::isShellIntegrationEnabled, true));
             tracked.add(new TrackedSetting("terminal", "bell_notifications", gs::isTerminalBellNotificationsEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "command_finished_notifications",
+                gs::isCommandFinishedNotificationsEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "command_finished_notification_seconds",
+                gs::getCommandFinishedNotificationSeconds, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_detection", gs::isCodingAgentDetectionEnabled, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_notifications",
                 gs::isCodingAgentNotificationsEnabled, true));

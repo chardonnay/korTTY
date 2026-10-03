@@ -8,6 +8,7 @@ import de.kortty.codingagent.desktop.DesktopNotifier;
 import de.kortty.core.DisplayTextSanitizer;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.model.GlobalSettings;
+import de.kortty.shellintegration.CommandStatus;
 import de.kortty.shellintegration.TerminalNotificationPolicy;
 import de.kortty.shellintegration.TerminalNotificationPolicy.Decision;
 import de.kortty.shellintegration.TerminalNotificationPolicy.Kind;
@@ -17,20 +18,23 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
  * Turns a terminal pane's request for attention into what {@link TerminalNotificationPolicy}
  * decides: the attention mark on the pane's tab ({@link TerminalTab#markAttention}) and a desktop
- * notification through the application's {@link DesktopNotifier}.
+ * notification through the application's {@link DesktopNotifier}. The requests are a bell
+ * ({@link #onBell}) and a long command the shell marked finished ({@link #onCommandFinished}).
  *
  * <p>The notification is titled {@code korTTY · <tab>}, as the Control API's notifications are, so
  * a program in a terminal can never make it look like a message from another application. It never
- * carries terminal text. Everything here runs on the JavaFX thread; the notifier delivers in the
- * background.
+ * carries terminal text, and the one for a finished command never names the command. Everything
+ * here runs on the JavaFX thread; the notifier delivers in the background.
  */
 public final class TerminalAttentionNotifier {
 
@@ -87,10 +91,8 @@ public final class TerminalAttentionNotifier {
         if (tab == null || widget == null) {
             return;
         }
-        GlobalSettings current = settings.get();
-        Toggles toggles = new Toggles(current != null && current.isTerminalBellNotificationsEnabled(),
-            current == null || current.isCodingAgentNotificationsEnabled());
-        PaneState state = new PaneState(seen.test(tab), hasCodingAgent(tab, widget));
+        Toggles toggles = toggles(settings.get());
+        PaneState state = new PaneState(seen.test(tab), hasCodingAgent(tab, widget), false);
         Decision decision = policy.decide(Kind.BELL, widget, state, toggles);
         if (decision.badge()) {
             tab.markAttention(I18n.get("terminal.notify.bell.tooltip"));
@@ -98,6 +100,66 @@ public final class TerminalAttentionNotifier {
         if (decision.toast()) {
             show(toastTitle(tab.getEffectiveTitle()), I18n.get("terminal.notify.bell.body"));
         }
+    }
+
+    /**
+     * A command the shell marked with OSC 133 finished in {@code widget}, a pane of {@code tab}, with
+     * {@code status}. When it ran at least the threshold of the settings in a tab the user is not
+     * looking at, the tab gets its mark and, with the setting on, a desktop notification says how the
+     * command ended and how long it ran; a command a terminal-agent run typed leads to nothing. The
+     * text never contains the command: command lines can hold passwords and tokens, and a
+     * notification can show on the lock screen. JavaFX thread.
+     */
+    public void onCommandFinished(TerminalTab tab, SithTermFxWidget widget, CommandStatus status) {
+        Duration runtime = status != null ? status.runtime() : null;
+        if (tab == null || widget == null || runtime == null) {
+            return;
+        }
+        // Not consulted for a finished command: a coding agent is itself the command that ended.
+        boolean codingAgentPane = false;
+        PaneState state = new PaneState(seen.test(tab), codingAgentPane, agentRunIn(tab, widget));
+        Decision decision = policy.decideCommandFinished(tab, runtime, state, toggles(settings.get()));
+        if (!decision.badge() && !decision.toast()) {
+            return;
+        }
+        String text = commandFinishedText(status.exitStatus(),
+            TimestampGutter.currentFormats().verboseRuntime(runtime), I18n::get);
+        if (decision.badge()) {
+            tab.markAttention(text);
+        }
+        if (decision.toast()) {
+            show(toastTitle(tab.getEffectiveTitle()), text);
+        }
+    }
+
+    /**
+     * The text of a finished command's notification and tab tooltip: how it ended and how long it
+     * ran, for example {@code Command failed (exit 1) after 2 min 14 sec.} Nothing else: no command,
+     * no output.
+     *
+     * @param exitStatus the status the shell reported, or {@code null} when it reported none
+     * @param runtime    the runtime, already worded ({@link TimestampGutterFormats#verboseRuntime})
+     * @param i18n       the translations, {@code I18n::get}
+     */
+    static String commandFinishedText(@Nullable Integer exitStatus, String runtime,
+            BiFunction<String, Object[], String> i18n) {
+        if (exitStatus == null) {
+            return i18n.apply("terminal.notify.commandFinished.noStatus", new Object[] {runtime});
+        }
+        String key = exitStatus == 0 ? "terminal.notify.commandFinished.succeeded"
+            : "terminal.notify.commandFinished.failed";
+        return i18n.apply(key, new Object[] {exitStatus, runtime});
+    }
+
+    /**
+     * The settings the policy needs, from {@code current}; a fresh installation's when they cannot
+     * be read.
+     */
+    static Toggles toggles(@Nullable GlobalSettings current) {
+        GlobalSettings effective = current != null ? current : new GlobalSettings();
+        return new Toggles(effective.isTerminalBellNotificationsEnabled(),
+            effective.isCodingAgentNotificationsEnabled(), effective.isCommandFinishedNotificationsEnabled(),
+            effective.getCommandFinishedNotificationSeconds());
     }
 
     /**
@@ -129,6 +191,17 @@ public final class TerminalAttentionNotifier {
             return pane.isPresent() && registry.entry(pane.get()).isPresent();
         } catch (RuntimeException e) {
             logger.debug("Coding-agent lookup for a bell failed: {}", e.toString());
+            return false;
+        }
+    }
+
+    /** Whether a korTTY terminal-agent run drives the pane, typing the commands that run there. */
+    private boolean agentRunIn(TerminalTab tab, SithTermFxWidget widget) {
+        TerminalView view = tab.getTerminalView();
+        try {
+            return view != null && view.terminalAgentRunCount(widget) > 0;
+        } catch (RuntimeException e) {
+            logger.debug("Terminal-agent lookup for a finished command failed: {}", e.toString());
             return false;
         }
     }

@@ -69,6 +69,7 @@ import de.kortty.plugin.terminaleffects.TerminalEffectContext;
 import de.kortty.plugin.terminaleffects.TerminalEffectPlugin;
 import de.kortty.plugin.terminaleffects.TerminalEffectSession;
 import de.kortty.shellintegration.BellCoalescer;
+import de.kortty.shellintegration.CommandStatus;
 import de.kortty.shellintegration.PromptNavigator;
 import de.kortty.shellintegration.ShellIntegrationEvent;
 import javafx.application.Platform;
@@ -125,6 +126,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -463,6 +465,11 @@ public class TerminalView extends BorderPane {
     private final Map<SithTermFxWidget, TerminalApplicationTitleListener> shellTitleListeners = new ConcurrentHashMap<>();
     /** Told on the FX thread which pane rang the bell; set by the tab, null once the tab is cleaned up. */
     private volatile Consumer<SithTermFxWidget> bellListener;
+    /**
+     * Told on the FX thread which pane finished a command the shell marked, and how; set by the tab,
+     * null once the tab is cleaned up.
+     */
+    private volatile BiConsumer<SithTermFxWidget, CommandStatus> commandFinishedListener;
 
     /** A bracketed-paste tracker together with the connector it listens on, so a rebind can detach it. */
     private record PasteTracking(BracketedPasteTracker tracker, ObservableTtyConnector connector) {}
@@ -554,6 +561,9 @@ public class TerminalView extends BorderPane {
         this.timestampGuttersVisibleState = isCommandTimestampsEnabled();
         // A pane's OSC 133 marks changed a command's status: show it in the pane's gutter.
         shellIntegration.setStatusesChangedListener(widget -> Platform.runLater(() -> updateCommandStatuses(widget)));
+        // A command the shell marked finished after at least a second: the tab decides whether to tell.
+        shellIntegration.setCommandFinishedListener(
+            (widget, status) -> Platform.runLater(() -> onPaneCommandFinished(widget, status)));
         // The session carrying the tunnels closed while it still owned them: if its pane is gone
         // (the user closed it or typed exit there), move them to another pane of the same server.
         tunnelManager.setOwnerClosedListener(session -> Platform.runLater(this::rehomeTunnelsIfOwnerGone));
@@ -3496,6 +3506,32 @@ public class TerminalView extends BorderPane {
      */
     public void setBellListener(Consumer<SithTermFxWidget> listener) {
         bellListener = listener;
+    }
+
+    /**
+     * A command the shell marked with OSC 133 finished in {@code widget} after running at least a
+     * second (see {@link ShellIntegrationController#setCommandFinishedListener}); FX thread. A pane
+     * closed or a tab cleaned up since then is ignored.
+     */
+    private void onPaneCommandFinished(SithTermFxWidget widget, CommandStatus status) {
+        BiConsumer<SithTermFxWidget, CommandStatus> listener = commandFinishedListener;
+        if (listener == null || !getOrderedWidgets().contains(widget)) {
+            return;
+        }
+        try {
+            listener.accept(widget, status);
+        } catch (RuntimeException e) {
+            logger.debug("Handling a finished command failed: {}", e.toString());
+        }
+    }
+
+    /**
+     * Sets who is told, on the FX thread, that a command the shell marked finished in one of this
+     * tab's panes after running at least a second, with its exit status and runtime but never its
+     * text.
+     */
+    public void setCommandFinishedListener(BiConsumer<SithTermFxWidget, CommandStatus> listener) {
+        commandFinishedListener = listener;
     }
 
     /**
@@ -7401,8 +7437,9 @@ public class TerminalView extends BorderPane {
      * Cleans up resources (closes connection and destroys UI). Use when closing the tab.
      */
     public void cleanup() {
-        // A bell still on its way to the FX thread must not mark or announce a closed tab.
+        // A bell or a finished command still on its way to the FX thread must not mark or announce a closed tab.
         bellListener = null;
+        commandFinishedListener = null;
         pastePacer.cancelAll();
         releaseAllShellTitleListeners();
         cancelAllTerminalAgentRuns();

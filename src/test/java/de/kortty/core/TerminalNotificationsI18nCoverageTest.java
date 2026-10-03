@@ -36,9 +36,17 @@ class TerminalNotificationsI18nCoverageTest {
         "settings.terminal.notify.header",
         "settings.terminal.notify.bell",
         "settings.terminal.notify.bell.tooltip",
+        "settings.terminal.notify.commandFinished",
+        "settings.terminal.notify.commandFinished.tooltip",
+        "settings.terminal.notify.commandFinishedSeconds",
+        "settings.terminal.notify.commandFinishedSeconds.unit",
+        "settings.terminal.notify.commandFinishedSeconds.tooltip",
         "settings.terminal.notify.info",
         "terminal.notify.bell.body",
-        "terminal.notify.bell.tooltip");
+        "terminal.notify.bell.tooltip",
+        "terminal.notify.commandFinished.succeeded",
+        "terminal.notify.commandFinished.failed",
+        "terminal.notify.commandFinished.noStatus");
 
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{\\d+}");
 
@@ -86,6 +94,18 @@ class TerminalNotificationsI18nCoverageTest {
         for (String bundle : BUNDLES) {
             assertWithMessage(bundle).that(load(bundle).getProperty("settings.terminal.notify.info")).contains("🔔");
         }
+    }
+
+    @Test
+    void aFinishedCommandIsDescribedByItsExitStatusAndRuntimeOnly() throws Exception {
+        // {0} the exit status, {1} the runtime; there is no slot for the command line.
+        Properties english = load("messages.properties");
+        assertThat(placeholders(english.getProperty("terminal.notify.commandFinished.succeeded")))
+            .containsExactly("{0}", "{1}");
+        assertThat(placeholders(english.getProperty("terminal.notify.commandFinished.failed")))
+            .containsExactly("{0}", "{1}");
+        assertThat(placeholders(english.getProperty("terminal.notify.commandFinished.noStatus")))
+            .containsExactly("{0}");
     }
 
     private static Set<String> placeholders(String value) {

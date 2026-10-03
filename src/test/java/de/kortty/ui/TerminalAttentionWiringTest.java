@@ -13,9 +13,12 @@ import org.testng.annotations.Test;
  * The bell's way from the emulator to the tab: {@code KorttyTerminalPanel.beep()} tells the pane's
  * listener, {@link TerminalView} coalesces the bells onto the FX thread and hands them to the tab,
  * the tab asks {@link TerminalAttentionNotifier}, and the window clears the mark once the tab is
- * seen. The widget, the view, the tab and the window need a JavaFX stage, so their wiring is pinned
- * against the source; the decisions themselves are tested in {@code TerminalNotificationPolicyTest}
- * and {@code BellCoalescingTest}.
+ * seen. A long command's end takes the same way from its OSC 133 D mark: {@link PaneCommandMarks}
+ * reports it, {@link ShellIntegrationController} drops commands under a second, and the view hands
+ * the rest to the tab on the FX thread. The widget, the view, the tab and the window need a JavaFX
+ * stage, so their wiring is pinned against the source; the decisions themselves are tested in
+ * {@code TerminalNotificationPolicyTest}, {@code BellCoalescingTest} and
+ * {@code CommandFinishedNotificationTest}.
  */
 class TerminalAttentionWiringTest {
 
@@ -63,8 +66,8 @@ class TerminalAttentionWiringTest {
     void theNotifierDecidesOnTheBellAndNeverShowsTerminalText() throws IOException {
         String onBell = body(source("TerminalAttentionNotifier.java"), "public void onBell(TerminalTab tab, SithTermFxWidget widget) {");
         assertThat(onBell).contains("policy.decide(Kind.BELL, widget, state, toggles);");
-        assertThat(onBell).contains("current != null && current.isTerminalBellNotificationsEnabled()");
-        assertThat(onBell).contains("current == null || current.isCodingAgentNotificationsEnabled()");
+        assertThat(onBell).contains("Toggles toggles = toggles(settings.get());");
+        assertThat(onBell).contains("new PaneState(seen.test(tab), hasCodingAgent(tab, widget), false);");
         assertThat(onBell).contains("tab.markAttention(I18n.get(\"terminal.notify.bell.tooltip\"));");
         assertThat(onBell).contains("show(toastTitle(tab.getEffectiveTitle()), I18n.get(\"terminal.notify.bell.body\"));");
     }
@@ -92,6 +95,69 @@ class TerminalAttentionWiringTest {
         assertThat(dialog).contains(
             "tracked.add(new TrackedSetting(\"terminal\", \"bell_notifications\", gs::isTerminalBellNotificationsEnabled, true));");
         assertThat(dialog).contains("terminalGrid.add(terminalBellNotificationsCheck, 0, terminalRow++, 2, 1);");
+    }
+
+    @Test
+    void aFinishedCommandTravelsFromItsDMarkToTheTab() throws IOException {
+        String marks = source("PaneCommandMarks.java");
+        assertWithMessage("the block D just closed is reported with its exit status and runtime")
+            .that(marks).contains("return store.lastFinished().map(CommandStatus::of).orElse(null);");
+
+        String controller = source("ShellIntegrationController.java");
+        String onEvent = body(controller, "void onEvent(@NotNull SithTermFxWidget widget, @NotNull ShellIntegrationEvent event) {");
+        assertThat(onEvent).contains("CommandStatus finished = marks.record(event, terminal, System.nanoTime());");
+        assertThat(onEvent).contains("notifyCommandFinished(widget, finished);");
+        String notify = body(controller, "private void notifyCommandFinished(SithTermFxWidget widget, CommandStatus status) {");
+        assertWithMessage("commands under a second never reach the FX thread, so a flood of marks costs nothing there")
+            .that(notify).contains("if (listener == null || !TerminalNotificationPolicy.mayNotify(status.runtime())) {");
+        assertWithMessage("a failing listener must not stop the emulator thread")
+            .that(notify).contains("} catch (RuntimeException e) {");
+
+        String view = source("TerminalView.java");
+        assertThat(view).contains("shellIntegration.setCommandFinishedListener(\n"
+            + "            (widget, status) -> Platform.runLater(() -> onPaneCommandFinished(widget, status)));");
+        String onFinished = body(view, "private void onPaneCommandFinished(SithTermFxWidget widget, CommandStatus status) {");
+        assertWithMessage("a pane that closed while its command's end was on the way is ignored")
+            .that(onFinished).contains("if (listener == null || !getOrderedWidgets().contains(widget)) {");
+        assertWithMessage("a closed tab is neither marked nor announced")
+            .that(body(view, "public void cleanup() {")).contains("commandFinishedListener = null;");
+
+        assertThat(source("TerminalTab.java")).contains(
+            "(widget, status) -> TerminalAttentionNotifier.shared().onCommandFinished(this, widget, status));");
+    }
+
+    @Test
+    void theNotifierDecidesOnTheCommandAndNeverShowsIt() throws IOException {
+        String notifier = source("TerminalAttentionNotifier.java");
+        String onFinished = body(notifier,
+            "public void onCommandFinished(TerminalTab tab, SithTermFxWidget widget, CommandStatus status) {");
+        assertWithMessage("a terminal-agent run's commands are suppressed")
+            .that(onFinished).contains("new PaneState(seen.test(tab), codingAgentPane, agentRunIn(tab, widget));");
+        assertWithMessage("the tab is the notification slot, so mirrored panes notify once")
+            .that(onFinished).contains("policy.decideCommandFinished(tab, runtime, state, toggles(settings.get()));");
+        assertWithMessage("the text comes from the exit status and the runtime alone")
+            .that(onFinished).contains("String text = commandFinishedText(status.exitStatus(),\n"
+                + "            TimestampGutter.currentFormats().verboseRuntime(runtime), I18n::get);");
+        assertThat(onFinished).contains("tab.markAttention(text);");
+        assertThat(onFinished).contains("show(toastTitle(tab.getEffectiveTitle()), text);");
+        assertThat(body(notifier, "private boolean agentRunIn(TerminalTab tab, SithTermFxWidget widget) {"))
+            .contains("return view != null && view.terminalAgentRunCount(widget) > 0;");
+    }
+
+    @Test
+    void theLongCommandSettingsAreShownSavedAndReported() throws IOException {
+        String dialog = source("SettingsDialog.java");
+        assertThat(dialog).contains(
+            "globalSettings.setCommandFinishedNotificationsEnabled(commandFinishedNotificationsCheck.isSelected());");
+        assertThat(dialog).contains("globalSettings.setCommandFinishedNotificationSeconds(commandFinishedSecondsSpinner.getValue() != null");
+        assertThat(dialog).contains("tracked.add(new TrackedSetting(\"terminal\", \"command_finished_notifications\",");
+        assertThat(dialog).contains("tracked.add(new TrackedSetting(\"terminal\", \"command_finished_notification_seconds\",");
+        assertThat(dialog).contains("terminalGrid.add(commandFinishedNotificationsCheck, 0, terminalRow++, 2, 1);");
+        assertThat(dialog).contains("terminalGrid.add(commandFinishedSecondsBox, 1, terminalRow++);");
+        assertThat(dialog).contains("commandFinishedSecondsSpinner = new Spinner<>(TerminalNotificationPolicy.MIN_COMMAND_FINISHED_SECONDS,\n"
+            + "            TerminalNotificationPolicy.MAX_COMMAND_FINISHED_SECONDS,");
+        assertWithMessage("without shell integration no command ends, so its controls are greyed out")
+            .that(dialog).contains("shellIntegrationCheck.selectedProperty().addListener((obs, was, now) -> syncCommandFinishedControls.run());");
     }
 
     @Test

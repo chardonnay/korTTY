@@ -4,7 +4,7 @@ title: Shell integration
 
 # Shell integration
 
-With shell integration, the shell tells korTTY where each prompt starts, where the command you type starts, where its output starts and how the command ended. It does so with invisible OSC 133 marks, the same ones iTerm2, WezTerm, kitty and VS Code read, which a few lines in the shell's startup file add. korTTY uses them to jump between the prompts of a long session with one key, to select or copy what the last command printed, and to show in the command timestamp sidebar how each command ended and how long it ran.
+With shell integration, the shell tells korTTY where each prompt starts, where the command you type starts, where its output starts and how the command ended. It does so with invisible OSC 133 marks, the same ones iTerm2, WezTerm, kitty and VS Code read, which a few lines in the shell's startup file add. korTTY uses them to jump between the prompts of a long session with one key, to select or copy what the last command printed, to show in the command timestamp sidebar how each command ended and how long it ran, and to tell you when a long command finishes in a tab you are not looking at.
 
 Without the marks nothing changes: the keys reach the shell as before, and the terminal looks and behaves as it always did.
 
@@ -63,6 +63,10 @@ The command timestamp sidebar on the left of the terminal shows how each command
 - While shell integration is switched off, the sidebar shows no marks and the time since the previous mark again.
 
 The sidebar has a fixed width: with a very large terminal font, a long runtime or the mark can be cut off at its right edge.
+
+## Notification when a long command finishes
+
+When a command that ran at least 30 seconds finishes in a tab you are not looking at, korTTY marks the tab with 🔔 and shows a desktop notification with the tab's name, the exit status and the runtime, for example *Command failed (exit 1) after 2 min 14 sec.* It never shows the command itself. *Settings → Terminal → Notifications* switches the notification off or changes the 30 seconds; see [Long-running commands](terminal-notifications.md#long-running-commands) for the details.
 
 ## Setting it up
 
@@ -231,10 +235,10 @@ end
 - **Local Windows shells**: the snippets cover bash, zsh and fish, not `cmd.exe` or PowerShell, and whether Windows passes the marks of a shell such as Git Bash or WSL on depends on the Windows version.
 - **Resizing**: when a width change rewraps long lines, a jump can land a few lines off for prompts above the rewrapped text, the output that **Select Last Output** and **Copy Last Output** take can be off by as many lines, and so can the exit-status marks in the timestamp sidebar, like its timestamps.
 - **Nested ssh**: OSC 7 names a host, but korTTY ignores it, so when you ssh on from the first server to a second one that also has the snippet, the second server's directory is taken for the first one's.
-- **Fake marks**: any program can print OSC 133 marks. The worst a fake mark does is send a jump to the wrong line, make **Select Last Output** and **Copy Last Output** take other lines of the pane than the last command's output, or show a wrong exit status, runtime or finishing time in the timestamp sidebar.
+- **Fake marks**: any program can print OSC 133 marks. The worst a fake mark does is send a jump to the wrong line, make **Select Last Output** and **Copy Last Output** take other lines of the pane than the last command's output, show a wrong exit status, runtime or finishing time in the timestamp sidebar, or mark the tab and show a *Command finished* notification with a made-up exit status. The notification's text is korTTY's own, so a fake mark cannot put words of its own into it, and the runtime is measured by korTTY, so at most one such notification per tab every 10 seconds is possible.
 
 The marks and the exit statuses exist only in korTTY's memory for as long as the pane is open: they are not saved with a [project](projects.md), a restored project's output has none, and they never leave your computer. The times commands finished are timestamps like any other, which a project saves with the sidebar's other timestamps.
 
 ## Switching it off
 
-*Settings → Terminal → Shell integration* has **Use the command marks of shells set up for shell integration (OSC 133)**, on by default. Switched off, korTTY ignores the marks: the prompt keys reach the program, the right-click menu shows no shell-integration entries, and the timestamp sidebar shows no exit statuses. The change applies to open tabs as soon as you save. The marks stay invisible either way, because the terminal never shows OSC 133 sequences. See [Terminal settings](../reference/settings/terminal.md#notes).
+*Settings → Terminal → Shell integration* has **Use the command marks of shells set up for shell integration (OSC 133)**, on by default. Switched off, korTTY ignores the marks: the prompt keys reach the program, the right-click menu shows no shell-integration entries, the timestamp sidebar shows no exit statuses, and no long command marks its tab or notifies. The change applies to open tabs as soon as you save. The marks stay invisible either way, because the terminal never shows OSC 133 sequences. See [Terminal settings](../reference/settings/terminal.md#notes).

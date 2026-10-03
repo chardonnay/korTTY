@@ -8,21 +8,34 @@ import de.kortty.shellintegration.TerminalNotificationPolicy.Decision;
 import de.kortty.shellintegration.TerminalNotificationPolicy.Kind;
 import de.kortty.shellintegration.TerminalNotificationPolicy.PaneState;
 import de.kortty.shellintegration.TerminalNotificationPolicy.Toggles;
+import java.time.Duration;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * What a bell leads to (decision D4 a): nothing in a tab the user looks at; otherwise always the
- * tab's mark, and a desktop notification only with its setting on, at most once per pane every 10
- * seconds, and never for a pane whose coding agent notifies on its own.
+ * What a bell and a finished long command lead to (decision D4 a).
+ *
+ * <ul>
+ *   <li>Bell: nothing in a tab the user looks at; otherwise always the tab's mark, and a desktop
+ *       notification only with its setting on, at most once per pane every 10 seconds, and never
+ *       for a pane whose coding agent notifies on its own.</li>
+ *   <li>Finished command: nothing below the threshold (30 seconds by default) and nothing for a
+ *       command a terminal-agent run typed; otherwise the same rules, with the notification on by
+ *       default and at most once per tab every 10 seconds, so the same command finishing in several
+ *       mirrored panes of a tab notifies once.</li>
+ * </ul>
  */
 class TerminalNotificationPolicyTest {
 
-    private static final PaneState SEEN = new PaneState(true, false);
-    private static final PaneState UNSEEN = new PaneState(false, false);
-    private static final PaneState UNSEEN_AGENT = new PaneState(false, true);
-    private static final Toggles DEFAULTS = new Toggles(false, true);
-    private static final Toggles TOASTS_ON = new Toggles(true, true);
+    private static final PaneState SEEN = new PaneState(true, false, false);
+    private static final PaneState UNSEEN = new PaneState(false, false, false);
+    private static final PaneState UNSEEN_AGENT = new PaneState(false, true, false);
+    private static final PaneState UNSEEN_AGENT_RUN = new PaneState(false, false, true);
+    private static final PaneState SEEN_AGENT_RUN = new PaneState(true, false, true);
+    private static final Toggles DEFAULTS = new Toggles(false, true, true, 30);
+    private static final Toggles TOASTS_ON = new Toggles(true, true, true, 30);
+    private static final Toggles COMMAND_TOASTS_OFF = new Toggles(false, true, false, 30);
+    private static final Duration THIRTY_SECONDS = Duration.ofSeconds(30);
 
     // TestNG runs every test method on one instance, so each method starts from a fresh policy.
     private long[] now;
@@ -98,7 +111,7 @@ class TerminalNotificationPolicyTest {
         assertWithMessage("the agent's own notification already reports the wait")
             .that(policy.decide(Kind.BELL, pane, UNSEEN_AGENT, TOASTS_ON)).isEqualTo(new Decision(true, false));
 
-        Toggles agentNotificationsOff = new Toggles(true, false);
+        Toggles agentNotificationsOff = new Toggles(true, false, true, 30);
         assertWithMessage("with the agent notifications off, the bell is the only notice")
             .that(policy.decide(Kind.BELL, pane, UNSEEN_AGENT, agentNotificationsOff))
             .isEqualTo(new Decision(true, true));
@@ -108,7 +121,8 @@ class TerminalNotificationPolicyTest {
     void theBellNeedsNothingButItsOwnSetting() {
         // No shell integration, no OSC 133 mark and no coding agent: a plain BEL from any program.
         TerminalNotificationPolicy fresh = new TerminalNotificationPolicy(() -> 0L);
-        assertThat(fresh.decide(Kind.BELL, pane, UNSEEN, new Toggles(true, false))).isEqualTo(new Decision(true, true));
+        assertThat(fresh.decide(Kind.BELL, pane, UNSEEN, new Toggles(true, false, false, 30)))
+            .isEqualTo(new Decision(true, true));
         assertThat(Kind.BELL.toastIntervalMillis()).isEqualTo(10_000L);
     }
 
@@ -117,6 +131,130 @@ class TerminalNotificationPolicyTest {
         TerminalNotificationPolicy monotonic = new TerminalNotificationPolicy();
         assertThat(monotonic.decide(Kind.BELL, pane, UNSEEN, TOASTS_ON).toast()).isTrue();
         assertThat(monotonic.decide(Kind.BELL, pane, UNSEEN, TOASTS_ON).toast()).isFalse();
+    }
+
+    @Test
+    void aCommandFinishedAtTheThresholdMarksTheTabAndNotifiesByDefault() {
+        assertThat(policy.decideCommandFinished(pane, THIRTY_SECONDS, UNSEEN, DEFAULTS))
+            .isEqualTo(new Decision(true, true));
+    }
+
+    @Test
+    void aShorterCommandLeadsToNothing() {
+        assertWithMessage("29.999 s is below a 30 s threshold")
+            .that(policy.decideCommandFinished(pane, THIRTY_SECONDS.minusMillis(1), UNSEEN, DEFAULTS))
+            .isEqualTo(Decision.NONE);
+        assertWithMessage("a short command takes no notification slot")
+            .that(policy.decideCommandFinished(pane, THIRTY_SECONDS, UNSEEN, DEFAULTS).toast()).isTrue();
+    }
+
+    @Test
+    void theThresholdFollowsTheSetting() {
+        Toggles oneSecond = new Toggles(false, true, true, 1);
+        assertThat(policy.decideCommandFinished(pane, Duration.ofSeconds(1), UNSEEN, oneSecond).toast()).isTrue();
+        Toggles oneHour = new Toggles(false, true, true, 3600);
+        Object otherTab = new Object();
+        assertThat(policy.decideCommandFinished(otherTab, Duration.ofMinutes(59), UNSEEN, oneHour))
+            .isEqualTo(Decision.NONE);
+        assertThat(policy.decideCommandFinished(otherTab, Duration.ofHours(1), UNSEEN, oneHour))
+            .isEqualTo(new Decision(true, true));
+    }
+
+    @Test
+    void aThresholdOutsideTheRangeIsClamped() {
+        assertThat(new Toggles(false, true, true, 0).commandFinishedSeconds()).isEqualTo(1);
+        assertThat(new Toggles(false, true, true, -5).commandFinishedSeconds()).isEqualTo(1);
+        assertThat(new Toggles(false, true, true, 99_999).commandFinishedSeconds()).isEqualTo(3600);
+        assertThat(new Toggles(false, true, true, 45).commandFinishedThreshold()).isEqualTo(Duration.ofSeconds(45));
+        assertThat(TerminalNotificationPolicy.clampCommandFinishedSeconds(30)).isEqualTo(30);
+        assertThat(TerminalNotificationPolicy.DEFAULT_COMMAND_FINISHED_SECONDS).isEqualTo(30);
+    }
+
+    @Test
+    void onlyCommandsOfASecondOrMoreAreWorthHandingToTheUiThread() {
+        assertThat(TerminalNotificationPolicy.mayNotify(Duration.ofMillis(999))).isFalse();
+        assertThat(TerminalNotificationPolicy.mayNotify(Duration.ofSeconds(1))).isTrue();
+        assertThat(TerminalNotificationPolicy.mayNotify(null)).isFalse();
+    }
+
+    @Test
+    void aFinishedCommandInTheTabTheUserLooksAtDoesNothing() {
+        assertThat(policy.decideCommandFinished(pane, Duration.ofHours(2), SEEN, TOASTS_ON)).isEqualTo(Decision.NONE);
+    }
+
+    @Test
+    void withTheNotificationOffALongCommandOnlyMarksTheTab() {
+        assertThat(policy.decideCommandFinished(pane, Duration.ofMinutes(5), UNSEEN, COMMAND_TOASTS_OFF))
+            .isEqualTo(new Decision(true, false));
+        assertWithMessage("the bell's setting has nothing to say about commands")
+            .that(policy.decideCommandFinished(pane, Duration.ofMinutes(5), UNSEEN, new Toggles(true, true, false, 30)))
+            .isEqualTo(new Decision(true, false));
+    }
+
+    @Test
+    void aCommandOfATerminalAgentRunLeadsToNothing() {
+        assertWithMessage("the run reports its own commands")
+            .that(policy.decideCommandFinished(pane, Duration.ofMinutes(5), UNSEEN_AGENT_RUN, TOASTS_ON))
+            .isEqualTo(Decision.NONE);
+        assertThat(policy.decideCommandFinished(pane, Duration.ofMinutes(5), SEEN_AGENT_RUN, TOASTS_ON))
+            .isEqualTo(Decision.NONE);
+        assertWithMessage("a suppressed command takes no notification slot")
+            .that(policy.decideCommandFinished(pane, Duration.ofMinutes(5), UNSEEN, TOASTS_ON).toast()).isTrue();
+    }
+
+    @Test
+    void aCodingAgentInThePaneDoesNotSilenceItsEnd() {
+        assertWithMessage("the agent is itself the command; its exit is worth knowing")
+            .that(policy.decideCommandFinished(pane, Duration.ofMinutes(5), UNSEEN_AGENT, TOASTS_ON))
+            .isEqualTo(new Decision(true, true));
+        assertThat(Kind.BELL.leftToCodingAgents()).isTrue();
+        assertThat(Kind.COMMAND_FINISHED.leftToCodingAgents()).isFalse();
+    }
+
+    @Test
+    void mirroredPanesOfOneTabNotifyOnce() {
+        // Broadcast typed the same command into three panes of one tab; they finish within seconds.
+        Object tab = pane;
+        assertThat(policy.decideCommandFinished(tab, Duration.ofSeconds(95), UNSEEN, DEFAULTS))
+            .isEqualTo(new Decision(true, true));
+        now[0] += 2_000;
+        assertWithMessage("the second pane keeps the tab marked, without a second notification")
+            .that(policy.decideCommandFinished(tab, Duration.ofSeconds(97), UNSEEN, DEFAULTS))
+            .isEqualTo(new Decision(true, false));
+        now[0] += 7_999;
+        assertThat(policy.decideCommandFinished(tab, Duration.ofSeconds(105), UNSEEN, DEFAULTS))
+            .isEqualTo(new Decision(true, false));
+        now[0] += 1;
+        assertWithMessage("10 s after the notification, the next command of the tab notifies again")
+            .that(policy.decideCommandFinished(tab, Duration.ofSeconds(40), UNSEEN, DEFAULTS).toast()).isTrue();
+    }
+
+    @Test
+    void tabsNotifyOnTheirOwn() {
+        Object otherTab = new Object();
+        assertThat(policy.decideCommandFinished(pane, THIRTY_SECONDS, UNSEEN, DEFAULTS).toast()).isTrue();
+        assertThat(policy.decideCommandFinished(otherTab, THIRTY_SECONDS, UNSEEN, DEFAULTS).toast()).isTrue();
+    }
+
+    @Test
+    void bellsAndCommandsHaveSeparateSlots() {
+        Object tab = new Object();
+        assertThat(policy.decide(Kind.BELL, pane, UNSEEN, TOASTS_ON).toast()).isTrue();
+        assertWithMessage("a bell just before does not swallow the command's notification")
+            .that(policy.decideCommandFinished(tab, THIRTY_SECONDS, UNSEEN, TOASTS_ON).toast()).isTrue();
+        assertWithMessage("nor the other way round, even with the same key")
+            .that(policy.decideCommandFinished(pane, THIRTY_SECONDS, UNSEEN, TOASTS_ON).toast()).isTrue();
+        assertThat(Kind.COMMAND_FINISHED.toastIntervalMillis()).isEqualTo(10_000L);
+    }
+
+    @Test
+    void aFinishedCommandNeedsItsOwnEntryPoint() {
+        assertThrows(IllegalArgumentException.class,
+            () -> policy.decide(Kind.COMMAND_FINISHED, pane, UNSEEN, TOASTS_ON));
+        assertThrows(NullPointerException.class, () -> policy.decideCommandFinished(null, THIRTY_SECONDS, UNSEEN, DEFAULTS));
+        assertThrows(NullPointerException.class, () -> policy.decideCommandFinished(pane, null, UNSEEN, DEFAULTS));
+        assertThrows(NullPointerException.class, () -> policy.decideCommandFinished(pane, THIRTY_SECONDS, null, DEFAULTS));
+        assertThrows(NullPointerException.class, () -> policy.decideCommandFinished(pane, THIRTY_SECONDS, UNSEEN, null));
     }
 
     @Test

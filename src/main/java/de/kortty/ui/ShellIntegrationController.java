@@ -9,9 +9,11 @@ import com.sithtermfx.ui.TerminalActionPresentation;
 import com.sithtermfx.ui.TerminalPanel;
 import de.kortty.core.KorttyClipboard;
 import de.kortty.shellintegration.CommandBlockStore;
+import de.kortty.shellintegration.CommandStatus;
 import de.kortty.shellintegration.PromptNavigator;
 import de.kortty.shellintegration.PromptNavigator.Direction;
 import de.kortty.shellintegration.ShellIntegrationEvent;
+import de.kortty.shellintegration.TerminalNotificationPolicy;
 import javafx.scene.control.ScrollBar;
 import javafx.scene.input.KeyCombination;
 import org.jetbrains.annotations.NotNull;
@@ -25,6 +27,7 @@ import java.util.Objects;
 import java.util.OptionalDouble;
 import java.util.OptionalLong;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
@@ -50,6 +53,9 @@ import java.util.function.Consumer;
  *       {@link #setStatusesChangedListener listener} once, which schedules the update on the FX
  *       thread; {@link #awaitsCompletionMark} tells the gutter's own guess at a command's end to
  *       wait for the shell's mark.</li>
+ *   <li>A command that finished after running at least a second goes to the
+ *       {@link #setCommandFinishedListener listener}, which hands it to
+ *       {@link TerminalAttentionNotifier} for the long-command notification.</li>
  * </ul>
  *
  * <p>The setting is read on every event and key press, so switching shell integration off stops
@@ -130,6 +136,7 @@ final class ShellIntegrationController {
     private final KeyCombination previousPromptKey;
     private final KeyCombination nextPromptKey;
     private volatile @Nullable Consumer<SithTermFxWidget> statusesChanged;
+    private volatile @Nullable BiConsumer<SithTermFxWidget, CommandStatus> commandFinished;
 
     /**
      * @param enabled           whether shell integration is on; asked on the emulator thread and the
@@ -198,10 +205,37 @@ final class ShellIntegrationController {
         if (marks == null || terminal == null) {
             return;
         }
-        marks.record(event, terminal, System.nanoTime());
+        CommandStatus finished = marks.record(event, terminal, System.nanoTime());
         // A starts the next block and can close a running one, C starts a command, D ends it.
         if (!(event instanceof ShellIntegrationEvent.CommandStart)) {
             notifyStatusesChanged(widget, marks);
+        }
+        if (finished != null) {
+            notifyCommandFinished(widget, finished);
+        }
+    }
+
+    /**
+     * Sets who learns that a command the shell marked finished in a pane ({@code OSC 133;D} after
+     * {@code C}), with its exit status and runtime: called on the pane's emulator thread, so it only
+     * has to hand the status to the FX thread. Commands shorter than any threshold the settings
+     * allow ({@link TerminalNotificationPolicy#mayNotify}) are not reported, so a flood of marks
+     * costs the FX thread nothing: a reported command ran at least a second, so a pane reports at
+     * most one per second. Never carries the command's text, which korTTY does not even read.
+     */
+    void setCommandFinishedListener(@Nullable BiConsumer<SithTermFxWidget, CommandStatus> listener) {
+        this.commandFinished = listener;
+    }
+
+    private void notifyCommandFinished(SithTermFxWidget widget, CommandStatus status) {
+        BiConsumer<SithTermFxWidget, CommandStatus> listener = commandFinished;
+        if (listener == null || !TerminalNotificationPolicy.mayNotify(status.runtime())) {
+            return;
+        }
+        try {
+            listener.accept(widget, status);
+        } catch (RuntimeException e) {
+            logger.debug("Could not report a finished command of a pane: {}", e.getMessage());
         }
     }
 

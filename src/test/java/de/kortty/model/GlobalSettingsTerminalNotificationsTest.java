@@ -11,8 +11,8 @@ import java.io.StringWriter;
 import org.testng.annotations.Test;
 
 /**
- * The terminal notification settings: what a fresh installation and an old settings file use, and
- * that they survive the XML round trip.
+ * The terminal notification settings (the bell, long commands): what a fresh installation and an
+ * old settings file use, and that they survive the XML round trip.
  */
 class GlobalSettingsTerminalNotificationsTest {
 
@@ -50,5 +50,46 @@ class GlobalSettingsTerminalNotificationsTest {
 
         settings.setTerminalBellNotificationsEnabled(false);
         assertThat(unmarshal(marshal(settings)).isTerminalBellNotificationsEnabled()).isFalse();
+    }
+
+    @Test
+    void longCommandNotificationsAreOnAtThirtySecondsOnAFreshInstallation() {
+        GlobalSettings settings = new GlobalSettings();
+        assertWithMessage("decision D4 a: on, for commands of 30 s or more")
+            .that(settings.isCommandFinishedNotificationsEnabled()).isTrue();
+        assertThat(settings.getCommandFinishedNotificationSeconds()).isEqualTo(30);
+        assertThat(GlobalSettings.forFreshInstall().isCommandFinishedNotificationsEnabled()).isTrue();
+    }
+
+    @Test
+    void settingsWrittenBeforeLongCommandNotificationsExistedGetTheDefaults() throws Exception {
+        GlobalSettings old = unmarshal("<globalSettings></globalSettings>");
+        assertThat(old.isCommandFinishedNotificationsEnabled()).isTrue();
+        assertThat(old.getCommandFinishedNotificationSeconds()).isEqualTo(30);
+    }
+
+    @Test
+    void theLongCommandChoiceSurvivesAnXmlRoundTrip() throws Exception {
+        GlobalSettings settings = new GlobalSettings();
+        settings.setCommandFinishedNotificationsEnabled(false);
+        settings.setCommandFinishedNotificationSeconds(120);
+        String xml = marshal(settings);
+        assertThat(xml).contains("<commandFinishedNotificationsEnabled>false</commandFinishedNotificationsEnabled>");
+        assertThat(xml).contains("<commandFinishedNotificationSeconds>120</commandFinishedNotificationSeconds>");
+        GlobalSettings read = unmarshal(xml);
+        assertThat(read.isCommandFinishedNotificationsEnabled()).isFalse();
+        assertThat(read.getCommandFinishedNotificationSeconds()).isEqualTo(120);
+    }
+
+    @Test
+    void theThresholdStaysBetweenOneSecondAndOneHour() throws Exception {
+        GlobalSettings settings = new GlobalSettings();
+        settings.setCommandFinishedNotificationSeconds(0);
+        assertThat(settings.getCommandFinishedNotificationSeconds()).isEqualTo(1);
+        settings.setCommandFinishedNotificationSeconds(7200);
+        assertThat(settings.getCommandFinishedNotificationSeconds()).isEqualTo(3600);
+        assertWithMessage("a hand-edited file cannot get round the range")
+            .that(unmarshal("<globalSettings><commandFinishedNotificationSeconds>-3</commandFinishedNotificationSeconds>"
+                + "</globalSettings>").getCommandFinishedNotificationSeconds()).isEqualTo(1);
     }
 }

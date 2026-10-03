@@ -180,6 +180,9 @@ public class TerminalTab extends Tab {
         this.terminalView.setShellTitleListener(this::onShellTitleChanged);
         // A bell in a pane the user is not looking at marks the tab and may notify (Settings → Terminal).
         this.terminalView.setBellListener(widget -> TerminalAttentionNotifier.shared().onBell(this, widget));
+        // So does a long command the shell marked (shell integration) finishing there.
+        this.terminalView.setCommandFinishedListener(
+            (widget, status) -> TerminalAttentionNotifier.shared().onCommandFinished(this, widget, status));
 
         // Create status bar (connection duration / key validity)
         createStatusBar();
