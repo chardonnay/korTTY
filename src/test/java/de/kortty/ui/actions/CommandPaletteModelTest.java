@@ -319,6 +319,42 @@ class CommandPaletteModelTest {
     }
 
     @Test
+    void equallyGoodSnippetMatchesKeepTheSourceOrderSoTheLastUsedComesFirst() {
+        CommandPaletteModel model = model(source(Kind.SNIPPET,
+            entry(Kind.SNIPPET, "snippet:3", "deploy-c", ""), entry(Kind.SNIPPET, "snippet:1", "deploy-a", ""),
+            entry(Kind.SNIPPET, "snippet:2", "deploy-b", "")));
+
+        assertThat(titles(model.query("deploy"))).containsExactly("deploy-c", "deploy-a", "deploy-b").inOrder();
+    }
+
+    @Test
+    void aRowWithASearchDetailIsFoundByItAndNotByTheDetailItShows() {
+        PaletteEntry snippet = new PaletteEntry(Kind.SNIPPET, "snippet:1", "release.sh", "Run in web-01", "", true,
+            "", false, NOTHING, "kubernetes helm", null);
+        CommandPaletteModel model = model(
+            source(Kind.TAB, entry(Kind.TAB, "tab:1", "web-01", "")),
+            source(Kind.SNIPPET, snippet));
+
+        assertThat(titles(model.query("web"))).containsExactly("web-01");
+        assertThat(titles(model.query("helm"))).containsExactly("release.sh");
+        assertThat(snippet.detail()).isEqualTo("Run in web-01");
+        assertThat(entry(Kind.ACTION, "action:x", "Find", "Edit").searchDetail()).isEqualTo("Edit");
+        assertThat(entry(Kind.ACTION, "action:x", "Find", "Edit").alternate()).isNull();
+    }
+
+    @Test
+    void aSnippetChosenOnceIsRememberedButStillNotListedBeforeAnythingIsTyped() {
+        MruList<String> recent = new MruList<>(MruList.DEFAULT_CAPACITY);
+        CommandPaletteModel model = model(recent, allKinds());
+
+        model.chosen(model.query("$disk").get(0));
+
+        assertThat(recent.items()).containsExactly("snippet:3");
+        assertThat(model.query("").stream().map(PaletteEntry::kind).toList()).doesNotContain(Kind.SNIPPET);
+        assertThat(titles(model.query("$"))).containsExactly("Disk usage");
+    }
+
+    @Test
     void aChosenConnectionIsARecentChoice() {
         MruList<String> recent = new MruList<>(MruList.DEFAULT_CAPACITY);
         CommandPaletteModel model = model(recent,

@@ -29,7 +29,7 @@ class ConnectionPaletteWiringTest {
 
         assertThat(methodBody(source, "private void showCommandPalette() {"))
             .contains("ConnectionPaletteRows.source(app,\n"
-                + "                        connection -> connectSavedConnection(connection, true, tab -> { }))");
+                + "                        connection -> connectSavedConnection(connection, true, tab -> { })),");
         assertWithMessage("the Connection Manager keeps not counting its connects")
             .that(methodBody(source, "private void showConnectionManager() {"))
             .contains("connectSavedConnection(connection, false, tab -> { })");

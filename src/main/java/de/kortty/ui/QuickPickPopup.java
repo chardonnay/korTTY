@@ -24,7 +24,9 @@ import java.util.function.Predicate;
 /**
  * A themed search popup: a field over a result list that is searched again on every keystroke.
  * ↑/↓ move, Enter (or a double click) chooses the selected or first result and closes the popup,
- * Esc closes it. Nothing is chosen while typing.
+ * Esc closes it. Nothing is chosen while typing. A popup built with an
+ * {@link Builder#alternate alternate choice} also answers Alt+Enter (Option+Enter on macOS): a
+ * result that has the alternate is handed to it instead, any other result is chosen as with Enter.
  *
  * <p>Every key event the field and the list leave unconsumed is stopped by a
  * {@link QuickPickKeyFirewall} on the popup's scene, so it can never reach the terminal or editor in
@@ -46,6 +48,8 @@ final class QuickPickPopup<T> {
     private final Consumer<? super T> onChosen;
     private final Predicate<? super T> choosable;
     private final Consumer<? super T> onUnchoosable;
+    private final Predicate<? super T> hasAlternate;
+    private final Consumer<? super T> onAlternate;
     private final double width;
     private final Popup popup = new Popup();
     private final TextField field = new TextField();
@@ -56,6 +60,8 @@ final class QuickPickPopup<T> {
         this.onChosen = Objects.requireNonNull(builder.onChosen, "onChosen");
         this.choosable = builder.choosable;
         this.onUnchoosable = builder.onUnchoosable;
+        this.hasAlternate = builder.hasAlternate;
+        this.onAlternate = builder.onAlternate;
         Function<? super T, String> text = Objects.requireNonNull(builder.text, "text");
         Function<? super T, String> accessibleText = builder.accessibleText != null ? builder.accessibleText : text;
         BiConsumer<ListCell<T>, T> renderer = builder.renderer;
@@ -102,7 +108,7 @@ final class QuickPickPopup<T> {
         list.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             if (event.getCode() == KeyCode.ENTER) {
                 event.consume();
-                choose();
+                chooseFor(event);
             } else if (event.getCode() == KeyCode.ESCAPE) {
                 event.consume();
                 hide();
@@ -169,10 +175,7 @@ final class QuickPickPopup<T> {
      * be chosen keeps the popup open and goes to the unchoosable callback instead.
      */
     void choose() {
-        T chosen = list.getSelectionModel().getSelectedItem();
-        if (chosen == null && !list.getItems().isEmpty()) {
-            chosen = list.getItems().getFirst();
-        }
+        T chosen = selectedOrFirst();
         if (chosen == null) {
             return;
         }
@@ -184,6 +187,28 @@ final class QuickPickPopup<T> {
         onChosen.accept(chosen);
     }
 
+    /**
+     * Alt+Enter (Option+Enter on macOS): hands the selected (or first) result to the alternate
+     * choice and closes the popup when the result has one, and otherwise chooses it as Enter does.
+     */
+    void chooseAlternate() {
+        T chosen = selectedOrFirst();
+        if (chosen != null && hasAlternate.test(chosen)) {
+            hide();
+            onAlternate.accept(chosen);
+        } else {
+            choose();
+        }
+    }
+
+    /**
+     * Whether an Enter press asks for the alternate choice: Alt (Option on macOS) held, and neither
+     * Ctrl nor Cmd, so AltGr (Ctrl+Alt on Windows) never does. Toolkit-free.
+     */
+    static boolean isAlternateChoice(KeyEvent event) {
+        return event.getCode() == KeyCode.ENTER && event.isAltDown() && !event.isControlDown() && !event.isMetaDown();
+    }
+
     /** The text a screen reader reads for a row: its own, plus the disabled label when it cannot be chosen. */
     static String accessibleText(String text, boolean available, String unavailableLabel) {
         String base = text != null ? text : "";
@@ -191,6 +216,23 @@ final class QuickPickPopup<T> {
             return base;
         }
         return base.isEmpty() ? unavailableLabel : base + ", " + unavailableLabel;
+    }
+
+    private T selectedOrFirst() {
+        T chosen = list.getSelectionModel().getSelectedItem();
+        if (chosen == null && !list.getItems().isEmpty()) {
+            chosen = list.getItems().getFirst();
+        }
+        return chosen;
+    }
+
+    /** Enter in the field or the list: the alternate choice with Alt held, else the plain one. */
+    private void chooseFor(KeyEvent event) {
+        if (isAlternateChoice(event)) {
+            chooseAlternate();
+        } else {
+            choose();
+        }
     }
 
     private void refresh(String query) {
@@ -214,7 +256,7 @@ final class QuickPickPopup<T> {
             }
             case ENTER -> {
                 event.consume();
-                choose();
+                chooseFor(event);
             }
             case ESCAPE -> {
                 event.consume();
@@ -259,6 +301,9 @@ final class QuickPickPopup<T> {
         private BiConsumer<ListCell<T>, T> renderer;
         private Predicate<? super T> choosable = item -> true;
         private Consumer<? super T> onUnchoosable = item -> {
+        };
+        private Predicate<? super T> hasAlternate = item -> false;
+        private Consumer<? super T> onAlternate = item -> {
         };
         private Predicate<? super KeyEvent> passThrough = QuickPickKeyFirewall.NONE;
         private double width = DEFAULT_WIDTH;
@@ -321,6 +366,17 @@ final class QuickPickPopup<T> {
         /** Runs, with the popup still open, when the user chooses a result that cannot be chosen. */
         Builder<T> onUnchoosable(@NotNull Consumer<? super T> onUnchoosable) {
             this.onUnchoosable = Objects.requireNonNull(onUnchoosable, "onUnchoosable");
+            return this;
+        }
+
+        /**
+         * A second way to choose a result, with Alt+Enter (Option+Enter on macOS): the results
+         * {@code hasAlternate} accepts go to {@code onAlternate} after the popup has closed, whether
+         * or not they {@link #choosable can be chosen}; the others are chosen as with Enter.
+         */
+        Builder<T> alternate(@NotNull Predicate<? super T> hasAlternate, @NotNull Consumer<? super T> onAlternate) {
+            this.hasAlternate = Objects.requireNonNull(hasAlternate, "hasAlternate");
+            this.onAlternate = Objects.requireNonNull(onAlternate, "onAlternate");
             return this;
         }
 

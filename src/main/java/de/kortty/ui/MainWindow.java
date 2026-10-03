@@ -2638,9 +2638,10 @@ public class MainWindow {
 
     /**
      * View → Command Palette… and Cmd/Ctrl+Shift+P: brings the menu items' states up to date, then
-     * shows the palette over this window's commands, the open tabs and the saved and teamwork
-     * connections, centred at the top of the window. A connection opens like Connect in the
-     * Connection Manager and counts as a use of it.
+     * shows the palette over this window's commands, the open tabs, the saved and teamwork
+     * connections and the snippets, centred at the top of the window. A connection opens like
+     * Connect in the Connection Manager and counts as a use of it; a snippet runs like Send to
+     * Terminal in the Snippet Manager, in the first pane of the terminal tab its row names.
      */
     private void showCommandPalette() {
         if (sceneRoot == null || sceneRoot.getScene() == null || sceneRoot.getScene().getWindow() == null) {
@@ -2655,7 +2656,8 @@ public class MainWindow {
                     new TabPaletteSource(this::paletteOwnTabs, this::paletteOtherWindowTabs,
                         TabPaletteRows::currentTabNote),
                     ConnectionPaletteRows.source(app,
-                        connection -> connectSavedConnection(connection, true, tab -> { }))),
+                        connection -> connectSavedConnection(connection, true, tab -> { })),
+                    SnippetPaletteRows.source(app, this)),
                 PaletteKeys.passThrough(COMMAND_PALETTE_ACCELERATOR, isMacOs()));
         }
         commandPalette.show(sceneRoot);
@@ -10700,6 +10702,11 @@ public class MainWindow {
             }
         }
         return only;
+    }
+
+    /** Whether {@code tab} is open in this window. */
+    boolean holdsTab(Tab tab) {
+        return tab != null && tabPane.getTabs().contains(tab);
     }
 
     /**

@@ -6,7 +6,7 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 
 | Shortcut | Action |
 | --- | --- |
-| ++ctrl+shift+p++ | Open or close the [command palette](../features/command-palette.md) to find and run any menu command by name, run a [terminal or tab command](../features/command-palette.md#terminal-and-tab-commands) such as **Clear Buffer**, [switch to an open tab](../features/command-palette.md#switching-tabs) or [connect to a saved connection](../features/command-palette.md#connecting) (also while a terminal has the focus) |
+| ++ctrl+shift+p++ | Open or close the [command palette](../features/command-palette.md) to find and run any menu command by name, run a [terminal or tab command](../features/command-palette.md#terminal-and-tab-commands) such as **Clear Buffer**, [switch to an open tab](../features/command-palette.md#switching-tabs), [connect to a saved connection](../features/command-palette.md#connecting) or [run a snippet](../features/command-palette.md#running-snippets) (also while a terminal has the focus) |
 | ++ctrl+t++ | New Tab (Quick Connect) |
 | ++ctrl+w++ | Close Tab |
 | ++ctrl+alt+shift+t++ | Reopen the last closed terminal tab (also while a terminal has the focus) |
@@ -108,6 +108,7 @@ These keys work while the [command palette](../features/command-palette.md) is o
 | --- | --- |
 | ++up++ / ++down++ | Choose a row |
 | ++enter++ | Close the palette and run the chosen row, or the first row when none is chosen |
+| ++alt+enter++ | Open the chosen snippet in the Snippet Manager instead of running it (++option+enter++ on macOS); on any other row the same as ++enter++ |
 | ++tab++ / ++shift+tab++ | Move between the search field and the list |
 | ++esc++ or ++ctrl+shift+p++ | Close the palette (++cmd+shift+p++ on macOS) |
 

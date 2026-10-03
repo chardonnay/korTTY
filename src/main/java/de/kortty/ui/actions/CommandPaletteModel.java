@@ -28,13 +28,14 @@ import java.util.Set;
  * kind only; for a kind without a source the character is just part of the query.
  *
  * <p>Typed text is matched fuzzily ({@link FuzzyMatcher}) against the title (weighted
- * {@value #TITLE_WEIGHT} times), the detail followed by the title, and the detail alone. For a menu
- * command the detail is its menu path, so "journal left" finds View › Live Journal › Dock Left. A
- * recent choice gets a boost that shrinks with its age. Rows that are not enabled come after all
- * enabled ones; equal scores go by kind, then by title. Tabs are no recent choices of their own: the
- * tab source lists them in the order they were last used, and equally good tab matches keep that
- * order. Equally good connection matches keep their source's order too, which puts the connection
- * used last first.
+ * {@value #TITLE_WEIGHT} times), the {@link PaletteEntry#searchDetail() search detail} followed by
+ * the title, and the search detail alone. For a menu command that is its menu path, so "journal
+ * left" finds View › Live Journal › Dock Left; a snippet is found by its folder, category and tags,
+ * not by the terminal its row names. A recent choice gets a boost that shrinks with its age. Rows
+ * that are not enabled come after all enabled ones; equal scores go by kind, then by title. Tabs are
+ * no recent choices of their own: the tab source lists them in the order they were last used, and
+ * equally good tab matches keep that order. Equally good connection and snippet matches keep their
+ * source's order too, which puts the connection or snippet used last first.
  *
  * <p>With nothing typed the palette lists up to {@value #RECENT_ON_EMPTY_QUERY} recent choices, then
  * the open tabs, then the menu commands grouped by menu. Connections only show up there as recent
@@ -163,8 +164,8 @@ public final class CommandPaletteModel {
         matches.sort(Comparator.comparing((Scored scored) -> !scored.entry().enabled())
             .thenComparing(Comparator.comparingInt(Scored::score).reversed())
             .thenComparing(scored -> scored.entry().kind())
-            // Tabs and connections come in their source's order (the last used first); the other
-            // kinds go by title.
+            // Tabs, connections and snippets come in their source's order (the last used first);
+            // the commands go by title.
             .thenComparingInt(scored -> keepsSourceOrder(scored.entry().kind()) ? scored.index() : 0)
             .thenComparing(scored -> scored.entry().title(), String.CASE_INSENSITIVE_ORDER)
             .thenComparingInt(Scored::index));
@@ -173,11 +174,11 @@ public final class CommandPaletteModel {
 
     /** Whether equally good matches of {@code kind} keep the order their source lists them in. */
     private static boolean keepsSourceOrder(Kind kind) {
-        return kind == Kind.TAB || kind == Kind.CONNECTION;
+        return kind == Kind.TAB || kind == Kind.CONNECTION || kind == Kind.SNIPPET;
     }
 
     private static List<FuzzyMatcher.Field> fields(PaletteEntry entry) {
-        String detail = entry.detail();
+        String detail = entry.searchDetail();
         String pathAndTitle = detail.isEmpty() ? entry.title() : detail + " " + entry.title();
         return List.of(
             new FuzzyMatcher.Field(entry.title(), TITLE_WEIGHT),

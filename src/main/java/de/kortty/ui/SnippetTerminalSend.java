@@ -27,6 +27,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -109,6 +110,15 @@ final class SnippetTerminalSend {
      * the language allows. Says so when the one-liner cannot be built or no terminal is open.
      */
     void sendToTerminal(Snippet snippet, Supplier<MainWindow> mainWindow) {
+        sendToTerminal(snippet, mainWindow, window -> window.snippetInsertTarget(TerminalTab.class));
+    }
+
+    /**
+     * Send to Terminal into the tab {@code target} picks in the main window, once the snippet is
+     * resolved: the command palette passes the tab its row named, so the snippet never runs in
+     * another one. {@code target} returning {@code null} counts as no terminal being open.
+     */
+    void sendToTerminal(Snippet snippet, Supplier<MainWindow> mainWindow, Function<MainWindow, TerminalTab> target) {
         SnippetPlaceholderResolver.ResolvedSnippet resolvedSnippet = resolveAndPrompt(snippet);
         if (resolvedSnippet == null || resolvedSnippet.text().isBlank()) {
             return;
@@ -126,7 +136,7 @@ final class SnippetTerminalSend {
             MainWindow window = mainWindow.get();
             if (window == null) return;
 
-            TerminalTab terminalTab = window.snippetInsertTarget(TerminalTab.class);
+            TerminalTab terminalTab = target.apply(window);
             if (terminalTab != null) {
                 sendPayload(terminalTab, toSend, SnippetOneLiner.isEmbeddedSupported(snippet.getLanguage()));
                 window.revealSnippetInsertTarget(terminalTab);

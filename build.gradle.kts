@@ -3604,7 +3604,8 @@ tasks.register<JavaExec>("snippetWorkspaceSmoke") {
 tasks.register<JavaExec>("commandPaletteSmoke") {
     group = "verification"
     description = "Drives the command palette over a focused terminal in broadcast mode: no key typed into " +
-        "it reaches a pty, the chord opens and closes it without residue, Enter runs after it closed."
+        "it reaches a pty, the chord opens and closes it without residue, Enter runs after it closed, and a " +
+        "snippet row names its pane, runs on Enter and opens on Alt/Option+Enter."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.CommandPaletteSmoke")
     classpath = sourceSets.test.get().runtimeClasspath

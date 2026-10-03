@@ -154,6 +154,33 @@ class QuickPickKeyFirewallTest {
     }
 
     @Test
+    void altEnterAsksForTheAlternateChoiceButAltGrPlainAndCmdEnterDoNot() {
+        assertThat(QuickPickPopup.isAlternateChoice(pressed(KeyCode.ENTER, false, false, true, false))).isTrue();
+        assertThat(QuickPickPopup.isAlternateChoice(pressed(KeyCode.ENTER, true, false, true, false))).isTrue();
+
+        assertThat(QuickPickPopup.isAlternateChoice(pressed(KeyCode.ENTER, false, false, false, false))).isFalse();
+        // AltGr arrives as Ctrl+Alt on Windows.
+        assertThat(QuickPickPopup.isAlternateChoice(pressed(KeyCode.ENTER, false, true, true, false))).isFalse();
+        assertThat(QuickPickPopup.isAlternateChoice(pressed(KeyCode.ENTER, false, false, true, true))).isFalse();
+        assertThat(QuickPickPopup.isAlternateChoice(pressed(KeyCode.A, false, false, true, false))).isFalse();
+    }
+
+    @Test
+    void enterInTheFieldAndInTheListBothKnowTheAlternateAndAPopupWithoutOneChoosesAsBefore() throws IOException {
+        String popup = Files.readString(POPUP_SOURCE, StandardCharsets.UTF_8).replace("\r\n", "\n");
+        String snippet = Files.readString(SNIPPET_SOURCE, StandardCharsets.UTF_8).replace("\r\n", "\n");
+
+        assertThat(popup.split("chooseFor\\(event\\);", -1)).hasLength(3);
+        assertThat(popup).contains("private Predicate<? super T> hasAlternate = item -> false;");
+        assertThat(popup).contains("if (chosen != null && hasAlternate.test(chosen)) {\n"
+            + "            hide();\n"
+            + "            onAlternate.accept(chosen);\n"
+            + "        } else {\n"
+            + "            choose();");
+        assertThat(snippet).doesNotContain(".alternate(");
+    }
+
+    @Test
     void theFirewallGuardsThePopupSceneAndTheSnippetQuickOpenLetsNothingThrough() throws IOException {
         String popup = Files.readString(POPUP_SOURCE, StandardCharsets.UTF_8).replace("\r\n", "\n");
         String snippet = Files.readString(SNIPPET_SOURCE, StandardCharsets.UTF_8).replace("\r\n", "\n");

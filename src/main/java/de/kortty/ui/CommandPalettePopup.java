@@ -12,6 +12,9 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -32,7 +35,10 @@ import java.util.stream.Collectors;
  * check mark for a toggle that is on, and the shortcut. A row that cannot run right now is greyed
  * out; choosing it keeps the palette open and the footer says why. Otherwise the footer shows the
  * keys. Enter closes the palette first and runs the row afterwards, so a dialog the row opens, or the
- * nested event loop of a progress dialog, never runs inside the popup's key handler.
+ * nested event loop of a progress dialog, never runs inside the popup's key handler. A row with an
+ * {@link PaletteEntry#alternate() alternate} (a snippet: open it in the Snippet Manager instead of
+ * running it) does that on Alt+Enter, Option+Enter on macOS, the same way, also while it cannot run;
+ * while such a row is selected the footer names that key.
  *
  * <p>Every key typed into the palette stays there ({@link QuickPickKeyFirewall}); only the chord's
  * KEY_PRESSED passes, so the window's scene shortcut router closes the palette and swallows the
@@ -53,10 +59,12 @@ final class CommandPalettePopup {
     static final List<String> KEYS = List.of(
         "palette.prompt", "palette.empty", "palette.disabled", "palette.hint", "palette.scopes",
         "palette.checked", "palette.kind.action", "palette.kind.tab", "palette.kind.connection",
-        "palette.kind.snippet");
+        "palette.kind.snippet", "palette.hint.snippet");
 
     /** The keys of the recent choices, for every window of this session. FX thread only, never saved. */
     private static final MruList<String> RECENT = new MruList<>(MruList.DEFAULT_CAPACITY);
+    /** The key of a row's {@link PaletteEntry#alternate() alternate}; {@link QuickPickPopup} answers it. */
+    private static final KeyCombination ALTERNATE_CHORD = new KeyCodeCombination(KeyCode.ENTER, KeyCombination.ALT_DOWN);
     /** The room a row leaves for the cell's padding, so the shortcut column ends inside the list. */
     private static final double ROW_INSET = 20;
 
@@ -64,6 +72,7 @@ final class CommandPalettePopup {
     private final QuickPickPopup<PaletteEntry> picker;
     private final Label footer = new Label();
     private final String hint;
+    private final String alternateHint;
 
     /**
      * @param sources     the row sources, in the order their rows are listed
@@ -72,6 +81,7 @@ final class CommandPalettePopup {
     CommandPalettePopup(List<? extends PaletteSource> sources, Predicate<KeyEvent> passThrough) {
         this.model = new CommandPaletteModel(sources, RECENT);
         this.hint = hintText(model.kinds());
+        this.alternateHint = alternateHintText(model.kinds(), alternateChordText());
         footer.setId(FOOTER_ID);
         footer.getStyleClass().add("palette-footer");
         footer.setWrapText(true);
@@ -86,11 +96,13 @@ final class CommandPalettePopup {
             .choosable(PaletteEntry::enabled)
             .onUnchoosable(this::showReason)
             .onChosen(this::run)
+            .alternate(entry -> entry.alternate() != null, this::runAlternate)
             .passThrough(passThrough)
             .width(WIDTH)
             .footer(footer)
             .build();
         picker.field().textProperty().addListener((obs, was, now) -> showHint());
+        picker.list().getSelectionModel().selectedItemProperty().addListener((obs, was, now) -> showHint());
     }
 
     /** Reads the sources afresh and shows the palette centred at the top of {@code anchor}, empty. */
@@ -131,6 +143,12 @@ final class CommandPalettePopup {
         Platform.runLater(entry.run());
     }
 
+    /** Alt/Option+Enter on a row with an alternate: as {@link #run}, with the alternate. */
+    private void runAlternate(PaletteEntry entry) {
+        model.chosen(entry);
+        Platform.runLater(entry.alternate());
+    }
+
     private void showReason(PaletteEntry entry) {
         footer.setText(entry.disabledReason().isEmpty() ? I18n.get("palette.disabled") : entry.disabledReason());
         if (!footer.getStyleClass().contains(REASON_STYLE_CLASS)) {
@@ -138,8 +156,10 @@ final class CommandPalettePopup {
         }
     }
 
+    /** The keys; the ones of a row with an alternate while such a row is selected. */
     private void showHint() {
-        footer.setText(hint);
+        PaletteEntry selected = picker.list().getSelectionModel().getSelectedItem();
+        footer.setText(selected != null && selected.alternate() != null ? alternateHint : hint);
         footer.getStyleClass().remove(REASON_STYLE_CLASS);
     }
 
@@ -153,6 +173,22 @@ final class CommandPalettePopup {
             .map(kind -> kind.scopePrefix() + " " + kindLabel(kind))
             .collect(Collectors.joining("   "));
         return keys + "\n" + I18n.get("palette.scopes", scopes);
+    }
+
+    /** Alt+Enter as the platform shows it (Option+Enter on macOS): the key of a row's alternate. */
+    static String alternateChordText() {
+        return ALTERNATE_CHORD.getDisplayText();
+    }
+
+    /**
+     * The footer while a snippet row is selected: Enter runs it, {@code alternateChord} opens it in
+     * the Snippet Manager, and the scope prefixes as in {@link #hintText}.
+     */
+    static String alternateHintText(Set<Kind> kinds, String alternateChord) {
+        String hint = hintText(kinds);
+        String snippetKeys = I18n.get("palette.hint.snippet", alternateChord);
+        int newline = hint.indexOf('\n');
+        return newline < 0 ? snippetKeys : snippetKeys + hint.substring(newline);
     }
 
     static String kindLabel(Kind kind) {

@@ -4,7 +4,7 @@ title: Command palette
 
 # Command palette
 
-The command palette finds and runs any command of the main window's menus when you type a few letters of its name, so you need neither the mouse nor the place of the command in the menus. It also runs the right-click commands of the terminal you are in, such as **Clear Buffer** or a split, switches to any open tab, the ones you used last first, including the terminal tabs of your other korTTY windows, and opens a tab for any saved or shared teamwork connection. It reaches every menu command while the menu bar is hidden and in terminal-only fullscreen.
+The command palette finds and runs any command of the main window's menus when you type a few letters of its name, so you need neither the mouse nor the place of the command in the menus. It also runs the right-click commands of the terminal you are in, such as **Clear Buffer** or a split, switches to any open tab, the ones you used last first, including the terminal tabs of your other korTTY windows, opens a tab for any saved or shared teamwork connection, and runs any snippet of the [Snippet Manager](snippets.md) in the terminal. It reaches every menu command while the menu bar is hidden and in terminal-only fullscreen.
 
 ## Opening the palette
 
@@ -25,9 +25,9 @@ Type part of a command's name. The letters have to appear in that order but not 
 
 The menu path is searched as well, which keeps the commands with the same name apart: `journal left` finds **View › Live Journal › Dock Left**, and `file left` finds **View › File Browser › Show on Left**. A match in the name ranks above a match in the path, and among equally good matches the commands you chose recently come first.
 
-With nothing typed, the palette lists the commands and connections you chose recently, up to eight and newest first, then the [open tabs](#switching-tabs), and then every command, menu by menu. Other connections only appear once you type. Next to the menu commands it offers **Next Tab** and **Previous Tab**, which switch tabs like ++ctrl+tab++ and ++ctrl+shift+tab++, and the [terminal and tab commands](#terminal-and-tab-commands).
+With nothing typed, the palette lists the commands and connections you chose recently, up to eight and newest first, then the [open tabs](#switching-tabs), and then every command, menu by menu. Other connections only appear once you type. [Snippets](#running-snippets) never appear before you type, not even the ones you ran recently, because a snippet runs a command in the terminal. Next to the menu commands it offers **Next Tab** and **Previous Tab**, which switch tabs like ++ctrl+tab++ and ++ctrl+shift+tab++, and the [terminal and tab commands](#terminal-and-tab-commands).
 
-Typed first, a scope character limits the list to one kind of row: `>` lists only commands, `#` only tabs and `@` only connections, so `>close` finds the close commands but no tab whose name contains "close". The line below the list names these characters.
+Typed first, a scope character limits the list to one kind of row: `>` lists only commands, `#` only tabs, `@` only connections and `$` only snippets, so `>close` finds the close commands but no tab whose name contains "close". The line below the list names these characters.
 
 The list of recent choices lasts until korTTY quits; all windows share it and it is never saved. What you type into the palette is neither logged nor sent anywhere.
 
@@ -65,17 +65,29 @@ Choosing a connection opens a tab for it in this window and signs in exactly lik
 
 A connection whose server or jump server your organization's [server access policy](../reference/enterprise-policy.md#server-access-control) blocks is greyed out. Choosing it keeps the palette open, and the line below the list names the blocked server and says that your organization manages it.
 
+## Running snippets
+
+Every snippet of the [Snippet Manager](snippets.md) is a row with a **Snippet** badge, named as the library names it. Type part of its name, or of its folder, category or tags. Type `$` first to list only snippets: the ones you ran from the palette recently come first, then the others, the most recently used first and the ones never used by name; among equally good matches the same order applies. The grey detail names the terminal the snippet runs in, for example **Run in prod-db (root@db-01.example.org)**: the tab's name and the `user@host` of its connection, since a program in the terminal can change the tab's title but not its connection. Typing a tab's or a server's name does not list every snippet, because a snippet is not found by the terminal its row names.
+
+Choosing a snippet runs it exactly like [Send to Terminal](snippets.md#send-to-terminal) in the Snippet Manager: korTTY replaces its [placeholders](snippets.md#placeholder-variables), asks for a declared variable that has no stored value (cancelling sends nothing), sends it as a one-liner where the language allows, executes it with ++enter++, switches to the tab and shows **Sent to …** in the status bar. It runs in the terminal tab you are in, or, when another kind of tab such as the Snippet Manager is selected, in the terminal tab you used last (or the only one that is open), and always in that tab's first pane, the one the tab opened with, not the pane that has the focus. When the tab is split, the detail says so: **Run in the first pane of prod-db (root@db-01.example.org)**. The snippet runs in exactly the tab its row named; if that tab was closed in the meantime, korTTY says that no terminal is open instead of picking another one.
+
+Press ++alt+enter++ (++option+enter++ on macOS) instead to open the snippet in the Snippet Manager without running it; the line below the list names this key while a snippet row is chosen. Without a terminal tab in the window the snippet rows are greyed out and say so, and ++alt+enter++ still opens them.
+
+!!! warning "A snippet runs on the server at once"
+    Choosing a snippet row executes the snippet in the named terminal straight away, with ++enter++, on whatever server that pane is connected to. Read the grey detail before you press ++enter++, and use ++alt+enter++ to look at a snippet first. The palette never lists snippets before you type, so ++enter++ on an empty palette cannot run one.
+
 ## Running a command
 
 | Key | Action |
 | --- | --- |
 | ++up++ / ++down++ | Choose a row |
 | ++enter++ or a double click | Run the chosen row, or the first row when none is chosen |
+| ++alt+enter++ (++option+enter++ on macOS) | Open the chosen snippet in the Snippet Manager instead of running it; on any other row the same as ++enter++ |
 | ++tab++ / ++shift+tab++ | Move between the search field and the list |
 | ++esc++ | Close the palette |
 | ++ctrl+shift+p++ (++cmd+shift+p++ on macOS) | Close the palette |
 
-The palette closes first and then runs the command exactly as its menu item does: a dialog opens, a setting such as **Show Dashboard** is switched, and **Edit → Find…** opens the search of the active terminal. A tab row selects its tab, and a connection row opens a tab for its connection. A click outside the palette closes it as well.
+The palette closes first and then runs the command exactly as its menu item does: a dialog opens, a setting such as **Show Dashboard** is switched, and **Edit → Find…** opens the search of the active terminal. A tab row selects its tab, a connection row opens a tab for its connection, and a snippet row runs its snippet in the terminal it names. A click outside the palette closes it as well.
 
 Commands that cannot run right now are greyed out, such as **Unlock Vault…** while the vault is already open or **Rename Tab…** outside a terminal tab. Choosing one keeps the palette open, and the line below the list says why: **Not available right now**, or that your organization manages the feature when its [policy](../reference/enterprise-policy.md) switched the feature off.
 

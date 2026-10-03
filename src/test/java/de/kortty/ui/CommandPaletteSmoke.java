@@ -8,10 +8,12 @@ import com.sithtermfx.ui.split.SplitRequest;
 import com.sithtermfx.ui.split.TerminalSplitPane;
 import de.kortty.model.ConnectionSource;
 import de.kortty.model.ServerConnection;
+import de.kortty.model.Snippet;
 import de.kortty.ui.actions.ActionPaletteSource;
 import de.kortty.ui.actions.ActionRegistry;
 import de.kortty.ui.actions.AppAction;
 import de.kortty.ui.actions.ConnectionPaletteSource;
+import de.kortty.ui.actions.SnippetPaletteSource;
 import de.kortty.ui.actions.TabPaletteSource;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
@@ -44,8 +46,10 @@ import java.util.concurrent.atomic.AtomicReference;
  * closes the palette and leaves no character behind, keys typed into the palette (Ctrl+D, Ctrl+L,
  * Page Up, letters) reach neither the terminal nor the other pane, Enter closes the palette before
  * the chosen command runs, a command that cannot run keeps the palette open and says why, the
- * tab rows list the previous tab first and select it on Enter, and the connection rows list the
- * connection used last first, keep a blocked one from connecting and connect the chosen one.
+ * tab rows list the previous tab first and select it on Enter, the connection rows list the
+ * connection used last first, keep a blocked one from connecting and connect the chosen one, and
+ * the snippet rows name the first pane they run in, are found by a tag but not by that terminal,
+ * open on Alt/Option+Enter and run on Enter.
  * Key events are fired at the terminal canvas, so they take the real way through the window, which
  * hands them to the showing palette first. Writes snapshots of the palette to {@code build/smoke/}.
  * Run via the {@code commandPaletteSmoke} Gradle task; manual, not part of CI. Exit 0 = OK.
@@ -139,10 +143,47 @@ public final class CommandPaletteSmoke {
                         }
                     },
                     connection -> log.add("connect " + connection.getName()));
+                // Snippet rows: two snippets that run in web-01's first pane (the tab is split).
+                Snippet disk = new Snippet("Disk usage", "df -h", "bash");
+                disk.setLastUsed(3_000);
+                disk.setTags(new java.util.ArrayList<>(List.of("storage")));
+                Snippet restart = new Snippet("Restart nginx", "sudo systemctl restart nginx", "bash");
+                SnippetPaletteSource snippets = new SnippetPaletteSource(
+                    new SnippetPaletteSource.Library(() -> List.of(restart, disk), snippet -> ""),
+                    () -> new SnippetPaletteSource.Target(
+                        SnippetPaletteSource.targetName("web-01", "admin", "web-01.example.org", "web-01"), true,
+                        snippet -> log.add("run snippet " + snippet.getName())),
+                    new SnippetPaletteSource.Texts() {
+                        @Override
+                        public String runIn(String target) {
+                            return I18n.get("palette.detail.runIn", target);
+                        }
+
+                        @Override
+                        public String runInFirstPane(String target) {
+                            return I18n.get("palette.detail.runInFirstPane", target);
+                        }
+
+                        @Override
+                        public String noTerminal() {
+                            return I18n.get("palette.detail.noTerminal");
+                        }
+
+                        @Override
+                        public String noTerminalReason() {
+                            return I18n.get("palette.snippet.noTerminal", CommandPalettePopup.alternateChordText());
+                        }
+
+                        @Override
+                        public String unnamed() {
+                            return I18n.get("snippets.insertTerminal.unnamed");
+                        }
+                    },
+                    snippet -> log.add("open snippet " + snippet.getName()));
                 KeyCombination chord = MainWindow.commandPaletteAccelerator();
                 CommandPalettePopup palette = new CommandPalettePopup(
                     List.of(new ActionPaletteSource(registry, KeyCombination::getDisplayText,
-                        () -> REASON, () -> "Not available right now"), tabs, connections),
+                        () -> REASON, () -> "Not available right now"), tabs, connections, snippets),
                     PaletteKeys.passThrough(chord, MAC));
                 paletteRef.set(palette);
                 new SceneShortcutRouter(MAC)
@@ -331,7 +372,60 @@ public final class CommandPaletteSmoke {
             await("the connection was never opened", () -> log.contains("connect web-01"));
             check(!onFxThread(palette::isShowing), "connecting left the palette open");
 
-            // 8. Snapshots for a look at the rows and the footer.
+            // 8. '$' lists the snippets, the last used first, each naming the first pane it runs in;
+            // the footer names Alt/Option+Enter; Alt/Option+Enter opens instead of running, Enter runs.
+            onFxThread(() -> {
+                palette.show(canvas);
+                palette.field().setText("$");
+                return null;
+            });
+            List<String> snippetTitles =
+                onFxThread(() -> palette.list().getItems().stream().map(e -> e.title()).toList());
+            check(snippetTitles.equals(List.of("Disk usage", "Restart nginx")), "unexpected snippet rows: " + snippetTitles);
+            String snippetDetail = onFxThread(() -> palette.list().getItems().get(0).detail());
+            check(snippetDetail.equals(I18n.get("palette.detail.runInFirstPane", "web-01 (admin@web-01.example.org)")),
+                "the snippet row does not name its pane: " + snippetDetail);
+            check(onFxThread(() -> palette.footer().getText())
+                    .startsWith(I18n.get("palette.hint.snippet", CommandPalettePopup.alternateChordText())),
+                "the footer does not name the key that opens a snippet: " + onFxThread(() -> palette.footer().getText()));
+            snapshot(palette, out.resolve("command-palette-snippets.png"));
+            onFxThread(() -> {
+                Event.fireEvent(canvas, new KeyEvent(KeyEvent.KEY_PRESSED, "", "\r", KeyCode.ENTER, false, false, true, false));
+                return null;
+            });
+            await("Alt+Enter never opened the snippet", () -> log.contains("open snippet Disk usage"));
+            check(!onFxThread(palette::isShowing), "opening a snippet left the palette open");
+            check(!log.contains("run snippet Disk usage"), "Alt+Enter ran the snippet");
+            onFxThread(() -> {
+                palette.show(canvas);
+                palette.field().setText("$nginx");
+                fire(canvas, KeyCode.ENTER, "\r", false, false, false);
+                return null;
+            });
+            await("Enter never ran the snippet", () -> log.contains("run snippet Restart nginx"));
+            check(!log.contains("open snippet Restart nginx"), "Enter opened the snippet instead of running it");
+            onFxThread(() -> {
+                palette.show(canvas);
+                palette.field().setText("storage");
+                return null;
+            });
+            check(onFxThread(() -> palette.list().getItems().stream().map(e -> e.title()).toList())
+                    .equals(List.of("Disk usage")), "a tag does not find its snippet");
+            onFxThread(() -> {
+                palette.field().setText("web-01");
+                return null;
+            });
+            check(onFxThread(() -> palette.list().getItems().stream().noneMatch(e -> e.title().equals("Disk usage"))),
+                "a snippet row matched the terminal it names");
+            onFxThread(() -> {
+                palette.hide();
+                return null;
+            });
+            for (RecordingTtyConnector connector : List.of(typedIntoConnector, broadcastConnector)) {
+                check(!connector.written().contains("\r"), "Enter in the palette reached a pty");
+            }
+
+            // 9. Snapshots for a look at the rows and the footer.
             onFxThread(() -> {
                 palette.show(canvas);
                 return null;
