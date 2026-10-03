@@ -8,10 +8,13 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | --- | --- |
 | ++ctrl+t++ | Neuer Tab (Schnellverbindung) |
 | ++ctrl+w++ | Tab schließen |
+| ++ctrl+alt+shift+t++ | Zuletzt geschlossenen Terminal-Tab wieder öffnen (auch wenn ein Terminal den Fokus hat) |
 | ++ctrl+shift+n++ | Neues Fenster |
 | ++ctrl+shift+w++ | Fenster schließen |
 | ++ctrl+tab++ | Nächster Tab (++ctrl++ auch auf macOS) |
 | ++ctrl+shift+tab++ | Vorheriger Tab (++ctrl++ auch auf macOS) |
+| ++ctrl+1++ … ++ctrl+8++ | Zum ersten bis achten Tab des Fensters springen (obere Reihe oder Nummernblock) |
+| ++ctrl+9++ | Zum letzten Tab des Fensters springen |
 | ++ctrl+o++ | Projekt öffnen |
 | ++ctrl+s++ | Projekt speichern |
 | ++ctrl+shift+b++ | Backup erstellen |
@@ -23,7 +26,7 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++ctrl+k++ | Schnellverbindung |
 | ++ctrl+m++ | Verbindungen verwalten |
 | ++ctrl+shift+u++ | SFTP-Client |
-| ++ctrl+shift+p++ | Anmeldeinformationen verwalten |
+| ++ctrl+shift+m++ | Zugangsdaten verwalten (auch wenn ein Terminal den Fokus hat) |
 | ++ctrl+shift+g++ | GPG-Schlüssel verwalten |
 | ++ctrl+shift+i++ | SSH-Schlüssel verwalten |
 | ++ctrl+comma++ | Globale Einstellungen |
@@ -58,6 +61,10 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 
 Die Zoom-Tasten (++ctrl++ oder ++alt++ mit ++plus++ / ++minus++ / ++0++; ++cmd++ auf macOS) vergrößern das Terminal nur, wenn ein Terminal-Tab ausgewählt ist. In einem Snippet-Editor oder Dateieditor-Tab erreichen sie den Editor, und ++alt-graph+plus++ tippt dort sein Zeichen.
 
+Die Tab-Sprungtasten funktionieren in jedem Tab, auch wenn ein Terminal oder ein Editor den Fokus hat, und eine Zahl, an deren Position kein Tab steht, bewirkt nichts. Auf macOS sind es ++cmd++ mit einer Ziffer, und ++cmd+shift++ mit einer Ziffer funktioniert ebenfalls, sodass ein französischer Mac (AZERTY) seine Ziffern erreichen kann (macOS reserviert ++cmd+shift+3++ bis ++cmd+shift+5++ für Bildschirmfotos). Unter Windows und Linux sind es genau ++ctrl++ mit einer Ziffer: ++alt-graph++-Kombinationen (die als ++ctrl+alt++ ankommen) und ++ctrl+shift+6++ (die Cisco-Break-Sequenz) erreichen weiterhin das Terminal. Eine Zifferntaste, die in Ihrer Tastaturbelegung ++plus++ oder ++minus++ eingibt, etwa die Taste 6 bei AZERTY, bleibt stattdessen eine Zoomtaste. Unter Linux mit einer Tastaturbelegung, deren Zahlenreihe andere Zeichen eingibt, springen die Ziffern der oberen Reihe möglicherweise nicht; die Ziffern des Nummernblocks (bei eingeschaltetem ++num-lock++) schon.
+
+Für „Geschlossenen Tab wieder öffnen“ wird ++ctrl+alt+shift+t++ verwendet, weil ++ctrl+shift+t++ die Befehlszeitstempel umschaltet und ++ctrl+alt+t++ das Sitzungsjournal. Unter Windows kommt ++alt-graph++ als ++ctrl+alt++ an; bei einer Tastaturbelegung, in der ++alt-graph+shift+t++ ein Zeichen eingibt (etwa `Þ` bei US-International), öffnet diese Kombination daher stattdessen einen geschlossenen Tab wieder, und das Zeichen wird nicht eingegeben.
+
 ## Terminal
 
 Diese Tasten funktionieren, solange ein Terminalbereich den Fokus hat. Wie sie sich bei mehreren Bereichen verhalten, siehe [Broadcast-Modus](../features/terminal.md#broadcast-modus).
@@ -75,6 +82,10 @@ Diese Tasten funktionieren, solange ein Terminalbereich den Fokus hat. Wie sie s
 | ++shift+page-up++ / ++shift+page-down++ | Den Scrollback von korTTY um eine Seite scrollen; in einem Vollbildprogramm wie `vim`, `less` oder `mc` geht die Taste an das Programm |
 | ++ctrl+up++ / ++ctrl+down++ | Den Scrollback von korTTY um eine Zeile scrollen (++cmd+up++ / ++cmd+down++ unter macOS); unter Windows und Linux gehen die Tasten stattdessen an ein laufendes Vollbildprogramm |
 | ++ctrl+tab++ / ++ctrl+shift+tab++ | Nächster / vorheriger Tab, auch wenn das Terminal den Fokus hat (auch unter macOS mit ++ctrl++) |
+| ++ctrl+1++ … ++ctrl+9++ | Zu einem Tab springen, auch wenn das Terminal den Fokus hat (++cmd++ auf macOS, siehe [Allgemein](#allgemein)) |
+| ++ctrl+alt+shift+t++ | Zuletzt geschlossenen Terminal-Tab wieder öffnen, auch wenn das Terminal den Fokus hat (++cmd+option+shift+t++ auf macOS) |
+
+Unter Windows und Linux erreichen ++ctrl+1++ bis ++ctrl+9++ das Programm im Terminal nicht mehr: Das Terminal von korTTY hat sie nie als eigene Tasten gesendet, daher verliert kein Programm eine Belegung, die es empfangen könnte.
 
 Auf Windows und Linux haben **Puffer löschen** und **Suchen** keine eigenen Tasten, daher bleiben ++ctrl+l++ und ++ctrl+f++ bei den Programmen, die im Terminal laufen. Verwenden Sie Rechtsklick → **Puffer löschen** oder **Suchen** im Terminal, oder **Bearbeiten → Suchen…** mit der Maus. ++ctrl+shift+f++ bleibt **Nur korTTY Applikationsfenster**, und ++ctrl+shift+k++ dockt den Dateibrowser weiterhin links an.
 
