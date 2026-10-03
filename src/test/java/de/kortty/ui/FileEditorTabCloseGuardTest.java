@@ -214,13 +214,12 @@ class FileEditorTabCloseGuardTest {
     void mainWindowAsksBeforeEveryCloseThatBypassesTheTabsCloseRequest() throws IOException {
         String window = read("src/main/java/de/kortty/ui/MainWindow.java");
 
-        // File > Close Tab / Cmd+W.
+        // File > Close Tab / Cmd+W and the Dashboard's Close go through the user-close funnel, which
+        // asks every tab before it disposes any (pinned in TerminalTabCloseConfirmationTest).
         String closeCurrent = body(window, "private void closeCurrentTab()");
-        assertThat(closeCurrent).contains("if (!HostedCloseGuards.confirmTab(currentTab)) {");
-        assertThat(closeCurrent.indexOf("HostedCloseGuards.confirmTab(currentTab)"))
-            .isLessThan(closeCurrent.indexOf("disposeTabContent(currentTab);"));
-        assertThat(closeCurrent.indexOf("disposeTabContent(currentTab);"))
-            .isLessThan(closeCurrent.indexOf("tabPane.getTabs().remove(currentTab);"));
+        assertThat(closeCurrent).contains("closeTabsByUser(List.of(currentTab), CloseCause.CLOSE_TAB_COMMAND)");
+        assertThat(body(window, "private static boolean confirmUserClose(Tab tab)"))
+            .contains("return HostedCloseGuards.confirmTab(tab);");
 
         // Every tab of the window: Close All, opening a project, window close and quit.
         assertThat(body(window, "private boolean confirmHostedTabsClose()"))

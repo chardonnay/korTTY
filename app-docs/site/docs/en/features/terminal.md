@@ -19,7 +19,7 @@ Manage multiple SSH sessions with these tab operations:
 | Action | Shortcut |
 |--------|----------|
 | **New Tab** | ++ctrl+t++ (Cmd+T on macOS) — opens Quick Connect to start a new session |
-| **Close Tab** | ++ctrl+w++ (Cmd+W on macOS) — closes the active tab. You are only asked to confirm when there is something to lose: the tab has split panes, or a command is still running (a local shell with a running child process, or an SSH session that is not at its prompt). An idle single terminal closes immediately. The per-connection *Close without confirmation* setting suppresses the prompt entirely. |
+| **Close Tab** | ++ctrl+w++ (Cmd+W on macOS) — closes the active tab. You are only asked to confirm when there is something to lose: the tab has split panes, or a command is still running (a local shell with a running child process, or an SSH session that is not at its prompt). An idle single terminal closes immediately. The tab's close button and **Close** in the Dashboard ask the same question. The per-connection *Close tab without confirmation* setting suppresses the prompt entirely. |
 | **Next Tab** | ++ctrl+Tab++ |
 | **Previous Tab** | ++ctrl+shift+Tab++ |
 | **Reconnect** | Right-click a tab, the terminal area, or a server entry in the Dashboard. If the connection is active, it is closed and re-established immediately; if disconnected, it is re-established. The terminal window stays open. |

@@ -3446,15 +3446,70 @@ public class MainWindow {
 
     private void closeCurrentTab() {
         Tab currentTab = tabPane.getSelectionModel().getSelectedItem();
-        if (currentTab != null && currentTab.isClosable()) {
-            // Cmd+W bypasses the tab's close request: a hosted snippet editor/workspace or a file
-            // editor with unsaved changes asks here (Save / Discard / Cancel).
-            if (!HostedCloseGuards.confirmTab(currentTab)) {
-                return;
-            }
-            disposeTabContent(currentTab);
-            tabPane.getTabs().remove(currentTab);
+        if (currentTab != null) {
+            closeTabsByUser(List.of(currentTab), CloseCause.CLOSE_TAB_COMMAND);
         }
+    }
+
+    /** Which command closed tabs through {@link #closeTabsByUser}. */
+    private enum CloseCause {
+        /** File → Close Tab, Cmd/Ctrl+W. */
+        CLOSE_TAB_COMMAND,
+        /** Close in a Dashboard connection's context menu. */
+        DASHBOARD
+    }
+
+    /**
+     * Closes tabs on the user's request from a command other than the tab's own close button.
+     * Removing a tab from the list fires none of its close events, so this asks what the close
+     * button would ask first (a busy terminal, a hosted snippet editor with unsaved changes); a
+     * single Cancel keeps every tab open. Then it records, disposes and removes them in one go.
+     * Tabs that close on their own (a session that ended), moves between windows, regrouping and
+     * window teardown do not come here.
+     *
+     * @return {@code true} when the tabs were closed
+     */
+    private boolean closeTabsByUser(List<Tab> tabs, CloseCause cause) {
+        List<Tab> targets = new ArrayList<>();
+        for (Tab tab : tabs) {
+            // A stale Dashboard row may still name a tab that moved to another window.
+            if (tab != null && tab.isClosable() && tabPane.getTabs().contains(tab) && !targets.contains(tab)) {
+                targets.add(tab);
+            }
+        }
+        if (targets.isEmpty()) {
+            return false;
+        }
+        for (Tab tab : targets) {
+            if (!confirmUserClose(tab)) {
+                return false;
+            }
+        }
+        // A session that ended while its question was open closed its tab itself and released it.
+        targets.removeIf(tab -> !tabPane.getTabs().contains(tab));
+        recordUserClosedTabs(targets, cause);
+        for (Tab tab : targets) {
+            disposeTabContent(tab);
+        }
+        tabPane.getTabs().removeAll(targets);
+        return true;
+    }
+
+    /** The question the tab's close button would ask; {@code true} when it may close. */
+    private static boolean confirmUserClose(Tab tab) {
+        if (tab instanceof TerminalTab terminalTab) {
+            return terminalTab.confirmUserClose();
+        }
+        if (tab instanceof DialogHostTab hostTab) {
+            // A hosted snippet editor/workspace asks about unsaved changes (Save / Discard / Cancel).
+            return hostTab.confirmClose();
+        }
+        // A file editor with unsaved changes asks the same (Save / Discard / Cancel).
+        return HostedCloseGuards.confirmTab(tab);
+    }
+
+    /** Hook for remembering tabs the user closed, called after they agreed; records nothing yet. */
+    private void recordUserClosedTabs(List<Tab> tabs, CloseCause cause) {
     }
 
     /**
@@ -3465,8 +3520,8 @@ public class MainWindow {
      */
     private void disposeTabContent(Tab tab) {
         if (tab instanceof TerminalTab terminalTab) {
-            terminalTab.closeRecordingResources();
-            terminalTab.getTerminalView().cleanup();
+            // What its close button releases, the auto-reconnect and status-bar timers included.
+            terminalTab.releaseResources();
         } else if (tab instanceof FileEditorTab editorTab) {
             editorTab.dispose();
         } else if (tab instanceof AiResultTab aiResultTab) {
@@ -5169,11 +5224,11 @@ public class MainWindow {
                 break;
                 
             case CLOSE:
-                // Close the tab
-                disposeTabContent(terminalTab);
-                tabPane.getTabs().remove(terminalTab);
-                updateDashboard();
-                updateStatus(I18n.get("status.tabClosed", terminalTab.getConnection().getDisplayName()));
+                // Asks like the tab's close button when the terminal is busy.
+                if (closeTabsByUser(List.of(terminalTab), CloseCause.DASHBOARD)) {
+                    updateDashboard();
+                    updateStatus(I18n.get("status.tabClosed", terminalTab.getConnection().getDisplayName()));
+                }
                 break;
                 
             case RECONNECT:
