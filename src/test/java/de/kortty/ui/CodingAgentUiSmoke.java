@@ -560,11 +560,13 @@ public final class CodingAgentUiSmoke {
             Event.fireEvent(first.getPane(), primaryClick());
             require(splitPane.getFocusedWidget() == first, "a primary click on a pane must focus that pane");
 
-            // Focusing the other pane's canvas alone does NOT update the split pane's notion — the
-            // pre-Stage-2 gap this smoke guards against.
+            // The split pane follows the canvas's focused property, which stays false while the
+            // window has no focus (this stage is never shown), so requesting focus on the other
+            // pane's canvas alone does NOT move the split pane's notion here — the gap focusWidget
+            // closes for a navigator jump into a window that is not focused.
             second.getTerminalPanel().getCanvas().requestFocus();
             require(splitPane.getFocusedWidget() == first,
-                "canvas focus alone is not enough to move the split pane's focused widget");
+                "canvas focus in an unfocused window must not move the split pane's focused widget");
 
             // focusWidget does both, which is what TerminalView.focusWidget calls after a jump.
             splitPane.focusWidget(second);
