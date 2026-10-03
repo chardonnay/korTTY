@@ -21,6 +21,8 @@ import org.jetbrains.annotations.Nullable;
  * <p>It also exposes the context-menu commands as {@link TerminalPaneActions}, calling SithTermFX's
  * public API directly. The panel is a subclass, {@link KorttyTerminalPanel}, so a declared-method
  * lookup on its runtime class misses every SithTermFX method that it does not override itself.
+ *
+ * <p>OSC 8 links go through {@link KorttyOsc8LinkInfoProvider}, which opens only web and mail links.
  */
 public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneActions {
 
@@ -29,6 +31,9 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
 
     public KorttyTermWidget(int columns, int lines, SettingsProvider settingsProvider) {
         super(columns, lines, settingsProvider);
+        // Replace SithTermFX's default OSC 8 provider before the pane is started: it opens file:
+        // links with java.awt.Desktop.open, so remote output could launch a local program.
+        setLinkInfoProvider(new KorttyOsc8LinkInfoProvider());
     }
 
     @Override

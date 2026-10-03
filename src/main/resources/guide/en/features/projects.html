@@ -795,7 +795,7 @@
 </tr>
 <tr>
 <td><strong>Tabs</strong></td>
-<td>All terminal tabs in each window, including split-pane configurations, plus SFTP Manager tabs with the local and remote folders they show, and image viewer tabs</td>
+<td>All terminal tabs in each window, including split-pane configurations, plus SFTP Manager tabs with the local and remote folders they show, and file editor and image viewer tabs</td>
 </tr>
 <tr>
 <td><strong>Connections</strong></td>
@@ -837,6 +837,9 @@
 <li>Projects saved by earlier versions referred to SFTP Manager tabs by the connection's name. Such a tab is still restored when exactly one connection has that name; when several connections share the name, the tab is skipped and the log says why. Save the project again to store the reference by id.</li>
 <li>A remote image viewer tab is saved with the connection it was opened from, even when several SFTP Manager tabs are open or its SFTP Manager tab is already closed. When restored, it opens its own SFTP connection, with the same SSH key and jump server as the SFTP Manager, and that connection closes when you close the tab.</li>
 </ul>
+<h3 id="file-editor-tabs">File editor tabs<a class="headerlink" href="#file-editor-tabs" title="Permanent link">&para;</a></h3>
+<p>A saved file editor tab opens its file again: a local file when it still exists, and — with <strong>Auto-Reconnect</strong> — a remote file over an SFTP connection of its own, which closes when you close the tab. The project stores which file was open, not its unsaved changes.</p>
+<p>A file editor tab with unsaved changes shows <code>*</code> after its name, and every way of closing it asks <strong>Save</strong>, <strong>Discard</strong> or <strong>Cancel</strong> first: the tab's close button, the editor's <strong>Close</strong> button or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-w">W</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-w">W</kbd></span> on macOS) in the editor, <em>File &gt; Close Tab</em>, <em>File &gt; Close All Tabs</em>, opening a project, closing the window and quitting korTTY. <strong>Cancel</strong> keeps the tab open; when the question came from <em>Close All Tabs</em>, opening a project or closing the window, nothing is closed. If saving fails, for example because the SFTP connection is gone, korTTY shows the error and keeps the tab open with your changes. When several tabs have unsaved changes, korTTY selects each one before it asks about it.</p>
 <h2 id="project-file-storage">Project File Storage<a class="headerlink" href="#project-file-storage" title="Permanent link">&para;</a></h2>
 <p>A project is a plain XML file with the <code>.kortty</code> extension. Each project includes:</p>
 <ul>
