@@ -19,10 +19,10 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
- * "Split with new connection" must honour the enterprise server policy like Quick Connect: a
- * blocked target or jump host is refused before any connector is built. The decision is checked
- * against real deny-list policies; the wiring is pinned in the MainWindow and TerminalView sources,
- * because the split dialog cannot run without a live stage.
+ * Splits must honour the enterprise server policy like Quick Connect: a blocked target or jump host
+ * is refused before any connector is built, for a new connection and for a same-server split. The
+ * decision is checked against real deny-list policies; the wiring is pinned in the MainWindow and
+ * TerminalView sources, because the split dialogs cannot run without a live stage.
  */
 class SplitConnectionPolicyTest {
 
@@ -85,6 +85,21 @@ class SplitConnectionPolicyTest {
         assertThat(cancelled).isAtLeast(0);
         assertThat(connect.indexOf("return null;", cancelled))
             .isLessThan(connect.indexOf("createConnectorForConnection("));
+    }
+
+    @Test
+    void aSameServerSplitRechecksTheTabsConnectionBeforeBuildingAConnector() throws IOException {
+        // The connection editor changes a saved connection in place, so the tab's host or jump
+        // server may have been edited to a blocked one after the tab passed the gate.
+        String same = methodBody(source("TerminalView.java"),
+            "private @Nullable TtyConnector doCreateSameServerConnection(");
+        int gate = same.indexOf("SplitConnectionPolicy.blockedTarget(connection)");
+        assertWithMessage("doCreateSameServerConnection asks the split policy seam").that(gate).isAtLeast(0);
+        int dialog = same.indexOf("PolicyUiSupport.showBlockedServerDialog(", gate);
+        int refuse = same.indexOf("return null;", dialog);
+        assertThat(dialog).isGreaterThan(gate);
+        assertThat(refuse).isGreaterThan(dialog);
+        assertThat(same.indexOf("createConnectorForConnection(")).isGreaterThan(refuse);
     }
 
     private static ServerConnection ssh(String host, int port) {

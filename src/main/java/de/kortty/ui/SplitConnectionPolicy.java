@@ -9,12 +9,21 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * Enterprise server-policy gate for a split pane that connects to another server than its tab
- * ("Split with new connection"). Tab opens and Quick Connect refuse a policy-blocked target or jump
- * host before anything connects; {@code MainWindow.requestNewConnectionForSplit} asks this seam the
- * same question right after the connection dialog and returns {@code null} when it is blocked, which
- * {@code TerminalView} treats like a cancelled dialog, so no connector is ever built for it. Free of
- * UI so the decision is unit-testable; later restore paths for panes on other servers reuse it.
+ * Enterprise server-policy gate for split panes. Tab opens and Quick Connect refuse a policy-blocked
+ * target or jump host before anything connects; a split asks this seam the same question before it
+ * builds a connector:
+ *
+ * <ul>
+ *   <li>"Split with new connection": {@code MainWindow.requestNewConnectionForSplit} right after the
+ *       connection dialog, returning {@code null} when it is blocked, which {@code TerminalView}
+ *       treats like a cancelled dialog.</li>
+ *   <li>"Split with same server": {@code TerminalView.doCreateSameServerConnection}, because the
+ *       connection editor changes a saved connection in place, so an open tab's host or jump server
+ *       can have been edited to a blocked one after the tab passed the gate.</li>
+ * </ul>
+ *
+ * <p>Free of UI so the decision is unit-testable; later restore paths for panes on other servers
+ * reuse it.
  */
 final class SplitConnectionPolicy {
 
