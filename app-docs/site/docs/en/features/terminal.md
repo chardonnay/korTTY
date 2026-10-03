@@ -62,11 +62,19 @@ Right-click inside a terminal to open its context menu; in a split tab it acts o
 | Entry | What it does |
 |-------|--------------|
 | **Copy** | Copies the selected text to the clipboard and keeps the selection. Greyed out while nothing is selected. |
-| **Paste** | Sends the clipboard text to the session, the same way the paste shortcut does. |
+| **Paste** | Sends the clipboard text to the session, the same way the paste shortcut does (see [Pasting text](#pasting-text)). |
 | **Clear Buffer** | Clears the scrollback and the screen but keeps the prompt line. While a full-screen program such as `vim` or `less` is running, it does nothing. |
 | **Find** | Opens the find bar at the top right of the pane, the same as **Edit → Find...** (++ctrl+f++, ++cmd+f++ on macOS). Type to highlight matches, press ++enter++ or ++down++ for the next match and ++up++ for the previous one, and ++esc++ to close the bar. |
 
 Below them come the entries of other features, in this order and some only where they apply: **Show Menu Bar** (while the menu bar is hidden), **Open in Snippet Editor**, the **AI** submenu, the session-journal screenshot and note entries, **Theme**, **Terminal Effect**, **Reconnect** and **Show Command Timestamps**. The **Extras** submenu at the end holds **Split Terminal**, **Font Size** (see [Font size and zoom](#font-size-and-zoom)) and **Broadcast Mode**.
+
+## Pasting text
+
+Every way of pasting into a terminal goes through korTTY: *Edit → Paste*, ++cmd+v++ on macOS, ++ctrl+shift+v++ on Windows and Linux, **Paste** in the right-click menu, and a middle-click, which pastes the X11 primary selection on Linux and the clipboard elsewhere. The text goes to the pane you paste into, and its line breaks arrive as Enter, the way they do when you type them.
+
+When the program in the pane has switched on bracketed paste, as bash, zsh, fish and most editors do while they wait for input, korTTY wraps the text in the bracketed-paste markers. The program then receives it as one pasted block instead of typed keys, so a line break in it does not run a command on its own. Bracketed-paste markers inside the text itself are removed first, including the 8-bit form that a single-byte [character encoding](connections.md#character-encoding) sends, so text copied from a web page or a file can neither end the paste early nor have its remaining lines run as typed commands.
+
+After a reconnect, and after a terminal reset (the `reset` command, or `ESC c` in the output), a pane does not use bracketed paste until its program switches it on again, so pasted line breaks act as Enter until then. A Mosh connection that recovers from a network interruption continues the same session and keeps the state.
 
 ## Links in terminal output
 

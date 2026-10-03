@@ -4,6 +4,7 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -70,6 +71,36 @@ public class TerminalWidgetReflectionGuardTest {
 
         String source = Files.readString(SOURCES.get(1), StandardCharsets.UTF_8);
         assertThat(source).contains("com.sithtermfx.ui.TerminalPanel.class.getDeclaredMethod(\"getSelectedText\")");
+    }
+
+    /**
+     * Tripwire for a SithTermFX upgrade. korTTY takes every terminal paste out of SithTermFX by
+     * overriding the public {@code handlePaste()} and by consuming the middle-click before
+     * {@code doOnMouseClicked} sees it. SithTermFX's own paste code behind them is private, so
+     * korTTY cannot override it: {@code handlePasteSelection()} and {@code pasteFromClipboard(boolean)},
+     * which sends embedded paste markers on unchanged. If a new version moves or reshapes these
+     * routes, a paste may reach the pane without korTTY, so the new paths have to be checked again.
+     */
+    @Test
+    void sithTermFxPasteRoutesAreStillTheOnesKorttyTakesOver() throws Exception {
+        Class<?> panel = com.sithtermfx.ui.TerminalPanel.class;
+        assertThat(Modifier.isPrivate(panel.getDeclaredMethod("pasteFromClipboard", boolean.class).getModifiers()))
+            .isTrue();
+        assertThat(Modifier.isPrivate(panel.getDeclaredMethod("handlePasteSelection").getModifiers())).isTrue();
+        assertThat(Modifier.isPrivate(
+            panel.getDeclaredMethod("doOnMouseClicked", javafx.scene.input.MouseEvent.class).getModifiers())).isTrue();
+
+        Method handlePaste = panel.getDeclaredMethod("handlePaste");
+        assertThat(Modifier.isPublic(handlePaste.getModifiers())).isTrue();
+        assertThat(Modifier.isFinal(handlePaste.getModifiers())).isFalse();
+        Method setBracketed = panel.getDeclaredMethod("setBracketedPasteMode", boolean.class);
+        assertThat(Modifier.isPublic(setBracketed.getModifiers())).isTrue();
+        assertThat(Modifier.isFinal(setBracketed.getModifiers())).isFalse();
+
+        Class<?> korttyPanel = KorttyTermWidget.KorttyTerminalPanel.class;
+        assertThat(korttyPanel.getDeclaredMethod("handlePaste").getDeclaringClass()).isEqualTo(korttyPanel);
+        assertThat(korttyPanel.getDeclaredMethod("setBracketedPasteMode", boolean.class).getDeclaringClass())
+            .isEqualTo(korttyPanel);
     }
 
     private static List<String> findings(Pattern pattern) throws IOException {

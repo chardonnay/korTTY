@@ -145,6 +145,72 @@ class PasteSanitizerTest {
     }
 
     @Test
+    void lineBreaksBecomeTheCarriageReturnEnterSends() {
+        assertThat(PasteSanitizer.normaliseLineBreaks("a\r\nb")).isEqualTo("a\rb");
+        assertThat(PasteSanitizer.normaliseLineBreaks("a\nb")).isEqualTo("a\rb");
+        assertThat(PasteSanitizer.normaliseLineBreaks("a\n\nb\n")).isEqualTo("a\r\rb\r");
+        assertThat(PasteSanitizer.normaliseLineBreaks("\na")).isEqualTo("\ra");
+        assertThat(PasteSanitizer.normaliseLineBreaks("a\r\n\r\nb")).isEqualTo("a\r\rb");
+        assertThat(PasteSanitizer.normaliseLineBreaks("a\n\r\nb")).isEqualTo("a\r\rb");
+        assertThat(PasteSanitizer.normaliseLineBreaks("a\r\r\nb")).isEqualTo("a\r\rb");
+    }
+
+    @Test
+    void aLoneCarriageReturnStaysAndTextWithoutLineFeedIsReturnedAsIs() {
+        String classicMac = "a\rb\r";
+        assertThat(PasteSanitizer.normaliseLineBreaks(classicMac)).isSameInstanceAs(classicMac);
+        String oneLine = "ls -l";
+        assertThat(PasteSanitizer.normaliseLineBreaks(oneLine)).isSameInstanceAs(oneLine);
+        assertThat(PasteSanitizer.normaliseLineBreaks(null)).isEmpty();
+        assertThat(PasteSanitizer.normaliseLineBreaks("")).isEmpty();
+    }
+
+    @Test
+    void normalisingMatchesTheTwoReplacementsItStandsFor() {
+        char[] alphabet = {'\r', '\n', 'a'};
+        Random random = new Random(13L);
+        for (int round = 0; round < 20_000; round++) {
+            String input = randomText(random, alphabet);
+            assertWithMessage("input %s", input.replace("\r", "CR").replace("\n", "LF"))
+                .that(PasteSanitizer.normaliseLineBreaks(input))
+                .isEqualTo(input.replace("\r\n", "\n").replace('\n', '\r'));
+        }
+    }
+
+    @Test
+    void encodeWrapsOnlyWhenThePaneIsBracketed() {
+        assertThat(PasteSanitizer.encode("a\nb", true)).isEqualTo(ESC + "[200~a\rb" + ESC + "[201~");
+        assertThat(PasteSanitizer.encode("a\nb", false)).isEqualTo("a\rb");
+        assertThat(PasteSanitizer.START_MARKER).isEqualTo(ESC + "[200~");
+        assertThat(PasteSanitizer.END_MARKER).isEqualTo(ESC + "[201~");
+    }
+
+    @Test
+    void encodeAlwaysStripsTheTextsOwnMarkers() {
+        String breakout = "echo safe" + ESC + "[201~\r\nrm -rf ~\r\n";
+        assertThat(PasteSanitizer.encode(breakout, true))
+            .isEqualTo(ESC + "[200~echo safe\rrm -rf ~\r" + ESC + "[201~");
+        assertThat(PasteSanitizer.encode(breakout, false)).isEqualTo("echo safe\rrm -rf ~\r");
+        assertThat(PasteSanitizer.encode(ESC + "[20\n" + ESC + "[201~1~", false)).isEqualTo(ESC + "[20\r1~");
+    }
+
+    @Test
+    void encodeStripsTheEightBitMarkerOfThePanesEncoding() {
+        assertThat(PasteSanitizer.encode("a›201~b", true, WINDOWS_1252))
+            .isEqualTo(ESC + "[200~ab" + ESC + "[201~");
+        assertThat(PasteSanitizer.encode("a›201~b", true, StandardCharsets.UTF_8))
+            .isEqualTo(ESC + "[200~a›201~b" + ESC + "[201~");
+        assertThat(PasteSanitizer.encode("a" + CSI + "201~b", false, null)).isEqualTo("ab");
+    }
+
+    @Test
+    void encodeNeverWrapsNothing() {
+        assertThat(PasteSanitizer.encode(null, true)).isEmpty();
+        assertThat(PasteSanitizer.encode("", true)).isEmpty();
+        assertThat(PasteSanitizer.encode(ESC + "[200~" + ESC + "[201~", true)).isEmpty();
+    }
+
+    @Test
     void twoMegabytesOfNestedHalfMarkersAreStrippedInLinearTime() {
         // ESC[20 ESC[20 ... 1~ 1~: each removal only reveals the next marker, so stripping by repeated
         // String.replace would need one full pass per nesting level, hundreds of thousands of them.

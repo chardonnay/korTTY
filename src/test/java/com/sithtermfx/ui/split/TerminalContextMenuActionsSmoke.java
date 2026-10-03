@@ -8,6 +8,9 @@ import com.sithtermfx.ui.SithTermFxWidget;
 import com.sithtermfx.ui.settings.DynamicFontSizeSettingsProvider;
 import de.kortty.core.LanguageManager;
 import de.kortty.model.GlobalSettings;
+import de.kortty.paste.PasteGuard;
+import de.kortty.paste.PasteRules;
+import de.kortty.paste.PasteSource;
 import de.kortty.ui.I18n;
 import de.kortty.ui.KorttyTermWidget;
 import javafx.application.Platform;
@@ -48,6 +51,11 @@ import java.util.concurrent.atomic.AtomicReference;
  * find bar, and the font size. Run via the {@code terminalContextMenuActionsSmoke} Gradle task.
  * Exit 0 = OK.
  *
+ * <p>It then installs korTTY's paste guard on the pane, as {@code TerminalView} does, and checks
+ * that a paste loses an embedded bracketed-paste end marker, is bracketed once the program enables
+ * bracketed paste and no longer after a terminal reset ({@code ESC c}), and that a local middle-click
+ * pastes once, through the guard and not through SithTermFX.
+ *
  * <p>Copy and Paste go through the operating system clipboard. The smoke saves its text contents
  * first and puts them back when it ends.
  */
@@ -60,6 +68,7 @@ public final class TerminalContextMenuActionsSmoke {
     private static final String PASTED = "pasted-by-context-menu-smoke";
     private static final String TYPED_AFTER_CLEAR = "typed-after-clear";
     private static final String NEXT_PROMPT = "next-prompt$ ";
+    private static final String ESC = "\u001b";
     /** Distance in pixels of the select-all drag from the canvas corners. */
     private static final double DRAG_INSET = 5;
 
@@ -80,7 +89,13 @@ public final class TerminalContextMenuActionsSmoke {
                 LanguageManager.getInstance().initialize(new GlobalSettings());
                 TerminalSplitPane terminalSplitPane = new TerminalSplitPane(
                     () -> {
-                        DynamicFontSizeSettingsProvider provider = new DynamicFontSizeSettingsProvider(INITIAL_FONT_SIZE);
+                        // korTTY's own settings provider pastes on middle-click; SithTermFX's default does not.
+                        DynamicFontSizeSettingsProvider provider = new DynamicFontSizeSettingsProvider(INITIAL_FONT_SIZE) {
+                            @Override
+                            public boolean pasteOnMiddleMouseClick() {
+                                return true;
+                            }
+                        };
                         providers.add(provider);
                         return provider;
                     },
@@ -115,7 +130,8 @@ public final class TerminalContextMenuActionsSmoke {
             System.err.println("SMOKE FAILURE: " + failure.get());
             System.exit(1);
         }
-        System.out.println("SMOKE OK: terminal context menu Copy, Paste, Clear Buffer, Find and Font Size reach the pane");
+        System.out.println("SMOKE OK: terminal context menu Copy, Paste, Clear Buffer, Find and Font Size reach the pane;"
+            + " pastes go through the paste guard");
         System.exit(0);
     }
 
@@ -235,6 +251,8 @@ public final class TerminalContextMenuActionsSmoke {
             check(fireMenuItem(canvas, "terminal.contextMenu.reset"), "Reset must be enabled");
             check(provider.getFontSize() == DEFAULT_RESET_FONT_SIZE,
                 "Reset did not restore the default font size: " + provider.getFontSize());
+
+            verifyPasteGuard((KorttyTermWidget) widget, connector, canvas, clipboard);
         } catch (Throwable error) {
             failure.compareAndSet(null, "Assertion failed: " + stack(error));
         } finally {
@@ -243,6 +261,85 @@ public final class TerminalContextMenuActionsSmoke {
             }
             done.countDown();
         }
+    }
+
+    /**
+     * The pane with korTTY's paste guard installed, the way {@code TerminalView} installs it. Runs last:
+     * the terminal reset it sends clears the screen.
+     */
+    private static void verifyPasteGuard(KorttyTermWidget widget, RecordingTtyConnector connector, Node canvas,
+                                         Clipboard clipboard) throws Exception {
+        List<PasteSource> guardedPastes = new CopyOnWriteArrayList<>();
+        PasteGuard guard = new PasteGuard(() -> PasteRules.NONE, (request, answer) -> answer.accept(false));
+        onFxThread(() -> {
+            widget.setPasteHandler((target, text, source) -> {
+                guardedPastes.add(source);
+                guard.paste(target, text, source);
+            });
+            return null;
+        });
+
+        // An end marker in the clipboard never reaches the pty; line breaks become CR.
+        int mark = connector.written().length();
+        clipboard.setContents(new StringSelection("echo one" + ESC + "[201~\necho two"), null);
+        check(fireMenuItem(canvas, "terminal.contextMenu.paste"), "Paste must be enabled");
+        await("guarded Paste did not reach the pty", () -> connector.written().substring(mark).contains("echo two"));
+        String unbracketed = connector.written().substring(mark);
+        check(unbracketed.equals("echo one\recho two"), "unexpected unbracketed paste: " + visible(unbracketed));
+        check(guardedPastes.equals(List.of(PasteSource.CLIPBOARD)), "the context menu bypassed the paste guard");
+
+        // The program enables bracketed paste: the paste is wrapped once, without the clipboard's marker.
+        connector.feed(ESC + "[?2004h");
+        await("ESC[?2004h did not enable bracketed paste", () -> onFxThread(widget::isBracketedPasteMode));
+        int bracketedMark = connector.written().length();
+        clipboard.setContents(new StringSelection("a" + ESC + "[201~\nb"), null);
+        check(fireMenuItem(canvas, "terminal.contextMenu.paste"), "Paste must be enabled");
+        String expectedBracketed = ESC + "[200~a\rb" + ESC + "[201~";
+        await("bracketed Paste did not reach the pty",
+            () -> connector.written().substring(bracketedMark).contains(expectedBracketed));
+        String bracketed = connector.written().substring(bracketedMark);
+        check(bracketed.equals(expectedBracketed), "unexpected bracketed paste: " + visible(bracketed));
+
+        // A terminal reset ends bracketed paste, although SithTermFX's own flag stays set.
+        connector.feed(ESC + "c");
+        await("ESC c did not end bracketed paste", () -> !onFxThread(widget::isBracketedPasteMode));
+        int resetMark = connector.written().length();
+        clipboard.setContents(new StringSelection("after\nreset"), null);
+        check(fireMenuItem(canvas, "terminal.contextMenu.paste"), "Paste must be enabled");
+        await("Paste after the reset did not reach the pty",
+            () -> connector.written().substring(resetMark).contains("reset"));
+        String afterReset = connector.written().substring(resetMark);
+        check(afterReset.equals("after\rreset"), "paste after a reset was still bracketed: " + visible(afterReset));
+
+        // A local middle-click pastes once, through the guard; SithTermFX's own handler never sees it.
+        int pastesBeforeClick = guardedPastes.size();
+        int middleMark = connector.written().length();
+        String middle = "middle-click-paste";
+        clipboard.setContents(new StringSelection(middle), null);
+        // On X11 a middle-click reads the primary selection; elsewhere it reads the clipboard.
+        Clipboard selection = onFxThread(() -> Toolkit.getDefaultToolkit().getSystemSelection());
+        if (selection != null) {
+            selection.setContents(new StringSelection(middle), null);
+        }
+        onFxThread(() -> {
+            Point2D screen = canvas.localToScreen(40, 40);
+            Event.fireEvent(canvas, new MouseEvent(MouseEvent.MOUSE_CLICKED, 40, 40, screen.getX(), screen.getY(),
+                MouseButton.MIDDLE, 1, false, false, false, false, false, false, false, false, true, true, null));
+            return null;
+        });
+        await("middle-click did not paste", () -> connector.written().substring(middleMark).contains(middle));
+        sleep(300);
+        String clicked = connector.written().substring(middleMark);
+        check(clicked.equals(middle), "middle-click pasted " + visible(clicked) + " instead of once");
+        check(guardedPastes.size() == pastesBeforeClick + 1
+                && guardedPastes.get(pastesBeforeClick) == PasteSource.SELECTION,
+            "the middle-click bypassed the paste guard: " + guardedPastes);
+        check(onFxThread(() -> canvas.getScene().getFocusOwner() == canvas), "the middle-click did not focus the pane");
+    }
+
+    /** Escape characters made readable for a failure message. */
+    private static String visible(String text) {
+        return "\"" + text.replace(ESC, "ESC").replace("\r", "\\r").replace("\n", "\\n") + "\"";
     }
 
     /**

@@ -50,6 +50,8 @@ import de.kortty.model.SSHTunnel;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.TerminalRecordingScope;
 import de.kortty.model.Theme;
+import de.kortty.paste.PasteGuard;
+import de.kortty.paste.PasteRules;
 import de.kortty.plugin.terminaleffects.TerminalEffectAnimationSpeed;
 import de.kortty.plugin.terminaleffects.TerminalEffectAppearance;
 import de.kortty.plugin.terminaleffects.TerminalEffectConnectorWrapper;
@@ -381,6 +383,12 @@ public class TerminalView extends BorderPane {
         new ConcurrentHashMap<>();
     /** DECSET 2004 trackers per pane, registered on the pane's base connector data stream. */
     private final Map<SithTermFxWidget, PasteTracking> codingAgentPasteTrackers = new ConcurrentHashMap<>();
+    /**
+     * Every paste into a pane of this tab: the paste shortcut, Edit → Paste, the context menu and a
+     * middle-click. It removes bracketed-paste markers from the text and brackets the paste itself
+     * when the program in the pane has bracketed paste enabled. No paste needs confirmation yet.
+     */
+    private final PasteGuard pasteGuard = new PasteGuard(() -> PasteRules.NONE, (request, answer) -> answer.accept(false));
     private final List<Consumer<SithTermFxWidget>> focusedWidgetListeners = new CopyOnWriteArrayList<>();
     /** The pane whose canvas most recently gained keyboard focus (null before the first focus). */
     private volatile SithTermFxWidget lastFocusedWidget;
@@ -2071,6 +2079,7 @@ public class TerminalView extends BorderPane {
         installAgentShortcutInputInterceptor(widget, baseConnector);
         installTerminalRecordingInputListener(baseConnector);
         bindCodingAgentMonitor(widget, baseConnector);
+        resetBracketedPasteModeForNewSession(widget, baseConnector);
         attachBracketedPasteTracker(widget, baseConnector);
         PaneEffect effect = paneEffects.get(widget);
         TtyConnector decorated = baseConnector;
@@ -2090,6 +2099,28 @@ public class TerminalView extends BorderPane {
             decorated,
             () -> settings == null || settings.isTerminalColorsEnabled(),
             this::reportTerminalActivity);
+    }
+
+    /**
+     * A widget keeps its emulator across a reconnect, and with it the bracketed-paste flag the old
+     * session's program set; a terminal paste would then be bracketed for a program that may not
+     * handle it. So a new session on the widget starts unbracketed until its program enables the
+     * mode. A rebind to the same connector, as after a Mosh network interruption, continues the same
+     * session and keeps the flag.
+     */
+    private void resetBracketedPasteModeForNewSession(SithTermFxWidget widget, TtyConnector baseConnector) {
+        if (widget instanceof KorttyTermWidget korttyWidget
+                && startsNewTerminalSession(unwrapTerminalEffectConnector(widget.getTtyConnector()), baseConnector)) {
+            korttyWidget.resetBracketedPasteMode();
+        }
+    }
+
+    /**
+     * Whether binding {@code next} gives the pane a new session rather than continuing the one on
+     * {@code bound}; both are base connectors, without korTTY's wrappers.
+     */
+    static boolean startsNewTerminalSession(TtyConnector bound, TtyConnector next) {
+        return bound != next;
     }
 
     private TtyConnector unwrapTerminalEffectConnector(TtyConnector connector) {
@@ -3056,6 +3087,7 @@ public class TerminalView extends BorderPane {
 
     private void setupWidgetEventHandlers(SithTermFxWidget widget) {
         installAgentShortcutEventDispatcher(widget);
+        installPasteHandler(widget);
         Node keyEventTarget = getPrimaryKeyEventTarget(widget);
         javafx.event.EventHandler<KeyEvent> keyPressedHandler = event -> {
             if (event.isConsumed()) {
@@ -3105,6 +3137,16 @@ public class TerminalView extends BorderPane {
         installTerminalRecordingModelListener(widget);
         attachCodingAgentMonitor(widget);
         installPaneFocusObserver(widget);
+    }
+
+    /** Sends the pane's pastes through {@link #pasteGuard} instead of SithTermFX's own paste code. */
+    private void installPasteHandler(SithTermFxWidget widget) {
+        if (!(widget instanceof KorttyTermWidget korttyWidget)) {
+            return;
+        }
+        korttyWidget.describePasteTarget(connection::getDisplayName, () -> connectorCharset(korttyWidget),
+            () -> splitPane != null && splitPane.isBroadcastMode());
+        korttyWidget.setPasteHandler(pasteGuard::paste);
     }
 
     /**
@@ -6862,7 +6904,7 @@ public class TerminalView extends BorderPane {
     }
     
     /**
-     * Pastes from clipboard.
+     * Pastes the clipboard into the focused pane, through {@link #pasteGuard} like every terminal paste.
      */
     public void pasteFromClipboard() {
         SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
