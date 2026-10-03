@@ -6,9 +6,12 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +20,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * Pins that remote output cannot drive the korTTY-agent OSC 777 receiver. Only the shell startup
@@ -89,6 +93,23 @@ class TerminalAgentOscHardeningTest {
         assertThat(connector.getCurrentRemoteDirectory()).isEqualTo(HOSTILE_CWD);
     }
 
+    @Test
+    void theViewDispatchesAgentOscPayloadsOnlyThroughTheGatedReceiver() throws IOException {
+        // TerminalView needs a JavaFX stage, so the cases above drive its static receiver directly.
+        // This pins that its SSH data listener reaches the dispatcher only through that receiver.
+        // Windows CI checks the sources out with CRLF line endings.
+        String view = Files.readString(Path.of("src/main/java/de/kortty/ui/TerminalView.java"), StandardCharsets.UTF_8)
+            .replace("\r\n", "\n");
+        String listener = methodBody(view, "private void recordAgentShortcutPromptSignal(");
+
+        assertThat(listener).contains("processTerminalAgentOscSignal(");
+        assertThat(listener).contains("payload -> dispatchTerminalAgentOscPayload(sourceConnector, payload)");
+        assertWithMessage("dispatchTerminalAgentOscPayload starts an agent run; besides its declaration it may"
+                + " only be the dispatcher handed to the gated receiver")
+            .that(view.split("dispatchTerminalAgentOscPayload\\(", -1).length - 1)
+            .isEqualTo(2);
+    }
+
     /** The receiver half of {@link TerminalView}: its buffers and what it would dispatch. */
     private record Receiver(Map<SshTtyConnector, StringBuilder> buffers, List<String> dispatched) {
 
@@ -123,6 +144,22 @@ class TerminalAgentOscHardeningTest {
 
     private static String base64(String text) {
         return Base64.getEncoder().encodeToString(text.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** The text of the method whose declaration contains {@code signature}, up to its closing brace. */
+    private static String methodBody(String source, String signature) {
+        int start = source.indexOf(signature);
+        assertWithMessage("method not found: " + signature).that(start).isAtLeast(0);
+        int depth = 0;
+        for (int i = source.indexOf('{', start); i < source.length(); i++) {
+            char c = source.charAt(i);
+            if (c == '{') {
+                depth++;
+            } else if (c == '}' && --depth == 0) {
+                return source.substring(start, i + 1);
+            }
+        }
+        throw new AssertionError("unbalanced braces in " + signature);
     }
 
     private static Field field(Object owner, String name) throws ReflectiveOperationException {
