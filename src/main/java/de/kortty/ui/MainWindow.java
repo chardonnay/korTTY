@@ -2620,8 +2620,9 @@ public class MainWindow {
 
     /**
      * View → Command Palette… and Cmd/Ctrl+Shift+P: brings the menu items' states up to date, then
-     * shows the palette over this window's commands and the open tabs, centred at the top of the
-     * window.
+     * shows the palette over this window's commands, the open tabs and the saved and teamwork
+     * connections, centred at the top of the window. A connection opens like Connect in the
+     * Connection Manager and counts as a use of it.
      */
     private void showCommandPalette() {
         if (sceneRoot == null || sceneRoot.getScene() == null || sceneRoot.getScene().getWindow() == null) {
@@ -2634,7 +2635,9 @@ public class MainWindow {
                         de.kortty.policy.PolicyUiSupport::managedByOrganizationText,
                         () -> I18n.get("palette.disabled")),
                     new TabPaletteSource(this::paletteOwnTabs, this::paletteOtherWindowTabs,
-                        TabPaletteRows::currentTabNote)),
+                        TabPaletteRows::currentTabNote),
+                    ConnectionPaletteRows.source(app,
+                        connection -> connectSavedConnection(connection, true, tab -> { }))),
                 PaletteKeys.passThrough(COMMAND_PALETTE_ACCELERATOR, isMacOs()));
         }
         commandPalette.show(sceneRoot);

@@ -33,7 +33,8 @@ import java.util.Set;
  * recent choice gets a boost that shrinks with its age. Rows that are not enabled come after all
  * enabled ones; equal scores go by kind, then by title. Tabs are no recent choices of their own: the
  * tab source lists them in the order they were last used, and equally good tab matches keep that
- * order.
+ * order. Equally good connection matches keep their source's order too, which puts the connection
+ * used last first.
  *
  * <p>With nothing typed the palette lists up to {@value #RECENT_ON_EMPTY_QUERY} recent choices, then
  * the open tabs, then the menu commands grouped by menu. Connections only show up there as recent
@@ -162,11 +163,17 @@ public final class CommandPaletteModel {
         matches.sort(Comparator.comparing((Scored scored) -> !scored.entry().enabled())
             .thenComparing(Comparator.comparingInt(Scored::score).reversed())
             .thenComparing(scored -> scored.entry().kind())
-            // Tabs come in the order they were last used; the other kinds go by title.
-            .thenComparingInt(scored -> scored.entry().kind() == Kind.TAB ? scored.index() : 0)
+            // Tabs and connections come in their source's order (the last used first); the other
+            // kinds go by title.
+            .thenComparingInt(scored -> keepsSourceOrder(scored.entry().kind()) ? scored.index() : 0)
             .thenComparing(scored -> scored.entry().title(), String.CASE_INSENSITIVE_ORDER)
             .thenComparingInt(Scored::index));
         return matches.stream().map(Scored::entry).toList();
+    }
+
+    /** Whether equally good matches of {@code kind} keep the order their source lists them in. */
+    private static boolean keepsSourceOrder(Kind kind) {
+        return kind == Kind.TAB || kind == Kind.CONNECTION;
     }
 
     private static List<FuzzyMatcher.Field> fields(PaletteEntry entry) {

@@ -308,6 +308,31 @@ class CommandPaletteModelTest {
         assertThat(titles(model.query("db"))).containsExactly("db-02", "db-01", "db-03").inOrder();
     }
 
+    @Test
+    void equallyGoodConnectionMatchesKeepTheSourceOrderSoTheLastUsedComesFirst() {
+        CommandPaletteModel model = model(source(Kind.CONNECTION,
+            entry(Kind.CONNECTION, "conn:3", "db-03", ""), entry(Kind.CONNECTION, "conn:1", "db-01", ""),
+            entry(Kind.CONNECTION, "conn:2", "db-02", "")));
+
+        assertThat(titles(model.query("db"))).containsExactly("db-03", "db-01", "db-02").inOrder();
+        assertThat(titles(model.query("@"))).containsExactly("db-03", "db-01", "db-02").inOrder();
+    }
+
+    @Test
+    void aChosenConnectionIsARecentChoice() {
+        MruList<String> recent = new MruList<>(MruList.DEFAULT_CAPACITY);
+        CommandPaletteModel model = model(recent,
+            source(Kind.ACTION, action("Find", "Edit")),
+            source(Kind.CONNECTION, entry(Kind.CONNECTION, "conn:1", "db-01", ""),
+                entry(Kind.CONNECTION, "conn:2", "db-02", "")));
+
+        model.chosen(model.query("@db-02").get(0));
+
+        assertThat(recent.items()).containsExactly("conn:2");
+        assertThat(titles(model.query(""))).containsExactly("db-02", "Find").inOrder();
+        assertThat(titles(model.query("@"))).containsExactly("db-02", "db-01").inOrder();
+    }
+
     // ---- row texts ------------------------------------------------------------------------------
 
     @Test

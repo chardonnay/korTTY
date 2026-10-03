@@ -6,9 +6,12 @@ import com.sithtermfx.ui.SithTermFxWidget;
 import com.sithtermfx.ui.settings.DefaultSettingsProvider;
 import com.sithtermfx.ui.split.SplitRequest;
 import com.sithtermfx.ui.split.TerminalSplitPane;
+import de.kortty.model.ConnectionSource;
+import de.kortty.model.ServerConnection;
 import de.kortty.ui.actions.ActionPaletteSource;
 import de.kortty.ui.actions.ActionRegistry;
 import de.kortty.ui.actions.AppAction;
+import de.kortty.ui.actions.ConnectionPaletteSource;
 import de.kortty.ui.actions.TabPaletteSource;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
@@ -40,8 +43,9 @@ import java.util.concurrent.atomic.AtomicReference;
  * Headed check of the command palette over a focused terminal in broadcast mode: the chord opens and
  * closes the palette and leaves no character behind, keys typed into the palette (Ctrl+D, Ctrl+L,
  * Page Up, letters) reach neither the terminal nor the other pane, Enter closes the palette before
- * the chosen command runs, a command that cannot run keeps the palette open and says why, and the
- * tab rows list the previous tab first and select it on Enter.
+ * the chosen command runs, a command that cannot run keeps the palette open and says why, the
+ * tab rows list the previous tab first and select it on Enter, and the connection rows list the
+ * connection used last first, keep a blocked one from connecting and connect the chosen one.
  * Key events are fired at the terminal canvas, so they take the real way through the window, which
  * hands them to the showing palette first. Writes snapshots of the palette to {@code build/smoke/}.
  * Run via the {@code commandPaletteSmoke} Gradle task; manual, not part of CI. Exit 0 = OK.
@@ -104,10 +108,41 @@ public final class CommandPaletteSmoke {
                     () -> List.of(new TabPaletteSource.WindowTabs("Window 2", List.of(
                         new TabPaletteSource.TabRow("t9", "build", "ci@build-01", () -> log.add("tab build"))), null)),
                     () -> "Current tab");
+                // Connection rows: a saved connection used last, one the server policy blocks, and a
+                // teamwork connection.
+                ServerConnection web = new ServerConnection("web-01", "web-01.example.org", 22, "admin");
+                web.setGroup("Web");
+                web.setLastUsed(5_000);
+                ServerConnection db = new ServerConnection("db-01", "db-01.example.org", 22, "root");
+                db.setGroup("Production");
+                ServerConnection shared = new ServerConnection("build", "build.team.example", 22, "ci");
+                shared.setConnectionSource(ConnectionSource.TEAMWORK);
+                ConnectionPaletteSource connections = new ConnectionPaletteSource(
+                    new ConnectionPaletteSource.Connections(() -> List.of(db, web), () -> true,
+                        () -> List.of(shared), java.util.Set::of),
+                    connection -> connection == db ? java.util.Optional.of("db-01.example.org:22")
+                        : java.util.Optional.empty(),
+                    new ConnectionPaletteSource.Texts() {
+                        @Override
+                        public String teamwork() {
+                            return I18n.get("palette.detail.teamwork");
+                        }
+
+                        @Override
+                        public String localShell() {
+                            return I18n.get("protocol.localShell");
+                        }
+
+                        @Override
+                        public String blocked(String target) {
+                            return ConnectionPaletteRows.blockedReason(target);
+                        }
+                    },
+                    connection -> log.add("connect " + connection.getName()));
                 KeyCombination chord = MainWindow.commandPaletteAccelerator();
                 CommandPalettePopup palette = new CommandPalettePopup(
                     List.of(new ActionPaletteSource(registry, KeyCombination::getDisplayText,
-                        () -> REASON, () -> "Not available right now"), tabs),
+                        () -> REASON, () -> "Not available right now"), tabs, connections),
                     PaletteKeys.passThrough(chord, MAC));
                 paletteRef.set(palette);
                 new SceneShortcutRouter(MAC)
@@ -261,7 +296,42 @@ public final class CommandPaletteSmoke {
             await("the previous tab was never selected", () -> log.contains("tab db-01"));
             check(!onFxThread(palette::isShowing), "choosing a tab left the palette open");
 
-            // 7. Snapshots for a look at the rows and the footer.
+            // 7. '@' lists the connections, the last used first; a blocked one stays and says why,
+            // Enter connects the chosen one after the palette closed.
+            onFxThread(() -> {
+                palette.show(canvas);
+                palette.field().setText("@");
+                return null;
+            });
+            List<String> connectionTitles =
+                onFxThread(() -> palette.list().getItems().stream().map(e -> e.title()).toList());
+            check(connectionTitles.equals(List.of("web-01", "db-01", "build")),
+                "unexpected connection rows: " + connectionTitles);
+            snapshot(palette, out.resolve("command-palette-connections.png"));
+            onFxThread(() -> {
+                // web-01's detail matches "db-01" too and ranks first, being enabled: pick db-01's row.
+                palette.field().setText("@db-01");
+                palette.list().getItems().stream().filter(e -> e.title().equals("db-01")).findFirst()
+                    .ifPresent(e -> palette.list().getSelectionModel().select(e));
+                palette.choose();
+                return null;
+            });
+            check(onFxThread(palette::isShowing), "choosing a blocked connection closed the palette");
+            check(onFxThread(() -> palette.footer().getText()).contains("db-01.example.org:22"),
+                "the footer does not name the blocked target");
+            check(!log.contains("connect db-01"), "the blocked connection connected");
+            onFxThread(() -> {
+                palette.field().setText("@web");
+                return null;
+            });
+            onFxThread(() -> {
+                fire(canvas, KeyCode.ENTER, "\r", false, false, false);
+                return null;
+            });
+            await("the connection was never opened", () -> log.contains("connect web-01"));
+            check(!onFxThread(palette::isShowing), "connecting left the palette open");
+
+            // 8. Snapshots for a look at the rows and the footer.
             onFxThread(() -> {
                 palette.show(canvas);
                 return null;

@@ -4,7 +4,7 @@ title: Command palette
 
 # Command palette
 
-The command palette finds and runs any command of the main window's menus when you type a few letters of its name, so you need neither the mouse nor the place of the command in the menus. It also switches to any open tab, the ones you used last first, including the terminal tabs of your other korTTY windows. It reaches every menu command while the menu bar is hidden and in terminal-only fullscreen.
+The command palette finds and runs any command of the main window's menus when you type a few letters of its name, so you need neither the mouse nor the place of the command in the menus. It also switches to any open tab, the ones you used last first, including the terminal tabs of your other korTTY windows, and opens a tab for any saved or shared teamwork connection. It reaches every menu command while the menu bar is hidden and in terminal-only fullscreen.
 
 ## Opening the palette
 
@@ -25,9 +25,9 @@ Type part of a command's name. The letters have to appear in that order but not 
 
 The menu path is searched as well, which keeps the commands with the same name apart: `journal left` finds **View › Live Journal › Dock Left**, and `file left` finds **View › File Browser › Show on Left**. A match in the name ranks above a match in the path, and among equally good matches the commands you chose recently come first.
 
-With nothing typed, the palette lists the commands you chose recently, up to eight and newest first, then the [open tabs](#switching-tabs), and then every command, menu by menu. Next to the menu commands it offers **Next Tab** and **Previous Tab**, which switch tabs like ++ctrl+tab++ and ++ctrl+shift+tab++.
+With nothing typed, the palette lists the commands and connections you chose recently, up to eight and newest first, then the [open tabs](#switching-tabs), and then every command, menu by menu. Other connections only appear once you type. Next to the menu commands it offers **Next Tab** and **Previous Tab**, which switch tabs like ++ctrl+tab++ and ++ctrl+shift+tab++.
 
-Typed first, a scope character limits the list to one kind of row: `>` lists only commands and `#` only tabs, so `>close` finds the close commands but no tab whose name contains "close". The line below the list names these characters.
+Typed first, a scope character limits the list to one kind of row: `>` lists only commands, `#` only tabs and `@` only connections, so `>close` finds the close commands but no tab whose name contains "close". The line below the list names these characters.
 
 The list of recent choices lasts until korTTY quits; all windows share it and it is never saved. What you type into the palette is neither logged nor sent anywhere.
 
@@ -39,6 +39,18 @@ The tabs are listed in the order you last used them, the most recent first, and 
 
 The terminal tabs of your other korTTY windows follow, each window's tabs in the order they were used there, with the window's number in front of the detail, such as **Window 2 · admin@web-01**; a window's number is its place among the open windows, in the order they opened. Choosing such a tab brings its window to the front, restores it when it is minimized, and selects the tab there. Other kinds of tabs of the other windows, such as editors or AI results, are not listed.
 
+## Connecting
+
+Every connection saved in the [Connection Manager](connections.md#connection-manager) is a row with a **Connection** badge, named as the Connection Manager names it. The grey detail says where it connects, as `user@host` (**Local Shell** for a local shell), and its group, for example **postgres@db-01.example.org · Production**; a connection without a name of its own shows only its group there, because its name already is `user@host`. The detail never shows a password, a stored credential or an SSH key.
+
+When your organization's policy allows [teamwork](teamwork.md), the connections shared with you follow, with **Shared (Teamwork)** in front of the detail. Their names come from a file someone else writes, so their rows always name `user@host` as well, even when the name looks like an address. Teamwork connections you deleted on this computer are not listed.
+
+Saved connections are listed with the one you used last first, and the ones you never used by name; the teamwork connections follow by name. When you type, the connections you chose in the palette recently come first among equally good matches, and the others keep that order. Type `@` to list only connections, the ones you chose in the palette recently first.
+
+Choosing a connection opens a tab for it in this window and signs in exactly like **Connect** in the Connection Manager (see [Signing in](connections.md#signing-in)): korTTY checks the server policy first, then uses the saved password or key and asks only for what is missing. Cancelling a question opens no tab. Unlike the Connection Manager, a connection opened from the palette counts as used, so it moves up in the palette and among Quick Connect's frequently used connections.
+
+A connection whose server or jump server your organization's [server access policy](../reference/enterprise-policy.md#server-access-control) blocks is greyed out. Choosing it keeps the palette open, and the line below the list names the blocked server and says that your organization manages it.
+
 ## Running a command
 
 | Key | Action |
@@ -49,7 +61,7 @@ The terminal tabs of your other korTTY windows follow, each window's tabs in the
 | ++esc++ | Close the palette |
 | ++ctrl+shift+p++ (++cmd+shift+p++ on macOS) | Close the palette |
 
-The palette closes first and then runs the command exactly as its menu item does: a dialog opens, a setting such as **Show Dashboard** is switched, and **Edit → Find…** opens the search of the active terminal. A tab row selects its tab. A click outside the palette closes it as well.
+The palette closes first and then runs the command exactly as its menu item does: a dialog opens, a setting such as **Show Dashboard** is switched, and **Edit → Find…** opens the search of the active terminal. A tab row selects its tab, and a connection row opens a tab for its connection. A click outside the palette closes it as well.
 
 Commands that cannot run right now are greyed out, such as **Unlock Vault…** while the vault is already open or **Rename Tab…** outside a terminal tab. Choosing one keeps the palette open, and the line below the list says why: **Not available right now**, or that your organization manages the feature when its [policy](../reference/enterprise-policy.md) switched the feature off.
 

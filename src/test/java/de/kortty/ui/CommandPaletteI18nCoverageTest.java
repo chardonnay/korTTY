@@ -17,7 +17,8 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * Every command palette string exists, translated, in all eight bundles: the View menu item, the
- * palette's own texts, the kind badges, the tab actions and the notes on the tab rows. Placeholders survive translation, and
+ * palette's own texts, the kind badges, the tab actions, the notes on the tab rows and the texts of
+ * the connection rows. Placeholders survive translation, and
  * an apostrophe is written once, because LanguageManager fills {0} with String.replace rather than
  * MessageFormat. The helpers that build a row's texts are tried on the English bundle.
  */
@@ -48,6 +49,7 @@ class CommandPaletteI18nCoverageTest {
         keys.addAll(CommandPalettePopup.KEYS);
         keys.addAll(TAB_ACTION_KEYS);
         keys.addAll(TabPaletteRows.KEYS);
+        keys.addAll(ConnectionPaletteRows.KEYS);
         return keys;
     }
 
@@ -78,6 +80,7 @@ class CommandPaletteI18nCoverageTest {
             Properties localized = loadBundle(bundle);
             assertWithMessage(bundle).that(localized.getProperty("palette.scopes")).contains("{0}");
             assertWithMessage(bundle).that(localized.getProperty("palette.detail.window")).contains("{0}");
+            assertWithMessage(bundle).that(localized.getProperty("policy.server.blocked.message")).contains("{0}");
         }
     }
 
@@ -108,6 +111,15 @@ class CommandPaletteI18nCoverageTest {
             I18n.get("palette.kind.action"), "View", I18n.get("palette.checked"), "Ctrl+Shift+D"));
         assertThat(CommandPalettePopup.accessibleText(plain))
             .isEqualTo("About korTTY, " + I18n.get("palette.kind.action"));
+    }
+
+    @Test
+    void aBlockedConnectionNamesItsTargetAndTheOrganization() {
+        String reason = ConnectionPaletteRows.blockedReason("db-01.example:22");
+
+        assertThat(reason).contains("db-01.example:22");
+        assertThat(reason).doesNotContain("{0}");
+        assertThat(reason).endsWith(de.kortty.policy.PolicyUiSupport.managedByOrganizationText());
     }
 
     @Test

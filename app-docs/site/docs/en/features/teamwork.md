@@ -118,7 +118,9 @@ Once a source is synced:
 3. Double-click a teamwork connection to connect.
 4. **Read-only** — Teamwork connections are read-only, and korTTY never writes changes back to a source. To change a shared connection, edit it in the repository or shared file; the change arrives with the next sync.
 
-Deleting a teamwork connection only hides it on this computer; the source is not changed. In the Connection Manager's button column, **Restore deleted** brings hidden connections back and **Refresh** reloads the list from the last sync without fetching the source again.
+The [command palette](command-palette.md#connecting) lists the teamwork connections as well, marked **Shared (Teamwork)**, so you can also connect by typing `@` and part of a name.
+
+Deleting a teamwork connection only hides it on this computer, also in the command palette; the source is not changed. In the Connection Manager's button column, **Restore deleted** brings hidden connections back and **Refresh** reloads the list from the last sync without fetching the source again.
 
 ### Local overrides
 
