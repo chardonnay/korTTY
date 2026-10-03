@@ -55,6 +55,7 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 | ++f1++ | Öffnen Sie die Anleitung (**Hilfe → Anleitung**) |
 | ++f12++ | Vollbild umschalten |
 | ++ctrl+shift+f++ | Schalten Sie den Nur-Terminal-Vollbildmodus um |
+| ++ctrl+shift+h++ | Schalten Sie die [Hervorhebung von Schlüsselwörtern](../features/highlighting.md) für den fokussierten Terminalbereich ein oder aus |
 
 Die Zoom-Tasten (++ctrl++ oder ++alt++ mit ++plus++ / ++minus++ / ++0++; ++cmd++ auf macOS) vergrößern das Terminal nur, wenn ein Terminal-Tab ausgewählt ist. In einem Snippet-Editor oder Dateieditor-Tab erreichen sie den Editor, und ++alt-graph+plus++ tippt dort sein Zeichen.
 
@@ -76,7 +77,7 @@ Diese Tasten funktionieren, solange ein Terminalbereich den Fokus hat. Wie sie s
 | ++ctrl+up++ / ++ctrl+down++ | Den Scrollback von korTTY um eine Zeile scrollen (++cmd+up++ / ++cmd+down++ unter macOS); unter Windows und Linux gehen die Tasten stattdessen an ein laufendes Vollbildprogramm |
 | ++ctrl+tab++ / ++ctrl+shift+tab++ | Nächster / vorheriger Tab, auch wenn das Terminal den Fokus hat (auch unter macOS mit ++ctrl++) |
 
-Auf Windows und Linux haben **Puffer löschen** und **Suchen** keine eigenen Tasten, daher bleiben ++ctrl+l++ und ++ctrl+f++ bei den Programmen, die im Terminal laufen. Verwenden Sie Rechtsklick → **Puffer löschen** oder **Suchen** im Terminal, oder **Bearbeiten → Suchen…** mit der Maus. ++ctrl+shift+f++ bleibt **Nur korTTY Applikationsfenster**, und ++ctrl+shift+k++ dockt den Dateibrowser weiterhin links an.
+Auf Windows und Linux haben **Puffer löschen** und **Suchen** keine eigenen Tasten, daher bleiben ++ctrl+l++ und ++ctrl+f++ bei den Programmen, die im Terminal laufen. Verwenden Sie Rechtsklick → **Puffer löschen** oder **Suchen** im Terminal, oder **Bearbeiten → Suchen…** mit der Maus. ++ctrl+shift+f++ bleibt **Nur korTTY Applikationsfenster**, und ++ctrl+shift+k++ dockt den Dateibrowser weiterhin links an. ++ctrl+shift+h++ schaltet die Hervorhebung von Schlüsselwörtern um und erreicht das Terminal nicht, während ein einfaches ++ctrl+h++ die Shell weiterhin als Rücktaste erreicht.
 
 Jede andere Kombination von ++shift++, ++ctrl++ und ++alt++ mit den Pfeiltasten, ++home++ / ++end++, ++page-up++ / ++page-down++, ++insert++ / ++delete++ und ++f1++ bis ++f11++ wird so gesendet, wie xterm es sendet (++f12++ schaltet immer den Vollbildmodus um), zum Beispiel ++ctrl+page-up++ als `ESC [ 5 ; 5 ~` und ++shift+f1++ als `ESC [ 1 ; 2 P`. Die Pfeiltasten folgen dem Cursor-Key-Modus des Programms: `mc` und `vim` schalten ihn ein und dann empfangen sie `ESC O A`, während eine Shell `ESC [ A` erhält. Verbindungen mit einer Nicht-xterm-Terminalemulation (Wyse, TeleVideo, HP, SCO ANSI, IBM 3270/5250, PETSCII) senden weiterhin feste Sequenzen ohne Modifikatoren.
 

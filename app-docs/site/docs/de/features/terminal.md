@@ -66,7 +66,7 @@ Rechtsklick innerhalb eines Terminals öffnet dessen Kontextmenü; in einem gete
 | **Puffer löschen** | Löscht den Scrollback und den Bildschirm, behält jedoch die Prompt-Zeile bei. Während ein Vollbildprogramm wie `vim` oder `less` läuft, tut es nichts. |
 | **Suchen** | Öffnet die Suchleiste oben rechts im Bereich, genauso wie **Bearbeiten → Suchen...** (++ctrl+f++, ++cmd+f++ auf macOS). Tippen Sie zum Hervorheben von Übereinstimmungen, drücken ++enter++ oder ++down++ für die nächste Übereinstimmung und ++up++ für die vorherige, sowie ++esc++ zum Schließen der Leiste. |
 
-Darunter folgen die Einträge anderer Funktionen, in dieser Reihenfolge und einige nur dort, wo sie zutreffen: **Menüleiste anzeigen** (während die Menüleiste verborgen ist), **Im Snippet-Editor öffnen**, das **KI-Untermenü**, die Session-Journal-Screenshot- und Notizeinträge, **Thema**, **Terminal-Effekt**, **Neu verbinden** und **Befehls-Zeitstempel anzeigen**. Das **Extras**-Untermenü am Ende enthält **Terminal teilen**, **Schriftgröße** (siehe [Schriftgröße und Zoom](#schriftgroe-und-zoom)) und **Broadcast-Modus**.
+Darunter folgen die Einträge anderer Funktionen, in dieser Reihenfolge und einige nur dort, wo sie zutreffen: **Menüleiste anzeigen** (während die Menüleiste verborgen ist), **Im Snippet-Editor öffnen**, das **KI-Untermenü**, die Session-Journal-Screenshot- und Notizeinträge, **Thema**, **Hervorhebung** (siehe [Hervorhebung von Schlüsselwörtern](highlighting.md)), **Terminal-Effekt**, **Neu verbinden** und **Befehls-Zeitstempel anzeigen**. Das **Extras**-Untermenü am Ende enthält **Terminal teilen**, **Schriftgröße** (siehe [Schriftgröße und Zoom](#schriftgroe-und-zoom)) und **Broadcast-Modus**.
 
 ## Links in der Terminalausgabe
 
