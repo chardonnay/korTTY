@@ -31,7 +31,9 @@ import java.util.Set;
  * {@value #TITLE_WEIGHT} times), the detail followed by the title, and the detail alone. For a menu
  * command the detail is its menu path, so "journal left" finds View › Live Journal › Dock Left. A
  * recent choice gets a boost that shrinks with its age. Rows that are not enabled come after all
- * enabled ones; equal scores go by kind, then by title.
+ * enabled ones; equal scores go by kind, then by title. Tabs are no recent choices of their own: the
+ * tab source lists them in the order they were last used, and equally good tab matches keep that
+ * order.
  *
  * <p>With nothing typed the palette lists up to {@value #RECENT_ON_EMPTY_QUERY} recent choices, then
  * the open tabs, then the menu commands grouped by menu. Connections only show up there as recent
@@ -135,9 +137,13 @@ public final class CommandPaletteModel {
         return limit > 0 && rows.size() > limit ? List.copyOf(rows.subList(0, limit)) : List.copyOf(rows);
     }
 
-    /** Remembers {@code entry} as the most recent choice. */
+    /**
+     * Remembers {@code entry} as the most recent choice. A tab is not remembered here: selecting it
+     * already makes it its window's most recently used tab, and listing it again among the recent
+     * choices would put the tab the user is in at the top.
+     */
     public void chosen(PaletteEntry entry) {
-        if (entry != null) {
+        if (entry != null && entry.kind() != Kind.TAB) {
             recent.add(entry.key());
         }
     }
@@ -156,6 +162,8 @@ public final class CommandPaletteModel {
         matches.sort(Comparator.comparing((Scored scored) -> !scored.entry().enabled())
             .thenComparing(Comparator.comparingInt(Scored::score).reversed())
             .thenComparing(scored -> scored.entry().kind())
+            // Tabs come in the order they were last used; the other kinds go by title.
+            .thenComparingInt(scored -> scored.entry().kind() == Kind.TAB ? scored.index() : 0)
             .thenComparing(scored -> scored.entry().title(), String.CASE_INSENSITIVE_ORDER)
             .thenComparingInt(Scored::index));
         return matches.stream().map(Scored::entry).toList();

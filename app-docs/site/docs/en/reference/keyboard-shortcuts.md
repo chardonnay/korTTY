@@ -6,7 +6,7 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 
 | Shortcut | Action |
 | --- | --- |
-| ++ctrl+shift+p++ | Open or close the [command palette](../features/command-palette.md) to find and run any menu command by name (also while a terminal has the focus) |
+| ++ctrl+shift+p++ | Open or close the [command palette](../features/command-palette.md) to find and run any menu command by name or [switch to an open tab](../features/command-palette.md#switching-tabs) (also while a terminal has the focus) |
 | ++ctrl+t++ | New Tab (Quick Connect) |
 | ++ctrl+w++ | Close Tab |
 | ++ctrl+alt+shift+t++ | Reopen the last closed terminal tab (also while a terminal has the focus) |

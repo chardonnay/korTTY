@@ -733,18 +733,7 @@ public final class ControlApiUiBridge implements ControlSurface, UiDispatcher {
 
     /** The stage sequence {@link CodingAgentUiBridge#focus(PaneRef)} uses, so both land identically. */
     private static void raise(MainWindow window) {
-        Stage stage = window.getStage();
-        if (stage == null) {
-            return;
-        }
-        if (!stage.isShowing()) {
-            stage.show();
-        }
-        if (stage.isIconified()) {
-            stage.setIconified(false);
-        }
-        stage.toFront();
-        stage.requestFocus();
+        WindowRaiser.raise(window.getStage());
     }
 
     /** The live static list, copied here so a window opening or closing cannot corrupt an answer. */

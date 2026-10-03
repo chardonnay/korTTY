@@ -17,7 +17,7 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * Every command palette string exists, translated, in all eight bundles: the View menu item, the
- * palette's own texts, the kind badges and the tab actions. Placeholders survive translation, and
+ * palette's own texts, the kind badges, the tab actions and the notes on the tab rows. Placeholders survive translation, and
  * an apostrophe is written once, because LanguageManager fills {0} with String.replace rather than
  * MessageFormat. The helpers that build a row's texts are tried on the English bundle.
  */
@@ -47,6 +47,7 @@ class CommandPaletteI18nCoverageTest {
         List<String> keys = new ArrayList<>(List.of("menu.view.commandPalette"));
         keys.addAll(CommandPalettePopup.KEYS);
         keys.addAll(TAB_ACTION_KEYS);
+        keys.addAll(TabPaletteRows.KEYS);
         return keys;
     }
 
@@ -74,7 +75,9 @@ class CommandPaletteI18nCoverageTest {
     @Test
     void placeholdersSurviveTranslation() throws Exception {
         for (String bundle : BUNDLES) {
-            assertWithMessage(bundle).that(loadBundle(bundle).getProperty("palette.scopes")).contains("{0}");
+            Properties localized = loadBundle(bundle);
+            assertWithMessage(bundle).that(localized.getProperty("palette.scopes")).contains("{0}");
+            assertWithMessage(bundle).that(localized.getProperty("palette.detail.window")).contains("{0}");
         }
     }
 

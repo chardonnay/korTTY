@@ -4,7 +4,7 @@ title: Command palette
 
 # Command palette
 
-The command palette finds and runs any command of the main window's menus when you type a few letters of its name, so you need neither the mouse nor the place of the command in the menus. It also reaches every menu command while the menu bar is hidden and in terminal-only fullscreen.
+The command palette finds and runs any command of the main window's menus when you type a few letters of its name, so you need neither the mouse nor the place of the command in the menus. It also switches to any open tab, the ones you used last first, including the terminal tabs of your other korTTY windows. It reaches every menu command while the menu bar is hidden and in terminal-only fullscreen.
 
 ## Opening the palette
 
@@ -25,9 +25,19 @@ Type part of a command's name. The letters have to appear in that order but not 
 
 The menu path is searched as well, which keeps the commands with the same name apart: `journal left` finds **View › Live Journal › Dock Left**, and `file left` finds **View › File Browser › Show on Left**. A match in the name ranks above a match in the path, and among equally good matches the commands you chose recently come first.
 
-With nothing typed, the palette lists the commands you chose recently, up to eight and newest first, and then every command, menu by menu. Next to the menu commands it offers **Next Tab** and **Previous Tab**, which switch tabs like ++ctrl+tab++ and ++ctrl+shift+tab++.
+With nothing typed, the palette lists the commands you chose recently, up to eight and newest first, then the [open tabs](#switching-tabs), and then every command, menu by menu. Next to the menu commands it offers **Next Tab** and **Previous Tab**, which switch tabs like ++ctrl+tab++ and ++ctrl+shift+tab++.
+
+Typed first, a scope character limits the list to one kind of row: `>` lists only commands and `#` only tabs, so `>close` finds the close commands but no tab whose name contains "close". The line below the list names these characters.
 
 The list of recent choices lasts until korTTY quits; all windows share it and it is never saved. What you type into the palette is neither logged nor sent anywhere.
+
+## Switching tabs
+
+Every tab of the window is a row with a **Tab** badge, named as the tab bar names it: the name you gave it with **Rename Tab**, the title its shell set, or the name of its connection, without the group prefix and the connection status. The grey detail of a terminal tab names where it is connected, as `user@host` taken from the saved connection (or the connection's name for a local shell), and its tab group, for example **root@db-01 · Production**. A program in the terminal can set the tab's title but not this detail, so a title that imitates another server does not hide where the tab really is.
+
+The tabs are listed in the order you last used them, the most recent first, and when you type, equally good matches keep that order. The tab you are in comes last and is marked **Current tab**, so typing `#` and pressing ++enter++ goes back to the tab you used before it. A tab counts as used when you select it, with the mouse, with keys such as ++ctrl+tab++ or ++ctrl+1++, or from the palette. Closing several tabs at once, regrouping them or dragging a tab to another place counts only the tab shown afterwards, not the tabs the selection passes over on the way. The order lasts as long as the window and is never saved.
+
+The terminal tabs of your other korTTY windows follow, each window's tabs in the order they were used there, with the window's number in front of the detail, such as **Window 2 · admin@web-01**; a window's number is its place among the open windows, in the order they opened. Choosing such a tab brings its window to the front, restores it when it is minimized, and selects the tab there. Other kinds of tabs of the other windows, such as editors or AI results, are not listed.
 
 ## Running a command
 
@@ -39,7 +49,7 @@ The list of recent choices lasts until korTTY quits; all windows share it and it
 | ++esc++ | Close the palette |
 | ++ctrl+shift+p++ (++cmd+shift+p++ on macOS) | Close the palette |
 
-The palette closes first and then runs the command exactly as its menu item does: a dialog opens, a setting such as **Show Dashboard** is switched, and **Edit → Find…** opens the search of the active terminal. A click outside the palette closes it as well.
+The palette closes first and then runs the command exactly as its menu item does: a dialog opens, a setting such as **Show Dashboard** is switched, and **Edit → Find…** opens the search of the active terminal. A tab row selects its tab. A click outside the palette closes it as well.
 
 Commands that cannot run right now are greyed out, such as **Unlock Vault…** while the vault is already open or **Rename Tab…** outside a terminal tab. Choosing one keeps the palette open, and the line below the list says why: **Not available right now**, or that your organization manages the feature when its [policy](../reference/enterprise-policy.md) switched the feature off.
 

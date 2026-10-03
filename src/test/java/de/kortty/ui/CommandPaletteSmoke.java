@@ -9,6 +9,7 @@ import com.sithtermfx.ui.split.TerminalSplitPane;
 import de.kortty.ui.actions.ActionPaletteSource;
 import de.kortty.ui.actions.ActionRegistry;
 import de.kortty.ui.actions.AppAction;
+import de.kortty.ui.actions.TabPaletteSource;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.Event;
@@ -39,7 +40,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * Headed check of the command palette over a focused terminal in broadcast mode: the chord opens and
  * closes the palette and leaves no character behind, keys typed into the palette (Ctrl+D, Ctrl+L,
  * Page Up, letters) reach neither the terminal nor the other pane, Enter closes the palette before
- * the chosen command runs, and a command that cannot run keeps the palette open and says why.
+ * the chosen command runs, a command that cannot run keeps the palette open and says why, and the
+ * tab rows list the previous tab first and select it on Enter.
  * Key events are fired at the terminal canvas, so they take the real way through the window, which
  * hands them to the showing palette first. Writes snapshots of the palette to {@code build/smoke/}.
  * Run via the {@code commandPaletteSmoke} Gradle task; manual, not part of CI. Exit 0 = OK.
@@ -91,10 +93,21 @@ public final class CommandPaletteSmoke {
                     List.of(), () -> true, () -> true, () -> { }, true, false));
                 registry.register(new AppAction("menu.view.journalPanel.left", "Dock Left",
                     "View \u203A Live Journal", null, List.of(), () -> true, () -> false, () -> { }, true, false));
+                // Tab rows as a window with two tabs (web-01 shown) and a second window give them.
+                TabPaletteSource tabs = new TabPaletteSource(
+                    () -> new TabPaletteSource.WindowTabs(null, List.of(
+                        new TabPaletteSource.TabRow("t2", "db-01",
+                            TabPaletteSource.connectionDetail("db-01", "root", "db-01.example.org", "db-01", "Production"),
+                            () -> log.add("tab db-01")),
+                        new TabPaletteSource.TabRow("t1", "web-01", "admin@web-01", () -> log.add("tab web-01"))),
+                        "t1"),
+                    () -> List.of(new TabPaletteSource.WindowTabs("Window 2", List.of(
+                        new TabPaletteSource.TabRow("t9", "build", "ci@build-01", () -> log.add("tab build"))), null)),
+                    () -> "Current tab");
                 KeyCombination chord = MainWindow.commandPaletteAccelerator();
                 CommandPalettePopup palette = new CommandPalettePopup(
                     List.of(new ActionPaletteSource(registry, KeyCombination::getDisplayText,
-                        () -> REASON, () -> "Not available right now")),
+                        () -> REASON, () -> "Not available right now"), tabs),
                     PaletteKeys.passThrough(chord, MAC));
                 paletteRef.set(palette);
                 new SceneShortcutRouter(MAC)
@@ -230,9 +243,25 @@ public final class CommandPaletteSmoke {
             sleep(200);
             check(!log.contains("locked ran"), "the disabled command ran");
 
-            // 6. Snapshots for a look at the rows and the footer.
+            // 6. '#' lists the tabs, the previous one first; Enter selects it after the palette closed.
             Path out = Path.of("build", "smoke");
             Files.createDirectories(out);
+            onFxThread(() -> {
+                palette.show(canvas);
+                palette.field().setText("#");
+                return null;
+            });
+            List<String> tabTitles = onFxThread(() -> palette.list().getItems().stream().map(e -> e.title()).toList());
+            check(tabTitles.equals(List.of("db-01", "web-01", "build")), "unexpected tab rows: " + tabTitles);
+            snapshot(palette, out.resolve("command-palette-tabs.png"));
+            onFxThread(() -> {
+                fire(canvas, KeyCode.ENTER, "\r", false, false, false);
+                return null;
+            });
+            await("the previous tab was never selected", () -> log.contains("tab db-01"));
+            check(!onFxThread(palette::isShowing), "choosing a tab left the palette open");
+
+            // 7. Snapshots for a look at the rows and the footer.
             onFxThread(() -> {
                 palette.show(canvas);
                 return null;

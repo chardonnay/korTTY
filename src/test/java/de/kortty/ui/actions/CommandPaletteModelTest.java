@@ -286,6 +286,28 @@ class CommandPaletteModelTest {
         assertThat(recent.items()).containsExactly("action:Edit/Find");
     }
 
+    @Test
+    void aChosenTabIsNoRecentChoiceSoTheTabYouAreInDoesNotLeadTheList() {
+        MruList<String> recent = new MruList<>(MruList.DEFAULT_CAPACITY);
+        // The tab source lists the previous tab first and the current one ("web-01") last.
+        CommandPaletteModel model = model(recent, source(Kind.TAB,
+            entry(Kind.TAB, "tab:2", "db-01", ""), entry(Kind.TAB, "tab:1", "web-01", "Current tab")));
+
+        model.chosen(model.query("web").get(0));
+
+        assertThat(recent.items()).isEmpty();
+        assertThat(titles(model.query("#"))).containsExactly("db-01", "web-01").inOrder();
+    }
+
+    @Test
+    void equallyGoodTabMatchesKeepTheTabOrder() {
+        CommandPaletteModel model = model(source(Kind.TAB,
+            entry(Kind.TAB, "tab:3", "db-02", ""), entry(Kind.TAB, "tab:1", "db-01", ""),
+            entry(Kind.TAB, "tab:2", "db-03", "")));
+
+        assertThat(titles(model.query("db"))).containsExactly("db-02", "db-01", "db-03").inOrder();
+    }
+
     // ---- row texts ------------------------------------------------------------------------------
 
     @Test

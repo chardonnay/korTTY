@@ -12,6 +12,8 @@ import de.kortty.ui.actions.ActionRegistry;
 import de.kortty.ui.actions.AppAction;
 import de.kortty.ui.actions.MenuActionHarvester;
 import de.kortty.ui.actions.MenuStateRefresh;
+import de.kortty.ui.actions.TabMruTracker;
+import de.kortty.ui.actions.TabPaletteSource;
 import de.kortty.core.AgentDashboardStatus;
 import com.sithtermfx.ui.SithTermFxWidget;
 import de.kortty.codingagent.CodingAgentActionException;
@@ -258,6 +260,12 @@ public class MainWindow {
     // Created on first use: the window's actions for the command palette, and the palette itself.
     private ActionRegistry actionRegistry;
     private CommandPalettePopup commandPalette;
+    // The order this window's tabs were last selected in, the most recent first; the command
+    // palette lists the tabs in it.
+    private final TabMruTracker<Tab> tabMru = new TabMruTracker<>();
+    // Set while tabs are removed and re-added in bulk (see reorganizeTabs), so the selection
+    // passing over them does not count as using them.
+    private boolean reorganizingTabs;
     private GuideTranslationIndicator guideTranslationIndicator;
     private String dynamicThemeStylesheetUrl;
     private DashboardView dashboardView;
@@ -527,6 +535,9 @@ public class MainWindow {
             if (oldTab instanceof TerminalTab oldTerminalTab) {
                 oldTerminalTab.getTerminalView().setTerminalActive(false);
             }
+            if (newTab != null && !reorganizingTabs) {
+                tabMru.touch(newTab);
+            }
             if (newTab instanceof TerminalTab terminalTab) {
                 terminalTab.getTerminalView().setTerminalActive(true);
                 Platform.runLater(() -> terminalTab.getTerminalView().focusTerminal());
@@ -559,6 +570,9 @@ public class MainWindow {
                 }
                 if (change.wasRemoved()) {
                     for (Tab removedTab : change.getRemoved()) {
+                        if (!reorganizingTabs) {
+                            tabMru.remove(removedTab);
+                        }
                         // Closed or dragged into another window: no longer an insert target here.
                         if (removedTab == lastSelectedTerminalTab) {
                             lastSelectedTerminalTab = null;
@@ -644,12 +658,14 @@ public class MainWindow {
                 event.setDropCompleted(false);
                 return;
             }
-            sourcePane.getTabs().remove(tab);
-            // Insert index: approximate position from drop X for reorder.
-            int insertIndex = (int) ((event.getX() / Math.max(1, tabPane.getWidth())) * (tabPane.getTabs().size()));
-            insertIndex = Math.max(0, Math.min(insertIndex, tabPane.getTabs().size()));
-            tabPane.getTabs().add(insertIndex, tab);
-            tabPane.getSelectionModel().select(tab);
+            reorganizeTabs(() -> {
+                sourcePane.getTabs().remove(tab);
+                // Insert index: approximate position from drop X for reorder.
+                int insertIndex = (int) ((event.getX() / Math.max(1, tabPane.getWidth())) * (tabPane.getTabs().size()));
+                insertIndex = Math.max(0, Math.min(insertIndex, tabPane.getTabs().size()));
+                tabPane.getTabs().add(insertIndex, tab);
+                tabPane.getSelectionModel().select(tab);
+            });
             if (tab instanceof TerminalTab tt) {
                 installAiSelectionHandler(tt);
                 // Re-bind the per-tab hooks to this window (the creation-time lambdas captured the source).
@@ -691,10 +707,11 @@ public class MainWindow {
             MainWindow sourceWindow = xfer.sourceWindow();
             javafx.scene.control.TabPane sourcePane = sourceWindow.tabPane;
             if (!sourcePane.getTabs().contains(tab)) return;
-            sourcePane.getTabs().remove(tab);
-            int insertIndex = tabPane.getTabs().size();
-            tabPane.getTabs().add(insertIndex, tab);
-            tabPane.getSelectionModel().select(tab);
+            reorganizeTabs(() -> {
+                sourcePane.getTabs().remove(tab);
+                tabPane.getTabs().add(tabPane.getTabs().size(), tab);
+                tabPane.getSelectionModel().select(tab);
+            });
             if (tab instanceof TerminalTab tt) {
                 installAiSelectionHandler(tt);
                 // Re-bind the per-tab hooks to this window (the creation-time lambdas captured the source).
@@ -2603,7 +2620,8 @@ public class MainWindow {
 
     /**
      * View → Command Palette… and Cmd/Ctrl+Shift+P: brings the menu items' states up to date, then
-     * shows the palette over this window's commands, centred at the top of the window.
+     * shows the palette over this window's commands and the open tabs, centred at the top of the
+     * window.
      */
     private void showCommandPalette() {
         if (sceneRoot == null || sceneRoot.getScene() == null || sceneRoot.getScene().getWindow() == null) {
@@ -2613,11 +2631,65 @@ public class MainWindow {
         if (commandPalette == null) {
             commandPalette = new CommandPalettePopup(
                 List.of(new ActionPaletteSource(actionRegistry(), KeyCombination::getDisplayText,
-                    de.kortty.policy.PolicyUiSupport::managedByOrganizationText,
-                    () -> I18n.get("palette.disabled"))),
+                        de.kortty.policy.PolicyUiSupport::managedByOrganizationText,
+                        () -> I18n.get("palette.disabled")),
+                    new TabPaletteSource(this::paletteOwnTabs, this::paletteOtherWindowTabs,
+                        TabPaletteRows::currentTabNote)),
                 PaletteKeys.passThrough(COMMAND_PALETTE_ACCELERATOR, isMacOs()));
         }
         commandPalette.show(sceneRoot);
+    }
+
+    /** This window's tabs for the palette, the most recently used first, and the one it shows. */
+    private TabPaletteSource.WindowTabs paletteOwnTabs() {
+        List<TabPaletteSource.TabRow> rows = new ArrayList<>();
+        for (Tab tab : tabMru.order(tabPane.getTabs())) {
+            rows.add(TabPaletteRows.row(tab, () -> selectTabFromPalette(tab)));
+        }
+        Tab selected = tabPane.getSelectionModel().getSelectedItem();
+        return new TabPaletteSource.WindowTabs(null, rows, selected != null ? TabPaletteRows.tabId(selected) : null);
+    }
+
+    /**
+     * The terminal tabs of the other open windows for the palette, window by window in the order
+     * they opened, each window's most recently used first, named by the window's place in that order.
+     */
+    private List<TabPaletteSource.WindowTabs> paletteOtherWindowTabs() {
+        List<MainWindow> windows = List.copyOf(openWindows);
+        List<TabPaletteSource.WindowTabs> result = new ArrayList<>();
+        for (int i = 0; i < windows.size(); i++) {
+            MainWindow window = windows.get(i);
+            if (window == this) {
+                continue;
+            }
+            List<TabPaletteSource.TabRow> rows = new ArrayList<>();
+            for (Tab tab : window.tabMru.order(window.tabPane.getTabs())) {
+                if (tab instanceof TerminalTab) {
+                    rows.add(TabPaletteRows.row(tab, () -> selectTabFromPalette(tab)));
+                }
+            }
+            if (!rows.isEmpty()) {
+                result.add(new TabPaletteSource.WindowTabs(TabPaletteRows.windowLabel(i + 1), rows, null));
+            }
+        }
+        return result;
+    }
+
+    /**
+     * A tab row of the palette was chosen: selects the tab in whichever window holds it now, and
+     * brings that window to the front when it is not this one. Nothing happens when the tab closed
+     * in the meantime.
+     */
+    private void selectTabFromPalette(Tab tab) {
+        for (MainWindow window : List.copyOf(openWindows)) {
+            if (window.tabPane.getTabs().contains(tab)) {
+                if (window != this) {
+                    WindowRaiser.raise(window.stage);
+                }
+                window.tabPane.getSelectionModel().select(tab);
+                return;
+            }
+        }
     }
 
     /**
@@ -3997,7 +4069,7 @@ public class MainWindow {
         for (Tab tab : targets) {
             disposeTabContent(tab);
         }
-        tabPane.getTabs().removeAll(targets);
+        reorganizeTabs(() -> tabPane.getTabs().removeAll(targets));
         return true;
     }
 
@@ -12276,6 +12348,37 @@ public class MainWindow {
      * Tabs without group come first, then grouped tabs sorted alphabetically by group name.
      */
     private void organizeTabsByGroup() {
+        reorganizeTabs(this::sortTabsByGroup);
+    }
+
+    /**
+     * Runs a bulk change of the tab list that is no use of the tabs it passes over: tabs removed and
+     * re-added while regrouping, several tabs closed at once, a tab dropped into place. While it runs
+     * the selection changes do not count in the tabs' most-recently-used order and removed tabs stay
+     * in it; afterwards the order forgets the tabs that are gone and counts the tab the window shows
+     * as used. A change nested in another counts once, at the end of the outer one.
+     */
+    private void reorganizeTabs(Runnable change) {
+        boolean outer = !reorganizingTabs;
+        reorganizingTabs = true;
+        try {
+            change.run();
+        } finally {
+            if (outer) {
+                reorganizingTabs = false;
+            }
+        }
+        if (outer) {
+            tabMru.retainOnly(tabPane.getTabs());
+            Tab selected = tabPane.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                tabMru.touch(selected);
+            }
+        }
+    }
+
+    /** The tab order of {@link #organizeTabsByGroup}, without the guard of {@link #reorganizeTabs}. */
+    private void sortTabsByGroup() {
         // Get all terminal tabs.
         List<TerminalTab> terminalTabs = new ArrayList<>();
         List<Tab> preservedTabs = new ArrayList<>();

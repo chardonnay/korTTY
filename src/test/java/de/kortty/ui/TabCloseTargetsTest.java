@@ -176,7 +176,9 @@ class TabCloseTargetsTest {
         int confirm = funnel.indexOf("if (!confirmUserCloseAll(targets)) {");
         int select = funnel.indexOf("tabPane.getSelectionModel().select(keepSelected);");
         int dispose = funnel.indexOf("disposeTabContent(tab);");
-        int remove = funnel.indexOf("tabPane.getTabs().removeAll(targets);");
+        // One list change, run as a reorganization: the tabs' most-recently-used order ignores the
+        // selection passing over the closing tabs (TabPaletteWiringTest).
+        int remove = funnel.indexOf("reorganizeTabs(() -> tabPane.getTabs().removeAll(targets));");
         assertThat(confirm).isAtLeast(0);
         assertWithMessage("the anchor is selected only once every question passed")
             .that(select).isGreaterThan(confirm);
