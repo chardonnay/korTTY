@@ -3658,6 +3658,14 @@ tasks.register<JavaExec>("terminalContextMenuActionsSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("terminalLinksSmoke") {
+    group = "verification"
+    description = "Clicks an OSC 8 link in a real terminal pane and checks it opens only on a single, still Cmd/Ctrl+click, while plain double and triple clicks select (needs a display)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.TerminalLinksSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("aiManagerTabCssSmoke") {
     group = "verification"
     description = "Opens the AI Manager under every app design and fails on JavaFX CSS warnings for the selected tab."

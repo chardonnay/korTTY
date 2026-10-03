@@ -19,7 +19,6 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -28,30 +27,39 @@ import static com.google.common.truth.Truth.assertWithMessage;
 /**
  * SithTermFX's default OSC 8 provider opened {@code file:} links with {@code java.awt.Desktop.open},
  * so a link printed by a server could launch a local program with one click. These cases pin
- * korTTY's replacement: only web and mail links become links, they open through the injected
- * opener, and nothing in the link path references {@code java.awt}.
+ * korTTY's replacement: only web and mail links become links, SithTermFX's own navigation of them
+ * does nothing (they open only on a Cmd/Ctrl+click, see {@link TerminalLinkClickPolicyTest}), and
+ * nothing in the link path references {@code java.awt}.
  */
 public class KorttyOsc8LinkInfoProviderTest {
 
     @Test
-    public void webLinkCarriesItsTargetAndOpensThroughTheOpener() {
-        List<String> opened = new ArrayList<>();
-        KorttyOsc8LinkInfoProvider provider = new KorttyOsc8LinkInfoProvider(new TerminalLinkOpener(opened::add));
-
-        KorttyLinkInfo link = provider.createLinkInfo("https://example.com/docs");
+    public void webLinkCarriesItsTarget() {
+        KorttyLinkInfo link = new KorttyOsc8LinkInfoProvider().createLinkInfo("https://example.com/docs");
 
         assertThat(link).isNotNull();
         assertThat(link.target()).isEqualTo(URI.create("https://example.com/docs"));
-        assertThat(opened).isEmpty();
+    }
+
+    @Test
+    public void sithTermFxNavigationOpensNothing() throws IOException {
+        // SithTermFX navigates on every plain click, on each click of a double-click and after a drag
+        // that ends on the link. korTTY's click gate opens links instead, so the link itself must
+        // hold no way to open anything.
+        KorttyLinkInfo link = new KorttyOsc8LinkInfoProvider().createLinkInfo("https://example.com/docs");
+
+        assertThat(link).isNotNull();
         link.navigate();
-        assertThat(opened).containsExactly("https://example.com/docs");
+        assertThat(classFileText(KorttyLinkInfo.class)).doesNotContain("de/kortty/ui/TerminalLinkOpener");
+        // The provider still calls the opener's static allowlist, but holds or passes on no opener:
+        // a field or parameter of that type would show as its descriptor "L...TerminalLinkOpener;".
+        assertThat(classFileText(KorttyOsc8LinkInfoProvider.class)).doesNotContain("de/kortty/ui/TerminalLinkOpener;");
+        assertThat(classFileText(KorttyOsc8LinkInfoProvider.class)).doesNotContain("HostServices");
     }
 
     @Test
     public void mailLinkIsALink() {
-        KorttyOsc8LinkInfoProvider provider = new KorttyOsc8LinkInfoProvider(new TerminalLinkOpener(target -> { }));
-
-        assertThat(provider.createLinkInfo("mailto:someone@example.com")).isNotNull();
+        assertThat(new KorttyOsc8LinkInfoProvider().createLinkInfo("mailto:someone@example.com")).isNotNull();
     }
 
     @DataProvider
@@ -70,19 +78,14 @@ public class KorttyOsc8LinkInfoProviderTest {
 
     @Test(dataProvider = "plainTextTargets")
     public void otherTargetsStayPlainText(String target) {
-        List<String> opened = new ArrayList<>();
-        KorttyOsc8LinkInfoProvider provider = new KorttyOsc8LinkInfoProvider(new TerminalLinkOpener(opened::add));
-
-        assertWithMessage(target).that(provider.createLinkInfo(target)).isNull();
-        assertThat(opened).isEmpty();
+        assertWithMessage(target).that(new KorttyOsc8LinkInfoProvider().createLinkInfo(target)).isNull();
     }
 
     @Test
     public void emulatorDrawsARefusedLinkAsPlainTextAndKeepsAnAllowedOne() {
-        List<String> opened = new ArrayList<>();
         StyleState styleState = new StyleState();
         TextProcessing processing = new TextProcessing(new TextStyle(), HyperlinkStyle.HighlightMode.HOVER_WITH_BOTH_COLORS);
-        processing.setLinkInfoProvider(new KorttyOsc8LinkInfoProvider(new TerminalLinkOpener(opened::add)));
+        processing.setLinkInfoProvider(new KorttyOsc8LinkInfoProvider());
         TerminalTextBuffer buffer = new TerminalTextBuffer(40, 3, styleState, 100, processing);
         processing.setTerminalTextBuffer(buffer);
         SithTerminal terminal = new SithTerminal(noDisplay(), buffer, styleState);
@@ -100,13 +103,14 @@ public class KorttyOsc8LinkInfoProviderTest {
         TextStyle docs = buffer.getStyleAt(10, 0);
         assertThat(docs).isInstanceOf(HyperlinkStyle.class);
         assertThat(((HyperlinkStyle) docs).getLinkInfo()).isInstanceOf(KorttyLinkInfo.class);
-        ((HyperlinkStyle) docs).getLinkInfo().navigate();
-        assertThat(opened).containsExactly("https://example.com/");
+        assertThat(((KorttyLinkInfo) ((HyperlinkStyle) docs).getLinkInfo()).target())
+            .isEqualTo(URI.create("https://example.com/"));
     }
 
     @Test
     public void linkClassesNeverReferenceJavaAwt() throws IOException {
-        for (Class<?> type : List.of(KorttyOsc8LinkInfoProvider.class, KorttyLinkInfo.class, TerminalLinkOpener.class)) {
+        for (Class<?> type : List.of(KorttyOsc8LinkInfoProvider.class, KorttyLinkInfo.class, TerminalLinkOpener.class,
+                TerminalLinkClickPolicy.class)) {
             assertWithMessage(type.getSimpleName()).that(classFileText(type)).doesNotContain("java/awt");
         }
     }

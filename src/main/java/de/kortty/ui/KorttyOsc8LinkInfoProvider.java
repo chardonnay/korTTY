@@ -4,8 +4,6 @@ import com.sithtermfx.core.model.hyperlinks.LinkInfoProvider;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Objects;
-
 /**
  * korTTY's OSC 8 link provider, installed in every terminal pane in place of SithTermFX's default.
  *
@@ -17,25 +15,18 @@ import java.util.Objects;
  * what {@link TerminalLinkOpener#allowedBrowseUri} allows. For every other target it returns
  * {@code null}, so the text is drawn as plain text and a click does nothing.
  *
+ * <p>The {@link KorttyLinkInfo} it returns does not open anything itself: links open only on a
+ * Cmd/Ctrl+click, through {@link TerminalLinkClickPolicy}.
+ *
  * <p>SithTermFX calls it on the emulator thread for every OSC 8 sequence, so it stays toolkit-free
  * and cheap.
  */
 public final class KorttyOsc8LinkInfoProvider implements LinkInfoProvider {
 
-    private final TerminalLinkOpener opener;
-
-    public KorttyOsc8LinkInfoProvider() {
-        this(TerminalLinkOpener.system());
-    }
-
-    KorttyOsc8LinkInfoProvider(@NotNull TerminalLinkOpener opener) {
-        this.opener = Objects.requireNonNull(opener, "opener");
-    }
-
     @Override
     public @Nullable KorttyLinkInfo createLinkInfo(@NotNull String uri) {
         return TerminalLinkOpener.allowedBrowseUri(uri)
-            .map(target -> new KorttyLinkInfo(target, opener))
+            .map(KorttyLinkInfo::new)
             .orElse(null);
     }
 }

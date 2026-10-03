@@ -8,15 +8,22 @@ import java.util.Objects;
 
 /**
  * An OSC 8 link whose target passed {@link TerminalLinkOpener#allowedBrowseUri}. It keeps the
- * validated target, so korTTY code can read it back from a cell's {@code HyperlinkStyle}, and opens
- * it through the {@link TerminalLinkOpener} instead of SithTermFX's {@code java.awt.Desktop} handler.
+ * validated target, so korTTY code can read it back from a cell's {@code HyperlinkStyle}.
+ *
+ * <p>{@link #navigate()} does nothing. SithTermFX calls it on every plain primary click over a link,
+ * once per click of a double-click and after a drag-selection that ends on the link, and also while a
+ * program has mouse reporting on. korTTY opens links only through {@link TerminalLinkClickPolicy}, on a
+ * single Cmd/Ctrl+click, which reads {@link #target()} and hands it to the {@link TerminalLinkOpener}.
  */
 public final class KorttyLinkInfo extends LinkInfo {
 
+    /** SithTermFX's own navigation; korTTY's click gate opens links instead. */
+    private static final Runnable NO_NAVIGATION = () -> { };
+
     private final URI target;
 
-    KorttyLinkInfo(@NotNull URI target, @NotNull TerminalLinkOpener opener) {
-        super(() -> opener.open(target));
+    KorttyLinkInfo(@NotNull URI target) {
+        super(NO_NAVIGATION);
         this.target = Objects.requireNonNull(target, "target");
     }
 

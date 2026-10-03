@@ -75,6 +75,7 @@ These keys work while a terminal pane has the focus. For how they behave with se
 | ++shift+page-up++ / ++shift+page-down++ | Scroll korTTY's scrollback by a page; inside a full-screen program such as `vim`, `less` or `mc` the key goes to the program |
 | ++ctrl+up++ / ++ctrl+down++ | Scroll korTTY's scrollback by a line (++cmd+up++ / ++cmd+down++ on macOS); on Windows and Linux the keys go to a full-screen program instead while one runs |
 | ++ctrl+tab++ / ++ctrl+shift+tab++ | Next / previous tab, also while the terminal has the focus (the ++ctrl++ key on macOS too) |
+| ++ctrl++ + click on a link | Open the link in the browser or mail program (++cmd++ + click on macOS); a plain click on a link does nothing, see [Links in terminal output](../features/terminal.md#links-in-terminal-output) |
 
 On Windows and Linux, **Clear Buffer** and **Find** have no key of their own, so ++ctrl+l++ and ++ctrl+f++ stay with the programs running in the terminal. Use right-click → **Clear Buffer** or **Find** in the terminal, or **Edit → Find…** with the mouse. ++ctrl+shift+f++ stays Terminal-only Fullscreen and ++ctrl+shift+k++ still docks the file browser on the left.
 

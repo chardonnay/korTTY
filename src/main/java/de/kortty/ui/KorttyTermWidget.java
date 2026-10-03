@@ -13,6 +13,8 @@ import javafx.geometry.Dimension2D;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Objects;
+
 /**
  * korTTY's terminal widget: a {@link SithTermFxWidget} whose panel routes every copy/paste path
  * (shortcuts, context menu, middle-click/primary selection) through the policy-aware clipboard
@@ -22,7 +24,8 @@ import org.jetbrains.annotations.Nullable;
  * public API directly. The panel is a subclass, {@link KorttyTerminalPanel}, so a declared-method
  * lookup on its runtime class misses every SithTermFX method that it does not override itself.
  *
- * <p>OSC 8 links go through {@link KorttyOsc8LinkInfoProvider}, which opens only web and mail links.
+ * <p>OSC 8 links go through {@link KorttyOsc8LinkInfoProvider}, which keeps only web and mail links,
+ * and open only on a Cmd/Ctrl+click through {@link TerminalLinkClickPolicy}.
  */
 public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneActions {
 
@@ -81,9 +84,23 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
      */
     public final class KorttyTerminalPanel extends TerminalPanel {
 
+        /** Where a Cmd/Ctrl+click sends a link. */
+        private TerminalLinkOpener linkOpener = TerminalLinkOpener.system();
+
         KorttyTerminalPanel(@NotNull SettingsProvider settingsProvider, @NotNull TerminalTextBuffer terminalTextBuffer,
                 @NotNull StyleState styleState) {
             super(settingsProvider, terminalTextBuffer, styleState);
+            // Links open only on a single, still Cmd/Ctrl+click; SithTermFX's plain-click navigation
+            // is a no-op in KorttyLinkInfo. A canvas filter, so it runs before SithTermFX's handler.
+            TerminalLinkClickPolicy.install(this, TerminalLinkClickPolicy::osc8HitAt, target -> linkOpener.open(target));
+        }
+
+        /**
+         * Replaces the system browser as the target of Cmd/Ctrl+clicked links, for
+         * {@code terminalLinksSmoke}. Call it on the JavaFX thread.
+         */
+        void setLinkOpener(@NotNull TerminalLinkOpener opener) {
+            linkOpener = Objects.requireNonNull(opener, "opener");
         }
 
         @Override
