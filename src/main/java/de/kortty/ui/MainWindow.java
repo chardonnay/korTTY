@@ -1436,75 +1436,102 @@ public class MainWindow {
         return createdMenuBar;
     }
 
+    /**
+     * A menu-bar item labelled {@code I18n.get(key)} whose stable action id ({@link ActionIds#tag})
+     * is that key, so the command palette, its recently-used list and later key bindings find the
+     * item whatever the UI language. Every leaf item of the create*Menu builders comes from here or
+     * from {@link #checkMenuItem}, on both macOS menu bars; an item whose label is computed is tagged
+     * explicitly (About, Prevent Sleep). Pinned by MainWindowActionIdsTest.
+     */
+    static MenuItem menuItem(String key) {
+        return ActionIds.tag(new MenuItem(I18n.get(key)), key);
+    }
+
+    /** {@link #menuItem} for an item with an on/off state. */
+    static CheckMenuItem checkMenuItem(String key) {
+        return ActionIds.tag(new CheckMenuItem(I18n.get(key)), key);
+    }
+
+    /**
+     * Disables a menu-bar item the organization's policy denies for good, and marks it as such
+     * ({@link ActionIds#markPolicyLocked}), so the command palette can say why it does not run. Such
+     * items stay out of the enable-sync lists, which would switch them back on.
+     */
+    static void lockByPolicy(MenuItem item) {
+        item.setDisable(true);
+        ActionIds.markPolicyLocked(item);
+    }
+
     private Menu createFileMenu() {
         Menu fileMenu = new Menu(I18n.get("menu.file"));
 
-        MenuItem newTab = new MenuItem(I18n.get("menu.file.newTab"));
+        MenuItem newTab = menuItem("menu.file.newTab");
         newTab.setAccelerator(new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN));
         newTab.setOnAction(e -> showQuickConnect());
 
         // No shortcut: F2 and the other free keys belong to the program in the terminal.
-        MenuItem renameTab = new MenuItem(I18n.get("menu.file.renameTab"));
+        MenuItem renameTab = menuItem("menu.file.renameTab");
         renameTab.setOnAction(e -> {
             if (tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab terminalTab) {
                 promptRenameTab(terminalTab);
             }
         });
 
-        MenuItem closeTab = new MenuItem(I18n.get("menu.file.closeTab"));
+        MenuItem closeTab = menuItem("menu.file.closeTab");
         closeTab.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN));
         closeTab.setOnAction(e -> closeCurrentTab());
         ClosedWindowMenuRouter.ownWindowOnly(closeTab);
 
         // Both act around the selected tab of any kind; no shortcut either.
-        MenuItem closeOthers = new MenuItem(I18n.get("menu.file.closeOtherTabs"));
+        MenuItem closeOthers = menuItem("menu.file.closeOtherTabs");
         closeOthers.setOnAction(e -> closeOtherTabs(tabPane.getSelectionModel().getSelectedItem()));
         ClosedWindowMenuRouter.ownWindowOnly(closeOthers);
 
-        MenuItem closeToRight = new MenuItem(I18n.get("menu.file.closeTabsToRight"));
+        MenuItem closeToRight = menuItem("menu.file.closeTabsToRight");
         closeToRight.setOnAction(e -> closeTabsToTheRight(tabPane.getSelectionModel().getSelectedItem()));
         ClosedWindowMenuRouter.ownWindowOnly(closeToRight);
 
-        MenuItem closeAllTabs = new MenuItem(I18n.get("menu.file.closeAllTabs"));
+        MenuItem closeAllTabs = menuItem("menu.file.closeAllTabs");
         closeAllTabs.setOnAction(e -> confirmAndCloseAllTabs());
         ClosedWindowMenuRouter.ownWindowOnly(closeAllTabs);
 
-        MenuItem reopenClosedTab = new MenuItem(I18n.get("menu.file.reopenClosedTab"));
+        MenuItem reopenClosedTab = menuItem("menu.file.reopenClosedTab");
         // Shown here; the scene shortcut router handles the key, also while a terminal has the focus.
         reopenClosedTab.setAccelerator(REOPEN_CLOSED_TAB_ACCELERATOR);
         reopenClosedTab.setOnAction(e -> reopenClosedTab());
         reopenClosedTabMenuItems.add(reopenClosedTab);
 
-        // Rebuilt from the application-wide history whenever it changes (syncRecentlyClosedMenus).
-        Menu recentlyClosed = new Menu(I18n.get("menu.file.recentlyClosed"));
+        // Rebuilt from the application-wide history whenever it changes (syncRecentlyClosedMenus), so it
+        // stays out of the action harvest, where its entries would go stale.
+        Menu recentlyClosed = ActionIds.exclude(new Menu(I18n.get("menu.file.recentlyClosed")));
         recentlyClosedMenus.add(recentlyClosed);
 
-        MenuItem newWindow = new MenuItem(I18n.get("menu.file.newWindow"));
+        MenuItem newWindow = menuItem("menu.file.newWindow");
         newWindow.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         newWindow.setOnAction(e -> openNewWindow());
         ClosedWindowMenuRouter.noWindowNeeded(newWindow);
 
-        MenuItem closeWindow = new MenuItem(I18n.get("menu.file.closeWindow"));
+        MenuItem closeWindow = menuItem("menu.file.closeWindow");
         closeWindow.setAccelerator(new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         closeWindow.setOnAction(e -> fireCloseRequest());
         ClosedWindowMenuRouter.ownWindowOnly(closeWindow);
 
-        MenuItem openProject = new MenuItem(I18n.get("menu.file.openProject"));
+        MenuItem openProject = menuItem("menu.file.openProject");
         openProject.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
         openProject.setOnAction(e -> openProject());
 
-        MenuItem saveProject = new MenuItem(I18n.get("menu.file.saveProject"));
+        MenuItem saveProject = menuItem("menu.file.saveProject");
         saveProject.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
         saveProject.setOnAction(e -> saveProject());
 
-        MenuItem createBackup = new MenuItem(I18n.get("menu.edit.createBackup"));
+        MenuItem createBackup = menuItem("menu.edit.createBackup");
         createBackup.setAccelerator(new KeyCodeCombination(KeyCode.B, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         createBackup.setOnAction(e -> createBackup());
 
-        MenuItem importBackup = new MenuItem(I18n.get("menu.edit.importBackup"));
+        MenuItem importBackup = menuItem("menu.edit.importBackup");
         importBackup.setOnAction(e -> importBackup());
 
-        MenuItem quit = new MenuItem(I18n.get("menu.file.quit"));
+        MenuItem quit = menuItem("menu.file.quit");
         quit.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCombination.SHORTCUT_DOWN));
         quit.setOnAction(e -> requestApplicationQuit());
         ClosedWindowMenuRouter.noWindowNeeded(quit);
@@ -1529,7 +1556,7 @@ public class MainWindow {
     private Menu createEditMenu(MenuBarTarget target) {
         Menu editMenu = new Menu(I18n.get("menu.edit"));
 
-        MenuItem cut = new MenuItem(I18n.get("menu.edit.cut"));
+        MenuItem cut = menuItem("menu.edit.cut");
         cut.setAccelerator(new KeyCodeCombination(KeyCode.X, KeyCombination.SHORTCUT_DOWN));
         cut.setOnAction(e -> cutFromCurrentContext());
         ClosedWindowMenuRouter.ownWindowOnly(cut);
@@ -1540,21 +1567,21 @@ public class MainWindow {
         }
         updateEditMenuItemsForSelection();
 
-        MenuItem copy = new MenuItem(I18n.get("menu.edit.copy"));
+        MenuItem copy = menuItem("menu.edit.copy");
         copy.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
         copy.setOnAction(e -> copyFromTerminal());
         ClosedWindowMenuRouter.ownWindowOnly(copy);
 
-        MenuItem paste = new MenuItem(I18n.get("menu.edit.paste"));
+        MenuItem paste = menuItem("menu.edit.paste");
         paste.setAccelerator(PASTE_ACCELERATOR);
         paste.setOnAction(e -> pasteToTerminal());
         ClosedWindowMenuRouter.ownWindowOnly(paste);
 
-        MenuItem find = new MenuItem(I18n.get("menu.edit.find"));
+        MenuItem find = menuItem("menu.edit.find");
         find.setAccelerator(new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN));
         find.setOnAction(e -> findInCurrentTab());
 
-        MenuItem quickSelect = new MenuItem(I18n.get("menu.edit.quickSelect"));
+        MenuItem quickSelect = menuItem("menu.edit.quickSelect");
         quickSelect.setAccelerator(QUICK_SELECT_ACCELERATOR);
         quickSelect.setOnAction(e -> quickSelectInCurrentTab());
         if (target == MenuBarTarget.WINDOW) {
@@ -1571,21 +1598,21 @@ public class MainWindow {
     private Menu createConnectionsMenu() {
         Menu connectionsMenu = new Menu(I18n.get("menu.connections"));
 
-        MenuItem quickConnect = new MenuItem(I18n.get("menu.connections.quickConnect"));
+        MenuItem quickConnect = menuItem("menu.connections.quickConnect");
         quickConnect.setAccelerator(new KeyCodeCombination(KeyCode.K, KeyCombination.SHORTCUT_DOWN));
         quickConnect.setOnAction(e -> showQuickConnect());
 
-        MenuItem manageConnections = new MenuItem(I18n.get("menu.connections.manage"));
+        MenuItem manageConnections = menuItem("menu.connections.manage");
         manageConnections.setAccelerator(new KeyCodeCombination(KeyCode.M, KeyCombination.SHORTCUT_DOWN));
         manageConnections.setOnAction(e -> showConnectionManager());
 
-        MenuItem importConnections = new MenuItem(I18n.get("menu.connections.import"));
+        MenuItem importConnections = menuItem("menu.connections.import");
         importConnections.setOnAction(e -> importConnections());
 
-        MenuItem exportConnections = new MenuItem(I18n.get("menu.connections.export"));
+        MenuItem exportConnections = menuItem("menu.connections.export");
         exportConnections.setOnAction(e -> exportConnections());
 
-        MenuItem sftpClient = new MenuItem(I18n.get("menu.connections.sftpClient"));
+        MenuItem sftpClient = menuItem("menu.connections.sftpClient");
         sftpClient.setAccelerator(new KeyCodeCombination(KeyCode.U, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         sftpClient.setOnAction(e -> showSFTPManager());
 
@@ -1601,36 +1628,37 @@ public class MainWindow {
         Menu securityMenu = new Menu(I18n.get("menu.security"));
 
         // Enabled only while a master password exists but was not entered this session.
-        MenuItem unlockVault = new MenuItem(I18n.get("menu.security.unlockVault"));
+        MenuItem unlockVault = menuItem("menu.security.unlockVault");
         unlockVault.setOnAction(e -> unlockVaultFromMenu());
         unlockVaultMenuItems.add(unlockVault);
         securityMenu.setOnShowing(e -> syncUnlockVaultMenuItems());
         syncUnlockVaultMenuItems();
 
-        MenuItem manageCredentials = new MenuItem(I18n.get("menu.security.credentials"));
+        MenuItem manageCredentials = menuItem("menu.security.credentials");
         // Shown here; the scene shortcut router handles the key, also while a terminal has the focus.
         manageCredentials.setAccelerator(CREDENTIALS_ACCELERATOR);
         manageCredentials.setOnAction(e -> showCredentialManagement());
 
-        MenuItem manageGPGKeys = new MenuItem(I18n.get("menu.security.gpgKeys"));
+        MenuItem manageGPGKeys = menuItem("menu.security.gpgKeys");
         manageGPGKeys.setAccelerator(new KeyCodeCombination(KeyCode.G, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         manageGPGKeys.setOnAction(e -> showGPGKeyManagement());
 
-        MenuItem manageSSHKeys = new MenuItem(I18n.get("menu.security.sshKeys"));
+        MenuItem manageSSHKeys = menuItem("menu.security.sshKeys");
         manageSSHKeys.setAccelerator(new KeyCodeCombination(KeyCode.I, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         manageSSHKeys.setOnAction(e -> showSSHKeyManagement());
 
-        MenuItem knownHosts = new MenuItem(I18n.get("menu.security.knownHosts"));
+        MenuItem knownHosts = menuItem("menu.security.knownHosts");
         knownHosts.setOnAction(e -> showKnownHosts());
 
         securityMenu.getItems().addAll(unlockVault, new SeparatorMenuItem(),
             manageCredentials, manageGPGKeys, manageSSHKeys, knownHosts);
 
-        MenuItem settings = new MenuItem(I18n.get("menu.settings.global"));
+        MenuItem settings = menuItem("menu.settings.global");
         settings.setAccelerator(new KeyCodeCombination(KeyCode.COMMA, KeyCombination.SHORTCUT_DOWN));
         settings.setOnAction(e -> showSettings());
 
-        CheckMenuItem preventSleep = new CheckMenuItem();
+        // The label says whether this system supports it (syncPreventSleepMenuItems), so the id is given here.
+        CheckMenuItem preventSleep = ActionIds.tag(new CheckMenuItem(), "menu.configuration.preventSleep");
         preventSleep.setOnAction(e -> setManualSleepPrevention(preventSleep.isSelected()));
         ClosedWindowMenuRouter.noWindowNeeded(preventSleep);
         preventSleepMenuItems.add(preventSleep);
@@ -1731,41 +1759,41 @@ public class MainWindow {
     private Menu createToolsMenu() {
         Menu toolsMenu = new Menu(I18n.get("menu.tools"));
 
-        MenuItem snippetManager = new MenuItem(I18n.get("menu.tools.snippets"));
+        MenuItem snippetManager = menuItem("menu.tools.snippets");
         snippetManager.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         snippetManager.setOnAction(e -> showSnippetManager());
 
-        MenuItem jobScheduler = new MenuItem(I18n.get("menu.tools.jobScheduler"));
+        MenuItem jobScheduler = menuItem("menu.tools.jobScheduler");
         jobScheduler.setAccelerator(JOB_SCHEDULER_ACCELERATOR);
         jobScheduler.setOnAction(e -> showJobScheduler());
 
-        MenuItem videoManager = new MenuItem(I18n.get("menu.tools.videoManager"));
+        MenuItem videoManager = menuItem("menu.tools.videoManager");
         videoManager.setAccelerator(VIDEO_MANAGER_ACCELERATOR);
         videoManager.setOnAction(e -> showTerminalRecordingManager());
 
-        MenuItem toggleRecording = new MenuItem(I18n.get("menu.tools.toggleRecording"));
+        MenuItem toggleRecording = menuItem("menu.tools.toggleRecording");
         toggleRecording.setAccelerator(RECORDING_TOGGLE_ACCELERATOR);
         toggleRecording.setOnAction(e -> toggleTerminalRecording());
 
-        MenuItem sessionJournals = new MenuItem(I18n.get("menu.tools.sessionJournals"));
+        MenuItem sessionJournals = menuItem("menu.tools.sessionJournals");
         sessionJournals.setAccelerator(SESSION_JOURNAL_MANAGER_ACCELERATOR);
         sessionJournals.setOnAction(e -> showSessionJournalManager());
 
-        MenuItem toggleSessionJournal = new MenuItem(I18n.get("menu.tools.toggleSessionJournal"));
+        MenuItem toggleSessionJournal = menuItem("menu.tools.toggleSessionJournal");
         toggleSessionJournal.setAccelerator(SESSION_JOURNAL_TOGGLE_ACCELERATOR);
         toggleSessionJournal.setOnAction(e -> toggleSessionJournal());
 
-        MenuItem journalScreenshot = new MenuItem(I18n.get("menu.tools.journalScreenshot"));
+        MenuItem journalScreenshot = menuItem("menu.tools.journalScreenshot");
         journalScreenshot.setAccelerator(SESSION_JOURNAL_SCREENSHOT_ACCELERATOR);
         journalScreenshot.setOnAction(e -> takeSessionJournalScreenshot());
 
         if (!de.kortty.policy.PolicyManager.effective().sessionJournalAllowed()) {
-            sessionJournals.setDisable(true);
-            toggleSessionJournal.setDisable(true);
-            journalScreenshot.setDisable(true);
+            lockByPolicy(sessionJournals);
+            lockByPolicy(toggleSessionJournal);
+            lockByPolicy(journalScreenshot);
         }
 
-        MenuItem asciiArt = new MenuItem(I18n.get("menu.tools.asciiArt"));
+        MenuItem asciiArt = menuItem("menu.tools.asciiArt");
         asciiArt.setAccelerator(new KeyCodeCombination(KeyCode.A, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         asciiArt.setOnAction(e -> showAsciiArtBanner());
 
@@ -1788,22 +1816,22 @@ public class MainWindow {
     private Menu createAiMenu() {
         Menu aiMenu = new Menu(I18n.get("menu.ai"));
 
-        MenuItem aiManager = new MenuItem(I18n.get("menu.tools.aiManager"));
+        MenuItem aiManager = menuItem("menu.tools.aiManager");
         aiManager.setAccelerator(new KeyCodeCombination(KeyCode.Y, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         aiManager.setOnAction(e -> showAiManager());
 
-        MenuItem savedChats = new MenuItem(I18n.get("menu.tools.savedChats"));
+        MenuItem savedChats = menuItem("menu.tools.savedChats");
         savedChats.setOnAction(e -> showSavedChats());
 
-        MenuItem aiAgent = new MenuItem(I18n.get("menu.tools.aiAgent"));
+        MenuItem aiAgent = menuItem("menu.tools.aiAgent");
         aiAgent.setAccelerator(AI_AGENT_ACCELERATOR);
         aiAgent.setOnAction(e -> showAiAgent());
 
-        MenuItem aiPlanning = new MenuItem(I18n.get("menu.tools.aiPlanning"));
+        MenuItem aiPlanning = menuItem("menu.tools.aiPlanning");
         aiPlanning.setAccelerator(AI_PLANNING_ACCELERATOR);
         aiPlanning.setOnAction(e -> showAiPlanning());
 
-        MenuItem aiSwarm = new MenuItem(I18n.get("menu.tools.aiSwarm"));
+        MenuItem aiSwarm = menuItem("menu.tools.aiSwarm");
         // Shortcut+Alt+S — Shortcut+Shift+S is taken by the Snippet-Manager
         aiSwarm.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN));
         aiSwarm.setOnAction(e -> showAiSwarm());
@@ -1815,23 +1843,23 @@ public class MainWindow {
         if (policy.aiChatAllowed()) {
             toolsAiMenuItems.add(savedChats);
         } else {
-            savedChats.setDisable(true);
+            lockByPolicy(savedChats);
         }
         if (policy.aiAgentAllowed()) {
             toolsAiMenuItems.add(aiAgent);
             toolsAiAgentExecutionMenuItems.add(aiAgent);
         } else {
-            aiAgent.setDisable(true);
+            lockByPolicy(aiAgent);
         }
         if (policy.aiPlanningAllowed()) {
             toolsAiMenuItems.add(aiPlanning);
         } else {
-            aiPlanning.setDisable(true);
+            lockByPolicy(aiPlanning);
         }
         if (policy.aiSwarmAllowed()) {
             toolsAiMenuItems.add(aiSwarm);
         } else {
-            aiSwarm.setDisable(true);
+            lockByPolicy(aiSwarm);
         }
 
         aiMenu.getItems().addAll(aiManager, savedChats, aiAgent, aiPlanning, aiSwarm);
@@ -1841,10 +1869,10 @@ public class MainWindow {
     private Menu createTeamworkMenu() {
         Menu teamworkMenu = new Menu(I18n.get("menu.teamwork"));
 
-        MenuItem teamworkSettings = new MenuItem(I18n.get("menu.teamwork.settings"));
+        MenuItem teamworkSettings = menuItem("menu.teamwork.settings");
         teamworkSettings.setOnAction(e -> showTeamworkSettings());
         if (!de.kortty.policy.PolicyManager.effective().teamworkAllowed()) {
-            teamworkSettings.setDisable(true);
+            lockByPolicy(teamworkSettings);
         }
 
         teamworkMenu.getItems().add(teamworkSettings);
@@ -1853,17 +1881,18 @@ public class MainWindow {
 
     private Menu createPluginsMenu() {
         Menu pluginsMenu = new Menu(I18n.get("menu.plugins"));
-        MenuItem terminalEffects = new MenuItem(I18n.get("menu.plugins.terminalEffects"));
+        MenuItem terminalEffects = menuItem("menu.plugins.terminalEffects");
         terminalEffects.setOnAction(event -> showTerminalEffectPluginManager());
         if (!de.kortty.policy.PolicyManager.effective().pluginsAllowed()) {
-            terminalEffects.setDisable(true);
+            lockByPolicy(terminalEffects);
         }
         pluginsMenu.getItems().add(terminalEffects);
         return pluginsMenu;
     }
 
     private Menu createJobSchedulerStatusMenu(MenuBarTarget target) {
-        Menu jobsMenu = new Menu(I18n.get("jobscheduler.menu.noJobs"));
+        // Filled each time it opens (rebuildJobSchedulerStatusMenuItems), so it stays out of the action harvest.
+        Menu jobsMenu = ActionIds.exclude(new Menu(I18n.get("jobscheduler.menu.noJobs")));
         if (target == MenuBarTarget.WINDOW) {
             jobSchedulerStatusMenu = jobsMenu;
             Label label = new Label(I18n.get("jobscheduler.menu.noJobs"));
@@ -1895,7 +1924,7 @@ public class MainWindow {
         Menu viewMenu = new Menu(I18n.get("menu.view"));
         boolean restoreDashboard = shouldRestoreDashboardOnStartup();
 
-        CheckMenuItem dashboardItem = new CheckMenuItem(I18n.get("menu.view.dashboard"));
+        CheckMenuItem dashboardItem = checkMenuItem("menu.view.dashboard");
         dashboardItem.setAccelerator(new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         dashboardItem.setSelected(restoreDashboard);
         dashboardItem.setOnAction(e -> toggleDashboard(dashboardItem.isSelected()));
@@ -1905,7 +1934,7 @@ public class MainWindow {
             systemShowDashboardMenuItem = dashboardItem;
         }
 
-        CheckMenuItem timestampsItem = new CheckMenuItem(I18n.get("menu.view.timestamps"));
+        CheckMenuItem timestampsItem = checkMenuItem("menu.view.timestamps");
         timestampsItem.setAccelerator(new KeyCodeCombination(KeyCode.T, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         timestampsItem.setOnAction(e -> toggleTimestampsInCurrentTab(timestampsItem));
         if (target == MenuBarTarget.WINDOW) {
@@ -1914,7 +1943,7 @@ public class MainWindow {
             systemShowTimestampsMenuItem = timestampsItem;
         }
 
-        CheckMenuItem menuBarItem = new CheckMenuItem(I18n.get("menu.view.menuBar"));
+        CheckMenuItem menuBarItem = checkMenuItem("menu.view.menuBar");
         menuBarItem.setAccelerator(MENU_BAR_TOGGLE_ACCELERATOR);
         menuBarItem.setSelected(menuBar == null || menuBar.isVisible());
         menuBarItem.setOnAction(e -> toggleMenuBarVisibility(menuBarItem.isSelected()));
@@ -1926,7 +1955,7 @@ public class MainWindow {
 
         // File Browser submenu
         Menu fileBrowserMenu = new Menu(I18n.get("menu.view.fileBrowser"));
-        CheckMenuItem fileBrowserLeftItem = new CheckMenuItem(I18n.get("menu.view.fileBrowser.left"));
+        CheckMenuItem fileBrowserLeftItem = checkMenuItem("menu.view.fileBrowser.left");
         // Not Shift+B: that is the File menu's "Create Backup...", which is registered first and
         // would swallow this accelerator (JavaFX keeps only the first match per scene).
         fileBrowserLeftItem.setAccelerator(new KeyCodeCombination(KeyCode.K, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
@@ -1937,7 +1966,7 @@ public class MainWindow {
                 fileBrowserManager.hide();
             }
         });
-        CheckMenuItem fileBrowserRightItem = new CheckMenuItem(I18n.get("menu.view.fileBrowser.right"));
+        CheckMenuItem fileBrowserRightItem = checkMenuItem("menu.view.fileBrowser.right");
         fileBrowserRightItem.setAccelerator(new KeyCodeCombination(KeyCode.R, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         fileBrowserRightItem.setOnAction(e -> {
             if (fileBrowserRightItem.isSelected()) {
@@ -1958,18 +1987,18 @@ public class MainWindow {
 
         // AI Agent Panel placement: at the bottom of the terminal split (default), or docked left/right.
         Menu aiAgentPanelMenu = new Menu(I18n.get("menu.view.aiAgentPanel"));
-        CheckMenuItem aiAgentBottomItem = new CheckMenuItem(I18n.get("menu.view.aiAgentPanel.bottom"));
+        CheckMenuItem aiAgentBottomItem = checkMenuItem("menu.view.aiAgentPanel.bottom");
         aiAgentBottomItem.setSelected(true);
         aiAgentBottomItem.setOnAction(e -> {
             setAiAgentPlacement(AiAgentPanelDockManager.Placement.BOTTOM);
             syncAiAgentMenuItems(aiAgentDockManager.getPlacement());
         });
-        CheckMenuItem aiAgentLeftItem = new CheckMenuItem(I18n.get("menu.view.aiAgentPanel.left"));
+        CheckMenuItem aiAgentLeftItem = checkMenuItem("menu.view.aiAgentPanel.left");
         aiAgentLeftItem.setOnAction(e -> {
             setAiAgentPlacement(AiAgentPanelDockManager.Placement.LEFT);
             syncAiAgentMenuItems(aiAgentDockManager.getPlacement());
         });
-        CheckMenuItem aiAgentRightItem = new CheckMenuItem(I18n.get("menu.view.aiAgentPanel.right"));
+        CheckMenuItem aiAgentRightItem = checkMenuItem("menu.view.aiAgentPanel.right");
         aiAgentRightItem.setOnAction(e -> {
             setAiAgentPlacement(AiAgentPanelDockManager.Placement.RIGHT);
             syncAiAgentMenuItems(aiAgentDockManager.getPlacement());
@@ -1987,13 +2016,13 @@ public class MainWindow {
 
         // Live journal panel: hidden by default, dockable left/right beside the terminal tabs.
         Menu journalLivePanelMenu = new Menu(I18n.get("menu.view.journalPanel"));
-        CheckMenuItem journalLiveLeftItem = new CheckMenuItem(I18n.get("menu.view.journalPanel.left"));
+        CheckMenuItem journalLiveLeftItem = checkMenuItem("menu.view.journalPanel.left");
         journalLiveLeftItem.setOnAction(e ->
             setJournalLivePanelPlacement(SessionJournalLivePanelDockManager.Placement.LEFT));
-        CheckMenuItem journalLiveRightItem = new CheckMenuItem(I18n.get("menu.view.journalPanel.right"));
+        CheckMenuItem journalLiveRightItem = checkMenuItem("menu.view.journalPanel.right");
         journalLiveRightItem.setOnAction(e ->
             setJournalLivePanelPlacement(SessionJournalLivePanelDockManager.Placement.RIGHT));
-        MenuItem journalLiveToggleItem = new MenuItem(I18n.get("menu.view.journalPanel.toggle"));
+        MenuItem journalLiveToggleItem = menuItem("menu.view.journalPanel.toggle");
         // Cmd/Ctrl+Alt+L: free next to the journal family (Alt+J/T/C) and the file browser (Shift+K/R).
         journalLiveToggleItem.setAccelerator(
             new KeyCodeCombination(KeyCode.L, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN));
@@ -2011,14 +2040,14 @@ public class MainWindow {
         // Coding Agents panel: hidden by default, dockable left/right beside the terminal tabs, plus
         // the cross-window "next blocked agent" jump.
         Menu codingAgentPanelMenu = new Menu(I18n.get("menu.codingAgent.panel"));
-        CheckMenuItem codingAgentLeftItem = new CheckMenuItem(I18n.get("menu.codingAgent.panel.left"));
+        CheckMenuItem codingAgentLeftItem = checkMenuItem("menu.codingAgent.panel.left");
         codingAgentLeftItem.setOnAction(e ->
             setCodingAgentPanelPlacement(CodingAgentPanelDockManager.Placement.LEFT));
-        CheckMenuItem codingAgentRightItem = new CheckMenuItem(I18n.get("menu.codingAgent.panel.right"));
+        CheckMenuItem codingAgentRightItem = checkMenuItem("menu.codingAgent.panel.right");
         codingAgentRightItem.setOnAction(e ->
             setCodingAgentPanelPlacement(CodingAgentPanelDockManager.Placement.RIGHT));
-        MenuItem codingAgentToggleItem = new MenuItem(I18n.get("menu.codingAgent.panel.toggle"));
-        MenuItem codingAgentNextBlockedItem = new MenuItem(I18n.get("menu.codingAgent.nextBlocked"));
+        MenuItem codingAgentToggleItem = menuItem("menu.codingAgent.panel.toggle");
+        MenuItem codingAgentNextBlockedItem = menuItem("menu.codingAgent.nextBlocked");
         // Cmd/Ctrl+Alt+G ("aGents") and Cmd/Ctrl+Alt+N ("Next") are free: Shortcut+Alt already binds
         // A (AI agent), C, J, L (journal family), P, S and T; Shortcut+Shift+A/B are ASCII Art and
         // Create Backup, so the Shift chords the feature plan first suggested would be swallowed.
@@ -2038,15 +2067,15 @@ public class MainWindow {
         codingAgentPanelMenu.getItems().addAll(codingAgentLeftItem, codingAgentRightItem,
             new SeparatorMenuItem(), codingAgentToggleItem, codingAgentNextBlockedItem);
 
-        MenuItem zoomIn = new MenuItem(I18n.get("menu.view.zoomIn"));
+        MenuItem zoomIn = menuItem("menu.view.zoomIn");
         zoomIn.setAccelerator(new KeyCodeCombination(KeyCode.PLUS, KeyCombination.ALT_DOWN));
         zoomIn.setOnAction(e -> zoomTerminal(1));
 
-        MenuItem zoomOut = new MenuItem(I18n.get("menu.view.zoomOut"));
+        MenuItem zoomOut = menuItem("menu.view.zoomOut");
         zoomOut.setAccelerator(new KeyCodeCombination(KeyCode.MINUS, KeyCombination.ALT_DOWN));
         zoomOut.setOnAction(e -> zoomTerminal(-1));
 
-        MenuItem resetZoom = new MenuItem(I18n.get("menu.view.resetZoom"));
+        MenuItem resetZoom = menuItem("menu.view.resetZoom");
         resetZoom.setAccelerator(new KeyCodeCombination(KeyCode.DIGIT0, KeyCombination.ALT_DOWN));
         resetZoom.setOnAction(e -> resetTerminalZoom());
 
@@ -2054,12 +2083,13 @@ public class MainWindow {
         // menu bar that contains one, so it is omitted from the SYSTEM menu bar (it stays available
         // in the in-window menu bar and the terminal context menu).
         boolean includeEffectSpeedControl = target != MenuBarTarget.SYSTEM;
-        Menu terminalEffectMenu = createTerminalEffectMenu(null, includeEffectSpeedControl);
+        // Rebuilt each time it opens, for the active tab, so it stays out of the action harvest.
+        Menu terminalEffectMenu = ActionIds.exclude(createTerminalEffectMenu(null, includeEffectSpeedControl));
         terminalEffectMenu.setOnShowing(event ->
                 rebuildTerminalEffectMenu(terminalEffectMenu, getActiveTerminalTab(), includeEffectSpeedControl));
         Menu highlightingMenu = createHighlightingMenu(target);
 
-        MenuItem fullscreen = new MenuItem(I18n.get("menu.view.fullscreen"));
+        MenuItem fullscreen = menuItem("menu.view.fullscreen");
         // F12 lives on the in-window bar; the macOS companion system bar has all accelerators
         // stripped (see setupMenuBar), which also avoids the Cocoa NSEventModifierFlagFunction
         // warning for the F12 function key. F12 also works via the global key handler. F11 is not
@@ -2067,7 +2097,7 @@ public class MainWindow {
         fullscreen.setAccelerator(new KeyCodeCombination(KeyCode.F12));
         fullscreen.setOnAction(e -> stage.setFullScreen(!stage.isFullScreen()));
 
-        CheckMenuItem terminalOnlyFullscreen = new CheckMenuItem(I18n.get("menu.view.terminalOnlyFullscreen"));
+        CheckMenuItem terminalOnlyFullscreen = checkMenuItem("menu.view.terminalOnlyFullscreen");
         terminalOnlyFullscreen.setAccelerator(TERMINAL_ONLY_FULLSCREEN_ACCELERATOR);
         terminalOnlyFullscreen.setSelected(terminalOnlyFullscreenActive);
         terminalOnlyFullscreen.setOnAction(e -> setTerminalOnlyFullscreen(terminalOnlyFullscreen.isSelected()));
@@ -2077,8 +2107,7 @@ public class MainWindow {
             systemTerminalOnlyFullscreenMenuItem = terminalOnlyFullscreen;
         }
 
-        CheckMenuItem hideFullscreenScrollbars =
-            new CheckMenuItem(I18n.get("menu.view.hideTerminalScrollbarsFullscreen"));
+        CheckMenuItem hideFullscreenScrollbars = checkMenuItem("menu.view.hideTerminalScrollbarsFullscreen");
         hideFullscreenScrollbars.setSelected(isHideTerminalScrollbarsInFullscreenPreference());
         hideFullscreenScrollbars.setOnAction(e ->
             setHideTerminalScrollbarsInFullscreen(hideFullscreenScrollbars.isSelected()));
@@ -2431,10 +2460,12 @@ public class MainWindow {
 
     private Menu createHelpMenu() {
         Menu helpMenu = new Menu(I18n.get("menu.help"));
-        MenuItem guide = new MenuItem(I18n.get("menu.help.guide"));
+        MenuItem guide = menuItem("menu.help.guide");
         guide.setAccelerator(new KeyCodeCombination(KeyCode.F1));
         guide.setOnAction(e -> openGuide());
-        MenuItem about = new MenuItem(I18n.get("menu.help.about") + " " + KorTTYApplication.getAppName());
+        // The label names the application, so the id is given here.
+        MenuItem about = ActionIds.tag(
+            new MenuItem(I18n.get("menu.help.about") + " " + KorTTYApplication.getAppName()), "menu.help.about");
         about.setOnAction(e -> showAbout());
         helpMenu.getItems().addAll(guide, new SeparatorMenuItem(), about);
         return helpMenu;

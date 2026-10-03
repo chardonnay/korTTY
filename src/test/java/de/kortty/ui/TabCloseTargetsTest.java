@@ -138,8 +138,8 @@ class TabCloseTargetsTest {
         String window = source("MainWindow.java");
 
         String fileMenu = methodBody(window, "private Menu createFileMenu() {");
-        assertThat(fileMenu).contains("I18n.get(\"menu.file.closeOtherTabs\")");
-        assertThat(fileMenu).contains("I18n.get(\"menu.file.closeTabsToRight\")");
+        assertThat(fileMenu).contains("menuItem(\"menu.file.closeOtherTabs\")");
+        assertThat(fileMenu).contains("menuItem(\"menu.file.closeTabsToRight\")");
         assertThat(fileMenu).contains("closeOtherTabs(tabPane.getSelectionModel().getSelectedItem())");
         assertThat(fileMenu).contains("closeTabsToTheRight(tabPane.getSelectionModel().getSelectedItem())");
         String fileShowing = fileMenu.substring(fileMenu.indexOf("fileMenu.setOnShowing("));
